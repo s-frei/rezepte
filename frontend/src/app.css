@@ -1,0 +1,144 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/literata';
+@import '@fontsource/karla/400.css';
+@import '@fontsource/karla/500.css';
+@import '@fontsource/karla/600.css';
+@import '@fontsource/karla/700.css';
+/* Rezepte – Design Tokens (Tailwind CSS v4) */
+
+@theme {
+	--font-display: 'Literata', Georgia, serif;
+	--font-sans: 'Karla', system-ui, sans-serif;
+
+	--color-background: #f4ede2;
+	--color-surface: #fdf9f2;
+	--color-surface-elevated: #ffffff;
+	--color-border: #e3d7c3;
+	--color-text: #2b2118;
+	--color-text-muted: #7d6d5c;
+	--color-primary: #b45309;
+	--color-primary-foreground: #ffffff;
+	--color-accent: #f0dfc4;
+	--color-accent-foreground: #7c3d0a;
+	--color-destructive: #a3321f;
+	--color-destructive-foreground: #ffffff;
+	--color-destructive-soft: #f9e3dd;
+	--color-success: #7fb069;
+	--color-inverse: #2b2118;
+	--color-inverse-foreground: #ffffff;
+	--color-inverse-muted: #c9b9a3;
+	--color-skeleton: #eadfcd;
+	--color-handle: #c9b9a3;
+	--color-tint-1: #f0dfc4;
+	--color-tint-2: #e6e3cf;
+	--color-tint-3: #efd9cf;
+	--color-lightbox: #120e0b;
+
+	--radius-sm: 10px;
+	--radius-md: 12px;
+	--radius-lg: 14px;
+	--radius-xl: 18px;
+	--radius-2xl: 20px;
+	--radius-3xl: 24px;
+	--radius-pill: 9999px;
+
+	--shadow-card: 0 1px 2px rgb(80 50 20 / 0.06), 0 8px 24px -12px rgb(80 50 20 / 0.18);
+	--shadow-cover: 0 12px 32px -16px rgb(80 50 20 / 0.3);
+	--shadow-dialog: 0 24px 60px -24px rgb(80 50 20 / 0.4);
+	--shadow-sheet: 0 -12px 40px -20px rgb(80 50 20 / 0.4);
+	--shadow-cta: 0 8px 20px -8px rgb(180 83 9 / 0.5);
+
+	--text-label: 11px;
+	--text-label--line-height: 1.2;
+	--text-label--letter-spacing: 0.08em;
+	--text-micro: 12px;
+	--text-caption: 13px;
+	--text-body-sm: 14px;
+	--text-body: 15px;
+	--text-body--line-height: 1.5;
+	--text-body-lg: 17px;
+	--text-body-lg--line-height: 1.55;
+	--text-card: 19px;
+	--text-card--line-height: 1.2;
+	--text-heading: 22px;
+	--text-heading--line-height: 1.2;
+	--text-heading-lg: 24px;
+	--text-display-sm: 30px;
+	--text-display-sm--line-height: 1.1;
+	--text-display-md: 34px;
+	--text-display-md--line-height: 1.08;
+	--text-display-lg: 40px;
+	--text-display-lg--line-height: 1.1;
+	--text-display-xl: 52px;
+	--text-display-xl--line-height: 1.05;
+	--text-display-xl--letter-spacing: -0.01em;
+}
+
+/* Dark theme: <html data-theme="dark"> or system preference via data-theme="system" */
+[data-theme='dark'],
+:root:has([data-theme='system']) {
+	color-scheme: dark;
+}
+
+[data-theme='dark'] {
+	--color-background: #1c1612;
+	--color-surface: #26201a;
+	--color-surface-elevated: #2f2822;
+	--color-border: #3b322a;
+	--color-text: #f3ebe0;
+	--color-text-muted: #a8998a;
+	--color-primary: #d97a2b;
+	--color-primary-foreground: #1c1612;
+	--color-accent: #3f2f1e;
+	--color-accent-foreground: #f0c391;
+	--color-destructive: #e5674f;
+	--color-destructive-foreground: #1c1612;
+	--color-destructive-soft: #3d2320;
+	--color-inverse: #f3ebe0;
+	--color-inverse-foreground: #1c1612;
+	--color-inverse-muted: #7a6c5e;
+	--color-skeleton: #2f2822;
+	--color-handle: #5a4d40;
+	--color-tint-1: #3f2f1e;
+	--color-tint-2: #33301f;
+	--color-tint-3: #3d2a22;
+	--shadow-card: none;
+	--shadow-cover: none;
+	--shadow-cta: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	[data-theme='system'] {
+		--color-background: #1c1612;
+		--color-surface: #26201a;
+		--color-surface-elevated: #2f2822;
+		--color-border: #3b322a;
+		--color-text: #f3ebe0;
+		--color-text-muted: #a8998a;
+		--color-primary: #d97a2b;
+		--color-primary-foreground: #1c1612;
+		--color-accent: #3f2f1e;
+		--color-accent-foreground: #f0c391;
+		--color-destructive: #e5674f;
+		--color-destructive-foreground: #1c1612;
+		--color-destructive-soft: #3d2320;
+		--color-inverse: #f3ebe0;
+		--color-inverse-foreground: #1c1612;
+		--color-inverse-muted: #7a6c5e;
+		--color-skeleton: #2f2822;
+		--color-handle: #5a4d40;
+		--color-tint-1: #3f2f1e;
+		--color-tint-2: #33301f;
+		--color-tint-3: #3d2a22;
+		--shadow-card: none;
+		--shadow-cover: none;
+		--shadow-cta: none;
+	}
+}
+
+body {
+	background: var(--color-background);
+	color: var(--color-text);
+	font-family: var(--font-sans);
+	font-variant-numeric: tabular-nums;
+}

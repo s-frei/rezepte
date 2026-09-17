@@ -1,0 +1,15 @@
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+# Miscellaneous
+/static/
+
+# inlang project state; generated, see project.inlang/.gitignore
+/project.inlang/cache/
+/project.inlang/.lix/
+/project.inlang/.meta.json
+/project.inlang/README.md
