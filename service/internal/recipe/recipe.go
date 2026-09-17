@@ -1,0 +1,69 @@
+// Package recipe manages recipes: creation, editing, deletion and lookup,
+// including tag normalisation, slug assignment and full-text search
+// indexing.
+package recipe
+
+import (
+	"errors"
+	"time"
+)
+
+// ErrNotFound is returned when a recipe id or slug has no match.
+var ErrNotFound = errors.New("recipe not found")
+
+// Ingredient is a single ingredient line within an IngredientGroup.
+type Ingredient struct {
+	Quantity *float64 `json:"quantity" minimum:"0" nullable:"true"`
+	Unit     *string  `json:"unit" maxLength:"20" nullable:"true"`
+	Name     string   `json:"name" minLength:"1" maxLength:"120"`
+	Note     *string  `json:"note" maxLength:"200" nullable:"true"`
+}
+
+// IngredientGroup is a named (or unnamed) group of ingredients, used to
+// split a recipe's shopping list into sections such as "Sauce" or "Teig".
+type IngredientGroup struct {
+	Name        *string      `json:"name" maxLength:"60" nullable:"true"`
+	Ingredients []Ingredient `json:"ingredients" maxItems:"100"`
+}
+
+// Input is the recipe payload accepted by Service.Create and Service.Update.
+type Input struct {
+	Title            string            `json:"title" minLength:"1" maxLength:"200"`
+	Description      string            `json:"description" maxLength:"2000"`
+	Servings         int               `json:"servings" minimum:"1" maximum:"99"`
+	PrepMinutes      *int              `json:"prepMinutes" minimum:"0" maximum:"1440" nullable:"true"`
+	CookMinutes      *int              `json:"cookMinutes" minimum:"0" maximum:"1440" nullable:"true"`
+	SourceURL        *string           `json:"sourceUrl" maxLength:"500" format:"uri" nullable:"true"`
+	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40"`
+	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20"`
+	Steps            []string          `json:"steps" maxItems:"50" minLength:"1" maxLength:"2000"`
+}
+
+// Recipe is a stored recipe: an Input plus the fields the service assigns.
+type Recipe struct {
+	ID   string `json:"id"`
+	Slug string `json:"slug"`
+	Input
+	CoverImageID *string    `json:"coverImageId" nullable:"true"`
+	Images       []struct{} `json:"images"`
+	CreatedBy    string     `json:"createdBy"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+}
+
+// Card is the summary of a recipe shown in listings.
+type Card struct {
+	ID           string    `json:"id"`
+	Slug         string    `json:"slug"`
+	Title        string    `json:"title"`
+	Tags         []string  `json:"tags"`
+	TotalMinutes *int      `json:"totalMinutes" nullable:"true"`
+	CoverImageID *string   `json:"coverImageId" nullable:"true"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// TagCount is a tag name paired with how many recipes currently use it.
+type TagCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}

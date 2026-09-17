@@ -1,0 +1,445 @@
+[
+  {
+    "title": "Königsberger Klopse",
+    "description": "Klassische ostpreußische Fleischklopse in einer cremigen Sauce mit Kapern und Zitrone.",
+    "servings": 4,
+    "prepMinutes": 30,
+    "cookMinutes": 30,
+    "sourceUrl": null,
+    "tags": ["klassiker", "fleisch"],
+    "ingredientGroups": [
+      {
+        "name": "Klopse",
+        "ingredients": [
+          { "quantity": 500, "unit": "g", "name": "Rinderhackfleisch", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Toastbrot", "note": "eingeweicht, ausgedrückt" },
+          { "quantity": 1, "unit": "EL", "name": "Senf", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null }
+        ]
+      },
+      {
+        "name": "Kapernsauce",
+        "ingredients": [
+          { "quantity": 30, "unit": "g", "name": "Butter", "note": null },
+          { "quantity": 30, "unit": "g", "name": "Mehl", "note": null },
+          { "quantity": 500, "unit": "ml", "name": "Rinderbrühe", "note": null },
+          { "quantity": 100, "unit": "ml", "name": "Sahne", "note": null },
+          { "quantity": 3, "unit": "EL", "name": "Kapern", "note": null },
+          { "quantity": 1, "unit": "EL", "name": "Zitronensaft", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Zwiebel fein würfeln und mit Hackfleisch, Ei, ausgedrücktem Toastbrot, Senf, Salz und Pfeffer vermengen.",
+      "Aus der Masse mit angefeuchteten Händen Klopse formen.",
+      "Brühe in einem großen Topf erhitzen und die Klopse darin 15 Minuten gar ziehen lassen.",
+      "Klopse herausnehmen und die Brühe für die Sauce beiseitestellen.",
+      "Butter schmelzen, Mehl einrühren und mit der Brühe unter Rühren zu einer Sauce aufkochen.",
+      "Sahne, Kapern und Zitronensaft einrühren, mit Salz abschmecken und die Klopse darin erwärmen."
+    ]
+  },
+  {
+    "title": "Rinderrouladen",
+    "description": "Rinderrouladen mit Senf, Speck und Gewürzgurken gefüllt und in dunkler Sauce geschmort.",
+    "servings": 4,
+    "prepMinutes": 30,
+    "cookMinutes": 100,
+    "sourceUrl": null,
+    "tags": ["klassiker", "fleisch", "schmoren"],
+    "ingredientGroups": [
+      {
+        "name": "Rouladen",
+        "ingredients": [
+          { "quantity": 4, "unit": "Stück", "name": "Rinderrouladen", "note": null },
+          { "quantity": 4, "unit": "TL", "name": "Senf", "note": null },
+          { "quantity": 4, "unit": "Stück", "name": "Speck", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Gewürzgurken", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null }
+        ]
+      },
+      {
+        "name": "Sauce",
+        "ingredients": [
+          { "quantity": 2, "unit": "EL", "name": "Tomatenmark", "note": null },
+          { "quantity": 500, "unit": "ml", "name": "Rinderbrühe", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Möhre", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Mehl", "note": "zum Andicken" },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Rouladen flach auslegen, mit Senf bestreichen, mit Speck, Zwiebel- und Gurkenstreifen belegen, salzen und pfeffern.",
+      "Rouladen aufrollen und mit Rouladennadeln oder Küchengarn feststecken.",
+      "In einem Bräter rundum scharf anbraten.",
+      "Möhre und Zwiebel würfeln, zugeben und kurz mitrösten, Tomatenmark einrühren.",
+      "Mit Brühe ablöschen und die Rouladen zugedeckt bei kleiner Hitze etwa 90 Minuten schmoren.",
+      "Rouladen herausnehmen, Sauce mit Mehl binden, abschmecken und die Rouladen darin servieren."
+    ]
+  },
+  {
+    "title": "Sauerbraten",
+    "description": "Traditionell gebeizter Rinderbraten, lange geschmort und mit einer süßsauren Sauce serviert.",
+    "servings": 4,
+    "prepMinutes": 30,
+    "cookMinutes": 150,
+    "sourceUrl": null,
+    "tags": ["klassiker", "fleisch", "schmoren"],
+    "ingredientGroups": [
+      {
+        "name": "Beize",
+        "ingredients": [
+          { "quantity": 500, "unit": "ml", "name": "Rotweinessig", "note": null },
+          { "quantity": 500, "unit": "ml", "name": "Wasser", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Möhre", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Lorbeerblätter", "note": null },
+          { "quantity": 1, "unit": "TL", "name": "Pfefferkörner", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      },
+      {
+        "name": "Braten",
+        "ingredients": [
+          { "quantity": 1.5, "unit": "kg", "name": "Rinderbraten", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Öl", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Tomatenmark", "note": null },
+          { "quantity": 50, "unit": "g", "name": "Rosinen", "note": null },
+          { "quantity": 100, "unit": "g", "name": "Sahne", "note": "zum Binden" },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Rotweinessig, Wasser, Zwiebel, Möhre, Lorbeer, Pfefferkörner und Salz aufkochen und abkühlen lassen.",
+      "Rindfleisch in die Beize legen und 3 Tage kühl ziehen lassen, dabei gelegentlich wenden.",
+      "Fleisch abtropfen lassen und trocken tupfen, die Beize aufheben.",
+      "Fleisch in Öl rundum scharf anbraten.",
+      "Tomatenmark zugeben, kurz mitrösten und mit der Beize auffüllen.",
+      "Zugedeckt bei kleiner Hitze etwa 2,5 Stunden schmoren, bis das Fleisch weich ist.",
+      "Fleisch herausnehmen, Sauce mit Rosinen und Sahne binden, abschmecken und in Scheiben aufschneiden."
+    ]
+  },
+  {
+    "title": "Käsespätzle",
+    "description": "Schwäbische Spätzle mit reichlich Bergkäse überbacken und mit knusprigen Röstzwiebeln serviert.",
+    "servings": 4,
+    "prepMinutes": 20,
+    "cookMinutes": 20,
+    "sourceUrl": null,
+    "tags": ["vegetarisch", "schwäbisch"],
+    "ingredientGroups": [
+      {
+        "name": "Spätzle",
+        "ingredients": [
+          { "quantity": 400, "unit": "g", "name": "Mehl", "note": null },
+          { "quantity": 4, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 200, "unit": "ml", "name": "Wasser", "note": null },
+          { "quantity": 1, "unit": "TL", "name": "Salz", "note": null },
+          { "quantity": 200, "unit": "g", "name": "Bergkäse", "note": "gerieben" }
+        ]
+      },
+      {
+        "name": "Röstzwiebeln",
+        "ingredients": [
+          { "quantity": 2, "unit": "Stück", "name": "Zwiebeln", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Butter", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Mehl, Eier, Wasser und Salz zu einem zähen Teig verrühren, bis er Blasen wirft.",
+      "Teig durch eine Spätzlepresse oder vom Brett ins kochende Salzwasser schaben.",
+      "Spätzle garziehen lassen, bis sie an die Oberfläche steigen, abschöpfen.",
+      "Zwiebeln in Ringe schneiden und in Butter goldbraun braten.",
+      "Spätzle lagenweise mit Käse in eine Pfanne schichten, schmelzen lassen und mit Röstzwiebeln servieren."
+    ]
+  },
+  {
+    "title": "Schweineschnitzel mit Bratkartoffeln",
+    "description": "Knusprig panierte Schnitzel mit klassischen Bratkartoffeln, schnell gemacht für den Alltag.",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 15,
+    "sourceUrl": null,
+    "tags": ["schnell", "fleisch"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 4, "unit": "Stück", "name": "Schweineschnitzel", "note": null },
+          { "quantity": 100, "unit": "g", "name": "Mehl", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 100, "unit": "g", "name": "Semmelbrösel", "note": null },
+          { "quantity": 3, "unit": "EL", "name": "Öl", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null },
+          { "quantity": 800, "unit": "g", "name": "Kartoffeln", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Butterschmalz", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Kartoffeln kochen, abkühlen lassen, pellen und in Scheiben schneiden.",
+      "Schnitzel salzen und pfeffern, dann in Mehl, verquirltem Ei und Semmelbröseln panieren.",
+      "Schnitzel in Öl von beiden Seiten goldbraun braten.",
+      "Kartoffelscheiben und Zwiebel in Butterschmalz knusprig braten.",
+      "Schnitzel und Bratkartoffeln zusammen anrichten."
+    ]
+  },
+  {
+    "title": "Kartoffelpuffer mit Apfelmus",
+    "description": "Knusprige Kartoffelpuffer mit selbstgemachtem Apfelmus, ein schneller Klassiker aus der Pfanne.",
+    "servings": 4,
+    "prepMinutes": 20,
+    "cookMinutes": 20,
+    "sourceUrl": null,
+    "tags": ["vegetarisch", "schnell"],
+    "ingredientGroups": [
+      {
+        "name": "Puffer",
+        "ingredients": [
+          { "quantity": 1, "unit": "kg", "name": "Kartoffeln", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 3, "unit": "EL", "name": "Mehl", "note": null },
+          { "quantity": 1, "unit": "TL", "name": "Salz", "note": null },
+          { "quantity": 100, "unit": "ml", "name": "Öl", "note": "zum Braten" }
+        ]
+      },
+      {
+        "name": "Apfelmus",
+        "ingredients": [
+          { "quantity": 500, "unit": "g", "name": "Äpfel", "note": null },
+          { "quantity": 50, "unit": "ml", "name": "Wasser", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Zucker", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Zimt", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Kartoffeln und Zwiebel schälen und fein reiben.",
+      "Mit Ei, Mehl und Salz zu einem Teig vermengen.",
+      "Portionsweise in heißem Öl zu flachen Puffern braten, bis sie knusprig sind.",
+      "Äpfel schälen, würfeln und mit Wasser und Zucker weich kochen.",
+      "Apfelmus mit Zimt abschmecken und zu den Kartoffelpuffern servieren."
+    ]
+  },
+  {
+    "title": "Linseneintopf",
+    "description": "Herzhafter Linseneintopf mit Möhren, Kartoffeln und Speck, ideal für viele Portionen.",
+    "servings": 6,
+    "prepMinutes": 20,
+    "cookMinutes": 45,
+    "sourceUrl": null,
+    "tags": ["suppe", "für-viele"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 300, "unit": "g", "name": "Linsen", "note": "braun" },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Möhren", "note": null },
+          { "quantity": 200, "unit": "g", "name": "Kartoffeln", "note": null },
+          { "quantity": 100, "unit": "g", "name": "Speck", "note": "gewürfelt" },
+          { "quantity": 1, "unit": "l", "name": "Gemüsebrühe", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Essig", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Speck in einem großen Topf auslassen, Zwiebel darin andünsten.",
+      "Möhren und Kartoffeln würfeln und kurz mitdünsten.",
+      "Linsen und Brühe zugeben und aufkochen.",
+      "Zugedeckt etwa 40 Minuten köcheln, bis die Linsen weich sind.",
+      "Mit Essig, Salz und Pfeffer abschmecken."
+    ]
+  },
+  {
+    "title": "Frikadellen",
+    "description": "Saftige Frikadellen aus Hackfleisch, schnell gebraten und vielseitig einsetzbar.",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 15,
+    "sourceUrl": null,
+    "tags": ["schnell", "fleisch"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 500, "unit": "g", "name": "Hackfleisch", "note": "gemischt" },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Brötchen", "note": "vom Vortag, eingeweicht" },
+          { "quantity": 1, "unit": "EL", "name": "Senf", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null },
+          { "quantity": 2, "unit": "EL", "name": "Öl", "note": "zum Braten" }
+        ]
+      }
+    ],
+    "steps": [
+      "Brötchen in Wasser einweichen und gut ausdrücken.",
+      "Zwiebel fein würfeln.",
+      "Hackfleisch mit Zwiebel, Ei, Brötchen, Senf, Salz und Pfeffer vermengen.",
+      "Aus der Masse mit feuchten Händen Frikadellen formen.",
+      "In Öl von beiden Seiten goldbraun braten."
+    ]
+  },
+  {
+    "title": "Flammkuchen",
+    "description": "Dünner Flammkuchen mit Crème fraîche, Zwiebeln und Speck, knusprig aus dem Ofen.",
+    "servings": 2,
+    "prepMinutes": 20,
+    "cookMinutes": 15,
+    "sourceUrl": null,
+    "tags": ["ofen", "schnell"],
+    "ingredientGroups": [
+      {
+        "name": "Teig",
+        "ingredients": [
+          { "quantity": 250, "unit": "g", "name": "Mehl", "note": null },
+          { "quantity": 125, "unit": "ml", "name": "Wasser", "note": null },
+          { "quantity": 3, "unit": "EL", "name": "Öl", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      },
+      {
+        "name": "Belag",
+        "ingredients": [
+          { "quantity": 200, "unit": "g", "name": "Crème fraîche", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 150, "unit": "g", "name": "Speck", "note": "gewürfelt" },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Mehl, Wasser, Öl und Salz zu einem glatten Teig verkneten und kurz ruhen lassen.",
+      "Teig dünn ausrollen und auf ein Blech legen.",
+      "Crème fraîche gleichmäßig auf dem Teig verstreichen.",
+      "Zwiebel in feine Ringe schneiden, mit dem Speck auf dem Belag verteilen, salzen und pfeffern.",
+      "Im heißen Ofen etwa 12 Minuten knusprig backen."
+    ]
+  },
+  {
+    "title": "Kartoffelsalat",
+    "description": "Klassischer Kartoffelsalat mit Brühe mariniert, als Beilage zu vielen Gerichten.",
+    "servings": 4,
+    "prepMinutes": 20,
+    "cookMinutes": 20,
+    "sourceUrl": null,
+    "tags": ["vegetarisch", "beilage"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 1, "unit": "kg", "name": "Kartoffeln", "note": "festkochend" },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 200, "unit": "ml", "name": "Gemüsebrühe", "note": null },
+          { "quantity": 3, "unit": "EL", "name": "Essig", "note": null },
+          { "quantity": 3, "unit": "EL", "name": "Öl", "note": null },
+          { "quantity": 1, "unit": "TL", "name": "Senf", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Kartoffeln kochen, pellen und noch warm in Scheiben schneiden.",
+      "Zwiebel fein würfeln.",
+      "Brühe, Essig, Öl und Senf zu einer Marinade verrühren.",
+      "Marinade über die warmen Kartoffeln geben und vorsichtig vermengen.",
+      "Mit Zwiebel, Salz und Pfeffer abschmecken und etwas ziehen lassen."
+    ]
+  },
+  {
+    "title": "Rote Grütze mit Vanillesoße",
+    "description": "Fruchtige rote Grütze aus gemischten Beeren mit cremiger Vanillesoße als süßer Abschluss.",
+    "servings": 4,
+    "prepMinutes": 20,
+    "cookMinutes": 10,
+    "sourceUrl": null,
+    "tags": ["süß", "dessert"],
+    "ingredientGroups": [
+      {
+        "name": "Grütze",
+        "ingredients": [
+          { "quantity": 500, "unit": "g", "name": "Beeren", "note": "gemischt" },
+          { "quantity": 100, "unit": "g", "name": "Zucker", "note": null },
+          { "quantity": 400, "unit": "ml", "name": "Traubensaft", "note": "rot" },
+          { "quantity": 3, "unit": "EL", "name": "Speisestärke", "note": null }
+        ]
+      },
+      {
+        "name": "Vanillesoße",
+        "ingredients": [
+          { "quantity": 500, "unit": "ml", "name": "Milch", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Vanilleschote", "note": null },
+          { "quantity": 3, "unit": "Stück", "name": "Eigelb", "note": null },
+          { "quantity": 50, "unit": "g", "name": "Zucker", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Saft mit Zucker aufkochen, Beeren zugeben und kurz mitkochen.",
+      "Speisestärke mit etwas kaltem Wasser anrühren und die Grütze damit binden.",
+      "Grütze abkühlen lassen.",
+      "Milch mit dem Mark der Vanilleschote erhitzen, Eigelb mit Zucker schaumig schlagen und unterrühren.",
+      "Vanillesoße unter Rühren bei kleiner Hitze cremig binden, ohne kochen zu lassen, und zur Grütze servieren."
+    ]
+  },
+  {
+    "title": "Maultaschen in der Brühe",
+    "description": "Schwäbische Maultaschen mit Spinat-Brät-Füllung, in heißer Brühe serviert.",
+    "servings": 4,
+    "prepMinutes": 45,
+    "cookMinutes": 20,
+    "sourceUrl": null,
+    "tags": ["schwäbisch", "klassiker"],
+    "ingredientGroups": [
+      {
+        "name": "Teig",
+        "ingredients": [
+          { "quantity": 300, "unit": "g", "name": "Mehl", "note": null },
+          { "quantity": 3, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 1, "unit": "EL", "name": "Öl", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+        ]
+      },
+      {
+        "name": "Füllung",
+        "ingredients": [
+          { "quantity": 300, "unit": "g", "name": "Blattspinat", "note": null },
+          { "quantity": 200, "unit": "g", "name": "Brät", "note": "gemischt" },
+          { "quantity": 100, "unit": "g", "name": "Brötchen", "note": "vom Vortag, eingeweicht" },
+          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
+          { "quantity": 1, "unit": "Stück", "name": "Ei", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Muskat", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "l", "name": "Gemüsebrühe", "note": "zum Garen und Servieren" }
+        ]
+      }
+    ],
+    "steps": [
+      "Mehl, Eier, Öl und Salz zu einem glatten Nudelteig verkneten und ruhen lassen.",
+      "Spinat blanchieren, ausdrücken und fein hacken.",
+      "Spinat mit Brät, eingeweichtem Brötchen, Zwiebel, Ei, Muskat und Salz zu einer Füllung vermengen.",
+      "Teig dünn ausrollen, mit der Füllung bestreichen und aufrollen oder zu Quadraten formen.",
+      "Maultaschen in siedender Brühe etwa 20 Minuten ziehen lassen.",
+      "Maultaschen in der heißen Brühe servieren."
+    ]
+  }
+]
