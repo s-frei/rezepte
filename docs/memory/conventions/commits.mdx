@@ -26,4 +26,9 @@ Scopes: `service`, `frontend`, `docs`, or none.
 
 </Callout>
 
-Branches: work on `develop`, releases merge to `main`.
+## Branches (git flow)
+
+- All development happens on `develop`. Phases, fixes and docs land there as ordinary commits.
+- `main` holds releases only. A release is a merge from `develop` into `main` (git flow style, with a version tag); nothing is committed to `main` directly.
+- Feature branches are optional and short-lived; they branch from and merge back into `develop`.
+- Agents never merge to `main`, push, tag or open pull requests on their own. Releases are triggered by the maintainer.

@@ -10,7 +10,7 @@ import (
 
 // Config holds every runtime setting. All values come from REZEPTE_* variables.
 type Config struct {
-	Addr          string     `env:"REZEPTE_ADDR" envDefault:":8080"`
+	Addr          string     `env:"REZEPTE_ADDR" envDefault:":8060"`
 	DataDir       string     `env:"REZEPTE_DATA_DIR" envDefault:"./data"`
 	AdminUser     string     `env:"REZEPTE_ADMIN_USER" envDefault:"admin"`
 	AdminPassword string     `env:"REZEPTE_ADMIN_PASSWORD"`

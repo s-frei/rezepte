@@ -19,8 +19,8 @@ RUN mkdir -p /out/data && chown 65532:65532 /out/data
 # Stage 3: minimal runtime
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=backend /out/rezepte /rezepte
-ENV REZEPTE_ADDR=:8080 REZEPTE_DATA_DIR=/data
+ENV REZEPTE_ADDR=:8060 REZEPTE_DATA_DIR=/data
 COPY --from=backend --chown=65532:65532 /out/data /data
 VOLUME /data
-EXPOSE 8080
+EXPOSE 8060
 ENTRYPOINT ["/rezepte"]

@@ -37,14 +37,14 @@ description = "Run the documentation site"
 depends = ["//docs:dev"]
 
 [tasks.e2e]
-description = "Build, start the binary on :8080 with a temp data dir, run Playwright"
+description = "Build, start the binary on :8060 with a temp data dir, run Playwright"
 depends = ["build"]
 run = '''
 set -eu
 DATA_DIR=$(mktemp -d)
-REZEPTE_ADDR=:8080 REZEPTE_DATA_DIR="$DATA_DIR" REZEPTE_ADMIN_PASSWORD=e2e-password ./service/bin/rezepte &
+REZEPTE_ADDR=:8060 REZEPTE_DATA_DIR="$DATA_DIR" REZEPTE_ADMIN_PASSWORD=e2e-password ./service/bin/rezepte &
 PID=$!
 trap 'kill $PID' EXIT
-for _ in $(seq 1 50); do curl -sf localhost:8080/healthz >/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 50); do curl -sf localhost:8060/healthz >/dev/null && break; sleep 0.1; done
 cd frontend && bun run test:e2e
 '''

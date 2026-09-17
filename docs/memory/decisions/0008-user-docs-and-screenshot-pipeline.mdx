@@ -1,0 +1,38 @@
+---
+title: "0008: User documentation with automated screenshots"
+description: Separate Fumadocs app in docs/user, Playwright snapshot screenshots committed as PNGs, demo mode in the binary
+---
+
+**Status:** accepted · 2026-09-17 (implementation scheduled for Phase 8)
+
+## Context
+
+Rezepte needs public end-user documentation that stays accurate as the UI evolves. Hand-made screenshots go stale immediately; an internal agent memory and a public manual have different audiences and deployment targets.
+
+## Decision
+
+- `docs/user/` becomes an independent Fumadocs app (Next.js static template) on port 5000 with its own mise root `//docs/user`. The memory app on port 4000 renders only `docs/memory`.
+- User docs are English. File naming stays compatible with Fumadocs i18n (`page.de.mdx`) but i18n is not enabled; screenshots switch to the English UI once the frontend ships an English locale.
+- Structure: `getting-started/`, `guide/`, `operations/`, `api/`. No FAQ, troubleshooting, changelog or contributing sections.
+- Screenshots are Playwright snapshot tests in `docs/user/screenshots/`: one `test('<name>')` per screenshot, four projects (desktop/mobile × light/dark), `snapshotPathTemplate` writing straight into `docs/user/public/screenshots/`. PNGs are committed. `mise run //docs/user:screenshots` regenerates them against `rezepte --demo`; `screenshots:check` reports drift locally (CI does not compare, font rendering differs between macOS and Linux).
+- MDX references screenshots by name through `<Screenshot name="…" caption="…" />`; the component fails the build when a variant is missing, and an audit script reports unused PNGs and names without a spec.
+- The binary gets a `--demo` flag: temporary data directory, embedded fixtures (12 well-known German dishes, users `demo`/`mia`), seeded through the domain services, cleaned up on exit. Also useful for manual testing.
+- Demo images are generated placeholders in the design look (rendered with Playwright from an HTML template, `docs/user/scripts/dummy-images.ts`), not third-party photos: no licensing to track, and the maintainer can drop in real photos under the same file names at any time.
+- The API reference is generated with `fumadocs-openapi` from `docs/user/openapi.json`, fetched from the running demo binary by `mise run //docs/user:openapi`; generated pages are committed.
+
+## Consequences
+
+- A UI change is not done until the affected guide page is updated and the screenshots are regenerated and committed in the same change (see the testing convention).
+- Recipe fixtures are written in Phase 3 as test data and reused by demo mode.
+- Two Fumadocs apps mean two `package.json`s; the trade-off buys a public site that can be deployed independently of the internal memory.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - Generating screenshots during the docs build: couples the docs build to Go, Bun and Chromium and cannot run on a docs host.
+    - Keeping the screenshot project in `frontend/e2e`: reuses one Playwright config but makes the frontend the owner of documentation assets.
+    - Seeding demo data through the API from the Playwright script: no product code, but fixtures would have to be reimplemented in TypeScript and could not serve manual testing.
+    - One Fumadocs app for memory and user docs: simplest, but internal and public content would share build and deployment.
+
+  </Accordion>
+</Accordions>

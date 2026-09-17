@@ -8,7 +8,7 @@ export default defineConfig({
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
-		baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:8080',
+		baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:8060',
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure'
 	},
