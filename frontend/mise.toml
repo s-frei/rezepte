@@ -29,4 +29,4 @@ run = "bun run test"
 
 [tasks.build]
 description = "Build the SPA into service/internal/web/dist"
-run = "bun run build"
+run = "bun run build && touch ../service/internal/web/dist/.gitkeep"

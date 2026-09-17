@@ -21,6 +21,7 @@ The API must be clean, idiomatic Go and later become a documented public REST AP
 - Every endpoint is documented for free, which the roadmap (public API, MCP server) relies on.
 - Handlers have request/response structs that double as API contract; keep them in the feature package next to the service.
 - huma shapes handler signatures; feature code must not reach for `http.ResponseWriter` inside operations.
+- The Scalar docs UI at `/api/v1/docs` loads its JS bundle from jsdelivr at runtime (huma's default `DocsRendererScalar`); acceptable for an admin-facing docs page, to be revisited if offline use matters.
 
 <Accordions type="single">
   <Accordion title="Alternatives considered">

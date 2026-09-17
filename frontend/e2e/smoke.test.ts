@@ -10,3 +10,16 @@ test('health endpoint answers', async ({ request }) => {
 	expect(res.ok()).toBeTruthy();
 	expect(await res.text()).toContain('ok');
 });
+
+test('serves the app shell for deep links', async ({ page }) => {
+	await page.goto('/recipes/some-deep-link');
+	await expect(page.getByRole('heading', { name: 'Rezepte' })).toBeVisible();
+});
+
+test('immutable assets are cached', async ({ request }) => {
+	const html = await (await request.get('/')).text();
+	const match = html.match(/\/_app\/immutable\/[^"']+\.js/);
+	expect(match).not.toBeNull();
+	const res = await request.get(match![0]);
+	expect(res.headers()['cache-control']).toBe('public, max-age=31536000, immutable');
+});

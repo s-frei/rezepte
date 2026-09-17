@@ -55,3 +55,13 @@ description: Dev servers, builds and the check gate
   Use `mise tasks --all` to list every task, including package-local ones like `//service:test`.
 
 </Callout>
+
+## Known issues
+
+<Callout type="warn">
+
+  - The docs dev server (`mise run docs`) may fail with `spawn EBADF` when started from inside an AI agent's sandboxed shell. Run it from a normal terminal instead; the static build (`mise run //docs:check`) is the gate and works everywhere.
+  - Docker Desktop's credential helper (`docker-credential-desktop`) can hang on image pulls on macOS. Use a throwaway `DOCKER_CONFIG` directory without `credsStore` for local builds.
+  - If `bunx playwright install chromium` times out downloading, run it once from a normal terminal. `mise run setup` is idempotent and will pick up the cached browser on the next run.
+
+</Callout>

@@ -28,6 +28,11 @@ func SPAHandler(fsys fs.FS) http.Handler {
 			files.ServeHTTP(w, r)
 			return
 		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.Header().Set("Allow", "GET, HEAD")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		w.Header().Set("Cache-Control", "no-cache")
 		http.ServeFileFS(w, r, fsys, "index.html")
 	})
