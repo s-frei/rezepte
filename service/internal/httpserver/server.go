@@ -3,6 +3,7 @@ package httpserver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -32,8 +33,24 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS) *Server {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
 	})
+	// huma's own operations register more specific patterns (e.g.
+	// "GET /api/v1/openapi.json") which take precedence over these catch-alls.
+	mux.Handle("/api", http.HandlerFunc(apiNotFound))
+	mux.Handle("/api/", http.HandlerFunc(apiNotFound))
 	mux.Handle("/", SPAHandler(static))
 	return s
+}
+
+// apiNotFound answers unmatched /api routes with an RFC 9457 problem+json
+// body instead of the stdlib's plain-text 404.
+func apiNotFound(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
+		Title:  "Not Found",
+		Status: http.StatusNotFound,
+		Detail: "no such API route",
+	})
 }
 
 // API exposes the huma API so feature packages can register operations.
@@ -75,7 +92,15 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
-		s.logger.Debug("request",
+
+		level := slog.LevelDebug
+		switch {
+		case rec.status >= http.StatusInternalServerError:
+			level = slog.LevelError
+		case rec.status >= http.StatusBadRequest:
+			level = slog.LevelWarn
+		}
+		s.logger.Log(r.Context(), level, "request",
 			"method", r.Method, "path", r.URL.Path,
 			"status", rec.status, "duration", time.Since(start))
 	})

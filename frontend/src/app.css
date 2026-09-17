@@ -75,8 +75,7 @@
 }
 
 /* Dark theme: <html data-theme="dark"> or system preference via data-theme="system" */
-[data-theme='dark'],
-:root:has([data-theme='system']) {
+[data-theme='dark'] {
 	color-scheme: dark;
 }
 
@@ -109,6 +108,7 @@
 
 @media (prefers-color-scheme: dark) {
 	[data-theme='system'] {
+		color-scheme: dark;
 		--color-background: #1c1612;
 		--color-surface: #26201a;
 		--color-surface-elevated: #2f2822;

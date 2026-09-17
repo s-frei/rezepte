@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -53,6 +54,48 @@ func TestSPAFallbackIsWired(t *testing.T) {
 	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/recipes/x", nil))
 	if rec.Code != http.StatusOK || rec.Body.String() != "app" {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUnknownAPIRouteIsProblemJSON(t *testing.T) {
+	for _, path := range []string{"/api/v1/does-not-exist", "/api"} {
+		t.Run(path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404", rec.Code)
+			}
+			if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+				t.Fatalf("Content-Type = %q, want application/problem+json prefix", ct)
+			}
+			if !strings.Contains(rec.Body.String(), `"status":404`) {
+				t.Fatalf("body = %s, want it to contain \"status\":404", rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestLogRequestsLevelByStatus(t *testing.T) {
+	cfg, err := config.LoadFrom(map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	static := fstest.MapFS{"index.html": {Data: []byte("app")}}
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	handler := New(cfg, logger, static).Handler()
+
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/nope", nil))
+	out := buf.String()
+	if !strings.Contains(out, "level=WARN") || !strings.Contains(out, "status=404") {
+		t.Fatalf("log output = %q, want a WARN line with status=404", out)
+	}
+
+	buf.Reset()
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	if buf.Len() != 0 {
+		t.Fatalf("log output = %q, want no line for a healthy 200 request at Warn level", buf.String())
 	}
 }
 

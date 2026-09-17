@@ -40,7 +40,7 @@ depends = ["//docs:dev"]
 description = "Build, start the binary on :8080 with a temp data dir, run Playwright"
 depends = ["build"]
 run = '''
-set -euo pipefail
+set -eu
 DATA_DIR=$(mktemp -d)
 REZEPTE_ADDR=:8080 REZEPTE_DATA_DIR="$DATA_DIR" REZEPTE_ADMIN_PASSWORD=e2e-password ./service/bin/rezepte &
 PID=$!

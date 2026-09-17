@@ -52,3 +52,15 @@ func TestSPADoesNotFallBackForAPI(t *testing.T) {
 		t.Fatalf("got %d, want 404", rec.Code)
 	}
 }
+
+func TestSPAFallbackRejectsNonGet(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/recipes/x", nil)
+	SPAHandler(testFS()).ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("got %d, want 405", rec.Code)
+	}
+	if got := rec.Header().Get("Allow"); got != "GET, HEAD" {
+		t.Fatalf("Allow = %q, want %q", got, "GET, HEAD")
+	}
+}

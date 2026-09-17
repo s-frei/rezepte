@@ -1,5 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_name": "Rezepte",
-	"home_placeholder": "Rezepte ist noch leer."
+	"home_placeholder": "Rezepte ist noch leer.",
+	"not_found": "Diese Seite gibt es nicht."
 }

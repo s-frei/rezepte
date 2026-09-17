@@ -16,6 +16,7 @@ Coding agents need durable context: why things are the way they are, and how to 
 - Memory structure: `decisions/` (ADRs), `architecture/`, `howtos/`, `conventions/`, `roadmap.mdx`.
 - Agent routes: `/llms.txt`, `/llms-full.txt`, raw markdown per page under `/llms.mdx/<path>/content.md`.
 - All docs are English.
+- The single collection uses `defineDocs({ dir: '.' })` with `files` globs restricted to `memory/**` and `user/**`, imported from `@/.source/server`. Nothing outside those two folders is scanned.
 
 ## Consequences
 

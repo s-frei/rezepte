@@ -37,8 +37,6 @@ export default defineConfig({
 	},
 	test: {
 		expect: { requireAssertions: true },
-		// No unit tests exist yet in this scaffold; later tasks add them.
-		passWithNoTests: true,
 		projects: [
 			{
 				extends: './vite.config.ts',
