@@ -17,6 +17,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/user"
+	"github.com/s-frei/rezepte/service/internal/userapi"
 	"github.com/s-frei/rezepte/service/internal/web"
 )
 
@@ -68,6 +69,7 @@ func run() error {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn)
 	recipe.Register(srv.API(), recipes)
+	userapi.Register(srv.API(), users, sessions)
 	return srv.Run(ctx)
 }
 

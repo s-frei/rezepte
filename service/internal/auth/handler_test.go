@@ -239,3 +239,34 @@ func TestEveryProtectedOperationRejectsAnonymous(t *testing.T) {
 		t.Fatal("no protected operations found to exercise")
 	}
 }
+
+func TestChangeOwnPassword(t *testing.T) {
+	h := newHandler(t)
+	c1 := login(t, h)
+	c2 := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me", `{"currentPassword":"wrong","password":"brand-new-pw"}`, c1)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), `"location":"body.currentPassword"`) {
+		t.Fatalf("wrong current: status %d: %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/auth/me", `{"currentPassword":"pw","password":"short"}`, c1)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.password") {
+		t.Fatalf("short new password: status %d: %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/auth/me", `{"currentPassword":"pw","password":"brand-new-pw"}`, c1)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("change: status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := do(h, http.MethodGet, "/api/v1/auth/me", "", c1); rec.Code != http.StatusOK {
+		t.Fatalf("acting session must survive: status %d", rec.Code)
+	}
+	if rec := do(h, http.MethodGet, "/api/v1/auth/me", "", c2); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("other session must be gone: status %d", rec.Code)
+	}
+	if rec := do(h, http.MethodPost, "/api/v1/auth/login", `{"username":"sam","password":"brand-new-pw"}`, nil); rec.Code != http.StatusOK {
+		t.Fatalf("login with new password: status %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec := do(h, http.MethodPatch, "/api/v1/auth/me", `{"currentPassword":"pw","password":"brand-new-pw"}`, nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous: status %d", rec.Code)
+	}
+}

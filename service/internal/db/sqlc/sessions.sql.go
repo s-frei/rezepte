@@ -49,6 +49,20 @@ func (q *Queries) DeleteSession(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteUserSessionsExcept = `-- name: DeleteUserSessionsExcept :exec
+DELETE FROM sessions WHERE user_id = ? AND id != ?
+`
+
+type DeleteUserSessionsExceptParams struct {
+	UserID string
+	ID     string
+}
+
+func (q *Queries) DeleteUserSessionsExcept(ctx context.Context, arg DeleteUserSessionsExceptParams) error {
+	_, err := q.db.ExecContext(ctx, deleteUserSessionsExcept, arg.UserID, arg.ID)
+	return err
+}
+
 const extendSession = `-- name: ExtendSession :exec
 UPDATE sessions SET expires_at = ? WHERE id = ?
 `
