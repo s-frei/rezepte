@@ -43,16 +43,26 @@ type Input struct {
 	Steps            []string          `json:"steps" maxItems:"50" minLength:"1" maxLength:"2000"`
 }
 
+// Image is a photo attached to a recipe. Width and height describe the
+// original JPEG variant on disk (longest side at most 2400 px); the
+// variants are served at /images/{recipeId}/{id}/{thumb|detail|original}.jpg.
+type Image struct {
+	ID       string `json:"id"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	Position int    `json:"position"`
+}
+
 // Recipe is a stored recipe: an Input plus the fields the service assigns.
 type Recipe struct {
 	ID   string `json:"id"`
 	Slug string `json:"slug"`
 	Input
-	CoverImageID *string    `json:"coverImageId" nullable:"true"`
-	Images       []struct{} `json:"images"`
-	CreatedBy    string     `json:"createdBy"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	CoverImageID *string   `json:"coverImageId" nullable:"true"`
+	Images       []Image   `json:"images"`
+	CreatedBy    string    `json:"createdBy"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // Card is the summary of a recipe shown in listings.

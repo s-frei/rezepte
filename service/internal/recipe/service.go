@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,14 +20,28 @@ import (
 // Service creates, updates, deletes and loads recipes, keeping slugs, tags
 // and the full-text search index consistent with the stored documents.
 type Service struct {
-	conn *sql.DB
-	q    *sqlc.Queries
-	now  func() time.Time
+	conn     *sql.DB
+	q        *sqlc.Queries
+	now      func() time.Time
+	imageDir string // "" disables image directory cleanup on Delete
+}
+
+// Option configures a Service.
+type Option func(*Service)
+
+// WithImageDir tells Delete where recipe image directories live
+// (<dir>/<recipeId>) so it can remove them after the recipe row is gone.
+func WithImageDir(dir string) Option {
+	return func(s *Service) { s.imageDir = dir }
 }
 
 // NewService returns a Service backed by conn.
-func NewService(conn *sql.DB) *Service {
-	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
+func NewService(conn *sql.DB, opts ...Option) *Service {
+	s := &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Create stores a new recipe as createdBy, assigning it a slug derived from
@@ -125,7 +142,7 @@ func (s *Service) Update(ctx context.Context, id string, in Input) (Recipe, erro
 // CASCADE), drops it from the search index and prunes tags left orphaned by
 // the deletion. It returns ErrNotFound when no such recipe exists.
 func (s *Service) Delete(ctx context.Context, id string) error {
-	return db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		rowid, err := q.GetRecipeRowID(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNotFound
@@ -145,6 +162,17 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		}
 		return q.DeleteOrphanTags(ctx)
 	})
+	if err != nil {
+		return err
+	}
+	if s.imageDir != "" {
+		// Best effort: the rows are gone (and with them every reference to
+		// the files); a leftover directory is an orphan, not an inconsistency.
+		if err := os.RemoveAll(filepath.Join(s.imageDir, id)); err != nil {
+			slog.Warn("remove recipe image dir", "recipe", id, "err", err)
+		}
+	}
+	return nil
 }
 
 // ByID loads a recipe by id. It returns ErrNotFound when no such recipe
@@ -205,6 +233,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list tags: %w", err)
 	}
+	imgRows, err := s.q.ListImagesByRecipe(ctx, row.ID)
+	if err != nil {
+		return Recipe{}, fmt.Errorf("list images: %w", err)
+	}
 	created, err := db.ParseTime(row.CreatedAt)
 	if err != nil {
 		return Recipe{}, err
@@ -236,6 +268,11 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 		outSteps[i] = st.Text
 	}
 
+	images := make([]Image, len(imgRows))
+	for i, im := range imgRows {
+		images[i] = Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position)}
+	}
+
 	return Recipe{
 		ID:   row.ID,
 		Slug: row.Slug,
@@ -251,7 +288,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			Steps:            outSteps,
 		},
 		CoverImageID: row.CoverImageID,
-		Images:       []struct{}{},
+		Images:       images,
 		CreatedBy:    row.CreatedBy,
 		CreatedAt:    created,
 		UpdatedAt:    updated,

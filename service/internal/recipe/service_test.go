@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -145,5 +149,73 @@ func TestReservedSlugIsSkipped(t *testing.T) {
 	// recipe has to take the numbered slug instead of shadowing it.
 	if created.Slug != "new-2" {
 		t.Fatalf("slug = %q, want %q", created.Slug, "new-2")
+	}
+}
+
+func TestLoadListsImagesInPositionOrderWithCover(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	u, err := user.NewService(conn).Create(ctx, "sam", "pw", user.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := recipe.NewService(conn)
+	created, err := svc.Create(ctx, u.ID, loadFixtures(t)[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := sqlc.New(conn)
+	for i, id := range []string{"img-b", "img-a"} {
+		if _, err := q.InsertImage(ctx, sqlc.InsertImageParams{
+			ID: id, RecipeID: created.ID, Filename: id + ".jpg", Width: 2400, Height: 1600,
+			SizeBytes: 1, Position: int64(1 - i), CreatedAt: db.FormatTime(time.Now()),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cover := "img-a"
+	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &cover, UpdatedAt: db.FormatTime(time.Now()), ID: created.ID}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Images) != 2 || got.Images[0].ID != "img-a" || got.Images[0].Position != 0 || got.Images[1].ID != "img-b" {
+		t.Fatalf("images = %+v", got.Images)
+	}
+	if got.Images[0].Width != 2400 || got.Images[0].Height != 1600 {
+		t.Fatalf("dims = %+v", got.Images[0])
+	}
+	if got.CoverImageID == nil || *got.CoverImageID != "img-a" {
+		t.Fatalf("cover = %v", got.CoverImageID)
+	}
+}
+
+func TestDeleteRemovesImageDirectory(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	u, err := user.NewService(conn).Create(ctx, "sam", "pw", user.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	svc := recipe.NewService(conn, recipe.WithImageDir(dir))
+	created, err := svc.Create(ctx, u.ID, loadFixtures(t)[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipeDir := filepath.Join(dir, created.ID)
+	if err := os.MkdirAll(recipeDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(recipeDir, "x.jpg"), []byte("jpg"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Delete(ctx, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(recipeDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("image dir still there: %v", err)
 	}
 }
