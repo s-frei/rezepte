@@ -1,8 +1,32 @@
 [tasks.install]
-run = "echo 'todo'"
+description = "Install frontend dependencies and the Playwright browser"
+run = "bun install --frozen-lockfile && bunx playwright install ${PLAYWRIGHT_INSTALL_ARGS:-} chromium"
+
 [tasks.dev]
-run = "echo 'todo'"
+description = "Run the SvelteKit dev server"
+run = "bun run dev"
+
+[tasks.e2e]
+description = "Run Playwright tests (expects the app on E2E_BASE_URL or :8080)"
+run = "bun run test:e2e"
+
 [tasks.check]
-run = "echo 'todo'"
+description = "svelte-check, lint and unit tests"
+depends = ["lint", "test"]
+run = "bun run check"
+
+[tasks.lint]
+description = "Prettier check and ESLint"
+run = "bun run lint"
+
+[tasks.fmt]
+description = "Format with Prettier"
+run = "bun run format"
+
+[tasks.test]
+description = "Run Vitest once"
+run = "bun run test"
+
 [tasks.build]
-run = "echo 'todo'"
+description = "Build the SPA into service/internal/web/dist"
+run = "bun run build"
