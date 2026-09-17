@@ -1,0 +1,32 @@
+---
+title: Add a sqlc query
+description: Hand-written SQL compiled into typed Go
+---
+
+<Steps>
+  <Step>
+
+    ### Write the query
+    In `service/internal/db/queries/<table>.sql`:
+    ```sql
+    -- name: ListUsers :many
+    SELECT * FROM users ORDER BY username;
+    ```
+    Suffixes: `:one`, `:many`, `:exec`, `:execrows`. Placeholders are `?` in order.
+
+  </Step>
+  <Step>
+
+    ### Generate
+    `mise run //service:generate` writes `service/internal/db/sqlc/<table>.sql.go`. Commit the generated files.
+
+  </Step>
+  <Step>
+
+    ### Use it in a service
+    `sqlc.New(conn).ListUsers(ctx)`. Map rows to domain structs in the service package; never return `sqlc` types from handlers.
+
+  </Step>
+</Steps>
+
+`mise run check` fails when the generated code is stale (`sqlc diff`).

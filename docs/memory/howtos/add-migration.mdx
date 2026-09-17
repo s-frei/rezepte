@@ -1,0 +1,44 @@
+---
+title: Add a database migration
+description: Sequential goose migrations, embedded and applied at startup
+---
+
+<Steps>
+  <Step>
+
+    ### Create the file
+    `service/internal/db/migrations/NNNN_short_name.sql` with the next four-digit number. Never reuse or renumber.
+
+  </Step>
+  <Step>
+
+    ### Write Up and Down
+    ```sql title="0002_example.sql"
+    -- +goose Up
+    ALTER TABLE users ADD COLUMN display_name TEXT;
+
+    -- +goose Down
+    ALTER TABLE users DROP COLUMN display_name;
+    ```
+    Wrap statements containing semicolons (triggers) in `-- +goose StatementBegin` / `-- +goose StatementEnd`.
+
+  </Step>
+  <Step>
+
+    ### Regenerate sqlc
+    sqlc reads the migrations as schema: `mise run //service:generate`.
+
+  </Step>
+  <Step>
+
+    ### Test
+    `dbtest.Open(t)` applies every migration, so existing tests cover it. Add a test if the migration transforms data.
+
+  </Step>
+</Steps>
+
+<Callout type="warn">
+
+  Migrations run automatically when the binary starts. A failing migration stops the service; test locally with `mise run //service:dev` before committing.
+
+</Callout>

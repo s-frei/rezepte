@@ -7,10 +7,14 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/config"
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
+	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/web"
 )
 
@@ -32,7 +36,30 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	return httpserver.New(cfg, logger, web.Dist()).Run(ctx)
+	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
+		return fmt.Errorf("create data dir: %w", err)
+	}
+	conn, err := db.Open(ctx, filepath.Join(cfg.DataDir, "rezepte.db"))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	if err := db.Migrate(ctx, conn); err != nil {
+		return err
+	}
+
+	users := user.NewService(conn)
+	if err := users.EnsureInitialAdmin(ctx, cfg.AdminUser, cfg.AdminPassword); err != nil {
+		return err
+	}
+	sessions := auth.NewService(conn, users)
+	if err := sessions.DeleteExpired(ctx); err != nil {
+		logger.Warn("cleanup expired sessions", "err", err)
+	}
+
+	srv := httpserver.New(cfg, logger, web.Dist())
+	auth.Register(srv.API(), sessions, cfg.SecureCookies)
+	return srv.Run(ctx)
 }
 
 func newLogger(cfg config.Config) *slog.Logger {
