@@ -10,8 +10,8 @@ func TestLoadFromDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadFrom: %v", err)
 	}
-	if cfg.Addr != ":8080" {
-		t.Errorf("Addr = %q, want :8080", cfg.Addr)
+	if cfg.Addr != ":8060" {
+		t.Errorf("Addr = %q, want :8060", cfg.Addr)
 	}
 	if cfg.DataDir != "./data" {
 		t.Errorf("DataDir = %q, want ./data", cfg.DataDir)

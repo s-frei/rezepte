@@ -7,6 +7,7 @@ Read `docs/memory/index.mdx` before making changes. The memory explains the how 
 
 - Everything in the repo is English (code, comments, commits, docs). UI copy is German and lives only in `frontend/messages/*.json`. → `docs/memory/conventions/svelte.mdx`
 - Commits: semantic prefix, title ≤ 70 chars, body only when needed, no Co-Authored-By or tool trailers. → `docs/memory/conventions/commits.mdx`
+- Git flow: develop on `develop`, releases merge to `main`; never push, merge to `main`, tag or open PRs without being asked. → `docs/memory/conventions/commits.mdx`
 - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 - Run tools only through mise: `mise run <task>` or `mise exec -- <cmd>`. Never call `npm`/`node` directly; use Bun. → `docs/memory/decisions/0001-monorepo-with-mise.mdx`
 - `mise run check` must pass before every commit. → `docs/memory/howtos/run-dev.mdx`

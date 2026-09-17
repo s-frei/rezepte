@@ -22,3 +22,9 @@ description: What to test and how, per package
 </Tabs>
 
 `mise run check` runs every gate and is what CI runs.
+
+<Callout type="warn" title="UI changes and the user docs">
+
+  Once the user documentation exists (Phase 8, [ADR 0008](/memory/decisions/0008-user-docs-and-screenshot-pipeline)): a change to the UI is complete only when the affected page in `docs/user/content` is updated and the screenshots are regenerated with `mise run //docs/user:screenshots` and committed together with the feature.
+
+</Callout>
