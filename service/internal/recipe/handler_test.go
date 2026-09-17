@@ -262,3 +262,51 @@ func TestSearchAndTagQuery(t *testing.T) {
 		t.Fatalf("tag=FLEISCH total = %d, body = %s", page.Total, rec.Body.String())
 	}
 }
+
+func TestSourceURLMustBeHTTP(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0]
+
+	// format:"uri" alone only asks for some scheme, so without the pattern a
+	// script URL is stored and the detail page renders it as a link.
+	script := "javascript:alert(1)"
+	blocked := fx
+	blocked.SourceURL = &script
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, blocked), cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("javascript: status %d: %s", rec.Code, rec.Body.String())
+	}
+	var problem struct {
+		Errors []struct {
+			Location string `json:"location"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	located := false
+	for _, e := range problem.Errors {
+		if e.Location == "body.sourceUrl" {
+			located = true
+		}
+	}
+	if !located {
+		t.Fatalf("errors = %+v, body = %s", problem.Errors, rec.Body.String())
+	}
+
+	source := "https://example.test/rezept"
+	allowed := fx
+	allowed.SourceURL = &source
+	rec = doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, allowed), cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("https status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.SourceURL == nil || *created.SourceURL != source {
+		t.Fatalf("sourceUrl = %v", created.SourceURL)
+	}
+}

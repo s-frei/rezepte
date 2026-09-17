@@ -68,9 +68,11 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 	return s.ByID(ctx, id)
 }
 
-// Update replaces the title, description and all child rows (ingredient
-// groups, ingredients, steps, tags) of the recipe id, keeping its slug and
-// creation metadata. It returns ErrNotFound when no such recipe exists.
+// Update replaces every editable field of the recipe id - title,
+// description, servings, prep and cook minutes, source URL - along with all
+// its child rows (ingredient groups, ingredients, steps, tags), keeping its
+// slug and creation metadata. It returns ErrNotFound when no such recipe
+// exists.
 func (s *Service) Update(ctx context.Context, id string, in Input) (Recipe, error) {
 	tags := NormalizeTags(in.Tags)
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
