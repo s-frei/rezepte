@@ -18,9 +18,17 @@ run = "golangci-lint fmt"
 description = "Fail if Go code is not formatted"
 run = "golangci-lint fmt --diff"
 
+[tasks.generate]
+description = "Generate sqlc code"
+run = "sqlc generate"
+
+[tasks."generate:check"]
+description = "Fail if generated sqlc code is stale"
+run = "sqlc diff"
+
 [tasks.check]
 description = "Vet, format check, lint, test"
-depends = ["fmt:check", "lint", "test"]
+depends = ["fmt:check", "generate:check", "lint", "test"]
 run = "go vet ./..."
 
 [tasks.build]

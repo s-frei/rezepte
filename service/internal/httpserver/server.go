@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -24,10 +25,35 @@ type Server struct {
 	api    huma.API
 }
 
+// defaultNewError is huma's own error constructor, captured once so status
+// codes below 500 keep their normal behaviour after New overrides the hook.
+var (
+	hideInternalErrorsOnce sync.Once
+	defaultNewError        func(status int, msg string, errs ...error) huma.StatusError
+)
+
 // New builds a server serving the API under /api/v1 and static assets from fsys.
 func New(cfg config.Config, logger *slog.Logger, static fs.FS) *Server {
 	mux := http.NewServeMux()
 	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux)}
+
+	// Override huma's error constructor so a plain error returned from a
+	// handler (mapped by huma to a 500) never leaks its message - which may
+	// contain internal details such as SQL driver errors - to the client.
+	// The real constructor is captured only once so calling New repeatedly
+	// (e.g. once per test) does not nest wrappers around itself.
+	hideInternalErrorsOnce.Do(func() { defaultNewError = huma.NewError })
+	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
+		if status < http.StatusInternalServerError {
+			return defaultNewError(status, msg, errs...)
+		}
+		s.logger.Error("internal error", "status", status, "err", errors.Join(errs...))
+		return &huma.ErrorModel{
+			Title:  http.StatusText(status),
+			Status: status,
+			Detail: "internal error",
+		}
+	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -56,8 +82,8 @@ func apiNotFound(w http.ResponseWriter, _ *http.Request) {
 // API exposes the huma API so feature packages can register operations.
 func (s *Server) API() huma.API { return s.api }
 
-// Handler returns the root handler, wrapped with request logging.
-func (s *Server) Handler() http.Handler { return s.logRequests(s.mux) }
+// Handler returns the root handler with Origin check and request logging.
+func (s *Server) Handler() http.Handler { return s.logRequests(checkOrigin(s.mux)) }
 
 // Run serves until ctx is cancelled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {

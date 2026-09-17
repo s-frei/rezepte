@@ -1,0 +1,42 @@
+---
+title: HTTP API
+description: Conventions, auth and error format
+---
+
+Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`.
+
+## Authentication
+
+<Tabs items={['Cookie session', 'Public']}>
+  <Tab value="Cookie session">
+
+    Operations with `Security: auth.SessionSecurity` require the `rezepte_session` cookie. The middleware resolves it to a `user.User` available via `auth.UserFrom(ctx)`. Missing or expired sessions yield `401`.
+
+  </Tab>
+  <Tab value="Public">
+
+    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`.
+
+  </Tab>
+</Tabs>
+
+| Operation | Path | Notes |
+|---|---|---|
+| login | `POST /auth/login` | body `{username, password}`; sets cookie; returns the user |
+| logout | `POST /auth/logout` | 204, clears the cookie |
+| me | `GET /auth/me` | `{id, username, role}` |
+
+OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public (contract only, no data); see ADR 0006.
+
+## CSRF
+
+Cookies are `SameSite=Lax`. Additionally `httpserver.checkOrigin` rejects `POST/PUT/PATCH/DELETE` under `/api/` when an `Origin` header is present and its host differs from the request host.
+
+## Errors
+
+RFC 9457 `application/problem+json`:
+```json
+{ "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
+  "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
+```
+The frontend maps this to `ApiError` in `src/lib/api/client.ts`.

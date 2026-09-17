@@ -2,12 +2,16 @@ package httpserver
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/s-frei/rezepte/service/internal/config"
 )
@@ -96,6 +100,40 @@ func TestLogRequestsLevelByStatus(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if buf.Len() != 0 {
 		t.Fatalf("log output = %q, want no line for a healthy 200 request at Warn level", buf.String())
+	}
+}
+
+func TestServerErrorsHideDetails(t *testing.T) {
+	cfg, err := config.LoadFrom(map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+	srv := New(cfg, logger, fstest.MapFS{})
+
+	huma.Register(srv.API(), huma.Operation{
+		OperationID: "boom",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/boom",
+	}, func(context.Context, *struct{}) (*struct{}, error) {
+		return nil, errors.New("secret database detail")
+	})
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/boom", nil))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+		t.Fatalf("Content-Type = %q, want application/problem+json prefix", ct)
+	}
+	if strings.Contains(rec.Body.String(), "secret") {
+		t.Fatalf("body leaked internal error detail: %s", rec.Body.String())
+	}
+	if !strings.Contains(buf.String(), "secret") {
+		t.Fatalf("logger did not record the internal error: %s", buf.String())
 	}
 }
 

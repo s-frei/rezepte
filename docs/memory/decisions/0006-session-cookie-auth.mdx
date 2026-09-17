@@ -16,6 +16,7 @@ Several household members share one recipe collection. Users are managed in the 
 - CSRF protection: SameSite=Lax plus an `Origin` check on mutating requests.
 - Roles `admin` and `user`. Admin-only routes: user management.
 - The auth middleware iterates a list of authenticators; today only the session authenticator exists. Bearer API tokens and OIDC plug in later.
+- The OpenAPI document, the Scalar docs page and the JSON schemas under `/api/v1/` stay public: they describe the contract and carry no data. huma registers them outside the operation middleware, so protecting them would need a mux-level gate; not worth it for contract-only routes.
 
 ## Consequences
 

@@ -1,0 +1,60 @@
+---
+title: Add an API endpoint
+description: huma operations, security, errors
+---
+
+<Steps>
+  <Step>
+
+    ### Define input and output structs
+    In the feature package's `handler.go`:
+    ```go
+    type getThingInput struct {
+        ID string `path:"id" doc:"Thing id"`
+    }
+    type getThingOutput struct {
+        Body ThingResponse
+    }
+    ```
+    Validation tags (`minLength`, `maxLength`, `enum`, `required`) are enforced by huma and end up in OpenAPI.
+
+  </Step>
+  <Step>
+
+    ### Register the operation
+    ```go
+    huma.Register(api, huma.Operation{
+        OperationID: "get-thing",
+        Method:      http.MethodGet,
+        Path:        "/api/v1/things/{id}",
+        Summary:     "Get a thing",
+        Tags:        []string{"things"},
+        Security:    auth.SessionSecurity, // omit only for public operations
+        Errors:      []int{404},
+    }, func(ctx context.Context, in *getThingInput) (*getThingOutput, error) {
+        t, err := svc.ByID(ctx, in.ID)
+        if errors.Is(err, thing.ErrNotFound) {
+            return nil, huma.Error404NotFound("thing not found")
+        }
+        if err != nil {
+            return nil, err
+        }
+        return &getThingOutput{Body: toResponse(t)}, nil
+    })
+    ```
+    Get the current user with `auth.UserFrom(ctx)`.
+
+  </Step>
+  <Step>
+
+    ### Wire and test
+    Call your package's `Register(srv.API(), …)` from `cmd/rezepte/main.go`. Test through `httpserver.New(...).Handler()` with `httptest` as in `internal/auth/handler_test.go`.
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+
+  Unexpected errors returned from a handler become 500 with a generic body; huma logs nothing, so wrap errors with context (`fmt.Errorf("...: %w", err)`) for the request log.
+
+</Callout>
