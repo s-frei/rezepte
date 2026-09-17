@@ -106,6 +106,7 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Portal>
 			<DropdownMenu.Content
+				preventScroll={false}
 				sideOffset={8}
 				align="end"
 				class="w-52 rounded-2xl bg-surface p-2 shadow-dialog"
@@ -140,6 +141,7 @@
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Portal>
 						<DropdownMenu.Content
+							preventScroll={false}
 							sideOffset={8}
 							align="end"
 							class="w-52 rounded-2xl bg-surface p-2 shadow-dialog"

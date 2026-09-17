@@ -42,6 +42,7 @@
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Portal>
 			<DropdownMenu.Content
+				preventScroll={false}
 				sideOffset={8}
 				align="end"
 				class="w-48 rounded-2xl bg-surface p-2 shadow-dialog"
@@ -75,7 +76,7 @@
 					{/if}
 				{/snippet}
 			</Dialog.Overlay>
-			<Dialog.Content forceMount>
+			<Dialog.Content forceMount preventScroll={false}>
 				{#snippet child({ props, open: isOpen })}
 					{#if isOpen}
 						<div

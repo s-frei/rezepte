@@ -213,7 +213,7 @@
 
 {#snippet noActions()}{/snippet}
 
-<div class="pt-6 md:pt-10">
+<div class="pt-6 pb-20 md:pt-10 md:pb-0">
 	<h1 class="font-display text-display-sm font-medium md:hidden">{heading}</h1>
 
 	<!-- Mobile: the section list is a horizontally scrollable chip row. -->

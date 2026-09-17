@@ -39,7 +39,7 @@
 				{/if}
 			{/snippet}
 		</Dialog.Overlay>
-		<Dialog.Content forceMount>
+		<Dialog.Content forceMount preventScroll={false}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
 					<div
