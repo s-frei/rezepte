@@ -107,3 +107,33 @@ func TestExpiredSessionIsRejectedAndSlidingExtends(t *testing.T) {
 		t.Fatalf("expired: err = %v", err)
 	}
 }
+
+func TestDeleteUserSessionsExcept(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newServices(t)
+	keep, err := svc.Login(ctx, "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := svc.Login(ctx, "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.DeleteUserSessionsExcept(ctx, keep.User.ID, keep.Token); err != nil {
+		t.Fatalf("DeleteUserSessionsExcept: %v", err)
+	}
+	if _, err := svc.Authenticate(ctx, keep.Token); err != nil {
+		t.Fatalf("kept session must still work: %v", err)
+	}
+	if _, err := svc.Authenticate(ctx, other.Token); !errors.Is(err, auth.ErrNoSession) {
+		t.Fatalf("other session: err = %v, want ErrNoSession", err)
+	}
+
+	if err := svc.DeleteUserSessionsExcept(ctx, keep.User.ID, ""); err != nil {
+		t.Fatalf("delete all: %v", err)
+	}
+	if _, err := svc.Authenticate(ctx, keep.Token); !errors.Is(err, auth.ErrNoSession) {
+		t.Fatalf("after delete all: err = %v, want ErrNoSession", err)
+	}
+}

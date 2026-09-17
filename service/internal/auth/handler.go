@@ -42,6 +42,16 @@ type meOutput struct {
 	Body UserResponse
 }
 
+type changePasswordInput struct {
+	Cookie string `cookie:"rezepte_session"`
+	Body   struct {
+		CurrentPassword string `json:"currentPassword" minLength:"1" maxLength:"1024" doc:"The password in use now"`
+		Password        string `json:"password" minLength:"8" maxLength:"128" doc:"The new password"`
+	}
+}
+
+type changePasswordOutput struct{}
+
 // Register declares the OpenAPI cookie security scheme and installs the
 // login, logout and me operations.
 //
@@ -114,6 +124,37 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
 		return &meOutput{Body: toResponse(u)}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "change-own-password",
+		Method:        http.MethodPatch,
+		Path:          "/api/v1/auth/me",
+		Summary:       "Change the current user's password",
+		Description:   "Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid.",
+		Tags:          []string{"auth"},
+		Security:      SessionSecurity,
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{401, 422},
+	}, func(ctx context.Context, in *changePasswordInput) (*changePasswordOutput, error) {
+		u, ok := UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		err := svc.users.ChangePassword(ctx, u.ID, in.Body.CurrentPassword, in.Body.Password)
+		if errors.Is(err, user.ErrWrongPassword) {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: "body.currentPassword",
+				Message:  "current password is wrong",
+			})
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err := svc.DeleteUserSessionsExcept(ctx, u.ID, in.Cookie); err != nil {
+			return nil, err
+		}
+		return &changePasswordOutput{}, nil
 	})
 }
 

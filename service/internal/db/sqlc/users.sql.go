@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countAdmins = `-- name: CountAdmins :one
+SELECT COUNT(*) FROM users WHERE role = 'admin'
+`
+
+func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAdmins)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
 `
@@ -56,6 +67,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteUser = `-- name: DeleteUser :execrows
+DELETE FROM users WHERE id = ?
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, password_hash, role, created_at, updated_at FROM users WHERE id = ?
 `
@@ -80,6 +103,100 @@ SELECT id, username, password_hash, role, created_at, updated_at FROM users WHER
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, username, password_hash, role, created_at, updated_at FROM users ORDER BY username
+`
+
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.PasswordHash,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reassignRecipes = `-- name: ReassignRecipes :exec
+UPDATE recipes SET created_by = ?1 WHERE created_by = ?2
+`
+
+type ReassignRecipesParams struct {
+	NewOwner string
+	OldOwner string
+}
+
+// Lives here rather than in recipes.sql so Phase 4 (running concurrently)
+// and this phase never edit the same query file. recipes.created_by is
+// NOT NULL without ON DELETE, so a user's recipes must move before the
+// user row can go.
+func (q *Queries) ReassignRecipes(ctx context.Context, arg ReassignRecipesParams) error {
+	_, err := q.db.ExecContext(ctx, reassignRecipes, arg.NewOwner, arg.OldOwner)
+	return err
+}
+
+const updateUserPasswordHash = `-- name: UpdateUserPasswordHash :execrows
+UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?
+`
+
+type UpdateUserPasswordHashParams struct {
+	PasswordHash string
+	UpdatedAt    string
+	ID           string
+}
+
+func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserPasswordHash, arg.PasswordHash, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateUserRole = `-- name: UpdateUserRole :one
+UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, password_hash, role, created_at, updated_at
+`
+
+type UpdateUserRoleParams struct {
+	Role      string
+	UpdatedAt string
+	ID        string
+}
+
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserRole, arg.Role, arg.UpdatedAt, arg.ID)
 	var i User
 	err := row.Scan(
 		&i.ID,

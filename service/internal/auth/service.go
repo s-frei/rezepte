@@ -138,6 +138,22 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	return nil
 }
 
+// DeleteUserSessionsExcept ends every session of userID except the one
+// whose raw cookie token is keepToken, so a password change logs out
+// other devices while the acting browser stays signed in. An empty
+// keepToken ends all of the user's sessions (admin password reset).
+func (s *Service) DeleteUserSessionsExcept(ctx context.Context, userID, keepToken string) error {
+	keep := ""
+	if keepToken != "" {
+		keep = hashToken(keepToken)
+	}
+	err := s.q.DeleteUserSessionsExcept(ctx, sqlc.DeleteUserSessionsExceptParams{UserID: userID, ID: keep})
+	if err != nil {
+		return fmt.Errorf("delete sessions of %s: %w", userID, err)
+	}
+	return nil
+}
+
 // DeleteExpired removes sessions past their expiry.
 func (s *Service) DeleteExpired(ctx context.Context) error {
 	if err := s.q.DeleteExpiredSessions(ctx, db.FormatTime(s.now())); err != nil {
