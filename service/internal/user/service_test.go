@@ -34,6 +34,30 @@ func TestCreateAndAuthenticate(t *testing.T) {
 	}
 }
 
+func TestCreateTrimsUsername(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+
+	if _, err := svc.Create(ctx, "  ", "secret123", user.RoleUser); !errors.Is(err, user.ErrInvalidUsername) {
+		t.Fatalf("blank username: err = %v, want ErrInvalidUsername", err)
+	}
+
+	created, err := svc.Create(ctx, " anna ", "secret123", user.RoleUser)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.Username != "anna" {
+		t.Fatalf("username = %q, want trimmed %q", created.Username, "anna")
+	}
+
+	// Authenticate trims the same way, so surrounding spaces typed by
+	// mistake at login still resolve to the trimmed account.
+	got, err := svc.Authenticate(ctx, " anna ", "secret123")
+	if err != nil || got.ID != created.ID {
+		t.Fatalf("Authenticate with spaces: %+v, %v", got, err)
+	}
+}
+
 func TestCreateRejectsDuplicateUsername(t *testing.T) {
 	ctx := context.Background()
 	svc := user.NewService(dbtest.Open(t))
