@@ -1,6 +1,29 @@
 [tasks.dev]
-run = "echo 'todo'"
+description = "Run the API with reload on Go file changes"
+run = "watchexec --restart --exts go --ignore 'internal/web/dist/**' -- go run ./cmd/rezepte"
+
+[tasks.test]
+description = "Run Go tests"
+run = "go test ./..."
+
+[tasks.lint]
+description = "Run golangci-lint"
+run = "golangci-lint run"
+
+[tasks.fmt]
+description = "Format Go code"
+run = "golangci-lint fmt"
+
+[tasks."fmt:check"]
+description = "Fail if Go code is not formatted"
+run = "golangci-lint fmt --diff"
+
 [tasks.check]
-run = "echo 'todo'"
+description = "Vet, format check, lint, test"
+depends = ["fmt:check", "lint", "test"]
+run = "go vet ./..."
+
 [tasks.build]
-run = "echo 'todo'"
+description = "Build the binary with the embedded frontend"
+depends = ["//frontend:build"]
+run = "CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/rezepte ./cmd/rezepte"
