@@ -1,0 +1,10 @@
+.git
+.idea
+docs
+frontend/node_modules
+frontend/.svelte-kit
+service/bin
+service/internal/web/dist
+data
+frontend/test-results
+frontend/playwright-report
