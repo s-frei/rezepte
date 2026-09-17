@@ -4,11 +4,78 @@
 
 package sqlc
 
+type Image struct {
+	ID        string
+	RecipeID  string
+	Filename  string
+	Width     int64
+	Height    int64
+	SizeBytes int64
+	Position  int64
+	CreatedAt string
+}
+
+type Ingredient struct {
+	ID       string
+	GroupID  string
+	Quantity *float64
+	Unit     *string
+	Name     string
+	Note     *string
+	Position int64
+}
+
+type IngredientGroup struct {
+	ID       string
+	RecipeID string
+	Name     *string
+	Position int64
+}
+
+type Recipe struct {
+	ID           string
+	Slug         string
+	Title        string
+	Description  string
+	Servings     int64
+	PrepMinutes  *int64
+	CookMinutes  *int64
+	SourceUrl    *string
+	CoverImageID *string
+	CreatedBy    string
+	CreatedAt    string
+	UpdatedAt    string
+}
+
+type RecipeTag struct {
+	RecipeID string
+	TagID    string
+}
+
+type RecipesFt struct {
+	Title       string
+	Description string
+	Ingredients string
+	Tags        string
+}
+
 type Session struct {
 	ID        string
 	UserID    string
 	ExpiresAt string
 	CreatedAt string
+}
+
+type Step struct {
+	ID       string
+	RecipeID string
+	Position int64
+	Text     string
+}
+
+type Tag struct {
+	ID   string
+	Name string
 }
 
 type User struct {
