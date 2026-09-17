@@ -1,0 +1,34 @@
+---
+title: "0004: SvelteKit as a static SPA with Bits UI and Tailwind"
+description: adapter-static, no SSR, headless components styled by hand
+---
+
+**Status:** accepted · 2026-09-17
+
+## Context
+
+The Go binary serves the frontend, so there is no Node runtime in production. The UI must look distinctive and be mobile first.
+
+## Decision
+
+- SvelteKit with `@sveltejs/adapter-static`, `ssr = false`, `fallback: 'index.html'`. The build writes into `service/internal/web/dist`, which Go embeds.
+- Svelte 5 runes and TypeScript everywhere.
+- Tailwind CSS v4 with design tokens in `app.css`.
+- Bits UI directly (headless), styled with Tailwind. Not shadcn-svelte, so the visual design is not constrained by a third-party style system. `svelte-sonner` for toasts, `lucide-svelte` for icons.
+- German UI copy through Paraglide message files; no hard-coded strings in components.
+- In development, Vite proxies `/api` and `/images` to the Go process on `:8080`.
+
+## Consequences
+
+- No server load functions; data comes from `$lib/api` calls in the browser.
+- Every new UI component wraps a Bits UI primitive when one exists.
+- Adding UI text means adding a message key (see the add-translation how-to).
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - SvelteKit with adapter-node behind Go: two processes, no benefit.
+    - shadcn-svelte: fast start, but imposes its tokens and `cn()` conventions.
+
+  </Accordion>
+</Accordions>

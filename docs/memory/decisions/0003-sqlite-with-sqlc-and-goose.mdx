@@ -1,0 +1,33 @@
+---
+title: "0003: SQLite via modernc, queries with sqlc, migrations with goose"
+description: CGO-free SQLite, generated typed queries, embedded SQL migrations
+---
+
+**Status:** accepted · 2026-09-17
+
+## Context
+
+A household app needs no database server. The binary must build without CGO for a static distroless image. Migrations matter because the schema will evolve (sync, favourites, OIDC).
+
+## Decision
+
+- Driver: `modernc.org/sqlite` (pure Go, FTS5 included). Pragmas: WAL, `busy_timeout=5000`, `foreign_keys=ON`, `synchronous=NORMAL`.
+- Queries: hand-written SQL in `service/internal/db/queries/*.sql`, compiled by `sqlc` into `service/internal/db/sqlc/`. Generated code is committed.
+- Migrations: `service/internal/db/migrations/NNNN_name.sql` with goose annotations, embedded and applied at startup through the goose `Provider` API. Sequential numbering, never timestamps.
+- IDs are UUIDv7 strings, timestamps RFC 3339 UTC strings.
+
+## Consequences
+
+- `mise run //service:generate` must run after changing queries or migrations; CI fails on a stale diff.
+- Tests use a real in-memory SQLite migrated with goose; no mocks.
+- sqlc parses the goose migration files directly, so the schema has one source of truth.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - mattn/go-sqlite3: needs CGO and a C toolchain in the image.
+    - Hand-written scanning: more boilerplate and no compile-time query checks.
+    - ORMs (GORM, ent): hide SQL and fight FTS5 and triggers.
+
+  </Accordion>
+</Accordions>

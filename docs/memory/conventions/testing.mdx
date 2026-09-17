@@ -1,0 +1,24 @@
+---
+title: Testing
+description: What to test and how, per package
+---
+
+<Tabs items={['Go', 'Frontend']}>
+  <Tab value="Go">
+
+    - Standard `testing` package, table tests with `t.Run`, no assertion libraries, no mocking frameworks.
+    - Database tests use a real in-memory SQLite migrated with goose (helper in `internal/db`).
+    - Handler tests use `humatest` against the registered API.
+    - Test names describe behaviour: `TestCreateRecipeRejectsEmptyTitle`.
+
+  </Tab>
+  <Tab value="Frontend">
+
+    - Vitest for pure logic (`src/lib/**/*.test.ts`): API client, scaling, formatting.
+    - Playwright end-to-end tests in `frontend/e2e/` against the built binary (`mise run e2e`), desktop and mobile projects. One test per user-facing flow.
+    - `svelte-check` and ESLint are part of the gate; no component tests.
+
+  </Tab>
+</Tabs>
+
+`mise run check` runs every gate and is what CI runs.

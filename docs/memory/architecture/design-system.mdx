@@ -1,0 +1,126 @@
+---
+title: Design system
+description: Tokens, type scale, components and interaction rules of the “Warm & handmade” UI
+---
+
+<Callout type="info">
+
+  These values are the single source of truth for the frontend. They are defined once as Tailwind v4 `@theme` tokens in `frontend/src/app.css`; components only use the generated utility classes.
+
+</Callout>
+
+## Colour tokens
+
+<Tabs items={['Light', 'Dark']}>
+  <Tab value="Light">
+
+    | Token | Value | Used for |
+    |---|---|---|
+    | `background` | `#f4ede2` | page background, stepper track, segmented control track |
+    | `surface` | `#fdf9f2` | cards, dialogs, cooking mode background |
+    | `surface-elevated` | `#ffffff` | inputs, dialog inner areas |
+    | `border` | `#e3d7c3` | 1px borders, dashed separators |
+    | `text` | `#2b2118` | body text |
+    | `text-muted` | `#7d6d5c` | secondary text, labels |
+    | `primary` / `primary-foreground` | `#b45309` / `#ffffff` | primary buttons, links, active outlines, group headings |
+    | `accent` / `accent-foreground` | `#f0dfc4` / `#7c3d0a` | tag chips, step numbers, avatars, secondary buttons |
+    | `destructive` / `destructive-foreground` / `destructive-soft` | `#a3321f` / `#ffffff` / `#f9e3dd` | delete actions, error banners |
+    | `success` | `#7fb069` | toast success indicator |
+    | `inverse` / `inverse-foreground` / `inverse-muted` | `#2b2118` / `#ffffff` / `#c9b9a3` | bottom nav, toasts, active filter chips |
+    | `skeleton` | `#eadfcd` | loading placeholders |
+    | `handle` | `#c9b9a3` | drag handles, inactive icons, unchecked checkbox border |
+    | `tint-1` / `tint-2` / `tint-3` | `#f0dfc4` / `#e6e3cf` / `#efd9cf` | card placeholder tiles when a recipe has no photo |
+    | `lightbox` | `#120e0b` | lightbox background (both themes) |
+
+  </Tab>
+  <Tab value="Dark">
+
+    | Token | Value |
+    |---|---|
+    | `background` | `#1c1612` |
+    | `surface` | `#26201a` |
+    | `surface-elevated` | `#2f2822` |
+    | `border` | `#3b322a` |
+    | `text` | `#f3ebe0` |
+    | `text-muted` | `#a8998a` |
+    | `primary` / `primary-foreground` | `#d97a2b` / `#1c1612` |
+    | `accent` / `accent-foreground` | `#3f2f1e` / `#f0c391` |
+    | `destructive` / `destructive-foreground` / `destructive-soft` | `#e5674f` / `#1c1612` / `#3d2320` |
+    | `inverse` / `inverse-foreground` / `inverse-muted` | `#f3ebe0` / `#1c1612` / `#7a6c5e` |
+    | `skeleton` | `#2f2822` |
+    | `handle` | `#5a4d40` |
+    | `tint-1` / `tint-2` / `tint-3` | `#3f2f1e` / `#33301f` / `#3d2a22` |
+    | shadows | none; cards get a 1px `border` instead |
+
+  </Tab>
+</Tabs>
+
+## Typography
+
+- Display and headings: `font-display` = Literata (variable, optical size), weights 400/500/600, italic 500 for ingredient-group headings and placeholder initials.
+- UI and body: `font-sans` = Karla, weights 400/500/600/700.
+- Numbers: `tabular-nums` everywhere; fractions as Unicode (½ ¼ ¾ ⅓ ⅔) or “1 ½”.
+
+| Class | Size / line-height | Used for |
+|---|---|---|
+| `text-display-xl` | 52 / 1.05, tracking -0.01em | recipe title, desktop |
+| `text-display-lg` | 40 / 1.1 | overview headline, desktop |
+| `text-display-md` | 34 / 1.08 | recipe title, mobile |
+| `text-display-sm` | 30 / 1.1 (1.3 in cooking mode) | overview headline mobile, cooking step |
+| `text-heading-lg` / `text-heading` | 24 / 22, 1.2 | section and dialog titles |
+| `text-card` | 19 / 1.2 | card title desktop (16 on mobile) |
+| `text-body-lg` | 17 / 1.55 | recipe description |
+| `text-body` | 15 / 1.5 | default |
+| `text-body-sm` | 14 | meta, chips, buttons |
+| `text-caption` | 13 | notes, tag rows |
+| `text-micro` | 12 | badges |
+| `text-label` | 11, uppercase, tracking .08em, weight 700 | table heads, group labels |
+
+## Spacing, radii, shadows
+
+- 4px grid: 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40. Page padding: desktop 32px, mobile 20px. Card grid gap: desktop 22px, mobile 14px.
+- Radii: `rounded-pill` (buttons, chips, search, stepper, segmented control, bottom nav), `rounded-3xl` 24px (dialogs, cover image, sheet top), `rounded-2xl` 20px (desktop cards, section containers), `rounded-xl` 18px (mobile cards), `rounded-lg` 14px (image in card), `rounded-md` 12px (inputs, thumbnails), `rounded-sm` 10px (editor row inputs). Avatars and icon buttons are circles.
+- Shadows (warm, brown-based): `shadow-card`, `shadow-cover`, `shadow-dialog`, `shadow-sheet`, `shadow-cta` (mobile primary CTA). None in dark mode.
+
+## Components (Bits UI ↔ design)
+
+| Component | Primitive | Design |
+|---|---|---|
+| Button | `Button.Root` | primary (`bg-primary`, pill, 40px desktop / 48–56px mobile), secondary (`bg-surface` + border), accent, ghost (muted text), destructive, icon (40px circle). Hover 4% darker, active `scale-[.98]`, focus-visible 2px `primary` outline offset 2 |
+| Input / Textarea | native | 44px (50px on login), `rounded-md`, `bg-surface-elevated`, border → `primary` on focus; error: 1.5px `destructive` + 12/500 message |
+| Combobox (tags, units) | `Combobox` | popover `bg-surface rounded-2xl shadow-dialog`, options 40px `rounded-sm`, active `bg-background` |
+| Tag chip | own | filter: pill 36px 14/500, inactive `surface` + border, active `inverse`; display: `accent` 13/600 |
+| Dialog | `Dialog` | `rounded-3xl`, overlay `rgb(43 33 24 / .4)`, fade + scale 200ms |
+| Sheet | `Dialog` + slide | `rounded-3xl` top, slide 250ms ease-out, `shadow-sheet` |
+| Dropdown / Context | `DropdownMenu` | like combobox popover |
+| Command palette | `Command` | 600px dialog, groups “Rezepte” / “Aktionen”, 32px icon tiles |
+| Tabs / segmented control | `Tabs` | pill track `bg-background` p-1, active segment `bg-surface` + shadow |
+| Switch | `Switch` | track 28×16 `border` → `primary` |
+| Servings stepper | own | pill track `bg-background` 40px; “−” 32px circle `surface`, value Literata 600 18, “+” 32px circle `primary`; min 1, max 99; 150ms scale/fade on change |
+| Checkbox row (ingredient) | `Checkbox` | 20px circle, 1.5px `handle` border; checked: `primary` fill, text struck through |
+| Step item | own | 36px `accent` circle with Literata 600 16 number, text 16/1.6 |
+| Drag handle | Lucide `grip-vertical` | `text-handle` |
+| Toast | svelte-sonner | `bg-inverse`, `rounded-2xl`, 22px status circle (`success` ✓ / `destructive` !) |
+| Skeleton | own | `bg-skeleton`, pulse 1.5s |
+| Progress (cooking mode) | own | one 4px segment per step, done/current `primary`, open `border` |
+| Avatar | `Avatar` | circle, `bg-accent text-accent-foreground`, Literata initial |
+| Lightbox | `Dialog` | `bg-lightbox`, image `object-contain rounded-2xl`, 48px arrow buttons, 56px thumbnail strip |
+
+## Icons (Lucide)
+
+search, plus, minus, link, download, settings, log-out, chevron-left/right/down, x, more-horizontal, share-2, pencil, chef-hat (cooking mode), trash-2, grip-vertical, image-plus, upload, check, clock, flame, sun, moon, monitor, user, key-round, alert-circle, arrow-left/right, zoom-in.
+
+## Interaction rules
+
+- Search debounced 250ms; show skeletons only when loading takes longer than 300ms.
+- Tag filters are multi-select and mirrored into the URL query.
+- Ingredient checks are visual only, kept per session in `sessionStorage`.
+- Cooking mode: Screen Wake Lock, swipe threshold 50px, step change 200ms slide/fade, arrow keys.
+- Editor: `beforeunload` prompt when dirty; Enter adds an ingredient row, Backspace in an empty row deletes it.
+- Theme: `data-theme` on `<html>` (`system | light | dark`), persisted in `localStorage`.
+- Respect `prefers-reduced-motion`.
+
+## App shell
+
+- Desktop: 64px transparent top bar with logo (30px `primary` circle + “Rezepte” Literata 600 22), breadcrumb 14/500 muted, actions (Importieren = secondary, “+ Neues Rezept” = primary), 36px avatar → dropdown (Einstellungen, Abmelden).
+- Mobile: floating pill bottom nav, `bg-inverse`, 64px high, 16px margin, items Rezepte / Suche / Neu / Mehr; “Neu” is a 48px `primary` circle. Labels 11/600 `inverse-muted`, active white.

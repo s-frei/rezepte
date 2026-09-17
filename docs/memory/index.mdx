@@ -1,0 +1,73 @@
+---
+title: Agent Memory
+description: How to use this documentation when working on Rezepte
+---
+
+<Callout type="info">
+
+  This section is the long-term memory for AI coding agents working on Rezepte. It is written for agents first, but stays readable for humans.
+
+</Callout>
+
+## What Rezepte is
+
+A self-hosted recipe manager for a household: a Go service serving a bundled SvelteKit SPA, SQLite for storage, sessions for login. The UI is German; everything in the repository is English.
+
+## How to read this memory
+
+<Steps>
+  <Step>
+
+    ### Start with the architecture overview
+    Read [Architecture overview](/memory/architecture/overview) to see how `service/`, `frontend/` and `docs/` fit together.
+
+  </Step>
+  <Step>
+
+    ### Check the decisions before changing structure
+    Every non-obvious choice has an ADR under [Decisions](/memory/decisions). If your change contradicts one, write a new ADR that supersedes it.
+
+  </Step>
+  <Step>
+
+    ### Use the design system, never ad-hoc colours
+    Every colour, radius, shadow and font comes from the tokens in [Design system](/memory/architecture/design-system). Components wrap Bits UI primitives.
+
+  </Step>
+  <Step>
+
+    ### Follow the how-tos for repetitive work
+    Adding a migration, an endpoint, a component or a translation each has a how-to under [How-tos](/memory/howtos).
+
+  </Step>
+  <Step>
+
+    ### Run the gate
+    `mise run check` must pass before every commit.
+
+  </Step>
+</Steps>
+
+## Repository map
+
+<Files>
+  <Folder name="service" defaultOpen>
+    <Folder name="cmd/rezepte"><File name="main.go" /></Folder>
+    <Folder name="internal">
+      <Folder name="config" />
+      <Folder name="httpserver" />
+      <Folder name="web" />
+    </Folder>
+  </Folder>
+  <Folder name="frontend" defaultOpen>
+    <Folder name="src/lib"><Folder name="api" /></Folder>
+    <Folder name="src/routes" />
+    <Folder name="messages"><File name="de.json" /></Folder>
+  </Folder>
+  <Folder name="docs" defaultOpen>
+    <Folder name="memory" />
+    <Folder name="user" />
+  </Folder>
+  <File name="mise.toml" />
+  <File name="CLAUDE.md" />
+</Files>

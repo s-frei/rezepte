@@ -1,0 +1,33 @@
+---
+title: Write an ADR
+description: When and how to record an architecture decision
+---
+
+Write an ADR when a change introduces a dependency, changes package boundaries, changes the data model shape, or picks between competing approaches.
+
+<Steps>
+  <Step>
+
+    ### Pick the next number
+    Look at `docs/memory/decisions/` and use the next four-digit number.
+
+  </Step>
+  <Step>
+
+    ### Create the file
+    `docs/memory/decisions/NNNN-short-kebab-title.mdx` with frontmatter `title: "NNNN: Title"` and a `description`.
+
+  </Step>
+  <Step>
+
+    ### Fill the sections
+    `**Status:** accepted · YYYY-MM-DD`, then `## Context`, `## Decision`, `## Consequences`, and an `<Accordions>` block "Alternatives considered".
+
+  </Step>
+  <Step>
+
+    ### Supersede, do not edit
+    If a decision changes, write a new ADR and set the old one's status to `superseded by NNNN`.
+
+  </Step>
+</Steps>

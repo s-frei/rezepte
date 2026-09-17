@@ -1,0 +1,13 @@
+---
+title: Go conventions
+description: Package layout, errors, logging, formatting
+---
+
+- Package per domain under `internal/`; `cmd/rezepte` only wires things together.
+- Layering inside a domain package: `handler.go` (huma operations) → `service.go` (logic, transactions) → sqlc queries. No repository interfaces.
+- Errors: wrap with `fmt.Errorf("doing x: %w", err)`. Domain errors are sentinels (`var ErrNotFound = errors.New("recipe not found")`) mapped to huma errors in the handler.
+- Logging: `log/slog` only, structured key-value pairs, never `fmt.Println`.
+- Context first parameter everywhere that does I/O.
+- Formatting and lint: `mise run //service:fmt` then `mise run //service:check`. The config lives in `service/.golangci.yml`.
+- Prefer the standard library. Add a dependency only when it is the established solution and replaces real work; record it in an ADR.
+- Doc comment on every exported identifier and a package comment per package.
