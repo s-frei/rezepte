@@ -3,6 +3,7 @@ package httpserver
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -36,6 +37,14 @@ func TestCheckOrigin(t *testing.T) {
 			h.ServeHTTP(rec, req)
 			if rec.Code != tc.want {
 				t.Fatalf("got %d, want %d", rec.Code, tc.want)
+			}
+			if tc.want == http.StatusForbidden {
+				if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+					t.Fatalf("Content-Type = %q, want application/problem+json prefix", ct)
+				}
+				if !strings.Contains(rec.Body.String(), `"status":403`) {
+					t.Fatalf("body = %s, want it to contain \"status\":403", rec.Body.String())
+				}
 			}
 		})
 	}

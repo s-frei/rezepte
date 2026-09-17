@@ -2,5 +2,15 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_name": "Rezepte",
 	"home_placeholder": "Rezepte ist noch leer.",
-	"not_found": "Diese Seite gibt es nicht."
+	"home_signed_in_as": "Angemeldet als {username}",
+	"not_found": "Diese Seite gibt es nicht.",
+	"login_welcome": "Willkommen zurück.",
+	"login_title": "Anmelden",
+	"login_username": "Benutzername",
+	"login_password": "Passwort",
+	"login_submit": "Anmelden",
+	"login_submitting": "Wird angemeldet …",
+	"login_failed": "Benutzername oder Passwort ist falsch.",
+	"login_error_generic": "Anmeldung fehlgeschlagen. Bitte später erneut versuchen.",
+	"logout": "Abmelden"
 }

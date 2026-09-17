@@ -29,7 +29,9 @@ description: huma operations, security, errors
         Path:        "/api/v1/things/{id}",
         Summary:     "Get a thing",
         Tags:        []string{"things"},
-        Security:    auth.SessionSecurity, // omit only for public operations
+        Security:    auth.SessionSecurity, // omit only for public operations; the middleware
+                                            // is installed by httpserver.New before any
+                                            // operation can be registered, so this is enough
         Errors:      []int{404},
     }, func(ctx context.Context, in *getThingInput) (*getThingOutput, error) {
         t, err := svc.ByID(ctx, in.ID)
@@ -55,6 +57,6 @@ description: huma operations, security, errors
 
 <Callout type="info">
 
-  Unexpected errors returned from a handler become 500 with a generic body; huma logs nothing, so wrap errors with context (`fmt.Errorf("...: %w", err)`) for the request log.
+  Unexpected errors returned from a handler become 500 with a generic body. The `httpserver` error hook logs the real error at Error level with the operation id, method and path, so wrap errors with context (`fmt.Errorf("...: %w", err)`) to make that log line useful.
 
 </Callout>

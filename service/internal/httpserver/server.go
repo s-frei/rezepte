@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -25,34 +26,80 @@ type Server struct {
 	api    huma.API
 }
 
-// defaultNewError is huma's own error constructor, captured once so status
-// codes below 500 keep their normal behaviour after New overrides the hook.
-var (
-	hideInternalErrorsOnce sync.Once
-	defaultNewError        func(status int, msg string, errs ...error) huma.StatusError
-)
+// Option configures a Server at construction time. Options run after the
+// huma API is created but before New returns, so an Option such as
+// WithAPIMiddleware is guaranteed to apply before the caller can register
+// any operation on the returned Server.
+type Option func(*Server)
 
-// New builds a server serving the API under /api/v1 and static assets from fsys.
-func New(cfg config.Config, logger *slog.Logger, static fs.FS) *Server {
+// WithAPIMiddleware installs an API-wide huma middleware. mw receives the
+// server's huma.API (useful for writing errors with huma.WriteErr) and
+// returns the actual middleware function.
+//
+// Because New applies every Option before returning, a middleware installed
+// this way is structurally guaranteed to run for every operation registered
+// afterwards - there is no window in which an operation could be registered
+// ahead of it, unlike calling api.UseMiddleware from arbitrary caller code.
+func WithAPIMiddleware(mw func(api huma.API) func(huma.Context, func(huma.Context))) Option {
+	return func(s *Server) {
+		s.api.UseMiddleware(mw(s.api))
+	}
+}
+
+// errorLogger holds the logger the huma error hook below logs to. New stores
+// its logger here; when multiple Servers exist, the last call to New wins
+// for every server's errors, since the hook is a single package-level
+// override of huma.NewErrorWithContext. This is fine in this process, which
+// only ever runs one Server, and is acceptable in tests, which each build
+// their own short-lived Server sequentially.
+var errorLogger atomic.Pointer[slog.Logger]
+
+// installErrorHookOnce guards the one-time capture of huma's original
+// NewErrorWithContext and installation of the replacement below.
+var installErrorHookOnce sync.Once
+
+// installErrorHook overrides huma.NewErrorWithContext - the constructor huma
+// calls both for handler errors and from huma.WriteErr - so that a plain
+// error returned from a handler (mapped by huma to a 500) never leaks its
+// message (which may contain internal details such as SQL driver errors) to
+// the client. Status codes below 500 keep huma's normal behaviour via the
+// captured original constructor.
+func installErrorHook() {
+	installErrorHookOnce.Do(func() {
+		original := huma.NewErrorWithContext
+		huma.NewErrorWithContext = func(ctx huma.Context, status int, msg string, errs ...error) huma.StatusError {
+			if status < http.StatusInternalServerError {
+				return original(ctx, status, msg, errs...)
+			}
+			if logger := errorLogger.Load(); logger != nil {
+				logger.Error("internal error",
+					"operation", ctx.Operation().OperationID,
+					"method", ctx.Method(),
+					"path", ctx.URL().Path,
+					"err", errors.Join(errs...))
+			}
+			return &huma.ErrorModel{
+				Title:  http.StatusText(status),
+				Status: status,
+				Detail: "internal error",
+			}
+		}
+	})
+}
+
+// New builds a server serving the API under /api/v1 and static assets from
+// fsys. Options run after the huma API is created and before any operation
+// can be registered on it; use WithAPIMiddleware to install API-wide
+// middleware (such as auth.Middleware) with that guarantee.
+func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *Server {
 	mux := http.NewServeMux()
 	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux)}
 
-	// Override huma's error constructor so a plain error returned from a
-	// handler (mapped by huma to a 500) never leaks its message - which may
-	// contain internal details such as SQL driver errors - to the client.
-	// The real constructor is captured only once so calling New repeatedly
-	// (e.g. once per test) does not nest wrappers around itself.
-	hideInternalErrorsOnce.Do(func() { defaultNewError = huma.NewError })
-	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
-		if status < http.StatusInternalServerError {
-			return defaultNewError(status, msg, errs...)
-		}
-		s.logger.Error("internal error", "status", status, "err", errors.Join(errs...))
-		return &huma.ErrorModel{
-			Title:  http.StatusText(status),
-			Status: status,
-			Detail: "internal error",
-		}
+	installErrorHook()
+	errorLogger.Store(logger)
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {

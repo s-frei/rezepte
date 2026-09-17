@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { login } from './helpers';
 
 test('serves the app shell', async ({ page }) => {
-	await page.goto('/');
+	await login(page);
 	await expect(page.getByRole('heading', { name: 'Rezepte' })).toBeVisible();
 });
 
@@ -12,6 +13,8 @@ test('health endpoint answers', async ({ request }) => {
 });
 
 test('serves the app shell for deep links', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
 	await page.goto('/recipes/some-deep-link');
 	await expect(page.getByRole('heading', { name: 'Rezepte' })).toBeVisible();
 });

@@ -30,7 +30,7 @@ OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public
 
 ## CSRF
 
-Cookies are `SameSite=Lax`. Additionally `httpserver.checkOrigin` rejects `POST/PUT/PATCH/DELETE` under `/api/` when an `Origin` header is present and its host differs from the request host.
+Cookies are `SameSite=Lax`. Additionally `httpserver.checkOrigin` rejects `POST/PUT/PATCH/DELETE` under `/api/` when an `Origin` header is present and its host differs from the request host, answering with a `403` `application/problem+json` body (`{"title":"Forbidden","status":403,"detail":"origin not allowed"}`).
 
 ## Errors
 
@@ -39,4 +39,4 @@ RFC 9457 `application/problem+json`:
 { "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
   "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
 ```
-The frontend maps this to `ApiError` in `src/lib/api/client.ts`.
+The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again.

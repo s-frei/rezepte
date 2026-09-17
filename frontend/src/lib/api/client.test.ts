@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { goto } from '$app/navigation';
+import { session } from '$lib/auth.svelte';
 import { api, ApiError } from './client';
+
+vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
+vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
 
 function mockFetch(status: number, body: unknown, contentType = 'application/json') {
 	const fn = vi.fn(
@@ -58,5 +63,67 @@ describe('api', () => {
 			vi.fn(async () => new Response('', { status: 200 }))
 		);
 		await expect(api('/x')).resolves.toBeUndefined();
+	});
+});
+
+describe('api central 401 handling', () => {
+	const mockedGoto = vi.mocked(goto);
+
+	function stubBrowser(pathname: string, search = '') {
+		vi.stubGlobal('window', { location: { pathname, search } });
+	}
+
+	afterEach(() => {
+		mockedGoto.mockClear();
+		session.user = null;
+	});
+
+	it('clears the session and redirects to /login with a next param', async () => {
+		stubBrowser('/recipes', '?tag=soup');
+		session.user = { id: '1', username: 'sam', role: 'user' };
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/recipes')).rejects.toBeInstanceOf(ApiError);
+
+		expect(session.user).toBeNull();
+		expect(mockedGoto).toHaveBeenCalledWith(
+			'/login?next=' + encodeURIComponent('/recipes?tag=soup')
+		);
+	});
+
+	it('does not redirect for the login call itself', async () => {
+		stubBrowser('/some-page');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/auth/login', { method: 'POST' })).rejects.toBeInstanceOf(ApiError);
+
+		expect(mockedGoto).not.toHaveBeenCalled();
+	});
+
+	it('does not redirect for the me call itself (the root layout load already redirects via SvelteKit redirect())', async () => {
+		stubBrowser('/some-page');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/auth/me')).rejects.toBeInstanceOf(ApiError);
+
+		expect(mockedGoto).not.toHaveBeenCalled();
+	});
+
+	it('does not redirect when already on the login page', async () => {
+		stubBrowser('/login');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/recipes')).rejects.toBeInstanceOf(ApiError);
+
+		expect(mockedGoto).not.toHaveBeenCalled();
+	});
+
+	it('does not redirect outside a browser context', async () => {
+		// No stubBrowser(): window stays undefined, as in this file's other tests.
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/recipes')).rejects.toBeInstanceOf(ApiError);
+
+		expect(mockedGoto).not.toHaveBeenCalled();
 	});
 });

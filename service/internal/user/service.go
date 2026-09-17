@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -89,11 +90,26 @@ func (s *Service) ByID(ctx context.Context, id string) (User, error) {
 	return fromRow(row)
 }
 
+// dummyHash is a valid argon2id hash with no corresponding password, computed
+// once on first use. Authenticate runs VerifyPassword against it for unknown
+// usernames so that path costs the same one argon2 evaluation as a real user,
+// which keeps an unknown-username response indistinguishable from a
+// wrong-password response by timing.
+var dummyHash = sync.OnceValue(func() string {
+	hash, err := HashPassword("dummy")
+	if err != nil {
+		// Only fails if the OS RNG is broken, which is unrecoverable anyway.
+		panic(fmt.Sprintf("hash dummy password: %v", err))
+	}
+	return hash
+})
+
 // Authenticate verifies the password and returns the user. Unknown users and
 // wrong passwords both yield ErrInvalidCredentials.
 func (s *Service) Authenticate(ctx context.Context, username, password string) (User, error) {
 	row, err := s.q.GetUserByUsername(ctx, username)
 	if errors.Is(err, sql.ErrNoRows) {
+		_, _ = VerifyPassword(dummyHash(), password)
 		return User{}, ErrInvalidCredentials
 	}
 	if err != nil {

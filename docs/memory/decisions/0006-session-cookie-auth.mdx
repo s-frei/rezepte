@@ -12,10 +12,10 @@ Several household members share one recipe collection. Users are managed in the 
 ## Decision
 
 - Own login form posting to `/api/v1/auth/login`; passwords hashed with argon2id (`golang.org/x/crypto/argon2`).
-- Session tokens stored in a `sessions` table, delivered as cookie `rezepte_session` (HttpOnly, SameSite=Lax, `Secure` when `REZEPTE_SECURE_COOKIES=true`), 30 days with sliding expiration.
+- Session tokens stored in a `sessions` table, delivered as cookie `rezepte_session` (HttpOnly, SameSite=Lax, `Secure` when `REZEPTE_SECURE_COOKIES=true`), 30 days with sliding expiration. Each sliding renewal re-issues the cookie (a fresh `Set-Cookie`) so the browser's expiry never falls behind the one stored in the database.
 - CSRF protection: SameSite=Lax plus an `Origin` check on mutating requests.
 - Roles `admin` and `user`. Admin-only routes: user management.
-- The auth middleware iterates a list of authenticators; today only the session authenticator exists. Bearer API tokens and OIDC plug in later.
+- A single session middleware (`auth.Middleware`) is installed on the huma API through `httpserver.WithAPIMiddleware`, before any operation can be registered. That is the seam where a bearer-token authenticator and, later, OIDC will be added - as further middleware in the same chain, not a list iterated inside one authenticator.
 - The OpenAPI document, the Scalar docs page and the JSON schemas under `/api/v1/` stay public: they describe the contract and carry no data. huma registers them outside the operation middleware, so protecting them would need a mux-level gate; not worth it for contract-only routes.
 
 ## Consequences

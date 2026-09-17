@@ -132,8 +132,53 @@ func TestServerErrorsHideDetails(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "secret") {
 		t.Fatalf("body leaked internal error detail: %s", rec.Body.String())
 	}
-	if !strings.Contains(buf.String(), "secret") {
-		t.Fatalf("logger did not record the internal error: %s", buf.String())
+	logged := buf.String()
+	if !strings.Contains(logged, "secret") {
+		t.Fatalf("logger did not record the internal error: %s", logged)
+	}
+	if !strings.Contains(logged, "operation=boom") {
+		t.Fatalf("logger did not record the operation id: %s", logged)
+	}
+	if !strings.Contains(logged, "method=GET") || !strings.Contains(logged, "path=/api/v1/boom") {
+		t.Fatalf("logger did not record method/path: %s", logged)
+	}
+}
+
+// TestWithAPIMiddlewareAppliesBeforeRegistration proves that an Option
+// passed to New applies before the caller can register any operation: a
+// middleware that rejects every protected operation still rejects an
+// operation registered strictly after New returns.
+func TestWithAPIMiddlewareAppliesBeforeRegistration(t *testing.T) {
+	cfg, err := config.LoadFrom(map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejectProtected := func(api huma.API) func(huma.Context, func(huma.Context)) {
+		return func(ctx huma.Context, next func(huma.Context)) {
+			if len(ctx.Operation().Security) > 0 {
+				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "rejected by test middleware")
+				return
+			}
+			next(ctx)
+		}
+	}
+	srv := New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, WithAPIMiddleware(rejectProtected))
+
+	// Registered after New returns - if the middleware were not already
+	// installed by this point, this operation would run unauthenticated.
+	huma.Register(srv.API(), huma.Operation{
+		OperationID: "protected",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/protected",
+		Security:    []map[string][]string{{"session": {}}},
+	}, func(context.Context, *struct{}) (*struct{}, error) {
+		return &struct{}{}, nil
+	})
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/protected", nil))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 (WithAPIMiddleware must apply before an operation can be registered)", rec.Code)
 	}
 }
 

@@ -42,13 +42,14 @@ type meOutput struct {
 	Body UserResponse
 }
 
-// Register installs the auth middleware, the OpenAPI security scheme and the
+// Register declares the OpenAPI cookie security scheme and installs the
 // login, logout and me operations.
 //
-// It must be called before any package registers operations with
-// Security: auth.SessionSecurity, since api.UseMiddleware only applies the
-// auth middleware to operations registered after this call (main.go calls
-// Register right after httpserver.New for this reason).
+// The auth middleware itself is not installed here: it is passed to
+// httpserver.New via httpserver.WithAPIMiddleware(auth.Middleware(...)),
+// which applies it before this package (or any other) can register an
+// operation. That ordering is structural, not a calling-convention
+// requirement of this function.
 func Register(api huma.API, svc *Service, secureCookies bool) {
 	oapi := api.OpenAPI()
 	if oapi.Components == nil {
@@ -62,7 +63,6 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		In:   "cookie",
 		Name: CookieName,
 	}
-	api.UseMiddleware(svc.middleware(api))
 
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
