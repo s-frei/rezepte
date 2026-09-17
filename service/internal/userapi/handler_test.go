@@ -69,20 +69,20 @@ func loginAs(t *testing.T, h http.Handler, username, password string) *http.Cook
 	return nil
 }
 
-func listUsers(t *testing.T, h http.Handler, cookie *http.Cookie) []userapi.Response {
+func listUsers(t *testing.T, h http.Handler, cookie *http.Cookie) []userapi.UserAccount {
 	t.Helper()
 	rec := doReq(h, http.MethodGet, "/api/v1/users", "", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list status %d: %s", rec.Code, rec.Body.String())
 	}
-	var list userapi.List
+	var list userapi.UserAccountList
 	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
 		t.Fatal(err)
 	}
 	return list.Items
 }
 
-func idOf(t *testing.T, items []userapi.Response, username string) string {
+func idOf(t *testing.T, items []userapi.UserAccount, username string) string {
 	t.Helper()
 	for _, u := range items {
 		if u.Username == username {
@@ -129,11 +129,15 @@ func TestListAndCreate(t *testing.T) {
 	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.password") {
 		t.Fatalf("short password: status %d: %s", rec.Code, rec.Body.String())
 	}
+	rec = doReq(h, http.MethodPost, "/api/v1/users", `{"username":"   ","password":"lea-password","role":"user"}`, sam)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.username") {
+		t.Fatalf("blank username: status %d: %s", rec.Code, rec.Body.String())
+	}
 	rec = doReq(h, http.MethodPost, "/api/v1/users", `{"username":"lea","password":"lea-password","role":"user"}`, sam)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create: status %d: %s", rec.Code, rec.Body.String())
 	}
-	var created userapi.Response
+	var created userapi.UserAccount
 	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}

@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,11 +61,12 @@ func TestDecodeRejectsUnsupportedAndInvalid(t *testing.T) {
 		data []byte
 		want error
 	}{
-		"gif":       {[]byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;"), ErrUnsupported},
-		"text":      {[]byte("hello"), ErrUnsupported},
-		"too small": {encodePNG(t, 63, 64), ErrInvalid},
-		"too large": {pngHeaderOnly(12001, 100), ErrInvalid},
-		"truncated": {encodeJPEG(t, 80, 80)[:200], ErrInvalid},
+		"gif":             {[]byte("GIF89a\x01\x00\x01\x00\x00\x00\x00;"), ErrUnsupported},
+		"text":            {[]byte("hello"), ErrUnsupported},
+		"too small":       {encodePNG(t, 63, 64), ErrInvalid},
+		"too large":       {pngHeaderOnly(12001, 100), ErrInvalid},
+		"too many pixels": {pngHeaderOnly(12000, 6000), ErrTooLarge}, // 72 MP, both sides legal
+		"truncated":       {encodeJPEG(t, 80, 80)[:200], ErrInvalid},
 	}
 	for name, c := range cases {
 		_, err := decode(c.data)
@@ -129,14 +131,46 @@ func TestWriteVariants(t *testing.T) {
 }
 
 func TestWriteVariantsCleansUpOnError(t *testing.T) {
-	dir := t.TempDir()
-	// A file where the recipe directory should be makes MkdirAll fail.
-	if err := os.WriteFile(filepath.Join(dir, "r1"), []byte("x"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := writeVariants(filepath.Join(dir, "r1"), "img1", stdimage.NewNRGBA(stdimage.Rect(0, 0, 64, 64))); err == nil {
-		t.Fatal("expected error")
-	}
+	t.Run("mkdir fails", func(t *testing.T) {
+		dir := t.TempDir()
+		// A file where the recipe directory should be makes MkdirAll fail.
+		if err := os.WriteFile(filepath.Join(dir, "r1"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := writeVariants(filepath.Join(dir, "r1"), "img1", stdimage.NewNRGBA(stdimage.Rect(0, 0, 64, 64))); err == nil {
+			t.Fatal("expected error")
+		}
+	})
+
+	t.Run("rename fails midway", func(t *testing.T) {
+		recipeDir := filepath.Join(t.TempDir(), "r1")
+		// A directory where the second variant's final file should be: the
+		// first variant is written and renamed, then renaming the detail
+		// temp file over a directory fails. Everything written so far must
+		// be gone afterwards.
+		blocker := filepath.Join(recipeDir, "img1_detail.jpg")
+		if err := os.MkdirAll(blocker, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		_, err := writeVariants(recipeDir, "img1", stdimage.NewNRGBA(stdimage.Rect(0, 0, 64, 64)))
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		// Not just any error: the first variant must already be on disk, so
+		// cleanup has something to undo.
+		if !strings.Contains(err.Error(), "rename") {
+			t.Fatalf("err = %v, want the rename of the detail variant to fail", err)
+		}
+		entries, err := os.ReadDir(recipeDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			if e.Name() != "img1_detail.jpg" || !e.IsDir() {
+				t.Errorf("leftover %q (dir: %v), want only the blocking directory", e.Name(), e.IsDir())
+			}
+		}
+	})
 }
 
 func TestResizeFlattensTransparencyOntoWhite(t *testing.T) {

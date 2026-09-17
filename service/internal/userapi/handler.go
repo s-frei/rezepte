@@ -15,21 +15,21 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// Response is a user as the API shows it (no secrets).
-type Response struct {
+// UserAccount is a user as the API shows it (no secrets).
+type UserAccount struct {
 	ID        string    `json:"id" doc:"User id"`
 	Username  string    `json:"username" doc:"Login name"`
 	Role      string    `json:"role" enum:"admin,user" doc:"Authorization role"`
 	CreatedAt time.Time `json:"createdAt" doc:"When the account was created"`
 }
 
-// List is the response body of list-users.
-type List struct {
-	Items []Response `json:"items"`
+// UserAccountList is the response body of list-users.
+type UserAccountList struct {
+	Items []UserAccount `json:"items"`
 }
 
 type listOutput struct {
-	Body List
+	Body UserAccountList
 }
 
 type createInput struct {
@@ -41,7 +41,7 @@ type createInput struct {
 }
 
 type userOutput struct {
-	Body Response
+	Body UserAccount
 }
 
 type updateInput struct {
@@ -72,8 +72,8 @@ func requireAdmin(ctx context.Context) (user.User, error) {
 	return u, nil
 }
 
-func toResponse(u user.User) Response {
-	return Response{ID: u.ID, Username: u.Username, Role: string(u.Role), CreatedAt: u.CreatedAt}
+func toResponse(u user.User) UserAccount {
+	return UserAccount{ID: u.ID, Username: u.Username, Role: string(u.Role), CreatedAt: u.CreatedAt}
 }
 
 // Register installs list, create, update and delete for users. All four
@@ -95,11 +95,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		if err != nil {
 			return nil, err
 		}
-		items := make([]Response, 0, len(list))
+		items := make([]UserAccount, 0, len(list))
 		for _, u := range list {
 			items = append(items, toResponse(u))
 		}
-		return &listOutput{Body: List{Items: items}}, nil
+		return &listOutput{Body: UserAccountList{Items: items}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -110,7 +110,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		Tags:          []string{"users"},
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{401, 403, 409},
+		Errors:        []int{401, 403, 409, 422},
 	}, func(ctx context.Context, in *createInput) (*userOutput, error) {
 		if _, err := requireAdmin(ctx); err != nil {
 			return nil, err
@@ -118,6 +118,12 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		u, err := users.Create(ctx, in.Body.Username, in.Body.Password, user.Role(in.Body.Role))
 		if errors.Is(err, user.ErrUsernameTaken) {
 			return nil, huma.Error409Conflict("username already taken")
+		}
+		if errors.Is(err, user.ErrInvalidUsername) {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: "body.username",
+				Message:  "username must not be empty",
+			})
 		}
 		if err != nil {
 			return nil, err

@@ -30,18 +30,31 @@ type Service struct {
 	q    *sqlc.Queries
 	dir  string
 	now  func() time.Time
+	// decodeSlots is a counting semaphore around the only expensive part
+	// of an upload. Everything else (the queries, the 10 MiB body) is
+	// cheap, but a decoded image costs up to maxPixels x 4 bytes and the
+	// resize allocates another one, so unbounded concurrency would let a
+	// handful of clients exhaust memory. Buffered to concurrentDecodes;
+	// the rest of an upload runs outside it.
+	decodeSlots chan struct{}
 }
 
 // NewService returns a Service writing files below dir (one subdirectory
 // per recipe id).
 func NewService(conn *sql.DB, dir string) *Service {
-	return &Service{conn: conn, q: sqlc.New(conn), dir: dir, now: time.Now}
+	return &Service{
+		conn:        conn,
+		q:           sqlc.New(conn),
+		dir:         dir,
+		now:         time.Now,
+		decodeSlots: make(chan struct{}, concurrentDecodes),
+	}
 }
 
 // Upload decodes the image in r, writes its variants and records it as the
 // last image of recipeID. When the recipe has no cover yet, the new image
 // becomes its cover. Errors: ErrNotFound (recipe), ErrUnsupported,
-// ErrInvalid, ErrTooMany.
+// ErrInvalid, ErrTooLarge, ErrTooMany.
 func (s *Service) Upload(ctx context.Context, recipeID string, r io.Reader) (recipe.Image, error) {
 	if !isID(recipeID) {
 		return recipe.Image{}, ErrNotFound
@@ -65,13 +78,9 @@ func (s *Service) Upload(ctx context.Context, recipeID string, r io.Reader) (rec
 	if len(data) > maxUploadBytes {
 		return recipe.Image{}, fmt.Errorf("%w: larger than %d bytes", ErrInvalid, maxUploadBytes)
 	}
-	img, err := decode(data)
-	if err != nil {
-		return recipe.Image{}, err
-	}
 	id := uuid.Must(uuid.NewV7()).String()
 	recipeDir := filepath.Join(s.dir, recipeID)
-	w, err := writeVariants(recipeDir, id, img)
+	w, err := s.render(ctx, data, recipeDir, id)
 	if err != nil {
 		return recipe.Image{}, err
 	}
@@ -120,6 +129,25 @@ func (s *Service) Upload(ctx context.Context, recipeID string, r io.Reader) (rec
 		return recipe.Image{}, err
 	}
 	return out, nil
+}
+
+// render decodes data and writes the variants of id into recipeDir while
+// holding one of the decodeSlots, so at most concurrentDecodes uploads are
+// ever decoding or resizing at the same time. A client that gives up while
+// queued releases its place through ctx.
+func (s *Service) render(ctx context.Context, data []byte, recipeDir, id string) (written, error) {
+	select {
+	case s.decodeSlots <- struct{}{}:
+	case <-ctx.Done():
+		return written{}, fmt.Errorf("wait for decode slot: %w", ctx.Err())
+	}
+	defer func() { <-s.decodeSlots }()
+
+	img, err := decode(data)
+	if err != nil {
+		return written{}, err
+	}
+	return writeVariants(recipeDir, id, img)
 }
 
 // Delete removes imageID from recipeID: the row, then (after commit) the

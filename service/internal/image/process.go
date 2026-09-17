@@ -41,9 +41,12 @@ type written struct {
 
 // decode turns an upload into an upright image. The header is inspected
 // first (image.DecodeConfig) so an oversized image is rejected before its
-// pixels are allocated; an unknown format is ErrUnsupported, anything the
-// decoder cannot finish is ErrInvalid. JPEGs are rotated per their EXIF
-// orientation so the variants need no metadata to display correctly.
+// pixels are allocated: both the per-side limits (ErrInvalid) and the
+// total pixel count (ErrTooLarge), which is what keeps a small, highly
+// compressed "decode bomb" from allocating gigabytes. An unknown format is
+// ErrUnsupported, anything the decoder cannot finish is ErrInvalid. JPEGs
+// are rotated per their EXIF orientation so the variants need no metadata
+// to display correctly.
 func decode(data []byte) (stdimage.Image, error) {
 	cfg, format, err := stdimage.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
@@ -57,6 +60,10 @@ func decode(data []byte) (stdimage.Image, error) {
 	}
 	if cfg.Width < minSide || cfg.Height < minSide || cfg.Width > maxSide || cfg.Height > maxSide {
 		return nil, ErrInvalid
+	}
+	// Safe from overflow: both sides are at most maxSide by now.
+	if cfg.Width*cfg.Height > maxPixels {
+		return nil, ErrTooLarge
 	}
 	img, _, err := stdimage.Decode(bytes.NewReader(data))
 	if err != nil {
@@ -116,8 +123,13 @@ func variantPath(dir, recipeID, imageID, suffix string) string {
 // <id><suffix>.jpg. Each file is written to a ".tmp" sibling and renamed
 // into place, so a reader never sees a partial file. On any error the files
 // written so far (temp or final) are removed and the error returned.
+//
+// Directory and files are owner-only (0700/0600): this process is the sole
+// reader, it serves the bytes itself through FileHandler rather than
+// handing the path to a web server, and the container runs as a single
+// nonroot user.
 func writeVariants(recipeDir, id string, src stdimage.Image) (written, error) {
-	if err := os.MkdirAll(recipeDir, 0o750); err != nil {
+	if err := os.MkdirAll(recipeDir, 0o700); err != nil {
 		return written{}, fmt.Errorf("create image dir: %w", err)
 	}
 	var out written
@@ -155,7 +167,7 @@ func writeVariants(recipeDir, id string, src stdimage.Image) (written, error) {
 
 // writeJPEG encodes img to path and returns the byte count.
 func writeJPEG(path string, img stdimage.Image, quality int) (int64, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o640) //nolint:gosec // G302: 0640 matches the 0750 image dir, group-readable by design
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return 0, fmt.Errorf("create %s: %w", path, err)
 	}

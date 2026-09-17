@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,7 @@ type User struct {
 var (
 	ErrNotFound              = errors.New("user not found")
 	ErrUsernameTaken         = errors.New("username already taken")
+	ErrInvalidUsername       = errors.New("username must not be empty")
 	ErrInvalidCredentials    = errors.New("invalid username or password")
 	ErrAdminPasswordRequired = errors.New("REZEPTE_ADMIN_PASSWORD is required on first start")
 	ErrSelfDelete            = errors.New("cannot delete your own account")
@@ -58,8 +60,14 @@ func NewService(conn *sql.DB) *Service {
 	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
 }
 
-// Create stores a new user with a hashed password.
+// Create stores a new user with a hashed password. username is trimmed of
+// surrounding whitespace first; a username that is empty after trimming is
+// rejected with ErrInvalidUsername.
 func (s *Service) Create(ctx context.Context, username, password string, role Role) (User, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return User{}, ErrInvalidUsername
+	}
 	hash, err := HashPassword(password)
 	if err != nil {
 		return User{}, err
@@ -207,8 +215,11 @@ func (s *Service) ChangePassword(ctx context.Context, id, current, next string) 
 	return s.SetPassword(ctx, id, next)
 }
 
-// getForUpdate loads a user inside a write transaction, mapping a missing
-// row to ErrNotFound.
+// getForUpdate loads a user, mapping a missing row to ErrNotFound. It must
+// run inside the transaction that updates or removes the row: db.Tx opens
+// transactions with _txlock=immediate (BEGIN IMMEDIATE), so the isolation
+// that keeps the row from changing before the caller writes it back comes
+// from that lock, not from this read itself.
 func getForUpdate(ctx context.Context, q *sqlc.Queries, id string) (sqlc.User, error) {
 	row, err := q.GetUserByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -249,10 +260,12 @@ var dummyHash = sync.OnceValue(func() string {
 	return hash
 })
 
-// Authenticate verifies the password and returns the user. Unknown users and
-// wrong passwords both yield ErrInvalidCredentials.
+// Authenticate verifies the password and returns the user. username is
+// trimmed the same way Create trims it, so a user created via the UI can
+// log in with surrounding spaces typed by mistake. Unknown users and wrong
+// passwords both yield ErrInvalidCredentials.
 func (s *Service) Authenticate(ctx context.Context, username, password string) (User, error) {
-	row, err := s.q.GetUserByUsername(ctx, username)
+	row, err := s.q.GetUserByUsername(ctx, strings.TrimSpace(username))
 	if errors.Is(err, sql.ErrNoRows) {
 		_, _ = VerifyPassword(dummyHash(), password)
 		return User{}, ErrInvalidCredentials

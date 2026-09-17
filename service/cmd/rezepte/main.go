@@ -15,6 +15,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
+	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -67,8 +68,13 @@ func run() error {
 
 	srv := httpserver.New(cfg, logger, web.Dist(), httpserver.WithAPIMiddleware(auth.Middleware(sessions, cfg.SecureCookies)))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
-	recipes := recipe.NewService(conn)
+	imageDir := filepath.Join(cfg.DataDir, "images")
+	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	recipe.Register(srv.API(), recipes)
+	images := image.NewService(conn, imageDir)
+	image.Register(srv.API(), images)
+	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
+		auth.RequireSession(sessions, cfg.SecureCookies)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)
 	return srv.Run(ctx)
 }

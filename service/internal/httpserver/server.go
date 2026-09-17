@@ -129,6 +129,16 @@ func apiNotFound(w http.ResponseWriter, _ *http.Request) {
 // API exposes the huma API so feature packages can register operations.
 func (s *Server) API() huma.API { return s.api }
 
+// Handle registers h on the server's mux for a route that is not a huma
+// operation (Phase 4's image files). Go 1.22 mux precedence picks the most
+// specific matching pattern, so a pattern such as
+// "GET /images/{recipeId}/{imageId}/{file}" wins over the "/" SPA
+// catch-all New installed, whatever the registration order. The handler is
+// still wrapped by Handler()'s Origin check and request logging.
+func (s *Server) Handle(pattern string, h http.Handler) {
+	s.mux.Handle(pattern, h)
+}
+
 // Handler returns the root handler with Origin check and request logging.
 func (s *Server) Handler() http.Handler { return s.logRequests(checkOrigin(s.mux)) }
 

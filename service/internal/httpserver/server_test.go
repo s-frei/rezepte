@@ -192,3 +192,21 @@ func TestStatusRecorderUnwrapsForResponseController(t *testing.T) {
 		t.Fatalf("Flush() via ResponseController: %v", err)
 	}
 }
+
+func TestHandleRegistersMuxRouteAheadOfSPA(t *testing.T) {
+	srv := newTestServer(t)
+	srv.Handle("GET /images/{recipeId}/{imageId}/{file}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(r.PathValue("recipeId") + "/" + r.PathValue("file")))
+	}))
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/images/r1/i1/thumb.jpg", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "r1/thumb.jpg" {
+		t.Fatalf("got %d %q, want the mux route not the SPA", rec.Code, rec.Body.String())
+	}
+	// A shorter path under /images/ still falls through to the SPA.
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/images/r1", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "app" {
+		t.Fatalf("got %d %q, want SPA fallback", rec.Code, rec.Body.String())
+	}
+}
