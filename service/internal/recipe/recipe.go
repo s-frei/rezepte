@@ -27,13 +27,17 @@ type IngredientGroup struct {
 }
 
 // Input is the recipe payload accepted by Service.Create and Service.Update.
+//
+// SourceURL carries a pattern on top of format:"uri" because a URI only
+// has to have some scheme: without it "javascript:alert(1)" validates and
+// the frontend renders it as a link the user can click.
 type Input struct {
 	Title            string            `json:"title" minLength:"1" maxLength:"200"`
 	Description      string            `json:"description" maxLength:"2000"`
 	Servings         int               `json:"servings" minimum:"1" maximum:"99"`
 	PrepMinutes      *int              `json:"prepMinutes" minimum:"0" maximum:"1440" nullable:"true"`
 	CookMinutes      *int              `json:"cookMinutes" minimum:"0" maximum:"1440" nullable:"true"`
-	SourceURL        *string           `json:"sourceUrl" maxLength:"500" format:"uri" nullable:"true"`
+	SourceURL        *string           `json:"sourceUrl" maxLength:"500" format:"uri" pattern:"^https?://" nullable:"true"`
 	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40"`
 	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20"`
 	Steps            []string          `json:"steps" maxItems:"50" minLength:"1" maxLength:"2000"`

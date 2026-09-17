@@ -45,6 +45,7 @@
 		"@fontsource/karla": "^5.3.0",
 		"bits-ui": "^2.19.2",
 		"lucide-svelte": "^1.0.1",
+		"svelte-dnd-action": "^0.9.79",
 		"svelte-sonner": "^1.2.1"
 	}
 }

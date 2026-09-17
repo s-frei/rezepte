@@ -28,6 +28,31 @@ Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at 
 
 OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public (contract only, no data); see ADR 0006.
 
+## Recipes and tags
+
+| Operation | Path | Notes |
+|---|---|---|
+| list/search | `GET /recipes` | query params below; `404` never - an empty result is a normal page |
+| get by id | `GET /recipes/{id}` | `404` |
+| get by slug | `GET /recipes/by-slug/{slug}` | `404` |
+| create | `POST /recipes` | `201`, body is the recipe input |
+| update | `PUT /recipes/{id}` | full replace of title, description and every child (groups, ingredients, steps, tags); `404` |
+| delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes |
+| list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see ADR 0009) |
+
+`GET /recipes` query parameters:
+
+| Param | Notes |
+|---|---|
+| `q` | full-text search across title, description, ingredient names and tags (max 100 chars); prefix-matched, umlaut/ASCII-insensitive - see [ADR 0009](/memory/decisions/0009-recipes-as-documents-with-fts5) |
+| `tag` | restricts to recipes carrying **exactly one** tag name (max 40 chars, trimmed and lower-cased before matching). There is no way to filter by more than one tag in a single request - the frontend's multi-select tag filter sends only the first selected tag here and narrows further client-side within already-loaded pages |
+| `page` | 1-based, defaults to 1 |
+| `limit` | defaults to 24, clamped to `[1, 100]` |
+
+`q` and `tag` combine with AND when both are set.
+
+Validation summary for the recipe input body (`Input` in `internal/recipe/recipe.go`): `title` 1-200 chars, `description` ≤ 2000 chars, `servings` 1-99, `prepMinutes`/`cookMinutes` 0-1440 or `null`, `sourceUrl` ≤ 500 chars or `null` (must be a URI), `tags` ≤ 20 entries of 1-40 chars each, `ingredientGroups` 1-20 groups of ≤ 100 ingredients each (ingredient `name` 1-120 chars, `unit` ≤ 20 chars or `null`, `note` ≤ 200 chars or `null`, `quantity` ≥ 0 or `null`), `steps` ≤ 50 entries of 1-2000 chars each. Violations come back as the standard `422` problem body below.
+
 ## CSRF
 
 Cookies are `SameSite=Lax`. Additionally `httpserver.checkOrigin` rejects `POST/PUT/PATCH/DELETE` under `/api/` when an `Origin` header is present and its host differs from the request host, answering with a `403` `application/problem+json` body (`{"title":"Forbidden","status":403,"detail":"origin not allowed"}`).
@@ -39,4 +64,4 @@ RFC 9457 `application/problem+json`:
 { "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
   "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
 ```
-The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again.
+The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `/auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `/auth/me` is excluded because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.

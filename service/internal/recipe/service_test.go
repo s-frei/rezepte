@@ -131,3 +131,19 @@ func TestAllFixturesCreate(t *testing.T) {
 		}
 	}
 }
+
+func TestReservedSlugIsSkipped(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	in := loadFixtures(t)[0]
+	in.Title = "New"
+	created, err := svc.Create(ctx, uid, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// "new" belongs to the frontend's /recipes/new editor route, so the
+	// recipe has to take the numbered slug instead of shadowing it.
+	if created.Slug != "new-2" {
+		t.Fatalf("slug = %q, want %q", created.Slug, "new-2")
+	}
+}

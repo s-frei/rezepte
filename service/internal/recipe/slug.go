@@ -82,18 +82,37 @@ func NormalizeTags(tags []string) []string {
 	return out
 }
 
-// uniqueSlug returns the first of base, base-2, base-3, ... not already
-// used by another recipe.
+// reservedSlugs are slugs no recipe may take because the frontend routes
+// them itself: /recipes/new is the editor, so a recipe reachable at
+// /recipes/new would be shadowed by it.
+var reservedSlugs = map[string]struct{}{
+	"new": {},
+}
+
+// uniqueSlug returns the first of base, base-2, base-3, ... that is neither
+// reserved nor already used by another recipe.
 func uniqueSlug(ctx context.Context, q *sqlc.Queries, base string) (string, error) {
 	slug := base
 	for i := 2; ; i++ {
-		exists, err := q.SlugExists(ctx, slug)
+		taken, err := slugTaken(ctx, q, slug)
 		if err != nil {
-			return "", fmt.Errorf("check slug %q: %w", slug, err)
+			return "", err
 		}
-		if !exists {
+		if !taken {
 			return slug, nil
 		}
 		slug = fmt.Sprintf("%s-%d", base, i)
 	}
+}
+
+// slugTaken reports whether slug is reserved or already stored.
+func slugTaken(ctx context.Context, q *sqlc.Queries, slug string) (bool, error) {
+	if _, reserved := reservedSlugs[slug]; reserved {
+		return true, nil
+	}
+	exists, err := q.SlugExists(ctx, slug)
+	if err != nil {
+		return false, fmt.Errorf("check slug %q: %w", slug, err)
+	}
+	return exists, nil
 }
