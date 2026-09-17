@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/config"
@@ -17,6 +18,10 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/web"
 )
+
+// sweepInterval is how often expired sessions are swept from the database
+// in the background, in addition to the sweep at boot.
+const sweepInterval = 24 * time.Hour
 
 func main() {
 	if err := run(); err != nil {
@@ -56,8 +61,9 @@ func run() error {
 	if err := sessions.DeleteExpired(ctx); err != nil {
 		logger.Warn("cleanup expired sessions", "err", err)
 	}
+	go sessions.SweepLoop(ctx, sweepInterval, logger)
 
-	srv := httpserver.New(cfg, logger, web.Dist())
+	srv := httpserver.New(cfg, logger, web.Dist(), httpserver.WithAPIMiddleware(auth.Middleware(sessions, cfg.SecureCookies)))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	return srv.Run(ctx)
 }

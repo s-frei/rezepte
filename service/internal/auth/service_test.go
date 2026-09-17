@@ -39,9 +39,17 @@ func TestLoginAndAuthenticate(t *testing.T) {
 		t.Fatalf("expires in %v, want ~30d", until)
 	}
 
-	u, err := svc.Authenticate(ctx, sess.Token)
-	if err != nil || u.Username != "sam" {
-		t.Fatalf("Authenticate: %+v, %v", u, err)
+	v, err := svc.Authenticate(ctx, sess.Token)
+	if err != nil || v.User.Username != "sam" {
+		t.Fatalf("Authenticate: %+v, %v", v, err)
+	}
+	// Stored timestamps round-trip through RFC3339 (second precision), so
+	// compare with a tolerance rather than requiring exact equality.
+	if diff := v.ExpiresAt.Sub(sess.ExpiresAt); diff < -time.Second || diff > time.Second {
+		t.Fatalf("ExpiresAt = %v, want ~%v (no renewal due yet)", v.ExpiresAt, sess.ExpiresAt)
+	}
+	if v.Renewed {
+		t.Fatal("Renewed = true right after login, want false")
 	}
 	if _, err := svc.Authenticate(ctx, "bogus"); !errors.Is(err, auth.ErrNoSession) {
 		t.Fatalf("bogus token: err = %v", err)
@@ -78,8 +86,15 @@ func TestExpiredSessionIsRejectedAndSlidingExtends(t *testing.T) {
 
 	// 10 days later: still valid and extended to 30 days from now.
 	clock = clock.Add(10 * 24 * time.Hour)
-	if _, err := svc.Authenticate(ctx, sess.Token); err != nil {
+	v, err := svc.Authenticate(ctx, sess.Token)
+	if err != nil {
 		t.Fatalf("day 10: %v", err)
+	}
+	if !v.Renewed {
+		t.Fatal("day 10: Renewed = false, want true")
+	}
+	if want := clock.Add(auth.SessionTTL); !v.ExpiresAt.Equal(want) {
+		t.Fatalf("day 10: ExpiresAt = %v, want %v", v.ExpiresAt, want)
 	}
 	// 35 days after login (25 after the extension): still valid.
 	clock = clock.Add(25 * 24 * time.Hour)

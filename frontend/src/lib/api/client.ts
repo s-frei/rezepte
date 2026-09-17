@@ -1,4 +1,10 @@
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
+import { session } from '$lib/auth.svelte';
+
 const BASE = '/api/v1';
+const LOGIN_PATH = '/api/v1/auth/login';
+const ME_PATH = '/api/v1/auth/me';
 
 export type FieldError = { location: string; message: string };
 
@@ -28,6 +34,18 @@ export class ApiError extends Error {
 	}
 }
 
+/**
+ * Clears the session and sends the browser to the login page with a `next`
+ * param pointing back at the page that got the 401. Only ever called from a
+ * browser context (see the `typeof window` guard at the call site) so tests
+ * running in Node never hit this.
+ */
+function redirectToLogin(): void {
+	session.user = null;
+	const next = encodeURIComponent(window.location.pathname + window.location.search);
+	void goto(resolve(`/login?next=${next}`));
+}
+
 /** Calls the JSON API. Resolves with the parsed body, or undefined for empty responses. */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	const headers = new Headers(init.headers);
@@ -35,9 +53,32 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	if (init.body !== undefined && !headers.has('Content-Type')) {
 		headers.set('Content-Type', 'application/json');
 	}
-	const res = await fetch(BASE + path, { ...init, headers, credentials: 'same-origin' });
+	const url = BASE + path;
+	const res = await fetch(url, { ...init, headers, credentials: 'same-origin' });
 	if (!res.ok) {
 		const problem = await res.json().catch(() => ({}) as Problem);
+		// Central 401 handling: any call other than login itself signing the
+		// user out server-side (session expired, cookie cleared, ...) drops
+		// the client back to the login page instead of leaving every caller
+		// to check res.status === 401 individually.
+		//
+		// /auth/login is excluded because a 401 there just means "wrong
+		// credentials", not "you got signed out". /auth/me is excluded
+		// because its only caller is the root +layout.ts `load`, which
+		// already redirects via SvelteKit's `redirect()` - the SvelteKit-
+		// blessed way to navigate from inside `load`. Calling `goto()` here
+		// as well would race that in-flight navigation (SvelteKit explicitly
+		// warns against calling `goto` from `load`) and can leave the app on
+		// the wrong URL.
+		if (
+			res.status === 401 &&
+			url !== LOGIN_PATH &&
+			url !== ME_PATH &&
+			typeof window !== 'undefined' &&
+			window.location.pathname !== '/login'
+		) {
+			redirectToLogin();
+		}
 		throw new ApiError(res.status, problem);
 	}
 	if (res.status === 204) {

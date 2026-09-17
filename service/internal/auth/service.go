@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db"
@@ -76,40 +77,57 @@ func (s *Service) Login(ctx context.Context, username, password string) (Session
 	return Session{Token: token, ExpiresAt: expires, User: u}, nil
 }
 
+// Verified is what a successful Authenticate call reports: the resolved
+// user, the session's current expiry, and whether that expiry was just
+// extended by a sliding renewal. Callers that hold the session cookie (the
+// auth middleware) use Renewed to decide whether to re-issue it with the
+// fresh ExpiresAt.
+type Verified struct {
+	User      user.User
+	ExpiresAt time.Time
+	Renewed   bool
+}
+
 // Authenticate resolves a token to its user and extends the session
 // (at most once per day) so active users stay logged in.
-func (s *Service) Authenticate(ctx context.Context, token string) (user.User, error) {
+func (s *Service) Authenticate(ctx context.Context, token string) (Verified, error) {
 	row, err := s.q.GetSession(ctx, hashToken(token))
 	if errors.Is(err, sql.ErrNoRows) {
-		return user.User{}, ErrNoSession
+		return Verified{}, ErrNoSession
 	}
 	if err != nil {
-		return user.User{}, fmt.Errorf("get session: %w", err)
+		return Verified{}, fmt.Errorf("get session: %w", err)
 	}
 	expires, err := db.ParseTime(row.ExpiresAt)
 	if err != nil {
-		return user.User{}, err
+		return Verified{}, err
 	}
 	now := s.now()
 	if !now.Before(expires) {
 		if err := s.q.DeleteSession(ctx, row.ID); err != nil {
-			return user.User{}, fmt.Errorf("delete expired session: %w", err)
+			return Verified{}, fmt.Errorf("delete expired session: %w", err)
 		}
-		return user.User{}, ErrNoSession
+		return Verified{}, ErrNoSession
 	}
+	renewed := false
 	if expires.Sub(now) < SessionTTL-renewAfter {
+		expires = now.Add(SessionTTL)
 		if err := s.q.ExtendSession(ctx, sqlc.ExtendSessionParams{
-			ExpiresAt: db.FormatTime(now.Add(SessionTTL)),
+			ExpiresAt: db.FormatTime(expires),
 			ID:        row.ID,
 		}); err != nil {
-			return user.User{}, fmt.Errorf("extend session: %w", err)
+			return Verified{}, fmt.Errorf("extend session: %w", err)
 		}
+		renewed = true
 	}
 	u, err := s.users.ByID(ctx, row.UserID)
 	if errors.Is(err, user.ErrNotFound) {
-		return user.User{}, ErrNoSession
+		return Verified{}, ErrNoSession
 	}
-	return u, err
+	if err != nil {
+		return Verified{}, err
+	}
+	return Verified{User: u, ExpiresAt: expires, Renewed: renewed}, nil
 }
 
 // Logout deletes the session. Unknown tokens are not an error.
@@ -126,6 +144,24 @@ func (s *Service) DeleteExpired(ctx context.Context) error {
 		return fmt.Errorf("delete expired sessions: %w", err)
 	}
 	return nil
+}
+
+// SweepLoop calls DeleteExpired every d until ctx is cancelled, logging
+// failures instead of returning them so a transient DB error never takes
+// the sweep down permanently. Intended to run in its own goroutine.
+func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.Logger) {
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.DeleteExpired(ctx); err != nil {
+				logger.Warn("sweep expired sessions", "err", err)
+			}
+		}
+	}
 }
 
 // hashToken stores only a digest so a database leak does not leak sessions.
