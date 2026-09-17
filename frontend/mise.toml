@@ -1,0 +1,8 @@
+[tasks.install]
+run = "echo 'todo'"
+[tasks.dev]
+run = "echo 'todo'"
+[tasks.check]
+run = "echo 'todo'"
+[tasks.build]
+run = "echo 'todo'"

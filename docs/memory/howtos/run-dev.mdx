@@ -1,0 +1,57 @@
+---
+title: Run the app locally
+description: Dev servers, builds and the check gate
+---
+
+<Steps>
+  <Step>
+
+    ### Install tools and dependencies
+    ```bash
+    mise trust && mise install && mise run setup
+    ```
+
+  </Step>
+  <Step>
+
+    ### Start the dev servers
+    ```bash
+    mise run dev
+    ```
+    Go API on `http://localhost:8080` (restarts on `.go` changes), SvelteKit on `http://localhost:5173` (proxies `/api` and `/images` to Go).
+
+  </Step>
+  <Step>
+
+    ### Run the docs
+    ```bash
+    mise run docs
+    ```
+    Fumadocs on `http://localhost:3000`.
+
+  </Step>
+  <Step>
+
+    ### Build the production binary
+    ```bash
+    mise run build
+    ./service/bin/rezepte
+    ```
+    The frontend is built into `service/internal/web/dist` and embedded.
+
+  </Step>
+  <Step>
+
+    ### Run the gate
+    ```bash
+    mise run check
+    ```
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+
+  Use `mise tasks --all` to list every task, including package-local ones like `//service:test`.
+
+</Callout>

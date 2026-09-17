@@ -1,0 +1,32 @@
+# local agent artifacts – never committed
+docs/superpowers/
+docs/design_handoff_rezepte/
+.superpowers/
+
+# editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# mise
+mise.local.toml
+.mise.local.toml
+
+# Go
+service/bin/
+service/internal/web/dist/*
+!service/internal/web/dist/.gitkeep
+
+# JS
+node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/src/lib/paraglide/
+frontend/test-results/
+frontend/playwright-report/
+docs/.next/
+docs/out/
+docs/.source/
+
+# runtime data
+data/

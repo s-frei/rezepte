@@ -1,0 +1,34 @@
+---
+title: Roadmap
+description: Where Rezepte is heading after v1
+---
+
+<Callout type="info">
+
+  Nothing here is in v1. It records direction so current decisions do not block it.
+
+</Callout>
+
+## Instance sync
+
+Instance A issues an API token with selectable scopes (read recipes, read images). Instance B stores URL and token and mirrors recipes read-only. Requires bearer-token authentication (an additional authenticator in the auth middleware) and `/api/v1/sync/*` endpoints.
+
+## Public REST API
+
+Already prepared by huma: OpenAPI 3.1 and Scalar docs. Missing: bearer tokens, versioning policy, rate limits.
+
+## MCP server
+
+Expose recipes to AI assistants (search, read, create draft). Builds on the REST API and API tokens.
+
+## OIDC login
+
+Second authenticator next to sessions. Users are matched by email or subject; roles stay local.
+
+## Product features
+
+Favourites, personal notes, "last cooked", shopping list, meal plan, English UI.
+
+## Tooling
+
+Docs deployment (static export to GitHub Pages), visual regression screenshots in CI.

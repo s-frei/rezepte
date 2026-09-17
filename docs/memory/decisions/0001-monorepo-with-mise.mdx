@@ -1,0 +1,32 @@
+---
+title: "0001: Monorepo managed by mise"
+description: One repository, three packages, every tool and task through mise
+---
+
+**Status:** accepted · 2026-09-17
+
+## Context
+
+Rezepte consists of a Go service, a SvelteKit frontend and a documentation site. They are released together as one binary, so they must be versioned together, and agents need one command surface for every task.
+
+## Decision
+
+- One repository with `service/`, `frontend/` and `docs/`.
+- `mise.toml` at the root pins every tool (Go, Bun, Node, golangci-lint, sqlc, watchexec) and declares `monorepo_root = true`; each package has its own `mise.toml` with local tasks.
+- Root tasks `setup`, `dev`, `check`, `build`, `docs` depend on package tasks via `//package:task`.
+- No tool is invoked outside mise (`mise run …` or `mise exec -- …`).
+
+## Consequences
+
+- One `mise run check` gate for everything, identical in CI.
+- Adding a tool means one line in `mise.toml` and a lockfile update.
+- Package-local commands must be run through mise so the pinned versions apply.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - Separate repositories: simpler per package, but the binary embeds the frontend, so releases would need cross-repo coordination.
+    - Makefile or just: no tool pinning; mise covers both tasks and tools.
+
+  </Accordion>
+</Accordions>

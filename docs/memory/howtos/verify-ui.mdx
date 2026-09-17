@@ -1,0 +1,44 @@
+---
+title: Verify UI with Playwright
+description: End-to-end tests and screenshots, no browser extensions
+---
+
+<Callout type="warn" title="Hard rule">
+
+  UI changes are verified with Playwright. Do not use a browser extension or a remote-controlled Chrome.
+
+</Callout>
+
+<Tabs items={['End-to-end tests', 'Screenshots', 'Against the dev server']}>
+  <Tab value="End-to-end tests">
+
+    ```bash
+    mise run e2e
+    ```
+    Builds the binary, starts it on `:8080` with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=e2e-password`, runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary. Traces and screenshots of failures land in `frontend/test-results/`.
+
+    Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts` (added in phase 2).
+
+  </Tab>
+  <Tab value="Screenshots">
+
+    With `mise run dev` running:
+    ```bash
+    cd frontend
+    mise exec -- bunx playwright screenshot --viewport-size=390,844 http://localhost:5173/login /tmp/login-mobile.png
+    mise exec -- bunx playwright screenshot --viewport-size=1440,900 http://localhost:5173/ /tmp/home-desktop.png
+    ```
+    Then open the PNG (agents: read the image file) and compare against the design system.
+
+  </Tab>
+  <Tab value="Against the dev server">
+
+    ```bash
+    E2E_BASE_URL=http://localhost:5173 mise run //frontend:e2e
+    ```
+    Faster iteration without a production build; the Go API must be running (`mise run dev`).
+
+  </Tab>
+</Tabs>
+
+The Chromium build is installed by `mise run setup` (`bunx playwright install chromium`). In CI, `PLAYWRIGHT_INSTALL_ARGS=--with-deps` adds the system libraries.

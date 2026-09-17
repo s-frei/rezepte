@@ -1,0 +1,32 @@
+---
+title: "0006: Login form with session cookie, users in SQLite"
+description: argon2id password hashes, HttpOnly session cookie, pluggable authenticators
+---
+
+**Status:** accepted · 2026-09-17
+
+## Context
+
+Several household members share one recipe collection. Users are managed in the UI; only the first admin comes from the environment. OIDC and API tokens come later.
+
+## Decision
+
+- Own login form posting to `/api/v1/auth/login`; passwords hashed with argon2id (`golang.org/x/crypto/argon2`).
+- Session tokens stored in a `sessions` table, delivered as cookie `rezepte_session` (HttpOnly, SameSite=Lax, `Secure` when `REZEPTE_SECURE_COOKIES=true`), 30 days with sliding expiration.
+- CSRF protection: SameSite=Lax plus an `Origin` check on mutating requests.
+- Roles `admin` and `user`. Admin-only routes: user management.
+- The auth middleware iterates a list of authenticators; today only the session authenticator exists. Bearer API tokens and OIDC plug in later.
+
+## Consequences
+
+- No HTTP Basic Auth popup; logout is possible.
+- The first start requires `REZEPTE_ADMIN_PASSWORD` when the users table is empty.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - HTTP Basic Auth: no logout, no user management.
+    - JWT in local storage: XSS exposure, no server-side revocation.
+
+  </Accordion>
+</Accordions>

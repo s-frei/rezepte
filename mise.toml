@@ -1,0 +1,50 @@
+min_version = "2026.9.0"
+monorepo_root = true
+
+[monorepo]
+config_roots = ["service", "frontend", "docs"]
+
+[tools]
+go = "1.27.1"
+bun = "1.4.2"
+node = "24.21.0"
+golangci-lint = "2.13.2"
+sqlc = "1.31.1"
+watchexec = "2.7.3"
+
+[settings]
+lockfile = true
+
+[tasks.setup]
+description = "Install all dependencies"
+depends = ["//frontend:install", "//docs:install"]
+run = "cd service && go mod download"
+
+[tasks.dev]
+description = "Run Go API and SvelteKit dev server"
+depends = ["//service:dev", "//frontend:dev"]
+
+[tasks.check]
+description = "All lint, format and test gates"
+depends = ["//service:check", "//frontend:check", "//docs:check"]
+
+[tasks.build]
+description = "Build frontend, then the Go binary with embedded assets"
+depends = ["//service:build"]
+
+[tasks.docs]
+description = "Run the documentation site"
+depends = ["//docs:dev"]
+
+[tasks.e2e]
+description = "Build, start the binary on :8080 with a temp data dir, run Playwright"
+depends = ["build"]
+run = '''
+set -euo pipefail
+DATA_DIR=$(mktemp -d)
+REZEPTE_ADDR=:8080 REZEPTE_DATA_DIR="$DATA_DIR" REZEPTE_ADMIN_PASSWORD=e2e-password ./service/bin/rezepte &
+PID=$!
+trap 'kill $PID' EXIT
+for _ in $(seq 1 50); do curl -sf localhost:8080/healthz >/dev/null && break; sleep 0.1; done
+cd frontend && bun run test:e2e
+'''
