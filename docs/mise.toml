@@ -1,6 +1,15 @@
 [tasks.install]
-run = "echo 'todo'"
+description = "Install docs dependencies"
+run = "bun install --frozen-lockfile"
+
 [tasks.dev]
-run = "echo 'todo'"
+description = "Run the docs site"
+run = "bun run dev"
+
+[tasks.build]
+description = "Static export of the docs"
+run = "bun run build"
+
 [tasks.check]
-run = "echo 'todo'"
+description = "Lint and build (validates MDX)"
+run = ["bun run lint", "bun run build"]
