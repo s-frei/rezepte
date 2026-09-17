@@ -30,11 +30,18 @@ export default defineConfig({
 		})
 	],
 	server: {
+		// Listen on all interfaces so the dev server is reachable from other
+		// devices on the local network, not just localhost.
+		host: true,
 		port: 9060,
 		strictPort: true,
+		// `changeOrigin: false` keeps the browser's Host header: the API's
+		// Origin check compares it with the Origin, and Vite's string
+		// shorthand would rewrite it to localhost:8060, turning every login
+		// or save in dev mode into a 403.
 		proxy: {
-			'/api': 'http://localhost:8060',
-			'/images': 'http://localhost:8060'
+			'/api': { target: 'http://localhost:8060', changeOrigin: false },
+			'/images': { target: 'http://localhost:8060', changeOrigin: false }
 		}
 	},
 	test: {

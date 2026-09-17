@@ -29,7 +29,7 @@
 	);
 
 	const fieldClasses =
-		'h-11 w-full rounded-sm border border-border bg-surface-elevated px-2.5 text-body-sm outline-none transition focus:border-primary md:h-10';
+		'h-11 w-full min-w-0 rounded-md border border-border bg-surface-elevated px-3 text-body outline-none transition placeholder:text-text-muted focus:border-primary md:h-10 md:text-body-sm';
 	const errorClasses = 'border-[1.5px] border-destructive';
 
 	function handleKeydown(event: KeyboardEvent, submitsRow: boolean) {
@@ -47,21 +47,23 @@
 
 <div>
 	<div
-		class="grid grid-cols-[18px_1fr_24px] items-center gap-2 md:grid-cols-[20px_80px_100px_1fr_160px_28px]"
+		class="grid grid-cols-[18px_1fr_24px] items-start gap-2 md:grid-cols-[20px_80px_100px_1fr_160px_28px] md:items-center"
 	>
 		<button
 			use:dragHandle
 			type="button"
 			aria-label={m.editor_ingredient_reorder()}
-			class="flex cursor-grab items-center justify-center text-handle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="mt-3.5 flex cursor-grab items-center justify-center text-handle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:mt-0"
 		>
 			<GripVertical class="size-4" aria-hidden="true" />
 		</button>
 
-		<!-- `md:contents` lifts the fields into the outer grid on desktop; on
-		     mobile they keep their own compact three-column layout with the
-		     note wrapping onto a second line. -->
-		<div class="grid grid-cols-[64px_72px_1fr] gap-1.5 md:contents">
+		<!-- `md:contents` lifts the fields into the outer grid on desktop. On
+		     mobile they stack: the ingredient name on its own line first (it
+		     is what a cook scans for), quantity and unit side by side below,
+		     the optional note last. `order-first` reorders only on mobile; the
+		     DOM order stays quantity, unit, name, note for the desktop grid. -->
+		<div class="grid grid-cols-2 gap-2 md:contents">
 			<input
 				id="ingredient-quantity-{row.id}"
 				bind:value={row.quantity}
@@ -96,7 +98,9 @@
 				aria-invalid={nameError ? 'true' : undefined}
 				aria-describedby={nameError ? `ingredient-name-error-${row.id}` : undefined}
 				placeholder={m.editor_ingredient_name()}
-				class="{fieldClasses} {nameError ? errorClasses : ''}"
+				class="{fieldClasses} order-first col-span-2 md:order-none md:col-span-1 {nameError
+					? errorClasses
+					: ''}"
 			/>
 			<input
 				id="ingredient-note-{row.id}"
@@ -106,7 +110,7 @@
 				autocomplete="off"
 				aria-label={m.editor_ingredient_note()}
 				placeholder={m.editor_ingredient_note()}
-				class="{fieldClasses} col-span-3 text-text-muted md:col-span-1"
+				class="{fieldClasses} col-span-2 text-text-muted md:col-span-1"
 			/>
 		</div>
 
@@ -114,7 +118,7 @@
 			type="button"
 			onclick={onremove}
 			aria-label={m.editor_ingredient_remove()}
-			class="flex items-center justify-center text-text-muted transition hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="mt-3.5 flex items-center justify-center text-text-muted transition hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:mt-0"
 		>
 			<X class="size-4" aria-hidden="true" />
 		</button>
