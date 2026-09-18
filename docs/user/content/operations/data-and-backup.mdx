@@ -1,0 +1,48 @@
+---
+title: Data and backup
+description: Where Rezepte stores its data and how to back it up safely
+---
+
+Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/data` in the Docker image):
+
+<Files>
+  <Folder name="data" defaultOpen>
+    <File name="rezepte.db" />
+    <File name="rezepte.db-wal" />
+    <File name="rezepte.db-shm" />
+    <Folder name="images" defaultOpen>
+      <Folder name="<recipeId>" defaultOpen>
+        <File name="<imageId>.jpg" />
+        <File name="<imageId>_detail.jpg" />
+        <File name="<imageId>_thumb.jpg" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+`rezepte.db` is the SQLite database (recipes, users, sessions); `rezepte.db-wal` and `rezepte.db-shm` are its write-ahead log while the app is running. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (480 px).
+
+## Backing up
+
+The database is safe to back up while the app is running with SQLite's own backup command, which takes a WAL-consistent snapshot:
+
+```bash
+sqlite3 data/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
+```
+
+Copy the images alongside it:
+
+```bash
+rsync -a data/images/ /backups/images/
+```
+
+<Callout type="warn">
+  Never copy `rezepte.db` alone with `cp` while the app is running. SQLite's WAL mode keeps recent writes in `rezepte.db-wal`, so a plain file copy of `rezepte.db` can miss them or capture the database mid-write. Use `sqlite3 .backup` (above) or stop the app first.
+</Callout>
+
+## Restoring
+
+1. Stop Rezepte.
+2. Replace `data/rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it.
+3. Copy the backed-up `images/` directory back into place.
+4. Start Rezepte again.

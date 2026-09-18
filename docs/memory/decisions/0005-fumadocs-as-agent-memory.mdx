@@ -11,15 +11,16 @@ Coding agents need durable context: why things are the way they are, and how to 
 
 ## Decision
 
-- `docs/` is a Fumadocs app on the Next.js static template. Content lives directly in `docs/memory/` (agent memory) and `docs/user/` (end-user docs), each a root with its own sidebar tab.
+- `docs/` and `docs/user/` are both Fumadocs apps on the Next.js static template, each with its own `package.json` and Next.js build: `docs/` renders the agent memory in `docs/memory/` on port 4000, `docs/user/` renders the end-user docs in `docs/user/content/` on port 5000.
 - `CLAUDE.md` contains only hard rules and links here for the how and why.
 - Memory structure: `decisions/` (ADRs), `architecture/`, `howtos/`, `conventions/`, `roadmap.mdx`.
-- Agent routes: `/llms.txt`, `/llms-full.txt`, raw markdown per page under `/llms.mdx/<path>/content.md`.
+- Agent routes: `/llms.txt`, `/llms-full.txt`, raw markdown per page under `/llms.mdx/<path>/content.md` - each app serves its own.
 - All docs are English.
-- The single collection uses `defineDocs({ dir: '.' })` with `files` globs restricted to `memory/**` and `user/**`, imported from `@/.source/server`. Nothing outside those two folders is scanned.
+- Each app defines its own Fumadocs collection: `docs/source.config.ts` restricts `dir: '.'` to `memory/**/*.mdx`, so the memory app never scans `docs/user/`; `docs/user/source.config.ts` points `dir: 'content'` at its own app's content.
 
 ## Consequences
 
 - Every architecture decision gets an ADR before or with the implementing commit.
-- `mise run //docs:check` builds the site, so broken MDX fails the gate.
-- Agents read the MDX files from the repo; the rendered site is for humans and for the llms routes.
+- `mise run //docs:check` and `mise run //docs/user:check` each build their own site, so broken MDX in either fails the gate.
+- Agents read the MDX files from the repo; the rendered sites are for humans, for the llms routes, and - for `docs/user/` - for end users.
+- The two apps split from the single-app, two-root design this ADR originally chose: `docs/user/` grew its own dependencies (Playwright screenshots, a generated API reference) that the memory app has no reason to carry, and an independent static export lets it deploy without the internal memory. See [ADR 0013](/memory/decisions/0013-demo-mode-and-docs-pipeline) for the screenshot and API-reference pipeline this enabled.

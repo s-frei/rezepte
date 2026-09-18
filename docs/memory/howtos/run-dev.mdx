@@ -31,7 +31,16 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run docs
     ```
-    Fumadocs on `http://localhost:4000`.
+    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:5000`.
+
+  </Step>
+  <Step>
+
+    ### Try the app with sample data
+    ```bash
+    cd service && REZEPTE_DATA_DIR=$(mktemp -d) mise exec -- go run ./cmd/rezepte --demo
+    ```
+    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with placeholder photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. See [ADR 0013](/memory/decisions/0013-demo-mode-and-docs-pipeline).
 
   </Step>
   <Step>
@@ -68,5 +77,6 @@ description: Dev servers, builds and the check gate
   - Docker Desktop's credential helper (`docker-credential-desktop`) can hang on image pulls on macOS. Use a throwaway `DOCKER_CONFIG` directory without `credsStore` for local builds.
   - If `bunx playwright install chromium` times out downloading, run it once from a normal terminal. `mise run setup` is idempotent and will pick up the cached browser on the next run.
   - Chromium does not start on the current development machine, so `mise run e2e` cannot run there; the Phase 4 e2e tests are type-checked by `mise run check` and executed in CI only.
+  - `mise run //docs/user:screenshots` needs a Chromium that starts; on this machine the PNGs are not generated - pages show placeholder frames instead (see [ADR 0013](/memory/decisions/0013-demo-mode-and-docs-pipeline)).
 
 </Callout>

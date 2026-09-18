@@ -1,0 +1,27 @@
+import { expect, test } from '@playwright/test';
+import { ensureUser, prepare, shot } from './helpers';
+
+test('settings', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings');
+	await expect(page.getByRole('heading', { name: 'Passwort ändern' })).toBeVisible();
+	await shot(page, 'settings');
+});
+
+test('users', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	// The demo seeds one account; the second row on the picture is created
+	// here, so the four projects can run against the same demo instance.
+	await ensureUser(page, 'mia', 'mia-demo-1234', 'user');
+	await page.goto('/settings/users');
+	await expect(page.getByRole('listitem').filter({ hasText: 'mia' })).toBeVisible();
+	await shot(page, 'users');
+});
+
+test('user-create', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/users');
+	await page.getByRole('button', { name: 'Benutzer anlegen' }).click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await shot(page, 'user-create');
+});

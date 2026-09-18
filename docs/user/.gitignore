@@ -1,0 +1,16 @@
+# deps
+/node_modules
+
+# generated content
+.source
+
+# test & build
+/.next/
+/out/
+/test-results/
+*.tsbuildinfo
+
+# misc
+.DS_Store
+.env*.local
+next-env.d.ts

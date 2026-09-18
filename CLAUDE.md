@@ -17,4 +17,4 @@ Read `docs/memory/index.mdx` before making changes. The memory explains the how 
 - UI uses only the design tokens from `frontend/src/app.css`; no raw colours, radii or fonts in components. → `docs/memory/architecture/design-system.mdx`
 - Verify UI changes with Playwright (`mise run e2e`, or screenshots against the dev server), never with a browser extension. → `docs/memory/howtos/verify-ui.mdx`
 - Database changes go through goose migrations and sqlc; regenerate with `mise run //service:generate` and commit the output. → `docs/memory/decisions/0003-sqlite-with-sqlc-and-goose.mdx`
-- Docs content lives in `docs/memory/` and `docs/user/`, uses Fumadocs components, and is English. → `docs/memory/decisions/0005-fumadocs-as-agent-memory.mdx`
+- Docs are two independent Fumadocs apps, `docs/` (agent memory, :4000) and `docs/user/` (end-user docs, :5000, own `package.json`), both English. → `docs/memory/decisions/0005-fumadocs-as-agent-memory.mdx`

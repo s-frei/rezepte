@@ -1,0 +1,41 @@
+{
+  "name": "docs-user",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 5000",
+    "start": "serve out",
+    "types:check": "next typegen && tsc --noEmit",
+    "lint": "eslint",
+    "openapi:fetch": "bun scripts/fetch-openapi.ts",
+    "openapi:generate": "bun scripts/generate-api.ts",
+    "screenshots": "playwright test",
+    "screenshots:audit": "bun scripts/screenshots-audit.ts"
+  },
+  "dependencies": {
+    "fumadocs-core": "16.15.11",
+    "fumadocs-mdx": "15.4.1",
+    "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.11",
+    "lucide-react": "^1.43.0",
+    "mermaid": "^12.0.0",
+    "next": "16.3.4",
+    "next-themes": "^0.4.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.5.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "16.3.4",
+    "postcss": "^8.5.28",
+    "serve": "^14.2.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "6.0.3"
+  }
+}

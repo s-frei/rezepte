@@ -1,0 +1,42 @@
+---
+title: Configuration
+description: Every REZEPTE_* environment variable and command-line flag
+---
+
+Rezepte takes its entire configuration from environment variables — there is no config file.
+
+<TypeTable
+  type={{
+    REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060' },
+    REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db and images/', type: 'string', default: './data' },
+    REZEPTE_ADMIN_USER: { description: 'Initial admin username, used only on the first start', type: 'string', default: 'admin' },
+    REZEPTE_ADMIN_PASSWORD: { description: 'Initial admin password; required on the first start (empty users table), ignored afterwards', type: 'string' },
+    REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
+    REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
+    REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
+  }}
+/>
+
+## Command-line flags
+
+### `--demo`
+
+```bash
+rezepte --demo
+```
+
+Fills an empty data directory with twelve sample recipes (and placeholder photos for most of them). If `REZEPTE_ADMIN_PASSWORD` is unset, it also creates the demo account `demo` / `demo1234` instead of requiring a password. On an instance that already has recipes, `--demo` does nothing and starts normally.
+
+## Logging
+
+`REZEPTE_LOG_FORMAT=text` (the default):
+
+```text
+time=2026-09-18T10:00:00.000+02:00 level=INFO msg=listening addr=:8060
+```
+
+`REZEPTE_LOG_FORMAT=json`:
+
+```json
+{"time":"2026-09-18T10:00:00.000+02:00","level":"INFO","msg":"listening","addr":":8060"}
+```

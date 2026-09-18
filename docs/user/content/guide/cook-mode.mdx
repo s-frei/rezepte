@@ -1,0 +1,45 @@
+---
+title: Cook mode
+description: A full-screen, step-by-step view for cooking at the stove
+---
+
+<Screenshot name="cook-mode" caption="A step in cook mode" />
+
+<Steps>
+  <Step>
+
+    ### Start cooking
+
+    On a recipe's detail page, click "Kochmodus starten" (the floating button on a phone) or "Kochmodus" (the top bar on desktop).
+
+  </Step>
+  <Step>
+
+    ### Move through the steps
+
+    One step shows at a time, in large type. Swipe left/right, use the on-screen buttons, or the `←`/`→` arrow keys to move between steps; a progress bar at the top shows how far along you are. "Fertig" on the last step returns to the recipe.
+
+  </Step>
+  <Step>
+
+    ### Check ingredients
+
+    Open the collapsible ingredient list to see quantities without leaving cook mode — scaled the same way as on the detail page, using whatever servings you last chose (see [Servings](/guide/servings)).
+
+    <Screenshot name="cook-mode-sheet" mobile caption="The ingredient list open in cook mode" />
+
+  </Step>
+</Steps>
+
+<Callout type="info" title="Good to know">
+  While cook mode is open, the screen is kept from sleeping (a "Bildschirm bleibt an" note appears when this is active). `Escape`, or the back arrow in the header, leaves cook mode and returns to the recipe.
+</Callout>
+
+<Accordions type="single">
+  <Accordion title="When the screen does not stay awake">
+    Keeping the screen on relies on the browser's Wake Lock API, which requires a secure context. Over plain HTTP on a local network (no TLS) the browser silently does not grant it, so the screen can still turn off — see [Reverse proxy](/operations/reverse-proxy) for adding HTTPS.
+  </Accordion>
+  <Accordion title="Recipes without steps">
+    A recipe with no steps shows a short message instead of the step view.
+  </Accordion>
+</Accordions>

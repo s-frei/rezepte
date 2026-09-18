@@ -18,7 +18,7 @@ function Landing() {
 			<DocsBody>
 				<Cards>
 					<Card href="/memory" title="Memory" description="Decisions, architecture and how-tos for coding agents." />
-					<Card href="/user" title="User" description="End-user documentation." />
+					<Card href="http://localhost:5000" title="User docs" description="End-user documentation (separate site on port 5000)." />
 				</Cards>
 			</DocsBody>
 		</DocsPage>

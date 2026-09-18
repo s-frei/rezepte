@@ -27,7 +27,8 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     - `internal/config` – env to struct
     - `internal/httpserver` – mux, huma, middleware, SPA handler, lifecycle
     - `internal/web` – embedded `dist/`
-    - one package per domain (`auth`, `user`, `recipe`, `image`, `importer`) with `handler → service → sqlc` layering
+    - one package per domain (`auth`, `user`, `recipe`, `image`) with `handler → service → sqlc` layering
+    - `internal/demo` – seeds the sample recipes and placeholder images through those services for `--demo` (see [ADR 0013](/memory/decisions/0013-demo-mode-and-docs-pipeline))
 
   </Tab>
   <Tab value="frontend">
@@ -42,9 +43,11 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
   </Tab>
   <Tab value="docs">
 
-    - `memory/` – this section
-    - `user/` – end-user docs
-    - `app/` – Fumadocs/Next.js glue, do not put content here
+    Two independent Fumadocs apps, each with its own `package.json`:
+
+    - `memory/` – this section, rendered by the app in `docs/` on port 4000
+    - `user/` – a separate Fumadocs app on port 5000: `content/` (end-user pages; `api/reference.mdx` is generated, never hand-edited), `components/screenshot.tsx` (the `<Screenshot>` placeholder-fallback component), `screenshots/` (Playwright specs), `scripts/` (`with-demo.sh`, the OpenAPI fetch/generate and screenshot-audit scripts), `public/screenshots/` (committed PNGs)
+    - `app/` – Fumadocs/Next.js glue per app, do not put content here
 
   </Tab>
 </Tabs>

@@ -1,0 +1,36 @@
+---
+title: Roadmap
+description: Where Rezepte could go next
+---
+
+<Callout type="info">
+  Nothing on this page is promised. It records direction, not a commitment or a timeline.
+</Callout>
+
+## Instance sync
+
+One Rezepte instance could mirror another's recipes read-only, using an API token the source instance issues.
+
+## Public REST API with tokens
+
+The API already exists (see [API](/api)); what's missing for outside tools is bearer-token authentication, in addition to the session cookie the app itself uses.
+
+## MCP server
+
+Letting AI assistants search, read and draft recipes through the Model Context Protocol, built on top of the REST API and its future tokens.
+
+## OIDC login
+
+Signing in with an existing identity provider, alongside username-and-password sessions.
+
+## More recipe features
+
+Favourites, personal notes, a "last cooked" marker, a shopping list and a meal plan.
+
+## English interface
+
+The app's interface is German today (see [the note on the home page](/)); an English translation is on the list.
+
+## Recipe import from a URL (later)
+
+Pasting a recipe's URL to create a draft recipe from it is planned but not part of the current version — there is no import page or button yet.

@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     '.source/**',
     'superpowers/**',
     'design_handoff_rezepte/**',
+    'user/**',
   ]),
 ]);
 

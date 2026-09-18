@@ -1,0 +1,16 @@
+{
+	"title": "Rezepte",
+	"pages": [
+		"index",
+		"---Getting started---",
+		"getting-started",
+		"---Features---",
+		"guide",
+		"---Operations---",
+		"operations",
+		"---API---",
+		"api",
+		"---Outlook---",
+		"roadmap"
+	]
+}
