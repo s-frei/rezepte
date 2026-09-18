@@ -32,6 +32,35 @@ func TestListPaginates(t *testing.T) {
 	}
 }
 
+// TestListPutsTheNewestFirstWithinASecond pins the ORDER BY tiebreak.
+// Timestamps are stored as RFC3339 with second resolution, so a burst of
+// writes - demo seeding, a bulk import - shares one updated_at and is
+// separated only by the id, which must run newest first like updated_at.
+func TestListPutsTheNewestFirstWithinASecond(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	var created []string
+	for _, in := range loadFixtures(t) {
+		r, err := svc.Create(ctx, uid, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		created = append(created, r.Title)
+	}
+	p, err := svc.List(ctx, recipe.ListParams{Page: 1, Limit: 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Items) != len(created) {
+		t.Fatalf("items = %d, want %d", len(p.Items), len(created))
+	}
+	for i, item := range p.Items {
+		if want := created[len(created)-1-i]; item.Title != want {
+			t.Fatalf("item %d = %q, want %q (reverse creation order)", i, item.Title, want)
+		}
+	}
+}
+
 func TestSearchPrefixAndDiacritics(t *testing.T) {
 	svc := seedAll(t)
 	for _, q := range []string{"kaese", "Käsesp", "spätzle röst"} {

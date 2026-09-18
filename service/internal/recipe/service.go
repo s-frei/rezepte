@@ -215,6 +215,15 @@ func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
 	return out, nil
 }
 
+// Count returns how many recipes exist.
+func (s *Service) Count(ctx context.Context) (int, error) {
+	n, err := s.q.CountRecipes(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("count recipes: %w", err)
+	}
+	return int(n), nil
+}
+
 // load assembles a Recipe from its row plus child tables.
 func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	groups, err := s.q.ListIngredientGroupsByRecipe(ctx, row.ID)

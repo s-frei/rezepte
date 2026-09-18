@@ -334,7 +334,7 @@ func (q *Queries) ListIngredientsByRecipe(ctx context.Context, recipeID string) 
 }
 
 const listRecipes = `-- name: ListRecipes :many
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at FROM recipes ORDER BY updated_at DESC, id LIMIT ? OFFSET ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at FROM recipes ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?
 `
 
 type ListRecipesParams struct {
@@ -342,6 +342,10 @@ type ListRecipesParams struct {
 	Offset int64
 }
 
+// The id tiebreak runs DESC, like updated_at: timestamps are RFC3339 with
+// second resolution, so everything written within the same second compares
+// equal, and ids are UUIDv7, ordered by creation time. An ASC tiebreak
+// would list such a burst oldest first, contradicting "newest first".
 func (q *Queries) ListRecipes(ctx context.Context, arg ListRecipesParams) ([]Recipe, error) {
 	rows, err := q.db.QueryContext(ctx, listRecipes, arg.Limit, arg.Offset)
 	if err != nil {
@@ -383,7 +387,7 @@ SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_
 JOIN recipe_tags rt ON rt.recipe_id = r.id
 JOIN tags t ON t.id = rt.tag_id
 WHERE t.name = ?
-ORDER BY r.updated_at DESC, r.id LIMIT ? OFFSET ?
+ORDER BY r.updated_at DESC, r.id DESC LIMIT ? OFFSET ?
 `
 
 type ListRecipesByTagParams struct {
@@ -392,6 +396,7 @@ type ListRecipesByTagParams struct {
 	Offset int64
 }
 
+// The id tiebreak runs DESC: see the comment on ListRecipes above.
 func (q *Queries) ListRecipesByTag(ctx context.Context, arg ListRecipesByTagParams) ([]Recipe, error) {
 	rows, err := q.db.QueryContext(ctx, listRecipesByTag, arg.Name, arg.Limit, arg.Offset)
 	if err != nil {
@@ -533,7 +538,7 @@ func (q *Queries) ListTagNamesForRecipes(ctx context.Context, recipeIds []string
 const searchRecipes = `-- name: SearchRecipes :many
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at FROM recipes
 WHERE rowid IN (SELECT rowid FROM recipes_fts(?1))
-ORDER BY updated_at DESC, id LIMIT ?3 OFFSET ?2
+ORDER BY updated_at DESC, id DESC LIMIT ?3 OFFSET ?2
 `
 
 type SearchRecipesParams struct {
@@ -542,6 +547,7 @@ type SearchRecipesParams struct {
 	Limit  int64
 }
 
+// The id tiebreak runs DESC: see the comment on ListRecipes above.
 // LIMIT/OFFSET use sqlc.arg() rather than plain "?" here: mixed with the
 // explicitly numbered "?N" that sqlc.arg(query) becomes, plain "?" would
 // be auto-numbered by SQLite starting *after* the highest explicit number
@@ -589,7 +595,7 @@ SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_
 JOIN recipe_tags rt ON rt.recipe_id = r.id
 JOIN tags t ON t.id = rt.tag_id
 WHERE t.name = ?1 AND r.rowid IN (SELECT rowid FROM recipes_fts(?2))
-ORDER BY r.updated_at DESC, r.id LIMIT ?4 OFFSET ?3
+ORDER BY r.updated_at DESC, r.id DESC LIMIT ?4 OFFSET ?3
 `
 
 type SearchRecipesByTagParams struct {
@@ -599,6 +605,7 @@ type SearchRecipesByTagParams struct {
 	Limit  int64
 }
 
+// The id tiebreak runs DESC: see the comment on ListRecipes above.
 // LIMIT/OFFSET use sqlc.arg(): see the comment on SearchRecipes above.
 func (q *Queries) SearchRecipesByTag(ctx context.Context, arg SearchRecipesByTagParams) ([]Recipe, error) {
 	rows, err := q.db.QueryContext(ctx, searchRecipesByTag,

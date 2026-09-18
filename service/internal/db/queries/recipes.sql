@@ -27,12 +27,17 @@ SELECT * FROM recipes WHERE slug = ?;
 SELECT EXISTS(SELECT 1 FROM recipes WHERE slug = ?);
 
 -- name: ListRecipes :many
-SELECT * FROM recipes ORDER BY updated_at DESC, id LIMIT ? OFFSET ?;
+-- The id tiebreak runs DESC, like updated_at: timestamps are RFC3339 with
+-- second resolution, so everything written within the same second compares
+-- equal, and ids are UUIDv7, ordered by creation time. An ASC tiebreak
+-- would list such a burst oldest first, contradicting "newest first".
+SELECT * FROM recipes ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?;
 
 -- name: CountRecipes :one
 SELECT COUNT(*) FROM recipes;
 
 -- name: SearchRecipes :many
+-- The id tiebreak runs DESC: see the comment on ListRecipes above.
 -- LIMIT/OFFSET use sqlc.arg() rather than plain "?" here: mixed with the
 -- explicitly numbered "?N" that sqlc.arg(query) becomes, plain "?" would
 -- be auto-numbered by SQLite starting *after* the highest explicit number
@@ -41,17 +46,18 @@ SELECT COUNT(*) FROM recipes;
 -- at run time with "missing argument".
 SELECT * FROM recipes
 WHERE rowid IN (SELECT rowid FROM recipes_fts(sqlc.arg(query)))
-ORDER BY updated_at DESC, id LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+ORDER BY updated_at DESC, id DESC LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
 -- name: CountSearchRecipes :one
 SELECT COUNT(*) FROM recipes WHERE rowid IN (SELECT rowid FROM recipes_fts(sqlc.arg(query)));
 
 -- name: ListRecipesByTag :many
+-- The id tiebreak runs DESC: see the comment on ListRecipes above.
 SELECT r.* FROM recipes r
 JOIN recipe_tags rt ON rt.recipe_id = r.id
 JOIN tags t ON t.id = rt.tag_id
 WHERE t.name = ?
-ORDER BY r.updated_at DESC, r.id LIMIT ? OFFSET ?;
+ORDER BY r.updated_at DESC, r.id DESC LIMIT ? OFFSET ?;
 
 -- name: CountRecipesByTag :one
 SELECT COUNT(*) FROM recipes r
@@ -60,12 +66,13 @@ JOIN tags t ON t.id = rt.tag_id
 WHERE t.name = ?;
 
 -- name: SearchRecipesByTag :many
+-- The id tiebreak runs DESC: see the comment on ListRecipes above.
 -- LIMIT/OFFSET use sqlc.arg(): see the comment on SearchRecipes above.
 SELECT r.* FROM recipes r
 JOIN recipe_tags rt ON rt.recipe_id = r.id
 JOIN tags t ON t.id = rt.tag_id
 WHERE t.name = sqlc.arg(tag) AND r.rowid IN (SELECT rowid FROM recipes_fts(sqlc.arg(query)))
-ORDER BY r.updated_at DESC, r.id LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
+ORDER BY r.updated_at DESC, r.id DESC LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 
 -- name: CountSearchRecipesByTag :one
 SELECT COUNT(*) FROM recipes r
