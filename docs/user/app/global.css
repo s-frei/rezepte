@@ -1,6 +1,128 @@
 @import 'tailwindcss';
-@import 'fumadocs-ui/css/neutral.css';
+/*
+ * `neutral.css` is deliberately not imported: it carries a `.dark #nd-sidebar`
+ * rule whose id selector outweighs every `.dark` override below. Importing its
+ * only real content - the `--color-fd-*` declarations - directly keeps the
+ * cascade flat.
+ */
+@import 'fumadocs-ui/css/lib/default-colors.css';
 @import 'fumadocs-ui/css/preset.css';
+
+@import '@fontsource-variable/literata';
+@import '@fontsource/karla/400.css';
+@import '@fontsource/karla/500.css';
+@import '@fontsource/karla/600.css';
+@import '@fontsource/karla/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/*
+ * The user docs wear the frontend's "Warm & handmade" palette (ADR 0007).
+ * Fumadocs reads every colour from a `--color-fd-*` variable and hardcodes
+ * none, so mapping those onto the Rezepte values is the whole job.
+ *
+ * The values below are a copy of frontend/src/app.css, not an import: the two
+ * apps stay independent (ADR 0005). ADR 0014 records that, and the two places
+ * where the docs deliberately differ from the app.
+ */
+
+@theme {
+  --font-sans: 'Karla', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* @fontsource-variable/literata declares the family as 'Literata Variable';
+     plain 'Literata' matches no @font-face and falls through to Georgia. */
+  --font-display: 'Literata Variable', Literata, Georgia, serif;
+}
+
+/*
+ * Plain `:root` / `.dark` rather than `@theme`: unlayered declarations beat
+ * Tailwind's `@layer theme`, so these win regardless of import order. This is
+ * the same shape as the shadcn preset that ships with Fumadocs.
+ */
+:root {
+  --color-fd-background: #f4ede2;
+  --color-fd-foreground: #2b2118;
+  --color-fd-card: #fdf9f2;
+  --color-fd-card-foreground: #2b2118;
+  --color-fd-popover: #fdf9f2;
+  --color-fd-popover-foreground: #2b2118;
+  --color-fd-secondary: #fdf9f2;
+  --color-fd-secondary-foreground: #2b2118;
+  --color-fd-border: #e3d7c3;
+
+  /* Docs-only: the app uses #7d6d5c and #b45309 for these. There they carry
+     meta lines and chips; here `fd-muted-foreground` is the most-used token
+     in the whole UI (sidebar, TOC, page descriptions) and `fd-primary` marks
+     active navigation, so both need to clear WCAG AA as body text. The app's
+     values land at 4.29:1 and 4.32:1 on this background; these reach 5.15:1
+     and 5.51:1 without visibly changing the hue. */
+  --color-fd-muted-foreground: #6f6152;
+  --color-fd-primary: #9a4707;
+  --color-fd-primary-foreground: #ffffff;
+  --color-fd-ring: #9a4707;
+
+  /* Fumadocs' `accent` is the hover/active surface, not the app's decorative
+     chip beige. The deeper paper tone (the app's `skeleton`) is the one value
+     that stays visible on both substrates: the sidebar sits on `card`, the
+     navbar and TOC on `background`. */
+  --color-fd-muted: #eadfcd;
+  --color-fd-accent: #eadfcd;
+  --color-fd-accent-foreground: #2b2118;
+
+  --color-fd-overlay: rgb(43 33 24 / 0.4);
+
+  /* Callout colours. Fumadocs ships the Tailwind 500 shades, which read as
+     foreign bodies on warm paper. These stay five distinguishable hues but
+     sit in the same earthy register; each clears 3:1 on `card` so the icons
+     remain perceivable. `error` and `warning` come straight from the palette,
+     `success` is the app's sage darkened (the original is 2.41:1 here). */
+  --color-fd-info: #4f6d74;
+  --color-fd-warning: #b45309;
+  --color-fd-error: #a3321f;
+  --color-fd-success: #5c8a45;
+  --color-fd-idea: #a8761c;
+}
+
+.dark {
+  --color-fd-background: #1c1612;
+  --color-fd-foreground: #f3ebe0;
+  --color-fd-card: #26201a;
+  --color-fd-card-foreground: #f3ebe0;
+  --color-fd-popover: #2f2822;
+  --color-fd-popover-foreground: #f3ebe0;
+  --color-fd-secondary: #26201a;
+  --color-fd-secondary-foreground: #f3ebe0;
+  --color-fd-border: #3b322a;
+
+  /* Dark needs no correction: the app's values already clear AA here
+     (6.47:1 and 5.77:1). */
+  --color-fd-muted-foreground: #a8998a;
+  --color-fd-primary: #d97a2b;
+  --color-fd-primary-foreground: #1c1612;
+  --color-fd-ring: #d97a2b;
+
+  --color-fd-muted: #2f2822;
+  --color-fd-accent: #2f2822;
+  --color-fd-accent-foreground: #f3ebe0;
+
+  --color-fd-info: #8fb6bd;
+  --color-fd-warning: #d97a2b;
+  --color-fd-error: #e5674f;
+  --color-fd-success: #7fb069;
+  --color-fd-idea: #e0b055;
+}
+
+/*
+ * Fumadocs' typography plugin sets colours but no font family, so headings
+ * inherit Karla. Literata is what makes a page read like the app.
+ *
+ * Scoped to the article rather than `.prose`: the page title sits outside the
+ * prose container, and the table of contents' own "On this page" is an h3 that
+ * must stay Karla - it is chrome, not content.
+ */
+#nd-page :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-display);
+}
 
 html {
   scrollbar-gutter: stable;

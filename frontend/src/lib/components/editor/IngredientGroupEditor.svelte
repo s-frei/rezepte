@@ -96,17 +96,27 @@
 <div class="space-y-6">
 	{#each groups as group, groupIndex (group.id)}
 		<div class="space-y-3">
-			<div class="flex items-center gap-3">
+			<!--
+				The name field takes the whole line on phones: beside the count and
+				"Entfernen" it was left with ~90px, not enough for its own
+				placeholder ("Gruppe benennen …" needs 140px), so a new group
+				opened with its prompt cut off. Desktop keeps the single row.
+			-->
+			<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 				<input
 					bind:value={group.name}
 					type="text"
 					autocomplete="off"
 					aria-label={m.editor_ingredient_group_rename()}
 					placeholder={m.editor_group_name_placeholder()}
-					class="min-w-0 flex-1 border-b border-transparent bg-transparent pb-1 font-display text-body-lg font-medium text-primary italic transition outline-none placeholder:text-text-muted placeholder:not-italic focus:border-border"
+					class="w-full min-w-0 border-b border-transparent bg-transparent pb-1 font-display text-body-lg font-medium text-primary italic transition outline-none placeholder:text-text-muted placeholder:not-italic focus:border-border md:w-auto md:flex-1"
 				/>
+				<!-- The catalogue has no plural variants, so the singular is its
+				     own message rather than "1 Zutaten". -->
 				<span class="shrink-0 text-caption text-text-muted">
-					{m.editor_ingredient_group_summary({ count: group.ingredients.length })}
+					{group.ingredients.length === 1
+						? m.editor_ingredient_group_summary_one()
+						: m.editor_ingredient_group_summary({ count: group.ingredients.length })}
 				</span>
 				{#if groups.length > 1}
 					<!-- Visible "Entfernen" is short enough for the header row; the
@@ -116,7 +126,7 @@
 						type="button"
 						onclick={() => removeGroup(groupIndex)}
 						aria-label={m.editor_group_remove()}
-						class="shrink-0 text-caption font-medium text-text-muted transition hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+						class="ml-auto inline-flex h-11 shrink-0 items-center rounded-pill px-3 text-caption font-medium text-text-muted transition hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:ml-0 md:h-8"
 					>
 						{m.common_remove()}
 					</button>

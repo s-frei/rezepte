@@ -27,7 +27,17 @@
 		{/if}
 	</div>
 	<div class="px-4 pt-2 pb-[18px]">
-		<h3 class="truncate font-display text-[16px] font-medium md:text-card">{recipe.title}</h3>
+		<!-- The title is what you recognise the card by, so it wraps rather than
+		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
+		     reserved either way, so the time pills of a row stay on one line.
+		     A phone card leaves 124px of text: German compounds outrun that on
+		     their own, hence `hyphens-auto` (the document is `lang="de"`) and a
+		     third line before it gives up. -->
+		<h3
+			class="line-clamp-3 min-h-[2lh] font-display text-[16px] font-medium hyphens-auto md:line-clamp-2 md:text-card"
+		>
+			{recipe.title}
+		</h3>
 		{#if recipe.tags.length > 0}
 			<p class="mt-1 truncate text-caption text-text-muted">{recipe.tags.join(', ')}</p>
 		{/if}

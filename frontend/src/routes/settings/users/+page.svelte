@@ -96,11 +96,18 @@
 
 <SettingsLayout active="users">
 	<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-users">
-		<div class="mb-4 flex items-center justify-between gap-4">
+		<!-- Side by side the heading and the button need 306px, 4px more than a
+		     360px phone leaves inside this card, and the label wrapped into two
+		     lines. Below `md` the button gets its own full-width row instead. -->
+		<div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
 			<h2 id="settings-users" class="font-display text-heading font-medium">
 				{m.settings_nav_users()}
 			</h2>
-			<Button variant="accent" onclick={() => (createOpen = true)}>
+			<Button
+				variant="accent"
+				onclick={() => (createOpen = true)}
+				class="w-full whitespace-nowrap md:w-auto"
+			>
 				<Plus class="size-4" aria-hidden="true" />
 				{m.users_create()}
 			</Button>

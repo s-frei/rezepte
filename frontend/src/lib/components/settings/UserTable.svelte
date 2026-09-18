@@ -22,7 +22,7 @@
 
 <div
 	aria-hidden="true"
-	class="hidden grid-cols-[1fr_140px_240px] gap-3 border-b border-border pb-2 text-micro font-semibold tracking-[0.08em] text-text-muted uppercase md:grid"
+	class="hidden grid-cols-[1fr_140px_280px] gap-3 border-b border-border pb-2 text-micro font-semibold tracking-[0.08em] text-text-muted uppercase md:grid"
 >
 	<span>{m.users_col_name()}</span>
 	<span>{m.users_field_role()}</span>

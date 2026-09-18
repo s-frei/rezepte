@@ -37,14 +37,33 @@ description = "Run both documentation sites (:4000 memory, :4001 user)"
 depends = ["//docs/memory:dev", "//docs/user:dev"]
 
 [tasks.e2e]
-description = "Build, start the binary on :8060 with a temp data dir, run Playwright"
+description = "Build, start the binary on a free port with a temp data dir, run Playwright"
 depends = ["build"]
 run = '''
 set -eu
+PORT="${REZEPTE_E2E_PORT:-8060}"
+# A stranger on the port is the failure that looks like a broken app: our
+# binary cannot bind, theirs answers /healthz, and every test that logs in
+# fails with "Benutzername oder Passwort ist falsch" while the handful that
+# do not log in pass. Say so up front where lsof is available, and catch it
+# either way below by checking that our own process is still alive.
+if command -v lsof >/dev/null 2>&1 && lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+	echo "e2e: :$PORT is already in use - stop that process, or run with REZEPTE_E2E_PORT=8061" >&2
+	exit 1
+fi
 DATA_DIR=$(mktemp -d)
-REZEPTE_ADDR=:8060 REZEPTE_DATA_DIR="$DATA_DIR" REZEPTE_ADMIN_PASSWORD=e2e-password ./service/bin/rezepte &
+# -u clears REZEPTE_ADMIN_USER from the environment so a developer who exports
+# it still gets the `admin` that frontend/e2e/helpers.ts logs in as.
+env -u REZEPTE_ADMIN_USER \
+	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$DATA_DIR" REZEPTE_ADMIN_PASSWORD=e2e-password \
+	./service/bin/rezepte &
 PID=$!
-trap 'kill $PID' EXIT
-for _ in $(seq 1 50); do curl -sf localhost:8060/healthz >/dev/null && break; sleep 0.1; done
-cd frontend && bun run test:e2e
+trap 'kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true; rm -rf "$DATA_DIR"' EXIT
+for _ in $(seq 1 50); do
+	kill -0 "$PID" 2>/dev/null || { echo "e2e: rezepte exited before answering on :$PORT (port taken?)" >&2; exit 1; }
+	curl -sf "localhost:$PORT/healthz" >/dev/null && break
+	sleep 0.1
+done
+curl -sf "localhost:$PORT/healthz" >/dev/null || { echo "e2e: rezepte did not start on :$PORT" >&2; exit 1; }
+cd frontend && E2E_BASE_URL="http://localhost:$PORT" bun run test:e2e
 '''

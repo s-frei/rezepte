@@ -14,8 +14,11 @@ description: End-to-end tests and screenshots, no browser extensions
 
     ```bash
     mise run e2e
+    REZEPTE_E2E_PORT=8061 mise run e2e   # when something already holds :8060
     ```
-    Builds the binary, starts it on `:8060` with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=e2e-password`, runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary. Traces and screenshots of failures land in `frontend/test-results/`.
+    Builds the binary, starts it on `:8060` (or `REZEPTE_E2E_PORT`) with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=e2e-password`, runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary and deletes the directory. Traces and screenshots of failures land in `frontend/test-results/`.
+
+    The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
     Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts` (added in phase 2).
 
@@ -63,6 +66,35 @@ The Chromium build is installed by `mise run setup` (`bunx playwright install ch
 
 A layout that only ever gets checked at 390px hides real bugs. The theme `SegmentedControl` was a content-sized `inline-flex` at a constant 297px: at 390px it fit with 5px to spare and every screenshot looked right, while on the user's phone it pushed out of its card. Sweep the widths whenever a row of controls looks tight.
 
+## A test that has never run is not a test
+
+The suites for phases 3-7 were written but never executed - Chromium would not start on the development machine at the time, and then a stale process on `:8060` made every run look broken. When they finally ran on 2026-09-18, three of them had been asserting against a UI that does not exist:
+
+- `auth.test.ts` waited for the text "Angemeldet als admin"; `home_signed_in_as` is in the message catalogue but used nowhere in the code. It then clicked "Abmelden" without opening the menu that holds it.
+- `smoke.test.ts` looked for a heading "Rezepte"; the top bar's wordmark is a `span`, the overview's `h1` reads "Was kochen wir heute?".
+- `settings.test.ts` filtered `getByRole('listitem')` by the username, which also matches the svelte-sonner success toast - it renders as an `li` too.
+
+None of this was a regression; it was three tests that had never been given the chance to fail. Two things follow: run a suite the moment you write it, and when a locator disagrees with the app, check which of the two is wrong before "fixing" either. Two details worth keeping: the user menu is a Bits UI dropdown of `menuitem`s on desktop and a sheet of real buttons on phones (`signOut` in `e2e/helpers.ts` knows the difference), and the select trigger is a plain `<button>` with an aria-label, not a `combobox`.
+
+## Check the empty state, not just the seeded one
+
+The demo data is the *comfortable* case. Every bug found on 2026-09-18 in the ingredient editor hid there: seeded groups are called "Klopse" and "Kapernsauce", so their name field shows a short value and looks fine. Add a **new** group and the field falls back to its placeholder, "Gruppe benennen …", which needs 140px - and beside the count and "Entfernen" it had 90px. The seeded page never showed it.
+
+So exercise the states the fixture does not cover:
+
+- **Empty / just created:** placeholders instead of values, a list with one entry, a form with nothing filled in.
+- **One versus many:** singular labels ("1 Zutaten" was live for months), the last row of a list, a list with a single item where an action is disabled.
+- **Long content:** a recipe title that wraps, a group name that fills the field.
+
+A placeholder is invisible to the usual truncation check, because `scrollWidth` measures the *value*, not the placeholder. Measure it against the rendered font instead:
+
+```ts
+const cs = getComputedStyle(input);
+const ctx = document.createElement('canvas').getContext('2d')!;
+ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+const fits = input.getBoundingClientRect().width >= ctx.measureText(input.placeholder).width;
+```
+
 ## Measure, do not eyeball
 
 A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artefact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
@@ -103,5 +135,5 @@ cd docs/user && ./scripts/with-demo.sh mise exec -- bun run /tmp/probe.ts
 
 Two traps worth knowing:
 
-- `mise run e2e` starts its own binary on `:8060` **without checking whether the port is free**. A stale process there silently answers instead, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the four tests that do not log in pass. Check with `lsof -nP -iTCP:8060 -sTCP:LISTEN` before believing an e2e failure. `with-demo.sh` guards `:8070` properly and is the model for fixing the task.
+- Both `mise run e2e` (`:8060`, override with `REZEPTE_E2E_PORT`) and `with-demo.sh` (`:8070`) now refuse to start on a busy port. Before that guard existed, a stale process answered `/healthz` instead and every test that logged in failed with "Benutzername oder Passwort ist falsch" while the four that do not log in passed - if you ever see that shape of failure, check `lsof -nP -iTCP:8060 -sTCP:LISTEN` before blaming your change.
 - Chromium starts on the development Mac even while the screen is locked; an earlier note claiming otherwise was wrong. Just run it.

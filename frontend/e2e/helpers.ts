@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 // Type-only, so the relative hop into `src` is erased at runtime and the e2e
 // suite still speaks the same contract as the app.
 import type { Image, Recipe, RecipeInput } from '../src/lib/api/recipes';
@@ -12,6 +12,19 @@ export async function login(page: Page, username = 'admin', password = 'e2e-pass
 	await page.getByLabel('Benutzername').fill(username);
 	await page.getByLabel('Passwort').fill(password);
 	await page.getByRole('button', { name: 'Anmelden' }).click();
+}
+
+/**
+ * Signs out through the menu that holds "Einstellungen" and "Abmelden". The
+ * two viewports build it differently - a Bits UI dropdown behind the avatar on
+ * desktop, whose entries are `menuitem`s, and the "Mehr" sheet with real
+ * buttons on phones, since the top bar is `md:` only - so the walk depends on
+ * the project the test runs in.
+ */
+export async function signOut(page: Page, testInfo: TestInfo): Promise<void> {
+	const mobile = testInfo.project.name.startsWith('mobile');
+	await page.getByRole('button', { name: mobile ? 'Mehr' : 'Benutzermenü' }).click();
+	await page.getByRole(mobile ? 'button' : 'menuitem', { name: 'Abmelden' }).click();
 }
 
 /**

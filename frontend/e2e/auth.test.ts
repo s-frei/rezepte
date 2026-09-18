@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { login } from './helpers';
+import { login, signOut } from './helpers';
 
 test('redirects anonymous users to login', async ({ page }) => {
 	await page.goto('/');
@@ -12,12 +12,16 @@ test('rejects a wrong password', async ({ page }) => {
 	await expect(page).toHaveURL(/\/login/);
 });
 
-test('logs in, survives reload, logs out', async ({ page }) => {
+test('logs in, survives reload, logs out', async ({ page }, testInfo) => {
 	await login(page);
+	// Being on the overview is the proof: an anonymous visitor is bounced to
+	// /login by the session guard, so the headline can only render signed in.
 	await expect(page).toHaveURL('/');
-	await expect(page.getByText('Angemeldet als admin')).toBeVisible();
+	const headline = page.getByRole('heading', { name: 'Was kochen wir heute?' });
+	await expect(headline).toBeVisible();
 	await page.reload();
-	await expect(page.getByText('Angemeldet als admin')).toBeVisible();
-	await page.getByRole('button', { name: 'Abmelden' }).click();
+	await expect(page).toHaveURL('/');
+	await expect(headline).toBeVisible();
+	await signOut(page, testInfo);
 	await expect(page).toHaveURL(/\/login/);
 });

@@ -192,6 +192,7 @@
 	"editor_ingredient_add_group": "Gruppe hinzufügen",
 	"editor_ingredient_group_rename": "Gruppe umbenennen",
 	"editor_ingredient_group_summary": "{count} Zutaten",
+	"editor_ingredient_group_summary_one": "1 Zutat",
 	"editor_step_add": "Schritt hinzufügen",
 	"editor_unsaved_changes": "Ungespeicherte Änderungen",
 	"editor_discard_confirm_title": "Änderungen verwerfen?",

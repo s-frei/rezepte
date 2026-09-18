@@ -136,6 +136,34 @@ search, plus, minus, link, download, settings, log-out, chevron-left/right/down,
 - Those action bars sit at the **top**, 64px, `bg-background/90` with `backdrop-blur` and a bottom border. The bottom is the software keyboard's, and a bar down there covers the content a cook is reading. They carry at most one control per side plus a title, so nothing truncates: the editor drops the title altogether (its headline stays in the flow) and the detail page shrinks its cook action to a filled 40px circle next to the outlined back and menu circles.
 - The detail page's header starts transparent over the cover - only the three circles, aligned 8px inside the image rather than to the page padding, since the cover card adds 12px of its own - and fades in background, title and cook action once the cover has scrolled past (`scrollY > 220`). Over the image the bar is `pointer-events-none` so taps reach the gallery. The labelled “Kochmodus starten” button lives in the flow under the servings stepper.
 
+## Rules that keep layouts from breaking
+
+Each of these comes from a bug that shipped. Verify them at 360px - see [Verify UI with Playwright](/howtos/verify-ui).
+
+- **An action is never bare text.** "Löschen" in the user list was a 50×20 target and "Entfernen" in the ingredient editor 59×20 - text with a click handler and no padding. Give them a padded pill, even where they read like links.
+- **Actions inside dense rows are 44px tall on phones** (`h-11`) and drop to the table's density on desktop (`md:h-8`). Elsewhere the floor is the `Button` component's own 40px. The chip rows (34px) and the bottom nav (37px) sit below that: a known exception carried for the sake of their row heights, not a precedent to copy.
+- **A title that identifies something wraps, it does not truncate.** `line-clamp-2` beats `truncate` for recipe card titles - a cut-off name is a card you cannot recognise. `truncate` stays right for secondary lines (tag lists, breadcrumbs) and for a title inside a fixed-height bar.
+- **A button never breaks into two lines.** Add `whitespace-nowrap`, and when the row is too narrow give the button its own full-width line (`w-full md:w-auto`) instead. "Benutzer anlegen" next to its heading needed 306px inside a 302px card and wrapped into an oddly tall pill.
+- **Rows with several fields align on one baseline** (`items-center`), and a status hint belongs under its action, not beside it. In the user table "Löschen" sat right-aligned above a left-aligned hint, with the name vertically centred against neither.
+- **A field has to be able to show its own placeholder.** "Gruppe benennen …" needs 140px; sharing its row with a count and a remove button left it 90px on a 360px screen, so a new group opened with its own prompt cut off. Give the field the full line (`w-full md:flex-1`) and let the meta items wrap underneath.
+- **Separators go between entries, never after the last one:** `last:border-b-0`.
+- **A component that can sit in boxes of different widths decides by container query, not by screen breakpoint.** `@container` on the component plus `@min-[280px]:` on what has to fit measures the box it actually lives in; `md:` measures the device and guesses. The theme `SegmentedControl` hides its icons this way.
+- **Stacking:** dialogs and the lightbox own `z-50`, the mobile header `z-40`. A floating menu that has to clear a fixed bar needs both a `z-50` of its own (Bits UI copies the content's computed z-index onto its floating wrapper, which is otherwise `auto`) and enough `sideOffset` to clear the whole bar, not just its 40px trigger.
+
 ## Implementation notes
 
 `data-theme` on `<html>` is absent when the choice is "system"; an explicit choice sets it to `light` or `dark` (see [ADR 0011](/decisions/0011-admin-role-and-own-password-changes)). The dark tokens are declared twice - once under `:root[data-theme='dark']`, once inside `@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { ... } }` - because CSS cannot share one declaration block between a plain selector and a media query; keep both in sync by hand. The Tailwind `dark:` variant is redefined with `@custom-variant dark` to follow the same rule instead of bare `prefers-color-scheme`, so components using `dark:` (e.g. the login card's border) respect an explicit `light` choice even under a dark system preference. `app.html` no longer sets `data-theme="system"` on `<html>` - that value does not exist any more; "system" is represented by the attribute's absence, applied via an inline pre-paint script that mirrors `$lib/theme.ts`.
+
+## The user docs wear the same palette
+
+`docs/user/` maps these tokens onto Fumadocs' `--color-fd-*` variables in `docs/user/app/global.css`; `docs/memory/` deliberately stays neutral. The values there are a **copy**, so a colour change here has to be repeated - see [ADR 0014](/decisions/0014-warm-theme-for-the-user-docs) for why, and for the mapping in full.
+
+Three deltas are intentional and must survive any sync:
+
+| Docs token | Docs value | App value | Why |
+|---|---|---|---|
+| `fd-muted-foreground` | `#6f6152` | `#7d6d5c` | The docs' most-used token carries body text (sidebar, TOC, page descriptions). The app value is 4.29:1 on `background` - below AA. |
+| `fd-primary` | `#9a4707` | `#b45309` | Marks the active navigation entry at body size; the app value is 4.32:1. |
+| `fd-accent` | `#eadfcd` (`skeleton`) | `accent` `#f0dfc4` | In Fumadocs `accent` is the hover surface, not a chip. The paper tone stays visible on both `card` (sidebar) and `background` (navbar, TOC). |
+
+Callouts use an earthy set rather than the palette alone, because `info` and `idea` have no counterpart here: `info` `#4f6d74`, `warning` `#b45309`, `error` `#a3321f`, `success` `#5c8a45`, `idea` `#a8761c`. Code blocks use `vitesse-light` / `vitesse-dark` and IBM Plex Mono.
