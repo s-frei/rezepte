@@ -13,6 +13,10 @@ export type RecipeCard = {
 	updatedAt: string;
 };
 
+export type Image = { id: string; width: number; height: number; position: number };
+
+export type ImageVariant = 'thumb' | 'detail' | 'original';
+
 export type Ingredient = {
 	quantity: number | null;
 	unit: string | null;
@@ -41,7 +45,7 @@ export type Recipe = RecipeInput & {
 	id: string;
 	slug: string;
 	coverImageId: string | null;
-	images: [];
+	images: Image[];
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
@@ -58,6 +62,19 @@ export type Tag = { name: string; count: number };
 
 /** Unit suggestions offered in the ingredient row's unit combobox. */
 export const UNIT_SUGGESTIONS = ['g', 'kg', 'ml', 'l', 'EL', 'TL', 'Stück', 'Prise'];
+
+/** Most images the API accepts per recipe. */
+export const MAX_IMAGES = 20;
+
+/** Upload types the API decodes; also the file input's `accept` list. */
+export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Largest upload the API accepts (10 MiB, `maxUploadBytes` in the service).
+ * Checked before the request so an oversized pick is refused right away
+ * instead of after a pointless upload.
+ */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 /**
  * Lists recipe cards, optionally filtered by search term and/or tag, paginated.
@@ -113,6 +130,48 @@ export function updateRecipe(id: string, input: RecipeInput): Promise<Recipe> {
 /** Deletes a recipe. */
 export function deleteRecipe(id: string): Promise<void> {
 	return api<void>(`/recipes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/**
+ * URL of one rendition of an image. Served outside `/api/v1` by a plain
+ * file route (session cookie required) with a one-year immutable cache:
+ * image ids are never reused, so the URL can be used as an `<img src>`
+ * directly and cached freely.
+ */
+export function imageUrl(recipeId: string, imageId: string, variant: ImageVariant): string {
+	return `/images/${encodeURIComponent(recipeId)}/${encodeURIComponent(imageId)}/${variant}.jpg`;
+}
+
+/** Uploads one image; the server appends it and makes it the cover if the recipe had none. */
+export function uploadImage(recipeId: string, file: File): Promise<Image> {
+	const body = new FormData();
+	body.append('file', file, file.name);
+	return api<Image>(`/recipes/${encodeURIComponent(recipeId)}/images`, { method: 'POST', body });
+}
+
+/** Deletes an image; the server promotes the next image to cover if needed. */
+export function deleteImage(recipeId: string, imageId: string): Promise<void> {
+	return api<void>(
+		`/recipes/${encodeURIComponent(recipeId)}/images/${encodeURIComponent(imageId)}`,
+		{ method: 'DELETE' }
+	);
+}
+
+/** Sets the display order; `imageIds` must list every image exactly once. */
+export async function reorderImages(recipeId: string, imageIds: string[]): Promise<Image[]> {
+	const page = await api<{ items: Image[] }>(
+		`/recipes/${encodeURIComponent(recipeId)}/images/order`,
+		{ method: 'PUT', body: JSON.stringify({ imageIds }) }
+	);
+	return page.items;
+}
+
+/** Chooses the cover image. */
+export function setCover(recipeId: string, imageId: string): Promise<void> {
+	return api<void>(`/recipes/${encodeURIComponent(recipeId)}/cover`, {
+		method: 'PUT',
+		body: JSON.stringify({ imageId })
+	});
 }
 
 /** Lists all tags currently in use, with how many recipes carry each. */

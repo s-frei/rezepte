@@ -50,7 +50,10 @@ function redirectToLogin(): void {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	const headers = new Headers(init.headers);
 	headers.set('Accept', 'application/json');
-	if (init.body !== undefined && !headers.has('Content-Type')) {
+	// A FormData body must reach fetch without a Content-Type: fetch sets
+	// "multipart/form-data; boundary=..." itself, and the boundary is the
+	// one thing a hand-written header cannot know.
+	if (init.body !== undefined && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
 		headers.set('Content-Type', 'application/json');
 	}
 	const url = BASE + path;

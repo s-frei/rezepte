@@ -14,7 +14,9 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
+	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
+	import ImageGallery from '$lib/components/recipe/ImageGallery.svelte';
 	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
 	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
 	import PlaceholderTile from '$lib/components/recipe/PlaceholderTile.svelte';
@@ -29,6 +31,13 @@
 	const editHref = $derived(resolve('/recipes/[slug]/edit', { slug: recipe.slug }));
 
 	let deleteOpen = $state(false);
+	let lightboxOpen = $state(false);
+	let lightboxIndex = $state(0);
+
+	function openLightbox(index: number) {
+		lightboxIndex = index;
+		lightboxOpen = true;
+	}
 
 	// Both viewports render the same "..." menu; only the mobile one sits on
 	// top of the cover image and needs a shadow.
@@ -120,12 +129,23 @@
 <article class="pt-6 pb-20 md:pt-10 md:pb-0">
 	<div class="relative mb-6 md:hidden">
 		<div class="h-[260px] overflow-hidden rounded-3xl bg-surface p-3">
-			<PlaceholderTile
-				id={recipe.id}
-				title={recipe.title}
-				size="detail"
-				class="size-full rounded-2xl"
-			/>
+			{#if recipe.images.length > 0}
+				<ImageGallery
+					recipeId={recipe.id}
+					title={recipe.title}
+					images={recipe.images}
+					coverId={recipe.coverImageId}
+					layout="mobile"
+					onopen={openLightbox}
+				/>
+			{:else}
+				<PlaceholderTile
+					id={recipe.id}
+					title={recipe.title}
+					size="detail"
+					class="size-full rounded-2xl"
+				/>
+			{/if}
 		</div>
 		<div class="absolute inset-x-5 top-5 flex items-center justify-between">
 			<IconButton label={m.detail_back()} onclick={goBack} class="shadow-card">
@@ -179,12 +199,23 @@
 			</div>
 		</div>
 		<div class="hidden md:block">
-			<PlaceholderTile
-				id={recipe.id}
-				title={recipe.title}
-				size="detail"
-				class="aspect-[4/3] rounded-3xl shadow-cover"
-			/>
+			{#if recipe.images.length > 0}
+				<ImageGallery
+					recipeId={recipe.id}
+					title={recipe.title}
+					images={recipe.images}
+					coverId={recipe.coverImageId}
+					layout="desktop"
+					onopen={openLightbox}
+				/>
+			{:else}
+				<PlaceholderTile
+					id={recipe.id}
+					title={recipe.title}
+					size="detail"
+					class="aspect-[4/3] rounded-3xl shadow-cover"
+				/>
+			{/if}
 		</div>
 	</div>
 
@@ -221,4 +252,12 @@
 	confirmLabel={m.common_delete()}
 	destructive
 	onconfirm={handleDelete}
+/>
+
+<Lightbox
+	bind:open={lightboxOpen}
+	bind:index={lightboxIndex}
+	recipeId={recipe.id}
+	title={recipe.title}
+	images={recipe.images}
 />

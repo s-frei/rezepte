@@ -15,7 +15,7 @@ Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at 
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`.
+    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`. `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireSession`, so viewing a photo still requires the session cookie.
 
   </Tab>
 </Tabs>
@@ -52,6 +52,29 @@ OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public
 `q` and `tag` combine with AND when both are set.
 
 Validation summary for the recipe input body (`Input` in `internal/recipe/recipe.go`): `title` 1-200 chars, `description` ≤ 2000 chars, `servings` 1-99, `prepMinutes`/`cookMinutes` 0-1440 or `null`, `sourceUrl` ≤ 500 chars or `null` (must be a URI), `tags` ≤ 20 entries of 1-40 chars each, `ingredientGroups` 1-20 groups of ≤ 100 ingredients each (ingredient `name` 1-120 chars, `unit` ≤ 20 chars or `null`, `note` ≤ 200 chars or `null`, `quantity` ≥ 0 or `null`), `steps` ≤ 50 entries of 1-2000 chars each. Violations come back as the standard `422` problem body below.
+
+## Images
+
+See [ADR 0010](/memory/decisions/0010-images-as-jpeg-variants-on-disk) for why each upload becomes three server-rendered JPEG variants and how the cover works.
+
+| Operation | Path | Notes |
+|---|---|---|
+| upload | `POST /recipes/{id}/images` | multipart, one part named `file`; JPEG/PNG/WebP, ≤ 10 MiB; `201`, body is the new image; first upload on a recipe becomes its cover |
+| delete | `DELETE /recipes/{id}/images/{imageId}` | `204`; if the cover was deleted, the next image by position is promoted, or the cover is cleared |
+| reorder | `PUT /recipes/{id}/images/order` | body `{imageIds}` - every image id of the recipe, in the new order; response `OrderResult` (`{items: [...]}`), the images in their new order |
+| set cover | `PUT /recipes/{id}/cover` | body `{imageId}`; `204`; `404` unless the image belongs to the recipe |
+| serve a variant | `GET /images/{recipeId}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireSession`; `Content-Type: image/jpeg`, `Cache-Control: private, max-age=31536000, immutable`; `404` for anything else (unknown recipe/image/variant, wrong extension) |
+
+Upload-specific error statuses, on top of the standard ones below:
+
+| Status | When | Detail |
+|---|---|---|
+| `404` | recipe or image id does not exist | "recipe or image not found" |
+| `413` | declared `Content-Length` above 10 MiB | "upload larger than 10 MiB" - answered by the `limitUpload` middleware before the body is read, since huma's `MaxBodyBytes` is not enforced on multipart bodies (see ADR 0010). A chunked or lying client is instead cut off mid-parse by `http.MaxBytesReader` and surfaces as a `422` on `body` |
+| `415` | the real image format (sniffed from bytes, not the declared `Content-Type`) is not JPEG, PNG or WebP | "unsupported image format" |
+| `422` | the multipart part is declared with a `Content-Type` outside `image/jpeg,image/png,image/webp` (huma's form validation, before the handler runs), sides outside 64-12000 px, more than 60 megapixels, decode failure, the recipe already has 20 images, or (reorder) `imageIds` does not name every image of the recipe exactly once | "image must be 64-12000 px per side" / "image has more than 60 megapixels" / "recipe has 20 images" / "imageIds must list every image exactly once" |
+
+`Image` is `{id, width, height, position}`; a recipe's `images` array is ordered by `position` and its `coverImageId` is one of those ids or `null`. The first upload onto a coverless recipe becomes the cover. Every image mutation (upload, delete, reorder, set-cover) touches the recipe's `updatedAt`. Rationale and limits: [ADR 0010](/memory/decisions/0010-images-as-jpeg-variants-on-disk).
 
 ## CSRF
 

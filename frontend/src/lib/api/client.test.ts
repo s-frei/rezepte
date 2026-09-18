@@ -35,6 +35,17 @@ describe('api', () => {
 		expect(init.credentials).toBe('same-origin');
 	});
 
+	it('leaves the Content-Type to the browser for FormData bodies', async () => {
+		const fn = mockFetch(200, {});
+		const body = new FormData();
+		body.append('file', new Blob(['x'], { type: 'image/png' }), 'x.png');
+		await api('/recipes/r1/images', { method: 'POST', body });
+		const [, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
+		// fetch derives "multipart/form-data; boundary=..." itself; a manual
+		// value would lack the boundary and the server could not parse the body.
+		expect(new Headers(init.headers).has('Content-Type')).toBe(false);
+	});
+
 	it('throws ApiError with problem details', async () => {
 		mockFetch(
 			422,

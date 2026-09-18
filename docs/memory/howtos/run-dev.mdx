@@ -22,6 +22,8 @@ description: Dev servers, builds and the check gate
 
     The password is only used on the very first start to create the `admin` user. Log in at `http://localhost:9060/login`.
 
+    Uploads land in `$REZEPTE_DATA_DIR/images/<recipeId>/` (default `./data/images/`, git-ignored with the database, see [Architecture overview](/memory/architecture/overview)); delete that directory together with `rezepte.db` when resetting local data.
+
   </Step>
   <Step>
 
@@ -65,5 +67,6 @@ description: Dev servers, builds and the check gate
   - The docs dev server (`mise run docs`) may fail with `spawn EBADF` when started from inside an AI agent's sandboxed shell. Run it from a normal terminal instead; the static build (`mise run //docs:check`) is the gate and works everywhere.
   - Docker Desktop's credential helper (`docker-credential-desktop`) can hang on image pulls on macOS. Use a throwaway `DOCKER_CONFIG` directory without `credsStore` for local builds.
   - If `bunx playwright install chromium` times out downloading, run it once from a normal terminal. `mise run setup` is idempotent and will pick up the cached browser on the next run.
+  - Chromium does not start on the current development machine, so `mise run e2e` cannot run there; the Phase 4 e2e tests are type-checked by `mise run check` and executed in CI only.
 
 </Callout>

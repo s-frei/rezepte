@@ -55,8 +55,18 @@ description: huma operations, security, errors
   </Step>
 </Steps>
 
+<Callout type="warn" title="Multipart uploads">
+
+  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - copy `limitUpload` from `internal/image/handler.go` into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireSession`, not from a huma operation.
+
+</Callout>
+
 <Callout type="info">
 
   Unexpected errors returned from a handler become 500 with a generic body. The `httpserver` error hook logs the real error at Error level with the operation id, method and path, so wrap errors with context (`fmt.Errorf("...: %w", err)`) to make that log line useful.
 
 </Callout>
+
+## Non-JSON responses
+
+A huma operation always frames its response as JSON - for a byte stream (an image, a download) register a plain `net/http` handler on the mux instead, via `srv.Handle(pattern, handler)`. Go 1.22's `http.ServeMux` prefers the more specific pattern over the SPA's `/` catch-all regardless of registration order, so this can happen any time after `httpserver.New`. It bypasses huma entirely, so add `Security` equivalents by hand (wrap the handler in `auth.RequireSession(sessions, cfg.SecureCookies)`) and set response headers such as `Cache-Control` yourself. See `internal/image/file.go`'s `FileHandler` and its registration in `cmd/rezepte/main.go`, and [ADR 0010](/memory/decisions/0010-images-as-jpeg-variants-on-disk) for why the image routes are built this way.

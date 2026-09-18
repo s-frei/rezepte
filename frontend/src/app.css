@@ -32,7 +32,11 @@
 	--color-tint-1: #f0dfc4;
 	--color-tint-2: #e6e3cf;
 	--color-tint-3: #efd9cf;
+	/* The lightbox is the same near-black in both themes (it sits behind the
+	   photo, not behind the page), so its foreground is theme-independent
+	   too and is deliberately not redefined in the dark blocks below. */
 	--color-lightbox: #120e0b;
+	--color-lightbox-foreground: #ffffff;
 	--color-overlay: rgb(43 33 24 / 0.4);
 
 	--radius-sm: 10px;
