@@ -25,8 +25,23 @@ Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at 
 | login | `POST /auth/login` | body `{username, password}`; sets cookie; returns the user |
 | logout | `POST /auth/logout` | 204, clears the cookie |
 | me | `GET /auth/me` | `{id, username, role}` |
+| change-own-password | `PATCH /auth/me` | body `{currentPassword, password}`; 204; wrong `currentPassword` → `422` at `body.currentPassword`; ends every other session of the caller (see ADR 0011) |
 
 OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public (contract only, no data); see ADR 0006.
+
+## Users (admin only)
+
+Every operation below requires an admin session; a non-admin session gets `403` `admin role required` (see [ADR 0011](/memory/decisions/0011-admin-role-and-own-password-changes)). `username` is 1-64 chars and is trimmed on create and login (whitespace-only names are rejected with `422` at `body.username`), `password` is 8-128 chars on both create and reset.
+
+| Operation | Path | Notes |
+|---|---|---|
+| list | `GET /users` | `{items: [{id, username, role, createdAt}]}`, ordered by username |
+| create | `POST /users` | `201`, body `{username, password, role}`; `409` `username already taken` |
+| update role | `PATCH /users/{id}` | body `{role}`; `404`; `409` `the last admin cannot be demoted` |
+| reset password | `PATCH /users/{id}` | body `{password}`; `404`; ends every session of that user; the UI hides this action on the admin's own row - self-service goes through the profile page's `PATCH /auth/me` instead - but the API itself does not forbid it, so resetting yourself here would end your own session too |
+| delete | `DELETE /users/{id}` | `204`; `409` `cannot delete yourself` or `the last admin cannot be deleted`; `404`; reassigns the recipes the user created to the acting admin instead of deleting or orphaning them |
+
+`role` and `password` on `PATCH /users/{id}` are both optional but at least one is required (`422` `password or role required` otherwise).
 
 ## Recipes and tags
 
@@ -87,4 +102,4 @@ RFC 9457 `application/problem+json`:
 { "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
   "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
 ```
-The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `/auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `/auth/me` is excluded because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.
+The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `GET /auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `GET /auth/me` is excluded (mutating calls such as `PATCH /auth/me` still redirect) because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.

@@ -95,7 +95,9 @@ description: Tokens, type scale, components and interaction rules of the “Warm
 | Sheet | `Dialog` + slide | `rounded-3xl` top, slide 250ms ease-out, `shadow-sheet` |
 | Dropdown / Context | `DropdownMenu` | like combobox popover |
 | Command palette | `Command` | 600px dialog, groups “Rezepte” / “Aktionen”, 32px icon tiles |
-| Tabs / segmented control | `Tabs` | pill track `bg-background` p-1, active segment `bg-surface` + shadow |
+| Tabs / segmented control | own (`role="radiogroup"` + `role="radio"`, roving tabindex) | pill track `bg-background` p-1, active segment `bg-surface` + shadow |
+| Select | `Select` | trigger as pill (role pill: Admin `accent`, Mitglied `background`/muted), popover like the dropdown, options 40px `rounded-sm`, highlighted `bg-background` |
+| Table (users) | own | desktop grid `1fr 140px 240px`, head `text-label` uppercase muted, dashed row separators, stacked cards under `md` |
 | Switch | `Switch` | track 28×16 `border` → `primary` |
 | Servings stepper | own | pill track `bg-background` 40px; “−” 32px circle `surface`, value Literata 600 18, “+” 32px circle `primary`; min 1, max 99; 150ms scale/fade on change |
 | Checkbox row (ingredient) | `Checkbox` | 20px circle, 1.5px `handle` border; checked: `primary` fill, text struck through |
@@ -130,4 +132,4 @@ search, plus, minus, link, download, settings, log-out, chevron-left/right/down,
 
 ## Implementation notes
 
-The original handoff paired `[data-theme='dark']` with `:root:has([data-theme='system'])` to set the native `color-scheme` property. `:has()` matches an ancestor whose *descendant* matches the selector, but `data-theme='system'` is always set on `<html>` itself, never on a descendant of it, so that half of the selector never matched anything and was dead code. `app.css` instead sets `color-scheme: dark` directly on `[data-theme='dark']` and, for `[data-theme='system']`, inside the existing `@media (prefers-color-scheme: dark)` block that already carries its dark-mode token overrides. This is a deliberate, behaviour-preserving deviation from the handoff's literal selector, not a change to the visual design.
+`data-theme` on `<html>` is absent when the choice is "system"; an explicit choice sets it to `light` or `dark` (see [ADR 0011](/memory/decisions/0011-admin-role-and-own-password-changes)). The dark tokens are declared twice - once under `:root[data-theme='dark']`, once inside `@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { ... } }` - because CSS cannot share one declaration block between a plain selector and a media query; keep both in sync by hand. The Tailwind `dark:` variant is redefined with `@custom-variant dark` to follow the same rule instead of bare `prefers-color-scheme`, so components using `dark:` (e.g. the login card's border) respect an explicit `light` choice even under a dark system preference. `app.html` no longer sets `data-theme="system"` on `<html>` - that value does not exist any more; "system" is represented by the attribute's absence, applied via an inline pre-paint script that mirrors `$lib/theme.ts`.

@@ -21,6 +21,7 @@ description: Page, +page.ts load, guard, messages
     ### Auth guard
     Every route is already guarded by the root `+layout.ts`: without a session it calls SvelteKit's `redirect()` to `/login?next=<path>`. Do not add a per-route guard.
     A route whose own `load` can't find its resource throws `error(404, m.not_found())` (see the slug page's `+page.ts`) - a 404 is not a redirect.
+    Admin-only pages add a `+page.ts` that `await parent()`s the root layout data and `redirect(302, '/settings')`s non-admins (see `src/routes/settings/users/+page.ts`); the API still enforces the role.
 
   </Step>
   <Step>

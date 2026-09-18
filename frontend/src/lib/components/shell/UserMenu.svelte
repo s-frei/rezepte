@@ -3,9 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { Dialog, DropdownMenu } from 'bits-ui';
 	import { fade, fly } from 'svelte/transition';
-	import { logout } from '$lib/api/auth';
 	import { session } from '$lib/auth.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { signOut } from '$lib/sign-out';
 
 	let {
 		variant = 'dropdown',
@@ -18,18 +18,6 @@
 	} = $props();
 
 	const initial = $derived(session.user?.username.charAt(0).toUpperCase() ?? '');
-
-	async function signOut() {
-		try {
-			await logout();
-		} catch {
-			// The server call failed (e.g. the session was already gone) - the
-			// user still expects to end up signed out and on the login page.
-		}
-		session.user = null;
-		open = false;
-		await goto(resolve('/login'));
-	}
 </script>
 
 {#if variant === 'dropdown'}
@@ -48,13 +36,16 @@
 				class="w-48 rounded-2xl bg-surface p-2 shadow-dialog"
 			>
 				<DropdownMenu.Item
-					disabled
-					class="flex h-10 items-center rounded-sm px-3 text-body-sm text-text data-[disabled]:pointer-events-none data-[disabled]:text-text-muted data-[disabled]:opacity-60"
+					onSelect={() => void goto(resolve('/settings'))}
+					class="flex h-10 items-center rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
 				>
 					{m.nav_settings()}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item
-					onSelect={signOut}
+					onSelect={() => {
+						open = false;
+						void signOut();
+					}}
 					class="flex h-10 items-center rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
 				>
 					{m.logout()}
@@ -86,16 +77,19 @@
 						>
 							<div class="mx-auto mb-4 h-1 w-9 rounded-pill bg-handle" aria-hidden="true"></div>
 							<Dialog.Title class="sr-only">{m.nav_more()}</Dialog.Title>
-							<button
-								type="button"
-								disabled
-								class="flex h-12 w-full items-center rounded-sm px-3 text-left text-body text-text-muted disabled:opacity-60"
+							<a
+								href={resolve('/settings')}
+								onclick={() => (open = false)}
+								class="flex h-12 w-full items-center rounded-sm px-3 text-left text-body text-text transition hover:bg-surface"
 							>
 								{m.nav_settings()}
-							</button>
+							</a>
 							<button
 								type="button"
-								onclick={signOut}
+								onclick={() => {
+									open = false;
+									void signOut();
+								}}
 								class="flex h-12 w-full items-center rounded-sm px-3 text-left text-body text-text transition hover:bg-surface"
 							>
 								{m.logout()}

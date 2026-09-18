@@ -36,3 +36,11 @@ export function safeNext(next: string | null): string {
 	}
 	return u.pathname + u.search;
 }
+
+/** Changes the own password; other sessions of the user are ended server-side. */
+export function changePassword(currentPassword: string, password: string): Promise<void> {
+	return api<void>('/auth/me', {
+		method: 'PATCH',
+		body: JSON.stringify({ currentPassword, password })
+	});
+}

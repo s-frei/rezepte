@@ -79,12 +79,15 @@
 	--text-display-xl--letter-spacing: -0.01em;
 }
 
-/* Dark theme: <html data-theme="dark"> or system preference via data-theme="system" */
-[data-theme='dark'] {
+/*
+ * Theme. `data-theme` on <html> is the user's explicit choice ("light" or
+ * "dark"); no attribute means "system" and follows prefers-color-scheme.
+ * Only src/lib/theme.svelte.ts and the inline script in app.html write it.
+ * The dark values appear twice because CSS cannot share one declaration
+ * block between a plain selector and a media query - keep both in sync.
+ */
+:root[data-theme='dark'] {
 	color-scheme: dark;
-}
-
-[data-theme='dark'] {
 	--color-background: #1c1612;
 	--color-surface: #26201a;
 	--color-surface-elevated: #2f2822;
@@ -112,8 +115,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-	[data-theme='system'] {
+	:root:not([data-theme='light']) {
 		color-scheme: dark;
+		/* identical to the :root[data-theme='dark'] block above */
 		--color-background: #1c1612;
 		--color-surface: #26201a;
 		--color-surface-elevated: #2f2822;
@@ -138,6 +142,21 @@
 		--shadow-card: none;
 		--shadow-cover: none;
 		--shadow-cta: none;
+	}
+}
+
+/*
+ * Tailwind's `dark:` variant must follow the same rule as the tokens
+ * (the login card uses `dark:border`), not bare prefers-color-scheme.
+ */
+@custom-variant dark {
+	&:where([data-theme='dark'], [data-theme='dark'] *) {
+		@slot;
+	}
+	@media (prefers-color-scheme: dark) {
+		&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+			@slot;
+		}
 	}
 }
 

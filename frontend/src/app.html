@@ -1,8 +1,22 @@
 <!doctype html>
 
-<html lang="de" data-theme="system">
+<html lang="de">
 	<head>
 		<meta charset="utf-8" />
+
+		<script>
+			// Applies the stored theme before the first paint so a dark-mode
+			// user never sees a light flash. Mirrors src/lib/theme.ts. Wrapped in
+			// an IIFE so `theme` stays out of `window`.
+			(function () {
+				try {
+					var theme = localStorage.getItem('rezepte-theme');
+					if (theme === 'light' || theme === 'dark') {
+						document.documentElement.setAttribute('data-theme', theme);
+					}
+				} catch (_) {}
+			})();
+		</script>
 
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
