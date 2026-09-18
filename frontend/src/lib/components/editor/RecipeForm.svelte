@@ -86,6 +86,18 @@
 		document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
+	/**
+	 * Browsers remember a scrollable element's scroll offset across reloads
+	 * (independent of SvelteKit's own scroll restoration), so a chip row
+	 * scrolled while testing stays scrolled after a refresh even though the
+	 * first chip is active again. Scroll the actually-active one into view
+	 * once on mount instead of trusting the restored position - the same
+	 * problem `ImageGallery`'s `startAtCover` solves for its swipe strip.
+	 */
+	function scrollActiveChipIntoView(node: HTMLElement) {
+		node.querySelector('[aria-current]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+	}
+
 	/** Keeps the section nav in step with what the user has scrolled to. */
 	function trackSections(node: HTMLElement) {
 		const observer = new IntersectionObserver(
@@ -221,20 +233,26 @@
 
 {#snippet noActions()}{/snippet}
 
-<div class="pt-6 pb-20 md:pt-10 md:pb-0">
+<!-- Mobile leaves room for the fixed save bar above the headline. -->
+<div class="pt-20 md:pt-10 md:pb-0">
 	<h1 class="font-display text-display-sm font-medium md:hidden">{heading}</h1>
 
-	<!-- Mobile: the section list is a horizontally scrollable chip row. -->
-	<div class="mt-4 -mr-5 flex gap-1.5 overflow-x-auto pr-5 pb-1 md:hidden">
+	<!-- Mobile: the section list is a horizontally scrollable chip row.
+	     The mask fades the right edge so a hidden scrollbar doesn't leave
+	     the row's scrollability undiscoverable. -->
+	<div
+		{@attach scrollActiveChipIntoView}
+		class="mt-4 -mr-5 flex [scrollbar-width:none] gap-1.5 overflow-x-auto [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)] pr-5 pb-1 md:hidden"
+	>
 		{#each sections as section (section.id)}
 			<button
 				type="button"
 				onclick={() => scrollToSection(section.id)}
 				aria-current={activeSection === section.id ? 'true' : undefined}
-				class="h-[34px] shrink-0 rounded-pill px-3.5 text-caption font-semibold transition {activeSection ===
+				class="flex h-[34px] shrink-0 items-center justify-center rounded-pill px-3.5 text-caption font-semibold transition {activeSection ===
 				section.id
 					? 'bg-inverse text-inverse-foreground'
-					: 'bg-surface text-text-muted'}"
+					: 'border border-border bg-surface text-text-muted'}"
 			>
 				{section.label}
 			</button>

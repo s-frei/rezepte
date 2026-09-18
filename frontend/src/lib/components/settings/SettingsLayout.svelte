@@ -20,6 +20,18 @@
 			shell.actions = undefined;
 		};
 	});
+
+	/**
+	 * Browsers remember a scrollable element's scroll offset across reloads
+	 * (independent of SvelteKit's own scroll restoration), so a chip row
+	 * scrolled while testing stays scrolled after a refresh even though the
+	 * first chip is active again. Scroll the actually-active one into view
+	 * once on mount instead of trusting the restored position - the same
+	 * problem `ImageGallery`'s `startAtCover` solves for its swipe strip.
+	 */
+	function scrollActiveChipIntoView(node: HTMLElement) {
+		node.querySelector('[aria-current]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+	}
 </script>
 
 {#snippet noActions()}{/snippet}
@@ -50,12 +62,15 @@
 	<h1 class="font-display text-display-sm font-medium md:text-display-lg">{m.settings_title()}</h1>
 
 	<!-- Mobile: horizontally scrollable chips, like the editor's section chips. -->
-	<div class="mt-4 -mr-5 flex gap-1.5 overflow-x-auto pr-5 pb-1 md:hidden">
+	<div
+		{@attach scrollActiveChipIntoView}
+		class="mt-4 -mr-5 flex [scrollbar-width:none] gap-1.5 overflow-x-auto pr-5 pb-1 md:hidden"
+	>
 		{@render navLinks(
-			'h-[34px] shrink-0 rounded-pill px-3.5 text-caption font-semibold transition',
+			'flex h-[34px] shrink-0 items-center justify-center rounded-pill px-3.5 text-caption font-semibold transition',
 			'bg-inverse text-inverse-foreground',
-			'bg-surface text-text-muted',
-			'bg-surface text-destructive'
+			'border border-border bg-surface text-text-muted',
+			'border border-border bg-surface text-destructive'
 		)}
 	</div>
 

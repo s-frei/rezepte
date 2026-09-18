@@ -146,7 +146,7 @@
 						class="list-none"
 					>
 						<IngredientRow
-							{row}
+							bind:row={group.ingredients[rowIndex]}
 							quantityError={errors[`quantity:${row.id}`] ?? null}
 							nameError={errors[`name:${row.id}`] ?? null}
 							onenter={() => addRow(group, rowIndex + 1)}
