@@ -10,9 +10,14 @@
 	let { children }: { children: Snippet } = $props();
 
 	const isLoginRoute = $derived(page.url.pathname.startsWith('/login'));
+	// Full-screen routes render without the app shell: no top bar, no bottom
+	// nav, no command palette and no Cmd+K. Matched on the route id rather
+	// than the pathname so the check is exact and independent of the slug.
+	const isFullscreenRoute = $derived(page.route.id === '/recipes/[slug]/cook');
+	const bare = $derived(isLoginRoute || isFullscreenRoute);
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (isLoginRoute) {
+		if (bare) {
 			return;
 		}
 		if (
@@ -29,8 +34,11 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="min-h-screen bg-background font-sans text-text">
-	{#if isLoginRoute}
+<!-- `min-h-dvh`, not `min-h-screen`: on mobile browsers `100vh` is taller than
+     the visible viewport, so the wrapper would outgrow the `h-dvh` cooking
+     page and the document would scroll under a full-screen route. -->
+<div class="min-h-dvh bg-background font-sans text-text">
+	{#if bare}
 		{@render children()}
 	{:else}
 		<AppShell>

@@ -99,17 +99,19 @@ description: Tokens, type scale, components and interaction rules of the “Warm
 | Select | `Select` | trigger as pill (role pill: Admin `accent`, Mitglied `background`/muted), popover like the dropdown, options 40px `rounded-sm`, highlighted `bg-background` |
 | Table (users) | own | desktop grid `1fr 140px 240px`, head `text-label` uppercase muted, dashed row separators, stacked cards under `md` |
 | Switch | `Switch` | track 28×16 `border` → `primary` |
-| Servings stepper | own | pill track `bg-background` 40px; “−” 32px circle `surface`, value Literata 600 18, “+” 32px circle `primary`; min 1, max 99; 150ms scale/fade on change |
+| Servings stepper | own (`role="group"`) | pill track `bg-background` 40px p-1; "−" 32px circle `surface` + `shadow-card`, value Literata 600 (`text-body-lg`) with "Portion"/"Portionen" 13 muted, "+" 32px circle `primary`; min 1, max 99 (buttons disabled at the bounds); 150ms scale-in on change; "Zurücksetzen" text link in `text-primary` while scaled; choice persisted per recipe in `localStorage` (`rezepte-servings:<id>`) |
 | Checkbox row (ingredient) | `Checkbox` | 20px circle, 1.5px `handle` border; checked: `primary` fill, text struck through |
 | Step item | own | 36px `accent` circle with Literata 600 16 number, text 16/1.6 |
+| Cook step view | own | `bg-surface` page, recipe name Literata italic `text-primary`, step text `text-display-sm` at line-height 1.3 centred, ←/→ keys, 50px swipe, 200ms fly/fade (0 under reduced motion); "Zurück" 56px circle `background`, "Weiter →" 56px pill `inverse`, "Fertig" `primary` on the last step |
 | Drag handle | Lucide `grip-vertical` | `text-handle` |
 | Toast | svelte-sonner | `bg-inverse`, `rounded-2xl`, 22px status circle (`success` ✓ / `destructive` !) |
 | Skeleton | own | `bg-skeleton`, pulse 1.5s |
-| Progress (cooking mode) | own | one 4px segment per step, done/current `primary`, open `border` |
+| Progress (cooking mode) | own (`role="progressbar"`, `aria-valuenow` = step number) | one 4px `rounded-pill` segment per step: done `primary`, current `primary/50`, open `border` |
 | Avatar | `Avatar` | circle, `bg-accent text-accent-foreground`, Literata initial |
 | Image dropzone | native `<input type="file">` in a `<label>` | dashed 2px `border-border` (→ `border-primary` while dragging), `rounded-lg`, `bg-background`, 14/500 muted text with the action word in `text-primary` |
 | Thumbnail with actions | own + svelte-dnd-action | 160×120 `rounded-lg object-cover`; cover: 2px `primary` outline + `bg-primary` `text-label` "Cover" badge; overlay (26px `bg-surface` circles for drag handle and remove, plus an "Als Cover" pill) is always visible on touch devices and hover/focus-revealed only on pointer devices (`[@media(hover:hover)]`) |
 | Lightbox | `Dialog` (`preventScroll={false}`, no overlay) | `bg-lightbox text-lightbox-foreground`, header with title / page counter / download / close, image `object-contain rounded-2xl`, 48px arrow buttons plus ←/→ keys and a 50px swipe threshold, Esc closes (Bits UI default), thumbnail strip 48px mobile / 56px desktop, inactive thumbnails at 50% opacity |
+| Ingredient sheet (cooking mode) | own (`role="dialog"`, no Bits UI) | collapsed: `bg-background rounded-t-3xl shadow-sheet` card with a 36×4 `bg-handle` grip, "Zutaten · n Stück" 14/600 and "Bildschirm bleibt an" (`text-label`, muted) only while the wake lock is held; expanded: fixed bottom panel (max 640px wide, 80dvh, fly 250ms) with the servings stepper and the same `IngredientList` as the detail page, `bg-overlay` backdrop closes on tap, Escape closes it before leaving cook mode, ←/→ inert while it is open |
 
 ## Icons (Lucide)
 
@@ -120,7 +122,8 @@ search, plus, minus, link, download, settings, log-out, chevron-left/right/down,
 - Search debounced 250ms; show skeletons only when loading takes longer than 300ms.
 - Tag filters are multi-select and mirrored into the URL query.
 - Ingredient checks are visual only, kept per session in `sessionStorage`.
-- Cooking mode: Screen Wake Lock, swipe threshold 50px, step change 200ms slide/fade, arrow keys.
+- Cooking mode: Screen Wake Lock (secure contexts only), swipe threshold 50px, step change 200ms slide/fade, ←/→ page, Escape leaves - while the ingredient sheet is open, Escape closes it instead and ←/→ are inert.
+- Servings: 1-99, scaled quantities snap to ¼ ⅓ ½ ⅔ ¾ below 10 and to whole numbers from 10 ([ADR 0012](/memory/decisions/0012-client-side-servings-scaling-and-cook-mode)); the baseline always shows the stored value exactly.
 - Editor: `beforeunload` prompt when dirty; Enter adds an ingredient row, Backspace in an empty row deletes it.
 - Theme: `data-theme` on `<html>` (`system | light | dark`), persisted in `localStorage`.
 - Respect `prefers-reduced-motion`.

@@ -34,7 +34,8 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
 
     - `src/lib/api` – fetch wrapper and per-resource functions
     - `src/lib/components/ui` – styled wrappers around Bits UI
-    - `src/lib/components/recipe`, `editor` – feature components
+    - `src/lib/components/recipe`, `editor`, `cook` – feature components
+    - `src/lib/recipe` – pure recipe logic (query state, form mapping, quantity formatting, servings scaling) and its rune stores
     - `src/routes` – file-based routes, `+layout.ts` sets `ssr = false`
     - `messages/de.json` – UI copy
 

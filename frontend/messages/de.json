@@ -109,6 +109,13 @@
 	"recipe_cook_time": "Kochzeit",
 	"recipe_source": "Quelle",
 
+	"servings_unit_one": "Portion",
+	"servings_unit_other": "Portionen",
+	"servings_decrease": "Weniger Portionen",
+	"servings_increase": "Mehr Portionen",
+	"servings_reset": "Zurücksetzen",
+	"servings_scaled_hint": "Für {servings} · ×{factor}",
+
 	"duration_minutes": "{count} Min",
 	"duration_hours": "{count} Std",
 	"duration_hours_minutes": "{hours} Std {minutes} Min",
@@ -124,6 +131,17 @@
 	"detail_delete_confirm_text": "Möchtest du „{title}“ wirklich löschen?",
 	"detail_deleted": "Rezept gelöscht",
 	"detail_delete_error": "Rezept konnte nicht gelöscht werden.",
+
+	"cook_back": "Zurück zum Rezept",
+	"cook_step_counter": "Schritt {number} von {count}",
+	"cook_progress": "Fortschritt",
+	"cook_previous": "Zurück",
+	"cook_next": "Weiter",
+	"cook_finish": "Fertig",
+	"cook_no_steps": "Dieses Rezept hat noch keine Schritte.",
+	"cook_wake_lock": "Bildschirm bleibt an",
+	"cook_sheet_summary": "Zutaten · {count} Stück",
+	"cook_sheet_close": "Zutaten schließen",
 
 	"images_cover_alt": "Titelbild von {title}",
 	"images_open": "Bild {number} von {count} öffnen",

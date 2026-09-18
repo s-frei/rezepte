@@ -4,12 +4,36 @@
 	import type { IngredientGroup } from '$lib/api/recipes';
 	import { ingredientKey } from '$lib/recipe/checked';
 	import { isChecked, toggle } from '$lib/recipe/checked.svelte';
-	import { formatQuantity } from '$lib/recipe/format';
+	import { formatFactor, formatServings } from '$lib/recipe/format';
+	import { formatQuantityFor } from '$lib/recipe/scale';
+	import { m } from '$lib/paraglide/messages';
 
-	let { recipeId, groups }: { recipeId: string; groups: IngredientGroup[] } = $props();
+	let {
+		recipeId,
+		groups,
+		servings,
+		baseServings
+	}: {
+		recipeId: string;
+		groups: IngredientGroup[];
+		/** The servings the user chose (1-99). */
+		servings: number;
+		/** The recipe's stored servings - what every quantity is written for. */
+		baseServings: number;
+	} = $props();
+
+	const scaled = $derived(servings !== baseServings);
 </script>
 
 <div class="rounded-2xl bg-surface px-6 pt-[22px] pb-2.5">
+	{#if scaled}
+		<p class="mb-3 text-caption font-medium text-text-muted">
+			{m.servings_scaled_hint({
+				servings: formatServings(servings),
+				factor: formatFactor(baseServings, servings)
+			})}
+		</p>
+	{/if}
 	{#each groups as group, groupIndex (groupIndex)}
 		{#if group.name}
 			<h3 class="mt-5 mb-2 font-display text-[16px] font-medium text-primary italic first:mt-0">
@@ -40,7 +64,7 @@
 							? 'text-text-muted line-through'
 							: 'text-text'}"
 					>
-						{formatQuantity(ingredient.quantity)}
+						{formatQuantityFor(ingredient.quantity, baseServings, servings)}
 						{ingredient.unit ?? ''}
 					</span>
 					<span>

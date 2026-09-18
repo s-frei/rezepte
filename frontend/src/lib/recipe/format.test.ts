@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatMinutes, formatQuantity } from './format';
+import {
+	formatFactor,
+	formatMinutes,
+	formatQuantity,
+	formatServings,
+	servingsUnit
+} from './format';
 
 describe('formatQuantity', () => {
 	it('renders null as an empty string', () => {
@@ -88,5 +94,31 @@ describe('formatMinutes', () => {
 
 	it('renders multiple hours with a remainder', () => {
 		expect(formatMinutes(125)).toBe('2 Std 5 Min');
+	});
+});
+
+describe('formatFactor', () => {
+	it.each([
+		[4, 6, '1,5'],
+		[4, 8, '2'],
+		[4, 2, '0,5'],
+		[4, 5, '1,25'],
+		[3, 7, '2,33'],
+		[4, 4, '1']
+	])('renders %d → %d servings as ×%s', (from, to, expected) => {
+		expect(formatFactor(from, to)).toBe(expected);
+	});
+});
+
+describe('servingsUnit and formatServings', () => {
+	it('uses the singular for exactly one', () => {
+		expect(servingsUnit(1)).toBe('Portion');
+		expect(formatServings(1)).toBe('1 Portion');
+	});
+
+	it('uses the plural otherwise', () => {
+		expect(servingsUnit(4)).toBe('Portionen');
+		expect(formatServings(4)).toBe('4 Portionen');
+		expect(formatServings(0)).toBe('0 Portionen');
 	});
 });
