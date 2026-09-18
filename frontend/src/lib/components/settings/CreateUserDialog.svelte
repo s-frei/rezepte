@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Dialog, RadioGroup } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { fade, scale } from 'svelte/transition';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import { createUser, type UserAccount, type UserRole } from '$lib/api/users';
+	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -80,80 +80,55 @@
 	}
 </script>
 
-<Dialog.Root bind:open>
-	<Dialog.Portal>
-		<Dialog.Overlay forceMount>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: 200 }}
-					></div>
-				{/if}
-			{/snippet}
-		</Dialog.Overlay>
-		<Dialog.Content forceMount preventScroll={false}>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 rounded-3xl bg-surface p-7 shadow-dialog"
-						transition:scale={{ duration: 200, start: 0.95 }}
-					>
-						<Dialog.Title class="font-display text-heading font-medium">
-							{m.users_create_title()}
-						</Dialog.Title>
-						<Dialog.Description class="sr-only">{m.users_create_description()}</Dialog.Description>
-						<form onsubmit={submit} class="mt-5 space-y-4">
-							<Input
-								id="new-user-name"
-								label={m.login_username()}
-								autocomplete="off"
-								bind:value={username}
-								error={errors.username ?? null}
-							/>
-							<Input
-								id="new-user-password"
-								label={m.login_password()}
-								type="password"
-								autocomplete="new-password"
-								bind:value={password}
-								error={errors.password ?? null}
-							/>
-							<RadioGroup.Root
-								bind:value={role}
-								aria-label={m.users_field_role()}
-								class="grid grid-cols-2 gap-3"
-							>
-								{#each roles as option (option.value)}
-									<RadioGroup.Item
-										value={option.value}
-										class="flex items-start gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3 text-left transition data-[state=checked]:border-[1.5px] data-[state=checked]:border-primary data-[state=checked]:bg-accent"
-									>
-										{#snippet children({ checked })}
-											<span
-												aria-hidden="true"
-												class="mt-0.5 size-4 shrink-0 rounded-full border {checked
-													? 'border-[5px] border-primary bg-surface'
-													: 'border-border bg-surface-elevated'}"
-											></span>
-											<span class="flex flex-col">
-												<span class="text-body-sm font-semibold">{option.label}</span>
-												<span class="text-micro text-text-muted">{option.hint}</span>
-											</span>
-										{/snippet}
-									</RadioGroup.Item>
-								{/each}
-							</RadioGroup.Root>
-							<div class="flex justify-end gap-3 pt-2">
-								<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-								<Button type="submit" disabled={saving}>{m.users_create_submit()}</Button>
-							</div>
-						</form>
-					</div>
-				{/if}
-			{/snippet}
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+<BaseDialog bind:open>
+	<Dialog.Title class="font-display text-heading font-medium">
+		{m.users_create_title()}
+	</Dialog.Title>
+	<Dialog.Description class="sr-only">{m.users_create_description()}</Dialog.Description>
+	<form onsubmit={submit} class="mt-5 space-y-4">
+		<Input
+			id="new-user-name"
+			label={m.login_username()}
+			autocomplete="off"
+			bind:value={username}
+			error={errors.username ?? null}
+		/>
+		<Input
+			id="new-user-password"
+			label={m.login_password()}
+			type="password"
+			autocomplete="new-password"
+			bind:value={password}
+			error={errors.password ?? null}
+		/>
+		<RadioGroup.Root
+			bind:value={role}
+			aria-label={m.users_field_role()}
+			class="grid grid-cols-2 gap-3"
+		>
+			{#each roles as option (option.value)}
+				<RadioGroup.Item
+					value={option.value}
+					class="flex items-start gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3 text-left transition data-[state=checked]:border-[1.5px] data-[state=checked]:border-primary data-[state=checked]:bg-accent"
+				>
+					{#snippet children({ checked })}
+						<span
+							aria-hidden="true"
+							class="mt-0.5 size-4 shrink-0 rounded-full border {checked
+								? 'border-[5px] border-primary bg-surface'
+								: 'border-border bg-surface-elevated'}"
+						></span>
+						<span class="flex flex-col">
+							<span class="text-body-sm font-semibold">{option.label}</span>
+							<span class="text-micro text-text-muted">{option.hint}</span>
+						</span>
+					{/snippet}
+				</RadioGroup.Item>
+			{/each}
+		</RadioGroup.Root>
+		<div class="flex justify-end gap-3 pt-2">
+			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
+			<Button type="submit" disabled={saving}>{m.users_create_submit()}</Button>
+		</div>
+	</form>
+</BaseDialog>

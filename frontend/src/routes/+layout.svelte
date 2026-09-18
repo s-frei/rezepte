@@ -53,7 +53,7 @@
 	toastOptions={{
 		classes: {
 			toast:
-				'rounded-2xl border-none bg-inverse px-4 py-3.5 text-body-sm font-semibold text-inverse-foreground shadow-dialog',
+				'rounded-toast border-none bg-inverse px-[18px] py-3.5 text-body-sm font-semibold text-inverse-foreground shadow-dialog',
 			description: 'text-inverse-muted',
 			actionButton: 'bg-transparent font-medium text-inverse-muted',
 			cancelButton: 'bg-transparent font-medium text-inverse-muted',
