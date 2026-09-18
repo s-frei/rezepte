@@ -1,19 +1,16 @@
 {
-  "name": "docs-user",
-  "version": "0.0.1",
+  "name": "memory",
+  "version": "0.0.29",
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev --hostname 0.0.0.0 --port 4001",
+    "dev": "next dev --hostname 0.0.0.0 --port 4000",
     "start": "serve out",
     "types:check": "next typegen && tsc --noEmit",
-    "lint": "eslint",
-    "openapi:fetch": "bun scripts/fetch-openapi.ts",
-    "openapi:generate": "bun scripts/generate-api.ts",
-    "screenshots": "playwright test",
-    "screenshots:audit": "bun scripts/screenshots-audit.ts"
+    "lint": "eslint"
   },
   "dependencies": {
+    "cn": "^0.2.6",
     "fumadocs-core": "16.15.11",
     "fumadocs-mdx": "15.4.1",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.11",
@@ -25,7 +22,6 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.5.0",

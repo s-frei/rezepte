@@ -1,0 +1,66 @@
+---
+title: Architecture overview
+description: How service, frontend and docs fit together
+---
+
+```mermaid
+flowchart LR
+  Browser -->|"/ (SPA)"| Go[Go service]
+  Browser -->|"/api/v1/*"| Go
+  Go --> SQLite[(SQLite)]
+  Go --> Images[(images/ on disk)]
+  subgraph build
+    Svelte[SvelteKit build] -->|writes dist/| Embed[go:embed]
+    Embed --> Go
+  end
+```
+
+## Runtime
+
+One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, opens SQLite (Phase 2), runs migrations (Phase 2), seeds the initial admin (Phase 2), and starts `httpserver`. The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA for everything else with an `index.html` fallback.
+
+## Packages
+
+<Tabs items={['service', 'frontend', 'docs']}>
+  <Tab value="service">
+
+    - `internal/config` – env to struct
+    - `internal/httpserver` – mux, huma, middleware, SPA handler, lifecycle
+    - `internal/web` – embedded `dist/`
+    - one package per domain (`auth`, `user`, `recipe`, `image`) with `handler → service → sqlc` layering
+    - `internal/demo` – seeds the sample recipes and placeholder images through those services for `--demo` (see [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline))
+
+  </Tab>
+  <Tab value="frontend">
+
+    - `src/lib/api` – fetch wrapper and per-resource functions
+    - `src/lib/components/ui` – styled wrappers around Bits UI
+    - `src/lib/components/recipe`, `editor`, `cook` – feature components
+    - `src/lib/recipe` – pure recipe logic (query state, form mapping, quantity formatting, servings scaling) and its rune stores
+    - `src/routes` – file-based routes, `+layout.ts` sets `ssr = false`
+    - `messages/de.json` – UI copy
+
+  </Tab>
+  <Tab value="docs">
+
+    Two independent Fumadocs apps, each with its own `package.json` and `app/` (Fumadocs/Next.js glue, no content):
+
+    - `memory/` – this section, in `content/`, rendered by the app in `docs/memory/` on port 4000
+    - `user/` – a separate Fumadocs app on port 4001: `content/` (end-user pages; `api/reference.mdx` is generated, never hand-edited), `components/screenshot.tsx` (the `<Screenshot>` placeholder-fallback component), `screenshots/` (Playwright specs), `scripts/` (`with-demo.sh`, the OpenAPI fetch/generate and screenshot-audit scripts), `public/screenshots/` (committed PNGs)
+
+  </Tab>
+</Tabs>
+
+## Configuration
+
+<TypeTable
+  type={{
+    REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060' },
+    REZEPTE_DATA_DIR: { description: 'Directory with rezepte.db and images/', type: 'string', default: './data' },
+    REZEPTE_ADMIN_USER: { description: 'Initial admin username (first start only)', type: 'string', default: 'admin' },
+    REZEPTE_ADMIN_PASSWORD: { description: 'Initial admin password (first start only)', type: 'string' },
+    REZEPTE_LOG_LEVEL: { description: 'debug, info, warn, error', type: 'string', default: 'info' },
+    REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
+    REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie', type: 'boolean', default: 'false' },
+  }}
+/>

@@ -27,7 +27,7 @@ const (
 )
 
 // tints are the warm surface colours of the design system (see
-// docs/memory/architecture/design-system), rotated per recipe.
+// docs/memory/content/architecture/design-system), rotated per recipe.
 var tints = []color.RGBA{
 	{R: 0xf0, G: 0xdf, B: 0xc4, A: 0xff},
 	{R: 0xe6, G: 0xe3, B: 0xcf, A: 0xff},

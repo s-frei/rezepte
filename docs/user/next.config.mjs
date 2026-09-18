@@ -7,7 +7,7 @@ const config = {
   output: 'export',
   reactStrictMode: true,
   // Every route exports as `<route>/index.html` instead of a flat
-  // `<route>.html` sibling (see docs/next.config.mjs for the long version).
+  // `<route>.html` sibling (see docs/memory/next.config.mjs for the long version).
   trailingSlash: true,
   // Don't auto-generate AGENTS.md and CLAUDE.md on dev/build; the repo already
   // has its own root CLAUDE.md.
@@ -16,8 +16,8 @@ const config = {
   // ImageZoom.
   images: { unoptimized: true },
   turbopack: {
-    // The memory app's bun.lock sits one level up; pin the root here so
-    // Turbopack does not search outside this app.
+    // Silences "ignored bun.lock in <home dir>" — a stray lockfile above the
+    // repo would otherwise make Turbopack search outside it for the root.
     root: import.meta.dirname,
   },
 };

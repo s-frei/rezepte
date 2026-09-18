@@ -1,0 +1,33 @@
+---
+title: "0007: Visual direction “Warm & handmade”"
+description: Warm palette, Literata + Karla, pill shapes, tokens as the only source of colour
+---
+
+**Status:** accepted · 2026-09-17
+
+## Context
+
+The UI must look distinctive and calm, make food the hero, and work one-handed on a phone in the kitchen. A high-fidelity design was produced with Claude Design (mockup canvas kept locally by the maintainer, not in the repo). Its values are the source of truth for the frontend.
+
+## Decision
+
+- Direction “Warm & handmade”: warm paper background (`#f4ede2`), cream surfaces, burnt-orange primary (`#b45309`), brown-based shadows, pill-shaped controls, generous radii (12–24px).
+- Typography: **Literata** (variable, optical size) for display and headings, **Karla** for UI and body. Both self-hosted via Fontsource (`@fontsource-variable/literata`, `@fontsource/karla`), never loaded from Google at runtime.
+- All values live as Tailwind v4 `@theme` tokens in `frontend/src/app.css`. Components use token classes (`bg-surface`, `text-text-muted`, `rounded-3xl`, `shadow-card`, `font-display`); raw hex values in components are forbidden.
+- Theme: `data-theme` on `<html>` with `system | light | dark`; dark values override the same custom properties. Dark mode drops shadows and uses 1px borders instead.
+- Mobile: floating pill bottom navigation; desktop: 64px top bar. Full inventory in [Design system](/architecture/design-system).
+
+## Consequences
+
+- New UI work starts by mapping the design's component to a Bits UI primitive plus token classes; no new colours without a token and an ADR.
+- Numbers use `tabular-nums`; quantities render fractions as Unicode (½ ¼ ¾ ⅓ ⅔).
+- Motion is short (150–250ms) and respects `prefers-reduced-motion`.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - A neutral “clean & minimal” direction (option 1a in the exploration): rejected as generic.
+    - Loading fonts from Google Fonts: rejected for a self-hosted app (privacy, offline use).
+
+  </Accordion>
+</Accordions>

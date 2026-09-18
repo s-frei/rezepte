@@ -1,0 +1,78 @@
+---
+title: Add an API endpoint
+description: huma operations, security, errors
+---
+
+<Steps>
+  <Step>
+
+    ### Define input and output structs
+    In the feature package's `handler.go`:
+    ```go
+    type getThingInput struct {
+        ID string `path:"id" doc:"Thing id"`
+    }
+    type getThingOutput struct {
+        Body ThingResponse
+    }
+    ```
+    Validation tags (`minLength`, `maxLength`, `enum`, `required`) are enforced by huma and end up in OpenAPI.
+
+  </Step>
+  <Step>
+
+    ### Register the operation
+    ```go
+    huma.Register(api, huma.Operation{
+        OperationID: "get-thing",
+        Method:      http.MethodGet,
+        Path:        "/api/v1/things/{id}",
+        Summary:     "Get a thing",
+        Tags:        []string{"things"},
+        Security:    auth.SessionSecurity, // omit only for public operations; the middleware
+                                            // is installed by httpserver.New before any
+                                            // operation can be registered, so this is enough
+        Errors:      []int{404},
+    }, func(ctx context.Context, in *getThingInput) (*getThingOutput, error) {
+        t, err := svc.ByID(ctx, in.ID)
+        if errors.Is(err, thing.ErrNotFound) {
+            return nil, huma.Error404NotFound("thing not found")
+        }
+        if err != nil {
+            return nil, err
+        }
+        return &getThingOutput{Body: toResponse(t)}, nil
+    })
+    ```
+    Get the current user with `auth.UserFrom(ctx)`.
+
+  </Step>
+  <Step>
+
+    ### Wire and test
+    Call your package's `Register(srv.API(), …)` from `cmd/rezepte/main.go`. Test through `httpserver.New(...).Handler()` with `httptest` as in `internal/auth/handler_test.go`.
+
+  </Step>
+</Steps>
+
+<Callout type="warn" title="Multipart uploads">
+
+  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - copy `limitUpload` from `internal/image/handler.go` into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireSession`, not from a huma operation.
+
+</Callout>
+
+<Callout type="info">
+
+  Unexpected errors returned from a handler become 500 with a generic body. The `httpserver` error hook logs the real error at Error level with the operation id, method and path, so wrap errors with context (`fmt.Errorf("...: %w", err)`) to make that log line useful.
+
+</Callout>
+
+<Callout type="info">
+
+  Admin-only operations call `userapi.requireAdmin(ctx)` first (403 `admin role required`); there is no other authorization layer.
+
+</Callout>
+
+## Non-JSON responses
+
+A huma operation always frames its response as JSON - for a byte stream (an image, a download) register a plain `net/http` handler on the mux instead, via `srv.Handle(pattern, handler)`. Go 1.22's `http.ServeMux` prefers the more specific pattern over the SPA's `/` catch-all regardless of registration order, so this can happen any time after `httpserver.New`. It bypasses huma entirely, so add `Security` equivalents by hand (wrap the handler in `auth.RequireSession(sessions, cfg.SecureCookies)`) and set response headers such as `Cache-Control` yourself. See `internal/image/file.go`'s `FileHandler` and its registration in `cmd/rezepte/main.go`, and [ADR 0010](/decisions/0010-images-as-jpeg-variants-on-disk) for why the image routes are built this way.

@@ -1,0 +1,49 @@
+---
+title: Add a UI component
+description: Token classes, Bits UI wrapping, svelte-autofixer
+---
+
+<Steps>
+  <Step>
+
+    ### Place it
+    A generic, reusable primitive (button, input, dialog, chip, ...) goes in `src/lib/components/ui`. A feature-specific component goes next to the feature it belongs to: `src/lib/components/recipe`, `editor` or `shell`.
+
+  </Step>
+  <Step>
+
+    ### Wrap a Bits UI primitive when one exists
+    Import the Bits UI part(s) and give the wrapper the same shape as `Button.svelte` or `ConfirmDialog.svelte`: typed `Variant`/`Size` unions for visual variants, props destructured inline in `$props()`, and the caller's `class` appended last in the class string so it can override. For an animated Bits UI part (`Dialog.Overlay`, `Dialog.Content`), use `forceMount` with a `child` snippet that gates the actual markup on `isOpen`, as `ConfirmDialog` and `UserMenu`'s sheet variant do - Bits UI's own unmount does not run svelte transitions.
+
+  </Step>
+  <Step>
+
+    ### Style with tokens only
+    Every colour, radius, shadow and font size is a Tailwind utility generated from `src/app.css`'s `@theme` tokens (`bg-primary`, `rounded-2xl`, `shadow-dialog`, `text-body-sm`, ...) - see [Design system](/architecture/design-system). No raw hex values and no arbitrary Tailwind values (`bg-[#...]`) for colour, radius or font.
+
+  </Step>
+  <Step>
+
+    ### Text comes from Paraglide
+    Import `m` from `$lib/paraglide/messages` for every visible string - see [Add a translation](/howtos/add-translation). Never hard-code German text in a component.
+
+  </Step>
+  <Step>
+
+    ### Validate and commit
+    Run the svelte MCP `svelte-autofixer` tool on every new or changed `.svelte` file before committing - this is a hard rule, not optional. Then `mise run //frontend:fmt` and `mise run //frontend:check`.
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+
+  Prefer a plain text input with its own suggestion list over Bits UI's `Combobox` when the field must also accept a value that is not in the suggestion list yet (a new tag, a custom unit) - see [Svelte conventions](/conventions/svelte). `Combobox` fits a closed set of choices.
+
+</Callout>
+
+<Callout type="info">
+
+  When a change is split across tasks, a control whose target isn't built yet still gets its final button/link placed in the layout - `disabled`, with `title={m.common_coming_soon()}` - rather than being left out until the target ships. That keeps the layout stable across the tasks that fill it in.
+
+</Callout>

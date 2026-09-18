@@ -1,0 +1,105 @@
+---
+title: HTTP API
+description: Conventions, auth and error format
+---
+
+Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`.
+
+## Authentication
+
+<Tabs items={['Cookie session', 'Public']}>
+  <Tab value="Cookie session">
+
+    Operations with `Security: auth.SessionSecurity` require the `rezepte_session` cookie. The middleware resolves it to a `user.User` available via `auth.UserFrom(ctx)`. Missing or expired sessions yield `401`.
+
+  </Tab>
+  <Tab value="Public">
+
+    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`. `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireSession`, so viewing a photo still requires the session cookie.
+
+  </Tab>
+</Tabs>
+
+| Operation | Path | Notes |
+|---|---|---|
+| login | `POST /auth/login` | body `{username, password}`; sets cookie; returns the user |
+| logout | `POST /auth/logout` | 204, clears the cookie |
+| me | `GET /auth/me` | `{id, username, role}` |
+| change-own-password | `PATCH /auth/me` | body `{currentPassword, password}`; 204; wrong `currentPassword` → `422` at `body.currentPassword`; ends every other session of the caller (see ADR 0011) |
+
+OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public (contract only, no data); see ADR 0006.
+
+## Users (admin only)
+
+Every operation below requires an admin session; a non-admin session gets `403` `admin role required` (see [ADR 0011](/decisions/0011-admin-role-and-own-password-changes)). `username` is 1-64 chars and is trimmed on create and login (whitespace-only names are rejected with `422` at `body.username`), `password` is 8-128 chars on both create and reset.
+
+| Operation | Path | Notes |
+|---|---|---|
+| list | `GET /users` | `{items: [{id, username, role, createdAt}]}`, ordered by username |
+| create | `POST /users` | `201`, body `{username, password, role}`; `409` `username already taken` |
+| update role | `PATCH /users/{id}` | body `{role}`; `404`; `409` `the last admin cannot be demoted` |
+| reset password | `PATCH /users/{id}` | body `{password}`; `404`; ends every session of that user; the UI hides this action on the admin's own row - self-service goes through the profile page's `PATCH /auth/me` instead - but the API itself does not forbid it, so resetting yourself here would end your own session too |
+| delete | `DELETE /users/{id}` | `204`; `409` `cannot delete yourself` or `the last admin cannot be deleted`; `404`; reassigns the recipes the user created to the acting admin instead of deleting or orphaning them |
+
+`role` and `password` on `PATCH /users/{id}` are both optional but at least one is required (`422` `password or role required` otherwise).
+
+## Recipes and tags
+
+| Operation | Path | Notes |
+|---|---|---|
+| list/search | `GET /recipes` | query params below; `404` never - an empty result is a normal page |
+| get by id | `GET /recipes/{id}` | `404` |
+| get by slug | `GET /recipes/by-slug/{slug}` | `404` |
+| create | `POST /recipes` | `201`, body is the recipe input |
+| update | `PUT /recipes/{id}` | full replace of title, description and every child (groups, ingredients, steps, tags); `404` |
+| delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes |
+| list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see ADR 0009) |
+
+`GET /recipes` query parameters:
+
+| Param | Notes |
+|---|---|
+| `q` | full-text search across title, description, ingredient names and tags (max 100 chars); prefix-matched, umlaut/ASCII-insensitive - see [ADR 0009](/decisions/0009-recipes-as-documents-with-fts5) |
+| `tag` | restricts to recipes carrying **exactly one** tag name (max 40 chars, trimmed and lower-cased before matching). There is no way to filter by more than one tag in a single request - the frontend's multi-select tag filter sends only the first selected tag here and narrows further client-side within already-loaded pages |
+| `page` | 1-based, defaults to 1 |
+| `limit` | defaults to 24, clamped to `[1, 100]` |
+
+`q` and `tag` combine with AND when both are set.
+
+Validation summary for the recipe input body (`Input` in `internal/recipe/recipe.go`): `title` 1-200 chars, `description` ≤ 2000 chars, `servings` 1-99, `prepMinutes`/`cookMinutes` 0-1440 or `null`, `sourceUrl` ≤ 500 chars or `null` (must be a URI), `tags` ≤ 20 entries of 1-40 chars each, `ingredientGroups` 1-20 groups of ≤ 100 ingredients each (ingredient `name` 1-120 chars, `unit` ≤ 20 chars or `null`, `note` ≤ 200 chars or `null`, `quantity` ≥ 0 or `null`), `steps` ≤ 50 entries of 1-2000 chars each. Violations come back as the standard `422` problem body below.
+
+## Images
+
+See [ADR 0010](/decisions/0010-images-as-jpeg-variants-on-disk) for why each upload becomes three server-rendered JPEG variants and how the cover works.
+
+| Operation | Path | Notes |
+|---|---|---|
+| upload | `POST /recipes/{id}/images` | multipart, one part named `file`; JPEG/PNG/WebP, ≤ 10 MiB; `201`, body is the new image; first upload on a recipe becomes its cover |
+| delete | `DELETE /recipes/{id}/images/{imageId}` | `204`; if the cover was deleted, the next image by position is promoted, or the cover is cleared |
+| reorder | `PUT /recipes/{id}/images/order` | body `{imageIds}` - every image id of the recipe, in the new order; response `OrderResult` (`{items: [...]}`), the images in their new order |
+| set cover | `PUT /recipes/{id}/cover` | body `{imageId}`; `204`; `404` unless the image belongs to the recipe |
+| serve a variant | `GET /images/{recipeId}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireSession`; `Content-Type: image/jpeg`, `Cache-Control: private, max-age=31536000, immutable`; `404` for anything else (unknown recipe/image/variant, wrong extension) |
+
+Upload-specific error statuses, on top of the standard ones below:
+
+| Status | When | Detail |
+|---|---|---|
+| `404` | recipe or image id does not exist | "recipe or image not found" |
+| `413` | declared `Content-Length` above 10 MiB | "upload larger than 10 MiB" - answered by the `limitUpload` middleware before the body is read, since huma's `MaxBodyBytes` is not enforced on multipart bodies (see ADR 0010). A chunked or lying client is instead cut off mid-parse by `http.MaxBytesReader` and surfaces as a `422` on `body` |
+| `415` | the real image format (sniffed from bytes, not the declared `Content-Type`) is not JPEG, PNG or WebP | "unsupported image format" |
+| `422` | the multipart part is declared with a `Content-Type` outside `image/jpeg,image/png,image/webp` (huma's form validation, before the handler runs), sides outside 64-12000 px, more than 60 megapixels, decode failure, the recipe already has 20 images, or (reorder) `imageIds` does not name every image of the recipe exactly once | "image must be 64-12000 px per side" / "image has more than 60 megapixels" / "recipe has 20 images" / "imageIds must list every image exactly once" |
+
+`Image` is `{id, width, height, position}`; a recipe's `images` array is ordered by `position` and its `coverImageId` is one of those ids or `null`. The first upload onto a coverless recipe becomes the cover. Every image mutation (upload, delete, reorder, set-cover) touches the recipe's `updatedAt`. Rationale and limits: [ADR 0010](/decisions/0010-images-as-jpeg-variants-on-disk).
+
+## CSRF
+
+Cookies are `SameSite=Lax`. Additionally `httpserver.checkOrigin` rejects `POST/PUT/PATCH/DELETE` under `/api/` when an `Origin` header is present and its host differs from the request host, answering with a `403` `application/problem+json` body (`{"title":"Forbidden","status":403,"detail":"origin not allowed"}`).
+
+## Errors
+
+RFC 9457 `application/problem+json`:
+```json
+{ "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
+  "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
+```
+The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `GET /auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `GET /auth/me` is excluded (mutating calls such as `PATCH /auth/me` still redirect) because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.

@@ -1,0 +1,40 @@
+---
+title: Add a translation
+description: Paraglide message keys
+---
+
+<Steps>
+  <Step>
+
+    ### Add the key
+    `frontend/messages/de.json` is a flat JSON object (inlang message format). Name keys `<area>_<name>` (`overview_search_placeholder`, `detail_delete_confirm_title`, ...), grouped under the existing blank-line-separated sections by area. Interpolate with `{param}` placeholders:
+    ```json
+    "overview_no_results_text": "Keine Rezepte für „{query}“ gefunden."
+    ```
+
+  </Step>
+  <Step>
+
+    ### Use it
+    ```ts
+    import { m } from '$lib/paraglide/messages';
+
+    m.overview_load_more();
+    m.overview_no_results_text({ query });
+    ```
+    Never write a German string directly in a component - see the hard rule in `CLAUDE.md`.
+
+  </Step>
+  <Step>
+
+    ### Regenerate
+    Nothing to run by hand: the Vite plugin (`paraglideVitePlugin`, configured in `frontend/vite.config.ts`) regenerates `src/lib/paraglide/*` whenever the dev server starts or the app builds. If a brand-new key doesn't type-check yet, restart the dev server.
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+
+  `de` is the only locale today (`frontend/project.inlang/settings.json`). Don't add an `en.json` speculatively - an English UI is an unscheduled product feature (see the [roadmap](/roadmap)), not tied to any planned phase.
+
+</Callout>
