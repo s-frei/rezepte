@@ -16,7 +16,9 @@
 </script>
 
 {#if tags.length > 0}
-	<div class="flex gap-2 overflow-x-auto">
+	<!-- Phones scroll the row sideways; on desktop there is room to wrap, and a
+	     filter you cannot see is a filter you will not use. -->
+	<div class="flex gap-2 overflow-x-auto md:flex-wrap md:overflow-x-visible">
 		{#each tags as tag (tag.name)}
 			<TagChip
 				label={tag.name}

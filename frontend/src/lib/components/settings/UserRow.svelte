@@ -44,10 +44,18 @@
 	}
 </script>
 
+<!--
+	The name takes the top line; role and actions share the next one and wrap
+	only when they have to - a row with just "Löschen" (182px) stays on one
+	line, one that also offers "Passwort zurücksetzen" (346px) breaks, since a
+	360px card holds 302px. `md:contents` dissolves that wrapper on desktop so
+	role and actions become the grid's own second and third column. The
+	separator belongs between entries, so the last row drops it.
+-->
 <li
-	class="grid grid-cols-1 gap-3 border-b border-dashed border-border py-4 md:grid-cols-[1fr_140px_240px] md:items-center"
+	class="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-dashed border-border py-4 last:border-b-0 md:grid-cols-[1fr_140px_280px]"
 >
-	<div class="flex items-center gap-3">
+	<div class="col-span-2 flex items-center gap-3 md:col-span-1">
 		<span
 			aria-hidden="true"
 			class="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent font-display font-semibold text-accent-foreground"
@@ -60,26 +68,27 @@
 		{/if}
 	</div>
 
-	<div>
+	<div class="col-span-2 flex flex-wrap items-center justify-between gap-2 md:contents">
 		<Select
 			bind:value={role}
 			options={roleOptions}
 			label={m.users_role_aria({ username: user.username })}
 			disabled={isSelf || isLastAdmin}
 			onchange={changeRole}
-			class={pillClass}
+			class="{pillClass} h-11 md:h-8"
 		/>
-	</div>
 
-	<div class="flex flex-col items-start gap-1 md:items-end">
-		<div class="flex items-center gap-3">
+		<!-- 44px tall while a thumb is doing the tapping, back to the table's own
+	     density on desktop. "Löschen" carries its own padded pill for the same
+	     reason: bare text is a 50×20 target. -->
+		<div class="flex items-center gap-2 md:justify-end">
 			<!-- Not for the own account: PATCH /users/:id ends every session of
-			     the target, so resetting the own password would sign this admin
-			     out. The profile page's password form is the way to do that. -->
+		     the target, so resetting the own password would sign this admin
+		     out. The profile page's password form is the way to do that. -->
 			{#if !isSelf}
 				<Button
 					variant="secondary"
-					class="h-8 px-3 text-caption"
+					class="h-11 px-3 text-caption whitespace-nowrap md:h-8"
 					label={m.users_reset_password_aria({ username: user.username })}
 					onclick={() => onreset(user)}
 				>
@@ -91,13 +100,15 @@
 				aria-label={m.users_delete_aria({ username: user.username })}
 				disabled={isSelf || isLastAdmin}
 				onclick={() => ondelete(user)}
-				class="text-caption font-semibold text-destructive transition hover:brightness-95 disabled:cursor-not-allowed disabled:text-handle"
+				class="inline-flex h-11 items-center rounded-pill px-3 text-caption font-semibold whitespace-nowrap text-destructive transition hover:bg-destructive-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:text-handle disabled:hover:bg-transparent md:h-8"
 			>
 				{m.common_delete()}
 			</button>
 		</div>
-		{#if isLastAdmin}
-			<p class="text-micro text-text-muted">{m.users_last_admin_hint()}</p>
-		{/if}
 	</div>
+	{#if isLastAdmin}
+		<p class="col-span-2 text-micro text-text-muted md:col-span-1 md:col-start-3 md:text-right">
+			{m.users_last_admin_hint()}
+		</p>
+	{/if}
 </li>

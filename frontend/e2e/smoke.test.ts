@@ -3,7 +3,10 @@ import { login } from './helpers';
 
 test('serves the app shell', async ({ page }) => {
 	await login(page);
-	await expect(page.getByRole('heading', { name: 'Rezepte' })).toBeVisible();
+	// The word "Rezepte" in the top bar is the logo, not a heading, and the
+	// bar itself is desktop-only - the overview's own headline is what both
+	// projects can see.
+	await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
 });
 
 test('health endpoint answers', async ({ request }) => {

@@ -67,10 +67,17 @@ test('an admin creates, promotes, resets and deletes a user', async ({ page }) =
 	await dialog.getByRole('radio', { name: /Mitglied/ }).click();
 	await dialog.getByRole('button', { name: 'Anlegen' }).click();
 
-	const row = page.getByRole('listitem').filter({ hasText: username });
+	// Scoped to the user list: svelte-sonner renders its "<name> angelegt"
+	// toast as a listitem as well, which makes a bare getByRole ambiguous.
+	const row = page
+		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('listitem')
+		.filter({ hasText: username });
 	await expect(row).toBeVisible();
 
-	const roleSelect = row.getByRole('combobox', { name: 'Rolle' });
+	// Bits UI renders the select trigger as a plain <button>; it carries no
+	// `role="combobox"`, only the aria-label "Rolle von <name>".
+	const roleSelect = row.getByRole('button', { name: 'Rolle' });
 	await expect(roleSelect).toHaveText(/Mitglied/);
 	await roleSelect.click();
 	await page.getByRole('option', { name: 'Admin' }).click();
