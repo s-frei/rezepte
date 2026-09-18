@@ -25,10 +25,12 @@ description: End-to-end tests and screenshots, no browser extensions
     With `mise run dev` running:
     ```bash
     cd frontend
-    mise exec -- bunx playwright screenshot --viewport-size=390,844 http://localhost:9060/login /tmp/login-mobile.png
+    mise exec -- bunx playwright screenshot --viewport-size=360,780 http://localhost:9060/login /tmp/login-mobile.png
     mise exec -- bunx playwright screenshot --viewport-size=1440,900 http://localhost:9060/ /tmp/home-desktop.png
     ```
     Then open the PNG (agents: read the image file) and compare against the design system.
+
+    **Use 360×780 for phones, not 390×844.** See [Widths that matter](#widths-that-matter).
 
   </Tab>
   <Tab value="Against the dev server">
@@ -47,3 +49,59 @@ description: End-to-end tests and screenshots, no browser extensions
 </Tabs>
 
 The Chromium build is installed by `mise run setup` (`bunx playwright install chromium`). In CI, `PLAYWRIGHT_INSTALL_ARGS=--with-deps` adds the system libraries.
+
+## Widths that matter
+
+| Width | Stands for | Why it is in the list |
+| --- | --- | --- |
+| 320px | iPhone SE (1st gen) | The floor. Nothing may overflow here. |
+| **360px** | **The default phone** | **Verify here.** The user's Oppo Find X9 Ultra lands at 360-375px once display size or text scaling is raised, and most Android phones report 360px. |
+| 375px | iPhone SE 2/3, 13 mini | Second-narrowest common phone. |
+| 390px | iPhone 13/14/15 | What agents reach for by default - and it is too forgiving. |
+| 412px | Pixel 7 | What the repo's own Playwright projects use, so a green e2e run says nothing about 360px. |
+| 1440px | Desktop | The `md:` branch of every component. |
+
+A layout that only ever gets checked at 390px hides real bugs. The theme `SegmentedControl` was a content-sized `inline-flex` at a constant 297px: at 390px it fit with 5px to spare and every screenshot looked right, while on the user's phone it pushed out of its card. Sweep the widths whenever a row of controls looks tight.
+
+## Measure, do not eyeball
+
+A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artefact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
+
+```ts
+// scratch probe, run through docs/user/scripts/with-demo.sh (demo/demo1234 on :8070)
+const info = await page.evaluate(() => {
+	const el = document.querySelector('[role="radiogroup"]')!;
+	const box = el.closest('section')!;           // the container it must fit inside
+	const cs = getComputedStyle(box);
+	const inner = box.getBoundingClientRect().right - parseFloat(cs.paddingRight);
+	return {
+		overflow: Math.round(el.getBoundingClientRect().right - inner),   // > 0 means it sticks out
+		pageScroll: document.documentElement.scrollWidth,                 // > innerWidth means the page scrolls sideways
+		clipped: [...el.querySelectorAll('span')]
+			.filter((s) => s.scrollWidth > s.clientWidth + 1)
+			.map((s) => s.textContent)                                    // truncated labels
+	};
+});
+```
+
+Three assertions catch most layout bugs:
+
+- **Fits its container:** `element.right <= container.right - paddingRight`. Compare against the parent's content box, never against the viewport - an element can sit inside the screen and still break out of its card.
+- **No sideways scroll:** `document.documentElement.scrollWidth <= window.innerWidth`.
+- **Nothing truncated:** `scrollWidth <= clientWidth` on every text node that matters.
+
+For stacking bugs (something hidden behind a fixed bar), `document.elementFromPoint(x, y)` names the element that actually paints there, and `getComputedStyle` gives you `zIndex`, `position` and `backdropFilter` of both sides. That is how the recipe menu was found to be rendering 4px *underneath* the header rather than below it.
+
+## Running a probe
+
+`docs/user/scripts/with-demo.sh <command>` starts the built binary with demo data on `:8070` (login `demo` / `demo1234`, twelve recipes with images) and stops it afterwards - the fastest way to a realistic page:
+
+```bash
+mise run build
+cd docs/user && ./scripts/with-demo.sh mise exec -- bun run /tmp/probe.ts
+```
+
+Two traps worth knowing:
+
+- `mise run e2e` starts its own binary on `:8060` **without checking whether the port is free**. A stale process there silently answers instead, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the four tests that do not log in pass. Check with `lsof -nP -iTCP:8060 -sTCP:LISTEN` before believing an e2e failure. `with-demo.sh` guards `:8070` properly and is the model for fixing the task.
+- Chromium starts on the development Mac even while the screen is locked; an earlier note claiming otherwise was wrong. Just run it.

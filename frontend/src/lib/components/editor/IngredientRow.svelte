@@ -6,7 +6,7 @@
 	import { isBlank, type FormIngredient } from '$lib/recipe/form';
 
 	let {
-		row,
+		row = $bindable(),
 		quantityError = null,
 		nameError = null,
 		onenter,

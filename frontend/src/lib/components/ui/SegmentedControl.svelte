@@ -22,7 +22,7 @@
 		onchange?: (value: T) => void;
 	} = $props();
 
-	let buttons: HTMLButtonElement[] = [];
+	let buttons: HTMLButtonElement[] = $state([]);
 
 	function select(next: T) {
 		if (next === value) {
@@ -51,26 +51,44 @@
 	}
 </script>
 
-<div role="radiogroup" aria-label={label} class="inline-flex rounded-pill bg-background p-1">
-	{#each options as option, i (option.value)}
-		{@const checked = option.value === value}
-		{@const Icon = option.icon}
-		<button
-			bind:this={buttons[i]}
-			type="button"
-			role="radio"
-			aria-checked={checked}
-			tabindex={checked ? 0 : -1}
-			onclick={() => select(option.value)}
-			onkeydown={(event) => handleKey(event, i)}
-			class="inline-flex h-9 items-center gap-2 rounded-pill px-4 text-body-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {checked
-				? 'bg-surface text-text shadow-card'
-				: 'text-text-muted hover:text-text'}"
-		>
-			{#if Icon}
-				<Icon class="size-4" aria-hidden="true" />
-			{/if}
-			{option.label}
-		</button>
-	{/each}
+<!--
+	Phones get the full width with equal segments: sized by its content the
+	control was a constant 297px and overflowed its card on anything narrower
+	than 390px (and on wider screens once the reader scales up their system
+	font). Desktop keeps the content width.
+
+	The icons hang off a container query rather than a screen breakpoint,
+	because what decides whether they fit is the width of whatever box the
+	control sits in, not the size of the device: three labelled segments plus
+	icons need 275px, so they appear from 280px of container width - a 375px
+	phone shows them, a 360px one does not.
+-->
+<div class="@container">
+	<div
+		role="radiogroup"
+		aria-label={label}
+		class="flex w-full rounded-pill bg-background p-1 md:inline-flex md:w-auto"
+	>
+		{#each options as option, i (option.value)}
+			{@const checked = option.value === value}
+			{@const Icon = option.icon}
+			<button
+				bind:this={buttons[i]}
+				type="button"
+				role="radio"
+				aria-checked={checked}
+				tabindex={checked ? 0 : -1}
+				onclick={() => select(option.value)}
+				onkeydown={(event) => handleKey(event, i)}
+				class="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-pill px-2 text-body-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:flex-none md:px-4 {checked
+					? 'bg-surface text-text shadow-card'
+					: 'text-text-muted hover:text-text'}"
+			>
+				{#if Icon}
+					<Icon class="hidden size-4 shrink-0 @min-[280px]:block" aria-hidden="true" />
+				{/if}
+				<span class="truncate">{option.label}</span>
+			</button>
+		{/each}
+	</div>
 </div>
