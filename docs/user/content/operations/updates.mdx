@@ -1,0 +1,24 @@
+---
+title: Updates
+description: How Rezepte applies database migrations and how to update it
+---
+
+Every start of the binary applies any pending database migrations automatically — they are embedded in the binary itself (via [goose](https://github.com/pressly/goose)), so there is nothing separate to run. There is no automatic downgrade: rolling back to an older version after migrations have already run is not supported.
+
+<Callout type="warn">
+  Back up the database before updating — see [Data and backup](/operations/data-and-backup). A migration that fails halfway is easier to recover from a backup than to fix in place.
+</Callout>
+
+## Docker
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+The container applies migrations on this restart, before it starts serving requests.
+
+## Binary
+
+Replace `service/bin/rezepte` (or wherever it is installed) with the newly built binary and restart it — via `systemctl restart rezepte` for the systemd unit from [Running the binary](/getting-started/binary), or however it was started otherwise.

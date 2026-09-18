@@ -1,0 +1,54 @@
+---
+title: Photos
+description: Upload, reorder and remove recipe photos
+---
+
+<Screenshot name="editor-images" caption="The photo section of the editor" />
+
+<Steps>
+  <Step>
+
+    ### Add photos
+
+    In the editor's "Bilder" section, drop image files onto the drop zone or click "auswählen" to pick them from disk.
+
+  </Step>
+  <Step>
+
+    ### Choose the cover
+
+    The first photo uploaded becomes the recipe's cover automatically. Pick a different one any time with "Als Cover" on that photo.
+
+  </Step>
+  <Step>
+
+    ### Reorder or remove
+
+    Drag a photo to reorder it, or use "Bild entfernen" to delete it.
+
+  </Step>
+</Steps>
+
+<Callout type="info" title="Good to know">
+  On a recipe that already exists, photos upload immediately as soon as they are added. On a new, unsaved recipe they are queued and upload only once you click "Speichern".
+</Callout>
+
+## On the detail page
+
+The cover photo shows large at the top, with the other photos as thumbnails below it. Clicking any of them opens the lightbox:
+
+<Screenshot name="lightbox" caption="The lightbox, with the original download link" />
+
+"Original herunterladen" downloads the full-resolution file.
+
+<Accordions type="single">
+  <Accordion title="Formats and limits">
+    JPEG, PNG and WebP are accepted, up to 10 MiB per file and up to 20 photos per recipe. Each photo must be between 64 and 12000 px on its longest side, and decode to at most 60 megapixels.
+  </Accordion>
+  <Accordion title="Orientation and stored sizes">
+    A photo's orientation is fixed from its EXIF data on upload, so it always displays upright regardless of how the camera recorded it. Three JPEG sizes are stored for every photo: the original (resized to at most 2400 px), a detail size (1600 px) and a thumbnail (480 px).
+  </Accordion>
+  <Accordion title="Deleting the cover">
+    Removing the current cover photo promotes the next remaining photo to cover automatically.
+  </Accordion>
+</Accordions>

@@ -1,0 +1,75 @@
+---
+title: Recipes
+description: Create, edit and delete recipes
+---
+
+<Screenshot name="editor" caption="The recipe editor" />
+
+<Steps>
+  <Step>
+
+    ### Start a recipe
+
+    Click "Neues Rezept" (top bar, bottom navigation, or the command palette).
+
+  </Step>
+  <Step>
+
+    ### Fill in the basics
+
+    Under "Grunddaten": a title (required), an optional description, servings (1–99), "Vorbereitung" and "Kochzeit" in minutes, and "Quelle" as an `http://` or `https://` link.
+
+  </Step>
+  <Step>
+
+    ### Add ingredients
+
+    Under "Zutaten", use "Gruppe hinzufügen" to split the list into sections, e.g. "Klopse" and "Kapernsauce". Each row takes a quantity, a unit, a name and an optional note.
+
+    <Screenshot name="editor-ingredients" caption="Ingredient groups in the editor" />
+
+  </Step>
+  <Step>
+
+    ### Add steps and tags
+
+    Write the steps under "Schritte", one per line, and add search tags under "Tags".
+
+  </Step>
+  <Step>
+
+    ### Save
+
+    Click "Speichern".
+
+  </Step>
+</Steps>
+
+<Callout type="info" title="Good to know">
+  Pressing `Enter` in an ingredient's "Zutat" or "Notiz" field adds a new row below it. Every ingredient, group and step has a drag handle for reordering — or select it with `Space`/`Enter` and move it with the arrow keys (see [Keyboard shortcuts](/guide/shortcuts)). Leaving the editor with unsaved changes asks "Änderungen verwerfen?" first.
+</Callout>
+
+## The detail page
+
+<Screenshot name="recipe-detail" caption="A recipe's detail page" />
+
+Servings and times show as pills at the top. Ingredients list with tick boxes for checking items off while shopping or cooking; steps follow below. "Bearbeiten" opens the editor, and "Löschen" — reached through the "Weitere Aktionen" menu — deletes the recipe after confirming.
+
+<Accordions type="single">
+  <Accordion title="Limits">
+    - Title: up to 200 characters
+    - Description: up to 2000 characters
+    - Servings: 1–99
+    - Preparation and cooking time: up to 1440 minutes (24 h) each
+    - Source: an `http://` or `https://` link, up to 500 characters
+    - Tags: up to 20, each up to 40 characters
+    - Ingredient groups: 1–20, each with up to 100 ingredients
+    - Steps: up to 50, each up to 2000 characters
+  </Accordion>
+  <Accordion title="What is a slug?">
+    Every recipe gets a URL-friendly slug derived from its title — German umlauts and ß are transliterated (ä→ae, ö→oe, ü→ue, ß→ss) and remaining diacritics and punctuation are stripped. If another recipe already has the same slug, a number is appended (`-2`, `-3`, …).
+  </Accordion>
+  <Accordion title="Deleting a recipe">
+    Deleting a recipe also removes its uploaded photos. This cannot be undone.
+  </Accordion>
+</Accordions>

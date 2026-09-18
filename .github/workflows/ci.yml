@@ -16,6 +16,9 @@ jobs:
       - run: mise run setup
         env:
           PLAYWRIGHT_INSTALL_ARGS: --with-deps
+      - run: mise run //docs/user:openapi
+      - name: Fail on uncommitted generated changes
+        run: git diff --exit-code
       - run: mise run check
       - run: mise run build
       - run: mise run e2e
@@ -24,8 +27,6 @@ jobs:
         with:
           name: playwright-results
           path: frontend/test-results
-      - name: Fail on uncommitted generated changes
-        run: git diff --exit-code
 
   docker:
     runs-on: ubuntu-latest

@@ -9,7 +9,7 @@ description: End-to-end tests and screenshots, no browser extensions
 
 </Callout>
 
-<Tabs items={['End-to-end tests', 'Screenshots', 'Against the dev server']}>
+<Tabs items={['End-to-end tests', 'Screenshots', 'Against the dev server', 'Docs screenshots']}>
   <Tab value="End-to-end tests">
 
     ```bash
@@ -37,6 +37,11 @@ description: End-to-end tests and screenshots, no browser extensions
     E2E_BASE_URL=http://localhost:9060 mise run //frontend:e2e
     ```
     Faster iteration without a production build; the Go API must be running (`mise run dev`).
+
+  </Tab>
+  <Tab value="Docs screenshots">
+
+    The user docs at `docs/user/` have their own, separate screenshot pipeline against `rezepte --demo` - committed PNGs referenced by `<Screenshot>`, not part of `mise run e2e`. See [Keep the user docs in step with the UI](/memory/howtos/update-user-docs).
 
   </Tab>
 </Tabs>

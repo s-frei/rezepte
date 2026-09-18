@@ -25,6 +25,6 @@ description: What to test and how, per package
 
 <Callout type="warn" title="UI changes and the user docs">
 
-  Once the user documentation exists (Phase 8, [ADR 0008](/memory/decisions/0008-user-docs-and-screenshot-pipeline)): a change to the UI is complete only when the affected page in `docs/user/content` is updated and the screenshots are regenerated with `mise run //docs/user:screenshots` and committed together with the feature.
+  A UI or API change is not done until the affected page under `docs/user/content/` is updated and, where Chromium runs, the screenshots are regenerated with `mise run //docs/user:screenshots` and committed with the feature; the API reference is regenerated with `mise run //docs/user:openapi` (checked in CI). See [Keep the user docs in step with the UI](/memory/howtos/update-user-docs).
 
 </Callout>

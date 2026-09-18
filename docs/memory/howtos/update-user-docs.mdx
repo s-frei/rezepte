@@ -1,0 +1,55 @@
+---
+title: Keep the user docs in step with the UI
+description: What to edit and regenerate when a UI or API change lands
+---
+
+<Callout type="warn" title="Hard rule">
+
+  A UI or API change is not done until the affected page under `docs/user/content/` reflects it. See [Testing](/memory/conventions/testing).
+
+</Callout>
+
+<Steps>
+  <Step>
+
+    ### Edit the affected page
+    Find the page under `docs/user/content/` (`getting-started/`, `guide/`, `operations/`, `api/index.mdx`, or `roadmap.mdx`) and update its prose. Never edit `content/api/reference.mdx` by hand - see [Regenerate the API reference](/memory/howtos/regenerate-api-reference).
+
+  </Step>
+  <Step>
+
+    ### Regenerate screenshots, where Chromium runs
+    ```bash
+    mise run //docs/user:screenshots
+    ```
+    Rewrites every PNG under `docs/user/public/screenshots/` against `rezepte --demo` on `:8070`. If Chromium does not start on your machine, leave the existing PNGs untouched and say so in the commit message - see [ADR 0013](/memory/decisions/0013-demo-mode-and-docs-pipeline). `mise run //docs/user:screenshots:check` reports drift (compares without updating) when you want to know whether the committed PNGs are stale without regenerating them.
+
+  </Step>
+  <Step>
+
+    ### Regenerate the API reference when the contract changed
+    ```bash
+    mise run //docs/user:openapi
+    ```
+    Run this whenever an endpoint, parameter or schema changed - see [Regenerate the API reference](/memory/howtos/regenerate-api-reference) for what the task does.
+
+  </Step>
+  <Step>
+
+    ### Review changed PNGs
+    Read the changed files under `docs/user/public/screenshots/` with the Read tool (agents: this is how you check a screenshot - never a browser extension, see [Verify UI with Playwright](/memory/howtos/verify-ui)) and compare against the design system before committing.
+
+  </Step>
+  <Step>
+
+    ### Commit docs with the feature
+    Stage the changed content page, any regenerated PNGs and `content/api/reference.mdx` in the same commit as the code change, not a separate docs commit.
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+
+  CI checks only the API reference (`mise run //docs/user:openapi` then a diff check) - never the screenshots, because font rendering differs between macOS and Linux. A stale screenshot is caught by review, not by CI.
+
+</Callout>

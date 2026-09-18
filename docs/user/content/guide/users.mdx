@@ -1,0 +1,63 @@
+---
+title: Members
+description: Create accounts, change roles, reset passwords and delete users (admins)
+---
+
+This page is for admins; a "Mitglied" account does not see "Benutzer" in Settings, and is redirected to their own settings if they open its URL directly.
+
+<Screenshot name="users" caption="The member list in Settings" />
+
+<Steps>
+  <Step>
+
+    ### Open member management
+
+    Go to "Einstellungen" → "Benutzer".
+
+  </Step>
+  <Step>
+
+    ### Add a member
+
+    Click "Benutzer anlegen" and fill in a username, a password (8–128 characters) and a role.
+
+    <Screenshot name="user-create" caption="Creating a new member" />
+
+    "Admin" can manage users and everything a member can; "Mitglied" cooks and edits recipes.
+
+  </Step>
+  <Step>
+
+    ### Change a role
+
+    Use the "Rolle" select in a member's row to switch them between "Admin" and "Mitglied".
+
+  </Step>
+  <Step>
+
+    ### Reset a password
+
+    "Passwort zurücksetzen" sets a new password for that member and signs them out on every device.
+
+  </Step>
+  <Step>
+
+    ### Remove a member
+
+    Delete their row. Their recipes are not removed — see the note below.
+
+  </Step>
+</Steps>
+
+<Callout type="info" title="Good to know">
+  The last remaining admin can neither be demoted nor deleted, so a household always keeps at least one admin. You also cannot delete your own account from this page.
+</Callout>
+
+<Accordions type="single">
+  <Accordion title="What happens to a deleted member's recipes">
+    They are not deleted — they are transferred to the admin who performed the deletion.
+  </Accordion>
+  <Accordion title="Members and this page">
+    A "Mitglied" account that navigates directly to this page's URL is sent to their own settings instead; the same rule is enforced by the API, so this is purely a courtesy redirect, not the only protection.
+  </Accordion>
+</Accordions>

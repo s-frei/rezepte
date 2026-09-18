@@ -1,1 +1,1 @@
-{ "title": "How-tos", "pages": ["index", "run-dev", "verify-ui", "add-migration", "add-query", "add-endpoint", "add-component", "add-route", "add-translation", "write-an-adr"] }
+{ "title": "How-tos", "pages": ["index", "run-dev", "verify-ui", "update-user-docs", "add-screenshot", "regenerate-api-reference", "add-migration", "add-query", "add-endpoint", "add-component", "add-route", "add-translation", "write-an-adr", "release"] }

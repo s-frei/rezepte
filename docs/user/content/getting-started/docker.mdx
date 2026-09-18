@@ -1,0 +1,70 @@
+---
+title: Docker
+description: Run the Rezepte image with Docker Compose or plain docker run
+---
+
+The image is not published to a registry yet, so build it locally from the repository (`docker build -t rezepte .`) before running either of the commands below. It listens on port 8060 and stores everything — the SQLite database and uploaded photos — under `/data`, owned by UID 65532 (the distroless `nonroot` user the container runs as).
+
+<Tabs items={['docker compose', 'docker run']}>
+  <Tab value="docker compose">
+
+    ```yaml
+    services:
+      rezepte:
+        build: .
+        ports: ["8060:8060"]
+        environment:
+          REZEPTE_ADMIN_PASSWORD: change-me-now   # read on the first start only
+        volumes:
+          - ./data:/data
+        restart: unless-stopped
+    ```
+
+    ```bash
+    docker compose up -d --build
+    ```
+
+  </Tab>
+  <Tab value="docker run">
+
+    ```bash
+    docker build -t rezepte .
+    docker run -d --name rezepte -p 8060:8060 \
+      -e REZEPTE_ADMIN_PASSWORD=change-me-now \
+      -v "$PWD/data:/data" \
+      rezepte
+    ```
+
+  </Tab>
+</Tabs>
+
+## Bind mounts
+
+The container runs as the nonroot user (UID 65532), so a bind-mounted `./data` directory must be writable by that UID before the first start:
+
+```bash
+mkdir -p data
+chown 65532:65532 data
+```
+
+A named volume (as in the compose file above) does not need this — Docker creates it already owned by the container's user.
+
+## Updating
+
+```bash
+git pull
+docker compose build
+docker compose up -d
+```
+
+Migrations run automatically the next time the container starts; see [Updates](/operations/updates).
+
+## Demo mode
+
+Start the image with sample data instead of mounting real data:
+
+```bash
+docker run --rm -p 8060:8060 rezepte --demo
+```
+
+Without a volume nothing persists — the sample recipes and photos disappear when the container stops.

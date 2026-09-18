@@ -1,0 +1,63 @@
+---
+title: Quick start
+description: Run Rezepte with Docker Compose and log in for the first time
+---
+
+Rezepte ships as a single Docker image. This page gets a household instance running in a few minutes; see [Docker](/getting-started/docker) and [Running the binary](/getting-started/binary) for other ways to run it, and [Configuration](/getting-started/configuration) for every setting.
+
+<Steps>
+  <Step>
+
+    ### Build and start
+
+    Save the following as `compose.yaml` in the root of a checkout of the repository, then run `docker compose up -d --build`.
+
+    ```yaml
+    services:
+      rezepte:
+        build: .
+        ports: ["8060:8060"]
+        environment:
+          REZEPTE_ADMIN_PASSWORD: change-me-now   # read on the first start only
+        volumes:
+          - ./data:/data
+        restart: unless-stopped
+    ```
+
+  </Step>
+  <Step>
+
+    ### Open the app
+
+    Visit `http://localhost:8060` in a browser.
+
+  </Step>
+  <Step>
+
+    ### Log in
+
+    Log in as `admin` with the password from `REZEPTE_ADMIN_PASSWORD` in the compose file above.
+
+  </Step>
+  <Step>
+
+    ### Create the first recipe
+
+    Click "Neues Rezept" and save it. See [Recipes](/guide/recipes) for the editor.
+
+  </Step>
+</Steps>
+
+<Callout type="info" title="Try it without setup">
+  Rezepte can also start with sample data instead of a real household's recipes:
+
+  ```bash
+  docker run --rm -p 8060:8060 rezepte --demo
+  ```
+
+  Log in as `demo` with the password `demo1234`. Nothing is persisted without a volume, so the data disappears when the container stops.
+</Callout>
+
+<Callout type="warn">
+  `REZEPTE_ADMIN_PASSWORD` is only read once, when the instance starts with no users yet. Change it inside the app afterwards — see [First login](/getting-started/first-login) — rather than editing the environment variable later.
+</Callout>

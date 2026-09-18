@@ -1,0 +1,34 @@
+[tasks.install]
+description = "Install user-docs dependencies"
+run = "bun install --frozen-lockfile"
+
+[tasks.dev]
+description = "Run the user docs on :5000"
+run = "bun run dev"
+
+[tasks.build]
+description = "Static export of the user docs"
+run = "bun run build"
+
+[tasks.check]
+description = "Lint, screenshot audit and build (validates MDX)"
+run = ["bun run lint", "bun run screenshots:audit", "bun run build"]
+
+[tasks.openapi]
+description = "Fetch openapi.json from rezepte --demo and regenerate content/api/reference.mdx"
+depends = ["//service:build"]
+run = ["scripts/with-demo.sh bun run openapi:fetch", "bun run openapi:generate"]
+
+[tasks.screenshots]
+description = "Regenerate the screenshots against rezepte --demo on :8070 (needs a Chromium that starts; not run in CI)"
+depends = ["//service:build"]
+run = "scripts/with-demo.sh bunx playwright test --update-snapshots"
+
+[tasks."screenshots:audit"]
+description = "Cross-check <Screenshot> names, tests and PNG files"
+run = "bun run screenshots:audit"
+
+[tasks."screenshots:check"]
+description = "Report screenshot drift against rezepte --demo (local only)"
+depends = ["//service:build"]
+run = "scripts/with-demo.sh bunx playwright test"

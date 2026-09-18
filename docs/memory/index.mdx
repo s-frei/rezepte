@@ -54,9 +54,16 @@ A self-hosted recipe manager for a household: a Go service serving a bundled Sve
   <Folder name="service" defaultOpen>
     <Folder name="cmd/rezepte"><File name="main.go" /></Folder>
     <Folder name="internal">
+      <Folder name="auth" />
       <Folder name="config" />
+      <Folder name="db" />
       <Folder name="httpserver" />
       <Folder name="web" />
+      <Folder name="demo" />
+      <Folder name="recipe" />
+      <Folder name="image" />
+      <Folder name="user" />
+      <Folder name="userapi" />
     </Folder>
   </Folder>
   <Folder name="frontend" defaultOpen>
@@ -66,7 +73,12 @@ A self-hosted recipe manager for a household: a Go service serving a bundled Sve
   </Folder>
   <Folder name="docs" defaultOpen>
     <Folder name="memory" />
-    <Folder name="user" />
+    <Folder name="user">
+      <Folder name="content" />
+      <Folder name="screenshots" />
+      <Folder name="scripts" />
+      <Folder name="public" />
+    </Folder>
   </Folder>
   <File name="mise.toml" />
   <File name="CLAUDE.md" />

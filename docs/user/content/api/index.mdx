@@ -1,0 +1,51 @@
+---
+title: API
+description: The HTTP API behind the app
+---
+
+Rezepte's frontend talks to the same HTTP API documented here — there is nothing it can do that the API cannot.
+
+## Base URL and format
+
+Every endpoint lives under `/api/v1` of your instance (e.g. `http://localhost:8060/api/v1`). Requests and responses are JSON, with camelCase field names.
+
+## Authentication
+
+There are no API tokens yet (see [Roadmap](/roadmap)) — the only way in is the same session cookie the browser uses. Log in to get one, then send it back on later requests:
+
+```bash
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"username":"demo","password":"demo1234"}' \
+  http://localhost:8060/api/v1/auth/login
+
+curl -b cookies.txt 'http://localhost:8060/api/v1/recipes?limit=5'
+```
+
+`POST`, `PUT`, `PATCH` and `DELETE` requests additionally require an `Origin` header that matches the instance's host — this is what a browser sends automatically, and what a reverse proxy must forward unchanged (see [Reverse proxy](/operations/reverse-proxy)). A request with no `Origin` header at all, such as the `curl` calls above, is not affected.
+
+## Errors
+
+Errors are `application/problem+json`:
+
+```json
+{
+  "title": "Unprocessable Entity",
+  "status": 422,
+  "detail": "validation failed",
+  "errors": [{ "location": "body.title", "message": "expected length >= 1" }]
+}
+```
+
+## Interactive docs
+
+A running instance serves interactive, try-it-out documentation (Scalar) at `/api/v1/docs`.
+
+## Reference
+
+<Callout type="info">
+  The [full endpoint reference](/api/reference) is generated from the running app's OpenAPI document by `mise run //docs/user:openapi` — it is not hand-written and should not be edited directly.
+</Callout>
+
+## Coming later
+
+Bearer-token authentication, instance sync and an MCP server are planned but not part of the current API — see [Roadmap](/roadmap).
