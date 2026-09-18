@@ -4,11 +4,30 @@
 	import { Toaster } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import AppShell from '$lib/components/shell/AppShell.svelte';
+	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
+	import { palette } from '$lib/palette.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
 	const isLoginRoute = $derived(page.url.pathname.startsWith('/login'));
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (isLoginRoute) {
+			return;
+		}
+		if (
+			(event.metaKey || event.ctrlKey) &&
+			!event.shiftKey &&
+			!event.altKey &&
+			event.key.toLowerCase() === 'k'
+		) {
+			event.preventDefault();
+			palette.open = !palette.open;
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="min-h-screen bg-background font-sans text-text">
 	{#if isLoginRoute}
@@ -17,6 +36,7 @@
 		<AppShell>
 			{@render children()}
 		</AppShell>
+		<CommandPalette />
 	{/if}
 </div>
 

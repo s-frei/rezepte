@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { goto } from '$app/navigation';
 import { session } from '$lib/auth.svelte';
-import { api, ApiError } from './client';
+import { api, ApiError, isSignedOut } from './client';
 
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
@@ -77,6 +77,23 @@ describe('api', () => {
 	});
 });
 
+describe('isSignedOut', () => {
+	it('is true for a 401 ApiError', () => {
+		expect(isSignedOut(new ApiError(401, { title: 'Unauthorized' }))).toBe(true);
+	});
+
+	it('is false for any other status', () => {
+		expect(isSignedOut(new ApiError(403, { title: 'Forbidden' }))).toBe(false);
+		expect(isSignedOut(new ApiError(422, { title: 'Unprocessable Entity' }))).toBe(false);
+	});
+
+	it('is false for a non-ApiError', () => {
+		expect(isSignedOut(new Error('boom'))).toBe(false);
+		expect(isSignedOut(null)).toBe(false);
+		expect(isSignedOut(undefined)).toBe(false);
+	});
+});
+
 describe('api central 401 handling', () => {
 	const mockedGoto = vi.mocked(goto);
 
@@ -111,13 +128,26 @@ describe('api central 401 handling', () => {
 		expect(mockedGoto).not.toHaveBeenCalled();
 	});
 
-	it('does not redirect for the me call itself (the root layout load already redirects via SvelteKit redirect())', async () => {
+	it('does not redirect for the GET me call (the root layout load already redirects via SvelteKit redirect())', async () => {
 		stubBrowser('/some-page');
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
 		await expect(api('/auth/me')).rejects.toBeInstanceOf(ApiError);
 
 		expect(mockedGoto).not.toHaveBeenCalled();
+	});
+
+	it('redirects for a mutating me call, which runs from a page and not from load', async () => {
+		stubBrowser('/settings');
+		session.user = { id: '1', username: 'sam', role: 'user' };
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(
+			api('/auth/me', { method: 'PATCH', body: JSON.stringify({ password: 'x' }) })
+		).rejects.toBeInstanceOf(ApiError);
+
+		expect(session.user).toBeNull();
+		expect(mockedGoto).toHaveBeenCalledWith('/login?next=' + encodeURIComponent('/settings'));
 	});
 
 	it('does not redirect when already on the login page', async () => {

@@ -2,6 +2,7 @@
 	import Search from 'lucide-svelte/icons/search';
 	import X from 'lucide-svelte/icons/x';
 	import { m } from '$lib/paraglide/messages';
+	import { palette } from '$lib/palette.svelte';
 
 	let {
 		value = $bindable(''),
@@ -61,10 +62,12 @@
 			<X class="size-4 text-text-muted" aria-hidden="true" />
 		</button>
 	{/if}
-	<kbd
-		aria-hidden="true"
-		class="hidden shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-micro text-text-muted md:inline-block"
+	<button
+		type="button"
+		onclick={() => (palette.open = true)}
+		aria-label={m.palette_open()}
+		class="hidden shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-micro text-text-muted transition hover:text-text md:inline-block"
 	>
-		⌘K
-	</kbd>
+		<kbd>⌘K</kbd>
+	</button>
 </div>

@@ -12,22 +12,28 @@
 		"strict": true,
 		"moduleResolution": "bundler"
 	},
-	// `include` replaces the generated one instead of extending it (TypeScript
-	// never merges the two), so every entry of `.svelte-kit/tsconfig.json` is
-	// repeated here - rewritten relative to this file - plus `e2e`, which
-	// SvelteKit does not know about and `svelte-check` would otherwise skip.
-	// `exclude` is still inherited.
+	// Copied from .svelte-kit/tsconfig.json and extended with e2e/ plus the
+	// Playwright config, so `svelte-check` type-checks the Playwright specs
+	// too. `include` is replaced rather than merged when a config extends
+	// another, so this list has to be kept in sync with the generated one.
 	"include": [
-		".svelte-kit/ambient.d.ts",
-		".svelte-kit/env.d.ts",
-		".svelte-kit/non-ambient.d.ts",
-		".svelte-kit/types/**/$types.d.ts",
-		"vite.config.js",
-		"vite.config.ts",
-		"src/**/*.js",
-		"src/**/*.ts",
-		"src/**/*.svelte",
-		"e2e/**/*.ts"
+		"./.svelte-kit/ambient.d.ts",
+		"./.svelte-kit/env.d.ts",
+		"./.svelte-kit/non-ambient.d.ts",
+		"./.svelte-kit/types/**/$types.d.ts",
+		"./vite.config.js",
+		"./vite.config.ts",
+		"./playwright.config.ts",
+		"./src/**/*.js",
+		"./src/**/*.ts",
+		"./src/**/*.svelte",
+		"./test/**/*.js",
+		"./test/**/*.ts",
+		"./test/**/*.svelte",
+		"./tests/**/*.js",
+		"./tests/**/*.ts",
+		"./tests/**/*.svelte",
+		"./e2e/**/*.ts"
 	]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files

@@ -13,6 +13,7 @@
 		disabled = false,
 		href,
 		title,
+		label,
 		onclick,
 		class: className = '',
 		children
@@ -25,6 +26,8 @@
 		 * the result of `resolve()` from `$app/paths`. */
 		href?: ResolvedPathname;
 		title?: string;
+		/** Accessible name, when the visible text needs more context. */
+		label?: string;
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
 		children: Snippet;
@@ -54,6 +57,7 @@
 	<a
 		{href}
 		{title}
+		aria-label={label}
 		aria-disabled={disabled}
 		tabindex={disabled ? -1 : undefined}
 		class="{classes} {disabled ? 'pointer-events-none opacity-50' : ''}"
@@ -65,6 +69,7 @@
 		{type}
 		{disabled}
 		{title}
+		aria-label={label}
 		{onclick}
 		class="{classes} disabled:pointer-events-none disabled:opacity-50"
 	>

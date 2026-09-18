@@ -4,6 +4,7 @@ import { expect, type Page } from '@playwright/test';
 // Type-only, so the relative hop into `src` is erased at runtime and the e2e
 // suite still speaks the same contract as the app.
 import type { Image, Recipe, RecipeInput } from '../src/lib/api/recipes';
+import type { UserAccount } from '../src/lib/api/users';
 
 /** Logs in as the seeded admin (password from the e2e task). */
 export async function login(page: Page, username = 'admin', password = 'e2e-password') {
@@ -169,4 +170,21 @@ export async function uploadImage(page: Page, recipeId: string, png: Buffer): Pr
 		`POST /api/v1/recipes/${recipeId}/images failed: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
 	return (await response.json()) as Image;
+}
+
+/** Creates a user through the API as whoever `page` is logged in as (an admin). */
+export async function createUser(
+	page: Page,
+	input: { username: string; password: string; role: 'admin' | 'user' }
+): Promise<UserAccount> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.post('/api/v1/users', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: input
+	});
+	expect(
+		response.ok(),
+		`POST /api/v1/users failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+	return (await response.json()) as UserAccount;
 }

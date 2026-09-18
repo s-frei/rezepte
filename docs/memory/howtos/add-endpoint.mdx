@@ -67,6 +67,12 @@ description: huma operations, security, errors
 
 </Callout>
 
+<Callout type="info">
+
+  Admin-only operations call `userapi.requireAdmin(ctx)` first (403 `admin role required`); there is no other authorization layer.
+
+</Callout>
+
 ## Non-JSON responses
 
 A huma operation always frames its response as JSON - for a byte stream (an image, a download) register a plain `net/http` handler on the mux instead, via `srv.Handle(pattern, handler)`. Go 1.22's `http.ServeMux` prefers the more specific pattern over the SPA's `/` catch-all regardless of registration order, so this can happen any time after `httpserver.New`. It bypasses huma entirely, so add `Security` equivalents by hand (wrap the handler in `auth.RequireSession(sessions, cfg.SecureCookies)`) and set response headers such as `Cache-Control` yourself. See `internal/image/file.go`'s `FileHandler` and its registration in `cmd/rezepte/main.go`, and [ADR 0010](/memory/decisions/0010-images-as-jpeg-variants-on-disk) for why the image routes are built this way.

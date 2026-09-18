@@ -35,6 +35,15 @@ export class ApiError extends Error {
 }
 
 /**
+ * True when a call failed with the 401 that `api()` already turned into a
+ * redirect to the login page. Callers use it to skip their own error toast:
+ * the browser is leaving the page anyway.
+ */
+export function isSignedOut(error: unknown): boolean {
+	return error instanceof ApiError && error.status === 401;
+}
+
+/**
  * Clears the session and sends the browser to the login page with a `next`
  * param pointing back at the page that got the 401. Only ever called from a
  * browser context (see the `typeof window` guard at the call site) so tests
@@ -57,6 +66,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 		headers.set('Content-Type', 'application/json');
 	}
 	const url = BASE + path;
+	const method = (init.method ?? 'GET').toUpperCase();
 	const res = await fetch(url, { ...init, headers, credentials: 'same-origin' });
 	if (!res.ok) {
 		const problem = await res.json().catch(() => ({}) as Problem);
@@ -66,17 +76,22 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 		// to check res.status === 401 individually.
 		//
 		// /auth/login is excluded because a 401 there just means "wrong
-		// credentials", not "you got signed out". /auth/me is excluded
+		// credentials", not "you got signed out". GET /auth/me is excluded
 		// because its only caller is the root +layout.ts `load`, which
 		// already redirects via SvelteKit's `redirect()` - the SvelteKit-
 		// blessed way to navigate from inside `load`. Calling `goto()` here
 		// as well would race that in-flight navigation (SvelteKit explicitly
 		// warns against calling `goto` from `load`) and can leave the app on
 		// the wrong URL.
+		//
+		// The method is part of that exclusion: PATCH /auth/me (the password
+		// change) runs from a page, not from `load`, so an expired session
+		// there has to redirect like every other 401 - otherwise the form
+		// would fail silently.
 		if (
 			res.status === 401 &&
 			url !== LOGIN_PATH &&
-			url !== ME_PATH &&
+			!(url === ME_PATH && method === 'GET') &&
 			typeof window !== 'undefined' &&
 			window.location.pathname !== '/login'
 		) {
