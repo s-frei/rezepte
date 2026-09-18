@@ -30,7 +30,7 @@ description: Tokens, type scale, components and interaction rules of the “Warm
     | `skeleton` | `#eadfcd` | loading placeholders |
     | `handle` | `#c9b9a3` | drag handles, inactive icons, unchecked checkbox border |
     | `tint-1` / `tint-2` / `tint-3` | `#f0dfc4` / `#e6e3cf` / `#efd9cf` | card placeholder tiles when a recipe has no photo |
-    | `lightbox` | `#120e0b` | lightbox background (both themes) |
+    | `lightbox` / `lightbox-foreground` | `#120e0b` / `#ffffff` | lightbox background and its icon/text colour - both theme-independent, since the lightbox sits behind the photo rather than behind the page |
     | `overlay` | `rgb(43 33 24 / 0.4)` | dialog/scrim backdrop (both themes) |
 
   </Tab>
@@ -80,7 +80,7 @@ description: Tokens, type scale, components and interaction rules of the “Warm
 ## Spacing, radii, shadows
 
 - 4px grid: 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40. Page padding: desktop 32px, mobile 20px. Card grid gap: desktop 22px, mobile 14px.
-- Radii: `rounded-pill` (buttons, chips, search, stepper, segmented control, bottom nav), `rounded-3xl` 24px (dialogs, cover image, sheet top), `rounded-2xl` 20px (desktop cards, section containers), `rounded-xl` 18px (mobile cards), `rounded-lg` 14px (image in card), `rounded-md` 12px (inputs, thumbnails), `rounded-sm` 10px (editor row inputs). Avatars and icon buttons are circles.
+- Radii: `rounded-pill` (buttons, chips, search, stepper, segmented control, bottom nav), `rounded-3xl` 24px (dialogs, cover image, sheet top), `rounded-2xl` 20px (desktop cards, section containers), `rounded-xl` 18px (mobile cards), `rounded-lg` 14px (image in card, editor image tiles, image dropzone), `rounded-md` 12px (inputs, thumbnails, gallery thumbnails), `rounded-sm` 10px (editor row inputs). Avatars and icon buttons are circles.
 - Shadows (warm, brown-based): `shadow-card`, `shadow-cover`, `shadow-dialog`, `shadow-sheet`, `shadow-cta` (mobile primary CTA). `card`, `cover` and `cta` are removed in dark mode; `dialog` and `sheet` keep their shadow.
 
 ## Components (Bits UI ↔ design)
@@ -105,7 +105,9 @@ description: Tokens, type scale, components and interaction rules of the “Warm
 | Skeleton | own | `bg-skeleton`, pulse 1.5s |
 | Progress (cooking mode) | own | one 4px segment per step, done/current `primary`, open `border` |
 | Avatar | `Avatar` | circle, `bg-accent text-accent-foreground`, Literata initial |
-| Lightbox | `Dialog` | `bg-lightbox`, image `object-contain rounded-2xl`, 48px arrow buttons, 56px thumbnail strip |
+| Image dropzone | native `<input type="file">` in a `<label>` | dashed 2px `border-border` (→ `border-primary` while dragging), `rounded-lg`, `bg-background`, 14/500 muted text with the action word in `text-primary` |
+| Thumbnail with actions | own + svelte-dnd-action | 160×120 `rounded-lg object-cover`; cover: 2px `primary` outline + `bg-primary` `text-label` "Cover" badge; overlay (26px `bg-surface` circles for drag handle and remove, plus an "Als Cover" pill) is always visible on touch devices and hover/focus-revealed only on pointer devices (`[@media(hover:hover)]`) |
+| Lightbox | `Dialog` (`preventScroll={false}`, no overlay) | `bg-lightbox text-lightbox-foreground`, header with title / page counter / download / close, image `object-contain rounded-2xl`, 48px arrow buttons plus ←/→ keys and a 50px swipe threshold, Esc closes (Bits UI default), thumbnail strip 48px mobile / 56px desktop, inactive thumbnails at 50% opacity |
 
 ## Icons (Lucide)
 

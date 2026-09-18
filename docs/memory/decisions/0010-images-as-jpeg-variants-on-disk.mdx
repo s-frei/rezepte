@@ -1,0 +1,44 @@
+---
+title: "0010: Images as JPEG variants on disk"
+description: Three server-rendered JPEGs per upload, EXIF orientation baked in, files beside the database, cover kept on the recipe row
+---
+
+**Status:** accepted · 2026-09-18
+
+## Context
+
+Recipes need photos (spec §2, §5, §6): a cover on the card and detail page, a gallery with a lightbox, uploads from phones (JPEG with EXIF orientation, HEIC excluded), PNG and WebP. The app is a single Go binary with SQLite ([ADR 0003](/memory/decisions/0003-sqlite-with-sqlc-and-goose)) for a household - there is no object store, no CDN and no image service to lean on, and the binary must stay CGO-free. The `images` table and `recipes.cover_image_id` already existed, empty, from the Phase 3 migration (`0002_recipes.sql`) - this phase is the first to write to them (see [Data model](/memory/architecture/data-model)). The UI needs three different renditions of the same photo - a small square thumbnail for cards and thumbnail strips, a larger crop-filled image for the gallery cover and carousel, and the original for the lightbox and download - all displayed upright without relying on the browser to interpret EXIF (support is inconsistent, and it does nothing for a `background-image` or an `object-fit: cover` thumbnail).
+
+## Decision
+
+- **Three JPEG variants per upload, rendered once on write.** `internal/image` decodes JPEG/PNG (stdlib) and WebP (`golang.org/x/image/webp`), then writes `<id>.jpg` (longest side ≤ 2400 px, quality 90), `<id>_detail.jpg` (≤ 1600, q85) and `<id>_thumb.jpg` (≤ 480, q80) with `golang.org/x/image/draw` (Catmull-Rom, transparent areas flattened onto white since JPEG has no alpha channel). Reads are plain file serves; nothing is resized on request.
+- **EXIF orientation is applied, not preserved.** A ~80-line reader in `exif.go` walks the JPEG segment headers to the APP1/TIFF IFD0 Orientation tag (1-8) and the pixels are rotated/mirrored accordingly (after the first downscale, which commutes with the rotation and is far cheaper on ≤ 2400 px than on a 12000 px photo). The variants carry no metadata, so every viewer shows them upright - and no camera metadata (GPS, device) leaves the original upload, which is never stored.
+- **Storage layout.** `<REZEPTE_DATA_DIR>/images/<recipeId>/` holds a recipe's variants; each file is written to a `.tmp` sibling and renamed into place, so a reader never observes a partial file, and the files written so far are removed again if the database write fails (`service.go`'s `Upload` calls `removeFiles` on any error from the transaction). `images.filename` stores `<id>.jpg`; `width`/`height` are the original variant's. Deleting a recipe removes its directory after the transaction commits (`recipe.WithImageDir`). Directories are created `0o700` and files `0o600`, readable only by the service process.
+- **Limits.** Upload ≤ 10 MiB (checked on the wire: declared `Content-Length` → `413`, `http.MaxBytesReader` as a backstop for chunked/lying clients), decoded sides 64-12000 px and at most 60 megapixels (both checked via `image.DecodeConfig` before pixels are allocated, so an oversized image is rejected before its full bitmap is decoded), 20 images per recipe (checked once before decoding and once more inside the write transaction, closing the race between two concurrent uploads on the same recipe).
+- **Cover on the recipe row.** `recipes.cover_image_id` (no FK, see [Data model](/memory/architecture/data-model)) is set automatically by the first upload onto a coverless recipe, moved to the first remaining image (by `position`) when the cover is deleted, and changed explicitly via `PUT /recipes/{id}/cover`. Positions are compact `0..n-1`, rewritten on delete and reorder, which must be an exact permutation of the recipe's current images (`ErrBadOrder` otherwise) - the same convention `ingredients`/`steps` use ([ADR 0009](/memory/decisions/0009-recipes-as-documents-with-fts5)). Any of these writes that does not already touch the recipe row for another reason still calls `TouchRecipe`, so `updated_at` reflects photo changes too.
+- **Serving.** `GET /images/{recipeId}/{imageId}/{variant}.jpg` is a plain mux route behind `auth.RequireSession` (not a huma operation - huma frames JSON, not byte streams), registered through `httpserver.Server.Handle`; Go 1.22's `http.ServeMux` picks the more specific pattern over the SPA's `/` catch-all regardless of registration order. It is answered with `http.ServeContent` (Range/conditional support for free), `Content-Type: image/jpeg` and `Cache-Control: private, max-age=31536000, immutable`: ids are never reused, so a URL is immutable, and `private` keeps shared caches out of an authenticated route. Anything but an existing variant is `404`.
+- **Multipart limit is enforced by the operation, not huma.** In huma v2.39.1 the multipart path (`GetMultipartForm` → `ParseMultipartForm`) ignores `Operation.MaxBodyBytes`; `limitUpload` in `handler.go` closes that gap by reading `Request.ContentLength` itself and wrapping the body in `http.MaxBytesReader`. `Operation.MaxBodyBytes` is still declared - huma never emits it into the OpenAPI spec, so it is kept only as documentation of the intended cap and to bound the non-multipart path. `limitUpload` is the real limit. Recorded here so the next multipart endpoint does not rediscover it (see [Add an API endpoint](/memory/howtos/add-endpoint)).
+- **The reorder response type is named `OrderResult`, not `ImageList`.** `image.ImageList` stutters (flagged by `golangci-lint`/revive), and `image.List` collides with `userapi.List`'s OpenAPI schema name - huma panics at registration on a duplicate schema name for two distinct types. `OrderResult` is unique and pairs with `OrderInput`; the JSON shape (`{"items": [...]}`) is unaffected either way.
+
+## Consequences
+
+- Uploads cost CPU once (decode + three encodes, roughly 1 s for a 12-megapixel photo on a small server); reads are as cheap as static files. Disk use is roughly 1-1.5 MB per photo across the three variants.
+- A process-wide semaphore caps decoding at 2 concurrent uploads, bounding peak memory from simultaneous large-image decodes at household-scale concurrency; a third upload waits rather than decoding in parallel.
+- Originals are not kept: re-rendering variants at other sizes later means re-uploading. Acceptable for a household; the 2400 px "original" is what the download link serves.
+- The upload response is only ever one image; the editor uploads a multi-select sequentially, which keeps error handling per file and the server code simple.
+- Backups must include `images/` next to `rezepte.db`.
+- The 10 MiB / 64-12000 px / 60-megapixel / 20-image limits are hard-coded constants (`service.go`, `image.go`), not per-deployment configuration - changing any of them means a code change and redeploy, not an env var.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - **An EXIF library** (`rwcarlsen/goexif`, `dsoprea/go-exif`): rejected - one tag is needed, the readers are unmaintained or large, and a hand-written walker with tests against crafted APP1 segments is ~80 lines.
+    - **Resize on request with a cache**: rejected - more moving parts (cache eviction, thundering herd on first view) for no benefit at household scale, where the three needed sizes are known up front.
+    - **Object storage (S3-compatible)**: rejected - the deployment is one container with one volume; a second service contradicts ADR 0003's "no database server" spirit.
+    - **Storing images as BLOBs in SQLite**: rejected - `http.ServeContent` needs a seeker, backups would balloon the database, and WAL checkpoints slow down with multi-MB rows.
+    - **Keeping the untouched original**: rejected for v1 - doubles disk use and keeps camera metadata on disk; the ≤ 2400 px variant is good enough for a kitchen app.
+    - **One canonical size, resized client-side via CSS/`<img sizes>`**: rejected - a card thumbnail and a full-bleed gallery cover both loading the same multi-megabyte original wastes bandwidth on the app's most-visited page, the recipe overview.
+    - **Deriving the cover from `position = 0` instead of a column**: rejected - it would make "cover unset" ambiguous with "no images yet", and every card-listing query would need a join or subquery instead of reading a column already on the `recipes` row.
+
+  </Accordion>
+</Accordions>

@@ -23,6 +23,7 @@
 {#key recipe.id}
 	<RecipeForm
 		initial={recipe}
+		existing={recipe}
 		heading={m.editor_title_edit()}
 		cancelHref={resolve('/recipes/[slug]', { slug: recipe.slug })}
 		{save}

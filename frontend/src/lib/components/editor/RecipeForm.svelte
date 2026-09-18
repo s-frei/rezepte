@@ -5,7 +5,7 @@
 	import type { Pathname, ResolvedPathname } from '$app/types';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '$lib/api/client';
-	import type { Recipe, RecipeInput } from '$lib/api/recipes';
+	import type { Image, Recipe, RecipeInput } from '$lib/api/recipes';
 	import { session } from '$lib/auth.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -23,6 +23,7 @@
 	import { applyDndAriaStrings } from '$lib/recipe/dnd';
 	import { shell } from '$lib/shell.svelte';
 	import BasicsSection from './BasicsSection.svelte';
+	import ImagesSection from './ImagesSection.svelte';
 	import IngredientGroupEditor from './IngredientGroupEditor.svelte';
 	import SaveBar from './SaveBar.svelte';
 	import StepEditor from './StepEditor.svelte';
@@ -31,6 +32,7 @@
 		initial,
 		heading,
 		cancelHref,
+		existing,
 		save
 	}: {
 		/** Starting values - `emptyInput()` for a new recipe, the loaded recipe for an edit. */
@@ -38,8 +40,10 @@
 		heading: string;
 		/** Where "Abbrechen" goes. */
 		cancelHref: ResolvedPathname;
-		/** Performs the create or update call and resolves with the saved recipe. */
-		save: (input: RecipeInput) => Promise<Recipe>;
+		/** Set when editing: lets the images section talk to the API for this recipe. */
+		existing?: { id: string; images: Image[]; coverImageId: string | null };
+		/** Performs the create or update call; `pendingFiles` is non-empty only for a new recipe with queued images. */
+		save: (input: RecipeInput, pendingFiles: File[]) => Promise<Recipe>;
 	} = $props();
 
 	// `fromRecipe` mints fresh ids, so it runs exactly once: `pristine` is the
@@ -51,6 +55,9 @@
 	let errors = $state<FieldErrors>({});
 	let saving = $state(false);
 	let discardOpen = $state(false);
+	// Files the images section has queued for a not-yet-created recipe; the
+	// `save` callback uploads them once the recipe exists.
+	let pendingFiles = $state<File[]>([]);
 
 	// Not `$state`: they steer a navigation that is already under way, and
 	// nothing renders from them.
@@ -61,10 +68,11 @@
 	// is handed other strings; this is the only screen that drags anything.
 	applyDndAriaStrings();
 
-	const dirty = $derived(isDirty(form, pristine));
+	const dirty = $derived(isDirty(form, pristine) || pendingFiles.length > 0);
 
 	const sections = [
 		{ id: 'editor-section-basics', label: m.editor_section_basics() },
+		{ id: 'editor-section-images', label: m.editor_section_images() },
 		{ id: 'editor-section-ingredients', label: m.recipe_ingredients() },
 		{ id: 'editor-section-steps', label: m.editor_section_steps() }
 	];
@@ -128,7 +136,7 @@
 
 		saving = true;
 		try {
-			const recipe = await save(toInput(form));
+			const recipe = await save(toInput(form), pendingFiles);
 			bypassGuard = true;
 			toast.success(m.editor_saved());
 			await goto(resolve('/recipes/[slug]', { slug: recipe.slug }));
@@ -256,6 +264,16 @@
 			<section id="editor-section-basics" class={sectionCard}>
 				<h2 class={sectionTitle}>{m.editor_section_basics()}</h2>
 				<BasicsSection bind:form {errors} />
+			</section>
+
+			<section id="editor-section-images" class={sectionCard}>
+				<h2 class={sectionTitle}>{m.editor_section_images()}</h2>
+				<ImagesSection
+					recipeId={existing?.id}
+					initialImages={existing?.images ?? []}
+					initialCoverId={existing?.coverImageId ?? null}
+					bind:pending={pendingFiles}
+				/>
 			</section>
 
 			<section id="editor-section-ingredients" class={sectionCard}>

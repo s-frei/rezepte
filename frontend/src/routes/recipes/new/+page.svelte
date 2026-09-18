@@ -1,22 +1,38 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { createRecipe, emptyInput } from '$lib/api/recipes';
+	import { toast } from 'svelte-sonner';
+	import { createRecipe, emptyInput, uploadImage, type RecipeInput } from '$lib/api/recipes';
 	import RecipeForm from '$lib/components/editor/RecipeForm.svelte';
 	import { m } from '$lib/paraglide/messages';
 
-	// `?import=` is reserved for a later phase (URL import). It is
-	// deliberately ignored here so a link carrying it still opens a blank
-	// editor instead of 404-ing once the flow lands.
 	const initial = emptyInput();
+
+	/**
+	 * Creates the recipe, then uploads the queued images one by one. A failed
+	 * upload is reported but never undoes the recipe - the user lands on the
+	 * detail page and can retry from the editor.
+	 */
+	async function save(input: RecipeInput, pendingFiles: File[]) {
+		const recipe = await createRecipe(input);
+		let failed = 0;
+		for (const file of pendingFiles) {
+			try {
+				await uploadImage(recipe.id, file);
+			} catch {
+				failed += 1;
+			}
+		}
+		if (failed === 1) {
+			toast.error(m.images_upload_error());
+		} else if (failed > 1) {
+			toast.error(m.images_upload_error_count({ count: failed }));
+		}
+		return recipe;
+	}
 </script>
 
 <svelte:head>
 	<title>{m.overview_new_recipe()} · {m.app_name()}</title>
 </svelte:head>
 
-<RecipeForm
-	{initial}
-	heading={m.overview_new_recipe()}
-	cancelHref={resolve('/')}
-	save={createRecipe}
-/>
+<RecipeForm {initial} heading={m.overview_new_recipe()} cancelHref={resolve('/')} {save} />
