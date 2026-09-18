@@ -2,7 +2,6 @@ package recipe_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -18,13 +17,9 @@ import (
 
 func loadFixtures(t *testing.T) []recipe.Input {
 	t.Helper()
-	data, err := os.ReadFile("testdata/recipes.json")
+	in, err := recipe.Samples()
 	if err != nil {
 		t.Fatal(err)
-	}
-	var in []recipe.Input
-	if err := json.Unmarshal(data, &in); err != nil {
-		t.Fatalf("parse fixtures: %v", err)
 	}
 	if len(in) != 12 {
 		t.Fatalf("fixtures = %d, want 12", len(in))
