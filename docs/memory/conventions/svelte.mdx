@@ -17,5 +17,7 @@ description: Runes, Bits UI, Tailwind, i18n
 - Theme: read `theme.value`, change with `setTheme()` from `$lib/theme.svelte`; never touch `data-theme` or `localStorage` directly.
 - Sign-out is `signOut()` in `$lib/sign-out.ts` (used by `UserMenu` and `SettingsLayout`); one call, one `goto`.
 - Global keyboard shortcuts live in the root `+layout.svelte` (`<svelte:window onkeydown>`), guarded against the login route; shared open-state for overlays goes in a `*.svelte.ts` (`$lib/palette.svelte.ts`).
+- Full-screen routes (cooking mode) opt out of the app shell in the root `+layout.svelte` by route id (`page.route.id === '/recipes/[slug]/cook'`, next to the `/login` check): they render bare - no `TopBar`, no `BottomNav`, no command palette or Cmd+K - and own the viewport with an `h-dvh` flex column. Add a new full-screen route to that check; never hide shell parts from inside a page.
+- Per-recipe client state: ingredient ticks in `sessionStorage` (`$lib/recipe/checked.svelte.ts`), chosen servings in `localStorage` under `rezepte-servings:<id>` (`$lib/recipe/servings.svelte.ts`, a `$state` class created per page with `createServings(recipe.id, recipe.servings)`). Both are cleared in the detail page's delete flow. Pure storage rules live in a plain `.ts` sibling so vitest can cover them (`*.svelte.test.ts` is excluded from the unit project).
 - Validate every changed `.svelte` file with the svelte MCP `svelte-autofixer` tool before committing.
 - Run `mise run //frontend:fmt` then `mise run //frontend:check`.

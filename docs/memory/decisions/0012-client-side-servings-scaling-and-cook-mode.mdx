@@ -1,0 +1,43 @@
+---
+title: "0012: Client-side servings scaling and cook mode"
+description: Quantities scale in the browser against the stored servings, kitchen fraction rounding, per-recipe localStorage, a bare full-screen route with a Screen Wake Lock
+---
+
+**Status:** accepted · 2026-09-18
+
+## Context
+
+Phase 5 (spec §7, §11 step 5) adds the servings stepper on the detail page and a cooking mode at `/recipes/[slug]/cook`. Quantities are `REAL`, units are free text and never converted (ADR 0009, spec §5: "Scaling multiplies `quantity` only"). A household cooks the same recipe for different numbers of people without wanting to edit it, needs the numbers to read like a cookbook ("1 ½ EL", not "1,5 EL"), and uses phones in the kitchen, where the screen must not go dark mid-step.
+
+## Decision
+
+- **Scaling happens in the browser; the API knows nothing about it.** The recipe's stored `servings` is the baseline every quantity is written for. `frontend/src/lib/recipe/scale.ts` computes `quantity × to / from` and the user's choice never reaches the service - no query parameter, no endpoint, no column. Editing the recipe is the only way to change the baseline.
+- **Rounding rules** (`roundScaled`): below 1, snap to 0, ¼, ⅓, ½, ⅔, ¾ or 1 when within 0.04, otherwise one decimal; from 1 to 10, a fraction within 0.04 of ⅓/⅔ keeps the third, everything else rounds to the nearest quarter; from 10, whole numbers, no thousands separators. Rendering goes through the one existing `formatQuantity` (Unicode ½ ¼ ¾ ⅓ ⅔, German comma), so `format.ts` keeps the single glyph table. At the baseline the stored value is rendered exactly, never through the rounding path.
+- **The chosen servings persist per recipe in `localStorage`** under `rezepte-servings:<recipeId>` (an integer 1-99), written only when it differs from the baseline and removed when the recipe is deleted (next to the `sessionStorage` ingredient ticks). The detail page and cook mode read the same key, which is how "scaling persists" into cook mode without URL state. `Servings` in `servings.svelte.ts` is a `$state` class; the pure rules (`servings.ts`) are unit-tested.
+- **Cook mode is a bare route.** The root `+layout.svelte` renders `/recipes/[slug]/cook` (matched by `page.route.id`) without `AppShell` and without the command palette, exactly like `/login`. One step per view, `text-display-sm` at line-height 1.3, a segmented `role="progressbar"`, ←/→/Escape on `window`, a 50px pointer swipe, 200ms fly/fade per step (0 under `prefers-reduced-motion`), "Fertig" on the last step returns to the recipe.
+- **Screen Wake Lock** (`ScreenWakeLock` in `wake-lock.svelte.ts`): requested on mount, re-requested on `visibilitychange`, released on destroy; the "Bildschirm bleibt an" caption shows only while a sentinel is held. The API needs a secure context, so it is silently absent on plain `http://<lan-ip>:8060`.
+- **The ingredient sheet is a plain `fixed` panel**, not a Bits UI `Dialog`: the sheet owns Escape while it is open (it closes itself and the page's handler stands down; Escape leaves cook mode only when the sheet is closed) and ←/→ do nothing while it is open. The rest of the cook page is made `inert` while the sheet is open, so its `aria-modal="true"` is truthful without a hand-rolled focus trap to reconcile with the step view's keyboard handling, and closing the sheet returns focus to the collapsed toggle. It reuses `ServingsStepper` and `IngredientList`, so ticks and servings are the same state as on the detail page.
+
+## Consequences
+
+- Zero backend work and zero schema risk for this feature; the trade-off is that scaled values are never shareable (a link always opens the baseline) and are per browser, not per account.
+- The rounding is opinionated: `2.6` shows as "2 ½" and `1.1` as "1". That is the kitchen reading the design asks for; anyone who needs exact arithmetic edits the recipe. Values below 10 lose at most 0.125, values above 10 at most 0.5.
+- `localStorage` keys accumulate one entry per scaled recipe; deleting a recipe clears its key, but a database reset on the server leaves orphans behind (harmless: keys are read by recipe id only).
+- Adding a second full-screen route means extending the route-id check in `+layout.svelte`, not hiding shell parts from inside a page.
+- The wake lock is best effort. Over plain HTTP in the LAN the caption never appears; serving over HTTPS (or a reverse proxy with TLS) is what enables it.
+- Making the rest of the cook page `inert` while the sheet is open is what lets `aria-modal="true"` be truthful without a hand-rolled focus trap.
+- Closing the sheet moves focus back to the collapsed toggle, so keyboard and screen-reader users end up where they started instead of at the top of the page.
+- Leaving cook mode calls `history.back()` when the user arrived from the recipe's detail page and `history.replaceState` otherwise (e.g. a bookmarked or shared cook-mode link), so the browser's Back button does not re-enter cook mode.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - **A `?servings=` query parameter** (the design handoff's "übernommen aus Detail via URL-Param"): rejected - the choice would be lost on the way back to the detail page and on every card link; `localStorage` keyed by recipe id survives both and the reload.
+    - **A `servings` column / `PATCH` endpoint**: rejected - it would turn a per-cook preference into shared recipe data and force a write on every "+" tap.
+    - **Nearest-0.25 everywhere without the thirds snap**: rejected - a stored "1 ⅓ EL" would display as "1 ¼" the moment the stepper moved and back, which reads as a bug.
+    - **Bits UI `Dialog` for the sheet**: rejected - two Escape handlers (Bits UI's and the page's) and a focus trap for a panel that is not modal in spirit; `UserMenu`'s sheet is a Dialog because nothing else on that page handles keys.
+    - **A 360px desktop side panel** (the design handoff's layout for wide viewports): not built - the bottom sheet is used at every viewport width instead. Two more deviations from the handoff followed from reusing the detail page's building blocks: the sheet reuses `IngredientList`'s 22/70/1fr grid rather than the handoff's 64/1fr column split, and its backdrop uses the `overlay` token at 40% instead of the handoff's 35%.
+    - **A `(shell)` route group**: rejected - it would move every existing route for one bare page; the layout's existing `/login` check already does the job.
+
+  </Accordion>
+</Accordions>

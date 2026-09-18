@@ -20,8 +20,10 @@
 	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
 	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
 	import PlaceholderTile from '$lib/components/recipe/PlaceholderTile.svelte';
+	import ServingsStepper from '$lib/components/recipe/ServingsStepper.svelte';
 	import StepList from '$lib/components/recipe/StepList.svelte';
 	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
+	import { clearServings, createServings } from '$lib/recipe/servings.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { shell } from '$lib/shell.svelte';
 	import type { PageProps } from './$types';
@@ -29,6 +31,11 @@
 	let { data }: PageProps = $props();
 	const recipe = $derived(data.recipe);
 	const editHref = $derived(resolve('/recipes/[slug]/edit', { slug: recipe.slug }));
+	const cookHref = $derived(resolve('/recipes/[slug]/cook', { slug: recipe.slug }));
+	// One store per recipe: `$derived` re-creates it when the page is reused
+	// for another slug (command palette, back/forward), reading that recipe's
+	// stored choice. Mutations go through `servings.set()`, not this binding.
+	const servings = $derived(createServings(recipe.id, recipe.servings));
 
 	let deleteOpen = $state(false);
 	let lightboxOpen = $state(false);
@@ -53,6 +60,7 @@
 		try {
 			await deleteRecipe(recipe.id);
 			clearChecked(recipe.id);
+			clearServings(recipe.id);
 			toast.success(m.detail_deleted());
 			await goto(resolve('/'));
 		} catch {
@@ -105,7 +113,7 @@
 	<Button variant="secondary" href={editHref}>
 		{m.detail_edit()}
 	</Button>
-	<Button variant="primary" disabled title={m.common_coming_soon()}>
+	<Button variant="primary" href={cookHref}>
 		<ChefHat class="size-4" aria-hidden="true" />
 		{m.detail_cook_mode()}
 	</Button>
@@ -191,11 +199,21 @@
 			{/if}
 			<div class="mt-5">
 				<MetaPills
-					servings={recipe.servings}
 					prepMinutes={recipe.prepMinutes}
 					cookMinutes={recipe.cookMinutes}
 					sourceUrl={recipe.sourceUrl}
-				/>
+				>
+					<ServingsStepper value={servings.value} onchange={(next) => servings.set(next)} />
+					{#if servings.scaled}
+						<button
+							type="button"
+							onclick={() => servings.reset()}
+							class="text-body-sm font-medium text-primary underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+						>
+							{m.servings_reset()}
+						</button>
+					{/if}
+				</MetaPills>
 			</div>
 		</div>
 		<div class="hidden md:block">
@@ -222,7 +240,12 @@
 	<div class="mt-8 grid gap-8 md:mt-10 md:grid-cols-[400px_1fr] md:gap-10">
 		<section>
 			<h2 class="mb-4 font-display text-heading font-medium">{m.recipe_ingredients()}</h2>
-			<IngredientList recipeId={recipe.id} groups={recipe.ingredientGroups} />
+			<IngredientList
+				recipeId={recipe.id}
+				groups={recipe.ingredientGroups}
+				servings={servings.value}
+				baseServings={servings.base}
+			/>
 		</section>
 		<section>
 			<h2 class="mb-5 font-display text-heading font-medium">{m.recipe_steps()}</h2>
@@ -234,13 +257,7 @@
 <div
 	class="fixed inset-x-0 bottom-24 z-20 flex justify-center bg-gradient-to-t from-background via-background to-transparent px-4 pt-6 pb-2 md:hidden"
 >
-	<Button
-		variant="primary"
-		size="lg"
-		disabled
-		title={m.common_coming_soon()}
-		class="w-full shadow-cta"
-	>
+	<Button variant="primary" size="lg" href={cookHref} class="w-full shadow-cta">
 		{m.detail_cook_mode_start()}
 	</Button>
 </div>

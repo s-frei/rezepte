@@ -49,3 +49,9 @@ description: Page, +page.ts load, guard, messages
   `resolve()` cannot type-check against a route that does not exist yet. When a change is split across tasks and a link's target route ships later, use a plain `<a>` with `<!-- eslint-disable svelte/no-navigation-without-resolve -->` around it as a stopgap, with a `TODO(<task>)` comment, and switch it to `resolve()` in the task that adds the route.
 
 </Callout>
+
+<Callout type="info">
+
+  A route that must fill the whole screen (cooking mode) is not a layout of its own: add its route id to the `isFullscreenRoute` check in `src/routes/+layout.svelte`, which then renders the page without `AppShell` and the command palette. See [ADR 0012](/memory/decisions/0012-client-side-servings-scaling-and-cook-mode).
+
+</Callout>

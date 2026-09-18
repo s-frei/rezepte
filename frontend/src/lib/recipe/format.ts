@@ -69,3 +69,26 @@ export function formatMinutes(minutes: number | null): string {
 		? m.duration_hours({ count: hours })
 		: m.duration_hours_minutes({ hours, minutes: rest });
 }
+
+/**
+ * The scaling factor between two servings counts, for the "×1,5" hint:
+ * up to two decimals, German comma, no trailing zeros (`2`, `0,5`, `2,33`).
+ */
+export function formatFactor(from: number, to: number): string {
+	const ratio = Math.round((to / from) * 100) / 100;
+	return String(ratio).replace('.', ',');
+}
+
+/**
+ * "Portion" for exactly one, "Portionen" otherwise. Two plain keys instead
+ * of an inlang plural variant: `de.json` uses none anywhere else, and a
+ * one-vs-many split is all German needs here.
+ */
+export function servingsUnit(count: number): string {
+	return count === 1 ? m.servings_unit_one() : m.servings_unit_other();
+}
+
+/** `4 Portionen`, `1 Portion` - number and unit together, for captions. */
+export function formatServings(count: number): string {
+	return `${count} ${servingsUnit(count)}`;
+}
