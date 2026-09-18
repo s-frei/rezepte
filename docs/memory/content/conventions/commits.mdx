@@ -1,0 +1,34 @@
+---
+title: Commits and branches
+description: Semantic commit messages, short titles, develop/main
+---
+
+Format: `type(scope): summary` following [semantic commit messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716).
+
+| Type | Use for |
+|---|---|
+| `feat` | new user-facing capability |
+| `fix` | bug fix |
+| `docs` | documentation only (including `docs/memory`) |
+| `chore` | tooling, dependencies, config |
+| `refactor` | code change without behaviour change |
+| `test` | tests only |
+| `style` | formatting only |
+
+Scopes: `service`, `frontend`, `docs`, or none.
+
+<Callout type="warn" title="Hard rules">
+
+  - Title at most 70 characters, imperative mood, no trailing period.
+  - Body only when the title cannot explain the why.
+  - No `Co-Authored-By` or tool trailers.
+  - Never commit `docs/superpowers/`.
+
+</Callout>
+
+## Branches (git flow)
+
+- All development happens on `develop`. Phases, fixes and docs land there as ordinary commits.
+- `main` holds releases only. A release is a fast-forward merge from `develop` into `main` (see [Release](/howtos/release)), tagged with a version; `main` never gets its own merge commits or direct commits.
+- Feature branches are optional and short-lived; they branch from and merge back into `develop`.
+- Agents never merge to `main`, push, tag or open pull requests on their own. Releases are triggered by the maintainer.

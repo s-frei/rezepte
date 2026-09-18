@@ -1,0 +1,41 @@
+---
+title: "0013: Demo mode in the data directory, generated placeholders, scripted screenshots"
+description: What Phases 3-8 actually built for --demo, the API reference and the screenshot pipeline, where it differs from ADR 0008's pre-implementation plan
+---
+
+**Status:** accepted · 2026-09-18 · amends [ADR 0008](/decisions/0008-user-docs-and-screenshot-pipeline)
+
+## Context
+
+ADR 0008 was written before Phases 3-7 existed and before the development machine lost the ability to start Chromium. Implementing it across those phases changed several of its choices. This ADR records what was actually built and why; it does not revisit ADR 0008's still-valid call to ship `docs/user/` as a separate Fumadocs app with committed PNGs and a generated API reference.
+
+## Decision
+
+- `--demo` (`cmd/rezepte/main.go`) seeds through the domain services into the *configured* data directory (`REZEPTE_DATA_DIR`, default `./data`), not a temporary one built into the flag itself: `service/internal/demo.Seed` is idempotent - `recipe.Service.Count` greater than zero skips seeding entirely (`Summary.Skipped`) - so running it twice, or pointing it at a directory that already has recipes, does nothing. The fixtures are `recipe.Samples()`, written in Phase 3 as test data and reused as-is. Scripts that want a disposable instance, such as `docs/user/scripts/with-demo.sh`, create and delete their own temp directory around the binary; the flag does not do that itself.
+- The demo admin is `demo` / `demo1234` (`demo.AdminUser`, `demo.AdminPassword`), not `demo`/`mia` as ADR 0008 sketched - `mia` is instead a second, non-admin user created ad hoc by the `settings` screenshot spec (`ensureUser` in `docs/user/screenshots/helpers.ts`), not a seeded fixture. The well-known credentials apply only when `--demo` runs with no `REZEPTE_ADMIN_PASSWORD` set; setting it (or `REZEPTE_ADMIN_USER`) always wins over the demo defaults.
+- Demo photos are Go-rendered placeholders (`demo.Placeholder` in `internal/demo/placeholder.go`), not the Playwright-rendered HTML template ADR 0008 planned: a tinted background rotating through the design system's warm surface colours, a lighter plate, and the recipe title's initial in Go Bold, drawn with `golang.org/x/image/font/opentype` and encoded as JPEG. The output depends only on the recipe's index and title, so reseeding and screenshots stay stable; nine of the twelve samples get an image; the rest show the overview's own placeholder tiles.
+- The API reference is rendered by a hand-written script, `docs/user/scripts/generate-api.ts`, not `fumadocs-openapi`: it reads `public/openapi.json` and writes `content/api/reference.mdx` with tags, operations and schemas sorted for a deterministic diff. `fumadocs-openapi` was not added - it ships an interactive request-playground UI this project has no use for, since the running app already serves one at `/api/v1/docs`.
+- `<Screenshot>` (`docs/user/components/screenshot.tsx`) renders a dashed placeholder frame with the caption for any `<name>-<device>-<scheme>.png` missing under `public/screenshots/`, instead of failing the build. `docs/user/scripts/screenshots-audit.ts` cross-checks `<Screenshot name>` usage against `test('<name>')` specs and the PNGs on disk; it fails only when a referenced name has no matching test or is not `a-z0-9-`, and only warns about missing or unused PNGs.
+- The user docs ship no import or integrations pages: URL import is Phase 6, deliberately skipped for later (see [Roadmap](/roadmap)), and stays undocumented until it exists.
+- A version banner, a `GithubInfo` sidebar widget and generated OG images were not built: `docs/user/lib/layout.shared.tsx` links `githubUrl` and nothing else. There is no public release yet to badge or give a preview card.
+
+## Consequences
+
+- The committed PNGs are absent on any machine that cannot start Chromium, this one included: `<Screenshot>` shows its placeholder frame and `screenshots-audit` warns about every missing variant, but `mise run //docs/user:check` still passes. Someone with a working Chromium has to run `mise run //docs/user:screenshots` before a release to fill them in.
+- CI verifies the API reference (`mise run //docs/user:openapi` followed by `git diff --exit-code`) but never the screenshots - `screenshots:check` stays local-only because font rendering differs between macOS and Linux.
+- `recipe.Samples()` ships inside the binary as Go code, not a fixture file, so demo mode has no external data dependency and works offline.
+- `--demo` against a database that already has recipes is a no-op by design; it fills an empty instance, it does not reset a populated one.
+- The demo credentials (`demo` / `demo1234`) are public, here and in the binary's source. Never run `--demo` on a host reachable from outside the household without also setting `REZEPTE_ADMIN_PASSWORD`.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    These are the choices ADR 0008 made before implementation, superseded by the bullets above:
+
+    - **A temporary data directory built into `--demo`, plus a `users.json` fixture file**: rejected during implementation - seeding into `REZEPTE_DATA_DIR` like any other run keeps `--demo` useful for manual testing against real data too, and the domain services already do everything needed to create the admin without a separate fixture format.
+    - **Playwright-rendered HTML placeholder images**: rejected - it would need a working browser at seed time, the one dependency `--demo` must not have, since Chromium does not reliably start on the development machine. Rendering in Go with `x/image` has no such dependency and is deterministic by construction.
+    - **`fumadocs-openapi`**: rejected - it renders an interactive request-playground UI this project has no use for, and a small generator script is easier to extend than to configure around a rendering opinion that does not fit.
+    - **Failing the build when a screenshot PNG is missing**: rejected once Chromium stopped starting on the development machine - it would block every docs build there indefinitely. A placeholder frame plus an audit warning keeps the build green and the gap visible instead.
+
+  </Accordion>
+</Accordions>

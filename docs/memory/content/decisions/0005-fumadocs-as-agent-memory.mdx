@@ -1,0 +1,27 @@
+---
+title: "0005: Fumadocs site as agent memory and user docs"
+description: MDX under docs/memory/content and docs/user/content, rendered by Fumadocs on Next.js
+---
+
+**Status:** accepted · 2026-09-17 · amended 2026-09-18 (two standalone apps, `dir: 'content'`, user docs on 4001)
+
+## Context
+
+Coding agents need durable context: why things are the way they are, and how to do recurring tasks. Humans need the same in readable form, and later end users need their own docs.
+
+## Decision
+
+- `docs/memory/` and `docs/user/` are both Fumadocs apps on the Next.js static template, each with its own `package.json`, `mise.toml` and Next.js build, and each with its own `content/` directory: `docs/memory/` renders the agent memory from `docs/memory/content/` on port 4000, `docs/user/` renders the end-user docs from `docs/user/content/` on port 4001. **Amended 2026-09-18:** the user docs were on port 5000 until then. macOS binds 5000 system-wide to the AirPlay receiver in Control Center, which answers every request with 403, so the dev server could never start there.
+- `CLAUDE.md` contains only hard rules and links here for the how and why.
+- Memory structure: `decisions/` (ADRs), `architecture/`, `howtos/`, `conventions/`, `roadmap.mdx`.
+- Agent routes: `/llms.txt`, `/llms-full.txt`, raw markdown per page under `/llms.mdx/<path>/content.md` - each app serves its own.
+- All docs are English.
+- Each app defines its own Fumadocs collection scoped to its own `content/`: `docs/memory/source.config.ts` and `docs/user/source.config.ts` both set `dir: 'content'`, so neither app's collection can ever see the other's files.
+
+## Consequences
+
+- Every architecture decision gets an ADR before or with the implementing commit.
+- `mise run //docs/memory:check` and `mise run //docs/user:check` each build their own site, so broken MDX in either fails the gate.
+- Agents read the MDX files from the repo; the rendered sites are for humans, for the llms routes, and - for `docs/user/` - for end users.
+- The two apps split from the single-app, two-root design this ADR originally chose: `docs/user/` grew its own dependencies (Playwright screenshots, a generated API reference) that the memory app has no reason to carry, and an independent static export lets it deploy without the internal memory. See [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline) for the screenshot and API-reference pipeline this enabled.
+- The memory app originally still kept its content directly under its package root (`docs/memory/`, at the time also the repo's `docs/` root) and scoped its collection with `dir: '.'` plus explicit `files` globs, meant to keep `node_modules` and the sibling `docs/user/` app out of the collection. fumadocs-mdx hands chokidar the collection's `dir`, not the filtered file list, so the watcher opened the whole package root regardless - `node_modules` (tens of thousands of entries) and `.next` included - and the dev server died with `spawn EBADF` or flooded the log with `EMFILE`. Moving the content into `docs/memory/content/` and scoping `dir: 'content'` (2026-09-18) fixed it. The lesson: a collection's `files` globs only filter what fumadocs *processes*, never what the watcher opens - `dir` must always point at a content-only directory, never a package root.

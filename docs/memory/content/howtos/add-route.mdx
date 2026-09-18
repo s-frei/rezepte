@@ -1,0 +1,57 @@
+---
+title: Add a route
+description: Page, +page.ts load, guard, messages
+---
+
+<Steps>
+  <Step>
+
+    ### Create the route file(s)
+    `src/routes/<path>/+page.svelte`. Add a `+page.ts` only when the page needs a typed `load` - for example to parse the URL into initial state before the component reads `data` (the overview route's `+page.ts` just calls `parseListQuery(url)`; see `src/lib/recipe/query.ts`).
+
+  </Step>
+  <Step>
+
+    ### Fetch client-side
+    `ssr = false` is set once, in the root `+layout.ts`, for the whole app - there is no server render to hydrate. From there, either the component fetches in `onMount` (so it can render a skeleton while the request is in flight, as the overview page does), or `load` awaits the fetch directly when there is nothing meaningful to show before the data arrives (as `recipes/[slug]/+page.ts` awaits `getRecipeBySlug`). Pick whichever fits the page; do not fetch in both places.
+
+  </Step>
+  <Step>
+
+    ### Auth guard
+    Every route is already guarded by the root `+layout.ts`: without a session it calls SvelteKit's `redirect()` to `/login?next=<path>`. Do not add a per-route guard.
+    A route whose own `load` can't find its resource throws `error(404, m.not_found())` (see the slug page's `+page.ts`) - a 404 is not a redirect.
+    Admin-only pages add a `+page.ts` that `await parent()`s the root layout data and `redirect(302, '/settings')`s non-admins (see `src/routes/settings/users/+page.ts`); the API still enforces the role.
+
+  </Step>
+  <Step>
+
+    ### Wire up navigation
+    Link to the new route with `resolve('/path')` from `$app/paths`, never a raw string `href` - `resolve` is checked against the route tree at compile time. Add the link wherever a user should reach the page (`TopBar`, `BottomNav`, a card, ...).
+
+  </Step>
+  <Step>
+
+    ### Messages
+    Every string on the page goes through Paraglide - see [Add a translation](/howtos/add-translation).
+
+  </Step>
+  <Step>
+
+    ### Validate and commit
+    svelte-autofixer on every changed `.svelte` file, then `mise run //frontend:fmt` and `mise run //frontend:check`.
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+
+  `resolve()` cannot type-check against a route that does not exist yet. When a change is split across tasks and a link's target route ships later, use a plain `<a>` with `<!-- eslint-disable svelte/no-navigation-without-resolve -->` around it as a stopgap, with a `TODO(<task>)` comment, and switch it to `resolve()` in the task that adds the route.
+
+</Callout>
+
+<Callout type="info">
+
+  A route that must fill the whole screen (cooking mode) is not a layout of its own: add its route id to the `isFullscreenRoute` check in `src/routes/+layout.svelte`, which then renders the page without `AppShell` and the command palette. See [ADR 0012](/decisions/0012-client-side-servings-scaling-and-cook-mode).
+
+</Callout>

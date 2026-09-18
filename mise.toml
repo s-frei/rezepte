@@ -2,7 +2,7 @@ min_version = "2026.9.0"
 monorepo_root = true
 
 [monorepo]
-config_roots = ["service", "frontend", "docs", "docs/user"]
+config_roots = ["service", "frontend", "docs/memory", "docs/user"]
 
 [tools]
 go = "1.27.1"
@@ -17,7 +17,7 @@ lockfile = true
 
 [tasks.setup]
 description = "Install all dependencies"
-depends = ["//frontend:install", "//docs:install", "//docs/user:install"]
+depends = ["//frontend:install", "//docs/memory:install", "//docs/user:install"]
 run = "cd service && go mod download"
 
 [tasks.dev]
@@ -26,15 +26,15 @@ depends = ["//service:dev", "//frontend:dev"]
 
 [tasks.check]
 description = "All lint, format and test gates"
-depends = ["//service:check", "//frontend:check", "//docs:check", "//docs/user:check"]
+depends = ["//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
 
 [tasks.build]
 description = "Build frontend, then the Go binary with embedded assets"
 depends = ["//service:build"]
 
 [tasks.docs]
-description = "Run both documentation sites (:4000 memory, :5000 user)"
-depends = ["//docs:dev", "//docs/user:dev"]
+description = "Run both documentation sites (:4000 memory, :4001 user)"
+depends = ["//docs/memory:dev", "//docs/user:dev"]
 
 [tasks.e2e]
 description = "Build, start the binary on :8060 with a temp data dir, run Playwright"

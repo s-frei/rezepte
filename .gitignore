@@ -24,9 +24,9 @@ frontend/build/
 frontend/src/lib/paraglide/
 frontend/test-results/
 frontend/playwright-report/
-docs/.next/
-docs/out/
-docs/.source/
+docs/memory/.next/
+docs/memory/out/
+docs/memory/.source/
 
 # runtime data
 data/

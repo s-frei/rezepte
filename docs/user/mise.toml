@@ -3,7 +3,7 @@ description = "Install user-docs dependencies"
 run = "bun install --frozen-lockfile"
 
 [tasks.dev]
-description = "Run the user docs on :5000"
+description = "Run the user docs on :4001"
 run = "bun run dev"
 
 [tasks.build]
