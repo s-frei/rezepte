@@ -36,7 +36,7 @@ The worktree half of the problem has a second, smaller edge: the harness's own `
 
 - Two, and up to nine, worktrees can run their full stacks side by side without editing anything - `mise run dev`, `mise run e2e` and `mise run //docs/user:screenshots` all resolve to non-overlapping ports automatically.
 - A tenth simultaneous worktree has no offset left; `worktree:new` fails with the list of who holds what, which is a machine-capacity problem, not a port-space one.
-- Every consumer that used to hard-code a port now reads an `RZP_*_PORT` environment variable instead: `frontend/vite.config.ts`, both Playwright configs, `docs/user/scripts/with-demo.sh`, `scripts/fetch-openapi.ts`, and both docs sites' `package.json`.
+- Every consumer reads an `RZP_*_PORT` environment variable rather than a literal: `frontend/vite.config.ts`, both Playwright configs, `docs/user/scripts/with-demo.sh`, `docs/user/scripts/fetch-openapi.ts`, and both docs sites' `package.json`.
 - An offset that did leak into the main checkout would shift its ports for reasons nobody can see from the diff - the `guard:local-config` task exists specifically to make that mistake fail loudly at the gate instead of quietly on `develop`.
 
 <Accordions type="single">

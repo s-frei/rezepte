@@ -7,11 +7,48 @@ description: How to use this documentation when working on Rezepte
 
   This section is the long-term memory for AI coding agents working on Rezepte. It is written for agents first, but stays readable for humans.
 
+  It is not the end-user documentation. `docs/user/` is written for the people who cook from Rezepte and the people who host it for them - installing, configuring, using the app. Nothing about developing Rezepte belongs there, and nothing about cooking belongs here. The two sites are deployed separately (see [ADR 0005](/decisions/0005-fumadocs-as-agent-memory)), so a sentence in the wrong one reaches the wrong audience.
+
 </Callout>
 
 ## What Rezepte is
 
 A self-hosted recipe manager for a household: a Go service serving a bundled SvelteKit SPA, SQLite for storage, sessions for login. The UI is German; everything in the repository is English.
+
+## What belongs here
+
+This memory describes **the repository, not the machine and not the day**.
+
+<Steps>
+  <Step>
+
+    ### Outside `decisions/`, write the present
+    `architecture/`, `howtos/`, `conventions/` and `roadmap.mdx` say what is true now. When something changes, rewrite the sentence - do not append a correction, and do not leave the old claim standing beside the new one. A page that reads as a changelog has stopped being memory.
+
+    `decisions/` is the exception, but a narrower one than it sounds: an ADR records a *choice* and the alternatives it rejected, and that record is superseded rather than rewritten. It is not a place to describe how the system currently looks - that belongs in `architecture/`, and an ADR that describes it will be wrong within weeks. See [Write an ADR](/howtos/write-an-adr).
+
+  </Step>
+  <Step>
+
+    ### Write the constraint, not the event
+    "macOS binds port 5000 system-wide to the AirPlay receiver, which answers every request with 403" is durable: it explains the choice and stops anyone picking 5000 again. "We moved off 5000 on 2026-09-18" is the same fact with a shelf life, and git already records it.
+
+    So: no dates, no "originally", no "used to", no "no longer, since". If a sentence only makes sense to someone who knows what the repository looked like before, it is an event - rewrite it as the constraint that outlived it. Where a concrete incident is what makes a rule credible, keep it to one sentence and lead with the rule.
+
+  </Step>
+  <Step>
+
+    ### One fact, one owner
+    A value written in two places will rot in one of them. Ports, paths, task names and commands are named where they belong and linked from everywhere else - for ports that means `mise run ports`, never a copied number. This is the same rule `docs/user/scripts/base-path-audit.ts` follows when it imports the base path from the config instead of repeating it.
+
+  </Step>
+  <Step>
+
+    ### Never record one machine's setup
+    No absolute paths, usernames, hostnames, or "on the development machine" quirks - this repository is meant to be readable by anyone, on any machine, and it may become public. A workaround that is true only of one laptop belongs in that developer's own notes. Ports named here are the project's own defaults (offset 0), not a fact about anyone's setup.
+
+  </Step>
+</Steps>
 
 ## How to read this memory
 

@@ -7,7 +7,7 @@ description: What Phases 3-8 actually built for --demo, the API reference and th
 
 ## Context
 
-ADR 0008 was written before Phases 3-7 existed and before the development machine lost the ability to start Chromium. Implementing it across those phases changed several of its choices. This ADR records what was actually built and why; it does not revisit ADR 0008's still-valid call to ship `docs/user/` as a separate Fumadocs app with committed PNGs and a generated API reference.
+Implementing [ADR 0008](/decisions/0008-user-docs-and-screenshot-pipeline) changed several of its choices, and a docs pipeline cannot assume a working Chromium: CI has none, and a contributor's machine may not either. This ADR records what was built and why; it does not revisit ADR 0008's still-valid call to ship `docs/user/` as a separate Fumadocs app with committed PNGs and a generated API reference.
 
 ## Decision
 
@@ -33,9 +33,9 @@ ADR 0008 was written before Phases 3-7 existed and before the development machin
     These are the choices ADR 0008 made before implementation, superseded by the bullets above:
 
     - **A temporary data directory built into `--demo`, plus a `users.json` fixture file**: rejected during implementation - seeding into `REZEPTE_DATA_DIR` like any other run keeps `--demo` useful for manual testing against real data too, and the domain services already do everything needed to create the admin without a separate fixture format.
-    - **Playwright-rendered HTML placeholder images**: rejected - it would need a working browser at seed time, the one dependency `--demo` must not have, since Chromium does not reliably start on the development machine. Rendering in Go with `x/image` has no such dependency and is deterministic by construction.
+    - **Playwright-rendered HTML placeholder images**: rejected - it would need a working browser at seed time, the one dependency `--demo` must not have, because `--demo` has to run anywhere the binary runs. Rendering in Go with `x/image` has no such dependency and is deterministic by construction.
     - **`fumadocs-openapi`**: rejected - it renders an interactive request-playground UI this project has no use for, and a small generator script is easier to extend than to configure around a rendering opinion that does not fit.
-    - **Failing the build when a screenshot PNG is missing**: rejected once Chromium stopped starting on the development machine - it would block every docs build there indefinitely. A placeholder frame plus an audit warning keeps the build green and the gap visible instead.
+    - **Failing the build when a screenshot PNG is missing**: rejected - it blocks every docs build in any environment without a working Chromium, CI included. A placeholder frame plus an audit warning keeps the build green and the gap visible instead.
 
   </Accordion>
 </Accordions>
