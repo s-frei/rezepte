@@ -1,0 +1,42 @@
+---
+title: "0019: The memory states the present, and the gate checks it"
+description: constraint over event, one owner per fact, no machine internals, enforced by docs/memory/scripts/memory-audit.ts
+---
+
+**Status:** accepted · 2026-09-19
+
+## Context
+
+The agent memory had no written rule about what belongs in it. Pages drifted into incident reports - which tests failed on which day, which port something moved off and when - and picked up notes true only of one contributor's laptop. An agent reading a page cannot tell a live claim from a dead one, and a dead claim read as current is worse than a missing page: it produces confident wrong work.
+
+`decisions/` is 45% of the memory by size, and `/llms-full.txt` concatenates everything, so a reader following that route gets every dead line along with the live ones.
+
+Rules alone were already known not to hold here. `docs/user/scripts/base-path-audit.ts` exists because a broken asset path "passed every existing check and two task reviews"; the same pattern produced the drift this ADR addresses.
+
+## Decision
+
+- **Outside `decisions/`, the memory states what is true now.** When something changes, the sentence is rewritten rather than annotated. A page that reads as a changelog has stopped being memory.
+- **Write the constraint, not the event.** "macOS binds port 5000 system-wide to the AirPlay receiver, which answers every request with 403" outlives "we moved off 5000 in September", and git already records the move. No dates, no "originally", no "used to" outside `decisions/`.
+- **One fact, one owner.** A value written twice rots in one of the copies. Ports, paths, task names and commands are named where they belong and linked from everywhere else; for ports that means `mise run ports`, never a copied number.
+- **No machine internals.** No absolute paths, usernames, hostnames, or quirks true only of one machine. The repository is meant to be readable by anyone and may become public.
+- **An ADR records the choice, not the system.** It says what was chosen, why, and what was rejected; how the system currently looks belongs in `architecture/`. Mixing the two is what rotted [ADR 0008](/decisions/0008-user-docs-and-screenshot-pipeline).
+- **Supersede a decision, correct a fact.** A changed *decision* gets a new ADR and a `superseded by NNNN` status. A *factual error* - a path that no longer exists, a tool the code does not use - is corrected in place, because leaving it standing preserves nothing and misinforms the next reader. When a bullet is superseded, the pointer goes on the bullet itself and replaces the explanation rather than accompanying it; restating the change puts the same fact in two ADRs.
+- **`docs/memory/scripts/memory-audit.ts` enforces the mechanical half** and runs in `//docs/memory:check`, over `docs/memory/content/` and `CLAUDE.md`. It verifies that referenced mise tasks and repository paths exist, that no page names one machine's setup, and that no page outside `decisions/` uses event framing. A bullet marked `**Superseded by**` or `**Amended**` is a record rather than a claim and is skipped - the marker the supersede rule already requires is what makes the distinction mechanical.
+
+## Consequences
+
+- A renamed mise task or a deleted path fails the gate instead of waiting to mislead someone.
+- The audit cannot judge prose. A sentence whose *behaviour* changed while its paths still resolve passes, as does duplication. Those rest on the rules above and on review.
+- Ports are deliberately unchecked: every mention is either a command example carrying a `mise run ports` pointer or, in [ADR 0005](/decisions/0005-fumadocs-as-agent-memory), a rejected port named as the reason it was rejected. A check would need more exemptions than it has findings.
+- `content/index.mdx` is exempt from the phrase checks, because it states the rules by quoting what they forbid.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - **Writing rules without a gate check.** Rejected on the evidence: the base-path bug passed two task reviews under an equivalent regime. Unenforced rules have not held in this repository.
+    - **Checking the memory against itself** for contradictions between pages. It never says which of two copies is right, and it stays silent when both rot together. The repository is the only authority worth measuring against.
+    - **Checking port literals.** Dropped after measuring: the one dead port in the memory was already marked as superseded, and the one live mention is a rejected port cited as a reason. The check would have been exemptions with a rule attached.
+    - **Deleting ADR history to stop the growth.** Rejected - the rejected alternatives in an ADR are what stop an agent proposing the same discarded option again. The problem was never the history; it was perishable system description filed alongside it.
+
+  </Accordion>
+</Accordions>

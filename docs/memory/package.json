@@ -7,7 +7,8 @@
     "dev": "next dev --hostname 0.0.0.0 --port ${RZP_DOCS_MEMORY_PORT:-4000}",
     "start": "serve out",
     "types:check": "next typegen && tsc --noEmit",
-    "lint": "eslint"
+    "lint": "eslint",
+    "memory:audit": "bun scripts/memory-audit.ts"
   },
   "dependencies": {
     "cn": "^0.2.6",

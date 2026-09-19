@@ -16,7 +16,7 @@ The Go binary serves the frontend, so there is no Node runtime in production. Th
 - Tailwind CSS v4 with design tokens in `app.css`.
 - Bits UI directly (headless), styled with Tailwind. Not shadcn-svelte, so the visual design is not constrained by a third-party style system. `svelte-sonner` for toasts, `lucide-svelte` for icons.
 - German UI copy through Paraglide message files; no hard-coded strings in components.
-- In development, Vite proxies `/api` and `/images` to the Go process on `:8060`.
+- In development, Vite proxies `/api` and `/images` to the Go process, so the browser sees one origin and the API's `Origin` check still matches.
 
 ## Consequences
 

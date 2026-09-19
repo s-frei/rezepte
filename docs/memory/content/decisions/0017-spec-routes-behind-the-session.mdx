@@ -23,7 +23,7 @@ The gate also turned out to be cheap. `auth.RequireSession` already exists as a 
 
 ## Consequences
 
-- `docs/user/scripts/fetch-openapi.ts` logs in as the demo admin and replays the cookie. The credentials moved to `scripts/demo-user.ts`, shared with the screenshot specs, so they exist once outside `service/internal/demo/seed.go`.
+- `docs/user/scripts/fetch-openapi.ts` logs in as the demo admin and replays the cookie. The credentials moved to `docs/user/scripts/demo-user.ts`, shared with the screenshot specs, so they exist once outside `service/internal/demo/seed.go`.
 - `mise run //docs/user:openapi` therefore needs an instance whose credentials are known, not merely a running one. In practice that was already true - the task starts `rezepte --demo` itself.
 - The published spec on the docs site is unaffected: it keeps tracking the released version, while the service exposes its own version only to people who are logged in.
 

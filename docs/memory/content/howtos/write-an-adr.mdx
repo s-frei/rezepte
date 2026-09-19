@@ -26,8 +26,26 @@ Write an ADR when a change introduces a dependency, changes package boundaries, 
   </Step>
   <Step>
 
-    ### Supersede, do not edit
-    If a decision changes, write a new ADR and set the old one's status to `superseded by NNNN`.
+    ### Record the choice, not the system
+    An ADR says what was chosen, why, and what was rejected. It does not describe how the system currently looks - that is `architecture/`'s job, and an ADR that does it is wrong as soon as the system moves. Name a port, a file path or a tool only where it *is* the decision; otherwise point at the page that owns it.
+
+    Write the constraint rather than the event, the same way the rest of the memory does: "macOS binds 5000 to the AirPlay receiver" outlives "we moved off 5000 in September".
+
+  </Step>
+  <Step>
+
+    ### Supersede a decision, correct a fact
+    If a *decision* changes, write a new ADR and set the old one's status to `superseded by NNNN`. Never rewrite the choice an ADR recorded - that is the record.
+
+    Mark it where a reader meets it, not only in the status line: an agent that greps lands mid-document, and a bullet with no marker beside it reads as current. Put the pointer on the bullet itself and let the new ADR carry the detail:
+
+    ```markdown
+    - The API reference is generated with `fumadocs-openapi`, fetched from the running demo binary. **Superseded by [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline)**, which owns the detail.
+    ```
+
+    The pointer replaces the explanation - it does not accompany one. Restating what changed puts the same fact in two ADRs, and the copy in the older one is the next thing to rot.
+
+    A *factual error* is different and is fixed in place: a path that no longer exists, a tool the code does not use, a port that was renumbered. Leaving it standing does not preserve history, it just tells the next agent something false. Correct the sentence and move on.
 
   </Step>
 </Steps>
