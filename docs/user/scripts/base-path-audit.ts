@@ -11,10 +11,15 @@
 // anchor) must carry the base path.
 //
 // Deliberately narrow: this asserts the base path only, it is not a link checker.
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import nextConfig from '../next.config.mjs';
 
-const BASE_PATH = '/rezepte';
+// Taken from the config rather than repeated here: the base path has exactly
+// one owner, and a second literal would go stale silently. Importing the config
+// regenerates `.source/` as a side effect - gitignored, and the build does it
+// anyway.
+const BASE_PATH = nextConfig.basePath ?? '';
 
 function walk(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -22,6 +27,10 @@ function walk(dir: string): string[] {
 		if (e.isDirectory()) return walk(p);
 		return e.name.endsWith('.html') ? [p] : [];
 	});
+}
+
+if (!existsSync('out')) {
+	throw new Error('out/ does not exist - run `mise run //docs/user:build` first');
 }
 
 let checked = 0;
@@ -32,8 +41,11 @@ for (const file of walk('out')) {
 		''
 	);
 	for (const m of html.matchAll(/\b(?:src|href)="(\/[^"]*)"/g)) {
-		checked++;
 		const value = m[1];
+		// `//host/path` is protocol-relative - an absolute URL on another origin
+		// that merely looks root-relative. The base path does not apply to it.
+		if (value.startsWith('//')) continue;
+		checked++;
 		if (value === BASE_PATH || value.startsWith(`${BASE_PATH}/`)) continue;
 		console.error(`${file}: root-relative path "${value}" is missing the "${BASE_PATH}" base path`);
 		failed = true;
