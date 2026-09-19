@@ -14,9 +14,9 @@ description: End-to-end tests and screenshots, no browser extensions
 
     ```bash
     mise run e2e
-    REZEPTE_E2E_PORT=8061 mise run e2e   # when something already holds :8060
+    REZEPTE_E2E_PORT=8061 mise run e2e   # when something already holds the offset-0 port (8060)
     ```
-    Builds the binary, starts it on `:8060` (or `REZEPTE_E2E_PORT`) with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=e2e-password`, runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary and deletes the directory. Traces and screenshots of failures land in `frontend/test-results/`.
+    Builds the binary, starts it on `:8060` by default (`RZP_BACKEND_PORT`, override with `REZEPTE_E2E_PORT`) with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=e2e-password`, runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary and deletes the directory. Run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree). Traces and screenshots of failures land in `frontend/test-results/`.
 
     The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
@@ -25,7 +25,7 @@ description: End-to-end tests and screenshots, no browser extensions
   </Tab>
   <Tab value="Screenshots">
 
-    With `mise run dev` running:
+    With `mise run dev` running (frontend on `:9060` by default - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree)):
     ```bash
     cd frontend
     mise exec -- bunx playwright screenshot --viewport-size=360,780 http://localhost:9060/login /tmp/login-mobile.png
@@ -41,7 +41,7 @@ description: End-to-end tests and screenshots, no browser extensions
     ```bash
     E2E_BASE_URL=http://localhost:9060 mise run //frontend:e2e
     ```
-    Faster iteration without a production build; the Go API must be running (`mise run dev`).
+    Faster iteration without a production build; the Go API must be running (`mise run dev`). `:9060` is the frontend port at offset 0 - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree).
 
   </Tab>
   <Tab value="Docs screenshots">
@@ -100,7 +100,7 @@ const fits = input.getBoundingClientRect().width >= ctx.measureText(input.placeh
 A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artefact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
 
 ```ts
-// scratch probe, run through docs/user/scripts/with-demo.sh (demo/demo1234 on :8070)
+// scratch probe, run through docs/user/scripts/with-demo.sh (demo/demo1234 on :8070 by default)
 const info = await page.evaluate(() => {
 	const el = document.querySelector('[role="radiogroup"]')!;
 	const box = el.closest('section')!;           // the container it must fit inside
@@ -126,7 +126,7 @@ For stacking bugs (something hidden behind a fixed bar), `document.elementFromPo
 
 ## Running a probe
 
-`docs/user/scripts/with-demo.sh <command>` starts the built binary with demo data on `:8070` (login `demo` / `demo1234`, twelve recipes with images) and stops it afterwards - the fastest way to a realistic page:
+`docs/user/scripts/with-demo.sh <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images) and stops it afterwards - the fastest way to a realistic page:
 
 ```bash
 mise run build
@@ -135,5 +135,5 @@ cd docs/user && ./scripts/with-demo.sh mise exec -- bun run /tmp/probe.ts
 
 Two traps worth knowing:
 
-- Both `mise run e2e` (`:8060`, override with `REZEPTE_E2E_PORT`) and `with-demo.sh` (`:8070`) now refuse to start on a busy port. Before that guard existed, a stale process answered `/healthz` instead and every test that logged in failed with "Benutzername oder Passwort ist falsch" while the four that do not log in passed - if you ever see that shape of failure, check `lsof -nP -iTCP:8060 -sTCP:LISTEN` before blaming your change.
+- Both `mise run e2e` (`:8060` by default, override with `REZEPTE_E2E_PORT`) and `with-demo.sh` (`:8070` by default) now refuse to start on a busy port. Before that guard existed, a stale process answered `/healthz` instead and every test that logged in failed with "Benutzername oder Passwort ist falsch" while the four that do not log in passed - if you ever see that shape of failure, check `lsof -nP -iTCP:8060 -sTCP:LISTEN` (8060 is the offset-0 default; run `mise run ports` for this worktree's number) before blaming your change.
 - Chromium starts on the development Mac even while the screen is locked; an earlier note claiming otherwise was wrong. Just run it.

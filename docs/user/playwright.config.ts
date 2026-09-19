@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Screenshots are snapshot tests against `rezepte --demo` on :8070
-// (scripts/with-demo.sh). `mise run //docs/user:screenshots` rewrites
+// Screenshots are snapshot tests against `rezepte --demo` on the worktree's
+// demo port (scripts/with-demo.sh). `mise run //docs/user:screenshots` rewrites
 // public/screenshots/<name>-<project>.png, `screenshots:check` reports drift.
 // Not executed in CI: font rendering differs between macOS and Linux.
 export default defineConfig({
@@ -27,7 +27,9 @@ export default defineConfig({
     },
   },
   use: {
-    baseURL: process.env.SCREENSHOT_BASE_URL ?? "http://localhost:8070",
+    baseURL:
+      process.env.SCREENSHOT_BASE_URL ??
+      `http://localhost:${process.env.RZP_DEMO_PORT ?? 8070}`,
     locale: "de-DE",
     timezoneId: "Europe/Berlin",
     contextOptions: { reducedMotion: "reduce" },

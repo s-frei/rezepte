@@ -4,6 +4,8 @@ import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
+const apiTarget = `http://localhost:${process.env.RZP_BACKEND_PORT ?? 8060}`;
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -33,15 +35,17 @@ export default defineConfig({
 		// Listen on all interfaces so the dev server is reachable from other
 		// devices on the local network, not just localhost.
 		host: true,
-		port: 9060,
+		// Both ports come from the worktree's offset (root mise.toml [env]),
+		// so a second worktree's dev stack does not fight this one for them.
+		port: Number(process.env.RZP_FRONTEND_PORT ?? 9060),
 		strictPort: true,
 		// `changeOrigin: false` keeps the browser's Host header: the API's
 		// Origin check compares it with the Origin, and Vite's string
-		// shorthand would rewrite it to localhost:8060, turning every login
+		// shorthand would rewrite it to the target, turning every login
 		// or save in dev mode into a 403.
 		proxy: {
-			'/api': { target: 'http://localhost:8060', changeOrigin: false },
-			'/images': { target: 'http://localhost:8060', changeOrigin: false }
+			'/api': { target: apiTarget, changeOrigin: false },
+			'/images': { target: apiTarget, changeOrigin: false }
 		}
 	},
 	test: {

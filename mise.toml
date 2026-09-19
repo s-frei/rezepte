@@ -15,6 +15,21 @@ watchexec = "2.7.3"
 [settings]
 lockfile = true
 
+# Every port in this repo derives from one offset, so two worktrees can run
+# their stacks side by side. The offset lives in the worktree's
+# mise.local.toml (gitignored); without one it is 0 and every port below is
+# the value it has always had.
+#
+# Use `env.REZEPTE_PORT_OFFSET`, not `get_env(name=...)`: get_env reads only
+# the process environment and would ignore mise.local.toml, which looks like
+# it works until two worktrees collide on the same port.
+[env]
+RZP_BACKEND_PORT     = "{{ 8060 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_FRONTEND_PORT    = "{{ 9060 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_DEMO_PORT        = "{{ 8070 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_DOCS_MEMORY_PORT = "{{ 4000 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_DOCS_USER_PORT   = "{{ 4001 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+
 [tasks.setup]
 description = "Install all dependencies"
 depends = ["//frontend:install", "//docs/memory:install", "//docs/user:install"]
@@ -26,14 +41,38 @@ depends = ["//service:dev", "//frontend:dev"]
 
 [tasks.check]
 description = "All lint, format and test gates"
-depends = ["//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
+depends = ["guard:local-config", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
 
 [tasks.build]
 description = "Build frontend, then the Go binary with embedded assets"
 depends = ["//service:build"]
 
+[tasks.ports]
+description = "Print this worktree's port map"
+run = "scripts/worktree-ports.sh"
+
+[tasks."guard:local-config"]
+description = "Fail if a mise.local.toml ever got committed"
+# .gitignore excludes it at every depth, so this can only happen through a
+# deliberate `git add -f`. An offset loose in the main checkout shifts its
+# ports for reasons nobody can see, so catch it at the gate.
+run = '''
+set -eu
+found=$(git ls-files '*mise.local.toml' 'mise.local.toml')
+if [ -n "$found" ]; then
+	echo "guard: mise.local.toml is tracked - it must never be committed:" >&2
+	echo "$found" >&2
+	echo "guard: run 'git rm --cached <file>' and keep it untracked" >&2
+	exit 1
+fi
+'''
+
+[tasks."worktree:new"]
+description = "Create a worktree off develop with its own port offset"
+run = "scripts/worktree-new.sh"
+
 [tasks.docs]
-description = "Run both documentation sites (:4000 memory, :4001 user)"
+description = "Run both documentation sites (memory :4000, user :4001 by default; mise run ports for this worktree)"
 depends = ["//docs/memory:dev", "//docs/user:dev"]
 
 [tasks.e2e]
@@ -41,14 +80,14 @@ description = "Build, start the binary on a free port with a temp data dir, run 
 depends = ["build"]
 run = '''
 set -eu
-PORT="${REZEPTE_E2E_PORT:-8060}"
+PORT="${REZEPTE_E2E_PORT:-$RZP_BACKEND_PORT}"
 # A stranger on the port is the failure that looks like a broken app: our
 # binary cannot bind, theirs answers /healthz, and every test that logs in
 # fails with "Benutzername oder Passwort ist falsch" while the handful that
 # do not log in pass. Say so up front where lsof is available, and catch it
 # either way below by checking that our own process is still alive.
 if command -v lsof >/dev/null 2>&1 && lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-	echo "e2e: :$PORT is already in use - stop that process, or run with REZEPTE_E2E_PORT=8061" >&2
+	echo "e2e: :$PORT is already in use - stop that process, or run with REZEPTE_E2E_PORT=<other>" >&2
 	exit 1
 fi
 DATA_DIR=$(mktemp -d)
