@@ -110,3 +110,87 @@ func TestRequireSessionReissuesCookieOnRenewal(t *testing.T) {
 		t.Fatal("renewed session did not re-issue the cookie")
 	}
 }
+
+// browserAccept is what a browser sends when the address bar navigates. The
+// redirect keys off exactly this.
+const browserAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+func TestRequireSessionOrLoginRedirectsABrowser(t *testing.T) {
+	conn := dbtest.Open(t)
+	sessions := auth.NewService(conn, user.NewService(conn))
+	h := auth.RequireSessionOrLogin(sessions, false)(okHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil)
+	req.Header.Set("Accept", browserAccept)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	if loc := rec.Header().Get("Location"); loc != "/login?next=%2Fapi%2Fv1%2Fdocs" {
+		t.Fatalf("Location = %q", loc)
+	}
+}
+
+// TestRequireSessionOrLoginKeeps401ForEverythingElse is what keeps
+// fetch-openapi.ts honest: it checks res.ok, so a redirect followed to a 200
+// login page would pass that check and write the login page into
+// openapi.json. Anything that is not a browser navigating stays a 401.
+func TestRequireSessionOrLoginKeeps401ForEverythingElse(t *testing.T) {
+	conn := dbtest.Open(t)
+	sessions := auth.NewService(conn, user.NewService(conn))
+	h := auth.RequireSessionOrLogin(sessions, false)(okHandler())
+
+	cases := []struct {
+		name   string
+		method string
+		accept string
+	}{
+		{"a script or XHR", http.MethodGet, "*/*"},
+		{"scalar fetching the document", http.MethodGet, "application/json"},
+		{"no Accept header at all", http.MethodGet, ""},
+		{"a non-GET method", http.MethodPost, browserAccept},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest(c.method, "/api/v1/openapi.json", nil)
+			if c.accept != "" {
+				req.Header.Set("Accept", c.accept)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("status %d, want %d", rec.Code, http.StatusUnauthorized)
+			}
+			if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+				t.Fatalf("content type %q", ct)
+			}
+		})
+	}
+}
+
+func TestRequireSessionOrLoginServesAValidSession(t *testing.T) {
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	sessions := auth.NewService(conn, users)
+	sess, err := sessions.Login(context.Background(), "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := auth.RequireSessionOrLogin(sessions, false)(okHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil)
+	req.Header.Set("Accept", browserAccept)
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: sess.Token})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}

@@ -1,7 +1,8 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
+import { DEMO_USER } from "../scripts/demo-user";
+
 export const FIXED_TIME = new Date("2026-09-17T10:30:00");
-export const DEMO_USER = { username: "demo", password: "demo1234" };
 
 /** True for the Pixel 7 projects. */
 export function isMobile(testInfo: TestInfo): boolean {

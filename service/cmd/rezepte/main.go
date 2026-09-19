@@ -85,7 +85,9 @@ func run() error {
 	}
 	go sessions.SweepLoop(ctx, sweepInterval, logger)
 
-	srv := httpserver.New(cfg, logger, web.Dist(), httpserver.WithAPIMiddleware(auth.Middleware(sessions, cfg.SecureCookies)))
+	srv := httpserver.New(cfg, logger, web.Dist(),
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, cfg.SecureCookies)),
+		httpserver.WithSpecGuard(auth.RequireSessionOrLogin(sessions, cfg.SecureCookies)))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	recipe.Register(srv.API(), recipes)

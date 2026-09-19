@@ -1,0 +1,38 @@
+---
+title: "0017: OpenAPI, schemas and the Scalar docs behind the session"
+description: a mux-level guard for the contract routes huma registers outside the operation middleware
+---
+
+**Status:** accepted · 2026-09-19
+
+## Context
+
+[ADR 0006](/decisions/0006-session-cookie-auth) left the contract routes public on the grounds that they carry no data and that protecting them would need a mux-level gate. That weighed the routes as a contract in the abstract. It did not weigh the deployment: Rezepte is self-hosted, and an instance is expected to be reachable from the internet. For that operator the goal is that a stranger can read nothing at all, and the served document is not the same artefact the user docs publish - it describes the surface of *their deployed version*, down to the admin endpoints under `/api/v1/users`. That is a fingerprint of the running instance, which is more than the released spec on the docs site gives away.
+
+The gate also turned out to be cheap. `auth.RequireSession` already exists as a plain `func(http.Handler) http.Handler` and already guards `/images/…`, the other route that lives outside the huma operation model. Nothing new had to be written to authenticate.
+
+## Decision
+
+- The routes huma registers for the contract require a valid session - any role, not admin. Reading the contract is not an administrative act, and a logged-in user knows the API from the frontend anyway.
+- `httpserver.WithSpecGuard` is the seam, mirroring `WithAPIMiddleware`: `main.go` passes `auth.RequireSession`, and `httpserver` stays free of a dependency on `auth`. `Server.Handler` runs the guard in front of the mux, because huma hangs these routes straight off the mux and the operation middleware never sees them.
+- The guard matches by prefix (`/api/v1/docs`, `/api/v1/openapi*`, `/api/v1/schemas/*`) rather than by an explicit list. huma serves the document in four flavours - 3.1 and the 3.0 downgrades, each as JSON and YAML - and a prefix stays correct if an upgrade adds a fifth. The cost is that no operation may ever be registered under those prefixes.
+- A `Server` built without the option keeps serving the routes openly. The option is what `main.go` supplies; the package itself stays unopinionated.
+- Without a cookie the answer depends on who is asking. A GET whose `Accept` contains `text/html` - a person in the address bar - gets `303` to `/login?next=<path>`; everything else gets `401 application/problem+json`. The distinction is load-bearing, not cosmetic: `fetch-openapi.ts` decides by `res.ok`, so a redirect it followed to a 200 login page would look like success and write the login page into `openapi.json`. Scalar's own fetch of the document asks for JSON and keeps the 401 as well.
+- `auth.RequireSessionOrLogin` is that variant, sharing its authentication with `RequireSession` through an unexported core; the two differ only in how they deny.
+- The SPA's login form completes the round trip. `goto` is client-side routing and `/api/v1/docs` is not a SvelteKit route, so `isAppPath` in `$lib/api/auth.ts` picks a full page load for `next` targets under `/api/`. `safeNext` already constrains those to same-origin paths, so this opens no redirect surface.
+
+## Consequences
+
+- `docs/user/scripts/fetch-openapi.ts` logs in as the demo admin and replays the cookie. The credentials moved to `scripts/demo-user.ts`, shared with the screenshot specs, so they exist once outside `service/internal/demo/seed.go`.
+- `mise run //docs/user:openapi` therefore needs an instance whose credentials are known, not merely a running one. In practice that was already true - the task starts `rezepte --demo` itself.
+- The published spec on the docs site is unaffected: it keeps tracking the released version, while the service exposes its own version only to people who are logged in.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - Admin-only. Stricter, but the contract is not admin-owned, and it would mean writing a `net/http` twin of the admin check that today exists only as a huma resolver.
+    - Disable the routes in production (`cfg.DocsPath = ""` and friends, enabled by a flag). Removes them rather than protecting them, so an operator loses the docs page on their own instance - which is where it is most useful.
+    - Replace huma's handlers with our own behind `auth.RequireSession`. Would mean reimplementing the Scalar page with its CSP and SRI pin and the schema registry handler, for no gain over wrapping them.
+
+  </Accordion>
+</Accordions>

@@ -20,10 +20,11 @@ import (
 
 // Server owns the mux, the huma API and the http.Server lifecycle.
 type Server struct {
-	cfg    config.Config
-	logger *slog.Logger
-	mux    *http.ServeMux
-	api    huma.API
+	cfg       config.Config
+	logger    *slog.Logger
+	mux       *http.ServeMux
+	api       huma.API
+	specGuard func(http.Handler) http.Handler
 }
 
 // Option configures a Server at construction time. Options run after the
@@ -43,6 +44,21 @@ type Option func(*Server)
 func WithAPIMiddleware(mw func(api huma.API) func(huma.Context, func(huma.Context))) Option {
 	return func(s *Server) {
 		s.api.UseMiddleware(mw(s.api))
+	}
+}
+
+// WithSpecGuard wraps the routes huma registers for the contract itself -
+// the OpenAPI document, the JSON schemas and the Scalar docs page.
+//
+// Those are not huma operations: huma hangs them straight off the mux, so
+// the middleware WithAPIMiddleware installs never runs for them and their
+// Security is empty. Guarding them therefore has to happen here, in front
+// of the mux, rather than in the operation chain. mw is an ordinary
+// net/http middleware - auth.RequireSession, the same one the image routes
+// use.
+func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
+	return func(s *Server) {
+		s.specGuard = mw
 	}
 }
 
@@ -140,7 +156,25 @@ func (s *Server) Handle(pattern string, h http.Handler) {
 }
 
 // Handler returns the root handler with Origin check and request logging.
-func (s *Server) Handler() http.Handler { return s.logRequests(checkOrigin(s.mux)) }
+func (s *Server) Handler() http.Handler { return s.logRequests(checkOrigin(s.guardSpec(s.mux))) }
+
+// guardSpec routes the contract paths through the middleware WithSpecGuard
+// installed and lets everything else reach the mux untouched. With no guard
+// configured the mux is returned as it is, so a Server built without the
+// option behaves exactly as before.
+func (s *Server) guardSpec(next http.Handler) http.Handler {
+	if s.specGuard == nil {
+		return next
+	}
+	guarded := s.specGuard(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isSpecRoute(r.URL.Path) {
+			guarded.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 // Run serves until ctx is cancelled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {

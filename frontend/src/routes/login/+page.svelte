@@ -4,7 +4,7 @@
 	import { page } from '$app/state';
 	import type { Pathname } from '$app/types';
 	import { Button, Label } from 'bits-ui';
-	import { login, safeNext } from '$lib/api/auth';
+	import { isAppPath, login, safeNext } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
 	import { session } from '$lib/auth.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -20,7 +20,15 @@
 		submitting = true;
 		try {
 			session.user = await login(username, password);
-			await goto(resolve(safeNext(page.url.searchParams.get('next')) as Pathname));
+			const next = safeNext(page.url.searchParams.get('next'));
+			// Targets outside the SPA (the Scalar docs page under /api/) are
+			// served by the Go binary, so they need a real navigation - goto
+			// would look the path up in the client router and 404.
+			if (isAppPath(next)) {
+				await goto(resolve(next as Pathname));
+			} else {
+				window.location.assign(next);
+			}
 		} catch (e) {
 			error =
 				e instanceof ApiError && e.status === 401 ? m.login_failed() : m.login_error_generic();
