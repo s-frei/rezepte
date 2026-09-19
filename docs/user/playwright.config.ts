@@ -1,40 +1,71 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 // Screenshots are snapshot tests against `rezepte --demo` on :8070
 // (scripts/with-demo.sh). `mise run //docs/user:screenshots` rewrites
 // public/screenshots/<name>-<project>.png, `screenshots:check` reports drift.
 // Not executed in CI: font rendering differs between macOS and Linux.
 export default defineConfig({
-	testDir: 'screenshots',
-	outputDir: 'test-results',
-	// One worker: every spec shares the demo database and the settings spec
-	// creates a user; determinism beats speed for 17 screenshots.
-	fullyParallel: false,
-	workers: 1,
-	retries: 0,
-	reporter: 'list',
-	snapshotPathTemplate: '{testDir}/../public/screenshots/{arg}-{projectName}{ext}',
-	expect: {
-		toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: 'disabled', caret: 'hide', scale: 'css' }
-	},
-	use: {
-		baseURL: process.env.SCREENSHOT_BASE_URL ?? 'http://localhost:8070',
-		locale: 'de-DE',
-		timezoneId: 'Europe/Berlin',
-		contextOptions: { reducedMotion: 'reduce' }
-	},
-	projects: [
-		{
-			name: 'desktop-light',
-			use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, colorScheme: 'light' }
-		},
-		{
-			name: 'desktop-dark',
-			use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, colorScheme: 'dark' }
-		},
-		// Pixel 7's default viewport (412px) is documented in "Widths that matter"
-		// (docs/memory/content/howtos/verify-ui.mdx) as too forgiving; override to 360px.
-		{ name: 'mobile-light', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 }, colorScheme: 'light' } },
-		{ name: 'mobile-dark', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 780 }, colorScheme: 'dark' } }
-	]
+  testDir: "screenshots",
+  outputDir: "test-results",
+  // One worker: every spec shares the demo database and the settings spec
+  // creates a user; determinism beats speed for 17 screenshots.
+  fullyParallel: false,
+  workers: 1,
+  // One retry: every run so far lost exactly one test to a 30s timeout, each
+  // time a different one, with "screencast.showOverlays: browser has been
+  // closed" - Playwright's own recording going away mid-shot, not the page.
+  retries: 1,
+  reporter: "list",
+  snapshotPathTemplate:
+    "{testDir}/../public/screenshots/{arg}-{projectName}{ext}",
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.01,
+      animations: "disabled",
+      caret: "hide",
+      scale: "css",
+    },
+  },
+  use: {
+    baseURL: process.env.SCREENSHOT_BASE_URL ?? "http://localhost:8070",
+    locale: "de-DE",
+    timezoneId: "Europe/Berlin",
+    contextOptions: { reducedMotion: "reduce" },
+  },
+  projects: [
+    {
+      name: "desktop-light",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        colorScheme: "light",
+      },
+    },
+    {
+      name: "desktop-dark",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 900 },
+        colorScheme: "dark",
+      },
+    },
+    // Pixel 7's default viewport (412px) is documented in "Widths that matter"
+    // (docs/memory/content/howtos/verify-ui.mdx) as too forgiving; override to 360px.
+    {
+      name: "mobile-light",
+      use: {
+        ...devices["Pixel 7"],
+        viewport: { width: 360, height: 780 },
+        colorScheme: "light",
+      },
+    },
+    {
+      name: "mobile-dark",
+      use: {
+        ...devices["Pixel 7"],
+        viewport: { width: 360, height: 780 },
+        colorScheme: "dark",
+      },
+    },
+  ],
 });

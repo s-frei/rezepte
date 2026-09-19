@@ -152,6 +152,16 @@ Each of these comes from a bug that shipped. Verify them at 360px - see [Verify 
 
 ## Implementation notes
 
+**The display face is `'Literata Variable'`, not `'Literata'`.** `@fontsource-variable/literata` declares that family name, CSS matches family names exactly, and for months `--font-display: 'Literata', Georgia, serif` therefore matched no `@font-face` at all: every heading, recipe title, step number and the wordmark rendered in Georgia while ADR 0007 said Literata. Nothing looked broken - a serif fell back to a serif - and the measurement is the only way to see it:
+
+```
+appStack 825.9  === georgia 825.9              ← before
+appStack 884.8  === 'Literata Variable' 884.8  ← after
+```
+
+Verify with `document.fonts.load("64px 'Literata Variable'")` **before** measuring; a registered face stays `unloaded` until something asks for it, and a width taken in that moment is the fallback's. Keep `frontend/src/app.css` and `docs/user/app/global.css` in sync - the docs site carried the correct stack while the app did not. Literata runs ~7% wider than Georgia, which is why the card titles clamp to two lines on phones and three on desktop.
+
+
 `data-theme` on `<html>` is absent when the choice is "system"; an explicit choice sets it to `light` or `dark` (see [ADR 0011](/decisions/0011-admin-role-and-own-password-changes)). The dark tokens are declared twice - once under `:root[data-theme='dark']`, once inside `@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { ... } }` - because CSS cannot share one declaration block between a plain selector and a media query; keep both in sync by hand. The Tailwind `dark:` variant is redefined with `@custom-variant dark` to follow the same rule instead of bare `prefers-color-scheme`, so components using `dark:` (e.g. the login card's border) respect an explicit `light` choice even under a dark system preference. `app.html` no longer sets `data-theme="system"` on `<html>` - that value does not exist any more; "system" is represented by the attribute's absence, applied via an inline pre-paint script that mirrors `$lib/theme.ts`.
 
 ## The user docs wear the same palette

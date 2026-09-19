@@ -7,7 +7,10 @@
 /* Rezepte – Design Tokens (Tailwind CSS v4) */
 
 @theme {
-	--font-display: 'Literata', Georgia, serif;
+	/* @fontsource-variable/literata declares the family as 'Literata Variable';
+	   plain 'Literata' matches no @font-face and falls through to Georgia.
+	   Plain Literata stays in the stack for a system install. */
+	--font-display: 'Literata Variable', Literata, Georgia, serif;
 	--font-sans: 'Karla', system-ui, sans-serif;
 
 	--color-background: #f4ede2;
