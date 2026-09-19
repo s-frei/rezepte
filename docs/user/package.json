@@ -11,7 +11,8 @@
     "openapi:fetch": "bun scripts/fetch-openapi.ts",
     "openapi:generate": "bun scripts/generate-api.ts",
     "screenshots": "playwright test",
-    "screenshots:audit": "bun scripts/screenshots-audit.ts"
+    "screenshots:audit": "bun scripts/screenshots-audit.ts",
+    "base-path:audit": "bun scripts/base-path-audit.ts"
   },
   "dependencies": {
     "@fontsource-variable/literata": "^5.3.0",

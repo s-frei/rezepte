@@ -41,3 +41,30 @@ jobs:
           tags: rezepte:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  pages:
+    if: github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          cache: true
+      - run: mise run //docs/user:install
+      - run: mise run //docs/user:build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/user/out
+      - id: deployment
+        uses: actions/deploy-pages@v4

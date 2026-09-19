@@ -1,0 +1,38 @@
+---
+title: "0015: Publish the user docs to GitHub Pages"
+description: docs/user/ deploys from main via the GitHub Pages artifact actions; docs/memory never does
+---
+
+**Status:** accepted · 2026-09-19
+
+## Context
+
+`docs/user/` is a static export (`next build`, `output: 'export'`) - see [ADR 0008](/decisions/0008-user-docs-and-screenshot-pipeline). Once it carried the app's palette ([ADR 0014](/decisions/0014-warm-theme-for-the-user-docs)) and real screenshots, it was ready to publish rather than only run locally. GitHub Pages hosts a static export directly from the repository it already lives in, with no extra infrastructure.
+
+Publishing means the export is served at a fixed sub-path, `https://s-frei.github.io/rezepte`, not at a domain root. Next has to be told this at build time (`basePath`), and every place that builds a root-relative URL - `next/image` under `images: { unoptimized: true }` in particular, which does not prefix `basePath` itself - has to account for it. Two mistakes shipped from getting this wrong: `<Screenshot>` built its image `src` without the prefix, 404ing every screenshot under the base path, and the deploy job's `permissions:` block omitted `contents: read`, which a job-level block does not inherit - `actions/checkout` would have been refused on this private repository. Both are fixed; this ADR is the record the fix depended on, written after the fact because the decision it documents was never written down the first time.
+
+## Decision
+
+- **Deploy via the GitHub Pages artifact-based actions** (`actions/upload-pages-artifact` + `actions/deploy-pages`), not a branch-based `gh-pages` deploy. `.github/workflows/ci.yml`'s `pages` job builds `docs/user/` and uploads `docs/user/out`.
+- **Published only from `main`** (`if: github.ref == 'refs/heads/main'`), gated behind the `check` job. `develop` and pull requests build and check the docs but never publish them - a release publishing docs is folded into [Release](/howtos/release): every push to `main` republishes the site.
+- **`basePath: '/rezepte'` is set unconditionally** in `docs/user/next.config.mjs`, not behind a `CI`-only flag. The alternative - stripping it in dev - would let a link work locally and 404 in production, exactly the class of bug this deploy shipped with. `NEXT_PUBLIC_BASE_PATH` carries the same value into components that build their own root-relative URLs (`<Screenshot>`, the search client's `api` endpoint).
+- **`docs/memory/` is deliberately never published.** It is the agent-facing memory for this repository, not a user-facing surface - see [ADR 0005](/decisions/0005-fumadocs-as-agent-memory). Only the `pages` job's `docs/user:build` step runs; nothing uploads or deploys `docs/memory/out`.
+- **One manual, one-time step no workflow can perform:** in the repository's Settings → Pages, Source must be set to **GitHub Actions**. `deploy-pages` fails with "Get Pages site failed" until this is set by hand once; no API call in the job can set it.
+
+## Consequences
+
+- GitHub Pages on a private repository may require a paid GitHub plan (Pages is free on private repos only on some plans/tiers) - confirm before relying on this for an account that is otherwise on the free tier.
+- The published site is **world-readable** even though the repository itself is private. Nothing in `docs/user/content/` should be written assuming the readership is limited to people with repository access.
+- `docs/user/app/robots.ts` exports to `/rezepte/robots.txt`, which crawlers never read - robots.txt is only honoured at the origin root (`s-frei.github.io`), and that origin belongs to a different repository. The file is kept anyway (harmless, and correct if this ever moves to a custom domain), but the sitemap it points to has to be submitted to search engines manually; there is no automatic discovery at this address.
+- A colour, palette or content change now has a visible public surface the moment it merges to `main`, where before it only affected a local dev server.
+- `docs/user/scripts/base-path-audit.ts`, wired into `//docs/user:check`, scans the built export for root-relative `src`/`href` values missing the `/rezepte` prefix, so a repeat of the screenshot bug fails the check instead of only the published site.
+
+<Accordions type="single">
+  <Accordion title="Alternatives considered">
+
+    - **Embed the docs in the Go binary, served under `/docs`:** would inherit the app's own auth and TLS, and need no separate hosting or base path at all. Rejected for now: it would tie a documentation change to a service rebuild and deploy, and self-hosted instances would serve docs nobody asked them to serve. Worth revisiting if GitHub Pages' plan requirement becomes a blocker.
+    - **A custom domain:** removes the base path entirely, which would simplify every place `basePath`/`NEXT_PUBLIC_BASE_PATH` is threaded through today. Rejected for now for want of a domain to point at it; nothing here blocks adding one later, since `SITE_URL` (`docs/user/lib/shared.ts`) is the one place the published origin is defined.
+    - **Not publishing at all, keep the docs local-only:** simplest, and was the status quo. Rejected because the docs are written for end users of a self-hosted app, and a doc only its maintainer can read serves nobody else.
+
+  </Accordion>
+</Accordions>

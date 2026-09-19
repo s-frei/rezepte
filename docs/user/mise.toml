@@ -3,7 +3,7 @@ description = "Install user-docs dependencies"
 run = "bun install --frozen-lockfile"
 
 [tasks.dev]
-description = "Run the user docs on :4001"
+description = "Run the user docs on :4001/rezepte"
 run = "bun run dev"
 
 [tasks.build]
@@ -11,8 +11,8 @@ description = "Static export of the user docs"
 run = "bun run build"
 
 [tasks.check]
-description = "Lint, screenshot audit and build (validates MDX)"
-run = ["bun run lint", "bun run screenshots:audit", "bun run build"]
+description = "Lint, screenshot audit, build (validates MDX) and base-path audit"
+run = ["bun run lint", "bun run screenshots:audit", "bun run build", "bun run base-path:audit"]
 
 [tasks.openapi]
 description = "Fetch openapi.json from rezepte --demo and regenerate content/api/reference.mdx"
