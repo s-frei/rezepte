@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev --hostname 0.0.0.0 --port 4001",
+    "dev": "next dev --hostname 0.0.0.0 --port ${RZP_DOCS_USER_PORT:-4001}",
     "start": "serve out",
     "types:check": "next typegen && tsc --noEmit",
     "lint": "eslint",

@@ -18,3 +18,4 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 - Verify UI changes with Playwright (`mise run e2e`, or screenshots against the dev server), never with a browser extension. → `docs/memory/content/howtos/verify-ui.mdx`
 - Database changes go through goose migrations and sqlc; regenerate with `mise run //service:generate` and commit the output. → `docs/memory/content/decisions/0003-sqlite-with-sqlc-and-goose.mdx`
 - Docs are two independent Fumadocs apps, `docs/memory/` (agent memory, :4000) and `docs/user/` (end-user docs, :4001), each with its own `package.json`, both English. → `docs/memory/content/decisions/0005-fumadocs-as-agent-memory.mdx`
+- Feature work happens in a worktree created with `mise run worktree:new <name>` (branches off `develop`, assigns a port offset). Never hand-edit ports; `mise run ports` shows the map. → `docs/memory/content/howtos/work-in-a-worktree.mdx`

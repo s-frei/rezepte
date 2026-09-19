@@ -3,7 +3,7 @@ description = "Install user-docs dependencies"
 run = "bun install --frozen-lockfile"
 
 [tasks.dev]
-description = "Run the user docs on :4001/rezepte"
+description = "Run the user docs on :4001/rezepte by default (mise run ports for this worktree)"
 run = "bun run dev"
 
 [tasks.build]
@@ -20,7 +20,7 @@ depends = ["//service:build"]
 run = ["scripts/with-demo.sh bun run openapi:fetch", "bun run openapi:generate"]
 
 [tasks.screenshots]
-description = "Regenerate the screenshots against rezepte --demo on :8070 (needs a Chromium that starts; not run in CI)"
+description = "Regenerate the screenshots against rezepte --demo on :8070 by default (needs a Chromium that starts; not run in CI)"
 depends = ["//service:build"]
 # `--update-snapshots` alone writes only what exceeds maxDiffPixelRatio, so a
 # change too small for the tolerance - a typeface swap across a few lines of a

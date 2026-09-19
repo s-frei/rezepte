@@ -1,0 +1,79 @@
+---
+title: Work in a worktree
+description: One worktree per feature, one port offset per worktree
+---
+
+<Callout type="warn" title="Hard rule">
+
+  Feature work happens in a worktree created with `mise run worktree:new <name>`. Never hand-edit a port; `mise run ports` shows the map. See [ADR 0018](/decisions/0018-worktrees-and-port-offsets).
+
+</Callout>
+
+<Steps>
+  <Step>
+
+    ### Create the worktree
+
+    ```bash
+    mise run worktree:new <name>
+    ```
+
+    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml` and printed along with the rest of the port map. `cd` into the new directory and work there.
+
+    Until this lands on `develop`, a worktree cut from it has no `[env]` block, no `scripts/`, and no `ports` task to receive that offset, so the script's own final `mise run ports` fails there - this resolves once the merge happens.
+
+  </Step>
+  <Step>
+
+    ### Read the port map
+
+    ```bash
+    mise run ports
+    ```
+
+    Prints this worktree's offset and every port derived from it. Run it whenever you need a number for a browser tab, a `curl`, or another tool that needs one spelled out.
+
+    | Service | Port at offset 0 |
+    |---|---|
+    | Go API (`RZP_BACKEND_PORT`) | 8060 |
+    | Vite dev server (`RZP_FRONTEND_PORT`) | 9060 |
+    | Demo instance (`RZP_DEMO_PORT`) | 8070 |
+    | Docs memory (`RZP_DOCS_MEMORY_PORT`) | 4000 |
+    | Docs user (`RZP_DOCS_USER_PORT`) | 4001 |
+
+    A worktree at offset *n* adds `n * 100` to each. The main checkout is always offset 0 and keeps exactly these numbers.
+
+  </Step>
+  <Step>
+
+    ### Never commit `mise.local.toml`
+
+    It is gitignored on purpose - it is where the offset lives, and it must stay local to the worktree. `mise run check` runs a `guard:local-config` task that fails the gate if one is ever force-added and committed anyway. If that happens, `git rm --cached mise.local.toml` and keep it untracked.
+
+  </Step>
+  <Step>
+
+    ### Clean up when the feature is done
+
+    ```bash
+    git worktree remove .claude/worktrees/<name>
+    git branch -d feat/<name>
+    ```
+
+    There is no separate offset registry to update. The live worktrees *are* the register - `worktree:new` finds a free offset by reading `mise.local.toml` out of each one still on disk, so removing the worktree frees its offset immediately, and nothing can go stale. `git worktree remove` succeeds here because `mise.local.toml` is gitignored; if the worktree also holds other untracked files you created yourself, it refuses and names `--force` in its own error.
+
+    `git branch -d` only refuses if the branch is not merged **into the branch you are currently standing on** - after merging `feat/<name>` into `develop`, `-d` still refuses it from anywhere else. If it refuses, confirm the branch really is merged with `git merge-base --is-ancestor feat/<name> develop` and then use `-D`.
+
+  </Step>
+  <Step>
+
+    ### The ceiling is nine
+
+    Offsets run 1-9; the main checkout holds 0. A tenth simultaneous worktree has nowhere to go, and `worktree:new` fails with the list of who holds what rather than guessing. Remove one first.
+
+  </Step>
+</Steps>
+
+## If you use the native `git worktree` tool directly
+
+`mise run worktree:new` is the supported path because it names `develop` explicitly as the base branch and assigns the offset for you. The harness's own worktree tool defaults to `origin/main` (the release branch, far behind `develop`) unless `.claude/settings.json` sets `worktree.baseRef` to `head` - and even then, `head` is only correct when you happen to be standing on `develop` already. If you create a worktree by hand, check the base yourself and write its `mise.local.toml` yourself; nothing else picks an offset for you.

@@ -18,9 +18,9 @@ description: Dev servers, builds and the check gate
     ```bash
     REZEPTE_ADMIN_PASSWORD=change-me mise run dev
     ```
-    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api` and `/images` to Go).
+    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api` and `/images` to Go) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
 
-    The password is only used on the very first start to create the `admin` user. Log in at `http://localhost:9060/login`.
+    The password is only used on the very first start to create the `admin` user. Log in at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree).
 
     Uploads land in `$REZEPTE_DATA_DIR/images/<recipeId>/` (default `./data/images/`, git-ignored with the database, see [Architecture overview](/architecture/overview)); delete that directory together with `rezepte.db` when resetting local data.
 
@@ -31,7 +31,7 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run docs
     ```
-    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` (the base path is set unconditionally so dev matches production - see [ADR 0015](/decisions/0015-publish-user-docs-to-github-pages)).
+    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). The base path on the user docs is set unconditionally so dev matches production - see [ADR 0015](/decisions/0015-publish-user-docs-to-github-pages).
 
   </Step>
   <Step>
@@ -40,7 +40,7 @@ description: Dev servers, builds and the check gate
     ```bash
     cd service && REZEPTE_DATA_DIR=$(mktemp -d) mise exec -- go run ./cmd/rezepte --demo
     ```
-    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with placeholder photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. See [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline).
+    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with placeholder photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. Unlike `mise run dev` above, this runs the binary directly without setting `REZEPTE_ADDR`, so it always binds `:8060` regardless of this worktree's offset. See [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline).
 
   </Step>
   <Step>

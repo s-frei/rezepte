@@ -1,5 +1,6 @@
 // Writes the running demo binary's OpenAPI document to public/openapi.json.
-// Run through `mise run //docs/user:openapi`, which starts the binary on :8070.
+// Run through `mise run //docs/user:openapi`, which starts the binary on its
+// worktree's demo port.
 //
 // The document is behind the session since ADR 0017, so this logs in as the
 // demo admin first and replays the cookie. That is also why the task needs a
@@ -9,7 +10,7 @@ import { writeFileSync } from 'node:fs';
 
 import { DEMO_USER } from './demo-user';
 
-const base = process.env.SCREENSHOT_BASE_URL ?? 'http://localhost:8070';
+const base = process.env.SCREENSHOT_BASE_URL ?? `http://localhost:${process.env.RZP_DEMO_PORT ?? 8070}`;
 
 const login = await fetch(`${base}/api/v1/auth/login`, {
   method: 'POST',

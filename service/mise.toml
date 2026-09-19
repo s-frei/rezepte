@@ -1,6 +1,9 @@
 [tasks.dev]
 description = "Run the API with reload on Go file changes"
-run = "watchexec --restart --exts go --ignore 'internal/web/dist/**' -- go run ./cmd/rezepte"
+# REZEPTE_ADDR is the binary's own variable; RZP_BACKEND_PORT is this
+# worktree's port. Keep the translation here rather than renaming the Go
+# side, which is an operator-facing setting.
+run = "REZEPTE_ADDR=\"${REZEPTE_ADDR:-:$RZP_BACKEND_PORT}\" watchexec --restart --exts go --ignore 'internal/web/dist/**' -- go run ./cmd/rezepte"
 
 [tasks.test]
 description = "Run Go tests"

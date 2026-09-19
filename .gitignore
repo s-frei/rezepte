@@ -2,6 +2,7 @@
 docs/superpowers/
 docs/design_handoff_rezepte/
 .superpowers/
+.claude/worktrees/
 
 # editors / OS
 .idea/
