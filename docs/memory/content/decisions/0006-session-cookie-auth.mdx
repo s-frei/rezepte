@@ -16,7 +16,7 @@ Several household members share one recipe collection. Users are managed in the 
 - CSRF protection: SameSite=Lax plus an `Origin` check on mutating requests.
 - Roles `admin` and `user`. Admin-only routes: user management.
 - A single session middleware (`auth.Middleware`) is installed on the huma API through `httpserver.WithAPIMiddleware`, before any operation can be registered. That is the seam where a bearer-token authenticator and, later, OIDC will be added - as further middleware in the same chain, not a list iterated inside one authenticator.
-- The OpenAPI document, the Scalar docs page and the JSON schemas under `/api/v1/` stay public: they describe the contract and carry no data. huma registers them outside the operation middleware, so protecting them would need a mux-level gate; not worth it for contract-only routes.
+- The OpenAPI document, the Scalar docs page and the JSON schemas under `/api/v1/` stay public: they describe the contract and carry no data. huma registers them outside the operation middleware, so protecting them would need a mux-level gate; not worth it for contract-only routes. **Reversed by [ADR 0017](/decisions/0017-spec-routes-behind-the-session):** the gate turned out to be cheap, and a self-hosted instance on the internet should give a stranger nothing. The rest of this ADR stands.
 
 ## Consequences
 

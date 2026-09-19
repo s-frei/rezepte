@@ -27,7 +27,7 @@ Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at 
 | me | `GET /auth/me` | `{id, username, role}` |
 | change-own-password | `PATCH /auth/me` | body `{currentPassword, password}`; 204; wrong `currentPassword` → `422` at `body.currentPassword`; ends every other session of the caller (see ADR 0011) |
 
-OpenAPI, Scalar docs and schema routes under `/api/v1/` are intentionally public (contract only, no data); see ADR 0006.
+OpenAPI, Scalar docs and schema routes under `/api/v1/` require a session of any role. They are not huma operations, so `auth.Middleware` never sees them - `httpserver.WithSpecGuard` wraps them with `auth.RequireSession` in front of the mux instead. Without a cookie a browser navigating there (a GET asking for `text/html`) is sent to `/login?next=…` with a `303`; every other caller - `fetch`, curl, Scalar reloading the document, any non-GET - gets `401`. See [ADR 0017](/decisions/0017-spec-routes-behind-the-session).
 
 ## Users (admin only)
 
