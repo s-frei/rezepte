@@ -21,7 +21,7 @@ description: Tokens, type scale, components and interaction rules of the “Warm
     | `surface-elevated` | `#ffffff` | inputs, dialog inner areas |
     | `border` | `#e3d7c3` | 1px borders, dashed separators |
     | `text` | `#2b2118` | body text |
-    | `text-muted` | `#7d6d5c` | secondary text, labels |
+    | `text-muted` | `#756554` | secondary text, labels |
     | `primary` / `primary-foreground` | `#b45309` / `#ffffff` | primary buttons, links, active outlines, group headings |
     | `accent` / `accent-foreground` | `#f0dfc4` / `#7c3d0a` | tag chips, step numbers, avatars, secondary buttons |
     | `destructive` / `destructive-foreground` / `destructive-soft` | `#a3321f` / `#ffffff` / `#f9e3dd` | delete actions, error banners |
@@ -142,7 +142,7 @@ Each of these comes from a bug that shipped. Verify them at 360px - see [Verify 
 
 - **An action is never bare text.** "Löschen" in the user list was a 50×20 target and "Entfernen" in the ingredient editor 59×20 - text with a click handler and no padding. Give them a padded pill, even where they read like links.
 - **Actions inside dense rows are 44px tall on phones** (`h-11`) and drop to the table's density on desktop (`md:h-8`). Elsewhere the floor is the `Button` component's own 40px. The chip rows (34px) and the bottom nav (37px) sit below that: a known exception carried for the sake of their row heights, not a precedent to copy.
-- **A title that identifies something wraps, it does not truncate.** `line-clamp-2` beats `truncate` for recipe card titles - a cut-off name is a card you cannot recognise. `truncate` stays right for secondary lines (tag lists, breadcrumbs) and for a title inside a fixed-height bar.
+- **A title that identifies something wraps, it does not truncate.** `line-clamp-3 md:line-clamp-2` beats `truncate` for recipe card titles - a cut-off name is a card you cannot recognise. `truncate` stays right for secondary lines (tag lists, breadcrumbs) and for a title inside a fixed-height bar.
 - **A button never breaks into two lines.** Add `whitespace-nowrap`, and when the row is too narrow give the button its own full-width line (`w-full md:w-auto`) instead. "Benutzer anlegen" next to its heading needed 306px inside a 302px card and wrapped into an oddly tall pill.
 - **Rows with several fields align on one baseline** (`items-center`), and a status hint belongs under its action, not beside it. In the user table "Löschen" sat right-aligned above a left-aligned hint, with the name vertically centred against neither.
 - **A field has to be able to show its own placeholder.** "Gruppe benennen …" needs 140px; sharing its row with a count and a remove button left it 90px on a 360px screen, so a new group opened with its own prompt cut off. Give the field the full line (`w-full md:flex-1`) and let the meta items wrap underneath.
@@ -162,7 +162,7 @@ Three deltas are intentional and must survive any sync:
 
 | Docs token | Docs value | App value | Why |
 |---|---|---|---|
-| `fd-muted-foreground` | `#6f6152` | `#7d6d5c` | The docs' most-used token carries body text (sidebar, TOC, page descriptions). The app value is 4.29:1 on `background` - below AA. |
+| `fd-muted-foreground` | `#6f6152` | `#756554` | The docs' most-used token carries body text (sidebar, TOC, page descriptions); the app's value now clears AA (4.82:1, commit `951d071`), but the docs keep the extra margin (5.15:1) that much reading text needs. |
 | `fd-primary` | `#9a4707` | `#b45309` | Marks the active navigation entry at body size; the app value is 4.32:1. |
 | `fd-accent` | `#eadfcd` (`skeleton`) | `accent` `#f0dfc4` | In Fumadocs `accent` is the hover surface, not a chip. The paper tone stays visible on both `card` (sidebar) and `background` (navbar, TOC). |
 

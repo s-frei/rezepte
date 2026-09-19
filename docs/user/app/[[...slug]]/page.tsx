@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import { source } from '@/lib/source';
-import { getPageMarkdownUrl } from '@/lib/shared';
+import { getPageMarkdownUrl, OG_SHARED } from '@/lib/shared';
 
 type Props = { params: Promise<{ slug?: string[] }> };
 
@@ -41,5 +41,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	const { slug = [] } = await params;
 	const page = source.getPage(slug);
 	if (!page) notFound();
-	return { title: page.data.title, description: page.data.description };
+	return {
+		title: page.data.title,
+		description: page.data.description,
+		openGraph: { ...OG_SHARED, title: page.data.title, description: page.data.description }
+	};
 }

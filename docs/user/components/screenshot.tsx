@@ -14,6 +14,12 @@ type Props = {
 const DESKTOP = { width: 1440, height: 900 };
 const MOBILE = { width: 412, height: 915 };
 
+// next/image's `unoptimized` loader returns `src` verbatim - it does not
+// prefix `basePath` the way every other Next-managed asset does - so the
+// base path has to be applied here explicitly, the same way app/layout.tsx
+// does it. See ADR 0015.
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+
 function hasPng(file: string): boolean {
 	return existsSync(path.join(process.cwd(), 'public', 'screenshots', file));
 }
@@ -43,7 +49,7 @@ export function Screenshot({ name, caption, mobile = false }: Props) {
 					return (
 						<ImageZoom
 							key={scheme}
-							src={`/screenshots/${file}`}
+							src={`${basePath}/screenshots/${file}`}
 							alt={caption}
 							width={size.width}
 							height={size.height}

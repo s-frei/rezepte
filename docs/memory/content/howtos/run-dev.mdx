@@ -31,7 +31,7 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run docs
     ```
-    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001`.
+    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` (the base path is set unconditionally so dev matches production - see [ADR 0015](/decisions/0015-publish-user-docs-to-github-pages)).
 
   </Step>
   <Step>
