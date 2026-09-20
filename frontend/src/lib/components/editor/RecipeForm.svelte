@@ -260,23 +260,34 @@
 	</div>
 
 	<div class="mt-5 md:grid md:grid-cols-[200px_minmax(0,720px)] md:items-start md:gap-14">
-		<nav
-			aria-label={m.editor_sections_label()}
-			class="sticky top-6 hidden flex-col gap-1.5 text-body-sm font-medium text-text-muted md:flex"
-		>
-			{#each sections as section (section.id)}
-				<button
-					type="button"
-					onclick={() => scrollToSection(section.id)}
-					aria-current={activeSection === section.id ? 'true' : undefined}
-					class="rounded-pill px-3.5 py-2 text-left transition {activeSection === section.id
-						? 'bg-surface font-semibold text-text'
-						: 'hover:text-text'}"
-				>
-					{section.label}
-				</button>
-			{/each}
-		</nav>
+		<!--
+			The rail is one sticky block: the section entries and, under them,
+			the save actions. Keeping the actions here rather than over the
+			form is what stops them covering anything - see `SaveBar`. The
+			wrapper carries no `hidden`, because `SaveBar`'s phone branch is
+			`fixed` and renders from inside it; the nav hides itself instead.
+		-->
+		<div class="md:sticky md:top-6 md:flex md:flex-col md:gap-5">
+			<nav
+				aria-label={m.editor_sections_label()}
+				class="hidden flex-col gap-1.5 text-body-sm font-medium text-text-muted md:flex"
+			>
+				{#each sections as section (section.id)}
+					<button
+						type="button"
+						onclick={() => scrollToSection(section.id)}
+						aria-current={activeSection === section.id ? 'true' : undefined}
+						class="rounded-pill px-3.5 py-2 text-left transition {activeSection === section.id
+							? 'bg-surface font-semibold text-text'
+							: 'hover:text-text'}"
+					>
+						{section.label}
+					</button>
+				{/each}
+			</nav>
+
+			<SaveBar {dirty} {saving} oncancel={handleCancel} onsave={handleSave} />
+		</div>
 
 		<form {@attach trackSections} onsubmit={(event) => event.preventDefault()} class="space-y-5">
 			<section id="editor-section-basics" class={sectionCard}>
@@ -312,8 +323,6 @@
 		</form>
 	</div>
 </div>
-
-<SaveBar {dirty} {saving} oncancel={handleCancel} onsave={handleSave} />
 
 <ConfirmDialog
 	bind:open={discardOpen}

@@ -1,11 +1,25 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
 	import { createRecipe, emptyInput, uploadImage, type RecipeInput } from '$lib/api/recipes';
 	import RecipeForm from '$lib/components/editor/RecipeForm.svelte';
 	import { m } from '$lib/paraglide/messages';
 
-	const initial = emptyInput();
+	// `?title=` prefills the title and nothing else, for "Als neues Rezept" on
+	// the overview's no-results state: someone searched for a dish, found
+	// none, and is about to write it down under that name. It stays a purely
+	// client-side hand-over - the recipe is created on "Speichern" like any
+	// other, so no API or contract is involved in carrying the term across.
+	//
+	// Read once, like `RecipeForm` reads `initial` once: these are starting
+	// values, and re-seeding them from a later URL would throw away whatever
+	// has been typed since.
+	const initial = untrack(() => ({
+		...emptyInput(),
+		title: page.url.searchParams.get('title')?.trim() ?? ''
+	}));
 
 	/**
 	 * Creates the recipe, then uploads the queued images one by one. A failed

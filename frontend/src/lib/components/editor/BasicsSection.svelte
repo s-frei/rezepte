@@ -32,7 +32,25 @@
 		placeholder={m.editor_description_placeholder()}
 	/>
 
-	<div class="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+	<!--
+		The source gets its own full-width line, under the description and
+		above the numbers. A URL is the longest value this form takes, and as
+		one of four columns it had about a quarter of the card to show it in -
+		too little to tell two recipes from the same site apart. Length is what
+		decides the line here, not the field's kind: the three numbers are two
+		digits each and share a row happily.
+	-->
+	<Input
+		id="editor-sourceUrl"
+		label={m.recipe_source()}
+		bind:value={form.sourceUrl}
+		error={errors.sourceUrl ?? null}
+		type="url"
+		inputmode="url"
+		placeholder={m.editor_source_placeholder()}
+	/>
+
+	<div class="grid gap-3 sm:grid-cols-3">
 		<!-- Deliberately `type="text"`: `bind:value` on a number input hands
 		     back a number (or null), and every form field here is a string the
 		     validation parses itself. `validate` enforces the 1-99 range. -->
@@ -61,15 +79,6 @@
 			suffix={m.editor_minutes_suffix()}
 			type="text"
 			inputmode="numeric"
-		/>
-		<Input
-			id="editor-sourceUrl"
-			label={m.recipe_source()}
-			bind:value={form.sourceUrl}
-			error={errors.sourceUrl ?? null}
-			type="url"
-			inputmode="url"
-			placeholder={m.editor_source_placeholder()}
 		/>
 	</div>
 

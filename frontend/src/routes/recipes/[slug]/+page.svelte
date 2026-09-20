@@ -16,6 +16,7 @@
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
+	import FavouriteStar from '$lib/components/recipe/FavouriteStar.svelte';
 	import ImageGallery from '$lib/components/recipe/ImageGallery.svelte';
 	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
 	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
@@ -257,7 +258,22 @@
 			{/if}
 		</div>
 
-		<div class="md:grid md:grid-cols-[1fr_420px] md:items-start md:gap-10">
+		<!--
+			The cover column is `minmax(0,420px)`, not a flat `420px`: a `1fr`
+			track cannot shrink past its own min-content, and here that floor
+			is the longest word of the title at 52px - 335px for "Königsberger".
+			With a rigid 420px beside it the row demanded 795px, which is more
+			than this card has between 768px (where the two columns appear) and
+			about 858px, and the cover hung over the edge of the page. Letting
+			the cover give way keeps the title's floor intact; above 858px the
+			cover still takes its full 420px and nothing about this row changes.
+
+			The text column keeps its plain `1fr` on purpose. `minmax(0,1fr)`
+			there would take the floor out from under the title instead, and
+			the word would leave its column rather than the cover leaving the
+			page - the same overflow, one step further in.
+		-->
+		<div class="md:grid md:grid-cols-[1fr_minmax(0,420px)] md:items-start md:gap-10">
 			<div>
 				{#if recipe.tags.length > 0}
 					<div class="flex flex-wrap gap-2">
@@ -266,9 +282,14 @@
 						{/each}
 					</div>
 				{/if}
-				<h1 class="mt-3 font-display text-display-md font-medium md:mt-4 md:text-display-xl">
-					{recipe.title}
-				</h1>
+				<div class="mt-3 flex items-start gap-3 md:mt-4">
+					<h1 class="font-display text-display-md font-medium md:text-display-xl">
+						{recipe.title}
+					</h1>
+					<div class="mt-1 shrink-0 md:mt-2">
+						<FavouriteStar id={recipe.id} active={recipe.favourite} />
+					</div>
+				</div>
 				{#if recipe.description}
 					<p class="mt-3 text-body-lg text-text-muted">{recipe.description}</p>
 				{/if}

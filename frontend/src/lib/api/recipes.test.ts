@@ -18,9 +18,9 @@ afterEach(() => vi.unstubAllGlobals());
 describe('listRecipes', () => {
 	it('builds the query string from the given params', async () => {
 		const fn = mockFetch({ items: [], page: 1, limit: 24, total: 0 });
-		await listRecipes({ q: 'soup', tag: 'vegan', page: 2, limit: 10 });
+		await listRecipes({ q: 'soup', tags: ['vegan', 'quick'], page: 2, limit: 10 });
 		const [url] = fn.mock.calls[0] as unknown as [string];
-		expect(url).toBe('/api/v1/recipes?q=soup&tag=vegan&page=2&limit=10');
+		expect(url).toBe('/api/v1/recipes?q=soup&tags=vegan%2Cquick&page=2&limit=10');
 	});
 
 	it('omits unset params', async () => {

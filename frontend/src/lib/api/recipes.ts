@@ -11,6 +11,8 @@ export type RecipeCard = {
 	totalMinutes: number | null;
 	coverImageId: string | null;
 	updatedAt: string;
+	/** Whether the signed-in user has starred this recipe. */
+	favourite: boolean;
 };
 
 export type Image = { id: string; width: number; height: number; position: number };
@@ -49,6 +51,8 @@ export type Recipe = RecipeInput & {
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
+	/** Whether the signed-in user has starred this recipe. */
+	favourite: boolean;
 };
 
 export type RecipePage = {
@@ -77,22 +81,40 @@ export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 /**
- * Lists recipe cards, optionally filtered by search term and/or tag, paginated.
+ * Lists recipe cards, optionally filtered by search term and/or a
+ * combination of tags, paginated.
  *
  * `init` is forwarded to the underlying `fetch` call (e.g. `{ signal }` to
  * cancel a stale request when the overview page's filters change again
  * before this one resolves).
  */
 export function listRecipes(
-	params: { q?: string; tag?: string; page?: number; limit?: number } = {},
+	params: {
+		q?: string;
+		tags?: string[];
+		maxMinutes?: number;
+		favourites?: boolean;
+		sort?: 'updated' | 'created' | 'title';
+		page?: number;
+		limit?: number;
+	} = {},
 	init: RequestInit = {}
 ): Promise<RecipePage> {
 	const query = new URLSearchParams();
 	if (params.q) {
 		query.set('q', params.q);
 	}
-	if (params.tag) {
-		query.set('tag', params.tag);
+	if (params.tags && params.tags.length > 0) {
+		query.set('tags', params.tags.join(','));
+	}
+	if (params.maxMinutes !== undefined && params.maxMinutes > 0) {
+		query.set('maxMinutes', String(params.maxMinutes));
+	}
+	if (params.favourites) {
+		query.set('favourites', 'true');
+	}
+	if (params.sort !== undefined && params.sort !== 'updated') {
+		query.set('sort', params.sort);
 	}
 	if (params.page !== undefined) {
 		query.set('page', String(params.page));
@@ -102,6 +124,13 @@ export function listRecipes(
 	}
 	const qs = query.toString();
 	return api<RecipePage>(`/recipes${qs ? `?${qs}` : ''}`, init);
+}
+
+/** Sets or clears the star on a recipe for the signed-in user. */
+export async function setFavourite(id: string, on: boolean): Promise<void> {
+	await api<void>(`/recipes/${encodeURIComponent(id)}/favourite`, {
+		method: on ? 'PUT' : 'DELETE'
+	});
 }
 
 /** Fetches a single recipe by its human-readable slug. */

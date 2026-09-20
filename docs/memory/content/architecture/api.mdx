@@ -5,6 +5,16 @@ description: Conventions, auth and error format
 
 Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`.
 
+## Interactive docs
+
+`/api/v1/docs` is Scalar, rendered by huma from the same OpenAPI document, and it wears the app's colours. `service/internal/httpserver/scalar_theme.css` maps the design tokens in `frontend/src/app.css` onto Scalar's `--scalar-*` variables; it is embedded into the binary and handed to Scalar as `customCss`, because huma renders the page itself and its CSP permits inline styles only. The values are copied rather than imported, so `scalar_theme_test.go` reads `app.css` and fails on any colour there that is no longer one of its tokens.
+
+Only the colours are ours. Typography and layout stay Scalar's, and so do the six semantic colours for HTTP methods and status codes - the app's palette is warm and narrow, and would leave GET, POST and DELETE hard to tell apart. Webfonts are out of reach in any case: huma's CSP declares no `font-src`.
+
+Two of Scalar's own features are off in `DocsRendererConfig`, both of which lead away from the contract and into Scalar's product: the API client (`hideClientButton`) and the assistant (`agent.disabled`). `hideModels` drops the schema list. The page keeps its own light/dark choice rather than following the app's, because huma leaves no room for a script that could read it.
+
+The Scalar bundle is fetched from `unpkg.com` at runtime - huma pins the version and an SRI hash, and allows that one origin - so the page needs outbound internet to render. The OpenAPI document is served from the binary and works offline.
+
 ## Authentication
 
 <Tabs items={['Cookie session', 'Public']}>
@@ -60,11 +70,11 @@ Every operation below requires an admin session; a non-admin session gets `403` 
 | Param | Notes |
 |---|---|
 | `q` | full-text search across title, description, ingredient names and tags (max 100 chars); prefix-matched, umlaut/ASCII-insensitive - see [Recipes and search](/features/recipes) |
-| `tag` | restricts to recipes carrying **exactly one** tag name (max 40 chars, trimmed and lower-cased before matching). There is no way to filter by more than one tag in a single request - the frontend's multi-select tag filter sends only the first selected tag here and narrows further client-side within already-loaded pages |
+| `tags` | comma-separated tag names (each max 40 chars, trimmed and lower-cased before matching); restricts to recipes carrying **all** of them (AND, not OR). Normalised and de-duplicated server-side and capped at 20 entries after deduplication - see [Recipes and search](/features/recipes) |
 | `page` | 1-based, defaults to 1 |
 | `limit` | defaults to 24, clamped to `[1, 100]` |
 
-`q` and `tag` combine with AND when both are set.
+`q` and `tags` combine with AND when both are set.
 
 Validation summary for the recipe input body (`Input` in `internal/recipe/recipe.go`): `title` 1-200 chars, `description` ≤ 2000 chars, `servings` 1-99, `prepMinutes`/`cookMinutes` 0-1440 or `null`, `sourceUrl` ≤ 500 chars or `null` (must be a URI), `tags` ≤ 20 entries of 1-40 chars each, `ingredientGroups` 1-20 groups of ≤ 100 ingredients each (ingredient `name` 1-120 chars, `unit` ≤ 20 chars or `null`, `note` ≤ 200 chars or `null`, `quantity` ≥ 0 or `null`), `steps` ≤ 50 entries of 1-2000 chars each. Violations come back as the standard `422` problem body below.
 

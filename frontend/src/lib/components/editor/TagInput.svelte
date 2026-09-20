@@ -5,6 +5,7 @@
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { MAX_TAGS, normaliseTag } from '$lib/recipe/form';
+	import { tagSuggestions } from '$lib/recipe/tag-suggestions';
 
 	let {
 		tags = $bindable([]),
@@ -20,19 +21,27 @@
 	let query = $state('');
 	let known = $state<string[]>([]);
 	let open = $state(false);
-	let highlighted = $state(0);
+	/** -1 means "nothing chosen yet", so Enter commits what was typed. */
+	let highlighted = $state(-1);
 
 	const atLimit = $derived(tags.length >= MAX_TAGS);
+	const suggestions = $derived(tagSuggestions({ query, known, selected: tags }));
 
-	const suggestions = $derived.by(() => {
-		const prefix = normaliseTag(query);
-		if (prefix === '') {
-			return [];
+	/** The rows as rendered: existing tags first, the creation row last. */
+	const rows = $derived([
+		...suggestions.matches.map((name) => ({ name, isNew: false })),
+		...(suggestions.create ? [{ name: suggestions.create, isNew: true }] : [])
+	]);
+	const listboxOpen = $derived(open && rows.length > 0);
+
+	// The list scrolls once it outgrows `max-h-64`, so arrowing past the
+	// visible rows has to bring the chosen one along.
+	$effect(() => {
+		if (!listboxOpen || highlighted < 0) {
+			return;
 		}
-		return known.filter((name) => name.startsWith(prefix) && !tags.includes(name)).slice(0, 8);
+		document.getElementById(`${id}-option-${highlighted}`)?.scrollIntoView({ block: 'nearest' });
 	});
-
-	const listboxOpen = $derived(open && suggestions.length > 0);
 
 	// Suggestions are a convenience - if the tag list can't be fetched the
 	// field still takes free text, so the error is swallowed rather than
@@ -49,7 +58,7 @@
 		const tag = normaliseTag(candidate);
 		query = '';
 		open = false;
-		highlighted = 0;
+		highlighted = -1;
 		if (tag === '' || tags.includes(tag) || atLimit) {
 			return;
 		}
@@ -60,40 +69,49 @@
 		tags = tags.filter((entry) => entry !== tag);
 	}
 
-	function handleInput() {
-		open = true;
-		highlighted = 0;
+	function commitTyped() {
+		// Clicking "Speichern" blurs the field; discarding the text here is
+		// what used to lose the tag the user had just typed.
+		if (query.trim() !== '') {
+			add(query);
+		}
+		open = false;
+		highlighted = -1;
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
 		switch (event.key) {
 			case 'ArrowDown':
-				if (suggestions.length > 0) {
+				if (rows.length > 0) {
 					event.preventDefault();
 					open = true;
-					highlighted = (highlighted + 1) % suggestions.length;
+					highlighted = (highlighted + 1) % rows.length;
 				}
 				break;
 			case 'ArrowUp':
-				if (suggestions.length > 0) {
+				if (rows.length > 0) {
 					event.preventDefault();
 					open = true;
-					highlighted = (highlighted - 1 + suggestions.length) % suggestions.length;
+					highlighted = (highlighted - 1 + rows.length) % rows.length;
 				}
 				break;
 			case 'Enter':
 			case ',':
-				// Enter must not submit the surrounding form while the user is
-				// still assembling tags.
 				event.preventDefault();
-				add(listboxOpen ? suggestions[highlighted] : query);
+				// Only an arrow-key choice beats what was typed - otherwise a new
+				// tag that is a prefix of an existing one could never be created.
+				add(highlighted >= 0 && listboxOpen ? rows[highlighted].name : query);
 				break;
 			case 'Escape':
 				if (listboxOpen) {
-					// Swallowed so the first Escape only closes the suggestions.
+					// The first Escape only dismisses the suggestions and clears
+					// the typed text; swallowed so it doesn't also reach the
+					// editor's discard guard.
 					event.preventDefault();
 					event.stopPropagation();
+					query = '';
 					open = false;
+					highlighted = -1;
 				}
 				break;
 			case 'Backspace':
@@ -125,10 +143,13 @@
 				<input
 					{id}
 					bind:value={query}
-					oninput={handleInput}
+					oninput={() => {
+						open = true;
+						highlighted = -1;
+					}}
 					onkeydown={handleKeydown}
 					onfocus={() => (open = true)}
-					onblur={() => (open = false)}
+					onblur={commitTyped}
 					type="text"
 					autocomplete="off"
 					spellcheck="false"
@@ -136,9 +157,11 @@
 					aria-expanded={listboxOpen}
 					aria-controls="{id}-listbox"
 					aria-autocomplete="list"
-					aria-activedescendant={listboxOpen ? `${id}-option-${highlighted}` : undefined}
+					aria-activedescendant={listboxOpen && highlighted >= 0
+						? `${id}-option-${highlighted}`
+						: undefined}
 					aria-invalid={error ? 'true' : undefined}
-					aria-describedby={error ? `${id}-error` : undefined}
+					aria-describedby={error ? `${id}-error` : !atLimit ? `${id}-hint` : undefined}
 					placeholder={m.editor_tag_add_placeholder()}
 					class="min-w-32 flex-1 bg-transparent px-2 py-1 text-body-sm outline-none placeholder:text-text-muted"
 				/>
@@ -149,24 +172,35 @@
 				id="{id}-listbox"
 				role="listbox"
 				aria-label={m.editor_tag_suggestions()}
-				class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-md bg-surface-elevated py-1 shadow-dialog"
+				onpointerdown={(event) => {
+					// Keeps focus in the field so `onblur` doesn't commit the
+					// half-typed text before the option's handler runs. On the
+					// list itself, so its padding and scrollbar are covered too.
+					event.preventDefault();
+				}}
+				class="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md bg-surface-elevated py-1 shadow-dialog"
 			>
-				{#each suggestions as name, index (name)}
+				{#each rows as row, index (row.isNew ? `new:${row.name}` : row.name)}
 					<li
 						id="{id}-option-{index}"
 						role="option"
 						aria-selected={index === highlighted}
-						onmousedown={(event) => {
-							// Keeps focus in the field so `onblur` doesn't close the
-							// listbox before the option is picked.
+						onpointerdown={(event) => {
+							// Keeps focus in the field so `onblur` doesn't fire first;
+							// pointer events fire before mousedown and the focus
+							// shift on every modern engine, touch included.
 							event.preventDefault();
-							add(name);
+							add(row.name);
 						}}
 						class="cursor-pointer px-3 py-2 text-body-sm {index === highlighted
 							? 'bg-background font-semibold'
 							: ''}"
 					>
-						{name}
+						{#if row.isNew}
+							<span class="text-text-muted">{m.editor_tag_create({ name: row.name })}</span>
+						{:else}
+							{row.name}
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -174,5 +208,7 @@
 	</div>
 	{#if error}
 		<p id="{id}-error" class="text-micro font-medium text-destructive">{error}</p>
+	{:else if !atLimit}
+		<p id="{id}-hint" class="text-micro text-text-muted">{m.editor_tag_hint()}</p>
 	{/if}
 </div>

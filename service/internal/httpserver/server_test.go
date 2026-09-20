@@ -51,6 +51,12 @@ func TestDocsIsServed(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "scalar") {
 		t.Fatalf("got %d, body contains scalar: %v", rec.Code, strings.Contains(rec.Body.String(), "scalar"))
 	}
+	// The palette travels inside the HTML-escaped data-configuration
+	// attribute, so a broken embed or a renamed config key shows up as a
+	// page that still renders and is simply no longer ours.
+	if !strings.Contains(rec.Body.String(), "--scalar-background-1") {
+		t.Fatal("docs page does not carry the app palette")
+	}
 }
 
 func TestSPAFallbackIsWired(t *testing.T) {

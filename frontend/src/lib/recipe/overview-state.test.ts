@@ -4,10 +4,8 @@ import { overviewViewState } from './overview-state';
 function state(overrides: Partial<Parameters<typeof overviewViewState>[0]> = {}) {
 	return overviewViewState({
 		loading: false,
-		q: '',
-		tagCount: 0,
+		filtered: false,
 		itemCount: 0,
-		visibleItemCount: 0,
 		total: 0,
 		...overrides
 	});
@@ -18,8 +16,31 @@ describe('overviewViewState', () => {
 		expect(state()).toEqual({ isEmpty: true, isNoResults: false, canLoadMore: false });
 	});
 
-	it('is no-results (not empty) when a search matches nothing and there are no more pages', () => {
-		expect(state({ q: 'pasta', itemCount: 0, visibleItemCount: 0, total: 0 })).toEqual({
+	it('is no-results (not empty) when a search matches nothing', () => {
+		expect(state({ filtered: true, itemCount: 0, total: 0 })).toEqual({
+			isEmpty: false,
+			isNoResults: true,
+			canLoadMore: false
+		});
+	});
+
+	it('reports no results when a filter matches nothing', () => {
+		expect(overviewViewState({ loading: false, filtered: true, itemCount: 0, total: 0 })).toEqual({
+			isEmpty: false,
+			isNoResults: true,
+			canLoadMore: false
+		});
+	});
+
+	// Pins the bug fixed alongside this generalisation: overviewViewState used
+	// to take `q`/`tagCount` separately, so a filter this function did not
+	// know about yet (maximum time) fell through as "no filter active" and a
+	// time-only search with zero matches showed the "create your first
+	// recipe" empty state instead of "no results". A single `filtered` flag
+	// means the next filter is one clause where the page derives it, not
+	// another parameter here.
+	it('reports no results, not empty, when any filter narrows to zero matches', () => {
+		expect(state({ filtered: true, total: 0, itemCount: 0 })).toEqual({
 			isEmpty: false,
 			isNoResults: true,
 			canLoadMore: false
@@ -27,7 +48,7 @@ describe('overviewViewState', () => {
 	});
 
 	it('renders the grid with more-to-load when items are visible and more pages exist', () => {
-		expect(state({ itemCount: 24, visibleItemCount: 24, total: 50 })).toEqual({
+		expect(state({ itemCount: 24, total: 50 })).toEqual({
 			isEmpty: false,
 			isNoResults: false,
 			canLoadMore: true
@@ -35,29 +56,24 @@ describe('overviewViewState', () => {
 	});
 
 	it('renders the grid without a load-more button on the last page', () => {
-		expect(state({ itemCount: 50, visibleItemCount: 50, total: 50 })).toEqual({
+		expect(state({ itemCount: 50, total: 50 })).toEqual({
 			isEmpty: false,
 			isNoResults: false,
 			canLoadMore: false
 		});
 	});
 
-	it('regression: offers "Mehr laden" instead of no-results when the client-side multi-tag filter hides everything loaded so far but more pages remain', () => {
-		// e.g. two tags selected; the server only filtered by the first, and
-		// none of the first page's items also carry the second tag - but
-		// there's more to fetch (24 loaded out of 50 total).
-		expect(state({ tagCount: 2, itemCount: 24, visibleItemCount: 0, total: 50 })).toEqual({
-			isEmpty: false,
-			isNoResults: false,
-			canLoadMore: true
-		});
-	});
-
-	it('is no-results once the multi-tag filter hides everything and every page has been loaded', () => {
-		expect(state({ tagCount: 2, itemCount: 50, visibleItemCount: 0, total: 50 })).toEqual({
+	it('pins the caller invariant: an empty page never carries a nonzero total', () => {
+		// The function is pure and cannot verify `itemCount === 0 implies
+		// total === 0` itself - `fetchPage` in +page.svelte guarantees it by
+		// always setting `items` and `total` from the same response. Fed a
+		// combination that invariant rules out, this is what comes back:
+		// misclassified as no-results (and, incoherently, loadable further)
+		// rather than a loaded page of five.
+		expect(state({ itemCount: 0, total: 5 })).toEqual({
 			isEmpty: false,
 			isNoResults: true,
-			canLoadMore: false
+			canLoadMore: true
 		});
 	});
 
@@ -67,9 +83,7 @@ describe('overviewViewState', () => {
 			isNoResults: false,
 			canLoadMore: false
 		});
-		expect(
-			state({ loading: true, q: 'pasta', itemCount: 0, visibleItemCount: 0, total: 0 })
-		).toEqual({
+		expect(state({ loading: true, filtered: true, itemCount: 0, total: 0 })).toEqual({
 			isEmpty: false,
 			isNoResults: false,
 			canLoadMore: false

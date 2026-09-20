@@ -4,6 +4,12 @@
 
 package sqlc
 
+type Favourite struct {
+	UserID    string
+	RecipeID  string
+	CreatedAt string
+}
+
 type Image struct {
 	ID        string
 	RecipeID  string
