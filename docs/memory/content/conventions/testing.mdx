@@ -7,7 +7,7 @@ description: What to test and how, per package
   <Tab value="Go">
 
     - Standard `testing` package, table tests with `t.Run`, no assertion libraries, no mocking frameworks.
-    - Database tests use a real in-memory SQLite migrated with goose (helper in `internal/db`).
+    - Database tests run against a real migrated database, never a mock or a hand-built schema: take one from `dbtest.Open(t)` in `service/internal/db/dbtest/`. [Data model](/architecture/data-model) owns what it opens.
     - Handler tests use `humatest` against the registered API.
     - Test names describe behaviour: `TestCreateRecipeRejectsEmptyTitle`.
 
@@ -21,7 +21,7 @@ description: What to test and how, per package
   </Tab>
 </Tabs>
 
-`mise run check` runs every gate and is what CI runs.
+`mise run check` runs every package gate. CI runs the same command, and more besides, so a green `check` locally is not the whole of the CI job ([Toolchain](/architecture/toolchain)).
 
 <Callout type="warn" title="UI changes and the user docs">
 

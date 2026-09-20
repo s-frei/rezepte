@@ -6,7 +6,7 @@ description: Runes, Bits UI, Tailwind, i18n
 - Svelte 5 runes only (`$state`, `$derived`, `$props`, `$effect`). No `export let`, no stores for local state.
 - TypeScript in every component: `<script lang="ts">`.
 - Props are typed inline: `let { title, onSave }: { title: string; onSave: () => void } = $props();`.
-- UI text comes from Paraglide: `import { m } from '$lib/paraglide/messages'` and `m.key()`. Never hard-code German strings.
+- UI text comes from Paraglide: `import { m } from '$lib/paraglide/messages'` and `m.key()`. Never hard-code German strings - new text means a new message key, see [Add a translation](/howtos/add-translation).
 - Components wrap Bits UI primitives when one exists; put reusable styled wrappers in `src/lib/components/ui`.
 - Tailwind utility classes in markup; every colour, radius, shadow and font is a token from `src/app.css` (`@theme`). No raw hex values or arbitrary colours in components. See [Design system](/architecture/design-system).
 - Data access goes through `src/lib/api`; components never call `fetch` directly.

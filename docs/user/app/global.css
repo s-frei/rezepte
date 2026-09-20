@@ -17,13 +17,15 @@
 @import '@fontsource/ibm-plex-mono/500.css';
 
 /*
- * The user docs wear the frontend's "Warm & handmade" palette (ADR 0007).
+ * The user docs wear the frontend's "Warm & handmade" palette
+ * (docs/memory/content/architecture/design-system.mdx).
  * Fumadocs reads every colour from a `--color-fd-*` variable and hardcodes
  * none, so mapping those onto the Rezepte values is the whole job.
  *
  * The values below are a copy of frontend/src/app.css, not an import: the two
- * apps stay independent (ADR 0005). ADR 0014 records that, and the two places
- * where the docs deliberately differ from the app.
+ * apps stay independent (docs/memory/content/architecture/docs.mdx), and
+ * docs/memory/content/architecture/design-system.mdx carries this mapping
+ * and the places where the docs deliberately differ from the app.
  */
 
 @theme {

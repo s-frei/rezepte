@@ -8,7 +8,8 @@ export const dynamic = 'force-static';
 // honoured at the origin root, and that origin (s-frei.github.io) belongs to a
 // different repository. Kept anyway: it costs nothing, becomes correct if this site
 // ever moves to a custom domain, and documents intent. Until then the sitemap has to
-// be submitted to search engines manually (see ADR 0015).
+// be submitted to search engines manually (see
+// docs/memory/content/architecture/docs.mdx).
 export default function robots(): MetadataRoute.Robots {
 	return {
 		rules: { userAgent: '*', allow: '/' },

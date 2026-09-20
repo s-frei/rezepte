@@ -1,0 +1,41 @@
+---
+title: Demo mode
+description: A flag that fills an empty instance with the twelve sample recipes and Go-rendered placeholder photos
+---
+
+`rezepte --demo` fills an empty instance with sample recipes and stand-in photos, so screenshots have realistic data and manual testing has something to click through. The flag is declared in `service/cmd/rezepte/main.go` and everything it does lives in `service/internal/demo/seed.go`.
+
+## How it works
+
+**It seeds like any other run, into the configured data directory.** `demo.Seed` builds the same `recipe.Service` and `image.Service` the API uses and writes through them, into `REZEPTE_DATA_DIR` (default `./data`) with the photos under its `images/` subdirectory. The flag does not invent a temporary directory of its own. Seeding runs after the initial admin is ensured and before the HTTP server starts listening, so `/healthz` answers only once the instance is fully populated.
+
+**Idempotence is a recipe count.** `Seed` calls `recipe.Service.Count` first; anything above zero is logged and returns `Summary{Skipped: true}` with nothing written. A second `--demo` run and a `--demo` run against a directory that already holds recipes are therefore the same no-op.
+
+**The fixtures are embedded Go data.** `recipe.Samples()` in `service/internal/recipe/samples.go` unmarshals `service/internal/recipe/testdata/recipes.json`, embedded into the binary with `go:embed` — twelve German recipes shared by the recipe tests, the end-to-end suite and demo mode, reparsed on every call so a caller may modify what it gets. `Seed` creates them back to front, because the overview sorts by `updated_at` descending and that puts the first sample on top. The owner is resolved by `ownerID`: the user whose name matches the configured admin, falling back to the first user by username, and `ErrNoUsers` when the instance has none at all.
+
+**The demo credentials apply only when the operator configured none.** `demo.AdminUser` is `demo` and `demo.AdminPassword` is `demo1234`. `main.go` substitutes both — username and password together — when `--demo` is passed and `REZEPTE_ADMIN_PASSWORD` is empty; with that variable set, the operator's own user and password are what the instance gets, and the startup log says the password came from the environment rather than printing it. The same pair is repeated once more, deliberately, in `docs/user/scripts/demo-user.ts`, which is where the build-time tools that drive a demo instance read it from.
+
+**The photos are drawn in Go.** `demo.Placeholder` in `service/internal/demo/placeholder.go` renders a 1200×900 image: a warm surface tint for the background, a 320 px-radius disc of that tint lightened halfway to white for the plate, and the recipe title's first rune, upper-cased (or `?` for an empty title), drawn in the embedded Go Bold face at 400 px and 72 DPI in the primary brown, positioned by its ink box rather than its advance box so narrow and wide letters both sit centred. The result is JPEG at quality 85 and goes through `image.Service.Upload` like any other photo, so it becomes the usual three variants (see [Images](/features/images)). The tints are three warm surface colours from the design system, picked by `index % 3`, and every full rotation steps one shade darker — samples landing on the same base tint that also share an initial, of which the sample set has several, still get distinguishable tiles. Colours themselves belong to [Design system](/architecture/design-system).
+
+**Nine of the twelve samples carry an image.** `imagedRecipes` is the cut: the first nine by list order get a placeholder, and the remaining three fall back to the card's own `PlaceholderTile`, so both states of a recipe card are visible without arranging anything. Because `Placeholder` depends on nothing but the index and the title, a reseed produces byte-identical files and a screenshot taken against one seeded instance matches the next.
+
+**Scripts that want a disposable instance make one themselves.** `docs/user/scripts/with-demo.sh` refuses to start when its port is already taken — a stranger's instance answering `/healthz` first would silently be screenshotted or scraped instead — then creates a `mktemp -d` directory, clears `REZEPTE_ADMIN_USER` and `REZEPTE_ADMIN_PASSWORD` out of the environment with `env -u` so an exported password cannot displace the credentials the callers log in with, starts the binary against that directory, polls `/healthz` until it answers (and gives up if the process dies first), runs the command and removes both the process and the directory from a trap.
+
+## Why it is this way
+
+Seeding through the domain services into the configured directory keeps the flag useful for more than screenshots: pointed at a real data directory it is the fastest way to get a running instance with something in it, and the recipes it writes go down the same path an API client's would.
+
+The fixtures are Go code rather than a file beside the binary, so demo mode has no external data dependency, works offline and cannot be run against a fixture that drifted from what the tests use.
+
+Rendering the placeholders in Go removes the one dependency demo mode must not have: a browser at seed time. `--demo` has to run wherever the binary runs, and a deterministic function of an index and a title is stable across reseeds by construction rather than by care.
+
+## Rejected
+
+- **A temporary data directory built into the flag, plus a fixture file for the users.** The domain services already create the admin, and seeding into the configured directory is the more useful of the two behaviours; a script that wants a throwaway instance can make and delete a directory in three lines.
+- **Playwright-rendered HTML placeholders.** They need a working browser at seed time, which is exactly the dependency the flag cannot carry.
+- **Seeding through the API from a script.** The fixtures would have to be reimplemented in TypeScript, and the result would be useless for manual testing, which wants the binary alone.
+
+## Limits
+
+- The flag fills an empty instance; it does not reset a populated one. Starting over means removing the data directory first.
+- The demo credentials are public — in this repository and in the binary — so an instance reachable beyond the household must set `REZEPTE_ADMIN_PASSWORD` of its own, whether or not it is seeded.

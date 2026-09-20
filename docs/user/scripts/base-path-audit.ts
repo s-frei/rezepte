@@ -1,8 +1,8 @@
 // Fails the build if a generated page requests a root-relative URL that does not
-// carry the deployed base path (/rezepte). This is the gate Critical 1 (ADR 0015)
-// was missing: `//docs/user:check` was lint + the screenshot-name audit + `next
-// build`, and none of those serve the export and follow a link, so a src that
-// 404s under the base path passed every existing check and two task reviews.
+// carry the deployed base path (/rezepte). Lint, the screenshot-name audit and
+// `next build` never serve the export and follow a link, so without this gate a
+// src that 404s under the base path passes `//docs/user:check` untouched. See
+// docs/memory/content/architecture/docs.mdx.
 //
 // React/Next also emit one root-relative link that is a resource *hint*, not a
 // resource load - `<link rel="preconnect" href="/">` - independent of basePath

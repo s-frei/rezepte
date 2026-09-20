@@ -5,7 +5,7 @@ description: One worktree per feature, one port offset per worktree
 
 <Callout type="warn" title="Hard rule">
 
-  Feature work happens in a worktree created with `mise run worktree:new <name>`. Never hand-edit a port; `mise run ports` shows the map. See [ADR 0018](/decisions/0018-worktrees-and-port-offsets).
+  Feature work happens in a worktree created with `mise run worktree:new <name>`. Never hand-edit a port; `mise run ports` shows the map. See [Toolchain](/architecture/toolchain).
 
 </Callout>
 
@@ -19,8 +19,6 @@ description: One worktree per feature, one port offset per worktree
     ```
 
     Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml` and printed along with the rest of the port map. `cd` into the new directory and work there.
-
-    Until this lands on `develop`, a worktree cut from it has no `[env]` block, no `scripts/`, and no `ports` task to receive that offset, so the script's own final `mise run ports` fails there - this resolves once the merge happens.
 
   </Step>
   <Step>

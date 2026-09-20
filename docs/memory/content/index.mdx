@@ -7,7 +7,7 @@ description: How to use this documentation when working on Rezepte
 
   This section is the long-term memory for AI coding agents working on Rezepte. It is written for agents first, but stays readable for humans.
 
-  It is not the end-user documentation. `docs/user/` is written for the people who cook from Rezepte and the people who host it for them - installing, configuring, using the app. Nothing about developing Rezepte belongs there, and nothing about cooking belongs here. The two sites are deployed separately (see [ADR 0005](/decisions/0005-fumadocs-as-agent-memory)), so a sentence in the wrong one reaches the wrong audience.
+  It is not the end-user documentation. `docs/user/` is written for the people who cook from Rezepte and the people who host it for them - installing, configuring, using the app. Nothing about developing Rezepte belongs there, and nothing about cooking belongs here. The two sites are deployed separately (see [Documentation sites](/architecture/docs)), so a sentence in the wrong one reaches the wrong audience.
 
 </Callout>
 
@@ -22,10 +22,12 @@ This memory describes **the repository, not the machine and not the day**.
 <Steps>
   <Step>
 
-    ### Outside `decisions/`, write the present
-    `architecture/`, `howtos/`, `conventions/` and `roadmap.mdx` say what is true now. When something changes, rewrite the sentence - do not append a correction, and do not leave the old claim standing beside the new one. A page that reads as a changelog has stopped being memory.
+    ### Write the present
+    Every page says what is true now. When something changes, rewrite the sentence - do not append a correction, and do not leave the old claim standing beside the new one. A page that reads as a changelog has stopped being memory.
 
-    `decisions/` is the exception, but a narrower one than it sounds: an ADR records a *choice* and the alternatives it rejected, and that record is superseded rather than rewritten. It is not a place to describe how the system currently looks - that belongs in `architecture/`, and an ADR that describes it will be wrong within weeks. See [Write an ADR](/howtos/write-an-adr).
+    There is **one document per thing that exists**, never one per event. A feature has a page under `features/`, the shape of the system has a page under `architecture/`, a recurring task has a how-to. A page is rewritten when its subject changes and deleted when its subject is gone, so the number of pages follows the size of the system rather than the age of the project.
+
+    Reasoning is not lost to that rule, it moves with its subject: why a thing is shaped the way it is, and which alternatives were weighed and refused, live on the page for that thing under `## Why it is this way` and `## Rejected`. Keep a rejected option only while someone might still propose it. See [Update the memory](/howtos/update-the-memory).
 
   </Step>
   <Step>
@@ -61,8 +63,8 @@ This memory describes **the repository, not the machine and not the day**.
   </Step>
   <Step>
 
-    ### Check the decisions before changing structure
-    Every non-obvious choice has an ADR under [Decisions](/decisions). If your change contradicts one, write a new ADR that supersedes it.
+    ### Read the feature page before changing a feature
+    [Features](/features/recipes) says how each capability behaves and why, [Architecture](/architecture/overview) says how the parts fit together, and both name the options already weighed and refused. A change to behaviour is not done until its page says the new thing.
 
   </Step>
   <Step>
@@ -111,6 +113,7 @@ This memory describes **the repository, not the machine and not the day**.
   <Folder name="docs" defaultOpen>
     <Folder name="memory">
       <Folder name="content" />
+      <Folder name="scripts" />
     </Folder>
     <Folder name="user">
       <Folder name="content" />

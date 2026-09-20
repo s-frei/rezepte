@@ -1,0 +1,72 @@
+---
+title: Documentation sites
+description: Two Fumadocs apps under docs/, committed screenshots and a generated API reference, the user docs published to GitHub Pages
+---
+
+`docs/` holds two independent Fumadocs apps. `docs/memory/` renders this memory for the people and agents developing Rezepte; `docs/user/` renders the end-user manual for the people who cook from Rezepte and the people who host it, and is the only one that is published. Both are English, and a sentence in the wrong one reaches the wrong audience: nothing about developing Rezepte belongs in the user docs, nothing about cooking belongs here.
+
+## The two apps
+
+Each app is Fumadocs on the Next.js static template (`output: 'export'`) with its own `package.json`, `mise.toml`, `app/` and `content/` directory. Nothing is shared between them — not a build, not a dependency list, not a deployment. `mise run //docs/memory:check` and `mise run //docs/user:check` each lint, audit and build their own site, so broken MDX in either fails the gate. Both dev servers take their port from the worktree's offset ([Toolchain](/architecture/toolchain)).
+
+`docs/user/content/` is four sections - `getting-started/`, `guide/`, `operations/` and `api/` - beside an index and a roadmap page. There is no FAQ, troubleshooting, changelog or contributing section.
+
+Each serves the agent-facing routes for its own content: `/llms.txt`, `/llms-full.txt`, raw markdown per page under `/llms.mdx/<path>/content.md`, and a static search index at `/api/search`. Agents normally read the MDX out of the repository; the rendered sites are for humans, for those routes, and — for `docs/user/` — for end users.
+
+**A collection's `dir` must point at a content-only directory, never a package root.** Both apps set `dir: 'content'` in their `source.config.ts`, so neither collection can see the other's files. The rule is a constraint, not a preference: fumadocs-mdx hands chokidar the `dir` itself, not the filtered file list, so a collection's `files` globs filter what fumadocs *processes* and nothing about what the watcher opens. Point `dir` at a package root and the watcher takes `node_modules` and `.next` with it, until the dev server dies with `spawn EBADF` or floods the log with `EMFILE`.
+
+The user docs wear the app's "Warm & handmade" palette, mapped onto Fumadocs' `--color-fd-*` variables in `docs/user/app/global.css`, while the memory app stays neutral. [Design system](/architecture/design-system) owns those values and the handful of places the docs deliberately differ. `global.css` imports `fumadocs-ui/css/lib/default-colors.css` rather than the `neutral.css` preset it replaces: `neutral.css` carries a `.dark #nd-sidebar` rule whose id selector would outweigh any `.dark` override placed after it. The overrides themselves sit in plain `:root` and `.dark` blocks rather than in `@theme`, because unlayered declarations beat Tailwind's `@layer theme` and so win regardless of import order.
+
+## Screenshots
+
+Screenshots are Playwright snapshot tests in `docs/user/screenshots/`, one `test('<name>')` per screenshot, run against `rezepte --demo` through `docs/user/scripts/with-demo.sh` (see [Demo mode](/features/demo-mode) for what that instance contains). `docs/user/playwright.config.ts` defines four projects — `desktop-light`, `desktop-dark`, `mobile-light`, `mobile-dark` — and a `snapshotPathTemplate` that writes straight into `docs/user/public/screenshots/` as `<name>-<project>.png`. The PNGs are committed, because the docs build must not need a browser. The suite runs single-worker and unparallelised: every spec shares one demo database and the settings spec creates a user, so determinism beats speed.
+
+Pages reference a screenshot by name, `<Screenshot name="…" caption="…" />`. `docs/user/components/screenshot.tsx` checks `public/screenshots` for `<name>-<device>-<scheme>.png` at build time and renders a dashed placeholder frame carrying the caption for every variant it does not find, rather than failing the build.
+
+`docs/user/scripts/screenshots-audit.ts` cross-checks the three places a name lives — `<Screenshot name>` in the content, `test('<name>')` in the specs, and the files on disk. It **fails** when a referenced name has no matching test or is not `a-z0-9-`; it only **warns** about missing PNGs and about files nothing references, because PNGs can only be produced where Chromium starts.
+
+`mise run //docs/user:screenshots` regenerates every PNG (`--update-snapshots=all`, so a change too small for the diff tolerance cannot leave a stale file behind) and `mise run //docs/user:screenshots:check` reports drift. Neither runs in CI. [Add a screenshot](/howtos/add-screenshot) owns the procedure.
+
+## API reference
+
+`docs/user/content/api/reference.mdx` is generated and never hand-edited. `mise run //docs/user:openapi` builds the binary, starts it with `--demo` through `with-demo.sh`, and runs two scripts: `docs/user/scripts/fetch-openapi.ts` writes the served document to `docs/user/public/openapi.json`, then `docs/user/scripts/generate-api.ts` renders it into the MDX — one section per tag, one subsection per operation with its parameters, body and responses, then a schema section — with tags, operations and schemas sorted, so the diff is deterministic and a regeneration that changes nothing produces no diff at all. The output is committed.
+
+The fetch logs in as the demo admin and replays the session cookie, because the specification routes sit behind a session ([Users and auth](/features/users-and-auth)). That is also why the task needs a demo instance rather than any running server: it has to be one whose credentials are known. CI runs the same task and then fails on any uncommitted change it produced, so a forgotten regeneration fails the build rather than a review. [Regenerate the API reference](/howtos/regenerate-api-reference) owns the procedure; [Keep the user docs in step with the UI](/howtos/update-user-docs) owns when to run it.
+
+## Publishing
+
+The `pages` job in `.github/workflows/ci.yml` builds `docs/user/` and uploads `docs/user/out` with `actions/upload-pages-artifact`, which `actions/deploy-pages` then publishes — the artifact-based Pages deploy, with no branch holding built output. The job carries `if: github.ref == 'refs/heads/main'` and `needs: check`, so `develop` and pull requests build and check the docs but never publish them, and every push to `main` republishes the site. [Release](/howtos/release) owns the release procedure that ends in such a push.
+
+The export is served under a fixed sub-path, so `docs/user/next.config.mjs` sets `basePath` unconditionally and puts the same value into `NEXT_PUBLIC_BASE_PATH`. Components that build their own root-relative URLs read it from there: `<Screenshot>`, because `next/image` under `images: { unoptimized: true }` returns `src` verbatim and prefixes nothing, and `docs/user/app/layout.tsx`, which hands the static search client its endpoint explicitly rather than relying on the builder to polyfill one. `docs/user/scripts/base-path-audit.ts`, wired into `//docs/user:check`, then walks the built export and fails on any root-relative `src` or `href` that lacks the prefix; it imports the value from the config instead of repeating it, and skips the two things that legitimately lack it — resource hints such as `preconnect`, and protocol-relative URLs on another origin.
+
+`docs/memory/` is never published. The `pages` job runs `//docs/user:install` and `//docs/user:build` and nothing else; no step uploads or deploys the memory export.
+
+One repository setting no workflow can perform: in Settings → Pages, Source must be **GitHub Actions**. Until it is set by hand, `deploy-pages` fails with "Get Pages site failed", and no API call inside the job can set it.
+
+## Why it is this way
+
+Internal memory and a public manual have different audiences and different deployment targets. Two apps mean `docs/user/` carries the dependencies the memory has no reason to hold — Playwright, a generated reference, three Fontsource packages for its typefaces (OFL-1.1, like the two the frontend already carries) — and an independent static export deploys without ever putting the internal memory on a public address.
+
+Setting the base path unconditionally keeps the dev server honest. Stripping it outside CI would let a link work locally and 404 in production, which is exactly the class of bug the base-path audit guards against.
+
+The API reference is a small script because the alternative is configuring around a rendering opinion that does not fit: a generator of a few hundred lines is easier to extend for a new schema shape than a library is to argue out of the UI it wants to render.
+
+## Rejected
+
+- **One Fumadocs app for memory and user docs.** Simplest, but internal and public content would share a build and a deployment, and only one of the two is meant to be published.
+- **Generating screenshots during the docs build.** Couples the build to Go, Bun and Chromium, and a docs build has to work where none of the three is available.
+- **Keeping the screenshot project in `frontend/e2e`.** Reuses one Playwright config, but makes the frontend the owner of documentation assets.
+- **`fumadocs-openapi`.** It ships an interactive request playground this project has no use for: the running app already serves one at `/api/v1/docs`.
+- **Failing the build when a screenshot PNG is missing.** It blocks every docs build in an environment without a working Chromium, CI included. A placeholder frame plus an audit warning keeps the build green and the gap visible.
+- **A branch-based `gh-pages` deploy.** A branch of built output to keep in sync, where the artifact actions upload the export straight from the job that produced it.
+- **Embedding the docs in the Go binary under `/docs`.** It would inherit the app's own auth and TLS and need no base path, but it ties every documentation change to a service rebuild and deploy, and self-hosted instances would serve docs nobody asked them for.
+- **A custom domain.** It would remove the base path and everything threaded through for it. There is no domain to point at the site; nothing here blocks adding one later, since `docs/user/lib/shared.ts` is the single place the published origin is defined.
+
+## Limits
+
+- GitHub Pages from a private repository is not available on every GitHub plan, and nothing in the workflow can detect that: the deploy step is where it surfaces.
+- The published site is world-readable even though the repository is private. Nothing in `docs/user/content/` may be written assuming the readership is limited to people with repository access.
+- `docs/user/app/robots.ts` exports to a robots file under the base path, which crawlers never read: robots.txt is honoured only at the origin root, and that origin belongs to another repository. The file is kept because it becomes correct behind a custom domain, but the sitemap it points at has to be submitted to search engines by hand.
+- Screenshot comparison stays local. Font rendering differs between platforms, so a comparison run in CI would fail on rendering rather than on content; `screenshots:check` is the local drift report and CI never runs it.
+- The committed PNGs can only be produced where Chromium starts. Everywhere else the audit warns, the pages show placeholder frames and `mise run //docs/user:check` still passes — so someone with a working browser has to regenerate them before a release.
+- `docs/user/source.config.ts` sets `rehypeCodeOptions.themes` to a light/dark Shiki pair, which replaces Fumadocs' defaults wholesale, so `defaultColor: false` has to be repeated alongside it. Omit it and Shiki emits fixed colours instead of the `--shiki-light` / `--shiki-dark` variables dark mode reads, and code blocks stop switching with the theme.

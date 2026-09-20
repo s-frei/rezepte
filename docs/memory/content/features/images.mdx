@@ -1,0 +1,56 @@
+---
+title: Images
+description: Three JPEG variants per upload, EXIF orientation baked into the pixels, files beside the database
+---
+
+Recipes carry photos: a cover on the card, a gallery on the detail page and a lightbox over it, uploaded from the phone that took them. The service renders every upload into three JPEGs on disk and serves them as plain files. [Data model](/architecture/data-model) owns the `images` table; [HTTP API](/architecture/api) owns the endpoints and their status codes.
+
+## How it works
+
+**Three JPEG variants, rendered once on write.** `service/internal/image/process.go` writes `<id>.jpg` (longest side at most 2400 px, JPEG quality 90), `<id>_detail.jpg` (1600 px, quality 85) and `<id>_thumb.jpg` (480 px, quality 80), in that order; the first is also the source the other two scale from, and its dimensions are what the `images` row stores. Nothing is resized on request: `thumb` serves the recipe card, the gallery's thumbnail row, the lightbox's strip and the editor's image tiles; `detail` the gallery's main image; `original` the lightbox's own image and its download link.
+
+**Decoding.** JPEG and PNG come from the standard library, WebP from `golang.org/x/image/webp`; only those three formats are accepted, and the format is the one `image.DecodeConfig` reports from the bytes, not the one the client declared. Scaling runs through `golang.org/x/image/draw` with Catmull-Rom filtering onto a white background, so transparent areas of a PNG or WebP come out white rather than black in a format that has no alpha channel.
+
+**EXIF orientation is applied, not preserved.** `service/internal/image/exif.go` walks a JPEG's segment headers — no image data — as far as the first APP1 segment, reads the TIFF header and IFD0, and returns the Orientation tag (`0x0112`, type SHORT), defaulting to 1 for anything missing or malformed. `applyOrientation` then redraws the pixels for orientations 2 through 8, the last four of which swap width and height. Only the JPEG path does this, and it does it after the first downscale to 2400 px, because the two operations commute and a per-pixel loop over 2400 px costs far less than over 12000 px. The variants carry no metadata at all.
+
+**Storage layout.** Files live under `<REZEPTE_DATA_DIR>/images/<recipeId>/`, beside the SQLite database rather than inside it. Each variant is encoded to a `.tmp` sibling and renamed into place, so a reader never sees a partial file; if any variant fails, the ones already written are removed again. Directories are created `0700` and files `0600` — this process is the only reader, since it serves the bytes itself. When the database write of an upload fails, `removeFiles` deletes the variants that the render step already produced, so no orphaned files survive a rolled-back transaction. Deleting a recipe removes its whole directory after the transaction commits, through `recipe.WithImageDir`.
+
+**Limits and where each is enforced.**
+
+| Limit | Enforced by |
+|---|---|
+| upload at most 10 MiB | `limitUpload` in `service/internal/image/handler.go` answers `413` on a declared `Content-Length` above the cap and wraps the body in `http.MaxBytesReader`; `Upload` reads at most the cap plus one byte as a backstop |
+| JPEG, PNG or WebP | huma validates the multipart part's declared content type before the handler runs; `decode` then judges the bytes themselves, and the format it refuses comes back as `415` |
+| 64 to 12000 px per side, at most 60 megapixels | `decode` reads them from `image.DecodeConfig`, so an oversized image is rejected from its header before its pixels are allocated |
+| 20 images per recipe | `Upload` counts once before decoding and again inside the write transaction, which closes the race between two concurrent uploads on the same recipe |
+| 2 uploads decoding at a time | a counting semaphore around the decode-and-resize step in `service/internal/image/service.go`; a decoded image plus its resize target dominate the memory cost of an upload, so this bounds peak memory however many clients upload at once. A client that gives up while queued releases its place through the request context |
+
+**The cover.** `recipes.cover_image_id` is set by the first upload onto a recipe that has none, moved to the first remaining image by position when the cover is deleted (cleared when none remains), and changed explicitly through the set-cover endpoint, which refuses an image that does not belong to the recipe. Positions stay a compact `0..n-1` permutation: delete renumbers what is left, and reorder requires a list naming every image of the recipe exactly once. Any of these writes that does not already touch the recipe row still calls `TouchRecipe`, so a photo change moves `updated_at` too. The reorder response body is `OrderResult`, not `ImageList` — that stutters as `image.ImageList` and revive flags it — and not `List` either: an OpenAPI schema name is global across the API, and huma panics at registration when two exported types claim the same one, so a name that generic is a trap.
+
+**Serving.** `GET /images/{recipeId}/{imageId}/{file}` is a plain mux route wrapped in `auth.RequireSession` rather than a huma operation, because huma frames JSON and this is a byte stream. Ids are checked against the UUID alphabet before they ever reach a path, so no component can escape the image directory, and anything that is not an existing variant is a `404`. The response goes out through `http.ServeContent`, which brings Range and conditional-request support with it, as `image/jpeg` with `Cache-Control: private, max-age=31536000, immutable`: an image id is never reused and a file never changes after it is written, while `private` keeps shared caches out of a route behind a session.
+
+## Why it is this way
+
+The deployment is a single binary with SQLite for one household. There is no object store, no CDN and no image service to lean on, so the service does the work itself, once, and everything after that is a file read.
+
+The three sizes the UI needs are known up front — a thumbnail for cards and strips, a larger rendition for the gallery, and the largest for the lightbox — so rendering all three on write beats resizing on request: the expensive path runs once per photo instead of once per view.
+
+Baking the orientation into the pixels means every viewer shows the photo upright, including the ones that never consult EXIF at all: a CSS `background-image`, an `object-fit: cover` thumbnail. As a side effect no camera metadata — GPS, device — ever reaches the disk, because the upload it came with is not stored.
+
+## Rejected
+
+- **An EXIF library.** One tag is needed; the available readers are either unmaintained or far larger than a segment walker with tests against crafted APP1 payloads.
+- **Resize on request with a cache.** Cache eviction and a thundering herd on first view, in exchange for nothing at this scale, where the needed sizes are known before the upload arrives.
+- **Object storage.** A second service in a deployment that is one container with one volume.
+- **Images as BLOBs in SQLite.** `http.ServeContent` wants a seeker, backups would balloon with the database, and WAL checkpoints slow down with multi-megabyte rows.
+- **Deriving the cover from `position = 0` instead of a column.** It makes "cover unset" indistinguishable from "no images yet", and every card listing would need a join or a subquery where `recipes.cover_image_id` already sits on the row it selects.
+- **Keeping the untouched original.** It doubles disk use and keeps camera metadata on disk.
+- **One canonical size scaled by CSS.** The recipe overview is the most-visited page in the app; letting its cards pull multi-megabyte originals is the worst place to spend bandwidth.
+
+## Limits
+
+- Originals are not kept. Re-rendering at a different size means uploading the photo again; the 2400 px variant is what the download link serves.
+- The limits above are compile-time constants in `service/internal/image/image.go` and `service/internal/image/service.go`, not configuration. Changing one is a code change and a redeploy, not an environment variable.
+- `Operation.MaxBodyBytes` does not apply to huma's multipart path: `GetMultipartForm` parses the form without a limit reader, and the code that honours `MaxBodyBytes` only runs for non-multipart bodies. `limitUpload` is the real limit, and `MaxBodyBytes` is declared beside it as documentation of the intended cap. Any further multipart endpoint has to bring its own limit — see [Add an API endpoint](/howtos/add-endpoint).
+- The upload response carries exactly one image, and the editor uploads a multi-selection one file after another. That keeps error handling per file, at the cost of no parallelism in the browser.
+- Backups must cover the images directory next to the database. The database alone restores recipes without their photos.

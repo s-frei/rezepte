@@ -6,9 +6,9 @@ const withMDX = createMDX();
 const config = {
   output: 'export',
   reactStrictMode: true,
-  // Without this, a route with children (e.g. `/decisions`) exports as a
-  // flat `decisions.html` sibling of the `decisions/` directory instead of
-  // `decisions/index.html`, and leaf routes like `/roadmap` export as
+  // Without this, a route with children (e.g. `/architecture`) exports as a
+  // flat `architecture.html` sibling of the `architecture/` directory instead
+  // of `architecture/index.html`, and leaf routes like `/roadmap` export as
   // `roadmap.html` with no `roadmap/` directory at all. trailingSlash makes
   // every route, parent or leaf, export as `<route>/index.html`.
   trailingSlash: true,

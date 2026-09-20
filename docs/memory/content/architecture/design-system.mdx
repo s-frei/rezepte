@@ -51,7 +51,7 @@ description: Tokens, type scale, components and interaction rules of the “Warm
     | `skeleton` | `#2f2822` |
     | `handle` | `#5a4d40` |
     | `tint-1` / `tint-2` / `tint-3` | `#3f2f1e` / `#33301f` / `#3d2a22` |
-    | shadows | `card`, `cover` and `cta` are removed (`none`); `dialog` and `sheet` keep their light-mode values |
+    | shadows | `--shadow-card`, `--shadow-cover` and `--shadow-cta` are declared `none`, which does not reach the rendered page - see [Implementation notes](#implementation-notes); `dialog` and `sheet` keep their light-mode values |
 
   </Tab>
 </Tabs>
@@ -81,7 +81,7 @@ description: Tokens, type scale, components and interaction rules of the “Warm
 
 - 4px grid: 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40. Page padding: desktop 32px, mobile 20px. Card grid gap: desktop 22px, mobile 14px.
 - Radii: `rounded-pill` (buttons, chips, search, stepper, segmented control, bottom nav), `rounded-3xl` 24px (dialogs, cover image, sheet top), `rounded-2xl` 20px (desktop cards, section containers), `rounded-xl` 18px (mobile cards), `rounded-lg` 14px (image in card, editor image tiles, image dropzone), `rounded-md` 12px (inputs, thumbnails, gallery thumbnails), `rounded-sm` 10px (editor row inputs), `rounded-toast` 16px (toast, its only caller). Avatars and icon buttons are circles.
-- Shadows (warm, brown-based): `shadow-card`, `shadow-cover`, `shadow-dialog`, `shadow-sheet`, `shadow-cta` (mobile primary CTA). `card`, `cover` and `cta` are removed in dark mode; `dialog` and `sheet` keep their shadow.
+- Shadows (warm, brown-based): `shadow-card`, `shadow-cover`, `shadow-dialog`, `shadow-sheet`, `shadow-cta` (mobile primary CTA). The dark blocks set `card`, `cover` and `cta` to `none`, which the build does not carry into the utility classes - see [Implementation notes](#implementation-notes).
 
 ## Components (Bits UI ↔ design)
 
@@ -123,7 +123,7 @@ search, plus, minus, link, download, settings, log-out, chevron-left/right/down,
 - Tag filters are multi-select and mirrored into the URL query.
 - Ingredient checks are visual only, kept per session in `sessionStorage`.
 - Cooking mode: Screen Wake Lock (secure contexts only), swipe threshold 50px, step change 200ms slide/fade, ←/→ page, Escape leaves - while the ingredient sheet is open, Escape closes it instead and ←/→ are inert.
-- Servings: 1-99, scaled quantities snap to ¼ ⅓ ½ ⅔ ¾ below 10 and to whole numbers from 10 ([ADR 0012](/decisions/0012-client-side-servings-scaling-and-cook-mode)); the baseline always shows the stored value exactly.
+- Servings: 1-99, scaled quantities snap to ¼ ⅓ ½ ⅔ ¾ below 10 and to whole numbers from 10 ([Cooking](/features/cooking)); the baseline always shows the stored value exactly.
 - Editor: `beforeunload` prompt when dirty; Enter adds an ingredient row, Backspace in an empty row deletes it.
 - Theme: `data-theme` on `<html>` (`system | light | dark`), persisted in `localStorage`.
 - Respect `prefers-reduced-motion`.
@@ -152,28 +152,51 @@ Each of these comes from a bug that shipped. Verify them at 360px - see [Verify 
 
 ## Implementation notes
 
-**The display face is `'Literata Variable'`, not `'Literata'`.** `@fontsource-variable/literata` declares that family name, CSS matches family names exactly, and for months `--font-display: 'Literata', Georgia, serif` therefore matched no `@font-face` at all: every heading, recipe title, step number and the wordmark rendered in Georgia while ADR 0007 said Literata. Nothing looked broken - a serif fell back to a serif - and the measurement is the only way to see it:
+**The display face is `'Literata Variable'`, not `'Literata'`.** `@fontsource-variable/literata` declares that family name and CSS matches family names exactly, so both stylesheets lead with `--font-display: 'Literata Variable', Literata, Georgia, serif`; plain `Literata` stays behind it only for a system install. Write the family without `Variable` and the stack matches no `@font-face` at all: every heading, recipe title, step number and the wordmark would render in Georgia. Nothing would look broken - a serif falls back to a serif - and measuring the rendered width is the only way to catch it:
 
 ```
-appStack 825.9  === georgia 825.9              ← before
-appStack 884.8  === 'Literata Variable' 884.8  ← after
+appStack 825.9  === georgia 825.9              ← the fallback face
+appStack 884.8  === 'Literata Variable' 884.8  ← the declared face
 ```
 
-Verify with `document.fonts.load("64px 'Literata Variable'")` **before** measuring; a registered face stays `unloaded` until something asks for it, and a width taken in that moment is the fallback's. Keep `frontend/src/app.css` and `docs/user/app/global.css` in sync - the docs site carried the correct stack while the app did not. Literata runs ~7% wider than Georgia, which is why the card titles clamp to two lines on phones and three on desktop.
+Verify with `document.fonts.load("64px 'Literata Variable'")` **before** measuring; a registered face stays `unloaded` until something asks for it, and a width taken in that moment is the fallback's. Keep `frontend/src/app.css` and `docs/user/app/global.css` in sync: each declares the stack for itself, and only a measurement tells you that one of them is wrong. Literata runs ~7% wider than Georgia, which is why the card titles clamp to two lines on phones and three on desktop.
 
 
-`data-theme` on `<html>` is absent when the choice is "system"; an explicit choice sets it to `light` or `dark` (see [ADR 0011](/decisions/0011-admin-role-and-own-password-changes)). The dark tokens are declared twice - once under `:root[data-theme='dark']`, once inside `@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { ... } }` - because CSS cannot share one declaration block between a plain selector and a media query; keep both in sync by hand. The Tailwind `dark:` variant is redefined with `@custom-variant dark` to follow the same rule instead of bare `prefers-color-scheme`, so components using `dark:` (e.g. the login card's border) respect an explicit `light` choice even under a dark system preference. `app.html` no longer sets `data-theme="system"` on `<html>` - that value does not exist any more; "system" is represented by the attribute's absence, applied via an inline pre-paint script that mirrors `$lib/theme.ts`.
+**A `@theme` shadow cannot be re-themed per mode.** Tailwind v4 compiles an `@theme` shadow value into each utility class as a literal `--tw-shadow` declaration instead of a live reference: the built CSS carries `.shadow-card{--tw-shadow:0 1px 2px …}`, where `.bg-surface` carries `background-color:var(--color-surface)` and `.rounded-3xl` carries `border-radius:var(--radius-3xl)`. Colour and radius tokens are therefore live and shadow tokens are not, so the `--shadow-card`/`--shadow-cover`/`--shadow-cta: none` declarations in the dark blocks of `frontend/src/app.css` set custom properties that no rule reads, and those three shadows render in dark mode exactly as they do in light. A shadow that really has to differ per mode needs a `dark:` utility on the element. The same mechanism is why `docs/user/app/global.css` declares no dark shadow override at all and says so in its own comment: the warm shadows in its `@theme` block apply in both themes there.
+
+`data-theme` on `<html>` is absent when the choice is "system"; an explicit choice sets it to `light` or `dark` and is stored in `localStorage` under `rezepte-theme`. The dark tokens are declared twice - once under `:root[data-theme='dark']`, once inside `@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { ... } }` - because CSS cannot share one declaration block between a plain selector and a media query; keep both in sync by hand. The Tailwind `dark:` variant is redefined with `@custom-variant dark` to follow the same rule instead of bare `prefers-color-scheme`, so components using `dark:` (e.g. the login card's border) respect an explicit `light` choice even under a dark system preference. `app.html` never writes `data-theme="system"` on `<html>` - there is no such value; "system" is the attribute's absence, applied via an inline pre-paint script that mirrors `$lib/theme.ts`.
 
 ## The user docs wear the same palette
 
-`docs/user/` maps these tokens onto Fumadocs' `--color-fd-*` variables in `docs/user/app/global.css`; `docs/memory/` deliberately stays neutral. The values there are a **copy**, so a colour change here has to be repeated - see [ADR 0014](/decisions/0014-warm-theme-for-the-user-docs) for why, and for the mapping in full.
+`docs/user/` maps these tokens onto Fumadocs' `--color-fd-*` variables in `docs/user/app/global.css`; `docs/memory/` deliberately stays neutral. The values there are a **copy**, so a colour change here has to be repeated; [Documentation sites](/architecture/docs) owns why the two apps share no file.
 
 Three deltas are intentional and must survive any sync:
 
 | Docs token | Docs value | App value | Why |
 |---|---|---|---|
-| `fd-muted-foreground` | `#6f6152` | `#756554` | The docs' most-used token carries body text (sidebar, TOC, page descriptions); the app's value now clears AA (4.82:1, commit `951d071`), but the docs keep the extra margin (5.15:1) that much reading text needs. |
-| `fd-primary` | `#9a4707` | `#b45309` | Marks the active navigation entry at body size; the app value is 4.32:1. |
+| `fd-muted-foreground` | `#6f6152` | `#756554` | The docs' most-used token carries body text (sidebar, TOC, page descriptions); the app's value clears AA at 4.82:1, and the docs keep the extra margin (5.15:1) that much reading text needs. |
+| `fd-primary` | `#9a4707` | `#b45309` | Marks the active navigation entry at body size, where the app value's 4.32:1 sits below AA; the docs value is 5.51:1. |
 | `fd-accent` | `#eadfcd` (`skeleton`) | `accent` `#f0dfc4` | In Fumadocs `accent` is the hover surface, not a chip. The paper tone stays visible on both `card` (sidebar) and `background` (navbar, TOC). |
 
-Callouts use an earthy set rather than the palette alone, because `info` and `idea` have no counterpart here: `info` `#4f6d74`, `warning` `#b45309`, `error` `#a3321f`, `success` `#5c8a45`, `idea` `#a8761c`. Code blocks use `vitesse-light` / `vitesse-dark` and IBM Plex Mono.
+Callouts use an earthy set rather than the palette alone, because `info` and `idea` have no counterpart here: `info` `#4f6d74`, `warning` `#b45309`, `error` `#a3321f`, `success` `#5c8a45`, `idea` `#a8761c`. **Every callout colour has to clear 3:1 on the callout surface**, which is `fd-card` (`#fdf9f2`) - Fumadocs fills the callout icon with the colour, so anything under that floor is an icon nobody can see, and a sixth colour has to clear it too. `success` is the app's sage darkened for exactly that reason: the app's `#7fb069` measures 2.41:1 there. Code blocks use `vitesse-light` / `vitesse-dark` and IBM Plex Mono.
+
+## Why it is this way
+
+The direction is warm and calm so that the food is the loudest thing on the page: paper and cream grounds, a single burnt-orange accent, brown-based shadows instead of grey ones. It is also a phone-in-a-kitchen interface, which is what the pill shapes and the generous target sizes are for - one hand, a wet thumb, and a screen propped against something while a pan is on the hob.
+
+Both faces are self-hosted through Fontsource and imported from CSS (`frontend/src/app.css`), never fetched from a font service at runtime. A self-hosted app should not tell a third party who is reading which recipe, and a kitchen tablet on a LAN with no internet has to render the same as one online.
+
+Tokens are the only source of colour, radius, shadow and font, which is what makes a palette change a single edit and a dark mode possible at all. A colour written straight into a component is a colour nothing can theme and nothing can find, so a new colour means a new token rather than a hex value in markup.
+
+The user docs wear this palette because end users meet the docs before they meet the app: a grey manual wrapped around cream screenshots reads as two products. `docs/memory/` stays neutral for the mirror-image reason - the look is what tells a reader at a glance which of the two sites is open. Two of those deltas are not drift: `fd-muted-foreground` and `fd-primary` carry body-sized reading text in the docs and only meta lines and chips in the app, and text people actually read has AA as a floor. `fd-accent` differs for the reason its row gives instead - it is a hover surface in Fumadocs, and the paper tone is the one value that stays visible on both substrates.
+
+## Rejected
+
+- **A neutral, minimal direction.** Perfectly correct and completely forgettable; it would make this look like every other self-hosted tool.
+- **Loading the fonts from Google Fonts.** A request per reader to a third party, and a fallback face on any instance without internet access.
+- **A shared token file imported by both the app and the user docs.** One source of truth, but it breaks the independence of the two builds ([Documentation sites](/architecture/docs)) and would have to declare its dark values twice over, since the app switches on `data-theme` and Fumadocs on a `.dark` class.
+- **Taking the app's contrast values unchanged in the docs.** Maximum fidelity, and the sidebar, table of contents and page descriptions land below AA. The hue difference is invisible; the contrast difference is not.
+- **Callouts in palette colours only.** Fully closed, but `info`, `warning` and `error` would all sit in the same brown-orange-red family, with only the icon telling them apart.
+- **`class="dark"` on `<html>`, the common Tailwind convention.** A boolean class has two states where the theme has three: explicit `light`, explicit `dark`, and the attribute's absence meaning "follow the system". `data-theme` carries all three, and it is what lets `:root:not([data-theme='light'])` keep an explicit `light` under a dark system preference.
+- **Theming `docs/memory/` the same way.** The neutral look is what marks it as internal.
+- **Adopting the app's radii and shadows in the docs.** Fumadocs leans on `rounded-lg` and `rounded-xl`, which this scale roughly doubles; badges and the search field would come out as pills.

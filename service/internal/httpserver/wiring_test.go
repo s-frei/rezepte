@@ -98,7 +98,7 @@ var specRoutes = []string{
 // TestSpecRoutesNeedASession pins that an instance reachable from the
 // internet hands a stranger nothing to read. The document describes the
 // deployed version's surface, which is more than the released spec the user
-// docs publish - see ADR 0017.
+// docs publish - see docs/memory/content/features/users-and-auth.mdx.
 func TestSpecRoutesNeedASession(t *testing.T) {
 	app := newFullApp(t)
 	for _, route := range specRoutes {

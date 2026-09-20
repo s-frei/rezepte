@@ -1,0 +1,59 @@
+---
+title: Cooking
+description: Servings scaling in the browser, kitchen fraction rounding, a per-recipe localStorage key and the full-screen cook mode
+---
+
+A household cooks the same recipe for different numbers of people without editing it. The detail page carries a servings stepper, and `/recipes/[slug]/cook` is a full-screen step-by-step mode for a phone propped up on the counter. Both live in the browser: the chosen servings and the cook's position in the steps never reach the service, which stores only what the author wrote.
+
+## How it works
+
+**The arithmetic runs in the browser, against the recipe's own servings.** The stored `servings` is the baseline every quantity is written for. `scaleQuantity` in `frontend/src/lib/recipe/scale.ts` is `quantity × to / from`, and the chosen `to` never leaves the browser — there is no query parameter, no endpoint and no column for it. A base or target that is zero or negative, and the identity case, return the stored value untouched, so no `x × n / n` drift and no `Infinity` from a nonsensical input. Units are free text and are never converted; only the number moves.
+
+**Rounding, by band.** `roundScaled` keeps the sign and works on the absolute value:
+
+| Value | Rule |
+|---|---|
+| below 1 | snaps onto 0, ¼, ⅓, ½, ⅔, ¾ or 1 when within `SNAP_TOLERANCE` (0.04), otherwise one decimal |
+| 1 up to 10 | a fractional part within 0.04 of ⅓ or ⅔ keeps that third, everything else rounds to the nearest quarter |
+| from 10 | whole numbers |
+
+`SNAP_TARGETS_BELOW_ONE` is `[0, 0.25, 1/3, 0.5, 2/3, 0.75, 1]` and `THIRDS` is `[1/3, 2/3]`; the comparison adds `1e-9` to the tolerance, because a window edge such as `0.29 - 0.25` is `0.04000000000000004` in binary floating point and would otherwise fall outside its own band.
+
+**One formatter for every quantity.** `formatScaled` hands the rounded number to `formatQuantity` in `frontend/src/lib/recipe/format.ts`, the same function the unscaled list uses. It renders whole numbers plain, looks the fractional part up in one glyph table (`0.5` → ½, `0.25` → ¼, `0.75` → ¾, `0.33` → ⅓, `0.67` → ⅔) after rounding it to two decimals, prefixes an integer part when there is one (`1 ½`), and otherwise falls back to at most two decimals with a German comma. That two-decimal rounding is what makes `n + 1/3` from `roundScaled` come out as ⅓ rather than as `1,33`.
+
+**The baseline is rendered exactly.** `formatQuantityFor` short-circuits when `from === to` and formats the stored number directly, skipping the rounding path entirely. Returning the stepper to the recipe's own servings can therefore never change a number the author typed.
+
+**The choice persists per recipe, in `localStorage`.** `servingsKey` builds `rezepte-servings:<recipeId>` from `SERVINGS_STORAGE_PREFIX`. `Servings` in `frontend/src/lib/recipe/servings.svelte.ts` is a `$state` class whose `value` starts from the stored entry and falls back to the baseline; `set` clamps through `clampServings` to whole numbers in `[SERVINGS_MIN, SERVINGS_MAX]` (1 to 99, the editor's own bounds) and writes the key only while the value differs from the baseline — returning to the baseline removes it, so a recipe nobody scaled leaves nothing behind. `parseServings` trusts a stored string only when it is one or two digits inside the range. Every read and write is wrapped in `try`/`catch`, because `window.localStorage` throws outright when site data is blocked. `clearServings` drops the key when the recipe is deleted. The detail page and cook mode each build their own instance through `createServings` and share only the key, which is how a scaling choice carries into cook mode without any URL state. The pure rules live in `frontend/src/lib/recipe/servings.ts`, separate from the rune class, so they are unit-testable without a browser.
+
+**Cook mode is a bare route.** `frontend/src/routes/+layout.svelte` compares `page.route.id` against `/recipes/[slug]/cook` — the route id, not the pathname, so the check is exact and independent of the slug — and renders it without `AppShell`, without the command palette and without its `Cmd+K` handler, the same way it treats `/login`. The page fills `h-dvh`: header with a step counter, a segmented `role="progressbar"` whose `aria-valuenow` is the 1-based step and whose `aria-valuemax` is the step count, one step per view in display type, and a footer with a previous button and a next button that becomes "finish" on the last step.
+
+**Keyboard, pointer and motion.** A `svelte:window` handler takes `ArrowRight`, `ArrowLeft` and `Escape`; it stands down when the event is already `defaultPrevented`, when `Alt`, `Meta` or `Control` is held — `Cmd+Left` is the browser's own Back and must not page a step — and while the ingredient sheet is open. A pointer gesture is measured from `pointerdown` to `pointerup` and needs `SWIPE_THRESHOLD` (50 px) of horizontal travel to page, with `pointercancel` and `pointerleave` forgetting the start so an unrelated later `pointerup` is not measured against it. Each step change is a 200 ms fly-in against a fade-out, dropping to 0 ms under `prefersReducedMotion`. Leaving calls `history.back()` when the cook arrived from the detail page and replaces the entry otherwise, so the browser's Back button does not drop them into cook mode again.
+
+**The screen stays awake while it can.** `ScreenWakeLock` in `frontend/src/lib/recipe/wake-lock.svelte.ts` wraps requesting and releasing a `screen` lock; the cook page's `onMount` acquires one, registers the `visibilitychange` listener that acquires it again when the tab becomes visible — the browser drops the lock while the tab is hidden — and releases it on teardown. A generation counter is bumped by every `acquire` and `release`, so a request that resolves after the page is gone releases its sentinel instead of installing one nobody owns. `active` is `$state` and false whenever no sentinel is held — the API is missing outside a secure context and the request rejects for a hidden tab, a policy or a low battery — so the "screen stays on" caption appears only when the lock is real.
+
+**The ingredient sheet is a plain fixed panel.** It carries `role="dialog"` and `aria-modal="true"`, moves focus into itself when it opens and back onto the collapsed toggle when it closes, and owns `Escape` while open: its own handler closes it and calls `preventDefault`, which is exactly what stops the page handler from leaving cook mode. The rest of the page is marked `inert` through a `display: contents` wrapper, so the flex column keeps its shape while everything behind the sheet becomes unreachable. The collapsed toggle stays mounted but `invisible`, which keeps its height in the column and takes it out of both the tab order and the accessibility tree. Inside, the sheet reuses `ServingsStepper` and `IngredientList`, so the servings and the ticked-off ingredients are the same state as on the detail page.
+
+## Why it is this way
+
+Scaling in the browser is zero backend work and zero schema risk. The service stores what the author wrote and nothing else, so there is no migration, no endpoint and no cache to invalidate behind a feature that is arithmetic over numbers the client already holds.
+
+A per-cook preference is not recipe data. Two people can have the same recipe open at different servings, and neither of them is editing anything.
+
+The rounding the kitchen wants is opinionated: `2.6` reads as "2 ½" and `1.1` as "1". That is a cookbook number rather than an exact one, and below 10 it costs at most an eighth. Anyone who needs the exact arithmetic edits the recipe's baseline instead.
+
+`inert` is what makes the sheet's `aria-modal="true"` truthful. The alternative is a hand-rolled focus trap that would then have to be reconciled with the step view's own key handling, for a panel whose modality lasts as long as a glance at the ingredients.
+
+## Rejected
+
+- **A `?servings=` query parameter.** The choice would be lost on the way back to the detail page and on every card link out of it; a key by recipe id survives both, and the reload.
+- **A `servings` column or a `PATCH` endpoint for the chosen value.** It turns a personal preference into shared recipe data and forces a write on every tap of "+".
+- **Nearest-quarter rounding everywhere, without the thirds snap.** A stored "1 ⅓ EL" would come back as "1 ¼" the moment the stepper moved away and back, which reads as a bug rather than as rounding.
+- **A Bits UI `Dialog` for the sheet.** Two Escape handlers to reconcile and a focus trap, for a panel that is not modal in spirit.
+- **A `(shell)` route group.** It moves every existing route to make one page bare; the layout's route-id check already does that job.
+
+## Limits
+
+- A scaled value is never shareable — a link always opens at the baseline — and lives per browser rather than per account.
+- Keys accumulate one per scaled recipe. Deleting a recipe in the UI clears its key, but a database reset on the server leaves orphans behind; they are harmless, since a key is only ever read by recipe id.
+- The Screen Wake Lock API needs a secure context, so over plain HTTP on a LAN address the lock is silently absent and the caption never appears. HTTPS, directly or through a reverse proxy, is what turns it on.
+- A second full-screen route means extending the route-id check in the root layout, not hiding shell parts from inside the page.

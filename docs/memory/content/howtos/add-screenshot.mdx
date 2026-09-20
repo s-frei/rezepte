@@ -38,7 +38,7 @@ description: A new <Screenshot> name, its spec and its four PNGs
     ```bash
     mise run //docs/user:screenshots:audit
     ```
-    Fails if the name has no matching `test()` or an invalid character; warns about missing or unused PNGs. Where a Chromium starts, follow with `mise run //docs/user:screenshots` to render the four PNGs the name now needs (`<name>-desktop-light.png`, `<name>-desktop-dark.png`, `<name>-mobile-light.png`, `<name>-mobile-dark.png`) into `docs/user/public/screenshots/`. Where it does not, `<Screenshot>` shows a placeholder frame until someone with a working browser runs it - see [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline).
+    Fails if the name has no matching `test()` or an invalid character; warns about missing or unused PNGs. Where a Chromium starts, follow with `mise run //docs/user:screenshots` to render the four PNGs the name now needs (`<name>-desktop-light.png`, `<name>-desktop-dark.png`, `<name>-mobile-light.png`, `<name>-mobile-dark.png`) into `docs/user/public/screenshots/`. Where it does not, `<Screenshot>` shows a placeholder frame until someone with a working browser runs it - see [Documentation sites](/architecture/docs).
 
   </Step>
 </Steps>

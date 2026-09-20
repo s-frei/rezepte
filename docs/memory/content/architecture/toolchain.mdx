@@ -1,0 +1,58 @@
+---
+title: Toolchain
+description: One repository, four mise packages, every tool pinned and every port derived from one offset
+---
+
+Rezepte is one repository with a Go service in `service/`, a SvelteKit SPA in `frontend/` and two documentation apps under `docs/`. The service binary embeds the built SPA, so those two version together and release together. Every tool and every command goes through mise: `mise run <task>` for a task, `mise exec -- <cmd>` for anything else. Nothing in this repository is invoked with a bare `go`, `bun`, `node` or `npm`.
+
+## Tasks
+
+The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its packages in `[monorepo] config_roots`: `service`, `frontend`, `docs/memory` and `docs/user`. Each of those has its own `mise.toml` holding the tasks that only make sense inside it — `//service:generate`, `//frontend:build`, `//docs/user:screenshots`. Root tasks are thin and depend on package tasks through `//package:task`:
+
+| Task | What it pulls in |
+|---|---|
+| `mise run setup` | installs every package's dependencies plus the Playwright browser, then `go mod download` |
+| `mise run dev` | `//service:dev` (watchexec restarts the API on `.go` changes) and `//frontend:dev` |
+| `mise run check` | `guard:local-config` plus the four package `check` tasks |
+| `mise run build` | `//service:build`, which depends on `//frontend:build` — the SPA lands in `service/internal/web/dist` and is embedded |
+| `mise run docs` | both documentation sites |
+| `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |
+
+`//frontend:build` empties `service/internal/web/dist` before it writes, which would take the tracked `.gitkeep` with it, so the task restores that file afterwards and a clean checkout still has the directory the Go build embeds.
+
+`[tools]` pins Go, Bun, Node, golangci-lint, sqlc and watchexec, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
+
+CI installs the same pinned tools through `jdx/mise-action`, then runs `mise run setup`, regenerates the API reference and fails on any uncommitted diff, and only then runs `mise run check`, `mise run build` and `mise run e2e` — so a green gate locally does not guarantee a green `check` job: a stale API reference regeneration is the gap ([Documentation sites](/architecture/docs)).
+
+## Worktrees and ports
+
+The unit of feature work is a git worktree under `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`scripts/worktree-new.sh`). [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure and the port table; this page is the scheme behind it.
+
+**Every port derives from one offset.** The root `mise.toml` `[env]` block defines `RZP_BACKEND_PORT`, `RZP_FRONTEND_PORT`, `RZP_DEMO_PORT`, `RZP_DOCS_MEMORY_PORT` and `RZP_DOCS_USER_PORT` as `base + REZEPTE_PORT_OFFSET * 100`. The main checkout runs at offset 0 and keeps the project's default numbers exactly; a worktree gets an offset of its own, so two full stacks never bind the same socket. `mise run ports` (`scripts/worktree-ports.sh`) prints this worktree's map — never write a port number into a file, and never assume one in a command.
+
+Every consumer reads the variable rather than a literal: `frontend/vite.config.ts`, both Playwright configs, `docs/user/scripts/with-demo.sh`, `docs/user/scripts/fetch-openapi.ts` and both documentation `package.json` dev scripts. `REZEPTE_ADDR` is the exception and stays one: it is the operator-facing configuration of a self-hosted service and takes an address, not a port, so `//service:dev` translates instead, with a default expansion — `REZEPTE_ADDR="${REZEPTE_ADDR:-:$RZP_BACKEND_PORT}"`, so an address the operator set still wins — and no Go code knows about the offset.
+
+**The live worktrees are the register.** `worktree:new` walks `git worktree list --porcelain`, reads each worktree's own `mise.local.toml`, and takes the lowest offset free in 1–9; removing the worktree takes that file with it and frees the offset the same moment. There is no state file to reconcile. A `mkdir` lock under the main checkout's `.git` serializes the scan-and-write, because two creations started together would otherwise both see the same lowest free offset.
+
+**`mise.local.toml` must never be committed.** It is where the offset lives, gitignored at every depth and covered again by `.claude/worktrees/`, so the only way one reaches a commit is a deliberate `git add -f`. `mise run check` therefore depends on a `guard:local-config` task that fails when `git ls-files` reports a tracked one: an offset loose in the main checkout shifts its ports for a reason nobody can see in the diff.
+
+## Why it is this way
+
+The binary embeds the frontend. Splitting the two across repositories would put a cross-repo coordination step in front of every release of a single artefact, so they share a repository and a version.
+
+One command is the gate. `mise run check` runs the same four package gates a reviewer, an agent and CI run, which is only true while the tool versions are pinned in the repository rather than installed by hand.
+
+Deriving the port register from the worktrees that exist cannot go stale. Any scheme that records offsets separately has a cleanup obligation, and the one time it is skipped, the register hands out an offset that is still in use — which is the exact failure the scheme exists to prevent.
+
+## Rejected
+
+- **Separate repositories per package.** Simpler in isolation, but the binary embeds the frontend, so every release would need cross-repo coordination for one artefact.
+- **A Makefile or `just`.** Both run tasks; neither pins the toolchain. mise covers tasks and tools with one lockfile.
+- **An offset hashed from the worktree name.** No state and no script, but two names can hash to the same slot — a silent collision, which is the failure the scheme exists to prevent.
+- **A registry file of assigned offsets.** Unique by construction, but it goes stale the first time a worktree is removed by hand, and then hands out an offset that is still in use.
+- **A convention in `CLAUDE.md` alone,** with each agent picking a free number by inspection. Least code, and it relies on every agent checking what is taken — an assumption that fails quietly, and exactly when several agents are running at once, which is the only case that matters.
+
+## Limits
+
+- Templates must read the offset as `{{ env.REZEPTE_PORT_OFFSET }}`, never `get_env(name=…)`. `get_env` reads only the process environment and ignores `mise.local.toml`, so a port written that way silently resolves to offset 0: the template looks right, the gate stays green, and nothing goes wrong until two worktrees run their stacks at once and collide.
+- Offsets run 1–9, so nine worktrees can run beside the main checkout. A tenth has nowhere to go and `worktree:new` fails with the list of who holds what rather than guessing.
