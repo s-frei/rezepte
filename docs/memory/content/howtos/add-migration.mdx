@@ -3,11 +3,19 @@ title: Add a database migration
 description: Sequential goose migrations, embedded and applied at startup
 ---
 
+<Callout type="warn" title="Until the first release: edit a migration, do not add one">
+
+  No tagged release exists yet, so no installed database anywhere needs upgrading. A schema change therefore belongs **in the migration that created the table**: a column, an index or a table under something `service/internal/db/migrations/0002_recipes.sql` introduced is an edit to `0002_recipes.sql`, not a new file on top of it. Delete the local data directory and let the binary migrate from scratch - there is nothing to back-fill and nobody to coordinate with - and the schema stays one readable file per subject area instead of a subject reconstructed from six numbered patches.
+
+  **The rule expires with the first release ([Release](/howtos/release)).** From that moment every schema change is a new, additive migration with a working `Down`, because somebody's data depends on it. Whoever ships that release deletes this callout and leaves the steps below, sequential numbering included.
+
+</Callout>
+
 <Steps>
   <Step>
 
     ### Create the file
-    `service/internal/db/migrations/NNNN_short_name.sql` with the next four-digit number. Never reuse or renumber.
+    Suspended until the first release - the callout above says to edit the migration that created the table instead. Afterwards: `service/internal/db/migrations/NNNN_short_name.sql` with the next four-digit number. Never reuse or renumber.
 
   </Step>
   <Step>

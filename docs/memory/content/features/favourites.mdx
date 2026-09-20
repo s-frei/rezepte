@@ -1,0 +1,44 @@
+---
+title: Favourites
+description: A per-user star kept in its own join table, derived from the session and loaded one batch per page
+---
+
+The household shares one recipe collection, but a star on a recipe is personal: several people use the same instance, and one person's favourites are not another's. The overview can narrow down to the caller's own stars, and every card shows the star as the person looking at it set it. [Data model](/architecture/data-model) owns the table; [HTTP API](/architecture/api) owns the endpoints.
+
+## How it works
+
+**One row per (user, recipe).** A star is a row in `favourites`, declared in `service/internal/db/migrations/0002_recipes.sql`: starring inserts it, unstarring deletes it, and there is no per-recipe state to update. [Data model](/architecture/data-model) owns the columns, the key and the cascades.
+
+**The caller comes from the session and from nowhere else.** `set-favourite` (`PUT /api/v1/recipes/{id}/favourite`) and `delete-favourite` (`DELETE` on the same path) each read `auth.UserFrom(ctx)` and answer `401` when there is none; the list handler takes the caller from the same place and falls back to an empty id rather than to a parameter, and `fillFavourite` returns without touching the flag when there is no caller. No path, query or body parameter names a user anywhere on this surface, so one person cannot address another person's stars — by construction, rather than by a check somebody has to remember to repeat on the next endpoint.
+
+**The star is a state, not an event.** `SetFavourite` in `service/internal/recipe/service.go` writes with `INSERT OR IGNORE`, so starring twice is not an error, and clears with a plain `DELETE`, so unstarring something that was never starred is not one either. Starring checks the recipe exists first and maps a missing one to `ErrNotFound`, which the handler turns into `404`: `favourites.recipe_id` carries a foreign key, and `INSERT OR IGNORE` swallows only its own uniqueness conflict, never a foreign-key violation, so an unchecked insert against a missing recipe would surface as a raw constraint error instead. Unstarring is deliberately not checked that way — deleting a favourite that was never there is the same "already in the desired state" idempotency `DELETE` has everywhere else in the package.
+
+**Every list request carries the caller's id, not only a filtered one.** The list handler fills `ListParams.UserID` from the context on every request, because `Card.Favourite` has to be right on every card of every page, not only on the pages a `favourites=true` request returns. The filter itself is the same switchable `AND` condition the other list filters use — `(CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))`, repeated in all four list and count queries. The `CAST` is what makes sqlc infer a concrete `int64` instead of `interface{}`, whose Go zero value is `nil` rather than `0`; [Recipes and search](/features/recipes) owns that rule and the shape the condition follows.
+
+**One batched lookup per page, not one per card.** `toCards` marshals the page's recipe ids to a JSON array and runs `ListFavouriteRecipeIDs` once, beside the tag batch it already runs, then reads each card's state out of the resulting set. A detail page takes the same query with a one-element array through `(*Service).IsFavourite`, called by `fillFavourite`.
+
+**An empty user id disables the lookup rather than matching rows.** `IsFavourite` returns false without querying, `toCards` skips the batch entirely, and `List` computes `favouritesOnly` as the request's flag *and* a non-empty id. The SQL's own comparison of `user_id` against an empty string happens to match nothing, but that is a fail-closed accident rather than a guarantee, so no Go path leans on it. `(*Service).Count` — the one caller with no user behind it, used by demo seeding to decide whether a database already holds recipes — spells out `FavouritesOnly: 0` and `UserID: ""` at the call site instead of relying on zero values.
+
+**The star is optimistic in the browser.** `FavouriteStar.svelte` flips the icon, calls the endpoint, and on failure puts the previous value back and raises a toast. It never sits inside a link: a `<button>` inside an `<a>` is invalid HTML and a focus trap, and the whole card *is* one link, so `RecipeCard.svelte` wraps both in a `relative` container and positions the star absolutely over the image as the anchor's sibling — Tab then reaches the star and the card link as two separate stops. The detail page puts it beside the title, outside any link, for the same reason. The component guards its click with `preventDefault` and `stopPropagation` anyway, since it sits visually over a link on a card.
+
+## Why it is this way
+
+A column on `recipes` can hold exactly one answer, and the question has as many answers as the household has members. A join table is the shape that has somewhere to put "whose" — and, as a side effect, the referential integrity that keeps a favourite from outliving either end of it.
+
+Deriving the user from the session makes isolation a property of the code's shape rather than of its discipline. There is no parameter to forget to validate, because there is no parameter.
+
+Loading the state one batch per page keeps a list at a fixed number of queries however many cards it shows, which is the same bargain the tag lookup beside it already made. Loading it on every list rather than only on a filtered one is what keeps the star from lying: a page that showed every star empty until the reader switched a filter on would be wrong far more often than right.
+
+## Rejected
+
+- **A `favourite` boolean column on `recipes`.** One flag for a household of several people: there is nowhere to put the second person's answer, which is the whole requirement.
+- **A JSON array of user ids on `recipes`.** It avoids the join table, but turns "is this one of mine" into a per-row JSON scan instead of an indexed lookup, and gives up the foreign keys that clean up after a deleted user.
+- **Taking the user id from the request and trusting it for an authenticated caller.** It makes whose favourites are being read a value the client chooses rather than a fact the server derives — exactly the class of mistake the session-only rule exists to rule out.
+- **Asking per card.** A star per card is a query per card on the busiest page in the app, for state a single `IN (...)` already answers for the whole page.
+
+## Limits
+
+- `Recipe.Favourite` is filled only by the two get operations, which call `fillFavourite` after loading the recipe. `create-recipe` and `update-recipe` answer `false` unconditionally — accurate right after a create, wrong after updating a recipe the caller had starred. Any further handler that loads through `ByID` or `BySlug` gets `false` the same way unless it calls `fillFavourite` or `IsFavourite` itself.
+- Favourite rows disappear with the user (`ON DELETE CASCADE`), which is what personal state should do and worth knowing before deleting a household member.
+- `favourites.created_at` is written and nothing reads it. There is no "recently starred" order and no date on the star.
+- An authenticated list costs one query more than an unauthenticated one would, per page.

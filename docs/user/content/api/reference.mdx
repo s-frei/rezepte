@@ -180,7 +180,10 @@ List and search recipes
 | Name | In | Type | Required | Description |
 |---|---|---|---|---|
 | `q` | query | string | no | Full-text search query |
-| `tag` | query | string | no | Restrict to recipes carrying this tag |
+| `tags` | query | string[] \| null | no | Restrict to recipes carrying all of these tags |
+| `maxMinutes` | query | integer | no | Only recipes whose total time is at most this many minutes |
+| `favourites` | query | boolean | no | Restrict to the caller's own favourites |
+| `sort` | query | string | no | Result order |
 | `page` | query | integer | no | 1-based page number |
 | `limit` | query | integer | no | Page size |
 
@@ -259,6 +262,42 @@ Update a recipe
 | Status | Description | Body |
 |---|---|---|
 | 200 | OK | [Recipe](#recipe) |
+| 404 | Not Found | [ErrorModel](#errormodel) |
+| 422 | Unprocessable Entity | [ErrorModel](#errormodel) |
+| 500 | Internal Server Error | [ErrorModel](#errormodel) |
+
+### DELETE /api/v1/recipes/\{id\}/favourite
+
+Clear a recipe's favourite mark
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|---|---|---|---|---|
+| `id` | path | string | yes |  |
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| 204 | No Content | – |
+| default | Error | [ErrorModel](#errormodel) |
+
+### PUT /api/v1/recipes/\{id\}/favourite
+
+Mark a recipe as a favourite
+
+**Parameters**
+
+| Name | In | Type | Required | Description |
+|---|---|---|---|---|
+| `id` | path | string | yes |  |
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| 204 | No Content | – |
 | 404 | Not Found | [ErrorModel](#errormodel) |
 | 422 | Unprocessable Entity | [ErrorModel](#errormodel) |
 | 500 | Internal Server Error | [ErrorModel](#errormodel) |
@@ -380,6 +419,7 @@ Change a user's role and/or reset the password
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `coverImageId` | string \| null | yes |  |
+| `favourite` | boolean | yes |  |
 | `id` | string | yes |  |
 | `slug` | string | yes |  |
 | `tags` | string[] \| null | yes |  |
@@ -514,6 +554,7 @@ Change a user's role and/or reset the password
 | `createdAt` | string (date-time) | yes |  |
 | `createdBy` | string | yes |  |
 | `description` | string | yes | length 0–2000 |
+| `favourite` | boolean | yes |  |
 | `id` | string | yes |  |
 | `images` | [Image](#image)[] \| null | yes |  |
 | `ingredientGroups` | [IngredientGroup](#ingredientgroup)[] \| null | yes | 1–20 items |

@@ -54,8 +54,10 @@ func WithAPIMiddleware(mw func(api huma.API) func(huma.Context, func(huma.Contex
 // the middleware WithAPIMiddleware installs never runs for them and their
 // Security is empty. Guarding them therefore has to happen here, in front
 // of the mux, rather than in the operation chain. mw is an ordinary
-// net/http middleware - auth.RequireSession, the same one the image routes
-// use.
+// net/http middleware - auth.RequireSessionOrLogin, which redirects a
+// browser to the login form and answers everything else with a 401. The
+// image routes take auth.RequireSession instead, which always denies with
+// a 401; see docs/memory/content/features/users-and-auth.mdx.
 func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.specGuard = mw

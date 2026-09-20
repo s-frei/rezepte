@@ -475,9 +475,9 @@ func TestListRejectsAnUnknownSort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// An unknown value falls back to the default order rather than erroring:
-	// it can only arrive from a stale bookmark, and an empty grid would be a
-	// worse answer than the normal one.
+	// A service-level defence, not the API's behaviour: the sort query
+	// parameter is an enum, so huma answers 422 before List is reached. An
+	// in-process caller still gets the default order rather than an error.
 	if p.Total == 0 {
 		t.Fatal("unknown sort must fall back to the default order")
 	}

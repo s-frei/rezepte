@@ -7,12 +7,18 @@ type Props = {
 	name: string;
 	/** Shown below the image and used as alt text. */
 	caption: string;
-	/** Show the Pixel 7 variants in a phone frame instead of the desktop ones. */
+	/** Show the mobile variants in a phone frame instead of the desktop ones. */
 	mobile?: boolean;
 };
 
+// These are the viewports playwright.config.ts captures at, and they have to
+// stay in step with it: the value reaches next/image as the intrinsic size and
+// sets the aspect ratio of the placeholder frame drawn for a missing variant,
+// so a mismatch distorts both. The mobile project overrides Pixel 7's own
+// 412px width down to 360px on purpose - see "Widths that matter" in
+// docs/memory/content/howtos/verify-ui.mdx.
 const DESKTOP = { width: 1440, height: 900 };
-const MOBILE = { width: 412, height: 915 };
+const MOBILE = { width: 360, height: 780 };
 
 // next/image's `unoptimized` loader returns `src` verbatim - it does not
 // prefix `basePath` the way every other Next-managed asset does - so the

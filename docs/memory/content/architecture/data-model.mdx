@@ -13,6 +13,8 @@ erDiagram
   recipes ||--o{ recipe_tags : tagged
   tags ||--o{ recipe_tags : tags
   recipes ||--o{ images : has
+  users ||--o{ favourites : stars
+  recipes ||--o{ favourites : starred
   users {
     text id PK
     text username UK
@@ -70,6 +72,11 @@ erDiagram
     text recipe_id PK "also FK to recipes.id"
     text tag_id PK "also FK to tags.id"
   }
+  favourites {
+    text user_id PK "also FK to users.id"
+    text recipe_id PK "also FK to recipes.id"
+    text created_at
+  }
   images {
     text id PK
     text recipe_id FK
@@ -88,6 +95,7 @@ erDiagram
 - Timestamps: RFC 3339 UTC strings via `db.FormatTime` / `db.ParseTime`, with **second** resolution (`time.RFC3339`, no fractional part). Because two writes in the same second get the same `updated_at`, the recipe list and search queries (`queries/recipes.sql`) break ties with `id DESC`: UUIDv7 ids sort lexicographically by creation time, so the newest row still sorts first. Without that tiebreaker, two recipes saved in the same second come back oldest first. If a fractional part is ever added to `FormatTime`, it must be fixed-width - `time.RFC3339Nano` trims trailing zeros, and a shortened fraction no longer sorts lexicographically the same as the full value.
 - The connection DSN in `service/internal/db/db.go` sets the pragmas: `journal_mode(WAL)`, `busy_timeout(5000)`, `synchronous(NORMAL)`, `foreign_keys(ON)` and `_txlock=immediate`.
 - Foreign keys are enforced; deletes cascade. The one exception is `recipes.cover_image_id`, a plain nullable `TEXT` with no `REFERENCES` constraint: it points at `images.id` but carries no FK because the image service keeps it consistent itself (set on first upload, moved on delete of the cover) - a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
+- `favourites` is keyed by `(user_id, recipe_id)` and both foreign keys cascade, so a star never outlives the user or the recipe it belongs to. The primary key already serves lookups by user; `favourites_recipe_idx` on `recipe_id` serves the reverse direction, which the per-page card lookup uses. See [Favourites](/features/favourites).
 - Usernames are unique case-insensitively (`COLLATE NOCASE`).
 - Session ids are SHA-256 digests of the bearer token; the raw token exists only in the cookie.
 - `ingredient_groups.position`, `ingredients.position` and `steps.position` are 0-based integers, rewritten sequentially in full on every recipe save (see [Recipes and search](/features/recipes)) - never edited in place, so there are no gaps or renumbering to reason about between saves.
@@ -109,7 +117,7 @@ Migrations are embedded with `go:embed` and applied by `db.Migrate` as the proce
 
 Tests run against a real migrated database rather than mocks. `dbtest.Open` opens a throwaway file in the test's own temp directory and applies every migration to it, so a query test meets the same SQLite, the same pragmas and the same schema as production - including the FTS5 table and the `_txlock=immediate` transaction behaviour that the last-admin guard leans on.
 
-[Add a database migration](/howtos/add-migration) owns the procedure.
+[Add a database migration](/howtos/add-migration) owns the procedure, and the rule about editing an existing migration rather than adding one that holds until the first release ships.
 
 ## Rejected
 
