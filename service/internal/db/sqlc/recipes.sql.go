@@ -307,8 +307,9 @@ type ListFavouriteRecipeIDsParams struct {
 
 // One query per page rather than one per card: toCards already batches the
 // tag lookup the same way. The recipe ids travel as a JSON array matched
-// with json_each(), not sqlc.slice() - see the note on ListRecipesFiltered
-// for why sqlc.slice() cannot be combined with sqlc.arg() in the same query.
+// with json_each(), not sqlc.slice(): sqlc.slice() cannot be combined with
+// sqlc.arg() in the same query. See
+// docs/memory/content/features/recipes.mdx.
 func (q *Queries) ListFavouriteRecipeIDs(ctx context.Context, arg ListFavouriteRecipeIDsParams) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, listFavouriteRecipeIDs, arg.UserID, arg.RecipeIds)
 	if err != nil {
@@ -460,7 +461,7 @@ type ListRecipesFilteredRow struct {
 // Every parameter is sqlc.arg() on purpose - mixing plain "?" with the
 // explicitly numbered "?N" that sqlc.arg() becomes makes SQLite number the
 // plain ones after the highest explicit index, which the Go driver never
-// binds. See the note that used to sit on SearchRecipes.
+// binds. See docs/memory/content/features/recipes.mdx.
 //
 // tag_count = 0 switches the tag filter off; when it is set, the subquery
 // keeps only recipes carrying *all* of tag_names (AND, not OR). The HAVING
@@ -480,8 +481,9 @@ type ListRecipesFilteredRow struct {
 // CAST for the same reason as max_minutes. When it is set, only recipes
 // present in user_id's own favourites row match - user_id is never taken
 // from a path, query or body parameter, only from the authenticated
-// caller (see ADR 0017), so this condition can only ever narrow a caller's
-// own list to their own favourites.
+// caller (see docs/memory/content/features/favourites.mdx), so this
+// condition can only ever narrow a caller's own list to their own
+// favourites.
 //
 // sort never reaches SQL as an identifier, only as a value each CASE
 // compares against - sqlc cannot parameterise ORDER BY itself. An unknown

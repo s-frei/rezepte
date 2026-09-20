@@ -13,8 +13,6 @@ Only the colours are ours. Typography and layout stay Scalar's, and so do the si
 
 Two of Scalar's own features are off in `DocsRendererConfig`, both of which lead away from the contract and into Scalar's product: the API client (`hideClientButton`) and the assistant (`agent.disabled`). `hideModels` drops the schema list. The page keeps its own light/dark choice rather than following the app's, because huma leaves no room for a script that could read it.
 
-The Scalar bundle is fetched from `unpkg.com` at runtime - huma pins the version and an SRI hash, and allows that one origin - so the page needs outbound internet to render. The OpenAPI document is served from the binary and works offline.
-
 ## Authentication
 
 <Tabs items={['Cookie session', 'Public']}>
@@ -63,6 +61,8 @@ Every operation below requires an admin session; a non-admin session gets `403` 
 | create | `POST /recipes` | `201`, body is the recipe input |
 | update | `PUT /recipes/{id}` | full replace of title, description and every child (groups, ingredients, steps, tags); `404` |
 | delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes |
+| set favourite | `PUT /recipes/{id}/favourite` | `204`; `404` for an unknown recipe; idempotent - starring twice is not an error |
+| clear favourite | `DELETE /recipes/{id}/favourite` | `204`; never `404` - clearing a star that was not set is not an error |
 | list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see [Recipes and search](/features/recipes)) |
 
 `GET /recipes` query parameters:
@@ -70,11 +70,16 @@ Every operation below requires an admin session; a non-admin session gets `403` 
 | Param | Notes |
 |---|---|
 | `q` | full-text search across title, description, ingredient names and tags (max 100 chars); prefix-matched, umlaut/ASCII-insensitive - see [Recipes and search](/features/recipes) |
-| `tags` | comma-separated tag names (each max 40 chars, trimmed and lower-cased before matching); restricts to recipes carrying **all** of them (AND, not OR). Normalised and de-duplicated server-side and capped at 20 entries after deduplication - see [Recipes and search](/features/recipes) |
+| `tags` | comma-separated tag names, trimmed and lower-cased before matching; no length limit of its own, unlike the `tags` of a recipe body below; restricts to recipes carrying **all** of them (AND, not OR). Normalised and de-duplicated server-side and capped at 20 entries after deduplication - see [Recipes and search](/features/recipes) |
+| `maxMinutes` | 0-1440; keeps recipes whose prep and cook minutes sum to at least 1 and at most this bound, so a recipe with neither time set is excluded while the bound is active. `0` is off - see [Recipes and search](/features/recipes) |
+| `favourites` | `true` restricts the page to the caller's own favourites - see [Favourites](/features/favourites) |
+| `sort` | `updated`, `created` or `title`, declared as an `enum`, so any other value is a `422` on `query.sort`; absent or empty (`?sort=`) takes the `updated` default before validation runs |
 | `page` | 1-based, defaults to 1 |
 | `limit` | defaults to 24, clamped to `[1, 100]` |
 
-`q` and `tags` combine with AND when both are set.
+Every parameter above combines with AND when more than one is set.
+
+Whose favourites either favourite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favourites](/features/favourites)). `Card.favourite` is filled on every list; `Recipe.favourite` only by the two get operations.
 
 Validation summary for the recipe input body (`Input` in `internal/recipe/recipe.go`): `title` 1-200 chars, `description` ≤ 2000 chars, `servings` 1-99, `prepMinutes`/`cookMinutes` 0-1440 or `null`, `sourceUrl` ≤ 500 chars or `null` (must be a URI), `tags` ≤ 20 entries of 1-40 chars each, `ingredientGroups` 1-20 groups of ≤ 100 ingredients each (ingredient `name` 1-120 chars, `unit` ≤ 20 chars or `null`, `note` ≤ 200 chars or `null`, `quantity` ≥ 0 or `null`), `steps` ≤ 50 entries of 1-2000 chars each. Violations come back as the standard `422` problem body below.
 
