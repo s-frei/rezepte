@@ -172,7 +172,8 @@ describe('fromRecipe', () => {
 			images: [],
 			createdBy: 'u1',
 			createdAt: '2026-09-17T10:00:00Z',
-			updatedAt: '2026-09-17T10:00:00Z'
+			updatedAt: '2026-09-17T10:00:00Z',
+			favourite: false
 		};
 		expect(fromRecipe(recipe).title).toBe('Zitronen-Tarte');
 	});

@@ -1,16 +1,40 @@
 ---
 title: Tags and search
-description: Find recipes by title, ingredient, tag or free text
+description: Find recipes by title, ingredient, tag, time or favourite
 ---
 
 <Screenshot name="search" caption="Searching the overview" />
 
-Type into the search box to filter the overview. It matches the beginning of words in the title, description, ingredient names and tags — so "kart" finds "Kartoffeln" wherever it appears. Clicking a tag chip filters to that one tag; "Mehr laden" loads the next page of results.
+Type into the search box to filter the overview. It matches the beginning of words in the title, description, ingredient names and tags — so "kart" finds "Kartoffeln" wherever it appears. "Mehr laden" loads the next page of results.
 
-If nothing matches, the overview shows an empty state instead, with a "Filter zurücksetzen" button to clear the search:
+## Tags
+
+Under the search box sits every tag in use, each with the number of recipes carrying it, most-used first. Click one to narrow the list to it; click a second and you get the recipes carrying **both**, not either.
+
+The row is one line. When the tags do not fit, the ones that do not are folded away behind a "+N weitere" button at its end — click it to unfold the row over as many lines as it takes, and "Weniger" to fold it back. A tag you have switched on stays in sight when the row folds, wherever it sits in the list: a filter that is narrowing your list should never be one you cannot see.
+
+## Filtering
+
+Everything that narrows the list without being a tag lives behind the "Filter" button, and the number on that button counts what is currently set:
+
+<Screenshot name="filters" caption="The filter panel with a time limit set" />
+
+**Zeit** is the total time a recipe takes, preparation and cooking together. The slider moves in steps — a quarter hour at a time up to an hour, then in larger jumps up to four hours — and its right-hand end means "Beliebig": no limit at all. The list updates when you let go of the slider, not while you drag it.
+
+**Nur Favoriten** limits the list to the recipes you have starred. Stars are your own; another household member's favourites are not in your list.
+
+**Sortierung** orders the result — most recently changed, newest first, or A–Z. It sits next to the search box on a wide screen and moves into this panel on a phone. Sorting is not counted on the "Filter" button: it reorders the list rather than shortening it.
+
+"Alle Filter zurücksetzen" appears in the panel as soon as anything is set and clears the search term along with every filter.
+
+<Callout type="info" title="Good to know">
+  Every filter is part of the page address, so a narrowed list can be bookmarked or sent to someone — they open it on the same result. Tags are lower-cased and de-duplicated automatically, and a recipe can carry at most 20 of them.
+</Callout>
+
+## When nothing matches
+
+The overview shows an empty state instead, with "Filter zurücksetzen" to clear everything:
 
 <Screenshot name="no-results" caption="No results for a search" />
 
-<Callout type="info" title="Good to know">
-  Tags are lower-cased and de-duplicated automatically, and a recipe can carry at most 20 of them. The empty state also shows an "Als neues Rezept" button, marked "Kommt bald" for now — creating a recipe pre-filled with the search term is not wired up yet.
-</Callout>
+Next to it, "Als neues Rezept" opens the editor with the search term already in the title — for when the dish you looked for is one you have yet to write down. Nothing is saved until you press "Speichern", so it costs nothing to look. When the list came up empty because of the filters rather than a search term, there is no term to carry over and the same button reads "Neues Rezept".

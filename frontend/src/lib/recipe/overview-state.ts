@@ -7,31 +7,26 @@ export type OverviewViewState = {
 /**
  * Derives the overview page's view state from its raw counts.
  *
- * Pulled out of `+page.svelte`'s `$derived`s so the tricky boundary
- * condition below has a unit test: more pages may still exist server-side
- * even while the *visible* list (after the client-side multi-tag filter,
- * see the "Ruling: multi-tag filter" ledger note) is momentarily empty.
+ * Pulled out of `+page.svelte`'s `$derived`s so the boundary conditions
+ * below have a unit test.
+ *
+ * Assumes the caller's invariant `itemCount === 0 implies total === 0`: a
+ * page of results and its total always come from the same fetch, so an
+ * empty page never carries a nonzero total. This function is pure and
+ * cannot check that itself - given `itemCount: 0, total: 5` it reports
+ * `isNoResults: true`, which is only correct because the caller never
+ * produces that combination.
  */
 export function overviewViewState(params: {
 	loading: boolean;
-	q: string;
-	tagCount: number;
+	/** True when a search term or any filter narrows the list. */
+	filtered: boolean;
 	itemCount: number;
-	visibleItemCount: number;
 	total: number;
 }): OverviewViewState {
-	const isEmpty = !params.loading && params.total === 0 && !params.q && params.tagCount === 0;
+	const isEmpty = !params.loading && params.total === 0 && !params.filtered;
 
-	// "No results" only once no more pages are left to try. While
-	// `itemCount < total`, a page not yet loaded might still contain an item
-	// matching every selected tag, so "Mehr laden" - not the no-results
-	// panel - is the correct affordance even when nothing currently loaded
-	// is visible.
-	const isNoResults =
-		!params.loading &&
-		!isEmpty &&
-		params.visibleItemCount === 0 &&
-		params.itemCount >= params.total;
+	const isNoResults = !params.loading && !isEmpty && params.itemCount === 0;
 
 	const canLoadMore = !isEmpty && params.itemCount < params.total;
 

@@ -28,6 +28,20 @@ test('search', async ({ page }, testInfo) => {
 	await shot(page, 'search');
 });
 
+test('filters', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	// The bound comes from the address rather than from driving the slider:
+	// a keyboard press would leave the thumb wearing its focus ring, which
+	// belongs in a screenshot about as much as a mouse cursor does.
+	await page.goto('/?maxMinutes=60');
+	await page.getByRole('button', { name: 'Filter' }).click();
+	await expect(page.getByRole('slider', { name: 'Maximale Zeit' })).toHaveAttribute(
+		'aria-valuetext',
+		'bis 1 Std'
+	);
+	await shot(page, 'filters');
+});
+
 test('no-results', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.getByLabel('Rezepte durchsuchen').fill('zzz');

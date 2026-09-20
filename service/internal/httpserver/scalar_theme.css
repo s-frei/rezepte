@@ -1,0 +1,100 @@
+/*
+ * Palette for the Scalar docs page at /api/v1/docs, mapped onto the app's
+ * design tokens in frontend/src/app.css.
+ *
+ * Colours only. Typography, spacing and the six semantic colours Scalar uses
+ * for HTTP methods and status codes (--scalar-color-red/green/blue/...) stay
+ * Scalar's: those carry meaning, and the app's warm palette is too narrow to
+ * keep GET, POST and DELETE apart.
+ *
+ * The values are copied rather than imported - the app's stylesheet is a
+ * Tailwind theme that this page never loads. scalar_theme_test.go reads
+ * app.css and fails when a colour here is not one of its tokens.
+ *
+ * Scalar switches palettes with .light-mode / .dark-mode on its own root and
+ * remembers the choice itself; the page cannot follow the app's theme,
+ * because huma renders this HTML and leaves no room for our own script.
+ */
+
+.light-mode {
+	--scalar-background-1: #fdf9f2; /* --color-surface */
+	--scalar-background-2: #f4ede2; /* --color-background */
+	--scalar-background-3: #f0dfc4; /* --color-accent */
+	--scalar-background-card: #ffffff; /* --color-surface-elevated */
+	--scalar-background-accent: #f0dfc4; /* --color-accent */
+
+	--scalar-color-1: #2b2118; /* --color-text */
+	--scalar-color-2: #756554; /* --color-text-muted */
+	/* The app has no third text tone; fade the muted one into the page. */
+	--scalar-color-3: color-mix(in srgb, #756554 70%, #fdf9f2);
+	--scalar-color-accent: #b45309; /* --color-primary */
+
+	--scalar-border-color: #e3d7c3; /* --color-border */
+	--scalar-scrollbar-color: #c9b9a3; /* --color-handle */
+	--scalar-scrollbar-color-active: #756554; /* --color-text-muted */
+
+	--scalar-link-color: #b45309; /* --color-primary */
+	--scalar-link-color-visited: #b45309; /* --color-primary */
+	--scalar-link-color-hover: #7c3d0a; /* --color-accent-foreground */
+
+	--scalar-button-1: #b45309; /* --color-primary */
+	--scalar-button-1-color: #ffffff; /* --color-primary-foreground */
+	--scalar-button-1-hover: #7c3d0a; /* --color-accent-foreground */
+
+	--scalar-sidebar-background-1: #f4ede2; /* --color-background */
+	--scalar-sidebar-border-color: #e3d7c3; /* --color-border */
+	--scalar-sidebar-color-1: #2b2118; /* --color-text */
+	--scalar-sidebar-color-2: #756554; /* --color-text-muted */
+	--scalar-sidebar-color-active: #b45309; /* --color-primary */
+	--scalar-sidebar-item-hover-background: #f0dfc4; /* --color-accent */
+	--scalar-sidebar-item-hover-color: #2b2118; /* --color-text */
+	--scalar-sidebar-item-active-background: #f0dfc4; /* --color-accent */
+	--scalar-sidebar-search-background: #fdf9f2; /* --color-surface */
+	--scalar-sidebar-search-border-color: #e3d7c3; /* --color-border */
+	--scalar-sidebar-search-color: #756554; /* --color-text-muted */
+
+	/* Scalar derives hover and overlay states with brightness filters rather
+	   than with colours of their own, so these two are part of the palette. */
+	--scalar-lifted-brightness: 1;
+	--scalar-backdrop-brightness: 1;
+}
+
+.dark-mode {
+	--scalar-background-1: #26201a; /* --color-surface */
+	--scalar-background-2: #1c1612; /* --color-background */
+	--scalar-background-3: #3f2f1e; /* --color-accent */
+	--scalar-background-card: #2f2822; /* --color-surface-elevated */
+	--scalar-background-accent: #3f2f1e; /* --color-accent */
+
+	--scalar-color-1: #f3ebe0; /* --color-text */
+	--scalar-color-2: #a8998a; /* --color-text-muted */
+	--scalar-color-3: color-mix(in srgb, #a8998a 70%, #26201a);
+	--scalar-color-accent: #d97a2b; /* --color-primary */
+
+	--scalar-border-color: #3b322a; /* --color-border */
+	--scalar-scrollbar-color: #5a4d40; /* --color-handle */
+	--scalar-scrollbar-color-active: #a8998a; /* --color-text-muted */
+
+	--scalar-link-color: #d97a2b; /* --color-primary */
+	--scalar-link-color-visited: #d97a2b; /* --color-primary */
+	--scalar-link-color-hover: #f0c391; /* --color-accent-foreground */
+
+	--scalar-button-1: #d97a2b; /* --color-primary */
+	--scalar-button-1-color: #1c1612; /* --color-primary-foreground */
+	--scalar-button-1-hover: #f0c391; /* --color-accent-foreground */
+
+	--scalar-sidebar-background-1: #1c1612; /* --color-background */
+	--scalar-sidebar-border-color: #3b322a; /* --color-border */
+	--scalar-sidebar-color-1: #f3ebe0; /* --color-text */
+	--scalar-sidebar-color-2: #a8998a; /* --color-text-muted */
+	--scalar-sidebar-color-active: #d97a2b; /* --color-primary */
+	--scalar-sidebar-item-hover-background: #3f2f1e; /* --color-accent */
+	--scalar-sidebar-item-hover-color: #f3ebe0; /* --color-text */
+	--scalar-sidebar-item-active-background: #3f2f1e; /* --color-accent */
+	--scalar-sidebar-search-background: #26201a; /* --color-surface */
+	--scalar-sidebar-search-border-color: #3b322a; /* --color-border */
+	--scalar-sidebar-search-color: #a8998a; /* --color-text-muted */
+
+	--scalar-lifted-brightness: 1.45;
+	--scalar-backdrop-brightness: 0.5;
+}

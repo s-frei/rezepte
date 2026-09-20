@@ -7,7 +7,8 @@
 	let {
 		value = $bindable(''),
 		onsearch,
-		id = 'overview-search'
+		id = 'overview-search',
+		class: className = ''
 	}: {
 		/** Current field contents (bindable so callers can e.g. reset it). */
 		value?: string;
@@ -15,6 +16,8 @@
 		onsearch: (value: string) => void;
 		/** Id of the text field, so a caller can focus it (`?focus=search`). */
 		id?: string;
+		/** Extra classes appended to the wrapper, e.g. to constrain its width. */
+		class?: string;
 	} = $props();
 
 	let inputNode: HTMLInputElement | undefined;
@@ -41,7 +44,15 @@
 	}
 </script>
 
-<div class="flex h-12 w-full items-center gap-2 rounded-pill bg-surface px-4 md:w-[460px]">
+<!-- `min-w-0` is what lets this shrink in the row it shares with the filter
+     button. A flex item's automatic minimum size is its min-content width,
+     and the `<input>` inside contributes its `size="20"` default (166px at
+     this font) to that no matter that it carries `min-w-0` itself - so the
+     bar bottomed out at 226px and pushed the 88px filter button 46px past
+     the right edge at 320px. -->
+<div
+	class="flex h-12 w-full min-w-0 items-center gap-2 rounded-pill bg-surface px-4 md:w-[460px] {className}"
+>
 	<Search class="size-5 shrink-0 text-text-muted" aria-hidden="true" />
 	<input
 		{id}

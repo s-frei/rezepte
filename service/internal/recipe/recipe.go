@@ -63,6 +63,18 @@ type Recipe struct {
 	CreatedBy    string    `json:"createdBy"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	// Favourite reports whether the caller has starred this recipe. It is
+	// endpoint-dependent, not a property (*Service).ByID or (*Service).BySlug
+	// fill in themselves: only the get-recipe and get-recipe-by-slug handler
+	// operations populate it, each by calling fillFavourite (handler.go)
+	// after loading the Recipe. create-recipe and update-recipe return it as
+	// the zero value false unconditionally - Create's is accurate (nothing
+	// can have favourited a recipe that didn't exist a moment ago), Update's
+	// is not (an existing favourite is silently dropped from the response).
+	// A future caller of ByID/BySlug - a new handler operation, say - gets
+	// false the same way unless it also calls fillFavourite or
+	// (*Service).IsFavourite itself.
+	Favourite bool `json:"favourite"`
 }
 
 // Card is the summary of a recipe shown in listings.
@@ -74,6 +86,7 @@ type Card struct {
 	TotalMinutes *int      `json:"totalMinutes" nullable:"true"`
 	CoverImageID *string   `json:"coverImageId" nullable:"true"`
 	UpdatedAt    time.Time `json:"updatedAt"`
+	Favourite    bool      `json:"favourite"`
 }
 
 // TagCount is a tag name paired with how many recipes currently use it.

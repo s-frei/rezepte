@@ -43,22 +43,36 @@
 </div>
 
 <!--
-	Desktop: a sticky full-width bar on the viewport bottom; the negative
-	margins let it span the app shell's padding.
+	Desktop: the foot of the section rail, under the nav entries, inside the
+	rail's sticky block - so it scrolls with the rail and never lies over the
+	form. Any bar that floats above a scrolling form hides a band of exactly
+	what is being read; the rail is 200px wide and empty for the form's whole
+	height, which is the only place on this page that can hold a control
+	without taking anything away.
+
+	Both buttons stack: 200px cannot hold them side by side, and a pill that
+	breaks into two lines is worse than a column. "Speichern" goes on top,
+	where the eye leaves the nav.
+
+	The status line sits under the buttons, not above them, so its appearing
+	never pushes them down under the pointer. A rule is all the separation
+	the block needs - a card here would put a second surface in a rail whose
+	entries sit straight on the page.
 -->
 <div
-	class="sticky bottom-0 -mx-8 mt-8 hidden h-[72px] items-center gap-3 border-t border-border bg-surface px-8 md:flex"
+	class="hidden w-full flex-col gap-2 border-t border-border pt-4 md:flex"
+	data-testid="save-actions"
 >
+	<Button variant="primary" disabled={saving} onclick={onsave} class="w-full">
+		{saving ? m.common_saving() : m.common_save()}
+	</Button>
+	<Button variant="ghost" disabled={saving} onclick={oncancel} class="w-full">
+		{m.common_cancel()}
+	</Button>
 	{#if dirty}
-		<span class="mr-auto flex items-center gap-2 text-caption text-text-muted">
-			<span aria-hidden="true" class="size-2 rounded-pill bg-current"></span>
+		<span class="mt-1 flex items-center justify-center gap-2 text-caption text-text-muted">
+			<span aria-hidden="true" class="size-2 shrink-0 rounded-pill bg-current"></span>
 			<span>{m.editor_unsaved_changes()}</span>
 		</span>
 	{/if}
-	<Button variant="ghost" disabled={saving} onclick={oncancel} class={dirty ? '' : 'ml-auto'}>
-		{m.common_cancel()}
-	</Button>
-	<Button variant="primary" disabled={saving} onclick={onsave}>
-		{saving ? m.common_saving() : m.common_save()}
-	</Button>
 </div>

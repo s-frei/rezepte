@@ -3,6 +3,7 @@ package recipe
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -217,11 +218,83 @@ func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
 
 // Count returns how many recipes exist.
 func (s *Service) Count(ctx context.Context) (int, error) {
-	n, err := s.q.CountRecipes(ctx)
+	// TagCount: 0, MaxMinutes: 0 and FavouritesOnly: 0 switch those filters
+	// off entirely (see the note on ListRecipesFiltered), so TagNames never
+	// has to hold real tag names and UserID never has to hold a real user
+	// id. All three are now a concrete int64 (see the CAST note on
+	// ListRecipesFiltered) whose Go zero value is already 0, but they are
+	// still spelled out explicitly rather than leaning on that: this call
+	// site broke three times on this branch from omitting one of them
+	// while it was still an untyped param whose zero value was nil, not 0
+	// - leaving it unset bound NULL and made the condition's "= 0" test
+	// false instead of switching the filter off.
+	n, err := s.q.CountRecipesFiltered(ctx, sqlc.CountRecipesFilteredParams{
+		TagNames: "[]", TagCount: 0, MaxMinutes: 0, FavouritesOnly: 0, UserID: "",
+	})
 	if err != nil {
 		return 0, fmt.Errorf("count recipes: %w", err)
 	}
 	return int(n), nil
+}
+
+// SetFavourite marks recipeID as favourited (on=true) or removes it
+// (on=false) for userID. Setting the same state twice is not an error: the
+// star is a state, not an event. Both branches key on userID directly, not
+// on anything derived from recipeID or an ambient value, so a caller can
+// only ever change its own favourites.
+//
+// Starring (on=true) returns ErrNotFound for a recipe that doesn't exist -
+// checked explicitly, the same way Update and Delete check first, rather
+// than letting the insert fail: favourites.recipe_id has a foreign key to
+// recipes(id), and INSERT OR IGNORE only ignores its own uniqueness
+// conflict (a duplicate (user_id, recipe_id) row), not a foreign key
+// violation, so an unchecked insert against a missing recipe would surface
+// as a raw constraint-violation error instead of the caller-facing
+// ErrNotFound the handler maps to 404. Unstarring (on=false) is not
+// checked this way on purpose: deleting a favourite that was never there,
+// or whose recipe is already gone, is not an error - it's the same
+// "already in the desired state" idempotency DELETE gives everywhere else
+// in this package.
+func (s *Service) SetFavourite(ctx context.Context, userID, recipeID string, on bool) error {
+	if on {
+		if _, err := s.q.GetRecipe(ctx, recipeID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNotFound
+			}
+			return fmt.Errorf("get recipe %s: %w", recipeID, err)
+		}
+		if err := s.q.SetFavourite(ctx, sqlc.SetFavouriteParams{
+			UserID: userID, RecipeID: recipeID, CreatedAt: db.FormatTime(s.now()),
+		}); err != nil {
+			return fmt.Errorf("set favourite: %w", err)
+		}
+		return nil
+	}
+	if err := s.q.DeleteFavourite(ctx, sqlc.DeleteFavouriteParams{UserID: userID, RecipeID: recipeID}); err != nil {
+		return fmt.Errorf("delete favourite: %w", err)
+	}
+	return nil
+}
+
+// IsFavourite reports whether userID has favourited recipeID. An empty
+// userID always reports false without querying, the same guard toCards
+// applies to the per-page favourite batch - unauthenticated callers must
+// never be told anything is favourited.
+func (s *Service) IsFavourite(ctx context.Context, userID, recipeID string) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+	idsJSON, err := json.Marshal([]string{recipeID})
+	if err != nil {
+		return false, fmt.Errorf("marshal recipe id: %w", err)
+	}
+	favIDs, err := s.q.ListFavouriteRecipeIDs(ctx, sqlc.ListFavouriteRecipeIDsParams{
+		UserID: userID, RecipeIds: string(idsJSON),
+	})
+	if err != nil {
+		return false, fmt.Errorf("list favourite recipe ids: %w", err)
+	}
+	return len(favIDs) == 1, nil
 }
 
 // load assembles a Recipe from its row plus child tables.

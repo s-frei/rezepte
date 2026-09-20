@@ -23,7 +23,11 @@ export async function login(page: Page, username = 'admin', password = 'e2e-pass
  */
 export async function signOut(page: Page, testInfo: TestInfo): Promise<void> {
 	const mobile = testInfo.project.name.startsWith('mobile');
-	await page.getByRole('button', { name: mobile ? 'Mehr' : 'Benutzermenü' }).click();
+	// exact: true on the phone bottom-nav button - without it, "Mehr" also
+	// matches the overview's "Mehr laden" button once enough recipes have
+	// piled up in the shared database for the grid to paginate, which turns
+	// this into a strict-mode violation (two matching buttons at once).
+	await page.getByRole('button', { name: mobile ? 'Mehr' : 'Benutzermenü', exact: mobile }).click();
 	await page.getByRole(mobile ? 'button' : 'menuitem', { name: 'Abmelden' }).click();
 }
 
