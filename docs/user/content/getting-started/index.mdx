@@ -8,14 +8,14 @@ Rezepte ships as a single Docker image. This page gets a household instance runn
 <Steps>
   <Step>
 
-    ### Build and start
+    ### Start it
 
-    Save the following as `compose.yaml` in the root of a checkout of the repository, then run `docker compose up -d --build`.
+    Save the following as `compose.yaml`, then run `docker compose up -d`.
 
     ```yaml
     services:
       rezepte:
-        build: .
+        image: ghcr.io/s-frei/rezepte:latest
         ports: ["8060:8060"]
         environment:
           REZEPTE_ADMIN_PASSWORD: change-me-now   # read on the first start only
@@ -52,7 +52,7 @@ Rezepte ships as a single Docker image. This page gets a household instance runn
   Rezepte can also start with sample data instead of a real household's recipes:
 
   ```bash
-  docker run --rm -p 8060:8060 rezepte --demo
+  docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
   ```
 
   Log in as `demo` with the password `demo1234`. Nothing is persisted without a volume, so the data disappears when the container stops.

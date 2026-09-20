@@ -17,6 +17,7 @@ mise.local.toml
 service/bin/
 service/internal/web/dist/*
 !service/internal/web/dist/.gitkeep
+/dist/
 
 # JS
 node_modules/

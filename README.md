@@ -31,10 +31,7 @@ I needed this myself and found nothing I liked, so I made it. It is also meant t
 Demo mode fills an empty instance with twelve sample recipes and placeholder photos, so you can click through the real app without setting anything up:
 
 ```bash
-git clone https://github.com/s-frei/rezepte.git
-cd rezepte
-docker build -t rezepte .
-docker run --rm -p 8060:8060 rezepte --demo
+docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
 ```
 
 Open <http://localhost:8060> and log in as **`demo`** / **`demo1234`**.
@@ -55,18 +52,14 @@ Open <http://localhost:8060> and log in as **`demo`** / **`demo1234`**.
 ## Running it for real
 
 ```bash
-docker build -t rezepte .
 docker run -d --name rezepte -p 8060:8060 \
   -e REZEPTE_ADMIN_PASSWORD=change-me-now \
   -v rezepte-data:/data \
-  rezepte
+  ghcr.io/s-frei/rezepte:latest
 ```
 
 > [!IMPORTANT]
-> No image is published to a registry yet, so build it from the repository; see [Getting started](https://s-frei.github.io/rezepte/getting-started/) for Compose, systemd and every setting.
-
-> [!WARNING]
-> There is no tagged release yet, and until there is one the database schema changes without a migration path. An update can mean starting from an empty data directory.
+> See [Getting started](https://s-frei.github.io/rezepte/getting-started/) for Compose, systemd, binaries and every setting.
 
 ## Documentation
 

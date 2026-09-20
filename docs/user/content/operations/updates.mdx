@@ -12,8 +12,7 @@ Every start of the binary applies any pending database migrations automatically 
 ## Docker
 
 ```bash
-git pull
-docker compose build
+docker compose pull
 docker compose up -d
 ```
 
@@ -21,4 +20,4 @@ The container applies migrations on this restart, before it starts serving reque
 
 ## Binary
 
-Replace `service/bin/rezepte` (or wherever it is installed) with the newly built binary and restart it — via `systemctl restart rezepte` for the systemd unit from [Running the binary](/getting-started/binary), or however it was started otherwise.
+Download the new archive from the [latest release](https://github.com/s-frei/rezepte/releases/latest), replace the installed binary, and restart it — `systemctl restart rezepte` for the systemd unit from [Running the binary](/getting-started/binary), or however it was started otherwise.

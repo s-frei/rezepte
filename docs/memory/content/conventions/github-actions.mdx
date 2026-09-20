@@ -1,0 +1,45 @@
+---
+title: GitHub Actions
+description: Step names, action pinning, and what a workflow is allowed to install
+---
+
+Workflows live in `.github/workflows/` and are English like the rest of the repository. There are two: `.github/workflows/ci.yml` is the gate that every push runs through, and `.github/workflows/release.yml` publishes the image and the binaries on a version tag (see [Releases](/architecture/releases)). These rules hold for every workflow, not just those two.
+
+<Callout type="warn" title="Hard rules">
+
+  - Every step carries a `name` in double quotes, written before `uses` or `run`.
+  - Actions are pinned to a major tag (`@v7`), never to a branch, a patch tag or `@main`.
+  - Tools come from `jdx/mise-action` and run as `mise run <task>`; no workflow installs a language itself.
+
+</Callout>
+
+## Steps
+
+The `name` is the first key of the step, and it is quoted:
+
+```yaml
+- name: "Build the container image"
+  uses: docker/build-push-action@v7
+  with:
+    context: .
+```
+
+An unnamed step is labelled in the run log with whatever it executes, so the log reads as a list of commands and every reworded command renames the step it belongs to. A written name is the one part of a step that survives changing how the step does its work, which is what makes a failed run scannable from the job list alone. The name is imperative and says the intent, not the command: "Fail on uncommitted generated changes", not "git diff".
+
+A blank line separates steps, and indentation is two spaces per `.editorconfig`.
+
+## Pinning
+
+A major tag is the pin. It keeps security and bug fixes arriving without a commit here, while the interface stays put - which a patch tag gives up and a branch never offers at all.
+
+Raising a major is therefore a deliberate change, and the inputs have to be read against the new version's `action.yml` before it lands: a major release is exactly where an input is renamed or dropped, and a removed input fails at run time rather than at parse time.
+
+## Tools
+
+[The toolchain](/architecture/toolchain) is pinned in `mise.toml`, and CI installs it through `jdx/mise-action` so the job runs the same versions a developer does. Nothing else installs tools: no `setup-node`, no `setup-go`, no direct `npm` or `node` call. Each of those would introduce a second version of something the repository already pins, and the gate would stop meaning what it means locally.
+
+Work is expressed as `mise run <task>`, never as the commands inside the task. A workflow that spells out the steps of a task is a second definition of it that drifts from the first.
+
+## Why it is this way
+
+A workflow is read when it fails, by someone who did not write it and is looking at a list of collapsed steps. Everything above serves that reading: named steps make the list say what was being attempted, mise tasks make the failing command reproducible with one line locally, and major-tag pins keep the reason for a change in the repository rather than in a third party's release.

@@ -1,0 +1,53 @@
+---
+title: Releases
+description: How a version tag becomes a published image and a set of binaries
+---
+
+Rezepte ships two artefacts from one commit: a multi-architecture image at `ghcr.io/s-frei/rezepte` and a self-contained binary per platform attached to the GitHub release. Both are produced by `.github/workflows/release.yml`, which runs on a pushed three-part version tag (`v[0-9]*.[0-9]*.[0-9]*`) and nothing else — the shape `docker/metadata-action` can translate, so a `v1.0` never reaches a build that would fail at push with no image tag. A push to `main` without a tag publishes nothing; `develop` is never published.
+
+## From tag to artefacts
+
+The git tag carries the `v` prefix and the image tags do not. `docker/metadata-action` performs that translation: a non-prerelease tag such as `v1.4.2` yields `1.4.2`, `1.4` and `latest`, while a prerelease tag such as `v1.5.0-rc1` yields only `1.5.0-rc1` — no bare `1.5` and no `latest`, because `latest` pointing at a release candidate would be worse than no `latest` at all. There is no version file: the tag is the only place a version is written.
+
+The `image` job builds `linux/amd64` and `linux/arm64` from one Dockerfile without emulation. The two build stages pin to `$BUILDPLATFORM` and the Go build takes its target from `ARG TARGETARCH`, which works because `modernc.org/sqlite` is pure Go and the build is already `CGO_ENABLED=0`. The frontend stage is platform independent and BuildKit runs it once for both.
+
+The `binaries` job needs the `image` job, so the two run in sequence rather than in parallel: the release binaries are only built once the image has pushed successfully. It runs three tasks and nothing else — `//frontend:install:deps`, `release:binaries`, `release:publish`.
+
+`mise run release:binaries` (`scripts/release-binaries.sh`) builds the SPA once through its `depends`, then cross-compiles `linux/amd64`, `linux/arm64`, `darwin/arm64` and `darwin/amd64` by calling `//service:build:only` with `GOOS` and `GOARCH` set. That split is why `//service:build` and `//service:build:only` both exist: the compiler flags stay written once, in `service/mise.toml`, and the frontend is not rebuilt four times. Output is `dist/`, holding only the archives and `checksums.txt`; `service/bin/rezepte` is removed afterwards, because the last cross-compile would otherwise leave a binary for a foreign platform at the path `mise run build` owns.
+
+`mise run release:publish` (`scripts/release-publish.sh`) creates the GitHub release from `dist/`. It refuses an empty `dist/`, and it passes `--prerelease` when the tag contains a hyphen, so a `v1.5.0-rc1` does not become `/releases/latest` while the image job is withholding `:latest` from the same tag.
+
+The frontend install in this job is `//frontend:install:deps`, not `//frontend:install`: the job runs no browser test, and it runs after the image has already been pushed, so a Playwright download failing there would leave a tag with a published image and no release at all.
+
+macOS binaries are cross-compiled and unsigned. The user documentation says so, because Gatekeeper blocks the first launch.
+
+## The build context is an allowlist
+
+`.dockerignore` starts with `*` and re-includes the individual files and directories the build reads. Docker matches these patterns against full paths, so a path can be re-included under an excluded parent — which is what makes an allowlist expressible at all.
+
+`mise run docker:context` lists what the context actually holds, by exporting the Dockerfile's `build-context` stage and listing it two levels deep; `mise run docker:context:check` diffs that against the tracked `docker-context.txt` and fails on any difference. CI runs the check in the `docker` job. Neither task is part of `mise run check`, because both need a Docker daemon and `check` must run without one.
+
+What the diff catches is an edit to `.dockerignore` and a build input that has disappeared, and the listing makes the context reviewable in a tracked file rather than only inside a build. It does not catch a new top-level directory: `.dockerignore` starts with `*`, so an unlisted path never enters the context at any depth and the listing does not move. Depth two is the readability compromise — a new component under `frontend/src/lib` does not churn the expectation.
+
+## Why it is this way
+
+**An allowlist names what the build reads; a denylist would have to name everything it must not read, forever.** `.claude/worktrees/` holds a full repository copy per worktree, and any directory like it — a cache, a scratch tree, an editor's state directory — is exactly the kind of path a denylist maintainer has no reason to think of before it exists. An allowlist carries no such blind spot: a path that is not listed is never read, whatever it is called and whenever it appears. The cost is symmetric and deliberate: a genuinely new build input must be added by hand, so a missing one breaks the build loudly instead of an unwanted one shipping quietly.
+
+**The tag is the trigger, so publishing stays deliberate.** A push to `main` is not automatically a release; the maintainer decides by tagging. This also keeps the image tags derivable from one source, with no version file to drift from it.
+
+**Packaging lives in mise tasks, not in the workflow.** [GitHub Actions conventions](/conventions/github-actions) requires it, and the effect is that the whole release is reproducible locally: `mise run release:binaries` builds exactly what CI uploads, and `mise run release:publish` is the same command CI runs to create the release.
+
+## Rejected
+
+- **Docker Hub.** Costs an account, stored credentials and anonymous pull rate limits for users. GHCR authenticates with the workflow's own token.
+- **Publishing `develop` as `:edge`.** No identified consumer, and a second moving tag to reason about.
+- **QEMU for arm64.** `docker/setup-qemu-action` plus emulated builds is the usual recipe and is far slower than cross-compiling a language that cross-compiles for free.
+- **Extracting the release binaries from the image build** with an export stage. One source of truth for the build flags, but it cannot produce the macOS binaries, so the task is needed regardless and the extraction only adds a second mechanism.
+- **A build matrix for the binaries.** Four runners each rebuilding the same platform-independent SPA, plus artefact upload and download to reassemble the release.
+- **Coarse allowlist entries** — `!frontend` and `!service` whole. Survives a new config file, but a new cache directory inside those trees re-enters the context silently, which is the same blind spot one level down.
+
+## Limits
+
+- GHCR packages do not inherit repository visibility. The first push creates a private package and every anonymous pull fails until the maintainer sets it public once; [Release](/howtos/release) carries the step.
+- The workflow cannot be tested without pushing a tag. It is reviewed by reading, and its first execution is a real release.
+- `docker-context.txt` records the context two levels deep, so a `.dockerignore` entry re-including something at depth three or deeper changes the build context without changing the listing.

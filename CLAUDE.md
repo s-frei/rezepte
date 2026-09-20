@@ -10,6 +10,7 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 - Git flow: develop on `develop`, releases merge to `main`; never push, merge to `main`, tag or open PRs without being asked. → `docs/memory/content/conventions/commits.mdx`
 - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 - Run tools only through mise: `mise run <task>` or `mise exec -- <cmd>`. Never call `npm`/`node` directly; use Bun. → `docs/memory/content/architecture/toolchain.mdx`
+- GitHub Actions: every step carries a quoted `name`, actions are pinned to a major tag, and tools come from mise. → `docs/memory/content/conventions/github-actions.mdx`
 - `mise run check` must pass before every commit. → `docs/memory/content/howtos/run-dev.mdx`
 - The memory holds one page per thing that exists, never a record per event: a feature has a `features/` page, the system's shape lives in `architecture/`. Rewrite the page when the thing changes; delete it when the thing is gone. → `docs/memory/content/howtos/update-the-memory.mdx`
 - Go: standard library first, `golangci-lint` clean, stdlib `testing` only, errors wrapped with `%w`. → `docs/memory/content/conventions/go.mdx`
