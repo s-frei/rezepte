@@ -71,6 +71,23 @@ fi
 description = "Create a worktree off develop with its own port offset"
 run = "scripts/worktree-new.sh"
 
+[tasks."docker:context"]
+description = "List the paths the Docker build context contains, two levels deep"
+run = "scripts/docker-context.sh"
+
+[tasks."docker:context:check"]
+description = "Fail if the Docker build context no longer matches docker-context.txt"
+run = "scripts/docker-context-check.sh"
+
+[tasks."release:binaries"]
+description = "Build the release archives for every published platform into dist/"
+depends = ["//frontend:build"]
+run = "scripts/release-binaries.sh"
+
+[tasks."release:publish"]
+description = "Create the GitHub release for the current tag and upload dist/"
+run = "scripts/release-publish.sh"
+
 [tasks.docs]
 description = "Run both documentation sites (memory :4000, user :4001 by default; mise run ports for this worktree)"
 depends = ["//docs/memory:dev", "//docs/user:dev"]

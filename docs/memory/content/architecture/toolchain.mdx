@@ -22,7 +22,7 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 
 `[tools]` pins Go, Bun, Node, golangci-lint, sqlc and watchexec, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
 
-CI installs the same pinned tools through `jdx/mise-action`, then runs `mise run setup`, regenerates the API reference and fails on any uncommitted diff, and only then runs `mise run check`, `mise run build` and `mise run e2e` — so a green gate locally does not guarantee a green `check` job: a stale API reference regeneration is the gap ([Documentation sites](/architecture/docs)).
+CI installs the same pinned tools through `jdx/mise-action`, then runs `mise run setup`, regenerates the API reference and fails on any uncommitted diff, and only then runs `mise run check`, `mise run build` and `mise run e2e` — so a green gate locally does not guarantee a green `check` job: a stale API reference regeneration is the gap ([Documentation sites](/architecture/docs)). A pushed `v*` tag runs a second workflow that publishes the image and the release binaries — see [Releases](/architecture/releases).
 
 ## Worktrees and ports
 

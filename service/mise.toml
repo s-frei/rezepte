@@ -34,7 +34,14 @@ description = "Vet, format check, lint, test"
 depends = ["fmt:check", "generate:check", "lint", "test"]
 run = "go vet ./..."
 
+[tasks."build:only"]
+description = "Build the Go binary from whatever is already in internal/web/dist"
+# Separate from `build` so the release task can build the SPA once and then
+# cross-compile four times. GOOS and GOARCH are read from the environment, so
+# the compiler flags stay defined here and nowhere else.
+run = "CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/rezepte ./cmd/rezepte"
+
 [tasks.build]
 description = "Build the binary with the embedded frontend"
 depends = ["//frontend:build"]
-run = "CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/rezepte ./cmd/rezepte"
+run = "mise run //service:build:only"

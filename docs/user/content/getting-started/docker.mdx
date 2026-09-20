@@ -3,7 +3,7 @@ title: Docker
 description: Run the Rezepte image with Docker Compose or plain docker run
 ---
 
-The image is not published to a registry yet, so build it locally from the repository (`docker build -t rezepte .`) before running either of the commands below. It listens on port 8060 and stores everything — the SQLite database and uploaded photos — under `/data`, owned by UID 65532 (the distroless `nonroot` user the container runs as).
+The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/arm64`. It listens on port 8060 and stores everything — the SQLite database and uploaded photos — under `/data`, owned by UID 65532 (the distroless `nonroot` user the container runs as).
 
 <Tabs items={['docker compose', 'docker run']}>
   <Tab value="docker compose">
@@ -11,7 +11,7 @@ The image is not published to a registry yet, so build it locally from the repos
     ```yaml
     services:
       rezepte:
-        build: .
+        image: ghcr.io/s-frei/rezepte:latest
         ports: ["8060:8060"]
         environment:
           REZEPTE_ADMIN_PASSWORD: change-me-now   # read on the first start only
@@ -21,18 +21,17 @@ The image is not published to a registry yet, so build it locally from the repos
     ```
 
     ```bash
-    docker compose up -d --build
+    docker compose up -d
     ```
 
   </Tab>
   <Tab value="docker run">
 
     ```bash
-    docker build -t rezepte .
     docker run -d --name rezepte -p 8060:8060 \
       -e REZEPTE_ADMIN_PASSWORD=change-me-now \
       -v "$PWD/data:/data" \
-      rezepte
+      ghcr.io/s-frei/rezepte:latest
     ```
 
   </Tab>
@@ -52,8 +51,7 @@ A named volume (as in the compose file above) does not need this — Docker crea
 ## Updating
 
 ```bash
-git pull
-docker compose build
+docker compose pull
 docker compose up -d
 ```
 
@@ -64,7 +62,7 @@ Migrations run automatically the next time the container starts; see [Updates](/
 Start the image with sample data instead of mounting real data:
 
 ```bash
-docker run --rm -p 8060:8060 rezepte --demo
+docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
 ```
 
 Without a volume nothing persists — the sample recipes and photos disappear when the container stops.

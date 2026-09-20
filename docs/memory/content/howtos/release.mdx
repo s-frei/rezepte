@@ -37,20 +37,36 @@ description: Maintainer-only checklist for cutting a release
   </Step>
   <Step>
 
-    ### Tag and push
+    ### Push `main` and wait for CI
     ```bash
-    git tag vX.Y.Z
-    git push origin main vX.Y.Z
+    git push origin main
     ```
     This push also triggers CI's `pages` job, which rebuilds `docs/user/` and publishes it to `https://s-frei.github.io/rezepte` - see [Documentation sites](/architecture/docs). There is no separate opt-in: every push to `main` republishes the docs site.
+
+    Wait for that run to be green before tagging. The tag and the branch are pushed separately on purpose: `.github/workflows/release.yml` fires on the tag and does not wait for CI, so pushing both at once can publish an image and a release from a commit whose gate only fails afterwards.
 
   </Step>
   <Step>
 
-    ### Build the image
+    ### Tag and push the tag
     ```bash
-    docker build -t rezepte:X.Y.Z .
+    git tag vX.Y.Z
+    git push origin vX.Y.Z
     ```
+
+  </Step>
+  <Step>
+
+    ### Let CI publish
+    The tag push above starts `.github/workflows/release.yml`, which builds and pushes `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/arm64` and attaches the platform binaries to the GitHub release — see [Releases](/architecture/releases). Nothing is built by hand.
+
+    If the `binaries` job fails after `release:publish` has started, the GitHub release already exists and re-running the job fails with "release already exists". Delete the release first (`gh release delete vX.Y.Z`) and then re-run; the tag and the pushed image can stay as they are.
+
+  </Step>
+  <Step>
+
+    ### First release only: make the package public
+    A GHCR package does not inherit the repository's visibility. After the very first push the package is private and every anonymous `docker pull` fails with an authentication error. Set it to public once, under the repository's Packages settings.
 
   </Step>
   <Step>

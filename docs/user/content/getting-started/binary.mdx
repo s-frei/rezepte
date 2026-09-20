@@ -1,22 +1,28 @@
 ---
 title: Running the binary
-description: Build Rezepte from source and run it without Docker
+description: Download the Rezepte binary and run it without Docker
 ---
 
-There are no GitHub releases yet, so running without Docker means building from source.
+Every release carries a single self-contained binary per platform: the web app is embedded in it and SQLite is compiled in, so there is nothing else to install.
 
-## Build
+## Download
+
+Pick the archive for your platform from the [latest release](https://github.com/s-frei/rezepte/releases/latest) — `linux_amd64`, `linux_arm64`, `darwin_arm64` or `darwin_amd64` — and verify it against the release's `checksums.txt`:
 
 ```bash
-mise run build
+tar -xzf rezepte_1.0.0_linux_amd64.tar.gz
+shasum -a 256 -c checksums.txt --ignore-missing
+sudo install -m 0755 rezepte /usr/local/bin/rezepte
 ```
 
-This builds the SvelteKit frontend and embeds it into a single Go binary at `service/bin/rezepte`.
+<Callout type="warn" title="macOS binaries are unsigned">
+  They are cross-compiled and carry no Apple signature, so Gatekeeper blocks the first launch. Allow it once under System Settings → Privacy & Security, or remove the quarantine attribute with `xattr -d com.apple.quarantine rezepte`.
+</Callout>
 
 ## Run
 
 ```bash
-REZEPTE_DATA_DIR=/var/lib/rezepte REZEPTE_ADMIN_PASSWORD=change-me-now ./service/bin/rezepte
+REZEPTE_DATA_DIR=/var/lib/rezepte REZEPTE_ADMIN_PASSWORD=change-me-now rezepte
 ```
 
 `REZEPTE_DATA_DIR` defaults to `./data`; see [Configuration](/getting-started/configuration) for every variable.
