@@ -1,6 +1,6 @@
 {
 	"title": "Memory",
-	"description": "Decisions and how-tos for coding agents",
+	"description": "Architecture, features and how-tos for coding agents",
 	"root": true,
-	"pages": ["index", "---Decisions---", "decisions", "---Architecture---", "architecture", "---Conventions---", "conventions", "---How-tos---", "howtos", "roadmap"]
+	"pages": ["index", "---Architecture---", "architecture", "---Features---", "features", "---Conventions---", "conventions", "---How-tos---", "howtos", "roadmap"]
 }

@@ -42,7 +42,7 @@ description: Maintainer-only checklist for cutting a release
     git tag vX.Y.Z
     git push origin main vX.Y.Z
     ```
-    This push also triggers CI's `pages` job, which rebuilds `docs/user/` and publishes it to `https://s-frei.github.io/rezepte` - see [ADR 0015](/decisions/0015-publish-user-docs-to-github-pages). There is no separate opt-in: every push to `main` republishes the docs site.
+    This push also triggers CI's `pages` job, which rebuilds `docs/user/` and publishes it to `https://s-frei.github.io/rezepte` - see [Documentation sites](/architecture/docs). There is no separate opt-in: every push to `main` republishes the docs site.
 
   </Step>
   <Step>

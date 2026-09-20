@@ -22,7 +22,7 @@ description: What to edit and regenerate when a UI or API change lands
     ```bash
     mise run //docs/user:screenshots
     ```
-    Rewrites every PNG under `docs/user/public/screenshots/` against `rezepte --demo` on `:8070` (offset 0; `mise run ports` for this worktree's number). If Chromium does not start on your machine, leave the existing PNGs untouched and say so in the commit message - see [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline). `mise run //docs/user:screenshots:check` reports drift (compares without updating) when you want to know whether the committed PNGs are stale without regenerating them.
+    Rewrites every PNG under `docs/user/public/screenshots/` against `rezepte --demo` on `:8070` (offset 0; `mise run ports` for this worktree's number). If Chromium does not start on your machine, leave the existing PNGs untouched and say so in the commit message - see [Documentation sites](/architecture/docs). `mise run //docs/user:screenshots:check` reports drift (compares without updating) when you want to know whether the committed PNGs are stale without regenerating them.
 
   </Step>
   <Step>

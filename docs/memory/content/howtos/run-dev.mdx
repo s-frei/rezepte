@@ -18,7 +18,7 @@ description: Dev servers, builds and the check gate
     ```bash
     REZEPTE_ADMIN_PASSWORD=change-me mise run dev
     ```
-    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api` and `/images` to Go) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
+    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api` and `/images` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
 
     The password is only used on the very first start to create the `admin` user. Log in at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree).
 
@@ -31,7 +31,7 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run docs
     ```
-    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). The base path on the user docs is set unconditionally so dev matches production - see [ADR 0015](/decisions/0015-publish-user-docs-to-github-pages).
+    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). The base path on the user docs is set unconditionally so dev matches production - see [Documentation sites](/architecture/docs).
 
   </Step>
   <Step>
@@ -40,7 +40,7 @@ description: Dev servers, builds and the check gate
     ```bash
     cd service && REZEPTE_DATA_DIR=$(mktemp -d) mise exec -- go run ./cmd/rezepte --demo
     ```
-    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with placeholder photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. Unlike `mise run dev` above, this runs the binary directly without setting `REZEPTE_ADDR`, so it always binds `:8060` regardless of this worktree's offset. See [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline).
+    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with placeholder photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. Unlike `mise run dev` above, this runs the binary directly without setting `REZEPTE_ADDR`, so it always binds `:8060` regardless of this worktree's offset. See [Demo mode](/features/demo-mode).
 
   </Step>
   <Step>
@@ -75,6 +75,6 @@ description: Dev servers, builds and the check gate
 
   - If `bunx playwright install chromium` times out downloading, run it once from a normal terminal. `mise run setup` is idempotent and will pick up the cached browser on the next run.
   - A stale process holding the port is what makes an e2e run look broken rather than blocked: the binary cannot bind, the other app answers `/healthz`, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the rest pass. The task pre-checks the port and says so; `mise run ports` gives this worktree's numbers.
-  - The screenshot suite is flaky by nature - `docs/user/playwright.config.ts` retries once because a run tends to lose a single, different test to a 30s timeout, and running it alongside another worktree's e2e makes that more likely. Read the diff before committing regenerated PNGs. The placeholder frames [ADR 0013](/decisions/0013-demo-mode-and-docs-pipeline) describes are for environments without a working Chromium, such as CI.
+  - The screenshot suite is flaky by nature - `docs/user/playwright.config.ts` retries once because a run tends to lose a single, different test to a 30s timeout, and running it alongside another worktree's e2e makes that more likely. Read the diff before committing regenerated PNGs. The placeholder frames [Documentation sites](/architecture/docs) describes are for environments without a working Chromium, such as CI.
 
 </Callout>

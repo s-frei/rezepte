@@ -1,0 +1,80 @@
+---
+title: Update the memory
+description: Which page owns which fact, and how to change it
+---
+
+The memory holds one page per thing that exists. Updating it is therefore not writing a new entry: it is finding the page that owns the fact and rewriting the sentence that is now wrong.
+
+<Steps>
+  <Step>
+
+    ### Find the page that owns the fact
+    A user-visible capability is a page under [Features](/features/recipes). The shape of the system - packages, tables, endpoints, tokens, the toolchain, the documentation sites - is a page under [Architecture](/architecture/overview). How to do a recurring task is a [how-to](/howtos). How to write code is a page under [Conventions](/conventions/go).
+
+    If the fact has no page and the thing it describes exists, create the page. If two pages would both take the sentence, one of them owns the subject and the other links to it: a value written twice rots in one of the copies.
+
+    **What earns a page under `features/`.** A capability earns one when it carries facts no component file states: a contract with the service - an endpoint, a table, files on disk - a rule that has to hold across several places such as the scaling arithmetic, a storage key or an upload limit, or an alternative a competent agent would still propose and that was refused for a reason. Those are what the four sections further down are fillable with.
+
+    A capability whose facts are exhausted by how it looks and how its component is written already has an owner: a row or a bullet in [Design system](/architecture/design-system) for the first, a rule in [Svelte conventions](/conventions/svelte) for the second. The command palette, theme switching, the recipe editor and the tag filter are owned that way, and giving one of them a page would split its facts rather than collect them. So ask what a reader who has to change the thing must know that the code does not already say, and write it where that answer already lives.
+
+  </Step>
+  <Step>
+
+    ### Rewrite, do not append
+    Change the sentence that is now wrong. Do not annotate it, do not leave the old claim standing beside the new one, and do not add a date. Git holds what the page said before, and a page that reads as a changelog has stopped being memory.
+
+  </Step>
+  <Step>
+
+    ### Write the constraint, not the event
+    [What belongs here](/) states the rule and pairs one fact written both ways: the constraint names what is true of the system and why a choice stands, and it still reads correctly to someone who never saw the repository before; the same fact written as something that happened has a shelf life, and git already records it.
+
+    So that pairing is the test: write the sentence that is still true for the next reader, not the one that only makes sense to someone who knows what the repository looked like before.
+
+  </Step>
+  <Step>
+
+    ### A new feature page carries the four sections
+    In this order, and the audit enforces both their presence and their order:
+
+    ```markdown
+    ---
+    title: The capability
+    description: One line naming what it does
+    ---
+
+    A paragraph saying what a user can do and which packages hold it.
+
+    ## How it works
+
+    ## Why it is this way
+
+    ## Rejected
+
+    ## Limits
+    ```
+
+    `How it works` is the present-tense description. `Why it is this way` carries the reasoning: why this shape and not another. `Rejected` names the options that were weighed and not taken. `Limits` names what the thing deliberately does not do. Add the page to `docs/memory/content/features/meta.json` in the same change, so navigation never names a page that has no file.
+
+  </Step>
+  <Step>
+
+    ### Keep a rejected option only while someone might still propose it
+    A `## Rejected` entry earns its place by stopping an agent from suggesting the same discarded option again. Delete one that has become unthinkable. A section that only grows is the thing this structure replaced.
+
+  </Step>
+  <Step>
+
+    ### Delete the page when the thing is gone
+    One document per thing that exists. The number of pages follows the size of the system, not the age of the project, so removing a capability removes its page and the links into it in the same change.
+
+  </Step>
+  <Step>
+
+    ### Run the gate
+    `mise run check` must pass before the commit; `mise run //docs/memory:check` is the fast loop while writing. `docs/memory/scripts/memory-audit.ts` is the part that reads the prose: it fails when a `mise run` task name does not exist, when a repository path in backticks does not exist, when a link into the memory resolves to no page, when a `features/` page is missing one of its four sections or carries them out of order, when a sentence names one machine's setup, and when a sentence describes an event instead of a constraint.
+
+    It cannot tell whether a sentence is true, only whether the things it names still exist. Everything else rests on the rules above.
+
+  </Step>
+</Steps>

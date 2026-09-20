@@ -1,0 +1,47 @@
+---
+title: Recipes and search
+description: The recipe aggregate, whole-document writes, slugs, implicit tags and the contentless FTS5 index
+---
+
+A recipe is an aggregate, not a row: one `recipes` row plus ordered ingredient groups, the ordered ingredients inside them, ordered steps and a set of tags. Search covers the title, the description, the ingredient names and the tags. [Data model](/architecture/data-model) owns the schema; [HTTP API](/architecture/api) owns the endpoints and their validation.
+
+## How it works
+
+**One write path, the whole document.** `Service.Create` and `Service.Update` in `service/internal/recipe/service.go` each run inside a single `db.Tx`. `Create` inserts the `recipes` row, writes the children and the tags, then indexes the result. `Update` loads the row (`ErrNotFound` when it is gone), updates the editable fields, then deletes and rewrites everything below it: `DeleteIngredientGroupsByRecipe` (which cascades to `ingredients`), `DeleteStepsByRecipe`, `DeleteRecipeTags`, followed by `writeChildren`, `writeTags`, `DeleteOrphanTags` and the reindex. There is no patch path for children.
+
+**Positions are rewritten, never edited in place.** `writeChildren` assigns each ingredient group, each ingredient within its group and each step its 0-based `position` from the submission order, on every save.
+
+**Slugs are generated once.** `Slugify` in `service/internal/recipe/slug.go` transliterates German umlauts and `ß` the way German speakers spell them without diacritics (`ä`→`ae`, `ö`→`oe`, `ü`→`ue`, `ß`→`ss`, upper case included), strips the remaining diacritics through NFD, lower-cases, collapses every run outside `[a-z0-9]` into a single hyphen, trims hyphens off both ends and caps the result at 80 characters. `uniqueSlug` then walks `base`, `base-2`, `base-3` … until it finds one that is neither stored (`SlugExists`) nor reserved — `new` is reserved because the frontend routes `/recipes/new` to the editor itself. The slug is assigned in `Create` and `UpdateRecipe` never touches it.
+
+**Tags are implicit.** There is no create-tag endpoint. `NormalizeTags` trims and lower-cases each name, drops the empty ones and dedupes while keeping first-occurrence order. `writeTags` calls `UpsertTag` — an upsert on the unique `name` — and links the result with `SetRecipeTag`. `DeleteOrphanTags` (`DELETE FROM tags WHERE id NOT IN (SELECT tag_id FROM recipe_tags)`, in `service/internal/db/queries/tags.sql`) runs on every update and every delete, so the `tags` table holds exactly the names at least one recipe carries, and `ListTagsWithCount` returns them with their counts, most used first.
+
+**The search index is contentless and maintained in Go.** `recipes_fts` is declared in `service/internal/db/migrations/0002_recipes.sql` as an FTS5 virtual table over `title, description, ingredients, tags` with `content=''`, `contentless_delete=1` and `tokenize='unicode61 remove_diacritics 2'`: it stores the index, not a second copy of the text, and it is keyed by the host recipe row's SQLite `rowid`. `reindex` resolves that rowid, calls `DeleteFTS` and then `InsertFTS` with the title, the description, the ingredient names joined by spaces and the tag names joined by spaces — inside the same transaction as the write it indexes. `Delete` reads the rowid before dropping the row and removes the index entry the same way. No SQL triggers are involved, so every index write is plain Go that a test can call directly.
+
+**Query translation.** `ftsQuery` in `service/internal/recipe/search.go` turns what the user typed into an FTS5 `MATCH` expression: it splits on whitespace, lower-cases each term and quotes it as a prefix match (`"term"*`, embedded quotes doubled). `variants` then adds the term's alternate German spelling in both directions — `kaese` gains `käse`, `käse` gains `kaese` — because the tokenizer's `remove_diacritics` folds `ä` to `a`, not to `ae`, so the two spellings would otherwise never meet in the index. The spellings of one term are combined with `OR` inside parentheses, and the terms are combined with an explicit `AND`: FTS5's implicit `AND` only holds between bare phrases, and two adjacent parenthesized groups without an operator are a syntax error. An empty query yields `""`, which the caller treats as "no search", not as a query.
+
+**Matching and paging.** The search queries in `service/internal/db/queries/recipes.sql` match through FTS5's table-valued call form (`SELECT rowid FROM recipes_fts(sqlc.arg(query))`) and intersect it with the optional exact `tag` filter. `List` clamps the page size to 24 by default and to `[1, 100]` otherwise, and the page number to at least 1.
+
+**Three hand-written statements.** `GetRecipeRowID`, `DeleteFTS` and `InsertFTS` live in `service/internal/db/sqlc/fts.go` rather than in a `.sql` file. sqlc's SQLite engine resolves the implicit `rowid` pseudo-column only through the FTS5 table-valued call form; as a plain column reference — in a SELECT list, an INSERT column list or a WHERE equality — it is rejected on real and virtual tables alike, so these three cannot be generated. They are written against the same `DBTX` abstraction sqlc generates everywhere else, and the file's header says why.
+
+## Why it is this way
+
+The editor always submits the whole form, so there is nothing to diff: a partial update would have to reconstruct the submitted document anyway. Rewriting the whole document instead removes an entire class of position and ordering bugs, because positions are never patched, only re-derived from the order the client sent.
+
+Because there is exactly one write path, the search index cannot drift structurally from the rows it describes. A bug can leave one recipe's entry stale until its next save; it cannot leave the index shaped differently from the data.
+
+Slugs are fixed at creation so a permalink survives a title edit — the URL a household member bookmarked or pasted into a chat keeps working.
+
+Tags being implicit means the tag list is always "the tags in use". There is no vocabulary to curate, no empty tag to clean up, and no second place where a tag can exist without a recipe behind it.
+
+## Rejected
+
+- **External-content FTS5 (`content='recipes'`) kept in sync by triggers.** The indexed row aggregates four tables — the recipe, its ingredients through their groups, and its tags through `recipe_tags` — so the triggers would have to reimplement `reindex` in SQL, where it is markedly harder to test than a Go function.
+- **Hand-writing the whole query layer.** Three hand-written statements beside more than fifty generated ones are a documented exception, not a reason to give up compile-time query checking for everything else.
+- **Partial or `PATCH` updates to ingredient groups, ingredients or steps.** There is nothing to diff against a client that always sends the complete document.
+
+## Limits
+
+- Every save rewrites the whole aggregate — the recipe row, its ingredient groups, its ingredients, its steps, its tag links and its index entry — so there is no cheap "rename one tag" or "reorder steps" path. At household scale that costs nothing worth optimising, and it keeps the aggregate's invariants in one place.
+- Only the title, description, ingredient names and tags are indexed. A word that appears solely in a step is not findable through search.
+- Terms are prefix-matched from the start of a token, so `kuchen` does not find `Apfelkuchen`.
+- `service/internal/db/sqlc/fts.go` can be deleted and its statements regenerated as soon as sqlc supports `rowid` outside the table-valued call form.

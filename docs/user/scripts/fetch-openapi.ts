@@ -2,7 +2,8 @@
 // Run through `mise run //docs/user:openapi`, which starts the binary on its
 // worktree's demo port.
 //
-// The document is behind the session since ADR 0017, so this logs in as the
+// The document is behind the session
+// (docs/memory/content/features/users-and-auth.mdx), so this logs in as the
 // demo admin first and replays the cookie. That is also why the task needs a
 // demo instance rather than any running server: it has to be one whose
 // credentials we know.

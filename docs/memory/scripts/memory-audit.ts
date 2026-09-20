@@ -9,9 +9,9 @@
 // not this script's.
 //
 // Ports are deliberately NOT checked. Every port in the memory is either a
-// command example carrying a `mise run ports` pointer or, in ADR 0005, a
-// rejected one named as the reason it was rejected. A check would need more
-// exemptions than it has findings.
+// command example carrying a `mise run ports` pointer or, in the writing rules
+// on content/index.mdx, a rejected one named as the reason it is rejected. A
+// check would need more exemptions than it has findings.
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,10 +38,9 @@ const MACHINE_INTERNALS = [
  * only makes sense to a reader who knows what the repository looked like
  * before has a shelf life, and git already records the change.
  *
- * `decisions/` is exempt: an ADR is allowed to say when and why a choice was
- * revisited. "no longer" is deliberately absent - it reads as plain negation
- * far more often than as history ("a trimmed fraction no longer sorts the
- * same"), and a rule with more false positives than findings gets ignored.
+ * "no longer" is deliberately absent - it reads as plain negation far more
+ * often than as history ("a trimmed fraction no longer sorts the same"), and a
+ * rule with more false positives than findings gets ignored.
  */
 const EVENT_FRAMING = [
 	/\boriginally\b/i,
@@ -57,8 +56,9 @@ function pathIsExempt(p: string): boolean {
 	if (p.includes('NNNN')) return true; // a naming template
 	if (/\/[a-z]+\.[A-Z]/.test(p)) return true; // a Go symbol such as demo.Seed
 	// Gitignored artefacts are named on purpose (local agent scratch space,
-	// build output, data dirs); they are absent from a clean checkout.
-	return /^(docs\/superpowers|docs\/design_handoff_rezepte|frontend\/test-results|service\/bin|data)\//.test(
+	// static exports, build output, data dirs); they are absent from a clean
+	// checkout.
+	return /^(docs\/superpowers|docs\/design_handoff_rezepte|docs\/memory\/out|docs\/user\/out|frontend\/test-results|service\/bin|data)(\/|$)/.test(
 		p
 	);
 }
@@ -68,22 +68,33 @@ function isPlaceholder(s: string): boolean {
 	return /[…<>]/.test(s) || s.includes('NNNN');
 }
 
-/**
- * A bullet marked superseded or amended is a record of what was once decided,
- * not a claim about the repository - see howtos/write-an-adr. The marker is
- * what separates a citation from an assertion, so the check keys off it rather
- * than trying to judge the prose.
- */
-function isSupersededRecord(line: string): boolean {
-	return /\*\*(Superseded by|Amended)\b/.test(line);
-}
-
 function walk(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
 		const p = path.join(dir, e.name);
 		return e.isDirectory() ? walk(p) : p.endsWith('.mdx') ? [p] : [];
 	});
 }
+
+/**
+ * Every page in the memory, addressed the way a link addresses it:
+ * content/features/recipes.mdx -> /features/recipes, content/index.mdx -> /,
+ * content/howtos/index.mdx -> /howtos. A link into the memory that resolves to
+ * nothing is a dead end for the agent that follows it, and renaming a page is
+ * exactly when one appears.
+ */
+function memoryRoutes(): Set<string> {
+	const base = path.join(ROOT, 'docs/memory/content');
+	const routes = new Set<string>();
+	for (const file of walk(base)) {
+		const rel = path.relative(base, file).replace(/\.mdx$/, '');
+		const route = rel === 'index' ? '/' : '/' + rel.replace(/\/index$/, '');
+		routes.add(route);
+	}
+	return routes;
+}
+
+/** The sections every features/ page carries, in the order they must appear. */
+const FEATURE_SECTIONS = ['## How it works', '## Why it is this way', '## Rejected', '## Limits'];
 
 const files = SOURCES.flatMap((s) => {
 	const abs = path.join(ROOT, s);
@@ -102,11 +113,14 @@ const tasks = new Set(
 		.map((t) => t.replace(/^\/\/:/, ''))
 );
 
+const routes = memoryRoutes();
+
 const problems: string[] = [];
 
 for (const file of files) {
 	const rel = path.relative(ROOT, file);
-	readFileSync(file, 'utf8')
+	const body = readFileSync(file, 'utf8');
+	body
 		.split('\n')
 		.forEach((line, i) => {
 			const at = `${rel}:${i + 1}`;
@@ -120,15 +134,13 @@ for (const file of files) {
 				}
 			}
 
-			if (!statesTheRule && !rel.includes('content/decisions/')) {
+			if (!statesTheRule) {
 				for (const rx of EVENT_FRAMING) {
 					if (rx.test(line)) {
 						problems.push(`${at}: describes an event, not a constraint - ${rx}`);
 					}
 				}
 			}
-
-			if (isSupersededRecord(line)) return;
 
 			for (const m of line.matchAll(/`mise run ([^`]+)`/g)) {
 				const task = m[1].split(/\s/)[0];
@@ -138,13 +150,40 @@ for (const file of files) {
 				}
 			}
 
-			for (const m of line.matchAll(/`((?:service|frontend|docs|scripts)\/[A-Za-z0-9_./*{}-]+)`/g)) {
+			// The four package directories plus `.github/`, and the two root files
+			// the memory names by name - a path check that skipped those would leave
+			// the most-cited files in the repository unverified.
+			for (const m of line.matchAll(
+				/`((?:service|frontend|docs|scripts|\.github)\/[A-Za-z0-9_./*{}-]+|mise\.toml|CLAUDE\.md)`/g
+			)) {
 				const p = m[1];
 				if (!pathIsExempt(p) && !existsSync(path.join(ROOT, p))) {
 					problems.push(`${at}: path does not exist: ${p}`);
 				}
 			}
+
+			// The memory's how-to index addresses pages with JSX (`<Card
+			// href="...">`) rather than markdown links, so both forms are checked
+			// against the same route set.
+			for (const m of line.matchAll(/\]\((\/[A-Za-z0-9/._#?-]*)\)|href="(\/[A-Za-z0-9/._#?-]*)"/g)) {
+				const target = (m[1] ?? m[2]).replace(/[#?].*$/, '').replace(/\/$/, '') || '/';
+				if (!routes.has(target)) {
+					problems.push(`${at}: link goes nowhere: ${target}`);
+				}
+			}
 		});
+
+	if (rel.includes('content/features/') && !rel.endsWith('/index.mdx')) {
+		let cursor = 0;
+		for (const section of FEATURE_SECTIONS) {
+			const at = body.indexOf(`\n${section}\n`, cursor);
+			if (at === -1) {
+				problems.push(`${rel}: feature page is missing or misorders ${section}`);
+				break;
+			}
+			cursor = at;
+		}
+	}
 }
 
 if (problems.length > 0) {

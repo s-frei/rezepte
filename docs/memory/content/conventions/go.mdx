@@ -9,5 +9,5 @@ description: Package layout, errors, logging, formatting
 - Logging: `log/slog` only, structured key-value pairs, never `fmt.Println`.
 - Context first parameter everywhere that does I/O.
 - Formatting and lint: `mise run //service:fmt` then `mise run //service:check`. The config lives in `service/.golangci.yml`.
-- Prefer the standard library. Add a dependency only when it is the established solution and replaces real work; record it in an ADR.
+- Prefer the standard library. Add a dependency only when it is the established solution and replaces real work, and say why under `## Why it is this way` on the page that owns what it serves.
 - Doc comment on every exported identifier and a package comment per package.

@@ -17,7 +17,7 @@ const MOBILE = { width: 412, height: 915 };
 // next/image's `unoptimized` loader returns `src` verbatim - it does not
 // prefix `basePath` the way every other Next-managed asset does - so the
 // base path has to be applied here explicitly, the same way app/layout.tsx
-// does it. See ADR 0015.
+// does it. See docs/memory/content/architecture/docs.mdx.
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 function hasPng(file: string): boolean {
