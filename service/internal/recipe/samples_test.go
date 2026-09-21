@@ -2,31 +2,57 @@ package recipe_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-func TestSamplesReturnsTheTwelveGermanRecipes(t *testing.T) {
-	in, err := recipe.Samples()
+func TestSamplesPerLocale(t *testing.T) {
+	for _, l := range user.Locales {
+		in, err := recipe.Samples(l)
+		if err != nil {
+			t.Fatalf("Samples(%q): %v", l, err)
+		}
+		if len(in) != 12 {
+			t.Errorf("Samples(%q) returned %d recipes, want 12", l, len(in))
+		}
+		for i, r := range in {
+			if strings.TrimSpace(r.Title) == "" {
+				t.Errorf("Samples(%q)[%d] has an empty title", l, i)
+			}
+			if len(r.IngredientGroups) == 0 || len(r.Steps) == 0 {
+				t.Errorf("Samples(%q)[%d] %q has no ingredient groups or no steps", l, i, r.Title)
+			}
+		}
+	}
+}
+
+func TestSamplesDifferPerLocale(t *testing.T) {
+	de, err := recipe.Samples("de")
 	if err != nil {
-		t.Fatalf("Samples: %v", err)
+		t.Fatalf("Samples(de): %v", err)
 	}
-	if len(in) != 12 {
-		t.Fatalf("len = %d, want 12", len(in))
+	en, err := recipe.Samples("en")
+	if err != nil {
+		t.Fatalf("Samples(en): %v", err)
 	}
-	if in[0].Title != "Königsberger Klopse" || len(in[0].IngredientGroups) != 2 {
-		t.Fatalf("first sample = %q with %d groups, want Königsberger Klopse with 2 groups", in[0].Title, len(in[0].IngredientGroups))
+	if de[0].Title == en[0].Title {
+		t.Errorf("both sets start with %q; they should be different recipes", de[0].Title)
 	}
-	if in[11].Title != "Maultaschen in der Brühe" {
-		t.Fatalf("last sample = %q, want Maultaschen in der Brühe", in[11].Title)
+}
+
+func TestSamplesRejectsAnUnknownLocale(t *testing.T) {
+	if _, err := recipe.Samples("fr"); err == nil {
+		t.Fatal("Samples(fr) returned no error")
 	}
 }
 
 func TestSamplesReturnsAFreshCopy(t *testing.T) {
-	a, _ := recipe.Samples()
+	a, _ := recipe.Samples("de")
 	a[0].Title = "changed"
-	b, _ := recipe.Samples()
+	b, _ := recipe.Samples("de")
 	if b[0].Title == "changed" {
 		t.Fatal("Samples shares state between calls")
 	}
@@ -38,7 +64,7 @@ func TestCountFollowsCreateAndDelete(t *testing.T) {
 	if n, err := svc.Count(ctx); err != nil || n != 0 {
 		t.Fatalf("Count on empty DB = %d, %v; want 0, nil", n, err)
 	}
-	samples, _ := recipe.Samples()
+	samples, _ := recipe.Samples("de") // German search terms in other tests key off this set
 	r, err := svc.Create(ctx, userID, samples[0])
 	if err != nil {
 		t.Fatal(err)

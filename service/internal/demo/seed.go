@@ -40,11 +40,12 @@ type Summary struct {
 	Skipped bool
 }
 
-// Seed creates the sample recipes, owned by the user named owner (or the
-// first user by name when no such user exists), and uploads a placeholder
-// image for the first imagedRecipes of them below imageDir. It is
-// idempotent: a database that already holds recipes is left untouched.
-func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, logger *slog.Logger) (Summary, error) {
+// Seed creates the sample recipes in locale's language, owned by the user
+// named owner (or the first user by name when no such user exists), and
+// uploads a placeholder image for the first imagedRecipes of them below
+// imageDir. It is idempotent: a database that already holds recipes is left
+// untouched.
+func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user.Locale, logger *slog.Logger) (Summary, error) {
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	n, err := recipes.Count(ctx)
 	if err != nil {
@@ -58,7 +59,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, logger *slo
 	if err != nil {
 		return Summary{}, err
 	}
-	samples, err := recipe.Samples()
+	samples, err := recipe.Samples(locale)
 	if err != nil {
 		return Summary{}, err
 	}

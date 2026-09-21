@@ -18,7 +18,9 @@ import (
 
 func loadFixtures(t *testing.T) []recipe.Input {
 	t.Helper()
-	in, err := recipe.Samples()
+	// "de": every test built on this fixture (here, search_test.go and
+	// handler_test.go) keys off the German sample titles and search terms.
+	in, err := recipe.Samples("de")
 	if err != nil {
 		t.Fatal(err)
 	}

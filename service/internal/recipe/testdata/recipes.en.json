@@ -1,0 +1,431 @@
+[
+  {
+    "title": "Shepherd's Pie",
+    "description": "A comforting bake of minced lamb in rich gravy under a golden mashed potato crust.",
+    "servings": 4,
+    "prepMinutes": 25,
+    "cookMinutes": 45,
+    "sourceUrl": null,
+    "tags": ["classic", "meat"],
+    "ingredientGroups": [
+      {
+        "name": "Filling",
+        "ingredients": [
+          { "quantity": 500, "unit": "g", "name": "minced lamb", "note": null },
+          { "quantity": 1, "unit": null, "name": "onion", "note": "diced" },
+          { "quantity": 2, "unit": null, "name": "carrots", "note": "diced" },
+          { "quantity": 2, "unit": "tbsp", "name": "tomato puree", "note": null },
+          { "quantity": 300, "unit": "ml", "name": "beef stock", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "Worcestershire sauce", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "plain flour", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
+        ]
+      },
+      {
+        "name": "Mash topping",
+        "ingredients": [
+          { "quantity": 1, "unit": "kg", "name": "potatoes", "note": "peeled and chopped" },
+          { "quantity": 50, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 100, "unit": "ml", "name": "milk", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 50, "unit": "g", "name": "cheddar", "note": "grated, for the top" }
+        ]
+      }
+    ],
+    "steps": [
+      "Peel and chop the potatoes, then boil until tender.",
+      "Fry the onion and carrots until soft, then brown the mince alongside them.",
+      "Stir in the tomato puree and flour, then pour in the stock and Worcestershire sauce and simmer for 15 minutes.",
+      "Drain the potatoes and mash with the butter and milk, then season.",
+      "Spoon the filling into a baking dish, top with the mash and scatter over the cheddar.",
+      "Bake at 200°C for 20 minutes until golden and bubbling."
+    ]
+  },
+  {
+    "title": "Full English Breakfast",
+    "description": "A hearty fried breakfast of sausages, bacon, eggs and all the trimmings.",
+    "servings": 2,
+    "prepMinutes": 10,
+    "cookMinutes": 20,
+    "sourceUrl": null,
+    "tags": ["quick", "breakfast"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 4, "unit": null, "name": "pork sausages", "note": null },
+          { "quantity": 4, "unit": "rasher", "name": "bacon", "note": null },
+          { "quantity": 2, "unit": null, "name": "eggs", "note": null },
+          { "quantity": 1, "unit": "tin", "name": "baked beans", "note": null },
+          { "quantity": 2, "unit": null, "name": "tomatoes", "note": "halved" },
+          { "quantity": 150, "unit": "g", "name": "mushrooms", "note": "sliced" },
+          { "quantity": 2, "unit": "slice", "name": "bread", "note": "for toast" },
+          { "quantity": 1, "unit": "tbsp", "name": "vegetable oil", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Fry the sausages in a splash of oil over medium heat until browned all over, about 12 minutes.",
+      "Add the bacon and mushrooms to the pan and fry until crisp and golden.",
+      "Push everything to one side of the pan and fry the tomatoes and eggs alongside.",
+      "Warm the baked beans through in a small saucepan.",
+      "Toast the bread.",
+      "Plate everything together, season with salt and pepper, and serve with the toast."
+    ]
+  },
+  {
+    "title": "Bangers and Mash",
+    "description": "Pork sausages with buttery mash and a rich onion gravy.",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "sourceUrl": null,
+    "tags": ["classic", "meat"],
+    "ingredientGroups": [
+      {
+        "name": "Onion gravy",
+        "ingredients": [
+          { "quantity": 2, "unit": null, "name": "onions", "note": "thinly sliced" },
+          { "quantity": 1, "unit": "tbsp", "name": "butter", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "plain flour", "note": null },
+          { "quantity": 400, "unit": "ml", "name": "beef stock", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "Worcestershire sauce", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
+        ]
+      },
+      {
+        "name": "Mash",
+        "ingredients": [
+          { "quantity": 8, "unit": null, "name": "pork sausages", "note": null },
+          { "quantity": 1, "unit": "kg", "name": "potatoes", "note": "peeled and chopped" },
+          { "quantity": 50, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 100, "unit": "ml", "name": "milk", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Grill or fry the sausages until browned and cooked through, about 20 minutes.",
+      "Meanwhile, boil the potatoes until tender.",
+      "Melt the butter and cook the onions slowly until soft and golden, about 15 minutes.",
+      "Stir the flour into the onions, then gradually add the stock and Worcestershire sauce, simmering until thickened.",
+      "Drain the potatoes and mash with the butter, milk and salt.",
+      "Serve the sausages on the mash, smothered in onion gravy."
+    ]
+  },
+  {
+    "title": "Oven Fish and Chips",
+    "description": "Oven-baked battered fish with thick-cut chips, a lighter take on the takeaway classic.",
+    "servings": 2,
+    "prepMinutes": 20,
+    "cookMinutes": 30,
+    "sourceUrl": null,
+    "tags": ["quick", "seafood"],
+    "ingredientGroups": [
+      {
+        "name": "Chips",
+        "ingredients": [
+          { "quantity": 800, "unit": "g", "name": "potatoes", "note": "cut into thick chips" },
+          { "quantity": 2, "unit": "tbsp", "name": "vegetable oil", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null }
+        ]
+      },
+      {
+        "name": "Fish",
+        "ingredients": [
+          { "quantity": 2, "unit": "fillet", "name": "white fish", "note": "such as cod or haddock" },
+          { "quantity": 100, "unit": "g", "name": "plain flour", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "baking powder", "note": null },
+          { "quantity": 150, "unit": "ml", "name": "cold beer", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Toss the chips in oil and salt and spread out on a baking tray.",
+      "Roast the chips at 220°C for 25 minutes, turning halfway, until crisp.",
+      "Whisk the flour, baking powder, beer and salt into a smooth batter.",
+      "Dip the fish fillets in the batter and place on a lined tray.",
+      "Bake the fish alongside the chips for the final 15 minutes until golden and cooked through.",
+      "Serve the fish and chips together with a wedge of lemon."
+    ]
+  },
+  {
+    "title": "Beef and Ale Stew",
+    "description": "Beef chunks slow-braised in ale with root vegetables until meltingly tender.",
+    "servings": 4,
+    "prepMinutes": 20,
+    "cookMinutes": 120,
+    "sourceUrl": null,
+    "tags": ["classic", "meat", "stew"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 800, "unit": "g", "name": "stewing beef", "note": "cubed" },
+          { "quantity": 2, "unit": "tbsp", "name": "plain flour", "note": null },
+          { "quantity": 2, "unit": "tbsp", "name": "vegetable oil", "note": null },
+          { "quantity": 1, "unit": null, "name": "onion", "note": "chopped" },
+          { "quantity": 2, "unit": null, "name": "carrots", "note": "chopped" },
+          { "quantity": 2, "unit": "stick", "name": "celery", "note": null },
+          { "quantity": 500, "unit": "ml", "name": "brown ale", "note": null },
+          { "quantity": 300, "unit": "ml", "name": "beef stock", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "tomato puree", "note": null },
+          { "quantity": 2, "unit": null, "name": "bay leaves", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Toss the beef in the flour and brown in batches in hot oil, then set aside.",
+      "Fry the onion, carrots and celery in the same pot until softened.",
+      "Return the beef to the pot and stir in the tomato puree.",
+      "Pour in the ale and stock, add the bay leaves, and bring to a simmer.",
+      "Cover and cook on low heat for 2 hours, stirring occasionally, until the beef is tender.",
+      "Season with salt and pepper before serving."
+    ]
+  },
+  {
+    "title": "Leek and Potato Soup",
+    "description": "A smooth, buttery soup of leeks and potatoes, ready in well under an hour.",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "sourceUrl": null,
+    "tags": ["vegetarian", "soup"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 50, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 3, "unit": null, "name": "leeks", "note": "sliced" },
+          { "quantity": 1, "unit": null, "name": "onion", "note": "chopped" },
+          { "quantity": 500, "unit": "g", "name": "potatoes", "note": "peeled and diced" },
+          { "quantity": 1, "unit": "l", "name": "vegetable stock", "note": null },
+          { "quantity": 100, "unit": "ml", "name": "single cream", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Melt the butter and gently cook the leeks and onion until soft, without browning.",
+      "Add the potatoes and stock, bring to the boil, then simmer for 20 minutes until the potatoes are tender.",
+      "Blend the soup until smooth.",
+      "Stir in the cream and season with salt and pepper.",
+      "Warm through gently and serve."
+    ]
+  },
+  {
+    "title": "Macaroni Cheese",
+    "description": "Pasta baked in a rich cheese sauce with a crisp golden crust.",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 30,
+    "sourceUrl": null,
+    "tags": ["vegetarian", "quick"],
+    "ingredientGroups": [
+      {
+        "name": "Sauce",
+        "ingredients": [
+          { "quantity": 50, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 50, "unit": "g", "name": "plain flour", "note": null },
+          { "quantity": 600, "unit": "ml", "name": "milk", "note": null },
+          { "quantity": 200, "unit": "g", "name": "cheddar", "note": "grated" },
+          { "quantity": 1, "unit": "tsp", "name": "mustard powder", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null }
+        ]
+      },
+      {
+        "name": "Pasta",
+        "ingredients": [
+          { "quantity": 300, "unit": "g", "name": "macaroni", "note": null },
+          { "quantity": 30, "unit": "g", "name": "breadcrumbs", "note": "for the topping" }
+        ]
+      }
+    ],
+    "steps": [
+      "Cook the macaroni in salted boiling water until just tender, then drain.",
+      "Melt the butter, stir in the flour and cook for a minute, then whisk in the milk until smooth.",
+      "Simmer the sauce until thickened, then stir in the cheddar and mustard powder until melted.",
+      "Fold the macaroni through the cheese sauce and season with salt.",
+      "Transfer to a baking dish, scatter over the breadcrumbs and bake at 200°C for 15 minutes until golden."
+    ]
+  },
+  {
+    "title": "Toad in the Hole",
+    "description": "Pork sausages baked in a crisp Yorkshire pudding batter, served with onion gravy.",
+    "servings": 4,
+    "prepMinutes": 15,
+    "cookMinutes": 35,
+    "sourceUrl": null,
+    "tags": ["oven", "meat"],
+    "ingredientGroups": [
+      {
+        "name": "Batter",
+        "ingredients": [
+          { "quantity": 140, "unit": "g", "name": "plain flour", "note": null },
+          { "quantity": 4, "unit": null, "name": "eggs", "note": null },
+          { "quantity": 200, "unit": "ml", "name": "milk", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null }
+        ]
+      },
+      {
+        "name": "Sausages and gravy",
+        "ingredients": [
+          { "quantity": 8, "unit": null, "name": "pork sausages", "note": null },
+          { "quantity": 2, "unit": "tbsp", "name": "vegetable oil", "note": null },
+          { "quantity": 1, "unit": null, "name": "onion", "note": "thinly sliced" },
+          { "quantity": 300, "unit": "ml", "name": "beef stock", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "plain flour", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Whisk the flour, eggs, milk and salt into a smooth batter and rest for 20 minutes.",
+      "Put the oil and sausages in a roasting tin and roast at 220°C for 10 minutes until the oil is very hot.",
+      "Pour the batter around the sausages and return to the oven for 25 minutes until well risen and golden.",
+      "Meanwhile, fry the onion until soft, stir in the flour, then add the stock and simmer into a gravy.",
+      "Serve the toad in the hole straight from the tin with the onion gravy."
+    ]
+  },
+  {
+    "title": "Sausage Rolls",
+    "description": "Flaky puff pastry parcels around a well-seasoned sausage filling, best served warm.",
+    "servings": 6,
+    "prepMinutes": 20,
+    "cookMinutes": 25,
+    "sourceUrl": null,
+    "tags": ["snack", "baked"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 500, "unit": "g", "name": "sausage meat", "note": null },
+          { "quantity": 1, "unit": null, "name": "onion", "note": "finely chopped" },
+          { "quantity": 1, "unit": "tsp", "name": "dried sage", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null },
+          { "quantity": 320, "unit": "g", "name": "puff pastry", "note": "ready-rolled" },
+          { "quantity": 1, "unit": null, "name": "egg", "note": "beaten, for glazing" }
+        ]
+      }
+    ],
+    "steps": [
+      "Mix the sausage meat with the onion, sage, salt and pepper.",
+      "Unroll the pastry and spoon the filling along one edge in a long log.",
+      "Roll the pastry around the filling and seal the edge with a little beaten egg.",
+      "Cut into six rolls and brush the tops with the remaining egg.",
+      "Bake at 200°C for 20 minutes until the pastry is puffed and golden."
+    ]
+  },
+  {
+    "title": "Coronation Chicken Sandwiches",
+    "description": "Cold roast chicken in a mild curried mayonnaise with sultanas, piled into sandwiches.",
+    "servings": 4,
+    "prepMinutes": 20,
+    "cookMinutes": 0,
+    "sourceUrl": null,
+    "tags": ["quick", "lunch"],
+    "ingredientGroups": [
+      {
+        "name": null,
+        "ingredients": [
+          { "quantity": 400, "unit": "g", "name": "cooked chicken", "note": "shredded" },
+          { "quantity": 4, "unit": "tbsp", "name": "mayonnaise", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "mango chutney", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "curry powder", "note": null },
+          { "quantity": 30, "unit": "g", "name": "sultanas", "note": null },
+          { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
+          { "quantity": 8, "unit": "slice", "name": "bread", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Stir the mayonnaise, mango chutney and curry powder together.",
+      "Fold in the shredded chicken and sultanas and season with salt.",
+      "Spread the mixture generously over half the bread slices.",
+      "Top with the remaining bread and press down gently.",
+      "Cut the sandwiches in half to serve."
+    ]
+  },
+  {
+    "title": "Lemon Drizzle Cake",
+    "description": "A light sponge soaked in a tangy lemon syrup and finished with a crisp sugar glaze.",
+    "servings": 8,
+    "prepMinutes": 20,
+    "cookMinutes": 45,
+    "sourceUrl": null,
+    "tags": ["sweet", "dessert", "baking"],
+    "ingredientGroups": [
+      {
+        "name": "Sponge",
+        "ingredients": [
+          { "quantity": 175, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 175, "unit": "g", "name": "caster sugar", "note": null },
+          { "quantity": 3, "unit": null, "name": "eggs", "note": null },
+          { "quantity": 175, "unit": "g", "name": "self-raising flour", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "baking powder", "note": null },
+          { "quantity": 2, "unit": null, "name": "lemons", "note": "zested" }
+        ]
+      },
+      {
+        "name": "Drizzle",
+        "ingredients": [
+          { "quantity": 2, "unit": null, "name": "lemons", "note": "juiced" },
+          { "quantity": 100, "unit": "g", "name": "caster sugar", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Cream the butter and sugar together until light and fluffy.",
+      "Beat in the eggs one at a time, then fold in the flour, baking powder and lemon zest.",
+      "Spoon the batter into a lined loaf tin and bake at 180°C for 40 minutes until a skewer comes out clean.",
+      "Mix the lemon juice with the sugar for the drizzle.",
+      "Prick the warm cake all over and pour over the drizzle, letting it soak in and set into a crust."
+    ]
+  },
+  {
+    "title": "Sticky Toffee Pudding",
+    "description": "A rich date sponge in a caramel sauce, served warm as the definitive British dessert.",
+    "servings": 6,
+    "prepMinutes": 20,
+    "cookMinutes": 40,
+    "sourceUrl": null,
+    "tags": ["sweet", "dessert"],
+    "ingredientGroups": [
+      {
+        "name": "Sponge",
+        "ingredients": [
+          { "quantity": 200, "unit": "g", "name": "pitted dates", "note": "chopped" },
+          { "quantity": 250, "unit": "ml", "name": "water", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "bicarbonate of soda", "note": null },
+          { "quantity": 75, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 150, "unit": "g", "name": "soft brown sugar", "note": null },
+          { "quantity": 2, "unit": null, "name": "eggs", "note": null },
+          { "quantity": 175, "unit": "g", "name": "self-raising flour", "note": null }
+        ]
+      },
+      {
+        "name": "Toffee sauce",
+        "ingredients": [
+          { "quantity": 100, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 200, "unit": "g", "name": "soft brown sugar", "note": null },
+          { "quantity": 200, "unit": "ml", "name": "double cream", "note": null }
+        ]
+      }
+    ],
+    "steps": [
+      "Simmer the dates in the water for 5 minutes, then stir in the bicarbonate of soda and set aside to cool slightly.",
+      "Cream the butter and sugar, beat in the eggs, then fold in the flour and the date mixture.",
+      "Pour the batter into a greased baking dish and bake at 180°C for 30 minutes until risen and firm.",
+      "Melt the butter, sugar and cream together for the sauce, stirring until smooth and glossy.",
+      "Pour half the sauce over the warm pudding and serve the rest alongside."
+    ]
+  }
+]

@@ -63,12 +63,14 @@ let fixtures: RecipeInput[] | null = null;
 
 /**
  * Returns a copy of one of the German recipes the service tests are seeded
- * with (`service/internal/recipe/testdata/recipes.json`), so the e2e suite
- * exercises the same realistic data - umlauts, ingredient groups and all.
+ * with (`service/internal/recipe/testdata/recipes.de.json`), so the e2e suite
+ * exercises the same realistic data - umlauts, ingredient groups and all. The
+ * suite's selectors are German, so this deliberately reads the German fixture
+ * regardless of which locale a demo instance would seed.
  */
 export function loadFixture(index: number): RecipeInput {
 	if (fixtures === null) {
-		const file = new URL('../../service/internal/recipe/testdata/recipes.json', import.meta.url);
+		const file = new URL('../../service/internal/recipe/testdata/recipes.de.json', import.meta.url);
 		fixtures = JSON.parse(readFileSync(file, 'utf8')) as RecipeInput[];
 	}
 	const fixture = fixtures[index];

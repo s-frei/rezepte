@@ -24,7 +24,7 @@ func TestSeedCreatesSamplesWithPlaceholders(t *testing.T) {
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
 
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", quiet)
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet) // "de": assertions below check German titles
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
@@ -69,10 +69,10 @@ func TestSeedIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", quiet); err != nil {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", quiet)
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet) // "de": Count below expects the German fixture count
 	if err != nil {
 		t.Fatalf("second Seed: %v", err)
 	}
@@ -88,14 +88,14 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	imageDir := filepath.Join(t.TempDir(), "images")
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", quiet); !errors.Is(err, demo.ErrNoUsers) {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet); !errors.Is(err, demo.ErrNoUsers) {
 		t.Fatalf("Seed without users: err = %v, want ErrNoUsers", err)
 	}
 	sam, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", quiet); err != nil {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet); err != nil { // "de": the slug below is the German fixture's
 		t.Fatalf("Seed with fallback owner: %v", err)
 	}
 	r, err := recipe.NewService(conn).BySlug(ctx, "flammkuchen")
