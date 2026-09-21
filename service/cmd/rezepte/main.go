@@ -223,7 +223,7 @@ func resetError(err error, dataDir string) error {
 // tells whether cfg.AdminUser/AdminPassword were replaced with the
 // well-known demo credentials, or came from the operator's configuration.
 func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, logger *slog.Logger) error {
-	sum, err := demo.Seed(ctx, conn, imageDir, cfg.AdminUser, logger)
+	sum, err := demo.Seed(ctx, conn, imageDir, cfg.AdminUser, user.Locale(cfg.Locale), logger)
 	if err != nil {
 		return err
 	}
