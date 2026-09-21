@@ -43,8 +43,8 @@ WHERE created_by = sqlc.arg(old_owner) OR updated_by = sqlc.arg(old_owner);
 -- name: CountUsersByColor :many
 SELECT color, COUNT(*) AS user_count FROM users GROUP BY color;
 
--- Both profile columns at once. SetProfile reads the row first and fills in
--- whichever of the two the caller left alone, so a partial update needs no
--- second statement.
+-- Every self-service profile column at once. SetProfile reads the row first
+-- and fills in whichever of the three the caller left alone, so a partial
+-- update needs no second statement.
 -- name: UpdateUserProfile :one
-UPDATE users SET display_name = ?, color = ?, updated_at = ? WHERE id = ? RETURNING *;
+UPDATE users SET display_name = ?, color = ?, locale = ?, updated_at = ? WHERE id = ? RETURNING *;

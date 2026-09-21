@@ -252,23 +252,25 @@ func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPass
 }
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
-UPDATE users SET display_name = ?, color = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at
+UPDATE users SET display_name = ?, color = ?, locale = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at
 `
 
 type UpdateUserProfileParams struct {
 	DisplayName string
 	Color       string
+	Locale      string
 	UpdatedAt   string
 	ID          string
 }
 
-// Both profile columns at once. SetProfile reads the row first and fills in
-// whichever of the two the caller left alone, so a partial update needs no
-// second statement.
+// Every self-service profile column at once. SetProfile reads the row first
+// and fills in whichever of the three the caller left alone, so a partial
+// update needs no second statement.
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, updateUserProfile,
 		arg.DisplayName,
 		arg.Color,
+		arg.Locale,
 		arg.UpdatedAt,
 		arg.ID,
 	)
