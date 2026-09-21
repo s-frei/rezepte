@@ -251,9 +251,10 @@ func (s *Service) SetRole(ctx context.Context, actor User, id string, role Role)
 type ProfileUpdate struct {
 	DisplayName *string
 	Color       *Color
+	Locale      *Locale
 }
 
-// SetProfile writes a user's display name and colour. It takes no actor and
+// SetProfile writes a user's display name, colour and locale. It takes no actor and
 // performs no rank check: its two callers differ in who they may aim at - one
 // writes the caller's own row, the other only the owner's doing - and the
 // service cannot tell them apart. Authorization is decided at the API
@@ -282,9 +283,17 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 				return err
 			}
 		}
+		locale := Locale(row.Locale)
+		if p.Locale != nil {
+			locale, err = ParseLocale(string(*p.Locale))
+			if err != nil {
+				return err
+			}
+		}
 		updated, err := q.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
 			DisplayName: displayName,
 			Color:       string(color),
+			Locale:      string(locale),
 			UpdatedAt:   db.FormatTime(s.now()),
 			ID:          id,
 		})

@@ -585,3 +585,42 @@ func TestCreateRejectsAnUnknownLocale(t *testing.T) {
 		t.Errorf("Create error = %v, want ErrInvalidLocale", err)
 	}
 }
+
+func TestSetProfileChangesTheLocale(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn)
+	u, err := svc.Create(t.Context(), user.CreateParams{
+		Username: "eva", Password: "eva1234", Role: user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	de := user.Locale("de")
+	updated, err := svc.SetProfile(t.Context(), u.ID, user.ProfileUpdate{Locale: &de})
+	if err != nil {
+		t.Fatalf("SetProfile: %v", err)
+	}
+	if updated.Locale != "de" {
+		t.Errorf("Locale = %q, want de", updated.Locale)
+	}
+	if updated.DisplayName != u.DisplayName {
+		t.Errorf("DisplayName = %q, want it untouched (%q)", updated.DisplayName, u.DisplayName)
+	}
+}
+
+func TestSetProfileRejectsAnUnknownLocale(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn)
+	u, err := svc.Create(t.Context(), user.CreateParams{
+		Username: "finn", Password: "finn1234", Role: user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	bad := user.Locale("fr")
+	if _, err := svc.SetProfile(t.Context(), u.ID, user.ProfileUpdate{Locale: &bad}); !errors.Is(err, user.ErrInvalidLocale) {
+		t.Errorf("SetProfile error = %v, want ErrInvalidLocale", err)
+	}
+}
