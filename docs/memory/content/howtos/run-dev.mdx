@@ -16,11 +16,11 @@ description: Dev servers, builds and the check gate
 
     ### Start the dev servers
     ```bash
-    REZEPTE_ADMIN_PASSWORD=admin1234 mise run dev
+    mise run dev
     ```
     Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api` and `/images` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
 
-    The password creates the instance owner on the very first start, and is read again only by `rezepte --reset-superadmin-password`. It is the username with `1234` appended, like every bootstrapped account here ([Development credentials](/conventions/dev-credentials)). Log in at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree).
+    Log in as `admin` / `admin1234` at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree); the task prints the pair as it starts. `REZEPTE_ADMIN_PASSWORD` has no default in the binary - an empty `users` table without it is `ErrAdminPasswordRequired` and the service refuses to start, see [Users and auth](/features/users-and-auth) - so `//service:dev` defaults it to the username with `1234` appended, like every bootstrapped account here ([Development credentials](/conventions/dev-credentials)); a value set in the environment still wins. That password creates the instance owner on the very first start and is read again only by `rezepte --reset-superadmin-password`.
 
     For an instance that already has recipes in it, `mise run demo` starts the built binary with the twelve samples on the demo port and keeps it up until Ctrl-C (`demo` / `demo1234`) - no dev server, no HMR, but nothing to fill in either ([Demo mode](/features/demo-mode)).
 

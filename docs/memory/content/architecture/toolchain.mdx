@@ -25,7 +25,9 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 
 `mise/lib/` holds what is not a task. `mise/lib/instance.sh` is the only file there: the port guard and the `/healthz` wait that `//:demo` and `//:e2e` both source rather than run. It cannot live beside them, because a file inside `mise/tasks/` would become a task itself, and `mise/lib/` is not scanned. There is no `scripts/` directory.
 
-`[tools]` pins Go, Bun, Node, golangci-lint, sqlc and watchexec, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
+`[tools]` pins Go, Bun, golangci-lint, sqlc and watchexec, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
+
+**Node is deliberately not pinned.** Every JavaScript tool here - Next, Vite, svelte-check, ESLint, Prettier, Playwright - ships a `#!/usr/bin/env node` shebang, but Bun puts its own `node` shim in front of them, so the whole build, lint, test and docs-export chain runs on Bun alone and a pinned Node would only be a download CI repeats per job. The Svelte MCP server in `.mcp.json` runs through `bunx` for the same reason. Re-add Node only for a tool that actually breaks under the shim, and say in this paragraph which one.
 
 CI installs the same pinned tools through `jdx/mise-action`, then runs `mise run setup`, regenerates the API reference and fails on any uncommitted diff, and only then runs `mise run check`, `mise run build` and `mise run e2e` — so a green gate locally does not guarantee a green `check` job: a stale API reference regeneration is the gap ([Documentation sites](/architecture/docs)). A pushed `v*` tag runs a second workflow that publishes the image and the release binaries, and that workflow can also be dispatched by hand from a branch to publish a throwaway image tag — see [Releases](/architecture/releases).
 
