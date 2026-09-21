@@ -28,7 +28,12 @@ export default defineConfig({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide',
 			emitTsDeclarations: true,
-			strategy: ['cookie', 'baseLocale']
+			// cookie: the account's language, written by the Go service from
+			// users.locale (service/internal/auth/handler.go). Read before the
+			// first render, so a signed-in person never sees the wrong language
+			// flash past. preferredLanguage: the browser's setting, which is all
+			// there is to go on at the login screen. baseLocale: English.
+			strategy: ['cookie', 'preferredLanguage', 'baseLocale']
 		})
 	],
 	server: {

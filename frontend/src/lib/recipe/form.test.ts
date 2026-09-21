@@ -311,7 +311,7 @@ describe('validate', () => {
 	});
 
 	it('requires a title', () => {
-		expect(validate(validForm({ title: '   ' })).title).toBe('Bitte einen Titel eingeben');
+		expect(validate(validForm({ title: '   ' })).title).toBe('Please enter a title');
 	});
 
 	it('rejects servings outside 1-99', () => {
@@ -328,14 +328,12 @@ describe('validate', () => {
 	});
 
 	it('rejects non-numeric minutes', () => {
-		expect(validate(validForm({ cookMinutes: 'abc' })).cookMinutes).toBe(
-			'Bitte eine Zahl eingeben'
-		);
+		expect(validate(validForm({ cookMinutes: 'abc' })).cookMinutes).toBe('Please enter a number');
 	});
 
 	it('rejects negative minutes', () => {
 		expect(validate(validForm({ prepMinutes: '-5' })).prepMinutes).toBe(
-			'Bitte keine negative Zahl eingeben'
+			'Please do not enter a negative number'
 		);
 	});
 
@@ -353,7 +351,7 @@ describe('validate', () => {
 	});
 
 	it('rejects a source URL that is not http(s)', () => {
-		const message = 'Bitte eine Adresse mit http:// oder https:// angeben';
+		const message = 'Please enter an address starting with http:// or https://';
 		expect(validate(validForm({ sourceUrl: 'javascript:alert(1)' })).sourceUrl).toBe(message);
 		expect(validate(validForm({ sourceUrl: 'data:text/html,<b>x' })).sourceUrl).toBe(message);
 		expect(validate(validForm({ sourceUrl: 'example.test/rezept' })).sourceUrl).toBe(message);
@@ -364,7 +362,7 @@ describe('validate', () => {
 		const form = validForm();
 		const row = form.ingredientGroups[0].ingredients[0];
 		row.quantity = '-1';
-		expect(validate(form)[`quantity:${row.id}`]).toBe('Bitte keine negative Zahl eingeben');
+		expect(validate(form)[`quantity:${row.id}`]).toBe('Please do not enter a negative number');
 	});
 
 	it('requires a name on a row that has other content', () => {
@@ -372,7 +370,7 @@ describe('validate', () => {
 		const row = newIngredient();
 		row.quantity = '2';
 		form.ingredientGroups[0].ingredients.push(row);
-		expect(validate(form)[`name:${row.id}`]).toBe('Bitte einen Namen eingeben');
+		expect(validate(form)[`name:${row.id}`]).toBe('Please enter a name');
 	});
 
 	it('ignores fully empty rows', () => {
@@ -383,7 +381,7 @@ describe('validate', () => {
 
 	it('requires at least one named ingredient', () => {
 		const form = validForm({ ingredientGroups: [newGroup()] });
-		expect(validate(form).ingredientGroups).toBe('Bitte mindestens eine Zutat mit Namen angeben');
+		expect(validate(form).ingredientGroups).toBe('Please add at least one ingredient with a name');
 	});
 });
 

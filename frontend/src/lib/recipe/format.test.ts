@@ -76,25 +76,25 @@ describe('formatMinutes', () => {
 	});
 
 	it('renders under an hour as minutes', () => {
-		expect(formatMinutes(0)).toBe('0 Min');
-		expect(formatMinutes(30)).toBe('30 Min');
-		expect(formatMinutes(59)).toBe('59 Min');
+		expect(formatMinutes(0)).toBe('0 min');
+		expect(formatMinutes(30)).toBe('30 min');
+		expect(formatMinutes(59)).toBe('59 min');
 	});
 
 	it('renders exactly one hour without a minutes part', () => {
-		expect(formatMinutes(60)).toBe('1 Std');
+		expect(formatMinutes(60)).toBe('1 hr');
 	});
 
 	it('renders an hour with a remainder', () => {
-		expect(formatMinutes(90)).toBe('1 Std 30 Min');
+		expect(formatMinutes(90)).toBe('1 hr 30 min');
 	});
 
 	it('renders multiple hours without a remainder', () => {
-		expect(formatMinutes(120)).toBe('2 Std');
+		expect(formatMinutes(120)).toBe('2 hr');
 	});
 
 	it('renders multiple hours with a remainder', () => {
-		expect(formatMinutes(125)).toBe('2 Std 5 Min');
+		expect(formatMinutes(125)).toBe('2 hr 5 min');
 	});
 });
 
@@ -113,14 +113,14 @@ describe('formatFactor', () => {
 
 describe('servingsUnit and formatServings', () => {
 	it('uses the singular for exactly one', () => {
-		expect(servingsUnit(1)).toBe('Portion');
-		expect(formatServings(1)).toBe('1 Portion');
+		expect(servingsUnit(1)).toBe('serving');
+		expect(formatServings(1)).toBe('1 serving');
 	});
 
 	it('uses the plural otherwise', () => {
-		expect(servingsUnit(4)).toBe('Portionen');
-		expect(formatServings(4)).toBe('4 Portionen');
-		expect(formatServings(0)).toBe('0 Portionen');
+		expect(servingsUnit(4)).toBe('servings');
+		expect(formatServings(4)).toBe('4 servings');
+		expect(formatServings(0)).toBe('0 servings');
 	});
 });
 
