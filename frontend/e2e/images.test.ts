@@ -30,7 +30,7 @@ test('shows the cover on the card and the detail page', async ({ page }) => {
 
 	await page.goto('/');
 	await search(page, token);
-	const card = page.getByRole('link', { name: `Mit Bild ${token}` });
+	const card = page.getByRole('article', { name: `Mit Bild ${token}` });
 	await expect(card.locator('img')).toHaveAttribute(
 		'src',
 		`/images/${recipe.id}/${cover.id}/thumb.jpg`

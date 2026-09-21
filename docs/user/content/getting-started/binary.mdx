@@ -55,7 +55,7 @@ Restart=on-failure
 WantedBy=multi-user.target
 ```
 
-Put the admin password for the first start in `/etc/rezepte.env` (the leading `-` in `EnvironmentFile` makes the file optional, so the unit still starts without it once the admin account exists):
+Put the instance owner's password for the first start in `/etc/rezepte.env` (the leading `-` in `EnvironmentFile` makes the file optional, so the unit still starts without it once the owner account exists):
 
 ```bash title="/etc/rezepte.env"
 REZEPTE_ADMIN_PASSWORD=change-me-now

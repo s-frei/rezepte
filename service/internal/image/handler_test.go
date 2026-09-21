@@ -35,14 +35,16 @@ func newHandler(t *testing.T) http.Handler {
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, false)))
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
 	dir := filepath.Join(t.TempDir(), "images")
 	recipe.Register(srv.API(), recipe.NewService(conn, recipe.WithImageDir(dir)))
 	images := image.NewService(conn, dir)
 	image.Register(srv.API(), images)
-	srv.Handle("GET /images/{recipeId}/{imageId}/{file}", auth.RequireSession(sessions, false)(image.FileHandler(images)))
+	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
+		auth.RequireAuth(sessions, tokens, false, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	return srv.Handler()
 }
 

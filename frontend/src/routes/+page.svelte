@@ -6,8 +6,10 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import {
+		listAuthors,
 		listRecipes,
 		listTags,
+		type Author,
 		type RecipeCard as RecipeCardData,
 		type Tag
 	} from '$lib/api/recipes';
@@ -40,6 +42,7 @@
 	let tags = $state<string[]>(untrack(() => data.tags));
 	let maxMinutes = $state(untrack(() => data.maxMinutes));
 	let favouritesOnly = $state(untrack(() => data.favourites));
+	let author = $state(untrack(() => data.author));
 	let sort = $state<Sort>(untrack(() => data.sort));
 	// The furthest page fetched for the current filters - the initial value
 	// from the URL lets a shared/reloaded link resume where "Mehr laden" left
@@ -49,6 +52,7 @@
 	let items = $state<RecipeCardData[]>([]);
 	let total = $state(0);
 	let allTags = $state<Tag[]>([]);
+	let authors = $state<Author[]>([]);
 
 	let loading = $state(false);
 	let loadingMore = $state(false);
@@ -67,7 +71,9 @@
 	// one condition overviewViewState and ResultCount both need to tell "no
 	// recipes at all" apart from "no recipes match". A later filter section
 	// adds its own clause here rather than teaching either of those about it.
-	const filtered = $derived(q !== '' || tags.length > 0 || maxMinutes > 0 || favouritesOnly);
+	const filtered = $derived(
+		q !== '' || tags.length > 0 || maxMinutes > 0 || favouritesOnly || author !== ''
+	);
 	const viewState = $derived(
 		overviewViewState({
 			loading,
@@ -89,7 +95,9 @@
 	// section in that panel: sorting returns the same recipes in a
 	// different order, so counting it would be a lie - see the matching
 	// note on FilterPanel's `sort` prop.
-	const filterCount = $derived(tags.length + (maxMinutes > 0 ? 1 : 0) + (favouritesOnly ? 1 : 0));
+	const filterCount = $derived(
+		tags.length + (maxMinutes > 0 ? 1 : 0) + (favouritesOnly ? 1 : 0) + (author !== '' ? 1 : 0)
+	);
 
 	function syncUrl() {
 		const qs = buildListQuery({
@@ -97,6 +105,7 @@
 			tags,
 			maxMinutes,
 			favourites: favouritesOnly,
+			author,
 			sort,
 			page: pageNum
 		});
@@ -132,6 +141,7 @@
 					tags,
 					maxMinutes,
 					favourites: favouritesOnly,
+					author: author || undefined,
 					sort,
 					page: pageToFetch
 				},
@@ -182,6 +192,12 @@
 		void fetchPage(1, false);
 	}
 
+	function setAuthor(value: string) {
+		author = value;
+		pageNum = 1;
+		void fetchPage(1, false);
+	}
+
 	function setSort(value: Sort) {
 		sort = value;
 		pageNum = 1;
@@ -197,6 +213,7 @@
 		tags = [];
 		maxMinutes = 0;
 		favouritesOnly = false;
+		author = '';
 		pageNum = 1;
 		void fetchPage(1, false);
 	}
@@ -238,6 +255,7 @@
 			tags = next.tags;
 			maxMinutes = next.maxMinutes;
 			favouritesOnly = next.favourites;
+			author = next.author;
 			sort = next.sort;
 			pageNum = next.page;
 			// The same page the URL names, so arriving here matches arriving
@@ -271,6 +289,12 @@
 				// The tag row is a nice-to-have filter; a failure here shouldn't
 				// block the recipe grid itself.
 			});
+		void listAuthors()
+			.then((result) => (authors = result))
+			.catch(() => {
+				// Same as the tags above: without it the panel simply shows no
+				// author section.
+			});
 		return () => abortController?.abort();
 	});
 </script>
@@ -286,10 +310,13 @@
 			<FilterPanel
 				{maxMinutes}
 				{favouritesOnly}
+				{author}
+				{authors}
 				{sort}
 				{filterCount}
 				onmaxminutes={setMaxMinutes}
 				onfavourites={setFavouritesOnly}
+				onauthor={setAuthor}
 				onsort={setSort}
 				onreset={resetFilters}
 			/>
@@ -311,7 +338,7 @@
 					options={sortOptions}
 					label={m.overview_sort_label()}
 					onchange={handleSort}
-					class="border border-border bg-surface px-3.5 text-body-sm font-medium text-text"
+					class="bg-surface text-text"
 				/>
 			</div>
 		</div>

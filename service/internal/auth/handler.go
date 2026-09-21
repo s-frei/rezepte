@@ -15,7 +15,7 @@ import (
 type UserResponse struct {
 	ID       string `json:"id" doc:"User id"`
 	Username string `json:"username" doc:"Login name"`
-	Role     string `json:"role" enum:"admin,user" doc:"Authorization role"`
+	Role     string `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 }
 
 type loginInput struct {
@@ -52,8 +52,11 @@ type changePasswordInput struct {
 
 type changePasswordOutput struct{}
 
-// Register declares the OpenAPI cookie security scheme and installs the
-// login, logout and me operations.
+// Register installs the login, logout, me and change-password operations.
+//
+// The session security scheme itself is not declared here: it comes from
+// SecuritySchemes, installed through httpserver.WithSecuritySchemes, which
+// is the single place both schemes are described.
 //
 // The auth middleware itself is not installed here: it is passed to
 // httpserver.New via httpserver.WithAPIMiddleware(auth.Middleware(...)),
@@ -61,19 +64,6 @@ type changePasswordOutput struct{}
 // operation. That ordering is structural, not a calling-convention
 // requirement of this function.
 func Register(api huma.API, svc *Service, secureCookies bool) {
-	oapi := api.OpenAPI()
-	if oapi.Components == nil {
-		oapi.Components = &huma.Components{}
-	}
-	if oapi.Components.SecuritySchemes == nil {
-		oapi.Components.SecuritySchemes = map[string]*huma.SecurityScheme{}
-	}
-	oapi.Components.SecuritySchemes[securityScheme] = &huma.SecurityScheme{
-		Type: "apiKey",
-		In:   "cookie",
-		Name: CookieName,
-	}
-
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      http.MethodPost,

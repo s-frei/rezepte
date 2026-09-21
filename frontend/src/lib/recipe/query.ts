@@ -24,6 +24,8 @@ export type ListQuery = {
 	maxMinutes: number;
 	/** Restrict to the caller's own favourites, off by default. */
 	favourites: boolean;
+	/** Restrict to recipes written by this username, `''` = off. */
+	author: string;
 	/** Result order, `'updated'` (most recently changed first) is the default. */
 	sort: Sort;
 	page: number;
@@ -35,6 +37,9 @@ export type ListQuery = {
  * - `q` is trimmed.
  * - every tag is normalised the way the editor normalises a typed tag
  *   (trimmed and lower-cased, see `normaliseTag`), and blank ones are dropped.
+ * - `author` is trimmed but keeps its case: the service stores usernames as
+ *   they were typed (it only trims them too), so lower-casing here the way
+ *   tags are would stop "Mara" from matching anything.
  * - `sort` falls back to `'updated'` (the default) for anything outside the
  *   three known values - the same rule the server applies, so a value that
  *   can only arrive from a stale bookmark degrades to the default list
@@ -64,6 +69,7 @@ function normalise(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery
 		tags: state.tags.map((tag) => normaliseTag(tag)).filter((tag) => tag.length > 0),
 		maxMinutes: snapMaxMinutes(state.maxMinutes),
 		favourites: Boolean(state.favourites),
+		author: state.author.trim(),
 		sort: isSort(state.sort) ? state.sort : 'updated',
 		page: Number.isInteger(state.page) && state.page >= 1 ? state.page : 1
 	};
@@ -83,6 +89,7 @@ export function parseListQuery(url: URL): ListQuery {
 		// which `normalise` turns into 0 (off).
 		maxMinutes: Number(url.searchParams.get('maxMinutes')),
 		favourites: url.searchParams.get('favourites') === 'true',
+		author: url.searchParams.get('author') ?? '',
 		sort: url.searchParams.get('sort') ?? '',
 		// Number(null) and Number('') are 0, Number('abc') is NaN - all of
 		// which `normalise` turns into page 1.
@@ -93,11 +100,11 @@ export function parseListQuery(url: URL): ListQuery {
 /**
  * Serialises list state into a URL query string (no leading `?`), omitting
  * fields at their default value and keeping a stable `q`, `tags`,
- * `maxMinutes`, `favourites`, `sort`, `page` order so the resulting URL is
- * predictable and diff-friendly.
+ * `maxMinutes`, `favourites`, `author`, `sort`, `page` order so the
+ * resulting URL is predictable and diff-friendly.
  */
 export function buildListQuery(state: ListQuery): string {
-	const { q, tags, maxMinutes, favourites, sort, page } = normalise(state);
+	const { q, tags, maxMinutes, favourites, author, sort, page } = normalise(state);
 	const params = new URLSearchParams();
 	if (q) {
 		params.set('q', q);
@@ -110,6 +117,9 @@ export function buildListQuery(state: ListQuery): string {
 	}
 	if (favourites) {
 		params.set('favourites', 'true');
+	}
+	if (author) {
+		params.set('author', author);
 	}
 	if (sort !== 'updated') {
 		params.set('sort', sort);

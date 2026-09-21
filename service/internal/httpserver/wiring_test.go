@@ -40,17 +40,19 @@ func newFullApp(t *testing.T) fullApp {
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte("app")}},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, cfg.SecureCookies)),
-		httpserver.WithSpecGuard(auth.RequireSessionOrLogin(sessions, cfg.SecureCookies)))
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
+		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
+		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	imageDir := filepath.Join(t.TempDir(), "images")
 	recipe.Register(srv.API(), recipe.NewService(conn, recipe.WithImageDir(imageDir)))
 	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
-		auth.RequireSession(sessions, cfg.SecureCookies)(image.FileHandler(images)))
+		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)
 	return fullApp{srv: srv, users: users, sessions: sessions}
 }
@@ -121,7 +123,7 @@ func TestSpecRoutesServeASession(t *testing.T) {
 }
 
 // TestBrowserIsSentToTheLoginForm is the assembled version of what
-// auth.RequireSessionOrLogin promises: on the whole server, a person opening
+// auth.RequireAuthOrLogin promises: on the whole server, a person opening
 // the docs page lands on the login form, while the document a script fetches
 // from the very same guard still refuses with a 401.
 func TestBrowserIsSentToTheLoginForm(t *testing.T) {

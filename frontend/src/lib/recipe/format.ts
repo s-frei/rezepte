@@ -92,3 +92,20 @@ export function servingsUnit(count: number): string {
 export function formatServings(count: number): string {
 	return `${count} ${servingsUnit(count)}`;
 }
+
+const DATE_FORMAT = new Intl.DateTimeFormat('de-DE', {
+	day: 'numeric',
+	month: 'long',
+	year: 'numeric'
+});
+
+/**
+ * An API timestamp as a German long date (`3. März 2026`). Anything the
+ * browser cannot parse renders as an empty string rather than the
+ * "Invalid Date" the formatter would otherwise produce - the colophon this
+ * feeds reads as a sentence, and a broken date there should go quiet.
+ */
+export function formatDate(iso: string): string {
+	const date = new Date(iso);
+	return Number.isNaN(date.getTime()) ? '' : DATE_FORMAT.format(date);
+}

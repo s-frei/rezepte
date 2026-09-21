@@ -79,7 +79,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, logger *slo
 		if err != nil {
 			return sum, err
 		}
-		if _, err := images.Upload(ctx, r.ID, bytes.NewReader(data)); err != nil {
+		if _, err := images.Upload(ctx, r.ID, ownerID, bytes.NewReader(data)); err != nil {
 			return sum, fmt.Errorf("upload placeholder for %q: %w", r.Title, err)
 		}
 		sum.Images++
@@ -89,7 +89,8 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, logger *slo
 }
 
 // ownerID resolves the user named username, falling back to the first user
-// (List orders by username) so seeding works with any initial admin name.
+// (List orders by username) so seeding works whatever the instance owner is
+// called.
 func ownerID(ctx context.Context, users *user.Service, username string) (string, error) {
 	list, err := users.List(ctx)
 	if err != nil {

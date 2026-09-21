@@ -17,12 +17,19 @@ import (
 var migrations embed.FS
 
 // Open opens (and creates if needed) the SQLite database at path with the
-// pragmas the service relies on: WAL, busy timeout, foreign keys.
+// pragmas the service relies on: WAL, busy timeout, foreign keys, recursive
+// triggers.
 func Open(ctx context.Context, path string) (*sql.DB, error) {
+	// recursive_triggers is what makes SQLite fire BEFORE DELETE triggers for
+	// the delete half of a REPLACE conflict. Without it an INSERT OR REPLACE
+	// on the owner's row is neither a DELETE nor an UPDATE as far as the
+	// superadmin triggers are concerned, and it is the one statement that
+	// would otherwise walk past both of them.
 	dsn := "file:" + path +
 		"?_pragma=journal_mode(WAL)" +
 		"&_pragma=busy_timeout(5000)" +
 		"&_pragma=foreign_keys(ON)" +
+		"&_pragma=recursive_triggers(ON)" +
 		"&_pragma=synchronous(NORMAL)" +
 		"&_txlock=immediate"
 	conn, err := sql.Open("sqlite", dsn)

@@ -9,17 +9,6 @@ import (
 	"context"
 )
 
-const countAdmins = `-- name: CountAdmins :one
-SELECT COUNT(*) FROM users WHERE role = 'admin'
-`
-
-func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAdmins)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
 `
@@ -77,6 +66,24 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const getSuperadmin = `-- name: GetSuperadmin :one
+SELECT id, username, password_hash, role, created_at, updated_at FROM users WHERE role = 'superadmin'
+`
+
+func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
+	row := q.db.QueryRowContext(ctx, getSuperadmin)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
@@ -150,20 +157,24 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 const reassignRecipes = `-- name: ReassignRecipes :exec
-UPDATE recipes SET created_by = ?1 WHERE created_by = ?2
+UPDATE recipes
+SET created_by = CASE WHEN created_by = ?1 THEN ?2 ELSE created_by END,
+    updated_by = CASE WHEN updated_by = ?1 THEN ?2 ELSE updated_by END
+WHERE created_by = ?1 OR updated_by = ?1
 `
 
 type ReassignRecipesParams struct {
-	NewOwner string
 	OldOwner string
+	NewOwner string
 }
 
 // Lives here rather than in recipes.sql so Phase 4 (running concurrently)
-// and this phase never edit the same query file. recipes.created_by is
-// NOT NULL without ON DELETE, so a user's recipes must move before the
-// user row can go.
+// and this phase never edit the same query file. recipes.created_by and
+// recipes.updated_by are both NOT NULL without ON DELETE, so every mention
+// of a user has to move before their row can go - a recipe somebody else
+// wrote but this user last edited names them in updated_by alone.
 func (q *Queries) ReassignRecipes(ctx context.Context, arg ReassignRecipesParams) error {
-	_, err := q.db.ExecContext(ctx, reassignRecipes, arg.NewOwner, arg.OldOwner)
+	_, err := q.db.ExecContext(ctx, reassignRecipes, arg.OldOwner, arg.NewOwner)
 	return err
 }
 

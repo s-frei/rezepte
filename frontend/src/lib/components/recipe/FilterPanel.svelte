@@ -5,10 +5,13 @@
 	import type { TransitionConfig } from 'svelte/transition';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import Slider from '$lib/components/ui/Slider.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { formatMinutes } from '$lib/recipe/format';
+	import { tintFor } from '$lib/recipe/placeholder';
 	import { isSort, type Sort } from '$lib/recipe/query';
+	import type { Author } from '$lib/api/recipes';
 	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '$lib/recipe/time-filter';
 	import { m } from '$lib/paraglide/messages';
 
@@ -37,10 +40,13 @@
 	let {
 		maxMinutes,
 		favouritesOnly,
+		author,
+		authors,
 		sort,
 		filterCount,
 		onmaxminutes,
 		onfavourites,
+		onauthor,
 		onsort,
 		onreset
 	}: {
@@ -50,6 +56,13 @@
 		/** Whether the "Nur Favoriten" switch is on - scoped to this
 		 * section, like `maxMinutes`. */
 		favouritesOnly: boolean;
+		/** Username the list is narrowed to, `''` = off - scoped to this
+		 * section, like `maxMinutes`. */
+		author: string;
+		/** Everyone who has written a recipe, with their counts. The section
+		 * hides itself below two of them: a household where one person writes
+		 * everything has nothing to filter. */
+		authors: Author[];
 		/** Currently selected result order - scoped to this section, like
 		 * `maxMinutes`. Not counted into `filterCount`: sorting reorders
 		 * the grid rather than narrowing it, so it never turns "no recipes
@@ -63,6 +76,7 @@
 		filterCount: number;
 		onmaxminutes: (value: number) => void;
 		onfavourites: (value: boolean) => void;
+		onauthor: (value: string) => void;
 		onsort: (value: Sort) => void;
 		onreset: () => void;
 	} = $props();
@@ -70,6 +84,15 @@
 	const uid = $props.id();
 	const timeHeadingId = `${uid}-time-heading`;
 	const favouritesHeadingId = `${uid}-favourites-heading`;
+	const authorHeadingId = `${uid}-author-heading`;
+
+	// The same three tints the cards' initials use, so one person keeps one
+	// colour across the whole overview.
+	const TINT_CLASSES = {
+		'tint-1': 'bg-tint-1',
+		'tint-2': 'bg-tint-2',
+		'tint-3': 'bg-tint-3'
+	} as const;
 	const sortHeadingId = `${uid}-sort-heading`;
 
 	const sortOptions: { value: Sort; label: string }[] = [
@@ -234,6 +257,51 @@
 									/>
 								</label>
 							</section>
+							<!-- Hidden below two authors: where one person writes
+							     everything there is nothing to pick between, and an
+							     empty-looking control would only raise the question why.
+							     Each chip carries the initial its recipes show on their
+							     cards, so the filter and its results read as one thing. -->
+							{#if authors.length > 1}
+								<section
+									aria-labelledby={authorHeadingId}
+									class="mt-4 space-y-2 border-t border-border pt-3"
+								>
+									<h3
+										id={authorHeadingId}
+										class="text-caption font-semibold text-text-muted uppercase"
+									>
+										{m.overview_filter_author_heading()}
+									</h3>
+									<div class="flex flex-wrap gap-2">
+										{#each authors as person (person.name)}
+											<TagChip
+												label={person.name}
+												count={person.count}
+												active={author === person.name}
+												onclick={() => onauthor(author === person.name ? '' : person.name)}
+											>
+												{#snippet leading()}
+													<span
+														aria-hidden="true"
+														class="flex size-5 items-center justify-center rounded-full font-display text-micro leading-none font-semibold text-primary {author ===
+														person.name
+															? 'bg-surface'
+															: TINT_CLASSES[tintFor(person.name)]}"
+													>
+														<!-- The same optical nudge as the cards' initials, and
+														     for the same reason - see AuthorInitials, which
+														     carries the arithmetic. -->
+														<span class="-translate-y-[0.8px]">
+															{person.name.charAt(0).toUpperCase()}
+														</span>
+													</span>
+												{/snippet}
+											</TagChip>
+										{/each}
+									</div>
+								</section>
+							{/if}
 							<!-- Phones only: on desktop this same control lives in row 1 of
 							     the page head instead (see the note on `let { ... }` above). -->
 							<section
@@ -248,7 +316,7 @@
 									options={sortOptions}
 									label={m.overview_sort_label()}
 									onchange={handleSort}
-									class="w-full justify-between border border-border bg-surface-elevated px-3 text-body-sm font-normal text-text"
+									class="w-full justify-between bg-surface-elevated text-text"
 								/>
 							</section>
 						</div>

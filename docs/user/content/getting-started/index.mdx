@@ -49,5 +49,5 @@ Rezepte ships as a single Docker image. This page gets a household instance runn
 </Callout>
 
 <Callout type="warn">
-  `REZEPTE_ADMIN_PASSWORD` is only read once, when the instance starts with no users yet. Change it inside the app afterwards — see [First login](/getting-started/first-login) — rather than editing the environment variable later.
+  `REZEPTE_ADMIN_PASSWORD` is read when the instance starts with no users yet, and after that only by `--reset-superadmin-password`. Change it inside the app — see [First login](/getting-started/first-login) — rather than editing the environment variable later.
 </Callout>

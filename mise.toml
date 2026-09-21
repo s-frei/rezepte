@@ -41,7 +41,7 @@ depends = ["//service:dev", "//frontend:dev"]
 
 [tasks.check]
 description = "All lint, format and test gates"
-depends = ["guard:local-config", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
+depends = ["guard:local-config", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
 
 [tasks.build]
 description = "Build frontend, then the Go binary with embedded assets"
@@ -99,8 +99,20 @@ echo "docker:build: tagged rezepte:local, version $VERSION"
 description = "Validate that docker-compose.yaml parses"
 # docker-compose.yaml is handed to users and rendered into two documentation
 # pages, so nothing here runs it - this is the only thing that checks it is
-# still valid. CI calls this task.
-run = "docker compose -f docker-compose.yaml config -q"
+# still valid, which is why `check` depends on it.
+#
+# Nothing else in `check` needs Docker, and a contributor working on the
+# frontend should not have to install it. So this skips when `docker compose`
+# is missing - out loud, because a gate that quietly does nothing is worse than
+# no gate. CI always has Docker, so the file is never merged unvalidated.
+run = '''
+set -eu
+if ! docker compose version >/dev/null 2>&1; then
+	echo "docker:compose:check: skipped, 'docker compose' is not available here"
+	exit 0
+fi
+docker compose -f docker-compose.yaml config -q
+'''
 
 [tasks."docker:demo"]
 description = "Build the image and run it in demo mode on this worktree's demo port"

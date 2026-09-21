@@ -55,9 +55,9 @@ func WithAPIMiddleware(mw func(api huma.API) func(huma.Context, func(huma.Contex
 // the middleware WithAPIMiddleware installs never runs for them and their
 // Security is empty. Guarding them therefore has to happen here, in front
 // of the mux, rather than in the operation chain. mw is an ordinary
-// net/http middleware - auth.RequireSessionOrLogin, which redirects a
+// net/http middleware - auth.RequireAuthOrLogin, which redirects a
 // browser to the login form and answers everything else with a 401. The
-// image routes take auth.RequireSession instead, which always denies with
+// image routes take auth.RequireAuth instead, which always denies with
 // a 401; see docs/memory/content/features/users-and-auth.mdx.
 func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
@@ -69,6 +69,24 @@ func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
 // reports "dev", which is what a plain `go build` produces.
 func WithVersion(v string) Option {
 	return func(s *Server) { s.version = v }
+}
+
+// WithSecuritySchemes declares the OpenAPI security schemes the operations
+// refer to. huma.DefaultConfig declares none, so without this the emitted
+// document names schemes it never defines and the docs page offers no way to
+// authorise. The map comes from the auth package, which owns the names -
+// httpserver stays ignorant of how authentication works, exactly as it does
+// for WithAPIMiddleware.
+func WithSecuritySchemes(schemes map[string]*huma.SecurityScheme) Option {
+	return func(s *Server) {
+		components := s.api.OpenAPI().Components
+		if components.SecuritySchemes == nil {
+			components.SecuritySchemes = map[string]*huma.SecurityScheme{}
+		}
+		for name, scheme := range schemes {
+			components.SecuritySchemes[name] = scheme
+		}
+	}
 }
 
 // errorLogger holds the logger the huma error hook below logs to. New stores

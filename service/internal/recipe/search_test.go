@@ -426,7 +426,7 @@ func TestListSortsByCreatedAt(t *testing.T) {
 	// same id tiebreak as created_at, hiding the very divergence this test
 	// needs.
 	time.Sleep(1100 * time.Millisecond)
-	if _, err := svc.Update(ctx, ids[0], fixtures[0]); err != nil {
+	if _, err := svc.Update(ctx, ids[0], uid, fixtures[0]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -541,5 +541,119 @@ func TestListCombinesFullTextTagsAndTimeFilters(t *testing.T) {
 		if p.Items[i].Slug != slug {
 			t.Fatalf("item %d = %q, want %q (title order): %+v", i, p.Items[i].Slug, slug, p.Items)
 		}
+	}
+}
+
+// The overview shows who wrote a recipe, so a Card carries the names the
+// same way the detail response does.
+func TestCardsCarryAuthorNames(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	editor := createUser(t, "mara")
+	created, err := svc.Create(ctx, uid, loadFixtures(t)[3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Update(ctx, created.ID, editor, loadFixtures(t)[3]); err != nil {
+		t.Fatal(err)
+	}
+
+	page, err := svc.List(ctx, recipe.ListParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 {
+		t.Fatalf("items = %d, want 1", len(page.Items))
+	}
+	if page.Items[0].CreatedByName != "sam" || page.Items[0].UpdatedByName != "mara" {
+		t.Fatalf("names = %q / %q, want \"sam\" / \"mara\"",
+			page.Items[0].CreatedByName, page.Items[0].UpdatedByName)
+	}
+}
+
+// The "Angelegt von" filter offers the people who actually wrote something,
+// so somebody who has only ever edited is not on the list.
+func TestAuthorsListsWritersWithTheirCounts(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	editor := createUser(t, "mara")
+	fx := loadFixtures(t)
+	first, err := svc.Create(ctx, uid, fx[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, uid, fx[1]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Update(ctx, first.ID, editor, fx[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	authors, err := svc.Authors(ctx)
+	if err != nil {
+		t.Fatalf("Authors: %v", err)
+	}
+	if len(authors) != 1 {
+		t.Fatalf("authors = %+v, want only the one who wrote recipes", authors)
+	}
+	if authors[0].Name != "sam" || authors[0].Count != 2 {
+		t.Fatalf("author = %+v, want sam with 2", authors[0])
+	}
+
+	if _, err := svc.Create(ctx, editor, fx[2]); err != nil {
+		t.Fatal(err)
+	}
+	authors, err = svc.Authors(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Most recipes first, so the list reads like the tag list beside it.
+	if len(authors) != 2 || authors[0].Name != "sam" || authors[1].Name != "mara" || authors[1].Count != 1 {
+		t.Fatalf("authors = %+v, want sam(2) then mara(1)", authors)
+	}
+}
+
+func TestAuthorFilterNarrowsToWhoWroteIt(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	other := createUser(t, "mara")
+	fx := loadFixtures(t)
+	sams, err := svc.Create(ctx, uid, fx[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, other, fx[1]); err != nil {
+		t.Fatal(err)
+	}
+	// sam wrote this one; mara only edited it, which must not move it into
+	// her half of the split below.
+	if _, err := svc.Update(ctx, sams.ID, other, fx[0]); err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := svc.List(ctx, recipe.ListParams{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if all.Total != 2 {
+		t.Fatalf("unfiltered total = %d, want 2", all.Total)
+	}
+
+	mine, err := svc.List(ctx, recipe.ListParams{Author: "sam"})
+	if err != nil {
+		t.Fatalf("List by author: %v", err)
+	}
+	if mine.Total != 1 || len(mine.Items) != 1 || mine.Items[0].Slug != sams.Slug {
+		t.Fatalf("author=sam = %+v (total %d), want only %q", mine.Items, mine.Total, sams.Slug)
+	}
+
+	// An unknown name matches nobody rather than everybody - a stale link
+	// must not silently drop the filter.
+	nobody, err := svc.List(ctx, recipe.ListParams{Author: "niemand"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nobody.Total != 0 {
+		t.Fatalf("unknown author = %d, want 0", nobody.Total)
 	}
 }

@@ -72,9 +72,9 @@ type coverInput struct {
 type coverOutput struct{}
 
 // Register installs the image operations onto api: upload (multipart),
-// delete, reorder and set-cover. Every operation requires a session
-// (Security: auth.SessionSecurity); the file route is not a huma operation,
-// see FileHandler.
+// delete, reorder and set-cover. Every operation requires a session or a
+// scoped API token (Security: auth.Protected(...)); the file route is not a
+// huma operation, see FileHandler.
 func Register(api huma.API, svc *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "upload-image",
@@ -82,15 +82,19 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}/images",
 		Summary:       "Upload an image (JPEG, PNG or WebP, at most 10 MiB)",
 		Tags:          []string{"images"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusCreated,
 		MaxBodyBytes:  maxUploadBytes,
 		Middlewares:   huma.Middlewares{limitUpload(api)},
 		Errors:        []int{404, 413, 415, 422},
 	}, func(ctx context.Context, in *uploadInput) (*imageOutput, error) {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
 		file := in.RawBody.Data().File
 		defer file.Close()
-		img, err := svc.Upload(ctx, in.ID, file)
+		img, err := svc.Upload(ctx, in.ID, u.ID, file)
 		switch {
 		case errors.Is(err, ErrNotFound):
 			return nil, huma.Error404NotFound(err.Error())
@@ -110,11 +114,15 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}/images/{imageId}",
 		Summary:       "Delete an image",
 		Tags:          []string{"images"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{404},
 	}, func(ctx context.Context, in *deleteImageInput) (*deleteImageOutput, error) {
-		if err := svc.Delete(ctx, in.ID, in.ImageID); err != nil {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		if err := svc.Delete(ctx, in.ID, in.ImageID, u.ID); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound(err.Error())
 			}
@@ -129,10 +137,14 @@ func Register(api huma.API, svc *Service) {
 		Path:        "/api/v1/recipes/{id}/images/order",
 		Summary:     "Reorder a recipe's images",
 		Tags:        []string{"images"},
-		Security:    auth.SessionSecurity,
+		Security:    auth.Protected(auth.ScopeRecipesWrite),
 		Errors:      []int{404, 422},
 	}, func(ctx context.Context, in *orderInput) (*orderOutput, error) {
-		items, err := svc.Reorder(ctx, in.ID, in.Body.ImageIDs)
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		items, err := svc.Reorder(ctx, in.ID, u.ID, in.Body.ImageIDs)
 		switch {
 		case errors.Is(err, ErrNotFound):
 			return nil, huma.Error404NotFound(err.Error())
@@ -153,11 +165,15 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}/cover",
 		Summary:       "Choose the cover image",
 		Tags:          []string{"images"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{404},
 	}, func(ctx context.Context, in *coverInput) (*coverOutput, error) {
-		if err := svc.SetCover(ctx, in.ID, in.Body.ImageID); err != nil {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		if err := svc.SetCover(ctx, in.ID, in.Body.ImageID, u.ID); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound(err.Error())
 			}

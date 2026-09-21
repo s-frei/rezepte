@@ -21,11 +21,21 @@ import (
 // Role is the authorization level of a user.
 type Role string
 
-// Roles known to the service.
+// Roles known to the service, in ascending rank: a superadmin is an admin,
+// an admin is not a superadmin.
 const (
-	RoleAdmin Role = "admin"
-	RoleUser  Role = "user"
+	RoleSuperadmin Role = "superadmin"
+	RoleAdmin      Role = "admin"
+	RoleUser       Role = "user"
 )
+
+// IsAdmin reports whether r carries admin rights. The superadmin does, so
+// this is the only way to ask the question - a bare comparison against
+// RoleAdmin silently excludes the instance owner and is always a bug.
+func (r Role) IsAdmin() bool { return r == RoleAdmin || r == RoleSuperadmin }
+
+// IsSuperadmin reports whether r is the instance owner.
+func (r Role) IsSuperadmin() bool { return r == RoleSuperadmin }
 
 // User is an account without secrets.
 type User struct {
@@ -44,8 +54,10 @@ var (
 	ErrInvalidCredentials    = errors.New("invalid username or password")
 	ErrAdminPasswordRequired = errors.New("REZEPTE_ADMIN_PASSWORD is required on first start")
 	ErrSelfDelete            = errors.New("cannot delete your own account")
-	ErrLastAdmin             = errors.New("the last admin cannot be removed or demoted")
 	ErrWrongPassword         = errors.New("current password is wrong")
+	ErrSuperadminProtected   = errors.New("the superadmin cannot be deleted, demoted or reset, and the role cannot be handed out")
+	ErrSuperadminRequired    = errors.New("only the superadmin can manage admins")
+	ErrNoSuperadmin          = errors.New("no superadmin in a non-empty users table; recreate the database")
 )
 
 // Service reads and writes users.
@@ -119,19 +131,20 @@ func (s *Service) List(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-// SetRole changes a user's role. Demoting the last admin fails with
-// ErrLastAdmin so the instance can never end up without one.
-func (s *Service) SetRole(ctx context.Context, id string, role Role) (User, error) {
+// SetRole changes a user's role. Both rank rules apply: who the target is,
+// and which role is being handed out.
+func (s *Service) SetRole(ctx context.Context, actor User, id string, role Role) (User, error) {
 	var out User
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		row, err := getForUpdate(ctx, q, id)
 		if err != nil {
 			return err
 		}
-		if Role(row.Role) == RoleAdmin && role != RoleAdmin {
-			if err := guardLastAdmin(ctx, q); err != nil {
-				return err
-			}
+		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+			return err
+		}
+		if err := guardAssignRole(actor.Role, role); err != nil {
+			return err
 		}
 		updated, err := q.UpdateUserRole(ctx, sqlc.UpdateUserRoleParams{
 			Role:      string(role),
@@ -147,12 +160,13 @@ func (s *Service) SetRole(ctx context.Context, id string, role Role) (User, erro
 	return out, err
 }
 
-// Delete removes a user. Deleting yourself or the last admin is refused.
-// Recipes the user created move to actorID (recipes.created_by is NOT
-// NULL and has no ON DELETE clause); sessions go with the row through
-// ON DELETE CASCADE.
-func (s *Service) Delete(ctx context.Context, actorID, id string) error {
-	if actorID == id {
+// Delete removes a user. Deleting yourself is refused, and so is any target
+// the actor outranks too little to touch. Recipes the user created or last
+// edited move to actor.ID (created_by and updated_by are both NOT NULL and
+// have no ON DELETE clause); sessions go with the row through ON DELETE
+// CASCADE.
+func (s *Service) Delete(ctx context.Context, actor User, id string) error {
+	if actor.ID == id {
 		return ErrSelfDelete
 	}
 	return db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
@@ -160,12 +174,10 @@ func (s *Service) Delete(ctx context.Context, actorID, id string) error {
 		if err != nil {
 			return err
 		}
-		if Role(row.Role) == RoleAdmin {
-			if err := guardLastAdmin(ctx, q); err != nil {
-				return err
-			}
+		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+			return err
 		}
-		if err := q.ReassignRecipes(ctx, sqlc.ReassignRecipesParams{NewOwner: actorID, OldOwner: id}); err != nil {
+		if err := q.ReassignRecipes(ctx, sqlc.ReassignRecipesParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
 			return fmt.Errorf("reassign recipes of %s: %w", id, err)
 		}
 		if _, err := q.DeleteUser(ctx, id); err != nil {
@@ -176,7 +188,46 @@ func (s *Service) Delete(ctx context.Context, actorID, id string) error {
 }
 
 // SetPassword replaces a password without checking the old one (admin reset).
-func (s *Service) SetPassword(ctx context.Context, id, password string) error {
+// It reads the target first because the rank rules apply to it: the superadmin
+// is never a valid target, not even for themselves - their password is theirs
+// alone, and self-service goes through ChangePassword. The read, the guard and
+// the write share one transaction, so a concurrent promotion cannot slip the
+// target out from under a check that already passed.
+func (s *Service) SetPassword(ctx context.Context, actor User, id, password string) error {
+	// Hashing is the expensive half and needs no row, so it happens before
+	// the transaction: db.Tx takes a write lock at BEGIN, and holding that
+	// for an argon2id run would block every other writer for ~100ms.
+	hash, err := HashPassword(password)
+	if err != nil {
+		return err
+	}
+	return db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := getForUpdate(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+			return err
+		}
+		n, err := q.UpdateUserPasswordHash(ctx, sqlc.UpdateUserPasswordHashParams{
+			PasswordHash: hash,
+			UpdatedAt:    db.FormatTime(s.now()),
+			ID:           id,
+		})
+		if err != nil {
+			return fmt.Errorf("update password of %s: %w", id, err)
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
+}
+
+// setPassword writes a new hash with no authorization check. ChangePassword
+// and the operator reset are its other callers; both have already established
+// that the write is allowed.
+func (s *Service) setPassword(ctx context.Context, id, password string) error {
 	hash, err := HashPassword(password)
 	if err != nil {
 		return err
@@ -212,7 +263,7 @@ func (s *Service) ChangePassword(ctx context.Context, id, current, next string) 
 	if !ok {
 		return ErrWrongPassword
 	}
-	return s.SetPassword(ctx, id, next)
+	return s.setPassword(ctx, id, next)
 }
 
 // getForUpdate loads a user, mapping a missing row to ErrNotFound. It must
@@ -229,21 +280,6 @@ func getForUpdate(ctx context.Context, q *sqlc.Queries, id string) (sqlc.User, e
 		return sqlc.User{}, fmt.Errorf("get user %s: %w", id, err)
 	}
 	return row, nil
-}
-
-// guardLastAdmin returns ErrLastAdmin when at most one admin exists. It
-// must run inside the transaction that removes or demotes an admin:
-// db.Tx opens transactions with _txlock=immediate, so the count cannot
-// be raced by a concurrent demotion or delete.
-func guardLastAdmin(ctx context.Context, q *sqlc.Queries) error {
-	n, err := q.CountAdmins(ctx)
-	if err != nil {
-		return fmt.Errorf("count admins: %w", err)
-	}
-	if n <= 1 {
-		return ErrLastAdmin
-	}
-	return nil
 }
 
 // dummyHash is a valid argon2id hash with no corresponding password, computed
@@ -283,23 +319,59 @@ func (s *Service) Authenticate(ctx context.Context, username, password string) (
 	return fromRow(row)
 }
 
-// EnsureInitialAdmin creates the admin account when no users exist yet.
-// It is a no-op once any user exists.
-func (s *Service) EnsureInitialAdmin(ctx context.Context, username, password string) error {
+// EnsureSuperadmin creates the instance owner when there is none and the table
+// is empty. It asks about the owner rather than about users in general,
+// which splits the start into three honest cases: a fresh instance gets the
+// bootstrap account, an instance that already has an owner is left alone, and
+// a populated instance with no owner refuses to come up rather than run
+// without one.
+func (s *Service) EnsureSuperadmin(ctx context.Context, username, password string) error {
+	_, err := s.q.GetSuperadmin(ctx)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("get superadmin: %w", err)
+	}
 	n, err := s.q.CountUsers(ctx)
 	if err != nil {
 		return fmt.Errorf("count users: %w", err)
 	}
 	if n > 0 {
-		return nil
+		return ErrNoSuperadmin
 	}
 	if password == "" {
 		return ErrAdminPasswordRequired
 	}
-	if _, err := s.Create(ctx, username, password, RoleAdmin); err != nil {
-		return fmt.Errorf("create initial admin: %w", err)
+	// Create carries no authorization check - the rank rule for creation
+	// lives at the API boundary - which is what lets this write the one
+	// superadmin row.
+	if _, err := s.Create(ctx, username, password, RoleSuperadmin); err != nil {
+		return fmt.Errorf("create superadmin: %w", err)
 	}
 	return nil
+}
+
+// ResetSuperadminPassword sets the owner's password with no acting user. It is
+// the operator's way back in after a forgotten password: nobody inside the
+// application can reset that account, and the hash is argon2id, so no amount
+// of sqlite3 produces a replacement by hand. Reaching this requires shell
+// access to the host, which is the operator by definition.
+func (s *Service) ResetSuperadminPassword(ctx context.Context, password string) (User, error) {
+	row, err := s.q.GetSuperadmin(ctx)
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, ErrNoSuperadmin
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("get superadmin: %w", err)
+	}
+	if password == "" {
+		return User{}, ErrAdminPasswordRequired
+	}
+	if err := s.setPassword(ctx, row.ID, password); err != nil {
+		return User{}, err
+	}
+	return fromRow(row)
 }
 
 func fromRow(row sqlc.User) (User, error) {

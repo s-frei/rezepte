@@ -29,9 +29,13 @@ description: huma operations, security, errors
         Path:        "/api/v1/things/{id}",
         Summary:     "Get a thing",
         Tags:        []string{"things"},
-        Security:    auth.SessionSecurity, // omit only for public operations; the middleware
-                                            // is installed by httpserver.New before any
-                                            // operation can be registered, so this is enough
+        Security:    auth.Protected(auth.ScopeRecipesRead), // decide whether an API token may
+                                                      // reach this operation and with which
+                                                      // scope; use auth.SessionSecurity instead
+                                                      // when it must stay session-only (see
+                                                      // below). The middleware is installed by
+                                                      // httpserver.New before any operation can
+                                                      // be registered.
         Errors:      []int{404},
     }, func(ctx context.Context, in *getThingInput) (*getThingOutput, error) {
         t, err := svc.ByID(ctx, in.ID)
@@ -44,6 +48,8 @@ description: huma operations, security, errors
         return &getThingOutput{Body: toResponse(t)}, nil
     })
     ```
+    Scopes are a closed set declared in `service/internal/auth/token.go`; `auth.Protected` must be given one already in that list, since no token can ever satisfy a scope outside it.
+
     Get the current user with `auth.UserFrom(ctx)`.
 
   </Step>
@@ -57,7 +63,7 @@ description: huma operations, security, errors
 
 <Callout type="warn" title="Multipart uploads">
 
-  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - copy `limitUpload` from `internal/image/handler.go` into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireSession`, not from a huma operation.
+  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - copy `limitUpload` from `internal/image/handler.go` into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireAuth`, not from a huma operation.
 
 </Callout>
 
@@ -69,10 +75,12 @@ description: huma operations, security, errors
 
 <Callout type="info">
 
-  Admin-only operations call `userapi.requireAdmin(ctx)` first (403 `admin role required`); there is no other authorization layer.
+  Admin-only operations call `requireAdmin(ctx)` first (403 `admin role required`) - `userapi` and `tokenapi` each define their own copy with the same shape, and both ask `Role.IsAdmin` so the instance owner counts as an admin. `Security` is a separate, earlier layer: `auth.Protected(scopes...)` decides whether a token may reach the operation at all before `requireAdmin` ever runs, so a token needs both the matching scope and an admin owner to pass an admin-only operation.
+
+  `requireAdmin` hands back the caller, and that is what the third layer needs: an operation acting on another user account passes the caller into the service, which applies the rank rules in `service/internal/user/permission.go` - an admin manages plain members, anything touching an admin or the instance owner belongs to the owner (see [Users and authentication](/features/users-and-auth)). Scope answers "may this credential reach the operation", role answers "may this caller use it at all", rank answers "may this caller do it to that target".
 
 </Callout>
 
 ## Non-JSON responses
 
-A huma operation always frames its response as JSON - for a byte stream (an image, a download) register a plain `net/http` handler on the mux instead, via `srv.Handle(pattern, handler)`. Go 1.22's `http.ServeMux` prefers the more specific pattern over the SPA's `/` catch-all regardless of registration order, so this can happen any time after `httpserver.New`. It bypasses huma entirely, so add `Security` equivalents by hand (wrap the handler in `auth.RequireSession(sessions, cfg.SecureCookies)`) and set response headers such as `Cache-Control` yourself. See `internal/image/file.go`'s `FileHandler` and its registration in `cmd/rezepte/main.go`, and [Images](/features/images) for why the image routes are built this way.
+A huma operation always frames its response as JSON - for a byte stream (an image, a download) register a plain `net/http` handler on the mux instead, via `srv.Handle(pattern, handler)`. Go 1.22's `http.ServeMux` prefers the more specific pattern over the SPA's `/` catch-all regardless of registration order, so this can happen any time after `httpserver.New`. It bypasses huma entirely, so add `Security` equivalents by hand (wrap the handler in `auth.RequireAuth(sessions, tokens, cfg.SecureCookies, scopes...)`, naming whichever scopes an API token needs to reach it) and set response headers such as `Cache-Control` yourself. See `internal/image/file.go`'s `FileHandler` and its registration in `cmd/rezepte/main.go`, and [Images](/features/images) for why the image routes are built this way.

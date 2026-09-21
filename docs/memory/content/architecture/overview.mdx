@@ -17,7 +17,7 @@ flowchart LR
 
 ## Runtime
 
-One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, opens SQLite (Phase 2), runs migrations (Phase 2), seeds the initial admin (Phase 2), and starts `httpserver`. The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA for everything else with an `index.html` fallback.
+One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, opens SQLite (Phase 2), runs migrations (Phase 2), ensures the instance owner (Phase 2), and starts `httpserver`. `--reset-superadmin-password` cuts that short: it sets the owner's password from `REZEPTE_ADMIN_PASSWORD`, drops every session of that account and returns without serving. The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA for everything else with an `index.html` fallback.
 
 ## Packages
 
@@ -57,8 +57,8 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
   type={{
     REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060' },
     REZEPTE_DATA_DIR: { description: 'Directory with rezepte.db and images/', type: 'string', default: './data' },
-    REZEPTE_ADMIN_USER: { description: 'Initial admin username (first start only)', type: 'string', default: 'admin' },
-    REZEPTE_ADMIN_PASSWORD: { description: 'Initial admin password (first start only)', type: 'string' },
+    REZEPTE_ADMIN_USER: { description: 'Instance owner username (first start only)', type: 'string', default: 'admin' },
+    REZEPTE_ADMIN_PASSWORD: { description: 'Instance owner password (first start, and --reset-superadmin-password)', type: 'string' },
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn, error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie', type: 'boolean', default: 'false' },

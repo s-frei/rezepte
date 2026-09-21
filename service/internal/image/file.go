@@ -13,7 +13,7 @@ const immutableCache = "private, max-age=31536000, immutable"
 // FileHandler serves GET /images/{recipeId}/{imageId}/{file} where file is
 // "thumb.jpg", "detail.jpg" or "original.jpg". It is a plain mux handler
 // (not a huma operation, whose JSON framing does not fit a JPEG stream);
-// register it with httpserver.Server.Handle wrapped in auth.RequireSession.
+// register it with httpserver.Server.Handle wrapped in auth.RequireAuth.
 // Anything but an existing variant is a 404; http.ServeContent adds Range
 // and conditional-request support.
 func FileHandler(svc *Service) http.Handler {

@@ -20,7 +20,7 @@ description: Dev servers, builds and the check gate
     ```
     Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api` and `/images` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
 
-    The password is only used on the very first start to create the `admin` user. Log in at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree).
+    The password creates the instance owner on the very first start, and is read again only by `rezepte --reset-superadmin-password`. Log in at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree).
 
     Uploads land in `$REZEPTE_DATA_DIR/images/<recipeId>/` (default `./data/images/`, git-ignored with the database, see [Architecture overview](/architecture/overview)); delete that directory together with `rezepte.db` when resetting local data.
 

@@ -8,34 +8,37 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// RequireSession is mux middleware for routes that are not registered as
-// huma operations (such as Phase 4's /images/) but still need session
-// authentication equivalent to declaring Security: auth.SessionSecurity on
-// a huma operation. It reads the session cookie, authenticates it via svc,
-// re-issues the cookie on sliding renewal (mirroring Middleware) and stores
-// the resolved user in the request context so auth.UserFrom(ctx) works for
-// downstream handlers. A missing or invalid session gets a 401
-// problem+json body instead of calling next.
-func RequireSession(svc *Service, secure bool) func(http.Handler) http.Handler {
-	return requireSession(svc, secure, func(w http.ResponseWriter, _ *http.Request, detail string) {
+// RequireAuth is mux middleware for routes that are not registered as huma
+// operations (the image files) but still need the same authentication as an
+// operation declaring auth.Protected(scopes...). It accepts either a session
+// cookie or an API token carrying every listed scope, re-issues the cookie on
+// sliding renewal (mirroring Middleware) and stores the resolved user in the
+// request context so auth.UserFrom(ctx) works downstream. Failures get a 401
+// or 403 problem+json body instead of calling next.
+func RequireAuth(sessions *Service, tokens *TokenService, secure bool, scopes ...string) func(http.Handler) http.Handler {
+	return requireAuth(sessions, tokens, secure, scopes, func(w http.ResponseWriter, _ *http.Request, detail string) {
 		writeUnauthorized(w, detail)
 	})
 }
 
-// RequireSessionOrLogin is RequireSession for a route a person opens in the
-// address bar: instead of a 401 the browser would render as raw JSON, it
-// sends them to the login form with a `next` back to where they were going.
+// RequireAuthOrLogin is RequireAuth for a route a person opens in the address
+// bar: instead of a 401 the browser would render as raw JSON, it sends them to
+// the login form with a `next` back to where they were going. It requires no
+// scope - any valid token opens it.
 //
-// Only a browser navigation is redirected - a GET whose Accept asks for
-// HTML. Everything else keeps the 401, and that distinction is load-bearing
-// rather than cosmetic: docs/user/scripts/fetch-openapi.ts decides by
-// res.ok, so a redirect it followed to a 200 login page would look like
-// success and put the login page into openapi.json. Scalar's own fetch of
-// the document asks for JSON and so keeps the 401 too.
-func RequireSessionOrLogin(svc *Service, secure bool) func(http.Handler) http.Handler {
-	return requireSession(svc, secure, func(w http.ResponseWriter, r *http.Request, detail string) {
+// Only a browser navigation is redirected - a GET whose Accept asks for HTML
+// and which carries no bearer token. Everything else keeps the 401, and that
+// distinction is load-bearing rather than cosmetic:
+// docs/user/scripts/fetch-openapi.ts decides by res.ok, so a redirect it
+// followed to a 200 login page would look like success and put the login page
+// into openapi.json. Scalar's own fetch of the document asks for JSON and so
+// keeps the 401 too.
+func RequireAuthOrLogin(sessions *Service, tokens *TokenService, secure bool) func(http.Handler) http.Handler {
+	return requireAuth(sessions, tokens, secure, nil, func(w http.ResponseWriter, r *http.Request, detail string) {
 		if !navigatingBrowser(r) {
 			writeUnauthorized(w, detail)
 			return
@@ -45,17 +48,32 @@ func RequireSessionOrLogin(svc *Service, secure bool) func(http.Handler) http.Ha
 	})
 }
 
-// requireSession holds the authentication both variants share; deny is what
-// they disagree about.
-func requireSession(svc *Service, secure bool, deny func(http.ResponseWriter, *http.Request, string)) func(http.Handler) http.Handler {
+// requireAuth holds the authentication both variants share; deny is what they
+// disagree about. A bearer request never reaches deny: it is answered with a
+// plain 401 or 403, because a redirect to the login page is meaningless to a
+// client that authenticates with a header.
+func requireAuth(sessions *Service, tokens *TokenService, secure bool, scopes []string, deny func(http.ResponseWriter, *http.Request, string)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if raw, ok := bearerToken(r.Header.Get("Authorization")); ok {
+				v, err := tokens.Authenticate(r.Context(), raw)
+				if err != nil {
+					writeUnauthorized(w, bearerAuthFailureMessage(err))
+					return
+				}
+				if missing := missingScopes(v.Scopes, scopes); len(missing) > 0 {
+					writeForbiddenScope(w, missing)
+					return
+				}
+				serveAs(w, r, next, v.User)
+				return
+			}
 			cookie, err := r.Cookie(CookieName)
 			if err != nil {
 				deny(w, r, "authentication required")
 				return
 			}
-			v, err := svc.Authenticate(r.Context(), cookie.Value)
+			v, err := sessions.Authenticate(r.Context(), cookie.Value)
 			if err != nil {
 				deny(w, r, "session invalid or expired")
 				return
@@ -64,10 +82,26 @@ func requireSession(svc *Service, secure bool, deny func(http.ResponseWriter, *h
 				fresh := sessionCookie(cookie.Value, v.ExpiresAt, secure)
 				http.SetCookie(w, &fresh)
 			}
-			ctx := context.WithValue(r.Context(), userKey{}, v.User)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			serveAs(w, r, next, v.User)
 		})
 	}
+}
+
+// serveAs runs next with u stored in the request context.
+func serveAs(w http.ResponseWriter, r *http.Request, next http.Handler, u user.User) {
+	next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, u)))
+}
+
+// writeForbiddenScope answers with an RFC 9457 problem+json 403 naming the
+// scopes the token lacks, so the operator knows which token to re-issue.
+func writeForbiddenScope(w http.ResponseWriter, missing []string) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
+		Title:  http.StatusText(http.StatusForbidden),
+		Status: http.StatusForbidden,
+		Detail: "api token is missing scope " + strings.Join(missing, ", "),
+	})
 }
 
 // navigatingBrowser reports whether r looks like someone typing the address

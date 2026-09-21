@@ -21,8 +21,10 @@ func okHandler() http.Handler {
 
 func TestRequireSessionRejectsMissingCookie(t *testing.T) {
 	conn := dbtest.Open(t)
-	sessions := auth.NewService(conn, user.NewService(conn))
-	h := auth.RequireSession(sessions, false)(okHandler())
+	users := user.NewService(conn)
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	h := auth.RequireAuth(sessions, tokens, false)(okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/images/x", nil)
 	rec := httptest.NewRecorder()
@@ -46,6 +48,7 @@ func TestRequireSessionAcceptsValidCookieAndStoresUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 	sess, err := sessions.Login(context.Background(), "sam", "pw")
 	if err != nil {
 		t.Fatal(err)
@@ -57,7 +60,7 @@ func TestRequireSessionAcceptsValidCookieAndStoresUser(t *testing.T) {
 		gotUser, gotOK = auth.UserFrom(r.Context())
 		w.WriteHeader(http.StatusOK)
 	})
-	h := auth.RequireSession(sessions, false)(next)
+	h := auth.RequireAuth(sessions, tokens, false)(next)
 
 	req := httptest.NewRequest(http.MethodGet, "/images/x", nil)
 	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: sess.Token})
@@ -79,6 +82,7 @@ func TestRequireSessionReissuesCookieOnRenewal(t *testing.T) {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 
 	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	sessions.SetClock(func() time.Time { return clock })
@@ -90,7 +94,7 @@ func TestRequireSessionReissuesCookieOnRenewal(t *testing.T) {
 
 	// Past renewAfter (24h), so Authenticate reports Renewed.
 	clock = clock.Add(10 * 24 * time.Hour)
-	h := auth.RequireSession(sessions, false)(okHandler())
+	h := auth.RequireAuth(sessions, tokens, false)(okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/images/x", nil)
 	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: sess.Token})
@@ -115,10 +119,12 @@ func TestRequireSessionReissuesCookieOnRenewal(t *testing.T) {
 // redirect keys off exactly this.
 const browserAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 
-func TestRequireSessionOrLoginRedirectsABrowser(t *testing.T) {
+func TestRequireAuthOrLoginRedirectsABrowser(t *testing.T) {
 	conn := dbtest.Open(t)
-	sessions := auth.NewService(conn, user.NewService(conn))
-	h := auth.RequireSessionOrLogin(sessions, false)(okHandler())
+	users := user.NewService(conn)
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	h := auth.RequireAuthOrLogin(sessions, tokens, false)(okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil)
 	req.Header.Set("Accept", browserAccept)
@@ -133,14 +139,16 @@ func TestRequireSessionOrLoginRedirectsABrowser(t *testing.T) {
 	}
 }
 
-// TestRequireSessionOrLoginKeeps401ForEverythingElse is what keeps
+// TestRequireAuthOrLoginKeeps401ForEverythingElse is what keeps
 // fetch-openapi.ts honest: it checks res.ok, so a redirect followed to a 200
 // login page would pass that check and write the login page into
 // openapi.json. Anything that is not a browser navigating stays a 401.
-func TestRequireSessionOrLoginKeeps401ForEverythingElse(t *testing.T) {
+func TestRequireAuthOrLoginKeeps401ForEverythingElse(t *testing.T) {
 	conn := dbtest.Open(t)
-	sessions := auth.NewService(conn, user.NewService(conn))
-	h := auth.RequireSessionOrLogin(sessions, false)(okHandler())
+	users := user.NewService(conn)
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	h := auth.RequireAuthOrLogin(sessions, tokens, false)(okHandler())
 
 	cases := []struct {
 		name   string
@@ -171,18 +179,19 @@ func TestRequireSessionOrLoginKeeps401ForEverythingElse(t *testing.T) {
 	}
 }
 
-func TestRequireSessionOrLoginServesAValidSession(t *testing.T) {
+func TestRequireAuthOrLoginServesAValidSession(t *testing.T) {
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
 	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 	sess, err := sessions.Login(context.Background(), "sam", "pw")
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := auth.RequireSessionOrLogin(sessions, false)(okHandler())
+	h := auth.RequireAuthOrLogin(sessions, tokens, false)(okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil)
 	req.Header.Set("Accept", browserAccept)
@@ -192,5 +201,104 @@ func TestRequireSessionOrLoginServesAValidSession(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRequireAuthAcceptsABearerTokenWithTheScope(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	sam, err := users.Create(ctx, "sam", "pw", user.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	reader, _, err := tokens.Create(ctx, sam.ID, "reader", []string{auth.ScopeRecipesRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writerOnly, _, err := tokens.Create(ctx, sam.ID, "writer", []string{auth.ScopeUsersRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var seen string
+	guarded := auth.RequireAuth(sessions, tokens, false, auth.ScopeRecipesRead)(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			u, _ := auth.UserFrom(r.Context())
+			seen = u.Username
+			w.WriteHeader(http.StatusOK)
+		}))
+
+	do := func(token string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/images/a/b/c.jpg", nil)
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		rec := httptest.NewRecorder()
+		guarded.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := do(reader); rec.Code != http.StatusOK || seen != "sam" {
+		t.Fatalf("status = %d, user = %q, want 200 and sam", rec.Code, seen)
+	}
+	if rec := do(writerOnly); rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403 for a token without recipes:read", rec.Code)
+	}
+	if rec := do(auth.TokenPrefix + "nope"); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 for an unknown token", rec.Code)
+	}
+}
+
+// TestRequireAuthValueWithoutPrefixGetsAComprehensibleMessage mirrors
+// TestBearerValueWithoutPrefixGetsAComprehensibleMessage in bearer_test.go
+// for the other bearer path (requireAuth, behind RequireAuth): a session
+// cookie pasted as a bearer token must get the same message there too.
+func TestRequireAuthValueWithoutPrefixGetsAComprehensibleMessage(t *testing.T) {
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	h := auth.RequireAuth(sessions, tokens, false, auth.ScopeRecipesRead)(okHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/images/x", nil)
+	req.Header.Set("Authorization", "Bearer not-a-token-at-all")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401: %s", rec.Code, rec.Body.String())
+	}
+	want := `this is not an API token; API tokens begin with \"` + auth.TokenPrefix + `\"`
+	if !strings.Contains(rec.Body.String(), want) {
+		t.Fatalf("body = %s, want detail containing %q", rec.Body.String(), want)
+	}
+}
+
+func TestRequireAuthOrLoginNeverRedirectsABearerRequest(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	if _, err := users.Create(ctx, "sam", "pw", user.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+
+	guarded := auth.RequireAuthOrLogin(sessions, tokens, false)(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+
+	// A bad token plus an HTML Accept header: the browser redirect must not
+	// apply, because docs/user/scripts/fetch-openapi.ts decides by res.ok and
+	// a followed redirect to a 200 login page would look like success.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil)
+	req.Header.Set("Accept", "text/html")
+	req.Header.Set("Authorization", "Bearer "+auth.TokenPrefix+"nope")
+	rec := httptest.NewRecorder()
+	guarded.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 rather than a redirect", rec.Code)
 	}
 }

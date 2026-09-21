@@ -3,6 +3,7 @@ package image_test
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	stdimage "image"
 	"image/color"
@@ -21,7 +22,9 @@ import (
 type env struct {
 	images  *image.Service
 	recipes *recipe.Service
+	conn    *sql.DB
 	dir     string
+	owner   string
 	recipe  recipe.Recipe
 }
 
@@ -43,7 +46,18 @@ func setup(t *testing.T) env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return env{images: image.NewService(conn, dir), recipes: recipes, dir: dir, recipe: r}
+	return env{images: image.NewService(conn, dir), recipes: recipes, conn: conn, dir: dir, owner: u.ID, recipe: r}
+}
+
+// createUser adds a second user to e's database, for the tests that need
+// an editor who is not the recipe's author.
+func createUser(t *testing.T, e env, username string) string {
+	t.Helper()
+	u, err := user.NewService(e.conn).Create(context.Background(), username, "pw", user.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u.ID
 }
 
 // pngBytes renders a w×h PNG in a flat colour.
@@ -64,7 +78,7 @@ func pngBytes(t *testing.T, w, h int) []byte {
 
 func upload(t *testing.T, e env, w, h int) recipe.Image {
 	t.Helper()
-	img, err := e.images.Upload(context.Background(), e.recipe.ID, bytes.NewReader(pngBytes(t, w, h)))
+	img, err := e.images.Upload(context.Background(), e.recipe.ID, e.owner, bytes.NewReader(pngBytes(t, w, h)))
 	if err != nil {
 		t.Fatalf("upload %dx%d: %v", w, h, err)
 	}
@@ -105,22 +119,22 @@ func TestUploadWritesVariantsAndSetsFirstCover(t *testing.T) {
 func TestUploadErrors(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
-	if _, err := e.images.Upload(ctx, "missing", bytes.NewReader(pngBytes(t, 64, 64))); !errors.Is(err, image.ErrNotFound) {
+	if _, err := e.images.Upload(ctx, "missing", e.owner, bytes.NewReader(pngBytes(t, 64, 64))); !errors.Is(err, image.ErrNotFound) {
 		t.Fatalf("unknown recipe: %v", err)
 	}
 	if entries, _ := os.ReadDir(e.dir); len(entries) != 0 {
 		t.Fatalf("unknown recipe must write nothing, got %d entries", len(entries))
 	}
-	if _, err := e.images.Upload(ctx, e.recipe.ID, bytes.NewReader([]byte("not an image"))); !errors.Is(err, image.ErrUnsupported) {
+	if _, err := e.images.Upload(ctx, e.recipe.ID, e.owner, bytes.NewReader([]byte("not an image"))); !errors.Is(err, image.ErrUnsupported) {
 		t.Fatalf("garbage: %v", err)
 	}
-	if _, err := e.images.Upload(ctx, e.recipe.ID, bytes.NewReader(pngBytes(t, 32, 64))); !errors.Is(err, image.ErrInvalid) {
+	if _, err := e.images.Upload(ctx, e.recipe.ID, e.owner, bytes.NewReader(pngBytes(t, 32, 64))); !errors.Is(err, image.ErrInvalid) {
 		t.Fatalf("too small: %v", err)
 	}
 	for i := 0; i < 20; i++ {
 		upload(t, e, 64, 64)
 	}
-	if _, err := e.images.Upload(ctx, e.recipe.ID, bytes.NewReader(pngBytes(t, 64, 64))); !errors.Is(err, image.ErrTooMany) {
+	if _, err := e.images.Upload(ctx, e.recipe.ID, e.owner, bytes.NewReader(pngBytes(t, 64, 64))); !errors.Is(err, image.ErrTooMany) {
 		t.Fatalf("21st: %v", err)
 	}
 	if entries, _ := os.ReadDir(filepath.Join(e.dir, e.recipe.ID)); len(entries) != 60 {
@@ -132,7 +146,7 @@ func TestDeletePromotesNextCoverAndCompactsPositions(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
 	a, b, c := upload(t, e, 64, 64), upload(t, e, 64, 64), upload(t, e, 64, 64)
-	if err := e.images.Delete(ctx, e.recipe.ID, a.ID); err != nil {
+	if err := e.images.Delete(ctx, e.recipe.ID, a.ID, e.owner); err != nil {
 		t.Fatal(err)
 	}
 	r, _ := e.recipes.ByID(ctx, e.recipe.ID)
@@ -146,21 +160,21 @@ func TestDeletePromotesNextCoverAndCompactsPositions(t *testing.T) {
 		t.Fatalf("files of deleted image remain: %v", err)
 	}
 	// Deleting a non-cover keeps the cover.
-	if err := e.images.Delete(ctx, e.recipe.ID, c.ID); err != nil {
+	if err := e.images.Delete(ctx, e.recipe.ID, c.ID, e.owner); err != nil {
 		t.Fatal(err)
 	}
 	r, _ = e.recipes.ByID(ctx, e.recipe.ID)
 	if *r.CoverImageID != b.ID {
 		t.Fatalf("cover changed to %s", *r.CoverImageID)
 	}
-	if err := e.images.Delete(ctx, e.recipe.ID, b.ID); err != nil {
+	if err := e.images.Delete(ctx, e.recipe.ID, b.ID, e.owner); err != nil {
 		t.Fatal(err)
 	}
 	r, _ = e.recipes.ByID(ctx, e.recipe.ID)
 	if r.CoverImageID != nil || len(r.Images) != 0 {
 		t.Fatalf("after last delete: cover=%v images=%d", r.CoverImageID, len(r.Images))
 	}
-	if err := e.images.Delete(ctx, e.recipe.ID, b.ID); !errors.Is(err, image.ErrNotFound) {
+	if err := e.images.Delete(ctx, e.recipe.ID, b.ID, e.owner); !errors.Is(err, image.ErrNotFound) {
 		t.Fatalf("second delete: %v", err)
 	}
 	// A fresh upload onto a coverless recipe becomes the cover again.
@@ -175,7 +189,7 @@ func TestReorderRequiresExactPermutation(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
 	a, b, c := upload(t, e, 64, 64), upload(t, e, 64, 64), upload(t, e, 64, 64)
-	got, err := e.images.Reorder(ctx, e.recipe.ID, []string{c.ID, a.ID, b.ID})
+	got, err := e.images.Reorder(ctx, e.recipe.ID, e.owner, []string{c.ID, a.ID, b.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,11 +203,11 @@ func TestReorderRequiresExactPermutation(t *testing.T) {
 		{a.ID, a.ID, b.ID},       // duplicate with right length
 	}
 	for _, ids := range bad {
-		if _, err := e.images.Reorder(ctx, e.recipe.ID, ids); !errors.Is(err, image.ErrBadOrder) {
+		if _, err := e.images.Reorder(ctx, e.recipe.ID, e.owner, ids); !errors.Is(err, image.ErrBadOrder) {
 			t.Errorf("%v: err = %v, want ErrBadOrder", ids, err)
 		}
 	}
-	if _, err := e.images.Reorder(ctx, "missing", []string{}); !errors.Is(err, image.ErrNotFound) {
+	if _, err := e.images.Reorder(ctx, "missing", e.owner, []string{}); !errors.Is(err, image.ErrNotFound) {
 		t.Fatalf("unknown recipe: %v", err)
 	}
 }
@@ -202,17 +216,17 @@ func TestSetCover(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
 	a, b := upload(t, e, 64, 64), upload(t, e, 64, 64)
-	if err := e.images.SetCover(ctx, e.recipe.ID, b.ID); err != nil {
+	if err := e.images.SetCover(ctx, e.recipe.ID, b.ID, e.owner); err != nil {
 		t.Fatal(err)
 	}
 	r, _ := e.recipes.ByID(ctx, e.recipe.ID)
 	if *r.CoverImageID != b.ID {
 		t.Fatalf("cover = %s, want %s", *r.CoverImageID, b.ID)
 	}
-	if err := e.images.SetCover(ctx, e.recipe.ID, "nope"); !errors.Is(err, image.ErrNotFound) {
+	if err := e.images.SetCover(ctx, e.recipe.ID, "nope", e.owner); !errors.Is(err, image.ErrNotFound) {
 		t.Fatalf("foreign image: %v", err)
 	}
-	if err := e.images.SetCover(ctx, "missing", a.ID); !errors.Is(err, image.ErrNotFound) {
+	if err := e.images.SetCover(ctx, "missing", a.ID, e.owner); !errors.Is(err, image.ErrNotFound) {
 		t.Fatalf("unknown recipe: %v", err)
 	}
 }
@@ -239,5 +253,59 @@ func TestOpenValidatesVariantAndIds(t *testing.T) {
 		if _, err := e.images.Open(c[0], c[1], c[2]); !errors.Is(err, image.ErrNotFound) {
 			t.Errorf("%v: err = %v, want ErrNotFound", c, err)
 		}
+	}
+}
+
+// Every image operation moves recipes.updated_at, so every one of them has
+// to move recipes.updated_by with it - otherwise the detail page credits
+// the last person to edit the text for a photo somebody else added.
+func TestImageOperationsRecordTheEditor(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	editor := createUser(t, e, "mara")
+
+	cases := []struct {
+		name string
+		run  func(t *testing.T, first, second recipe.Image)
+	}{
+		{"upload", func(t *testing.T, _, _ recipe.Image) {
+			if _, err := e.images.Upload(ctx, e.recipe.ID, editor, bytes.NewReader(pngBytes(t, 400, 300))); err != nil {
+				t.Fatalf("Upload: %v", err)
+			}
+		}},
+		{"delete", func(t *testing.T, _, second recipe.Image) {
+			if err := e.images.Delete(ctx, e.recipe.ID, second.ID, editor); err != nil {
+				t.Fatalf("Delete: %v", err)
+			}
+		}},
+		{"reorder", func(t *testing.T, first, second recipe.Image) {
+			if _, err := e.images.Reorder(ctx, e.recipe.ID, editor, []string{second.ID, first.ID}); err != nil {
+				t.Fatalf("Reorder: %v", err)
+			}
+		}},
+		{"set cover", func(t *testing.T, _, second recipe.Image) {
+			if err := e.images.SetCover(ctx, e.recipe.ID, second.ID, editor); err != nil {
+				t.Fatalf("SetCover: %v", err)
+			}
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e = setup(t)
+			editor = createUser(t, e, "mara")
+			first, second := upload(t, e, 400, 300), upload(t, e, 400, 300)
+			tc.run(t, first, second)
+
+			r, err := e.recipes.ByID(ctx, e.recipe.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.UpdatedBy != editor {
+				t.Fatalf("updatedBy = %q, want the editor %q", r.UpdatedBy, editor)
+			}
+			if r.CreatedBy != e.owner {
+				t.Fatalf("createdBy = %q, want the author %q", r.CreatedBy, e.owner)
+			}
+		})
 	}
 }

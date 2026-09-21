@@ -3,6 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import { createUser, type UserAccount, type UserRole } from '$lib/api/users';
+	import { session } from '$lib/auth.svelte';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -20,10 +21,20 @@
 	let errors = $state<{ username?: string; password?: string }>({});
 	let saving = $state(false);
 
-	const roles: { value: UserRole; label: string; hint: string }[] = [
+	// Only the instance owner hands out the admin role; the API answers 403
+	// otherwise, and an option that always fails is worse than no option.
+	const roles = $derived<{ value: UserRole; label: string; hint: string }[]>([
 		{ value: 'user', label: m.users_role_member(), hint: m.users_role_member_hint() },
-		{ value: 'admin', label: m.users_role_admin(), hint: m.users_role_admin_hint() }
-	];
+		...(session.user?.role === 'superadmin'
+			? [
+					{
+						value: 'admin' as UserRole,
+						label: m.users_role_admin(),
+						hint: m.users_role_admin_hint()
+					}
+				]
+			: [])
+	]);
 
 	// A fresh form every time the dialog opens.
 	$effect(() => {

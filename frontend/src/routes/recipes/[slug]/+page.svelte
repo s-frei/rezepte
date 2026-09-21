@@ -21,6 +21,7 @@
 	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
 	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
 	import PlaceholderTile from '$lib/components/recipe/PlaceholderTile.svelte';
+	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
 	import ServingsStepper from '$lib/components/recipe/ServingsStepper.svelte';
 	import StepList from '$lib/components/recipe/StepList.svelte';
 	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
@@ -359,6 +360,8 @@
 				<StepList steps={recipe.steps} />
 			</section>
 		</div>
+
+		<RecipeColophon {recipe} />
 	</article>
 
 	<ConfirmDialog

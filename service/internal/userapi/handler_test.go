@@ -18,8 +18,9 @@ import (
 	"github.com/s-frei/rezepte/service/internal/userapi"
 )
 
-// newHandler seeds an admin "sam" and a member "kim" (both password "pw")
-// and returns the full-stack handler, following internal/recipe/handler_test.go.
+// newHandler seeds the owner "owner", an admin "sam" and a member "kim" (all
+// password "pw") and returns the full-stack handler, following
+// internal/recipe/handler_test.go.
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
 	conn := dbtest.Open(t)
@@ -27,15 +28,16 @@ func newHandler(t *testing.T) http.Handler {
 	for _, seed := range []struct {
 		name string
 		role user.Role
-	}{{"sam", user.RoleAdmin}, {"kim", user.RoleUser}} {
+	}{{"owner", user.RoleSuperadmin}, {"sam", user.RoleAdmin}, {"kim", user.RoleUser}} {
 		if _, err := users.Create(context.Background(), seed.name, "pw", seed.role); err != nil {
 			t.Fatal(err)
 		}
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, false)))
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
 	userapi.Register(srv.API(), users, sessions)
 	return srv.Handler()
@@ -116,8 +118,12 @@ func TestListAndCreate(t *testing.T) {
 	h := newHandler(t)
 	sam := loginAs(t, h, "sam", "pw")
 
+	// Ordered by username, so the owner sits between kim and sam; it is
+	// listed like any other account.
 	items := listUsers(t, h, sam)
-	if len(items) != 2 || items[0].Username != "kim" || items[1].Username != "sam" || items[1].Role != "admin" || items[1].CreatedAt.IsZero() {
+	if len(items) != 3 || items[0].Username != "kim" ||
+		items[1].Username != "owner" || items[1].Role != "superadmin" ||
+		items[2].Username != "sam" || items[2].Role != "admin" || items[2].CreatedAt.IsZero() {
 		t.Fatalf("items = %+v", items)
 	}
 
@@ -144,8 +150,8 @@ func TestListAndCreate(t *testing.T) {
 	if created.ID == "" || created.Username != "lea" || created.Role != "user" {
 		t.Fatalf("created = %+v", created)
 	}
-	if len(listUsers(t, h, sam)) != 3 {
-		t.Fatal("expected 3 users after create")
+	if len(listUsers(t, h, sam)) != 4 {
+		t.Fatal("expected 4 users after create")
 	}
 	if loginAs(t, h, "lea", "lea-password") == nil {
 		t.Fatal("new user cannot log in")
@@ -155,32 +161,27 @@ func TestListAndCreate(t *testing.T) {
 func TestUpdateRole(t *testing.T) {
 	h := newHandler(t)
 	sam := loginAs(t, h, "sam", "pw")
-	items := listUsers(t, h, sam)
-	samID, kimID := idOf(t, items, "sam"), idOf(t, items, "kim")
+	kimID := idOf(t, listUsers(t, h, sam), "kim")
 
-	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+samID, `{"role":"user"}`, sam)
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("demote only admin: status %d: %s", rec.Code, rec.Body.String())
+	// An admin only ever sets a member's role; handing out admin belongs to
+	// the owner.
+	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{"role":"user"}`, sam)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"role":"user"`) {
+		t.Fatalf("set kim's role: status %d: %s", rec.Code, rec.Body.String())
 	}
-	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{"role":"admin"}`, sam)
+	if rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{"role":"admin"}`, sam); rec.Code != http.StatusForbidden {
+		t.Fatalf("admin promoting kim: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	owner := loginAs(t, h, "owner", "pw")
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{"role":"admin"}`, owner)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"role":"admin"`) {
-		t.Fatalf("promote kim: status %d: %s", rec.Code, rec.Body.String())
-	}
-	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+samID, `{"role":"user"}`, sam)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("demote sam with second admin: status %d: %s", rec.Code, rec.Body.String())
+		t.Fatalf("owner promoting kim: status %d: %s", rec.Code, rec.Body.String())
 	}
 	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{}`, sam)
-	if rec.Code != http.StatusForbidden {
-		// sam is a member now: the admin check comes first.
-		t.Fatalf("empty body as demoted sam: status %d: %s", rec.Code, rec.Body.String())
-	}
-	kim := loginAs(t, h, "kim", "pw")
-	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{}`, kim)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("empty body: status %d: %s", rec.Code, rec.Body.String())
 	}
-	rec = doReq(h, http.MethodPatch, "/api/v1/users/missing", `{"role":"user"}`, kim)
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/missing", `{"role":"user"}`, sam)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("unknown id: status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -227,7 +228,89 @@ func TestDelete(t *testing.T) {
 	if rec := doReq(h, http.MethodDelete, "/api/v1/users/"+kimID, "", sam); rec.Code != http.StatusNotFound {
 		t.Fatalf("delete twice: status %d: %s", rec.Code, rec.Body.String())
 	}
-	if len(listUsers(t, h, sam)) != 1 {
-		t.Fatal("expected only sam to remain")
+	if len(listUsers(t, h, sam)) != 2 {
+		t.Fatal("expected the owner and sam to remain")
 	}
+}
+
+func TestOwnerIsAnAdminForEveryOperation(t *testing.T) {
+	h := newHandler(t)
+	cookie := loginAs(t, h, "owner", "pw")
+	if rec := doReq(h, http.MethodGet, "/api/v1/users", "", cookie); rec.Code != http.StatusOK {
+		t.Fatalf("owner listing users: status %d: %s", rec.Code, rec.Body.String())
+	}
+	create := `{"username":"nia","password":"password1","role":"user"}`
+	if rec := doReq(h, http.MethodPost, "/api/v1/users", create, cookie); rec.Code != http.StatusCreated {
+		t.Fatalf("owner creating a user: status %d, want 201: %s", rec.Code, rec.Body.String())
+	}
+	nia := userNamed(t, h, cookie, "nia")
+	if rec := doReq(h, http.MethodPatch, "/api/v1/users/"+nia.ID, `{"role":"admin"}`, cookie); rec.Code != http.StatusOK {
+		t.Fatalf("owner updating a user: status %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if rec := doReq(h, http.MethodDelete, "/api/v1/users/"+nia.ID, "", cookie); rec.Code != http.StatusNoContent {
+		t.Fatalf("owner deleting a user: status %d, want 204: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOnlyTheOwnerHandsOutAdmin(t *testing.T) {
+	h := newHandler(t)
+	admin := loginAs(t, h, "sam", "pw")
+	body := `{"username":"new","password":"password1","role":"admin"}`
+	rec := doReq(h, http.MethodPost, "/api/v1/users", body, admin)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("admin creating an admin: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+
+	owner := loginAs(t, h, "owner", "pw")
+	if rec := doReq(h, http.MethodPost, "/api/v1/users", body, owner); rec.Code != http.StatusCreated {
+		t.Fatalf("owner creating an admin: status %d, want 201: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSuperadminIsNotAnAssignableRole(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	create := `{"username":"usurper","password":"password1","role":"superadmin"}`
+	if rec := doReq(h, http.MethodPost, "/api/v1/users", create, owner); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("creating a superadmin: status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+	kim := userNamed(t, h, owner, "kim")
+	patch := `{"role":"superadmin"}`
+	if rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kim.ID, patch, owner); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("promoting to superadmin: status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestTheOwnerRowIsRefusedAsATarget(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	admin := loginAs(t, h, "sam", "pw")
+	row := userNamed(t, h, owner, "owner")
+
+	for _, tc := range []struct {
+		name, method, path, body string
+		cookie                   *http.Cookie
+	}{
+		{"admin demotes the owner", http.MethodPatch, "/api/v1/users/" + row.ID, `{"role":"user"}`, admin},
+		{"admin resets the owner", http.MethodPatch, "/api/v1/users/" + row.ID, `{"password":"password1"}`, admin},
+		{"admin deletes the owner", http.MethodDelete, "/api/v1/users/" + row.ID, "", admin},
+		{"owner resets the owner", http.MethodPatch, "/api/v1/users/" + row.ID, `{"password":"password1"}`, owner},
+	} {
+		rec := doReq(h, tc.method, tc.path, tc.body, tc.cookie)
+		if rec.Code != http.StatusConflict {
+			t.Errorf("%s: status %d, want 409: %s", tc.name, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+// userNamed finds a seeded user by name through the list endpoint.
+func userNamed(t *testing.T, h http.Handler, cookie *http.Cookie, name string) userapi.UserAccount {
+	t.Helper()
+	for _, u := range listUsers(t, h, cookie) {
+		if u.Username == name {
+			return u
+		}
+	}
+	t.Fatalf("no user %q in the list", name)
+	return userapi.UserAccount{}
 }

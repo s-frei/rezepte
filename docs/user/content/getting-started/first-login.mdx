@@ -1,6 +1,6 @@
 ---
 title: First login
-description: Change the admin password and add the rest of the household
+description: Change the owner password and add the rest of the household
 ---
 
 <Screenshot name="login" caption="The login page" />
@@ -8,16 +8,20 @@ description: Change the admin password and add the rest of the household
 <Steps>
   <Step>
 
-    ### Log in as the admin
+    ### Log in as the owner
 
     Use the username and password from [Quick start](/getting-started) (`admin` by default, or the value of `REZEPTE_ADMIN_USER`).
+
+    This first account owns the instance. It cannot be deleted, it cannot be turned into an ordinary member, and it is the only account that can make someone else an admin.
 
   </Step>
   <Step>
 
-    ### Change the admin password
+    ### Change the owner password
 
     Open "Einstellungen" and change the password under "Passwort ändern" (8–128 characters). Doing this signs every other device out of that account.
+
+    Nobody else can change this password for you — not even another admin — so put it in a password manager before you go on.
 
   </Step>
   <Step>
@@ -30,5 +34,9 @@ description: Change the admin password and add the rest of the household
 </Steps>
 
 <Screenshot name="first-login" caption="Settings right after the first login" />
+
+<Callout type="warn" title="There is no handover">
+  The owner account stays the owner for the life of the instance; there is no way to move ownership to somebody else. If its password is lost, whoever runs the server is the only way back in: they start Rezepte once with `--reset-superadmin-password` and `REZEPTE_ADMIN_PASSWORD` set to the new password — see [Configuration](/getting-started/configuration).
+</Callout>
 
 See [Members](/guide/users) for changing roles, resetting passwords and deleting accounts later on.

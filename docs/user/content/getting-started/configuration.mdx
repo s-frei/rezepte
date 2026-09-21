@@ -9,13 +9,15 @@ Rezepte takes its entire configuration from environment variables — there is n
   type={{
     REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060' },
     REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db and images/', type: 'string', default: './data' },
-    REZEPTE_ADMIN_USER: { description: 'Initial admin username, used only on the first start', type: 'string', default: 'admin' },
-    REZEPTE_ADMIN_PASSWORD: { description: 'Initial admin password; required on the first start (empty users table), ignored afterwards', type: 'string' },
+    REZEPTE_ADMIN_USER: { description: 'Username of the instance owner, used only on the first start', type: 'string', default: 'admin' },
+    REZEPTE_ADMIN_PASSWORD: { description: 'Password of the instance owner; required on the first start (empty users table), ignored afterwards except by --reset-superadmin-password', type: 'string' },
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
   }}
 />
+
+The account created on the first start owns the instance. It cannot be deleted, it cannot lose its admin rights, nobody else can reset its password, and it is the only account that can make someone else an admin — see [First login](/getting-started/first-login). Changing `REZEPTE_ADMIN_USER` later changes nothing — it is read only while the instance has no accounts at all. `REZEPTE_ADMIN_PASSWORD` is read on that first start too, and after that by `--reset-superadmin-password` below and by nothing else, so setting it on a running instance changes no password on its own.
 
 ## Command-line flags
 
@@ -26,6 +28,34 @@ rezepte --demo
 ```
 
 Fills an empty data directory with twelve sample recipes (and placeholder photos for most of them). If `REZEPTE_ADMIN_PASSWORD` is unset, it also creates the demo account `demo` / `demo1234` instead of requiring a password. On an instance that already has recipes, `--demo` does nothing and starts normally.
+
+### `--reset-superadmin-password`
+
+```bash
+REZEPTE_ADMIN_PASSWORD='the new password' rezepte --reset-superadmin-password
+```
+
+The way back in when the owner's password is lost. Nobody inside the app can reset that account, so this runs on the server instead: it sets the owner's password to `REZEPTE_ADMIN_PASSWORD` (an empty value is an error), signs that account out on every device, and exits without starting the server. Start Rezepte normally afterwards and log in with the new password.
+
+Everyone else's password is reset from "Einstellungen" → "Benutzer" — see [Members](/guide/users).
+
+### `--version`
+
+```bash
+rezepte --version
+```
+
+Prints the version this binary was built from and exits. The same value comes back from `/healthz` on a running instance — see [Updates](/operations/updates).
+
+### `--healthcheck`
+
+```bash
+rezepte --healthcheck
+```
+
+Asks the instance on this machine's `REZEPTE_ADDR` whether it is serving, then exits: `0` if it answered, non-zero with a reason if it did not. It starts nothing and touches neither the database nor the data directory, so it is safe to run beside a live instance.
+
+The container image uses it for its own `HEALTHCHECK`, which is why it exists — the image has no shell and no `curl` for one to call. With the binary it works the same way, so a systemd watchdog or a monitoring check can use it too.
 
 ## Logging
 

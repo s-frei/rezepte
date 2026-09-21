@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import X from 'lucide-svelte/icons/x';
 	import { m } from '$lib/paraglide/messages';
 
@@ -8,7 +9,8 @@
 		count,
 		onclick,
 		removable = false,
-		onremove
+		onremove,
+		leading
 	}: {
 		label: string;
 		active?: boolean;
@@ -16,6 +18,10 @@
 		onclick?: (event: MouseEvent) => void;
 		removable?: boolean;
 		onremove?: () => void;
+		/** Rendered before the label on a filter chip - the author filter
+		 * puts the same initial there that its recipes carry on their cards,
+		 * so the two read as one thing. */
+		leading?: Snippet;
 	} = $props();
 
 	// A chip with a click handler is a filter chip (overview tag list); one
@@ -32,6 +38,9 @@
 			? 'bg-inverse text-inverse-foreground'
 			: 'border border-border bg-surface text-text'}"
 	>
+		{#if leading}
+			{@render leading()}
+		{/if}
 		{label}
 		{#if count !== undefined}
 			<span class={active ? 'text-inverse-muted' : 'text-text-muted'}>{count}</span>

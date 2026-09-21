@@ -11,7 +11,14 @@ Every endpoint lives under `/api/v1` of your instance (e.g. `http://localhost:80
 
 ## Authentication
 
-There are no API tokens yet (see [Roadmap](/roadmap)) — the only way in is the same session cookie the browser uses. Log in to get one, then send it back on later requests:
+Two credentials work. An **API token** is what programs should use - see
+[API tokens](/api/tokens):
+
+```bash
+curl -H "Authorization: Bearer rzp_..." 'http://localhost:8060/api/v1/recipes?limit=5'
+```
+
+The **session cookie** is what the browser uses, and it works from a script too:
 
 ```bash
 curl -c cookies.txt -H 'Content-Type: application/json' \
@@ -48,4 +55,4 @@ A running instance serves interactive, try-it-out documentation (Scalar) at `/ap
 
 ## Coming later
 
-Bearer-token authentication, instance sync and an MCP server are planned but not part of the current API — see [Roadmap](/roadmap).
+Instance sync and an MCP server are planned but not part of the current API — see [Roadmap](/roadmap).

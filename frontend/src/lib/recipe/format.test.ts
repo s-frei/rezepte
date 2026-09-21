@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	formatDate,
 	formatFactor,
 	formatMinutes,
 	formatQuantity,
@@ -120,5 +121,17 @@ describe('servingsUnit and formatServings', () => {
 		expect(servingsUnit(4)).toBe('Portionen');
 		expect(formatServings(4)).toBe('4 Portionen');
 		expect(formatServings(0)).toBe('0 Portionen');
+	});
+});
+
+describe('formatDate', () => {
+	it('renders an ISO timestamp as a German long date', () => {
+		expect(formatDate('2026-03-03T09:15:00Z')).toBe('3. März 2026');
+		expect(formatDate('2026-09-12T07:45:00Z')).toBe('12. September 2026');
+	});
+
+	it('renders an unusable value as an empty string', () => {
+		expect(formatDate('')).toBe('');
+		expect(formatDate('not a date')).toBe('');
 	});
 });

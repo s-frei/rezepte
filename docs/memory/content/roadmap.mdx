@@ -11,15 +11,15 @@ description: Where Rezepte is heading after v1
 
 ## Instance sync
 
-Instance A issues an API token with selectable scopes (read recipes, read images). Instance B stores URL and token and mirrors recipes read-only. Requires bearer-token authentication (an additional authenticator in the auth middleware) and `/api/v1/sync/*` endpoints.
+Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`. Instance B stores its URL and that token and mirrors recipes read-only. Bearer-token authentication already exists; what is missing is the `/api/v1/sync/*` endpoints themselves.
 
 ## Public REST API
 
-Already prepared by huma: OpenAPI 3.1 and Scalar docs. Missing: bearer tokens, versioning policy, rate limits.
+Already prepared by huma: OpenAPI 3.1 and Scalar docs, and bearer [API tokens](/features/api-tokens) for programmatic access. Missing: a versioning policy and rate limits.
 
 ## MCP server
 
-Expose recipes to AI assistants (search, read, create draft). Builds on the REST API and API tokens.
+Expose recipes to AI assistants (search, read, create draft), authenticating with an [API token](/features/api-tokens). Missing: the MCP endpoint itself, and a decision on OAuth 2.1 versus the static bearer token the API tokens feature deliberately kept instead - see that page's Limits.
 
 ## OIDC login
 

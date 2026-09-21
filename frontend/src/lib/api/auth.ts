@@ -1,6 +1,6 @@
 import { api } from './client';
 
-export type User = { id: string; username: string; role: 'admin' | 'user' };
+export type User = { id: string; username: string; role: 'superadmin' | 'admin' | 'user' };
 
 export function login(username: string, password: string): Promise<User> {
 	return api<User>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });

@@ -117,7 +117,7 @@ func TestUpdateReplacesChildrenAndKeepsSlug(t *testing.T) {
 	in.Tags = []string{"Vegetarisch", "neu"}
 	in.IngredientGroups = in.IngredientGroups[:1]
 	in.Steps = []string{"Alles mischen."}
-	updated, err := svc.Update(ctx, created.ID, in)
+	updated, err := svc.Update(ctx, created.ID, uid, in)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestUpdateReplacesChildrenAndKeepsSlug(t *testing.T) {
 	if len(updated.IngredientGroups) != 1 || len(updated.Steps) != 1 || len(updated.Tags) != 2 || updated.Tags[1] != "vegetarisch" {
 		t.Fatalf("children = %+v", updated)
 	}
-	if _, err := svc.Update(ctx, "missing", in); !errors.Is(err, recipe.ErrNotFound) {
+	if _, err := svc.Update(ctx, "missing", uid, in); !errors.Is(err, recipe.ErrNotFound) {
 		t.Fatalf("missing: %v", err)
 	}
 }
@@ -199,7 +199,7 @@ func TestLoadListsImagesInPositionOrderWithCover(t *testing.T) {
 		}
 	}
 	cover := "img-a"
-	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &cover, UpdatedAt: db.FormatTime(time.Now()), ID: created.ID}); err != nil {
+	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &cover, UpdatedBy: u.ID, UpdatedAt: db.FormatTime(time.Now()), ID: created.ID}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := svc.ByID(ctx, created.ID)
@@ -386,5 +386,63 @@ func TestSetFavouriteOnMissingRecipeReturnsErrNotFound(t *testing.T) {
 	}
 	if err := svc.SetFavourite(ctx, uid, "missing", false); err != nil {
 		t.Fatalf("unstar missing recipe must be a no-op: %v", err)
+	}
+}
+
+func TestUpdateRecordsTheEditor(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	editor := createUser(t, "mara")
+	in := loadFixtures(t)[3] // Käsespätzle
+	created, err := svc.Create(ctx, uid, in)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	// A recipe nobody has edited yet names its author on both sides.
+	if created.CreatedBy != uid || created.UpdatedBy != uid {
+		t.Fatalf("after create: createdBy = %q, updatedBy = %q, want both %q", created.CreatedBy, created.UpdatedBy, uid)
+	}
+
+	in.Title = "Käsespätzle deluxe"
+	updated, err := svc.Update(ctx, created.ID, editor, in)
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.UpdatedBy != editor {
+		t.Fatalf("updatedBy = %q, want the editor %q", updated.UpdatedBy, editor)
+	}
+	if updated.CreatedBy != uid {
+		t.Fatalf("createdBy = %q, want the original author %q", updated.CreatedBy, uid)
+	}
+}
+
+// The detail view shows names, and /api/v1/users is admin-only, so the
+// recipe has to carry them itself.
+func TestRecipeCarriesAuthorNames(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	editor := createUser(t, "mara")
+	created, err := svc.Create(ctx, uid, loadFixtures(t)[3])
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.CreatedByName != "sam" || created.UpdatedByName != "sam" {
+		t.Fatalf("after create: %q / %q, want both \"sam\"", created.CreatedByName, created.UpdatedByName)
+	}
+
+	updated, err := svc.Update(ctx, created.ID, editor, loadFixtures(t)[3])
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.CreatedByName != "sam" || updated.UpdatedByName != "mara" {
+		t.Fatalf("after update: %q / %q, want \"sam\" / \"mara\"", updated.CreatedByName, updated.UpdatedByName)
+	}
+
+	bySlug, err := svc.BySlug(ctx, created.Slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bySlug.UpdatedByName != "mara" {
+		t.Fatalf("BySlug: updatedByName = %q, want \"mara\"", bySlug.UpdatedByName)
 	}
 }

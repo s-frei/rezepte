@@ -13,6 +13,9 @@ export type RecipeCard = {
 	updatedAt: string;
 	/** Whether the signed-in user has starred this recipe. */
 	favourite: boolean;
+	/** Who wrote the recipe and who last changed it, shown as initials. */
+	createdByName: string;
+	updatedByName: string;
 };
 
 export type Image = { id: string; width: number; height: number; position: number };
@@ -50,7 +53,15 @@ export type Recipe = RecipeInput & {
 	images: Image[];
 	createdBy: string;
 	createdAt: string;
+	updatedBy: string;
 	updatedAt: string;
+	/**
+	 * The usernames behind `createdBy` and `updatedBy`. The service sends
+	 * them along because user management is admin-only, so a member could
+	 * not resolve the ids themselves.
+	 */
+	createdByName: string;
+	updatedByName: string;
 	/** Whether the signed-in user has starred this recipe. */
 	favourite: boolean;
 };
@@ -94,6 +105,7 @@ export function listRecipes(
 		tags?: string[];
 		maxMinutes?: number;
 		favourites?: boolean;
+		author?: string;
 		sort?: 'updated' | 'created' | 'title';
 		page?: number;
 		limit?: number;
@@ -112,6 +124,9 @@ export function listRecipes(
 	}
 	if (params.favourites) {
 		query.set('favourites', 'true');
+	}
+	if (params.author) {
+		query.set('author', params.author);
 	}
 	if (params.sort !== undefined && params.sort !== 'updated') {
 		query.set('sort', params.sort);
@@ -206,6 +221,19 @@ export function setCover(recipeId: string, imageId: string): Promise<void> {
 /** Lists all tags currently in use, with how many recipes carry each. */
 export async function listTags(): Promise<Tag[]> {
 	const page = await api<{ items: Tag[] }>('/tags');
+	return page.items;
+}
+
+/** A username paired with how many recipes they wrote. */
+export type Author = { name: string; count: number };
+
+/**
+ * Everyone who wrote at least one recipe, most recipes first, for the
+ * overview's "Angelegt von" filter. Readable by any signed-in member,
+ * unlike the admin-only user management in `$lib/api/users`.
+ */
+export async function listAuthors(): Promise<Author[]> {
+	const page = await api<{ items: Author[] }>('/authors');
 	return page.items;
 }
 

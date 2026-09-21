@@ -1,10 +1,10 @@
 -- name: InsertRecipe :one
-INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRecipe :one
-UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_at = ?
+UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
 
@@ -97,9 +97,11 @@ WITH ordered AS (
                BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
     AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
           SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+    AND (CAST(sqlc.arg(author) AS TEXT) = ''
+         OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
@@ -114,7 +116,9 @@ WHERE (CAST(sqlc.arg(tag_count) AS INTEGER) = 0 OR r.id IN (
        OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
              BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
   AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
-        SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)));
+        SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+  AND (CAST(sqlc.arg(author) AS TEXT) = ''
+       OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)));
 
 -- name: SearchRecipesFiltered :many
 -- The full-text half of ListRecipesFiltered. It is a separate query rather
@@ -142,9 +146,11 @@ WITH ordered AS (
                BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
     AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
           SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+    AND (CAST(sqlc.arg(author) AS TEXT) = ''
+         OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
@@ -160,7 +166,9 @@ WHERE r.rowid IN (SELECT rowid FROM recipes_fts(sqlc.arg(query)))
        OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
              BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
   AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
-        SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)));
+        SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+  AND (CAST(sqlc.arg(author) AS TEXT) = ''
+       OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)));
 
 -- name: InsertIngredientGroup :exec
 INSERT INTO ingredient_groups (id, recipe_id, name, position) VALUES (?, ?, ?, ?);
@@ -195,6 +203,22 @@ SELECT t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id WHERE rt.recip
 SELECT rt.recipe_id, t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id IN (sqlc.slice(recipe_ids)) ORDER BY rt.recipe_id, t.name;
 
+-- Usernames for a page of recipes, batched like ListTagNamesForRecipes: the
+-- overview needs them per card, and joining users twice into the four
+-- filter queries would complicate the part of the schema that is hardest to
+-- read for a column the filters never touch.
+-- name: ListUsernamesForIDs :many
+SELECT id, username FROM users WHERE id IN (sqlc.slice(ids));
+
+-- Everyone who has written at least one recipe, most recipes first, for the
+-- "Angelegt von" filter. Counting here rather than in Go keeps the list and
+-- its counts one statement, the way ListTagsWithCount does.
+-- name: ListAuthorsWithCount :many
+SELECT u.username, COUNT(r.id) AS recipe_count
+FROM users u JOIN recipes r ON r.created_by = u.id
+GROUP BY u.id, u.username
+ORDER BY recipe_count DESC, u.username;
+
 -- name: SetFavourite :exec
 INSERT OR IGNORE INTO favourites (user_id, recipe_id, created_at) VALUES (?, ?, ?);
 
@@ -210,3 +234,13 @@ DELETE FROM favourites WHERE user_id = ? AND recipe_id = ?;
 SELECT recipe_id FROM favourites
 WHERE user_id = sqlc.arg(user_id)
   AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
+
+-- Author names for the detail view. They come from a query of their own
+-- rather than a join in GetRecipe because that row is also what the image
+-- service reads to check a recipe exists, and it has no use for names.
+-- name: GetRecipeAuthors :one
+SELECT c.username AS created_by_name, u.username AS updated_by_name
+FROM recipes r
+JOIN users c ON c.id = r.created_by
+JOIN users u ON u.id = r.updated_by
+WHERE r.id = ?;

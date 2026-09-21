@@ -152,31 +152,38 @@ func (q *Queries) NextImagePosition(ctx context.Context, recipeID string) (int64
 }
 
 const setRecipeCover = `-- name: SetRecipeCover :exec
-UPDATE recipes SET cover_image_id = ?, updated_at = ? WHERE id = ?
+UPDATE recipes SET cover_image_id = ?, updated_by = ?, updated_at = ? WHERE id = ?
 `
 
 type SetRecipeCoverParams struct {
 	CoverImageID *string
+	UpdatedBy    string
 	UpdatedAt    string
 	ID           string
 }
 
 func (q *Queries) SetRecipeCover(ctx context.Context, arg SetRecipeCoverParams) error {
-	_, err := q.db.ExecContext(ctx, setRecipeCover, arg.CoverImageID, arg.UpdatedAt, arg.ID)
+	_, err := q.db.ExecContext(ctx, setRecipeCover,
+		arg.CoverImageID,
+		arg.UpdatedBy,
+		arg.UpdatedAt,
+		arg.ID,
+	)
 	return err
 }
 
 const touchRecipe = `-- name: TouchRecipe :exec
-UPDATE recipes SET updated_at = ? WHERE id = ?
+UPDATE recipes SET updated_by = ?, updated_at = ? WHERE id = ?
 `
 
 type TouchRecipeParams struct {
+	UpdatedBy string
 	UpdatedAt string
 	ID        string
 }
 
 func (q *Queries) TouchRecipe(ctx context.Context, arg TouchRecipeParams) error {
-	_, err := q.db.ExecContext(ctx, touchRecipe, arg.UpdatedAt, arg.ID)
+	_, err := q.db.ExecContext(ctx, touchRecipe, arg.UpdatedBy, arg.UpdatedAt, arg.ID)
 	return err
 }
 

@@ -10,6 +10,7 @@
 		options,
 		label,
 		disabled = false,
+		variant = 'field',
 		onchange,
 		class: className = ''
 	}: {
@@ -18,9 +19,23 @@
 		/** Accessible name of the trigger. */
 		label: string;
 		disabled?: boolean;
+		/**
+		 * Trigger shape. `field` is a bordered control the height of `Input`,
+		 * for a select that sits among form fields; `pill` is the compact
+		 * chip the members table uses in a row. It decides shape only - never
+		 * the background, see `class`.
+		 */
+		variant?: 'field' | 'pill';
 		/** Fires when the user picks an option (not on programmatic changes). */
 		onchange?: (value: string) => void;
-		/** Extra trigger classes, e.g. the role pill colours. */
+		/**
+		 * Extra trigger classes. **The ground belongs here, not in the
+		 * variant.** A control sits one step above whatever it lies on, and
+		 * that differs by place: `bg-surface-elevated` inside a dialog or a
+		 * panel, `bg-surface` straight on the page. A default background
+		 * would also collide with the caller's - there is no tailwind-merge
+		 * here, so CSS source order would decide the winner.
+		 */
 		class?: string;
 	} = $props();
 
@@ -43,23 +58,51 @@
 		/\btext-(label|micro|caption|body-sm|body-lg|body|card|heading-lg|heading|display-sm|display-md|display-lg|display-xl)\b/;
 	const FONT_WEIGHT_RE =
 		/\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
-	const size = $derived(FONT_SIZE_RE.test(className) ? '' : 'text-caption');
-	const weight = $derived(FONT_WEIGHT_RE.test(className) ? '' : 'font-semibold');
+	const shape = $derived(
+		variant === 'pill' ? 'h-8 rounded-pill px-3' : 'h-11 rounded-md border border-border px-4'
+	);
+	const size = $derived(
+		FONT_SIZE_RE.test(className) ? '' : variant === 'pill' ? 'text-caption' : 'text-body-sm'
+	);
+	const weight = $derived(
+		FONT_WEIGHT_RE.test(className) ? '' : variant === 'pill' ? 'font-semibold' : 'font-medium'
+	);
 </script>
 
 <BitsSelect.Root type="single" bind:value {disabled} onValueChange={(next) => onchange?.(next)}>
 	<BitsSelect.Trigger
 		aria-label={label}
-		class="inline-flex h-8 items-center gap-1.5 rounded-pill px-3 {size} {weight} transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 {className}"
+		class="inline-flex items-center gap-1.5 {shape} {size} {weight} transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 {className}"
 	>
 		{selectedLabel}
 		<ChevronDown class="size-3.5" aria-hidden="true" />
 	</BitsSelect.Trigger>
 	<BitsSelect.Portal>
+		<!--
+			align="start" rather than the floating default: a trigger stretched
+			by its container (the create-token form makes it form-wide) would
+			otherwise centre the list on the full width while the visible label
+			sits at the left edge, putting the list beside the control it
+			belongs to. Aligning on the start edge is what a select is expected
+			to do at any trigger width.
+
+			bg-surface-elevated with a border, not bg-surface: inside a dialog
+			the card is already bg-surface, so a list in the same colour has no
+			visible edge, and shadow-dialog does not read against the dark
+			scheme's surfaces.
+
+			The width floor is the trigger's own width, which bits-ui exposes
+			as --bits-floating-anchor-width, rather than a round number: the
+			list is never narrower than the control it belongs to, and
+			otherwise as wide as its longest entry. A fixed floor gets both
+			ends wrong - too wide under the members table's compact role chip,
+			too narrow under a form-wide trigger.
+		-->
 		<BitsSelect.Content
 			preventScroll={false}
+			align="start"
 			sideOffset={6}
-			class="z-50 min-w-[160px] rounded-2xl bg-surface p-1.5 shadow-dialog"
+			class="z-50 min-w-[var(--bits-floating-anchor-width)] rounded-2xl border border-border bg-surface-elevated p-1.5 shadow-dialog"
 		>
 			{#each options as option (option.value)}
 				<BitsSelect.Item

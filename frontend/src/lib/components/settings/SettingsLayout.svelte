@@ -3,12 +3,13 @@
 	import { resolve } from '$app/paths';
 	import { session } from '$lib/auth.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { isAdminRole } from '$lib/roles';
 	import { shell } from '$lib/shell.svelte';
 	import { signOut } from '$lib/sign-out';
 
-	let { active, children }: { active: 'profile' | 'users'; children: Snippet } = $props();
+	let { active, children }: { active: 'profile' | 'users' | 'api'; children: Snippet } = $props();
 
-	const isAdmin = $derived(session.user?.role === 'admin');
+	const isAdmin = $derived(isAdminRole(session.user?.role));
 
 	// Same top-bar contract as the editor: breadcrumb instead of the default
 	// action buttons, reset when leaving.
@@ -51,6 +52,13 @@
 			class="{item} {active === 'users' ? activeClass : idle}"
 		>
 			{m.settings_nav_users()}
+		</a>
+		<a
+			href={resolve('/settings/api')}
+			aria-current={active === 'api' ? 'page' : undefined}
+			class="{item} {active === 'api' ? activeClass : idle}"
+		>
+			{m.settings_nav_api()}
 		</a>
 	{/if}
 	<button type="button" onclick={() => void signOut()} class="{item} {logout}">

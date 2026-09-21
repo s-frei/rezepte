@@ -21,6 +21,8 @@ WHERE (CAST(?1 AS INTEGER) = 0 OR r.id IN (
              BETWEEN 1 AND CAST(?3 AS INTEGER)))
   AND (CAST(?4 AS INTEGER) = 0 OR r.id IN (
         SELECT recipe_id FROM favourites WHERE user_id = ?5))
+  AND (CAST(?6 AS TEXT) = ''
+       OR r.created_by = (SELECT id FROM users WHERE username = ?6))
 `
 
 type CountRecipesFilteredParams struct {
@@ -29,6 +31,7 @@ type CountRecipesFilteredParams struct {
 	MaxMinutes     int64
 	FavouritesOnly int64
 	UserID         string
+	Author         string
 }
 
 func (q *Queries) CountRecipesFiltered(ctx context.Context, arg CountRecipesFilteredParams) (int64, error) {
@@ -38,6 +41,7 @@ func (q *Queries) CountRecipesFiltered(ctx context.Context, arg CountRecipesFilt
 		arg.MaxMinutes,
 		arg.FavouritesOnly,
 		arg.UserID,
+		arg.Author,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -56,6 +60,8 @@ WHERE r.rowid IN (SELECT rowid FROM recipes_fts(?1))
              BETWEEN 1 AND CAST(?4 AS INTEGER)))
   AND (CAST(?5 AS INTEGER) = 0 OR r.id IN (
         SELECT recipe_id FROM favourites WHERE user_id = ?6))
+  AND (CAST(?7 AS TEXT) = ''
+       OR r.created_by = (SELECT id FROM users WHERE username = ?7))
 `
 
 type CountSearchRecipesFilteredParams struct {
@@ -65,6 +71,7 @@ type CountSearchRecipesFilteredParams struct {
 	MaxMinutes     int64
 	FavouritesOnly int64
 	UserID         string
+	Author         string
 }
 
 func (q *Queries) CountSearchRecipesFiltered(ctx context.Context, arg CountSearchRecipesFilteredParams) (int64, error) {
@@ -75,6 +82,7 @@ func (q *Queries) CountSearchRecipesFiltered(ctx context.Context, arg CountSearc
 		arg.MaxMinutes,
 		arg.FavouritesOnly,
 		arg.UserID,
+		arg.Author,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -126,7 +134,7 @@ func (q *Queries) DeleteStepsByRecipe(ctx context.Context, recipeID string) erro
 }
 
 const getRecipe = `-- name: GetRecipe :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at FROM recipes WHERE id = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at FROM recipes WHERE id = ?
 `
 
 func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
@@ -144,13 +152,37 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.UpdatedBy,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
+const getRecipeAuthors = `-- name: GetRecipeAuthors :one
+SELECT c.username AS created_by_name, u.username AS updated_by_name
+FROM recipes r
+JOIN users c ON c.id = r.created_by
+JOIN users u ON u.id = r.updated_by
+WHERE r.id = ?
+`
+
+type GetRecipeAuthorsRow struct {
+	CreatedByName string
+	UpdatedByName string
+}
+
+// Author names for the detail view. They come from a query of their own
+// rather than a join in GetRecipe because that row is also what the image
+// service reads to check a recipe exists, and it has no use for names.
+func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAuthorsRow, error) {
+	row := q.db.QueryRowContext(ctx, getRecipeAuthors, id)
+	var i GetRecipeAuthorsRow
+	err := row.Scan(&i.CreatedByName, &i.UpdatedByName)
+	return i, err
+}
+
 const getRecipeBySlug = `-- name: GetRecipeBySlug :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at FROM recipes WHERE slug = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at FROM recipes WHERE slug = ?
 `
 
 func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, error) {
@@ -168,6 +200,7 @@ func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, err
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.UpdatedBy,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -222,9 +255,9 @@ func (q *Queries) InsertIngredientGroup(ctx context.Context, arg InsertIngredien
 }
 
 const insertRecipe = `-- name: InsertRecipe :one
-INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at
+INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at
 `
 
 type InsertRecipeParams struct {
@@ -238,6 +271,7 @@ type InsertRecipeParams struct {
 	SourceUrl   *string
 	CreatedBy   string
 	CreatedAt   string
+	UpdatedBy   string
 	UpdatedAt   string
 }
 
@@ -253,6 +287,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		arg.SourceUrl,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.UpdatedBy,
 		arg.UpdatedAt,
 	)
 	var i Recipe
@@ -268,6 +303,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.UpdatedBy,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -292,6 +328,44 @@ func (q *Queries) InsertStep(ctx context.Context, arg InsertStepParams) error {
 		arg.Text,
 	)
 	return err
+}
+
+const listAuthorsWithCount = `-- name: ListAuthorsWithCount :many
+SELECT u.username, COUNT(r.id) AS recipe_count
+FROM users u JOIN recipes r ON r.created_by = u.id
+GROUP BY u.id, u.username
+ORDER BY recipe_count DESC, u.username
+`
+
+type ListAuthorsWithCountRow struct {
+	Username    string
+	RecipeCount int64
+}
+
+// Everyone who has written at least one recipe, most recipes first, for the
+// "Angelegt von" filter. Counting here rather than in Go keeps the list and
+// its counts one statement, the way ListTagsWithCount does.
+func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCountRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAuthorsWithCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAuthorsWithCountRow{}
+	for rows.Next() {
+		var i ListAuthorsWithCountRow
+		if err := rows.Scan(&i.Username, &i.RecipeCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFavouriteRecipeIDs = `-- name: ListFavouriteRecipeIDs :many
@@ -404,7 +478,7 @@ func (q *Queries) ListIngredientsByRecipe(ctx context.Context, recipeID string) 
 
 const listRecipesFiltered = `-- name: ListRecipesFiltered :many
 WITH ordered AS (
-  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_at,
+  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at,
     CASE WHEN CAST(?3 AS TEXT) = 'created' THEN r.created_at END AS sort_created,
     CASE WHEN CAST(?3 AS TEXT) = 'title' THEN LOWER(r.title) END AS sort_title,
     CASE WHEN CAST(?3 AS TEXT) != 'created'
@@ -419,9 +493,11 @@ WITH ordered AS (
                BETWEEN 1 AND CAST(?6 AS INTEGER)))
     AND (CAST(?7 AS INTEGER) = 0 OR r.id IN (
           SELECT recipe_id FROM favourites WHERE user_id = ?8))
+    AND (CAST(?9 AS TEXT) = ''
+         OR r.created_by = (SELECT id FROM users WHERE username = ?9))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT ?2 OFFSET ?1
@@ -436,6 +512,7 @@ type ListRecipesFilteredParams struct {
 	MaxMinutes     int64
 	FavouritesOnly int64
 	UserID         string
+	Author         string
 }
 
 type ListRecipesFilteredRow struct {
@@ -450,6 +527,7 @@ type ListRecipesFilteredRow struct {
 	CoverImageID *string
 	CreatedBy    string
 	CreatedAt    string
+	UpdatedBy    string
 	UpdatedAt    string
 }
 
@@ -517,6 +595,7 @@ func (q *Queries) ListRecipesFiltered(ctx context.Context, arg ListRecipesFilter
 		arg.MaxMinutes,
 		arg.FavouritesOnly,
 		arg.UserID,
+		arg.Author,
 	)
 	if err != nil {
 		return nil, err
@@ -537,6 +616,7 @@ func (q *Queries) ListRecipesFiltered(ctx context.Context, arg ListRecipesFilter
 			&i.CoverImageID,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.UpdatedBy,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -654,9 +734,55 @@ func (q *Queries) ListTagNamesForRecipes(ctx context.Context, recipeIds []string
 	return items, nil
 }
 
+const listUsernamesForIDs = `-- name: ListUsernamesForIDs :many
+SELECT id, username FROM users WHERE id IN (/*SLICE:ids*/?)
+`
+
+type ListUsernamesForIDsRow struct {
+	ID       string
+	Username string
+}
+
+// Usernames for a page of recipes, batched like ListTagNamesForRecipes: the
+// overview needs them per card, and joining users twice into the four
+// filter queries would complicate the part of the schema that is hardest to
+// read for a column the filters never touch.
+func (q *Queries) ListUsernamesForIDs(ctx context.Context, ids []string) ([]ListUsernamesForIDsRow, error) {
+	query := listUsernamesForIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUsernamesForIDsRow{}
+	for rows.Next() {
+		var i ListUsernamesForIDsRow
+		if err := rows.Scan(&i.ID, &i.Username); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchRecipesFiltered = `-- name: SearchRecipesFiltered :many
 WITH ordered AS (
-  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_at,
+  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at,
     CASE WHEN CAST(?3 AS TEXT) = 'created' THEN r.created_at END AS sort_created,
     CASE WHEN CAST(?3 AS TEXT) = 'title' THEN LOWER(r.title) END AS sort_title,
     CASE WHEN CAST(?3 AS TEXT) != 'created'
@@ -672,9 +798,11 @@ WITH ordered AS (
                BETWEEN 1 AND CAST(?7 AS INTEGER)))
     AND (CAST(?8 AS INTEGER) = 0 OR r.id IN (
           SELECT recipe_id FROM favourites WHERE user_id = ?9))
+    AND (CAST(?10 AS TEXT) = ''
+         OR r.created_by = (SELECT id FROM users WHERE username = ?10))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT ?2 OFFSET ?1
@@ -690,6 +818,7 @@ type SearchRecipesFilteredParams struct {
 	MaxMinutes     int64
 	FavouritesOnly int64
 	UserID         string
+	Author         string
 }
 
 type SearchRecipesFilteredRow struct {
@@ -704,6 +833,7 @@ type SearchRecipesFilteredRow struct {
 	CoverImageID *string
 	CreatedBy    string
 	CreatedAt    string
+	UpdatedBy    string
 	UpdatedAt    string
 }
 
@@ -726,6 +856,7 @@ func (q *Queries) SearchRecipesFiltered(ctx context.Context, arg SearchRecipesFi
 		arg.MaxMinutes,
 		arg.FavouritesOnly,
 		arg.UserID,
+		arg.Author,
 	)
 	if err != nil {
 		return nil, err
@@ -746,6 +877,7 @@ func (q *Queries) SearchRecipesFiltered(ctx context.Context, arg SearchRecipesFi
 			&i.CoverImageID,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.UpdatedBy,
 			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -794,9 +926,9 @@ func (q *Queries) SlugExists(ctx context.Context, slug string) (bool, error) {
 }
 
 const updateRecipe = `-- name: UpdateRecipe :one
-UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_at = ?
+UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_at
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at
 `
 
 type UpdateRecipeParams struct {
@@ -806,6 +938,7 @@ type UpdateRecipeParams struct {
 	PrepMinutes *int64
 	CookMinutes *int64
 	SourceUrl   *string
+	UpdatedBy   string
 	UpdatedAt   string
 	ID          string
 }
@@ -818,6 +951,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		arg.PrepMinutes,
 		arg.CookMinutes,
 		arg.SourceUrl,
+		arg.UpdatedBy,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -834,6 +968,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.UpdatedBy,
 		&i.UpdatedAt,
 	)
 	return i, err

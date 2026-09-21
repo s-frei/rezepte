@@ -8,9 +8,16 @@
 	// (top-anchored, wider, different padding) and isn't a caller of this.
 	let {
 		open = $bindable(false),
+		dismissible = true,
 		children
 	}: {
 		open?: boolean;
+		/**
+		 * False keeps the dialog open on Escape and on a click outside, so it
+		 * can only be closed through its own button. The token reveal needs
+		 * this: the secret is shown once, and a stray Escape would lose it.
+		 */
+		dismissible?: boolean;
 		children: Snippet;
 	} = $props();
 </script>
@@ -28,7 +35,12 @@
 				{/if}
 			{/snippet}
 		</Dialog.Overlay>
-		<Dialog.Content forceMount preventScroll={false}>
+		<Dialog.Content
+			forceMount
+			preventScroll={false}
+			escapeKeydownBehavior={dismissible ? 'close' : 'ignore'}
+			interactOutsideBehavior={dismissible ? 'close' : 'ignore'}
+		>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
 					<div

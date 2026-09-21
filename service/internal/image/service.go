@@ -53,9 +53,10 @@ func NewService(conn *sql.DB, dir string) *Service {
 
 // Upload decodes the image in r, writes its variants and records it as the
 // last image of recipeID. When the recipe has no cover yet, the new image
-// becomes its cover. Errors: ErrNotFound (recipe), ErrUnsupported,
-// ErrInvalid, ErrTooLarge, ErrTooMany.
-func (s *Service) Upload(ctx context.Context, recipeID string, r io.Reader) (recipe.Image, error) {
+// becomes its cover. updatedBy is recorded as the recipe's editor, since
+// the upload moves its updated_at. Errors: ErrNotFound (recipe),
+// ErrUnsupported, ErrInvalid, ErrTooLarge, ErrTooMany.
+func (s *Service) Upload(ctx context.Context, recipeID, updatedBy string, r io.Reader) (recipe.Image, error) {
 	if !isID(recipeID) {
 		return recipe.Image{}, ErrNotFound
 	}
@@ -115,10 +116,10 @@ func (s *Service) Upload(ctx context.Context, recipeID string, r io.Reader) (rec
 			return fmt.Errorf("insert image: %w", err)
 		}
 		if row.CoverImageID == nil {
-			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedAt: now, ID: recipeID}); err != nil {
+			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
 				return fmt.Errorf("set cover: %w", err)
 			}
-		} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedAt: now, ID: recipeID}); err != nil {
+		} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
 			return fmt.Errorf("touch recipe: %w", err)
 		}
 		out = toImage(inserted)
@@ -153,7 +154,7 @@ func (s *Service) render(ctx context.Context, data []byte, recipeDir, id string)
 // Delete removes imageID from recipeID: the row, then (after commit) the
 // files. If it was the cover, the first remaining image by position takes
 // over, or the cover is cleared. Remaining positions are renumbered 0..n-1.
-func (s *Service) Delete(ctx context.Context, recipeID, imageID string) error {
+func (s *Service) Delete(ctx context.Context, recipeID, imageID, updatedBy string) error {
 	if !isID(recipeID) || !isID(imageID) {
 		return ErrNotFound
 	}
@@ -185,12 +186,12 @@ func (s *Service) Delete(ctx context.Context, recipeID, imageID string) error {
 			if len(rest) > 0 {
 				cover = &rest[0].ID
 			}
-			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: cover, UpdatedAt: now, ID: recipeID}); err != nil {
+			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: cover, UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
 				return fmt.Errorf("set cover: %w", err)
 			}
 			return nil
 		}
-		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedAt: now, ID: recipeID}); err != nil {
+		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
 			return fmt.Errorf("touch recipe: %w", err)
 		}
 		return nil
@@ -205,7 +206,7 @@ func (s *Service) Delete(ctx context.Context, recipeID, imageID string) error {
 // Reorder assigns positions 0..n-1 following ids, which must name every
 // image of recipeID exactly once (ErrBadOrder otherwise), and returns the
 // images in their new order.
-func (s *Service) Reorder(ctx context.Context, recipeID string, ids []string) ([]recipe.Image, error) {
+func (s *Service) Reorder(ctx context.Context, recipeID, updatedBy string, ids []string) ([]recipe.Image, error) {
 	if !isID(recipeID) {
 		return nil, ErrNotFound
 	}
@@ -241,7 +242,7 @@ func (s *Service) Reorder(ctx context.Context, recipeID string, ids []string) ([
 		if err := renumber(ctx, q, recipeID, ordered); err != nil {
 			return err
 		}
-		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
+		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: updatedBy, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
 			return fmt.Errorf("touch recipe: %w", err)
 		}
 		out = make([]recipe.Image, len(ordered))
@@ -259,7 +260,7 @@ func (s *Service) Reorder(ctx context.Context, recipeID string, ids []string) ([
 
 // SetCover makes imageID the cover of recipeID. The image must belong to
 // the recipe (ErrNotFound otherwise).
-func (s *Service) SetCover(ctx context.Context, recipeID, imageID string) error {
+func (s *Service) SetCover(ctx context.Context, recipeID, imageID, updatedBy string) error {
 	if !isID(recipeID) || !isID(imageID) {
 		return ErrNotFound
 	}
@@ -271,7 +272,7 @@ func (s *Service) SetCover(ctx context.Context, recipeID, imageID string) error 
 			return fmt.Errorf("get image: %w", err)
 		}
 		id := imageID
-		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
+		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: updatedBy, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
 			return fmt.Errorf("set cover: %w", err)
 		}
 		return nil
