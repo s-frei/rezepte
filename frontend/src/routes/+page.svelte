@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
+	import ArrowDownWideNarrow from 'lucide-svelte/icons/arrow-down-wide-narrow';
 	import Plus from 'lucide-svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto } from '$app/navigation';
@@ -339,7 +340,11 @@
 					label={m.overview_sort_label()}
 					onchange={handleSort}
 					class="bg-surface text-text"
-				/>
+				>
+					{#snippet icon()}
+						<ArrowDownWideNarrow class="size-4 shrink-0" aria-hidden="true" />
+					{/snippet}
+				</Select>
 			</div>
 		</div>
 		<TagFilter tags={allTags} active={tags} ontoggle={toggleTag} />

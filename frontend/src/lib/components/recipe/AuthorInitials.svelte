@@ -66,7 +66,7 @@
 			-->
 			<span
 				aria-hidden="true"
-				class="relative flex size-5 items-center justify-center rounded-full font-display text-micro leading-none font-semibold ring-2 ring-surface {userColorClasses(
+				class="relative flex size-5 items-center justify-center rounded-full initial-centred font-display text-micro font-semibold ring-2 ring-surface {userColorClasses(
 					person.color
 				)} {index > 0 ? '-ml-1.5' : ''}"
 			>

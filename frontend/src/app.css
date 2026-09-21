@@ -221,6 +221,41 @@
 	}
 }
 
+/*
+ * An initial in a circle sits too low without this. Centring puts the
+ * font's metric box in the middle - ascent 19 over descent 5 at 16px in
+ * Literata - but a capital or a lining figure never uses that descender
+ * room, so its ink ends up ((ascent - descent) - capHeight) / 2 below the
+ * circle's centre: 1.39px of a 36px avatar, measured. The shift is a
+ * property of the typeface rather than of any one size, so it is expressed
+ * in em and lives here once instead of being re-derived per component.
+ * Line height does not enter the result - the term cancels - so `leading-*`
+ * is not a fix for it.
+ *
+ * It is padding rather than a transform because a transform would move the
+ * circle as well, leaving the glyph exactly as off-centre as before. With
+ * border-box sizing the padding shrinks the content box without touching
+ * the element's own size, so centring lands half of it - the 0.087em - on
+ * the glyph alone. In em, so it scales with the letter rather than with the
+ * circle: a 12px initial in a 20px circle needs a smaller shift than a 16px
+ * one in a 36px circle, and gets it.
+ */
+@utility initial-centred {
+	padding-bottom: 0.174em;
+}
+
+/*
+ * The horizontal half of the same problem, and only for italics: the slant
+ * carries the ink past the advance box it is centred in, so an italic
+ * capital lands right of centre - 2.17px of a 64px Literata "R", measured,
+ * against exactly 0 for the upright "A" beside it. Separate from
+ * initial-centred because the two have separate causes: every capital
+ * needs the vertical shift, only a slanted one needs this. Combine them.
+ */
+@utility italic-centred {
+	padding-right: 0.068em;
+}
+
 body {
 	background: var(--color-background);
 	color: var(--color-text);

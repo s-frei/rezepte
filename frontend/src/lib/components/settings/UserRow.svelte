@@ -98,7 +98,7 @@
 	<div class="col-span-2 flex min-w-0 items-center gap-3 md:col-span-1">
 		<span
 			aria-hidden="true"
-			class="flex size-9 shrink-0 items-center justify-center rounded-full font-display font-semibold {userColorClasses(
+			class="flex size-9 shrink-0 items-center justify-center rounded-full initial-centred font-display font-semibold {userColorClasses(
 				user.color
 			)}"
 		>

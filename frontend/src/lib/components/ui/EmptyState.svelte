@@ -15,7 +15,7 @@
 <div class="flex flex-col items-center gap-4 px-6 py-16 text-center">
 	<div
 		aria-hidden="true"
-		class="flex size-[120px] items-center justify-center rounded-full bg-accent font-display text-[64px] font-medium text-primary italic"
+		class="flex size-[120px] items-center justify-center rounded-full bg-accent italic-centred initial-centred font-display text-[64px] font-medium text-primary italic"
 	>
 		R
 	</div>
