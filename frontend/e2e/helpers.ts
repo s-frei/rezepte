@@ -21,8 +21,40 @@ export function devPasswordNext(username: string): string {
 	return `${username}5678`;
 }
 
-/** Logs in as the instance owner `admin`, or as any bootstrapped user. */
+/**
+ * Pins the interface language for one browser context. The suite's selectors
+ * are German, and the instance default is English, so every test says which
+ * language it is reading before it navigates. Writing the cookie directly
+ * rather than clicking through settings keeps this out of the tests that are
+ * not about language - `locale.test.ts` drives the real switch.
+ */
+export async function pinLocale(page: Page, locale: 'en' | 'de' = 'de'): Promise<void> {
+	// The same origin playwright.config.ts hands the tests as baseURL. Read it
+	// here rather than from page.url(), which is still about:blank before the
+	// first navigation - and the cookie has to be in place before that.
+	const base =
+		process.env.E2E_BASE_URL ?? `http://localhost:${process.env.RZP_BACKEND_PORT ?? 8060}`;
+	await page
+		.context()
+		.addCookies([{ name: 'PARAGLIDE_LOCALE', value: locale, url: new URL(base).origin }]);
+}
+
+/**
+ * Logs in as the instance owner `admin`, or as any bootstrapped user. Pins
+ * German first, so the login form itself (no account signed in yet, nothing
+ * to read a stored locale from) renders in German - `getByLabel` below needs
+ * the German labels to find the fields.
+ *
+ * This pin does not survive login on its own: the login response sets
+ * PARAGLIDE_LOCALE from the account's own stored locale, and every
+ * subsequent page - even a client-side one, no full reload - reads that
+ * cookie fresh. What keeps the rest of this suite in German is
+ * `mise run e2e` bootstrapping every account, `admin` included, with
+ * REZEPTE_LOCALE=de (mise/tasks/e2e.sh) - the pin and the account agree, so
+ * there is nothing for the login response to overwrite it with.
+ */
 export async function login(page: Page, username = 'admin', password = devPassword(username)) {
+	await pinLocale(page, 'de');
 	await page.goto('/login');
 	await page.getByLabel('Benutzername').fill(username);
 	await page.getByLabel('Passwort').fill(password);
@@ -42,7 +74,7 @@ export async function signOut(page: Page, testInfo: TestInfo): Promise<void> {
 	// matches the overview's "Mehr laden" button once enough recipes have
 	// piled up in the shared database for the grid to paginate, which turns
 	// this into a strict-mode violation (two matching buttons at once).
-	await page.getByRole('button', { name: mobile ? 'Mehr' : 'Benutzermenü', exact: mobile }).click();
+	await page.getByRole('button', { name: mobile ? 'Mehr' : 'Kontomenü', exact: mobile }).click();
 	await page.getByRole(mobile ? 'button' : 'menuitem', { name: 'Abmelden' }).click();
 }
 
@@ -206,10 +238,16 @@ export async function uploadImage(page: Page, recipeId: string, png: Buffer): Pr
 	return (await response.json()) as Image;
 }
 
-/** Creates a user through the API as whoever `page` is logged in as (an admin). */
+/**
+ * Creates a user through the API as whoever `page` is logged in as (an
+ * admin). `locale` defaults to the instance's own default (German for this
+ * suite, set by `mise run e2e` so the pinned login cookie survives past the
+ * first authenticated page - see mise/tasks/e2e.sh); locale.test.ts is the
+ * one caller that names it explicitly, to bootstrap an English account.
+ */
 export async function createUser(
 	page: Page,
-	input: { username: string; password?: string; role: 'admin' | 'user' }
+	input: { username: string; password?: string; role: 'admin' | 'user'; locale?: 'en' | 'de' }
 ): Promise<UserAccount> {
 	const origin = new URL(page.url()).origin;
 	const response = await page.request.post('/api/v1/users', {

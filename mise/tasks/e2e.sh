@@ -19,8 +19,17 @@ rzp_make_data_dir
 # `admin` that frontend/e2e/helpers.ts logs in as. The password follows the
 # repository's rule for bootstrapped users, username + 1234
 # (docs/memory/content/conventions/dev-credentials.mdx).
+#
+# REZEPTE_LOCALE=de: the instance default is English, but the suite's
+# selectors are German (frontend/e2e/helpers.ts pins the PARAGLIDE_LOCALE
+# cookie to German before every login). That pin only reaches the
+# unauthenticated /login page - a login response sets the cookie from the
+# account's own stored locale, and every account this suite creates without
+# naming one (admin included) takes this default, so it has to be German too
+# or the very first post-login navigation would flip the language back.
 env -u REZEPTE_ADMIN_USER \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_ADMIN_PASSWORD=admin1234 \
+	REZEPTE_LOCALE=de \
 	service/bin/rezepte &
 PID=$!
 trap 'rzp_stop "$PID"' EXIT
