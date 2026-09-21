@@ -22,6 +22,7 @@ type UserAccount struct {
 	DisplayName string    `json:"displayName" doc:"Name shown wherever the UI names this person"`
 	Role        string    `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	Color       string    `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
+	Locale      string    `json:"locale" enum:"en,de" doc:"The account holder's interface language"`
 	CreatedAt   time.Time `json:"createdAt" doc:"When the account was created"`
 }
 
@@ -41,6 +42,7 @@ type createInput struct {
 		Role        string  `json:"role" enum:"admin,user"`
 		DisplayName *string `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
 		Color       *string `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Omitted picks the least-used colour"`
+		Locale      *string `json:"locale,omitempty" enum:"en,de" doc:"Interface language; defaults to REZEPTE_LOCALE"`
 	}
 }
 
@@ -101,6 +103,7 @@ func toResponse(u user.User) UserAccount {
 		DisplayName: u.DisplayName,
 		Role:        string(u.Role),
 		Color:       string(u.Color),
+		Locale:      string(u.Locale),
 		CreatedAt:   u.CreatedAt,
 	}
 }
@@ -165,6 +168,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		}
 		if in.Body.Color != nil {
 			params.Color = user.Color(*in.Body.Color)
+		}
+		if in.Body.Locale != nil {
+			params.Locale = user.Locale(*in.Body.Locale)
 		}
 		u, err := users.Create(ctx, params)
 		if errors.Is(err, user.ErrUsernameTaken) {

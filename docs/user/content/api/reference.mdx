@@ -104,7 +104,7 @@ Counts, not names: the picker needs to mark a colour as taken, and a plain membe
 
 ### PATCH /api/v1/auth/me/profile
 
-Change the current user's display name and colour
+Change the current user's display name, colour and interface language
 
 Its own path rather than PATCH /api/v1/auth/me, which is the password change and demands the current password - a rename has nothing to do with it.
 
@@ -681,6 +681,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
 | `color` | string | no | Omitted picks the least-used colour; one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
 | `displayName` | string | no | Empty falls back to the login name; length 0–64 |
+| `locale` | string | no | Interface language; defaults to REZEPTE_LOCALE; one of `en`, `de` |
 | `password` | string | yes | length 8–128 |
 | `role` | string | yes | one of `admin`, `user` |
 | `username` | string | yes | length 1–64 |
@@ -846,6 +847,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
 | `color` | string | no | one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
 | `displayName` | string | no | Empty falls back to the login name; length 0–64 |
+| `locale` | string | no | The account holder's interface language; one of `en`, `de` |
 
 ### UserAccount
 
@@ -856,6 +858,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `createdAt` | string (date-time) | yes | When the account was created |
 | `displayName` | string | yes | Name shown wherever the UI names this person |
 | `id` | string | yes | User id |
+| `locale` | string | yes | The account holder's interface language; one of `en`, `de` |
 | `role` | string | yes | Authorization role; one of `superadmin`, `admin`, `user` |
 | `username` | string | yes | Login name |
 
@@ -874,5 +877,6 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `color` | string | yes | Palette token identifying this person; one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
 | `displayName` | string | yes | Name shown wherever the UI names this person |
 | `id` | string | yes | User id |
+| `locale` | string | yes | The account holder's interface language; one of `en`, `de` |
 | `role` | string | yes | Authorization role; one of `superadmin`, `admin`, `user` |
 | `username` | string | yes | Login name |

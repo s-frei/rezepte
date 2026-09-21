@@ -18,6 +18,7 @@ type UserResponse struct {
 	DisplayName string `json:"displayName" doc:"Name shown wherever the UI names this person"`
 	Role        string `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
+	Locale      string `json:"locale" enum:"en,de" doc:"The account holder's interface language"`
 }
 
 type loginInput struct {
@@ -58,6 +59,7 @@ type updateProfileInput struct {
 	Body struct {
 		DisplayName *string `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
 		Color       *string `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate"`
+		Locale      *string `json:"locale,omitempty" enum:"en,de" doc:"The account holder's interface language"`
 	}
 }
 
@@ -170,7 +172,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		OperationID: "update-own-profile",
 		Method:      http.MethodPatch,
 		Path:        "/api/v1/auth/me/profile",
-		Summary:     "Change the current user's display name and colour",
+		Summary:     "Change the current user's display name, colour and interface language",
 		Description: "Its own path rather than PATCH /api/v1/auth/me, which is the password change and demands the current password - a rename has nothing to do with it.",
 		Tags:        []string{"auth"},
 		Security:    SessionSecurity,
@@ -180,13 +182,17 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if in.Body.DisplayName == nil && in.Body.Color == nil {
+		if in.Body.DisplayName == nil && in.Body.Color == nil && in.Body.Locale == nil {
 			return nil, huma.Error422UnprocessableEntity("nothing to change")
 		}
 		update := user.ProfileUpdate{DisplayName: in.Body.DisplayName}
 		if in.Body.Color != nil {
 			c := user.Color(*in.Body.Color)
 			update.Color = &c
+		}
+		if in.Body.Locale != nil {
+			l := user.Locale(*in.Body.Locale)
+			update.Locale = &l
 		}
 		updated, err := svc.users.SetProfile(ctx, u.ID, update)
 		if mapped := ProfileError(err); mapped != nil {
@@ -222,10 +228,11 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 }
 
 // ProfileError maps the profile validation failures to the field they belong
-// to, and returns nil for anything else. An unknown colour cannot reach it
-// through the API - huma refuses a value outside the enum with its own 422
-// before the handler runs - but ErrInvalidColor is mapped anyway, because the
-// service may be called from somewhere with no enum in front of it.
+// to, and returns nil for anything else. An unknown colour or locale cannot
+// reach it through the API - huma refuses a value outside the enum with its
+// own 422 before the handler runs - but ErrInvalidColor and ErrInvalidLocale
+// are mapped anyway, because the service may be called from somewhere with
+// no enum in front of it.
 func ProfileError(err error) error {
 	switch {
 	case errors.Is(err, user.ErrDisplayNameTooLong):
@@ -239,6 +246,10 @@ func ProfileError(err error) error {
 	case errors.Is(err, user.ErrInvalidColor):
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
 			Location: "body.color", Message: "unknown colour",
+		})
+	case errors.Is(err, user.ErrInvalidLocale):
+		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+			Location: "body.locale", Message: "unknown interface language",
 		})
 	}
 	return nil
@@ -278,5 +289,6 @@ func toResponse(u user.User) UserResponse {
 		DisplayName: u.DisplayName,
 		Role:        string(u.Role),
 		Color:       string(u.Color),
+		Locale:      string(u.Locale),
 	}
 }

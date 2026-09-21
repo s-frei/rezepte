@@ -340,6 +340,14 @@
             "maxLength": 64,
             "type": "string"
           },
+          "locale": {
+            "description": "Interface language; defaults to REZEPTE_LOCALE",
+            "enum": [
+              "en",
+              "de"
+            ],
+            "type": "string"
+          },
           "password": {
             "maxLength": 128,
             "minLength": 8,
@@ -1187,6 +1195,14 @@
             "description": "Empty falls back to the login name",
             "maxLength": 64,
             "type": "string"
+          },
+          "locale": {
+            "description": "The account holder's interface language",
+            "enum": [
+              "en",
+              "de"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -1230,6 +1246,14 @@
             "description": "User id",
             "type": "string"
           },
+          "locale": {
+            "description": "The account holder's interface language",
+            "enum": [
+              "en",
+              "de"
+            ],
+            "type": "string"
+          },
           "role": {
             "description": "Authorization role",
             "enum": [
@@ -1250,6 +1274,7 @@
           "displayName",
           "role",
           "color",
+          "locale",
           "createdAt"
         ],
         "type": "object"
@@ -1315,6 +1340,14 @@
             "description": "User id",
             "type": "string"
           },
+          "locale": {
+            "description": "The account holder's interface language",
+            "enum": [
+              "en",
+              "de"
+            ],
+            "type": "string"
+          },
           "role": {
             "description": "Authorization role",
             "enum": [
@@ -1334,7 +1367,8 @@
           "username",
           "displayName",
           "role",
-          "color"
+          "color",
+          "locale"
         ],
         "type": "object"
       }
@@ -1693,7 +1727,7 @@
             "session": []
           }
         ],
-        "summary": "Change the current user's display name and colour",
+        "summary": "Change the current user's display name, colour and interface language",
         "tags": [
           "auth"
         ]
