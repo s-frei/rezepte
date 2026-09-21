@@ -37,7 +37,13 @@
 
 {#snippet noActions()}{/snippet}
 
-{#snippet navLinks(item: string, activeClass: string, idle: string, logout: string)}
+{#snippet navLinks(
+	item: string,
+	activeClass: string,
+	idle: string,
+	logout: string,
+	divider: string
+)}
 	<a
 		href={resolve('/settings')}
 		aria-current={active === 'profile' ? 'page' : undefined}
@@ -61,6 +67,7 @@
 			{m.settings_nav_users()}
 		</a>
 	{/if}
+	<div class={divider} aria-hidden="true"></div>
 	<button type="button" onclick={() => void signOut()} class="{item} {logout}">
 		{m.logout()}
 	</button>
@@ -78,7 +85,8 @@
 			'flex h-[34px] shrink-0 items-center justify-center rounded-pill px-3.5 text-caption font-semibold transition',
 			'bg-inverse text-inverse-foreground',
 			'border border-border bg-surface text-text-muted',
-			'border border-border bg-surface text-destructive'
+			'border border-border bg-surface text-destructive',
+			'mx-1 h-5 w-px shrink-0 self-center bg-border'
 		)}
 	</div>
 
@@ -91,7 +99,8 @@
 				'rounded-pill px-3.5 py-2 text-left transition',
 				'bg-surface font-semibold text-text',
 				'text-text-muted hover:text-text',
-				'text-destructive hover:bg-surface'
+				'text-destructive hover:bg-surface',
+				'mx-3.5 my-1 h-px bg-border'
 			)}
 		</nav>
 		<div class="space-y-5">

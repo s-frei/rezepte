@@ -322,7 +322,7 @@
             "type": "string"
           },
           "color": {
-            "description": "Empty picks the least-used colour",
+            "description": "Omitted picks the least-used colour",
             "enum": [
               "amber",
               "clay",

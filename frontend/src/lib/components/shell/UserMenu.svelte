@@ -24,7 +24,7 @@
 	<DropdownMenu.Root bind:open>
 		<DropdownMenu.Trigger
 			aria-label={m.nav_user_menu()}
-			class="flex size-9 items-center justify-center rounded-full bg-accent font-display font-semibold text-accent-foreground"
+			class="flex size-9 items-center justify-center rounded-full bg-accent initial-centred font-display font-semibold text-accent-foreground"
 		>
 			{initial}
 		</DropdownMenu.Trigger>
@@ -46,7 +46,7 @@
 						open = false;
 						void signOut();
 					}}
-					class="flex h-10 items-center rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
+					class="flex h-10 items-center rounded-sm px-3 text-body-sm text-destructive transition hover:bg-background"
 				>
 					{m.logout()}
 				</DropdownMenu.Item>
@@ -90,7 +90,7 @@
 									open = false;
 									void signOut();
 								}}
-								class="flex h-12 w-full items-center rounded-sm px-3 text-left text-body text-text transition hover:bg-surface"
+								class="flex h-12 w-full items-center rounded-sm px-3 text-left text-body text-destructive transition hover:bg-surface"
 							>
 								{m.logout()}
 							</button>

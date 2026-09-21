@@ -114,7 +114,7 @@
 		<div class="flex items-center gap-4">
 			<span
 				aria-hidden="true"
-				class="flex size-14 items-center justify-center rounded-full font-display text-heading font-semibold {userColorClasses(
+				class="flex size-14 items-center justify-center rounded-full initial-centred font-display text-heading font-semibold {userColorClasses(
 					session.user?.color
 				)}"
 			>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import Check from 'lucide-svelte/icons/check';
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import { Select as BitsSelect } from 'bits-ui';
@@ -11,6 +12,7 @@
 		label,
 		disabled = false,
 		variant = 'field',
+		icon,
 		onchange,
 		class: className = ''
 	}: {
@@ -26,6 +28,14 @@
 		 * the background, see `class`.
 		 */
 		variant?: 'field' | 'pill';
+		/**
+		 * Optional mark ahead of the label, for a select whose subject is not
+		 * obvious from the chosen value alone - the overview's sort control
+		 * reads "Zuletzt geändert", which names an order without saying that
+		 * ordering is what it does. It sits where FilterPanel's trigger keeps
+		 * its funnel, so the two controls read as a pair.
+		 */
+		icon?: Snippet;
 		/** Fires when the user picks an option (not on programmatic changes). */
 		onchange?: (value: string) => void;
 		/**
@@ -74,8 +84,9 @@
 		aria-label={label}
 		class="inline-flex items-center gap-1.5 {shape} {size} {weight} transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 {className}"
 	>
+		{#if icon}{@render icon()}{/if}
 		{selectedLabel}
-		<ChevronDown class="size-3.5" aria-hidden="true" />
+		<ChevronDown class="size-3.5 shrink-0" aria-hidden="true" />
 	</BitsSelect.Trigger>
 	<BitsSelect.Portal>
 		<!--
@@ -108,12 +119,16 @@
 				<BitsSelect.Item
 					value={option.value}
 					label={option.label}
-					class="flex h-10 cursor-default items-center justify-between rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
+					class="flex h-10 cursor-default items-center justify-between gap-8 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
 				>
 					{#snippet children({ selected })}
 						{option.label}
 						{#if selected}
-							<Check class="size-4 text-primary" aria-hidden="true" />
+							<Check
+								class="size-[18px] shrink-0 text-primary"
+								strokeWidth={1.75}
+								aria-hidden="true"
+							/>
 						{/if}
 					{/snippet}
 				</BitsSelect.Item>
