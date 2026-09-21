@@ -3,13 +3,13 @@
 	"pages": [
 		"index",
 		"---Getting started---",
-		"getting-started",
+		"...getting-started",
 		"---Features---",
-		"guide",
+		"...guide",
 		"---Operations---",
-		"operations",
+		"...operations",
 		"---API---",
-		"api",
+		"...api",
 		"---Outlook---",
 		"roadmap"
 	]
