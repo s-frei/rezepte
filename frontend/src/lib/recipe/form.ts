@@ -1,6 +1,7 @@
 import type { FieldError } from '$lib/api/client';
 import { emptyInput, type IngredientGroup, type RecipeInput } from '$lib/api/recipes';
 import { m } from '$lib/paraglide/messages';
+import { getLocale } from '$lib/paraglide/runtime';
 
 /**
  * The editor's form model: the same shape as `RecipeInput`, but every field
@@ -123,9 +124,34 @@ export function parseNumber(value: string | number | null): number | null {
 	return Number.isFinite(parsed) ? parsed : null;
 }
 
-/** Renders a stored quantity back into editable text (`1.5` -> `1,5`). */
+// Cached per locale, exactly as `format.ts`'s `decimals()`/`longDate()` and
+// `user-sort.ts`'s `nameCollator()` cache theirs - getLocale() only changes
+// after Paraglide's setLocale() reloads the page.
+let decimalSeparator: string | undefined;
+let decimalSeparatorLocale: string | undefined;
+
+/** The locale's own decimal separator (`.` in English, `,` in German). */
+function localeDecimalSeparator(): string {
+	const locale = getLocale();
+	if (decimalSeparator === undefined || decimalSeparatorLocale !== locale) {
+		const part = new Intl.NumberFormat(locale).formatToParts(1.1).find((p) => p.type === 'decimal');
+		decimalSeparator = part?.value ?? '.';
+		decimalSeparatorLocale = locale;
+	}
+	return decimalSeparator;
+}
+
+/**
+ * Renders a stored quantity back into editable text, swapping only the
+ * decimal separator for the locale's own (`1.5` -> `1.5` in English, `1,5`
+ * in German). Deliberately not routed through `formatQuantity`: that
+ * function renders fraction glyphs (`1 ½`) for display, which an editable
+ * field must not show back to the person who typed a plain decimal, and it
+ * rounds to two decimals, which would silently drop precision the cook
+ * actually stored (`1.333` must stay `1.333`, not become `1.33`).
+ */
 function quantityToText(quantity: number | null): string {
-	return quantity === null ? '' : String(quantity).replace('.', ',');
+	return quantity === null ? '' : String(quantity).replace('.', localeDecimalSeparator());
 }
 
 function blankToNull(value: string): string | null {

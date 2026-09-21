@@ -1,12 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import {
-	formatDate,
-	formatFactor,
-	formatMinutes,
-	formatQuantity,
-	formatServings,
-	servingsUnit
-} from './format';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+let locale: 'en' | 'de' = 'en';
+vi.mock('$lib/paraglide/runtime', () => ({
+	getLocale: () => locale,
+	experimentalStaticLocale: undefined
+}));
+
+const { formatDate, formatFactor, formatMinutes, formatQuantity, formatServings, servingsUnit } =
+	await import('./format');
+
+// Every test starts in English; a test that needs German sets `locale = 'de'`
+// itself. Without this reset, a locale left over from an earlier test would
+// leak into the next one, since `locale` is shared module state for the
+// whole file.
+beforeEach(() => {
+	locale = 'en';
+});
 
 describe('formatQuantity', () => {
 	it('renders null as an empty string', () => {
@@ -47,13 +56,28 @@ describe('formatQuantity', () => {
 		expect(formatQuantity(4.67)).toBe('4 ⅔');
 	});
 
-	it('renders other decimals with up to two places and a German comma', () => {
+	it('renders fraction glyphs the same in both locales', () => {
+		expect(formatQuantity(1.5)).toBe('1 ½');
+		locale = 'de';
+		expect(formatQuantity(1.5)).toBe('1 ½');
+	});
+
+	it('uses a decimal point in English', () => {
+		expect(formatQuantity(1.1)).toBe('1.1');
+		expect(formatQuantity(0.4)).toBe('0.4');
+		expect(formatQuantity(1.45)).toBe('1.45');
+	});
+
+	it('uses a decimal comma in German', () => {
+		locale = 'de';
 		expect(formatQuantity(1.1)).toBe('1,1');
 		expect(formatQuantity(0.4)).toBe('0,4');
 		expect(formatQuantity(1.45)).toBe('1,45');
 	});
 
 	it('rounds to two decimals when given more precision', () => {
+		expect(formatQuantity(1.456)).toBe('1.46');
+		locale = 'de';
 		expect(formatQuantity(1.456)).toBe('1,46');
 	});
 
@@ -67,6 +91,9 @@ describe('formatQuantity', () => {
 
 	it('preserves the sign for negative quantities', () => {
 		expect(formatQuantity(-1.5)).toBe('-1 ½');
+		expect(formatQuantity(-1.1)).toBe('-1.1');
+		locale = 'de';
+		expect(formatQuantity(-1.1)).toBe('-1,1');
 	});
 });
 
@@ -100,13 +127,25 @@ describe('formatMinutes', () => {
 
 describe('formatFactor', () => {
 	it.each([
+		[4, 6, '1.5'],
+		[4, 8, '2'],
+		[4, 2, '0.5'],
+		[4, 5, '1.25'],
+		[3, 7, '2.33'],
+		[4, 4, '1']
+	])('renders %d → %d servings as ×%s in English', (from, to, expected) => {
+		expect(formatFactor(from, to)).toBe(expected);
+	});
+
+	it.each([
 		[4, 6, '1,5'],
 		[4, 8, '2'],
 		[4, 2, '0,5'],
 		[4, 5, '1,25'],
 		[3, 7, '2,33'],
 		[4, 4, '1']
-	])('renders %d → %d servings as ×%s', (from, to, expected) => {
+	])('renders %d → %d servings as ×%s in German', (from, to, expected) => {
+		locale = 'de';
 		expect(formatFactor(from, to)).toBe(expected);
 	});
 });
@@ -125,7 +164,13 @@ describe('servingsUnit and formatServings', () => {
 });
 
 describe('formatDate', () => {
-	it('renders an ISO timestamp as a German long date', () => {
+	it('renders an English long date', () => {
+		expect(formatDate('2026-03-03T09:15:00Z')).toBe('March 3, 2026');
+		expect(formatDate('2026-09-12T07:45:00Z')).toBe('September 12, 2026');
+	});
+
+	it('renders a German long date', () => {
+		locale = 'de';
 		expect(formatDate('2026-03-03T09:15:00Z')).toBe('3. März 2026');
 		expect(formatDate('2026-09-12T07:45:00Z')).toBe('12. September 2026');
 	});

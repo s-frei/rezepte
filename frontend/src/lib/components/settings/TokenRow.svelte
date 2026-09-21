@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ApiToken } from '$lib/api/tokens';
 	import { m } from '$lib/paraglide/messages';
+	import { formatDate } from '$lib/recipe/format';
 
 	let { token, onrevoke }: { token: ApiToken; onrevoke: (token: ApiToken) => void } = $props();
 
@@ -9,7 +10,7 @@
 	);
 
 	function date(value: string | undefined, fallback: string): string {
-		return value === undefined ? fallback : new Date(value).toLocaleDateString('de-DE');
+		return value === undefined ? fallback : formatDate(value);
 	}
 </script>
 
