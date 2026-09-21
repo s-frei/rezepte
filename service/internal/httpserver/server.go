@@ -25,6 +25,7 @@ type Server struct {
 	mux       *http.ServeMux
 	api       huma.API
 	specGuard func(http.Handler) http.Handler
+	version   string
 }
 
 // Option configures a Server at construction time. Options run after the
@@ -62,6 +63,12 @@ func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.specGuard = mw
 	}
+}
+
+// WithVersion sets the build version /healthz reports. Without it the server
+// reports "dev", which is what a plain `go build` produces.
+func WithVersion(v string) Option {
+	return func(s *Server) { s.version = v }
 }
 
 // errorLogger holds the logger the huma error hook below logs to. New stores
@@ -111,7 +118,7 @@ func installErrorHook() {
 // middleware (such as auth.Middleware) with that guarantee.
 func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *Server {
 	mux := http.NewServeMux()
-	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux)}
+	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux), version: "dev"}
 
 	installErrorHook()
 	errorLogger.Store(logger)
@@ -120,9 +127,11 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 		opt(s)
 	}
 
+	// The version is public here by decision: it is the one place an operator
+	// can read what a running instance is without shell access to it.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("ok\n"))
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": s.version})
 	})
 	// huma's own operations register more specific patterns (e.g.
 	// "GET /api/v1/openapi.json") which take precedence over these catch-alls.

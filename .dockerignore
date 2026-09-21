@@ -1,7 +1,7 @@
 # An allowlist, not a denylist. A denylist needs someone to remember the new
 # directory; this needs someone to remember the new build input, and forgetting
-# that fails the build loudly instead of quietly shipping 12 GB of worktrees.
-# `mise run docker:context:check` guards it.
+# that fails the build loudly instead of quietly shipping gigabytes of worktree
+# copies. Everything below is a path a build stage actually reads.
 *
 
 # Frontend build inputs - stage 1 runs `bun install` and `vite build`.

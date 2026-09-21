@@ -21,3 +21,21 @@ The container applies migrations on this restart, before it starts serving reque
 ## Binary
 
 Download the new archive from the [latest release](https://github.com/s-frei/rezepte/releases/latest), replace the installed binary, and restart it — `systemctl restart rezepte` for the systemd unit from [Running the binary](/getting-started/binary), or however it was started otherwise.
+
+## Confirm the new version is running
+
+```bash
+curl -s http://localhost:8060/healthz
+```
+
+The answer is `{"status":"ok","version":"1.4.2"}` — the version the running instance was built from. It needs no login, which is what makes it work for a container too: the image is distroless and has no shell, so this is the only way to read the version from outside it. With the binary, `rezepte --version` prints the same value.
+
+Docker also watches that endpoint on its own. The image declares a healthcheck, so `docker ps` shows the container as `healthy` once it is serving, and as `unhealthy` if it stops answering:
+
+```bash
+docker ps
+# STATUS
+# Up 2 minutes (healthy)
+```
+
+The first half-minute after a start counts as a grace period, because migrations — and, in demo mode, the sample data — run before the server answers.

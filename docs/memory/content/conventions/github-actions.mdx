@@ -3,7 +3,7 @@ title: GitHub Actions
 description: Step names, action pinning, and what a workflow is allowed to install
 ---
 
-Workflows live in `.github/workflows/` and are English like the rest of the repository. There are two: `.github/workflows/ci.yml` is the gate that every push runs through, and `.github/workflows/release.yml` publishes the image and the binaries on a version tag (see [Releases](/architecture/releases)). These rules hold for every workflow, not just those two.
+Workflows live in `.github/workflows/` and are English like the rest of the repository. There are two: `.github/workflows/ci.yml` is the gate that every push runs through, and `.github/workflows/release.yml` publishes the image and the binaries on a version tag, and a throwaway image tag on a manual dispatch from a branch (see [Releases](/architecture/releases)). These rules hold for every workflow, not just those two.
 
 <Callout type="warn" title="Hard rules">
 

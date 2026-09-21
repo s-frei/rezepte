@@ -27,6 +27,24 @@ description: Maintainer-only checklist for cutting a release
   </Step>
   <Step>
 
+    ### Only after changing the release workflow: dispatch a test run
+
+    Not an every-release step. Run it before the first release, and whenever this release changed `.github/workflows/release.yml` — it has to happen before the merge, because a dispatch runs the workflow as it exists on the ref it is started from, so the branch carrying the change is the only place the change can be tested.
+
+    Run the workflow from the Actions tab, selecting that branch and one of the two offered image tags (`dev` or `edge`). It publishes the image under that one tag and creates no GitHub release, so the build, the push and the multi-architecture step are exercised without spending a version number. A dispatch from a tag is rejected by the job's first step - see [Releases](/architecture/releases).
+
+  </Step>
+  <Step>
+
+    ### First release only: make the package public
+
+    A GHCR package does not inherit the repository's visibility: it is created private by the first push to it, and every anonymous `docker pull` fails with an authentication error until it is set public once, under the repository's Packages settings.
+
+    Do it as soon as the package exists - which is the moment the dispatch above first pushes - and before the release is announced. Left until after the tag push, the documented quick start is broken for everyone between the release going out and the setting being changed.
+
+  </Step>
+  <Step>
+
     ### Merge into `main`
     ```bash
     git checkout main
@@ -61,12 +79,6 @@ description: Maintainer-only checklist for cutting a release
     The tag push above starts `.github/workflows/release.yml`, which builds and pushes `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/arm64` and attaches the platform binaries to the GitHub release — see [Releases](/architecture/releases). Nothing is built by hand.
 
     If the `binaries` job fails after `release:publish` has started, the GitHub release already exists and re-running the job fails with "release already exists". Delete the release first (`gh release delete vX.Y.Z`) and then re-run; the tag and the pushed image can stay as they are.
-
-  </Step>
-  <Step>
-
-    ### First release only: make the package public
-    A GHCR package does not inherit the repository's visibility. After the very first push the package is private and every anonymous `docker pull` fails with an authentication error. Set it to public once, under the repository's Packages settings.
 
   </Step>
   <Step>

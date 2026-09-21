@@ -8,17 +8,9 @@ The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/
 <Tabs items={['docker compose', 'docker run']}>
   <Tab value="docker compose">
 
-    ```yaml
-    services:
-      rezepte:
-        image: ghcr.io/s-frei/rezepte:latest
-        ports: ["8060:8060"]
-        environment:
-          REZEPTE_ADMIN_PASSWORD: change-me-now   # read on the first start only
-        volumes:
-          - ./data:/data
-        restart: unless-stopped
-    ```
+    This is [`docker-compose.yaml`](https://github.com/s-frei/rezepte/blob/main/docker-compose.yaml) from the repository, rendered from that file itself, so it cannot drift from what Rezepte is actually run with. Download it instead of copying if you prefer.
+
+    <include lang="yaml" meta='title="docker-compose.yaml"'>../../../../docker-compose.yaml#compose</include>
 
     ```bash
     docker compose up -d
@@ -55,7 +47,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Migrations run automatically the next time the container starts; see [Updates](/operations/updates).
+Migrations run automatically the next time the container starts, and `curl -s http://localhost:8060/healthz` reports the version now running; see [Updates](/operations/updates).
 
 ## Demo mode
 
@@ -65,4 +57,4 @@ Start the image with sample data instead of mounting real data:
 docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
 ```
 
-Without a volume nothing persists — the sample recipes and photos disappear when the container stops.
+Open `http://localhost:8060` and log in as **`demo`** / **`demo1234`**. Without a volume nothing persists — the sample recipes and photos disappear when the container stops.

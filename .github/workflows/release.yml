@@ -7,6 +7,16 @@ on:
     # image tags and fail at push after a full multi-arch build. The glob
     # still matches a prerelease such as v1.5.0-rc1.
     tags: ["v[0-9]*.[0-9]*.[0-9]*"]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to publish under. No GitHub release is created."
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - edge
 
 jobs:
   image:
@@ -15,6 +25,12 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: "Reject a manual run from a tag"
+        if: github.event_name == 'workflow_dispatch' && github.ref_type == 'tag'
+        run: |
+          echo "A manual run from a tag would republish that released version at a new digest. Dispatch from a branch instead." >&2
+          exit 1
+
       - name: "Check out the repository"
         uses: actions/checkout@v7
 
@@ -35,12 +51,15 @@ jobs:
           images: ghcr.io/s-frei/rezepte
           # `latest=auto` applies `latest` only to a non-prerelease semver tag,
           # so a pushed v1.5.0-rc1 never becomes what `docker pull` hands people.
-          # A raw `latest` entry would apply unconditionally and defeat that.
+          # A manual dispatch is never `latest` either: `latest=false` drops the
+          # automatic one, and `image_tag` is a choice of `dev` or `edge`, so a
+          # raw tag literally named `latest` cannot be requested.
           flavor: |
-            latest=auto
+            latest=${{ github.event_name == 'workflow_dispatch' && 'false' || 'auto' }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ inputs.image_tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: "Build and push the container image"
         uses: docker/build-push-action@v7
@@ -50,12 +69,15 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            REZEPTE_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   binaries:
     runs-on: ubuntu-latest
     needs: image
+    if: github.event_name == 'push'
     permissions:
       contents: write
     steps:

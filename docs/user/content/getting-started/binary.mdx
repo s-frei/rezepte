@@ -27,6 +27,15 @@ REZEPTE_DATA_DIR=/var/lib/rezepte REZEPTE_ADMIN_PASSWORD=change-me-now rezepte
 
 `REZEPTE_DATA_DIR` defaults to `./data`; see [Configuration](/getting-started/configuration) for every variable.
 
+## Which version is running
+
+```bash
+rezepte --version
+curl -s http://localhost:8060/healthz
+```
+
+`/healthz` answers `{"status":"ok","version":"1.4.2"}` and needs no login, so a monitoring check can read it too. [Updates](/operations/updates) uses the same endpoint to confirm what is running after an update.
+
 ## Run as a systemd service
 
 ```ini title="/etc/systemd/system/rezepte.service"

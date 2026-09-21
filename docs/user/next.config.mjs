@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import { createMDX } from 'fumadocs-mdx/next';
 
 const withMDX = createMDX();
@@ -22,9 +24,13 @@ const config = {
   basePath,
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
   turbopack: {
-    // Silences "ignored bun.lock in <home dir>" — a stray lockfile above the
-    // repo would otherwise make Turbopack search outside it for the root.
-    root: import.meta.dirname,
+    // The repository root, not this directory. It still stops Turbopack
+    // searching above the repo for a root (the "ignored bun.lock in <home dir>"
+    // warning this setting exists for), and it is what lets the getting-started
+    // pages `<include>` the repository's docker-compose.yaml: the include
+    // plugin reads the file directly, but registers it with the bundler, which
+    // rejects anything outside this root.
+    root: join(import.meta.dirname, '..', '..'),
   },
 };
 
