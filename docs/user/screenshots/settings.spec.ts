@@ -21,9 +21,9 @@ test('users', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	// The demo seeds one account; the second row on the picture is created
 	// here, so the four projects can run against the same demo instance.
-	await ensureUser(page, 'mia', 'mia-demo-1234', 'user');
+	await ensureUser(page, 'mila', 'user');
 	await page.goto('/settings/users');
-	await expect(page.getByRole('listitem').filter({ hasText: 'mia' })).toBeVisible();
+	await expect(page.getByRole('listitem').filter({ hasText: 'mila' })).toBeVisible();
 	await shot(page, 'users');
 });
 

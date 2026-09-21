@@ -36,10 +36,10 @@ test('a member reaches the API page without the token section', async ({ page })
 	const username = `api${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
-	await createUser(page, { username, password: 'member-password', role: 'user' });
+	await createUser(page, { username, role: 'user' });
 
 	await page.context().clearCookies();
-	await login(page, username, 'member-password');
+	await login(page, username);
 	await expect(page).toHaveURL('/');
 
 	await page.goto('/settings');

@@ -16,16 +16,16 @@ run = ["bun run lint", "bun run screenshots:audit", "bun run build", "bun run ba
 
 [tasks.openapi]
 description = "Fetch openapi.json from rezepte --demo and regenerate content/api/reference.mdx"
-depends = ["//service:build"]
-run = ["scripts/with-demo.sh bun run openapi:fetch", "bun run openapi:generate"]
+# //:demo brings the binary through its own depends, waits for /healthz and
+# stops the instance afterwards.
+run = ["mise run //:demo -- bun run openapi:fetch", "bun run openapi:generate"]
 
 [tasks.screenshots]
 description = "Regenerate the screenshots against rezepte --demo on :8070 by default (needs a Chromium that starts; not run in CI)"
-depends = ["//service:build"]
 # `--update-snapshots` alone writes only what exceeds maxDiffPixelRatio, so a
 # change too small for the tolerance - a typeface swap across a few lines of a
 # 1440x900 page - leaves stale PNGs behind. Regenerating means all of them.
-run = "scripts/with-demo.sh bunx playwright test --update-snapshots=all"
+run = "mise run //:demo -- bunx playwright test --update-snapshots=all"
 
 [tasks."screenshots:audit"]
 description = "Cross-check <Screenshot> names, tests and PNG files"
@@ -33,5 +33,4 @@ run = "bun run screenshots:audit"
 
 [tasks."screenshots:check"]
 description = "Report screenshot drift against rezepte --demo (local only)"
-depends = ["//service:build"]
-run = "scripts/with-demo.sh bunx playwright test"
+run = "mise run //:demo -- bunx playwright test"

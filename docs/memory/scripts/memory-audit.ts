@@ -150,11 +150,13 @@ for (const file of files) {
 				}
 			}
 
-			// The four package directories plus `.github/`, and the two root files
-			// the memory names by name - a path check that skipped those would leave
-			// the most-cited files in the repository unverified.
+			// The four package directories, `mise/` and `.github/`, plus the two
+			// root files the memory names by name - a path check that skipped those
+			// would leave the most-cited files in the repository unverified.
+			// `scripts/` stays in the list although no such directory exists: a
+			// page that still points at one has to fail rather than read as true.
 			for (const m of line.matchAll(
-				/`((?:service|frontend|docs|scripts|\.github)\/[A-Za-z0-9_./*{}-]+|mise\.toml|CLAUDE\.md)`/g
+				/`((?:service|frontend|docs|scripts|mise|\.github)\/[A-Za-z0-9_./*{}-]+|mise\.toml|CLAUDE\.md)`/g
 			)) {
 				const p = m[1];
 				if (!pathIsExempt(p) && !existsSync(path.join(ROOT, p))) {

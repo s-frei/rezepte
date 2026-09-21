@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#MISE description="Create a worktree off develop with its own port offset"
 # Creates a worktree for feature work and gives it its own port offset, so
 # two agents can run their stacks at once. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.

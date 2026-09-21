@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
+#MISE description="Create the GitHub release for the current tag and upload dist/"
+#
 # Publishes the GitHub release for a version tag and attaches everything in
-# dist/. Kept as a task rather than inline workflow YAML so the whole release
-# is reproducible locally, like the archives it uploads. See
+# dist/. A task rather than inline workflow YAML, so the whole release is
+# reproducible locally, like the archives it uploads. See
 # docs/memory/content/architecture/releases.mdx.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+# mise runs a root file task from the repository root.
+DIST="$PWD/dist"
 
 # The workflow passes the tag in REZEPTE_VERSION, the same variable
-# release-binaries.sh reads, so the archives and the release are stamped from
+# //:release:binaries reads, so the archives and the release are stamped from
 # one value. Without it, fall back to the tag that points at HEAD and only
-# that: release-binaries.sh may fall back to a bare commit for a local build,
-# but a release must never invent a tag name that does not exist.
-VERSION="${REZEPTE_VERSION:-$(git -C "$ROOT" describe --tags --exact-match 2>/dev/null || true)}"
+# that: that task may fall back to a bare commit for a local build, but a
+# release must never invent a tag name that does not exist.
+VERSION="${REZEPTE_VERSION:-$(git describe --tags --exact-match 2>/dev/null || true)}"
 if [ -z "$VERSION" ]; then
 	echo "release:publish: no tag - set REZEPTE_VERSION=vX.Y.Z or run on a tagged commit" >&2
 	exit 1

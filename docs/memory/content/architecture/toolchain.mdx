@@ -17,8 +17,13 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 | `mise run build` | `//service:build`, which depends on `//frontend:build` — the SPA lands in `service/internal/web/dist` and is embedded |
 | `mise run docs` | both documentation sites |
 | `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |
+| `mise run demo` | builds, starts `rezepte --demo` on the demo port and keeps it up; with `-- <cmd>` it runs that command against it instead |
 
 `//frontend:build` empties `service/internal/web/dist` before it writes, which would take the tracked `.gitkeep` with it, so the task restores that file afterwards and a clean checkout still has the directory the Go build embeds.
+
+**A task's body lives in `mise.toml` while it is a command, and in `mise/tasks/` once it is a program.** mise reads every file under `mise/tasks/` as a task of its own: the name comes from the path (`mise/tasks/demo.sh` is `//:demo`, `mise/tasks/release/binaries.sh` is `//:release:binaries`), `#MISE description=` and `#MISE depends=[…]` in the header carry what a TOML table would, and the file runs with the config root as its working directory and the `[env]` block already resolved - so nothing in it has to locate the repository or default a port. A body that holds state (a trap, a poll loop, a lock), that wraps a command of its own through `"$@"`, or that is simply longer than a screen belongs there; a body of one to three commands stays a string in `mise.toml`, where the task list reads as a map of the build.
+
+`mise/lib/` holds what is not a task. `mise/lib/instance.sh` is the only file there: the port guard and the `/healthz` wait that `//:demo` and `//:e2e` both source rather than run. It cannot live beside them, because a file inside `mise/tasks/` would become a task itself, and `mise/lib/` is not scanned. There is no `scripts/` directory.
 
 `[tools]` pins Go, Bun, Node, golangci-lint, sqlc and watchexec, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
 
@@ -26,11 +31,11 @@ CI installs the same pinned tools through `jdx/mise-action`, then runs `mise run
 
 ## Worktrees and ports
 
-The unit of feature work is a git worktree under `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`scripts/worktree-new.sh`). [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure and the port table; this page is the scheme behind it.
+The unit of feature work is a git worktree under `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`mise/tasks/worktree/new.sh`). [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure and the port table; this page is the scheme behind it.
 
-**Every port derives from one offset.** The root `mise.toml` `[env]` block defines `RZP_BACKEND_PORT`, `RZP_FRONTEND_PORT`, `RZP_DEMO_PORT`, `RZP_DOCS_MEMORY_PORT` and `RZP_DOCS_USER_PORT` as `base + REZEPTE_PORT_OFFSET * 100`. The main checkout runs at offset 0 and keeps the project's default numbers exactly; a worktree gets an offset of its own, so two full stacks never bind the same socket. `mise run ports` (`scripts/worktree-ports.sh`) prints this worktree's map — never write a port number into a file, and never assume one in a command.
+**Every port derives from one offset.** The root `mise.toml` `[env]` block defines `RZP_BACKEND_PORT`, `RZP_FRONTEND_PORT`, `RZP_DEMO_PORT`, `RZP_DOCS_MEMORY_PORT` and `RZP_DOCS_USER_PORT` as `base + REZEPTE_PORT_OFFSET * 100`. The main checkout runs at offset 0 and keeps the project's default numbers exactly; a worktree gets an offset of its own, so two full stacks never bind the same socket. `mise run ports` (`mise/tasks/ports.sh`) prints this worktree's map — never write a port number into a file, and never assume one in a command.
 
-Every consumer reads the variable rather than a literal: `frontend/vite.config.ts`, both Playwright configs, `docs/user/scripts/with-demo.sh`, `docs/user/scripts/fetch-openapi.ts` and both documentation `package.json` dev scripts. `REZEPTE_ADDR` is the exception and stays one: it is the operator-facing configuration of a self-hosted service and takes an address, not a port, so `//service:dev` translates instead, with a default expansion — `REZEPTE_ADDR="${REZEPTE_ADDR:-:$RZP_BACKEND_PORT}"`, so an address the operator set still wins — and no Go code knows about the offset.
+Every consumer reads the variable rather than a literal: `frontend/vite.config.ts`, both Playwright configs, `mise/tasks/demo.sh`, `docs/user/scripts/fetch-openapi.ts` and both documentation `package.json` dev scripts. `REZEPTE_ADDR` is the exception and stays one: it is the operator-facing configuration of a self-hosted service and takes an address, not a port, so `//service:dev` translates instead, with a default expansion — `REZEPTE_ADDR="${REZEPTE_ADDR:-:$RZP_BACKEND_PORT}"`, so an address the operator set still wins — and no Go code knows about the offset.
 
 **The live worktrees are the register.** `worktree:new` walks `git worktree list --porcelain`, reads each worktree's own `mise.local.toml`, and takes the lowest offset free in 1–9; removing the worktree takes that file with it and frees the offset the same moment. There is no state file to reconcile. A `mkdir` lock under the main checkout's `.git` serializes the scan-and-write, because two creations started together would otherwise both see the same lowest free offset.
 

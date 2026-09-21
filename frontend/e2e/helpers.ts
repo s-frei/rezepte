@@ -6,8 +6,23 @@ import { expect, type Page, type TestInfo } from '@playwright/test';
 import type { Image, Recipe, RecipeInput } from '../src/lib/api/recipes';
 import type { UserAccount } from '../src/lib/api/users';
 
-/** Logs in as the seeded admin (password from the e2e task). */
-export async function login(page: Page, username = 'admin', password = 'e2e-password') {
+/**
+ * The password of every user this suite bootstraps: the username with `1234`
+ * appended, the repository's rule for development credentials (see
+ * docs/memory/content/conventions/dev-credentials.mdx). Derived rather than
+ * written out, so no test has to invent one and none has to be looked up.
+ */
+export function devPassword(username: string): string {
+	return `${username}1234`;
+}
+
+/** The replacement password where a test rotates one. Same rule, `5678`. */
+export function devPasswordNext(username: string): string {
+	return `${username}5678`;
+}
+
+/** Logs in as the instance owner `admin`, or as any bootstrapped user. */
+export async function login(page: Page, username = 'admin', password = devPassword(username)) {
 	await page.goto('/login');
 	await page.getByLabel('Benutzername').fill(username);
 	await page.getByLabel('Passwort').fill(password);
@@ -192,12 +207,12 @@ export async function uploadImage(page: Page, recipeId: string, png: Buffer): Pr
 /** Creates a user through the API as whoever `page` is logged in as (an admin). */
 export async function createUser(
 	page: Page,
-	input: { username: string; password: string; role: 'admin' | 'user' }
+	input: { username: string; password?: string; role: 'admin' | 'user' }
 ): Promise<UserAccount> {
 	const origin = new URL(page.url()).origin;
 	const response = await page.request.post('/api/v1/users', {
 		headers: { Origin: origin, 'Content-Type': 'application/json' },
-		data: input
+		data: { ...input, password: input.password ?? devPassword(input.username) }
 	});
 	expect(
 		response.ok(),
