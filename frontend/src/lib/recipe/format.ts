@@ -1,3 +1,4 @@
+import { getLocale } from '$lib/paraglide/runtime';
 import { m } from '$lib/paraglide/messages';
 
 /** Unicode glyphs for the fractional quantities that come up in recipes. */
@@ -9,6 +10,23 @@ const FRACTION_GLYPHS: Record<string, string> = {
 	'0.67': '⅔'
 };
 
+// Intl formatters are expensive to build and the locale only changes on a
+// reload (Paraglide's setLocale reloads the page), so one instance per locale
+// is enough. Keyed on the locale rather than built once, so the pair survives
+// a locale change without anyone having to find this line - the same reason
+// the user list's collator is cached this way.
+let numberFormat: Intl.NumberFormat | undefined;
+let numberFormatLocale: string | undefined;
+
+function decimals(): Intl.NumberFormat {
+	const locale = getLocale();
+	if (!numberFormat || numberFormatLocale !== locale) {
+		numberFormat = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+		numberFormatLocale = locale;
+	}
+	return numberFormat;
+}
+
 /**
  * Formats an ingredient quantity for display.
  *
@@ -16,10 +34,10 @@ const FRACTION_GLYPHS: Record<string, string> = {
  * - Whole numbers render plain (`2`).
  * - Common fractions (½ ¼ ¾ ⅓ ⅔) render as their Unicode glyph, with a
  *   leading integer part when there is one (`1 ½`) - this takes priority
- *   over the decimal branch below, so e.g. `1.25` is `1 ¼`, not `1,25`.
- * - Anything else renders with up to two decimals and a German comma
- *   (`1,1`, `1,45`).
- * - The sign is preserved for negative quantities (`-1 ½`, `-1,1`).
+ *   over the decimal branch below, so e.g. `1.25` is `1 ¼`, not `1.25`.
+ * - Anything else renders with up to two decimals and the locale's own
+ *   decimal separator (`1.1`, `1.45` in English; `1,1`, `1,45` in German).
+ * - The sign is preserved for negative quantities (`-1 ½`, `-1.1`).
  */
 export function formatQuantity(quantity: number | null): string {
 	if (quantity === null) {
@@ -41,7 +59,7 @@ export function formatQuantity(quantity: number | null): string {
 	}
 
 	const rounded = Math.round(abs * 100) / 100;
-	return sign + String(rounded).replace('.', ',');
+	return sign + decimals().format(rounded);
 }
 
 /**
@@ -71,12 +89,13 @@ export function formatMinutes(minutes: number | null): string {
 }
 
 /**
- * The scaling factor between two servings counts, for the "×1,5" hint:
- * up to two decimals, German comma, no trailing zeros (`2`, `0,5`, `2,33`).
+ * The scaling factor between two servings counts, for the "×1.5" hint:
+ * up to two decimals, the locale's own decimal separator, no trailing zeros
+ * (`2`, `0.5`, `2.33` in English; `0,5`, `2,33` in German).
  */
 export function formatFactor(from: number, to: number): string {
 	const ratio = Math.round((to / from) * 100) / 100;
-	return String(ratio).replace('.', ',');
+	return decimals().format(ratio);
 }
 
 /**
@@ -93,19 +112,30 @@ export function formatServings(count: number): string {
 	return `${count} ${servingsUnit(count)}`;
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat('de-DE', {
-	day: 'numeric',
-	month: 'long',
-	year: 'numeric'
-});
+let dateFormat: Intl.DateTimeFormat | undefined;
+let dateFormatLocale: string | undefined;
+
+function longDate(): Intl.DateTimeFormat {
+	const locale = getLocale();
+	if (!dateFormat || dateFormatLocale !== locale) {
+		dateFormat = new Intl.DateTimeFormat(locale, {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric'
+		});
+		dateFormatLocale = locale;
+	}
+	return dateFormat;
+}
 
 /**
- * An API timestamp as a German long date (`3. März 2026`). Anything the
- * browser cannot parse renders as an empty string rather than the
- * "Invalid Date" the formatter would otherwise produce - the colophon this
- * feeds reads as a sentence, and a broken date there should go quiet.
+ * An API timestamp as a long date in the active locale (`March 3, 2026` in
+ * English, `3. März 2026` in German). Anything the browser cannot parse
+ * renders as an empty string rather than the "Invalid Date" the formatter
+ * would otherwise produce - the colophon this feeds reads as a sentence, and
+ * a broken date there should go quiet.
  */
 export function formatDate(iso: string): string {
 	const date = new Date(iso);
-	return Number.isNaN(date.getTime()) ? '' : DATE_FORMAT.format(date);
+	return Number.isNaN(date.getTime()) ? '' : longDate().format(date);
 }

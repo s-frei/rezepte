@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { formatQuantityFor, formatScaled, roundScaled, scaleQuantity } from './scale';
+
+// formatScaled/formatQuantityFor call through to format.ts's formatQuantity,
+// which is locale-aware; pin the locale explicitly rather than relying on
+// Paraglide's baseLocale default, so this file states its assumption instead
+// of inheriting it.
+vi.mock('$lib/paraglide/runtime', () => ({
+	getLocale: () => 'en',
+	experimentalStaticLocale: undefined
+}));
 
 describe('scaleQuantity', () => {
 	it.each([
@@ -72,8 +81,8 @@ describe('formatScaled', () => {
 		[0.25, '¼'],
 		[0.29, '¼'],
 		[1 / 3, '⅓'],
-		[0.4, '0,4'],
-		[0.17, '0,2'],
+		[0.4, '0.4'],
+		[0.17, '0.2'],
 		[2.5, '2 ½'],
 		[1.33, '1 ⅓'],
 		[2.66, '2 ⅔'],
@@ -93,7 +102,7 @@ describe('formatQuantityFor', () => {
 
 	it('renders the exact stored value at the baseline, without rounding', () => {
 		expect(formatQuantityFor(1.33, 3, 3)).toBe('1 ⅓');
-		expect(formatQuantityFor(1.45, 4, 4)).toBe('1,45');
+		expect(formatQuantityFor(1.45, 4, 4)).toBe('1.45');
 	});
 
 	it.each([

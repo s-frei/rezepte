@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Recipe, RecipeInput } from '$lib/api/recipes';
 import {
 	anchorId,
@@ -19,6 +19,20 @@ import {
 	validate,
 	type RecipeForm
 } from './form';
+
+// Most of this file doesn't care about the locale, so it stays at the
+// default 'en' throughout (reset before every test below); only the
+// quantity-formatting tests further down switch it, the same mock shape as
+// format.test.ts uses.
+let locale: 'en' | 'de' = 'en';
+vi.mock('$lib/paraglide/runtime', () => ({
+	getLocale: () => locale,
+	experimentalStaticLocale: undefined
+}));
+
+beforeEach(() => {
+	locale = 'en';
+});
 
 function baseInput(overrides: Partial<RecipeInput> = {}): RecipeInput {
 	return {
@@ -130,9 +144,29 @@ describe('fromRecipe', () => {
 		expect(form.sourceUrl).toBe('');
 	});
 
-	it('renders a fractional quantity with a comma', () => {
+	it('renders a fractional quantity with a decimal point in English', () => {
+		const form = fromRecipe(baseInput());
+		expect(form.ingredientGroups[0].ingredients[1].quantity).toBe('1.5');
+	});
+
+	it('renders a fractional quantity with a decimal comma in German', () => {
+		locale = 'de';
 		const form = fromRecipe(baseInput());
 		expect(form.ingredientGroups[0].ingredients[1].quantity).toBe('1,5');
+	});
+
+	it("renders the stored quantity exactly, without formatQuantity's two-decimal rounding", () => {
+		const precise = baseInput({
+			ingredientGroups: [
+				{
+					name: 'Teig',
+					ingredients: [{ quantity: 1.333, unit: 'TL', name: 'Salz', note: null }]
+				}
+			]
+		});
+		expect(fromRecipe(precise).ingredientGroups[0].ingredients[0].quantity).toBe('1.333');
+		locale = 'de';
+		expect(fromRecipe(precise).ingredientGroups[0].ingredients[0].quantity).toBe('1,333');
 	});
 
 	it('renders null ingredient fields as empty strings', () => {
