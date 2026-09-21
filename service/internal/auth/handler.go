@@ -29,7 +29,7 @@ type loginInput struct {
 }
 
 type loginOutput struct {
-	SetCookie http.Cookie `header:"Set-Cookie"`
+	SetCookie []http.Cookie `header:"Set-Cookie"`
 	Body      UserResponse
 }
 
@@ -38,7 +38,7 @@ type logoutInput struct {
 }
 
 type logoutOutput struct {
-	SetCookie http.Cookie `header:"Set-Cookie"`
+	SetCookie []http.Cookie `header:"Set-Cookie"`
 }
 
 type meOutput struct {
@@ -64,7 +64,8 @@ type updateProfileInput struct {
 }
 
 type updateProfileOutput struct {
-	Body UserResponse
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+	Body      UserResponse
 }
 
 type colorUsageOutput struct {
@@ -101,8 +102,11 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			return nil, err
 		}
 		return &loginOutput{
-			SetCookie: sessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
-			Body:      toResponse(sess.User),
+			SetCookie: []http.Cookie{
+				sessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
+				localeCookie(sess.User.Locale, secureCookies),
+			},
+			Body: toResponse(sess.User),
 		}, nil
 	})
 
@@ -118,7 +122,12 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if err := svc.Logout(ctx, in.Cookie); err != nil {
 			return nil, err
 		}
-		return &logoutOutput{SetCookie: expiredSessionCookie(secureCookies)}, nil
+		return &logoutOutput{
+			SetCookie: []http.Cookie{
+				expiredSessionCookie(secureCookies),
+				expiredLocaleCookie(secureCookies),
+			},
+		}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -201,7 +210,10 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
-		return &updateProfileOutput{Body: toResponse(updated)}, nil
+		return &updateProfileOutput{
+			SetCookie: []http.Cookie{localeCookie(updated.Locale, secureCookies)},
+			Body:      toResponse(updated),
+		}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -277,6 +289,46 @@ func expiredSessionCookie(secure bool) http.Cookie {
 		Expires:  time.Unix(0, 0),
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+// LocaleCookieName is the cookie Paraglide's cookie strategy reads. The name
+// is Paraglide's own default, configured in frontend/vite.config.ts; the two
+// have to agree, and this is the writing end.
+const LocaleCookieName = "PARAGLIDE_LOCALE"
+
+// localeCookie carries the account's interface language to the SPA, which
+// resolves its locale before the first render and cannot wait for
+// GET /auth/me. The users row stays the source of truth: only the service
+// writes this cookie, and only from that column.
+//
+// Deliberately not HttpOnly - Paraglide reads it from JavaScript. It holds a
+// display preference and nothing a session could be hijacked with.
+func localeCookie(l user.Locale, secure bool) http.Cookie {
+	return http.Cookie{ //nolint:gosec // G124: not HttpOnly by design (Paraglide reads it in the browser); Secure follows the secureCookies config flag and SameSite is always set.
+		Name:     LocaleCookieName,
+		Value:    string(l),
+		Path:     "/",
+		MaxAge:   int((365 * 24 * time.Hour).Seconds()),
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+// expiredLocaleCookie clears the locale cookie on logout. The cookie names an
+// account's language, and once nobody is signed in that preference no longer
+// applies; the SPA's login screen falls back to Paraglide's preferredLanguage
+// strategy (the browser's own Accept-Language) instead of staying stuck on
+// whichever account last logged out - which matters on a shared machine.
+func expiredLocaleCookie(secure bool) http.Cookie {
+	return http.Cookie{ //nolint:gosec // G124: not HttpOnly by design (Paraglide reads it in the browser); Secure follows the secureCookies config flag and SameSite is always set.
+		Name:     LocaleCookieName,
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 	}

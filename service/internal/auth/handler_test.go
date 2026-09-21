@@ -444,3 +444,69 @@ func TestUpdateOwnProfileRejectsAnUnknownLocale(t *testing.T) {
 		t.Errorf("no error on body.locale; body %s", rec.Body.String())
 	}
 }
+
+func TestLoginSetsTheLocaleCookie(t *testing.T) {
+	h := newHandler(t)
+
+	rec := do(h, http.MethodPost, "/api/v1/auth/login", `{"username":"sam","password":"pw"}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	var got *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == auth.LocaleCookieName {
+			got = c
+		}
+	}
+	if got == nil {
+		t.Fatalf("no %s cookie in %v", auth.LocaleCookieName, rec.Header())
+	}
+	if got.Value != "en" {
+		t.Errorf("value = %q, want en", got.Value)
+	}
+	if got.HttpOnly {
+		t.Error("cookie is HttpOnly; Paraglide reads it from JavaScript")
+	}
+	if got.Path != "/" {
+		t.Errorf("path = %q, want /", got.Path)
+	}
+}
+
+func TestChangingTheLocaleRewritesTheCookie(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"locale":"de"}`, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body %s", rec.Code, rec.Body.String())
+	}
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == auth.LocaleCookieName {
+			if c.Value != "de" {
+				t.Errorf("value = %q, want de", c.Value)
+			}
+			return
+		}
+	}
+	t.Fatalf("no %s cookie in %v", auth.LocaleCookieName, rec.Header())
+}
+
+func TestLogoutClearsTheLocaleCookie(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPost, "/api/v1/auth/logout", "", cookie)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("logout: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == auth.LocaleCookieName {
+			if c.MaxAge >= 0 {
+				t.Errorf("MaxAge = %d, want negative (cleared)", c.MaxAge)
+			}
+			return
+		}
+	}
+	t.Fatalf("no %s cookie in %v", auth.LocaleCookieName, rec.Header())
+}
