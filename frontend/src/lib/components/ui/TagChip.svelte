@@ -19,7 +19,7 @@
 		removable?: boolean;
 		onremove?: () => void;
 		/** Rendered before the label on a filter chip - the author filter
-		 * puts the same initial there that its recipes carry on their cards,
+		 * puts a dot in the same colour its recipes carry on their cards,
 		 * so the two read as one thing. */
 		leading?: Snippet;
 	} = $props();

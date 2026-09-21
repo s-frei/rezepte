@@ -24,7 +24,7 @@ func newBearerStack(t *testing.T) (http.Handler, string) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	sam, err := users.Create(ctx, "sam", "pw", user.RoleAdmin)
+	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}

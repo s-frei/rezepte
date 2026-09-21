@@ -9,9 +9,9 @@
 	import Slider from '$lib/components/ui/Slider.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { formatMinutes } from '$lib/recipe/format';
-	import { tintFor } from '$lib/recipe/placeholder';
 	import { isSort, type Sort } from '$lib/recipe/query';
 	import type { Author } from '$lib/api/recipes';
+	import { userColorClasses } from '$lib/user/color';
 	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '$lib/recipe/time-filter';
 	import { m } from '$lib/paraglide/messages';
 
@@ -86,13 +86,6 @@
 	const favouritesHeadingId = `${uid}-favourites-heading`;
 	const authorHeadingId = `${uid}-author-heading`;
 
-	// The same three tints the cards' initials use, so one person keeps one
-	// colour across the whole overview.
-	const TINT_CLASSES = {
-		'tint-1': 'bg-tint-1',
-		'tint-2': 'bg-tint-2',
-		'tint-3': 'bg-tint-3'
-	} as const;
 	const sortHeadingId = `${uid}-sort-heading`;
 
 	const sortOptions: { value: Sort; label: string }[] = [
@@ -260,8 +253,8 @@
 							<!-- Hidden below two authors: where one person writes
 							     everything there is nothing to pick between, and an
 							     empty-looking control would only raise the question why.
-							     Each chip carries the initial its recipes show on their
-							     cards, so the filter and its results read as one thing. -->
+							     Each chip carries a dot in the person's colour, so the
+							     filter and its results read as one thing. -->
 							{#if authors.length > 1}
 								<section
 									aria-labelledby={authorHeadingId}
@@ -276,7 +269,7 @@
 									<div class="flex flex-wrap gap-2">
 										{#each authors as person (person.name)}
 											<TagChip
-												label={person.name}
+												label={person.displayName}
 												count={person.count}
 												active={author === person.name}
 												onclick={() => onauthor(author === person.name ? '' : person.name)}
@@ -284,18 +277,8 @@
 												{#snippet leading()}
 													<span
 														aria-hidden="true"
-														class="flex size-5 items-center justify-center rounded-full font-display text-micro leading-none font-semibold text-primary {author ===
-														person.name
-															? 'bg-surface'
-															: TINT_CLASSES[tintFor(person.name)]}"
-													>
-														<!-- The same optical nudge as the cards' initials, and
-														     for the same reason - see AuthorInitials, which
-														     carries the arithmetic. -->
-														<span class="-translate-y-[0.8px]">
-															{person.name.charAt(0).toUpperCase()}
-														</span>
-													</span>
+														class="size-3 rounded-full {userColorClasses(person.color)}"
+													></span>
 												{/snippet}
 											</TagChip>
 										{/each}

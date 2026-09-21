@@ -63,7 +63,7 @@ func newFullApp(t *testing.T) fullApp {
 func (a fullApp) login(t *testing.T) *http.Cookie {
 	t.Helper()
 	ctx := t.Context()
-	if _, err := a.users.Create(ctx, "reader", "secret123", user.RoleUser); err != nil {
+	if _, err := a.users.Create(ctx, user.CreateParams{Username: "reader", Password: "secret123", Role: user.RoleUser}); err != nil {
 		t.Fatal(err)
 	}
 	s, err := a.sessions.Login(ctx, "reader", "secret123")

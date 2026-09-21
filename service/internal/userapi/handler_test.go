@@ -29,7 +29,7 @@ func newHandler(t *testing.T) http.Handler {
 		name string
 		role user.Role
 	}{{"owner", user.RoleSuperadmin}, {"sam", user.RoleAdmin}, {"kim", user.RoleUser}} {
-		if _, err := users.Create(context.Background(), seed.name, "pw", seed.role); err != nil {
+		if _, err := users.Create(context.Background(), user.CreateParams{Username: seed.name, Password: "pw", Role: seed.role}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -313,4 +313,100 @@ func userNamed(t *testing.T, h http.Handler, cookie *http.Cookie, name string) u
 	}
 	t.Fatalf("no user %q in the list", name)
 	return userapi.UserAccount{}
+}
+
+func TestCreateUserAcceptsAProfile(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+
+	rec := doReq(h, http.MethodPost, "/api/v1/users",
+		`{"username":"ida","password":"ida-password","role":"user","displayName":"Ida die Bäckerin","color":"teal"}`, owner)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{`"displayName":"Ida die Bäckerin"`, `"color":"teal"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("body %s; want it to contain %s", rec.Body.String(), want)
+		}
+	}
+}
+
+func TestCreateUserDefaultsTheProfile(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+
+	rec := doReq(h, http.MethodPost, "/api/v1/users",
+		`{"username":"ida","password":"ida-password","role":"user"}`, owner)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created userapi.UserAccount
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if created.DisplayName != "ida" {
+		t.Errorf("DisplayName = %q; want the login name", created.DisplayName)
+	}
+	// Three accounts are seeded, so the fourth colour of the palette is the
+	// least used one.
+	if created.Color != string(user.Colors[3]) {
+		t.Errorf("Color = %q; want %q", created.Color, user.Colors[3])
+	}
+}
+
+func TestOnlyTheOwnerWritesAnotherProfile(t *testing.T) {
+	h := newHandler(t)
+	sam := loginAs(t, h, "sam", "pw")
+	owner := loginAs(t, h, "owner", "pw")
+	kimID := idOf(t, listUsers(t, h, sam), "kim")
+
+	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{"displayName":"Umbenannt"}`, sam)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("admin renaming kim: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{"displayName":"Umbenannt","color":"plum"}`, owner)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("owner renaming kim: status %d: %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{`"displayName":"Umbenannt"`, `"color":"plum"`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("body %s; want it to contain %s", rec.Body.String(), want)
+		}
+	}
+}
+
+func TestARefusedProfileChangesNothing(t *testing.T) {
+	h := newHandler(t)
+	sam := loginAs(t, h, "sam", "pw")
+	kimID := idOf(t, listUsers(t, h, sam), "kim")
+
+	// The password alone would be allowed; the display name in the same body
+	// is not, and the refusal comes before any write.
+	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID,
+		`{"password":"a-brand-new-password","displayName":"Umbenannt"}`, sam)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	if name := idOf(t, listUsers(t, h, sam), "kim"); name == "" {
+		t.Fatal("kim is gone")
+	}
+	for _, u := range listUsers(t, h, sam) {
+		if u.Username == "kim" && u.DisplayName != "kim" {
+			t.Errorf("DisplayName = %q; want it unchanged", u.DisplayName)
+		}
+	}
+	// The old password still works, so the password half did not land either.
+	loginAs(t, h, "kim", "pw")
+}
+
+func TestUpdateUserNeedsSomethingToChange(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	kimID := idOf(t, listUsers(t, h, owner), "kim")
+
+	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{}`, owner)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
 }

@@ -38,3 +38,21 @@ func guardAssignRole(actor, role Role) error {
 // a user has no target row to read, so userapi checks the requested role
 // itself before calling Create.
 func CanAssignRole(actor, role Role) error { return guardAssignRole(actor, role) }
+
+// guardProfileEdit reports whether actor may write the profile fields -
+// display name and colour - of another user. This is deliberately not
+// guardTarget: that one lets an admin act on a member, which is right for a
+// role change or a password reset and wrong for a rename. Managing a member
+// is administration; renaming them is not.
+//
+// Editing one's own profile never reaches here. That is the /auth/me route,
+// which has no target to guard.
+func guardProfileEdit(actor Role) error {
+	if !actor.IsSuperadmin() {
+		return ErrSuperadminRequired
+	}
+	return nil
+}
+
+// CanEditProfile is guardProfileEdit for callers outside this package.
+func CanEditProfile(actor Role) error { return guardProfileEdit(actor) }

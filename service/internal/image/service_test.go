@@ -32,7 +32,7 @@ func setup(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, "sam", "pw", user.RoleAdmin)
+	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func setup(t *testing.T) env {
 // an editor who is not the recipe's author.
 func createUser(t *testing.T, e env, username string) string {
 	t.Helper()
-	u, err := user.NewService(e.conn).Create(context.Background(), username, "pw", user.RoleAdmin)
+	u, err := user.NewService(e.conn).Create(context.Background(), user.CreateParams{Username: username, Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}

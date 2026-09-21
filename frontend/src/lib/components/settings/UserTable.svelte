@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import ChevronUp from 'lucide-svelte/icons/chevron-up';
+	import type { ColorUsage } from '$lib/api/auth';
 	import type { UserAccount, UserRole } from '$lib/api/users';
 	import { m } from '$lib/paraglide/messages';
 	import { DEFAULT_USER_SORT, nextSort, sortUsers } from '$lib/settings/user-sort';
@@ -10,16 +11,21 @@
 		users,
 		meId,
 		actorRole,
+		usage,
 		onrole,
 		onreset,
-		ondelete
+		ondelete,
+		onprofile
 	}: {
 		users: UserAccount[];
 		meId: string;
 		actorRole: UserRole;
+		/** Palette counts, handed straight to each row's profile dialog. */
+		usage: ColorUsage[];
 		onrole: (user: UserAccount, role: UserRole) => Promise<void>;
 		onreset: (user: UserAccount) => void;
 		ondelete: (user: UserAccount) => void;
+		onprofile: (user: UserAccount) => void;
 	} = $props();
 
 	// The list's order lives here, not in the API response: this is the one
@@ -48,7 +54,7 @@
 	`text-transform`; the `title` is the mouse user's hint that the head sorts.
 -->
 <div
-	class="hidden grid-cols-[1fr_140px_280px] gap-3 border-b border-border pb-2 text-micro font-semibold tracking-[0.08em] text-text-muted uppercase md:grid"
+	class="hidden grid-cols-[1fr_140px_40px_280px] gap-3 border-b border-border pb-2 text-micro font-semibold tracking-[0.08em] text-text-muted uppercase md:grid"
 >
 	<span>
 		<button
@@ -90,10 +96,21 @@
 			{/if}
 		</button>
 	</span>
-	<span class="text-right">{m.users_col_actions()}</span>
+	<!-- Column 3 belongs to the rows' pencil, and a pencil needs no heading:
+	     the label goes over the two buttons in column 4. -->
+	<span class="col-start-4 text-right">{m.users_col_actions()}</span>
 </div>
 <ul aria-label={m.settings_nav_users()}>
 	{#each sorted as user (user.id)}
-		<UserRow {user} isSelf={user.id === meId} {actorRole} {onrole} {onreset} {ondelete} />
+		<UserRow
+			{user}
+			isSelf={user.id === meId}
+			{actorRole}
+			{usage}
+			{onrole}
+			{onreset}
+			{ondelete}
+			{onprofile}
+		/>
 	{/each}
 </ul>

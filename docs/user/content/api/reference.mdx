@@ -86,6 +86,41 @@ Verifies the current password, stores the new one and ends every other session o
 | 422 | Unprocessable Entity | [ErrorModel](#errormodel) |
 | 500 | Internal Server Error | [ErrorModel](#errormodel) |
 
+### GET /api/v1/auth/me/colors
+
+List the colour palette and how many accounts hold each colour
+
+Counts, not names: the picker needs to mark a colour as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.
+
+**Authentication:** session cookie only — API tokens cannot use this operation
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | OK | [ColorUsageOutputBody](#colorusageoutputbody) |
+| 401 | Unauthorized | [ErrorModel](#errormodel) |
+| 500 | Internal Server Error | [ErrorModel](#errormodel) |
+
+### PATCH /api/v1/auth/me/profile
+
+Change the current user's display name and colour
+
+Its own path rather than PATCH /api/v1/auth/me, which is the password change and demands the current password - a rename has nothing to do with it.
+
+**Authentication:** session cookie only — API tokens cannot use this operation
+
+**Request body:** [UpdateProfileInputBody](#updateprofileinputbody)
+
+**Responses**
+
+| Status | Description | Body |
+|---|---|---|
+| 200 | OK | [UserResponse](#userresponse) |
+| 401 | Unauthorized | [ErrorModel](#errormodel) |
+| 422 | Unprocessable Entity | [ErrorModel](#errormodel) |
+| 500 | Internal Server Error | [ErrorModel](#errormodel) |
+
 ## images
 
 ### PUT /api/v1/recipes/\{id\}/cover
@@ -504,7 +539,7 @@ Delete a user
 
 ### PATCH /api/v1/users/\{id\}
 
-Change a user's role and/or reset the password
+Change a user's role or profile, and/or reset the password
 
 **Authentication:** session cookie, or an API token with `users:write`
 
@@ -565,7 +600,9 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
+| `color` | string | yes |  |
 | `count` | integer | yes |  |
+| `displayName` | string | yes |  |
 | `name` | string | yes |  |
 
 ### AuthorList
@@ -580,6 +617,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `coverImageId` | string \| null | yes |  |
+| `createdByColor` | string | yes |  |
 | `createdByName` | string | yes |  |
 | `favourite` | boolean | yes |  |
 | `id` | string | yes |  |
@@ -588,6 +626,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `title` | string | yes |  |
 | `totalMinutes` | integer \| null | yes |  |
 | `updatedAt` | string (date-time) | yes |  |
+| `updatedByColor` | string | yes |  |
 | `updatedByName` | string | yes |  |
 
 ### ChangePasswordInputBody
@@ -597,6 +636,20 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
 | `currentPassword` | string | yes | The password in use now; length 1–1024 |
 | `password` | string | yes | The new password; length 8–128 |
+
+### ColorCount
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `color` | string | yes | Palette token |
+| `count` | integer | yes | How many accounts hold it |
+
+### ColorUsageOutputBody
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
+| `items` | [ColorCount](#colorcount)[] \| null | yes | Every palette colour and how many accounts hold it, in palette order |
 
 ### CoverInput
 
@@ -626,6 +679,8 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
+| `color` | string | no | Empty picks the least-used colour; one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
+| `displayName` | string | no | Empty falls back to the login name; length 0–64 |
 | `password` | string | yes | length 8–128 |
 | `role` | string | yes | one of `admin`, `user` |
 | `username` | string | yes | length 1–64 |
@@ -741,6 +796,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `coverImageId` | string \| null | yes |  |
 | `createdAt` | string (date-time) | yes |  |
 | `createdBy` | string | yes |  |
+| `createdByColor` | string | yes |  |
 | `createdByName` | string | yes |  |
 | `description` | string | yes | length 0–2000 |
 | `favourite` | boolean | yes |  |
@@ -756,6 +812,7 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | `title` | string | yes | length 1–200 |
 | `updatedAt` | string (date-time) | yes |  |
 | `updatedBy` | string | yes |  |
+| `updatedByColor` | string | yes |  |
 | `updatedByName` | string | yes |  |
 
 ### TagCount
@@ -777,15 +834,27 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
+| `color` | string | no | Owner only; one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
+| `displayName` | string | no | Owner only; length 0–64 |
 | `password` | string | no | New password; ends all of the user's sessions; length 8–128 |
 | `role` | string | no | one of `admin`, `user` |
+
+### UpdateProfileInputBody
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
+| `color` | string | no | one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
+| `displayName` | string | no | Empty falls back to the login name; length 0–64 |
 
 ### UserAccount
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
+| `color` | string | yes | Palette token identifying this person; one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
 | `createdAt` | string (date-time) | yes | When the account was created |
+| `displayName` | string | yes | Name shown wherever the UI names this person |
 | `id` | string | yes | User id |
 | `role` | string | yes | Authorization role; one of `superadmin`, `admin`, `user` |
 | `username` | string | yes | Login name |
@@ -802,6 +871,8 @@ API token from Settings, sent as: Authorization: Bearer rzp_...
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `$schema` | string (uri) | no | A URL to the JSON Schema for this object. |
+| `color` | string | yes | Palette token identifying this person; one of `amber`, `clay`, `rose`, `plum`, `sage`, `olive`, `teal`, `slate` |
+| `displayName` | string | yes | Name shown wherever the UI names this person |
 | `id` | string | yes | User id |
 | `role` | string | yes | Authorization role; one of `superadmin`, `admin`, `user` |
 | `username` | string | yes | Login name |

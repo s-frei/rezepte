@@ -203,20 +203,18 @@ SELECT t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id WHERE rt.recip
 SELECT rt.recipe_id, t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id IN (sqlc.slice(recipe_ids)) ORDER BY rt.recipe_id, t.name;
 
--- Usernames for a page of recipes, batched like ListTagNamesForRecipes: the
--- overview needs them per card, and joining users twice into the four
--- filter queries would complicate the part of the schema that is hardest to
--- read for a column the filters never touch.
--- name: ListUsernamesForIDs :many
-SELECT id, username FROM users WHERE id IN (sqlc.slice(ids));
+-- Display names and colours for a page of recipes, batched like
+-- ListTagNamesForRecipes.
+-- name: ListAuthorsForIDs :many
+SELECT id, display_name, color FROM users WHERE id IN (sqlc.slice(ids));
 
 -- Everyone who has written at least one recipe, most recipes first, for the
 -- "Angelegt von" filter. Counting here rather than in Go keeps the list and
 -- its counts one statement, the way ListTagsWithCount does.
 -- name: ListAuthorsWithCount :many
-SELECT u.username, COUNT(r.id) AS recipe_count
+SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
 FROM users u JOIN recipes r ON r.created_by = u.id
-GROUP BY u.id, u.username
+GROUP BY u.id, u.username, u.display_name, u.color
 ORDER BY recipe_count DESC, u.username;
 
 -- name: SetFavourite :exec
@@ -239,7 +237,8 @@ WHERE user_id = sqlc.arg(user_id)
 -- rather than a join in GetRecipe because that row is also what the image
 -- service reads to check a recipe exists, and it has no use for names.
 -- name: GetRecipeAuthors :one
-SELECT c.username AS created_by_name, u.username AS updated_by_name
+SELECT c.display_name AS created_by_name, c.color AS created_by_color,
+       u.display_name AS updated_by_name, u.color AS updated_by_color
 FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by

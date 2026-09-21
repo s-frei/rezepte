@@ -1,3 +1,4 @@
+import type { UserColor } from '$lib/user/color';
 import { api } from './client';
 
 // Contract types (binding for both the backend and the frontend, see
@@ -16,6 +17,9 @@ export type RecipeCard = {
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdByName: string;
 	updatedByName: string;
+	/** The palette token of the person, for the author circle. */
+	createdByColor: UserColor;
+	updatedByColor: UserColor;
 };
 
 export type Image = { id: string; width: number; height: number; position: number };
@@ -56,12 +60,15 @@ export type Recipe = RecipeInput & {
 	updatedBy: string;
 	updatedAt: string;
 	/**
-	 * The usernames behind `createdBy` and `updatedBy`. The service sends
+	 * The display names behind `createdBy` and `updatedBy`. The service sends
 	 * them along because user management is admin-only, so a member could
 	 * not resolve the ids themselves.
 	 */
 	createdByName: string;
 	updatedByName: string;
+	/** The palette token of the person, for the author circle. */
+	createdByColor: UserColor;
+	updatedByColor: UserColor;
 	/** Whether the signed-in user has starred this recipe. */
 	favourite: boolean;
 };
@@ -224,8 +231,8 @@ export async function listTags(): Promise<Tag[]> {
 	return page.items;
 }
 
-/** A username paired with how many recipes they wrote. */
-export type Author = { name: string; count: number };
+/** `name` is the username the ?author= filter matches; the rest is what the facet shows. */
+export type Author = { name: string; displayName: string; color: UserColor; count: number };
 
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the

@@ -28,7 +28,7 @@ func newHandler(t *testing.T) http.Handler {
 		name string
 		role user.Role
 	}{{"sam", user.RoleAdmin}, {"kim", user.RoleUser}} {
-		if _, err := users.Create(context.Background(), seed.name, "pw", seed.role); err != nil {
+		if _, err := users.Create(context.Background(), user.CreateParams{Username: seed.name, Password: "pw", Role: seed.role}); err != nil {
 			t.Fatal(err)
 		}
 	}

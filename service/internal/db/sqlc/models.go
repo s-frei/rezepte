@@ -100,8 +100,10 @@ type Tag struct {
 type User struct {
 	ID           string
 	Username     string
+	DisplayName  string
 	PasswordHash string
 	Role         string
+	Color        string
 	CreatedAt    string
 	UpdatedAt    string
 }

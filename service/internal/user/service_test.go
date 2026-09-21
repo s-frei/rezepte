@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
@@ -14,7 +15,7 @@ func TestCreateAndAuthenticate(t *testing.T) {
 	ctx := context.Background()
 	svc := user.NewService(dbtest.Open(t))
 
-	created, err := svc.Create(ctx, "Sam", "secret123", user.RoleAdmin)
+	created, err := svc.Create(ctx, user.CreateParams{Username: "Sam", Password: "secret123", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -38,11 +39,11 @@ func TestCreateTrimsUsername(t *testing.T) {
 	ctx := context.Background()
 	svc := user.NewService(dbtest.Open(t))
 
-	if _, err := svc.Create(ctx, "  ", "secret123", user.RoleUser); !errors.Is(err, user.ErrInvalidUsername) {
+	if _, err := svc.Create(ctx, user.CreateParams{Username: "  ", Password: "secret123", Role: user.RoleUser}); !errors.Is(err, user.ErrInvalidUsername) {
 		t.Fatalf("blank username: err = %v, want ErrInvalidUsername", err)
 	}
 
-	created, err := svc.Create(ctx, " anna ", "secret123", user.RoleUser)
+	created, err := svc.Create(ctx, user.CreateParams{Username: " anna ", Password: "secret123", Role: user.RoleUser})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -61,10 +62,10 @@ func TestCreateTrimsUsername(t *testing.T) {
 func TestCreateRejectsDuplicateUsername(t *testing.T) {
 	ctx := context.Background()
 	svc := user.NewService(dbtest.Open(t))
-	if _, err := svc.Create(ctx, "sam", "x", user.RoleUser); err != nil {
+	if _, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "x", Role: user.RoleUser}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(ctx, "SAM", "y", user.RoleUser); !errors.Is(err, user.ErrUsernameTaken) {
+	if _, err := svc.Create(ctx, user.CreateParams{Username: "SAM", Password: "y", Role: user.RoleUser}); !errors.Is(err, user.ErrUsernameTaken) {
 		t.Fatalf("err = %v, want ErrUsernameTaken", err)
 	}
 }
@@ -116,7 +117,7 @@ func TestEnsureSuperadmin(t *testing.T) {
 
 	t.Run("refuses a populated instance with no owner", func(t *testing.T) {
 		svc := user.NewService(dbtest.Open(t))
-		if _, err := svc.Create(ctx, "stray", "secret123", user.RoleAdmin); err != nil {
+		if _, err := svc.Create(ctx, user.CreateParams{Username: "stray", Password: "secret123", Role: user.RoleAdmin}); err != nil {
 			t.Fatal(err)
 		}
 		if err := svc.EnsureSuperadmin(ctx, "boss", "secret123"); !errors.Is(err, user.ErrNoSuperadmin) {
@@ -130,11 +131,11 @@ func seedTwo(t *testing.T) (*sql.DB, *user.Service, user.User, user.User) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	svc := user.NewService(conn)
-	sam, err := svc.Create(ctx, "sam", "password-sam", user.RoleAdmin)
+	sam, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "password-sam", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	kim, err := svc.Create(ctx, "kim", "password-kim", user.RoleUser)
+	kim, err := svc.Create(ctx, user.CreateParams{Username: "kim", Password: "password-kim", Role: user.RoleUser})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +145,7 @@ func seedTwo(t *testing.T) (*sql.DB, *user.Service, user.User, user.User) {
 func TestListOrdersByUsername(t *testing.T) {
 	ctx := context.Background()
 	_, svc, _, _ := seedTwo(t)
-	if _, err := svc.Create(ctx, "Anna", "password-anna", user.RoleUser); err != nil {
+	if _, err := svc.Create(ctx, user.CreateParams{Username: "Anna", Password: "password-anna", Role: user.RoleUser}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := svc.List(ctx)
@@ -267,7 +268,7 @@ func seedRanks(t *testing.T) (*user.Service, map[string]user.User) {
 		{"bob", user.RoleAdmin},
 		{"kim", user.RoleUser},
 	} {
-		u, err := svc.Create(ctx, seed.name, "secret123", seed.role)
+		u, err := svc.Create(ctx, user.CreateParams{Username: seed.name, Password: "secret123", Role: seed.role})
 		if err != nil {
 			t.Fatalf("seed %s: %v", seed.name, err)
 		}
@@ -368,5 +369,162 @@ func TestResetSuperadminPassword(t *testing.T) {
 	empty := user.NewService(dbtest.Open(t))
 	if _, err := empty.ResetSuperadminPassword(ctx, "newsecret1"); !errors.Is(err, user.ErrNoSuperadmin) {
 		t.Fatalf("no owner: err = %v, want ErrNoSuperadmin", err)
+	}
+}
+
+func TestCreateFillsTheProfileDefaults(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+
+	first, err := svc.Create(ctx, user.CreateParams{Username: " sam ", Password: "sam-password", Role: user.RoleUser})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if first.DisplayName != "sam" {
+		t.Errorf("DisplayName = %q; want the trimmed username", first.DisplayName)
+	}
+	if first.Color != "amber" {
+		t.Errorf("Color = %q; want amber on an empty table", first.Color)
+	}
+
+	second, err := svc.Create(ctx, user.CreateParams{Username: "ida", Password: "ida-password", Role: user.RoleUser})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if second.Color != "clay" {
+		t.Errorf("Color = %q; want clay, the next least-used", second.Color)
+	}
+}
+
+func TestCreateAcceptsAnExplicitProfile(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+
+	u, err := svc.Create(ctx, user.CreateParams{
+		Username: "sam", Password: "sam-password", Role: user.RoleUser,
+		DisplayName: "  Sam der Koch  ", Color: "teal",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if u.DisplayName != "Sam der Koch" || u.Color != "teal" {
+		t.Errorf("got %q / %q; want \"Sam der Koch\" / teal", u.DisplayName, u.Color)
+	}
+}
+
+func TestCreateRefusesABadProfile(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+
+	_, err := svc.Create(ctx, user.CreateParams{
+		Username: "sam", Password: "sam-password", Role: user.RoleUser,
+		DisplayName: strings.Repeat("x", 65),
+	})
+	if !errors.Is(err, user.ErrDisplayNameTooLong) {
+		t.Errorf("error = %v; want ErrDisplayNameTooLong", err)
+	}
+
+	_, err = svc.Create(ctx, user.CreateParams{
+		Username: "ida", Password: "ida-password", Role: user.RoleUser, Color: "chartreuse",
+	})
+	if !errors.Is(err, user.ErrInvalidColor) {
+		t.Errorf("error = %v; want ErrInvalidColor", err)
+	}
+}
+
+func TestSetProfileWritesOnlyWhatIsGiven(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+	u, err := svc.Create(ctx, user.CreateParams{
+		Username: "sam", Password: "sam-password", Role: user.RoleUser,
+		DisplayName: "Sam", Color: "amber",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	name := "  Sam der Koch  "
+	got, err := svc.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &name})
+	if err != nil {
+		t.Fatalf("set display name: %v", err)
+	}
+	if got.DisplayName != "Sam der Koch" {
+		t.Errorf("DisplayName = %q; want the trimmed value", got.DisplayName)
+	}
+	if got.Color != "amber" {
+		t.Errorf("Color = %q; want amber, which the update did not name", got.Color)
+	}
+
+	teal := user.Color("teal")
+	got, err = svc.SetProfile(ctx, u.ID, user.ProfileUpdate{Color: &teal})
+	if err != nil {
+		t.Fatalf("set colour: %v", err)
+	}
+	if got.Color != "teal" || got.DisplayName != "Sam der Koch" {
+		t.Errorf("got %q / %q; want \"Sam der Koch\" / teal", got.DisplayName, got.Color)
+	}
+}
+
+func TestSetProfileEmptyNameFallsBackToTheUsername(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+	u, err := svc.Create(ctx, user.CreateParams{
+		Username: "sam", Password: "sam-password", Role: user.RoleUser, DisplayName: "Sam",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	empty := "   "
+	got, err := svc.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &empty})
+	if err != nil {
+		t.Fatalf("set profile: %v", err)
+	}
+	if got.DisplayName != "sam" {
+		t.Errorf("DisplayName = %q; want the username", got.DisplayName)
+	}
+}
+
+func TestSetProfileRefusesAnUnknownUserAndABadColour(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+	u, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleUser})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	name := "Sam"
+	if _, err := svc.SetProfile(ctx, "no-such-id", user.ProfileUpdate{DisplayName: &name}); !errors.Is(err, user.ErrNotFound) {
+		t.Errorf("error = %v; want ErrNotFound", err)
+	}
+
+	bad := user.Color("chartreuse")
+	if _, err := svc.SetProfile(ctx, u.ID, user.ProfileUpdate{Color: &bad}); !errors.Is(err, user.ErrInvalidColor) {
+		t.Errorf("error = %v; want ErrInvalidColor", err)
+	}
+}
+
+func TestColorUsageCoversThePalette(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t))
+	if _, err := svc.Create(ctx, user.CreateParams{
+		Username: "sam", Password: "sam-password", Role: user.RoleUser, Color: "sage",
+	}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	usage, err := svc.ColorUsage(ctx)
+	if err != nil {
+		t.Fatalf("colour usage: %v", err)
+	}
+	if len(usage) != len(user.Colors) {
+		t.Fatalf("len = %d; want %d", len(usage), len(user.Colors))
+	}
+	for i, c := range user.Colors {
+		if usage[i].Color != c {
+			t.Fatalf("usage[%d] = %q; want %q", i, usage[i].Color, c)
+		}
+	}
+	if usage[4].Count != 1 || usage[0].Count != 0 {
+		t.Errorf("counts = %+v; want sage 1 and amber 0", usage)
 	}
 }

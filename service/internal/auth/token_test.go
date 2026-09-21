@@ -18,7 +18,7 @@ func newTokenService(t *testing.T) (*auth.TokenService, *user.Service, string) {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	sam, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin)
+	sam, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestTokenDiesWithTheAdminRole(t *testing.T) {
 	svc, users, ownerID := newTokenService(t)
 	// Demoting an admin is the instance owner's act alone, so the demotion
 	// below needs one to do it.
-	boss, err := users.Create(ctx, "boss", "pw", user.RoleSuperadmin)
+	boss, err := users.Create(ctx, user.CreateParams{Username: "boss", Password: "pw", Role: user.RoleSuperadmin})
 	if err != nil {
 		t.Fatal(err)
 	}

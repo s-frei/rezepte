@@ -39,11 +39,13 @@ func (r Role) IsSuperadmin() bool { return r == RoleSuperadmin }
 
 // User is an account without secrets.
 type User struct {
-	ID        string
-	Username  string
-	Role      Role
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          string
+	Username    string
+	DisplayName string
+	Role        Role
+	Color       Color
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // Errors returned by the service.
@@ -58,6 +60,9 @@ var (
 	ErrSuperadminProtected   = errors.New("the superadmin cannot be deleted, demoted or reset, and the role cannot be handed out")
 	ErrSuperadminRequired    = errors.New("only the superadmin can manage admins")
 	ErrNoSuperadmin          = errors.New("no superadmin in a non-empty users table; recreate the database")
+	ErrInvalidColor          = errors.New("unknown colour")
+	ErrDisplayNameTooLong    = errors.New("display name is too long")
+	ErrInvalidDisplayName    = errors.New("display name must not contain control characters")
 )
 
 // Service reads and writes users.
@@ -72,15 +77,41 @@ func NewService(conn *sql.DB) *Service {
 	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
 }
 
+// CreateParams is what it takes to open an account. DisplayName and Color are
+// optional: an empty DisplayName becomes the trimmed username, and an empty
+// Color becomes the least-used colour of the palette. Create is the single
+// writer of a user row - the API, the bootstrap and the demo seed all reach
+// the table through it - so those defaults belong here and nowhere else.
+type CreateParams struct {
+	Username    string
+	Password    string
+	Role        Role
+	DisplayName string
+	Color       Color
+}
+
 // Create stores a new user with a hashed password. username is trimmed of
 // surrounding whitespace first; a username that is empty after trimming is
 // rejected with ErrInvalidUsername.
-func (s *Service) Create(ctx context.Context, username, password string, role Role) (User, error) {
-	username = strings.TrimSpace(username)
+func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
+	username := strings.TrimSpace(p.Username)
 	if username == "" {
 		return User{}, ErrInvalidUsername
 	}
-	hash, err := HashPassword(password)
+	displayName, err := normalizeDisplayName(p.DisplayName, username)
+	if err != nil {
+		return User{}, err
+	}
+	color := p.Color
+	if color == "" {
+		color, err = s.defaultColor(ctx)
+		if err != nil {
+			return User{}, err
+		}
+	} else if _, err := ParseColor(string(color)); err != nil {
+		return User{}, err
+	}
+	hash, err := HashPassword(p.Password)
 	if err != nil {
 		return User{}, err
 	}
@@ -88,8 +119,10 @@ func (s *Service) Create(ctx context.Context, username, password string, role Ro
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
 		ID:           uuid.Must(uuid.NewV7()).String(),
 		Username:     username,
+		DisplayName:  displayName,
 		PasswordHash: hash,
-		Role:         string(role),
+		Role:         string(p.Role),
+		Color:        string(color),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	})
@@ -100,6 +133,32 @@ func (s *Service) Create(ctx context.Context, username, password string, role Ro
 		return User{}, fmt.Errorf("insert user: %w", err)
 	}
 	return fromRow(row)
+}
+
+// defaultColor picks the colour for an account that did not ask for one. The
+// count and the insert are deliberately not one transaction: two accounts
+// created in the same instant can land on the same colour, and a duplicate is
+// allowed by design, so there is nothing to lock against.
+func (s *Service) defaultColor(ctx context.Context) (Color, error) {
+	usage, err := s.ColorUsage(ctx)
+	if err != nil {
+		return "", err
+	}
+	return leastUsed(usage), nil
+}
+
+// ColorUsage counts how many accounts hold each colour, in palette order,
+// including the colours nobody holds.
+func (s *Service) ColorUsage(ctx context.Context) ([]ColorCount, error) {
+	rows, err := s.q.CountUsersByColor(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count users by colour: %w", err)
+	}
+	counts := make(map[Color]int, len(rows))
+	for _, r := range rows {
+		counts[Color(r.Color)] = int(r.UserCount)
+	}
+	return fillPalette(counts), nil
 }
 
 // ByID loads a user by id.
@@ -153,6 +212,57 @@ func (s *Service) SetRole(ctx context.Context, actor User, id string, role Role)
 		})
 		if err != nil {
 			return fmt.Errorf("update role of %s: %w", id, err)
+		}
+		out, err = fromRow(updated)
+		return err
+	})
+	return out, err
+}
+
+// ProfileUpdate carries the fields a profile write may change. A nil field is
+// left as it stands, which is what lets one request set the colour alone.
+type ProfileUpdate struct {
+	DisplayName *string
+	Color       *Color
+}
+
+// SetProfile writes a user's display name and colour. It takes no actor and
+// performs no rank check: its two callers differ in who they may aim at - one
+// writes the caller's own row, the other only the owner's doing - and the
+// service cannot tell them apart. Authorization is decided at the API
+// boundary, by user.CanEditProfile.
+//
+// The read and the write share one transaction so a concurrent write cannot
+// land between them and lose the field this call left alone.
+func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (User, error) {
+	var out User
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := getForUpdate(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		displayName := row.DisplayName
+		if p.DisplayName != nil {
+			displayName, err = normalizeDisplayName(*p.DisplayName, row.Username)
+			if err != nil {
+				return err
+			}
+		}
+		color := Color(row.Color)
+		if p.Color != nil {
+			color, err = ParseColor(string(*p.Color))
+			if err != nil {
+				return err
+			}
+		}
+		updated, err := q.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
+			DisplayName: displayName,
+			Color:       string(color),
+			UpdatedAt:   db.FormatTime(s.now()),
+			ID:          id,
+		})
+		if err != nil {
+			return fmt.Errorf("update profile of %s: %w", id, err)
 		}
 		out, err = fromRow(updated)
 		return err
@@ -346,7 +456,7 @@ func (s *Service) EnsureSuperadmin(ctx context.Context, username, password strin
 	// Create carries no authorization check - the rank rule for creation
 	// lives at the API boundary - which is what lets this write the one
 	// superadmin row.
-	if _, err := s.Create(ctx, username, password, RoleSuperadmin); err != nil {
+	if _, err := s.Create(ctx, CreateParams{Username: username, Password: password, Role: RoleSuperadmin}); err != nil {
 		return fmt.Errorf("create superadmin: %w", err)
 	}
 	return nil
@@ -384,11 +494,13 @@ func fromRow(row sqlc.User) (User, error) {
 		return User{}, err
 	}
 	return User{
-		ID:        row.ID,
-		Username:  row.Username,
-		Role:      Role(row.Role),
-		CreatedAt: created,
-		UpdatedAt: updated,
+		ID:          row.ID,
+		Username:    row.Username,
+		DisplayName: row.DisplayName,
+		Role:        Role(row.Role),
+		Color:       Color(row.Color),
+		CreatedAt:   created,
+		UpdatedAt:   updated,
 	}, nil
 }
 

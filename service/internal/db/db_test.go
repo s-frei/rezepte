@@ -63,9 +63,9 @@ func TestTimeRoundTrip(t *testing.T) {
 func TestSuperadminTriggers(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	insert := `INSERT INTO users (id, username, password_hash, role, created_at, updated_at)
-	           VALUES (?, ?, 'x', ?, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
-	if _, err := conn.ExecContext(ctx, insert, "owner", "owner", "superadmin"); err != nil {
+	insert := `INSERT INTO users (id, username, display_name, password_hash, role, color, created_at, updated_at)
+	           VALUES (?, ?, ?, 'x', ?, 'amber', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
+	if _, err := conn.ExecContext(ctx, insert, "owner", "owner", "owner", "superadmin"); err != nil {
 		t.Fatalf("seed superadmin: %v", err)
 	}
 
@@ -80,8 +80,8 @@ func TestSuperadminTriggers(t *testing.T) {
 	// trigger sees, and its delete only fires the first one because the DSN
 	// turns recursive_triggers on. With that pragma off this statement demotes
 	// the owner and overwrites their hash without an error.
-	replace := `INSERT OR REPLACE INTO users (id, username, password_hash, role, created_at, updated_at)
-	            VALUES ('owner', 'owner', 'PWNED', 'user', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
+	replace := `INSERT OR REPLACE INTO users (id, username, display_name, password_hash, role, color, created_at, updated_at)
+	            VALUES ('owner', 'owner', 'owner', 'PWNED', 'user', 'amber', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
 	if _, err := conn.ExecContext(ctx, replace); err == nil {
 		t.Fatal("INSERT OR REPLACE over the superadmin succeeded, want the trigger to abort it")
 	}
@@ -95,21 +95,21 @@ func TestSuperadminTriggers(t *testing.T) {
 
 	// A second superadmin is refused by the partial unique index, whether it
 	// arrives as a fresh row or as a promotion.
-	if _, err := conn.ExecContext(ctx, insert, "other", "other", "superadmin"); err == nil {
+	if _, err := conn.ExecContext(ctx, insert, "other", "other", "other", "superadmin"); err == nil {
 		t.Fatal("a second superadmin was inserted, want the unique index to refuse it")
 	}
-	if _, err := conn.ExecContext(ctx, insert, "jo", "jo", "admin"); err != nil {
+	if _, err := conn.ExecContext(ctx, insert, "jo", "jo", "jo", "admin"); err != nil {
 		t.Fatalf("insert admin: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, `UPDATE users SET role = 'superadmin' WHERE id = 'jo'`); err == nil {
 		t.Fatal("an admin was promoted to superadmin, want the unique index to refuse it")
 	}
 	// An unknown role is refused by the CHECK constraint.
-	if _, err := conn.ExecContext(ctx, insert, "ghost", "ghost", "wizard"); err == nil {
+	if _, err := conn.ExecContext(ctx, insert, "ghost", "ghost", "ghost", "wizard"); err == nil {
 		t.Fatal("role 'wizard' was accepted, want the CHECK to refuse it")
 	}
 	// Ordinary rows are untouched by any of it.
-	if _, err := conn.ExecContext(ctx, insert, "kim", "kim", "user"); err != nil {
+	if _, err := conn.ExecContext(ctx, insert, "kim", "kim", "kim", "user"); err != nil {
 		t.Fatalf("insert member: %v", err)
 	}
 	if _, err := conn.ExecContext(ctx, `DELETE FROM users WHERE id = 'kim'`); err != nil {

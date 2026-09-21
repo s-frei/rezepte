@@ -64,13 +64,14 @@ type Recipe struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedBy    string    `json:"updatedBy"`
 	UpdatedAt    time.Time `json:"updatedAt"`
-	// The usernames behind CreatedBy and UpdatedBy. They travel with the
-	// recipe because the detail view names its author and last editor, and
-	// user management is admin-only - a member could not resolve the ids
-	// themselves. Deleting a user moves both columns to the acting admin
-	// (user.Service.Delete), so neither name is ever empty.
-	CreatedByName string `json:"createdByName"`
-	UpdatedByName string `json:"updatedByName"`
+	// The display names behind CreatedBy and UpdatedBy, and the palette token
+	// each of those people chose. They travel with the recipe because the card
+	// paints the author circles with them and user management is admin-only -
+	// a member could resolve neither the ids nor the colours themselves.
+	CreatedByName  string `json:"createdByName"`
+	CreatedByColor string `json:"createdByColor"`
+	UpdatedByName  string `json:"updatedByName"`
+	UpdatedByColor string `json:"updatedByColor"`
 	// Favourite reports whether the caller has starred this recipe. It is
 	// endpoint-dependent, not a property (*Service).ByID or (*Service).BySlug
 	// fill in themselves: only the get-recipe and get-recipe-by-slug handler
@@ -95,12 +96,14 @@ type Card struct {
 	CoverImageID *string   `json:"coverImageId" nullable:"true"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	Favourite    bool      `json:"favourite"`
-	// Who wrote the recipe and who last changed it, by username. The card
-	// shows them as initials; the same reasoning as on Recipe applies -
-	// user management is admin-only, so the ids alone would be useless to
-	// the caller.
-	CreatedByName string `json:"createdByName"`
-	UpdatedByName string `json:"updatedByName"`
+	// Who wrote the recipe and who last changed it, by display name and
+	// colour. The card shows them as initials; the same reasoning as on
+	// Recipe applies - user management is admin-only, so the ids alone would
+	// be useless to the caller.
+	CreatedByName  string `json:"createdByName"`
+	CreatedByColor string `json:"createdByColor"`
+	UpdatedByName  string `json:"updatedByName"`
+	UpdatedByColor string `json:"updatedByColor"`
 }
 
 // TagCount is a tag name paired with how many recipes currently use it.
@@ -109,11 +112,13 @@ type TagCount struct {
 	Count int    `json:"count"`
 }
 
-// AuthorCount is a username paired with how many recipes they wrote. It is
-// deliberately not user.User: the overview's filter needs the names of the
-// people who wrote something, and nothing else about the accounts - user
-// management stays admin-only.
+// AuthorCount is an author paired with how many recipes they wrote. Name is
+// the username, because that is what the ?author= filter matches and what a
+// filter link therefore has to survive a rename with. DisplayName and Color
+// are what the facet shows.
 type AuthorCount struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+	Color       string `json:"color"`
+	Count       int    `json:"count"`
 }

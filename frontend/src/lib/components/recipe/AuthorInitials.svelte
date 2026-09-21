@@ -2,34 +2,42 @@
 	import { Popover } from 'bits-ui';
 	import { m } from '$lib/paraglide/messages';
 	import { authorLabel } from '$lib/recipe/authorship';
-	import { tintFor, type Tint } from '$lib/recipe/placeholder';
+	import { userColorClasses, type UserColor } from '$lib/user/color';
 
 	let {
 		createdByName,
+		createdByColor,
 		updatedByName,
+		updatedByColor,
 		anchor = null
 	}: {
 		createdByName: string;
+		createdByColor: UserColor;
 		updatedByName: string;
+		updatedByColor: UserColor;
 		/** What the panel lines up with. The card, so the panel spans its
 		 * full width and sits under it, rather than the two small circles
 		 * that trigger it. */
 		anchor?: HTMLElement | null;
 	} = $props();
 
-	const TINT_CLASSES: Record<Tint, string> = {
-		'tint-1': 'bg-tint-1',
-		'tint-2': 'bg-tint-2',
-		'tint-3': 'bg-tint-3'
-	};
-
 	// One circle per person involved, the author first. A recipe its own
 	// author last edited needs no second circle - it would repeat the first.
-	const names = $derived(
-		createdByName === updatedByName ? [createdByName] : [createdByName, updatedByName]
+	// `Card` carries no user ids, and a display name is deliberately not
+	// unique (two members may both be "Mia"), so the comparison is on the
+	// (name, colour) pair - the colours differ whenever the picker did its
+	// job - rather than on the name alone.
+	const sameAuthor = $derived(createdByName === updatedByName && createdByColor === updatedByColor);
+	const people = $derived(
+		sameAuthor
+			? [{ name: createdByName, color: createdByColor }]
+			: [
+					{ name: createdByName, color: createdByColor },
+					{ name: updatedByName, color: updatedByColor }
+				]
 	);
-	const edited = $derived(createdByName !== updatedByName);
-	const label = $derived(authorLabel(createdByName, updatedByName));
+	const edited = $derived(!sameAuthor);
+	const label = $derived(authorLabel(createdByName, createdByColor, updatedByName, updatedByColor));
 </script>
 
 <!--
@@ -47,7 +55,7 @@
 		tabindex={-1}
 		class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
-		{#each names as name, index (name)}
+		{#each people as person, index (person.name + person.color)}
 			<!--
 				`relative` is what makes the overlap read as one circle in front
 				of another. Without it these are unpositioned boxes, and CSS
@@ -58,9 +66,9 @@
 			-->
 			<span
 				aria-hidden="true"
-				class="relative flex size-5 items-center justify-center rounded-full font-display text-micro leading-none font-semibold text-primary ring-2 ring-surface {TINT_CLASSES[
-					tintFor(name)
-				]} {index > 0 ? '-ml-1.5' : ''}"
+				class="relative flex size-5 items-center justify-center rounded-full font-display text-micro leading-none font-semibold ring-2 ring-surface {userColorClasses(
+					person.color
+				)} {index > 0 ? '-ml-1.5' : ''}"
 			>
 				<!--
 					`items-center` centres the line box, not the letter. A capital
@@ -76,7 +84,7 @@
 					coarser is visible at this size, as a 1px nudge the wrong way
 					proved.
 				-->
-				<span class="-translate-y-[0.8px]">{name.charAt(0).toUpperCase()}</span>
+				<span class="-translate-y-[0.8px]">{person.name.charAt(0).toUpperCase()}</span>
 			</span>
 		{/each}
 	</Popover.Trigger>

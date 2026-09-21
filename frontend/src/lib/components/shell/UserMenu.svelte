@@ -17,7 +17,7 @@
 		open?: boolean;
 	} = $props();
 
-	const initial = $derived(session.user?.username.charAt(0).toUpperCase() ?? '');
+	const initial = $derived(session.user?.displayName.charAt(0).toUpperCase() ?? '');
 </script>
 
 {#if variant === 'dropdown'}

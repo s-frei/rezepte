@@ -33,7 +33,7 @@ func setup(t *testing.T) (*recipe.Service, string) {
 	conn := dbtest.Open(t)
 	testConns[t] = conn
 	t.Cleanup(func() { delete(testConns, t) })
-	u, err := user.NewService(conn).Create(context.Background(), "sam", "pw", user.RoleAdmin)
+	u, err := user.NewService(conn).Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,26 @@ func createUser(t *testing.T, username string) string { //nolint:unparam // help
 	if !ok {
 		t.Fatal("createUser: call setup(t) first")
 	}
-	u, err := user.NewService(conn).Create(context.Background(), username, "pw", user.RoleAdmin)
+	u, err := user.NewService(conn).Create(context.Background(), user.CreateParams{Username: username, Password: "pw", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u.ID
+}
+
+// createUserWithProfile is createUser plus a display name and colour,
+// for tests that need to assert on what a card or facet shows for the
+// author rather than just who they are.
+func createUserWithProfile(t *testing.T, username, displayName string, color user.Color) string {
+	t.Helper()
+	conn, ok := testConns[t]
+	if !ok {
+		t.Fatal("createUserWithProfile: call setup(t) first")
+	}
+	u, err := user.NewService(conn).Create(context.Background(), user.CreateParams{
+		Username: username, Password: "pw", Role: user.RoleAdmin,
+		DisplayName: displayName, Color: color,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +199,7 @@ func TestReservedSlugIsSkipped(t *testing.T) {
 func TestLoadListsImagesInPositionOrderWithCover(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, "sam", "pw", user.RoleAdmin)
+	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +239,7 @@ func TestLoadListsImagesInPositionOrderWithCover(t *testing.T) {
 func TestDeleteRemovesImageDirectory(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, "sam", "pw", user.RoleAdmin)
+	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,5 +463,53 @@ func TestRecipeCarriesAuthorNames(t *testing.T) {
 	}
 	if bySlug.UpdatedByName != "mara" {
 		t.Fatalf("BySlug: updatedByName = %q, want \"mara\"", bySlug.UpdatedByName)
+	}
+}
+
+func TestCardsCarryTheAuthorsDisplayNameAndColour(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := setup(t)
+	authorID := createUserWithProfile(t, "mia", "Sam der Koch", "teal")
+
+	created, err := svc.Create(ctx, authorID, loadFixtures(t)[0])
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	page, err := svc.List(ctx, recipe.ListParams{})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(page.Items) != 1 || page.Items[0].ID != created.ID {
+		t.Fatalf("page.Items = %+v, want just %q", page.Items, created.ID)
+	}
+	card := page.Items[0]
+	if card.CreatedByName != "Sam der Koch" {
+		t.Errorf("CreatedByName = %q; want the display name", card.CreatedByName)
+	}
+	if card.CreatedByColor != "teal" || card.UpdatedByColor != "teal" {
+		t.Errorf("colours = %q / %q; want teal / teal", card.CreatedByColor, card.UpdatedByColor)
+	}
+
+	detail, err := svc.ByID(ctx, card.ID)
+	if err != nil {
+		t.Fatalf("by id: %v", err)
+	}
+	if detail.CreatedByName != "Sam der Koch" || detail.CreatedByColor != "teal" {
+		t.Errorf("detail = %q / %q; want the display name and teal", detail.CreatedByName, detail.CreatedByColor)
+	}
+
+	authors, err := svc.Authors(ctx)
+	if err != nil {
+		t.Fatalf("authors: %v", err)
+	}
+	if len(authors) != 1 {
+		t.Fatalf("authors = %+v, want exactly one", authors)
+	}
+	if authors[0].Name != "mia" {
+		t.Errorf("Name = %q; want the username, which the filter matches on", authors[0].Name)
+	}
+	if authors[0].DisplayName != "Sam der Koch" || authors[0].Color != "teal" {
+		t.Errorf("facet = %q / %q; want the display name and teal", authors[0].DisplayName, authors[0].Color)
 	}
 }

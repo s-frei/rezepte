@@ -1,6 +1,6 @@
 -- name: CreateUser :one
-INSERT INTO users (id, username, password_hash, role, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO users (id, username, display_name, password_hash, role, color, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetUserByID :one
@@ -37,3 +37,14 @@ UPDATE recipes
 SET created_by = CASE WHEN created_by = sqlc.arg(old_owner) THEN sqlc.arg(new_owner) ELSE created_by END,
     updated_by = CASE WHEN updated_by = sqlc.arg(old_owner) THEN sqlc.arg(new_owner) ELSE updated_by END
 WHERE created_by = sqlc.arg(old_owner) OR updated_by = sqlc.arg(old_owner);
+
+-- Colours nobody holds are absent from this result; Go fills them in against
+-- user.Colors, because the database does not know the palette.
+-- name: CountUsersByColor :many
+SELECT color, COUNT(*) AS user_count FROM users GROUP BY color;
+
+-- Both profile columns at once. SetProfile reads the row first and fills in
+-- whichever of the two the caller left alone, so a partial update needs no
+-- second statement.
+-- name: UpdateUserProfile :one
+UPDATE users SET display_name = ?, color = ?, updated_at = ? WHERE id = ? RETURNING *;

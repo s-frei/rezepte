@@ -37,7 +37,7 @@ func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
@@ -439,7 +439,7 @@ func TestFavouritesAreIsolatedBetweenUsers(t *testing.T) {
 		t.Fatalf("user A put = %d, body %s", resp.Code, resp.Body)
 	}
 
-	if _, err := user.NewService(conn).Create(context.Background(), "zweite", "pw", user.RoleAdmin); err != nil {
+	if _, err := user.NewService(conn).Create(context.Background(), user.CreateParams{Username: "zweite", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	cookieB := loginAs(t, h, "zweite", "pw")
