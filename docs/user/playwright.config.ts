@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // Screenshots are snapshot tests against `rezepte --demo` on the worktree's
-// demo port (scripts/with-demo.sh). `mise run //docs/user:screenshots` rewrites
+// demo port (`mise run //:demo`). `mise run //docs/user:screenshots` rewrites
 // public/screenshots/<name>-<project>.png, `screenshots:check` reports drift.
 // Not executed in CI: font rendering differs between macOS and Linux.
 export default defineConfig({

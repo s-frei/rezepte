@@ -16,6 +16,7 @@ description: What to test and how, per package
 
     - Vitest for pure logic (`src/lib/**/*.test.ts`): API client, scaling, formatting.
     - Playwright end-to-end tests in `frontend/e2e/` against the built binary (`mise run e2e`), desktop and mobile projects. One test per user-facing flow.
+    - Users a test bootstraps take their password from their username, through `devPassword` in `frontend/e2e/helpers.ts` ([Development credentials](/conventions/dev-credentials)); Go unit tests keep their own fixture passwords.
     - `svelte-check` and ESLint are part of the gate; no component tests.
 
   </Tab>

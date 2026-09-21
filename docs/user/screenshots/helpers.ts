@@ -53,13 +53,23 @@ export async function shot(page: Page, name: string): Promise<void> {
   await expect(page).toHaveScreenshot(`${name}.png`);
 }
 
+/**
+ * The password of every user these specs bootstrap: the username with `1234`
+ * appended, the repository's rule for development credentials (see
+ * docs/memory/content/conventions/dev-credentials.mdx). POST /api/v1/users
+ * requires eight characters, so such a username needs at least four.
+ */
+export function devPassword(username: string): string {
+  return `${username}1234`;
+}
+
 /** Creates a user through the API when it does not exist yet (409 = already there). */
 export async function ensureUser(
   page: Page,
   username: string,
-  password: string,
   role: "admin" | "user",
 ): Promise<void> {
+  const password = devPassword(username);
   const origin = new URL(page.url()).origin;
   const res = await page.request.post("/api/v1/users", {
     headers: { Origin: origin },

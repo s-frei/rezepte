@@ -703,7 +703,7 @@ test('the colophon names the author, and the editor once somebody else edits', a
 	// One editor per project: desktop and mobile run against the same
 	// database at the same time, and a shared username would collide.
 	const editor = `kim${token}`.slice(0, 20);
-	await createUser(page, { username: editor, password: 'editor-password', role: 'user' });
+	await createUser(page, { username: editor, role: 'user' });
 
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByText(`Angelegt von admin am`)).toBeVisible();
@@ -714,7 +714,7 @@ test('the colophon names the author, and the editor once somebody else edits', a
 	// bottom nav, so the sign-out menu is only reachable from the overview.
 	await page.goto('/');
 	await signOut(page, testInfo);
-	await login(page, editor, 'editor-password');
+	await login(page, editor);
 	// Wait out the sign-in before navigating, or the goto below races the
 	// session cookie and the app bounces back to /login.
 	await expect(page).toHaveURL('/');
@@ -753,14 +753,14 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
 }, testInfo) => {
 	const token = uniqueToken();
 	const writer = `kim${token}`.slice(0, 20);
-	await createUser(page, { username: writer, password: 'writer-password', role: 'user' });
+	await createUser(page, { username: writer, role: 'user' });
 	await createRecipe(page, { ...loadFixture(7), title: `Von admin ${token}` });
 
 	// The second recipe has to be written by the other person, so it is
 	// created in their own session rather than handed a different author.
 	await page.goto('/');
 	await signOut(page, testInfo);
-	await login(page, writer, 'writer-password');
+	await login(page, writer);
 	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(8), title: `Von kim ${token}` });
 

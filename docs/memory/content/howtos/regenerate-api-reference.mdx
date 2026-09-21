@@ -16,10 +16,10 @@ mise run //docs/user:openapi
 ```
 
 1. Builds the Go binary (`//service:build`).
-2. `docs/user/scripts/with-demo.sh` starts it with `--demo` on `:8070` (offset 0; `mise run ports` for this worktree) against a throwaway data directory and waits for `/healthz`.
+2. `mise run demo --` starts it with `--demo` on `:8070` (offset 0; `mise run ports` for this worktree) against a throwaway data directory and waits for `/healthz`.
 3. `docs/user/scripts/fetch-openapi.ts` logs in as the demo admin (`docs/user/scripts/demo-user.ts`, shared with the screenshot specs), fetches `/api/v1/openapi.json` from that instance with the session cookie and writes `docs/user/public/openapi.json`. The login step is not optional: the document sits behind the session (see [Users and authentication](/features/users-and-auth)), which is also why this task needs a demo instance rather than any running server - it has to be one whose credentials we know.
 4. `docs/user/scripts/generate-api.ts` reads `docs/user/public/openapi.json` (no running server needed for this step) and writes `docs/user/content/api/reference.mdx`: one section per huma tag, one subsection per operation with its parameters, request body and response table, then a `## Schemas` section with a property table per named schema. Tags, operations and schemas are all sorted, so the diff is deterministic.
-5. `with-demo.sh` stops the binary and deletes the data directory.
+5. `//:demo` stops the binary and deletes the data directory.
 
 Run it whenever an endpoint, parameter or schema changes - see [Keep the user docs in step with the UI](/howtos/update-user-docs). CI runs the same task and then `git diff --exit-code`, so a forgotten regeneration fails the build, not just a review.
 

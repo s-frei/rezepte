@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
+#MISE description="Build the release archives for every published platform into dist/"
+#MISE depends=["//frontend:build"]
+#
 # Builds the published release archives into dist/. The SPA is platform
 # independent and is built once by this task's `depends`, so each target here
 # is a Go cross-compile and nothing more. See
 # docs/memory/content/architecture/releases.mdx.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+# mise runs a root file task from the repository root, so the paths below are
+# relative to it; DIST is absolute because the checksum step cds into it.
+DIST="$PWD/dist"
 
 # The workflow passes the tag; a local run falls back to the nearest tag, or
 # the commit when the repository has no tag yet, or `dev` in an exported source
 # tree with no .git at all. Same derivation as //service:build:only.
-VERSION="${REZEPTE_VERSION:-$(git -C "$ROOT" describe --tags --always 2>/dev/null || echo dev)}"
+VERSION="${REZEPTE_VERSION:-$(git describe --tags --always 2>/dev/null || echo dev)}"
 VERSION="${VERSION#v}"
 
-DIST="$ROOT/dist"
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
@@ -29,7 +33,7 @@ for target in linux/amd64 linux/arm64 darwin/arm64 darwin/amd64; do
 	echo "release:binaries: building $os/$arch"
 	GOOS="$os" GOARCH="$arch" mise run //service:build:only
 
-	install -m 0755 "$ROOT/service/bin/rezepte" "$STAGE/rezepte"
+	install -m 0755 service/bin/rezepte "$STAGE/rezepte"
 	tar -czf "$DIST/rezepte_${VERSION}_${os}_${arch}.tar.gz" -C "$STAGE" rezepte
 	rm -f "$STAGE/rezepte"
 done
@@ -40,7 +44,7 @@ done
 # task's output; the shared path belongs to `mise run build`, so leave it
 # empty rather than misleading. Rebuilding for the host would cost a build
 # for nothing.
-rm -f "$ROOT/service/bin/rezepte"
+rm -f service/bin/rezepte
 
 # shasum rather than sha256sum: it exists on both macOS and the CI runner.
 cd "$DIST"

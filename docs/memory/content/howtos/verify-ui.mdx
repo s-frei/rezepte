@@ -16,7 +16,7 @@ description: End-to-end tests and screenshots, no browser extensions
     mise run e2e
     REZEPTE_E2E_PORT=8061 mise run e2e   # when something already holds the offset-0 port (8060)
     ```
-    Builds the binary, starts it on `:8060` by default (`RZP_BACKEND_PORT`, override with `REZEPTE_E2E_PORT`) with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=e2e-password`, runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary and deletes the directory. Run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree). Traces and screenshots of failures land in `frontend/test-results/`.
+    Builds the binary, starts it on `:8060` by default (`RZP_BACKEND_PORT`, override with `REZEPTE_E2E_PORT`) with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=admin1234` ([Development credentials](/conventions/dev-credentials)), runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary and deletes the directory. Run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree). Traces and screenshots of failures land in `frontend/test-results/`.
 
     The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
@@ -96,7 +96,7 @@ const fits = input.getBoundingClientRect().width >= ctx.measureText(input.placeh
 A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artefact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
 
 ```ts
-// scratch probe, run through docs/user/scripts/with-demo.sh (demo/demo1234 on :8070 by default)
+// scratch probe, run through `mise run demo` (demo/demo1234 on :8070 by default)
 const info = await page.evaluate(() => {
 	const el = document.querySelector('[role="radiogroup"]')!;
 	const box = el.closest('section')!;           // the container it must fit inside
@@ -122,14 +122,15 @@ For stacking bugs (something hidden behind a fixed bar), `document.elementFromPo
 
 ## Running a probe
 
-`docs/user/scripts/with-demo.sh <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images) and stops it afterwards - the fastest way to a realistic page:
+`mise run demo -- <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images), runs the command against it and stops it afterwards - the fastest way to a realistic page:
 
 ```bash
-mise run build
-cd docs/user && ./scripts/with-demo.sh mise exec -- bun run /tmp/probe.ts
+mise run demo -- bun run /tmp/probe.ts
 ```
+
+Without a command, `mise run demo` keeps that instance up until Ctrl-C, which is what you want when you are clicking through it yourself rather than driving it. Both forms build the binary first through the task's `depends`, and `REZEPTE_DATA_DIR=<dir> mise run demo` keeps its recipes across restarts instead of seeding a throwaway directory.
 
 Two traps worth knowing:
 
-- Both `mise run e2e` and `with-demo.sh` refuse to start on a busy port. Without that guard a stale process answers `/healthz` instead, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the ones that do not log in pass. That failure shape means the port, not your change: check `lsof -nP -iTCP:<port> -sTCP:LISTEN`, with the port from `mise run ports`.
+- Both `mise run e2e` and `mise run demo` refuse to start on a busy port. Without that guard a stale process answers `/healthz` instead, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the ones that do not log in pass. That failure shape means the port, not your change: check `lsof -nP -iTCP:<port> -sTCP:LISTEN`, with the port from `mise run ports`.
 - A locked screen does not stop Chromium. If a run does nothing, look at the port before the browser.
