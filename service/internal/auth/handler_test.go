@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +27,7 @@ func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service) {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
@@ -271,5 +272,115 @@ func TestChangeOwnPassword(t *testing.T) {
 	}
 	if rec := do(h, http.MethodPatch, "/api/v1/auth/me", `{"currentPassword":"pw","password":"brand-new-pw"}`, nil); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("anonymous: status %d", rec.Code)
+	}
+}
+
+func TestUpdateOwnProfile(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile",
+		`{"displayName":"Sam der Koch","color":"teal"}`, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`"displayName":"Sam der Koch"`, `"color":"teal"`, `"username":"sam"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body %s; want it to contain %s", body, want)
+		}
+	}
+
+	// The change is stored, not just echoed.
+	rec = do(h, http.MethodGet, "/api/v1/auth/me", "", cookie)
+	if !strings.Contains(rec.Body.String(), `"displayName":"Sam der Koch"`) {
+		t.Errorf("me: %s", rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileSetsTheColourAlone(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"color":"sage"}`, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"displayName":"sam"`) {
+		t.Errorf("display name changed: %s", rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileRefusesAnEmptyBody(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{}`, cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileRefusesAnUnknownColour(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"color":"chartreuse"}`, cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileRefusesATooLongName(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile",
+		`{"displayName":"`+strings.Repeat("x", 65)+`"}`, cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileRequiresSession(t *testing.T) {
+	rec := do(newHandler(t), http.MethodPatch, "/api/v1/auth/me/profile", `{"displayName":"x"}`, nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", rec.Code)
+	}
+}
+
+func TestListColorUsageReturnsThePaletteInOrder(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodGet, "/api/v1/auth/me/colors", "", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Items []user.ColorCount `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Items) != len(user.Colors) {
+		t.Fatalf("len %d, want %d: %s", len(body.Items), len(user.Colors), rec.Body.String())
+	}
+	for i, c := range user.Colors {
+		if body.Items[i].Color != c {
+			t.Fatalf("items[%d] = %q, want %q", i, body.Items[i].Color, c)
+		}
+	}
+	// The seeded "sam" holds the first colour of the palette, nobody holds
+	// the second.
+	if body.Items[0].Count != 1 || body.Items[1].Count != 0 {
+		t.Errorf("counts %+v; want 1 and 0", body.Items[:2])
+	}
+}
+
+func TestListColorUsageRequiresSession(t *testing.T) {
+	rec := do(newHandler(t), http.MethodGet, "/api/v1/auth/me/colors", "", nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status %d, want 401", rec.Code)
 	}
 }

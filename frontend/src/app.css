@@ -35,6 +35,29 @@
 	--color-tint-1: #f0dfc4;
 	--color-tint-2: #e6e3cf;
 	--color-tint-3: #efd9cf;
+	/* One pair per palette colour. A foreground of its own rather than a
+	   shared one: the author circle is a 12px semibold capital, so it needs
+	   4.5:1 against its own background, and no single foreground holds that
+	   across eight hues in two themes. The tones stay muted and warm-leaning
+	   so a recipe card reads as a card, not as a status board. The colour is
+	   never the only signal - the initial stays in the circle and the popover
+	   spells the name out. */
+	--color-user-amber: #f0dfc4;
+	--color-user-amber-foreground: #7c4a08;
+	--color-user-clay: #f3dbcd;
+	--color-user-clay-foreground: #8a4527;
+	--color-user-rose: #f5d9da;
+	--color-user-rose-foreground: #8c3b46;
+	--color-user-plum: #e9dcea;
+	--color-user-plum-foreground: #6f3f6e;
+	--color-user-sage: #dbe7d9;
+	--color-user-sage-foreground: #3f6b48;
+	--color-user-olive: #e6e3cf;
+	--color-user-olive-foreground: #5f6330;
+	--color-user-teal: #d5e5e4;
+	--color-user-teal-foreground: #2f6260;
+	--color-user-slate: #dedfe4;
+	--color-user-slate-foreground: #4a5263;
 	/* The lightbox is the same near-black in both themes (it sits behind the
 	   photo, not behind the page), so its foreground is theme-independent
 	   too and is deliberately not redefined in the dark blocks below. */
@@ -115,6 +138,22 @@
 	--color-tint-1: #3f2f1e;
 	--color-tint-2: #33301f;
 	--color-tint-3: #3d2a22;
+	--color-user-amber: #3f2f1e;
+	--color-user-amber-foreground: #f0c391;
+	--color-user-clay: #43291f;
+	--color-user-clay-foreground: #efb497;
+	--color-user-rose: #43262a;
+	--color-user-rose-foreground: #f0adb4;
+	--color-user-plum: #372a3d;
+	--color-user-plum-foreground: #dcb2dd;
+	--color-user-sage: #25341f;
+	--color-user-sage-foreground: #aed3a8;
+	--color-user-olive: #33301f;
+	--color-user-olive-foreground: #ccd08d;
+	--color-user-teal: #1f3433;
+	--color-user-teal-foreground: #9fd0cd;
+	--color-user-slate: #2b2f36;
+	--color-user-slate-foreground: #bfc6d4;
 	--shadow-card: none;
 	--shadow-cover: none;
 	--shadow-cta: none;
@@ -145,6 +184,22 @@
 		--color-tint-1: #3f2f1e;
 		--color-tint-2: #33301f;
 		--color-tint-3: #3d2a22;
+		--color-user-amber: #3f2f1e;
+		--color-user-amber-foreground: #f0c391;
+		--color-user-clay: #43291f;
+		--color-user-clay-foreground: #efb497;
+		--color-user-rose: #43262a;
+		--color-user-rose-foreground: #f0adb4;
+		--color-user-plum: #372a3d;
+		--color-user-plum-foreground: #dcb2dd;
+		--color-user-sage: #25341f;
+		--color-user-sage-foreground: #aed3a8;
+		--color-user-olive: #33301f;
+		--color-user-olive-foreground: #ccd08d;
+		--color-user-teal: #1f3433;
+		--color-user-teal-foreground: #9fd0cd;
+		--color-user-slate: #2b2f36;
+		--color-user-slate-foreground: #bfc6d4;
 		--shadow-card: none;
 		--shadow-cover: none;
 		--shadow-cta: none;

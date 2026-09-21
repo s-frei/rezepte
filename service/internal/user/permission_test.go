@@ -65,3 +65,21 @@ func TestGuardAssignRole(t *testing.T) {
 		}
 	}
 }
+
+func TestGuardProfileEdit(t *testing.T) {
+	tests := []struct {
+		actor Role
+		want  error
+	}{
+		{RoleSuperadmin, nil},
+		{RoleAdmin, ErrSuperadminRequired},
+		{RoleUser, ErrSuperadminRequired},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.actor), func(t *testing.T) {
+			if err := guardProfileEdit(tt.actor); !errors.Is(err, tt.want) {
+				t.Errorf("guardProfileEdit(%q) = %v; want %v", tt.actor, err, tt.want)
+			}
+		})
+	}
+}

@@ -159,7 +159,8 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 }
 
 const getRecipeAuthors = `-- name: GetRecipeAuthors :one
-SELECT c.username AS created_by_name, u.username AS updated_by_name
+SELECT c.display_name AS created_by_name, c.color AS created_by_color,
+       u.display_name AS updated_by_name, u.color AS updated_by_color
 FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by
@@ -167,8 +168,10 @@ WHERE r.id = ?
 `
 
 type GetRecipeAuthorsRow struct {
-	CreatedByName string
-	UpdatedByName string
+	CreatedByName  string
+	CreatedByColor string
+	UpdatedByName  string
+	UpdatedByColor string
 }
 
 // Author names for the detail view. They come from a query of their own
@@ -177,7 +180,12 @@ type GetRecipeAuthorsRow struct {
 func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAuthorsRow, error) {
 	row := q.db.QueryRowContext(ctx, getRecipeAuthors, id)
 	var i GetRecipeAuthorsRow
-	err := row.Scan(&i.CreatedByName, &i.UpdatedByName)
+	err := row.Scan(
+		&i.CreatedByName,
+		&i.CreatedByColor,
+		&i.UpdatedByName,
+		&i.UpdatedByColor,
+	)
 	return i, err
 }
 
@@ -330,15 +338,62 @@ func (q *Queries) InsertStep(ctx context.Context, arg InsertStepParams) error {
 	return err
 }
 
+const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many
+SELECT id, display_name, color FROM users WHERE id IN (/*SLICE:ids*/?)
+`
+
+type ListAuthorsForIDsRow struct {
+	ID          string
+	DisplayName string
+	Color       string
+}
+
+// Display names and colours for a page of recipes, batched like
+// ListTagNamesForRecipes.
+func (q *Queries) ListAuthorsForIDs(ctx context.Context, ids []string) ([]ListAuthorsForIDsRow, error) {
+	query := listAuthorsForIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAuthorsForIDsRow{}
+	for rows.Next() {
+		var i ListAuthorsForIDsRow
+		if err := rows.Scan(&i.ID, &i.DisplayName, &i.Color); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuthorsWithCount = `-- name: ListAuthorsWithCount :many
-SELECT u.username, COUNT(r.id) AS recipe_count
+SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
 FROM users u JOIN recipes r ON r.created_by = u.id
-GROUP BY u.id, u.username
+GROUP BY u.id, u.username, u.display_name, u.color
 ORDER BY recipe_count DESC, u.username
 `
 
 type ListAuthorsWithCountRow struct {
 	Username    string
+	DisplayName string
+	Color       string
 	RecipeCount int64
 }
 
@@ -354,7 +409,12 @@ func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCo
 	items := []ListAuthorsWithCountRow{}
 	for rows.Next() {
 		var i ListAuthorsWithCountRow
-		if err := rows.Scan(&i.Username, &i.RecipeCount); err != nil {
+		if err := rows.Scan(
+			&i.Username,
+			&i.DisplayName,
+			&i.Color,
+			&i.RecipeCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -721,52 +781,6 @@ func (q *Queries) ListTagNamesForRecipes(ctx context.Context, recipeIds []string
 	for rows.Next() {
 		var i ListTagNamesForRecipesRow
 		if err := rows.Scan(&i.RecipeID, &i.Name); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listUsernamesForIDs = `-- name: ListUsernamesForIDs :many
-SELECT id, username FROM users WHERE id IN (/*SLICE:ids*/?)
-`
-
-type ListUsernamesForIDsRow struct {
-	ID       string
-	Username string
-}
-
-// Usernames for a page of recipes, batched like ListTagNamesForRecipes: the
-// overview needs them per card, and joining users twice into the four
-// filter queries would complicate the part of the schema that is hardest to
-// read for a column the filters never touch.
-func (q *Queries) ListUsernamesForIDs(ctx context.Context, ids []string) ([]ListUsernamesForIDsRow, error) {
-	query := listUsernamesForIDs
-	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
-	}
-	rows, err := q.db.QueryContext(ctx, query, queryParams...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListUsernamesForIDsRow{}
-	for rows.Next() {
-		var i ListUsernamesForIDsRow
-		if err := rows.Scan(&i.ID, &i.Username); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -29,10 +29,20 @@ describe('hasBeenEdited', () => {
 // reader announces and a desktop hover reveals.
 describe('authorLabel', () => {
 	it('names the author alone when nobody else touched the recipe', () => {
-		expect(authorLabel('admin', 'admin')).toBe('Angelegt von admin');
+		expect(authorLabel('admin', 'amber', 'admin', 'amber')).toBe('Angelegt von admin');
 	});
 
 	it('names both when somebody else edited last', () => {
-		expect(authorLabel('admin', 'mara')).toBe('Angelegt von admin, zuletzt bearbeitet von mara');
+		expect(authorLabel('admin', 'amber', 'mara', 'teal')).toBe(
+			'Angelegt von admin, zuletzt bearbeitet von mara'
+		);
+	});
+
+	// Display names are deliberately not unique - two members may both be
+	// "Mia" - so the same name with a different colour is still two people.
+	it('names both when two people share a name but not a colour', () => {
+		expect(authorLabel('Mia', 'amber', 'Mia', 'teal')).toBe(
+			'Angelegt von Mia, zuletzt bearbeitet von Mia'
+		);
 	});
 });

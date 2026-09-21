@@ -176,6 +176,8 @@ describe('fromRecipe', () => {
 			updatedAt: '2026-09-17T10:00:00Z',
 			createdByName: 'sam',
 			updatedByName: 'sam',
+			createdByColor: 'amber',
+			updatedByColor: 'amber',
 			favourite: false
 		};
 		expect(fromRecipe(recipe).title).toBe('Zitronen-Tarte');

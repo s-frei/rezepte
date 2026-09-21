@@ -1,5 +1,6 @@
 import type { Recipe } from '$lib/api/recipes';
 import { m } from '$lib/paraglide/messages';
+import type { UserColor } from '$lib/user/color';
 
 /**
  * Whether a recipe has been edited since it was written, which is what
@@ -22,12 +23,19 @@ export function hasBeenEdited(
  * shows and the `aria-label` a screen reader announces - the initials
  * themselves carry no text.
  *
- * A card compares names rather than calling `hasBeenEdited`: it has no
- * timestamps, and an edit by the author alone adds nothing to a card that
- * already names them.
+ * A card compares (name, colour) pairs rather than calling `hasBeenEdited`:
+ * it has no timestamps, and an edit by the author alone adds nothing to a
+ * card that already names them. The colour is part of the comparison
+ * because a display name is deliberately not unique - two members may both
+ * be "Mia" - so the name alone cannot tell them apart; their colours do.
  */
-export function authorLabel(createdByName: string, updatedByName: string): string {
-	return createdByName === updatedByName
+export function authorLabel(
+	createdByName: string,
+	createdByColor: UserColor,
+	updatedByName: string,
+	updatedByColor: UserColor
+): string {
+	return createdByName === updatedByName && createdByColor === updatedByColor
 		? m.card_author({ user: createdByName })
 		: m.card_author_and_editor({ user: createdByName, editor: updatedByName });
 }

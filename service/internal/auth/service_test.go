@@ -15,7 +15,7 @@ func newServices(t *testing.T) (*auth.Service, *user.Service) { //nolint:unparam
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	return auth.NewService(conn, users), users

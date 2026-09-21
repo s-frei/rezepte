@@ -1,6 +1,6 @@
 ---
 title: Members
-description: Create accounts, reset passwords and delete members; the owner assigns roles
+description: Create accounts, reset passwords and delete members; the owner assigns roles and edits profiles
 ---
 
 This page is for admins; a "Mitglied" account does not see "Benutzer" in Settings, and is redirected to their own settings if they open its URL directly.
@@ -11,10 +11,12 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | --- | :-: | :-: | :-: |
 | Cook, add and edit recipes, upload images | ✓ | ✓ | ✓ |
 | Change your own password | ✓ | ✓ | ✓ |
+| Change your own display name and colour | ✓ | ✓ | ✓ |
 | See the member list | – | ✓ | ✓ |
 | Add a member, reset a member's password, remove a member | – | ✓ | ✓ |
 | Add an **admin**, reset an admin's password, remove an admin | – | – | ✓ |
 | Hand out the "Admin" role or take it back | – | – | ✓ |
+| Change **someone else's** display name or colour | – | – | ✓ |
 | Issue [API tokens](/api/tokens) | – | ✓ | ✓ |
 | Remove or demote the **Inhaber**, or reset their password | – | – | – |
 | Delete your own account | – | – | – |
@@ -41,12 +43,23 @@ There is exactly one Inhaber and it never changes: the role cannot be handed to 
 
     "Admin" can manage users and everything a member can; "Mitglied" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
 
+    "Anzeigename (optional)" is the name Rezepte shows on recipes and in this list; leave it empty and the login name is used. The colour picker starts on the colour the fewest accounts hold, and a small dot marks each colour somebody already has — you can still pick it. Both can be changed later, by that person or by the owner.
+
   </Step>
   <Step>
 
     ### Change a role
 
     Use the "Rolle" select in a member's row to switch them between "Admin" and "Mitglied". Only the owner has this select; for every other admin the role is shown as plain text.
+
+  </Step>
+  <Step>
+
+    ### Change someone's name or colour
+
+    The pencil in a member's row opens "Profil bearbeiten": their display name and their colour. This is the owner's alone — no other admin sees the pencil.
+
+    It is not offered on your own row either. Your own name and colour live in "Einstellungen" → "Profil", so there is only ever one place to change them (see [Settings](/guide/settings)).
 
   </Step>
   <Step>
@@ -67,6 +80,10 @@ There is exactly one Inhaber and it never changes: the role cannot be handed to 
 
 <Callout type="info" title="Good to know">
   The owner's row is marked "Inhaber" and carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
+</Callout>
+
+<Callout type="info" title="A display name is not a login">
+  Renaming somebody changes only what Rezepte shows. They still sign in with their username, which is why the list prints it under the display name. Display names do not have to be unique either, so two people can both be "Mia" — and their recipes stay theirs whatever they are called.
 </Callout>
 
 <Accordions type="single">

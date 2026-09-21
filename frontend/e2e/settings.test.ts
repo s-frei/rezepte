@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createRecipe, createUser, loadFixture, login, uniqueToken } from './helpers';
+import { createRecipe, createUser, loadFixture, login, search, uniqueToken } from './helpers';
 
 // Follows the conventions of recipes.test.ts: unique usernames per test,
 // because desktop and mobile run against one binary and one database.
@@ -201,4 +201,90 @@ test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ pag
 	await dialog.getByRole('option', { name: fixture.title }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 	await expect(dialog).toHaveCount(0);
+});
+
+test('a member renames themselves and picks a colour, and their cards follow', async ({ page }) => {
+	const token = uniqueToken();
+	const username = `col${token}`;
+	// The token rides along in the display name as well: both projects run
+	// this test against the same database, so two accounts would otherwise
+	// answer to "Angelegt von Sam".
+	const displayName = `Sam ${token}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, password: 'member-password-1', role: 'user' });
+
+	await page.context().clearCookies();
+	await login(page, username, 'member-password-1');
+	await expect(page).toHaveURL('/');
+	await createRecipe(page, { ...loadFixture(0), title: `Farbtest ${token}` });
+
+	await page.goto('/settings');
+	await page.getByLabel('Anzeigename').fill(displayName);
+	await page.getByRole('button', { name: 'Namen speichern' }).click();
+	await expect(page.getByText('Profil gespeichert')).toBeVisible();
+
+	// Picking a swatch is the save, and it raises a second toast carrying the
+	// same words - which would make the locator above ambiguous. So the round
+	// trip is read off the profile card's own avatar instead: it follows the
+	// session, which only changes once the server has answered.
+	await page.getByRole('radio', { name: 'Salbei' }).click();
+	const avatar = page.locator('section[aria-labelledby="settings-profile"] span.size-14');
+	await expect(avatar).toHaveClass(/bg-user-sage/);
+
+	// The recipe was written before the rename, and its card carries the name
+	// and the colour the account holds now: both are joined from `users` on
+	// every read rather than copied onto the recipe.
+	await page.goto('/');
+	await search(page, token);
+	const circle = page.getByLabel(`Angelegt von ${displayName}`).locator('span').first();
+	await expect(circle).toHaveClass(/bg-user-sage/);
+	await expect(circle).toHaveText('S');
+});
+
+test('an admin cannot rename a member, the owner can', async ({ page }) => {
+	const token = uniqueToken();
+	const member = `ren${token}`;
+	const admin = `adm${token}`;
+	const displayName = `Umbenannt ${token}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username: member, password: 'member-password-1', role: 'user' });
+	await createUser(page, { username: admin, password: 'admin-password-1', role: 'admin' });
+
+	// Managing a member is administration; renaming them is not, so an admin
+	// who is not the owner never gets the action. The refusal underneath it
+	// has no path through the UI and is covered by the Go handler test.
+	await page.context().clearCookies();
+	await login(page, admin, 'admin-password-1');
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/users');
+	// Scoped to the user list and matched on the login name - which stays put
+	// while the display name is what this test changes; svelte-sonner renders
+	// its toasts as listitems too.
+	const asAdmin = page
+		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('listitem')
+		.filter({ hasText: member });
+	await expect(asAdmin).toBeVisible();
+	await expect(asAdmin.getByRole('button', { name: 'Profil bearbeiten' })).toHaveCount(0);
+
+	// The `admin` the e2e task seeds is the instance owner, and renaming
+	// somebody else is theirs alone.
+	await page.context().clearCookies();
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/users');
+	const row = page
+		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('listitem')
+		.filter({ hasText: member });
+	await row.getByRole('button', { name: 'Profil bearbeiten' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Anzeigename').fill(displayName);
+	await dialog.getByRole('radio', { name: 'Petrol' }).click();
+	await dialog.getByRole('button', { name: 'Speichern' }).click();
+	await expect(page.getByText('Profil gespeichert')).toBeVisible();
+	await expect(row).toContainText(displayName);
+	await expect(row.locator('span.size-9')).toHaveClass(/bg-user-teal/);
 });

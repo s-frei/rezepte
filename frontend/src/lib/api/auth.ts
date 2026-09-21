@@ -1,6 +1,16 @@
+import type { UserColor } from '$lib/user/color';
 import { api } from './client';
 
-export type User = { id: string; username: string; role: 'superadmin' | 'admin' | 'user' };
+export type User = {
+	id: string;
+	username: string;
+	displayName: string;
+	role: 'superadmin' | 'admin' | 'user';
+	color: UserColor;
+};
+
+/** One palette colour and how many accounts hold it. */
+export type ColorUsage = { color: UserColor; count: number };
 
 export function login(username: string, password: string): Promise<User> {
 	return api<User>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
@@ -55,4 +65,21 @@ export function changePassword(currentPassword: string, password: string): Promi
 		method: 'PATCH',
 		body: JSON.stringify({ currentPassword, password })
 	});
+}
+
+/** Changes the own display name and/or colour. Its own path, because PATCH /auth/me is the password change. */
+export function updateOwnProfile(patch: {
+	displayName?: string;
+	color?: UserColor;
+}): Promise<User> {
+	return api<User>('/auth/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
+}
+
+/**
+ * The palette with a count per colour, so the picker can mark one as taken.
+ * Counts, not names: a plain member may not list users.
+ */
+export async function listColorUsage(): Promise<ColorUsage[]> {
+	const page = await api<{ items: ColorUsage[] }>('/auth/me/colors');
+	return page.items;
 }

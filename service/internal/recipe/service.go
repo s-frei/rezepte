@@ -229,7 +229,7 @@ func (s *Service) Authors(ctx context.Context) ([]AuthorCount, error) {
 	}
 	out := make([]AuthorCount, len(rows))
 	for i, r := range rows {
-		out[i] = AuthorCount{Name: r.Username, Count: int(r.RecipeCount)}
+		out[i] = AuthorCount{Name: r.Username, DisplayName: r.DisplayName, Color: r.Color, Count: int(r.RecipeCount)}
 	}
 	return out, nil
 }
@@ -391,14 +391,16 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			IngredientGroups: outGroups,
 			Steps:            outSteps,
 		},
-		CoverImageID:  row.CoverImageID,
-		Images:        images,
-		CreatedBy:     row.CreatedBy,
-		CreatedAt:     created,
-		UpdatedBy:     row.UpdatedBy,
-		UpdatedAt:     updated,
-		CreatedByName: authors.CreatedByName,
-		UpdatedByName: authors.UpdatedByName,
+		CoverImageID:   row.CoverImageID,
+		Images:         images,
+		CreatedBy:      row.CreatedBy,
+		CreatedAt:      created,
+		UpdatedBy:      row.UpdatedBy,
+		UpdatedAt:      updated,
+		CreatedByName:  authors.CreatedByName,
+		CreatedByColor: authors.CreatedByColor,
+		UpdatedByName:  authors.UpdatedByName,
+		UpdatedByColor: authors.UpdatedByColor,
 	}, nil
 }
 

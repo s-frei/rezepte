@@ -44,7 +44,7 @@ func TestRequireSessionRejectsMissingCookie(t *testing.T) {
 func TestRequireSessionAcceptsValidCookieAndStoresUser(t *testing.T) {
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)
@@ -78,7 +78,7 @@ func TestRequireSessionAcceptsValidCookieAndStoresUser(t *testing.T) {
 func TestRequireSessionReissuesCookieOnRenewal(t *testing.T) {
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)
@@ -182,7 +182,7 @@ func TestRequireAuthOrLoginKeeps401ForEverythingElse(t *testing.T) {
 func TestRequireAuthOrLoginServesAValidSession(t *testing.T) {
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(context.Background(), "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)
@@ -208,7 +208,7 @@ func TestRequireAuthAcceptsABearerTokenWithTheScope(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	sam, err := users.Create(ctx, "sam", "pw", user.RoleAdmin)
+	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +281,7 @@ func TestRequireAuthOrLoginNeverRedirectsABearerRequest(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
-	if _, err := users.Create(ctx, "sam", "pw", user.RoleAdmin); err != nil {
+	if _, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	sessions := auth.NewService(conn, users)

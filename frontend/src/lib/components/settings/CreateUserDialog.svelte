@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Dialog, RadioGroup } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
+	import type { ColorUsage } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import { createUser, type UserAccount, type UserRole } from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
@@ -9,15 +10,20 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
+	import { leastUsedColor, USER_COLORS, type UserColor } from '$lib/user/color';
+	import ColorPicker from './ColorPicker.svelte';
 
 	let {
 		open = $bindable(false),
+		usage,
 		oncreated
-	}: { open?: boolean; oncreated: (user: UserAccount) => void } = $props();
+	}: { open?: boolean; usage: ColorUsage[]; oncreated: (user: UserAccount) => void } = $props();
 
 	let username = $state('');
+	let displayName = $state('');
 	let password = $state('');
 	let role = $state<string>('user');
+	let color = $state<UserColor>(USER_COLORS[0]);
 	let errors = $state<{ username?: string; password?: string }>({});
 	let saving = $state(false);
 
@@ -40,8 +46,10 @@
 	$effect(() => {
 		if (open) {
 			username = '';
+			displayName = '';
 			password = '';
 			role = 'user';
+			color = leastUsedColor(usage);
 			errors = {};
 		}
 	});
@@ -63,8 +71,10 @@
 		try {
 			const created = await createUser({
 				username: username.trim(),
+				displayName: displayName.trim(),
 				password,
-				role: role as UserRole
+				role: role as UserRole,
+				color
 			});
 			toast.success(m.users_created({ username: created.username }));
 			open = false;
@@ -104,6 +114,16 @@
 			bind:value={username}
 			error={errors.username ?? null}
 		/>
+		<!-- Optional: an empty one means the API keeps the login name, which is
+		     exactly what a household of first names wants. -->
+		<Input
+			id="new-user-display-name"
+			label={m.users_field_display_name_optional()}
+			autocomplete="off"
+			maxlength={64}
+			counter={64}
+			bind:value={displayName}
+		/>
 		<Input
 			id="new-user-password"
 			label={m.login_password()}
@@ -137,6 +157,7 @@
 				</RadioGroup.Item>
 			{/each}
 		</RadioGroup.Root>
+		<ColorPicker bind:value={color} {usage} label={m.users_field_color()} />
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.users_create_submit()}</Button>

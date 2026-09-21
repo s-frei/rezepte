@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Plus from 'lucide-svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
+	import { listColorUsage, type ColorUsage } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import {
 		deleteUser,
@@ -21,6 +22,7 @@
 	import { m } from '$lib/paraglide/messages';
 
 	let users = $state<UserAccount[]>([]);
+	let usage = $state<ColorUsage[]>([]);
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let createOpen = $state(false);
@@ -29,6 +31,18 @@
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<UserAccount | null>(null);
 
+	// Advisory, like on the profile page: the counts only mark a colour in the
+	// pickers, so a failure leaves them unmarked instead of failing the page.
+	// Refreshed after every write that can move a colour, because a stale
+	// count marks one nobody holds any more.
+	async function loadUsage() {
+		try {
+			usage = await listColorUsage();
+		} catch {
+			usage = [];
+		}
+	}
+
 	// An inline error with a retry button instead of a toast over an empty
 	// list: an admin cannot tell a failed load from "no users", and a toast
 	// leaves no way back onto the list short of reloading the page.
@@ -36,7 +50,8 @@
 		loading = true;
 		loadFailed = false;
 		try {
-			users = await listUsers();
+			const [list] = await Promise.all([listUsers(), loadUsage()]);
+			users = list;
 		} catch (error) {
 			// On a 401 the client is already navigating to the login page.
 			loadFailed = !isSignedOut(error);
@@ -49,6 +64,16 @@
 
 	function replace(updated: UserAccount) {
 		users = users.map((u) => (u.id === updated.id ? updated : u));
+	}
+
+	function profileSaved(updated: UserAccount) {
+		replace(updated);
+		void loadUsage();
+	}
+
+	function userCreated(user: UserAccount) {
+		users = [...users, user];
+		void loadUsage();
 	}
 
 	async function changeRole(user: UserAccount, role: UserRole) {
@@ -83,6 +108,7 @@
 		try {
 			await deleteUser(target.id);
 			users = users.filter((u) => u.id !== target.id);
+			void loadUsage();
 			toast.success(m.users_deleted({ username: target.username }));
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 409) {
@@ -131,9 +157,11 @@
 				{users}
 				meId={session.user?.id ?? ''}
 				actorRole={session.user?.role ?? 'user'}
+				{usage}
 				onrole={changeRole}
 				onreset={askReset}
 				ondelete={askDelete}
+				onprofile={profileSaved}
 			/>
 		{/if}
 	</section>
@@ -141,7 +169,7 @@
 
 <!-- The new account is appended, not sorted in: UserTable owns the display
      order and drops the row where the current sort wants it. -->
-<CreateUserDialog bind:open={createOpen} oncreated={(user) => (users = [...users, user])} />
+<CreateUserDialog bind:open={createOpen} {usage} oncreated={userCreated} />
 <!-- Stays mounted and keeps its target after closing so the close transition
      can play; `askReset` replaces the target on the next open. -->
 <ResetPasswordDialog bind:open={resetOpen} user={resetTarget} />

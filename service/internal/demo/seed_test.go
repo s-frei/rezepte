@@ -19,7 +19,7 @@ var quiet = slog.New(slog.DiscardHandler)
 func TestSeedCreatesSamplesWithPlaceholders(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	if _, err := user.NewService(conn).Create(ctx, "demo", "demo1234", user.RoleAdmin); err != nil {
+	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -65,7 +65,7 @@ func TestSeedCreatesSamplesWithPlaceholders(t *testing.T) {
 func TestSeedIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	if _, err := user.NewService(conn).Create(ctx, "demo", "demo1234", user.RoleAdmin); err != nil {
+	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -91,7 +91,7 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 	if _, err := demo.Seed(ctx, conn, imageDir, "demo", quiet); !errors.Is(err, demo.ErrNoUsers) {
 		t.Fatalf("Seed without users: err = %v, want ErrNoUsers", err)
 	}
-	sam, err := user.NewService(conn).Create(ctx, "sam", "sam-password", user.RoleAdmin)
+	sam, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}

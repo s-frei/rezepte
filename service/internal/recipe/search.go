@@ -241,9 +241,10 @@ func toRecipesFromSearch(rows []sqlc.SearchRecipesFilteredRow) []sqlc.Recipe {
 	return out
 }
 
-// toCards loads the tags, the author usernames and, when userID is set,
-// the favourite state for rows in one batch each and assembles them into
-// Cards, in the same order as rows. It always returns a non-nil slice.
+// toCards loads the tags, the authors' display names and colours and, when
+// userID is set, the favourite state for rows in one batch each and
+// assembles them into Cards, in the same order as rows. It always returns a
+// non-nil slice.
 //
 // An empty userID disables the favourite batch entirely rather than
 // querying with an empty id: unauthenticated paths such as demo mode call
@@ -281,13 +282,13 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 			}
 		}
 	}
-	userRows, err := s.q.ListUsernamesForIDs(ctx, userIDs)
+	authorRows, err := s.q.ListAuthorsForIDs(ctx, userIDs)
 	if err != nil {
-		return nil, fmt.Errorf("list usernames for recipes: %w", err)
+		return nil, fmt.Errorf("list authors for recipes: %w", err)
 	}
-	usernames := make(map[string]string, len(userRows))
-	for _, u := range userRows {
-		usernames[u.ID] = u.Username
+	authors := make(map[string]author, len(authorRows))
+	for _, a := range authorRows {
+		authors[a.ID] = author{name: a.DisplayName, color: a.Color}
 	}
 
 	favourites := make(map[string]bool)
@@ -309,7 +310,7 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 
 	for _, r := range rows {
 		card, err := toCard(r, tagsByRecipe[r.ID], favourites[r.ID],
-			usernames[r.CreatedBy], usernames[r.UpdatedBy])
+			authors[r.CreatedBy], authors[r.UpdatedBy])
 		if err != nil {
 			return nil, err
 		}
@@ -318,9 +319,15 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	return items, nil
 }
 
+// author is a display name paired with the palette colour behind it, keyed
+// by user id in toCards' lookup and passed through to toCard for each side
+// of a recipe (created/updated) in one value rather than two.
+type author struct{ name, color string }
+
 // toCard builds a Card from a stored recipe row, its tag names, whether the
-// caller has favourited it and the usernames behind its two author columns.
-func toCard(row sqlc.Recipe, tags []string, favourite bool, createdByName, updatedByName string) (Card, error) {
+// caller has favourited it and the display name/colour pair behind each of
+// its two author columns.
+func toCard(row sqlc.Recipe, tags []string, favourite bool, createdBy, updatedBy author) (Card, error) {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -338,8 +345,10 @@ func toCard(row sqlc.Recipe, tags []string, favourite bool, createdByName, updat
 		UpdatedAt:    updated,
 		Favourite:    favourite,
 
-		CreatedByName: createdByName,
-		UpdatedByName: updatedByName,
+		CreatedByName:  createdBy.name,
+		CreatedByColor: createdBy.color,
+		UpdatedByName:  updatedBy.name,
+		UpdatedByColor: updatedBy.color,
 	}, nil
 }
 

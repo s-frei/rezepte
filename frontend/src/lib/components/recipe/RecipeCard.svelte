@@ -100,7 +100,9 @@
 			<div class="relative">
 				<AuthorInitials
 					createdByName={recipe.createdByName}
+					createdByColor={recipe.createdByColor}
 					updatedByName={recipe.updatedByName}
+					updatedByColor={recipe.updatedByColor}
 					anchor={cardEl}
 				/>
 			</div>

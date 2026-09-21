@@ -20,17 +20,53 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countUsersByColor = `-- name: CountUsersByColor :many
+SELECT color, COUNT(*) AS user_count FROM users GROUP BY color
+`
+
+type CountUsersByColorRow struct {
+	Color     string
+	UserCount int64
+}
+
+// Colours nobody holds are absent from this result; Go fills them in against
+// user.Colors, because the database does not know the palette.
+func (q *Queries) CountUsersByColor(ctx context.Context) ([]CountUsersByColorRow, error) {
+	rows, err := q.db.QueryContext(ctx, countUsersByColor)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountUsersByColorRow{}
+	for rows.Next() {
+		var i CountUsersByColorRow
+		if err := rows.Scan(&i.Color, &i.UserCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, username, password_hash, role, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, username, password_hash, role, created_at, updated_at
+INSERT INTO users (id, username, display_name, password_hash, role, color, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, username, display_name, password_hash, role, color, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	ID           string
 	Username     string
+	DisplayName  string
 	PasswordHash string
 	Role         string
+	Color        string
 	CreatedAt    string
 	UpdatedAt    string
 }
@@ -39,8 +75,10 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	row := q.db.QueryRowContext(ctx, createUser,
 		arg.ID,
 		arg.Username,
+		arg.DisplayName,
 		arg.PasswordHash,
 		arg.Role,
+		arg.Color,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -48,8 +86,10 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
+		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -69,7 +109,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
 }
 
 const getSuperadmin = `-- name: GetSuperadmin :one
-SELECT id, username, password_hash, role, created_at, updated_at FROM users WHERE role = 'superadmin'
+SELECT id, username, display_name, password_hash, role, color, created_at, updated_at FROM users WHERE role = 'superadmin'
 `
 
 func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
@@ -78,8 +118,10 @@ func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
+		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -87,7 +129,7 @@ func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password_hash, role, created_at, updated_at FROM users WHERE id = ?
+SELECT id, username, display_name, password_hash, role, color, created_at, updated_at FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -96,8 +138,10 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
+		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -105,7 +149,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, role, created_at, updated_at FROM users WHERE username = ?
+SELECT id, username, display_name, password_hash, role, color, created_at, updated_at FROM users WHERE username = ?
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -114,8 +158,10 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
+		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -123,7 +169,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, password_hash, role, created_at, updated_at FROM users ORDER BY username
+SELECT id, username, display_name, password_hash, role, color, created_at, updated_at FROM users ORDER BY username
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -138,8 +184,10 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Username,
+			&i.DisplayName,
 			&i.PasswordHash,
 			&i.Role,
+			&i.Color,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -196,8 +244,43 @@ func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPass
 	return result.RowsAffected()
 }
 
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE users SET display_name = ?, color = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, created_at, updated_at
+`
+
+type UpdateUserProfileParams struct {
+	DisplayName string
+	Color       string
+	UpdatedAt   string
+	ID          string
+}
+
+// Both profile columns at once. SetProfile reads the row first and fills in
+// whichever of the two the caller left alone, so a partial update needs no
+// second statement.
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserProfile,
+		arg.DisplayName,
+		arg.Color,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Color,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, password_hash, role, created_at, updated_at
+UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, created_at, updated_at
 `
 
 type UpdateUserRoleParams struct {
@@ -212,8 +295,10 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.DisplayName,
 		&i.PasswordHash,
 		&i.Role,
+		&i.Color,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

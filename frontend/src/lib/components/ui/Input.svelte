@@ -8,6 +8,7 @@
 		error = null,
 		hint,
 		suffix,
+		counter,
 		value = $bindable(''),
 		class: className = '',
 		...rest
@@ -19,12 +20,30 @@
 		hint?: string;
 		/** Unit rendered inside the field, right-aligned (e.g. "Min"). */
 		suffix?: string;
+		/**
+		 * Character limit to count towards, shown inside the field once the
+		 * value approaches it. Pass the same number as `maxlength`.
+		 */
+		counter?: number;
 		value?: string;
 		class?: string;
 	} & Omit<HTMLInputAttributes, 'id' | 'value' | 'class'> = $props();
 
+	// Code points, not UTF-16 units. The limit these count towards is counted
+	// in runes on the server, and `.length` says 2 for one emoji - a counter
+	// that disagrees with the limit it displays is worse than none.
+	const counted = $derived(counter === undefined ? 0 : [...value].length);
+	// Quiet until three quarters full. Most values sit nowhere near the
+	// limit, and a number that never changes meaningfully is noise competing
+	// with the text someone is actually typing.
+	const showCounter = $derived(counter !== undefined && counted >= counter * 0.75);
+	const atLimit = $derived(counter !== undefined && counted >= counter);
+	// The padding below is reserved for the whole life of a counting field,
+	// not only while the counter shows: text that reflowed at the 48th
+	// character would draw more attention than the counter appearing does.
+
 	const classes = $derived(
-		`h-11 w-full rounded-md border bg-surface-elevated px-4 text-body transition outline-none focus:border-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${suffix ? 'pr-12' : ''} ${className}`
+		`h-11 w-full rounded-md border bg-surface-elevated px-4 text-body transition outline-none focus:border-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
 	);
 
 	// The suffix is part of what the field means ("30" is 30 minutes), so it
@@ -55,6 +74,27 @@
 				class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-caption text-text-muted"
 			>
 				{suffix}
+			</span>
+		{/if}
+		<!--
+			Hidden from assistive tech on purpose: `maxlength` already tells a
+			screen reader what the field accepts, and a count that changed with
+			every keystroke would either say nothing (not a live region) or say
+			far too much (one announcement per character).
+
+			A full field is not an error, so it does not turn destructive - a
+			name of exactly the maximum length is valid, and a red counter
+			greeting someone on page load would say otherwise. It loses the
+			muted tone instead, which is enough to explain why typing stopped.
+		-->
+		{#if showCounter}
+			<span
+				aria-hidden="true"
+				class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-micro tabular-nums {atLimit
+					? 'font-semibold text-text'
+					: 'text-text-muted'}"
+			>
+				{counted}/{counter}
 			</span>
 		{/if}
 	</div>

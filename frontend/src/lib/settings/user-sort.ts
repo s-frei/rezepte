@@ -45,7 +45,19 @@ export function compareUsernames(a: string, b: string): number {
 	return nameCollator().compare(a, b) || byCodePoint(a, b);
 }
 
-/** Sorts a copy; ties in the role column fall back to the name, then the id. */
+/**
+ * Sorts a copy; ties in the role column fall back to the display name, then
+ * the username, then the id.
+ *
+ * The row's large primary line is the display name, so the list sorts on it
+ * rather than on the login name - a household whose display names differ
+ * from their usernames would otherwise read as unsorted. Display names are
+ * deliberately not unique, so the username is still needed as a tiebreaker
+ * to keep the comparator total: without it, two people sharing a display
+ * name would leave their relative order to however the two rows happened to
+ * arrive, which is the bug `compareUsernames` above exists for in the first
+ * place.
+ */
 export function sortUsers(users: UserAccount[], sort: UserSort): UserAccount[] {
 	// Resolved once per sort rather than once per comparison.
 	const compare = nameCollator().compare;
@@ -55,8 +67,11 @@ export function sortUsers(users: UserAccount[], sort: UserSort): UserAccount[] {
 			const byRank = roleRank(a.role) - roleRank(b.role);
 			if (byRank !== 0) return byRank * factor;
 		}
-		const byName = compare(a.username, b.username) || byCodePoint(a.username, b.username);
-		return (byName || byCodePoint(a.id, b.id)) * factor;
+		const byDisplayName =
+			compare(a.displayName, b.displayName) || byCodePoint(a.displayName, b.displayName);
+		if (byDisplayName !== 0) return byDisplayName * factor;
+		const byUsername = compare(a.username, b.username) || byCodePoint(a.username, b.username);
+		return (byUsername || byCodePoint(a.id, b.id)) * factor;
 	});
 }
 

@@ -2,8 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { UserAccount, UserRole } from '$lib/api/users';
 import { compareUsernames, nextSort, sortUsers } from './user-sort';
 
-function user(username: string, role: UserRole = 'user'): UserAccount {
-	return { id: username, username, role, createdAt: '2026-01-01T00:00:00Z' };
+function user(username: string, role: UserRole = 'user', displayName = username): UserAccount {
+	return {
+		id: username,
+		username,
+		displayName,
+		role,
+		color: 'amber',
+		createdAt: '2026-01-01T00:00:00Z'
+	};
 }
 
 function names(users: UserAccount[]): string[] {
@@ -74,6 +81,27 @@ describe('sortUsers', () => {
 	it('reverses rank and names together', () => {
 		const sorted = sortUsers(users, { column: 'role', direction: 'desc' });
 		expect(names(sorted)).toEqual(['Zoe', 'Änna', 'bert', 'admin']);
+	});
+
+	// The row's primary line is the display name, not the login name - a
+	// household whose display names differ from their usernames must sort on
+	// what the row shows, not on what it hides.
+	it('sorts by display name rather than username', () => {
+		const mismatched = [
+			user('sam', 'user', 'Zora'),
+			user('kim', 'user', 'Anna'),
+			user('joe', 'user', 'Mira')
+		];
+		const sorted = sortUsers(mismatched, { column: 'name', direction: 'asc' });
+		expect(sorted.map((u) => u.displayName)).toEqual(['Anna', 'Mira', 'Zora']);
+	});
+
+	// Display names are deliberately not unique, so two people sharing one
+	// must still land in a stable, total order - the username breaks the tie.
+	it('breaks a display-name tie with the username', () => {
+		const sharedName = [user('zeb', 'user', 'Mia'), user('abe', 'user', 'Mia')];
+		const sorted = sortUsers(sharedName, { column: 'name', direction: 'asc' });
+		expect(names(sorted)).toEqual(['abe', 'zeb']);
 	});
 });
 
