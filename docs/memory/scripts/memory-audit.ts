@@ -22,7 +22,7 @@ import { execSync } from 'node:child_process';
 // site's tsconfig, which has no Bun globals - hence fileURLToPath, not
 // import.meta.dir.
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const SOURCES = ['docs/memory/content', 'CLAUDE.md'];
+const SOURCES = ['docs/memory/content', 'AGENTS.md'];
 
 /** Phrasings that tie the memory to one person's machine rather than to the repository. */
 const MACHINE_INTERNALS = [

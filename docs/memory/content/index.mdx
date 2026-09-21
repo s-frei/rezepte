@@ -128,5 +128,9 @@ This memory describes **the repository, not the machine and not the day**.
     <Folder name="lib" />
   </Folder>
   <File name="mise.toml" />
+  <File name="AGENTS.md" />
   <File name="CLAUDE.md" />
 </Files>
+
+`AGENTS.md` carries the hard rules every agent follows, and `CLAUDE.md` is a symlink to it, so Claude Code and every tool that looks for `AGENTS.md` read the same file. Edit `AGENTS.md`; never replace the symlink with a copy.
+

@@ -25,7 +25,7 @@ const config = {
   // every route, parent or leaf, export as `<route>/index.html`.
   trailingSlash: true,
   // Don't auto-generate AGENTS.md and CLAUDE.md on dev/build; the repo
-  // already has its own root CLAUDE.md.
+  // already has its own root AGENTS.md.
   agentRules: false,
   allowedDevOrigins: lanOrigins,
   turbopack: {

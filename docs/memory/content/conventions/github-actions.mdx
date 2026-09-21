@@ -3,7 +3,7 @@ title: GitHub Actions
 description: Step names, action pinning, and what a workflow is allowed to install
 ---
 
-Workflows live in `.github/workflows/` and are English like the rest of the repository. There are two: `.github/workflows/ci.yml` is the gate that every push runs through, and `.github/workflows/release.yml` publishes the image and the binaries on a version tag, and a throwaway image tag on a manual dispatch from a branch (see [Releases](/architecture/releases)). These rules hold for every workflow, not just those two.
+Workflows live in `.github/workflows/` and are English like the rest of the repository. There are four. `.github/workflows/check.yml` is the gate itself and runs on nothing of its own; the other three call it or are called by it. `.github/workflows/ci.yml` runs the gate on every push and pull request, `.github/workflows/release.yml` publishes the image and the binaries on a version tag, and a throwaway image tag on a manual dispatch from a branch (see [Releases](/architecture/releases)), and `.github/workflows/pages.yml` publishes the user documentation (see [Documentation sites](/architecture/docs)). These rules hold for every workflow, not just those four.
 
 <Callout type="warn" title="Hard rules">
 
@@ -39,6 +39,29 @@ Raising a major is therefore a deliberate change, and the inputs have to be read
 [The toolchain](/architecture/toolchain) is pinned in `mise.toml`, and CI installs it through `jdx/mise-action` so the job runs the same versions a developer does. Nothing else installs tools: no `setup-node`, no `setup-go`, no direct `npm` or `node` call. Each of those would introduce a second version of something the repository already pins, and the gate would stop meaning what it means locally.
 
 Work is expressed as `mise run <task>`, never as the commands inside the task. A workflow that spells out the steps of a task is a second definition of it that drifts from the first.
+
+## One workflow per thing a run is for
+
+A workflow is named by what a run of it is *for*, and a job belongs in it only if it serves that. The gate says whether a commit is sound, the release turns a tag into published artefacts, and Pages turns a ref into the published manual. Each has its own trigger, and each fails differently: a red gate blocks a merge, a red deploy leaves the last good site standing.
+
+That is why the Pages deploy is a workflow rather than a job in `ci.yml`, even though CI is what normally starts it. A deployment carries what a gate never should - `pages: write` and `id-token: write`, a GitHub `environment`, a `concurrency` group serialising it against itself - and it has to be startable on its own, which a gate's triggers cannot say: a manual run of `ci.yml` would mean "run the gate", not "publish the docs".
+
+**Nothing publishes without the gate in front of it, and the gate is a workflow so that it can be in front of more than one thing.** `check.yml` holds the job and is only ever called: `ci.yml` calls it on every push and pull request, `release.yml` calls it before the image is built, and `pages.yml` runs after it. A gate that lives inside one workflow can only guard that workflow, and the rule it leaves unexpressed has to be carried by a checklist instead - which is where it gets skipped.
+
+The coupling survives the split because a caller job is still a job:
+
+```yaml
+pages:
+  if: github.ref == 'refs/heads/main'
+  needs: check
+  permissions:
+    contents: read
+    pages: write
+    id-token: write
+  uses: ./.github/workflows/pages.yml
+```
+
+A caller job has no steps of its own, so the step rules above do not apply to it. Its `permissions` are a ceiling rather than a grant: the called workflow's job may ask for less and never for more, so the caller has to name everything the callee needs. Where the callee needs nothing beyond the defaults - `check.yml` - the caller names nothing either.
 
 ## Why it is this way
 
