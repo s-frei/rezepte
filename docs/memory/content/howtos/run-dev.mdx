@@ -33,7 +33,7 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run docs
     ```
-    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). The base path on the user docs is set unconditionally so dev matches production - see [Documentation sites](/architecture/docs).
+    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001/rezepte` by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). The base path on the user docs is set unconditionally so dev matches production - see [Documentation sites](/architecture/docs). Both sites listen on `0.0.0.0` and both `next.config.mjs` files pass this machine's own IPv4 addresses as `allowedDevOrigins`, so a phone on the same network can open them: without that, Next answers the HTML but 403s every `/_next/*` chunk, and the page renders once and never hydrates.
 
   </Step>
   <Step>

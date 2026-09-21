@@ -25,11 +25,15 @@ Expose recipes to AI assistants (search, read, create draft), authenticating wit
 
 Second authenticator next to sessions. Users are matched by email or subject; roles stay local.
 
-## Product features
+## More recipe features
 
-Favourites, personal notes, "last cooked", shopping list, meal plan, English UI.
+Personal notes, "last cooked", shopping list, meal plan.
 
-## URL import (skipped Phase 6)
+## English interface
+
+The UI copy lives in `frontend/messages/de.json` alone; a second catalogue and a way to choose between them are what is missing. [Svelte conventions](/conventions/svelte) owns where that copy lives.
+
+## Recipe import from a URL (skipped Phase 6)
 
 Draft a recipe from a pasted URL: fetch the page, parse schema.org `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk), pre-fill the editor for review before saving. Deliberately skipped for now; still planned, not cancelled.
 
