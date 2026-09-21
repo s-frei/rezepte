@@ -384,3 +384,63 @@ func TestListColorUsageRequiresSession(t *testing.T) {
 		t.Fatalf("status %d, want 401", rec.Code)
 	}
 }
+
+func TestMeReturnsTheLocale(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodGet, "/api/v1/auth/me", "", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"locale":"en"`) {
+		t.Errorf("body = %s, want locale en", rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileChangesTheLocale(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"locale":"de"}`, cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"locale":"de"`) {
+		t.Errorf("body = %s, want locale de", rec.Body.String())
+	}
+}
+
+func TestUpdateOwnProfileRejectsAnUnknownLocale(t *testing.T) {
+	h := newHandler(t)
+	cookie := login(t, h)
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"locale":"fr"}`, cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422; body %s", rec.Code, rec.Body.String())
+	}
+	// 422 alone would also be huma's answer to a property the schema does not
+	// know at all, so it cannot tell a working enum from a misspelled field.
+	// Naming the location is what pins the enum.
+	var problem struct {
+		Errors []struct {
+			Location string `json:"location"`
+			Message  string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("decode body %s: %v", rec.Body.String(), err)
+	}
+	var found bool
+	for _, e := range problem.Errors {
+		if e.Location == "body.locale" {
+			found = true
+			if strings.Contains(e.Message, "unexpected property") {
+				t.Errorf("body.locale is not a known property: %s", e.Message)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no error on body.locale; body %s", rec.Body.String())
+	}
+}

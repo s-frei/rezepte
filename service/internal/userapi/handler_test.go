@@ -20,11 +20,25 @@ import (
 
 // newHandler seeds the owner "owner", an admin "sam" and a member "kim" (all
 // password "pw") and returns the full-stack handler, following
-// internal/recipe/handler_test.go.
+// internal/recipe/handler_test.go. Nothing is set in the environment, so the
+// instance runs on config's own defaults.
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
+	return newHandlerWithEnv(t, map[string]string{})
+}
+
+// newHandlerWithEnv is newHandler with an environment of its own, wired the
+// way cmd/rezepte does it: the config carries REZEPTE_LOCALE into the user
+// service, so a test can pin the instance language rather than rely on the
+// package default behind it.
+func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler {
+	t.Helper()
+	cfg, err := config.LoadFrom(environment)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, user.WithDefaultLocale(user.Locale(cfg.Locale)))
 	for _, seed := range []struct {
 		name string
 		role user.Role
@@ -33,7 +47,6 @@ func newHandler(t *testing.T) http.Handler {
 			t.Fatal(err)
 		}
 	}
-	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
@@ -408,5 +421,64 @@ func TestUpdateUserNeedsSomethingToChange(t *testing.T) {
 	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, `{}`, owner)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateUserAcceptsALocale(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+
+	rec := doReq(h, http.MethodPost, "/api/v1/users",
+		`{"username":"gina","password":"gina1234","role":"user","locale":"de"}`, owner)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"locale":"de"`) {
+		t.Errorf("body = %s, want locale de", rec.Body.String())
+	}
+}
+
+func TestCreateUserWithoutLocaleUsesTheInstanceDefault(t *testing.T) {
+	// German, so the assertion cannot be satisfied by user.Locales[0] - the
+	// fallback an unconfigured instance would land on anyway.
+	h := newHandlerWithEnv(t, map[string]string{"REZEPTE_LOCALE": "de"})
+	owner := loginAs(t, h, "owner", "pw")
+
+	rec := doReq(h, http.MethodPost, "/api/v1/users",
+		`{"username":"hugo","password":"hugo1234","role":"user"}`, owner)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"locale":"de"`) {
+		t.Errorf("body = %s, want locale de", rec.Body.String())
+	}
+}
+
+// The admin path takes no locale on purpose: the interface language is the
+// account holder's own choice, changed through PATCH /auth/me/profile and
+// nowhere else. Admins reset passwords and set roles; they do not pick
+// somebody's language. The field is simply absent from updateInput, and huma
+// rejects an unknown property, so the refusal is the schema's rather than a
+// rule anyone has to remember.
+func TestUpdateUserRefusesALocaleBecauseLanguageIsTheAccountHoldersAlone(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	kimID := idOf(t, listUsers(t, h, owner), "kim")
+
+	for _, body := range []string{`{"locale":"de"}`, `{"role":"admin","locale":"de"}`} {
+		rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kimID, body, owner)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("PATCH %s: status %d, want 422: %s", body, rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), `"location":"body.locale"`) {
+			t.Errorf("PATCH %s: body = %s, want an error on body.locale", body, rec.Body.String())
+		}
+	}
+
+	// And nothing was written on the way to that refusal.
+	kim := loginAs(t, h, "kim", "pw")
+	rec := doReq(h, http.MethodGet, "/api/v1/auth/me", "", kim)
+	if !strings.Contains(rec.Body.String(), `"locale":"en"`) {
+		t.Errorf("kim = %s, want the instance default locale en", rec.Body.String())
 	}
 }
