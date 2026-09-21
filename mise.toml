@@ -71,14 +71,6 @@ fi
 description = "Create a worktree off develop with its own port offset"
 run = "scripts/worktree-new.sh"
 
-[tasks."docker:context"]
-description = "List the paths the Docker build context contains, two levels deep"
-run = "scripts/docker-context.sh"
-
-[tasks."docker:context:check"]
-description = "Fail if the Docker build context no longer matches docker-context.txt"
-run = "scripts/docker-context-check.sh"
-
 [tasks."release:binaries"]
 description = "Build the release archives for every published platform into dist/"
 depends = ["//frontend:build"]
@@ -87,6 +79,45 @@ run = "scripts/release-binaries.sh"
 [tasks."release:publish"]
 description = "Create the GitHub release for the current tag and upload dist/"
 run = "scripts/release-publish.sh"
+
+[tasks."docker:build"]
+description = "Build the container image for this machine, stamped with this checkout's version"
+# The version is derived the same way //service:build:only derives it, so a
+# locally built image reports what a released one would. CI builds two
+# platforms; this builds one, because the point here is a fast loop. Only
+# rezepte:local is tagged - it is what `docker:demo` runs, and a
+# per-version tag would leave one more image behind on every commit.
+run = '''
+set -eu
+VERSION="${REZEPTE_VERSION:-$(git describe --tags --always 2>/dev/null || echo dev)}"
+VERSION="${VERSION#v}"
+docker build --build-arg "REZEPTE_VERSION=$VERSION" -t rezepte:local .
+echo "docker:build: tagged rezepte:local, version $VERSION"
+'''
+
+[tasks."docker:compose:check"]
+description = "Validate that docker-compose.yaml parses"
+# docker-compose.yaml is handed to users and rendered into two documentation
+# pages, so nothing here runs it - this is the only thing that checks it is
+# still valid. CI calls this task.
+run = "docker compose -f docker-compose.yaml config -q"
+
+[tasks."docker:demo"]
+description = "Build the image and run it in demo mode on this worktree's demo port"
+depends = ["docker:build"]
+# This exists to exercise the *image* - distroless, the nonroot UID, the
+# entrypoint, the version stamp - which `//docs/user:screenshots` and the rest
+# of the demo tooling cannot, because they run the binary directly.
+#
+# Deliberately not compose: docker-compose.yaml is the users' file, and a demo
+# overlay would have to replace every key in it, leaving a mechanism that
+# proves nothing about the file it layers over. --rm keeps nothing behind, so
+# every run seeds a fresh database.
+run = '''
+set -eu
+echo "docker:demo: http://localhost:$RZP_DEMO_PORT - log in as demo / demo1234"
+docker run --rm -p "$RZP_DEMO_PORT:8060" rezepte:local --demo
+'''
 
 [tasks.docs]
 description = "Run both documentation sites (memory :4000, user :4001 by default; mise run ports for this worktree)"

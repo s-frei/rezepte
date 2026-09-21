@@ -3,6 +3,7 @@ package httpserver
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -16,21 +17,48 @@ import (
 	"github.com/s-frei/rezepte/service/internal/config"
 )
 
-func newTestServer(t *testing.T) *Server {
+func newTestServer(t *testing.T, opts ...Option) *Server {
 	t.Helper()
 	cfg, err := config.LoadFrom(map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	static := fstest.MapFS{"index.html": {Data: []byte("app")}}
-	return New(cfg, slog.New(slog.DiscardHandler), static)
+	return New(cfg, slog.New(slog.DiscardHandler), static, opts...)
 }
 
-func TestHealthz(t *testing.T) {
+func TestHealthzReportsStatusAndVersion(t *testing.T) {
+	rec := httptest.NewRecorder()
+	srv := newTestServer(t, WithVersion("1.2.3"))
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	var got struct {
+		Status  string `json:"status"`
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("body %q is not JSON: %v", rec.Body.String(), err)
+	}
+	if got.Status != "ok" || got.Version != "1.2.3" {
+		t.Fatalf("got %+v, want status \"ok\" and version \"1.2.3\"", got)
+	}
+}
+
+func TestHealthzVersionDefaultsWhenUnset(t *testing.T) {
 	rec := httptest.NewRecorder()
 	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
-	if rec.Code != http.StatusOK || strings.TrimSpace(rec.Body.String()) != "ok" {
-		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+
+	var got struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("body %q is not JSON: %v", rec.Body.String(), err)
+	}
+	if got.Version != "dev" {
+		t.Fatalf("version = %q, want %q for a server built without WithVersion", got.Version, "dev")
 	}
 }
 

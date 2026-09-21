@@ -59,14 +59,15 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v4
 
-      - name: "Verify the Docker build context"
-        run: mise run docker:context:check
+      - name: "Validate the compose files"
+        run: mise run docker:compose:check
 
       - name: "Build the container image"
         uses: docker/build-push-action@v7
         with:
           context: .
           push: false
+          platforms: linux/amd64,linux/arm64
           tags: rezepte:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

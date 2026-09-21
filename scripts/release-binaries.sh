@@ -8,8 +8,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 
 # The workflow passes the tag; a local run falls back to the nearest tag, or
-# the commit when the repository has no tag yet.
-VERSION="${REZEPTE_VERSION:-$(git -C "$ROOT" describe --tags --always)}"
+# the commit when the repository has no tag yet, or `dev` in an exported source
+# tree with no .git at all. Same derivation as //service:build:only.
+VERSION="${REZEPTE_VERSION:-$(git -C "$ROOT" describe --tags --always 2>/dev/null || echo dev)}"
 VERSION="${VERSION#v}"
 
 DIST="$ROOT/dist"

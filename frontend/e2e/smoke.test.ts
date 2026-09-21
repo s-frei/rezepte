@@ -9,10 +9,14 @@ test('serves the app shell', async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
 });
 
-test('health endpoint answers', async ({ request }) => {
+test('health endpoint answers with a status and a version', async ({ request }) => {
 	const res = await request.get('/healthz');
 	expect(res.ok()).toBeTruthy();
-	expect(await res.text()).toContain('ok');
+	// The version differs per build, so assert only that one is reported - the
+	// point is that /healthz carries it at all.
+	const body = (await res.json()) as { status?: string; version?: string };
+	expect(body.status).toBe('ok');
+	expect(body.version).toBeTruthy();
 });
 
 test('serves the app shell for deep links', async ({ page }) => {

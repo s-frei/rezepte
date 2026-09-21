@@ -1,0 +1,32 @@
+# The setup Rezepte is meant to be run with, and the single source the user
+# documentation renders — both getting-started pages include the region below
+# rather than copying it, so this file and the docs cannot drift apart.
+# `mise run docker:compose:check` validates it, and CI runs that task.
+#
+# Nothing in the repository runs this file: `mise run docker:demo` starts the
+# locally built image directly, because a demo overlay would have to replace
+# every key below and would prove nothing about them.
+#
+# Keys are ordered image, restart, command, volumes, environment, ports: what
+# runs and how it behaves over time first, then the service from the inside
+# out — the order a reader asks the questions in.
+#
+# No healthcheck block: the image declares its own, so `docker ps` reports the
+# container healthy without anything being configured here.
+
+# #region compose
+services:
+  rezepte:
+    image: ghcr.io/s-frei/rezepte:latest
+    restart: unless-stopped
+    volumes:
+      - rezepte-data:/data
+    environment:
+      # Read on the first start only, to create the admin account.
+      REZEPTE_ADMIN_PASSWORD: change-me-now
+    ports:
+      - "8060:8060"
+
+volumes:
+  rezepte-data:
+# #endregion compose

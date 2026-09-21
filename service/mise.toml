@@ -38,8 +38,15 @@ run = "go vet ./..."
 description = "Build the Go binary from whatever is already in internal/web/dist"
 # Separate from `build` so the release task can build the SPA once and then
 # cross-compile four times. GOOS and GOARCH are read from the environment, so
-# the compiler flags stay defined here and nowhere else.
-run = "CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/rezepte ./cmd/rezepte"
+# the compiler flags stay defined here and nowhere else - including the version
+# stamp, which is why the release task has to pass REZEPTE_VERSION rather than
+# build its own command.
+run = '''
+set -eu
+VERSION="${REZEPTE_VERSION:-$(git describe --tags --always 2>/dev/null || echo dev)}"
+VERSION="${VERSION#v}"
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o bin/rezepte ./cmd/rezepte
+'''
 
 [tasks.build]
 description = "Build the binary with the embedded frontend"
