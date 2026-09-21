@@ -19,9 +19,13 @@ run = "bun run dev"
 description = "Run Playwright tests (expects the app on E2E_BASE_URL or :8060 at offset 0, see mise run ports)"
 run = "bun run test:e2e"
 
+[tasks."messages:parity"]
+description = "Fail if the message catalogues do not hold the same keys"
+run = "bun run messages:parity"
+
 [tasks.check]
 description = "svelte-check, lint and unit tests"
-depends = ["lint", "test"]
+depends = ["lint", "test", "messages:parity"]
 run = "bun run check"
 
 [tasks.lint]
