@@ -63,8 +63,8 @@ func TestTimeRoundTrip(t *testing.T) {
 func TestSuperadminTriggers(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	insert := `INSERT INTO users (id, username, display_name, password_hash, role, color, created_at, updated_at)
-	           VALUES (?, ?, ?, 'x', ?, 'amber', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
+	insert := `INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
+	           VALUES (?, ?, ?, 'x', ?, 'amber', 'en', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
 	if _, err := conn.ExecContext(ctx, insert, "owner", "owner", "owner", "superadmin"); err != nil {
 		t.Fatalf("seed superadmin: %v", err)
 	}
@@ -80,8 +80,8 @@ func TestSuperadminTriggers(t *testing.T) {
 	// trigger sees, and its delete only fires the first one because the DSN
 	// turns recursive_triggers on. With that pragma off this statement demotes
 	// the owner and overwrites their hash without an error.
-	replace := `INSERT OR REPLACE INTO users (id, username, display_name, password_hash, role, color, created_at, updated_at)
-	            VALUES ('owner', 'owner', 'owner', 'PWNED', 'user', 'amber', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
+	replace := `INSERT OR REPLACE INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
+	            VALUES ('owner', 'owner', 'owner', 'PWNED', 'user', 'amber', 'en', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
 	if _, err := conn.ExecContext(ctx, replace); err == nil {
 		t.Fatal("INSERT OR REPLACE over the superadmin succeeded, want the trigger to abort it")
 	}

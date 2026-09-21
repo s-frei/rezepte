@@ -1,3 +1,6 @@
+-- locale is the account holder's interface language. The CHECK repeats the
+-- set that service/internal/user/profile.go owns in Locales; those two are
+-- the only places it exists.
 -- +goose Up
 CREATE TABLE users (
     id            TEXT PRIMARY KEY,
@@ -6,6 +9,7 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL CHECK (role IN ('superadmin', 'admin', 'user')),
     color         TEXT NOT NULL,
+    locale        TEXT NOT NULL CHECK (locale IN ('en', 'de')),
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
 );
