@@ -5,6 +5,7 @@
 	import { isSignedOut } from '$lib/api/client';
 	import { session } from '$lib/auth.svelte';
 	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
+	import LanguageControl from '$lib/components/settings/LanguageControl.svelte';
 	import PasswordForm from '$lib/components/settings/PasswordForm.svelte';
 	import ProfileForm from '$lib/components/settings/ProfileForm.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
@@ -179,5 +180,10 @@
 	<section class={card} aria-labelledby="settings-theme">
 		<h2 id="settings-theme" class={title}>{m.settings_theme_title()}</h2>
 		<ThemeControl />
+	</section>
+
+	<section class={card} aria-labelledby="settings-language">
+		<h2 id="settings-language" class={title}>{m.settings_language_title()}</h2>
+		<LanguageControl />
 	</section>
 </SettingsLayout>

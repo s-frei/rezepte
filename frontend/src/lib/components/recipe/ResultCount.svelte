@@ -15,8 +15,9 @@
 <!--
 	Two keys plus a ternary rather than an ICU plural: this project's
 	paraglide plugin does not parse ICU, and the codebase already picks
-	plurals this way (see `servings_unit_one` in `format.ts`). "Treffer"
-	is identical in both numbers, so the filtered line needs no variant.
+	plurals this way (see `servings_unit_one` in `format.ts`). "found" (like
+	German "Treffer") reads the same for one result as for many, so the
+	filtered line needs no singular variant.
 -->
 <p class="text-caption text-text-muted">
 	{#if filtered}

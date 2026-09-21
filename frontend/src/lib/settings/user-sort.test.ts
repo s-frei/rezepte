@@ -9,6 +9,7 @@ function user(username: string, role: UserRole = 'user', displayName = username)
 		displayName,
 		role,
 		color: 'amber',
+		locale: 'en',
 		createdAt: '2026-01-01T00:00:00Z'
 	};
 }
