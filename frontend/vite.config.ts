@@ -45,7 +45,11 @@ export default defineConfig({
 		// or save in dev mode into a 403.
 		proxy: {
 			'/api': { target: apiTarget, changeOrigin: false },
-			'/images': { target: apiTarget, changeOrigin: false }
+			'/images': { target: apiTarget, changeOrigin: false },
+			// The API card reads the instance version from here. The built
+			// binary serves it from the same origin as the SPA; only the dev
+			// server needs to be told.
+			'/healthz': { target: apiTarget, changeOrigin: false }
 		}
 	},
 	test: {

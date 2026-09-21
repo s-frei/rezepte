@@ -62,29 +62,3 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	await page.getByRole('dialog').getByRole('button', { name: 'Widerrufen', exact: true }).click();
 	await expect(row).toBeHidden();
 });
-
-test('a member cannot reach the API tab', async ({ page }) => {
-	const username = `member${uniqueToken()}`;
-	await login(page);
-	await expect(page).toHaveURL('/');
-	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Benutzer anlegen' }).click();
-	// Scoped to the dialog: the user list behind it holds per-row "Passwort von
-	// <name> zurücksetzen" buttons whose aria-label also contains "Passwort",
-	// which getByLabel matches page-wide regardless of the dialog on top
-	// (settings.test.ts's own user flow scopes the same way).
-	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('Benutzername').fill(username);
-	await dialog.getByLabel('Passwort', { exact: true }).fill('member-password-1');
-	await dialog.getByRole('button', { name: 'Anlegen' }).click();
-	// Wait for the dialog to close (only on a successful create) before
-	// clearing cookies: doing so immediately after the click can race the
-	// create request itself, same as the login-then-navigate race above.
-	await expect(dialog).toBeHidden();
-
-	await page.context().clearCookies();
-	await login(page, username, 'member-password-1');
-	await expect(page).toHaveURL('/');
-	await page.goto('/settings/api');
-	await expect(page).toHaveURL('/settings');
-});

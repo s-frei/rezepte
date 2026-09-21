@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Theme, password and signing out
+description: Theme, password, API and signing out
 ---
 
 <Screenshot name="settings" caption="The settings page" />
@@ -12,6 +12,14 @@ Choose "System", "Hell" or "Dunkel". The choice is stored in this browser only �
 ## Passwort ändern
 
 Enter the current password once, then the new password (8–128 characters) twice. Changing your password signs out every other device that was logged in as you; this device stays signed in.
+
+## API
+
+<Screenshot name="api" caption="The API tab, here as an admin sees it" />
+
+Every signed-in member has this tab. It carries the base URL of this instance's API, ready to copy, the number of endpoints and areas the instance serves, and the version it is running. "Interaktive Doku" opens the try-it-out documentation, "openapi.json" the raw document — both work straight from the browser with your session, no token needed. See [API](/api) for what you can do with it.
+
+Issuing an API token needs an admin; the tab says so if you are not one. Admins find the token list on the same page — [API tokens](/api/tokens) covers it.
 
 ## Signing out
 

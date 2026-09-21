@@ -13,6 +13,8 @@ Only the colours are ours. Typography and layout stay Scalar's, and so do the si
 
 Two of Scalar's own features are off in `DocsRendererConfig`, both of which lead away from the contract and into Scalar's product: the API client (`hideClientButton`) and the assistant (`agent.disabled`). `hideModels` drops the schema list. The page keeps its own light/dark choice rather than following the app's, because huma leaves no room for a script that could read it.
 
+The app points at that page rather than duplicating it: Settings → API carries a card - open to every signed-in member, see [API tokens](/features/api-tokens) - with the base URL to copy, the endpoint and area counts read off the OpenAPI document, and links to `/api/v1/docs` and the document itself. The version beside them comes from `/healthz`, not from the document's `info.version`, which stays the fixed `"0.1.0"` of `huma.DefaultConfig`. Stamping the build version into the document would break a gate rather than improve it: the build version is `git describe --tags --always`, so it changes with every commit, while `docs/user/public/openapi.json` and the frontmatter of `reference.mdx` are checked in and CI regenerates both and runs `git diff --exit-code` (see [Regenerate the API reference](/howtos/regenerate-api-reference)). `/healthz` already publishes that number without authentication and is the one place an operator can read what is running, so the card asks it there.
+
 ## Authentication
 
 Two authenticators, declared as two OpenAPI security schemes (`session`, `token`) via `httpserver.WithSecuritySchemes(auth.SecuritySchemes())`; the Scalar page at `/api/v1/docs` therefore carries an Authorize control for both. See [API tokens](/features/api-tokens) for the token half.
