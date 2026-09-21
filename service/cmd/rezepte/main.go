@@ -124,7 +124,7 @@ func run() error {
 		return err
 	}
 
-	users := user.NewService(conn)
+	users := user.NewService(conn, user.WithDefaultLocale(user.Locale(cfg.Locale)))
 	if *resetOwner {
 		owner, err := users.ResetSuperadminPassword(ctx, cfg.AdminPassword)
 		if err != nil {

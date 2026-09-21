@@ -44,6 +44,7 @@ type User struct {
 	DisplayName string
 	Role        Role
 	Color       Color
+	Locale      Locale
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -68,27 +69,45 @@ var (
 
 // Service reads and writes users.
 type Service struct {
-	conn *sql.DB
-	q    *sqlc.Queries
-	now  func() time.Time
+	conn          *sql.DB
+	q             *sqlc.Queries
+	now           func() time.Time
+	defaultLocale Locale
+}
+
+// Option configures a Service.
+type Option func(*Service)
+
+// WithDefaultLocale sets the interface language new accounts get when the
+// caller names none. It comes from REZEPTE_LOCALE. Without it a Service
+// defaults to Locales[0], so a test or a tool needs no configuration.
+func WithDefaultLocale(l Locale) Option {
+	return func(s *Service) { s.defaultLocale = l }
 }
 
 // NewService returns a Service backed by conn.
-func NewService(conn *sql.DB) *Service {
-	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
+func NewService(conn *sql.DB, opts ...Option) *Service {
+	s := &Service{conn: conn, q: sqlc.New(conn), now: time.Now, defaultLocale: Locales[0]}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
-// CreateParams is what it takes to open an account. DisplayName and Color are
-// optional: an empty DisplayName becomes the trimmed username, and an empty
-// Color becomes the least-used colour of the palette. Create is the single
-// writer of a user row - the API, the bootstrap and the demo seed all reach
-// the table through it - so those defaults belong here and nowhere else.
+// CreateParams is what it takes to open an account. DisplayName, Color and
+// Locale are optional: an empty DisplayName becomes the trimmed username, an
+// empty Color becomes the least-used colour of the palette, and an empty
+// Locale becomes the service's default locale, set from REZEPTE_LOCALE.
+// Create is the single writer of a user row - the API, the bootstrap and the
+// demo seed all reach the table through it - so those defaults belong here
+// and nowhere else.
 type CreateParams struct {
 	Username    string
 	Password    string
 	Role        Role
 	DisplayName string
 	Color       Color
+	Locale      Locale
 }
 
 // Create stores a new user with a hashed password. username is trimmed of
@@ -112,6 +131,12 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 	} else if _, err := ParseColor(string(color)); err != nil {
 		return User{}, err
 	}
+	locale := p.Locale
+	if locale == "" {
+		locale = s.defaultLocale
+	} else if _, err := ParseLocale(string(locale)); err != nil {
+		return User{}, err
+	}
 	hash, err := HashPassword(p.Password)
 	if err != nil {
 		return User{}, err
@@ -124,6 +149,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 		PasswordHash: hash,
 		Role:         string(p.Role),
 		Color:        string(color),
+		Locale:       string(locale),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	})
@@ -500,6 +526,7 @@ func fromRow(row sqlc.User) (User, error) {
 		DisplayName: row.DisplayName,
 		Role:        Role(row.Role),
 		Color:       Color(row.Color),
+		Locale:      Locale(row.Locale),
 		CreatedAt:   created,
 		UpdatedAt:   updated,
 	}, nil

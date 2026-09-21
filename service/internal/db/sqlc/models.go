@@ -104,6 +104,7 @@ type User struct {
 	PasswordHash string
 	Role         string
 	Color        string
+	Locale       string
 	CreatedAt    string
 	UpdatedAt    string
 }

@@ -528,3 +528,60 @@ func TestColorUsageCoversThePalette(t *testing.T) {
 		t.Errorf("counts = %+v; want sage 1 and amber 0", usage)
 	}
 }
+
+func TestCreateUsesTheDefaultLocale(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn, user.WithDefaultLocale("de"))
+
+	u, err := svc.Create(t.Context(), user.CreateParams{
+		Username: "anna", Password: "anna1234", Role: user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if u.Locale != "de" {
+		t.Errorf("Locale = %q, want de", u.Locale)
+	}
+}
+
+func TestCreateWithoutOptionDefaultsToEnglish(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn)
+
+	u, err := svc.Create(t.Context(), user.CreateParams{
+		Username: "bob", Password: "bob1234", Role: user.RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if u.Locale != "en" {
+		t.Errorf("Locale = %q, want en", u.Locale)
+	}
+}
+
+func TestCreateHonoursAnExplicitLocale(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn, user.WithDefaultLocale("en"))
+
+	u, err := svc.Create(t.Context(), user.CreateParams{
+		Username: "cara", Password: "cara1234", Role: user.RoleUser, Locale: "de",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if u.Locale != "de" {
+		t.Errorf("Locale = %q, want de", u.Locale)
+	}
+}
+
+func TestCreateRejectsAnUnknownLocale(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn)
+
+	_, err := svc.Create(t.Context(), user.CreateParams{
+		Username: "dan", Password: "dan1234", Role: user.RoleUser, Locale: "fr",
+	})
+	if !errors.Is(err, user.ErrInvalidLocale) {
+		t.Errorf("Create error = %v, want ErrInvalidLocale", err)
+	}
+}
