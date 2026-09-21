@@ -4,6 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import { isSignedOut } from '$lib/api/client';
 	import { deleteToken, listTokens, type ApiToken, type CreatedApiToken } from '$lib/api/tokens';
+	import ApiReferenceCard from '$lib/components/settings/ApiReferenceCard.svelte';
 	import CreateTokenDialog from '$lib/components/settings/CreateTokenDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import TokenRevealDialog from '$lib/components/settings/TokenRevealDialog.svelte';
@@ -13,6 +14,9 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
 
 	let tokens = $state<ApiToken[]>([]);
 	let loading = $state(true);
@@ -39,7 +43,13 @@
 		}
 	}
 
-	onMount(load);
+	// A member has no business calling GET /tokens: it answers 403 and the page
+	// would show its load-error state instead of its reference card.
+	onMount(() => {
+		if (data.isAdmin) {
+			void load();
+		}
+	});
 
 	// The raw secret must not outlive the dialog that shows it once.
 	$effect(() => {
@@ -83,50 +93,56 @@
 	}
 </script>
 
-<svelte:head><title>{m.tokens_title()} · {m.app_name()}</title></svelte:head>
+<svelte:head><title>{m.settings_nav_api()} · {m.app_name()}</title></svelte:head>
 
 <SettingsLayout active="api">
-	<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-tokens">
-		<div class="mb-4 flex items-start justify-between gap-4">
-			<div>
-				<h2 id="settings-tokens" class="font-display text-heading font-medium">
-					{m.tokens_title()}
-				</h2>
-				<p class="mt-1 text-caption text-text-muted">{m.tokens_intro()}</p>
-			</div>
-			<Button onclick={() => (createOpen = true)}>
-				<Plus aria-hidden="true" class="size-4" />
-				{m.tokens_create()}
-			</Button>
-		</div>
+	<ApiReferenceCard showTokenHint={!data.isAdmin} />
 
-		{#if loading}
-			<Skeleton class="h-24 w-full" />
-		{:else if loadFailed}
-			<div class="flex flex-col items-start gap-3">
-				<p class="text-body-sm text-text-muted">{m.tokens_load_error()}</p>
-				<Button variant="ghost" onclick={() => void load()}>{m.common_retry()}</Button>
-			</div>
-		{:else if tokens.length === 0}
-			<EmptyState title={m.tokens_empty_title()} text={m.tokens_empty_text()}>
+	{#if data.isAdmin}
+		<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-tokens">
+			<div class="mb-4 flex items-start justify-between gap-4">
+				<div>
+					<h2 id="settings-tokens" class="font-display text-heading font-medium">
+						{m.tokens_title()}
+					</h2>
+					<p class="mt-1 text-caption text-text-muted">{m.tokens_intro()}</p>
+				</div>
 				<Button onclick={() => (createOpen = true)}>
 					<Plus aria-hidden="true" class="size-4" />
 					{m.tokens_create()}
 				</Button>
-			</EmptyState>
-		{:else}
-			<TokenTable {tokens} onrevoke={askRevoke} />
-		{/if}
-	</section>
+			</div>
+
+			{#if loading}
+				<Skeleton class="h-24 w-full" />
+			{:else if loadFailed}
+				<div class="flex flex-col items-start gap-3">
+					<p class="text-body-sm text-text-muted">{m.tokens_load_error()}</p>
+					<Button variant="ghost" onclick={() => void load()}>{m.common_retry()}</Button>
+				</div>
+			{:else if tokens.length === 0}
+				<EmptyState title={m.tokens_empty_title()} text={m.tokens_empty_text()}>
+					<Button onclick={() => (createOpen = true)}>
+						<Plus aria-hidden="true" class="size-4" />
+						{m.tokens_create()}
+					</Button>
+				</EmptyState>
+			{:else}
+				<TokenTable {tokens} onrevoke={askRevoke} />
+			{/if}
+		</section>
+	{/if}
 </SettingsLayout>
 
-<CreateTokenDialog bind:open={createOpen} oncreated={created} />
-<TokenRevealDialog bind:open={revealOpen} token={revealed} />
-<ConfirmDialog
-	bind:open={revokeOpen}
-	title={m.tokens_revoke_title()}
-	text={m.tokens_revoke_text({ name: revokeTarget?.name ?? '' })}
-	confirmLabel={m.tokens_revoke()}
-	destructive
-	onconfirm={() => void revoke()}
-/>
+{#if data.isAdmin}
+	<CreateTokenDialog bind:open={createOpen} oncreated={created} />
+	<TokenRevealDialog bind:open={revealOpen} token={revealed} />
+	<ConfirmDialog
+		bind:open={revokeOpen}
+		title={m.tokens_revoke_title()}
+		text={m.tokens_revoke_text({ name: revokeTarget?.name ?? '' })}
+		confirmLabel={m.tokens_revoke()}
+		destructive
+		onconfirm={() => void revoke()}
+	/>
+{/if}

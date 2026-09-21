@@ -45,6 +45,13 @@
 	>
 		{m.settings_nav_profile()}
 	</a>
+	<a
+		href={resolve('/settings/api')}
+		aria-current={active === 'api' ? 'page' : undefined}
+		class="{item} {active === 'api' ? activeClass : idle}"
+	>
+		{m.settings_nav_api()}
+	</a>
 	{#if isAdmin}
 		<a
 			href={resolve('/settings/users')}
@@ -52,13 +59,6 @@
 			class="{item} {active === 'users' ? activeClass : idle}"
 		>
 			{m.settings_nav_users()}
-		</a>
-		<a
-			href={resolve('/settings/api')}
-			aria-current={active === 'api' ? 'page' : undefined}
-			class="{item} {active === 'api' ? activeClass : idle}"
-		>
-			{m.settings_nav_api()}
 		</a>
 	{/if}
 	<button type="button" onclick={() => void signOut()} class="{item} {logout}">
