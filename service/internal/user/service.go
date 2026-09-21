@@ -63,6 +63,7 @@ var (
 	ErrInvalidColor          = errors.New("unknown colour")
 	ErrDisplayNameTooLong    = errors.New("display name is too long")
 	ErrInvalidDisplayName    = errors.New("display name must not contain control characters")
+	ErrInvalidLocale         = errors.New("unknown interface language")
 )
 
 // Service reads and writes users.

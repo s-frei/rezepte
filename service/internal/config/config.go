@@ -6,6 +6,8 @@ import (
 	"log/slog"
 
 	"github.com/caarlos0/env/v11"
+
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 // Config holds every runtime setting. All values come from REZEPTE_* variables.
@@ -16,6 +18,7 @@ type Config struct {
 	AdminPassword string     `env:"REZEPTE_ADMIN_PASSWORD"`
 	LogLevel      slog.Level `env:"REZEPTE_LOG_LEVEL" envDefault:"info"`
 	LogFormat     string     `env:"REZEPTE_LOG_FORMAT" envDefault:"text"`
+	Locale        string     `env:"REZEPTE_LOCALE" envDefault:"en"`
 	SecureCookies bool       `env:"REZEPTE_SECURE_COOKIES" envDefault:"false"`
 }
 
@@ -37,6 +40,9 @@ func parse(opts env.Options) (Config, error) {
 	}
 	if cfg.LogFormat != "text" && cfg.LogFormat != "json" {
 		return Config{}, fmt.Errorf("REZEPTE_LOG_FORMAT must be text or json, got %q", cfg.LogFormat)
+	}
+	if _, err := user.ParseLocale(cfg.Locale); err != nil {
+		return Config{}, fmt.Errorf("REZEPTE_LOCALE must be one of %v, got %q", user.Locales, cfg.Locale)
 	}
 	return cfg, nil
 }

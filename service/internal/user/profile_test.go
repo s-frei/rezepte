@@ -77,6 +77,34 @@ func TestFillPaletteReturnsEveryColourInOrder(t *testing.T) {
 	}
 }
 
+func TestParseLocale(t *testing.T) {
+	for _, want := range Locales {
+		got, err := ParseLocale(string(want))
+		if err != nil {
+			t.Fatalf("ParseLocale(%q): %v", want, err)
+		}
+		if got != want {
+			t.Errorf("ParseLocale(%q) = %q", want, got)
+		}
+	}
+}
+
+func TestParseLocaleRejectsUnknown(t *testing.T) {
+	for _, in := range []string{"", "EN", "fr", "en-US", "de_DE"} {
+		if _, err := ParseLocale(in); !errors.Is(err, ErrInvalidLocale) {
+			t.Errorf("ParseLocale(%q) error = %v, want ErrInvalidLocale", in, err)
+		}
+	}
+}
+
+func TestLocalesStartsWithEnglish(t *testing.T) {
+	// The first entry is the base locale and the fallback default; the
+	// picker shows them in this order.
+	if Locales[0] != "en" {
+		t.Errorf("Locales[0] = %q, want en", Locales[0])
+	}
+}
+
 func TestLeastUsed(t *testing.T) {
 	empty := fillPalette(map[Color]int{})
 	if got := leastUsed(empty); got != "amber" {
