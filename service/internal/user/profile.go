@@ -41,6 +41,29 @@ func ParseColor(s string) (Color, error) {
 	return "", ErrInvalidColor
 }
 
+// Locale is the interface language of one account. It is a display choice
+// and nothing else: recipe content is stored in whatever language it was
+// written in and is never translated.
+type Locale string
+
+// Locales is the set of interface languages, in the order the picker shows
+// them. This slice owns that set: config validates against it, and the CHECK
+// constraint on users.locale in 0001_users_and_sessions.sql repeats it in the
+// only other place it has to exist. The first entry is the base locale.
+var Locales = []Locale{"en", "de"}
+
+// ParseLocale accepts exactly the set above, exactly as written. There is no
+// case folding and no BCP 47 parsing: the value reaches a CHECK constraint
+// and a Paraglide locale id, and both want one of two literals.
+func ParseLocale(s string) (Locale, error) {
+	for _, l := range Locales {
+		if Locale(s) == l {
+			return l, nil
+		}
+	}
+	return "", ErrInvalidLocale
+}
+
 // normalizeDisplayName produces the value the column stores. An empty name
 // falls back to the username, which is what lets the column be NOT NULL and
 // why no client ever has to fall back itself: the API always sends something

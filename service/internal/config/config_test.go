@@ -56,3 +56,29 @@ func TestLoadFromRejectsBadLogFormat(t *testing.T) {
 		t.Fatal("expected error for log format xml")
 	}
 }
+
+func TestLoadFromDefaultsToEnglish(t *testing.T) {
+	cfg, err := LoadFrom(map[string]string{})
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	if cfg.Locale != "en" {
+		t.Errorf("Locale = %q, want en", cfg.Locale)
+	}
+}
+
+func TestLoadFromAcceptsGerman(t *testing.T) {
+	cfg, err := LoadFrom(map[string]string{"REZEPTE_LOCALE": "de"})
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	if cfg.Locale != "de" {
+		t.Errorf("Locale = %q, want de", cfg.Locale)
+	}
+}
+
+func TestLoadFromRejectsUnknownLocale(t *testing.T) {
+	if _, err := LoadFrom(map[string]string{"REZEPTE_LOCALE": "fr"}); err == nil {
+		t.Fatal("LoadFrom accepted REZEPTE_LOCALE=fr")
+	}
+}
