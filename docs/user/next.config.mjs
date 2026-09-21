@@ -25,7 +25,7 @@ const config = {
   // `<route>.html` sibling (see docs/memory/next.config.mjs for the long version).
   trailingSlash: true,
   // Don't auto-generate AGENTS.md and CLAUDE.md on dev/build; the repo already
-  // has its own root CLAUDE.md.
+  // has its own root AGENTS.md.
   agentRules: false,
   // Static export has no image optimizer; <Screenshot> uses next/image via
   // ImageZoom.

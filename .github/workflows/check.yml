@@ -1,0 +1,45 @@
+name: Check
+
+on:
+  # Called by `.github/workflows/ci.yml` on every push and pull request, and by
+  # `.github/workflows/release.yml` before it publishes anything.
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out the repository"
+        uses: actions/checkout@v7
+
+      - name: "Set up mise"
+        uses: jdx/mise-action@v4
+        with:
+          cache: true
+
+      - name: "Install dependencies"
+        run: mise run setup
+        env:
+          PLAYWRIGHT_INSTALL_ARGS: --with-deps
+
+      - name: "Generate the OpenAPI documentation"
+        run: mise run //docs/user:openapi
+
+      - name: "Fail on uncommitted generated changes"
+        run: git diff --exit-code
+
+      - name: "Run all lint, format and test gates"
+        run: mise run check
+
+      - name: "Build the frontend and the Go binary"
+        run: mise run build
+
+      - name: "Run the Playwright end-to-end tests"
+        run: mise run e2e
+
+      - name: "Upload the Playwright results"
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-results
+          path: frontend/test-results

@@ -57,7 +57,7 @@ Deriving the port register from the worktrees that exist cannot go stale. Any sc
 - **A Makefile or `just`.** Both run tasks; neither pins the toolchain. mise covers tasks and tools with one lockfile.
 - **An offset hashed from the worktree name.** No state and no script, but two names can hash to the same slot — a silent collision, which is the failure the scheme exists to prevent.
 - **A registry file of assigned offsets.** Unique by construction, but it goes stale the first time a worktree is removed by hand, and then hands out an offset that is still in use.
-- **A convention in `CLAUDE.md` alone,** with each agent picking a free number by inspection. Least code, and it relies on every agent checking what is taken — an assumption that fails quietly, and exactly when several agents are running at once, which is the only case that matters.
+- **A convention in `AGENTS.md` alone,** with each agent picking a free number by inspection. Least code, and it relies on every agent checking what is taken — an assumption that fails quietly, and exactly when several agents are running at once, which is the only case that matters.
 
 ## Limits
 
