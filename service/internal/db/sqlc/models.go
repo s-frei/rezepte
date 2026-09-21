@@ -4,6 +4,18 @@
 
 package sqlc
 
+type ApiToken struct {
+	ID          string
+	UserID      string
+	Name        string
+	TokenHash   string
+	TokenPrefix string
+	Scopes      string
+	ExpiresAt   *string
+	LastUsedAt  *string
+	CreatedAt   string
+}
+
 type Favourite struct {
 	UserID    string
 	RecipeID  string
@@ -50,6 +62,7 @@ type Recipe struct {
 	CoverImageID *string
 	CreatedBy    string
 	CreatedAt    string
+	UpdatedBy    string
 	UpdatedAt    string
 }
 

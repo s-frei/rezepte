@@ -7,7 +7,7 @@
 # locally built image directly, because a demo overlay would have to replace
 # every key below and would prove nothing about them.
 #
-# Keys are ordered image, restart, command, volumes, environment, ports: what
+# Keys are ordered image, restart, volumes, environment, ports: what
 # runs and how it behaves over time first, then the service from the inside
 # out — the order a reader asks the questions in.
 #
@@ -22,7 +22,8 @@ services:
     volumes:
       - rezepte-data:/data
     environment:
-      # Read on the first start only, to create the admin account.
+      # Read on the first start, to create the instance owner, and after that
+      # only by --reset-superadmin-password.
       REZEPTE_ADMIN_PASSWORD: change-me-now
     ports:
       - "8060:8060"

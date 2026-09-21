@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -22,6 +23,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 	"github.com/s-frei/rezepte/service/internal/web"
@@ -80,6 +82,8 @@ func run() error {
 	demoMode := flag.Bool("demo", false, "fill an empty instance with sample recipes and, without REZEPTE_ADMIN_PASSWORD, a demo admin")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	probeHealth := flag.Bool("healthcheck", false, "probe this instance's own /healthz and exit non-zero if it does not answer")
+	resetOwner := flag.Bool("reset-superadmin-password", false,
+		"set the instance owner's password from REZEPTE_ADMIN_PASSWORD and exit; the server does not start")
 	flag.Parse()
 
 	if *showVersion {
@@ -97,9 +101,8 @@ func run() error {
 	if *probeHealth {
 		return healthcheck(cfg.Addr)
 	}
-	// Demo mode must work with no configuration at all: fall back to the
-	// well-known demo admin only when the operator set no password.
-	demoDefaults := *demoMode && cfg.AdminPassword == ""
+
+	demoDefaults := useDemoDefaults(*demoMode, *resetOwner, cfg.AdminPassword)
 	if demoDefaults {
 		cfg.AdminUser, cfg.AdminPassword = demo.AdminUser, demo.AdminPassword
 	}
@@ -122,7 +125,20 @@ func run() error {
 	}
 
 	users := user.NewService(conn)
-	if err := users.EnsureInitialAdmin(ctx, cfg.AdminUser, cfg.AdminPassword); err != nil {
+	if *resetOwner {
+		owner, err := users.ResetSuperadminPassword(ctx, cfg.AdminPassword)
+		if err != nil {
+			return resetError(err, cfg.DataDir)
+		}
+		// Every device signed in with the old credential goes: a reset means
+		// it is forgotten or compromised.
+		if err := auth.NewService(conn, users).DeleteUserSessionsExcept(ctx, owner.ID, ""); err != nil {
+			return err
+		}
+		logger.Info("superadmin password reset", "username", owner.Username)
+		return nil
+	}
+	if err := users.EnsureSuperadmin(ctx, cfg.AdminUser, cfg.AdminPassword); err != nil {
 		return err
 	}
 	imageDir := filepath.Join(cfg.DataDir, "images")
@@ -137,10 +153,12 @@ func run() error {
 		logger.Warn("cleanup expired sessions", "err", err)
 	}
 	go sessions.SweepLoop(ctx, sweepInterval, logger)
+	tokens := auth.NewTokenService(conn, users)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, cfg.SecureCookies)),
-		httpserver.WithSpecGuard(auth.RequireSessionOrLogin(sessions, cfg.SecureCookies)),
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
+		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
+		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
@@ -148,9 +166,56 @@ func run() error {
 	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
-		auth.RequireSession(sessions, cfg.SecureCookies)(image.FileHandler(images)))
+		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)
+	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
+}
+
+// useDemoDefaults reports whether the well-known demo credentials stand in
+// for the operator's configuration. Demo mode must work with no configuration
+// at all, so they do whenever --demo is passed and no password is set - except
+// during a reset, which would write the password published in the user docs
+// onto the instance owner's account. A reset without REZEPTE_ADMIN_PASSWORD is
+// refused with user.ErrAdminPasswordRequired instead, --demo or not.
+func useDemoDefaults(demoMode, resetOwner bool, adminPassword string) bool {
+	return demoMode && !resetOwner && adminPassword == ""
+}
+
+// resetErr carries an operator-facing message for the reset path while
+// keeping the service's sentinel reachable. fmt.Errorf with %w would append
+// the sentinel's own wording, which is written for the startup caller and
+// tells someone who mistyped REZEPTE_DATA_DIR to recreate a database they
+// have not lost.
+type resetErr struct {
+	msg string
+	err error
+}
+
+func (e resetErr) Error() string { return e.msg }
+func (e resetErr) Unwrap() error { return e.err }
+
+// resetError restates the two sentinel errors the reset can return in the
+// operator's terms. The service wording is written for the start path, where
+// an owner-less database is a broken instance and a missing password is a
+// first start; neither is true here. A mistyped REZEPTE_DATA_DIR is the
+// likeliest reason the reset finds no owner, so the message names the
+// directory it looked in rather than telling anyone to recreate a database.
+// Anything else passes through untouched.
+func resetError(err error, dataDir string) error {
+	switch {
+	case errors.Is(err, user.ErrNoSuperadmin):
+		return resetErr{
+			msg: fmt.Sprintf("no Rezepte instance with an owner at %s: check REZEPTE_DATA_DIR", dataDir),
+			err: err,
+		}
+	case errors.Is(err, user.ErrAdminPasswordRequired):
+		return resetErr{
+			msg: "REZEPTE_ADMIN_PASSWORD is required to reset the owner's password",
+			err: err,
+		}
+	}
+	return err
 }
 
 // seedDemo fills an empty instance with the sample recipes and logs the

@@ -9,15 +9,15 @@ description: Where Rezepte could go next
 
 ## Instance sync
 
-One Rezepte instance could mirror another's recipes read-only, using an API token the source instance issues.
+One Rezepte instance could mirror another's recipes read-only, using an [API token](/api/tokens) the source instance issues.
 
-## Public REST API with tokens
+## Public REST API
 
-The API already exists (see [API](/api)); what's missing for outside tools is bearer-token authentication, in addition to the session cookie the app itself uses.
+The API already exists and now supports [bearer-token authentication](/api/tokens) as well as the session cookie the app itself uses (see [API](/api)); what's still missing is a versioning policy and rate limits.
 
 ## MCP server
 
-Letting AI assistants search, read and draft recipes through the Model Context Protocol, built on top of the REST API and its future tokens.
+Letting AI assistants search, read and draft recipes through the Model Context Protocol, built on top of the REST API and its tokens.
 
 ## OIDC login
 

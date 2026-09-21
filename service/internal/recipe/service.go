@@ -68,6 +68,7 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 			SourceUrl:   in.SourceURL,
 			CreatedBy:   createdBy,
 			CreatedAt:   now,
+			UpdatedBy:   createdBy,
 			UpdatedAt:   now,
 		}); err != nil {
 			return fmt.Errorf("insert recipe: %w", err)
@@ -89,9 +90,9 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 // Update replaces every editable field of the recipe id - title,
 // description, servings, prep and cook minutes, source URL - along with all
 // its child rows (ingredient groups, ingredients, steps, tags), keeping its
-// slug and creation metadata. It returns ErrNotFound when no such recipe
-// exists.
-func (s *Service) Update(ctx context.Context, id string, in Input) (Recipe, error) {
+// slug and creation metadata. updatedBy is recorded as the editor. It
+// returns ErrNotFound when no such recipe exists.
+func (s *Service) Update(ctx context.Context, id string, updatedBy string, in Input) (Recipe, error) {
 	tags := NormalizeTags(in.Tags)
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		if _, err := q.GetRecipe(ctx, id); err != nil {
@@ -109,6 +110,7 @@ func (s *Service) Update(ctx context.Context, id string, in Input) (Recipe, erro
 			PrepMinutes: intToInt64Ptr(in.PrepMinutes),
 			CookMinutes: intToInt64Ptr(in.CookMinutes),
 			SourceUrl:   in.SourceURL,
+			UpdatedBy:   updatedBy,
 			UpdatedAt:   now,
 		}); err != nil {
 			return fmt.Errorf("update recipe: %w", err)
@@ -216,6 +218,22 @@ func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
 	return out, nil
 }
 
+// Authors returns everyone who wrote at least one recipe, together with how
+// many they wrote, most recipes first. Somebody who has only edited other
+// people's recipes is not among them: the filter this feeds narrows by
+// created_by.
+func (s *Service) Authors(ctx context.Context) ([]AuthorCount, error) {
+	rows, err := s.q.ListAuthorsWithCount(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list authors: %w", err)
+	}
+	out := make([]AuthorCount, len(rows))
+	for i, r := range rows {
+		out[i] = AuthorCount{Name: r.Username, Count: int(r.RecipeCount)}
+	}
+	return out, nil
+}
+
 // Count returns how many recipes exist.
 func (s *Service) Count(ctx context.Context) (int, error) {
 	// TagCount: 0, MaxMinutes: 0 and FavouritesOnly: 0 switch those filters
@@ -229,7 +247,7 @@ func (s *Service) Count(ctx context.Context) (int, error) {
 	// - leaving it unset bound NULL and made the condition's "= 0" test
 	// false instead of switching the filter off.
 	n, err := s.q.CountRecipesFiltered(ctx, sqlc.CountRecipesFilteredParams{
-		TagNames: "[]", TagCount: 0, MaxMinutes: 0, FavouritesOnly: 0, UserID: "",
+		TagNames: "[]", TagCount: 0, MaxMinutes: 0, FavouritesOnly: 0, UserID: "", Author: "",
 	})
 	if err != nil {
 		return 0, fmt.Errorf("count recipes: %w", err)
@@ -315,6 +333,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list tags: %w", err)
 	}
+	authors, err := s.q.GetRecipeAuthors(ctx, row.ID)
+	if err != nil {
+		return Recipe{}, fmt.Errorf("get recipe authors: %w", err)
+	}
 	imgRows, err := s.q.ListImagesByRecipe(ctx, row.ID)
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list images: %w", err)
@@ -369,11 +391,14 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			IngredientGroups: outGroups,
 			Steps:            outSteps,
 		},
-		CoverImageID: row.CoverImageID,
-		Images:       images,
-		CreatedBy:    row.CreatedBy,
-		CreatedAt:    created,
-		UpdatedAt:    updated,
+		CoverImageID:  row.CoverImageID,
+		Images:        images,
+		CreatedBy:     row.CreatedBy,
+		CreatedAt:     created,
+		UpdatedBy:     row.UpdatedBy,
+		UpdatedAt:     updated,
+		CreatedByName: authors.CreatedByName,
+		UpdatedByName: authors.UpdatedByName,
 	}, nil
 }
 

@@ -54,6 +54,14 @@ jobs:
           # A manual dispatch is never `latest` either: `latest=false` drops the
           # automatic one, and `image_tag` is a choice of `dev` or `edge`, so a
           # raw tag literally named `latest` cannot be requested.
+          # The action derives title, description and url from the GitHub repo,
+          # which gives a lowercase name and whatever the repo description says.
+          # These win over the Dockerfile's LABEL, so the curated values belong
+          # here rather than there.
+          labels: |
+            org.opencontainers.image.title=Rezepte
+            org.opencontainers.image.description=Self-hosted recipe manager with the web app built in and SQLite storage
+            org.opencontainers.image.url=https://s-frei.github.io/rezepte/
           flavor: |
             latest=${{ github.event_name == 'workflow_dispatch' && 'false' || 'auto' }}
           tags: |

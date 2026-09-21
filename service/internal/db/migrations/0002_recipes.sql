@@ -11,6 +11,7 @@ CREATE TABLE recipes (
     cover_image_id TEXT,
     created_by     TEXT NOT NULL REFERENCES users(id),
     created_at     TEXT NOT NULL,
+    updated_by     TEXT NOT NULL REFERENCES users(id),
     updated_at     TEXT NOT NULL
 );
 CREATE INDEX recipes_updated_at_idx ON recipes(updated_at DESC);

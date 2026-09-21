@@ -1,6 +1,136 @@
 {
   "components": {
     "schemas": {
+      "APIToken": {
+        "additionalProperties": false,
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "Absent when the token never expires",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Token id",
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "description": "Accurate to the hour; absent when never used",
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "description": "Label the admin gave it",
+            "type": "string"
+          },
+          "ownerId": {
+            "description": "User the token acts as",
+            "type": "string"
+          },
+          "ownerName": {
+            "description": "Login name of that user",
+            "type": "string"
+          },
+          "prefix": {
+            "description": "First characters of the token, for matching it against a client configuration",
+            "type": "string"
+          },
+          "scopes": {
+            "description": "What the token may do",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "scopes",
+          "ownerId",
+          "ownerName",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "APITokenList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/APITokenList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/APIToken"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "AuthorCount": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "count"
+        ],
+        "type": "object"
+      },
+      "AuthorList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/AuthorList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuthorCount"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "Card": {
         "additionalProperties": false,
         "properties": {
@@ -9,6 +139,9 @@
               "string",
               "null"
             ]
+          },
+          "createdByName": {
+            "type": "string"
           },
           "favourite": {
             "type": "boolean"
@@ -41,6 +174,9 @@
           "updatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "updatedByName": {
+            "type": "string"
           }
         },
         "required": [
@@ -51,7 +187,9 @@
           "totalMinutes",
           "coverImageId",
           "updatedAt",
-          "favourite"
+          "favourite",
+          "createdByName",
+          "updatedByName"
         ],
         "type": "object"
       },
@@ -142,6 +280,129 @@
           "username",
           "password",
           "role"
+        ],
+        "type": "object"
+      },
+      "CreateInputBody1": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/CreateInputBody1.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "expiresInDays": {
+            "enum": [
+              30,
+              90,
+              365
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "enum": [
+                "recipes:read",
+                "recipes:write",
+                "users:read",
+                "users:write"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ],
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ],
+        "type": "object"
+      },
+      "CreatedAPIToken": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/CreatedAPIToken.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "Absent when the token never expires",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Token id",
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "description": "Accurate to the hour; absent when never used",
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "description": "Label the admin gave it",
+            "type": "string"
+          },
+          "ownerId": {
+            "description": "User the token acts as",
+            "type": "string"
+          },
+          "ownerName": {
+            "description": "Login name of that user",
+            "type": "string"
+          },
+          "prefix": {
+            "description": "First characters of the token, for matching it against a client configuration",
+            "type": "string"
+          },
+          "scopes": {
+            "description": "What the token may do",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "token": {
+            "description": "The token itself. Shown once and never recoverable.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "id",
+          "name",
+          "prefix",
+          "scopes",
+          "ownerId",
+          "ownerName",
+          "createdAt"
         ],
         "type": "object"
       },
@@ -592,6 +853,9 @@
           "createdBy": {
             "type": "string"
           },
+          "createdByName": {
+            "type": "string"
+          },
           "description": {
             "maxLength": 2000,
             "type": "string"
@@ -681,6 +945,12 @@
           "updatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "updatedByName": {
+            "type": "string"
           }
         },
         "required": [
@@ -690,7 +960,10 @@
           "images",
           "createdBy",
           "createdAt",
+          "updatedBy",
           "updatedAt",
+          "createdByName",
+          "updatedByName",
           "favourite",
           "title",
           "description",
@@ -800,6 +1073,7 @@
           "role": {
             "description": "Authorization role",
             "enum": [
+              "superadmin",
               "admin",
               "user"
             ],
@@ -864,6 +1138,7 @@
           "role": {
             "description": "Authorization role",
             "enum": [
+              "superadmin",
               "admin",
               "user"
             ],
@@ -884,9 +1159,15 @@
     },
     "securitySchemes": {
       "session": {
+        "description": "Session cookie set by POST /api/v1/auth/login.",
         "in": "cookie",
         "name": "rezepte_session",
         "type": "apiKey"
+      },
+      "token": {
+        "description": "API token from Settings, sent as: Authorization: Bearer rzp_...",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -1122,6 +1403,47 @@
         ]
       }
     },
+    "/api/v1/authors": {
+      "get": {
+        "operationId": "list-authors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "List the people who wrote recipes, with counts",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
     "/api/v1/recipes": {
       "get": {
         "operationId": "list-recipes",
@@ -1174,6 +1496,17 @@
             "schema": {
               "description": "Restrict to the caller's own favourites",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "Restrict to recipes written by this username",
+            "explode": false,
+            "in": "query",
+            "name": "author",
+            "schema": {
+              "description": "Restrict to recipes written by this username",
+              "maxLength": 50,
+              "type": "string"
             }
           },
           {
@@ -1245,6 +1578,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
           }
         ],
         "summary": "List and search recipes",
@@ -1289,6 +1627,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Create a recipe",
@@ -1355,6 +1698,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
           }
         ],
         "summary": "Get a recipe by slug",
@@ -1414,6 +1762,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Delete a recipe",
@@ -1478,6 +1831,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
           }
         ],
         "summary": "Get a recipe by id",
@@ -1552,6 +1910,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Update a recipe",
@@ -1621,6 +1984,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Choose the cover image",
@@ -1660,6 +2028,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Clear a recipe's favourite mark",
@@ -1717,6 +2090,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Mark a recipe as a favourite",
@@ -1828,6 +2206,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Upload an image (JPEG, PNG or WebP, at most 10 MiB)",
@@ -1904,6 +2287,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Reorder a recipe's images",
@@ -1971,6 +2359,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
           }
         ],
         "summary": "Delete an image",
@@ -2007,11 +2400,226 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
           }
         ],
         "summary": "List tags with usage counts",
         "tags": [
           "tags"
+        ]
+      }
+    },
+    "/api/v1/tokens": {
+      "get": {
+        "operationId": "list-api-tokens",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APITokenList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "List API tokens",
+        "tags": [
+          "tokens"
+        ]
+      },
+      "post": {
+        "description": "The raw token is returned once and cannot be retrieved afterwards.",
+        "operationId": "create-api-token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInputBody1"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAPIToken"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create an API token",
+        "tags": [
+          "tokens"
+        ]
+      }
+    },
+    "/api/v1/tokens/{id}": {
+      "delete": {
+        "operationId": "delete-api-token",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Revoke an API token",
+        "tags": [
+          "tokens"
         ]
       }
     },
@@ -2063,6 +2671,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "users:read"
+            ]
           }
         ],
         "summary": "List users",
@@ -2147,6 +2760,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "users:write"
+            ]
           }
         ],
         "summary": "Create a user",
@@ -2236,6 +2854,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "users:write"
+            ]
           }
         ],
         "summary": "Delete a user",
@@ -2340,6 +2963,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "users:write"
+            ]
           }
         ],
         "summary": "Change a user's role and/or reset the password",

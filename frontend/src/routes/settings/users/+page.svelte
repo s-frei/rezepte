@@ -57,7 +57,9 @@
 			toast.success(m.users_role_changed({ username: user.username }));
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 409) {
-				toast.error(m.users_last_admin_role());
+				toast.error(m.users_owner_protected());
+			} else if (error instanceof ApiError && error.status === 403) {
+				toast.error(m.users_rank_required());
 			} else if (!isSignedOut(error)) {
 				toast.error(m.users_update_error());
 			}
@@ -85,6 +87,8 @@
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 409) {
 				toast.error(m.users_delete_conflict());
+			} else if (error instanceof ApiError && error.status === 403) {
+				toast.error(m.users_rank_required());
 			} else if (!isSignedOut(error)) {
 				toast.error(m.users_delete_error());
 			}
@@ -126,6 +130,7 @@
 			<UserTable
 				{users}
 				meId={session.user?.id ?? ''}
+				actorRole={session.user?.role ?? 'user'}
 				onrole={changeRole}
 				onreset={askReset}
 				ondelete={askDelete}
@@ -134,11 +139,9 @@
 	</section>
 </SettingsLayout>
 
-<CreateUserDialog
-	bind:open={createOpen}
-	oncreated={(user) =>
-		(users = [...users, user].sort((a, b) => a.username.localeCompare(b.username, 'de')))}
-/>
+<!-- The new account is appended, not sorted in: UserTable owns the display
+     order and drops the row where the current sort wants it. -->
+<CreateUserDialog bind:open={createOpen} oncreated={(user) => (users = [...users, user])} />
 <!-- Stays mounted and keeps its target after closing so the close transition
      can play; `askReset` replaces the target on the next open. -->
 <ResetPasswordDialog bind:open={resetOpen} user={resetTarget} />

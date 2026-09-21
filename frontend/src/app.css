@@ -172,3 +172,17 @@ body {
 	font-family: var(--font-sans);
 	font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Buttons point. Tailwind v4 dropped the preflight rule that gave them
+ * `cursor: pointer`, deferring to the browser default of `default`, so
+ * every button in the app - the avatar, the filter trigger, the tag chips,
+ * the favourite star - stopped signalling that it can be clicked while
+ * links kept doing so. Restoring it once here beats a `cursor-pointer`
+ * class on each of them, which is a line that gets forgotten on the next
+ * button. Disabled ones keep the default: they cannot be clicked.
+ */
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+	cursor: pointer;
+}

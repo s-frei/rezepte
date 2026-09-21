@@ -4,13 +4,11 @@
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { roleLabel } from '$lib/roles';
 
 	const card = 'rounded-2xl bg-surface p-6 md:p-7';
 	const title = 'mb-4 font-display text-heading font-medium';
 	const initial = $derived(session.user?.username.charAt(0).toUpperCase() ?? '');
-	const roleLabel = $derived(
-		session.user?.role === 'admin' ? m.users_role_admin() : m.users_role_member()
-	);
 </script>
 
 <svelte:head><title>{m.settings_title()} · {m.app_name()}</title></svelte:head>
@@ -27,7 +25,7 @@
 			</span>
 			<div>
 				<p class="text-body font-semibold">{session.user?.username}</p>
-				<p class="text-caption text-text-muted">{roleLabel}</p>
+				<p class="text-caption text-text-muted">{roleLabel(session.user?.role)}</p>
 			</div>
 		</div>
 	</section>

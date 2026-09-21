@@ -1,0 +1,48 @@
+---
+title: API tokens
+description: Scoped bearer tokens for programmatic access, issued and revoked from Settings
+---
+
+An admin issues a named, scoped, optionally expiring API token from Settings → API and uses it in place of the session cookie: `Authorization: Bearer rzp_...` authenticates a request the same way a browser session does, and is the credential a future MCP server and a future instance sync will use (see [Roadmap](/roadmap)). `service/internal/auth` (`token.go`, `middleware.go`, `require.go`) issues and verifies tokens and decides whether an operation may accept one; `service/internal/tokenapi` exposes token management itself; `frontend/src/routes/settings/api` and the components under `frontend/src/lib/components/settings` are the UI. [Data model](/architecture/data-model) owns the `api_tokens` table; [HTTP API](/architecture/api) owns the three `/api/v1/tokens` endpoints and their status codes.
+
+## How it works
+
+**Four scopes, and write always travels with its read.** `service/internal/auth/token.go` defines `ScopeRecipesRead`, `ScopeRecipesWrite`, `ScopeUsersRead` and `ScopeUsersWrite` as the closed set `knownScopes`. A token's scopes are stored as a space-separated string - the OAuth convention, and exactly the shape huma's `Security` already holds, so creating and checking a token speak the same language with no translation. Writing implies reading only by convention: `CreateTokenDialog.svelte`'s two `SegmentedControl` rows send `recipes:read recipes:write` together for the "Lesen & Schreiben" option, and the middleware compares scope lists rather than applying an implication rule of its own.
+
+**The raw value exists once.** `TokenService.Create` draws 32 random bytes and encodes them as `TokenPrefix + base64.RawURLEncoding` (`rzp_` plus 43 characters), then stores only the SHA-256 digest in `token_hash`; the first eight characters go in `token_prefix` for display. `tokenapi.CreatedAPIToken` is the only response type carrying the raw value, embedding `APIToken` rather than adding an optional field to it, so the secret cannot leak into the list response as a matter of typing rather than of review discipline. `TokenRevealDialog.svelte` shows it once, in a monospace block with a copy button, and does not close on Escape or an outside click - only its own confirm button does, so one stray keystroke cannot destroy the only copy.
+
+**A bearer request is checked at two independent call sites.** `auth.Middleware` and `requireAuth` in `service/internal/auth/require.go` each carry their own `if raw, ok := bearerToken(...)` block; they are two separate implementations that share exactly three things - the `bearerToken` and `missingScopes` helpers, and `TokenService.Authenticate` itself - and nothing else. `Middleware` has three outcomes, because a huma operation is the only place with a `Security` declaration to read: an operation whose `Security` names no `token` scheme answers `403` ("API tokens cannot use this operation"); an unknown token, an expired one, or one whose owner is no longer an admin answers `401` (`Authenticate` collapses all three into `ErrNoToken`, so the caller cannot tell which); a token missing a required scope answers `403` naming it - all three written through `huma.WriteErr`. `requireAuth` has only the second and third outcome, written through its own `writeUnauthorized`/`writeForbiddenScope` instead: a mux route has no operation and no `Security` to consult, so the first outcome cannot exist there. The two outcome sets and their response bodies are duplicated by hand rather than shared - a change to how a missing scope is reported has to be made in both places. See [Users and authentication](/features/users-and-auth) for the session half of the same two middlewares.
+
+**Reachability is a type, not a check inside a handler.** An operation declares `auth.Protected(scopes...)` instead of `auth.SessionSecurity` to accept a token at all; a `Security` requirement that never names the `token` scheme is structurally unreachable for one. That is what keeps `/api/v1/tokens` itself, `/api/v1/auth/me`, `/api/v1/auth/logout` and change-password session-only. `auth.SecuritySchemes()` declares both schemes for the OpenAPI document, installed through `httpserver.WithSecuritySchemes` so the scheme names stay inside `auth` and `httpserver` keeps knowing nothing about authentication.
+
+**A token never outlives the privilege that justified it.** `Authenticate` re-reads the owner's row on every request: a deleted owner (`ON DELETE CASCADE` removes the token too) or one demoted to `user` fails the same way an unknown token does. Holding a token is an admin capability in this design, so losing the admin role kills the token even though `recipes:*` would still be within a plain member's rights.
+
+**Use is recorded at most once an hour.** `touchAfter` mirrors the session's `renewAfter` pattern: `last_used_at` is written back only when the stored value is more than an hour old, so a busy integration does not write on every request. The token list's "last used" column carries a tooltip saying so.
+
+**Token management itself stays session-only.** `service/internal/tokenapi` exposes list, create and revoke - [HTTP API](/architecture/api) owns their paths and status codes - and none is reachable by a token: one able to mint or list tokens would defeat both expiry and revocation. `requireAdmin` gates all three; `canManageAllTokens` (today `u.Role == user.RoleAdmin`) is the one place that narrows the instance-wide list if an instance-owner role arrives.
+
+**The Settings UI.** An "API" tab sits next to "Benutzer" in `SettingsLayout.svelte`, behind the same admin guard; `settings/api/+page.ts` redirects a non-admin to `/settings`, mirroring the users page. `CreateTokenDialog.svelte` offers two `SegmentedControl` rows (Rezepte, Benutzer; Kein Zugriff / Lesen / Lesen & Schreiben) and an expiry `Select` (30, 90, 365 days, or never - default 90). `TokenTable`/`TokenRow` list existing tokens with name, scopes, owner, last use and expiry, muting and badging an expired one; revoking goes through the app's existing confirm dialog. `frontend/src/lib/api/tokens.ts` is the client (`listTokens`, `createToken`, `deleteToken`).
+
+## Why it is this way
+
+A static bearer token in a client configuration is the deliberate simplification a self-hosted, single-household instance affords over OAuth 2.1: no token exchange, no client registration, no redirect flow to implement or to explain to whoever configures an integration.
+
+The bearer branch lives inside `auth.Middleware` itself rather than arriving as a separate authenticator run in front of it, because the question it answers first - whether an operation accepts a token at all - can only be read off `ctx.Operation().Security`, and only a huma operation has one. A mux route has no such declaration, which is exactly why `requireAuth` cannot offer that outcome and does not try to: its allowed scopes are instead given directly by whichever caller wraps a route in `auth.RequireAuth`, such as the image files' `recipes:read`. The two implementations staying separate is the consequence of that, not an oversight, and it is also the shape a future MCP endpoint - a mux route, since JSON-RPC over HTTP does not fit huma's typed operations - will follow: its scopes chosen explicitly by hand, the same way the image routes and the contract routes already are.
+
+Two roles already keep authorization a field comparison (see [Users and authentication](/features/users-and-auth)); scopes add a second, independent comparison rather than a permission table, so a token's reach is still decided by comparing two short lists, never by a rule engine.
+
+## Rejected
+
+- **A token that authenticates as its owner outright, with no scopes.** An integration that only needs to read recipes should not hold a credential that can also delete users; the four-scope closed set is what lets an admin match what a token can do to what the integration actually needs.
+- **`PATCH` to rename or re-scope an existing token.** What a token may do is fixed for its whole lifetime; revoking and creating a replacement is the only path, so a scope change is always visible as a new credential rather than a silent widening of an old one.
+- **Letting a token reach `/api/v1/tokens`.** A token that can mint or list tokens defeats both expiry and revocation - it could reissue itself past its own expiry.
+- **A sweep job that deletes expired tokens.** Expired rows stay until an explicit revoke; a row that disappeared on its own would leave an admin unable to explain why an integration stopped working. The expiry check happens during authentication instead.
+- **Exact `last_used_at`, written on every request.** A busy integration would write on every call for a level of precision nobody reads; the hourly throttle mirrors the pattern sliding sessions already use.
+
+## Limits
+
+- Tokens can be issued only by an admin; there is no self-service path for a plain member.
+- A token carrying `users:write` can create an admin account. There is no instance-owner role yet that would make such an account distinguishable from a legitimate one - on a household instance, the admin who issued the token is the person who would notice.
+- `last_used_at` is accurate to the hour, not to the request; the UI's tooltip says so rather than implying more precision than the column has.
+- OAuth 2.1, which the MCP specification prefers for remote servers, is not implemented. A static bearer token in a client configuration is the whole of the credential story.
+- Token-authenticated requests are not rate-limited; that belongs to the public REST API item in the [Roadmap](/roadmap).

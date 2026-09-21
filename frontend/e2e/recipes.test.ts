@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
 	createRecipe,
+	createUser,
 	loadFixture,
 	login,
 	openNewRecipe,
 	openRecipeMenu,
 	search,
+	signOut,
 	uniqueToken
 } from './helpers';
 
@@ -691,4 +693,91 @@ test('the recipe page never scrolls sideways', async ({ page }, testInfo) => {
 			})
 			.toBeLessThanOrEqual(width);
 	}
+});
+
+test('the colophon names the author, and the editor once somebody else edits', async ({
+	page
+}, testInfo) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(6), title: `Kolophon ${token}` });
+	// One editor per project: desktop and mobile run against the same
+	// database at the same time, and a shared username would collide.
+	const editor = `kim${token}`.slice(0, 20);
+	await createUser(page, { username: editor, password: 'editor-password', role: 'user' });
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect(page.getByText(`Angelegt von admin am`)).toBeVisible();
+	// Nobody has edited it, so the second line would only repeat the first.
+	await expect(page.getByText('Zuletzt bearbeitet von')).toBeHidden();
+
+	// The detail page replaces the top bar's actions and hides the phone's
+	// bottom nav, so the sign-out menu is only reachable from the overview.
+	await page.goto('/');
+	await signOut(page, testInfo);
+	await login(page, editor, 'editor-password');
+	// Wait out the sign-in before navigating, or the goto below races the
+	// session cookie and the app bounces back to /login.
+	await expect(page).toHaveURL('/');
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(`Kolophon ${token} neu`);
+	await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByText(`Zuletzt bearbeitet von ${editor} am`)).toBeVisible();
+	// The author line survives the edit - it is not "last touched by".
+	await expect(page.getByText('Angelegt von admin am')).toBeVisible();
+});
+
+test('the initials on a card name their people without opening the recipe', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(9), title: `Wer war das ${token}` });
+
+	await page.goto(`/?q=${token}`);
+	const card = cards(page).first();
+	await expect(card).toHaveText(`Wer war das ${token}`);
+
+	// Tapping the initials is what a phone can do - there is no hover there -
+	// and it must resolve the letters rather than follow the card's link.
+	await page.getByRole('button', { name: /^Angelegt von admin/ }).click();
+	await expect(page.getByText('Angelegt von admin', { exact: true })).toBeVisible();
+	await expect(page).toHaveURL(new RegExp(`\\?q=${token}$`));
+
+	// The card itself still navigates, so the popover has not swallowed it.
+	await page.keyboard.press('Escape');
+	await card.click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+});
+
+test('narrows the grid to one author and shows whose recipes they are', async ({
+	page
+}, testInfo) => {
+	const token = uniqueToken();
+	const writer = `kim${token}`.slice(0, 20);
+	await createUser(page, { username: writer, password: 'writer-password', role: 'user' });
+	await createRecipe(page, { ...loadFixture(7), title: `Von admin ${token}` });
+
+	// The second recipe has to be written by the other person, so it is
+	// created in their own session rather than handed a different author.
+	await page.goto('/');
+	await signOut(page, testInfo);
+	await login(page, writer, 'writer-password');
+	await expect(page).toHaveURL('/');
+	await createRecipe(page, { ...loadFixture(8), title: `Von kim ${token}` });
+
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(2);
+
+	await page.getByRole('button', { name: 'Filter' }).click();
+	await page.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
+
+	await expect(page).toHaveURL(new RegExp(`author=${writer}`));
+	await expect(cards(page)).toHaveText([`Von kim ${token}`]);
+	// The card says whose it is, which is what makes the filter verifiable
+	// rather than something you have to trust.
+	await expect(page.getByRole('main').getByLabel(`Angelegt von ${writer}`)).toBeVisible();
+
+	// Tapping the same chip again clears the filter rather than re-applying it.
+	await page.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
+	await expect(page).not.toHaveURL(/author=/);
+	await expect(cards(page)).toHaveCount(2);
 });

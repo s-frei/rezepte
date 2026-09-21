@@ -42,8 +42,9 @@ func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, false)))
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
 	recipe.Register(srv.API(), recipe.NewService(conn))
 	return srv.Handler(), conn

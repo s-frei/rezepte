@@ -6,6 +6,7 @@
 		id,
 		label,
 		error = null,
+		hint,
 		suffix,
 		value = $bindable(''),
 		class: className = '',
@@ -14,6 +15,8 @@
 		id: string;
 		label: string;
 		error?: string | null;
+		/** Helper text below the field, hidden while an error takes its place. */
+		hint?: string;
 		/** Unit rendered inside the field, right-aligned (e.g. "Min"). */
 		suffix?: string;
 		value?: string;
@@ -27,8 +30,9 @@
 	// The suffix is part of what the field means ("30" is 30 minutes), so it
 	// is described rather than hidden from assistive tech.
 	const describedBy = $derived(
-		[error ? `${id}-error` : null, suffix ? `${id}-suffix` : null].filter(Boolean).join(' ') ||
-			undefined
+		[error ? `${id}-error` : hint ? `${id}-hint` : null, suffix ? `${id}-suffix` : null]
+			.filter(Boolean)
+			.join(' ') || undefined
 	);
 </script>
 
@@ -56,5 +60,7 @@
 	</div>
 	{#if error}
 		<p id="{id}-error" class="text-micro font-medium text-destructive">{error}</p>
+	{:else if hint}
+		<p id="{id}-hint" class="text-micro text-text-muted">{hint}</p>
 	{/if}
 </div>

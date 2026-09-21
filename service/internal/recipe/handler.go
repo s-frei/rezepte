@@ -16,6 +16,7 @@ type listInput struct {
 	Tags           []string `query:"tags" doc:"Restrict to recipes carrying all of these tags"`
 	MaxMinutes     int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
 	FavouritesOnly bool     `query:"favourites" doc:"Restrict to the caller's own favourites"`
+	Author         string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
 	Sort           string   `query:"sort" enum:"updated,created,title" default:"updated" doc:"Result order"`
 	Page           int      `query:"page" minimum:"1" default:"1" doc:"1-based page number"`
 	Limit          int      `query:"limit" minimum:"1" maximum:"100" default:"24" doc:"Page size"`
@@ -67,12 +68,21 @@ type tagListOutput struct {
 	Body TagList
 }
 
+// AuthorList is the response body of the list-authors operation.
+type AuthorList struct {
+	Items []AuthorCount `json:"items"`
+}
+
+type authorListOutput struct {
+	Body AuthorList
+}
+
 // Register installs the recipe and tag operations onto api: listing
 // (with search and tag filtering), lookup by id or slug, create, update,
 // delete, and the tag list with usage counts. Every operation requires a
-// session (Security: auth.SessionSecurity); the caller is responsible for
-// installing the matching auth.Middleware via httpserver.WithAPIMiddleware
-// before Register runs.
+// session or a scoped API token (Security: auth.Protected(...)); the caller
+// is responsible for installing the matching auth.Middleware via
+// httpserver.WithAPIMiddleware before Register runs.
 func Register(api huma.API, svc *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-recipes",
@@ -80,7 +90,7 @@ func Register(api huma.API, svc *Service) {
 		Path:        "/api/v1/recipes",
 		Summary:     "List and search recipes",
 		Tags:        []string{"recipes"},
-		Security:    auth.SessionSecurity,
+		Security:    auth.Protected(auth.ScopeRecipesRead),
 	}, func(ctx context.Context, in *listInput) (*listOutput, error) {
 		// UserID is filled from the context on every request, not only when
 		// a favourites filter is set - otherwise Card.Favourite would be
@@ -94,6 +104,7 @@ func Register(api huma.API, svc *Service) {
 			Tags:           NormalizeTagQuery(in.Tags),
 			MaxMinutes:     in.MaxMinutes,
 			FavouritesOnly: in.FavouritesOnly,
+			Author:         in.Author,
 			Sort:           in.Sort,
 			Page:           in.Page,
 			Limit:          in.Limit,
@@ -111,7 +122,7 @@ func Register(api huma.API, svc *Service) {
 		Path:        "/api/v1/recipes/{id}",
 		Summary:     "Get a recipe by id",
 		Tags:        []string{"recipes"},
-		Security:    auth.SessionSecurity,
+		Security:    auth.Protected(auth.ScopeRecipesRead),
 		Errors:      []int{404},
 	}, func(ctx context.Context, in *getRecipeInput) (*recipeOutput, error) {
 		r, err := svc.ByID(ctx, in.ID)
@@ -133,7 +144,7 @@ func Register(api huma.API, svc *Service) {
 		Path:        "/api/v1/recipes/by-slug/{slug}",
 		Summary:     "Get a recipe by slug",
 		Tags:        []string{"recipes"},
-		Security:    auth.SessionSecurity,
+		Security:    auth.Protected(auth.ScopeRecipesRead),
 		Errors:      []int{404},
 	}, func(ctx context.Context, in *getRecipeBySlugInput) (*recipeOutput, error) {
 		r, err := svc.BySlug(ctx, in.Slug)
@@ -155,7 +166,7 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes",
 		Summary:       "Create a recipe",
 		Tags:          []string{"recipes"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusCreated,
 	}, func(ctx context.Context, in *createRecipeInput) (*recipeOutput, error) {
 		u, ok := auth.UserFrom(ctx)
@@ -175,10 +186,14 @@ func Register(api huma.API, svc *Service) {
 		Path:        "/api/v1/recipes/{id}",
 		Summary:     "Update a recipe",
 		Tags:        []string{"recipes"},
-		Security:    auth.SessionSecurity,
+		Security:    auth.Protected(auth.ScopeRecipesWrite),
 		Errors:      []int{404},
 	}, func(ctx context.Context, in *updateRecipeInput) (*recipeOutput, error) {
-		r, err := svc.Update(ctx, in.ID, in.Body)
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		r, err := svc.Update(ctx, in.ID, u.ID, in.Body)
 		if errors.Is(err, ErrNotFound) {
 			return nil, huma.Error404NotFound("recipe not found")
 		}
@@ -194,7 +209,7 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}",
 		Summary:       "Delete a recipe",
 		Tags:          []string{"recipes"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{404},
 	}, func(ctx context.Context, in *deleteRecipeInput) (*deleteRecipeOutput, error) {
@@ -213,7 +228,7 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}/favourite",
 		Summary:       "Mark a recipe as a favourite",
 		Tags:          []string{"recipes"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{404},
 	}, func(ctx context.Context, in *favouriteInput) (*favouriteOutput, error) {
@@ -236,7 +251,7 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}/favourite",
 		Summary:       "Clear a recipe's favourite mark",
 		Tags:          []string{"recipes"},
-		Security:      auth.SessionSecurity,
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, in *favouriteInput) (*favouriteOutput, error) {
 		u, ok := auth.UserFrom(ctx)
@@ -255,7 +270,7 @@ func Register(api huma.API, svc *Service) {
 		Path:        "/api/v1/tags",
 		Summary:     "List tags with usage counts",
 		Tags:        []string{"tags"},
-		Security:    auth.SessionSecurity,
+		Security:    auth.Protected(auth.ScopeRecipesRead),
 	}, func(ctx context.Context, _ *struct{}) (*tagListOutput, error) {
 		tags, err := svc.Tags(ctx)
 		if err != nil {
@@ -265,6 +280,28 @@ func Register(api huma.API, svc *Service) {
 			tags = []TagCount{}
 		}
 		return &tagListOutput{Body: TagList{Items: tags}}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "list-authors",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/authors",
+		Summary:     "List the people who wrote recipes, with counts",
+		Tags:        []string{"recipes"},
+		Security:    auth.Protected(auth.ScopeRecipesRead),
+	}, func(ctx context.Context, _ *struct{}) (*authorListOutput, error) {
+		// Readable by any signed-in member, unlike /api/v1/users: it gives
+		// up the usernames the overview already prints on its cards and
+		// nothing else - no roles, no timestamps, no accounts without
+		// recipes.
+		authors, err := svc.Authors(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if authors == nil {
+			authors = []AuthorCount{}
+		}
+		return &authorListOutput{Body: AuthorList{Items: authors}}, nil
 	})
 }
 

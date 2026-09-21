@@ -26,16 +26,16 @@ RUN mkdir -p /out/data && chown 65532:65532 /out/data
 
 # Stage 3: minimal runtime
 FROM gcr.io/distroless/static-debian12:nonroot
-# Only the labels that never change. GHCR links a package to its repository
-# through `source`, and it has to hold for an image built here or in CI, not
-# just for one the release workflow pushed. The per-build labels - version,
-# revision, created - come from docker/metadata-action and are not repeated
-# here, where they would be a second, stale answer.
+# Only labels docker/metadata-action does not also emit. A `--label` on the
+# build command beats a LABEL here, and the release workflow passes that
+# action's labels, so anything it produces - title, description, url, version,
+# revision, created - would be overridden on exactly the images that matter and
+# survive only on local ones. Those live in the workflow instead, where both
+# paths agree. `documentation` is ours because the action has no equivalent;
+# `source` and `licenses` are repeated deliberately, so an image built here or
+# in CI still says where it came from and under what terms.
 LABEL org.opencontainers.image.source="https://github.com/s-frei/rezepte" \
-	org.opencontainers.image.url="https://s-frei.github.io/rezepte/" \
 	org.opencontainers.image.documentation="https://s-frei.github.io/rezepte/" \
-	org.opencontainers.image.title="Rezepte" \
-	org.opencontainers.image.description="Self-hosted recipe manager with the web app built in and SQLite storage" \
 	org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=backend /out/rezepte /rezepte
 ENV REZEPTE_ADDR=:8060 REZEPTE_DATA_DIR=/data

@@ -39,10 +39,14 @@ type ListParams struct {
 	Tags           []string
 	MaxMinutes     int
 	FavouritesOnly bool
-	Sort           string
-	Page           int
-	Limit          int
-	UserID         string
+	// Author narrows to the recipes this username wrote. Empty switches
+	// the filter off; an unknown name matches nothing, so a stale link
+	// shows an empty grid rather than silently dropping the filter.
+	Author string
+	Sort   string
+	Page   int
+	Limit  int
+	UserID string
 }
 
 // Page is one page of recipe cards plus the pagination state used to
@@ -90,7 +94,7 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	// respect it.
 	favouritesOnly := p.FavouritesOnly && p.UserID != ""
 
-	rows, total, err := s.listRows(ctx, tags, ftsQuery(p.Query), int64(maxMinutes), favouritesOnly, p.UserID, normalizeSort(p.Sort), int64(limit), offset)
+	rows, total, err := s.listRows(ctx, tags, ftsQuery(p.Query), int64(maxMinutes), favouritesOnly, p.UserID, p.Author, normalizeSort(p.Sort), int64(limit), offset)
 	if err != nil {
 		return Page{}, err
 	}
@@ -156,7 +160,7 @@ func clampLimit(limit int) int {
 // other filter is a condition the query itself disables, so a new one is a
 // line in the SQL rather than another branch here. sort is the exception:
 // it never touches the count queries, which have no ORDER BY.
-func (s *Service) listRows(ctx context.Context, tags []string, query string, maxMinutes int64, favouritesOnly bool, userID string, sort string, limit, offset int64) ([]sqlc.Recipe, int64, error) {
+func (s *Service) listRows(ctx context.Context, tags []string, query string, maxMinutes int64, favouritesOnly bool, userID, author, sort string, limit, offset int64) ([]sqlc.Recipe, int64, error) {
 	// The tag names travel as a JSON array rather than a sqlc.slice: see
 	// the note on ListRecipesFiltered. A zero count switches the condition
 	// off, but the parameter still has to hold valid JSON, so a nil slice
@@ -178,14 +182,14 @@ func (s *Service) listRows(ctx context.Context, tags []string, query string, max
 	if query != "" {
 		rows, err := s.q.SearchRecipesFiltered(ctx, sqlc.SearchRecipesFilteredParams{
 			Query: query, TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-			FavouritesOnly: favOnly, UserID: userID, Sort: sort, Limit: limit, Offset: offset,
+			FavouritesOnly: favOnly, UserID: userID, Author: author, Sort: sort, Limit: limit, Offset: offset,
 		})
 		if err != nil {
 			return nil, 0, fmt.Errorf("search recipes filtered: %w", err)
 		}
 		total, err := s.q.CountSearchRecipesFiltered(ctx, sqlc.CountSearchRecipesFilteredParams{
 			Query: query, TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-			FavouritesOnly: favOnly, UserID: userID,
+			FavouritesOnly: favOnly, UserID: userID, Author: author,
 		})
 		if err != nil {
 			return nil, 0, fmt.Errorf("count search recipes filtered: %w", err)
@@ -195,14 +199,14 @@ func (s *Service) listRows(ctx context.Context, tags []string, query string, max
 
 	rows, err := s.q.ListRecipesFiltered(ctx, sqlc.ListRecipesFilteredParams{
 		TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-		FavouritesOnly: favOnly, UserID: userID, Sort: sort, Limit: limit, Offset: offset,
+		FavouritesOnly: favOnly, UserID: userID, Author: author, Sort: sort, Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list recipes filtered: %w", err)
 	}
 	total, err := s.q.CountRecipesFiltered(ctx, sqlc.CountRecipesFilteredParams{
 		TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-		FavouritesOnly: favOnly, UserID: userID,
+		FavouritesOnly: favOnly, UserID: userID, Author: author,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count recipes filtered: %w", err)
@@ -237,9 +241,9 @@ func toRecipesFromSearch(rows []sqlc.SearchRecipesFilteredRow) []sqlc.Recipe {
 	return out
 }
 
-// toCards loads the tags and, when userID is set, the favourite state for
-// rows in one batch each and assembles them into Cards, in the same order
-// as rows. It always returns a non-nil slice.
+// toCards loads the tags, the author usernames and, when userID is set,
+// the favourite state for rows in one batch each and assembles them into
+// Cards, in the same order as rows. It always returns a non-nil slice.
 //
 // An empty userID disables the favourite batch entirely rather than
 // querying with an empty id: unauthenticated paths such as demo mode call
@@ -264,6 +268,28 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		tagsByRecipe[tr.RecipeID] = append(tagsByRecipe[tr.RecipeID], tr.Name)
 	}
 
+	// Both author columns of the page in one lookup: most pages are written
+	// by a handful of people, so the set of ids is far smaller than the set
+	// of rows.
+	userIDs := make([]string, 0, 2*len(rows))
+	seen := make(map[string]bool, 2*len(rows))
+	for _, r := range rows {
+		for _, id := range [2]string{r.CreatedBy, r.UpdatedBy} {
+			if !seen[id] {
+				seen[id] = true
+				userIDs = append(userIDs, id)
+			}
+		}
+	}
+	userRows, err := s.q.ListUsernamesForIDs(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list usernames for recipes: %w", err)
+	}
+	usernames := make(map[string]string, len(userRows))
+	for _, u := range userRows {
+		usernames[u.ID] = u.Username
+	}
+
 	favourites := make(map[string]bool)
 	if userID != "" {
 		idsJSON, err := json.Marshal(ids)
@@ -282,7 +308,8 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	}
 
 	for _, r := range rows {
-		card, err := toCard(r, tagsByRecipe[r.ID], favourites[r.ID])
+		card, err := toCard(r, tagsByRecipe[r.ID], favourites[r.ID],
+			usernames[r.CreatedBy], usernames[r.UpdatedBy])
 		if err != nil {
 			return nil, err
 		}
@@ -291,9 +318,9 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	return items, nil
 }
 
-// toCard builds a Card from a stored recipe row, its tag names and whether
-// the caller has favourited it.
-func toCard(row sqlc.Recipe, tags []string, favourite bool) (Card, error) {
+// toCard builds a Card from a stored recipe row, its tag names, whether the
+// caller has favourited it and the usernames behind its two author columns.
+func toCard(row sqlc.Recipe, tags []string, favourite bool, createdByName, updatedByName string) (Card, error) {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -310,6 +337,9 @@ func toCard(row sqlc.Recipe, tags []string, favourite bool) (Card, error) {
 		CoverImageID: row.CoverImageID,
 		UpdatedAt:    updated,
 		Favourite:    favourite,
+
+		CreatedByName: createdByName,
+		UpdatedByName: updatedByName,
 	}, nil
 }
 
