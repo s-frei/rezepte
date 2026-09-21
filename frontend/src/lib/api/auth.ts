@@ -1,12 +1,15 @@
 import type { UserColor } from '$lib/user/color';
 import { api } from './client';
 
+export type Locale = 'en' | 'de';
+
 export type User = {
 	id: string;
 	username: string;
 	displayName: string;
 	role: 'superadmin' | 'admin' | 'user';
 	color: UserColor;
+	locale: Locale;
 };
 
 /** One palette colour and how many accounts hold it. */
@@ -67,10 +70,11 @@ export function changePassword(currentPassword: string, password: string): Promi
 	});
 }
 
-/** Changes the own display name and/or colour. Its own path, because PATCH /auth/me is the password change. */
+/** Changes the own display name, colour and/or locale. Its own path, because PATCH /auth/me is the password change. */
 export function updateOwnProfile(patch: {
 	displayName?: string;
 	color?: UserColor;
+	locale?: Locale;
 }): Promise<User> {
 	return api<User>('/auth/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
 }

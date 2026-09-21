@@ -108,7 +108,14 @@ describe('api central 401 handling', () => {
 
 	it('clears the session and redirects to /login with a next param', async () => {
 		stubBrowser('/recipes', '?tag=soup');
-		session.user = { id: '1', username: 'sam', displayName: 'Sam', role: 'user', color: 'amber' };
+		session.user = {
+			id: '1',
+			username: 'sam',
+			displayName: 'Sam',
+			role: 'user',
+			color: 'amber',
+			locale: 'en'
+		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
 		await expect(api('/recipes')).rejects.toBeInstanceOf(ApiError);
@@ -139,7 +146,14 @@ describe('api central 401 handling', () => {
 
 	it('redirects for a mutating me call, which runs from a page and not from load', async () => {
 		stubBrowser('/settings');
-		session.user = { id: '1', username: 'sam', displayName: 'Sam', role: 'user', color: 'amber' };
+		session.user = {
+			id: '1',
+			username: 'sam',
+			displayName: 'Sam',
+			role: 'user',
+			color: 'amber',
+			locale: 'en'
+		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
 		await expect(

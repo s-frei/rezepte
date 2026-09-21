@@ -6,6 +6,7 @@
 	import AppShell from '$lib/components/shell/AppShell.svelte';
 	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
 	import { palette } from '$lib/palette.svelte';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -15,6 +16,13 @@
 	// than the pathname so the check is exact and independent of the slug.
 	const isFullscreenRoute = $derived(page.route.id === '/recipes/[slug]/cook');
 	const bare = $derived(isLoginRoute || isFullscreenRoute);
+
+	// app.html ships a static lang attribute; the real locale is only known
+	// once Paraglide has resolved it. Screen readers and spell checking read
+	// this, so it has to agree with what is on screen.
+	$effect(() => {
+		document.documentElement.lang = getLocale();
+	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (bare) {
