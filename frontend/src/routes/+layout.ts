@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { ApiError } from '$lib/api/client';
 import { me } from '$lib/api/auth';
-import { session } from '$lib/auth.svelte';
+import { adoptAccountLocale, session } from '$lib/auth.svelte';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false;
@@ -11,6 +11,10 @@ export const load: LayoutLoad = async ({ url }) => {
 	if (session.user) return { user: session.user };
 	try {
 		session.user = await me();
+		// The one place the browser's language and the account's stored one
+		// meet: `me()` runs once per session load, so this is where a language
+		// changed on another device gets picked up.
+		adoptAccountLocale(session.user);
 		return { user: session.user };
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 401) {
