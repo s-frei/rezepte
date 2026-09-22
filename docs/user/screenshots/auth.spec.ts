@@ -10,6 +10,6 @@ test('login', async ({ page }, testInfo) => {
 test('first-login', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings');
-	await page.getByRole('heading', { name: 'Passwort ändern' }).waitFor();
+	await page.getByRole('heading', { name: 'Change password' }).waitFor();
 	await shot(page, 'first-login');
 });

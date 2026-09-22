@@ -74,12 +74,12 @@ Two locator facts this repo will otherwise cost you twice: the user menu is a Bi
 
 ## Check the empty state, not just the seeded one
 
-The demo data is the *comfortable* case. The ingredient editor's bugs all hid there: seeded groups are called "Klopse" and "Kapernsauce", so their name field shows a short value and looks fine. Add a **new** group and the field falls back to its placeholder, "Gruppe benennen …", which needs 140px - and beside the count and "Entfernen" it had 90px. The seeded page never showed it.
+The demo data is the *comfortable* case. The ingredient editor's bugs all hid there: seeded groups are called "Klopse" and "Kapernsauce", so their name field shows a short value and looks fine. Add a **new** group and the field falls back to its placeholder, "Name this group…", which needs 140px - and beside the count and "Remove" it had 90px. The seeded page never showed it.
 
 So exercise the states the fixture does not cover:
 
 - **Empty / just created:** placeholders instead of values, a list with one entry, a form with nothing filled in.
-- **One versus many:** singular labels ("1 Zutaten" was live for months), the last row of a list, a list with a single item where an action is disabled.
+- **One versus many:** singular labels ("1 ingredients" was live for months), the last row of a list, a list with a single item where an action is disabled.
 - **Long content:** a recipe title that wraps, a group name that fills the field.
 
 A placeholder is invisible to the usual truncation check, because `scrollWidth` measures the *value*, not the placeholder. Measure it against the rendered font instead:

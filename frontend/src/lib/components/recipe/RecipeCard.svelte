@@ -60,7 +60,7 @@
 		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
 		     reserved either way, so the time pills of a row stay on one line.
 		     A phone card leaves 124px of text, which German compounds outrun on
-		     their own - so `hyphens-auto` (the document is `lang="de"`) lets
+		     their own - so `hyphens-auto` (the document carries the account's locale) lets
 		     them break instead of running out of the card unseen. Two lines on
 		     a phone - of twelve seeded titles exactly two need a third there,
 		     and granting it would raise every row for their sake - but three on

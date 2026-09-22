@@ -26,6 +26,8 @@ description: Dev servers, builds and the check gate
 
     Uploads land in `$REZEPTE_DATA_DIR/images/<recipeId>/` (default `./data/images/`, git-ignored with the database, see [Architecture overview](/architecture/overview)); delete that directory together with `rezepte.db` when resetting local data.
 
+    `0001_users_and_sessions.sql` gained its `locale` column in place rather than through a new migration (see [Data model](/architecture/data-model)), so a database created before that edit has no such column and fails to start; delete `rezepte.db` and let the migrations recreate it.
+
   </Step>
   <Step>
 

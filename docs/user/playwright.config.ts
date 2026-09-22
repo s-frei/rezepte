@@ -30,7 +30,12 @@ export default defineConfig({
     baseURL:
       process.env.SCREENSHOT_BASE_URL ??
       `http://localhost:${process.env.RZP_DEMO_PORT ?? 8070}`,
-    locale: "de-DE",
+    // Paraglide has no PARAGLIDE_LOCALE cookie to read before login, so the
+    // login screen falls back to this browser locale (its `preferredLanguage`
+    // strategy) rather than to REZEPTE_LOCALE; every other screen instead
+    // reflects the signed-in account's own locale, which the demo seeds in
+    // English (see docs/memory/content/features/languages.mdx).
+    locale: "en-US",
     timezoneId: "Europe/Berlin",
     contextOptions: { reducedMotion: "reduce" },
   },

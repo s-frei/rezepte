@@ -4,7 +4,7 @@ import { ensureUser, prepare, shot } from './helpers';
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings');
-	await expect(page.getByRole('heading', { name: 'Passwort ändern' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
 	await shot(page, 'settings');
 });
 
@@ -13,7 +13,7 @@ test('api', async ({ page }, testInfo) => {
 	await page.goto('/settings/api');
 	// The figures arrive from two fetches after the page renders; waiting for
 	// one of them keeps the picture from catching the skeleton.
-	await expect(page.getByRole('term').filter({ hasText: 'Endpunkte' })).toBeVisible();
+	await expect(page.getByRole('term').filter({ hasText: 'Endpoints' })).toBeVisible();
 	await shot(page, 'api');
 });
 
@@ -30,7 +30,7 @@ test('users', async ({ page }, testInfo) => {
 test('user-create', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Benutzer anlegen' }).click();
+	await page.getByRole('button', { name: 'Add member' }).click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await shot(page, 'user-create');
 });

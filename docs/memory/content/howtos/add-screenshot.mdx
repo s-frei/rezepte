@@ -20,7 +20,7 @@ description: A new <Screenshot> name, its spec and its four PNGs
     });
     ```
 
-    `prepare` fixes the clock, sets the theme matching the project (light/dark) and optionally logs in as the demo admin (`demo` / `demo1234`). Use `ensureUser(page, username, role)` first when the shot needs a fixture the demo seed does not provide - it derives the password from the username ([Development credentials](/conventions/dev-credentials)) (the `settings` spec's `users` test creates a second account this way, so all four projects see it without seeding it four times).
+    `prepare` fixes the clock, sets the theme matching the project (light/dark) and optionally logs in as the demo admin (`demo` / `demo1234`). Use `ensureUser(page, username, role)` first when the shot needs a fixture the demo seed does not provide - it derives the password from the username ([Development credentials](/conventions/dev-credentials)) (the `settings` spec's `users` test creates a second account this way, so all four projects see it without seeding it four times). Write every locator against the English strings in `frontend/messages/en.json`: this suite runs against the demo instance's default locale, English, unlike `frontend/e2e`, which pins `REZEPTE_LOCALE=de` and writes German selectors instead - see [Languages](/features/languages).
 
   </Step>
   <Step>
@@ -47,4 +47,4 @@ description: A new <Screenshot> name, its spec and its four PNGs
 
 `docs/user/playwright.config.ts` (the screenshot specs' `baseURL`) and `docs/user/scripts/fetch-openapi.ts` both read `SCREENSHOT_BASE_URL`, defaulting to `http://localhost:8070` (offset 0; `mise run ports` gives this worktree's number) - the port `mise run demo` starts `rezepte --demo` on. Override it only when you are pointing the specs or the OpenAPI fetch at an instance you started yourself (a different port, a remote host) instead of letting `//:demo` manage one; the mise tasks (`screenshots`, `screenshots:check`, `openapi`) already wrap the specs in `mise run demo --` and need no override for normal use.
 
-Note: `first-login` (`getting-started/first-login.mdx`) and `settings` (`guide/settings.mdx`) both navigate to `/settings` and wait for the same "Passwort ändern" heading, so their four PNGs are nearly identical pairs. A future pass should either make the two pages show something different or drop one of the two `<Screenshot>` uses.
+Note: `first-login` (`getting-started/first-login.mdx`) and `settings` (`guide/settings.mdx`) both navigate to `/settings` and wait for the same "Change password" heading, so their four PNGs are nearly identical pairs. A future pass should either make the two pages show something different or drop one of the two `<Screenshot>` uses.

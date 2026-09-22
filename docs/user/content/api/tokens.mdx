@@ -6,14 +6,14 @@ description: Let programs reach your recipes without a login form
 An API token lets a program talk to your instance the way the app does, without
 a login form. Use one for a script, a second instance, or an AI assistant.
 
-Only admins can issue tokens, under **Einstellungen -> API**.
+Only admins can issue tokens, under **Settings -> API**.
 
 ## Creating a token
 
-1. Open **Einstellungen -> API** and choose **Token erstellen**.
-2. Give it a name that says where it will live, such as "MCP auf dem Laptop".
+1. Open **Settings -> API** and choose **Create token**.
+2. Give it a name that says where it will live, such as "MCP on the laptop".
    That name is how you tell tokens apart later.
-3. Choose what it may do. **Rezepte** and **Benutzer** are set separately, each
+3. Choose what it may do. **Recipes** and **Members** are set separately, each
    as no access, read, or read and write. Give a token the least it needs.
 4. Choose how long it should live: 30 days, 90 days, a year, or no expiry.
 5. Confirm.
@@ -46,21 +46,21 @@ member does not delete their recipes, it transfers them to the account that
 performed the deletion - which for a token means the admin who issued it.
 
 It also inherits that admin's rank, which is what decides how far
-**Benutzer: Lesen & Schreiben** reaches. Issued by an ordinary admin, a token
+**Members: Read & write** reaches. Issued by an ordinary admin, a token
 can add and remove members but cannot make anyone an admin, because the
 account behind it cannot either (see [Members](/guide/users)). Issued by the
-Inhaber, it can.
+owner, it can.
 
-So if you are the Inhaber and want a token that is unable to hand out admin
+So if you are the owner and want a token that is unable to hand out admin
 rights, create a second admin to act as a service account and issue the token
 while signed in as them: the limit then comes from the account rather than
 from a setting anyone could forget.
 
 ## Revoking a token
 
-Choose **Widerrufen** on its row. The token stops working immediately.
+Choose **Revoke** on its row. The token stops working immediately.
 
 Expired tokens stay in the list, marked as such, until you remove them - so you
 can always see why an integration stopped. The list shows the first characters
 of each token, which is how you match a row to the entry in a program's
-configuration. "Zuletzt genutzt" is accurate to the hour.
+configuration. "Last used" is accurate to the hour.

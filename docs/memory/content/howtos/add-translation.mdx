@@ -7,9 +7,9 @@ description: Paraglide message keys
   <Step>
 
     ### Add the key
-    `frontend/messages/de.json` is a flat JSON object (inlang message format). Name keys `<area>_<name>` (`overview_search_placeholder`, `detail_delete_confirm_title`, ...), grouped under the existing blank-line-separated sections by area. Interpolate with `{param}` placeholders:
+    `frontend/messages/en.json` and `frontend/messages/de.json` are flat JSON objects (inlang message format), each holding the same set of keys. Add a new key to `en.json` first, and to `de.json` in the same commit - the parity gate in `mise run check` (`frontend/scripts/message-parity.ts`) fails the build if the two catalogues' key sets ever differ. Name keys `<area>_<name>` (`overview_search_placeholder`, `detail_delete_confirm_title`, ...), grouped under the existing blank-line-separated sections by area. Interpolate with `{param}` placeholders:
     ```json
-    "overview_no_results_text": "Keine Rezepte für „{query}“ gefunden."
+    "overview_no_results_text": "No recipes found for \"{query}\"."
     ```
 
   </Step>
@@ -22,7 +22,7 @@ description: Paraglide message keys
     m.overview_load_more();
     m.overview_no_results_text({ query });
     ```
-    Never write a German string directly in a component - see the hard rule in `AGENTS.md`.
+    Never write a UI string directly in a component, in either language - see the hard rule in `AGENTS.md`.
 
   </Step>
   <Step>
@@ -32,9 +32,3 @@ description: Paraglide message keys
 
   </Step>
 </Steps>
-
-<Callout type="info">
-
-  `de` is the only locale today (`frontend/project.inlang/settings.json`). Don't add an `en.json` speculatively - an English UI is an unscheduled product feature (see the [roadmap](/roadmap)), not tied to any planned phase.
-
-</Callout>

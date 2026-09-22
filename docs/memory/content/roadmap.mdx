@@ -29,10 +29,6 @@ Second authenticator next to sessions. Users are matched by email or subject; ro
 
 Personal notes, "last cooked", shopping list, meal plan.
 
-## English interface
-
-The UI copy lives in `frontend/messages/de.json` alone; a second catalogue and a way to choose between them are what is missing. [Svelte conventions](/conventions/svelte) owns where that copy lives.
-
 ## Recipe import from a URL (skipped Phase 6)
 
 Draft a recipe from a pasted URL: fetch the page, parse schema.org `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk), pre-fill the editor for review before saving. Deliberately skipped for now; still planned, not cancelled.

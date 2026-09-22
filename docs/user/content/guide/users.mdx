@@ -3,11 +3,11 @@ title: Members
 description: Create accounts, reset passwords and delete members; the owner assigns roles and edits profiles
 ---
 
-This page is for admins; a "Mitglied" account does not see "Benutzer" in Settings, and is redirected to their own settings if they open its URL directly.
+This page is for admins; a "Member" account does not see "Members" in Settings, and is redirected to their own settings if they open its URL directly.
 
 Admins are not all equal here. Every admin looks after the members; admins themselves belong to the instance owner — the account created on the very first start (see [First login](/getting-started/first-login)). Actions you are not allowed to take are simply not shown in the row, so the list already reflects this table:
 
-| | Mitglied | Admin | Inhaber |
+| | Member | Admin | Owner |
 | --- | :-: | :-: | :-: |
 | Cook, add and edit recipes, upload images | ✓ | ✓ | ✓ |
 | Change your own password | ✓ | ✓ | ✓ |
@@ -18,10 +18,10 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | Hand out the "Admin" role or take it back | – | – | ✓ |
 | Change **someone else's** display name or colour | – | – | ✓ |
 | Issue [API tokens](/api/tokens) | – | ✓ | ✓ |
-| Remove or demote the **Inhaber**, or reset their password | – | – | – |
+| Remove or demote the **Owner**, or reset their password | – | – | – |
 | Delete your own account | – | – | – |
 
-There is exactly one Inhaber and it never changes: the role cannot be handed to anyone, which is why "Inhaber" is not offered when you create an account or change a role.
+There is exactly one Owner and it never changes: the role cannot be handed to anyone, which is why "Owner" is not offered when you create an account or change a role.
 
 <Screenshot name="users" caption="The member list in Settings" />
 
@@ -30,43 +30,43 @@ There is exactly one Inhaber and it never changes: the role cannot be handed to 
 
     ### Open member management
 
-    Go to "Einstellungen" → "Benutzer". The list is sorted by name. On a wide screen the "Name" and "Rolle" column headings sort it: click one to sort by it, click the same one again to turn the whole order around, names included. "Rolle" groups by rank, Inhaber first, then Admin, then Mitglied, and sorts by name inside each group. On a phone the rows are cards without headings and stay sorted by name.
+    Go to "Settings" → "Members". The list is sorted by name. On a wide screen the "Name" and "Role" column headings sort it: click one to sort by it, click the same one again to turn the whole order around, names included. "Role" groups by rank, Owner first, then Admin, then Member, and sorts by name inside each group. On a phone the rows are cards without headings and stay sorted by name.
 
   </Step>
   <Step>
 
     ### Add a member
 
-    Click "Benutzer anlegen" and fill in a username, a password (8–128 characters) and a role.
+    Click "Add member" and fill in a username, a password (8–128 characters) and a role.
 
     <Screenshot name="user-create" caption="Creating a new member" />
 
-    "Admin" can manage users and everything a member can; "Mitglied" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
+    "Admin" can manage users and everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
 
-    "Anzeigename (optional)" is the name Rezepte shows on recipes and in this list; leave it empty and the login name is used. The colour picker starts on the colour the fewest accounts hold, and a small dot marks each colour somebody already has — you can still pick it. Both can be changed later, by that person or by the owner.
+    "Display name (optional)" is the name Rezepte shows on recipes and in this list; leave it empty and the login name is used. The colour picker starts on the colour the fewest accounts hold, and a small dot marks each colour somebody already has — you can still pick it. Both can be changed later, by that person or by the owner.
 
   </Step>
   <Step>
 
     ### Change a role
 
-    Use the "Rolle" select in a member's row to switch them between "Admin" and "Mitglied". Only the owner has this select; for every other admin the role is shown as plain text.
+    Use the "Role" select in a member's row to switch them between "Admin" and "Member". Only the owner has this select; for every other admin the role is shown as plain text.
 
   </Step>
   <Step>
 
     ### Change someone's name or colour
 
-    The pencil in a member's row opens "Profil bearbeiten": their display name and their colour. This is the owner's alone — no other admin sees the pencil.
+    The pencil in a member's row opens "Edit profile": their display name and their colour. This is the owner's alone — no other admin sees the pencil.
 
-    It is not offered on your own row either. Your own name and colour live in "Einstellungen" → "Profil", so there is only ever one place to change them (see [Settings](/guide/settings)).
+    It is not offered on your own row either. Your own name and colour live in "Settings" → "Profile", so there is only ever one place to change them (see [Settings](/guide/settings)).
 
   </Step>
   <Step>
 
     ### Reset a password
 
-    "Passwort zurücksetzen" sets a new password for that member and signs them out on every device. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Passwort ändern" in your own settings, which asks for the current one.
+    "Reset password" sets a new password for that member and signs them out on every device. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
 
   </Step>
   <Step>
@@ -79,7 +79,7 @@ There is exactly one Inhaber and it never changes: the role cannot be handed to 
 </Steps>
 
 <Callout type="info" title="Good to know">
-  The owner's row is marked "Inhaber" and carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
+  The owner's row is marked "Owner" and carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
 </Callout>
 
 <Callout type="info" title="A display name is not a login">
@@ -91,6 +91,6 @@ There is exactly one Inhaber and it never changes: the role cannot be handed to 
     They are not deleted — they are transferred to the admin who performed the deletion.
   </Accordion>
   <Accordion title="Members and this page">
-    A "Mitglied" account that navigates directly to this page's URL is sent to their own settings instead; the same rule is enforced by the API, so this is purely a courtesy redirect, not the only protection.
+    A "Member" account that navigates directly to this page's URL is sent to their own settings instead; the same rule is enforced by the API, so this is purely a courtesy redirect, not the only protection.
   </Accordion>
 </Accordions>

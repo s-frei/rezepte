@@ -28,9 +28,9 @@ export async function prepare(
   );
   if (opts.login) {
     await page.goto("/login");
-    await page.getByLabel("Benutzername").fill(DEMO_USER.username);
-    await page.getByLabel("Passwort").fill(DEMO_USER.password);
-    await page.getByRole("button", { name: "Anmelden" }).click();
+    await page.getByLabel("Username").fill(DEMO_USER.username);
+    await page.getByLabel("Password").fill(DEMO_USER.password);
+    await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL("/");
   }
 }

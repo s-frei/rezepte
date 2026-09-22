@@ -1,0 +1,40 @@
+---
+title: Languages
+description: The two interface languages, where the choice lives, and how it reaches the browser
+---
+
+Rezepte's interface exists in English and German. `en` is the base locale - the one a string falls back to if nothing else applies - and it is also the instance default: an operator who sets nothing gets an English instance. Every account carries its own choice, so two people signed into the same instance can each read the app in a different language.
+
+## How it works
+
+**The set of languages is owned in three places that must agree.** `user.Locales` in `service/internal/user/profile.go` is `[]Locale{"en", "de"}`, `ParseLocale` accepts exactly that set and nothing else, and the `locale` column's `CHECK (locale IN ('en', 'de'))` in `0001_users_and_sessions.sql` repeats it at the storage layer - the migration's own comment says these two are the only places it exists. `frontend/project.inlang/settings.json` owns the same set for the frontend (`"baseLocale": "en", "locales": ["en", "de"]`), and `frontend/messages/en.json`/`de.json` hold the same set of keys, enforced by `frontend/scripts/message-parity.ts` in `mise run check`.
+
+**Every account has a `locale` in the `users` table**, `NOT NULL` like `role` and `color` beside it. `REZEPTE_LOCALE` (default `en`) sets `user.Service`'s `defaultLocale`, which a new account gets when nothing more specific is given: `POST /api/v1/users` accepts an optional `locale` field that overrides it for one new member, and the instance owner created at startup always gets it. `REZEPTE_LOCALE` also selects which of the two demo fixtures `--demo` seeds - see [Demo mode](/features/demo-mode).
+
+**Changing it afterwards is self-service.** `PATCH /api/v1/auth/me/profile` accepts `locale` alongside `displayName` and `color`, and only ever targets the caller's own row - the admin-only `PATCH /api/v1/users/{id}` has no `locale` field in its body at all, the same way a rename is the owner's alone (`user.CanEditProfile`). Nobody but the account holder can change what language their own screen renders in.
+
+**The Go service writes a `PARAGLIDE_LOCALE` cookie so the SPA can resolve a locale before it renders anything.** `auth.localeCookie` sets it on login and, unconditionally, on every call to `PATCH /api/v1/auth/me/profile` that succeeds - not only one that changes the locale - always from the just-loaded `users` row; `auth.expiredLocaleCookie` clears it on logout. The cookie is deliberately not `HttpOnly` - Paraglide's cookie strategy reads it from JavaScript, and it carries a display preference, nothing a session could be hijacked with.
+
+**Paraglide resolves a locale by trying three strategies in order: `cookie`, `preferredLanguage`, `baseLocale`.** Signed in, the cookie above wins, so the account's own choice is what renders regardless of the browser. Signed out - the login screen - there is no cookie yet, so the browser's own language (`preferredLanguage`, read from `navigator.languages`) decides; a browser reporting a language this app doesn't have falls through to `baseLocale`, which is `en`. `<html lang>` is kept in step with whichever locale actually rendered by a `$effect` in the root layout that reads `getLocale()`.
+
+**The two Playwright suites deliberately run in different languages.** `mise/tasks/e2e.sh` pins `REZEPTE_LOCALE=de` because `frontend/e2e`'s selectors are German; `docs/user/screenshots` instead runs against the instance default, English, with English selectors (see [Add a screenshot](/howtos/add-screenshot)). A spec added to the wrong suite compiles fine and fails only on its locators.
+
+## Why it is this way
+
+The cookie exists because Paraglide has to pick a locale before the first paint, and the account's language lives in the database behind an API call the SPA cannot wait for. A cookie sent with the very first request closes that gap; a `PARAGLIDE_LOCALE=de` on the wire is all Paraglide needs to render the right strings on the first render, with no flash of the wrong language and no second render once `/auth/me` comes back.
+
+It is not `HttpOnly` because Paraglide's cookie strategy is client-side: the generated runtime reads `document.cookie` directly to resolve and to change the active locale. An `HttpOnly` cookie would be invisible to exactly the code that needs to read it, defeating the reason it exists.
+
+The `users` row, not the cookie, is the source of truth, because a cookie is scoped to one browser and a language choice is not: signing in from a second device or a fresh browser profile has no cookie to read, and a person still expects their own language. The service always writes the cookie from the row it just loaded, never the other way around, so the cookie can be deleted, forged to a supported value, or simply absent, and the next authenticated request still resolves to what the account actually has stored.
+
+`REZEPTE_LOCALE` decides the *default*, not a ceiling: it is read once, at account-creation time (startup for the instance owner, `POST /api/v1/users` for everyone else unless that call names a `locale` of its own), and never again. An instance run with `REZEPTE_LOCALE=de` still lets any member switch to English in their own settings; the variable only ever answers "what does a brand new account start as."
+
+## Rejected
+
+- **URL-prefixed locales (`/en/…`, `/de/…`).** Every route would need a language segment threaded through routing, links and the SvelteKit config for a choice that is a per-account preference, not a per-page one - two people looking at the same recipe URL want their own language, not a language baked into the link. The cookie strategy gives that without touching a single route.
+- **An instance-wide language with no per-account choice.** `REZEPTE_LOCALE` could have been the only knob, with every account stuck in whatever the operator picked at install time. A household is not one person, and the whole point of a per-account `locale` column is that it does not have to be.
+
+## Limits
+
+- Recipe content itself is never translated by this feature, in either direction: an instance seeded in German and one seeded in English hold two different sets of sample recipes, not the same recipes in two languages, and nothing translates a recipe a real user writes.
+- The login screen's language follows the browser, not any account - there is no account to read a cookie from yet. A shared machine's login screen shows whatever the browser is configured for, not the language the next person to sign in will actually get once they are in.

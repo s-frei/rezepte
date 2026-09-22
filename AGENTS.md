@@ -5,7 +5,7 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 
 ## Hard rules
 
-- Everything in the repo is English (code, comments, commits, docs). UI copy is German and lives only in `frontend/messages/*.json`. → `docs/memory/content/conventions/svelte.mdx`
+- Everything in the repo is English (code, comments, commits, docs). UI copy lives only in `frontend/messages/*.json`, one catalogue per language; `en.json` is the source and `de.json` is its equal, and both hold the same keys. → `docs/memory/content/conventions/svelte.mdx`
 - Commits: semantic prefix, title ≤ 70 chars, body only when needed, no Co-Authored-By or tool trailers. → `docs/memory/content/conventions/commits.mdx`
 - Git flow: develop on `develop`, releases merge to `main`; never push, merge to `main`, tag or open PRs without being asked. History on `develop` is never rewritten unless explicitly asked; a branch is tidied in its worktree before it lands. → `docs/memory/content/conventions/commits.mdx`
 - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
