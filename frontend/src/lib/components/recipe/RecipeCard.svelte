@@ -60,12 +60,12 @@
 		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
 		     reserved either way, so the time pills of a row stay on one line.
 		     A phone card leaves 124px of text, which German compounds outrun on
-		     their own - so `hyphens-auto` (the document carries the account's locale) lets
-		     them break instead of running out of the card unseen. Two lines on
-		     a phone - of twelve seeded titles exactly two need a third there,
-		     and granting it would raise every row for their sake - but three on
-		     desktop, where 19px type pushes three titles past two lines and a
-		     four-column grid has the height to spare. -->
+		     their own - so `hyphens-auto` (the document carries the account's
+		     locale) lets them break instead of running out of the card unseen.
+		     Two lines on a phone - of twelve seeded titles exactly two need a
+		     third there, and granting it would raise every row for their sake -
+		     but three on desktop, where 19px type pushes three titles past two
+		     lines and a four-column grid has the height to spare. -->
 		<h3
 			id={titleId}
 			class="line-clamp-2 min-h-[2lh] font-display text-[16px] font-medium hyphens-auto md:line-clamp-3 md:text-card"

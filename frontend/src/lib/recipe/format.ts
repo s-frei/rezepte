@@ -66,12 +66,12 @@ export function formatQuantity(quantity: number | null): string {
  * Formats a duration in minutes for display.
  *
  * - `null` renders as an empty string.
- * - Under an hour renders as minutes (`30 Min`).
+ * - Under an hour renders as minutes (`30 min`).
  * - An hour or more renders as hours and, when there's a remainder,
- *   minutes (`1 Std 30 Min`, `2 Std`).
+ *   minutes (`1 hr 30 min`, `2 hr`).
  *
- * The unit copy comes from `messages/de.json` (`duration_*`), not hardcoded
- * here.
+ * The unit copy comes from the message catalogues (`duration_*`), not
+ * hardcoded here, so the examples read as the active language does.
  */
 export function formatMinutes(minutes: number | null): string {
 	if (minutes === null) {
@@ -99,15 +99,15 @@ export function formatFactor(from: number, to: number): string {
 }
 
 /**
- * "Portion" for exactly one, "Portionen" otherwise. Two plain keys instead
- * of an inlang plural variant: `de.json` uses none anywhere else, and a
- * one-vs-many split is all German needs here.
+ * "serving" for exactly one, "servings" otherwise. Two plain keys instead of
+ * an inlang plural variant: no catalogue uses one anywhere else, and a
+ * one-vs-many split is all either language needs here.
  */
 export function servingsUnit(count: number): string {
 	return count === 1 ? m.servings_unit_one() : m.servings_unit_other();
 }
 
-/** `4 Portionen`, `1 Portion` - number and unit together, for captions. */
+/** `4 servings`, `1 serving` - number and unit together, for captions. */
 export function formatServings(count: number): string {
 	return `${count} ${servingsUnit(count)}`;
 }

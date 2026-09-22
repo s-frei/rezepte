@@ -11,9 +11,9 @@ export function isAdminRole(role: UserRole | undefined): boolean {
 }
 
 /**
- * The German label for a role, for every surface that shows one. An unknown
- * or not yet loaded role reads as a plain member, which is the least any
- * account can be.
+ * The label for a role in the active language, for every surface that shows
+ * one. An unknown or not yet loaded role reads as a plain member, which is
+ * the least any account can be.
  */
 export function roleLabel(role: UserRole | undefined): string {
 	if (role === 'superadmin') return m.users_role_owner();
