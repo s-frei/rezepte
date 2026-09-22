@@ -68,7 +68,7 @@ export function roundScaled(quantity: number): number {
 	return sign * rounded;
 }
 
-/** `roundScaled` rendered through the shared quantity formatter (½ ¼ ¾ ⅓ ⅔, German comma). */
+/** `roundScaled` rendered through the shared quantity formatter (½ ¼ ¾ ⅓ ⅔, the locale's decimal separator). */
 export function formatScaled(quantity: number): string {
 	return formatQuantity(roundScaled(quantity));
 }

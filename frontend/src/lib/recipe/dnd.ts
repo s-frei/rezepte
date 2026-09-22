@@ -2,8 +2,9 @@ import { setAriaStrings } from 'svelte-dnd-action';
 import { m } from '$lib/paraglide/messages';
 
 /**
- * svelte-dnd-action speaks to screen readers itself, and its built-in strings
- * are English. This hands it the German copy from `messages/de.json` instead.
+ * svelte-dnd-action speaks to screen readers itself, out of its own built-in
+ * strings. This hands it the app's copy instead, in whichever language the
+ * page is rendering.
  *
  * The setting is global to the document and applies to every dnd zone, so it
  * only has to happen once - `applied` keeps repeated editor mounts from

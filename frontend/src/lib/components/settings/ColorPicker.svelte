@@ -23,7 +23,7 @@
 
 	const uid = $props.id();
 
-	// Paraglide compiles one function per key, so the German names cannot be
+	// Paraglide compiles one function per key, so the colour names cannot be
 	// looked up as `m['user_color_' + color]` - the compiler has to see every
 	// call. Written out here rather than in $lib/user/color.ts: that module is
 	// the class table, and this is the only place a colour is ever named.
