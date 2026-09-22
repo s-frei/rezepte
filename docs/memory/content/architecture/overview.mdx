@@ -38,7 +38,7 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     - `src/lib/components/recipe`, `editor`, `cook` – feature components
     - `src/lib/recipe` – pure recipe logic (query state, form mapping, quantity formatting, servings scaling) and its rune stores
     - `src/routes` – file-based routes, `+layout.ts` sets `ssr = false`
-    - `messages/de.json` – UI copy
+    - `messages/en.json`, `de.json` – UI copy, one catalogue per language
 
   </Tab>
   <Tab value="docs">
@@ -71,7 +71,7 @@ One process is the whole point. A household installs a binary and a volume, so a
 
 That is why the frontend is files rather than a server. `@sveltejs/adapter-static` with `ssr = false` and `fallback: 'index.html'` writes the build into `service/internal/web/dist`, which `internal/web` embeds, so the SPA ships inside the binary and there is no Node runtime in production. There is no `svelte.config.js`: the kit configuration, adapter options included, lives inline in `frontend/vite.config.ts`. The price is paid in the open: there are no server load functions, every page fetches through `$lib/api` in the browser, and the root `+layout.ts` has to resolve the session before any page renders. Every page sits behind a login and none of it is indexed, so what server rendering would buy is worth nothing here.
 
-The SPA is Svelte 5 with runes and TypeScript throughout. Bits UI is used headless and styled by hand, so the visual direction stays a decision made in this repository rather than one inherited from a component library's own style system ([Design system](/architecture/design-system)). German copy lives in Paraglide message files rather than in components, which is what keeps the UI German and the code English. [Svelte conventions](/conventions/svelte) owns the rules that follow from all three.
+The SPA is Svelte 5 with runes and TypeScript throughout. Bits UI is used headless and styled by hand, so the visual direction stays a decision made in this repository rather than one inherited from a component library's own style system ([Design system](/architecture/design-system)). UI copy lives in Paraglide message files rather than in components, one catalogue per language (see [Languages](/features/languages)), which is what keeps the UI's two languages out of the code and the code itself English. [Svelte conventions](/conventions/svelte) owns the rules that follow from all three.
 
 [Toolchain](/architecture/toolchain) owns the build and the task surface that produce all of this.
 

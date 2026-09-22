@@ -11,6 +11,7 @@ Rezepte takes its entire configuration from environment variables — there is n
     REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db and images/', type: 'string', default: './data' },
     REZEPTE_ADMIN_USER: { description: 'Username of the instance owner, used only on the first start', type: 'string', default: 'admin' },
     REZEPTE_ADMIN_PASSWORD: { description: 'Password of the instance owner; required on the first start (empty users table), ignored afterwards except by --reset-superadmin-password', type: 'string' },
+    REZEPTE_LOCALE: { description: 'Interface language new accounts start in, and the language of the demo recipes: en or de', type: 'string', default: 'en' },
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
@@ -37,7 +38,7 @@ REZEPTE_ADMIN_PASSWORD='the new password' rezepte --reset-superadmin-password
 
 The way back in when the owner's password is lost. Nobody inside the app can reset that account, so this runs on the server instead: it sets the owner's password to `REZEPTE_ADMIN_PASSWORD` (an empty value is an error), signs that account out on every device, and exits without starting the server. Start Rezepte normally afterwards and log in with the new password.
 
-Everyone else's password is reset from "Einstellungen" → "Benutzer" — see [Members](/guide/users).
+Everyone else's password is reset from "Settings" → "Members" — see [Members](/guide/users).
 
 ### `--version`
 

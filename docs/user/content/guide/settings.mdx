@@ -5,21 +5,25 @@ description: Your profile, theme, password, API and signing out
 
 <Screenshot name="settings" caption="The settings page" />
 
-## Profil
+## Profile
 
 The card at the top of the page is how Rezepte shows you to the household.
 
-"Anzeigename" is the name on your recipes, in the member list and on the circles that sign a recipe card. Change it and press "Namen speichern"; up to 64 characters, and leaving it empty puts your login name back. It does not have to be unique, so two people can both be "Mia".
+"Display name" is the name on your recipes, in the member list and on the circles that sign a recipe card. Change it and press "Save name"; up to 64 characters, and leaving it empty puts your login name back. It does not have to be unique, so two people can both be "Mia".
 
-"Anmeldename" underneath is your login name. It is shown, not editable — it is what you type to sign in, and it stays the same however often you rename yourself.
+"Login name" underneath is your login name. It is shown, not editable — it is what you type to sign in, and it stays the same however often you rename yourself.
 
-"Farbe" is your colour: eight to choose from, and it marks you wherever the app names you. Tapping a swatch saves it right away, no button. A small dot marks a colour somebody else already has — you can take it anyway, the dot is only there so a household can spread out across the palette. Your initial stays in the circle either way, so nobody has to tell two colours apart to know whose recipe it is.
+"Colour" is your colour: eight to choose from, and it marks you wherever the app names you. Tapping a swatch saves it right away, no button. A small dot marks a colour somebody else already has — you can take it anyway, the dot is only there so a household can spread out across the palette. Your initial stays in the circle either way, so nobody has to tell two colours apart to know whose recipe it is.
 
-## Darstellung
+## Appearance
 
-Choose "System", "Hell" or "Dunkel". The choice is stored in this browser only — it does not follow you to another device or browser.
+Choose "System", "Light" or "Dark". The choice is stored in this browser only — it does not follow you to another device or browser.
 
-## Passwort ändern
+## Language
+
+Choose "English" or "German". Unlike the theme, your language is saved to your account, so it follows you to any device and any browser you sign in from — the next login, anywhere, opens in that language. Switching it only changes the interface; it never translates a recipe's own title, ingredients or steps.
+
+## Change password
 
 Enter the current password once, then the new password (8–128 characters) twice. Changing your password signs out every other device that was logged in as you; this device stays signed in.
 
@@ -27,12 +31,12 @@ Enter the current password once, then the new password (8–128 characters) twic
 
 <Screenshot name="api" caption="The API tab, here as an admin sees it" />
 
-Every signed-in member has this tab. It carries the base URL of this instance's API, ready to copy, the number of endpoints and areas the instance serves, and the version it is running. "Interaktive Doku" opens the try-it-out documentation, "openapi.json" the raw document — both work straight from the browser with your session, no token needed. See [API](/api) for what you can do with it.
+Every signed-in member has this tab. It carries the base URL of this instance's API, ready to copy, the number of endpoints and areas the instance serves, and the version it is running. "Interactive docs" opens the try-it-out documentation, "openapi.json" the raw document — both work straight from the browser with your session, no token needed. See [API](/api) for what you can do with it.
 
 Issuing an API token needs an admin; the tab says so if you are not one. Admins find the token list on the same page — [API tokens](/api/tokens) covers it.
 
 ## Signing out
 
-"Abmelden" in the user menu ends the current session on this device.
+"Sign out" in the user menu ends the current session on this device.
 
 The instance owner can change another person's display name and colour from the member list; nobody else can. See [Members](/guide/users) for that and the rest of the admin-only account management.
