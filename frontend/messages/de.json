@@ -65,8 +65,6 @@
 	"settings_language_title": "Sprache",
 	"settings_language_label": "Anzeigesprache",
 	"settings_language_hint": "Wird in deinem Account gespeichert und gilt daher auf jedem Gerät.",
-	"settings_language_english": "Englisch",
-	"settings_language_german": "Deutsch",
 	"settings_language_error": "Die Sprache konnte nicht geändert werden.",
 	"users_role_admin": "Admin",
 	"users_role_member": "Mitglied",

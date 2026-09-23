@@ -70,10 +70,15 @@ test('switching to German changes the UI and survives a reload', async ({ page }
 
 	await page.goto('/settings');
 	await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
-	// The account is still English here, so the segmented control's own
-	// labels are English too - the German option reads "German", not
-	// "Deutsch", until after it is chosen and the page has reloaded.
-	await page.getByRole('radio', { name: 'German' }).click();
+	// Bits UI renders the select trigger as a plain <button> carrying only
+	// the aria-label (tokens.test.ts documents the same thing for the expiry
+	// picker); the list items are real role="option"s.
+	//
+	// The account is still English here, so the list is written in English -
+	// the German entry reads "German", with "Deutsch" beside it as the
+	// endonym, and only reads "Deutsch" alone after the reload.
+	await page.getByRole('button', { name: 'Interface language' }).click();
+	await page.getByRole('option', { name: /^German/ }).click();
 	await expect(page.getByRole('heading', { name: 'Einstellungen', level: 1 })).toBeVisible();
 
 	await page.reload();

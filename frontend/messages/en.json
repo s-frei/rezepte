@@ -65,8 +65,6 @@
 	"settings_language_title": "Language",
 	"settings_language_label": "Interface language",
 	"settings_language_hint": "Saved to your account, so it follows you to any device.",
-	"settings_language_english": "English",
-	"settings_language_german": "German",
 	"settings_language_error": "Could not change the language.",
 	"users_role_admin": "Admin",
 	"users_role_member": "Member",
