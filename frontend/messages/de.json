@@ -82,6 +82,8 @@
 	"users_field_display_name": "Anzeigename",
 	"users_field_display_name_optional": "Anzeigename (optional)",
 	"users_field_color": "Farbe",
+	"users_field_language": "Sprache",
+	"users_field_language_hint": "Kann später selbst geändert werden.",
 	"users_edit_profile": "Profil bearbeiten",
 	"users_edit_profile_title": "Profil von {username} bearbeiten",
 	"users_edit_profile_description": "Anzeigename und Farbe dieses Kontos.",

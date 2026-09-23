@@ -31,6 +31,8 @@ The `users` row, not the cookie, is the source of truth, because a cookie is sco
 
 `REZEPTE_LOCALE` decides the *default*, not a ceiling: it is read once, at account-creation time (startup for the instance owner, `POST /api/v1/users` for everyone else unless that call names a `locale` of its own), and never again. An instance run with `REZEPTE_LOCALE=de` still lets any member switch to English in their own settings; the variable only ever answers "what does a brand new account start as."
 
+In practice the API's fallback to `REZEPTE_LOCALE` is what the seed and a bare `POST /api/v1/users` use, because the create-member dialog always names a locale: `CreateUserDialog.svelte` seeds its picker from `getLocale()`, the language the admin filling the form is reading. A household sets up accounts in the language it speaks, whatever the instance was installed with, and the new member can change it afterwards - it is the one profile field an admin cannot reach once the account exists.
+
 ## Rejected
 
 - **URL-prefixed locales (`/en/…`, `/de/…`).** Every route would need a language segment threaded through routing, links and the SvelteKit config for a choice that is a per-account preference, not a per-page one - two people looking at the same recipe URL want their own language, not a language baked into the link. The cookie strategy gives that without touching a single route.

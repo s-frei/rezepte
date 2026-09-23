@@ -82,6 +82,8 @@
 	"users_field_display_name": "Display name",
 	"users_field_display_name_optional": "Display name (optional)",
 	"users_field_color": "Colour",
+	"users_field_language": "Language",
+	"users_field_language_hint": "They can change this themselves later.",
 	"users_edit_profile": "Edit profile",
 	"users_edit_profile_title": "Edit {username}'s profile",
 	"users_edit_profile_description": "Display name and colour for this account.",
