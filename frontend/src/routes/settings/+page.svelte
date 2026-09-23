@@ -5,6 +5,7 @@
 	import { isSignedOut } from '$lib/api/client';
 	import { session } from '$lib/auth.svelte';
 	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
+	import HelpCard from '$lib/components/settings/HelpCard.svelte';
 	import LanguageControl from '$lib/components/settings/LanguageControl.svelte';
 	import PasswordForm from '$lib/components/settings/PasswordForm.svelte';
 	import ProfileForm from '$lib/components/settings/ProfileForm.svelte';
@@ -188,4 +189,6 @@
 		<h2 id="settings-theme" class={title}>{m.settings_theme_title()}</h2>
 		<ThemeControl />
 	</section>
+
+	<HelpCard />
 </SettingsLayout>
