@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import AppShell from '$lib/components/shell/AppShell.svelte';
 	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
+	import { session } from '$lib/auth.svelte';
 	import { palette } from '$lib/palette.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
 
@@ -20,7 +21,13 @@
 	// app.html ships a static lang attribute; the real locale is only known
 	// once Paraglide has resolved it. Screen readers and spell checking read
 	// this, so it has to agree with what is on screen.
+	//
+	// getLocale() reads the cookie, which Svelte cannot track. Login and
+	// sign-out rewrite that cookie without a reload, and both set session.user
+	// right after, so reading it here re-runs the effect at exactly those two
+	// points. Every other locale change reloads the page.
 	$effect(() => {
+		void session.user;
 		document.documentElement.lang = getLocale();
 	});
 
