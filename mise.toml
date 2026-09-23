@@ -19,15 +19,21 @@ lockfile = true
 # mise.local.toml (gitignored); without one it is 0 and every port below is
 # the value it has always had.
 #
-# Use `env.REZEPTE_PORT_OFFSET`, not `get_env(name=...)`: get_env reads only
-# the process environment and would ignore mise.local.toml, which looks like
-# it works until two worktrees collide on the same port.
+# The offset is a var, not an env: file tasks (mise/tasks/*) and `mise env`
+# render the root [env] block before mise.local.toml's [env] applies, so an
+# `env.` offset silently resolves to 0 there while TOML tasks see it. [vars]
+# are collected first and have no such ordering. Never use
+# `get_env(name=...)` either: it reads only the process environment.
+#
+# The `env.` fallback keeps a mise.local.toml that still sets the offset under
+# [env] working as it did before; worktree:new writes [vars].
 [env]
-RZP_BACKEND_PORT     = "{{ 8060 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
-RZP_FRONTEND_PORT    = "{{ 9060 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
-RZP_DEMO_PORT        = "{{ 8070 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
-RZP_DOCS_MEMORY_PORT = "{{ 4000 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
-RZP_DOCS_USER_PORT   = "{{ 4001 + (env.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+REZEPTE_PORT_OFFSET  = "{{ vars.REZEPTE_PORT_OFFSET | default(value='0') }}"
+RZP_BACKEND_PORT     = "{{ 8060 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
+RZP_FRONTEND_PORT    = "{{ 9060 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
+RZP_DEMO_PORT        = "{{ 8070 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
+RZP_DOCS_MEMORY_PORT = "{{ 4000 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
+RZP_DOCS_USER_PORT   = "{{ 4001 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
 
 [tasks.setup]
 description = "Install all dependencies"

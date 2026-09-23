@@ -18,7 +18,7 @@ description: One worktree per feature, one port offset per worktree
     mise run worktree:new <name>
     ```
 
-    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml` and printed along with the rest of the port map. `cd` into the new directory and work there.
+    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml`, under `[vars]`, and printed along with the rest of the port map. `cd` into the new directory and work there.
 
   </Step>
   <Step>
@@ -81,4 +81,4 @@ description: One worktree per feature, one port offset per worktree
 
 ## If you use the native `git worktree` tool directly
 
-`mise run worktree:new` is the supported path because it names `develop` explicitly as the base branch and assigns the offset for you. The harness's own worktree tool defaults to `origin/main` (the release branch, far behind `develop`) unless `.claude/settings.json` sets `worktree.baseRef` to `head` - and even then, `head` is only correct when you happen to be standing on `develop` already. If you create a worktree by hand, check the base yourself and write its `mise.local.toml` yourself; nothing else picks an offset for you.
+`mise run worktree:new` is the supported path because it names `develop` explicitly as the base branch and assigns the offset for you. The harness's own worktree tool defaults to `origin/main` (the release branch, far behind `develop`) unless `.claude/settings.json` sets `worktree.baseRef` to `head` - and even then, `head` is only correct when you happen to be standing on `develop` already. If you create a worktree by hand, check the base yourself and write its `mise.local.toml` yourself, with `REZEPTE_PORT_OFFSET` under `[vars]` (not `[env]`, which `mise run ports` and `//:demo` never see); nothing else picks an offset for you.

@@ -79,7 +79,9 @@ cat > "$DIR/mise.local.toml" <<EOF
 # Never commit this file. .gitignore excludes it at every depth, which is what
 # keeps an offset from travelling back into the main checkout and silently
 # shifting its ports.
-[env]
+#
+# [vars], not [env]: see the comment above the port block in the root mise.toml.
+[vars]
 REZEPTE_PORT_OFFSET = "$OFFSET"
 EOF
 
