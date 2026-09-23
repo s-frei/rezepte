@@ -1,5 +1,5 @@
 import type { UserColor } from '$lib/user/color';
-import type { User } from './auth';
+import type { Locale, User } from './auth';
 import { api } from './client';
 
 export type UserAccount = User & { createdAt: string };
@@ -17,6 +17,8 @@ export function createUser(input: {
 	role: UserRole;
 	displayName?: string;
 	color?: UserColor;
+	/** Omitted means the instance default (`REZEPTE_LOCALE`). */
+	locale?: Locale;
 }): Promise<UserAccount> {
 	return api<UserAccount>('/users', { method: 'POST', body: JSON.stringify(input) });
 }

@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { Dialog, RadioGroup } from 'bits-ui';
+	import Languages from 'lucide-svelte/icons/languages';
 	import { toast } from 'svelte-sonner';
-	import type { ColorUsage } from '$lib/api/auth';
+	import type { ColorUsage, Locale } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import { createUser, type UserAccount, type UserRole } from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
 	import { leastUsedColor, USER_COLORS, type UserColor } from '$lib/user/color';
 	import ColorPicker from './ColorPicker.svelte';
@@ -24,8 +27,20 @@
 	let password = $state('');
 	let role = $state<string>('user');
 	let color = $state<UserColor>(USER_COLORS[0]);
+	// Seeded from the language this admin is reading, not from the instance
+	// default: someone setting up an account for the household almost always
+	// speaks the language they are working in, whatever the instance was
+	// configured with. The new member can change it themselves afterwards -
+	// it is the one profile field nobody else may touch once the account
+	// exists.
+	let locale = $state<Locale>(getLocale());
 	let errors = $state<{ username?: string; password?: string }>({});
 	let saving = $state(false);
+
+	const locales: { value: Locale; label: string; icon: typeof Languages }[] = [
+		{ value: 'en', label: m.settings_language_english(), icon: Languages },
+		{ value: 'de', label: m.settings_language_german(), icon: Languages }
+	];
 
 	// Only the instance owner hands out the admin role; the API answers 403
 	// otherwise, and an option that always fails is worse than no option.
@@ -50,6 +65,7 @@
 			password = '';
 			role = 'user';
 			color = leastUsedColor(usage);
+			locale = getLocale();
 			errors = {};
 		}
 	});
@@ -74,7 +90,8 @@
 				displayName: displayName.trim(),
 				password,
 				role: role as UserRole,
-				color
+				color,
+				locale
 			});
 			toast.success(m.users_created({ username: created.username }));
 			open = false;
@@ -158,6 +175,11 @@
 			{/each}
 		</RadioGroup.Root>
 		<ColorPicker bind:value={color} {usage} label={m.users_field_color()} />
+		<div>
+			<span class="block text-caption font-semibold">{m.users_field_language()}</span>
+			<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.users_field_language_hint()}</p>
+			<SegmentedControl bind:value={locale} options={locales} label={m.users_field_language()} />
+		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.users_create_submit()}</Button>
