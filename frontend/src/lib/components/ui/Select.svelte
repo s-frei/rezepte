@@ -4,7 +4,14 @@
 	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import { Select as BitsSelect } from 'bits-ui';
 
-	type Option = { value: string; label: string };
+	/**
+	 * `hint` is a second, muted word on the same row of the open list - a
+	 * language's endonym beside its translated name, say. It never reaches
+	 * the trigger: the trigger has to stay one glance wide, and the hint is
+	 * there to help someone *find* the entry, not to describe the choice
+	 * once it is made.
+	 */
+	type Option = { value: string; label: string; hint?: string };
 
 	let {
 		value = $bindable(''),
@@ -122,7 +129,12 @@
 					class="flex h-10 cursor-default items-center justify-between gap-8 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
 				>
 					{#snippet children({ selected })}
-						{option.label}
+						<span class="flex min-w-0 items-baseline gap-2">
+							<span class="truncate">{option.label}</span>
+							{#if option.hint}
+								<span class="truncate text-caption text-text-muted">{option.hint}</span>
+							{/if}
+						</span>
 						{#if selected}
 							<Check
 								class="size-[18px] shrink-0 text-primary"

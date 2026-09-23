@@ -9,7 +9,8 @@
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
+	import { languageOptions } from '$lib/i18n/languages';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
@@ -33,14 +34,13 @@
 	// configured with. The new member can change it themselves afterwards -
 	// it is the one profile field nobody else may touch once the account
 	// exists.
-	let locale = $state<Locale>(getLocale());
+	// Held as a plain string because that is what the select binds; narrowed
+	// back to Locale on submit, where the API type demands it.
+	let locale = $state<string>(getLocale());
 	let errors = $state<{ username?: string; password?: string }>({});
 	let saving = $state(false);
 
-	const locales: { value: Locale; label: string; icon: typeof Languages }[] = [
-		{ value: 'en', label: m.settings_language_english(), icon: Languages },
-		{ value: 'de', label: m.settings_language_german(), icon: Languages }
-	];
+	const localeOptions = languageOptions();
 
 	// Only the instance owner hands out the admin role; the API answers 403
 	// otherwise, and an option that always fails is worse than no option.
@@ -91,7 +91,7 @@
 				password,
 				role: role as UserRole,
 				color,
-				locale
+				locale: locale as Locale
 			});
 			toast.success(m.users_created({ username: created.username }));
 			open = false;
@@ -178,7 +178,16 @@
 		<div>
 			<span class="block text-caption font-semibold">{m.users_field_language()}</span>
 			<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.users_field_language_hint()}</p>
-			<SegmentedControl bind:value={locale} options={locales} label={m.users_field_language()} />
+			<Select
+				bind:value={locale}
+				options={localeOptions}
+				label={m.users_field_language()}
+				class="w-full bg-surface-elevated"
+			>
+				{#snippet icon()}
+					<Languages class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+				{/snippet}
+			</Select>
 		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
