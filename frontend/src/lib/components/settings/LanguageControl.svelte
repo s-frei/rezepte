@@ -57,5 +57,18 @@
 	}
 </script>
 
-<p class="mb-3 text-body-sm text-text-muted">{m.settings_language_hint()}</p>
-<SegmentedControl value={current} {options} label={m.settings_language_label()} onchange={choose} />
+<!--
+	Labelled like the colour picker beside it, because it is now a field of
+	the profile card rather than a card of its own: a short visible caption,
+	the group's accessible name carried separately by SegmentedControl.
+-->
+<div>
+	<span class="block text-caption font-semibold">{m.settings_language_title()}</span>
+	<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.settings_language_hint()}</p>
+	<SegmentedControl
+		value={current}
+		{options}
+		label={m.settings_language_label()}
+		onchange={choose}
+	/>
+</div>
