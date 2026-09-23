@@ -4,6 +4,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // Color is a palette token identifying a person wherever the UI names them.
@@ -51,6 +53,22 @@ type Locale string
 // constraint on users.locale in 0001_users_and_sessions.sql repeats it in the
 // only other place it has to exist. The first entry is the base locale.
 var Locales = []Locale{"en", "de"}
+
+// Schema makes Locales the enum every API field of this type carries, so a
+// language is added to one slice instead of to that slice and to an
+// `enum:"..."` tag on each request and response field. A tag left behind
+// would compile, pass its tests, and reject the new language at runtime with
+// a 422 that neither the database nor ParseLocale agrees with.
+//
+// Returned by value so both Locale and *Locale fields pick it up: huma looks
+// the interface up on the dereferenced type.
+func (Locale) Schema(huma.Registry) *huma.Schema {
+	values := make([]any, len(Locales))
+	for i, l := range Locales {
+		values[i] = string(l)
+	}
+	return &huma.Schema{Type: huma.TypeString, Enum: values}
+}
 
 // ParseLocale accepts exactly the set above, exactly as written. There is no
 // case folding and no BCP 47 parsing: the value reaches a CHECK constraint

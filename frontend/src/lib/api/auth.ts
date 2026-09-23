@@ -1,7 +1,14 @@
+import type { Locale } from '$lib/paraglide/runtime';
 import type { UserColor } from '$lib/user/color';
 import { api } from './client';
 
-export type Locale = 'en' | 'de';
+/**
+ * Re-exported rather than spelled out: Paraglide generates it from
+ * `project.inlang/settings.json`, so a language added there reaches the API
+ * types without anyone editing a union. The service constrains the same set
+ * from `user.Locales`, and a test holds the two lists to each other.
+ */
+export type { Locale };
 
 export type User = {
 	id: string;
