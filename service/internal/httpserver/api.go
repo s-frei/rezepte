@@ -62,6 +62,11 @@ func newAPI(mux *http.ServeMux) huma.API {
 	cfg.DocsRendererConfig = map[string]any{
 		"hideModels": true,
 		"customCss":  scalarTheme,
+		// Name the operations by their route, the way the generated reference
+		// in docs/user/ does. Scalar defaults to the summary, which reads well
+		// in prose and badly in a list: two lines per entry, and no way to see
+		// at a glance which endpoint one is looking at.
+		"operationTitleSource": "path",
 		// Both buttons lead out of this page and into Scalar's own product -
 		// the API client, and an assistant that would talk to their service
 		// about our contract. The page is here to document the API, so

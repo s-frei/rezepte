@@ -7,7 +7,7 @@ Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at 
 
 ## Interactive docs
 
-`/api/v1/docs` is Scalar, rendered by huma from the same OpenAPI document, and it wears the app's colours. `service/internal/httpserver/scalar_theme.css` maps the design tokens in `frontend/src/app.css` onto Scalar's `--scalar-*` variables; it is embedded into the binary and handed to Scalar as `customCss`, because huma renders the page itself and its CSP permits inline styles only. The values are copied rather than imported, so `scalar_theme_test.go` reads `app.css` and fails on any colour there that is no longer one of its tokens.
+`/api/v1/docs` is Scalar, rendered by huma from the same OpenAPI document, and it wears the app's colours. Its sidebar names each operation by its route (`operationTitleSource: "path"`) rather than by its summary, which is both what the generated reference in `docs/user/` does and what keeps the entries to one line each. `service/internal/httpserver/scalar_theme.css` maps the design tokens in `frontend/src/app.css` onto Scalar's `--scalar-*` variables; it is embedded into the binary and handed to Scalar as `customCss`, because huma renders the page itself and its CSP permits inline styles only. The values are copied rather than imported, so `scalar_theme_test.go` reads `app.css` and fails on any colour there that is no longer one of its tokens.
 
 Only the colours are ours. Typography and layout stay Scalar's, and so do the six semantic colours for HTTP methods and status codes - the app's palette is warm and narrow, and would leave GET, POST and DELETE hard to tell apart. Webfonts are out of reach in any case: huma's CSP declares no `font-src`.
 
