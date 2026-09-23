@@ -1,0 +1,16 @@
+{
+  "title": "Recipes",
+  "description": "Creating, reading, updating and deleting recipes, and searching them.",
+  "pages": [
+    "index",
+    "list-authors",
+    "list-recipes",
+    "create-recipe",
+    "get-recipe-by-slug",
+    "get-recipe",
+    "delete-recipe",
+    "update-recipe",
+    "delete-favourite",
+    "set-favourite"
+  ]
+}

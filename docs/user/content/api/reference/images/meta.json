@@ -1,0 +1,11 @@
+{
+  "title": "Images",
+  "description": "Uploading recipe images and serving them in their rendered sizes.",
+  "pages": [
+    "index",
+    "set-cover",
+    "upload-image",
+    "reorder-images",
+    "delete-image"
+  ]
+}

@@ -32,10 +32,29 @@ func isSpecRoute(p string) bool {
 		strings.HasPrefix(p, apiPrefix+"/schemas/")
 }
 
+// apiTags declares the tags the operations refer to. huma.DefaultConfig
+// declares none, and an operation's own Tags field does not create a
+// declaration - so without this the document groups operations under names it
+// never defines, the Scalar page at /api/v1/docs shows bare slugs instead of
+// titled sections, and the generated reference in docs/user/ has nothing to
+// build a page per tag from.
+//
+// The order is the order the documentation presents: what everything else
+// needs first, then the recipe domain, then the administrative endpoints.
+var apiTags = []*huma.Tag{
+	{Name: "auth", Description: "Signing in, signing out and reading the current session."},
+	{Name: "recipes", Description: "Creating, reading, updating and deleting recipes, and searching them."},
+	{Name: "tags", Description: "The tags recipes are filed under."},
+	{Name: "images", Description: "Uploading recipe images and serving them in their rendered sizes."},
+	{Name: "users", Description: "Managing the accounts of an instance. Administrators only."},
+	{Name: "tokens", Description: "Managing the API tokens a program authenticates with."},
+}
+
 // newAPI configures huma on the given mux. Operations register with full
 // paths (e.g. /api/v1/recipes) so the mux and OpenAPI agree.
 func newAPI(mux *http.ServeMux) huma.API {
 	cfg := huma.DefaultConfig("Rezepte API", "0.1.0")
+	cfg.Tags = apiTags
 	cfg.OpenAPIPath = apiPrefix + "/openapi"
 	cfg.DocsPath = apiPrefix + "/docs"
 	cfg.SchemasPath = apiPrefix + "/schemas"

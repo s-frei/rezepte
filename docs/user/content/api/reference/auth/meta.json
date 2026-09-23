@@ -1,0 +1,13 @@
+{
+  "title": "Auth",
+  "description": "Signing in, signing out and reading the current session.",
+  "pages": [
+    "index",
+    "login",
+    "logout",
+    "me",
+    "change-own-password",
+    "list-color-usage",
+    "update-own-profile"
+  ]
+}

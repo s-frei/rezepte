@@ -15,6 +15,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 )
@@ -54,6 +55,7 @@ func newFullApp(t *testing.T) fullApp {
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)
+	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions}
 }
 
@@ -184,11 +186,58 @@ func TestEveryFeatureRegisters(t *testing.T) {
 			ids[op.OperationID] = true
 		}
 	}
-	// One operation per feature package: proof that all four registrations
+	// One operation per feature package: proof that all five registrations
 	// made it into the same document.
-	for _, id := range []string{"login", "list-recipes", "upload-image", "list-users"} {
+	for _, id := range []string{"login", "list-recipes", "upload-image", "list-users", "list-api-tokens"} {
 		if !ids[id] {
 			t.Errorf("operation %q missing from the OpenAPI document", id)
+		}
+	}
+}
+
+// TestEveryTagIsDeclared holds the tag names in the operations and the tag
+// declarations of the document to each other. An operation's Tags field does
+// not create a declaration, so a new endpoint under a new name emits a
+// document that groups operations under a tag it never defines - which the
+// Scalar page renders as a bare slug and the generated reference in
+// docs/user/ skips entirely, since it builds one page per declared tag.
+// A declaration nothing uses is the same fault the other way round: it
+// generates an empty documentation page.
+func TestEveryTagIsDeclared(t *testing.T) {
+	app := newFullApp(t)
+	rec := app.get("/api/v1/openapi.json", app.login(t))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("openapi.json: status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	var doc struct {
+		Tags  []struct{ Name string } `json:"tags"`
+		Paths map[string]map[string]struct {
+			Tags []string `json:"tags"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("openapi.json is not JSON: %v", err)
+	}
+
+	declared := make(map[string]bool, len(doc.Tags))
+	for _, tag := range doc.Tags {
+		declared[tag.Name] = true
+	}
+	used := make(map[string]bool)
+	for path, methods := range doc.Paths {
+		for method, op := range methods {
+			for _, name := range op.Tags {
+				used[name] = true
+				if !declared[name] {
+					t.Errorf("%s %s uses tag %q, which the document does not declare", method, path, name)
+				}
+			}
+		}
+	}
+	for _, tag := range doc.Tags {
+		if !used[tag.Name] {
+			t.Errorf("tag %q is declared but no operation uses it", tag.Name)
 		}
 	}
 }

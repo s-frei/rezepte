@@ -13,7 +13,7 @@ description: What to edit and regenerate when a UI or API change lands
   <Step>
 
     ### Edit the affected page
-    Find the page under `docs/user/content/` (`getting-started/`, `guide/`, `operations/`, `api/index.mdx`, or `roadmap.mdx`) and update its prose. Never edit `content/api/reference.mdx` by hand - see [Regenerate the API reference](/howtos/regenerate-api-reference).
+    Find the page under `docs/user/content/` (`getting-started/`, `guide/`, `operations/`, `api/index.mdx`, or `roadmap.mdx`) and update its prose. Never edit anything in `content/api/reference/` by hand - see [Regenerate the API reference](/howtos/regenerate-api-reference).
 
   </Step>
   <Step>
@@ -43,7 +43,7 @@ description: What to edit and regenerate when a UI or API change lands
   <Step>
 
     ### Commit docs with the feature
-    Stage the changed content page, any regenerated PNGs and `content/api/reference.mdx` in the same commit as the code change, not a separate docs commit.
+    Stage the changed content page, any regenerated PNGs and everything the reference regenerated under `content/api/reference/` in the same commit as the code change, not a separate docs commit.
 
   </Step>
 </Steps>

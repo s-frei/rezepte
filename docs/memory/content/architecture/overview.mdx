@@ -46,7 +46,7 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     Two independent Fumadocs apps, each with its own `package.json` and `app/` (Fumadocs/Next.js glue, no content):
 
     - `memory/` – this section, in `content/`, rendered by the app in `docs/memory/` on port 4000 by default (`mise run ports` for this worktree's number)
-    - `user/` – a separate Fumadocs app on port 4001 by default (`mise run ports` for this worktree's number): `content/` (end-user pages; `api/reference.mdx` is generated, never hand-edited), `components/screenshot.tsx` (the `<Screenshot>` placeholder-fallback component), `screenshots/` (Playwright specs), `scripts/` (the OpenAPI fetch/generate, screenshot-audit and base-path-audit scripts; the demo instance they run against comes from the root `//:demo` task), `public/screenshots/` (committed PNGs)
+    - `user/` – a separate Fumadocs app on port 4001 by default (`mise run ports` for this worktree's number): `content/` (end-user pages; `api/reference/` is generated, never hand-edited), `components/screenshot.tsx` (the `<Screenshot>` placeholder-fallback component), `screenshots/` (Playwright specs), `scripts/` (the OpenAPI fetch/generate, screenshot-audit and base-path-audit scripts; the demo instance they run against comes from the root `//:demo` task), `public/screenshots/` (committed PNGs)
 
   </Tab>
 </Tabs>

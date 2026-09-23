@@ -1,11 +1,11 @@
 ---
 title: Regenerate the API reference
-description: mise run //docs/user:openapi, and extending the generator
+description: mise run //docs/user:openapi, and the configuration behind it
 ---
 
 <Callout type="warn" title="Hard rule">
 
-  Never hand-edit `docs/user/content/api/reference.mdx`. It is generated; any manual change is overwritten by the next regeneration.
+  Never hand-edit anything in `docs/user/content/api/reference/`. It is generated; any manual change is overwritten by the next regeneration.
 
 </Callout>
 
@@ -18,17 +18,27 @@ mise run //docs/user:openapi
 1. Builds the Go binary (`//service:build`).
 2. `mise run demo --` starts it with `--demo` on `:8070` (offset 0; `mise run ports` for this worktree) against a throwaway data directory and waits for `/healthz`.
 3. `docs/user/scripts/fetch-openapi.ts` logs in as the demo admin (`docs/user/scripts/demo-user.ts`, shared with the screenshot specs), fetches `/api/v1/openapi.json` from that instance with the session cookie and writes `docs/user/public/openapi.json`. The login step is not optional: the document sits behind the session (see [Users and authentication](/features/users-and-auth)), which is also why this task needs a demo instance rather than any running server - it has to be one whose credentials we know.
-4. `docs/user/scripts/generate-api.ts` reads `docs/user/public/openapi.json` (no running server needed for this step) and writes `docs/user/content/api/reference.mdx`: one section per huma tag, one subsection per operation with its parameters, request body and response table, then a `## Schemas` section with a property table per named schema. Tags, operations and schemas are all sorted, so the diff is deterministic.
+4. `docs/user/scripts/generate-api.ts` reads `docs/user/public/openapi.json` (no running server needed for this step) and hands it to `generateFiles` from `fumadocs-openapi`, which writes `content/api/reference/`: one page per operation in a folder per tag, a card page per folder, one over all of them, and the `meta.json` files that order them.
 5. `//:demo` stops the binary and deletes the data directory.
 
 Run it whenever an endpoint, parameter or schema changes - see [Keep the user docs in step with the UI](/howtos/update-user-docs). CI runs the same task and then `git diff --exit-code`, so a forgotten regeneration fails the build, not just a review.
 
-## Extending the generator
+## A new tag still needs a declaration
 
-`docs/user/scripts/generate-api.ts` hand-rolls a small OpenAPI 3.1 reader (`Schema`, `Parameter`, `Operation`, `Document` types at the top of the file) rather than depending on `fumadocs-openapi` - see [Documentation sites](/architecture/docs). When huma starts emitting a schema shape the generator does not render correctly (a new `oneOf`/`anyOf`, `additionalProperties`, or a `format` the reference should call out):
+`groupBy: 'tag'` groups by the tags an operation carries, so an undeclared tag does produce a folder — but a shabby one: the raw tag name as its title, no description on its card, and a position after every declared tag, since the declaration order in `apiTags` (`service/internal/httpserver/api.go`) is what `beforeWrite` restores onto the top-level `meta.json`.
 
-1. Add the missing field to the `Schema` type.
-2. Extend `typeOf()` (how a schema renders as a type, e.g. `string (uuid)` or a `[link](#anchor)[]`) or `constraints()` (the plain-English list appended to a field's notes, e.g. `length 1–120`) to handle it.
-3. Run `mise run //docs/user:openapi` and read the resulting diff in `docs/user/content/api/reference.mdx` to confirm the new shape renders sensibly before committing.
+`TestEveryTagIsDeclared` in `service/internal/httpserver/wiring_test.go` fails on both halves of the mistake: a tag an operation uses but the document does not declare, and a declaration no operation uses (which would generate an empty folder). The fix is to add the tag with its description where the others live. That order is also the order the Scalar page at `/api/v1/docs` presents.
+
+## Changing how it renders
+
+`docs/user/scripts/generate-api.ts` configures the generator; `docs/user/components/api-page.tsx` configures the renderer. Between them:
+
+- **`per` / `groupBy`** - `'operation'` foldered by `'tag'`, so the sidebar lists the endpoints themselves. `per: 'tag'` would collapse each tag into one long page and the sidebar back to six entries.
+- **`includeDescription`** - deliberately `false`, which keeps the description in the page frontmatter instead of moving it into the body. Every other page on the site carries its description there, and it is where `<DocsDescription>`, the search index and `/llms.txt` read it.
+- **`index`** - the card pages: one per tag folder, one over all of them. Without the per-folder ones a tag is a bare navigation node, `/api/reference/recipes` is a 404 and the breadcrumb above an operation leads nowhere.
+- **`beforeWrite`** - does three things `generateFiles` has no option for: retitles each page with its route (the summary moves to the description), prepends `index` to every generated `meta.json`, and puts the top-level one back into tag-declaration order.
+- **`playground`** - off, and [Documentation sites](/architecture/docs) says why it has to be.
+
+After any change there, run the task and read the diff in `docs/user/content/api/reference/` before committing.
 
 `SCREENSHOT_BASE_URL` also affects this task: `fetch-openapi.ts` reads it (default `http://localhost:8070`) to find the running instance - see [Add a screenshot](/howtos/add-screenshot) for when to override it.
