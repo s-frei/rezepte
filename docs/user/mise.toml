@@ -26,6 +26,12 @@ description = "Regenerate the screenshots against rezepte --demo on :8070 by def
 # change too small for the tolerance - a typeface swap across a few lines of a
 # 1440x900 page - leaves stale PNGs behind. Regenerating means all of them.
 run = "mise run //:demo -- bunx playwright test --update-snapshots=all"
+# The pictures are English whatever the developer's own REZEPTE_LOCALE says:
+# the demo seeds its recipes and its account in that language, and the specs
+# select by English names. Not REZEPTE_LOCALE itself: the nested
+# `mise run //:demo` loads the config env again, and a REZEPTE_LOCALE set in
+# a mise.local.toml would win over this one. demo.sh prefers RZP_DEMO_LOCALE.
+env = { RZP_DEMO_LOCALE = "en" }
 
 [tasks."screenshots:audit"]
 description = "Cross-check <Screenshot> names, tests and PNG files"
@@ -34,3 +40,4 @@ run = "bun run screenshots:audit"
 [tasks."screenshots:check"]
 description = "Report screenshot drift against rezepte --demo (local only)"
 run = "mise run //:demo -- bunx playwright test"
+env = { RZP_DEMO_LOCALE = "en" } # see tasks.screenshots

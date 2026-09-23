@@ -20,8 +20,14 @@ rzp_make_data_dir
 # so a developer who has them exported still gets the demo/demo1234 credentials
 # the screenshot specs and the OpenAPI fetch log in with, instead of whatever
 # they last used.
+#
+# RZP_DEMO_LOCALE, when set, beats REZEPTE_LOCALE: a caller that needs one
+# language (the screenshot tasks need English) cannot set REZEPTE_LOCALE
+# itself, because this task's own config env - a developer's mise.local.toml
+# included - is applied again on the way in and would override it.
 env -u REZEPTE_ADMIN_USER -u REZEPTE_ADMIN_PASSWORD \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_LOG_LEVEL=warn \
+	REZEPTE_LOCALE="${RZP_DEMO_LOCALE:-${REZEPTE_LOCALE:-en}}" \
 	service/bin/rezepte --demo &
 PID=$!
 trap 'rzp_stop "$PID"' EXIT
