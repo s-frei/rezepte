@@ -8,7 +8,7 @@
 [![Documentation](https://img.shields.io/badge/docs-s--frei.github.io%2Frezepte-a2653e)](https://s-frei.github.io/rezepte/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
-[Documentation](https://s-frei.github.io/rezepte/) · [Getting started](https://s-frei.github.io/rezepte/getting-started/) · [Features](https://s-frei.github.io/rezepte/guide/) · [API](https://s-frei.github.io/rezepte/api/)
+[Documentation](https://s-frei.github.io/rezepte/) · [Getting started](https://s-frei.github.io/rezepte/getting-started/) · [Features](https://s-frei.github.io/rezepte/guide/) · [API](https://s-frei.github.io/rezepte/api/) · [Contributing](https://s-frei.github.io/rezepte/contributing/add-a-language/)
 
 </div>
 
@@ -20,7 +20,7 @@ Rezepte keeps a household's recipes in one place. Everyone in the house gets a l
 </picture>
 
 > [!NOTE]
-> The app's interface is German — the screenshot above shows German labels. Everything else (repository, documentation, API) is English, and an English interface is on the [roadmap](https://s-frei.github.io/rezepte/roadmap/).
+> The interface is English and German, and every member picks their own. Missing your language? [Adding one](https://s-frei.github.io/rezepte/contributing/add-a-language/) takes two files and no programming.
 
 ## Why this exists
 
@@ -49,6 +49,7 @@ Nothing is kept: there is no volume and `--rm` removes the container, so stoppin
 - **Command palette** — <kbd>⌘</kbd><kbd>K</kbd> / <kbd>Ctrl</kbd><kbd>K</kbd> jumps to a recipe by name, or opens the editor and the settings, without leaving the keyboard. → [Docs](https://s-frei.github.io/rezepte/guide/shortcuts/)
 - **Members** — accounts, roles and password resets for everyone in the household. → [Docs](https://s-frei.github.io/rezepte/guide/users/)
 - **Light and dark** — follows the system setting, or pick one. → [Docs](https://s-frei.github.io/rezepte/guide/settings/)
+- **English and German** — each member picks their own interface language, and it follows them to every device. → [Docs](https://s-frei.github.io/rezepte/guide/settings/)
 - **HTTP API** — everything the app does, reachable with a scoped bearer token for scripts and other instances, documented with a generated OpenAPI reference. → [Docs](https://s-frei.github.io/rezepte/api/)
 
 ## Run your own instance
@@ -79,6 +80,7 @@ Everything lives at **[s-frei.github.io/rezepte](https://s-frei.github.io/rezept
 | [Tour of the app](https://s-frei.github.io/rezepte/guide/) | Every feature, with screenshots. |
 | [Operations](https://s-frei.github.io/rezepte/operations/data-and-backup/) | Where the data lives, backups, updates and reverse proxies. |
 | [API](https://s-frei.github.io/rezepte/api/) | The HTTP API behind the app, with a generated reference. |
+| [Contributing](https://s-frei.github.io/rezepte/contributing/add-a-language/) | Translate the interface into another language. |
 
 The site serves itself to AI assistants as well, generated from the same pages so it cannot drift from them: [`/llms.txt`](https://s-frei.github.io/rezepte/llms.txt) indexes the manual, [`/llms-full.txt`](https://s-frei.github.io/rezepte/llms-full.txt) is all of it in one file, and `/llms.mdx/<path>/content.md` is any single page as raw Markdown.
 
@@ -98,7 +100,9 @@ The long-form developer documentation — architecture, conventions and how-tos 
 
 ## Contributing
 
-Contributions are welcome. Open an issue for anything you hit, and for a pull request: branch off `develop`, keep `mise run check` green, and write everything in English except the UI copy in `frontend/messages/de.json`, which is German.
+Contributions are welcome. Open an issue for anything you hit, and for a pull request: branch off `develop`, keep `mise run check` green, and write everything in English except the UI copy in `frontend/messages/`, one catalogue per language.
+
+A translation is the easiest way in: [Add a language](https://s-frei.github.io/rezepte/contributing/add-a-language/) walks through it, and it needs no code.
 
 > [!NOTE]
 > **Rezepte is developed AI-driven.** Most of the code, and all of the documentation, is written by AI coding agents working against the guidelines and the agent memory in this repository, reviewed and steered by me. It is an experiment as much as a workflow, and a good part of why I enjoy building this — I do it for fun. Stated here so nobody has to guess.
