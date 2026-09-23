@@ -13,12 +13,12 @@ import (
 
 // UserResponse is the public representation of the current user.
 type UserResponse struct {
-	ID          string `json:"id" doc:"User id"`
-	Username    string `json:"username" doc:"Login name"`
-	DisplayName string `json:"displayName" doc:"Name shown wherever the UI names this person"`
-	Role        string `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
-	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
-	Locale      string `json:"locale" enum:"en,de" doc:"The account holder's interface language"`
+	ID          string      `json:"id" doc:"User id"`
+	Username    string      `json:"username" doc:"Login name"`
+	DisplayName string      `json:"displayName" doc:"Name shown wherever the UI names this person"`
+	Role        string      `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
+	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
+	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
 }
 
 type loginInput struct {
@@ -57,9 +57,9 @@ type changePasswordOutput struct{}
 
 type updateProfileInput struct {
 	Body struct {
-		DisplayName *string `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
-		Color       *string `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate"`
-		Locale      *string `json:"locale,omitempty" enum:"en,de" doc:"The account holder's interface language"`
+		DisplayName *string      `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
+		Color       *string      `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate"`
+		Locale      *user.Locale `json:"locale,omitempty" doc:"The account holder's interface language"`
 	}
 }
 
@@ -199,10 +199,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			c := user.Color(*in.Body.Color)
 			update.Color = &c
 		}
-		if in.Body.Locale != nil {
-			l := user.Locale(*in.Body.Locale)
-			update.Locale = &l
-		}
+		update.Locale = in.Body.Locale
 		updated, err := svc.users.SetProfile(ctx, u.ID, update)
 		if mapped := ProfileError(err); mapped != nil {
 			return nil, mapped
@@ -341,6 +338,6 @@ func toResponse(u user.User) UserResponse {
 		DisplayName: u.DisplayName,
 		Role:        string(u.Role),
 		Color:       string(u.Color),
-		Locale:      string(u.Locale),
+		Locale:      u.Locale,
 	}
 }
