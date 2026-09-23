@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createUser, devPassword, login, pinLocale, uniqueToken } from './helpers';
+import { createUser, devPassword, login, pinLocale, signOut, uniqueToken } from './helpers';
 
 // This spec, uniquely, bootstraps a throwaway member for every test rather
 // than logging in as `admin`. Everywhere else, `admin`'s own stored locale is
@@ -25,6 +25,34 @@ test.describe('a German browser at the login screen', () => {
 		await page.goto('/login');
 		// No account yet, so no stored language: the browser's setting decides.
 		await expect(page.getByRole('button', { name: 'Anmelden' })).toBeVisible();
+	});
+});
+
+// The one pair of locale changes that happens without a reload: the login
+// response and the sign-out each rewrite the cookie and then navigate
+// client-side. `<html lang>` has to follow both, or screen readers and
+// `hyphens-auto` keep working to the previous language.
+test.describe('an English browser signing a German account in and out', () => {
+	test.use({ locale: 'en-US' });
+
+	test('<html lang> follows login and sign-out', async ({ page }, testInfo) => {
+		const username = `lang${uniqueToken()}`;
+		await login(page);
+		await expect(page).toHaveURL('/');
+		await createUser(page, { username, role: 'user', locale: 'de' });
+
+		await page.context().clearCookies();
+		await page.goto('/login');
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+		await page.getByLabel('Username').fill(username);
+		await page.getByLabel('Password').fill(devPassword(username));
+		await page.getByRole('button', { name: 'Sign in' }).click();
+		await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
+		await expect(page.locator('html')).toHaveAttribute('lang', 'de');
+
+		await signOut(page, testInfo);
+		await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 	});
 });
 
