@@ -43,6 +43,8 @@ A `workflow_dispatch` is the other entry point, and it publishes the ref it was 
 
 The export is served under a fixed sub-path, so `docs/user/next.config.mjs` sets `basePath` unconditionally and puts the same value into `NEXT_PUBLIC_BASE_PATH`. Components that build their own root-relative URLs read it from there: `<Screenshot>`, because `next/image` under `images: { unoptimized: true }` returns `src` verbatim and prefixes nothing, and `docs/user/app/layout.tsx`, which hands the static search client its endpoint explicitly rather than relying on the builder to polyfill one. `docs/user/scripts/base-path-audit.ts`, wired into `//docs/user:check`, then walks the built export and fails on any root-relative `src` or `href` that lacks the prefix; it imports the value from the config instead of repeating it, and skips the two things that legitimately lack it — resource hints such as `preconnect`, and protocol-relative URLs on another origin.
 
+The app links to the published guide in one place: the help card at the end of the settings page, `frontend/src/lib/components/settings/HelpCard.svelte`, opens `USER_GUIDE_URL` from `frontend/src/lib/docs.ts` in a new tab. Every self-hosted instance points at the same public guide, so the URL is a constant rather than configuration, and it carries the trailing slash the export uses, since Pages redirects the bare path.
+
 `docs/memory/` is never published. `pages.yml` runs `//docs/user:install` and `//docs/user:build` and nothing else; no step uploads or deploys the memory export.
 
 One repository setting no workflow can perform: in Settings → Pages, Source must be **GitHub Actions**. Until it is set by hand, `deploy-pages` fails with "Get Pages site failed", and no API call inside the job can set it.
@@ -65,7 +67,7 @@ The API reference is a small script because the alternative is configuring aroun
 - **The Pages deploy as a job inside `ci.yml`.** It is where the deploy grew up, and the gate is still what starts it on `main` — but a deployment's permissions, environment and concurrency group then live in the gate, and publishing the docs is only reachable by running the whole gate.
 - **A branch-based `gh-pages` deploy.** A branch of built output to keep in sync, where the artifact actions upload the export straight from the job that produced it.
 - **Embedding the docs in the Go binary under `/docs`.** It would inherit the app's own auth and TLS and need no base path, but it ties every documentation change to a service rebuild and deploy, and self-hosted instances would serve docs nobody asked them for.
-- **A custom domain.** It would remove the base path and everything threaded through for it. There is no domain to point at the site; nothing here blocks adding one later, since `docs/user/lib/shared.ts` is the single place the published origin is defined.
+- **A custom domain.** It would remove the base path and everything threaded through for it. There is no domain to point at the site; nothing here blocks adding one later, since the published origin is defined in `docs/user/lib/shared.ts` for the docs and in `frontend/src/lib/docs.ts` for the app.
 
 ## Limits
 

@@ -299,3 +299,13 @@ test('an admin cannot rename a member, the owner can', async ({ page }) => {
 	await expect(row).toContainText(displayName);
 	await expect(row.locator('span.size-9')).toHaveClass(/bg-user-teal/);
 });
+
+test('the settings page links to the user guide in a new tab', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+	const help = page.getByRole('link', { name: /Hilfe & Anleitung/ });
+	await expect(help).toBeVisible();
+	await expect(help).toHaveAttribute('href', 'https://s-frei.github.io/rezepte/guide/');
+	await expect(help).toHaveAttribute('target', '_blank');
+});
