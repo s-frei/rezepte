@@ -1,0 +1,93 @@
+---
+title: Add a language
+description: A third interface language, end to end
+---
+
+<Callout type="info">
+
+  This is for adding a whole **language**. Adding a *string* to the languages that already exist is [Add a translation](/howtos/add-translation).
+
+</Callout>
+
+The set of languages is written down three times - Go, SQL and inlang JSON - because nothing can import across all three. `service/internal/user/locales_test.go` compares them, so the first three steps below are the ones that test walks you through: do them in any order, run `mise run //service:check`, and it names whatever is still missing. See [Languages](/features/languages) for why they cannot be one list.
+
+Everything after step 4 derives from those lists and needs no edit at all.
+
+<Steps>
+  <Step>
+
+    ### Name it in Go
+    Add the locale to `user.Locales` in `service/internal/user/profile.go`. The order is the order the picker shows, and `Locales[0]` is the base locale - append, do not insert at the front, unless you mean to change which language an unconfigured instance falls back to.
+
+    ```go
+    var Locales = []Locale{"en", "de", "fr"}
+    ```
+
+  </Step>
+  <Step>
+
+    ### Let the database store it
+    Extend the `CHECK` on `users.locale` in `service/internal/db/migrations/0001_users_and_sessions.sql` to list the same set in the same order.
+
+    ```sql
+    locale        TEXT NOT NULL CHECK (locale IN ('en', 'de', 'fr')),
+    ```
+
+    <Callout type="warn">
+
+      Editing a migration that has already run only works while the project ships no releases anyone has installed. Once it does, this becomes a new migration file instead - see [Add a migration](/howtos/add-migration).
+
+    </Callout>
+
+  </Step>
+  <Step>
+
+    ### Tell Paraglide
+    Add it to `locales` in `frontend/project.inlang/settings.json`, leaving `baseLocale` alone.
+
+    ```json
+    "baseLocale": "en",
+    "locales": ["en", "de", "fr"]
+    ```
+
+  </Step>
+  <Step>
+
+    ### Translate the catalogue
+    Copy `frontend/messages/en.json` to `frontend/messages/<locale>.json` and translate every value, keeping every key and every `{param}` placeholder exactly as it stands. The catalogues are peers, not a source and its translations: `mise run check` fails while any of them is missing a key the others have (`frontend/scripts/message-parity.ts`).
+
+    Do not add a key for the language's own name. The picker gets those from `Intl.DisplayNames`.
+
+  </Step>
+  <Step>
+
+    ### Write sample recipes
+    Add `service/internal/recipe/testdata/recipes.<locale>.json` with twelve recipes, matching the key set of the files beside it. They are their own recipes, not translations - the demo shows what someone in that language would actually cook.
+
+    Twelve matters: `imagedRecipes` in `service/internal/demo/seed.go` gives the first nine a placeholder photo and leaves three showing tiles. `Samples` finds the file by name, so there is no Go change.
+
+  </Step>
+  <Step>
+
+    ### Run the gate
+    `mise run check` covers all of it: the three lists against each other, the catalogues against each other, the Go suite and the frontend. Then `REZEPTE_LOCALE=<locale> mise run demo` seeds an instance in the new language to look at.
+
+  </Step>
+</Steps>
+
+## What you do not have to touch
+
+Each of these follows one of the lists above, and editing it would be the bug rather than the fix.
+
+| | Follows |
+| --- | --- |
+| The API's `enum` for `locale` | `user.Locales`, via `Locale.Schema` (huma `SchemaProvider`) |
+| The frontend's `Locale` type | Paraglide's generated type, re-exported by `frontend/src/lib/api/auth.ts` |
+| The picker's entries and their names | Paraglide's `locales` plus `Intl.DisplayNames`, in `frontend/src/lib/i18n/languages.ts` |
+| Which sample recipes the demo seeds | The filename, matched by `//go:embed testdata/recipes.*.json` |
+
+## Worth deciding, not inherited
+
+**The picker is a select** (`frontend/src/lib/components/settings/LanguageControl.svelte`), and it lists every language with its endonym beside it - "German · Deutsch" - so somebody who cannot read the current interface can still find their own language. That holds at any number of entries.
+
+**The two Playwright suites run in fixed languages**, and a third language does not change that: `frontend/e2e/` is pinned to German by `REZEPTE_LOCALE=de` in `mise/tasks/e2e.sh`, and `docs/user/screenshots/` runs in English. Covering a new language end to end means deciding which of those it belongs in, or leaving it to the unit tests - see [Add a screenshot](/howtos/add-screenshot).
