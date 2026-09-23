@@ -3313,5 +3313,31 @@
         ]
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "description": "Signing in, signing out and reading the current session.",
+      "name": "auth"
+    },
+    {
+      "description": "Creating, reading, updating and deleting recipes, and searching them.",
+      "name": "recipes"
+    },
+    {
+      "description": "The tags recipes are filed under.",
+      "name": "tags"
+    },
+    {
+      "description": "Uploading recipe images and serving them in their rendered sizes.",
+      "name": "images"
+    },
+    {
+      "description": "Managing the accounts of an instance. Administrators only.",
+      "name": "users"
+    },
+    {
+      "description": "Managing the API tokens a program authenticates with.",
+      "name": "tokens"
+    }
+  ]
 }

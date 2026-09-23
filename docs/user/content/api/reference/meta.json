@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "index",
+    "auth",
+    "recipes",
+    "tags",
+    "images",
+    "users",
+    "tokens"
+  ]
+}

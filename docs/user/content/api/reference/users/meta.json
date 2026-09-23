@@ -1,0 +1,11 @@
+{
+  "title": "Users",
+  "description": "Managing the accounts of an instance. Administrators only.",
+  "pages": [
+    "index",
+    "list-users",
+    "create-user",
+    "update-user",
+    "delete-user"
+  ]
+}

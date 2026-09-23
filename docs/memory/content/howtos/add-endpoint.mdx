@@ -28,7 +28,7 @@ description: huma operations, security, errors
         Method:      http.MethodGet,
         Path:        "/api/v1/things/{id}",
         Summary:     "Get a thing",
-        Tags:        []string{"things"},
+        Tags:        []string{"things"}, // must also be declared in apiTags; see below
         Security:    auth.Protected(auth.ScopeRecipesRead), // decide whether an API token may
                                                       // reach this operation and with which
                                                       // scope; use auth.SessionSecurity instead
@@ -51,6 +51,18 @@ description: huma operations, security, errors
     Scopes are a closed set declared in `service/internal/auth/token.go`; `auth.Protected` must be given one already in that list, since no token can ever satisfy a scope outside it.
 
     Get the current user with `auth.UserFrom(ctx)`.
+
+  </Step>
+  <Step>
+
+    ### Declare the tag, if it is a new one
+    An operation's `Tags` field names a tag; it does not declare it. Add a new name to `apiTags` in `service/internal/httpserver/api.go` with a one-line description, in the position the documentation should present it:
+
+    ```go
+    {Name: "things", Description: "The things an instance keeps."},
+    ```
+
+    Skip this step when the operation joins a tag that is already there. `TestEveryTagIsDeclared` fails on a tag used without a declaration - and on a declaration nothing uses, so remove one whose last operation is gone. Both renderings of the document need it: the Scalar page at `/api/v1/docs` titles its sections from it, and the user docs title, describe and order the reference folders by it ([Regenerate the API reference](/howtos/regenerate-api-reference)).
 
   </Step>
   <Step>

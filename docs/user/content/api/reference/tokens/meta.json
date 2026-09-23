@@ -1,0 +1,10 @@
+{
+  "title": "Tokens",
+  "description": "Managing the API tokens a program authenticates with.",
+  "pages": [
+    "index",
+    "list-api-tokens",
+    "create-api-token",
+    "delete-api-token"
+  ]
+}

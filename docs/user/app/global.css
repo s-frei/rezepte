@@ -7,6 +7,14 @@
  */
 @import 'fumadocs-ui/css/lib/default-colors.css';
 @import 'fumadocs-ui/css/preset.css';
+/*
+ * The API reference pages (content/api/reference/) are rendered by
+ * fumadocs-openapi, which brings its own surfaces - method badges, schema
+ * boxes, response tabs. Its preset reads the same `--color-fd-*` variables as
+ * the rest of Fumadocs, so it has to come before the Rezepte palette below or
+ * its defaults would land after the overrides and win.
+ */
+@import 'fumadocs-openapi/css/preset.css';
 
 @import '@fontsource-variable/literata';
 @import '@fontsource/karla/400.css';

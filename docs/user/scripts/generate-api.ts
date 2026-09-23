@@ -1,185 +1,110 @@
-// Renders content/api/reference.mdx from public/openapi.json. Deterministic:
-// tags, operations and schemas are sorted. Never edit the output by hand.
-import { readFileSync, writeFileSync } from 'node:fs';
+// Generates content/api/reference/ from public/openapi.json: one page per
+// operation, grouped by tag, plus an index page per group and one over all of
+// them. Never edit the output by hand; regenerate with
+// `mise run //docs/user:openapi`.
+import { readFileSync } from 'node:fs';
+import { generateFiles } from 'fumadocs-openapi';
+import { openapi } from '../lib/openapi';
 
-type Schema = {
-	$ref?: string;
-	type?: string | string[];
-	format?: string;
-	items?: Schema;
-	properties?: Record<string, Schema>;
-	required?: string[];
-	description?: string;
-	enum?: unknown[];
-	minLength?: number;
-	maxLength?: number;
-	minimum?: number;
-	maximum?: number;
-	pattern?: string;
-	minItems?: number;
-	maxItems?: number;
-};
-type Parameter = { name: string; in: string; required?: boolean; description?: string; schema?: Schema };
-type Content = Record<string, { schema?: Schema }>;
-type SecurityScheme = { type: string; scheme?: string; in?: string; description?: string };
-type Operation = {
-	operationId: string;
-	summary?: string;
-	description?: string;
-	tags?: string[];
-	parameters?: Parameter[];
-	requestBody?: { content?: Content };
-	responses?: Record<string, { description?: string; content?: Content }>;
-	security?: Record<string, string[]>[];
-};
-type Document = {
-	info: { title: string; version: string };
-	paths: Record<string, Record<string, Operation>>;
-	components?: { schemas?: Record<string, Schema>; securitySchemes?: Record<string, SecurityScheme> };
-};
+const OUTPUT = './content/api/reference';
 
-const doc = JSON.parse(readFileSync('public/openapi.json', 'utf8')) as Document;
-const schemas = doc.components?.schemas ?? {};
-const securitySchemes = doc.components?.securitySchemes ?? {};
+// `groupBy: 'tag'` groups by the tags an operation carries, so the groups come
+// out in the order the paths appear in the document. The order the tags are
+// *declared* in is the editorial one (service/internal/httpserver/api.go), and
+// it is restored onto the top-level meta.json below.
+const doc = JSON.parse(readFileSync('public/openapi.json', 'utf8')) as { tags?: { name: string }[] };
+const tagOrder = (doc.tags ?? []).map((tag) => tag.name);
 
-/** MDX treats {, } and < as expressions/JSX; tables need | escaped. */
-const text = (s: string | undefined) =>
-	(s ?? '').replace(/[{}]/g, (c) => `\\${c}`).replace(/</g, '&lt;').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
-const refName = (ref: string) => ref.split('/').pop() ?? ref;
-const anchor = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+/** `<dir>/<file>.mdx` -> the URL Fumadocs serves it at. */
+const urlOf = (filePath: string) => `/api/reference/${filePath.replace(/\.mdx$/, '')}`;
 
-function typeOf(s: Schema | undefined): string {
-	if (!s) return '–';
-	if (s.$ref) return `[${refName(s.$ref)}](#${anchor(refName(s.$ref))})`;
-	const types = Array.isArray(s.type) ? s.type : [s.type ?? (s.items ? 'array' : 'object')];
-	if (s.items) {
-		const arr = `${typeOf(s.items)}[]`;
-		return types.includes('null') ? `${arr} \\| null` : arr;
-	}
-	return types.map((t) => (t === 'string' && s.format ? `${t} (${s.format})` : t)).join(' \\| ');
-}
+await generateFiles({
+	input: openapi,
+	output: OUTPUT,
+	// A page per operation, foldered by tag. The sidebar then lists the
+	// endpoints themselves, each carrying its method badge (the badge comes
+	// from `openapiPlugin()` in lib/source.ts, which reads `_openapi.method` -
+	// a field only operation pages have).
+	per: 'operation',
+	groupBy: 'tag',
+	// Left off deliberately: it moves the description into the page body, and
+	// every other page on this site carries its description in the frontmatter,
+	// where <DocsDescription>, the search index and /llms.txt all read it.
+	includeDescription: false,
+	index: {
+		// One card page per tag, plus one over all of them. Without the group
+		// pages a tag is a bare navigation node: `/api/reference/recipes` would
+		// 404 and the breadcrumb above an operation would lead nowhere.
+		items({ generatedEntries }) {
+			const groups = Object.values(generatedEntries)
+				.flat()
+				.filter((entry) => entry.type === 'group');
+			return [
+				{
+					path: 'index.mdx',
+					title: 'API reference',
+					description: 'Every endpoint of the HTTP API, generated from the OpenAPI document.'
+				},
+				...groups.map((group) => ({
+					path: `${group.path}/index.mdx`,
+					title: group.info.title,
+					description: group.info.description,
+					only: group.entries.map((entry) => entry.path)
+				}))
+			];
+		},
+		url: urlOf
+	},
+	meta: true,
+	beforeWrite(files) {
+		// The sidebar and the page heading should read as the endpoint they
+		// are, not as a sentence about it. `frontmatter` cannot do this: it is
+		// handed the title and description of an entry, never the route. Here
+		// the entries are still available, so map each output file back to the
+		// operation it came from and swap the two around - the route becomes
+		// the title, the summary becomes the description.
+		const routes = new Map<string, string>();
+		const collect = (entries: { type: string; path: string; [k: string]: unknown }[]) => {
+			for (const entry of entries) {
+				if (entry.type === 'group') {
+					collect(entry.entries as never);
+				} else if (entry.type === 'operation') {
+					routes.set(entry.path, (entry.item as { path: string }).path);
+				}
+			}
+		};
+		collect(Object.values(this.generatedEntries).flat() as never);
 
-function constraints(s: Schema): string {
-	const c: string[] = [];
-	if (s.enum) c.push(`one of ${s.enum.map((v) => `\`${String(v)}\``).join(', ')}`);
-	if (s.minLength !== undefined || s.maxLength !== undefined) c.push(`length ${s.minLength ?? 0}–${s.maxLength ?? '∞'}`);
-	if (s.minimum !== undefined || s.maximum !== undefined) c.push(`${s.minimum ?? '−∞'} to ${s.maximum ?? '∞'}`);
-	if (s.minItems !== undefined || s.maxItems !== undefined) c.push(`${s.minItems ?? 0}–${s.maxItems ?? '∞'} items`);
-	if (s.pattern) c.push(`pattern \`${text(s.pattern)}\``);
-	return c.join(', ');
-}
-
-function propertyTable(s: Schema): string[] {
-	if (!s.properties) return [];
-	const required = new Set(s.required ?? []);
-	return [
-		'| Field | Type | Required | Notes |',
-		'|---|---|---|---|',
-		...Object.entries(s.properties)
-			.sort(([a], [b]) => a.localeCompare(b))
-			.map(
-				([name, p]) =>
-					`| \`${name}\` | ${typeOf(p)} | ${required.has(name) ? 'yes' : 'no'} | ${[text(p.description), constraints(p)].filter(Boolean).join('; ')} |`
-			),
-		''
-	];
-}
-
-function bodySchema(content: Content | undefined): Schema | undefined {
-	if (!content) return undefined;
-	return content['application/json']?.schema ?? content['multipart/form-data']?.schema ?? content['application/problem+json']?.schema;
-}
-
-/** Joins items the way English prose does: "a", "a and b", "a, b and c". */
-function englishList(items: string[]): string {
-	if (items.length <= 1) return items.join('');
-	if (items.length === 2) return `${items[0]} and ${items[1]}`;
-	return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
-}
-
-/**
- * How a security scheme reads in prose, derived from its OpenAPI shape
- * (never from the scheme's name) so a scheme this generator has never seen
- * still renders, using its own description as the fallback noun.
- */
-function schemeInfo(scheme: SecurityScheme): { noun: string; inline: string; plural: string } {
-	if (scheme.type === 'apiKey' && scheme.in === 'cookie') return { noun: 'session cookie', inline: 'session cookie', plural: 'session cookies' };
-	if (scheme.type === 'http' && scheme.scheme === 'bearer') return { noun: 'API token', inline: 'an API token', plural: 'API tokens' };
-	const noun = scheme.description ? text(scheme.description) : scheme.type;
-	return { noun, inline: `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`, plural: `${noun}s` };
-}
-
-/** One sentence describing which credentials an operation accepts. */
-function authSentence(op: Operation): string {
-	if (!op.security?.length) return 'none';
-	const used = new Set<string>();
-	const alternatives = op.security.map((requirement) =>
-		englishList(
-			Object.entries(requirement).map(([name, scopes]) => {
-				used.add(name);
-				const info = schemeInfo(securitySchemes[name] ?? { type: name });
-				return scopes.length ? `${info.inline} with ${englishList(scopes.map((s) => `\`${s}\``))}` : info.inline;
-			})
-		)
-	);
-	const sentence = alternatives.join(', or ');
-	const excluded = Object.keys(securitySchemes).filter((name) => !used.has(name));
-	if (!excluded.length) return sentence;
-	const excludedLabel = englishList(excluded.map((name) => schemeInfo(securitySchemes[name]).plural));
-	return `${sentence} only — ${excludedLabel} cannot use this operation`;
-}
-
-const byTag = new Map<string, { method: string; path: string; op: Operation }[]>();
-for (const [p, methods] of Object.entries(doc.paths)) {
-	for (const [m, op] of Object.entries(methods)) {
-		const tag = op.tags?.[0] ?? 'other';
-		byTag.set(tag, [...(byTag.get(tag) ?? []), { method: m.toUpperCase(), path: p, op }]);
-	}
-}
-
-const out: string[] = [
-	'---',
-	'title: API reference',
-	`description: Generated from the OpenAPI document of ${doc.info.title} ${doc.info.version}`,
-	'---',
-	'',
-	'{/* Generated by scripts/generate-api.ts - do not edit. Regenerate: mise run //docs/user:openapi */}',
-	'',
-	'<Callout type="info">',
-	'  Each operation below states which credentials it accepts. The source document is available as [openapi.json](/openapi.json) and rendered interactively by the running app at `/api/v1/docs`.',
-	'</Callout>',
-	''
-];
-for (const [tag, ops] of [...byTag.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-	out.push(`## ${tag}`, '');
-	for (const { method, path, op } of ops.sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method))) {
-		out.push(`### ${method} ${text(path)}`, '');
-		if (op.summary) out.push(text(op.summary), '');
-		if (op.description) out.push(text(op.description), '');
-		out.push(`**Authentication:** ${authSentence(op)}`, '');
-		if (op.parameters?.length) {
-			out.push('**Parameters**', '', '| Name | In | Type | Required | Description |', '|---|---|---|---|---|');
-			for (const p of op.parameters) out.push(`| \`${p.name}\` | ${p.in} | ${typeOf(p.schema)} | ${p.required ? 'yes' : 'no'} | ${text(p.description)} |`);
-			out.push('');
+		for (const file of files) {
+			const route = routes.get(file.path);
+			if (!route) continue;
+			// An operation that carries its own description already has the
+			// key; only one without it inherits the summary, or the frontmatter
+			// ends up with two `description` keys and the YAML no longer parses.
+			const described = /^description:/m.test(file.content.split('---')[1] ?? '');
+			// Frontmatter is generated, so `title:` is always the first key
+			// after the opening `---`.
+			file.content = file.content.replace(/^---\ntitle: (.*)$/m, (_match, summary: string) =>
+				described ? `---\ntitle: '${route}'` : `---\ntitle: '${route}'\ndescription: ${summary}`
+			);
 		}
-		const body = bodySchema(op.requestBody?.content);
-		if (body) out.push(`**Request body:** ${typeOf(body)}`, '', ...propertyTable(body));
-		out.push('**Responses**', '', '| Status | Description | Body |', '|---|---|---|');
-		for (const [code, r] of Object.entries(op.responses ?? {}).sort()) out.push(`| ${code} | ${text(r.description)} | ${typeOf(bodySchema(r.content))} |`);
-		out.push('');
+
+		// `generateMeta` only walks the pages it made itself, so every index
+		// page it does not know about would be missing from the sidebar. The
+		// top-level one is additionally put back into declaration order.
+		for (const file of files) {
+			if (!file.path.endsWith('meta.json')) continue;
+			const parsed = JSON.parse(file.content) as { pages: string[] };
+			const rest = parsed.pages.filter((page) => page !== 'index');
+			parsed.pages =
+				file.path === 'meta.json'
+					? [
+							'index',
+							...tagOrder.filter((tag) => rest.includes(tag)),
+							...rest.filter((page) => !tagOrder.includes(page))
+						]
+					: ['index', ...rest];
+			file.content = `${JSON.stringify(parsed, null, 2)}\n`;
+		}
 	}
-}
-out.push('## Authentication', '');
-for (const [name, scheme] of Object.entries(securitySchemes).sort(([a], [b]) => a.localeCompare(b))) {
-	const { noun } = schemeInfo(scheme);
-	out.push(`### ${noun.charAt(0).toUpperCase()}${noun.slice(1)}`, '');
-	if (scheme.description) out.push(text(scheme.description), '');
-}
-out.push('## Schemas', '');
-for (const [name, s] of Object.entries(schemas).sort(([a], [b]) => a.localeCompare(b))) {
-	out.push(`### ${name}`, '');
-	if (s.description) out.push(text(s.description), '');
-	out.push(...propertyTable(s));
-}
-writeFileSync('content/api/reference.mdx', out.join('\n'));
-console.log(`reference.mdx: ${byTag.size} tags, ${Object.keys(schemas).length} schemas`);
+});
