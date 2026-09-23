@@ -9,13 +9,14 @@
 !frontend/bun.lock
 !frontend/.npmrc
 !frontend/vite.config.ts
+!frontend/scripts/inlang-settings.ts
 !frontend/tsconfig.json
-!frontend/project.inlang
 !frontend/messages
 !frontend/src
 !frontend/static
 
-# Go build inputs - stage 2.
+# Go build inputs - stage 2. Stage 1 reads service/internal/i18n/locales.json
+# from here too: the list of languages lives in the Go module.
 !service/go.mod
 !service/go.sum
 !service/cmd

@@ -579,7 +579,7 @@ func TestCreateRejectsAnUnknownLocale(t *testing.T) {
 	svc := user.NewService(conn)
 
 	_, err := svc.Create(t.Context(), user.CreateParams{
-		Username: "dan", Password: "dan1234", Role: user.RoleUser, Locale: "fr",
+		Username: "dan", Password: "dan1234", Role: user.RoleUser, Locale: "xx",
 	})
 	if !errors.Is(err, user.ErrInvalidLocale) {
 		t.Errorf("Create error = %v, want ErrInvalidLocale", err)
@@ -619,7 +619,7 @@ func TestSetProfileRejectsAnUnknownLocale(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	bad := user.Locale("fr")
+	bad := user.Locale("xx")
 	if _, err := svc.SetProfile(t.Context(), u.ID, user.ProfileUpdate{Locale: &bad}); !errors.Is(err, user.ErrInvalidLocale) {
 		t.Errorf("SetProfile error = %v, want ErrInvalidLocale", err)
 	}

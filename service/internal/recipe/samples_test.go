@@ -43,9 +43,17 @@ func TestSamplesDifferPerLocale(t *testing.T) {
 	}
 }
 
-func TestSamplesRejectsAnUnknownLocale(t *testing.T) {
-	if _, err := recipe.Samples("fr"); err == nil {
-		t.Fatal("Samples(fr) returned no error")
+func TestSamplesFallsBackToTheBaseLocale(t *testing.T) {
+	got, err := recipe.Samples("xx")
+	if err != nil {
+		t.Fatalf("Samples(xx): %v", err)
+	}
+	want, err := recipe.Samples(user.BaseLocale)
+	if err != nil {
+		t.Fatalf("Samples(%q): %v", user.BaseLocale, err)
+	}
+	if got[0].Title != want[0].Title {
+		t.Errorf("Samples(xx) starts with %q, want the %q set starting with %q", got[0].Title, user.BaseLocale, want[0].Title)
 	}
 }
 

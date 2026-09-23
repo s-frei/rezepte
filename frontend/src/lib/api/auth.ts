@@ -4,9 +4,9 @@ import { api } from './client';
 
 /**
  * Re-exported rather than spelled out: Paraglide generates it from
- * `project.inlang/settings.json`, so a language added there reaches the API
- * types without anyone editing a union. The service constrains the same set
- * from `user.Locales`, and a test holds the two lists to each other.
+ * `service/internal/i18n/locales.json`, so a language added there reaches the
+ * API types without anyone editing a union. The service embeds the same file,
+ * so both sides accept exactly the same set.
  */
 export type { Locale };
 

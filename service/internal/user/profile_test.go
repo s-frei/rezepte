@@ -90,18 +90,16 @@ func TestParseLocale(t *testing.T) {
 }
 
 func TestParseLocaleRejectsUnknown(t *testing.T) {
-	for _, in := range []string{"", "EN", "fr", "en-US", "de_DE"} {
+	for _, in := range []string{"", "EN", "xx", "en-US", "de_DE"} {
 		if _, err := ParseLocale(in); !errors.Is(err, ErrInvalidLocale) {
 			t.Errorf("ParseLocale(%q) error = %v, want ErrInvalidLocale", in, err)
 		}
 	}
 }
 
-func TestLocalesStartsWithEnglish(t *testing.T) {
-	// The first entry is the base locale and the fallback default; the
-	// picker shows them in this order.
-	if Locales[0] != "en" {
-		t.Errorf("Locales[0] = %q, want en", Locales[0])
+func TestBaseLocaleIsOneOfLocales(t *testing.T) {
+	if _, err := ParseLocale(string(BaseLocale)); err != nil {
+		t.Errorf("BaseLocale %q is not accepted by ParseLocale: %v", BaseLocale, err)
 	}
 }
 

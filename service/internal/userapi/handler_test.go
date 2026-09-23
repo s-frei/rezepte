@@ -439,7 +439,7 @@ func TestCreateUserAcceptsALocale(t *testing.T) {
 }
 
 func TestCreateUserWithoutLocaleUsesTheInstanceDefault(t *testing.T) {
-	// German, so the assertion cannot be satisfied by user.Locales[0] - the
+	// German, so the assertion cannot be satisfied by user.BaseLocale - the
 	// fallback an unconfigured instance would land on anyway.
 	h := newHandlerWithEnv(t, map[string]string{"REZEPTE_LOCALE": "de"})
 	owner := loginAs(t, h, "owner", "pw")

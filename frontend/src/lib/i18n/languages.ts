@@ -37,8 +37,8 @@ function displayName(of: Locale, inLocale: string): string {
 }
 
 /**
- * Every configured language, in the order `project.inlang/settings.json`
- * lists them - base locale first. Derived from Paraglide's generated
+ * Every configured language, in the order `service/internal/i18n/locales.json`
+ * lists them. Derived from Paraglide's generated
  * `locales`, so a language added there appears here without anyone
  * editing a list.
  */

@@ -1,6 +1,7 @@
--- locale is the account holder's interface language. The CHECK repeats the
--- set that service/internal/user/profile.go owns in Locales; those two are
--- the only places it exists.
+-- locale is the account holder's interface language. It has no CHECK: the set
+-- of languages lives only in the inlang project settings
+-- (service/internal/i18n), and user.ParseLocale validates every write against
+-- it, so a new language needs no migration.
 -- +goose Up
 CREATE TABLE users (
     id            TEXT PRIMARY KEY,
@@ -9,7 +10,7 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL CHECK (role IN ('superadmin', 'admin', 'user')),
     color         TEXT NOT NULL,
-    locale        TEXT NOT NULL CHECK (locale IN ('en', 'de')),
+    locale        TEXT NOT NULL,
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
 );
