@@ -135,6 +135,11 @@
 			one editable field with a button comes last, so the button ends the
 			card instead of splitting it in half - which is what made it read as
 			misplaced when the name sat on top.
+
+			Language sits with the colour rather than in a card of its own: both
+			are choices that take effect the moment they are made, and a setting
+			people reach for once has no business below the fold on a page that
+			is mostly things they never touch.
 		-->
 		<div class="mt-6 space-y-6 border-t border-border pt-6">
 			<ColorPicker
@@ -142,6 +147,8 @@
 				{usage}
 				label={m.settings_profile_color_label()}
 			/>
+
+			<LanguageControl />
 
 			<!--
 				A fact, not a field: the login name cannot be changed here, and a
@@ -180,10 +187,5 @@
 	<section class={card} aria-labelledby="settings-theme">
 		<h2 id="settings-theme" class={title}>{m.settings_theme_title()}</h2>
 		<ThemeControl />
-	</section>
-
-	<section class={card} aria-labelledby="settings-language">
-		<h2 id="settings-language" class={title}>{m.settings_language_title()}</h2>
-		<LanguageControl />
 	</section>
 </SettingsLayout>
