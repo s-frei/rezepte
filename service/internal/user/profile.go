@@ -6,6 +6,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/danielgtaylor/huma/v2"
+
+	"github.com/s-frei/rezepte/service/internal/i18n"
 )
 
 // Color is a palette token identifying a person wherever the UI names them.
@@ -49,16 +51,27 @@ func ParseColor(s string) (Color, error) {
 type Locale string
 
 // Locales is the set of interface languages, in the order the picker shows
-// them. This slice owns that set: config validates against it, and the CHECK
-// constraint on users.locale in 0001_users_and_sessions.sql repeats it in the
-// only other place it has to exist. The first entry is the base locale.
-var Locales = []Locale{"en", "de"}
+// them, and BaseLocale the one everything falls back to. Neither is written
+// down here: both come from the inlang project settings the frontend is
+// compiled from (see package i18n), so a language added there is accepted,
+// documented and defaulted to by the service with no Go change.
+var (
+	Locales    = toLocales(i18n.Locales())
+	BaseLocale = Locale(i18n.BaseLocale())
+)
 
-// Schema makes Locales the enum every API field of this type carries, so a
-// language is added to one slice instead of to that slice and to an
-// `enum:"..."` tag on each request and response field. A tag left behind
-// would compile, pass its tests, and reject the new language at runtime with
-// a 422 that neither the database nor ParseLocale agrees with.
+func toLocales(ss []string) []Locale {
+	out := make([]Locale, len(ss))
+	for i, s := range ss {
+		out[i] = Locale(s)
+	}
+	return out
+}
+
+// Schema makes Locales the enum every API field of this type carries, so no
+// request or response field needs an `enum:"..."` tag of its own - a tag
+// would be a second list, and one left behind would reject a new language
+// with a 422 that ParseLocale does not agree with.
 //
 // Returned by value so both Locale and *Locale fields pick it up: huma looks
 // the interface up on the dereferenced type.
@@ -71,8 +84,8 @@ func (Locale) Schema(huma.Registry) *huma.Schema {
 }
 
 // ParseLocale accepts exactly the set above, exactly as written. There is no
-// case folding and no BCP 47 parsing: the value reaches a CHECK constraint
-// and a Paraglide locale id, and both want one of two literals.
+// case folding and no BCP 47 parsing: the value becomes a Paraglide locale id,
+// which is one of the literals in the settings.
 func ParseLocale(s string) (Locale, error) {
 	for _, l := range Locales {
 		if Locale(s) == l {

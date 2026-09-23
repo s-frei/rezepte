@@ -3,6 +3,11 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { inlangProject, writeInlangSettings } from './scripts/inlang-settings';
+
+// Before Paraglide reads it: the settings are generated from the Go module's
+// list of languages (see scripts/inlang-settings.ts).
+writeInlangSettings();
 
 const apiTarget = `http://localhost:${process.env.RZP_BACKEND_PORT ?? 8060}`;
 
@@ -25,7 +30,7 @@ export default defineConfig({
 		}),
 
 		paraglideVitePlugin({
-			project: './project.inlang',
+			project: inlangProject,
 			outdir: './src/lib/paraglide',
 			emitTsDeclarations: true,
 			// cookie: the account's language, written by the Go service from

@@ -8,8 +8,5 @@ bun.lockb
 # Miscellaneous
 /static/
 
-# inlang project state; generated, see project.inlang/.gitignore
-/project.inlang/cache/
-/project.inlang/.lix/
-/project.inlang/.meta.json
-/project.inlang/README.md
+# generated from service/internal/i18n/locales.json, see scripts/inlang-settings.ts
+/project.inlang/

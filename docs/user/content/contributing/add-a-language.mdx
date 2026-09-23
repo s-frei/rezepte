@@ -1,0 +1,65 @@
+---
+title: Add a language
+description: Translate the interface into another language and contribute it
+---
+
+Rezepte's interface is available in English and German. Adding another language takes two files and no programming: a line naming the language, and a copy of the English texts translated into it. Your recipes are not affected - Rezepte never translates recipe content.
+
+## What you need
+
+- A clone of the [repository](https://github.com/s-frei/rezepte).
+- [mise](https://mise.jdx.dev), which installs every other tool the project uses. Run `mise run setup` once in the clone.
+
+## Steps
+
+<Steps>
+  <Step>
+
+    ### Name the language
+    Add its [language code](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) to `locales` in `service/internal/i18n/locales.json` - for French, `fr`:
+
+    ```json
+    {
+    	"baseLocale": "en",
+    	"locales": ["en", "de", "fr"]
+    }
+    ```
+
+    Leave `baseLocale` as it is. English is what every text falls back to.
+
+  </Step>
+  <Step>
+
+    ### Translate the texts
+    Copy `frontend/messages/en.json` to `frontend/messages/fr.json` (with your language's code) and translate every value on the right-hand side:
+
+    ```json
+    "overview_headline": "Que cuisine-t-on aujourd'hui ?",
+    ```
+
+    - Keep every key on the left exactly as it is.
+    - Keep every placeholder in curly braces, such as `{count}` or `{name}`, exactly as it is. You can move it within the sentence.
+    - Translate every entry. The check in the next step fails on any that are missing, so the interface never shows a half-translated screen.
+
+    The language picker names the language by itself, in the reader's language and in its own ("French · Français"), so there is nothing to add for that.
+
+  </Step>
+  <Step>
+
+    ### Check and look at it
+    ```bash
+    mise run check
+    mise run //docs/user:openapi
+    RZP_DEMO_LOCALE=fr mise run demo
+    ```
+
+    `mise run check` finds missing texts and placeholders. The second command updates the API reference, which lists the languages the API accepts. The third starts a demo instance at the address it prints; log in as `demo` / `demo1234` and the interface is in your language. The demo recipes stay English unless your language has sample recipes of its own, which is optional.
+
+  </Step>
+  <Step>
+
+    ### Contribute it
+    Open a pull request with the two files and the updated API reference. A translation can be improved later like any other change.
+
+  </Step>
+</Steps>

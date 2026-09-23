@@ -80,14 +80,14 @@ type Option func(*Service)
 
 // WithDefaultLocale sets the interface language new accounts get when the
 // caller names none. It comes from REZEPTE_LOCALE. Without it a Service
-// defaults to Locales[0], so a test or a tool needs no configuration.
+// defaults to BaseLocale, so a test or a tool needs no configuration.
 func WithDefaultLocale(l Locale) Option {
 	return func(s *Service) { s.defaultLocale = l }
 }
 
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB, opts ...Option) *Service {
-	s := &Service{conn: conn, q: sqlc.New(conn), now: time.Now, defaultLocale: Locales[0]}
+	s := &Service{conn: conn, q: sqlc.New(conn), now: time.Now, defaultLocale: BaseLocale}
 	for _, opt := range opts {
 		opt(s)
 	}

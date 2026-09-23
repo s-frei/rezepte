@@ -415,7 +415,7 @@ func TestUpdateOwnProfileRejectsAnUnknownLocale(t *testing.T) {
 	h := newHandler(t)
 	cookie := login(t, h)
 
-	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"locale":"fr"}`, cookie)
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"locale":"xx"}`, cookie)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status %d, want 422; body %s", rec.Code, rec.Body.String())
 	}

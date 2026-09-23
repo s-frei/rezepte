@@ -9,7 +9,7 @@ description: Two Fumadocs apps under docs/, committed screenshots and a generate
 
 Each app is Fumadocs on the Next.js static template (`output: 'export'`) with its own `package.json`, `mise.toml`, `app/` and `content/` directory. Nothing is shared between them — not a build, not a dependency list, not a deployment. `mise run //docs/memory:check` and `mise run //docs/user:check` each lint, audit and build their own site, so broken MDX in either fails the gate. Both dev servers take their port from the worktree's offset ([Toolchain](/architecture/toolchain)).
 
-`docs/user/content/` is four sections - `getting-started/`, `guide/`, `operations/` and `api/` - beside an index and a roadmap page. There is no FAQ, troubleshooting, changelog or contributing section.
+`docs/user/content/` is five sections - `getting-started/`, `guide/`, `operations/`, `api/` and `contributing/` - beside an index and a roadmap page. `contributing/` holds only what someone outside the project can do without knowing the code, which today is adding a language. There is no FAQ, troubleshooting or changelog section.
 
 Each serves the agent-facing routes for its own content: `/llms.txt`, `/llms-full.txt`, raw markdown per page under `/llms.mdx/<path>/content.md`, and a static search index at `/api/search`. Agents normally read the MDX out of the repository; the rendered sites are for humans, for those routes, and — for `docs/user/` — for end users.
 

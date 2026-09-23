@@ -11,7 +11,7 @@ Rezepte takes its entire configuration from environment variables — there is n
     REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db and images/', type: 'string', default: './data' },
     REZEPTE_ADMIN_USER: { description: 'Username of the instance owner, used only on the first start', type: 'string', default: 'admin' },
     REZEPTE_ADMIN_PASSWORD: { description: 'Password of the instance owner; required on the first start (empty users table), ignored afterwards except by --reset-superadmin-password', type: 'string' },
-    REZEPTE_LOCALE: { description: 'Interface language new accounts start in, and the language of the demo recipes: en or de', type: 'string', default: 'en' },
+    REZEPTE_LOCALE: { description: 'Language code new accounts start in, such as en or de, and the language of the demo recipes (English for a language without its own). Any language the interface is translated into; see Add a language', type: 'string', default: 'en' },
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },

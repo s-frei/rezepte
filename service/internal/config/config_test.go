@@ -78,7 +78,7 @@ func TestLoadFromAcceptsGerman(t *testing.T) {
 }
 
 func TestLoadFromRejectsUnknownLocale(t *testing.T) {
-	if _, err := LoadFrom(map[string]string{"REZEPTE_LOCALE": "fr"}); err == nil {
-		t.Fatal("LoadFrom accepted REZEPTE_LOCALE=fr")
+	if _, err := LoadFrom(map[string]string{"REZEPTE_LOCALE": "xx"}); err == nil {
+		t.Fatal("LoadFrom accepted REZEPTE_LOCALE=xx")
 	}
 }
