@@ -426,7 +426,7 @@ func TestListSortsByCreatedAt(t *testing.T) {
 	// same id tiebreak as created_at, hiding the very divergence this test
 	// needs.
 	time.Sleep(1100 * time.Millisecond)
-	if _, err := svc.Update(ctx, ids[0], uid, fixtures[0]); err != nil {
+	if _, err := svc.Update(ctx, ids[0], adminActor(uid), fixtures[0]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -554,7 +554,7 @@ func TestCardsCarryAuthorNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Update(ctx, created.ID, editor, loadFixtures(t)[3]); err != nil {
+	if _, err := svc.Update(ctx, created.ID, adminActor(editor), loadFixtures(t)[3]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -585,7 +585,7 @@ func TestAuthorsListsWritersWithTheirCounts(t *testing.T) {
 	if _, err := svc.Create(ctx, uid, fx[1]); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Update(ctx, first.ID, editor, fx[0]); err != nil {
+	if _, err := svc.Update(ctx, first.ID, adminActor(editor), fx[0]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -627,7 +627,7 @@ func TestAuthorFilterNarrowsToWhoWroteIt(t *testing.T) {
 	}
 	// sam wrote this one; mara only edited it, which must not move it into
 	// her half of the split below.
-	if _, err := svc.Update(ctx, sams.ID, other, fx[0]); err != nil {
+	if _, err := svc.Update(ctx, sams.ID, adminActor(other), fx[0]); err != nil {
 		t.Fatal(err)
 	}
 

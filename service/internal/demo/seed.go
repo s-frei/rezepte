@@ -55,7 +55,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 		logger.Info("demo: recipes present, not seeding", "count", n)
 		return Summary{Skipped: true}, nil
 	}
-	ownerID, err := ownerID(ctx, user.NewService(conn), owner)
+	o, err := findOwner(ctx, user.NewService(conn), owner)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -68,7 +68,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 	// The overview sorts by updated_at desc: seeding back to front puts the
 	// first sample on top.
 	for i := len(samples) - 1; i >= 0; i-- {
-		r, err := recipes.Create(ctx, ownerID, samples[i])
+		r, err := recipes.Create(ctx, o.ID, samples[i])
 		if err != nil {
 			return sum, fmt.Errorf("create sample %q: %w", samples[i].Title, err)
 		}
@@ -80,7 +80,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 		if err != nil {
 			return sum, err
 		}
-		if _, err := images.Upload(ctx, r.ID, ownerID, bytes.NewReader(data)); err != nil {
+		if _, err := images.Upload(ctx, r.ID, o, bytes.NewReader(data)); err != nil {
 			return sum, fmt.Errorf("upload placeholder for %q: %w", r.Title, err)
 		}
 		sum.Images++
@@ -89,21 +89,22 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 	return sum, nil
 }
 
-// ownerID resolves the user named username, falling back to the first user
-// (List orders by username) so seeding works whatever the instance owner is
-// called.
-func ownerID(ctx context.Context, users *user.Service, username string) (string, error) {
+// findOwner resolves the user named username, falling back to the first
+// user (List orders by username) so seeding works whatever the instance
+// owner is called. The recipes it creates are that user's own, so the edit
+// rule lets them add the placeholder images whatever their role.
+func findOwner(ctx context.Context, users *user.Service, username string) (user.User, error) {
 	list, err := users.List(ctx)
 	if err != nil {
-		return "", err
+		return user.User{}, err
 	}
 	if len(list) == 0 {
-		return "", ErrNoUsers
+		return user.User{}, ErrNoUsers
 	}
 	for _, u := range list {
 		if u.Username == username {
-			return u.ID, nil
+			return u, nil
 		}
 	}
-	return list[0].ID, nil
+	return list[0], nil
 }

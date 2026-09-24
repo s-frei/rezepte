@@ -12,7 +12,10 @@ CREATE TABLE recipes (
     created_by     TEXT NOT NULL REFERENCES users(id),
     created_at     TEXT NOT NULL,
     updated_by     TEXT NOT NULL REFERENCES users(id),
-    updated_at     TEXT NOT NULL
+    updated_at     TEXT NOT NULL,
+    -- NULL follows instance_settings.recipes_locked_by_default; 'open' and
+    -- 'locked' are the author's explicit override.
+    edit_policy    TEXT CHECK (edit_policy IN ('open', 'locked'))
 );
 CREATE INDEX recipes_updated_at_idx ON recipes(updated_at DESC);
 CREATE INDEX recipes_created_at_idx ON recipes(created_at DESC);
@@ -100,7 +103,16 @@ CREATE VIRTUAL TABLE recipes_fts USING fts5(
     tokenize='unicode61 remove_diacritics 2'
 );
 
+-- The household-wide settings the owner controls. Exactly one row, created
+-- here, so readers never have to handle "no settings yet".
+CREATE TABLE instance_settings (
+    id                        INTEGER PRIMARY KEY CHECK (id = 1),
+    recipes_locked_by_default BOOLEAN NOT NULL DEFAULT 0
+);
+INSERT INTO instance_settings (id) VALUES (1);
+
 -- +goose Down
+DROP TABLE instance_settings;
 DROP TABLE step_references;
 DROP TABLE recipes_fts;
 DROP TABLE images;

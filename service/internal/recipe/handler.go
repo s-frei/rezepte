@@ -132,7 +132,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		if err := fillFavorite(ctx, svc, &r); err != nil {
+		if err := fillCaller(ctx, svc, &r); err != nil {
 			return nil, err
 		}
 		return &recipeOutput{Body: r}, nil
@@ -154,7 +154,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		if err := fillFavorite(ctx, svc, &r); err != nil {
+		if err := fillCaller(ctx, svc, &r); err != nil {
 			return nil, err
 		}
 		return &recipeOutput{Body: r}, nil
@@ -185,6 +185,9 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
+		if err := fillCaller(ctx, svc, &r); err != nil {
+			return nil, err
+		}
 		return &recipeOutput{Body: r}, nil
 	})
 
@@ -195,15 +198,18 @@ func Register(api huma.API, svc *Service) {
 		Summary:     "Update a recipe",
 		Tags:        []string{"recipes"},
 		Security:    auth.Protected(auth.ScopeRecipesWrite),
-		Errors:      []int{404, 422},
+		Errors:      []int{403, 404, 422},
 	}, func(ctx context.Context, in *updateRecipeInput) (*recipeOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		r, err := svc.Update(ctx, in.ID, u.ID, in.Body)
+		r, err := svc.Update(ctx, in.ID, u, in.Body)
 		if errors.Is(err, ErrNotFound) {
 			return nil, huma.Error404NotFound("recipe not found")
+		}
+		if herr := accessError(err); herr != nil {
+			return nil, herr
 		}
 		var refErr *RefError
 		if errors.As(err, &refErr) {
@@ -213,6 +219,9 @@ func Register(api huma.API, svc *Service) {
 			})
 		}
 		if err != nil {
+			return nil, err
+		}
+		if err := fillCaller(ctx, svc, &r); err != nil {
 			return nil, err
 		}
 		return &recipeOutput{Body: r}, nil
@@ -226,11 +235,18 @@ func Register(api huma.API, svc *Service) {
 		Tags:          []string{"recipes"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
-		Errors:        []int{404},
+		Errors:        []int{403, 404},
 	}, func(ctx context.Context, in *deleteRecipeInput) (*deleteRecipeOutput, error) {
-		if err := svc.Delete(ctx, in.ID); err != nil {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		if err := svc.Delete(ctx, in.ID, u); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound("recipe not found")
+			}
+			if herr := accessError(err); herr != nil {
+				return nil, herr
 			}
 			return nil, err
 		}
@@ -323,9 +339,11 @@ func Register(api huma.API, svc *Service) {
 // fillFavorite sets r.Favorite from the caller's own favorite state,
 // deriving the caller strictly from ctx (auth.UserFrom), never from r or
 // any path/query/body value - a caller must not be able to name whose
-// favorites are being read. An unauthenticated context (defended against
-// even though both call sites require a session) leaves r.Favorite false,
-// the same "empty user id disables the lookup" rule IsFavorite applies.
+// favorites are being read. A token caller carries its creator as that
+// user, so it reads the creator's favorites. A context without a user
+// (defended against even though every operation calling it requires a
+// session or a token) leaves r.Favorite false, the same "empty user id
+// disables the lookup" rule IsFavorite applies.
 func fillFavorite(ctx context.Context, svc *Service, r *Recipe) error {
 	u, ok := auth.UserFrom(ctx)
 	if !ok {
@@ -336,6 +354,28 @@ func fillFavorite(ctx context.Context, svc *Service, r *Recipe) error {
 		return err
 	}
 	r.Favorite = fav
+	return nil
+}
+
+// fillCaller sets the caller-dependent fields: the favorite star and what
+// the caller may do. Both derive the caller from ctx only.
+func fillCaller(ctx context.Context, svc *Service, r *Recipe) error {
+	if err := fillFavorite(ctx, svc, r); err != nil {
+		return err
+	}
+	u, ok := auth.UserFrom(ctx)
+	if !ok {
+		return nil
+	}
+	return svc.FillAccess(ctx, u, r)
+}
+
+// accessError maps the two permission errors to 403; nil for anything else.
+func accessError(err error) error {
+	switch {
+	case errors.Is(err, ErrEditForbidden), errors.Is(err, ErrDeleteForbidden):
+		return huma.Error403Forbidden(err.Error())
+	}
 	return nil
 }
 

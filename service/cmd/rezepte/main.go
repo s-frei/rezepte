@@ -23,6 +23,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -165,6 +166,7 @@ func run() error {
 	recipe.Register(srv.API(), recipes)
 	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
+	settings.Register(srv.API(), settings.NewService(conn))
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)

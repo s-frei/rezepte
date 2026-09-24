@@ -107,7 +107,7 @@ func TestCountFollowsCreateAndDelete(t *testing.T) {
 	if n, _ := svc.Count(ctx); n != 1 {
 		t.Fatalf("Count after create = %d, want 1", n)
 	}
-	if err := svc.Delete(ctx, r.ID); err != nil {
+	if err := svc.Delete(ctx, r.ID, adminActor(userID)); err != nil {
 		t.Fatal(err)
 	}
 	if n, _ := svc.Count(ctx); n != 0 {

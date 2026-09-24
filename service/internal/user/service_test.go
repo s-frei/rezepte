@@ -221,6 +221,33 @@ func TestDeleteReassignsRecipesEditedByTheDeletedUser(t *testing.T) {
 	}
 }
 
+// A recipe its author locked stays locked when the author is deleted: the
+// lock moves to the acting admin together with the recipe, rather than
+// opening the recipe to the whole household on the way.
+func TestDeleteKeepsTheEditPolicyOfReassignedRecipes(t *testing.T) {
+	ctx := context.Background()
+	conn, svc, sam, kim := seedTwo(t)
+	_, err := conn.ExecContext(ctx, `INSERT INTO recipes (id, slug, title, description, servings, created_by, created_at, updated_by, updated_at, edit_policy)
+		VALUES ('r1', 'r1', 'Kims Rezept', '', 4, ?, '2026-01-01T00:00:00Z', ?, '2026-01-01T00:00:00Z', 'locked')`, kim.ID, kim.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Delete(ctx, sam, kim.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	var owner string
+	var policy *string
+	if err := conn.QueryRowContext(ctx, `SELECT created_by, edit_policy FROM recipes WHERE id = 'r1'`).Scan(&owner, &policy); err != nil {
+		t.Fatal(err)
+	}
+	if owner != sam.ID {
+		t.Fatalf("created_by = %q, want %q (the acting admin)", owner, sam.ID)
+	}
+	if policy == nil || *policy != "locked" {
+		t.Fatalf("edit_policy = %v, want locked", policy)
+	}
+}
+
 func TestSetAndChangePassword(t *testing.T) {
 	ctx := context.Background()
 	_, svc, sam, kim := seedTwo(t)

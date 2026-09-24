@@ -71,7 +71,7 @@ func loginCookie(t *testing.T, h http.Handler) *http.Cookie {
 // loginAs logs in as username/password and returns the session cookie.
 // loginCookie is the "sam" (the handler's default admin) special case of
 // this, used to log in as a second user for favorite-isolation tests.
-func loginAs(t *testing.T, h http.Handler, username, password string) *http.Cookie {
+func loginAs(t *testing.T, h http.Handler, username, password string) *http.Cookie { //nolint:unparam // every fixture user happens to share the password "pw"
 	t.Helper()
 	rec := doReq(h, http.MethodPost, "/api/v1/auth/login", mustMarshal(t, map[string]string{"username": username, "password": password}), nil)
 	if rec.Code != http.StatusOK {
@@ -645,5 +645,61 @@ func TestSourceURLMustBeHTTP(t *testing.T) {
 	}
 	if created.SourceURL == nil || *created.SourceURL != source {
 		t.Fatalf("sourceUrl = %v", created.SourceURL)
+	}
+}
+
+func TestHandlerLockedRecipeAnswers403AndFlags(t *testing.T) {
+	h, conn := newRecipeHandlerWithConn(t)
+	users := user.NewService(conn)
+	for _, name := range []string{"anna", "ben"} {
+		if _, err := users.Create(context.Background(), user.CreateParams{Username: name, Password: "pw", Role: user.RoleUser}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	anna := loginAs(t, h, "anna", "pw")
+	ben := loginAs(t, h, "ben", "pw")
+
+	fx := loadFixtures(t)[0]
+	fx.EditPolicy = recipe.PolicyLocked
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), anna)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/v1/recipes/" + created.ID
+
+	rec = doReq(h, http.MethodGet, path, "", ben)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get as ben status %d", rec.Code)
+	}
+	var asBen recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &asBen); err != nil {
+		t.Fatal(err)
+	}
+	if !asBen.Locked || asBen.CanEdit || asBen.CanDelete || asBen.CanChangePolicy {
+		t.Errorf("ben sees locked=%v edit=%v delete=%v policy=%v, want true/false/false/false",
+			asBen.Locked, asBen.CanEdit, asBen.CanDelete, asBen.CanChangePolicy)
+	}
+
+	rec = doReq(h, http.MethodPut, path, mustMarshal(t, fx), ben)
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "recipe edit locked") {
+		t.Errorf("put as ben: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = doReq(h, http.MethodDelete, path, "", ben)
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "recipe delete not allowed") {
+		t.Errorf("delete as ben: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doReq(h, http.MethodGet, path, "", anna)
+	var asAnna recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &asAnna); err != nil {
+		t.Fatal(err)
+	}
+	if !asAnna.CanEdit || !asAnna.CanDelete || !asAnna.CanChangePolicy {
+		t.Errorf("anna sees edit=%v delete=%v policy=%v, want all true",
+			asAnna.CanEdit, asAnna.CanDelete, asAnna.CanChangePolicy)
 	}
 }

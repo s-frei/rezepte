@@ -86,7 +86,7 @@ func Register(api huma.API, svc *Service) {
 		DefaultStatus: http.StatusCreated,
 		MaxBodyBytes:  maxUploadBytes,
 		Middlewares:   huma.Middlewares{limitUpload(api)},
-		Errors:        []int{404, 413, 415, 422},
+		Errors:        []int{403, 404, 413, 415, 422},
 	}, func(ctx context.Context, in *uploadInput) (*imageOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
@@ -94,10 +94,12 @@ func Register(api huma.API, svc *Service) {
 		}
 		file := in.RawBody.Data().File
 		defer file.Close()
-		img, err := svc.Upload(ctx, in.ID, u.ID, file)
+		img, err := svc.Upload(ctx, in.ID, u, file)
 		switch {
 		case errors.Is(err, ErrNotFound):
 			return nil, huma.Error404NotFound(err.Error())
+		case errors.Is(err, recipe.ErrEditForbidden):
+			return nil, huma.Error403Forbidden(err.Error())
 		case errors.Is(err, ErrUnsupported):
 			return nil, huma.Error415UnsupportedMediaType(err.Error())
 		case errors.Is(err, ErrInvalid), errors.Is(err, ErrTooLarge), errors.Is(err, ErrTooMany):
@@ -116,15 +118,18 @@ func Register(api huma.API, svc *Service) {
 		Tags:          []string{"images"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
-		Errors:        []int{404},
+		Errors:        []int{403, 404},
 	}, func(ctx context.Context, in *deleteImageInput) (*deleteImageOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if err := svc.Delete(ctx, in.ID, in.ImageID, u.ID); err != nil {
+		if err := svc.Delete(ctx, in.ID, in.ImageID, u); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound(err.Error())
+			}
+			if errors.Is(err, recipe.ErrEditForbidden) {
+				return nil, huma.Error403Forbidden(err.Error())
 			}
 			return nil, err
 		}
@@ -138,16 +143,18 @@ func Register(api huma.API, svc *Service) {
 		Summary:     "Reorder a recipe's images",
 		Tags:        []string{"images"},
 		Security:    auth.Protected(auth.ScopeRecipesWrite),
-		Errors:      []int{404, 422},
+		Errors:      []int{403, 404, 422},
 	}, func(ctx context.Context, in *orderInput) (*orderOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		items, err := svc.Reorder(ctx, in.ID, u.ID, in.Body.ImageIDs)
+		items, err := svc.Reorder(ctx, in.ID, u, in.Body.ImageIDs)
 		switch {
 		case errors.Is(err, ErrNotFound):
 			return nil, huma.Error404NotFound(err.Error())
+		case errors.Is(err, recipe.ErrEditForbidden):
+			return nil, huma.Error403Forbidden(err.Error())
 		case errors.Is(err, ErrBadOrder):
 			return nil, huma.Error422UnprocessableEntity(err.Error())
 		case err != nil:
@@ -167,15 +174,18 @@ func Register(api huma.API, svc *Service) {
 		Tags:          []string{"images"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
-		Errors:        []int{404},
+		Errors:        []int{403, 404},
 	}, func(ctx context.Context, in *coverInput) (*coverOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if err := svc.SetCover(ctx, in.ID, in.Body.ImageID, u.ID); err != nil {
+		if err := svc.SetCover(ctx, in.ID, in.Body.ImageID, u); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound(err.Error())
+			}
+			if errors.Is(err, recipe.ErrEditForbidden) {
+				return nil, huma.Error403Forbidden(err.Error())
 			}
 			return nil, err
 		}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 // Service creates, updates, deletes and loads recipes, keeping slugs, tags
@@ -74,6 +75,7 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 			CreatedAt:   now,
 			UpdatedBy:   createdBy,
 			UpdatedAt:   now,
+			EditPolicy:  in.EditPolicy.toDB(),
 		}); err != nil {
 			return fmt.Errorf("insert recipe: %w", err)
 		}
@@ -92,22 +94,29 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 }
 
 // Update replaces every editable field of the recipe id - title,
-// description, servings, prep and cook minutes, source URL - along with all
-// its child rows (ingredient groups, ingredients, steps, tags), keeping its
-// slug and creation metadata. updatedBy is recorded as the editor. It
-// returns ErrNotFound when no such recipe exists.
-func (s *Service) Update(ctx context.Context, id string, updatedBy string, in Input) (Recipe, error) {
+// description, servings, prep and cook minutes, source URL, edit policy -
+// along with all its child rows (ingredient groups, ingredients, steps,
+// tags), keeping its slug and creation metadata. An empty in.EditPolicy
+// keeps the stored policy. actor is recorded as the editor. Errors:
+// ErrNotFound, ErrEditForbidden (actor may not edit, or may not change the
+// policy).
+func (s *Service) Update(ctx context.Context, id string, actor user.User, in Input) (Recipe, error) {
 	tags := NormalizeTags(in.Tags)
 	targets, err := resolveRefs(in.IngredientGroups, in.Steps)
 	if err != nil {
 		return Recipe{}, err
 	}
 	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		if _, err := q.GetRecipe(ctx, id); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrNotFound
+		row, err := GuardEdit(ctx, q, actor, id)
+		if err != nil {
+			return err
+		}
+		policy := policyFromDB(row.EditPolicy)
+		if in.EditPolicy != "" && in.EditPolicy != policy {
+			if !CanChangePolicy(actor, guarded(row)) {
+				return ErrEditForbidden
 			}
-			return fmt.Errorf("get recipe %s: %w", id, err)
+			policy = in.EditPolicy
 		}
 		now := db.FormatTime(s.now())
 		if _, err := q.UpdateRecipe(ctx, sqlc.UpdateRecipeParams{
@@ -118,8 +127,9 @@ func (s *Service) Update(ctx context.Context, id string, updatedBy string, in In
 			PrepMinutes: intToInt64Ptr(in.PrepMinutes),
 			CookMinutes: intToInt64Ptr(in.CookMinutes),
 			SourceUrl:   in.SourceURL,
-			UpdatedBy:   updatedBy,
+			UpdatedBy:   actor.ID,
 			UpdatedAt:   now,
+			EditPolicy:  policy.toDB(),
 		}); err != nil {
 			return fmt.Errorf("update recipe: %w", err)
 		}
@@ -151,9 +161,20 @@ func (s *Service) Update(ctx context.Context, id string, updatedBy string, in In
 
 // Delete removes the recipe id and all of its children (via ON DELETE
 // CASCADE), drops it from the search index and prunes tags left orphaned by
-// the deletion. It returns ErrNotFound when no such recipe exists.
-func (s *Service) Delete(ctx context.Context, id string) error {
+// the deletion. Only actor's own recipes, or any as an admin. Errors:
+// ErrNotFound, ErrDeleteForbidden.
+func (s *Service) Delete(ctx context.Context, id string, actor user.User) error {
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := q.GetRecipe(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("get recipe %s: %w", id, err)
+		}
+		if !CanDelete(actor, guarded(row)) {
+			return ErrDeleteForbidden
+		}
 		rowid, err := q.GetRecipeRowID(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNotFound
@@ -183,6 +204,55 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 			slog.Warn("remove recipe image dir", "recipe", id, "err", err)
 		}
 	}
+	return nil
+}
+
+// GuardEdit loads recipeID inside q (a transaction, or the plain queries for
+// a cheap pre-check) and returns its row when actor may edit it. Errors:
+// ErrNotFound, ErrEditForbidden. The image service calls it too, so the
+// rule lives in one place.
+func GuardEdit(ctx context.Context, q *sqlc.Queries, actor user.User, recipeID string) (sqlc.Recipe, error) {
+	row, err := q.GetRecipe(ctx, recipeID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return sqlc.Recipe{}, ErrNotFound
+	}
+	if err != nil {
+		return sqlc.Recipe{}, fmt.Errorf("get recipe %s: %w", recipeID, err)
+	}
+	locked, err := lockedByDefault(ctx, q)
+	if err != nil {
+		return sqlc.Recipe{}, err
+	}
+	if !CanEdit(actor, guarded(row), locked) {
+		return sqlc.Recipe{}, ErrEditForbidden
+	}
+	return row, nil
+}
+
+func guarded(row sqlc.Recipe) Guarded {
+	return Guarded{CreatedBy: row.CreatedBy, Policy: policyFromDB(row.EditPolicy)}
+}
+
+func lockedByDefault(ctx context.Context, q *sqlc.Queries) (bool, error) {
+	s, err := q.GetInstanceSettings(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get instance settings: %w", err)
+	}
+	return s.RecipesLockedByDefault, nil
+}
+
+// FillAccess sets r's Locked and Can* fields for actor. It reads the
+// household default on every call, so a switch by the owner shows at once.
+func (s *Service) FillAccess(ctx context.Context, actor user.User, r *Recipe) error {
+	locked, err := lockedByDefault(ctx, s.q)
+	if err != nil {
+		return err
+	}
+	g := Guarded{CreatedBy: r.CreatedBy.ID, Policy: r.EditPolicy}
+	r.Locked = Locked(g, locked)
+	r.CanEdit = CanEdit(actor, g, locked)
+	r.CanDelete = CanDelete(actor, g)
+	r.CanChangePolicy = CanChangePolicy(actor, g)
 	return nil
 }
 
@@ -415,6 +485,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			Tags:             tagNames,
 			IngredientGroups: outGroups,
 			Steps:            outSteps,
+			EditPolicy:       policyFromDB(row.EditPolicy),
 		},
 		CoverImageID: row.CoverImageID,
 		Images:       images,
