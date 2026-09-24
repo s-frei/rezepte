@@ -60,6 +60,11 @@ erDiagram
     text created_at
     text updated_by FK
     text updated_at
+    text edit_policy "nullable: open or locked"
+  }
+  instance_settings {
+    integer id PK "always 1"
+    boolean recipes_locked_by_default
   }
   ingredient_groups {
     text id PK
@@ -132,6 +137,7 @@ erDiagram
 - `images.filename` is `<id>.jpg`; the three variants (`<id>.jpg`, `<id>_detail.jpg`, `<id>_thumb.jpg`) live in `<REZEPTE_DATA_DIR>/images/<recipe_id>/`, outside the database; `width`/`height` are the largest variant's; `size_bytes` sums all three; `position` is compact `0..n-1` like the other position columns, rewritten on delete and reorder. See [Images](/features/images).
 - `recipes_fts` is not shown above: an FTS5 virtual table is a search index rather than a relation - it holds no copy of the text and no foreign keys, so there is nothing for the diagram to connect it to. [Recipes](/features/recipes) owns how it is declared, keyed and kept in step.
 - `recipes.created_by` and `recipes.updated_by` are both `NOT NULL` without `ON DELETE`; deleting a user moves every recipe they wrote **or last edited** to the acting admin (see [Users and authentication](/features/users-and-auth)). Sessions and API tokens both cascade: deleting a user removes both.
+- `recipes.edit_policy` is `NULL`, `'open'` or `'locked'` (a `CHECK` constraint); `NULL` means "follow the household setting" and is never written as a string. `instance_settings` holds that setting and exactly one row: `id INTEGER PRIMARY KEY CHECK (id = 1)`, inserted by the migration that creates the table, so reading it never has to handle "no row" and writing it is an `UPDATE`. It stands alone in the diagram because nothing references it. [Editing rights](/features/editing-rights) owns what the two columns decide.
 - `updated_by` always names somebody: a new recipe seeds it from `created_by`, so "never edited" is "both columns still match their `created_*` twin" rather than a NULL. Reading it needs both — with second resolution, an edit in the same second as the create moves only `updated_by`. Every write that moves `updated_at` moves `updated_by` with it - image uploads and cover changes included (see [Recipes and search](/features/recipes)).
 - `api_tokens.token_hash` is `UNIQUE`, which doubles as the lookup index for authentication; `id` is a separate UUIDv7 rather than the hash, because a token is deleted from a list at a moment the raw value no longer exists to hash again. `token_prefix` keeps the first 8 characters of the raw value in clear, for matching a row in the list against an entry in a client configuration. See [API tokens](/features/api-tokens).
 

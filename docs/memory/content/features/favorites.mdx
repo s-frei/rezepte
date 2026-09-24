@@ -15,7 +15,7 @@ The household shares one recipe collection, but a star on a recipe is personal: 
 
 **Every list request carries the caller's id, not only a filtered one.** The list handler fills `ListParams.UserID` from the context on every request, because `Card.Favorite` has to be right on every card of every page, not only on the pages a `favorites=true` request returns. The filter itself is the same switchable `AND` condition the other list filters use — `(CAST(sqlc.arg(favorites_only) AS INTEGER) = 0 OR r.id IN (SELECT recipe_id FROM favorites WHERE user_id = sqlc.arg(user_id)))`, repeated in all four list and count queries. The `CAST` is what makes sqlc infer a concrete `int64` instead of `interface{}`, whose Go zero value is `nil` rather than `0`; [Recipes and search](/features/recipes) owns that rule and the shape the condition follows.
 
-**One batched lookup per page, not one per card.** `toCards` marshals the page's recipe ids to a JSON array and runs `ListFavoriteRecipeIDs` once, beside the tag batch it already runs, then reads each card's state out of the resulting set. A detail page takes the same query with a one-element array through `(*Service).IsFavorite`, called by `fillFavorite`.
+**One batched lookup per page, not one per card.** `toCards` marshals the page's recipe ids to a JSON array and runs `ListFavoriteRecipeIDs` once, beside the tag batch it already runs, then reads each card's state out of the resulting set. A detail page takes the same query with a one-element array through `(*Service).IsFavorite`, called by `fillFavorite` through `fillCaller`.
 
 **An empty user id disables the lookup rather than matching rows.** `IsFavorite` returns false without querying, `toCards` skips the batch entirely, and `List` computes `favoritesOnly` as the request's flag *and* a non-empty id. The SQL's own comparison of `user_id` against an empty string happens to match nothing, but that is a fail-closed accident rather than a guarantee, so no Go path leans on it. `(*Service).Count` — the one caller with no user behind it, used by demo seeding to decide whether a database already holds recipes — spells out `FavoritesOnly: 0` and `UserID: ""` at the call site instead of relying on zero values.
 
@@ -38,7 +38,7 @@ Loading the state one batch per page keeps a list at a fixed number of queries h
 
 ## Limits
 
-- `Recipe.Favorite` is filled only by the two get operations, which call `fillFavorite` after loading the recipe. `create-recipe` and `update-recipe` answer `false` unconditionally — accurate right after a create, wrong after updating a recipe the caller had starred. Any further handler that loads through `ByID` or `BySlug` gets `false` the same way unless it calls `fillFavorite` or `IsFavorite` itself.
+- `Recipe.Favorite` is filled by the handler, not by `ByID` or `BySlug`: get, get by slug, create and update each call `fillCaller`, which runs `fillFavorite` beside the [editing rights](/features/editing-rights) fields. Any further handler that loads through `ByID` or `BySlug` answers `false` unless it calls `fillCaller` or `IsFavorite` itself.
 - Favorite rows disappear with the user (`ON DELETE CASCADE`), which is what personal state should do and worth knowing before deleting a household member.
 - `favorites.created_at` is written and nothing reads it. There is no "recently starred" order and no date on the star.
 - An authenticated list costs one query more than an unauthenticated one would, per page.
