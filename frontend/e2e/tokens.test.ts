@@ -12,11 +12,11 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	await page.goto('/settings/api');
 
 	// .first(): with no tokens yet (a fresh e2e database), the empty state
-	// repeats the same "Token erstellen" button as the header, so the plain
+	// repeats the same "Create token" button as the header, so the plain
 	// role query is ambiguous - both open the identical dialog.
-	await page.getByRole('button', { name: 'Token erstellen' }).first().click();
-	// Scoped to the dialog from here on: "Erstellen" is otherwise a substring
-	// match of the page's own "Token erstellen" button(s) (getByRole's name
+	await page.getByRole('button', { name: 'Create token' }).first().click();
+	// Scoped to the dialog from here on: "Create" is otherwise a substring
+	// match of the page's own "Create token" button(s) (getByRole's name
 	// match is substring, not exact, unless asked), so the bare query is
 	// ambiguous once the dialog is open too.
 	const createDialog = page.getByRole('dialog');
@@ -24,12 +24,12 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	// The expiry control is a Bits UI Select, not a native <select>: Select.svelte
 	// (settings.test.ts documents the same thing for the role picker) renders the
 	// trigger as a plain <button> carrying only the aria-label passed as `label`
-	// ("Gültigkeit" here), not role="combobox" - confirmed against
+	// ("Lifetime" here), not role="combobox" - confirmed against
 	// select-trigger.svelte in bits-ui, which renders `<button>` with no role
 	// override. The popover items are real `role="option"`s.
-	await createDialog.getByRole('button', { name: 'Gültigkeit' }).click();
-	await page.getByRole('option', { name: 'Kein Ablauf' }).click();
-	await createDialog.getByRole('button', { name: 'Erstellen', exact: true }).click();
+	await createDialog.getByRole('button', { name: 'Lifetime' }).click();
+	await page.getByRole('option', { name: 'No expiry' }).click();
+	await createDialog.getByRole('button', { name: 'Create', exact: true }).click();
 
 	// Shown exactly once, in the dialog that only its own button closes. Scoped
 	// to that dialog: the new list item's own prefix line (e.g. "rzp_1zqB…")
@@ -41,7 +41,7 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	expect(raw.startsWith('rzp_')).toBe(true);
 	await page.keyboard.press('Escape');
 	await expect(secret).toBeVisible();
-	await page.getByRole('button', { name: 'Ich habe ihn gespeichert' }).click();
+	await page.getByRole('button', { name: 'I have saved it' }).click();
 	await expect(secret).toBeHidden();
 
 	// The list shows the prefix, never the secret. TokenTable/TokenRow are a
@@ -55,10 +55,10 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	await expect(row).toBeVisible();
 	await expect(page.getByText(raw, { exact: true })).toBeHidden();
 
-	await row.getByRole('button', { name: `Token „${name}“ widerrufen` }).click();
+	await row.getByRole('button', { name: `Revoke the token "${name}"` }).click();
 	// exact:true, scoped to the confirm dialog: the icon button just clicked
-	// carries an aria-label ("Token „...“ widerrufen") that also substring-
-	// matches a bare "Widerrufen" query.
-	await page.getByRole('dialog').getByRole('button', { name: 'Widerrufen', exact: true }).click();
+	// carries an aria-label ('Revoke the token "..."') that also substring-
+	// matches a bare "Revoke" query.
+	await page.getByRole('dialog').getByRole('button', { name: 'Revoke', exact: true }).click();
 	await expect(row).toBeHidden();
 });

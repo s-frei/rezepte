@@ -23,15 +23,15 @@ test('a member changes the own password and logs in with it', async ({ page }) =
 	await login(page, username);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
-	await page.getByLabel('Aktuelles Passwort').fill(devPassword(username));
-	await page.getByLabel('Neues Passwort', { exact: true }).fill(devPasswordNext(username));
-	await page.getByLabel('Neues Passwort wiederholen').fill(devPasswordNext(username));
-	await page.getByRole('button', { name: 'Passwort speichern' }).click();
-	await expect(page.getByText('Passwort geändert')).toBeVisible();
+	await page.getByLabel('Current password').fill(devPassword(username));
+	await page.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
+	await page.getByLabel('Repeat the new password').fill(devPasswordNext(username));
+	await page.getByRole('button', { name: 'Save password' }).click();
+	await expect(page.getByText('Password changed')).toBeVisible();
 
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page.getByRole('alert')).toHaveText('Benutzername oder Passwort ist falsch.');
+	await expect(page.getByRole('alert')).toHaveText('That username or password is wrong.');
 	await login(page, username, devPasswordNext(username));
 	await expect(page).toHaveURL('/');
 });
@@ -40,13 +40,13 @@ test('a wrong current password shows an inline error', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
-	await page.getByLabel('Aktuelles Passwort').fill('definitely-wrong');
+	await page.getByLabel('Current password').fill('definitely-wrong');
 	// The instance owner, whose own password this test never changes - it is
 	// rejected on the current one.
-	await page.getByLabel('Neues Passwort', { exact: true }).fill(devPasswordNext('admin'));
-	await page.getByLabel('Neues Passwort wiederholen').fill(devPasswordNext('admin'));
-	await page.getByRole('button', { name: 'Passwort speichern' }).click();
-	await expect(page.getByText('Das aktuelle Passwort ist falsch')).toBeVisible();
+	await page.getByLabel('New password', { exact: true }).fill(devPasswordNext('admin'));
+	await page.getByLabel('Repeat the new password').fill(devPasswordNext('admin'));
+	await page.getByRole('button', { name: 'Save password' }).click();
+	await expect(page.getByText('The current password is wrong')).toBeVisible();
 });
 
 test('members are sent from the users page to their own settings', async ({ page }) => {
@@ -59,7 +59,7 @@ test('members are sent from the users page to their own settings', async ({ page
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	await expect(page).toHaveURL('/settings');
-	await expect(page.getByRole('link', { name: 'Benutzer' })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Members' })).toHaveCount(0);
 });
 
 test('the owner creates, promotes, resets and deletes a user', async ({ page }) => {
@@ -68,37 +68,37 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
-	await page.getByRole('button', { name: 'Benutzer anlegen' }).click();
+	await page.getByRole('button', { name: 'Add member' }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('Benutzername').fill(username);
-	await dialog.getByLabel('Passwort', { exact: true }).fill(devPassword(username));
-	await dialog.getByRole('radio', { name: /Mitglied/ }).click();
-	await dialog.getByRole('button', { name: 'Anlegen' }).click();
+	await dialog.getByLabel('Username').fill(username);
+	await dialog.getByLabel('Password', { exact: true }).fill(devPassword(username));
+	await dialog.getByRole('radio', { name: /Member/ }).click();
+	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
 
-	// Scoped to the user list: svelte-sonner renders its "<name> angelegt"
+	// Scoped to the user list: svelte-sonner renders its "<name> added"
 	// toast as a listitem as well, which makes a bare getByRole ambiguous.
 	const row = page
-		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('list', { name: 'Members' })
 		.getByRole('listitem')
 		.filter({ hasText: username });
 	await expect(row).toBeVisible();
 
 	// Bits UI renders the select trigger as a plain <button>; it carries no
-	// `role="combobox"`, only the aria-label "Rolle von <name>".
-	const roleSelect = row.getByRole('button', { name: 'Rolle' });
-	await expect(roleSelect).toHaveText(/Mitglied/);
+	// `role="combobox"`, only the aria-label "<name>'s role".
+	const roleSelect = row.getByRole('button', { name: `${username}'s role` });
+	await expect(roleSelect).toHaveText(/Member/);
 	await roleSelect.click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await expect(roleSelect).toHaveText(/Admin/);
-	await expect(page.getByText(`Rolle von ${username} geändert`)).toBeVisible();
+	await expect(page.getByText(`${username}'s role changed`)).toBeVisible();
 
-	await row.getByRole('button', { name: `Passwort von ${username} zurücksetzen` }).click();
-	await page.getByRole('dialog').getByLabel('Neues Passwort').fill(devPasswordNext(username));
-	await page.getByRole('dialog').getByRole('button', { name: 'Zurücksetzen' }).click();
-	await expect(page.getByText('Passwort zurückgesetzt')).toBeVisible();
+	await row.getByRole('button', { name: `Reset ${username}'s password` }).click();
+	await page.getByRole('dialog').getByLabel('New password').fill(devPasswordNext(username));
+	await page.getByRole('dialog').getByRole('button', { name: 'Reset', exact: true }).click();
+	await expect(page.getByText('Password reset')).toBeVisible();
 
-	await row.getByRole('button', { name: 'Löschen' }).click();
-	await page.getByRole('dialog').getByRole('button', { name: 'Löschen' }).click();
+	await row.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
 	await expect(row).toHaveCount(0);
 });
 
@@ -112,24 +112,24 @@ test('the owner sorts the member list by role', async ({ page, isMobile }) => {
 	await createUser(page, { username, role: 'user' });
 	await page.goto('/settings/users');
 
-	const rows = page.getByRole('list', { name: 'Benutzer' }).getByRole('listitem');
+	const rows = page.getByRole('list', { name: 'Members' }).getByRole('listitem');
 	await expect(rows.filter({ hasText: username })).toBeVisible();
 
-	// The head cell, not a row's role select, which is named "Rolle von
-	// <name>". The sort state is part of the head button's own name, which is
+	// The head cell, not a row's role select, which is named "<name>'s
+	// role". The sort state is part of the head button's own name, which is
 	// how it reaches a screen reader - `aria-sort` would need a
 	// `columnheader`, and these rows are cards, not a table.
-	const byRole = page.getByRole('button', { name: /^Rolle( (auf|ab)steigend sortiert)?$/ });
-	await expect(byRole).toHaveAccessibleName('Rolle');
+	const byRole = page.getByRole('button', { name: /^Role( sorted (a|de)scending)?$/ });
+	await expect(byRole).toHaveAccessibleName('Role');
 
 	// Rank, owner first - whatever the other tests' accounts are called.
 	await byRole.click();
-	await expect(byRole).toHaveAccessibleName('Rolle aufsteigend sortiert');
-	await expect(rows.first()).toContainText('Inhaber');
+	await expect(byRole).toHaveAccessibleName('Role sorted ascending');
+	await expect(rows.first()).toContainText('Owner');
 	// The same header again turns the order around.
 	await byRole.click();
-	await expect(byRole).toHaveAccessibleName('Rolle absteigend sortiert');
-	await expect(rows.last()).toContainText('Inhaber');
+	await expect(byRole).toHaveAccessibleName('Role sorted descending');
+	await expect(rows.last()).toContainText('Owner');
 });
 
 test('a second admin cannot touch the instance owner', async ({ page }) => {
@@ -148,12 +148,12 @@ test('a second admin cannot touch the instance owner', async ({ page }) => {
 	// `admin` the e2e task seeds also reads as "Admin" in every promoted
 	// user's role pill, and svelte-sonner's toasts are listitems too.
 	const owner = page
-		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('list', { name: 'Members' })
 		.getByRole('listitem')
 		.filter({ has: page.getByText('admin', { exact: true }) });
-	await expect(owner.getByText('Inhaber')).toBeVisible();
-	await expect(owner.getByRole('button', { name: /löschen/i })).toHaveCount(0);
-	await expect(owner.getByRole('button', { name: /Passwort von/i })).toHaveCount(0);
+	await expect(owner.getByText('Owner')).toBeVisible();
+	await expect(owner.getByRole('button', { name: /delete/i })).toHaveCount(0);
+	await expect(owner.getByRole('button', { name: /password/i })).toHaveCount(0);
 });
 
 test('a plain admin sees member roles as badges', async ({ page }) => {
@@ -172,12 +172,12 @@ test('a plain admin sees member roles as badges', async ({ page }) => {
 	// Changing a role is the owner's alone, so the member's role is text and
 	// not a control - while delete and reset stay this admin's to use.
 	const row = page
-		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('list', { name: 'Members' })
 		.getByRole('listitem')
 		.filter({ has: page.getByText(member, { exact: true }) });
-	await expect(row.getByText('Mitglied')).toBeVisible();
-	await expect(row.getByRole('button', { name: 'Rolle' })).toHaveCount(0);
-	await expect(row.getByRole('button', { name: `${member} löschen` })).toBeVisible();
+	await expect(row.getByText('Member', { exact: true })).toBeVisible();
+	await expect(row.getByRole('button', { name: /role/i })).toHaveCount(0);
+	await expect(row.getByRole('button', { name: `Delete ${member}` })).toBeVisible();
 });
 
 test('only the owner can hand out the admin role', async ({ page }) => {
@@ -190,10 +190,10 @@ test('only the owner can hand out the admin role', async ({ page }) => {
 	await login(page, admin);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Benutzer anlegen' }).click();
-	// The dialog offers "Mitglied" only.
+	await page.getByRole('button', { name: 'Add member' }).click();
+	// The dialog offers "Member" only.
 	const dialog = page.getByRole('dialog');
-	await expect(dialog.getByRole('radio', { name: 'Mitglied' })).toBeVisible();
+	await expect(dialog.getByRole('radio', { name: 'Member' })).toBeVisible();
 	await expect(dialog.getByRole('radio', { name: 'Admin' })).toHaveCount(0);
 });
 
@@ -201,12 +201,12 @@ test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ pag
 	const token = uniqueToken();
 	await login(page);
 	await expect(page).toHaveURL('/');
-	const fixture = loadFixture(3); // Käsespätzle
-	fixture.title = `Käsespätzle ${token}`;
+	const fixture = loadFixture(3);
+	fixture.title = `Fish and Chips ${token}`;
 	const recipe = await createRecipe(page, fixture);
 
 	await page.keyboard.press('Control+k');
-	const dialog = page.getByRole('dialog', { name: 'Befehlspalette' });
+	const dialog = page.getByRole('dialog', { name: 'Command palette' });
 	await expect(dialog).toBeVisible();
 	await dialog.getByRole('combobox').fill(token);
 	await dialog.getByRole('option', { name: fixture.title }).click();
@@ -219,7 +219,7 @@ test('a member renames themselves and picks a colour, and their cards follow', a
 	const username = `col${token}`;
 	// The token rides along in the display name as well: both projects run
 	// this test against the same database, so two accounts would otherwise
-	// answer to "Angelegt von Sam".
+	// answer to "Added by Sam".
 	const displayName = `Sam ${token}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -228,18 +228,18 @@ test('a member renames themselves and picks a colour, and their cards follow', a
 	await page.context().clearCookies();
 	await login(page, username);
 	await expect(page).toHaveURL('/');
-	await createRecipe(page, { ...loadFixture(0), title: `Farbtest ${token}` });
+	await createRecipe(page, { ...loadFixture(0), title: `Colour test ${token}` });
 
 	await page.goto('/settings');
-	await page.getByLabel('Anzeigename').fill(displayName);
-	await page.getByRole('button', { name: 'Namen speichern' }).click();
-	await expect(page.getByText('Profil gespeichert')).toBeVisible();
+	await page.getByLabel('Display name').fill(displayName);
+	await page.getByRole('button', { name: 'Save name' }).click();
+	await expect(page.getByText('Profile saved')).toBeVisible();
 
 	// Picking a swatch is the save, and it raises a second toast carrying the
 	// same words - which would make the locator above ambiguous. So the round
 	// trip is read off the profile card's own avatar instead: it follows the
 	// session, which only changes once the server has answered.
-	await page.getByRole('radio', { name: 'Salbei' }).click();
+	await page.getByRole('radio', { name: 'Sage' }).click();
 	const avatar = page.locator('section[aria-labelledby="settings-profile"] span.size-14');
 	await expect(avatar).toHaveClass(/bg-user-sage/);
 
@@ -248,7 +248,7 @@ test('a member renames themselves and picks a colour, and their cards follow', a
 	// every read rather than copied onto the recipe.
 	await page.goto('/');
 	await search(page, token);
-	const circle = page.getByLabel(`Angelegt von ${displayName}`).locator('span').first();
+	const circle = page.getByLabel(`Added by ${displayName}`).locator('span').first();
 	await expect(circle).toHaveClass(/bg-user-sage/);
 	await expect(circle).toHaveText('S');
 });
@@ -257,7 +257,7 @@ test('an admin cannot rename a member, the owner can', async ({ page }) => {
 	const token = uniqueToken();
 	const member = `ren${token}`;
 	const admin = `adm${token}`;
-	const displayName = `Umbenannt ${token}`;
+	const displayName = `Renamed ${token}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await createUser(page, { username: member, role: 'user' });
@@ -274,11 +274,11 @@ test('an admin cannot rename a member, the owner can', async ({ page }) => {
 	// while the display name is what this test changes; svelte-sonner renders
 	// its toasts as listitems too.
 	const asAdmin = page
-		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('list', { name: 'Members' })
 		.getByRole('listitem')
 		.filter({ hasText: member });
 	await expect(asAdmin).toBeVisible();
-	await expect(asAdmin.getByRole('button', { name: 'Profil bearbeiten' })).toHaveCount(0);
+	await expect(asAdmin.getByRole('button', { name: 'Edit profile' })).toHaveCount(0);
 
 	// The `admin` the e2e task seeds is the instance owner, and renaming
 	// somebody else is theirs alone.
@@ -287,15 +287,15 @@ test('an admin cannot rename a member, the owner can', async ({ page }) => {
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	const row = page
-		.getByRole('list', { name: 'Benutzer' })
+		.getByRole('list', { name: 'Members' })
 		.getByRole('listitem')
 		.filter({ hasText: member });
-	await row.getByRole('button', { name: 'Profil bearbeiten' }).click();
+	await row.getByRole('button', { name: 'Edit profile' }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('Anzeigename').fill(displayName);
-	await dialog.getByRole('radio', { name: 'Petrol' }).click();
-	await dialog.getByRole('button', { name: 'Speichern' }).click();
-	await expect(page.getByText('Profil gespeichert')).toBeVisible();
+	await dialog.getByLabel('Display name').fill(displayName);
+	await dialog.getByRole('radio', { name: 'Teal' }).click();
+	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText('Profile saved')).toBeVisible();
 	await expect(row).toContainText(displayName);
 	await expect(row.locator('span.size-9')).toHaveClass(/bg-user-teal/);
 });
@@ -304,7 +304,7 @@ test('the settings page links to the user guide in a new tab', async ({ page }) 
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
-	const help = page.getByRole('link', { name: /Hilfe & Anleitung/ });
+	const help = page.getByRole('link', { name: /Help & guide/ });
 	await expect(help).toBeVisible();
 	await expect(help).toHaveAttribute('href', 'https://s-frei.github.io/rezepte/guide/');
 	await expect(help).toHaveAttribute('target', '_blank');

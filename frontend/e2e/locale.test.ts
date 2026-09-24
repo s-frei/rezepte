@@ -1,12 +1,21 @@
 import { expect, test } from '@playwright/test';
-import { createUser, devPassword, login, pinLocale, signOut, uniqueToken } from './helpers';
+import {
+	createRecipe,
+	createUser,
+	devPassword,
+	loadFixture,
+	login,
+	pinLocale,
+	signOut,
+	uniqueToken
+} from './helpers';
 
 // This spec, uniquely, bootstraps a throwaway member for every test rather
-// than logging in as `admin`. Everywhere else, `admin`'s own stored locale is
-// German (mise run e2e's REZEPTE_LOCALE=de), so `pinLocale` and the account
-// agree and nothing here is a fight. Switching languages, though, writes to
-// the account, not just the browser, and `admin` is read by every other spec
-// running in parallel against the same database - flipping it to English
+// than working as `admin`. Everywhere else, `admin`'s own stored locale is
+// the instance default, English, so `pinLocale` and the account agree and
+// nothing here is a fight. Switching languages, though, writes to the
+// account, not just the browser, and `admin` is read by every other spec
+// running in parallel against the same database - flipping it to German
 // mid-suite would fail them, intermittently, depending on scheduling. A
 // throwaway user's locale is nobody else's problem, so there is nothing to
 // put back afterwards.
@@ -50,50 +59,47 @@ test.describe('an English browser signing a German account in and out', () => {
 		await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
 		await expect(page.locator('html')).toHaveAttribute('lang', 'de');
 
-		await signOut(page, testInfo);
+		await signOut(page, testInfo, 'de');
 		await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 	});
 });
 
-test('a signed-in account whose locale is English sees the English UI', async ({ page }) => {
+test('a German account reads German, decimal comma included', async ({ page }) => {
 	const username = `lang${uniqueToken()}`;
-	// admin, only to create the throwaway member through the API - its own
-	// language is irrelevant here and login() leaves it pinned to German.
+	// admin, only to create the throwaway member through the API.
 	await login(page);
 	await expect(page).toHaveURL('/');
-	// mise run e2e bootstraps this instance with REZEPTE_LOCALE=de (see
-	// mise/tasks/e2e.sh), so every account defaults to German unless it says
-	// otherwise - this one has to say otherwise to be the English account
-	// this test is about.
-	await createUser(page, { username, role: 'user', locale: 'en' });
+	await createUser(page, { username, role: 'user', locale: 'de' });
 
+	// login() pins English for the form; the login response then hands over
+	// the account's own language.
 	await page.context().clearCookies();
-	await pinLocale(page, 'en');
-	await page.goto('/login');
-	await page.getByLabel('Username').fill(username);
-	await page.getByLabel('Password').fill(devPassword(username));
-	await page.getByRole('button', { name: 'Sign in' }).click();
-	// The overview headline, not the top bar's "New recipe" link: that link
-	// is desktop-only, and the phone project shows the bottom nav's "New"
+	await login(page, username);
+	// The overview headline, not the top bar's "Neues Rezept" link: that link
+	// is desktop-only, and the phone project shows the bottom nav's "Neu"
 	// instead, so the headline is the one thing both viewports render.
-	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
+
+	// Numbers follow the language too: format.ts hands getLocale() to
+	// Intl.NumberFormat, so a scaling factor reads with a comma here and a
+	// point in English (cooking.test.ts). 4 → 3 servings is ×0.75.
+	const recipe = await createRecipe(page, loadFixture(0, 'de'));
+	await page.goto(`/recipes/${recipe.slug}`);
+	await page.getByRole('button', { name: 'Weniger Portionen' }).click();
+	await expect(page.getByText('Für 3 Portionen · ×0,75')).toBeVisible();
 });
 
 test('switching to German changes the UI and survives a reload', async ({ page }) => {
 	const username = `lang${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
-	// Starts English (see the locale note above) so the click below is an
+	// Named although it is the default, because the click below has to be an
 	// actual switch, not a no-op.
 	await createUser(page, { username, role: 'user', locale: 'en' });
 
 	await page.context().clearCookies();
-	await pinLocale(page, 'en');
-	await page.goto('/login');
-	await page.getByLabel('Username').fill(username);
-	await page.getByLabel('Password').fill(devPassword(username));
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await login(page, username);
 	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
 
 	await page.goto('/settings');
@@ -122,11 +128,7 @@ test('a stale locale cookie gives way to the account on the next session load', 
 	await createUser(page, { username, role: 'user', locale: 'en' });
 
 	await page.context().clearCookies();
-	await pinLocale(page, 'en');
-	await page.goto('/login');
-	await page.getByLabel('Username').fill(username);
-	await page.getByLabel('Password').fill(devPassword(username));
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	await login(page, username);
 	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
 
 	// What a second device looks like once the language was changed on the

@@ -20,7 +20,7 @@ description: A new <Screenshot> name, its spec and its four PNGs
     });
     ```
 
-    `prepare` fixes the clock, sets the theme matching the project (light/dark) and optionally logs in as the demo admin (`demo` / `demo1234`). Use `ensureUser(page, username, role)` first when the shot needs a fixture the demo seed does not provide - it derives the password from the username ([Development credentials](/conventions/dev-credentials)) (the `settings` spec's `users` test creates a second account this way, so all four projects see it without seeding it four times). Write every locator against the English strings in `frontend/messages/en.json`: this suite runs against the demo instance's default locale, English, unlike `frontend/e2e`, which pins `REZEPTE_LOCALE=de` and writes German selectors instead - see [Languages](/features/languages).
+    `prepare` fixes the clock, sets the theme matching the project (light/dark) and optionally logs in as the demo admin (`demo` / `demo1234`). Use `ensureUser(page, username, role)` first when the shot needs a fixture the demo seed does not provide - it derives the password from the username ([Development credentials](/conventions/dev-credentials)) (the `settings` spec's `users` test creates a second account this way, so all four projects see it without seeding it four times). Write every locator against the English strings in `frontend/messages/en.json`: this suite runs against the demo instance's default locale, English, the same language as `frontend/e2e` - see [Languages](/features/languages).
 
   </Step>
   <Step>
