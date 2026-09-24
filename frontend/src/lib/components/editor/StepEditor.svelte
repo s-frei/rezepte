@@ -126,7 +126,12 @@
 	     svelte-dnd-action reads out while dragging (see its README); without
 	     them its announcements say "item" and "list". -->
 	<ul
-		use:dragHandleZone={{ items: steps, flipDurationMs: FLIP_DURATION, dropTargetStyle: {} }}
+		use:dragHandleZone={{
+			items: steps,
+			type: 'step',
+			flipDurationMs: FLIP_DURATION,
+			dropTargetStyle: {}
+		}}
 		onconsider={reorder}
 		onfinalize={reorder}
 		aria-label={m.editor_section_steps()}

@@ -139,6 +139,7 @@
 			<ul
 				use:dragHandleZone={{
 					items: group.ingredients,
+					type: 'ingredient',
 					flipDurationMs: FLIP_DURATION,
 					dropTargetStyle: {}
 				}}
