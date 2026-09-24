@@ -116,7 +116,7 @@
 		</button>
 		{#if images.length > 1}
 			<!-- `role="group"`: an `aria-label` on a bare `<div>` is ignored by
-			     screen readers, a labelled group is announced. -->
+			     screen readers, a labeled group is announced. -->
 			<div
 				role="group"
 				aria-label={m.images_thumbnails()}

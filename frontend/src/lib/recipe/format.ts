@@ -70,7 +70,7 @@ export function formatQuantity(quantity: number | null): string {
  * - An hour or more renders as hours and, when there's a remainder,
  *   minutes (`1 hr 30 min`, `2 hr`).
  *
- * The unit copy comes from the message catalogues (`duration_*`), not
+ * The unit copy comes from the message catalogs (`duration_*`), not
  * hardcoded here, so the examples read as the active language does.
  */
 export function formatMinutes(minutes: number | null): string {
@@ -100,7 +100,7 @@ export function formatFactor(from: number, to: number): string {
 
 /**
  * "serving" for exactly one, "servings" otherwise. Two plain keys instead of
- * an inlang plural variant: no catalogue uses one anywhere else, and a
+ * an inlang plural variant: no catalog uses one anywhere else, and a
  * one-vs-many split is all either language needs here.
  */
 export function servingsUnit(count: number): string {

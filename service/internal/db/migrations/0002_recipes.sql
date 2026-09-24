@@ -70,7 +70,7 @@ CREATE TABLE recipe_tags (
 );
 CREATE INDEX recipe_tags_tag_idx ON recipe_tags(tag_id);
 
-CREATE TABLE favourites (
+CREATE TABLE favorites (
     user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     recipe_id  TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
     created_at TEXT NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE favourites (
 );
 -- The primary key already covers lookups by user; this one serves the
 -- reverse direction, which the card lookup uses for a page of recipes.
-CREATE INDEX favourites_recipe_idx ON favourites(recipe_id);
+CREATE INDEX favorites_recipe_idx ON favorites(recipe_id);
 
 -- Images are uploaded in Phase 4; the table exists now so recipes.cover_image_id has a target.
 CREATE TABLE images (
@@ -104,7 +104,7 @@ CREATE VIRTUAL TABLE recipes_fts USING fts5(
 DROP TABLE step_references;
 DROP TABLE recipes_fts;
 DROP TABLE images;
-DROP TABLE favourites;
+DROP TABLE favorites;
 DROP TABLE recipe_tags;
 DROP TABLE tags;
 DROP TABLE steps;

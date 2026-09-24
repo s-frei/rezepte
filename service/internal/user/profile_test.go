@@ -62,7 +62,7 @@ func TestNormalizeDisplayName(t *testing.T) {
 	}
 }
 
-func TestFillPaletteReturnsEveryColourInOrder(t *testing.T) {
+func TestFillPaletteReturnsEveryColorInOrder(t *testing.T) {
 	got := fillPalette(map[Color]int{"sage": 2, "amber": 1})
 	if len(got) != len(Colors) {
 		t.Fatalf("len = %d; want %d", len(got), len(Colors))

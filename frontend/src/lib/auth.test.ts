@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { User } from './api/auth';
 
-// The catalogue the mocked runtime pretends the browser is rendering. The
+// The catalog the mocked runtime pretends the browser is rendering. The
 // cookie is what Paraglide reads it from, so this stands in for the cookie.
 let cookieLocale = 'en';
 

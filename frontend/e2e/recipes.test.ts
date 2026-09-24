@@ -316,7 +316,7 @@ test('filters by maximum time from the panel', async ({ page }) => {
 	// The scale is a list of stops, and the slider commits on every key
 	// press, so Home is one step to the tightest of them: 15 minutes, which
 	// is exactly the quick recipe's total and well under the slow one's.
-	// Driving it by keyboard rather than by a synthesised drag is also the
+	// Driving it by keyboard rather than by a synthesized drag is also the
 	// path a reader without a pointer takes, so the test covers that too.
 	const slider = page.getByRole('slider', { name: 'Maximum time' });
 	await slider.press('Home');
@@ -339,9 +339,9 @@ test('filters by maximum time from the panel', async ({ page }) => {
 // cannot correct it: in Tailwind v4 that utility writes the same `translate`
 // property the library already set inline, and loses to it. Both ended up
 // below the track, the thumb by most of its own height. Only properties the
-// library leaves alone (`top`, `margin`) can centre them, and only a
-// measurement can tell whether they are centred.
-test('centres the time slider thumb and stops on its track', async ({ page }) => {
+// library leaves alone (`top`, `margin`) can center them, and only a
+// measurement can tell whether they are centered.
+test('centers the time slider thumb and stops on its track', async ({ page }) => {
 	await page.goto('/');
 	await page.getByRole('button', { name: 'Filters' }).click();
 
@@ -426,15 +426,15 @@ test('stars a recipe from the card and keeps it after a reload', async ({ page }
 	await createRecipe(page, { ...loadFixture(1), title: `Star ${token}` });
 
 	await page.goto(`/?q=${token}`);
-	const star = page.getByRole('button', { name: 'Add to favourites' });
+	const star = page.getByRole('button', { name: 'Add to favorites' });
 	await star.click();
-	await expect(page.getByRole('button', { name: 'Remove from favourites' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
 
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Remove from favourites' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
 });
 
-test('filters the overview down to favourites', async ({ page }) => {
+test('filters the overview down to favorites', async ({ page }) => {
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(1), title: `Starred ${token}` });
 	await createRecipe(page, { ...loadFixture(2), title: `Unstarred ${token}` });
@@ -445,14 +445,14 @@ test('filters the overview down to favourites', async ({ page }) => {
 	// counts as "most recent" isn't guaranteed - and `.first()` below needs
 	// to land on "Starred" specifically.
 	await page.goto(`/?q=${token}&sort=title`);
-	await page.getByRole('button', { name: 'Add to favourites' }).first().click();
+	await page.getByRole('button', { name: 'Add to favorites' }).first().click();
 	await page.getByRole('button', { name: 'Filters' }).click();
 	// `role="switch"`, not checkbox: the control is a Switch, and Playwright's
 	// `check()` only drives a real checkbox or radio - clicking it and reading
 	// `aria-checked` back is what tells a switch was actually flipped.
-	const favourites = page.getByRole('switch', { name: 'Favourites only' });
-	await favourites.click();
-	await expect(favourites).toHaveAttribute('aria-checked', 'true');
+	const favorites = page.getByRole('switch', { name: 'Favorites only' });
+	await favorites.click();
+	await expect(favorites).toHaveAttribute('aria-checked', 'true');
 
 	await expect(cards(page)).toHaveText([`Starred ${token}`]);
 });

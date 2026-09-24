@@ -5,7 +5,7 @@ import { SITE_URL } from '@/lib/shared';
 export const dynamic = 'force-static';
 
 // This exports to /rezepte/robots.txt, which crawlers never read - robots.txt is only
-// honoured at the origin root, and that origin (s-frei.github.io) belongs to a
+// honored at the origin root, and that origin (s-frei.github.io) belongs to a
 // different repository. Kept anyway: it costs nothing, becomes correct if this site
 // ever moves to a custom domain, and documents intent. Until then the sitemap has to
 // be submitted to search engines manually (see

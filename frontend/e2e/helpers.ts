@@ -182,7 +182,7 @@ export async function openRecipeMenu(page: Page) {
 /**
  * A valid 64×64 RGB PNG built in-process (signature, IHDR, one deflated
  * IDAT, IEND), so the suite needs no binary fixtures. `tint` picks the
- * colour so two uploads are distinguishable in a screenshot.
+ * color so two uploads are distinguishable in a screenshot.
  *
  * 64 px is deliberate: the service rejects anything smaller than 64 px on
  * either side (`image.minSide`), so this is the cheapest picture it accepts.

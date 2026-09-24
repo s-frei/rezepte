@@ -77,7 +77,7 @@ cat > "$DIR/mise.local.toml" <<EOF
 # from it, so this worktree's services never collide with another's.
 #
 # Never commit this file. .gitignore excludes it at every depth, which is what
-# keeps an offset from travelling back into the main checkout and silently
+# keeps an offset from traveling back into the main checkout and silently
 # shifting its ports.
 #
 # [vars], not [env]: see the comment above the port block in the root mise.toml.

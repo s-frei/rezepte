@@ -86,7 +86,7 @@ func (a fullApp) get(path string, cookie *http.Cookie) *httptest.ResponseRecorde
 }
 
 // specRoutes is every route huma registers for the contract itself: the
-// OpenAPI document in all four flavours it emits (3.1 plus the 3.0
+// OpenAPI document in all four flavors it emits (3.1 plus the 3.0
 // downgrades, each as JSON and YAML), the schema registry and the Scalar
 // docs page. None of them is a huma operation, so auth.Middleware never
 // sees them - httpserver.WithSpecGuard is what covers them.

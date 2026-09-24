@@ -22,7 +22,7 @@
 	// This row is the only place tags are filtered from. An earlier version
 	// listed them a second time inside the filter panel, with the overflow
 	// button opening that panel - two ways to set the same filter, one of
-	// them behind a button that also holds time and favourites. Overflowing
+	// them behind a button that also holds time and favorites. Overflowing
 	// tags now stay here: the button unfolds this row into as many lines as
 	// it takes and folds it back again.
 	let expanded = $state(false);
@@ -246,7 +246,7 @@
 	     from the DOM rather than reading the real accessibility tree, and it
 	     does not special-case `inert` (confirmed by a strict-mode violation
 	     in the e2e suite once a chip in this twin shared its name with a
-	     visible one) -- `aria-hidden` is a rule it does honour. -->
+	     visible one) -- `aria-hidden` is a rule it does honor. -->
 	<div class="absolute h-0 w-0 overflow-hidden" inert aria-hidden="true">
 		<div {@attach registerMeasureRow} class="flex items-center gap-2">
 			{#each tags as tag (tag.name)}

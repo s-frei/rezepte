@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Star from 'lucide-svelte/icons/star';
 	import { toast } from 'svelte-sonner';
-	import { setFavourite } from '$lib/api/recipes';
+	import { setFavorite } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -28,10 +28,10 @@
 		active = !active;
 		busy = true;
 		try {
-			await setFavourite(id, active);
+			await setFavorite(id, active);
 		} catch {
 			active = previous;
-			toast.error(m.recipe_favourite_error());
+			toast.error(m.recipe_favorite_error());
 		} finally {
 			busy = false;
 		}
@@ -42,7 +42,7 @@
 	type="button"
 	onclick={toggle}
 	aria-pressed={active}
-	aria-label={active ? m.recipe_favourite_remove() : m.recipe_favourite_add()}
+	aria-label={active ? m.recipe_favorite_remove() : m.recipe_favorite_add()}
 	class="inline-flex size-9 items-center justify-center rounded-pill bg-surface shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 >
 	<Star

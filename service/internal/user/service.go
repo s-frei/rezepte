@@ -61,7 +61,7 @@ var (
 	ErrSuperadminProtected   = errors.New("the superadmin cannot be deleted, demoted or reset, and the role cannot be handed out")
 	ErrSuperadminRequired    = errors.New("only the superadmin can manage admins")
 	ErrNoSuperadmin          = errors.New("no superadmin in a non-empty users table; recreate the database")
-	ErrInvalidColor          = errors.New("unknown colour")
+	ErrInvalidColor          = errors.New("unknown color")
 	ErrDisplayNameTooLong    = errors.New("display name is too long")
 	ErrInvalidDisplayName    = errors.New("display name must not contain control characters")
 	ErrInvalidLocale         = errors.New("unknown interface language")
@@ -96,7 +96,7 @@ func NewService(conn *sql.DB, opts ...Option) *Service {
 
 // CreateParams is what it takes to open an account. DisplayName, Color and
 // Locale are optional: an empty DisplayName becomes the trimmed username, an
-// empty Color becomes the least-used colour of the palette, and an empty
+// empty Color becomes the least-used color of the palette, and an empty
 // Locale becomes the service's default locale, set from REZEPTE_LOCALE.
 // Create is the single writer of a user row - the API, the bootstrap and the
 // demo seed all reach the table through it - so those defaults belong here
@@ -162,9 +162,9 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 	return fromRow(row)
 }
 
-// defaultColor picks the colour for an account that did not ask for one. The
+// defaultColor picks the color for an account that did not ask for one. The
 // count and the insert are deliberately not one transaction: two accounts
-// created in the same instant can land on the same colour, and a duplicate is
+// created in the same instant can land on the same color, and a duplicate is
 // allowed by design, so there is nothing to lock against.
 func (s *Service) defaultColor(ctx context.Context) (Color, error) {
 	usage, err := s.ColorUsage(ctx)
@@ -174,12 +174,12 @@ func (s *Service) defaultColor(ctx context.Context) (Color, error) {
 	return leastUsed(usage), nil
 }
 
-// ColorUsage counts how many accounts hold each colour, in palette order,
-// including the colours nobody holds.
+// ColorUsage counts how many accounts hold each color, in palette order,
+// including the colors nobody holds.
 func (s *Service) ColorUsage(ctx context.Context) ([]ColorCount, error) {
 	rows, err := s.q.CountUsersByColor(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("count users by colour: %w", err)
+		return nil, fmt.Errorf("count users by color: %w", err)
 	}
 	counts := make(map[Color]int, len(rows))
 	for _, r := range rows {
@@ -247,14 +247,14 @@ func (s *Service) SetRole(ctx context.Context, actor User, id string, role Role)
 }
 
 // ProfileUpdate carries the fields a profile write may change. A nil field is
-// left as it stands, which is what lets one request set the colour alone.
+// left as it stands, which is what lets one request set the color alone.
 type ProfileUpdate struct {
 	DisplayName *string
 	Color       *Color
 	Locale      *Locale
 }
 
-// SetProfile writes a user's display name, colour and locale. It takes no actor and
+// SetProfile writes a user's display name, color and locale. It takes no actor and
 // performs no rank check: its two callers differ in who they may aim at - one
 // writes the caller's own row, the other only the owner's doing - and the
 // service cannot tell them apart. Authorization is decided at the API

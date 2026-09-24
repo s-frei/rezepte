@@ -1,5 +1,5 @@
 // Package recipe manages recipes: creation, editing, deletion and lookup,
-// including tag normalisation, slug assignment and full-text search
+// including tag normalization, slug assignment and full-text search
 // indexing.
 package recipe
 
@@ -56,7 +56,7 @@ type Image struct {
 // Person is somebody a recipe names - who wrote it, who last changed it -
 // with what the app shows of them. The whole of it travels with the recipe
 // because user management is admin-only: a member could resolve neither the
-// id nor the colour themselves.
+// id nor the color themselves.
 type Person struct {
 	ID          string `json:"id"`
 	Username    string `json:"username" doc:"Login name, which ?author= filters by"`
@@ -75,18 +75,18 @@ type Recipe struct {
 	CreatedBy    Person    `json:"createdBy"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	UpdatedBy    Person    `json:"updatedBy"`
-	// Favourite reports whether the caller has starred this recipe. It is
+	// Favorite reports whether the caller has starred this recipe. It is
 	// endpoint-dependent, not a property (*Service).ByID or (*Service).BySlug
 	// fill in themselves: only the get-recipe and get-recipe-by-slug handler
-	// operations populate it, each by calling fillFavourite (handler.go)
+	// operations populate it, each by calling fillFavorite (handler.go)
 	// after loading the Recipe. create-recipe and update-recipe return it as
 	// the zero value false unconditionally - Create's is accurate (nothing
-	// can have favourited a recipe that didn't exist a moment ago), Update's
-	// is not (an existing favourite is silently dropped from the response).
+	// can have favorited a recipe that didn't exist a moment ago), Update's
+	// is not (an existing favorite is silently dropped from the response).
 	// A future caller of ByID/BySlug - a new handler operation, say - gets
-	// false the same way unless it also calls fillFavourite or
-	// (*Service).IsFavourite itself.
-	Favourite bool `json:"favourite"`
+	// false the same way unless it also calls fillFavorite or
+	// (*Service).IsFavorite itself.
+	Favorite bool `json:"favorite"`
 }
 
 // Card is the summary of a recipe shown in listings.
@@ -98,7 +98,7 @@ type Card struct {
 	TotalMinutes *int      `json:"totalMinutes" nullable:"true"`
 	CoverImageID *string   `json:"coverImageId" nullable:"true"`
 	UpdatedAt    time.Time `json:"updatedAt"`
-	Favourite    bool      `json:"favourite"`
+	Favorite     bool      `json:"favorite"`
 	// Who wrote the recipe and who last changed it, in the same shape as on
 	// Recipe. The card shows them as initials.
 	CreatedBy Person `json:"createdBy"`

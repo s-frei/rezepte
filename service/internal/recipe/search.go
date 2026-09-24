@@ -26,19 +26,19 @@ const (
 // updated first, the default). Limit is clamped to [1, 100] (0 defaults to
 // 24); Page is clamped to at least 1.
 //
-// UserID is the caller's id, used to fill Card.Favourite for the returned
-// page and, when FavouritesOnly is set, to narrow the result to that
-// caller's own favourites. The handler sets it from auth.UserFrom(ctx) on
-// every list request, not only when a favourites filter is active -
+// UserID is the caller's id, used to fill Card.Favorite for the returned
+// page and, when FavoritesOnly is set, to narrow the result to that
+// caller's own favorites. The handler sets it from auth.UserFrom(ctx) on
+// every list request, not only when a favorites filter is active -
 // otherwise the star would be wrong on every card. An empty UserID
-// disables both the favourite lookup and the filter rather than matching
+// disables both the favorite lookup and the filter rather than matching
 // rows, so unauthenticated paths such as demo mode go through the same
 // code without querying on a caller's behalf.
 type ListParams struct {
-	Query          string
-	Tags           []string
-	MaxMinutes     int
-	FavouritesOnly bool
+	Query         string
+	Tags          []string
+	MaxMinutes    int
+	FavoritesOnly bool
 	// Author narrows to the recipes this username wrote. Empty switches
 	// the filter off; an unknown name matches nothing, so a stale link
 	// shows an empty grid rather than silently dropping the filter.
@@ -68,7 +68,7 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	}
 	offset := int64((page - 1) * limit)
 
-	// Normalised and de-duplicated here, not trusted from the caller: the
+	// Normalized and de-duplicated here, not trusted from the caller: the
 	// SQL matches on COUNT(DISTINCT t.name) = tag_count, so a duplicate tag
 	// would inflate tag_count past the distinct count and silently match
 	// nothing. The handler also calls NormalizeTagQuery, for the API-level
@@ -86,15 +86,15 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	}
 
 	// An empty UserID disables the filter outright, the same way it disables
-	// the per-card favourite lookup in toCards - it must not fall through to
+	// the per-card favorite lookup in toCards - it must not fall through to
 	// the SQL condition's own comparison of user_id against an empty string,
 	// which happens to match no row today but is a fail-closed accident, not
 	// a guarantee. This is what makes the doc comment on ListParams.UserID
 	// true for every path, not just the two that were built to already
 	// respect it.
-	favouritesOnly := p.FavouritesOnly && p.UserID != ""
+	favoritesOnly := p.FavoritesOnly && p.UserID != ""
 
-	rows, total, err := s.listRows(ctx, tags, ftsQuery(p.Query), int64(maxMinutes), favouritesOnly, p.UserID, p.Author, normalizeSort(p.Sort), int64(limit), offset)
+	rows, total, err := s.listRows(ctx, tags, ftsQuery(p.Query), int64(maxMinutes), favoritesOnly, p.UserID, p.Author, normalizeSort(p.Sort), int64(limit), offset)
 	if err != nil {
 		return Page{}, err
 	}
@@ -120,7 +120,7 @@ const (
 // to sortUpdated - the default - for anything else. That includes an
 // empty string and an injection-shaped value alike: sort never reaches SQL
 // as an identifier, only as a value compared inside a CASE (see the note
-// on ListRecipesFiltered), so normalising here is about a predictable API,
+// on ListRecipesFiltered), so normalizing here is about a predictable API,
 // not about safety the SQL doesn't already have on its own.
 func normalizeSort(sort string) string {
 	switch sort {
@@ -149,18 +149,18 @@ func clampLimit(limit int) int {
 // listRows runs the list/search query matching whether a full-text query is
 // set, returning the matching rows for one page plus the total number of
 // matches. query is already an FTS5 match expression (see ftsQuery) or "".
-// tags is assumed already normalised and de-duplicated, maxMinutes already
-// clamped to a non-negative value, and sort already normalised to one of
+// tags is assumed already normalized and de-duplicated, maxMinutes already
+// clamped to a non-negative value, and sort already normalized to one of
 // the three known values (see List and normalizeSort). userID is the
 // caller's id - see ListParams.UserID for what an empty one means for
-// favouritesOnly.
+// favoritesOnly.
 //
 // Only the full-text half needs two variants: the match cannot be switched
 // off from inside the query (see the note on SearchRecipesFiltered). Every
 // other filter is a condition the query itself disables, so a new one is a
 // line in the SQL rather than another branch here. sort is the exception:
 // it never touches the count queries, which have no ORDER BY.
-func (s *Service) listRows(ctx context.Context, tags []string, query string, maxMinutes int64, favouritesOnly bool, userID, author, sort string, limit, offset int64) ([]sqlc.Recipe, int64, error) {
+func (s *Service) listRows(ctx context.Context, tags []string, query string, maxMinutes int64, favoritesOnly bool, userID, author, sort string, limit, offset int64) ([]sqlc.Recipe, int64, error) {
 	// The tag names travel as a JSON array rather than a sqlc.slice: see
 	// the note on ListRecipesFiltered. A zero count switches the condition
 	// off, but the parameter still has to hold valid JSON, so a nil slice
@@ -175,21 +175,21 @@ func (s *Service) listRows(ctx context.Context, tags []string, query string, max
 	}
 
 	var favOnly int64
-	if favouritesOnly {
+	if favoritesOnly {
 		favOnly = 1
 	}
 
 	if query != "" {
 		rows, err := s.q.SearchRecipesFiltered(ctx, sqlc.SearchRecipesFilteredParams{
 			Query: query, TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-			FavouritesOnly: favOnly, UserID: userID, Author: author, Sort: sort, Limit: limit, Offset: offset,
+			FavoritesOnly: favOnly, UserID: userID, Author: author, Sort: sort, Limit: limit, Offset: offset,
 		})
 		if err != nil {
 			return nil, 0, fmt.Errorf("search recipes filtered: %w", err)
 		}
 		total, err := s.q.CountSearchRecipesFiltered(ctx, sqlc.CountSearchRecipesFilteredParams{
 			Query: query, TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-			FavouritesOnly: favOnly, UserID: userID, Author: author,
+			FavoritesOnly: favOnly, UserID: userID, Author: author,
 		})
 		if err != nil {
 			return nil, 0, fmt.Errorf("count search recipes filtered: %w", err)
@@ -199,14 +199,14 @@ func (s *Service) listRows(ctx context.Context, tags []string, query string, max
 
 	rows, err := s.q.ListRecipesFiltered(ctx, sqlc.ListRecipesFilteredParams{
 		TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-		FavouritesOnly: favOnly, UserID: userID, Author: author, Sort: sort, Limit: limit, Offset: offset,
+		FavoritesOnly: favOnly, UserID: userID, Author: author, Sort: sort, Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list recipes filtered: %w", err)
 	}
 	total, err := s.q.CountRecipesFiltered(ctx, sqlc.CountRecipesFilteredParams{
 		TagNames: string(names), TagCount: tagCount, MaxMinutes: maxMinutes,
-		FavouritesOnly: favOnly, UserID: userID, Author: author,
+		FavoritesOnly: favOnly, UserID: userID, Author: author,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count recipes filtered: %w", err)
@@ -218,7 +218,7 @@ func (s *Service) listRows(ctx context.Context, tags []string, query string, max
 // ListRecipesFiltered and SearchRecipesFiltered actually return into
 // sqlc.Recipe. Both queries select from a CTE (see the note on
 // ListRecipesFiltered for why sort forces that) rather than straight from
-// the recipes table, so sqlc synthesises a query-specific row type instead
+// the recipes table, so sqlc synthesizes a query-specific row type instead
 // of reusing sqlc.Recipe - even though its fields are identical, name,
 // type and order, to sqlc.Recipe's. That identity is exactly what makes
 // the per-element conversion below valid Go: converting the whole slice in
@@ -241,15 +241,15 @@ func toRecipesFromSearch(rows []sqlc.SearchRecipesFilteredRow) []sqlc.Recipe {
 	return out
 }
 
-// toCards loads the tags, the authors' display names and colours and, when
-// userID is set, the favourite state for rows in one batch each and
+// toCards loads the tags, the authors' display names and colors and, when
+// userID is set, the favorite state for rows in one batch each and
 // assembles them into Cards, in the same order as rows. It always returns a
 // non-nil slice.
 //
-// An empty userID disables the favourite batch entirely rather than
+// An empty userID disables the favorite batch entirely rather than
 // querying with an empty id: unauthenticated paths such as demo mode call
 // List the same way authenticated ones do, and must not have every card
-// come back favourited by matching favourites rows that happen to carry no
+// come back favorited by matching favorites rows that happen to carry no
 // user id.
 func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string) ([]Card, error) {
 	items := make([]Card, 0, len(rows))
@@ -291,25 +291,25 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		authors[a.ID] = Person{ID: a.ID, Username: a.Username, DisplayName: a.DisplayName, Color: a.Color}
 	}
 
-	favourites := make(map[string]bool)
+	favorites := make(map[string]bool)
 	if userID != "" {
 		idsJSON, err := json.Marshal(ids)
 		if err != nil {
 			return nil, fmt.Errorf("marshal recipe ids: %w", err)
 		}
-		favIDs, err := s.q.ListFavouriteRecipeIDs(ctx, sqlc.ListFavouriteRecipeIDsParams{
+		favIDs, err := s.q.ListFavoriteRecipeIDs(ctx, sqlc.ListFavoriteRecipeIDsParams{
 			UserID: userID, RecipeIds: string(idsJSON),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("list favourite recipe ids: %w", err)
+			return nil, fmt.Errorf("list favorite recipe ids: %w", err)
 		}
 		for _, id := range favIDs {
-			favourites[id] = true
+			favorites[id] = true
 		}
 	}
 
 	for _, r := range rows {
-		card, err := toCard(r, tagsByRecipe[r.ID], favourites[r.ID],
+		card, err := toCard(r, tagsByRecipe[r.ID], favorites[r.ID],
 			authors[r.CreatedBy], authors[r.UpdatedBy])
 		if err != nil {
 			return nil, err
@@ -320,9 +320,9 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 }
 
 // toCard builds a Card from a stored recipe row, its tag names, whether the
-// caller has favourited it and the display name/colour pair behind each of
+// caller has favorited it and the display name/color pair behind each of
 // its two author columns.
-func toCard(row sqlc.Recipe, tags []string, favourite bool, createdBy, updatedBy Person) (Card, error) {
+func toCard(row sqlc.Recipe, tags []string, favorite bool, createdBy, updatedBy Person) (Card, error) {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -338,7 +338,7 @@ func toCard(row sqlc.Recipe, tags []string, favourite bool, createdBy, updatedBy
 		TotalMinutes: totalMinutes(row.PrepMinutes, row.CookMinutes),
 		CoverImageID: row.CoverImageID,
 		UpdatedAt:    updated,
-		Favourite:    favourite,
+		Favorite:     favorite,
 
 		CreatedBy: createdBy,
 		UpdatedBy: updatedBy,

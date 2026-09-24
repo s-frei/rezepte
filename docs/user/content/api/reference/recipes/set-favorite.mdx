@@ -1,6 +1,6 @@
 ---
-title: '/api/v1/recipes/{id}/favourite'
-description: Mark a recipe as a favourite
+title: '/api/v1/recipes/{id}/favorite'
+description: Mark a recipe as a favorite
 full: true
 _openapi:
   preload:
@@ -20,7 +20,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="./public/openapi.json" operations={[{"path":"/api/v1/recipes/{id}/favourite","method":"put"}]} />
+      <OpenAPIPage document="./public/openapi.json" operations={[{"path":"/api/v1/recipes/{id}/favorite","method":"put"}]} />
     </>
   );
 }

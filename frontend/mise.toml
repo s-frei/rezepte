@@ -20,7 +20,7 @@ description = "Run Playwright tests (expects the app on E2E_BASE_URL or :8060 at
 run = "bun run test:e2e"
 
 [tasks."messages:parity"]
-description = "Fail if the message catalogues do not hold the same keys"
+description = "Fail if the message catalogs do not hold the same keys"
 run = "bun run messages:parity"
 
 [tasks.check]

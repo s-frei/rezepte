@@ -57,7 +57,7 @@
 </script>
 
 <!--
-	Labelled like the colour picker beside it, because it is a field of the
+	Labeled like the color picker beside it, because it is a field of the
 	profile card rather than a card of its own: a short visible caption, the
 	control's accessible name carried separately.
 

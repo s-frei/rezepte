@@ -66,7 +66,7 @@
 	// against the compiled output, the caller's classes lost). Matched
 	// against the closed set of this design system's font-size tokens
 	// (`app.css`) and Tailwind's font-weight keywords specifically, rather
-	// than a bare `text-`/`font-` prefix: `text-` also names colour
+	// than a bare `text-`/`font-` prefix: `text-` also names color
 	// utilities (UserRow.svelte's role pill passes `text-accent-foreground`
 	// / `text-text-muted`, which must NOT suppress the default size here)
 	// and `font-` also names this app's font-family tokens (`font-display`,
@@ -99,13 +99,13 @@
 		<!--
 			align="start" rather than the floating default: a trigger stretched
 			by its container (the create-token form makes it form-wide) would
-			otherwise centre the list on the full width while the visible label
+			otherwise center the list on the full width while the visible label
 			sits at the left edge, putting the list beside the control it
 			belongs to. Aligning on the start edge is what a select is expected
 			to do at any trigger width.
 
 			bg-surface-elevated with a border, not bg-surface: inside a dialog
-			the card is already bg-surface, so a list in the same colour has no
+			the card is already bg-surface, so a list in the same color has no
 			visible edge, and shadow-dialog does not read against the dark
 			scheme's surfaces.
 

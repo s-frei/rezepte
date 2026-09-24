@@ -3,7 +3,7 @@
 	import { imageUrl, type RecipeCard as RecipeCardData } from '$lib/api/recipes';
 	import { formatMinutes } from '$lib/recipe/format';
 	import AuthorInitials from './AuthorInitials.svelte';
-	import FavouriteStar from './FavouriteStar.svelte';
+	import FavoriteStar from './FavoriteStar.svelte';
 	import PlaceholderTile from './PlaceholderTile.svelte';
 
 	let { recipe }: { recipe: RecipeCardData } = $props();
@@ -32,7 +32,7 @@
 	link alone: pointing at the star or the initials leaves the card at rest,
 	which is what you want once the hover state grows into an animation.
 
-	`<article>` labelled by the title, rather than a bare `<div>`: with the
+	`<article>` labeled by the title, rather than a bare `<div>`: with the
 	anchor no longer wrapping the card, the title is the only thing that
 	names it, and this is what gives the whole card back a name - one a
 	screen reader can announce and a test can address.
@@ -56,7 +56,7 @@
 		{/if}
 	</div>
 	<div class="px-4 pt-2 pb-[18px]">
-		<!-- The title is what you recognise the card by, so it wraps rather than
+		<!-- The title is what you recognize the card by, so it wraps rather than
 		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
 		     reserved either way, so the time pills of a row stay on one line.
 		     A phone card leaves 124px of text, which German compounds outrun on
@@ -109,6 +109,6 @@
 	     = 14px = 8px padding + 6px inset) to land inside the image tile with
 	     even clearance on both edges, rather than flush on its corner. -->
 	<div class="absolute top-3 right-3 md:top-3.5 md:right-3.5">
-		<FavouriteStar id={recipe.id} active={recipe.favourite} />
+		<FavoriteStar id={recipe.id} active={recipe.favorite} />
 	</div>
 </article>

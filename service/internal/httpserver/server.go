@@ -74,7 +74,7 @@ func WithVersion(v string) Option {
 // WithSecuritySchemes declares the OpenAPI security schemes the operations
 // refer to. huma.DefaultConfig declares none, so without this the emitted
 // document names schemes it never defines and the docs page offers no way to
-// authorise. The map comes from the auth package, which owns the names -
+// authorize. The map comes from the auth package, which owns the names -
 // httpserver stays ignorant of how authentication works, exactly as it does
 // for WithAPIMiddleware.
 func WithSecuritySchemes(schemes map[string]*huma.SecurityScheme) Option {
@@ -105,7 +105,7 @@ var installErrorHookOnce sync.Once
 // calls both for handler errors and from huma.WriteErr - so that a plain
 // error returned from a handler (mapped by huma to a 500) never leaks its
 // message (which may contain internal details such as SQL driver errors) to
-// the client. Status codes below 500 keep huma's normal behaviour via the
+// the client. Status codes below 500 keep huma's normal behavior via the
 // captured original constructor.
 func installErrorHook() {
 	installErrorHookOnce.Do(func() {
@@ -205,7 +205,7 @@ func (s *Server) guardSpec(next http.Handler) http.Handler {
 	})
 }
 
-// Run serves until ctx is cancelled, then shuts down gracefully.
+// Run serves until ctx is canceled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:              s.cfg.Addr,

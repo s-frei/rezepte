@@ -32,7 +32,7 @@ describe('overviewViewState', () => {
 		});
 	});
 
-	// Pins the bug fixed alongside this generalisation: overviewViewState used
+	// Pins the bug fixed alongside this generalization: overviewViewState used
 	// to take `q`/`tagCount` separately, so a filter this function did not
 	// know about yet (maximum time) fell through as "no filter active" and a
 	// time-only search with zero matches showed the "create your first

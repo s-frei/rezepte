@@ -186,7 +186,7 @@ func Register(api huma.API, svc *Service) {
 // limitUpload enforces the upload cap on the wire. huma's multipart path
 // does not apply Operation.MaxBodyBytes (verified in v2.39.1: humago's
 // GetMultipartForm calls ParseMultipartForm with no limit reader, and
-// readBody, which honours MaxBodyBytes, is only used for non-multipart
+// readBody, which honors MaxBodyBytes, is only used for non-multipart
 // bodies). A declared Content-Length above the cap is answered 413 before
 // anything is read; http.MaxBytesReader stops chunked or lying clients at
 // the cap, which huma then reports as a 422 on "body".

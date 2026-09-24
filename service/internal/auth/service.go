@@ -162,7 +162,7 @@ func (s *Service) DeleteExpired(ctx context.Context) error {
 	return nil
 }
 
-// SweepLoop calls DeleteExpired every d until ctx is cancelled, logging
+// SweepLoop calls DeleteExpired every d until ctx is canceled, logging
 // failures instead of returning them so a transient DB error never takes
 // the sweep down permanently. Intended to run in its own goroutine.
 func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.Logger) {

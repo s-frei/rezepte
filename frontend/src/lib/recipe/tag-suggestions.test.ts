@@ -37,7 +37,7 @@ describe('tagSuggestions', () => {
 		expect(tagSuggestions({ query: 'nudel', known, selected: [] }).create).toBe('nudel');
 	});
 
-	it('normalises the query before comparing', () => {
+	it('normalizes the query before comparing', () => {
 		expect(tagSuggestions({ query: '  NUDELN ', known, selected: [] })).toEqual({
 			matches: ['nudeln'],
 			create: null
@@ -64,7 +64,7 @@ describe('tagSuggestions', () => {
 		});
 	});
 
-	it('normalises known and selected entries instead of trusting them', () => {
+	it('normalizes known and selected entries instead of trusting them', () => {
 		expect(
 			tagSuggestions({ query: 'des', known: ['Dessert', 'SÜSS'], selected: [' süss '] })
 		).toEqual({ matches: ['dessert'], create: 'des' });

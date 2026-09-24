@@ -3,7 +3,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
 
-	// Shared Overlay + Content wrapper for the app's small centred dialogs
+	// Shared Overlay + Content wrapper for the app's small centered dialogs
 	// (confirm, create/reset user). The command palette has its own layout
 	// (top-anchored, wider, different padding) and isn't a caller of this.
 	let {

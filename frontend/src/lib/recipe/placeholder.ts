@@ -6,7 +6,7 @@ export type Tint = (typeof TINTS)[number];
  * Deterministically maps a recipe id to one of the three placeholder tint
  * tokens (`tint-1` / `tint-2` / `tint-3`).
  *
- * Used to give a recipe without a cover photo a stable background colour
+ * Used to give a recipe without a cover photo a stable background color
  * (the same id always renders in the same tint), while spreading recipes
  * roughly evenly across the three tones. The hash itself has no meaning
  * beyond that - it's not a content fingerprint.

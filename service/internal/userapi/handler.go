@@ -41,7 +41,7 @@ type createInput struct {
 		Password    string       `json:"password" minLength:"8" maxLength:"128"`
 		Role        string       `json:"role" enum:"admin,user"`
 		DisplayName *string      `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
-		Color       *string      `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Omitted picks the least-used colour"`
+		Color       *string      `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Omitted picks the least-used color"`
 		Locale      *user.Locale `json:"locale,omitempty" doc:"Interface language; defaults to REZEPTE_LOCALE"`
 	}
 }

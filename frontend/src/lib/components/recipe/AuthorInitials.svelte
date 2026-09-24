@@ -54,14 +54,14 @@
 			-->
 			<span
 				aria-hidden="true"
-				class="relative flex size-5 items-center justify-center rounded-full initial-centred font-display text-micro font-semibold ring-2 ring-surface {userColorClasses(
+				class="relative flex size-5 items-center justify-center rounded-full initial-centered font-display text-micro font-semibold ring-2 ring-surface {userColorClasses(
 					person.color
 				)} {index > 0 ? '-ml-1.5' : ''}"
 			>
 				<!--
-					`items-center` centres the line box, not the letter. A capital
+					`items-center` centers the line box, not the letter. A capital
 					has no descender, so the descender space the font reserves
-					below the baseline pushes the visible glyph down off centre.
+					below the baseline pushes the visible glyph down off center.
 					How far is a property of the font alone - the circle's size
 					and the line height both cancel out of the arithmetic:
 
@@ -86,13 +86,13 @@
 			`inverse`, the same pair toasts and the bottom nav use: it is the
 			palette's "something laid over the page" role, and it inverts with
 			the theme by itself. The dropdowns' `surface` cannot do that job
-			here - it is the card's own colour, so in dark mode the panel
+			here - it is the card's own color, so in dark mode the panel
 			dissolved into the card it hangs from, and even in light mode a
-			panel sharing the card's width, edge and colour family read as a
+			panel sharing the card's width, edge and color family read as a
 			second piece of the card rather than as an overlay.
 
 			The radius stays `rounded-2xl`, like every other floating panel in
-			the app: with the colour doing the separating, the shape no longer
+			the app: with the color doing the separating, the shape no longer
 			has to, and a flatter corner here would only make this one panel
 			the odd shape out.
 

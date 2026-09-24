@@ -42,7 +42,7 @@
 	let q = $state(untrack(() => data.q));
 	let tags = $state<string[]>(untrack(() => data.tags));
 	let maxMinutes = $state(untrack(() => data.maxMinutes));
-	let favouritesOnly = $state(untrack(() => data.favourites));
+	let favoritesOnly = $state(untrack(() => data.favorites));
 	let author = $state(untrack(() => data.author));
 	let sort = $state<Sort>(untrack(() => data.sort));
 	// The furthest page fetched for the current filters - the initial value
@@ -73,7 +73,7 @@
 	// recipes at all" apart from "no recipes match". A later filter section
 	// adds its own clause here rather than teaching either of those about it.
 	const filtered = $derived(
-		q !== '' || tags.length > 0 || maxMinutes > 0 || favouritesOnly || author !== ''
+		q !== '' || tags.length > 0 || maxMinutes > 0 || favoritesOnly || author !== ''
 	);
 	const viewState = $derived(
 		overviewViewState({
@@ -87,7 +87,7 @@
 	const isNoResults = $derived(viewState.isNoResults);
 	const canLoadMore = $derived(viewState.canLoadMore);
 	// Sum of everything narrowing the list: selected tags, an active time
-	// filter and the favourites switch, written as a sum so a later filter
+	// filter and the favorites switch, written as a sum so a later filter
 	// adds its own term here rather than rewriting this into a sum. The
 	// tags are counted even though they are set outside the panel the
 	// badge sits on - the badge answers "how far is the list narrowed",
@@ -97,7 +97,7 @@
 	// different order, so counting it would be a lie - see the matching
 	// note on FilterPanel's `sort` prop.
 	const filterCount = $derived(
-		tags.length + (maxMinutes > 0 ? 1 : 0) + (favouritesOnly ? 1 : 0) + (author !== '' ? 1 : 0)
+		tags.length + (maxMinutes > 0 ? 1 : 0) + (favoritesOnly ? 1 : 0) + (author !== '' ? 1 : 0)
 	);
 
 	function syncUrl() {
@@ -105,7 +105,7 @@
 			q,
 			tags,
 			maxMinutes,
-			favourites: favouritesOnly,
+			favorites: favoritesOnly,
 			author,
 			sort,
 			page: pageNum
@@ -141,7 +141,7 @@
 					q: q || undefined,
 					tags,
 					maxMinutes,
-					favourites: favouritesOnly,
+					favorites: favoritesOnly,
 					author: author || undefined,
 					sort,
 					page: pageToFetch
@@ -187,8 +187,8 @@
 		void fetchPage(1, false);
 	}
 
-	function setFavouritesOnly(value: boolean) {
-		favouritesOnly = value;
+	function setFavoritesOnly(value: boolean) {
+		favoritesOnly = value;
 		pageNum = 1;
 		void fetchPage(1, false);
 	}
@@ -213,7 +213,7 @@
 		q = '';
 		tags = [];
 		maxMinutes = 0;
-		favouritesOnly = false;
+		favoritesOnly = false;
 		author = '';
 		pageNum = 1;
 		void fetchPage(1, false);
@@ -245,8 +245,8 @@
 	 * so without reseeding it the grid would keep showing the old filter and
 	 * the next `syncUrl()` would put it straight back into the URL.
 	 *
-	 * `buildListQuery` normalises what it is handed (see `$lib/recipe/query`),
-	 * so comparing it against the string `syncUrl` wrote recognises the page's
+	 * `buildListQuery` normalizes what it is handed (see `$lib/recipe/query`),
+	 * so comparing it against the string `syncUrl` wrote recognizes the page's
 	 * own updates and leaves them alone.
 	 */
 	function followUrl() {
@@ -255,7 +255,7 @@
 			q = next.q;
 			tags = next.tags;
 			maxMinutes = next.maxMinutes;
-			favouritesOnly = next.favourites;
+			favoritesOnly = next.favorites;
 			author = next.author;
 			sort = next.sort;
 			pageNum = next.page;
@@ -310,13 +310,13 @@
 			<SearchBar id={SEARCH_FIELD_ID} bind:value={q} onsearch={handleSearch} class="md:max-w-md" />
 			<FilterPanel
 				{maxMinutes}
-				{favouritesOnly}
+				{favoritesOnly}
 				{author}
 				{authors}
 				{sort}
 				{filterCount}
 				onmaxminutes={setMaxMinutes}
-				onfavourites={setFavouritesOnly}
+				onfavorites={setFavoritesOnly}
 				onauthor={setAuthor}
 				onsort={setSort}
 				onreset={resetFilters}
@@ -378,7 +378,7 @@
 				</Button>
 			</EmptyState>
 		{:else if isNoResults}
-			<!-- Only a typed term gets quoted back. Tags, time and favourites
+			<!-- Only a typed term gets quoted back. Tags, time and favorites
 			     narrow the list just as well, but naming them in the same
 			     sentence would quote something nobody typed - and with none of
 			     them typed at all, the sentence used to close around an empty

@@ -11,7 +11,7 @@ import (
 //
 // The anchor is deliberately made of names rather than indices. Ingredients have
 // no stable identity - writeChildren mints a fresh UUIDv7 for every one of them
-// on every save - and a positional anchor would silently point at a neighbour
+// on every save - and a positional anchor would silently point at a neighbor
 // once anything above it is deleted. A name that no longer resolves leaves the
 // word as the word the author wrote, so every failure mode is "no reference"
 // rather than "wrong reference".

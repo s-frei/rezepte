@@ -9,7 +9,7 @@ description: A new interface language, end to end
 
 </Callout>
 
-A language is two files: its code in `service/internal/i18n/locales.json` and its catalogue in `frontend/messages/`. Everything else reads that list - see [Languages](/features/languages) for how. The user docs carry the contributor's version of these steps in `docs/user/content/contributing/add-a-language.mdx`; keep the two in step.
+A language is two files: its code in `service/internal/i18n/locales.json` and its catalog in `frontend/messages/`. Everything else reads that list - see [Languages](/features/languages) for how. The user docs carry the contributor's version of these steps in `docs/user/content/contributing/add-a-language.mdx`; keep the two in step.
 
 <Steps>
   <Step>
@@ -29,8 +29,8 @@ A language is two files: its code in `service/internal/i18n/locales.json` and it
   </Step>
   <Step>
 
-    ### Translate the catalogue
-    Copy `frontend/messages/en.json` to `frontend/messages/<locale>.json` and translate every value, keeping every key and every `{param}` placeholder exactly as it stands. The catalogues are peers, not a source and its translations: `mise run check` fails while any of them is missing a key the others have (`frontend/scripts/message-parity.ts`), and while a listed locale has no catalogue at all (`service/internal/i18n/i18n_test.go`).
+    ### Translate the catalog
+    Copy `frontend/messages/en.json` to `frontend/messages/<locale>.json` and translate every value, keeping every key and every `{param}` placeholder exactly as it stands. The catalogs are peers, not a source and its translations: `mise run check` fails while any of them is missing a key the others have (`frontend/scripts/message-parity.ts`), and while a listed locale has no catalog at all (`service/internal/i18n/i18n_test.go`).
 
     Do not add a key for the language's own name. The picker gets those from `Intl.DisplayNames`.
 
@@ -52,7 +52,7 @@ A language is two files: its code in `service/internal/i18n/locales.json` and it
   <Step>
 
     ### Run the gate
-    `mise run check` covers the catalogues, the Go suite and the frontend. Then `RZP_DEMO_LOCALE=<locale> mise run demo` starts an instance in the new language to look at. `mise/tasks/demo.sh` prefers `RZP_DEMO_LOCALE` over `REZEPTE_LOCALE`, so this works even when a `mise.local.toml` sets `REZEPTE_LOCALE`, whose config env would win over one given on the command line.
+    `mise run check` covers the catalogs, the Go suite and the frontend. Then `RZP_DEMO_LOCALE=<locale> mise run demo` starts an instance in the new language to look at. `mise/tasks/demo.sh` prefers `RZP_DEMO_LOCALE` over `REZEPTE_LOCALE`, so this works even when a `mise.local.toml` sets `REZEPTE_LOCALE`, whose config env would win over one given on the command line.
 
   </Step>
 </Steps>

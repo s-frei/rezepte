@@ -48,7 +48,7 @@ export function Screenshot({ name, caption, mobile = false }: Props) {
 			{(['light', 'dark'] as const).map((scheme) => {
 				const file = `${name}-${device}-${scheme}.png`;
 				const visibility = scheme === 'light' ? 'dark:hidden' : 'hidden dark:block';
-				// The placeholder centres its text, so its dark variant has to restore
+				// The placeholder centers its text, so its dark variant has to restore
 				// `display: flex` rather than `block`, which would beat the `flex` utility.
 				const placeholderVisibility = scheme === 'light' ? 'flex dark:hidden' : 'hidden dark:flex';
 				if (hasPng(file)) {

@@ -16,7 +16,7 @@ type ApiToken struct {
 	CreatedAt   string
 }
 
-type Favourite struct {
+type Favorite struct {
 	UserID    string
 	RecipeID  string
 	CreatedAt string

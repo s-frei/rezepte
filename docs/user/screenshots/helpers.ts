@@ -10,7 +10,7 @@ export function isMobile(testInfo: TestInfo): boolean {
 }
 
 /**
- * Fixes the clock, stores the theme matching the project's colour scheme
+ * Fixes the clock, stores the theme matching the project's color scheme
  * (the app reads `rezepte-theme` before first paint and sets `data-theme` on
  * <html>, see frontend/src/app.html) and optionally logs in as the demo
  * admin.

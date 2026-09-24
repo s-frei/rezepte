@@ -8,7 +8,7 @@
 // the rest of the inlang settings is frontend build configuration and stays
 // in vite.config.ts.
 //
-// Adding a language is therefore that file plus its catalogue in
+// Adding a language is therefore that file plus its catalog in
 // frontend/messages/; nothing in Go changes.
 package i18n
 
@@ -39,7 +39,7 @@ func Locales() []string {
 }
 
 // BaseLocale returns the language everything falls back to: a string missing
-// from a catalogue, a browser asking for a language the app does not have,
+// from a catalog, a browser asking for a language the app does not have,
 // and an instance whose operator configured none.
 func BaseLocale() string {
 	return parsed.BaseLocale

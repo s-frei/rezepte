@@ -298,7 +298,7 @@ func TestUpdateOwnProfile(t *testing.T) {
 	}
 }
 
-func TestUpdateOwnProfileSetsTheColourAlone(t *testing.T) {
+func TestUpdateOwnProfileSetsTheColorAlone(t *testing.T) {
 	h := newHandler(t)
 	cookie := login(t, h)
 
@@ -321,7 +321,7 @@ func TestUpdateOwnProfileRefusesAnEmptyBody(t *testing.T) {
 	}
 }
 
-func TestUpdateOwnProfileRefusesAnUnknownColour(t *testing.T) {
+func TestUpdateOwnProfileRefusesAnUnknownColor(t *testing.T) {
 	h := newHandler(t)
 	cookie := login(t, h)
 
@@ -371,7 +371,7 @@ func TestListColorUsageReturnsThePaletteInOrder(t *testing.T) {
 			t.Fatalf("items[%d] = %q, want %q", i, body.Items[i].Color, c)
 		}
 	}
-	// The seeded "sam" holds the first colour of the palette, nobody holds
+	// The seeded "sam" holds the first color of the palette, nobody holds
 	// the second.
 	if body.Items[0].Count != 1 || body.Items[1].Count != 0 {
 		t.Errorf("counts %+v; want 1 and 0", body.Items[:2])

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { prepare, shot } from './helpers';
 
 // Servings scaling and cooking mode: a "servings" stepper on the detail
-// page (buttons labelled "Fewer servings" / "More servings", value
+// page (buttons labeled "Fewer servings" / "More servings", value
 // "<n> servings"), a full-screen /recipes/[slug]/cook and a collapsible
 // ingredient sheet ("Ingredients · <n>"). The locators below match that
 // markup. Keep the test names - they are the contract with

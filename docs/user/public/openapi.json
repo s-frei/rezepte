@@ -151,7 +151,7 @@
           "createdBy": {
             "$ref": "#/components/schemas/Person"
           },
-          "favourite": {
+          "favorite": {
             "type": "boolean"
           },
           "id": {
@@ -195,7 +195,7 @@
           "totalMinutes",
           "coverImageId",
           "updatedAt",
-          "favourite",
+          "favorite",
           "createdBy",
           "updatedBy"
         ],
@@ -264,7 +264,7 @@
             "type": "string"
           },
           "items": {
-            "description": "Every palette colour and how many accounts hold it, in palette order",
+            "description": "Every palette color and how many accounts hold it, in palette order",
             "items": {
               "$ref": "#/components/schemas/ColorCount"
             },
@@ -314,7 +314,7 @@
             "type": "string"
           },
           "color": {
-            "description": "Omitted picks the least-used colour",
+            "description": "Omitted picks the least-used color",
             "enum": [
               "amber",
               "clay",
@@ -993,7 +993,7 @@
             "maxLength": 2000,
             "type": "string"
           },
-          "favourite": {
+          "favorite": {
             "type": "boolean"
           },
           "id": {
@@ -1090,7 +1090,7 @@
           "createdBy",
           "updatedAt",
           "updatedBy",
-          "favourite",
+          "favorite",
           "title",
           "description",
           "servings",
@@ -1673,7 +1673,7 @@
     },
     "/api/v1/auth/me/colors": {
       "get": {
-        "description": "Counts, not names: the picker needs to mark a colour as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.",
+        "description": "Counts, not names: the picker needs to mark a color as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.",
         "operationId": "list-color-usage",
         "responses": {
           "200": {
@@ -1712,7 +1712,7 @@
             "session": []
           }
         ],
-        "summary": "List the colour palette and how many accounts hold each colour",
+        "summary": "List the color palette and how many accounts hold each color",
         "tags": [
           "auth"
         ]
@@ -1786,7 +1786,7 @@
             "session": []
           }
         ],
-        "summary": "Change the current user's display name, colour and interface language",
+        "summary": "Change the current user's display name, color and interface language",
         "tags": [
           "auth"
         ]
@@ -1878,12 +1878,12 @@
             }
           },
           {
-            "description": "Restrict to the caller's own favourites",
+            "description": "Restrict to the caller's own favorites",
             "explode": false,
             "in": "query",
-            "name": "favourites",
+            "name": "favorites",
             "schema": {
-              "description": "Restrict to the caller's own favourites",
+              "description": "Restrict to the caller's own favorites",
               "type": "boolean"
             }
           },
@@ -2396,9 +2396,9 @@
         ]
       }
     },
-    "/api/v1/recipes/{id}/favourite": {
+    "/api/v1/recipes/{id}/favorite": {
       "delete": {
-        "operationId": "delete-favourite",
+        "operationId": "delete-favorite",
         "parameters": [
           {
             "in": "path",
@@ -2434,13 +2434,13 @@
             ]
           }
         ],
-        "summary": "Clear a recipe's favourite mark",
+        "summary": "Clear a recipe's favorite mark",
         "tags": [
           "recipes"
         ]
       },
       "put": {
-        "operationId": "set-favourite",
+        "operationId": "set-favorite",
         "parameters": [
           {
             "in": "path",
@@ -2496,7 +2496,7 @@
             ]
           }
         ],
-        "summary": "Mark a recipe as a favourite",
+        "summary": "Mark a recipe as a favorite",
         "tags": [
           "recipes"
         ]

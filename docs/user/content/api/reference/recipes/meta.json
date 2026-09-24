@@ -10,7 +10,7 @@
     "get-recipe",
     "delete-recipe",
     "update-recipe",
-    "delete-favourite",
-    "set-favourite"
+    "delete-favorite",
+    "set-favorite"
   ]
 }

@@ -84,7 +84,7 @@ func TestSearchPrefixAndDiacritics(t *testing.T) {
 
 // TestSearchIsCaseInsensitive covers the review fix for variants (see
 // search_internal_test.go): an upper-case ASCII-transliterated query term,
-// or a capitalised umlaut term, must still find recipes indexed under the
+// or a capitalized umlaut term, must still find recipes indexed under the
 // umlaut spelling.
 func TestSearchIsCaseInsensitive(t *testing.T) {
 	svc := seedAll(t)
@@ -211,7 +211,7 @@ func TestListTotalSurvivesPagination(t *testing.T) {
 }
 
 // TestListDeduplicatesTags pins the ruling that List, not just the handler,
-// must normalise and de-duplicate Tags before deriving tag_count: the SQL
+// must normalize and de-duplicate Tags before deriving tag_count: the SQL
 // matches on COUNT(DISTINCT t.name) = tag_count, so a caller passing the
 // same tag twice would otherwise set tag_count to 2 against a distinct
 // count of 1 and silently return nothing.
@@ -312,7 +312,7 @@ func TestListMaxMinutesExcludesUntimedRecipes(t *testing.T) {
 	}
 }
 
-func TestListFiltersByFavourite(t *testing.T) {
+func TestListFiltersByFavorite(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	fixtures := loadFixtures(t)
@@ -323,11 +323,11 @@ func TestListFiltersByFavourite(t *testing.T) {
 	if _, err := svc.Create(ctx, uid, fixtures[1]); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SetFavourite(ctx, uid, starred.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, uid, starred.ID, true); err != nil {
 		t.Fatal(err)
 	}
 
-	p, err := svc.List(ctx, recipe.ListParams{UserID: uid, FavouritesOnly: true})
+	p, err := svc.List(ctx, recipe.ListParams{UserID: uid, FavoritesOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,11 +336,11 @@ func TestListFiltersByFavourite(t *testing.T) {
 	}
 }
 
-// TestListFavouritesOnlyIsPerUser is the isolation check for the filter
-// itself, not just the per-card flag: user A's favourites-only list must
+// TestListFavoritesOnlyIsPerUser is the isolation check for the filter
+// itself, not just the per-card flag: user A's favorites-only list must
 // stay empty until user A (not user B) has starred something, even though
 // both users can see and list the same underlying recipes.
-func TestListFavouritesOnlyIsPerUser(t *testing.T) {
+func TestListFavoritesOnlyIsPerUser(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	other := createUser(t, "zweite@example.com")
@@ -352,19 +352,19 @@ func TestListFavouritesOnlyIsPerUser(t *testing.T) {
 	if _, err := svc.Create(ctx, uid, fixtures[1]); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SetFavourite(ctx, other, starred.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, other, starred.ID, true); err != nil {
 		t.Fatal(err)
 	}
 
-	p, err := svc.List(ctx, recipe.ListParams{UserID: uid, FavouritesOnly: true})
+	p, err := svc.List(ctx, recipe.ListParams{UserID: uid, FavoritesOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.Total != 0 {
-		t.Fatalf("user A must not see user B's favourites through the filter, got %d", p.Total)
+		t.Fatalf("user A must not see user B's favorites through the filter, got %d", p.Total)
 	}
 
-	p, err = svc.List(ctx, recipe.ListParams{UserID: other, FavouritesOnly: true})
+	p, err = svc.List(ctx, recipe.ListParams{UserID: other, FavoritesOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,26 +373,26 @@ func TestListFavouritesOnlyIsPerUser(t *testing.T) {
 	}
 }
 
-// TestFavouritesOnlyIsANoOpWithoutAUserID pins ListParams.UserID's "an
-// empty user id disables the filter" guarantee for FavouritesOnly
+// TestFavoritesOnlyIsANoOpWithoutAUserID pins ListParams.UserID's "an
+// empty user id disables the filter" guarantee for FavoritesOnly
 // specifically: without it, the SQL condition's own comparison of user_id
-// against an empty string happens to match no favourites row, which would
-// silently turn FavouritesOnly: true into "return nothing" instead of
+// against an empty string happens to match no favorites row, which would
+// silently turn FavoritesOnly: true into "return nothing" instead of
 // switching the filter off - the exact failure mode List must not have,
 // since nothing forces every future caller to also set UserID whenever it
-// sets FavouritesOnly.
-func TestFavouritesOnlyIsANoOpWithoutAUserID(t *testing.T) {
+// sets FavoritesOnly.
+func TestFavoritesOnlyIsANoOpWithoutAUserID(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	if _, err := svc.Create(ctx, uid, loadFixtures(t)[0]); err != nil {
 		t.Fatal(err)
 	}
-	p, err := svc.List(ctx, recipe.ListParams{FavouritesOnly: true})
+	p, err := svc.List(ctx, recipe.ListParams{FavoritesOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.Total != 1 {
-		t.Fatalf("FavouritesOnly without a user id must be a no-op, not an empty result: got %d", p.Total)
+		t.Fatalf("FavoritesOnly without a user id must be a no-op, not an empty result: got %d", p.Total)
 	}
 }
 
@@ -406,7 +406,7 @@ func TestFavouritesOnlyIsANoOpWithoutAUserID(t *testing.T) {
 // stays the oldest, which is what makes the two orderings actually diverge
 // - then the whole sequence is checked under "created", and the default
 // order is checked to differ, so the test fails if the sort stops being
-// honoured.
+// honored.
 func TestListSortsByCreatedAt(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
@@ -475,7 +475,7 @@ func TestListRejectsAnUnknownSort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A service-level defence, not the API's behaviour: the sort query
+	// A service-level defense, not the API's behavior: the sort query
 	// parameter is an enum, so huma answers 422 before List is reached. An
 	// in-process caller still gets the default order rather than an error.
 	if p.Total == 0 {

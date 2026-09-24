@@ -1,8 +1,8 @@
 /**
- * Both catalogues are complete at every commit. Paraglide would quietly fall
+ * Both catalogs are complete at every commit. Paraglide would quietly fall
  * back to the base locale for a missing key, which is exactly the failure
  * this repository does not want: German is not a translation of English, it
- * is the second maintained catalogue. So a difference is an error, not a
+ * is the second maintained catalog. So a difference is an error, not a
  * fallback.
  */
 import { readdirSync } from 'node:fs';
@@ -23,11 +23,11 @@ for (const set of keys.values()) {
 	for (const k of set) union.add(k);
 }
 
-// No catalogues, or nothing but empty ones, would pass every comparison below
+// No catalogs, or nothing but empty ones, would pass every comparison below
 // without comparing anything - a green gate over a missing interface.
 if (files.length < 2 || union.size === 0) {
 	console.error(
-		`messages/ holds ${files.length} catalogue(s) with ${union.size} key(s) between them; expected at least two catalogues with keys.`
+		`messages/ holds ${files.length} catalog(s) with ${union.size} key(s) between them; expected at least two catalogs with keys.`
 	);
 	process.exit(1);
 }
@@ -43,7 +43,7 @@ for (const [file, set] of keys) {
 }
 
 if (failed) {
-	console.error('\nEvery catalogue in messages/ holds the same keys. Add the missing ones.');
+	console.error('\nEvery catalog in messages/ holds the same keys. Add the missing ones.');
 	process.exit(1);
 }
-console.log(`message parity: ${files.length} catalogues, ${union.size} keys each`);
+console.log(`message parity: ${files.length} catalogs, ${union.size} keys each`);

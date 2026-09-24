@@ -65,7 +65,7 @@
 
 	// Whole literals, because Tailwind reads this file as text.
 	const ROW = 'grid grid-cols-[1fr_auto_auto] items-center gap-x-3 py-1 text-body-sm';
-	// No hover colour here: each button says what it does with its own.
+	// No hover color here: each button says what it does with its own.
 	const ACTION =
 		'flex size-8 items-center justify-center rounded-pill text-text-muted transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
@@ -165,7 +165,7 @@
 		{#each pending as ref (ref.word)}
 			{@const view = refView(ref, entries)}
 			{@const label = refLabel(ref, entries)}
-			<!-- A proposal reads in the colour of its dotted underline. -->
+			<!-- A proposal reads in the color of its dotted underline. -->
 			<li class={ROW}>
 				<span class="min-w-0 text-primary">
 					<span class="font-medium">{view.name}</span>

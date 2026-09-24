@@ -1,6 +1,6 @@
 ---
-title: '/api/v1/recipes/{id}/favourite'
-description: Clear a recipe's favourite mark
+title: '/api/v1/recipes/{id}/favorite'
+description: Clear a recipe's favorite mark
 full: true
 _openapi:
   preload:
@@ -20,7 +20,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="./public/openapi.json" operations={[{"path":"/api/v1/recipes/{id}/favourite","method":"delete"}]} />
+      <OpenAPIPage document="./public/openapi.json" operations={[{"path":"/api/v1/recipes/{id}/favorite","method":"delete"}]} />
     </>
   );
 }

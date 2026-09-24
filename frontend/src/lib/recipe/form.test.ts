@@ -247,7 +247,7 @@ describe('fromRecipe', () => {
 			createdBy: sam,
 			updatedAt: '2026-09-17T10:00:00Z',
 			updatedBy: sam,
-			favourite: false
+			favorite: false
 		};
 		expect(fromRecipe(recipe).title).toBe('Zitronen-Tarte');
 	});

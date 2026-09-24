@@ -31,9 +31,9 @@
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<UserAccount | null>(null);
 
-	// Advisory, like on the profile page: the counts only mark a colour in the
+	// Advisory, like on the profile page: the counts only mark a color in the
 	// pickers, so a failure leaves them unmarked instead of failing the page.
-	// Refreshed after every write that can move a colour, because a stale
+	// Refreshed after every write that can move a color, because a stale
 	// count marks one nobody holds any more.
 	async function loadUsage() {
 		try {

@@ -11,7 +11,7 @@ Format: `type(scope): summary` following [semantic commit messages](https://gist
 | `fix` | bug fix |
 | `docs` | documentation only (including `docs/memory`) |
 | `chore` | tooling, dependencies, config |
-| `refactor` | code change without behaviour change |
+| `refactor` | code change without behavior change |
 | `test` | tests only |
 | `style` | formatting only |
 
@@ -38,7 +38,7 @@ own:
 
 | Follow-up | Belongs to |
 |---|---|
-| Tests for a behaviour | the commit that introduces the behaviour |
+| Tests for a behavior | the commit that introduces the behavior |
 | Regenerated screenshots, API reference, sqlc output | the commit that changes the source they are generated from |
 | Memory and user-doc pages | the commit that changes the thing they describe |
 | A correction to code that is not pushed yet | the commit that introduced it |
@@ -56,7 +56,7 @@ opposite failure — split those.
   Three commits for one change:
 
   ```
-  feat(ui): let a member set their display name and colour
+  feat(ui): let a member set their display name and color
   fix(ui): right-align the profile save button
   docs(user): regenerate the screenshots
   ```
@@ -76,7 +76,7 @@ expected:
 git rebase -i develop        # on feat/<name>, before merging
 ```
 
-Squash the fixups, fold regenerated artefacts into the commits that caused
+Squash the fixups, fold regenerated artifacts into the commits that caused
 them, and leave each remaining commit with a title that still makes sense in a
 year. Merge only once the branch reads the way you want `develop` to read.
 

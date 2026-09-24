@@ -11,7 +11,7 @@ import (
 )
 
 // Color is a palette token identifying a person wherever the UI names them.
-// It is a token name, never a colour value: the values live in
+// It is a token name, never a color value: the values live in
 // frontend/src/app.css, which is the only place that decides what "sage"
 // looks like in either theme.
 type Color string
@@ -118,8 +118,8 @@ func normalizeDisplayName(displayName, username string) (string, error) {
 }
 
 // fillPalette turns the grouped counts of the users table into one entry per
-// palette colour, in palette order, zeros included. The query cannot invent
-// rows for colours nobody holds, so they are filled in here.
+// palette color, in palette order, zeros included. The query cannot invent
+// rows for colors nobody holds, so they are filled in here.
 func fillPalette(rows map[Color]int) []ColorCount {
 	out := make([]ColorCount, len(Colors))
 	for i, c := range Colors {
@@ -128,9 +128,9 @@ func fillPalette(rows map[Color]int) []ColorCount {
 	return out
 }
 
-// leastUsed returns the colour the fewest accounts hold, ties broken by
+// leastUsed returns the color the fewest accounts hold, ties broken by
 // palette order. Least-used rather than first-free because duplicates are
-// allowed, so the two differ once every colour is taken, and spreading the
+// allowed, so the two differ once every color is taken, and spreading the
 // household out is the property worth keeping. counts must come from
 // fillPalette, so it is complete and in palette order.
 func leastUsed(counts []ColorCount) Color {

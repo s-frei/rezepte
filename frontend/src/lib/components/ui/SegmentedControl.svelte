@@ -59,7 +59,7 @@
 
 	The icons hang off a container query rather than a screen breakpoint,
 	because what decides whether they fit is the width of whatever box the
-	control sits in, not the size of the device: three labelled segments plus
+	control sits in, not the size of the device: three labeled segments plus
 	icons need 275px, so they appear from 280px of container width - a 375px
 	phone shows them, a 360px one does not.
 -->

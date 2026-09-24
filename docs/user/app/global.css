@@ -27,7 +27,7 @@
 /*
  * The user docs wear the frontend's "Warm & handmade" palette
  * (docs/memory/content/architecture/design-system.mdx).
- * Fumadocs reads every colour from a `--color-fd-*` variable and hardcodes
+ * Fumadocs reads every color from a `--color-fd-*` variable and hardcodes
  * none, so mapping those onto the Rezepte values is the whole job.
  *
  * The values below are a copy of frontend/src/app.css, not an import: the two
@@ -100,7 +100,7 @@
 
   --color-fd-overlay: rgb(43 33 24 / 0.4);
 
-  /* Callout colours. Fumadocs ships the Tailwind 500 shades, which read as
+  /* Callout colors. Fumadocs ships the Tailwind 500 shades, which read as
      foreign bodies on warm paper. These stay five distinguishable hues but
      sit in the same earthy register; each clears 3:1 on `card` so the icons
      remain perceivable. `error` and `warning` come straight from the palette,
@@ -150,7 +150,7 @@
 }
 
 /*
- * Fumadocs' typography plugin sets colours but no font family, so headings
+ * Fumadocs' typography plugin sets colors but no font family, so headings
  * inherit Karla. Literata is what makes a page read like the app.
  *
  * Scoped to the article rather than `.prose`: the page title sits outside the
