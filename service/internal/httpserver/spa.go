@@ -1,12 +1,23 @@
 package httpserver
 
 import (
+	"fmt"
 	"io/fs"
+	"mime"
 	"net/http"
 	"strings"
 )
 
 const immutableCache = "public, max-age=31536000, immutable"
+
+func init() {
+	// Go's built-in table has no .webmanifest, and the distroless image
+	// ships no /etc/mime.types, so without this the manifest would go out
+	// as sniffed text/plain.
+	if err := mime.AddExtensionType(".webmanifest", "application/manifest+json"); err != nil {
+		panic(fmt.Errorf("register webmanifest type: %w", err))
+	}
+}
 
 // SPAHandler serves files from fsys. Requests for paths that do not exist
 // receive index.html so client-side routing works. API paths never fall back.
