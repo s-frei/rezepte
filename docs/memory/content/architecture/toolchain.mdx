@@ -46,6 +46,8 @@ Renovate keeps every pinned version current, configured in `renovate.json5` at t
 
 CI runs on every pull request, so each of these shows up as a red check rather than on `develop`.
 
+**A major the surrounding tools cannot take yet waits for approval.** Such an update gets `dependencyDashboardApproval` in `renovate.json5`, with the blocker named beside the rule, and sits under "Pending Approval" in the dashboard instead of opening a pull request that fails every week. Ticking it there opens the pull request; the rule is deleted once the update has landed.
+
 ## Worktrees and ports
 
 The unit of feature work is a git worktree under `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`mise/tasks/worktree/new.sh`). [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure and the port table; this page is the scheme behind it.

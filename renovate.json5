@@ -50,6 +50,22 @@
       matchDepNames: ['bun', 'oven/bun'],
       groupName: 'Bun',
     },
+    // Majors the tooling around them does not support yet wait in the
+    // Dependency Dashboard until someone ticks them. TypeScript 7: the
+    // peer ranges of svelte-check, typescript-eslint and @sveltejs/kit end
+    // at 6. ESLint 10 in the docs apps: eslint-config-next pulls in
+    // eslint-plugin-react, which still calls context.getFilename().
+    {
+      matchPackageNames: ['typescript'],
+      matchUpdateTypes: ['major'],
+      dependencyDashboardApproval: true,
+    },
+    {
+      matchFileNames: ['docs/**'],
+      matchPackageNames: ['eslint'],
+      matchUpdateTypes: ['major'],
+      dependencyDashboardApproval: true,
+    },
     // A new sqlc version changes the header of every generated file, so
     // generate:check fails until the output is regenerated.
     {
