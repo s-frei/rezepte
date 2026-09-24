@@ -47,6 +47,10 @@ const EVENT_FRAMING = [
 	/\bused to\b/i,
 	/\bat the time\b/i,
 	/\buntil then\b/i,
+	/\bfor now\b/i,
+	/\bwas tried\b/i,
+	/\bgrew up\b/i,
+	/\bphase [0-9]/i,
 	/\b20[0-9]{2}-[01][0-9]-[0-9]{2}\b/
 ];
 
