@@ -34,7 +34,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`. `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`.
+    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`. `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `POST /mcp` is the same kind of exception, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
 
   </Tab>
 </Tabs>
@@ -86,7 +86,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | get by slug | `GET /recipes/by-slug/{slug}` | `404` |
 | create | `POST /recipes` | `201`, body is the recipe input |
 | update | `PUT /recipes/{id}` | full replace of title, description and every child (groups, ingredients, steps, tags); `404`; `403` `recipe edit locked` when the caller may not edit the recipe or change its `editPolicy`; an omitted `editPolicy` keeps the stored one |
-| delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes; `403` `recipe delete not allowed` for anyone but the author and admins |
+| delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes; requires `recipes:delete`, not `recipes:write`; `403` `recipe delete not allowed` for anyone but the author and admins |
 | set favorite | `PUT /recipes/{id}/favorite` | `204`; `404` for an unknown recipe; idempotent - starring twice is not an error |
 | clear favorite | `DELETE /recipes/{id}/favorite` | `204`; never `404` - clearing a star that was not set is not an error |
 | list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see [Recipes and search](/features/recipes)) |
@@ -166,7 +166,7 @@ The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from an
 
 Routing is `net/http.ServeMux` with method patterns (`GET /api/v1/recipes/{id}`). The standard library matches on method and path parameters, which is all the routing this API does, so there is no third-party router to learn or to keep current.
 
-huma sits on top of that mux through the `humago` adapter, configured once in `service/internal/httpserver/api.go`, and it is there because it replaces work rather than wrapping it: handlers are typed `func(ctx, *Input) (*Output, error)`, the input validation comes from struct tags, the OpenAPI 3.1 document and the Scalar page are generated from the registered operations, and errors are rendered as RFC 9457 problem documents. The roadmap's public REST API and its MCP server both start from that document, so every operation is described the moment it exists instead of being documented afterwards. Adding a dependency at all follows [Go conventions](/conventions/go).
+huma sits on top of that mux through the `humago` adapter, configured once in `service/internal/httpserver/api.go`, and it is there because it replaces work rather than wrapping it: handlers are typed `func(ctx, *Input) (*Output, error)`, the input validation comes from struct tags, the OpenAPI 3.1 document and the Scalar page are generated from the registered operations, and errors are rendered as RFC 9457 problem documents. The [public REST API](/roadmap) and the [MCP server](/features/mcp) both start from that document, so every operation is described the moment it exists instead of being documented afterwards. Adding a dependency at all follows [Go conventions](/conventions/go).
 
 The typed shape is also a layering rule. The input and output structs *are* the contract, so they live in the feature package beside the service that fills them (`service/internal/recipe/handler.go`) rather than in a shared transport package, and feature code inside an operation never touches `http.ResponseWriter`. Anything that has to write bytes itself leaves the operation set and becomes a plain mux route instead - which is exactly what the image files are (`service/internal/image/file.go`).
 

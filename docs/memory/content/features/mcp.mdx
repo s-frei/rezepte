@@ -1,0 +1,64 @@
+---
+title: MCP server
+description: Search, read, create, edit, delete and favorite recipes from an AI assistant, over the Model Context Protocol
+---
+
+An AI assistant reaches the recipe collection over the Model Context Protocol: stateless Streamable HTTP at `POST /mcp`, served by `service/internal/mcpserver` (`server.go`, `schema.go`, `tools_read.go`, `tools_write.go`) and authenticated by `auth.RequireToken` - bearer only, never a session cookie. Eight tools, each gated by one scope:
+
+| Tool | Scope | Annotations | Service call |
+|---|---|---|---|
+| `search_recipes` | `recipes:read` | `readOnlyHint` | `Service.List` - `query`, `tags`, `maxMinutes`, `favorites`, `author`, `sort`, `page`, `limit`; returns cards plus the total |
+| `get_recipe` | `recipes:read` | `readOnlyHint` | `Service.ByID` or `Service.BySlug` (exactly one of `id`, `slug`), then `caller.fill` for the caller's `favorite` flag and editing rights |
+| `list_tags` | `recipes:read` | `readOnlyHint` | `Service.Tags` |
+| `create_recipe` | `recipes:write` | - | `Service.Create` with the full document, then `caller.fill` |
+| `update_recipe` | `recipes:write` | `idempotentHint` | `Service.Update` with `id` and the full document; replaces it, then `caller.fill` |
+| `delete_recipe` | `recipes:delete` | `destructiveHint`, `idempotentHint` | `Service.Delete` |
+| `add_favorite` | `recipes:write` | `idempotentHint` | `Service.SetFavorite(..., true)` |
+| `remove_favorite` | `recipes:write` | `idempotentHint` | `Service.SetFavorite(..., false)` |
+
+## How it works
+
+**One registration serves both `tools/list` and `tools/call`.** `Handler` in `server.go` builds a fresh `mcp.Server` per request (`mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {...}, ...)`) from the package-level `tools` table - `tool{scope, add}` pairs `tools_read.go`'s and `tools_write.go`'s `init()` functions append - registering only the entries whose scope is in `auth.ScopesFrom(ctx)`. A `tools/list` request therefore lists exactly the tools a call may reach, because listing and checking are the same registration and cannot disagree; calling a tool outside the token's scopes is not a check that could be bypassed, it is a JSON-RPC "unknown tool" error, since the tool was never registered on that request's server.
+
+**Tools call `recipe.Service` directly, as the token's owner.** Each handler receives a `caller{svc, user, create, update}` built once per request; `user` is the token owner's `user.User` from `auth.UserFrom`, the same identity a session would produce for `createdBy`, `updatedBy` and favorites. `update_recipe` and `delete_recipe` hand that user to `Service.Update` and `Service.Delete`, so a tool edits and deletes under the same [editing rights](/features/editing-rights) as REST, and `caller.fill` sets `favorite`, `locked` and the `can*` flags on every recipe a tool returns, as REST's `fillCaller` does. `search_recipes`'s parameter is `query` (not `q`, the REST name) alongside `tags`, `maxMinutes`, `favorites`, `author`, `sort`, `page`, `limit`.
+
+**`schema.go` derives `create_recipe`'s and `update_recipe`'s input schema from the huma registry, not from struct tags read a second time.** `recipeSchema` copies `Input`, `IngredientGroup`, `Ingredient`, `Step` and `IngredientRef` out of `api.OpenAPI().Components.Schemas`, rewrites every `$ref` from `#/components/schemas/` to `#/$defs/`, and wraps them as `{"recipe": Input}` (`update_recipe`'s also requires `id`). `requireReferences` adds `"references"` to `Step`'s `required` list - an empty array is still allowed, only its absence is refused. The SDK validates every `tools/call` against that schema before the handler runs; a validation failure comes back as the SDK's own JSON-schema error naming the failing field, not a second pass this package runs itself.
+
+**Errors the service refuses become tool errors, not protocol errors.** `toolError` in `tools_read.go` maps `recipe.ErrNotFound` to "recipe not found", `recipe.ErrEditForbidden` and `recipe.ErrDeleteForbidden` to a sentence saying who may edit or delete the recipe, `*recipe.RefError` to its own path-naming message, and everything else to a logged, generic "internal error" - returned as `isError: true` tool results, which the SDK never turns into a JSON-RPC error. Outputs are typed `any`, so the SDK sets no output schema: a nil slice the service serializes as JSON `null` (an empty tag list, an empty page) cannot fail an output check REST never had either.
+
+**Auth is bearer-only, layered on top of the per-tool scopes.** `main.go` mounts the handler as `srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))` - a plain mux route beside the image files, requiring `recipes:read` before a request reaches the protocol at all, so a token with no recipe scope never gets a server (see [API tokens](/features/api-tokens) for `RequireToken`'s shared `authenticateBearer` helper and its `WWW-Authenticate: Bearer` header). Per-tool scopes beyond that baseline come from `auth.ScopesFrom(ctx)`, which only `RequireToken` populates.
+
+**Settings → API shows the endpoint.** `McpCard.svelte` sits beside `ApiReferenceCard.svelte` on the API settings page: the instance's `/mcp` URL (`mcpUrl(window.location.origin)`) with a copy button and a link to the user-docs setup guide. It carries no hint of its own for a non-admin member - `ApiReferenceCard`'s hint on the same page already says a token is issued by an admin. `TokenRevealDialog.svelte` shows Claude Code and JSON connection snippets underneath a freshly created token whenever it carries `recipes:read` (`offersMcp`); `frontend/src/lib/settings/mcp.ts` builds both strings.
+
+## Why it is this way
+
+**Official SDK, per the Go dependency rule** ([Go conventions](/conventions/go)). The protocol keeps moving, and the SDK maintained alongside it is the reference implementation of every new revision; hand-writing JSON-RPC methods would mean re-implementing that work ourselves, indefinitely.
+
+**Stateless Streamable HTTP.** Every tool call is one request-response cycle against `recipe.Service`; nothing about searching, reading, creating, editing, deleting or favoriting needs a session, and a stateless handler works behind any reverse proxy without sticky routing.
+
+**Bearer only.** A page on another site can make a browser send a cookie cross-site; it cannot make it send an `Authorization` header. `RequireToken` refuses a session outright rather than accepting either credential the way REST operations do.
+
+**`references` required only on this schema.** REST leaves `Step.references` optional so an old client can `PUT` a document without it; a model rewriting a step is exactly such a client, and it would silently drop every ingredient link. Requiring the field - an empty array is still allowed - forces that decision instead of letting it happen by omission (see [Ingredient references](/features/ingredient-references)).
+
+**Schema taken from the huma registry, not restated.** `recipe.Service` validates none of `Input`'s constraints itself - only the huma struct tags do - so a schema built any other way would miss them and accept, say, a `javascript:` `sourceUrl`. Reading them from the registry huma already built means a rule added to `Input` reaches MCP with no change here.
+
+**`DisableLocalhostProtection: true`.** The SDK's DNS-rebinding guard exists to protect an unauthenticated local MCP server from a page in the browser driving it. `/mcp` is never unauthenticated - `RequireToken` demands a bearer token a rebinding page cannot send - and the guard would otherwise answer `403` to every request arriving from a reverse proxy on the same host, since it sees a loopback local address carrying the public `Host` header.
+
+## Rejected
+
+- **Hand-written JSON-RPC.** Nothing beyond `net/http` to learn, but every method, batch and notification of the protocol would need implementing, and keeping current, by hand.
+- **`mark3labs/mcp-go`.** A community implementation, not the one the protocol's own maintainers publish and update with each revision.
+- **An opt-in switch for the endpoint.** The token is already the gate: `RequireToken(tokens, ScopeRecipesRead)` refuses a token with no recipe scope with a `403` before any server exists, which is the same as MCP being off for it.
+- **Listing a tool a token cannot call, with the call itself refused.** Would need the scope check written twice - once to filter `tools/list`, once inside the handler - and the two could drift. One registration keyed by scope makes that impossible by construction.
+- **An MCP-specific copy of `Recipe`.** Would need its own maintenance the moment the REST type gained a field; the service's own types go out as structured content instead, with the same JSON as a text block for a client that ignores structured output.
+- **`huma.Validate` inside each handler.** The SDK already validates every call against the schema `schema.go` hands it; a second pass would check the same rules again for nothing.
+- **Keeping the DNS-rebinding guard, with an allow-list of trusted hosts.** More configuration to keep current with every reverse-proxy change, and a forgotten entry is a `403` an operator has to debug from scratch.
+
+## Limits
+
+- Only an admin's token authenticates ([API tokens](/features/api-tokens)), and an admin may edit and delete every recipe, so over MCP the editing rights refuse nothing today. `connectAs` in `harness_test.go` registers the tools for a plain member to pin that they would.
+- No OAuth: claude.ai custom connectors need OAuth 2.1, which needs OIDC login first - see [Roadmap](/roadmap). A static bearer token in a client configuration is the whole credential story.
+- No images over MCP - neither uploading one nor a URL a client could open without a session.
+- Tools only - no MCP resources or prompts.
+- No rate limiting, the same as the REST API.
+- `update_recipe` replaces the whole document; a model that omits a field changes it. Required `references` closes the one silent case; everything else is visible in the tool's own response.
