@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { updateRecipe, type RecipeInput } from '$lib/api/recipes';
+	import { session } from '$lib/auth.svelte';
 	import RecipeForm from '$lib/components/editor/RecipeForm.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageProps } from './$types';
@@ -24,6 +25,11 @@
 	<RecipeForm
 		initial={recipe}
 		existing={recipe}
+		access={{
+			canChangePolicy: recipe.canChangePolicy,
+			isAuthor: recipe.createdBy.id === session.user?.id,
+			authorName: recipe.createdBy.displayName
+		}}
 		heading={m.editor_title_edit()}
 		cancelHref={resolve('/recipes/[slug]', { slug: recipe.slug })}
 		{save}

@@ -1,6 +1,7 @@
 import type { FieldError } from '$lib/api/client';
 import {
 	emptyInput,
+	type EditPolicy,
 	type IngredientGroup,
 	type IngredientRef,
 	type RecipeInput
@@ -70,6 +71,7 @@ export type RecipeForm = {
 	tags: string[];
 	ingredientGroups: FormGroup[];
 	steps: FormStep[];
+	editPolicy: EditPolicy;
 };
 
 /**
@@ -236,7 +238,8 @@ export function fromRecipe(recipe: RecipeInput): RecipeForm {
 		sourceUrl: recipe.sourceUrl ?? '',
 		tags: [...recipe.tags],
 		ingredientGroups: groups.length > 0 ? groups : [newGroup()],
-		steps: steps.length > 0 ? steps : [newStep()]
+		steps: steps.length > 0 ? steps : [newStep()],
+		editPolicy: recipe.editPolicy ?? 'default'
 	};
 }
 
@@ -399,7 +402,8 @@ export function toInput(form: RecipeForm): RecipeInput {
 				references: presentReferences(step.references, step.text).flatMap(
 					(ref) => refToInput(form.ingredientGroups, ref) ?? []
 				)
-			}))
+			})),
+		editPolicy: form.editPolicy
 	};
 }
 

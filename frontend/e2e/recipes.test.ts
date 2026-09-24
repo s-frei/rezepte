@@ -719,7 +719,13 @@ test('the colophon names the author, and the editor once somebody else edits', a
 	page
 }, testInfo) => {
 	const token = uniqueToken();
-	const recipe = await createRecipe(page, { ...loadFixture(6), title: `Colophon ${token}` });
+	// Open on purpose: editing-rights.test.ts locks the household for a
+	// while, and a recipe on Default would then turn the editor away.
+	const recipe = await createRecipe(page, {
+		...loadFixture(6),
+		title: `Colophon ${token}`,
+		editPolicy: 'open'
+	});
 	// One editor per project: desktop and mobile run against the same
 	// database at the same time, and a shared username would collide.
 	const editor = `kim${token}`.slice(0, 20);
