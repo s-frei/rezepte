@@ -60,3 +60,15 @@ test('a member reaches the API page without the token section', async ({ page },
 	// The admin-only nav entry is still hidden from them.
 	await expect(page.getByRole('link', { name: 'Members' })).toHaveCount(0);
 });
+
+test('the API page shows the MCP endpoint', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/api');
+	const card = page.getByRole('region', { name: 'AI assistants' });
+	await expect(card.getByText(/^http:\/\/.+\/mcp$/)).toBeVisible();
+	await expect(card.getByRole('link', { name: 'Setup guide' })).toHaveAttribute(
+		'href',
+		'https://s-frei.github.io/rezepte/api/mcp/'
+	);
+});
