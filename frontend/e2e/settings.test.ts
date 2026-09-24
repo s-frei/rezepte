@@ -309,3 +309,32 @@ test('the settings page links to the user guide in a new tab', async ({ page }) 
 	await expect(help).toHaveAttribute('href', 'https://s-frei.github.io/rezepte/guide/');
 	await expect(help).toHaveAttribute('target', '_blank');
 });
+
+test('a phone reaches the settings pages and sign-out through the contents sheet', async ({
+	page
+}, testInfo) => {
+	test.skip(
+		!testInfo.project.name.startsWith('mobile'),
+		'the running head is the phone layout only'
+	);
+
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+
+	await page.getByRole('button', { name: 'Profile, open contents' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Contents' });
+	await expect(sheet.getByRole('link')).toHaveText(['Profile', 'API', 'Members']);
+	await expect(sheet.getByRole('link', { name: 'Profile' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+
+	await sheet.getByRole('link', { name: 'API' }).click();
+	await expect(page).toHaveURL('/settings/api');
+	await expect(sheet).toBeHidden();
+
+	await page.getByRole('button', { name: 'API, open contents' }).click();
+	await sheet.getByRole('button', { name: 'Sign out' }).click();
+	await expect(page).toHaveURL(/\/login/);
+});

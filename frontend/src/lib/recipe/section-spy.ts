@@ -50,3 +50,16 @@ export function nextBand(
 	}
 	return next;
 }
+
+/**
+ * Whether a section picked from the nav still holds the highlight. Once the
+ * scroll it started has settled, the window's offset at that moment is
+ * remembered, and the pick stands until the window has moved away from it.
+ * The observer can still report after the scroll has ended, and a short
+ * recipe scrolled to one of its lower sections sits at the end of the page,
+ * where the last section would otherwise take the highlight straight back.
+ * Only the reader scrolling again hands the nav back to the scroll position.
+ */
+export function stillPinned(pinnedAt: number | null, scrollY: number): boolean {
+	return pinnedAt !== null && Math.abs(scrollY - pinnedAt) < 4;
+}

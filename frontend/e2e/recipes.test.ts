@@ -1343,3 +1343,67 @@ test('keeps both step editors and their links after a drag', async ({ page }) =>
 	await expect(page.getByRole('main')).toContainText('Zucker(50 g) einrühren. Fertig.');
 	await expect(page.getByRole('main')).toContainText('Saft(400 ml) aufkochen.');
 });
+
+// The phone's running head and contents sheet. A short recipe cannot scroll
+// "Steps" to the top, so the scroll a pick starts ends at the foot of the
+// page - where the spy used to hand the highlight straight on to the last
+// section. The picked entry has to hold until the reader scrolls again.
+test('the contents sheet jumps to a section and the running head keeps it', async ({
+	page
+}, testInfo) => {
+	test.skip(
+		!testInfo.project.name.startsWith('mobile'),
+		'the running head is the phone layout only'
+	);
+
+	const fixture = loadFixture(5);
+	const title = `Contents ${uniqueToken()}`;
+	const recipe = await createRecipe(page, {
+		...fixture,
+		title,
+		ingredientGroups: [
+			{
+				...fixture.ingredientGroups[0],
+				ingredients: fixture.ingredientGroups[0].ingredients.slice(0, 1)
+			}
+		],
+		steps: fixture.steps.slice(0, 1).map((step) => ({ ...step, references: [] })),
+		editPolicy: 'open'
+	});
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+
+	const head = page.getByRole('button', { name: 'Basics, open contents' });
+	await expect(head).toBeVisible();
+	await head.click();
+
+	const sheet = page.getByRole('dialog', { name: 'Contents' });
+	await expect(sheet.getByRole('button', { name: /^Basics/ })).toHaveAttribute(
+		'aria-current',
+		'true'
+	);
+	// The summaries read the live form.
+	await expect(sheet.getByRole('button', { name: /^Basics/ })).toContainText(title);
+	await expect(sheet.getByRole('button', { name: /^Ingredients/ })).toContainText('1');
+	await expect(sheet.getByRole('button', { name: /^Steps/ })).toContainText('1');
+	await expect(sheet.getByRole('button', { name: /^Editing/ })).toContainText('Everyone');
+
+	await sheet.getByRole('button', { name: /^Steps/ }).click();
+	await expect(sheet).toBeHidden();
+	const steps = page.getByRole('button', { name: 'Steps, open contents' });
+	await expect(steps).toBeVisible();
+	// Long enough for the smooth scroll to settle at the foot of the page.
+	await page.waitForTimeout(1000);
+	await expect(steps).toBeVisible();
+	// The heading the jump went to is not under the running head.
+	const heading = page.getByRole('heading', { name: 'Steps', exact: true });
+	expect((await heading.boundingBox())!.y).toBeGreaterThanOrEqual(
+		(await steps.boundingBox())!.y + (await steps.boundingBox())!.height
+	);
+	// A report that arrives after the scroll has ended, without the window
+	// moving - what a late observer callback amounts to - must not move it.
+	await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
+	await expect(steps).toBeVisible();
+	// The reader scrolling again hands the head back to the scroll position.
+	await page.mouse.wheel(0, -400);
+	await expect(page.getByRole('button', { name: 'Ingredients, open contents' })).toBeVisible();
+});

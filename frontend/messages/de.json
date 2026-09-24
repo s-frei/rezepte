@@ -19,6 +19,9 @@
 	"nav_search": "Suche",
 	"nav_new": "Neu",
 	"nav_more": "Mehr",
+	"nav_contents_title": "Inhalt",
+	"nav_contents_open": "{current}, Inhalt öffnen",
+	"nav_contents_close": "Inhalt schließen",
 	"nav_settings": "Einstellungen",
 	"nav_user_menu": "Kontomenü",
 
@@ -280,6 +283,7 @@
 	"editor_validation_title_required": "Bitte einen Titel eingeben",
 	"editor_title_edit": "Rezept bearbeiten",
 	"editor_sections_label": "Abschnitte",
+	"editor_contents_untitled": "Ohne Titel",
 	"editor_section_steps": "Schritte",
 	"editor_section_editing": "Bearbeitungsrechte",
 	"editor_policy_label": "Wer dieses Rezept bearbeiten darf",

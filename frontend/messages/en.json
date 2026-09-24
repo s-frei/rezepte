@@ -19,6 +19,9 @@
 	"nav_search": "Search",
 	"nav_new": "New",
 	"nav_more": "More",
+	"nav_contents_title": "Contents",
+	"nav_contents_open": "{current}, open contents",
+	"nav_contents_close": "Close contents",
 	"nav_settings": "Settings",
 	"nav_user_menu": "Account menu",
 
@@ -280,6 +283,7 @@
 	"editor_validation_title_required": "Please enter a title",
 	"editor_title_edit": "Edit recipe",
 	"editor_sections_label": "Sections",
+	"editor_contents_untitled": "Untitled",
 	"editor_section_steps": "Steps",
 	"editor_section_editing": "Editing",
 	"editor_policy_label": "Who may edit this recipe",

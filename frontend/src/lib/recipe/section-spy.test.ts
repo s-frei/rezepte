@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currentSection, isAtBottom, nextBand } from './section-spy';
+import { currentSection, isAtBottom, nextBand, stillPinned } from './section-spy';
 
 const order = ['basics', 'images', 'ingredients', 'steps', 'editing'];
 
@@ -61,5 +61,21 @@ describe('nextBand', () => {
 		const before = new Set(['basics']);
 		nextBand(before, [{ id: 'basics', isIntersecting: false }]);
 		expect([...before]).toEqual(['basics']);
+	});
+});
+
+describe('stillPinned', () => {
+	it('holds a picked section while the window stays where its scroll ended', () => {
+		expect(stillPinned(1200, 1200)).toBe(true);
+		// Sub-pixel offsets on zoomed screens do not count as scrolling.
+		expect(stillPinned(1200, 1201.5)).toBe(true);
+	});
+
+	it('lets go once the reader scrolls again', () => {
+		expect(stillPinned(1200, 1100)).toBe(false);
+	});
+
+	it('holds nothing when no section was picked', () => {
+		expect(stillPinned(null, 0)).toBe(false);
 	});
 });
