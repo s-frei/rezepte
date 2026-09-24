@@ -16,6 +16,7 @@
 	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
 	import { leastUsedColor, USER_COLORS, type UserColor } from '$lib/user/color';
 	import ColorPicker from './ColorPicker.svelte';
+	import PasswordStrength from './PasswordStrength.svelte';
 
 	let {
 		open = $bindable(false),
@@ -141,14 +142,17 @@
 			counter={64}
 			bind:value={displayName}
 		/>
-		<Input
-			id="new-user-password"
-			label={m.login_password()}
-			type="password"
-			autocomplete="new-password"
-			bind:value={password}
-			error={errors.password ?? null}
-		/>
+		<div class="space-y-1.5">
+			<Input
+				id="new-user-password"
+				label={m.login_password()}
+				type="password"
+				autocomplete="new-password"
+				bind:value={password}
+				error={errors.password ?? null}
+			/>
+			<PasswordStrength {password} userInputs={[username, displayName]} />
+		</div>
 		<RadioGroup.Root
 			bind:value={role}
 			aria-label={m.users_field_role()}

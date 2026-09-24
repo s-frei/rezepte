@@ -8,6 +8,7 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
+	import PasswordStrength from './PasswordStrength.svelte';
 
 	// Takes a nullable user and stays mounted: wrapping the dialog in an
 	// `{#if user}` tore it down the moment the page dropped its target, so the
@@ -63,14 +64,17 @@
 		{m.users_reset_description()}
 	</Dialog.Description>
 	<form onsubmit={submit} class="mt-5 space-y-4">
-		<Input
-			id="reset-password"
-			label={m.settings_password_new()}
-			type="password"
-			autocomplete="new-password"
-			bind:value={password}
-			{error}
-		/>
+		<div class="space-y-1.5">
+			<Input
+				id="reset-password"
+				label={m.settings_password_new()}
+				type="password"
+				autocomplete="new-password"
+				bind:value={password}
+				{error}
+			/>
+			<PasswordStrength {password} userInputs={[user?.username ?? '', user?.displayName ?? '']} />
+		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.users_reset_submit()}</Button>

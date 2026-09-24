@@ -49,6 +49,19 @@ test('a wrong current password shows an inline error', async ({ page }) => {
 	await expect(page.getByText('The current password is wrong')).toBeVisible();
 });
 
+test('the new password is rated as it is typed, and only advised on', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+	const next = page.getByLabel('New password', { exact: true });
+	await next.fill('password1');
+	await expect(page.getByText('Strength: very weak')).toBeVisible();
+	await next.fill('tangerine-orbit-velvet-harbor-91');
+	await expect(page.getByText('Strength: strong')).toBeVisible();
+	await next.fill('');
+	await expect(page.getByText(/^Strength:/)).toHaveCount(0);
+});
+
 test('members are sent from the users page to their own settings', async ({ page }) => {
 	const username = `m${uniqueToken()}`;
 	await login(page);
