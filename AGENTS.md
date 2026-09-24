@@ -7,7 +7,7 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 
 - Everything in the repo is American English (code, identifiers, JSON keys, comments, commits, docs, `en.json`): color, favorite, center, normalize. German lives only in `de.json` and German sample and test data. → `docs/memory/content/conventions/language.mdx`
 - UI copy lives only in `frontend/messages/*.json`, one catalog per language; `en.json` is the source and `de.json` is its equal, and both hold the same keys. → `docs/memory/content/conventions/svelte.mdx`
-- Commits: semantic prefix, title ≤ 70 chars, body only when needed, no Co-Authored-By or tool trailers. → `docs/memory/content/conventions/commits.mdx`
+- Commits: semantic prefix, title ≤ 70 chars, body only when needed, no Co-Authored-By or tool trailers. A breaking change (API, configuration, deployment) carries `!` before the colon and a body line `Breaking: <what someone running Rezepte must do>`. → `docs/memory/content/conventions/commits.mdx`
 - Git flow: develop on `develop`, releases merge to `main`; never push, merge to `main`, tag or open PRs without being asked. History on `develop` is never rewritten unless explicitly asked; a branch is tidied in its worktree before it lands. → `docs/memory/content/conventions/commits.mdx`
 - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 - Run tools only through mise: `mise run <task>` or `mise exec -- <cmd>`. Never call `npm`/`node` directly; use Bun. → `docs/memory/content/architecture/toolchain.mdx`

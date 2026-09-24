@@ -1,0 +1,70 @@
+---
+title: Write release notes
+description: Turning a release:start draft into the changelog page people upgrade by
+---
+
+The release notes are the page `release:start` drafts at `docs/user/content/changelog/<version>.mdx`, on the release branch in its worktree. An agent usually writes them, and the maintainer reads the result before `release:finish`. The draft holds the commit subjects as raw material; this page is how that material becomes notes. What the page is and how it is rendered is in [Releases](/architecture/releases).
+
+## Who reads them
+
+First the people who run an instance: they decide from this page whether and how to upgrade. Then the people who cook with it: they want to know what is new. Nobody reading it has seen the code. Write in the voice of the rest of `docs/user/` - American English, plain words, "you" for the reader - and never in the language of commits: no scopes, no type prefixes, no internal names (sqlc, huma, Bits UI, a Go package), no "we refactored".
+
+## Gather the material
+
+- The commits since the last release, with bodies: `git log --format='%h %s%n%b' <last release tag>..HEAD` (without a tag, all of `develop`). The draft's comment lists the same subjects without bodies.
+- Every `Breaking:` line in those bodies - they are the upgrade notice, already phrased for the reader (see [Commits and branches](/conventions/commits)).
+- What the user docs say about the changes: `git diff --stat <last release tag>..HEAD -- docs/user/content`. A feature that changed a guide page is worth a link to it.
+- The feature pages under `docs/memory/content/features/` for what a feature is for, when a subject alone does not say.
+
+Drop what nobody outside the repository notices: `refactor`, `test`, `chore`, `ci`, `style` and memory-only `docs` commits, unless one of them changes behavior. Fold several commits about one feature into one entry.
+
+## Fill the frontmatter
+
+Keep every value in double quotes, as the draft writes them: unquoted YAML cuts a value at ` #` and trips over a leading backtick.
+
+- `title` - `"vX.Y.Z — "` and a headline naming the release's biggest visible change, phrased as an outcome: `"v1.1.0 — Steps point at their ingredients"`.
+- `description` - one sentence covering the release. It also becomes the tag message and the summary of the GitHub release, so it carries no links and stands on its own.
+- `date` - the day `release:start` ran; move it if the release slips.
+- `upgrade` - only when something is breaking, and then required. One line, imperative, concrete, built from the `Breaking:` lines: what to change, where. Several actions are separated by semicolons. Only backticks render as markup on the page, so no links here; the body explains and links.
+
+## Write the body
+
+1. **Highlights** - one to three `##` sections for what people will notice most, each headed with the outcome for the reader ("Steps point at their ingredients", not "Ingredient references"). Two to four sentences: what you can do now, and where to find it, linking the guide page (`/guide/…` in the user docs). Add a `<Screenshot name="…" caption="…" />` where seeing it helps; the names are the specs in `docs/user/screenshots/`, and a new one follows [Add a screenshot](/howtos/add-screenshot).
+2. **Breaking changes** - each one also gets a sentence or two in the body saying what changed and why, next to the related highlight or in its own `##` section. The frontmatter `upgrade` says what to do; the body says what happened.
+3. **API** - changes only API clients notice go under `## API`, so people who only cook can skip them.
+4. **Also in this release** - everything else worth a line, as a list, one line each, prefixed **New:**, **Improved:**, **Fixed:**, **Security:** or **Removed:**, in that order.
+
+Remove the `{/* DRAFT */}` line and the commit comment. Every `FILL IN` must be gone.
+
+## A finished page
+
+```mdx
+---
+title: "v1.1.0 — Steps point at their ingredients"
+description: "Steps link the ingredients they use, and the API names people consistently."
+date: YYYY-MM-DD
+upgrade: "Update API clients: send and read `username` instead of `login`; read `author` and `editor` as objects."
+---
+
+## Steps point at their ingredients
+
+A preparation step can now mention the ingredients it uses. While cooking, tap one to see its amount without scrolling back to the list; it scales with the servings like everything else. The recipe guide shows how to add such a link.
+
+<Screenshot name="recipe-detail" caption="A step linking its ingredients" />
+
+## API
+
+A recipe's `author` and `editor` are people now - objects with `username`, `name` and `color` - so a client can show a name without a second request. Everywhere the API meant a login name it says `username`.
+
+## Also in this release
+
+- **New:** Every account has a display name and a color.
+- **Fixed:** The page language follows the interface after signing out.
+```
+
+## Check and hand over
+
+- `mise run release:finish --dry-run` in the release worktree: it refuses a page with leftovers, missing fields or no `upgrade` despite breaking commits, and exits 0 once the page is ready.
+- Look at the rendered page: `mise run //docs/user:dev`, then a Playwright screenshot of `/changelog/<version>/` in light and dark (see [Verify UI with Playwright](/howtos/verify-ui)). The "Before you upgrade" callout sits at the top of the body.
+- `mise run release:notes <version>` prints the GitHub release body built from the frontmatter; read it once as someone who only sees that.
+- Commit on the release branch: `docs(changelog): write the vX.Y.Z release notes`. Then the maintainer reads the page and runs `release:finish` - see [Release](/howtos/release).
