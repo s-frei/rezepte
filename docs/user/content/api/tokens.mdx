@@ -56,6 +56,13 @@ rights, create a second admin to act as a service account and issue the token
 while signed in as them: the limit then comes from the account rather than
 from a setting anyone could forget.
 
+Recipe [editing rights](/guide/editing-rights) never narrow a working token
+either: admins may edit and delete every recipe, locked or not, and so may
+their tokens with **Recipes: Read & write**. That lasts only as long as the
+account behind the token is an admin - a token always acts with its
+creator's current role, and stops working once that role is gone. Only the owner can change the
+household's editing setting, and only in the browser.
+
 ## Revoking a token
 
 Choose **Revoke** on its row. The token stops working immediately.
