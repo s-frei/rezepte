@@ -1,15 +1,21 @@
+import { Callout } from 'fumadocs-ui/components/callout';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle, MarkdownCopyButton, ViewOptionsPopover } from 'fumadocs-ui/layouts/docs/page';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { OpenAPIPageProps_Preloaded } from 'fumadocs-openapi/ui';
 import { OpenAPIPage } from '@/components/api-page';
+import { InlineCode } from '@/components/inline-code';
 import { getMDXComponents } from '@/components/mdx';
 import { openapi } from '@/lib/openapi';
 import { source } from '@/lib/source';
 import { getPageMarkdownUrl, OG_SHARED } from '@/lib/shared';
 
 type Props = { params: Promise<{ slug?: string[] }> };
+
+// A changelog page's `date` is a calendar day; UTC keeps it from shifting a day
+// in whatever timezone the build runs in.
+const releaseDate = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
 // `/` renders content/index.mdx: with a single collection there is no landing chooser.
 export default async function Page({ params }: Props) {
@@ -22,6 +28,11 @@ export default async function Page({ params }: Props) {
 		<DocsPage toc={page.data.toc} full={page.data.full}>
 			<DocsTitle>{page.data.title}</DocsTitle>
 			<DocsDescription>{page.data.description}</DocsDescription>
+			{page.data.date && (
+				<p className="-mt-4 text-sm text-fd-muted-foreground">
+					Released <time dateTime={page.data.date.toISOString().slice(0, 10)}>{releaseDate.format(page.data.date)}</time>
+				</p>
+			)}
 			<div className="flex flex-row items-center gap-2 border-b pb-6">
 				<MarkdownCopyButton markdownUrl={getPageMarkdownUrl(page)} />
 				<ViewOptionsPopover
@@ -30,6 +41,11 @@ export default async function Page({ params }: Props) {
 				/>
 			</div>
 			<DocsBody>
+				{page.data.upgrade && (
+					<Callout type="warn" title="Before you upgrade">
+						<InlineCode text={page.data.upgrade} />
+					</Callout>
+				)}
 				<MDX
 					components={getMDXComponents({
 						a: createRelativeLink(source, page),
