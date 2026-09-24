@@ -24,9 +24,13 @@ run = "bun run test:e2e{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 description = "Fail if the message catalogs do not hold the same keys"
 run = "bun run messages:parity"
 
+[tasks."brand:check"]
+description = "Audit the logo masters and the committed icon exports"
+run = "bun test scripts/brand.test.ts"
+
 [tasks.check]
 description = "svelte-check, lint and unit tests"
-depends = ["lint", "test", "messages:parity"]
+depends = ["lint", "test", "messages:parity", "brand:check"]
 run = "bun run check"
 
 [tasks.lint]
