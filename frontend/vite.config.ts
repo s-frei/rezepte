@@ -20,6 +20,9 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
+			// The logo's sources live outside the app (assets/brand), next to
+			// the icon masters; $brand is how components import them.
+			alias: { $brand: '../assets/brand' },
 			adapter: adapter({
 				pages: '../service/internal/web/dist',
 				assets: '../service/internal/web/dist',
@@ -49,6 +52,9 @@ export default defineConfig({
 		// so a second worktree's dev stack does not fight this one for them.
 		port: Number(process.env.RZP_FRONTEND_PORT ?? 9060),
 		strictPort: true,
+		// $brand points outside the project root, which the dev server
+		// refuses to serve unless the folder is allowed explicitly.
+		fs: { allow: ['../assets/brand'] },
 		// `changeOrigin: false` keeps the browser's Host header: the API's
 		// Origin check compares it with the Origin, and Vite's string
 		// shorthand would rewrite it to the target, turning every login

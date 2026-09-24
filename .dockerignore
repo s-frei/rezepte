@@ -14,6 +14,8 @@
 !frontend/messages
 !frontend/src
 !frontend/static
+# The lockups the SPA inlines through the $brand alias (vite.config.ts).
+!assets/brand/lockups
 
 # Go build inputs - stage 2. Stage 1 reads service/internal/i18n/locales.json
 # from here too: the list of languages lives in the Go module.

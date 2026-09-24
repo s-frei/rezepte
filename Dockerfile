@@ -7,6 +7,9 @@ COPY frontend ./frontend
 # The list of languages sits in the Go module so the service can embed it;
 # vite.config.ts generates Paraglide's settings from it.
 COPY service/internal/i18n/locales.json ./service/internal/i18n/locales.json
+# The logo lockups sit outside frontend/, next to the other logo sources;
+# the SPA imports them through the $brand alias.
+COPY assets/brand/lockups ./assets/brand/lockups
 RUN mkdir -p service/internal/web/dist && cd frontend && bun run build
 
 # Stage 2: build the static Go binary
