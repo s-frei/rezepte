@@ -7,7 +7,7 @@ set -euo pipefail
 
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
-	echo "worktree:new: usage: mise run worktree:new <name>" >&2
+	echo "worktree:new: usage: mise run worktree:new <name> [branch]" >&2
 	exit 1
 fi
 
@@ -19,7 +19,8 @@ fi
 # parent instead.
 ROOT="$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")"
 DIR="$ROOT/.claude/worktrees/$NAME"
-BRANCH="feat/$NAME"
+# Feature work gets feat/<name>; release:start passes release/vX.Y.Z.
+BRANCH="${2:-feat/$NAME}"
 
 if [ -e "$DIR" ]; then
 	echo "worktree:new: $DIR already exists" >&2
