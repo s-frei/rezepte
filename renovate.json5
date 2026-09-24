@@ -1,0 +1,65 @@
+// Dependency updates for every package and tool in the repository.
+// docs/memory/content/architecture/toolchain.mdx explains the setup.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended'],
+
+  // All development happens on develop; main only receives releases.
+  baseBranchPatterns: ['develop'],
+
+  // One batch a week instead of a steady trickle.
+  timezone: 'Europe/Berlin',
+  schedule: ['before 6am on monday'],
+
+  // Commit titles follow docs/memory/content/conventions/commits.mdx.
+  semanticCommits: 'enabled',
+  semanticCommitType: 'chore',
+  semanticCommitScope: 'deps',
+
+  postUpdateOptions: ['gomodTidy'],
+
+  packageRules: [
+    {
+      matchManagers: ['gomod'],
+      matchUpdateTypes: ['minor', 'patch'],
+      groupName: 'Go modules',
+    },
+    {
+      matchManagers: ['npm'],
+      matchUpdateTypes: ['minor', 'patch'],
+      groupName: 'JavaScript packages',
+    },
+    {
+      matchManagers: ['github-actions'],
+      groupName: 'GitHub Actions',
+    },
+    // Later rules win, so these come after the generic groups above.
+    // Go is pinned in mise.toml, go.mod and the Dockerfile, and all three
+    // have to move together.
+    {
+      matchDepNames: ['go', 'golang'],
+      groupName: 'Go toolchain',
+    },
+    // Bun is pinned in mise.toml and the Dockerfile.
+    {
+      matchDepNames: ['bun', 'oven/bun'],
+      groupName: 'Bun',
+    },
+    // A new sqlc version changes the header of every generated file, so
+    // generate:check fails until the output is regenerated.
+    {
+      matchDepNames: ['sqlc'],
+      prBodyNotes: ['Run `mise run //service:generate` on this branch and commit the output before merging.'],
+    },
+    // Renovate updates mise.toml but not the checksums in mise.lock.
+    {
+      matchManagers: ['mise'],
+      prBodyNotes: ['Run `mise lock` on this branch and commit mise.lock before merging.'],
+    },
+    // The compose file points at our own published image.
+    {
+      matchPackageNames: ['ghcr.io/s-frei/rezepte'],
+      enabled: false,
+    },
+  ],
+}

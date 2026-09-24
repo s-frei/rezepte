@@ -31,6 +31,21 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 
 CI installs the same pinned tools through `jdx/mise-action`, then runs `mise run setup`, regenerates the API reference and fails on any uncommitted diff, and only then runs `mise run check`, `mise run build` and `mise run e2e` — so a green gate locally does not guarantee a green `check` job: a stale API reference regeneration is the gap ([Documentation sites](/architecture/docs)). A pushed `v*` tag runs a second workflow that publishes the image and the release binaries, and that workflow can also be dispatched by hand from a branch to publish a throwaway image tag — see [Releases](/architecture/releases).
 
+## Dependency updates
+
+Renovate keeps every pinned version current, configured in `renovate.json5` at the repository root. It opens its pull requests against `develop`, once a week, with `chore(deps):` titles, and keeps an open "Dependency Dashboard" issue listing everything it found and everything pending. It reads `mise.toml` as well as `go.mod`, the three `package.json` files, the `Dockerfile` and the workflows, so the tools in `[tools]` get updates too.
+
+**Versions that live in several files move in one pull request.** Go is pinned in `mise.toml`, in the `go` directive of `service/go.mod` and in the `Dockerfile`'s `golang` image; Bun in `mise.toml` and the `oven/bun` image. A package rule groups each of them, because a pull request that moves one copy would build locally with one version and in the image with another. Minor and patch updates are grouped per ecosystem (Go modules, JavaScript packages, GitHub Actions); a major update always gets a pull request of its own.
+
+**Some updates need a local step before they merge.** Renovate's hosted app cannot run mise tasks, so it does not regenerate anything. It notes the step in the pull request body where it knows one is needed:
+
+- a `mise.toml` update leaves `mise.lock` behind: run `mise lock` on the branch and commit it;
+- a sqlc update changes the header of every generated file, so `generate:check` fails until `mise run //service:generate` is committed;
+- an update to huma or another dependency that shapes the OpenAPI document fails CI's API reference diff until the reference is regenerated ([Regenerate the API reference](/howtos/regenerate-api-reference));
+- a golangci-lint update can bring new findings.
+
+CI runs on every pull request, so each of these shows up as a red check rather than on `develop`.
+
 ## Worktrees and ports
 
 The unit of feature work is a git worktree under `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`mise/tasks/worktree/new.sh`). [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure and the port table; this page is the scheme behind it.
@@ -54,6 +69,7 @@ Deriving the port register from the worktrees that exist cannot go stale. Any sc
 ## Rejected
 
 - **Separate repositories per package.** Simpler in isolation, but the binary embeds the frontend, so every release would need cross-repo coordination for one artifact.
+- **Dependabot.** Built into GitHub and needs no app, but it does not read `mise.toml`, so Go, Bun, sqlc and golangci-lint — the tools the whole gate rests on — would never get an update.
 - **A Makefile or `just`.** Both run tasks; neither pins the toolchain. mise covers tasks and tools with one lockfile.
 - **An offset hashed from the worktree name.** No state and no script, but two names can hash to the same slot — a silent collision, which is the failure the scheme exists to prevent.
 - **A registry file of assigned offsets.** Unique by construction, but it goes stale the first time a worktree is removed by hand, and then hands out an offset that is still in use.
