@@ -6,3 +6,6 @@
  * in `docs/user/next.config.mjs`; without it Pages answers with a redirect.
  */
 export const USER_GUIDE_URL = 'https://s-frei.github.io/rezepte/guide/';
+
+/** The user-docs page on connecting an MCP client; same site as USER_GUIDE_URL. */
+export const MCP_GUIDE_URL = 'https://s-frei.github.io/rezepte/api/mcp/';

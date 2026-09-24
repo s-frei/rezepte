@@ -12,6 +12,7 @@
 	} from '$lib/api/tokens';
 	import ApiReferenceCard from '$lib/components/settings/ApiReferenceCard.svelte';
 	import CreateTokenDialog from '$lib/components/settings/CreateTokenDialog.svelte';
+	import McpCard from '$lib/components/settings/McpCard.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import TokenRevealDialog from '$lib/components/settings/TokenRevealDialog.svelte';
 	import TokenTable from '$lib/components/settings/TokenTable.svelte';
@@ -105,6 +106,7 @@
 
 <SettingsLayout active="api">
 	<ApiReferenceCard showTokenHint={!data.isAdmin} />
+	<McpCard />
 
 	{#if data.isAdmin}
 		<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-tokens">
