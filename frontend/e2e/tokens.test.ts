@@ -62,3 +62,25 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	await page.getByRole('dialog').getByRole('button', { name: 'Revoke', exact: true }).click();
 	await expect(row).toBeHidden();
 });
+
+test('a Full recipes token carries the delete scope', async ({ page }) => {
+	const name = `full-${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/api');
+	await page.getByRole('button', { name: 'Create token' }).first().click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Name').fill(name);
+	await dialog.getByRole('radio', { name: 'Full' }).click();
+	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'I have saved it' }).click();
+
+	// Scoped to this token's own row: the desktop and mobile projects run at
+	// the same time against one shared account, and an unscoped text match
+	// can catch another project's row with the identical scope list.
+	const row = page
+		.getByRole('list', { name: 'API' })
+		.getByRole('listitem')
+		.filter({ hasText: name });
+	await expect(row.getByText('recipes:read, recipes:write, recipes:delete')).toBeVisible();
+});

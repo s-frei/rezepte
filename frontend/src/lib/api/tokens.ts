@@ -1,7 +1,8 @@
 import { api } from './client';
 
 /** What a token may do. Write always travels together with its read scope. */
-export type TokenScope = 'recipes:read' | 'recipes:write' | 'users:read' | 'users:write';
+export type TokenScope =
+	'recipes:read' | 'recipes:write' | 'recipes:delete' | 'users:read' | 'users:write';
 
 /** The lifetimes the create form offers; `null` means the token never expires. */
 export type TokenExpiry = 30 | 90 | 365 | null;

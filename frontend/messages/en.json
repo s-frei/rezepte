@@ -404,6 +404,8 @@
 	"tokens_access_none": "No access",
 	"tokens_access_read": "Read",
 	"tokens_access_write": "Read & write",
+	"tokens_access_full": "Full",
+	"tokens_access_full_hint": "Full also allows deleting recipes.",
 	"tokens_field_expiry": "Lifetime",
 	"tokens_expiry_30": "30 days",
 	"tokens_expiry_90": "90 days",
