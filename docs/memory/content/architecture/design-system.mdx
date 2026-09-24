@@ -153,7 +153,7 @@ It comes in three levels, because a brush stroke that reads at 128 px turns to m
 | Level | Sizes | Form | Used for |
 |---|---|---|---|
 | L1 | 64 px and up | the brush drawing, about 12 % padding | `apple-touch-icon.png`, the manifest icons |
-| small | 24–48 px | a filled ink silhouette with the same sprout, eyes and smile cut out as negative space, full-bleed | nothing yet; it is the level for the logo inside the UI |
+| small | 24–48 px | a filled ink silhouette with the same sprout, eyes and smile cut out as negative space, full-bleed | the compact lockup in the top bar |
 | small-16 | 20 px and below | the small silhouette tuned for 16 px, no face | `favicon.svg`, `favicon.ico` |
 
 Its colors are three tokens of their own, so the logo does not change by accident when a UI color does:
@@ -169,6 +169,34 @@ The masters live in `assets/brand/logo/`, outside `frontend/`, because they are 
 Everything the browser loads is generated, never edited by hand: `mise run //frontend:brand:export` writes `favicon.svg` (small-16 plus a `prefers-color-scheme: dark` block that switches the two groups to the dark values, so the onion stays visible on a dark tab), `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and `manifest.webmanifest` into `frontend/static/`. The rasters come from `@vite-pwa/assets-generator`, run once with L1 and once with small-16. `//frontend:brand:check`, part of `check`, fails when a master strays from the six colors or the two groups, when the tokens in `app.css` drift from the palette, or when the committed `favicon.svg` and manifest differ from what the script would write. It compares the PNGs and the ICO only by format and size, because sharp may anti-alias a pixel differently on another platform. The manifest says `display: "browser"`: it gives the home screen an icon without turning Rezepte into an installed app, which would be a feature of its own.
 
 Rejected: a line-drawn small level (a thick even line reads as a marker scribble), a face at 16 px (the mouth becomes a pixel block and the onion looks startled), and a cut-out layer line in the small level (it reads as a glossy highlight rather than an onion).
+
+### Wordmark and lockups
+
+The wordmark is "Rezepte" set in Literata as outlines: Medium in the wordmark alone and in the horizontal and stacked lockups, SemiBold in the compact one. It stands alone or in one of three lockups, all in `assets/brand/lockups/` in the same four color variants as the icon, each `viewBox` starting at `0 0` so a height alone sizes it, the letters on a `<g class="wordmark">` inside the ink group. `brand:check` audits them like the masters.
+
+| Lockup | Icon | Minimum height | Clear space |
+|---|---|---|---|
+| horizontal | L1 left of the wordmark | 56 px | 1 C all round |
+| compact | small left of the wordmark | 24 px | ½ C all round |
+| stacked | L1 above the wordmark | 88 px | 1 C all round |
+| wordmark alone | – | 14 px | – |
+
+C is the cap height of "Rezepte" in that lockup, so the clear space grows with it: 38 % of the height in the horizontal lockup, 46 % in the compact one, 21 % in the stacked one. Nothing else stands inside it, not even a border. Below the minimum the brush strokes, the face or the serifs fill in.
+
+| Place | Lockup | Size |
+|---|---|---|
+| App top bar | compact | 32 px high |
+| Login screen | stacked | 120 px high (120–160 allowed) |
+| README header | horizontal | 72 px high, light and dark through `<picture>` and `prefers-color-scheme` |
+| Docs site header | compact | 32–40 px in the navigation; horizontal from 56 px on the docs home |
+| Social preview (1280 × 640) | stacked | centered, about 300 px high, on one of the two grounds |
+| Icon alone | L1 or small | where the name already stands next to it or only a square fits: app icon, favicon, avatar |
+
+Each file belongs on one ground: no suffix on the light ground, `-dark` on the dark one, `-mono` and `-mono-dark` for single-color print, and the mono shape as the template for embossing. Light ink on the dark ground reads a touch heavier, but below the threshold that matters at the minimum sizes, so both themes share one geometry. Never: stretch or squash a lockup, color it outside the six values, give the icon a face at 16 px, use L1 below 64 px, or set a lockup on a busy photo or a ground other than the two without checking it.
+
+In the app, `$lib/components/brand/Lockup.svelte` inlines a lockup rather than loading it through `<img>`: its `ink` and `sprout` groups take `--color-logo-ink` and `--color-logo-sprout`, so the logo follows the app's own theme switch, which a `-dark` file chosen by `prefers-color-scheme` could not. It imports the light files as text through the `$brand` alias (`../assets/brand`, allowed for the dev server in `vite.config.ts`). The top bar's home link carries the name through `aria-label`; the login lockup is `role="img"` with the same name.
+
+The README cannot use either trick, since GitHub strips its CSS: the header switches between the light and `-dark` horizontal lockup through `<picture>`, and the overview screenshot under it is a rounded copy in `assets/readme/`, its corners and 1px-equivalent border baked in to match how the docs site frames every screenshot. `mise run //docs/user:readme-images` makes those copies, and `//docs/user:screenshots` runs it after regenerating the screenshots.
 
 ## Interaction rules
 
