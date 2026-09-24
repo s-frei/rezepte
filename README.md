@@ -1,6 +1,11 @@
 <div align="center">
 
-# Rezepte
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockups/rezepte-lockup-horizontal-dark.svg">
+    <img alt="Rezepte" src="assets/brand/lockups/rezepte-lockup-horizontal.svg" height="72">
+  </picture>
+</h1>
 
 **The recipe manager I wanted for my own kitchen.** Self-hosted, one binary, no cloud account.
 
@@ -15,8 +20,8 @@
 Rezepte keeps a household's recipes in one place. Everyone in the house gets a login, writes recipes with ingredient groups and steps, tags and searches them, and cooks from a phone at the stove. It runs as **one binary** with the web app built in, an SQLite database and your photos in a single data directory — no Node runtime, no database server, no external services.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/user/public/screenshots/overview-desktop-dark.png">
-  <img alt="The Rezepte recipe overview with search, tag chips and the card grid" src="docs/user/public/screenshots/overview-desktop-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/overview-desktop-dark.png">
+  <img alt="The Rezepte recipe overview with search, tag chips and the card grid" src="assets/readme/overview-desktop-light.png">
 </picture>
 
 > [!NOTE]

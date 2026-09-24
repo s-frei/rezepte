@@ -12,6 +12,7 @@
     "openapi:generate": "bun scripts/generate-api.ts",
     "screenshots": "playwright test",
     "screenshots:audit": "bun scripts/screenshots-audit.ts",
+    "readme-images": "bun scripts/readme-images.ts",
     "base-path:audit": "bun scripts/base-path-audit.ts"
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "eslint-config-next": "16.3.4",
     "postcss": "^8.5.28",
     "serve": "^14.2.6",
+    "sharp": "0.35.4",
     "tailwindcss": "^4.3.3",
     "typescript": "6.0.3"
   }
