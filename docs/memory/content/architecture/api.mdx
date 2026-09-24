@@ -96,14 +96,14 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 
 | Param | Notes |
 |---|---|
-| `q` | full-text search across title, description, ingredient names and tags (max 100 chars); prefix-matched, umlaut/ASCII-insensitive - see [Recipes and search](/features/recipes) |
+| `q` | full-text search across title, description, ingredient names and tags (max 100 chars, longer is a `422`); prefix-matched, umlaut/ASCII-insensitive - see [Recipes and search](/features/recipes) |
 | `tags` | comma-separated tag names, trimmed and lower-cased before matching; no length limit of its own, unlike the `tags` of a recipe body below; restricts to recipes carrying **all** of them (AND, not OR). Normalized and de-duplicated server-side and capped at 20 entries after deduplication - see [Recipes and search](/features/recipes) |
-| `maxMinutes` | 0-1440; keeps recipes whose prep and cook minutes sum to at least 1 and at most this bound, so a recipe with neither time set is excluded while the bound is active. `0` is off - see [Recipes and search](/features/recipes) |
+| `maxMinutes` | 0-1440, anything outside is a `422`; keeps recipes whose prep and cook minutes sum to at least 1 and at most this bound, so a recipe with neither time set is excluded while the bound is active. `0` is off - see [Recipes and search](/features/recipes) |
 | `favorites` | `true` restricts the page to the caller's own favorites - see [Favorites](/features/favorites) |
-| `author` | a username (max 50 chars); restricts the page to the recipes that person wrote. Matched exactly against `users.username` and not against the display name, so a filter link survives a rename; an unknown name yields an empty page rather than dropping the filter - see [Recipes and search](/features/recipes) |
+| `author` | a username (max 50 chars, longer is a `422`); restricts the page to the recipes that person wrote. Matched exactly against `users.username` and not against the display name, so a filter link survives a rename; an unknown name yields an empty page rather than dropping the filter - see [Recipes and search](/features/recipes) |
 | `sort` | `updated`, `created` or `title`, declared as an `enum`, so any other value is a `422` on `query.sort`; absent or empty (`?sort=`) takes the `updated` default before validation runs |
-| `page` | 1-based, defaults to 1 |
-| `limit` | defaults to 24, clamped to `[1, 100]` |
+| `page` | 1-based, at least 1, defaults to 1; `0` or below is a `422` |
+| `limit` | defaults to 24; outside `[1, 100]` is a `422`. `clampLimit` in `recipe/search.go` clamps only for in-process callers of `List`, which an HTTP request never reaches with such a value |
 
 Every parameter above combines with AND when more than one is set.
 
