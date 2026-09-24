@@ -6,14 +6,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/mcpserver"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
@@ -31,6 +35,7 @@ type fullApp struct {
 	srv      *httpserver.Server
 	users    *user.Service
 	sessions *auth.Service
+	tokens   *auth.TokenService
 }
 
 func newFullApp(t *testing.T) fullApp {
@@ -50,7 +55,13 @@ func newFullApp(t *testing.T) fullApp {
 		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	imageDir := filepath.Join(t.TempDir(), "images")
-	recipe.Register(srv.API(), recipe.NewService(conn, recipe.WithImageDir(imageDir)))
+	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
+	recipe.Register(srv.API(), recipes)
+	mcpHandler, err := mcpserver.Handler(recipes, srv.API(), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
 	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
 	settings.Register(srv.API(), settings.NewService(conn))
@@ -58,7 +69,23 @@ func newFullApp(t *testing.T) fullApp {
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)
 	tokenapi.Register(srv.API(), tokens)
-	return fullApp{srv: srv, users: users, sessions: sessions}
+	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
+}
+
+// issueToken creates an admin and returns the raw value of an API token of
+// theirs holding scopes.
+func (a fullApp) issueToken(t *testing.T, scopes ...string) string {
+	t.Helper()
+	ctx := t.Context()
+	u, err := a.users.Create(ctx, user.CreateParams{Username: "agent", Password: "secret123", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _, err := a.tokens.Create(ctx, u.ID, "t", scopes, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
 }
 
 // login creates a plain user and returns the cookie a browser would hold
@@ -241,5 +268,108 @@ func TestEveryTagIsDeclared(t *testing.T) {
 		if !used[tag.Name] {
 			t.Errorf("tag %q is declared but no operation uses it", tag.Name)
 		}
+	}
+}
+
+func TestMCPRefusesSessionCookie(t *testing.T) {
+	a := newFullApp(t)
+	cookie := a.login(t)
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	a.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+}
+
+func TestMCPGetIsNotTheSPA(t *testing.T) {
+	a := newFullApp(t)
+	rec := a.get("/mcp", nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 (not the SPA shell)", rec.Code)
+	}
+}
+
+func TestMCPGetWithTokenIs405(t *testing.T) {
+	a := newFullApp(t)
+	raw := a.issueToken(t, auth.ScopeRecipesRead)
+	req := httptest.NewRequest(http.MethodGet, "/mcp", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	rec := httptest.NewRecorder()
+	a.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+}
+
+func TestMCPTokenWithoutRecipesReadIs403(t *testing.T) {
+	a := newFullApp(t)
+	raw := a.issueToken(t, auth.ScopeUsersRead)
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+raw)
+	rec := httptest.NewRecorder()
+	a.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
+	}
+}
+
+// bearer adds an Authorization header to every request the MCP client sends.
+type bearer struct{ raw string }
+
+func (b bearer) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.Header.Set("Authorization", "Bearer "+b.raw)
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+// TestMCPSpeaksTheProtocol runs the SDK's own client against the whole
+// server: initialize, tools/list and one write, through the same middleware
+// chain and huma registry main.go builds, so a schema that only breaks under
+// the production API config shows here.
+func TestMCPSpeaksTheProtocol(t *testing.T) {
+	a := newFullApp(t)
+	raw := a.issueToken(t, auth.ScopeRecipesRead, auth.ScopeRecipesWrite, auth.ScopeRecipesDelete)
+	ts := httptest.NewServer(a.srv.Handler())
+	t.Cleanup(ts.Close)
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil)
+	cs, err := client.Connect(t.Context(), &mcp.StreamableClientTransport{
+		Endpoint:   ts.URL + "/mcp",
+		HTTPClient: &http.Client{Transport: bearer{raw: raw}},
+		MaxRetries: -1,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cs.Close() })
+	if name := cs.InitializeResult().ServerInfo.Name; name != "rezepte" {
+		t.Fatalf("server name = %q", name)
+	}
+
+	tools, err := cs.ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tools.Tools) != 8 {
+		t.Fatalf("%d tools, want 8", len(tools.Tools))
+	}
+
+	res, err := cs.CallTool(t.Context(), &mcp.CallToolParams{Name: "create_recipe", Arguments: map[string]any{"recipe": map[string]any{
+		"title": "Soup", "description": "", "servings": 2,
+		"prepMinutes": nil, "cookMinutes": nil, "sourceUrl": nil, "tags": []any{},
+		"ingredientGroups": []any{map[string]any{"name": nil, "ingredients": []any{
+			map[string]any{"quantity": 1, "unit": nil, "name": "Leek", "note": nil},
+		}}},
+		"steps": []any{map[string]any{"text": "Cook the leek.", "references": []any{}}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.IsError {
+		t.Fatalf("create_recipe: %v", res.Content)
 	}
 }
