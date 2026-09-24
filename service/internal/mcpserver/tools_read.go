@@ -121,6 +121,10 @@ func toolError(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, recipe.ErrNotFound):
 		return errors.New("recipe not found")
+	case errors.Is(err, recipe.ErrEditForbidden):
+		return errors.New("you may not make this change: only the recipe's author and admins may edit a locked recipe or change its editPolicy")
+	case errors.Is(err, recipe.ErrDeleteForbidden):
+		return errors.New("only the recipe's author or an admin may delete it")
 	case errors.As(err, &ref):
 		return errors.New(ref.Error())
 	default:
