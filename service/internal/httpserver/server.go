@@ -153,21 +153,27 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 	})
 	// huma's own operations register more specific patterns (e.g.
 	// "GET /api/v1/openapi.json") which take precedence over these catch-alls.
-	mux.Handle("/api", http.HandlerFunc(apiNotFound))
-	mux.Handle("/api/", http.HandlerFunc(apiNotFound))
+	mux.Handle("/api", notFound("no such API route"))
+	mux.Handle("/api/", notFound("no such API route"))
+	// Nothing is published under /.well-known/. An MCP client that gets a
+	// 401 from /mcp looks there for OAuth metadata, and the SPA's index.html
+	// with a 200 would read as a broken document rather than "none here".
+	mux.Handle("/.well-known/", notFound("no such document"))
 	mux.Handle("/", SPAHandler(static))
 	return s
 }
 
-// apiNotFound answers unmatched /api routes with an RFC 9457 problem+json
-// body instead of the stdlib's plain-text 404.
-func apiNotFound(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusNotFound)
-	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
-		Title:  "Not Found",
-		Status: http.StatusNotFound,
-		Detail: "no such API route",
+// notFound answers a route that must not fall through to the SPA with an
+// RFC 9457 problem+json 404 instead of the stdlib's plain-text one.
+func notFound(detail string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(huma.ErrorModel{
+			Title:  "Not Found",
+			Status: http.StatusNotFound,
+			Detail: detail,
+		})
 	})
 }
 

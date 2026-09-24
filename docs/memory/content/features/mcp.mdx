@@ -57,7 +57,7 @@ An AI assistant reaches the recipe collection over the Model Context Protocol: s
 ## Limits
 
 - Only an admin's token authenticates ([API tokens](/features/api-tokens)), and an admin may edit and delete every recipe, so over MCP the editing rights refuse nothing today. `connectAs` in `harness_test.go` registers the tools for a plain member to pin that they would.
-- No OAuth: claude.ai custom connectors need OAuth 2.1, which needs OIDC login first - see [Roadmap](/roadmap). A static bearer token in a client configuration is the whole credential story.
+- No OAuth: claude.ai custom connectors need OAuth 2.1, which needs OIDC login first - see [Roadmap](/roadmap). A static bearer token in a client configuration is the whole credential story; a client that tries OAuth discovery after a `401` gets a `404` problem body for every path under `/.well-known/` (see [Overview](/architecture/overview)).
 - No images over MCP - neither uploading one nor a URL a client could open without a session.
 - Tools only - no MCP resources or prompts.
 - No rate limiting, the same as the REST API.
