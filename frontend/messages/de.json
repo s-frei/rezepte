@@ -404,6 +404,8 @@
 	"tokens_access_none": "Kein Zugriff",
 	"tokens_access_read": "Lesen",
 	"tokens_access_write": "Lesen & Schreiben",
+	"tokens_access_full": "Voll",
+	"tokens_access_full_hint": "Voll erlaubt zusätzlich das Löschen von Rezepten.",
 	"tokens_field_expiry": "Gültigkeit",
 	"tokens_expiry_30": "30 Tage",
 	"tokens_expiry_90": "90 Tage",

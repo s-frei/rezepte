@@ -20,8 +20,8 @@
 		oncreated
 	}: { open?: boolean; oncreated: (token: CreatedApiToken) => void } = $props();
 
-	/** One row of the scope picker: none, read, or read plus write. */
-	type Access = 'none' | 'read' | 'write';
+	/** One row of the scope picker. Each level carries every level below it. */
+	type Access = 'none' | 'read' | 'write' | 'full';
 
 	let name = $state('');
 	let recipes = $state<Access>('read');
@@ -36,6 +36,13 @@
 		{ value: 'write', label: m.tokens_access_write() }
 	];
 
+	// Only recipes can be deleted through a token; users:write already covers
+	// removing an account, so the Users row stops at write.
+	const recipeAccessOptions = [
+		...accessOptions,
+		{ value: 'full' as const, label: m.tokens_access_full() }
+	];
+
 	const expiryOptions = [
 		{ value: '30', label: m.tokens_expiry_30() },
 		{ value: '90', label: m.tokens_expiry_90() },
@@ -43,12 +50,12 @@
 		{ value: 'never', label: m.tokens_expiry_never() }
 	];
 
-	// Write always carries its read scope, so the server compares plain lists
-	// instead of applying an implication rule.
+	// Each level sends every scope below it, so the server compares plain
+	// lists instead of applying an implication rule.
 	function scopesOf(area: 'recipes' | 'users', access: Access): TokenScope[] {
-		if (access === 'none') return [];
-		const read = `${area}:read` as TokenScope;
-		return access === 'read' ? [read] : [read, `${area}:write` as TokenScope];
+		const ladder = [`${area}:read`, `${area}:write`, `${area}:delete`] as TokenScope[];
+		const depth = { none: 0, read: 1, write: 2, full: 3 }[access];
+		return ladder.slice(0, depth);
 	}
 
 	const scopes = $derived([...scopesOf('recipes', recipes), ...scopesOf('users', users)]);
@@ -116,9 +123,12 @@
 				<span class="text-body-sm font-semibold">{m.tokens_access_recipes()}</span>
 				<SegmentedControl
 					bind:value={recipes}
-					options={accessOptions}
+					options={recipeAccessOptions}
 					label={m.tokens_access_recipes()}
 				/>
+				{#if recipes === 'full'}
+					<p class="text-caption text-text-muted">{m.tokens_access_full_hint()}</p>
+				{/if}
 			</div>
 			<div class="flex flex-col gap-1.5">
 				<span class="text-body-sm font-semibold">{m.tokens_access_users()}</span>
