@@ -102,7 +102,7 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.CreatedBy != sam.ID {
-		t.Fatalf("owner = %s, want %s (first user)", r.CreatedBy, sam.ID)
+	if r.CreatedBy.ID != sam.ID {
+		t.Fatalf("owner = %s, want %s (first user)", r.CreatedBy.ID, sam.ID)
 	}
 }

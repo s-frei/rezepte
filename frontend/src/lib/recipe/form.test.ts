@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Recipe, RecipeInput } from '$lib/api/recipes';
+import type { Person, Recipe, RecipeInput } from '$lib/api/recipes';
 import {
 	anchorId,
 	applyServerErrors,
@@ -236,20 +236,17 @@ describe('fromRecipe', () => {
 	});
 
 	it('accepts a full Recipe, not just a RecipeInput', () => {
+		const sam: Person = { id: 'u1', username: 'sam', displayName: 'Sam', color: 'amber' };
 		const recipe: Recipe = {
 			...baseInput(),
 			id: 'r1',
 			slug: 'zitronen-tarte',
 			coverImageId: null,
 			images: [],
-			createdBy: 'u1',
 			createdAt: '2026-09-17T10:00:00Z',
-			updatedBy: 'u1',
+			createdBy: sam,
 			updatedAt: '2026-09-17T10:00:00Z',
-			createdByName: 'sam',
-			updatedByName: 'sam',
-			createdByColor: 'amber',
-			updatedByColor: 'amber',
+			updatedBy: sam,
 			favourite: false
 		};
 		expect(fromRecipe(recipe).title).toBe('Zitronen-Tarte');

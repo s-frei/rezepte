@@ -159,8 +159,10 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 }
 
 const getRecipeAuthors = `-- name: GetRecipeAuthors :one
-SELECT c.display_name AS created_by_name, c.color AS created_by_color,
-       u.display_name AS updated_by_name, u.color AS updated_by_color
+SELECT c.username AS created_by_username, c.display_name AS created_by_display_name,
+       c.color AS created_by_color,
+       u.username AS updated_by_username, u.display_name AS updated_by_display_name,
+       u.color AS updated_by_color
 FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by
@@ -168,22 +170,26 @@ WHERE r.id = ?
 `
 
 type GetRecipeAuthorsRow struct {
-	CreatedByName  string
-	CreatedByColor string
-	UpdatedByName  string
-	UpdatedByColor string
+	CreatedByUsername    string
+	CreatedByDisplayName string
+	CreatedByColor       string
+	UpdatedByUsername    string
+	UpdatedByDisplayName string
+	UpdatedByColor       string
 }
 
-// Author names for the detail view. They come from a query of their own
+// The people behind the detail view. They come from a query of their own
 // rather than a join in GetRecipe because that row is also what the image
-// service reads to check a recipe exists, and it has no use for names.
+// service reads to check a recipe exists, and it has no use for people.
 func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAuthorsRow, error) {
 	row := q.db.QueryRowContext(ctx, getRecipeAuthors, id)
 	var i GetRecipeAuthorsRow
 	err := row.Scan(
-		&i.CreatedByName,
+		&i.CreatedByUsername,
+		&i.CreatedByDisplayName,
 		&i.CreatedByColor,
-		&i.UpdatedByName,
+		&i.UpdatedByUsername,
+		&i.UpdatedByDisplayName,
 		&i.UpdatedByColor,
 	)
 	return i, err
@@ -360,17 +366,17 @@ func (q *Queries) InsertStepReference(ctx context.Context, arg InsertStepReferen
 }
 
 const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many
-SELECT id, display_name, color FROM users WHERE id IN (/*SLICE:ids*/?)
+SELECT id, username, display_name, color FROM users WHERE id IN (/*SLICE:ids*/?)
 `
 
 type ListAuthorsForIDsRow struct {
 	ID          string
+	Username    string
 	DisplayName string
 	Color       string
 }
 
-// Display names and colours for a page of recipes, batched like
-// ListTagNamesForRecipes.
+// The people behind a page of recipes, batched like ListTagNamesForRecipes.
 func (q *Queries) ListAuthorsForIDs(ctx context.Context, ids []string) ([]ListAuthorsForIDsRow, error) {
 	query := listAuthorsForIDs
 	var queryParams []interface{}
@@ -390,7 +396,12 @@ func (q *Queries) ListAuthorsForIDs(ctx context.Context, ids []string) ([]ListAu
 	items := []ListAuthorsForIDsRow{}
 	for rows.Next() {
 		var i ListAuthorsForIDsRow
-		if err := rows.Scan(&i.ID, &i.DisplayName, &i.Color); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.DisplayName,
+			&i.Color,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

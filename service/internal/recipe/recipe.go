@@ -53,6 +53,17 @@ type Image struct {
 	Position int    `json:"position"`
 }
 
+// Person is somebody a recipe names - who wrote it, who last changed it -
+// with what the app shows of them. The whole of it travels with the recipe
+// because user management is admin-only: a member could resolve neither the
+// id nor the colour themselves.
+type Person struct {
+	ID          string `json:"id"`
+	Username    string `json:"username" doc:"Login name, which ?author= filters by"`
+	DisplayName string `json:"displayName"`
+	Color       string `json:"color"`
+}
+
 // Recipe is a stored recipe: an Input plus the fields the service assigns.
 type Recipe struct {
 	ID   string `json:"id"`
@@ -60,18 +71,10 @@ type Recipe struct {
 	Input
 	CoverImageID *string   `json:"coverImageId" nullable:"true"`
 	Images       []Image   `json:"images"`
-	CreatedBy    string    `json:"createdBy"`
 	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedBy    string    `json:"updatedBy"`
+	CreatedBy    Person    `json:"createdBy"`
 	UpdatedAt    time.Time `json:"updatedAt"`
-	// The display names behind CreatedBy and UpdatedBy, and the palette token
-	// each of those people chose. They travel with the recipe because the card
-	// paints the author circles with them and user management is admin-only -
-	// a member could resolve neither the ids nor the colours themselves.
-	CreatedByName  string `json:"createdByName"`
-	CreatedByColor string `json:"createdByColor"`
-	UpdatedByName  string `json:"updatedByName"`
-	UpdatedByColor string `json:"updatedByColor"`
+	UpdatedBy    Person    `json:"updatedBy"`
 	// Favourite reports whether the caller has starred this recipe. It is
 	// endpoint-dependent, not a property (*Service).ByID or (*Service).BySlug
 	// fill in themselves: only the get-recipe and get-recipe-by-slug handler
@@ -96,14 +99,10 @@ type Card struct {
 	CoverImageID *string   `json:"coverImageId" nullable:"true"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	Favourite    bool      `json:"favourite"`
-	// Who wrote the recipe and who last changed it, by display name and
-	// colour. The card shows them as initials; the same reasoning as on
-	// Recipe applies - user management is admin-only, so the ids alone would
-	// be useless to the caller.
-	CreatedByName  string `json:"createdByName"`
-	CreatedByColor string `json:"createdByColor"`
-	UpdatedByName  string `json:"updatedByName"`
-	UpdatedByColor string `json:"updatedByColor"`
+	// Who wrote the recipe and who last changed it, in the same shape as on
+	// Recipe. The card shows them as initials.
+	CreatedBy Person `json:"createdBy"`
+	UpdatedBy Person `json:"updatedBy"`
 }
 
 // TagCount is a tag name paired with how many recipes currently use it.

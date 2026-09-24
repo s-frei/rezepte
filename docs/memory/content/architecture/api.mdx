@@ -107,7 +107,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 
 Every parameter above combines with AND when more than one is set.
 
-`Recipe` and `Card` both carry `createdByName`, `createdByColor`, `updatedByName` and `updatedByColor` beside the two user ids: the display name and the palette token of the author and of the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolour reaches every card at once. They are on the response because user management is admin-only and a member could resolve neither an id nor a colour themselves (see [Recipes and search](/features/recipes)).
+`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolour reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response because user management is admin-only and a member could resolve neither an id nor a colour themselves (see [Recipes and search](/features/recipes)).
 
 Whose favourites either favourite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favourites](/features/favourites)). `Card.favourite` is filled on every list; `Recipe.favourite` only by the two get operations.
 

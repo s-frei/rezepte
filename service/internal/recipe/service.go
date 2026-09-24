@@ -416,16 +416,22 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			IngredientGroups: outGroups,
 			Steps:            outSteps,
 		},
-		CoverImageID:   row.CoverImageID,
-		Images:         images,
-		CreatedBy:      row.CreatedBy,
-		CreatedAt:      created,
-		UpdatedBy:      row.UpdatedBy,
-		UpdatedAt:      updated,
-		CreatedByName:  authors.CreatedByName,
-		CreatedByColor: authors.CreatedByColor,
-		UpdatedByName:  authors.UpdatedByName,
-		UpdatedByColor: authors.UpdatedByColor,
+		CoverImageID: row.CoverImageID,
+		Images:       images,
+		CreatedAt:    created,
+		CreatedBy: Person{
+			ID:          row.CreatedBy,
+			Username:    authors.CreatedByUsername,
+			DisplayName: authors.CreatedByDisplayName,
+			Color:       authors.CreatedByColor,
+		},
+		UpdatedAt: updated,
+		UpdatedBy: Person{
+			ID:          row.UpdatedBy,
+			Username:    authors.UpdatedByUsername,
+			DisplayName: authors.UpdatedByDisplayName,
+			Color:       authors.UpdatedByColor,
+		},
 	}, nil
 }
 

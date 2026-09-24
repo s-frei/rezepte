@@ -119,7 +119,7 @@ func TestCreateListGetUpdateDelete(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Slug != "koenigsberger-klopse" || created.ID == "" || created.CreatedBy == "" {
+	if created.Slug != "koenigsberger-klopse" || created.ID == "" || created.CreatedBy.ID == "" {
 		t.Fatalf("created = %+v", created)
 	}
 	if created.Images == nil {

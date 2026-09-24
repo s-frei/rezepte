@@ -1,20 +1,17 @@
 <script lang="ts">
 	import { Popover } from 'bits-ui';
 	import { m } from '$lib/paraglide/messages';
+	import type { Person } from '$lib/api/recipes';
 	import { authorLabel } from '$lib/recipe/authorship';
-	import { userColorClasses, type UserColor } from '$lib/user/color';
+	import { userColorClasses } from '$lib/user/color';
 
 	let {
-		createdByName,
-		createdByColor,
-		updatedByName,
-		updatedByColor,
+		createdBy,
+		updatedBy,
 		anchor = null
 	}: {
-		createdByName: string;
-		createdByColor: UserColor;
-		updatedByName: string;
-		updatedByColor: UserColor;
+		createdBy: Person;
+		updatedBy: Person;
 		/** What the panel lines up with. The card, so the panel spans its
 		 * full width and sits under it, rather than the two small circles
 		 * that trigger it. */
@@ -23,21 +20,12 @@
 
 	// One circle per person involved, the author first. A recipe its own
 	// author last edited needs no second circle - it would repeat the first.
-	// `Card` carries no user ids, and a display name is deliberately not
-	// unique (two members may both be "Mia"), so the comparison is on the
-	// (name, colour) pair - the colours differ whenever the picker did its
-	// job - rather than on the name alone.
-	const sameAuthor = $derived(createdByName === updatedByName && createdByColor === updatedByColor);
-	const people = $derived(
-		sameAuthor
-			? [{ name: createdByName, color: createdByColor }]
-			: [
-					{ name: createdByName, color: createdByColor },
-					{ name: updatedByName, color: updatedByColor }
-				]
-	);
+	// Compared by id: a display name is deliberately not unique, two members
+	// may both be "Mia".
+	const sameAuthor = $derived(createdBy.id === updatedBy.id);
+	const people = $derived(sameAuthor ? [createdBy] : [createdBy, updatedBy]);
 	const edited = $derived(!sameAuthor);
-	const label = $derived(authorLabel(createdByName, createdByColor, updatedByName, updatedByColor));
+	const label = $derived(authorLabel(createdBy, updatedBy));
 </script>
 
 <!--
@@ -55,7 +43,7 @@
 		tabindex={-1}
 		class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
-		{#each people as person, index (person.name + person.color)}
+		{#each people as person, index (person.id)}
 			<!--
 				`relative` is what makes the overlap read as one circle in front
 				of another. Without it these are unpositioned boxes, and CSS
@@ -84,7 +72,7 @@
 					coarser is visible at this size, as a 1px nudge the wrong way
 					proved.
 				-->
-				<span class="-translate-y-[0.8px]">{person.name.charAt(0).toUpperCase()}</span>
+				<span class="-translate-y-[0.8px]">{person.displayName.charAt(0).toUpperCase()}</span>
 			</span>
 		{/each}
 	</Popover.Trigger>
@@ -120,9 +108,9 @@
 			collisionPadding={12}
 			class="z-50 w-[var(--bits-floating-anchor-width)] rounded-2xl bg-inverse px-3.5 py-2.5 text-caption text-inverse-foreground shadow-dialog"
 		>
-			<p>{m.card_author({ user: createdByName })}</p>
+			<p>{m.card_author({ user: createdBy.displayName })}</p>
 			{#if edited}
-				<p class="mt-1 text-inverse-muted">{m.card_editor({ user: updatedByName })}</p>
+				<p class="mt-1 text-inverse-muted">{m.card_editor({ user: updatedBy.displayName })}</p>
 			{/if}
 		</Popover.Content>
 	</Popover.Portal>

@@ -565,9 +565,9 @@ func TestCardsCarryAuthorNames(t *testing.T) {
 	if len(page.Items) != 1 {
 		t.Fatalf("items = %d, want 1", len(page.Items))
 	}
-	if page.Items[0].CreatedByName != "sam" || page.Items[0].UpdatedByName != "mara" {
+	if page.Items[0].CreatedBy.DisplayName != "sam" || page.Items[0].UpdatedBy.DisplayName != "mara" {
 		t.Fatalf("names = %q / %q, want \"sam\" / \"mara\"",
-			page.Items[0].CreatedByName, page.Items[0].UpdatedByName)
+			page.Items[0].CreatedBy.DisplayName, page.Items[0].UpdatedBy.DisplayName)
 	}
 }
 
