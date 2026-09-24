@@ -39,7 +39,7 @@ The GitHub release body is not written separately. `release:notes` builds it fro
 
 ## The build context is an allowlist
 
-`.dockerignore` starts with `*` and re-includes the individual files and directories the build reads. Docker matches these patterns against full paths, so a path can be re-included under an excluded parent — which is what makes an allowlist expressible at all.
+`.dockerignore` starts with `*` and re-includes the individual files and directories the build reads. Docker matches these patterns against full paths, so a path can be re-included under an excluded parent — which is what makes an allowlist expressible at all. One frontend input lives outside `frontend/`: `assets/brand/lockups`, which the SPA imports through the `$brand` alias, so the frontend stage copies it explicitly. A new input outside `frontend/` needs a line in both `.dockerignore` and the `Dockerfile`, and only a Docker build catches a missing one: `mise run check` and `mise run build` see the whole checkout.
 
 ## Building and running locally
 
