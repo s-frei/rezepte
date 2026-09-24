@@ -10,7 +10,7 @@ SELECT * FROM api_tokens WHERE token_hash = ?;
 UPDATE api_tokens SET last_used_at = ? WHERE id = ?;
 
 -- name: ListAPITokens :many
-SELECT t.*, u.username AS owner_name
+SELECT t.*, u.username AS owner_username
 FROM api_tokens t
 JOIN users u ON u.id = t.user_id
 ORDER BY t.created_at DESC;

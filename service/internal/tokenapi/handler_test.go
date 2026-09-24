@@ -89,8 +89,8 @@ func TestCreateReturnsTheRawTokenOnce(t *testing.T) {
 	if created.ExpiresAt == nil {
 		t.Fatal("ExpiresAt = nil, want a date 30 days out")
 	}
-	if created.OwnerName != "sam" {
-		t.Fatalf("OwnerName = %q, want sam", created.OwnerName)
+	if created.OwnerUsername != "sam" {
+		t.Fatalf("OwnerUsername = %q, want sam", created.OwnerUsername)
 	}
 
 	rec = doReq(h, http.MethodGet, "/api/v1/tokens", "", admin)

@@ -39,7 +39,7 @@ func TestCreateAndAuthenticate(t *testing.T) {
 	if tok.Prefix != raw[:8] {
 		t.Fatalf("Prefix = %q, want %q", tok.Prefix, raw[:8])
 	}
-	if tok.OwnerName != "sam" || tok.Name != "mcp" {
+	if tok.OwnerUsername != "sam" || tok.Name != "mcp" {
 		t.Fatalf("token = %+v", tok)
 	}
 	if tok.ExpiresAt != nil {

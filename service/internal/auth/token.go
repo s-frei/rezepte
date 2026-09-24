@@ -61,15 +61,15 @@ var (
 
 // Token is an API token as it is listed: metadata only, never the secret.
 type Token struct {
-	ID         string
-	Name       string
-	Prefix     string
-	Scopes     []string
-	OwnerID    string
-	OwnerName  string
-	CreatedAt  time.Time
-	ExpiresAt  *time.Time
-	LastUsedAt *time.Time
+	ID            string
+	Name          string
+	Prefix        string
+	Scopes        []string
+	OwnerID       string
+	OwnerUsername string
+	CreatedAt     time.Time
+	ExpiresAt     *time.Time
+	LastUsedAt    *time.Time
 }
 
 // VerifiedToken is what a successful TokenService.Authenticate reports.
@@ -116,14 +116,14 @@ func (s *TokenService) Create(ctx context.Context, ownerID, name string, scopes 
 	raw := TokenPrefix + base64.RawURLEncoding.EncodeToString(buf)
 	now := s.now()
 	tok := Token{
-		ID:        uuid.Must(uuid.NewV7()).String(),
-		Name:      name,
-		Prefix:    raw[:prefixLen],
-		Scopes:    scopes,
-		OwnerID:   owner.ID,
-		OwnerName: owner.Username,
-		CreatedAt: now,
-		ExpiresAt: expiresAt,
+		ID:            uuid.Must(uuid.NewV7()).String(),
+		Name:          name,
+		Prefix:        raw[:prefixLen],
+		Scopes:        scopes,
+		OwnerID:       owner.ID,
+		OwnerUsername: owner.Username,
+		CreatedAt:     now,
+		ExpiresAt:     expiresAt,
 	}
 	err = s.q.CreateAPIToken(ctx, sqlc.CreateAPITokenParams{
 		ID:          tok.ID,
@@ -214,15 +214,15 @@ func (s *TokenService) List(ctx context.Context) ([]Token, error) {
 			return nil, err
 		}
 		out = append(out, Token{
-			ID:         row.ID,
-			Name:       row.Name,
-			Prefix:     row.TokenPrefix,
-			Scopes:     strings.Fields(row.Scopes),
-			OwnerID:    row.UserID,
-			OwnerName:  row.OwnerName,
-			CreatedAt:  created,
-			ExpiresAt:  expires,
-			LastUsedAt: used,
+			ID:            row.ID,
+			Name:          row.Name,
+			Prefix:        row.TokenPrefix,
+			Scopes:        strings.Fields(row.Scopes),
+			OwnerID:       row.UserID,
+			OwnerUsername: row.OwnerUsername,
+			CreatedAt:     created,
+			ExpiresAt:     expires,
+			LastUsedAt:    used,
 		})
 	}
 	return out, nil

@@ -596,7 +596,7 @@ func TestAuthorsListsWritersWithTheirCounts(t *testing.T) {
 	if len(authors) != 1 {
 		t.Fatalf("authors = %+v, want only the one who wrote recipes", authors)
 	}
-	if authors[0].Name != "sam" || authors[0].Count != 2 {
+	if authors[0].Username != "sam" || authors[0].Count != 2 {
 		t.Fatalf("author = %+v, want sam with 2", authors[0])
 	}
 
@@ -608,7 +608,7 @@ func TestAuthorsListsWritersWithTheirCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Most recipes first, so the list reads like the tag list beside it.
-	if len(authors) != 2 || authors[0].Name != "sam" || authors[1].Name != "mara" || authors[1].Count != 1 {
+	if len(authors) != 2 || authors[0].Username != "sam" || authors[1].Username != "mara" || authors[1].Count != 1 {
 		t.Fatalf("authors = %+v, want sam(2) then mara(1)", authors)
 	}
 }

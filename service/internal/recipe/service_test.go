@@ -508,8 +508,8 @@ func TestCardsCarryTheAuthorsDisplayNameAndColour(t *testing.T) {
 	if len(authors) != 1 {
 		t.Fatalf("authors = %+v, want exactly one", authors)
 	}
-	if authors[0].Name != "mia" {
-		t.Errorf("Name = %q; want the username, which the filter matches on", authors[0].Name)
+	if authors[0].Username != "mia" {
+		t.Errorf("Username = %q; want the login name, which the filter matches on", authors[0].Username)
 	}
 	if authors[0].DisplayName != "Sam der Koch" || authors[0].Color != "teal" {
 		t.Errorf("facet = %q / %q; want the display name and teal", authors[0].DisplayName, authors[0].Color)

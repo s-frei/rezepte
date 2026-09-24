@@ -21,15 +21,15 @@ import (
 
 // APIToken is a token as the API shows it. It never carries the secret.
 type APIToken struct {
-	ID         string     `json:"id" doc:"Token id"`
-	Name       string     `json:"name" doc:"Label the admin gave it"`
-	Prefix     string     `json:"prefix" doc:"First characters of the token, for matching it against a client configuration"`
-	Scopes     []string   `json:"scopes" doc:"What the token may do"`
-	OwnerID    string     `json:"ownerId" doc:"User the token acts as"`
-	OwnerName  string     `json:"ownerName" doc:"Login name of that user"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	ExpiresAt  *time.Time `json:"expiresAt,omitempty" doc:"Absent when the token never expires"`
-	LastUsedAt *time.Time `json:"lastUsedAt,omitempty" doc:"Accurate to the hour; absent when never used"`
+	ID            string     `json:"id" doc:"Token id"`
+	Name          string     `json:"name" doc:"Label the admin gave it"`
+	Prefix        string     `json:"prefix" doc:"First characters of the token, for matching it against a client configuration"`
+	Scopes        []string   `json:"scopes" doc:"What the token may do"`
+	OwnerID       string     `json:"ownerId" doc:"User the token acts as"`
+	OwnerUsername string     `json:"ownerUsername" doc:"Login name of that user"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty" doc:"Absent when the token never expires"`
+	LastUsedAt    *time.Time `json:"lastUsedAt,omitempty" doc:"Accurate to the hour; absent when never used"`
 }
 
 // APITokenList is the response body of list-api-tokens.
@@ -91,15 +91,15 @@ func canManageAllTokens(u user.User) bool { return u.Role.IsAdmin() }
 
 func toResponse(t auth.Token) APIToken {
 	return APIToken{
-		ID:         t.ID,
-		Name:       t.Name,
-		Prefix:     t.Prefix,
-		Scopes:     t.Scopes,
-		OwnerID:    t.OwnerID,
-		OwnerName:  t.OwnerName,
-		CreatedAt:  t.CreatedAt,
-		ExpiresAt:  t.ExpiresAt,
-		LastUsedAt: t.LastUsedAt,
+		ID:            t.ID,
+		Name:          t.Name,
+		Prefix:        t.Prefix,
+		Scopes:        t.Scopes,
+		OwnerID:       t.OwnerID,
+		OwnerUsername: t.OwnerUsername,
+		CreatedAt:     t.CreatedAt,
+		ExpiresAt:     t.ExpiresAt,
+		LastUsedAt:    t.LastUsedAt,
 	}
 }
 

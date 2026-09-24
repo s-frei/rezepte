@@ -30,7 +30,7 @@
             "description": "User the token acts as",
             "type": "string"
           },
-          "ownerName": {
+          "ownerUsername": {
             "description": "Login name of that user",
             "type": "string"
           },
@@ -55,7 +55,7 @@
           "prefix",
           "scopes",
           "ownerId",
-          "ownerName",
+          "ownerUsername",
           "createdAt"
         ],
         "type": "object"
@@ -100,12 +100,12 @@
           "displayName": {
             "type": "string"
           },
-          "name": {
+          "username": {
             "type": "string"
           }
         },
         "required": [
-          "name",
+          "username",
           "displayName",
           "color",
           "count"
@@ -461,7 +461,7 @@
             "description": "User the token acts as",
             "type": "string"
           },
-          "ownerName": {
+          "ownerUsername": {
             "description": "Login name of that user",
             "type": "string"
           },
@@ -491,7 +491,7 @@
           "prefix",
           "scopes",
           "ownerId",
-          "ownerName",
+          "ownerUsername",
           "createdAt"
         ],
         "type": "object"

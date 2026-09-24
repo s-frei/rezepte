@@ -56,7 +56,7 @@
 			<span class="text-micro font-semibold text-text-muted md:hidden">
 				{m.tokens_col_owner()}:
 			</span>
-			{token.ownerName}
+			{token.ownerUsername}
 		</div>
 		<div class="min-w-0 text-caption">
 			<p title={m.tokens_last_used_hint()}>

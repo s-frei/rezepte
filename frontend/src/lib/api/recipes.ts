@@ -242,7 +242,7 @@ export async function listTags(): Promise<Tag[]> {
 }
 
 /** `name` is the username the ?author= filter matches; the rest is what the facet shows. */
-export type Author = { name: string; displayName: string; color: UserColor; count: number };
+export type Author = { username: string; displayName: string; color: UserColor; count: number };
 
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the
