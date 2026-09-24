@@ -17,12 +17,32 @@ Format: `type(scope): summary` following [semantic commit messages](https://gist
 
 Scopes: `service`, `frontend`, `docs`, or none.
 
-A change that breaks an API client, a configuration or a deployment carries `!` right before the colon: `refactor(api)!: say username where a login name is meant`. `release:start` reads it to suggest a major version, and `release:finish` then requires the release's upgrade notice - see [Release](/howtos/release).
+## Breaking changes
+
+A change is breaking when someone who runs Rezepte, or a script that talks to it, has to do something for an upgrade to keep working. That covers:
+
+- the REST API: a field, parameter, endpoint or status code renamed, removed, retyped or given a different meaning;
+- configuration: an environment variable or flag renamed or removed, or a default that changes behavior;
+- deployment: the image, the binary's arguments, ports, the data directory layout, or a migration that needs a step or a backup beyond the usual;
+- a feature removed that people may rely on.
+
+A changed UI, new optional fields and additive endpoints are not breaking. When unsure, mark it: a false `!` costs a larger version number, a missing one costs someone a broken upgrade.
+
+Such a commit carries `!` right before the colon, and it always has a body whose first line starts with `Breaking:` and says what a person running Rezepte has to do, in their words rather than the code's:
+
+```text
+refactor(api)!: say username where a login name is meant
+
+Breaking: API clients that send or read `login` on tokens or recipe
+filters must use `username` instead.
+```
+
+`release:start` reads the `!` to suggest a major version, `release:finish` then requires the release's upgrade notice, and the `Breaking:` line is what that notice is written from - see [Write release notes](/howtos/write-release-notes).
 
 <Callout type="warn" title="Hard rules">
 
   - Title at most 70 characters, imperative mood, no trailing period.
-  - Body only when the title cannot explain the why.
+  - Body only when the title cannot explain the why - or when the commit is breaking, which always needs the `Breaking:` line.
   - No `Co-Authored-By` or tool trailers.
   - Never commit `docs/superpowers/`.
 
