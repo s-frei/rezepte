@@ -22,13 +22,13 @@ export function devPasswordNext(username: string): string {
 }
 
 /**
- * Pins the interface language for one browser context. The suite's selectors
- * are German, and the instance default is English, so every test says which
- * language it is reading before it navigates. Writing the cookie directly
+ * Pins the interface language for one browser context, so a test says which
+ * language it is reading before it navigates rather than inheriting whatever
+ * the browser or a previous account left behind. Writing the cookie directly
  * rather than clicking through settings keeps this out of the tests that are
  * not about language - `locale.test.ts` drives the real switch.
  */
-export async function pinLocale(page: Page, locale: 'en' | 'de' = 'de'): Promise<void> {
+export async function pinLocale(page: Page, locale: 'en' | 'de' = 'en'): Promise<void> {
 	// The same origin playwright.config.ts hands the tests as baseURL. Read it
 	// here rather than from page.url(), which is still about:blank before the
 	// first navigation - and the cookie has to be in place before that.
@@ -41,41 +41,52 @@ export async function pinLocale(page: Page, locale: 'en' | 'de' = 'de'): Promise
 
 /**
  * Logs in as the instance owner `admin`, or as any bootstrapped user. Pins
- * German first, so the login form itself (no account signed in yet, nothing
- * to read a stored locale from) renders in German - `getByLabel` below needs
- * the German labels to find the fields.
+ * English first, so the login form itself (no account signed in yet, nothing
+ * to read a stored locale from) renders in English whatever cookie an
+ * earlier German account left behind - `getByLabel` below needs the English
+ * labels to find the fields.
  *
  * This pin does not survive login on its own: the login response sets
- * PARAGLIDE_LOCALE from the account's own stored locale, and every
- * subsequent page - even a client-side one, no full reload - reads that
- * cookie fresh. What keeps the rest of this suite in German is
- * `mise run e2e` bootstrapping every account, `admin` included, with
- * REZEPTE_LOCALE=de (mise/tasks/e2e.sh) - the pin and the account agree, so
- * there is nothing for the login response to overwrite it with.
+ * PARAGLIDE_LOCALE from the account's own stored locale. It does not have
+ * to: `mise run e2e` starts an instance with the default locale, English, so
+ * every account the suite creates without naming a locale - `admin`
+ * included - agrees with the pin. `locale.test.ts` is where accounts say
+ * otherwise.
  */
 export async function login(page: Page, username = 'admin', password = devPassword(username)) {
-	await pinLocale(page, 'de');
+	await pinLocale(page, 'en');
 	await page.goto('/login');
-	await page.getByLabel('Benutzername').fill(username);
-	await page.getByLabel('Passwort').fill(password);
-	await page.getByRole('button', { name: 'Anmelden' }).click();
+	await page.getByLabel('Username').fill(username);
+	await page.getByLabel('Password').fill(password);
+	await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
 /**
- * Signs out through the menu that holds "Einstellungen" and "Abmelden". The
- * two viewports build it differently - a Bits UI dropdown behind the avatar on
- * desktop, whose entries are `menuitem`s, and the "Mehr" sheet with real
+ * Signs out through the menu that holds "Settings" and "Sign out". The two
+ * viewports build it differently - a Bits UI dropdown behind the avatar on
+ * desktop, whose entries are `menuitem`s, and the "More" sheet with real
  * buttons on phones, since the top bar is `md:` only - so the walk depends on
- * the project the test runs in.
+ * the project the test runs in. `locale` is the language the signed-in
+ * account reads, for the one spec that signs a German account out.
  */
-export async function signOut(page: Page, testInfo: TestInfo): Promise<void> {
+export async function signOut(
+	page: Page,
+	testInfo: TestInfo,
+	locale: 'en' | 'de' = 'en'
+): Promise<void> {
+	const labels = {
+		en: { more: 'More', accountMenu: 'Account menu', signOut: 'Sign out' },
+		de: { more: 'Mehr', accountMenu: 'Kontomenü', signOut: 'Abmelden' }
+	}[locale];
 	const mobile = testInfo.project.name.startsWith('mobile');
-	// exact: true on the phone bottom-nav button - without it, "Mehr" also
-	// matches the overview's "Mehr laden" button once enough recipes have
+	// exact: true on the phone bottom-nav button - without it, "More" also
+	// matches the overview's "Load more" button once enough recipes have
 	// piled up in the shared database for the grid to paginate, which turns
 	// this into a strict-mode violation (two matching buttons at once).
-	await page.getByRole('button', { name: mobile ? 'Mehr' : 'Kontomenü', exact: mobile }).click();
-	await page.getByRole(mobile ? 'button' : 'menuitem', { name: 'Abmelden' }).click();
+	await page
+		.getByRole('button', { name: mobile ? labels.more : labels.accountMenu, exact: mobile })
+		.click();
+	await page.getByRole(mobile ? 'button' : 'menuitem', { name: labels.signOut }).click();
 }
 
 /**
@@ -91,23 +102,28 @@ export function uniqueToken(): string {
 	return `e2e${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`;
 }
 
-let fixtures: RecipeInput[] | null = null;
+const fixtures: Partial<Record<'en' | 'de', RecipeInput[]>> = {};
 
 /**
- * Returns a copy of one of the German recipes the service tests are seeded
- * with (`service/internal/recipe/testdata/recipes.de.json`), so the e2e suite
- * exercises the same realistic data - umlauts, ingredient groups and all. The
- * suite's selectors are German, so this deliberately reads the German fixture
- * regardless of which locale a demo instance would seed.
+ * Returns a copy of one of the recipes the service tests are seeded with
+ * (`service/internal/recipe/testdata/recipes.<locale>.json`), so the e2e
+ * suite exercises the same realistic data - ingredient groups and all.
+ * English by default, like the rest of the suite; a test asks for `de` only
+ * when German content is what it is about - umlauts, or German's long
+ * compound words - and says so where it does.
  */
-export function loadFixture(index: number): RecipeInput {
-	if (fixtures === null) {
-		const file = new URL('../../service/internal/recipe/testdata/recipes.de.json', import.meta.url);
-		fixtures = JSON.parse(readFileSync(file, 'utf8')) as RecipeInput[];
+export function loadFixture(index: number, locale: 'en' | 'de' = 'en'): RecipeInput {
+	let set = fixtures[locale];
+	if (set === undefined) {
+		const file = new URL(
+			`../../service/internal/recipe/testdata/recipes.${locale}.json`,
+			import.meta.url
+		);
+		set = fixtures[locale] = JSON.parse(readFileSync(file, 'utf8')) as RecipeInput[];
 	}
-	const fixture = fixtures[index];
+	const fixture = set[index];
 	if (!fixture) {
-		throw new Error(`no recipe fixture at index ${index}`);
+		throw new Error(`no ${locale} recipe fixture at index ${index}`);
 	}
 	return structuredClone(fixture);
 }
@@ -136,22 +152,22 @@ export async function createRecipe(page: Page, input: RecipeInput): Promise<Reci
 
 /** Opens the recipe editor through whichever "new recipe" entry point the viewport shows. */
 export async function openNewRecipe(page: Page) {
-	const topBar = page.getByRole('link', { name: 'Neues Rezept' });
-	const bottomNav = page.getByRole('link', { name: 'Neu', exact: true });
+	const topBar = page.getByRole('link', { name: 'New recipe' });
+	const bottomNav = page.getByRole('link', { name: 'New', exact: true });
 	await topBar.or(bottomNav).first().click();
 	await expect(page).toHaveURL(/\/recipes\/new$/);
 }
 
 /** Types into the overview's search field and waits out its 250ms debounce. */
 export async function search(page: Page, term: string) {
-	const field = page.getByRole('textbox', { name: 'Rezepte durchsuchen' });
+	const field = page.getByRole('textbox', { name: 'Search recipes' });
 	await field.fill(term);
 	await expect(field).toHaveValue(term);
 }
 
 /** Opens the detail page's "..." menu - the only entry point both viewports share. */
 export async function openRecipeMenu(page: Page) {
-	await page.getByRole('button', { name: 'Weitere Aktionen' }).click();
+	await page.getByRole('button', { name: 'More actions' }).click();
 	await expect(page.getByRole('menu')).toBeVisible();
 }
 
@@ -240,10 +256,9 @@ export async function uploadImage(page: Page, recipeId: string, png: Buffer): Pr
 
 /**
  * Creates a user through the API as whoever `page` is logged in as (an
- * admin). `locale` defaults to the instance's own default (German for this
- * suite, set by `mise run e2e` so the pinned login cookie survives past the
- * first authenticated page - see mise/tasks/e2e.sh); locale.test.ts is the
- * one caller that names it explicitly, to bootstrap an English account.
+ * admin). `locale` defaults to the instance's own default, English, which
+ * is what the login pin expects; locale.test.ts is the one caller that names
+ * it explicitly, to bootstrap a German account.
  */
 export async function createUser(
 	page: Page,

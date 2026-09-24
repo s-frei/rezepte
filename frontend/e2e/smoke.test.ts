@@ -6,7 +6,7 @@ test('serves the app shell', async ({ page }) => {
 	// The word "Rezepte" in the top bar is the logo, not a heading, and the
 	// bar itself is desktop-only - the overview's own headline is what both
 	// projects can see.
-	await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
 });
 
 test('health endpoint answers with a status and a version', async ({ request }) => {
