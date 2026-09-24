@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Search from 'lucide-svelte/icons/search';
-	import X from 'lucide-svelte/icons/x';
+	import Search from '@lucide/svelte/icons/search';
+	import X from '@lucide/svelte/icons/x';
 	import { m } from '$lib/paraglide/messages';
 	import { palette } from '$lib/palette.svelte';
 

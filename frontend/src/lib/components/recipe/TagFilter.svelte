@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import type { Tag } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { m } from '$lib/paraglide/messages';

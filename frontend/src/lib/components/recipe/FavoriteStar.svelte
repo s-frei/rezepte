@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Star from 'lucide-svelte/icons/star';
+	import Star from '@lucide/svelte/icons/star';
 	import { toast } from 'svelte-sonner';
 	import { setFavorite } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';

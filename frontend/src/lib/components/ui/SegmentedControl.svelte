@@ -1,10 +1,8 @@
 <script lang="ts" generics="T extends string">
-	import type { ComponentType, SvelteComponent } from 'svelte';
-	import type { IconProps } from 'lucide-svelte';
+	import type { Component } from 'svelte';
+	import type { LucideProps } from '@lucide/svelte';
 
-	// lucide-svelte 1.0.1 still ships Svelte 4 class components, so the icon
-	// slot is typed with `ComponentType`, not Svelte 5's `Component`.
-	type IconComponent = ComponentType<SvelteComponent<IconProps>>;
+	type IconComponent = Component<LucideProps>;
 
 	type Option = { value: T; label: string; icon?: IconComponent };
 

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { fade } from 'svelte/transition';
-	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
-	import ChevronRight from 'lucide-svelte/icons/chevron-right';
-	import Download from 'lucide-svelte/icons/download';
-	import X from 'lucide-svelte/icons/x';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Download from '@lucide/svelte/icons/download';
+	import X from '@lucide/svelte/icons/x';
 	import { imageUrl, type Image } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 

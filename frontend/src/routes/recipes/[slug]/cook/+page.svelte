@@ -4,9 +4,9 @@
 	import { fade, fly } from 'svelte/transition';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
-	import ArrowRight from 'lucide-svelte/icons/arrow-right';
-	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import CookProgress from '$lib/components/cook/CookProgress.svelte';
 	import IngredientSheet from '$lib/components/cook/IngredientSheet.svelte';
 	import TypeSpecimen from '$lib/components/cook/TypeSpecimen.svelte';

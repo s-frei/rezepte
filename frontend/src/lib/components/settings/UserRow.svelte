@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Pencil from 'lucide-svelte/icons/pencil';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import type { ColorUsage } from '$lib/api/auth';
 	import type { UserAccount, UserRole } from '$lib/api/users';
 	import Button from '$lib/components/ui/Button.svelte';

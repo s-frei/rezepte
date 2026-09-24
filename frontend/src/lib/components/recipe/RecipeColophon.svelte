@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Lock from 'lucide-svelte/icons/lock';
+	import Lock from '@lucide/svelte/icons/lock';
 	import type { Recipe } from '$lib/api/recipes';
 	import { session } from '$lib/auth.svelte';
 	import { m } from '$lib/paraglide/messages';

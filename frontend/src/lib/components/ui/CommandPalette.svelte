@@ -3,9 +3,9 @@
 	import { resolve } from '$app/paths';
 	import type { ResolvedPathname } from '$app/types';
 	import { Command, Dialog } from 'bits-ui';
-	import Plus from 'lucide-svelte/icons/plus';
-	import Search from 'lucide-svelte/icons/search';
-	import Settings from 'lucide-svelte/icons/settings';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
+	import Settings from '@lucide/svelte/icons/settings';
 	import { fade, scale } from 'svelte/transition';
 	import { listRecipes, type RecipeCard } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import BookOpen from 'lucide-svelte/icons/book-open';
-	import Menu from 'lucide-svelte/icons/menu';
-	import Plus from 'lucide-svelte/icons/plus';
-	import Search from 'lucide-svelte/icons/search';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Menu from '@lucide/svelte/icons/menu';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Search from '@lucide/svelte/icons/search';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { m } from '$lib/paraglide/messages';

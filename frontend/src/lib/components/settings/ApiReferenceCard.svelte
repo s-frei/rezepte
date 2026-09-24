@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
-	import Copy from 'lucide-svelte/icons/copy';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { toast } from 'svelte-sonner';
 	import { fetchApiSummary, fetchVersion } from '$lib/api/spec';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import GripVertical from 'lucide-svelte/icons/grip-vertical';
-	import X from 'lucide-svelte/icons/x';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import X from '@lucide/svelte/icons/x';
 	import { dragHandle } from 'svelte-dnd-action';
 	import { m } from '$lib/paraglide/messages';
 	import { isBlank, type FormIngredient } from '$lib/recipe/form';

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
 	import { tick } from 'svelte';
-	import GripVertical from 'lucide-svelte/icons/grip-vertical';
-	import Plus from 'lucide-svelte/icons/plus';
-	import X from 'lucide-svelte/icons/x';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import Plus from '@lucide/svelte/icons/plus';
+	import X from '@lucide/svelte/icons/x';
 	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { m } from '$lib/paraglide/messages';

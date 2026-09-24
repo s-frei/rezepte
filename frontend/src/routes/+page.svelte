@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import ArrowDownWideNarrow from 'lucide-svelte/icons/arrow-down-wide-narrow';
-	import Plus from 'lucide-svelte/icons/plus';
+	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { RadioGroup } from 'bits-ui';
-	import Check from 'lucide-svelte/icons/check';
+	import Check from '@lucide/svelte/icons/check';
 	import type { ColorUsage } from '$lib/api/auth';
 	import { m } from '$lib/paraglide/messages';
 	import { USER_COLORS, userColorClasses, type UserColor } from '$lib/user/color';

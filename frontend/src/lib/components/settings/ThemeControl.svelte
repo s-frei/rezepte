@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Monitor from 'lucide-svelte/icons/monitor';
-	import Moon from 'lucide-svelte/icons/moon';
-	import Sun from 'lucide-svelte/icons/sun';
+	import Monitor from '@lucide/svelte/icons/monitor';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { Theme } from '$lib/theme';
