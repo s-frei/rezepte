@@ -233,7 +233,7 @@ func Register(api huma.API, svc *Service) {
 		Path:          "/api/v1/recipes/{id}",
 		Summary:       "Delete a recipe",
 		Tags:          []string{"recipes"},
-		Security:      auth.Protected(auth.ScopeRecipesWrite),
+		Security:      auth.Protected(auth.ScopeRecipesDelete),
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{403, 404},
 	}, func(ctx context.Context, in *deleteRecipeInput) (*deleteRecipeOutput, error) {

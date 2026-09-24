@@ -183,7 +183,7 @@ func TestDeleteRevokesAndIsIdempotentlyNotFound(t *testing.T) {
 func TestUnknownScopeIsRejected(t *testing.T) {
 	h := newHandler(t)
 	admin := loginAs(t, h, "sam", "pw")
-	rec := doReq(h, http.MethodPost, "/api/v1/tokens", `{"name":"x","scopes":["recipes:delete"]}`, admin)
+	rec := doReq(h, http.MethodPost, "/api/v1/tokens", `{"name":"x","scopes":["recipes:frobnicate"]}`, admin)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
 	}

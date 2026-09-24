@@ -51,7 +51,7 @@ type listOutput struct {
 type createInput struct {
 	Body struct {
 		Name   string   `json:"name" minLength:"1" maxLength:"64"`
-		Scopes []string `json:"scopes" minItems:"1" uniqueItems:"true" enum:"recipes:read,recipes:write,users:read,users:write"`
+		Scopes []string `json:"scopes" minItems:"1" uniqueItems:"true" enum:"recipes:read,recipes:write,recipes:delete,users:read,users:write"`
 		// ExpiresInDays keeps the server as the clock: a client cannot set an
 		// expiry in the past or centuries out. Absent means no expiry.
 		ExpiresInDays *int `json:"expiresInDays,omitempty" enum:"30,90,365"`

@@ -37,12 +37,16 @@ const touchAfter = time.Hour
 const (
 	ScopeRecipesRead  = "recipes:read"
 	ScopeRecipesWrite = "recipes:write"
-	ScopeUsersRead    = "users:read"
-	ScopeUsersWrite   = "users:write"
+	// ScopeRecipesDelete allows deleting recipes. It is separate from
+	// ScopeRecipesWrite so a token can edit a collection without being able
+	// to empty it.
+	ScopeRecipesDelete = "recipes:delete"
+	ScopeUsersRead     = "users:read"
+	ScopeUsersWrite    = "users:write"
 )
 
 // knownScopes is the closed set Create accepts.
-var knownScopes = []string{ScopeRecipesRead, ScopeRecipesWrite, ScopeUsersRead, ScopeUsersWrite}
+var knownScopes = []string{ScopeRecipesRead, ScopeRecipesWrite, ScopeRecipesDelete, ScopeUsersRead, ScopeUsersWrite}
 
 // Errors returned by TokenService.
 var (

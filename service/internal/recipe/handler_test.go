@@ -1,6 +1,7 @@
 package recipe_test
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -95,6 +96,67 @@ func mustMarshal(t *testing.T, v any) string {
 	return string(data)
 }
 
+// tokenEnv is newRecipeHandlerWithConn's counterpart for scope checks: a
+// full-stack handler authenticated with a bearer token instead of a session
+// cookie.
+type tokenEnv struct {
+	h     http.Handler
+	token string
+}
+
+// newTokenEnv seeds an admin ("sam") and issues a token carrying scopes
+// against the same handler stack newRecipeHandlerWithConn builds.
+func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
+	t.Helper()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	sam, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := config.LoadFrom(map[string]string{})
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	auth.Register(srv.API(), sessions, false)
+	recipe.Register(srv.API(), recipe.NewService(conn))
+	raw, _, err := tokens.Create(context.Background(), sam.ID, "t", scopes, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &tokenEnv{h: srv.Handler(), token: raw}
+}
+
+// do sends a bearer-authenticated request against env's handler.
+func (e *tokenEnv) do(t *testing.T, method, path string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Host = "localhost:8060"
+	req.Header.Set("Origin", "http://localhost:8060")
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	rec := httptest.NewRecorder()
+	e.h.ServeHTTP(rec, req)
+	return rec
+}
+
+// createRecipe creates a fixture recipe through env's handler and returns its
+// id.
+func (e *tokenEnv) createRecipe(t *testing.T) string {
+	t.Helper()
+	fx := loadFixtures(t)[0]
+	rec := e.do(t, http.MethodPost, "/api/v1/recipes", []byte(mustMarshal(t, fx)))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create recipe status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	return created.ID
+}
+
 func TestRecipesRequireSession(t *testing.T) {
 	h := newRecipeHandler(t)
 	rec := doReq(h, http.MethodGet, "/api/v1/recipes", "", nil)
@@ -181,6 +243,30 @@ func TestCreateListGetUpdateDelete(t *testing.T) {
 	rec = doReq(h, http.MethodGet, "/api/v1/recipes/"+created.ID, "", cookie)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("get after delete status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestDeleteRecipeNeedsDeleteScope covers that recipes:write alone is not
+// enough to delete: a token can edit a collection without being able to
+// empty it, so deleting requires the separate recipes:delete scope.
+func TestDeleteRecipeNeedsDeleteScope(t *testing.T) {
+	cases := []struct {
+		name   string
+		scopes []string
+		want   int
+	}{
+		{"write only", []string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, http.StatusForbidden},
+		{"full", []string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite, auth.ScopeRecipesDelete}, http.StatusNoContent},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newTokenEnv(t, tc.scopes)
+			id := env.createRecipe(t)
+			resp := env.do(t, http.MethodDelete, "/api/v1/recipes/"+id, nil)
+			if resp.Code != tc.want {
+				t.Fatalf("status = %d, want %d: %s", resp.Code, tc.want, resp.Body)
+			}
+		})
 	}
 }
 
