@@ -97,6 +97,17 @@ func UserFrom(ctx context.Context) (user.User, bool) {
 	return u, ok
 }
 
+type scopesKey struct{}
+
+// ScopesFrom returns the scopes of the API token that authenticated ctx's
+// request, or nil when it was not authenticated by a token. Only
+// RequireToken stores them; routes that also accept a session never need
+// them, since a session is not scope-limited.
+func ScopesFrom(ctx context.Context) []string {
+	s, _ := ctx.Value(scopesKey{}).([]string)
+	return s
+}
+
 // Middleware authenticates every operation that declares Security.
 //
 // A request carrying an Authorization: Bearer header is decided by the token
