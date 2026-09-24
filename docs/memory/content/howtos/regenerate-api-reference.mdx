@@ -25,7 +25,7 @@ Run it whenever an endpoint, parameter or schema changes - see [Keep the user do
 
 ## A new tag still needs a declaration
 
-`groupBy: 'tag'` groups by the tags an operation carries, so an undeclared tag does produce a folder — but a shabby one: the raw tag name as its title, no description on its card, and a position after every declared tag, since the declaration order in `apiTags` (`service/internal/httpserver/api.go`) is what `beforeWrite` restores onto the top-level `meta.json`.
+`groupBy: 'tag'` groups by the tags an operation carries, so an undeclared tag does produce a folder — but a shabby one: the raw tag name as its title, no description on its card, and a position after every declared tag, both in the sidebar and among the cards of the top-level page, since the declaration order in `apiTags` (`service/internal/httpserver/api.go`) is what `beforeWrite` restores onto the top-level `meta.json` and follows when it writes those cards.
 
 `TestEveryTagIsDeclared` in `service/internal/httpserver/wiring_test.go` fails on both halves of the mistake: a tag an operation uses but the document does not declare, and a declaration no operation uses (which would generate an empty folder). The fix is to add the tag with its description where the others live. That order is also the order the Scalar page at `/api/v1/docs` presents.
 
@@ -33,10 +33,10 @@ Run it whenever an endpoint, parameter or schema changes - see [Keep the user do
 
 `docs/user/scripts/generate-api.ts` configures the generator; `docs/user/components/api-page.tsx` configures the renderer. Between them:
 
-- **`per` / `groupBy`** - `'operation'` foldered by `'tag'`, so the sidebar lists the endpoints themselves. `per: 'tag'` would collapse each tag into one long page and the sidebar back to six entries.
+- **`per` / `groupBy`** - `'operation'` foldered by `'tag'`, so the sidebar lists the endpoints themselves. `per: 'tag'` would collapse each tag into one long page and the sidebar back to one entry per tag.
 - **`includeDescription`** - deliberately `false`, which keeps the description in the page frontmatter instead of moving it into the body. Every other page on the site carries its description there, and it is where `<DocsDescription>`, the search index and `/llms.txt` read it.
-- **`index`** - the card pages: one per tag folder, one over all of them. Without the per-folder ones a tag is a bare navigation node, `/api/reference/recipes` is a 404 and the breadcrumb above an operation leads nowhere.
-- **`beforeWrite`** - does three things `generateFiles` has no option for: retitles each page with its route (the summary moves to the description), prepends `index` to every generated `meta.json`, and puts the top-level one back into tag-declaration order.
+- **`index`** - the card pages: one per tag folder, one over all of them. Without the per-folder ones a tag is a bare navigation node, `/api/reference/recipes` is a 404 and the breadcrumb above an operation leads nowhere. `generateFiles` only makes cards for operations and skips groups, and every operation sits in a tag folder, so the top-level page comes out as an empty `<Cards>`; `beforeWrite` fills it.
+- **`beforeWrite`** - does four things `generateFiles` has no option for: retitles each page with its route (the summary moves to the description), fills the top-level card page with one card per tag folder in tag-declaration order, each carrying its tag's description, prepends `index` to every generated `meta.json`, and puts the top-level one back into tag-declaration order. It throws when the top-level page or its empty `<Cards>` is missing, so a `fumadocs-openapi` upgrade that changes that output fails the task instead of shipping an empty page.
 - **`playground`** - off, and [Documentation sites](/architecture/docs) says why it has to be.
 
 After any change there, run the task and read the diff in `docs/user/content/api/reference/` before committing.
