@@ -1,6 +1,6 @@
 ---
 title: Connect an AI assistant
-description: Let Claude Code, Cursor or another MCP client search, read and edit your recipes
+description: Let an MCP client search, read and edit your recipes
 ---
 
 The Model Context Protocol (MCP) lets an AI assistant work with your recipe collection directly — searching, reading, and with the right token creating, editing and deleting — instead of you copying ingredients back and forth by hand. Rezepte serves an MCP endpoint at `https://<your instance>/mcp`, and it uses the same credential as the REST API: an API token.
@@ -13,23 +13,25 @@ Follow [API tokens](/api/tokens) to issue one from **Settings → API**. What th
 - **Read & write** — also create and edit recipes.
 - **Full** — also delete recipes.
 
-Give it the least it needs. Once the token is created, the same dialog that shows it to you also offers ready-made snippets for connecting a client — see below.
+Give it the least it needs.
 
-## Claude Code
+## Connect a client
 
-Register the instance with one command, using the token you just copied:
+Once the token is created, its dialog offers two ways to connect, both already filled in with your token and this instance's address — copying them from there is easier than typing them out.
+
+### With a command
+
+Claude Code registers the instance with one command, which the dialog's "Claude Code" tab holds:
 
 ```bash
 claude mcp add --transport http rezepte https://<your instance>/mcp --header "Authorization: Bearer rzp_..."
 ```
 
-<Screenshot name="token-mcp" caption="The token dialog with the Claude Code command, ready to copy" />
+<Screenshot name="token-mcp" caption="The token dialog with the connect command, ready to copy" />
 
-The token dialog has this command already filled in with your token and this instance's address — copying it from there is easier than typing it out.
+### With a JSON configuration
 
-## Other clients
-
-Most other MCP clients — Cursor and Claude Code's project `.mcp.json` — read an `mcpServers` block instead of a command. The token dialog's "JSON" tab has this ready too:
+Most MCP clients, such as Cursor, read an `mcpServers` block from a configuration file instead, as does a project's `.mcp.json`. The dialog's "JSON" tab holds this one:
 
 ```json
 {
@@ -63,6 +65,6 @@ Eight tools, each reaching as far as the token's scopes allow. The assistant act
 - It cannot do anything about members, passwords or anyone else's account.
 - It can never do more than the token's scopes allow — a **Read** token cannot create, edit or delete, and only **Full** can delete.
 
-## claude.ai and the Claude apps
+## Clients that need OAuth
 
-claude.ai's custom connectors and the Claude desktop and mobile apps are not supported yet — they require OAuth, which Rezepte does not implement. Clients that accept a static header, such as Claude Code, Cursor and VS Code, work today. See [Roadmap](/roadmap).
+Clients that only connect through OAuth, such as claude.ai's custom connectors, are not supported yet — Rezepte does not implement OAuth. Every client that accepts a static header works today. See [Roadmap](/roadmap).
