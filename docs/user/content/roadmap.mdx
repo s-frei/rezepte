@@ -15,9 +15,9 @@ One Rezepte instance could mirror another's recipes read-only, using an [API tok
 
 The API already exists and now supports [bearer-token authentication](/api/tokens) as well as the session cookie the app itself uses (see [API](/api)); what's still missing is a versioning policy and rate limits.
 
-## MCP server
+## Connect claude.ai and the Claude apps (OAuth)
 
-Letting AI assistants search, read and draft recipes through the Model Context Protocol, built on top of the REST API and its tokens.
+Claude Code and other clients that accept a static header already work — see [Connect an AI assistant](/api/mcp). claude.ai's custom connectors and the Claude apps need OAuth 2.1 instead, which needs OIDC login first (below).
 
 ## OIDC login
 
