@@ -188,6 +188,28 @@ func TestPublicRoutesStayPublic(t *testing.T) {
 	}
 }
 
+// TestWellKnownIsNotTheSPA pins that nothing under /.well-known/ falls
+// through to index.html: an MCP client that gets a 401 from /mcp looks there
+// for OAuth metadata, and a 200 with the app shell would read as a broken
+// document instead of "this server has none".
+func TestWellKnownIsNotTheSPA(t *testing.T) {
+	app := newFullApp(t)
+	for _, route := range []string{
+		"/.well-known/oauth-protected-resource",
+		"/.well-known/oauth-protected-resource/mcp",
+		"/.well-known/oauth-authorization-server",
+		"/.well-known/openid-configuration",
+	} {
+		rec := app.get(route, nil)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s: status %d, want 404", route, rec.Code)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+			t.Errorf("GET %s: Content-Type = %q, want problem+json", route, ct)
+		}
+	}
+}
+
 // TestEveryFeatureRegisters renders the OpenAPI document. huma panics when
 // two feature packages give different Go types the same schema name (e.g.
 // two types called List), and it does so while generating the schema - so
