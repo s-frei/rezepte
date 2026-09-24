@@ -73,6 +73,15 @@ test('a Full recipes token carries the delete scope', async ({ page }) => {
 	await dialog.getByLabel('Name').fill(name);
 	await dialog.getByRole('radio', { name: 'Full' }).click();
 	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+
+	const reveal = page.getByRole('dialog');
+	await expect(reveal.getByRole('tab', { name: 'Claude Code' })).toBeVisible();
+	await expect(
+		reveal.getByText(/claude mcp add --transport http rezepte http:\/\/.+\/mcp/)
+	).toBeVisible();
+	await reveal.getByRole('tab', { name: 'JSON' }).click();
+	await expect(reveal.getByText('"mcpServers"')).toBeVisible();
+
 	await page.getByRole('dialog').getByRole('button', { name: 'I have saved it' }).click();
 
 	// Scoped to this token's own row: the desktop and mobile projects run at
@@ -83,4 +92,23 @@ test('a Full recipes token carries the delete scope', async ({ page }) => {
 		.getByRole('listitem')
 		.filter({ hasText: name });
 	await expect(row.getByText('recipes:read, recipes:write, recipes:delete')).toBeVisible();
+});
+
+test('a users-only token gets no MCP snippet', async ({ page }) => {
+	const name = `users-${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/api');
+	await page.getByRole('button', { name: 'Create token' }).first().click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Name').fill(name);
+	// exact: true on 'Read' - a substring match also catches 'Read & write'.
+	await dialog.getByRole('radio', { name: 'No access' }).first().click();
+	await dialog.getByRole('radio', { name: 'Read', exact: true }).nth(1).click();
+	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+
+	const reveal = page.getByRole('dialog');
+	await expect(reveal.getByText(/^rzp_/)).toBeVisible();
+	await expect(reveal.getByRole('tab', { name: 'Claude Code' })).toHaveCount(0);
+	await reveal.getByRole('button', { name: 'I have saved it' }).click();
 });

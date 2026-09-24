@@ -3,7 +3,13 @@
 	import Plus from 'lucide-svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { isSignedOut } from '$lib/api/client';
-	import { deleteToken, listTokens, type ApiToken, type CreatedApiToken } from '$lib/api/tokens';
+	import {
+		deleteToken,
+		listTokens,
+		type ApiToken,
+		type CreatedApiToken,
+		type TokenScope
+	} from '$lib/api/tokens';
 	import ApiReferenceCard from '$lib/components/settings/ApiReferenceCard.svelte';
 	import CreateTokenDialog from '$lib/components/settings/CreateTokenDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
@@ -24,6 +30,7 @@
 	let createOpen = $state(false);
 	let revealOpen = $state(false);
 	let revealed = $state('');
+	let revealedScopes = $state<TokenScope[]>([]);
 	let revokeOpen = $state(false);
 	let revokeTarget = $state<ApiToken | null>(null);
 
@@ -60,6 +67,7 @@
 
 	function created(token: CreatedApiToken) {
 		revealed = token.token;
+		revealedScopes = token.scopes;
 		revealOpen = true;
 		// Named fields only, not a rest spread: the secret must not linger in
 		// the list's state one moment longer than the reveal dialog needs it.
@@ -136,7 +144,7 @@
 
 {#if data.isAdmin}
 	<CreateTokenDialog bind:open={createOpen} oncreated={created} />
-	<TokenRevealDialog bind:open={revealOpen} token={revealed} />
+	<TokenRevealDialog bind:open={revealOpen} token={revealed} scopes={revealedScopes} />
 	<ConfirmDialog
 		bind:open={revokeOpen}
 		title={m.tokens_revoke_title()}
