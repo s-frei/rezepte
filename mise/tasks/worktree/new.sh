@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Create a worktree off develop with its own port offset"
+#USAGE arg "<name>" help="Directory name under .claude/worktrees/, and the branch feat/<name> unless a branch is given"
+#USAGE arg "[branch]" help="Branch to create instead of feat/<name>; release:start passes release/vX.Y.Z"
 # Creates a worktree for feature work and gives it its own port offset, so
 # two agents can run their stacks at once. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.

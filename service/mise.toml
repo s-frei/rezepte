@@ -22,7 +22,8 @@ watchexec --restart --exts go --ignore 'internal/web/dist/**' -- go run ./cmd/re
 
 [tasks.test]
 description = "Run Go tests"
-run = "go test ./..."
+usage = 'arg "[args]..." var=#true help="Appended to go test ./...: -run TestName, -v, -count=1 or other test flags"'
+run = "go test ./...{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 
 [tasks.lint]
 description = "Run golangci-lint"
