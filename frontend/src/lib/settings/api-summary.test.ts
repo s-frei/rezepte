@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { summariseSpec } from './api-summary';
+import { summarizeSpec } from './api-summary';
 
-describe('summariseSpec', () => {
+describe('summarizeSpec', () => {
 	it('counts one operation per method across paths', () => {
-		const summary = summariseSpec({
+		const summary = summarizeSpec({
 			paths: {
 				'/recipes': { get: { tags: ['recipes'] }, post: { tags: ['recipes'] } },
 				'/recipes/{id}': { get: { tags: ['recipes'] }, delete: { tags: ['recipes'] } }
@@ -16,7 +16,7 @@ describe('summariseSpec', () => {
 	// parameters and a summary right next to the methods, and counting those
 	// would inflate the figure the card shows.
 	it('ignores path-item keys that are not HTTP methods', () => {
-		const summary = summariseSpec({
+		const summary = summarizeSpec({
 			paths: {
 				'/recipes': {
 					summary: 'Recipes',
@@ -29,7 +29,7 @@ describe('summariseSpec', () => {
 	});
 
 	it('counts each tag once, however many operations carry it', () => {
-		const summary = summariseSpec({
+		const summary = summarizeSpec({
 			paths: {
 				'/recipes': { get: { tags: ['recipes'] }, post: { tags: ['recipes'] } },
 				'/tokens': { get: { tags: ['tokens'] } }
@@ -39,7 +39,7 @@ describe('summariseSpec', () => {
 	});
 
 	it('counts both tags of an operation that carries two', () => {
-		const summary = summariseSpec({
+		const summary = summarizeSpec({
 			paths: { '/auth/me': { get: { tags: ['auth', 'users'] } } }
 		});
 		expect(summary.areas).toBe(2);
@@ -49,11 +49,11 @@ describe('summariseSpec', () => {
 	// it as an area would invent one, dropping it from the operations would
 	// undercount the API.
 	it('counts an untagged operation without inventing an area', () => {
-		const summary = summariseSpec({ paths: { '/healthz': { get: {} } } });
+		const summary = summarizeSpec({ paths: { '/healthz': { get: {} } } });
 		expect(summary).toEqual({ operations: 1, areas: 0 });
 	});
 
 	it('reads an empty document as zero of both', () => {
-		expect(summariseSpec({})).toEqual({ operations: 0, areas: 0 });
+		expect(summarizeSpec({})).toEqual({ operations: 0, areas: 0 });
 	});
 });

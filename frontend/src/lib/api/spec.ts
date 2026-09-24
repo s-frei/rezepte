@@ -1,9 +1,9 @@
-import { summariseSpec, type ApiSummary, type SpecDocument } from '$lib/settings/api-summary';
+import { summarizeSpec, type ApiSummary, type SpecDocument } from '$lib/settings/api-summary';
 import { api } from './client';
 
 /** The OpenAPI document the instance serves, reduced to its two figures. */
 export async function fetchApiSummary(): Promise<ApiSummary> {
-	return summariseSpec(await api<SpecDocument>('/openapi.json'));
+	return summarizeSpec(await api<SpecDocument>('/openapi.json'));
 }
 
 /**
