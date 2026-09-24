@@ -1,10 +1,10 @@
 -- name: InsertRecipe :one
-INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at, edit_policy)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRecipe :one
-UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?
+UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
 RETURNING *;
 
@@ -101,7 +101,7 @@ WITH ordered AS (
          OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
@@ -150,7 +150,7 @@ WITH ordered AS (
          OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);

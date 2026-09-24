@@ -15,6 +15,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -52,6 +53,7 @@ func newFullApp(t *testing.T) fullApp {
 	recipe.Register(srv.API(), recipe.NewService(conn, recipe.WithImageDir(imageDir)))
 	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
+	settings.Register(srv.API(), settings.NewService(conn))
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	userapi.Register(srv.API(), users, sessions)
@@ -186,9 +188,9 @@ func TestEveryFeatureRegisters(t *testing.T) {
 			ids[op.OperationID] = true
 		}
 	}
-	// One operation per feature package: proof that all five registrations
+	// One operation per feature package: proof that all six registrations
 	// made it into the same document.
-	for _, id := range []string{"login", "list-recipes", "upload-image", "list-users", "list-api-tokens"} {
+	for _, id := range []string{"login", "list-recipes", "upload-image", "get-settings", "list-users", "list-api-tokens"} {
 		if !ids[id] {
 			t.Errorf("operation %q missing from the OpenAPI document", id)
 		}

@@ -41,6 +41,10 @@ type Input struct {
 	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40"`
 	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20"`
 	Steps            []Step            `json:"steps" maxItems:"50"`
+	// EditPolicy is who besides the author and admins may edit. On create,
+	// empty means "default". On update, empty keeps the stored policy, so a
+	// client that does not know the field cannot reset or trip it.
+	EditPolicy Policy `json:"editPolicy,omitempty" enum:"default,open,locked" required:"false"`
 }
 
 // Image is a photo attached to a recipe. Width and height describe the
@@ -76,17 +80,19 @@ type Recipe struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 	UpdatedBy    Person    `json:"updatedBy"`
 	// Favorite reports whether the caller has starred this recipe. It is
-	// endpoint-dependent, not a property (*Service).ByID or (*Service).BySlug
-	// fill in themselves: only the get-recipe and get-recipe-by-slug handler
-	// operations populate it, each by calling fillFavorite (handler.go)
-	// after loading the Recipe. create-recipe and update-recipe return it as
-	// the zero value false unconditionally - Create's is accurate (nothing
-	// can have favorited a recipe that didn't exist a moment ago), Update's
-	// is not (an existing favorite is silently dropped from the response).
-	// A future caller of ByID/BySlug - a new handler operation, say - gets
-	// false the same way unless it also calls fillFavorite or
-	// (*Service).IsFavorite itself.
+	// caller-dependent, not a property (*Service).ByID or (*Service).BySlug
+	// fill in themselves: every handler operation that returns a Recipe
+	// populates it by calling fillCaller (handler.go) after loading it. A
+	// future caller of ByID/BySlug - a new handler operation, say - gets
+	// false unless it also calls fillCaller or (*Service).IsFavorite itself.
 	Favorite bool `json:"favorite"`
+	// Locked is the effective state: the recipe's policy resolved against
+	// the household default. The Can* fields are for the caller and, like
+	// Favorite, are filled by the handler (FillAccess), not by ByID/BySlug.
+	Locked          bool `json:"locked"`
+	CanEdit         bool `json:"canEdit"`
+	CanDelete       bool `json:"canDelete"`
+	CanChangePolicy bool `json:"canChangePolicy"`
 }
 
 // Card is the summary of a recipe shown in listings.

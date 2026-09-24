@@ -50,6 +50,11 @@ type IngredientGroup struct {
 	Position int64
 }
 
+type InstanceSetting struct {
+	ID                     int64
+	RecipesLockedByDefault bool
+}
+
 type Recipe struct {
 	ID           string
 	Slug         string
@@ -64,6 +69,7 @@ type Recipe struct {
 	CreatedAt    string
 	UpdatedBy    string
 	UpdatedAt    string
+	EditPolicy   *string
 }
 
 type RecipeTag struct {

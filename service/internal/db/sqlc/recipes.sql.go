@@ -134,7 +134,7 @@ func (q *Queries) DeleteStepsByRecipe(ctx context.Context, recipeID string) erro
 }
 
 const getRecipe = `-- name: GetRecipe :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at FROM recipes WHERE id = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE id = ?
 `
 
 func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
@@ -154,6 +154,7 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.EditPolicy,
 	)
 	return i, err
 }
@@ -196,7 +197,7 @@ func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAut
 }
 
 const getRecipeBySlug = `-- name: GetRecipeBySlug :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at FROM recipes WHERE slug = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE slug = ?
 `
 
 func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, error) {
@@ -216,6 +217,7 @@ func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, err
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.EditPolicy,
 	)
 	return i, err
 }
@@ -269,9 +271,9 @@ func (q *Queries) InsertIngredientGroup(ctx context.Context, arg InsertIngredien
 }
 
 const insertRecipe = `-- name: InsertRecipe :one
-INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at
+INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at, edit_policy)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 `
 
 type InsertRecipeParams struct {
@@ -287,6 +289,7 @@ type InsertRecipeParams struct {
 	CreatedAt   string
 	UpdatedBy   string
 	UpdatedAt   string
+	EditPolicy  *string
 }
 
 func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Recipe, error) {
@@ -303,6 +306,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		arg.CreatedAt,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.EditPolicy,
 	)
 	var i Recipe
 	err := row.Scan(
@@ -319,6 +323,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.EditPolicy,
 	)
 	return i, err
 }
@@ -570,7 +575,7 @@ func (q *Queries) ListIngredientsByRecipe(ctx context.Context, recipeID string) 
 
 const listRecipesFiltered = `-- name: ListRecipesFiltered :many
 WITH ordered AS (
-  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at,
+  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at, r.edit_policy,
     CASE WHEN CAST(?3 AS TEXT) = 'created' THEN r.created_at END AS sort_created,
     CASE WHEN CAST(?3 AS TEXT) = 'title' THEN LOWER(r.title) END AS sort_title,
     CASE WHEN CAST(?3 AS TEXT) != 'created'
@@ -589,7 +594,7 @@ WITH ordered AS (
          OR r.created_by = (SELECT id FROM users WHERE username = ?9))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT ?2 OFFSET ?1
@@ -621,6 +626,7 @@ type ListRecipesFilteredRow struct {
 	CreatedAt    string
 	UpdatedBy    string
 	UpdatedAt    string
+	EditPolicy   *string
 }
 
 // The id tiebreak runs DESC, like updated_at: timestamps are RFC3339 with
@@ -710,6 +716,7 @@ func (q *Queries) ListRecipesFiltered(ctx context.Context, arg ListRecipesFilter
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.EditPolicy,
 		); err != nil {
 			return nil, err
 		}
@@ -873,7 +880,7 @@ func (q *Queries) ListTagNamesForRecipes(ctx context.Context, recipeIds []string
 
 const searchRecipesFiltered = `-- name: SearchRecipesFiltered :many
 WITH ordered AS (
-  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at,
+  SELECT r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes, r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at, r.edit_policy,
     CASE WHEN CAST(?3 AS TEXT) = 'created' THEN r.created_at END AS sort_created,
     CASE WHEN CAST(?3 AS TEXT) = 'title' THEN LOWER(r.title) END AS sort_title,
     CASE WHEN CAST(?3 AS TEXT) != 'created'
@@ -893,7 +900,7 @@ WITH ordered AS (
          OR r.created_by = (SELECT id FROM users WHERE username = ?10))
 )
 SELECT id, slug, title, description, servings, prep_minutes, cook_minutes,
-       source_url, cover_image_id, created_by, created_at, updated_by, updated_at
+       source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 FROM ordered
 ORDER BY sort_created DESC, sort_title ASC, sort_updated DESC, id DESC
 LIMIT ?2 OFFSET ?1
@@ -926,6 +933,7 @@ type SearchRecipesFilteredRow struct {
 	CreatedAt    string
 	UpdatedBy    string
 	UpdatedAt    string
+	EditPolicy   *string
 }
 
 // The full-text half of ListRecipesFiltered. It is a separate query rather
@@ -970,6 +978,7 @@ func (q *Queries) SearchRecipesFiltered(ctx context.Context, arg SearchRecipesFi
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.EditPolicy,
 		); err != nil {
 			return nil, err
 		}
@@ -1017,9 +1026,9 @@ func (q *Queries) SlugExists(ctx context.Context, slug string) (bool, error) {
 }
 
 const updateRecipe = `-- name: UpdateRecipe :one
-UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?
+UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 `
 
 type UpdateRecipeParams struct {
@@ -1031,6 +1040,7 @@ type UpdateRecipeParams struct {
 	SourceUrl   *string
 	UpdatedBy   string
 	UpdatedAt   string
+	EditPolicy  *string
 	ID          string
 }
 
@@ -1044,6 +1054,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		arg.SourceUrl,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.EditPolicy,
 		arg.ID,
 	)
 	var i Recipe
@@ -1061,6 +1072,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.EditPolicy,
 	)
 	return i, err
 }

@@ -53,6 +53,9 @@ func setup(t *testing.T) (*recipe.Service, string) {
 // access and needs a mutex added here first, not just the key change.
 var testConns = map[*testing.T]*sql.DB{}
 
+// adminActor is the setup user as an actor; setup creates it as an admin.
+func adminActor(id string) user.User { return user.User{ID: id, Role: user.RoleAdmin} }
+
 // createUser adds a second user to the database setup opened for the
 // current test, mirroring how setup creates the first one, and returns
 // their id.
@@ -138,7 +141,7 @@ func TestUpdateReplacesChildrenAndKeepsSlug(t *testing.T) {
 	in.Tags = []string{"Vegetarisch", "neu"}
 	in.IngredientGroups = in.IngredientGroups[:1]
 	in.Steps = []recipe.Step{{Text: "Alles mischen."}}
-	updated, err := svc.Update(ctx, created.ID, uid, in)
+	updated, err := svc.Update(ctx, created.ID, adminActor(uid), in)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -148,7 +151,7 @@ func TestUpdateReplacesChildrenAndKeepsSlug(t *testing.T) {
 	if len(updated.IngredientGroups) != 1 || len(updated.Steps) != 1 || len(updated.Tags) != 2 || updated.Tags[1] != "vegetarisch" {
 		t.Fatalf("children = %+v", updated)
 	}
-	if _, err := svc.Update(ctx, "missing", uid, in); !errors.Is(err, recipe.ErrNotFound) {
+	if _, err := svc.Update(ctx, "missing", adminActor(uid), in); !errors.Is(err, recipe.ErrNotFound) {
 		t.Fatalf("missing: %v", err)
 	}
 }
@@ -157,13 +160,13 @@ func TestDeleteCascadesAndDropsOrphanTags(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	created, _ := svc.Create(ctx, uid, loadFixtures(t)[10]) // Rote Grütze: süß, dessert
-	if err := svc.Delete(ctx, created.ID); err != nil {
+	if err := svc.Delete(ctx, created.ID, adminActor(uid)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.ByID(ctx, created.ID); !errors.Is(err, recipe.ErrNotFound) {
 		t.Fatalf("after delete: %v", err)
 	}
-	if err := svc.Delete(ctx, created.ID); !errors.Is(err, recipe.ErrNotFound) {
+	if err := svc.Delete(ctx, created.ID, adminActor(uid)); !errors.Is(err, recipe.ErrNotFound) {
 		t.Fatalf("second delete: %v", err)
 	}
 	tags, err := svc.Tags(ctx)
@@ -258,7 +261,7 @@ func TestDeleteRemovesImageDirectory(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(recipeDir, "x.jpg"), []byte("jpg"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Delete(ctx, created.ID); err != nil {
+	if err := svc.Delete(ctx, created.ID, u); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(recipeDir); !errors.Is(err, os.ErrNotExist) {
@@ -425,7 +428,7 @@ func TestUpdateRecordsTheEditor(t *testing.T) {
 	}
 
 	in.Title = "Käsespätzle deluxe"
-	updated, err := svc.Update(ctx, created.ID, editor, in)
+	updated, err := svc.Update(ctx, created.ID, adminActor(editor), in)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -451,7 +454,7 @@ func TestRecipeCarriesAuthorNames(t *testing.T) {
 		t.Fatalf("after create: %q / %q, want both \"sam\"", created.CreatedBy.DisplayName, created.UpdatedBy.DisplayName)
 	}
 
-	updated, err := svc.Update(ctx, created.ID, editor, loadFixtures(t)[3])
+	updated, err := svc.Update(ctx, created.ID, adminActor(editor), loadFixtures(t)[3])
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -647,7 +650,7 @@ func TestUpdateRewritesReferences(t *testing.T) {
 	// Drop the reference; the row must not survive.
 	in := created.Input
 	in.Steps[0].References = nil
-	if _, err := svc.Update(ctx, created.ID, userID, in); err != nil {
+	if _, err := svc.Update(ctx, created.ID, adminActor(userID), in); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	got, err := svc.ByID(ctx, created.ID)
@@ -694,7 +697,7 @@ func TestUpdateDroppingAReferencedIngredientStillLoads(t *testing.T) {
 	in.Steps[0].References = []recipe.IngredientRef{
 		{Word: "Tomate", IngredientName: "Tomate"},
 	}
-	if _, err := svc.Update(ctx, created.ID, userID, in); err != nil {
+	if _, err := svc.Update(ctx, created.ID, adminActor(userID), in); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 

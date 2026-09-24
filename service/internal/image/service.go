@@ -15,6 +15,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 // maxUploadBytes caps an upload body; the handler enforces it on the wire,
@@ -53,19 +54,18 @@ func NewService(conn *sql.DB, dir string) *Service {
 
 // Upload decodes the image in r, writes its variants and records it as the
 // last image of recipeID. When the recipe has no cover yet, the new image
-// becomes its cover. updatedBy is recorded as the recipe's editor, since
-// the upload moves its updated_at. Errors: ErrNotFound (recipe),
-// ErrUnsupported, ErrInvalid, ErrTooLarge, ErrTooMany.
-func (s *Service) Upload(ctx context.Context, recipeID, updatedBy string, r io.Reader) (recipe.Image, error) {
+// becomes its cover. actor is recorded as the recipe's editor, since the
+// upload moves its updated_at; the edit rule is checked before the body is
+// read and again inside the transaction. Errors: ErrNotFound (recipe),
+// recipe.ErrEditForbidden, ErrUnsupported, ErrInvalid, ErrTooLarge,
+// ErrTooMany.
+func (s *Service) Upload(ctx context.Context, recipeID string, actor user.User, r io.Reader) (recipe.Image, error) {
 	if !isID(recipeID) {
 		return recipe.Image{}, ErrNotFound
 	}
 	// Cheap checks before decoding a possibly 10 MiB body.
-	if _, err := s.q.GetRecipe(ctx, recipeID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return recipe.Image{}, ErrNotFound
-		}
-		return recipe.Image{}, fmt.Errorf("get recipe %s: %w", recipeID, err)
+	if _, err := guard(ctx, s.q, actor, recipeID); err != nil {
+		return recipe.Image{}, err
 	}
 	if n, err := s.q.CountImagesByRecipe(ctx, recipeID); err != nil {
 		return recipe.Image{}, fmt.Errorf("count images: %w", err)
@@ -88,12 +88,9 @@ func (s *Service) Upload(ctx context.Context, recipeID, updatedBy string, r io.R
 
 	var out recipe.Image
 	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		row, err := q.GetRecipe(ctx, recipeID)
+		row, err := guard(ctx, q, actor, recipeID)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrNotFound
-			}
-			return fmt.Errorf("get recipe %s: %w", recipeID, err)
+			return err
 		}
 		n, err := q.CountImagesByRecipe(ctx, recipeID)
 		if err != nil {
@@ -116,10 +113,10 @@ func (s *Service) Upload(ctx context.Context, recipeID, updatedBy string, r io.R
 			return fmt.Errorf("insert image: %w", err)
 		}
 		if row.CoverImageID == nil {
-			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
+			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
 				return fmt.Errorf("set cover: %w", err)
 			}
-		} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
+		} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
 			return fmt.Errorf("touch recipe: %w", err)
 		}
 		out = toImage(inserted)
@@ -130,6 +127,16 @@ func (s *Service) Upload(ctx context.Context, recipeID, updatedBy string, r io.R
 		return recipe.Image{}, err
 	}
 	return out, nil
+}
+
+// guard runs recipe.GuardEdit and translates its not-found into this
+// package's ErrNotFound, which the handler already maps to 404.
+func guard(ctx context.Context, q *sqlc.Queries, actor user.User, recipeID string) (sqlc.Recipe, error) {
+	row, err := recipe.GuardEdit(ctx, q, actor, recipeID)
+	if errors.Is(err, recipe.ErrNotFound) {
+		return sqlc.Recipe{}, ErrNotFound
+	}
+	return row, err
 }
 
 // render decodes data and writes the variants of id into recipeDir while
@@ -154,17 +161,16 @@ func (s *Service) render(ctx context.Context, data []byte, recipeDir, id string)
 // Delete removes imageID from recipeID: the row, then (after commit) the
 // files. If it was the cover, the first remaining image by position takes
 // over, or the cover is cleared. Remaining positions are renumbered 0..n-1.
-func (s *Service) Delete(ctx context.Context, recipeID, imageID, updatedBy string) error {
+// actor is recorded as the recipe's editor. Errors: ErrNotFound,
+// recipe.ErrEditForbidden.
+func (s *Service) Delete(ctx context.Context, recipeID, imageID string, actor user.User) error {
 	if !isID(recipeID) || !isID(imageID) {
 		return ErrNotFound
 	}
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		row, err := q.GetRecipe(ctx, recipeID)
+		row, err := guard(ctx, q, actor, recipeID)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrNotFound
-			}
-			return fmt.Errorf("get recipe %s: %w", recipeID, err)
+			return err
 		}
 		n, err := q.DeleteImage(ctx, sqlc.DeleteImageParams{RecipeID: recipeID, ID: imageID})
 		if err != nil {
@@ -186,12 +192,12 @@ func (s *Service) Delete(ctx context.Context, recipeID, imageID, updatedBy strin
 			if len(rest) > 0 {
 				cover = &rest[0].ID
 			}
-			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: cover, UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
+			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: cover, UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
 				return fmt.Errorf("set cover: %w", err)
 			}
 			return nil
 		}
-		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: updatedBy, UpdatedAt: now, ID: recipeID}); err != nil {
+		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
 			return fmt.Errorf("touch recipe: %w", err)
 		}
 		return nil
@@ -205,18 +211,16 @@ func (s *Service) Delete(ctx context.Context, recipeID, imageID, updatedBy strin
 
 // Reorder assigns positions 0..n-1 following ids, which must name every
 // image of recipeID exactly once (ErrBadOrder otherwise), and returns the
-// images in their new order.
-func (s *Service) Reorder(ctx context.Context, recipeID, updatedBy string, ids []string) ([]recipe.Image, error) {
+// images in their new order. actor is recorded as the recipe's editor.
+// Errors: ErrNotFound, recipe.ErrEditForbidden, ErrBadOrder.
+func (s *Service) Reorder(ctx context.Context, recipeID string, actor user.User, ids []string) ([]recipe.Image, error) {
 	if !isID(recipeID) {
 		return nil, ErrNotFound
 	}
 	var out []recipe.Image
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		if _, err := q.GetRecipe(ctx, recipeID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrNotFound
-			}
-			return fmt.Errorf("get recipe %s: %w", recipeID, err)
+		if _, err := guard(ctx, q, actor, recipeID); err != nil {
+			return err
 		}
 		current, err := q.ListImagesByRecipe(ctx, recipeID)
 		if err != nil {
@@ -242,7 +246,7 @@ func (s *Service) Reorder(ctx context.Context, recipeID, updatedBy string, ids [
 		if err := renumber(ctx, q, recipeID, ordered); err != nil {
 			return err
 		}
-		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: updatedBy, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
+		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
 			return fmt.Errorf("touch recipe: %w", err)
 		}
 		out = make([]recipe.Image, len(ordered))
@@ -259,12 +263,16 @@ func (s *Service) Reorder(ctx context.Context, recipeID, updatedBy string, ids [
 }
 
 // SetCover makes imageID the cover of recipeID. The image must belong to
-// the recipe (ErrNotFound otherwise).
-func (s *Service) SetCover(ctx context.Context, recipeID, imageID, updatedBy string) error {
+// the recipe (ErrNotFound otherwise). actor is recorded as the recipe's
+// editor. Errors: ErrNotFound, recipe.ErrEditForbidden.
+func (s *Service) SetCover(ctx context.Context, recipeID, imageID string, actor user.User) error {
 	if !isID(recipeID) || !isID(imageID) {
 		return ErrNotFound
 	}
 	return db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		if _, err := guard(ctx, q, actor, recipeID); err != nil {
+			return err
+		}
 		if _, err := q.GetImage(ctx, sqlc.GetImageParams{RecipeID: recipeID, ID: imageID}); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrNotFound
@@ -272,7 +280,7 @@ func (s *Service) SetCover(ctx context.Context, recipeID, imageID, updatedBy str
 			return fmt.Errorf("get image: %w", err)
 		}
 		id := imageID
-		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: updatedBy, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
+		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: actor.ID, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
 			return fmt.Errorf("set cover: %w", err)
 		}
 		return nil
