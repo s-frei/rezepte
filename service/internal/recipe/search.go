@@ -286,9 +286,9 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	if err != nil {
 		return nil, fmt.Errorf("list authors for recipes: %w", err)
 	}
-	authors := make(map[string]author, len(authorRows))
+	authors := make(map[string]Person, len(authorRows))
 	for _, a := range authorRows {
-		authors[a.ID] = author{name: a.DisplayName, color: a.Color}
+		authors[a.ID] = Person{ID: a.ID, Username: a.Username, DisplayName: a.DisplayName, Color: a.Color}
 	}
 
 	favourites := make(map[string]bool)
@@ -319,15 +319,10 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	return items, nil
 }
 
-// author is a display name paired with the palette colour behind it, keyed
-// by user id in toCards' lookup and passed through to toCard for each side
-// of a recipe (created/updated) in one value rather than two.
-type author struct{ name, color string }
-
 // toCard builds a Card from a stored recipe row, its tag names, whether the
 // caller has favourited it and the display name/colour pair behind each of
 // its two author columns.
-func toCard(row sqlc.Recipe, tags []string, favourite bool, createdBy, updatedBy author) (Card, error) {
+func toCard(row sqlc.Recipe, tags []string, favourite bool, createdBy, updatedBy Person) (Card, error) {
 	if tags == nil {
 		tags = []string{}
 	}
@@ -345,10 +340,8 @@ func toCard(row sqlc.Recipe, tags []string, favourite bool, createdBy, updatedBy
 		UpdatedAt:    updated,
 		Favourite:    favourite,
 
-		CreatedByName:  createdBy.name,
-		CreatedByColor: createdBy.color,
-		UpdatedByName:  updatedBy.name,
-		UpdatedByColor: updatedBy.color,
+		CreatedBy: createdBy,
+		UpdatedBy: updatedBy,
 	}, nil
 }
 

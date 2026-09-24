@@ -300,11 +300,11 @@ func TestImageOperationsRecordTheEditor(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if r.UpdatedBy != editor {
-				t.Fatalf("updatedBy = %q, want the editor %q", r.UpdatedBy, editor)
+			if r.UpdatedBy.ID != editor {
+				t.Fatalf("updatedBy = %q, want the editor %q", r.UpdatedBy.ID, editor)
 			}
-			if r.CreatedBy != e.owner {
-				t.Fatalf("createdBy = %q, want the author %q", r.CreatedBy, e.owner)
+			if r.CreatedBy.ID != e.owner {
+				t.Fatalf("createdBy = %q, want the author %q", r.CreatedBy.ID, e.owner)
 			}
 		})
 	}

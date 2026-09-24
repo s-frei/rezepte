@@ -7,20 +7,25 @@
 	let {
 		recipe
 	}: {
-		recipe: Pick<
-			Recipe,
-			'createdBy' | 'createdAt' | 'createdByName' | 'updatedBy' | 'updatedAt' | 'updatedByName'
-		>;
+		recipe: Pick<Recipe, 'createdBy' | 'createdAt' | 'updatedBy' | 'updatedAt'>;
 	} = $props();
 
 	const edited = $derived(hasBeenEdited(recipe));
 </script>
 
 <footer class="mt-10 border-t border-border pt-6 text-caption text-text-muted">
-	<p>{m.detail_created_by({ user: recipe.createdByName, date: formatDate(recipe.createdAt) })}</p>
+	<p>
+		{m.detail_created_by({
+			user: recipe.createdBy.displayName,
+			date: formatDate(recipe.createdAt)
+		})}
+	</p>
 	{#if edited}
 		<p class="mt-1">
-			{m.detail_updated_by({ user: recipe.updatedByName, date: formatDate(recipe.updatedAt) })}
+			{m.detail_updated_by({
+				user: recipe.updatedBy.displayName,
+				date: formatDate(recipe.updatedAt)
+			})}
 		</p>
 	{/if}
 </footer>

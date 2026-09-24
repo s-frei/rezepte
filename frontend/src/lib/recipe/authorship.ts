@@ -1,6 +1,5 @@
-import type { Recipe } from '$lib/api/recipes';
+import type { Person, Recipe } from '$lib/api/recipes';
 import { m } from '$lib/paraglide/messages';
-import type { UserColor } from '$lib/user/color';
 
 /**
  * Whether a recipe has been edited since it was written, which is what
@@ -15,7 +14,7 @@ import type { UserColor } from '$lib/user/color';
 export function hasBeenEdited(
 	recipe: Pick<Recipe, 'createdBy' | 'createdAt' | 'updatedBy' | 'updatedAt'>
 ): boolean {
-	return recipe.updatedAt !== recipe.createdAt || recipe.updatedBy !== recipe.createdBy;
+	return recipe.updatedAt !== recipe.createdAt || recipe.updatedBy.id !== recipe.createdBy.id;
 }
 
 /**
@@ -23,19 +22,13 @@ export function hasBeenEdited(
  * shows and the `aria-label` a screen reader announces - the initials
  * themselves carry no text.
  *
- * A card compares (name, colour) pairs rather than calling `hasBeenEdited`:
- * it has no timestamps, and an edit by the author alone adds nothing to a
- * card that already names them. The colour is part of the comparison
- * because a display name is deliberately not unique - two members may both
- * be "Mia" - so the name alone cannot tell them apart; their colours do.
+ * A card compares the two people rather than calling `hasBeenEdited`: it has
+ * no timestamps, and an edit by the author alone adds nothing to a card that
+ * already names them. By id, because a display name is deliberately not
+ * unique - two members may both be "Mia".
  */
-export function authorLabel(
-	createdByName: string,
-	createdByColor: UserColor,
-	updatedByName: string,
-	updatedByColor: UserColor
-): string {
-	return createdByName === updatedByName && createdByColor === updatedByColor
-		? m.card_author({ user: createdByName })
-		: m.card_author_and_editor({ user: createdByName, editor: updatedByName });
+export function authorLabel(createdBy: Person, updatedBy: Person): string {
+	return createdBy.id === updatedBy.id
+		? m.card_author({ user: createdBy.displayName })
+		: m.card_author_and_editor({ user: createdBy.displayName, editor: updatedBy.displayName });
 }

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
+import type { Person } from '$lib/api/recipes';
 import { authorLabel, hasBeenEdited } from './authorship';
 
+const admin: Person = { id: 'u1', username: 'admin', displayName: 'admin', color: 'amber' };
+const mara: Person = { id: 'u2', username: 'mara', displayName: 'mara', color: 'teal' };
+
 const untouched = {
-	createdBy: 'u1',
+	createdBy: admin,
 	createdAt: '2026-09-20T20:10:26Z',
-	updatedBy: 'u1',
+	updatedBy: admin,
 	updatedAt: '2026-09-20T20:10:26Z'
 };
 
@@ -21,7 +25,7 @@ describe('hasBeenEdited', () => {
 	// second as the write before it leaves updated_at untouched. Without the
 	// editor comparison, somebody else's edit would go uncredited.
 	it('is true when somebody else edited within the same second', () => {
-		expect(hasBeenEdited({ ...untouched, updatedBy: 'u2' })).toBe(true);
+		expect(hasBeenEdited({ ...untouched, updatedBy: mara })).toBe(true);
 	});
 });
 
@@ -29,18 +33,18 @@ describe('hasBeenEdited', () => {
 // reader announces and a desktop hover reveals.
 describe('authorLabel', () => {
 	it('names the author alone when nobody else touched the recipe', () => {
-		expect(authorLabel('admin', 'amber', 'admin', 'amber')).toBe('Added by admin');
+		expect(authorLabel(admin, admin)).toBe('Added by admin');
 	});
 
 	it('names both when somebody else edited last', () => {
-		expect(authorLabel('admin', 'amber', 'mara', 'teal')).toBe(
-			'Added by admin, last edited by mara'
-		);
+		expect(authorLabel(admin, mara)).toBe('Added by admin, last edited by mara');
 	});
 
 	// Display names are deliberately not unique - two members may both be
-	// "Mia" - so the same name with a different colour is still two people.
-	it('names both when two people share a name but not a colour', () => {
-		expect(authorLabel('Mia', 'amber', 'Mia', 'teal')).toBe('Added by Mia, last edited by Mia');
+	// "Mia" - so two people are told apart by id, whatever they are called.
+	it('names both when two people share a display name', () => {
+		const mia = { ...admin, id: 'u3', username: 'mia', displayName: 'Mia' };
+		const otherMia = { ...mara, id: 'u4', username: 'mia2', displayName: 'Mia' };
+		expect(authorLabel(mia, otherMia)).toBe('Added by Mia, last edited by Mia');
 	});
 });

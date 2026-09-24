@@ -4,6 +4,20 @@ import { api } from './client';
 // Contract types (binding for both the backend and the frontend, see
 // docs/superpowers/plans/2026-09-17-phase-3-recipe-core.md, "API contract").
 
+/**
+ * Somebody a recipe names - who wrote it, who last changed it. The service
+ * sends the whole of it because user management is admin-only, so a member
+ * could not resolve the id themselves.
+ */
+export type Person = {
+	id: string;
+	/** The login name, which `?author=` filters by. */
+	username: string;
+	displayName: string;
+	/** The palette token of the person, for the author circle. */
+	color: UserColor;
+};
+
 export type RecipeCard = {
 	id: string;
 	slug: string;
@@ -15,11 +29,8 @@ export type RecipeCard = {
 	/** Whether the signed-in user has starred this recipe. */
 	favourite: boolean;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
-	createdByName: string;
-	updatedByName: string;
-	/** The palette token of the person, for the author circle. */
-	createdByColor: UserColor;
-	updatedByColor: UserColor;
+	createdBy: Person;
+	updatedBy: Person;
 };
 
 export type Image = { id: string; width: number; height: number; position: number };
@@ -65,20 +76,10 @@ export type Recipe = RecipeInput & {
 	slug: string;
 	coverImageId: string | null;
 	images: Image[];
-	createdBy: string;
 	createdAt: string;
-	updatedBy: string;
+	createdBy: Person;
 	updatedAt: string;
-	/**
-	 * The display names behind `createdBy` and `updatedBy`. The service sends
-	 * them along because user management is admin-only, so a member could
-	 * not resolve the ids themselves.
-	 */
-	createdByName: string;
-	updatedByName: string;
-	/** The palette token of the person, for the author circle. */
-	createdByColor: UserColor;
-	updatedByColor: UserColor;
+	updatedBy: Person;
 	/** Whether the signed-in user has starred this recipe. */
 	favourite: boolean;
 };

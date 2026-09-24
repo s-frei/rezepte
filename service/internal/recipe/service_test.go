@@ -96,7 +96,7 @@ func TestCreateAndReadBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if created.Slug != "koenigsberger-klopse" || created.ID == "" || created.CreatedBy != uid {
+	if created.Slug != "koenigsberger-klopse" || created.ID == "" || created.CreatedBy.ID != uid {
 		t.Fatalf("unexpected: %+v", created)
 	}
 	got, err := svc.BySlug(ctx, "koenigsberger-klopse")
@@ -420,8 +420,8 @@ func TestUpdateRecordsTheEditor(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	// A recipe nobody has edited yet names its author on both sides.
-	if created.CreatedBy != uid || created.UpdatedBy != uid {
-		t.Fatalf("after create: createdBy = %q, updatedBy = %q, want both %q", created.CreatedBy, created.UpdatedBy, uid)
+	if created.CreatedBy.ID != uid || created.UpdatedBy.ID != uid {
+		t.Fatalf("after create: createdBy = %q, updatedBy = %q, want both %q", created.CreatedBy.ID, created.UpdatedBy.ID, uid)
 	}
 
 	in.Title = "Käsespätzle deluxe"
@@ -429,11 +429,11 @@ func TestUpdateRecordsTheEditor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if updated.UpdatedBy != editor {
-		t.Fatalf("updatedBy = %q, want the editor %q", updated.UpdatedBy, editor)
+	if updated.UpdatedBy.ID != editor {
+		t.Fatalf("updatedBy = %q, want the editor %q", updated.UpdatedBy.ID, editor)
 	}
-	if updated.CreatedBy != uid {
-		t.Fatalf("createdBy = %q, want the original author %q", updated.CreatedBy, uid)
+	if updated.CreatedBy.ID != uid {
+		t.Fatalf("createdBy = %q, want the original author %q", updated.CreatedBy.ID, uid)
 	}
 }
 
@@ -447,28 +447,28 @@ func TestRecipeCarriesAuthorNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if created.CreatedByName != "sam" || created.UpdatedByName != "sam" {
-		t.Fatalf("after create: %q / %q, want both \"sam\"", created.CreatedByName, created.UpdatedByName)
+	if created.CreatedBy.DisplayName != "sam" || created.UpdatedBy.DisplayName != "sam" {
+		t.Fatalf("after create: %q / %q, want both \"sam\"", created.CreatedBy.DisplayName, created.UpdatedBy.DisplayName)
 	}
 
 	updated, err := svc.Update(ctx, created.ID, editor, loadFixtures(t)[3])
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if updated.CreatedByName != "sam" || updated.UpdatedByName != "mara" {
-		t.Fatalf("after update: %q / %q, want \"sam\" / \"mara\"", updated.CreatedByName, updated.UpdatedByName)
+	if updated.CreatedBy.DisplayName != "sam" || updated.UpdatedBy.DisplayName != "mara" {
+		t.Fatalf("after update: %q / %q, want \"sam\" / \"mara\"", updated.CreatedBy.DisplayName, updated.UpdatedBy.DisplayName)
 	}
 
 	bySlug, err := svc.BySlug(ctx, created.Slug)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bySlug.UpdatedByName != "mara" {
-		t.Fatalf("BySlug: updatedByName = %q, want \"mara\"", bySlug.UpdatedByName)
+	if bySlug.UpdatedBy.DisplayName != "mara" {
+		t.Fatalf("BySlug: updatedByName = %q, want \"mara\"", bySlug.UpdatedBy.DisplayName)
 	}
 }
 
-func TestCardsCarryTheAuthorsDisplayNameAndColour(t *testing.T) {
+func TestCardsCarryTheAuthorsPerson(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := setup(t)
 	authorID := createUserWithProfile(t, "mia", "Sam der Koch", "teal")
@@ -486,19 +486,17 @@ func TestCardsCarryTheAuthorsDisplayNameAndColour(t *testing.T) {
 		t.Fatalf("page.Items = %+v, want just %q", page.Items, created.ID)
 	}
 	card := page.Items[0]
-	if card.CreatedByName != "Sam der Koch" {
-		t.Errorf("CreatedByName = %q; want the display name", card.CreatedByName)
-	}
-	if card.CreatedByColor != "teal" || card.UpdatedByColor != "teal" {
-		t.Errorf("colours = %q / %q; want teal / teal", card.CreatedByColor, card.UpdatedByColor)
+	want := recipe.Person{ID: authorID, Username: "mia", DisplayName: "Sam der Koch", Color: "teal"}
+	if card.CreatedBy != want || card.UpdatedBy != want {
+		t.Errorf("card people = %+v / %+v; want %+v for both", card.CreatedBy, card.UpdatedBy, want)
 	}
 
 	detail, err := svc.ByID(ctx, card.ID)
 	if err != nil {
 		t.Fatalf("by id: %v", err)
 	}
-	if detail.CreatedByName != "Sam der Koch" || detail.CreatedByColor != "teal" {
-		t.Errorf("detail = %q / %q; want the display name and teal", detail.CreatedByName, detail.CreatedByColor)
+	if detail.CreatedBy != want || detail.UpdatedBy != want {
+		t.Errorf("detail people = %+v / %+v; want %+v for both", detail.CreatedBy, detail.UpdatedBy, want)
 	}
 
 	authors, err := svc.Authors(ctx)

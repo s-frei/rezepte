@@ -148,11 +148,8 @@
               "null"
             ]
           },
-          "createdByColor": {
-            "type": "string"
-          },
-          "createdByName": {
-            "type": "string"
+          "createdBy": {
+            "$ref": "#/components/schemas/Person"
           },
           "favourite": {
             "type": "boolean"
@@ -186,11 +183,8 @@
             "format": "date-time",
             "type": "string"
           },
-          "updatedByColor": {
-            "type": "string"
-          },
-          "updatedByName": {
-            "type": "string"
+          "updatedBy": {
+            "$ref": "#/components/schemas/Person"
           }
         },
         "required": [
@@ -202,10 +196,8 @@
           "coverImageId",
           "updatedAt",
           "favourite",
-          "createdByName",
-          "createdByColor",
-          "updatedByName",
-          "updatedByColor"
+          "createdBy",
+          "updatedBy"
         ],
         "type": "object"
       },
@@ -938,6 +930,31 @@
         ],
         "type": "object"
       },
+      "Person": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "description": "Login name, which ?author= filters by",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "color"
+        ],
+        "type": "object"
+      },
       "Recipe": {
         "additionalProperties": false,
         "properties": {
@@ -970,13 +987,7 @@
             "type": "string"
           },
           "createdBy": {
-            "type": "string"
-          },
-          "createdByColor": {
-            "type": "string"
-          },
-          "createdByName": {
-            "type": "string"
+            "$ref": "#/components/schemas/Person"
           },
           "description": {
             "maxLength": 2000,
@@ -1067,13 +1078,7 @@
             "type": "string"
           },
           "updatedBy": {
-            "type": "string"
-          },
-          "updatedByColor": {
-            "type": "string"
-          },
-          "updatedByName": {
-            "type": "string"
+            "$ref": "#/components/schemas/Person"
           }
         },
         "required": [
@@ -1081,14 +1086,10 @@
           "slug",
           "coverImageId",
           "images",
-          "createdBy",
           "createdAt",
-          "updatedBy",
+          "createdBy",
           "updatedAt",
-          "createdByName",
-          "createdByColor",
-          "updatedByName",
-          "updatedByColor",
+          "updatedBy",
           "favourite",
           "title",
           "description",

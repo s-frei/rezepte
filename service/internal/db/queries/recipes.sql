@@ -215,10 +215,9 @@ SELECT t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id WHERE rt.recip
 SELECT rt.recipe_id, t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id IN (sqlc.slice(recipe_ids)) ORDER BY rt.recipe_id, t.name;
 
--- Display names and colours for a page of recipes, batched like
--- ListTagNamesForRecipes.
+-- The people behind a page of recipes, batched like ListTagNamesForRecipes.
 -- name: ListAuthorsForIDs :many
-SELECT id, display_name, color FROM users WHERE id IN (sqlc.slice(ids));
+SELECT id, username, display_name, color FROM users WHERE id IN (sqlc.slice(ids));
 
 -- Everyone who has written at least one recipe, most recipes first, for the
 -- "Angelegt von" filter. Counting here rather than in Go keeps the list and
@@ -245,12 +244,14 @@ SELECT recipe_id FROM favourites
 WHERE user_id = sqlc.arg(user_id)
   AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
 
--- Author names for the detail view. They come from a query of their own
+-- The people behind the detail view. They come from a query of their own
 -- rather than a join in GetRecipe because that row is also what the image
--- service reads to check a recipe exists, and it has no use for names.
+-- service reads to check a recipe exists, and it has no use for people.
 -- name: GetRecipeAuthors :one
-SELECT c.display_name AS created_by_name, c.color AS created_by_color,
-       u.display_name AS updated_by_name, u.color AS updated_by_color
+SELECT c.username AS created_by_username, c.display_name AS created_by_display_name,
+       c.color AS created_by_color,
+       u.username AS updated_by_username, u.display_name AS updated_by_display_name,
+       u.color AS updated_by_color
 FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by
