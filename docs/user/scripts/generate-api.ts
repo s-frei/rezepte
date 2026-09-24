@@ -34,7 +34,10 @@ await generateFiles({
 	index: {
 		// One card page per tag, plus one over all of them. Without the group
 		// pages a tag is a bare navigation node: `/api/reference/recipes` would
-		// 404 and the breadcrumb above an operation would lead nowhere.
+		// 404 and the breadcrumb above an operation would lead nowhere. The
+		// top-level page comes out of `generateFiles` with no cards at all (it
+		// only makes cards for operations, and every operation sits in a tag
+		// folder); `beforeWrite` gives it one card per tag.
 		items({ generatedEntries }) {
 			const groups = Object.values(generatedEntries)
 				.flat()
@@ -88,6 +91,27 @@ await generateFiles({
 				described ? `---\ntitle: '${route}'` : `---\ntitle: '${route}'\ndescription: ${summary}`
 			);
 		}
+
+		// The top-level index page: `generateFiles` skips group entries when it
+		// writes cards, so it would be an empty <Cards>. List the tag folders
+		// instead, in declaration order, each with its tag's description.
+		const groups = Object.values(this.generatedEntries)
+			.flat()
+			.filter((entry) => entry.type === 'group');
+		const orderedGroups = [
+			...tagOrder.flatMap((tag) => groups.filter((group) => group.path === tag)),
+			...groups.filter((group) => !tagOrder.includes(group.path))
+		];
+		const quote = (text: string) => `"${text.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+		const rootCards = orderedGroups.map((group) => {
+			const description = group.info.description ? `description=${quote(group.info.description)} ` : '';
+			return `<Card href="${urlOf(group.path)}" title=${quote(group.info.title)} ${description}/>`;
+		});
+		const rootIndex = files.find((file) => file.path === 'index.mdx');
+		if (!rootIndex || !rootIndex.content.includes('<Cards>\n</Cards>')) {
+			throw new Error('generate-api: expected an empty <Cards> on the top-level index.mdx');
+		}
+		rootIndex.content = rootIndex.content.replace('<Cards>\n</Cards>', `<Cards>\n${rootCards.join('\n')}\n</Cards>`);
 
 		// `generateMeta` only walks the pages it made itself, so every index
 		// page it does not know about would be missing from the sidebar. The
