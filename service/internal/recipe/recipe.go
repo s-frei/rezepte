@@ -23,7 +23,7 @@ type Ingredient struct {
 // split a recipe's shopping list into sections such as "Sauce" or "Teig".
 type IngredientGroup struct {
 	Name        *string      `json:"name" maxLength:"60" nullable:"true"`
-	Ingredients []Ingredient `json:"ingredients" maxItems:"100"`
+	Ingredients []Ingredient `json:"ingredients" maxItems:"100" nullable:"false"`
 }
 
 // Input is the recipe payload accepted by Service.Create and Service.Update.
@@ -31,6 +31,10 @@ type IngredientGroup struct {
 // SourceURL carries a pattern on top of format:"uri" because a URI only
 // has to have some scheme: without it "javascript:alert(1)" validates and
 // the frontend renders it as a link the user can click.
+//
+// The lists (here and IngredientGroup.Ingredients) carry nullable:"false":
+// huma makes every slice nullable by default, and a null would slip past
+// minItems and replace the stored tags, groups or steps with nothing.
 type Input struct {
 	Title            string            `json:"title" minLength:"1" maxLength:"200"`
 	Description      string            `json:"description" maxLength:"2000"`
@@ -38,9 +42,9 @@ type Input struct {
 	PrepMinutes      *int              `json:"prepMinutes" minimum:"0" maximum:"1440" nullable:"true"`
 	CookMinutes      *int              `json:"cookMinutes" minimum:"0" maximum:"1440" nullable:"true"`
 	SourceURL        *string           `json:"sourceUrl" maxLength:"500" format:"uri" pattern:"^https?://" nullable:"true"`
-	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40"`
-	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20"`
-	Steps            []Step            `json:"steps" maxItems:"50"`
+	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40" nullable:"false"`
+	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20" nullable:"false"`
+	Steps            []Step            `json:"steps" maxItems:"50" nullable:"false"`
 	// EditPolicy is who besides the author and admins may edit. On create,
 	// empty means "default". On update, empty keeps the stored policy, so a
 	// client that does not know the field cannot reset or trip it.
