@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
+import sharp from 'sharp';
 import { favicon, manifest } from './brand-export';
 import { ALLOWED, DARK, LIGHT } from './brand-palette';
 
@@ -142,3 +143,27 @@ test('favicon.ico is an icon file with a 32px image', async () => {
 	expect(view.getUint16(2, true)).toBe(1); // type: icon
 	expect(data[6]).toBe(32);
 });
+
+// The social preview: the light stacked lockup on the dark ground, shared by
+// the app (static/og.png), the docs site and the GitHub repository.
+test.each([['frontend/static/og.png'], ['assets/brand/social-preview.png']])(
+	'%s is the 1280x640 social preview on the dark ground',
+	async (path) => {
+		const file = Bun.file(new URL(`../../${path}`, import.meta.url));
+		const { data, info } = await sharp(Buffer.from(await file.arrayBuffer()))
+			.removeAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		expect([info.width, info.height]).toEqual([1280, 640]);
+		const hex = (x: number, y: number) => {
+			const i = (y * info.width + x) * 3;
+			return `#${[...data.subarray(i, i + 3)].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+		};
+		expect(hex(0, 0)).toBe(DARK.ground);
+		expect(hex(1279, 639)).toBe(DARK.ground);
+		// The lockup is about 300px high and centered (y 170-470), so the row
+		// through the wordmark near its bottom holds the dark-theme ink.
+		const row = [...Array(info.width).keys()].map((x) => hex(x, 430));
+		expect(row).toContain(DARK.ink);
+	}
+);

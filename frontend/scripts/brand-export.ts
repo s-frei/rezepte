@@ -7,9 +7,28 @@
 // (no face) for favicon.ico, where L1's brush would blur.
 import { generateAssets } from '@vite-pwa/assets-generator/api/generate-assets';
 import { instructions } from '@vite-pwa/assets-generator/api/instructions';
+import sharp from 'sharp';
 import { DARK, LIGHT } from './brand-palette';
 
 const logo = new URL('../../assets/brand/logo/', import.meta.url);
+const brand = new URL('../../assets/brand/', import.meta.url);
+
+// The link preview (og:image) for the app, the docs site and the GitHub
+// repository: the light stacked lockup, about 300px high, centered on the
+// dark ground, at the 1280x640 that GitHub and most chat apps expect.
+async function socialPreview(): Promise<Buffer> {
+	const lockup = await Bun.file(
+		new URL('lockups/rezepte-lockup-stacked-dark.svg', brand)
+	).arrayBuffer();
+	const art = await sharp(Buffer.from(lockup), { density: 300 })
+		.resize({ height: 300 })
+		.png()
+		.toBuffer();
+	return sharp({ create: { width: 1280, height: 640, channels: 3, background: DARK.ground } })
+		.composite([{ input: art, gravity: 'center' }])
+		.png({ compressionLevel: 9 })
+		.toBuffer();
+}
 const statics = new URL('../static/', import.meta.url);
 
 // The small-16 master plus a dark-scheme override. CSS beats the fill
@@ -79,6 +98,10 @@ async function main() {
 	const small16 = await Bun.file(new URL('onion-small-16.svg', logo)).text();
 	await Bun.write(new URL('favicon.svg', statics), favicon(small16));
 	await Bun.write(new URL('manifest.webmanifest', statics), manifest());
+
+	const preview = await socialPreview();
+	await Bun.write(new URL('og.png', statics), preview);
+	await Bun.write(new URL('social-preview.png', brand), preview);
 }
 
 if (import.meta.main) await main();

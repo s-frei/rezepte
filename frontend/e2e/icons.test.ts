@@ -20,6 +20,17 @@ for (const [selector, type] of links) {
 	});
 }
 
+test('the head carries a link preview whose image loads', async ({ page, request }) => {
+	await page.goto('/login');
+	const meta = (key: string) => page.locator(`meta[property="${key}"], meta[name="${key}"]`);
+	await expect(meta('og:title')).toHaveAttribute('content', 'Rezepte');
+	await expect(meta('og:description')).toHaveAttribute('content', /recipe/i);
+	await expect(meta('twitter:card')).toHaveAttribute('content', 'summary_large_image');
+	const image = await meta('og:image').getAttribute('content');
+	const res = await request.get(new URL(image!, page.url()).pathname);
+	expect(res.headers()['content-type']).toBe('image/png');
+});
+
 test('every manifest icon loads as a png', async ({ request }) => {
 	const manifest = (await (await request.get('/manifest.webmanifest')).json()) as {
 		icons: { src: string }[];
