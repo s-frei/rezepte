@@ -29,6 +29,7 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     - `internal/web` – embedded `dist/`
     - one package per domain (`auth`, `user`, `recipe`, `image`, `settings`) with `handler → service → sqlc` layering
     - `internal/userapi`, `internal/tokenapi` – the admin-only user and token operations; handlers only, in packages of their own because they need `auth` and `auth` already imports `user`
+    - `internal/mcpserver` – the MCP endpoint at `/mcp`, its tools calling the same services as the HTTP handlers (see [MCP server](/features/mcp))
     - `internal/i18n` – the set of interface languages, read from `locales.json` (see [Languages](/features/languages))
     - `internal/demo` – seeds the sample recipes with their embedded photos through those services for `--demo`, with generated placeholders only for a sample set that has no photos (see [Demo mode](/features/demo-mode))
     - `cmd/demo-photos` – derives the embedded demo photos from the originals in `assets/demo-photos`

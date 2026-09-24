@@ -598,7 +598,7 @@ func TestCardsCarryAuthorNames(t *testing.T) {
 	}
 }
 
-// The "Angelegt von" filter offers the people who actually wrote something,
+// The "Added by" filter offers the people who actually wrote something,
 // so somebody who has only ever edited is not on the list.
 func TestAuthorsListsWritersWithTheirCounts(t *testing.T) {
 	ctx := context.Background()
