@@ -19,6 +19,9 @@
 
 Rezepte keeps a household's recipes in one place. Everyone in the house gets a login, writes recipes with ingredient groups and steps, tags and searches them, and cooks from a phone at the stove. It runs as **one binary** with the web app built in, an SQLite database and your photos in a single data directory — no Node runtime, no database server, no external services.
 
+> [!WARNING]
+> **Rezepte is at an early stage.** It works, but things can still change between releases — the API, the configuration and the way it is deployed included. Read the release notes before you update, and [back up your data](https://s-frei.github.io/rezepte/operations/data-and-backup/) first.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/overview-desktop-dark.png">
   <img alt="The Rezepte recipe overview with search, tag chips and the card grid" src="assets/readme/overview-desktop-light.png">
