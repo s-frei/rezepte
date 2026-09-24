@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -73,9 +74,22 @@ func TestAuthenticateRejectsAValueWithoutThePrefix(t *testing.T) {
 	}
 }
 
+func TestCreateAcceptsRecipesDelete(t *testing.T) {
+	svc, _, ownerID := newTokenService(t)
+	_, tok, err := svc.Create(context.Background(), ownerID, "full", []string{
+		auth.ScopeRecipesRead, auth.ScopeRecipesWrite, auth.ScopeRecipesDelete,
+	}, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if !slices.Contains(tok.Scopes, auth.ScopeRecipesDelete) {
+		t.Fatalf("scopes = %v, want recipes:delete", tok.Scopes)
+	}
+}
+
 func TestCreateRejectsUnknownScope(t *testing.T) {
 	svc, _, ownerID := newTokenService(t)
-	_, _, err := svc.Create(context.Background(), ownerID, "bad", []string{"recipes:delete"}, nil)
+	_, _, err := svc.Create(context.Background(), ownerID, "bad", []string{"recipes:frobnicate"}, nil)
 	if !errors.Is(err, auth.ErrInvalidScope) {
 		t.Fatalf("err = %v, want ErrInvalidScope", err)
 	}

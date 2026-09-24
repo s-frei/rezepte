@@ -396,6 +396,7 @@
               "enum": [
                 "recipes:read",
                 "recipes:write",
+                "recipes:delete",
                 "users:read",
                 "users:write"
               ],
@@ -2249,7 +2250,7 @@
           },
           {
             "token": [
-              "recipes:write"
+              "recipes:delete"
             ]
           }
         ],
