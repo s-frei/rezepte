@@ -142,7 +142,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		Tags:          []string{"users"},
 		Security:      auth.Protected(auth.ScopeUsersWrite),
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{401, 403, 409, 422},
+		Errors:        []int{401, 403, 409, 422, 503},
 	}, func(ctx context.Context, in *createInput) (*userOutput, error) {
 		actor, err := requireAdmin(ctx)
 		if err != nil {
@@ -185,11 +185,15 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		if mapped := auth.ProfileError(err); mapped != nil {
 			return nil, mapped
 		}
+		if mapped := auth.BusyError(err); mapped != nil {
+			return nil, mapped
+		}
 		if err != nil {
 			return nil, err
 		}
 		return &userOutput{Body: toResponse(u)}, nil
 	})
+	auth.DeclareRetryAfter(api, http.MethodPost, "/api/v1/users", http.StatusServiceUnavailable)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "update-user",
@@ -198,7 +202,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		Summary:     "Change a user's role or profile, and/or reset the password",
 		Tags:        []string{"users"},
 		Security:    auth.Protected(auth.ScopeUsersWrite),
-		Errors:      []int{401, 403, 404, 409, 422},
+		Errors:      []int{401, 403, 404, 409, 422, 503},
 	}, func(ctx context.Context, in *updateInput) (*userOutput, error) {
 		actor, err := requireAdmin(ctx)
 		if err != nil {
@@ -214,6 +218,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		if hasProfile {
 			if err := user.CanEditProfile(actor.Role); err != nil {
 				if mapped := rankError(err); mapped != nil {
+					return nil, mapped
+				}
+				if mapped := auth.BusyError(err); mapped != nil {
 					return nil, mapped
 				}
 				return nil, err
@@ -266,6 +273,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		}
 		return &userOutput{Body: toResponse(u)}, nil
 	})
+	auth.DeclareRetryAfter(api, http.MethodPatch, "/api/v1/users/{id}", http.StatusServiceUnavailable)
 
 	huma.Register(api, huma.Operation{
 		OperationID:   "delete-user",

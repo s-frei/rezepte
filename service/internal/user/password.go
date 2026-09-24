@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
@@ -30,21 +31,78 @@ const (
 
 var errMalformedHash = errors.New("malformed password hash")
 
+// maxConcurrentArgon caps how many argon2 derivations run at once. Each one
+// claims argonMemory (64 MiB), so the cap bounds what a burst of logins can
+// allocate to 256 MiB; a caller past it waits for a slot.
+const maxConcurrentArgon = 4
+
+// maxQueuedArgon is how many callers may wait for a slot; the next one gets
+// ErrBusy instead of joining a line nobody would wait out.
+const maxQueuedArgon = 32
+
+// ErrBusy means so many password checks are running or waiting that this
+// one was turned away.
+var ErrBusy = errors.New("too many password checks at once")
+
+// idKey is argon2.IDKey, held in a variable so a test can observe calls.
+var idKey = argon2.IDKey
+
+var (
+	// argonQueue holds a place for every derivation running or waiting.
+	argonQueue = make(chan struct{}, maxConcurrentArgon+maxQueuedArgon)
+	// argonSlots holds a place for every derivation running.
+	argonSlots = make(chan struct{}, maxConcurrentArgon)
+)
+
+// deriveKey runs idKey once a slot is free. It refuses with ErrBusy when the
+// queue in front of the slots is full, and gives up when ctx ends while it
+// waits, so a caller that has gone away never gets a derivation run for it.
+func deriveKey(ctx context.Context, password, salt []byte, time, memory uint32, threads uint8) ([]byte, error) {
+	select {
+	case argonQueue <- struct{}{}:
+	default:
+		return nil, ErrBusy
+	}
+	defer func() { <-argonQueue }()
+	select {
+	case argonSlots <- struct{}{}:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("wait for an argon2 slot: %w", ctx.Err())
+	}
+	defer func() { <-argonSlots }()
+	return idKey(password, salt, time, memory, threads, argonKeyLen), nil
+}
+
 // HashPassword returns an argon2id hash in PHC string format.
-func HashPassword(password string) (string, error) {
+func HashPassword(ctx context.Context, password string) (string, error) {
+	salt, err := newSalt()
+	if err != nil {
+		return "", err
+	}
+	key, err := deriveKey(ctx, []byte(password), salt, argonTime, argonMemory, argonThreads)
+	if err != nil {
+		return "", err
+	}
+	return encodeHash(salt, key), nil
+}
+
+func newSalt() ([]byte, error) {
 	salt := make([]byte, saltLen)
 	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("generate salt: %w", err)
+		return nil, fmt.Errorf("generate salt: %w", err)
 	}
-	key := argon2.IDKey([]byte(password), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	return salt, nil
+}
+
+func encodeHash(salt, key []byte) string {
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, argonMemory, argonTime, argonThreads,
 		base64.RawStdEncoding.EncodeToString(salt),
-		base64.RawStdEncoding.EncodeToString(key)), nil
+		base64.RawStdEncoding.EncodeToString(key))
 }
 
 // VerifyPassword reports whether password matches the PHC-encoded hash.
-func VerifyPassword(encoded, password string) (bool, error) {
+func VerifyPassword(ctx context.Context, encoded, password string) (bool, error) {
 	parts := strings.Split(encoded, "$")
 	if len(parts) != 6 || parts[1] != "argon2id" {
 		return false, errMalformedHash
@@ -69,7 +127,10 @@ func VerifyPassword(encoded, password string) (bool, error) {
 	if err != nil || len(want) != argonKeyLen {
 		return false, errMalformedHash
 	}
-	got := argon2.IDKey([]byte(password), salt, iterations, memory, threads, argonKeyLen)
+	got, err := deriveKey(ctx, []byte(password), salt, iterations, memory, threads)
+	if err != nil {
+		return false, err
+	}
 	return subtle.ConstantTimeCompare(got, want) == 1, nil
 }
 

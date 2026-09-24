@@ -137,7 +137,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 	} else if _, err := ParseLocale(string(locale)); err != nil {
 		return User{}, err
 	}
-	hash, err := HashPassword(p.Password)
+	hash, err := HashPassword(ctx, p.Password)
 	if err != nil {
 		return User{}, err
 	}
@@ -343,7 +343,7 @@ func (s *Service) SetPassword(ctx context.Context, actor User, id, password stri
 	// Hashing is the expensive half and needs no row, so it happens before
 	// the transaction: db.Tx takes a write lock at BEGIN, and holding that
 	// for an argon2id run would block every other writer for ~100ms.
-	hash, err := HashPassword(password)
+	hash, err := HashPassword(ctx, password)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (s *Service) SetPassword(ctx context.Context, actor User, id, password stri
 // and the operator reset are its other callers; both have already established
 // that the write is allowed.
 func (s *Service) setPassword(ctx context.Context, id, password string) error {
-	hash, err := HashPassword(password)
+	hash, err := HashPassword(ctx, password)
 	if err != nil {
 		return err
 	}
@@ -402,7 +402,7 @@ func (s *Service) ChangePassword(ctx context.Context, id, current, next string) 
 	if err != nil {
 		return fmt.Errorf("get user %s: %w", id, err)
 	}
-	ok, err := VerifyPassword(row.PasswordHash, current)
+	ok, err := VerifyPassword(ctx, row.PasswordHash, current)
 	if err != nil {
 		return fmt.Errorf("verify password of %s: %w", id, err)
 	}
@@ -432,14 +432,15 @@ func getForUpdate(ctx context.Context, q *sqlc.Queries, id string) (sqlc.User, e
 // once on first use. Authenticate runs VerifyPassword against it for unknown
 // usernames so that path costs the same one argon2 evaluation as a real user,
 // which keeps an unknown-username response indistinguishable from a
-// wrong-password response by timing.
+// wrong-password response by timing. It derives its key outside the argon2
+// queue: it runs once per process, and a full queue must not make it fail.
 var dummyHash = sync.OnceValue(func() string {
-	hash, err := HashPassword("dummy")
+	salt, err := newSalt()
 	if err != nil {
 		// Only fails if the OS RNG is broken, which is unrecoverable anyway.
 		panic(fmt.Sprintf("hash dummy password: %v", err))
 	}
-	return hash
+	return encodeHash(salt, idKey([]byte("dummy"), salt, argonTime, argonMemory, argonThreads, argonKeyLen))
 })
 
 // Authenticate verifies the password and returns the user. username is
@@ -449,13 +450,17 @@ var dummyHash = sync.OnceValue(func() string {
 func (s *Service) Authenticate(ctx context.Context, username, password string) (User, error) {
 	row, err := s.q.GetUserByUsername(ctx, strings.TrimSpace(username))
 	if errors.Is(err, sql.ErrNoRows) {
-		_, _ = VerifyPassword(dummyHash(), password)
+		// A full queue is reported like it is for a real user, or it
+		// would tell which names exist.
+		if _, err := VerifyPassword(ctx, dummyHash(), password); err != nil {
+			return User{}, fmt.Errorf("verify password for %q: %w", username, err)
+		}
 		return User{}, ErrInvalidCredentials
 	}
 	if err != nil {
 		return User{}, fmt.Errorf("get user %q: %w", username, err)
 	}
-	ok, err := VerifyPassword(row.PasswordHash, password)
+	ok, err := VerifyPassword(ctx, row.PasswordHash, password)
 	if err != nil {
 		return User{}, fmt.Errorf("verify password for %q: %w", username, err)
 	}

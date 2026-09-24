@@ -482,3 +482,27 @@ func TestUpdateUserRefusesALocaleBecauseLanguageIsTheAccountHoldersAlone(t *test
 		t.Errorf("kim = %s, want the instance default locale en", rec.Body.String())
 	}
 }
+
+// TestOpenAPIDeclaresRetryAfter checks that the writes that hash a password
+// say in the document how long a client turned away with 503 should wait.
+func TestOpenAPIDeclaresRetryAfter(t *testing.T) {
+	rec := doReq(newHandler(t), http.MethodGet, "/api/v1/openapi.json", "", nil)
+	var doc struct {
+		Paths map[string]map[string]struct {
+			Responses map[string]struct {
+				Headers map[string]json.RawMessage `json:"headers"`
+			} `json:"responses"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ path, method string }{
+		{"/api/v1/users", "post"},
+		{"/api/v1/users/{id}", "patch"},
+	} {
+		if _, ok := doc.Paths[want.path][want.method].Responses["503"].Headers["Retry-After"]; !ok {
+			t.Errorf("%s %s 503: no Retry-After header declared", want.method, want.path)
+		}
+	}
+}
