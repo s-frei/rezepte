@@ -13,8 +13,8 @@ test('recipe-detail', async ({ page }, testInfo) => {
 test('lightbox', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(DETAIL);
-	// The demo gives the first nine samples one image each, so the label is
-	// "Open photo 1 of 1"; the regex survives a second image.
+	// The demo gives Shepherd's Pie three photos, so the label is
+	// "Open photo 1 of 3"; the regex survives any count.
 	await page.getByRole('button', { name: /^Open photo 1 of/ }).click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await shot(page, 'lightbox');
