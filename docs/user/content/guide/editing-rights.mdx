@@ -23,7 +23,7 @@ The last section of the editor, **Editing**, has three choices:
 
 The line under the choices always says what applies right now. A new recipe starts on **Default**.
 
-Only the author and admins can change this setting. Someone else who edits an open recipe sees who opened it instead of the choices.
+Only the author and admins can change this setting. Anyone else who may edit the recipe sees a sentence instead of the choices: on a recipe set to **Everyone**, who opened it to everyone; on one left on **Default**, what the household setting allows right now.
 
 ## What comes out
 
@@ -54,8 +54,8 @@ When a recipe is locked for you, **Edit** and **Delete** are not shown, and a li
 3. **The owner switches the household setting on.** Every recipe on Default is locked at once. Anna's bread was locked already.
 4. **Ben opens his lasagne.** He sets it to *Everyone*. Despite the household setting, everyone may edit it — but not delete it.
 5. **The owner switches the household setting off again.** Recipes on Default are open again. Anna's bread stays locked and Ben's lasagne stays open, because both were set on purpose.
-6. **A member is removed.** Their recipes pass to the admin who removed them, with their setting unchanged. That admin is now their author.
+6. **A member is deleted.** Their recipes pass to the admin who deleted them, with their setting unchanged. That admin is now their author, and also takes the member's place as last editor on any recipe the member was the last to change.
 
 ## Through the API
 
-The API follows the same rules as the app. [API tokens](/api/tokens) are issued by admins and act as the admin who created them, with that account's role as it is now: while its creator is an admin, a token that may write recipes can edit and delete every recipe, locked or not. A token whose creator loses the admin role stops working altogether. The household setting itself can only be changed in the browser, by the owner.
+The API follows the same rules as the app. [API tokens](/api/tokens) are issued by admins and act as the admin who issued them, with that account's role as it is now: while its issuer is an admin, a token that may write recipes can edit and delete every recipe, locked or not. A token whose issuer loses the admin role stops working altogether. The household setting itself can only be changed in the browser, by the owner.

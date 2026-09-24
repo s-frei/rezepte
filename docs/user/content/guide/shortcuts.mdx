@@ -5,10 +5,23 @@ description: Every keyboard shortcut Rezepte defines
 
 | Shortcut | Where | What it does |
 |---|---|---|
-| `⌘K` / `Ctrl+K` | Anywhere except the login page and [cook mode](/guide/cook-mode) | Opens or closes the [command palette](/guide) |
+| `⌘K` / `Ctrl+K` | Anywhere except the login page and [cook mode](/guide/cook-mode) | Opens or closes the [command palette](/guide#command-palette) |
 | `Enter` | The "Ingredient" or "Note" field of an ingredient row, in the editor | Adds a new ingredient row below |
-| `Space` / `Enter` | A drag handle (ingredient, group or step), in the editor | Picks up the item; arrow keys move it, `Space`/`Enter` drops it, `Esc` cancels |
+| `Backspace` | An ingredient row that is completely empty, in the editor | Removes the row |
+| `Enter` / `,` | The "Tags" field, in the editor | Adds what you typed, or the suggestion picked with the arrow keys, as a tag |
+| `↑` / `↓` | The "Tags" field, while suggestions show | Moves through the suggestions |
+| `Backspace` | The empty "Tags" field | Removes the last tag |
+| `Esc` | The "Tags" field, while suggestions show | Closes the suggestions and clears what you typed |
+| `↑` / `↓` | The `@` ingredient picker in a step | Moves through the ingredients |
+| `Enter` / `Tab` | The `@` ingredient picker in a step | Links the highlighted ingredient |
+| `Esc` | The `@` ingredient picker in a step | Closes the picker |
+| `↑` / `↓` | The ingredient search that "Link word" opens | Moves through the ingredients |
+| `Enter` | The ingredient search that "Link word" opens | Links the word to the highlighted ingredient |
+| `Esc` | The ingredient search that "Link word" opens | Closes the search |
+| `Space` / `Enter` | A drag handle (ingredient, step or photo), in the editor | Picks up the item; arrow keys move it, `Space`/`Enter` drops it, `Esc` cancels |
+| `Tab` | A picked-up ingredient | Moves it on to another ingredient group |
 | `Esc` | Any dialog, or the [lightbox](/guide/images) | Closes it |
 | `←` / `→` | The lightbox | Switches to the previous/next photo |
 | `←` / `→` | [Cook mode](/guide/cook-mode) | Moves to the previous/next step |
 | `Esc` | Cook mode | Leaves cook mode and returns to the recipe |
+| `Esc` | Cook mode, with the ingredient list open | Closes the ingredient list; the arrow keys do not change the step while it is open |

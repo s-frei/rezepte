@@ -1,6 +1,6 @@
 ---
 title: Recipes
-description: Create, edit and delete recipes
+description: Create, edit, delete and favorite recipes
 ---
 
 <Screenshot name="editor" caption="The recipe editor" />
@@ -10,7 +10,7 @@ description: Create, edit and delete recipes
 
     ### Start a recipe
 
-    Click "New recipe" (top bar, bottom navigation, or the command palette).
+    Click "New recipe" (top bar, bottom navigation, or the command palette). While there are no recipes at all, the overview says "No recipes yet" and offers "New recipe" right there.
 
   </Step>
   <Step>
@@ -24,7 +24,7 @@ description: Create, edit and delete recipes
 
     ### Add ingredients
 
-    Under "Ingredients", use "Add group" to split the list into sections, e.g. "Filling" and "Mash topping". Each row takes a quantity, a unit, a name and an optional note.
+    Under "Ingredients", use "Add group" to split the list into sections, e.g. "Filling" and "Mash topping". Each row takes an "Amount", a "Unit", the "Ingredient" itself and an optional "Note"; "Add row" adds another.
 
     <Screenshot name="editor-ingredients" caption="Ingredient groups in the editor" />
 
@@ -33,7 +33,9 @@ description: Create, edit and delete recipes
 
     ### Add steps and tags
 
-    Write the steps under "Steps", one per line, and add search tags under "Tags".
+    Under "Steps", each step is a field of its own; "Add step" adds the next one.
+
+    Under "Tags", type a tag and press `Enter` or a comma to add it. As you type, tags already used on other recipes are suggested; a name nobody has used yet is offered as "new: …". `Backspace` in the empty field removes the last tag again.
 
   </Step>
   <Step>
@@ -62,14 +64,24 @@ description: Create, edit and delete recipes
 </Steps>
 
 <Callout type="info" title="Good to know">
-  Pressing `Enter` in an ingredient's "Ingredient" or "Note" field adds a new row below it. Every ingredient, group and step has a drag handle for reordering — or select it with `Space`/`Enter` and move it with the arrow keys (see [Keyboard shortcuts](/guide/shortcuts)). Leaving the editor with unsaved changes asks "Discard changes?" first.
+  Pressing `Enter` in an ingredient's "Ingredient" or "Note" field adds a new row below it, and `Backspace` in a row that is completely empty removes it. Every ingredient, step and photo has a drag handle for reordering, and an ingredient can be dragged into another group; groups themselves keep their order. Without a mouse, focus the handle, pick the item up with `Space`/`Enter` and move it with the arrow keys (see [Keyboard shortcuts](/guide/shortcuts)). Leaving the editor with unsaved changes asks "Discard changes?" first.
 </Callout>
 
 ## The detail page
 
 <Screenshot name="recipe-detail" caption="A recipe's detail page" />
 
-Servings and times show as pills at the top. Ingredients list with tick boxes for checking items off while shopping or cooking; steps follow below. A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode). "Edit" opens the editor, and "Delete" — reached through the "More actions" menu — deletes the recipe after confirming. Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you; a line at the bottom of the page then says who can edit it (see [Editing rights](/guide/editing-rights)).
+Servings and times show as pills at the top. Ingredients list with tick boxes for checking items off while shopping or cooking; the steps follow under "Method". A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode).
+
+"Edit" opens the editor. The "More actions" menu (`…`) holds "Edit" as well, "Copy link", which copies the recipe's address to share, and "Delete", which deletes the recipe after confirming. On a phone, a share button next to it copies the link too. Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you (see [Editing rights](/guide/editing-rights)).
+
+At the foot of the page, a line says who added the recipe and when ("Added by … on …"), a second one who last changed it ("Last edited by … on …") once somebody has, and — on a locked recipe — who can edit it.
+
+On the overview, each card carries the same information in small: one colored circle with the initial of whoever added the recipe, and a second one when somebody else edited it last. Hover over the circles, or tap them on a phone, to read the names.
+
+## Favorites
+
+The star on every recipe card, and next to the title on a recipe's page, marks it as a favorite: "Add to favorites" and "Remove from favorites". Favorites are your own — each member stars for themselves, and nobody else sees your stars. "Favorites only" in the overview's filters then narrows the list to them (see [Tags and search](/guide/tags-and-search#filtering)).
 
 <Accordions type="single">
   <Accordion title="Limits">

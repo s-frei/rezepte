@@ -11,12 +11,14 @@ Rezepte takes its entire configuration from environment variables — there is n
     REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db and images/', type: 'string', default: './data' },
     REZEPTE_ADMIN_USER: { description: 'Username of the instance owner, used only on the first start', type: 'string', default: 'admin' },
     REZEPTE_ADMIN_PASSWORD: { description: 'Password of the instance owner; required on the first start (empty users table), ignored afterwards except by --reset-superadmin-password', type: 'string' },
-    REZEPTE_LOCALE: { description: 'Language code new accounts start in, such as en or de, and the language of the demo recipes (English for a language without its own). Any language the interface is translated into; see Add a language', type: 'string', default: 'en' },
+    REZEPTE_LOCALE: { description: 'Language code, such as en or de, of the owner account created on the first start, of accounts created through the API without a language, and of the demo recipes (English for a language without its own). Any language the interface is translated into; see Add a language', type: 'string', default: 'en' },
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
   }}
 />
+
+`REZEPTE_LOCALE` is only a starting point: every member picks their own language in [Settings](/guide/settings), and the "Add member" dialog in the app starts on the language of the admin filling it in rather than on this value.
 
 The account created on the first start owns the instance. It cannot be deleted, it cannot lose its admin rights, nobody else can reset its password, and it is the only account that can make someone else an admin — see [First login](/getting-started/first-login). Changing `REZEPTE_ADMIN_USER` later changes nothing — it is read only while the instance has no accounts at all. `REZEPTE_ADMIN_PASSWORD` is read on that first start too, and after that by `--reset-superadmin-password` below and by nothing else, so setting it on a running instance changes no password on its own.
 
@@ -28,7 +30,7 @@ The account created on the first start owns the instance. It cannot be deleted, 
 rezepte --demo
 ```
 
-Fills an empty data directory with twelve sample recipes and photos for most of them. The English and German recipes come with AI-generated photos; sample recipes in another language get simple placeholder images. If `REZEPTE_ADMIN_PASSWORD` is unset, it also creates the demo account `demo` / `demo1234` instead of requiring a password. On an instance that already has recipes, `--demo` does nothing and starts normally.
+Fills an empty data directory with twelve sample recipes and photos for most of them. The English and German recipes come with AI-generated photos; for a language without sample recipes of its own, `--demo` uses the English ones, photos included. Only a sample set that has no photos at all gets simple placeholder images instead. If `REZEPTE_ADMIN_PASSWORD` is unset, it also creates the demo account `demo` / `demo1234` instead of requiring a password. On an instance that already has recipes, `--demo` does nothing and starts normally.
 
 ### `--reset-superadmin-password`
 
