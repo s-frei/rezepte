@@ -17,6 +17,19 @@ test('api', async ({ page }, testInfo) => {
 	await shot(page, 'api');
 });
 
+test('token-mcp', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/api');
+	await page.getByRole('button', { name: 'Create token' }).first().click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Name').fill('MCP on the laptop');
+	await dialog.getByRole('radio', { name: 'Full' }).click();
+	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+	const reveal = page.getByRole('dialog');
+	await expect(reveal.getByRole('tab', { name: 'Claude Code' })).toBeVisible();
+	await shot(page, 'token-mcp');
+});
+
 test('users', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	// The demo seeds one account; the second row on the picture is created

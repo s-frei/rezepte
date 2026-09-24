@@ -4,7 +4,7 @@ description: Let programs reach your recipes without a login form
 ---
 
 An API token lets a program talk to your instance the way the app does, without
-a login form. Use one for a script, a second instance, or an AI assistant.
+a login form. Use one for a script, a second instance, or [an AI assistant](/api/mcp).
 
 Only admins can issue tokens, under **Settings → API**.
 
@@ -13,8 +13,11 @@ Only admins can issue tokens, under **Settings → API**.
 1. Open **Settings → API** and choose **Create token**.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
    That name is how you tell tokens apart later.
-3. Choose what it may do. **Recipes** and **Members** are set separately, each
-   as **No access**, **Read**, or **Read & write**. Give a token the least it needs.
+3. Choose what it may do. **Recipes** and **Members** are set separately,
+   each as **No access**, **Read**, or **Read & write**. **Recipes** has a
+   fourth level, **Full**, which can also delete recipes — a **Read & write**
+   token can create and edit recipes but never delete one. Give a token the
+   least it needs.
 4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.
 5. Choose **Create**.
 
