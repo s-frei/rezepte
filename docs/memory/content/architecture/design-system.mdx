@@ -144,6 +144,32 @@ The palette is written in three places, and adding or renaming a color means edi
 
 search, plus, minus, link, download, settings, log-out, chevron-left/right/down, x, more-horizontal, share-2, pencil, chef-hat (cooking mode), trash-2, grip-vertical, image-plus, upload, check, clock, flame, sun, moon, monitor, user, key-round, alert-circle, arrow-left/right, zoom-in.
 
+## Logo
+
+The logo is a brush-painted onion with a calm face: one loose brush outline for the body, open at the lower left where the stroke starts and ends, one sweeping stroke rising into the tip, two slim green blades for the sprout, two small oval eyes and a short smile. The sprout is the signature and keeps its shape at every size. The face is complete or absent, never eyes alone, and the character stays friendly rather than cute: no blush, no wink, no closed eyes.
+
+It comes in three levels, because a brush stroke that reads at 128 px turns to mush at 16:
+
+| Level | Sizes | Form | Used for |
+|---|---|---|---|
+| L1 | 64 px and up | the brush drawing, about 12 % padding | `apple-touch-icon.png`, the manifest icons |
+| small | 24–48 px | a filled ink silhouette with the same sprout, eyes and smile cut out as negative space, full-bleed | nothing yet; it is the level for the logo inside the UI |
+| small-16 | 20 px and below | the small silhouette tuned for 16 px, no face | `favicon.svg`, `favicon.ico` |
+
+Its colors are three tokens of their own, so the logo does not change by accident when a UI color does:
+
+| Token | Light | Dark |
+|---|---|---|
+| `logo-ink` | `#7c3d0a` | `#f0c391` |
+| `logo-sprout` | `#7fb069` | `#aed3a8` |
+| `logo-ground` | `#f4ede2` | `#1c1612` |
+
+The masters live in `assets/brand/logo/`, outside `frontend/`, because they are the logo's sources rather than part of one app: each level in color, dark, mono and mono-dark, all `viewBox="0 0 512 512"`, with the ink and the sprout on two groups, `<g class="ink">` and `<g class="sprout">`, so a page can inline one and recolor it with the tokens. Image files cannot read CSS, so `frontend/scripts/brand-palette.ts` repeats the six values for them.
+
+Everything the browser loads is generated, never edited by hand: `mise run //frontend:brand:export` writes `favicon.svg` (small-16 plus a `prefers-color-scheme: dark` block that switches the two groups to the dark values, so the onion stays visible on a dark tab), `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` and `manifest.webmanifest` into `frontend/static/`. The rasters come from `@vite-pwa/assets-generator`, run once with L1 and once with small-16. `//frontend:brand:check`, part of `check`, fails when a master strays from the six colors or the two groups, when the tokens in `app.css` drift from the palette, or when the committed `favicon.svg` and manifest differ from what the script would write. It compares the PNGs and the ICO only by format and size, because sharp may anti-alias a pixel differently on another platform. The manifest says `display: "browser"`: it gives the home screen an icon without turning Rezepte into an installed app, which would be a feature of its own.
+
+Rejected: a line-drawn small level (a thick even line reads as a marker scribble), a face at 16 px (the mouth becomes a pixel block and the onion looks startled), and a cut-out layer line in the small level (it reads as a glossy highlight rather than an onion).
+
 ## Interaction rules
 
 - **Buttons point.** `app.css` restores `cursor: pointer` on `button:not(:disabled)` and `[role="button"]`, which Tailwind v4 dropped from its preflight in favor of the browser default. Without it every button in the app - the avatar, the filter trigger, the tag chips, the star - reads as non-clickable while links still point. Disabled buttons keep the default cursor, which is how "Import" stays legible as unavailable.
