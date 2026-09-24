@@ -9,7 +9,10 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 
 | | Member | Admin | Owner |
 | --- | :-: | :-: | :-: |
-| Cook, add and edit recipes, upload images | ✓ | ✓ | ✓ |
+| Cook, add recipes, edit and delete your own | ✓ | ✓ | ✓ |
+| Edit someone else's recipe and its photos | if open | ✓ | ✓ |
+| Delete someone else's recipe, or change who may edit it | – | ✓ | ✓ |
+| Lock recipes to their authors for the whole household | – | – | ✓ |
 | Change your own password | ✓ | ✓ | ✓ |
 | Change your own display name and color | ✓ | ✓ | ✓ |
 | See the member list | – | ✓ | ✓ |
@@ -80,6 +83,10 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
   </Step>
 </Steps>
 
+## Recipe editing
+
+Below the member list, the **Recipe editing** card holds the household setting that locks recipes to their authors and admins. The owner switches it; every other admin sees what applies right now. [Editing rights](/guide/editing-rights) explains how it combines with the setting on each recipe.
+
 <Callout type="info" title="Good to know">
   The owner's row is marked "Owner" and carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
 </Callout>
@@ -90,7 +97,7 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
 <Accordions type="single">
   <Accordion title="What happens to a deleted member's recipes">
-    They are not deleted — they are transferred to the admin who performed the deletion.
+    They are not deleted — they are transferred to the admin who performed the deletion, who becomes their author. Each recipe's editing setting stays as it was.
   </Accordion>
   <Accordion title="Members and this page">
     A "Member" account that navigates directly to this page's URL is sent to their own settings instead; the same rule is enforced by the API, so this is purely a courtesy redirect, not the only protection.

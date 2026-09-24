@@ -34,3 +34,15 @@ test('user-create', async ({ page }, testInfo) => {
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await shot(page, 'user-create');
 });
+
+test('settings-recipe-editing', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/users');
+	// The card reads the setting after the page renders; the switch appears
+	// once it has, so waiting for it keeps the skeleton off the picture.
+	const toggle = page.getByRole('switch', { name: 'Only authors and admins edit recipes' });
+	await expect(toggle).toBeVisible();
+	// To the bottom, so the phone's bottom navigation does not cover the card.
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	await shot(page, 'settings-recipe-editing');
+});
