@@ -1,6 +1,7 @@
 -- name: CreateUser :one
-INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO users (
+    id, username, display_name, password_hash, role, color, locale, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetUserByID :one
@@ -27,11 +28,10 @@ UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?;
 -- name: DeleteUser :execrows
 DELETE FROM users WHERE id = ?;
 
--- Lives here rather than in recipes.sql so Phase 4 (running concurrently)
--- and this phase never edit the same query file. recipes.created_by and
--- recipes.updated_by are both NOT NULL without ON DELETE, so every mention
--- of a user has to move before their row can go - a recipe somebody else
--- wrote but this user last edited names them in updated_by alone.
+-- recipes.created_by and recipes.updated_by are both NOT NULL without ON
+-- DELETE, so every mention of a user has to move before their row can go -
+-- a recipe somebody else wrote but this user last edited names them in
+-- updated_by alone.
 -- name: ReassignRecipes :exec
 UPDATE recipes
 SET created_by = CASE WHEN created_by = sqlc.arg(old_owner) THEN sqlc.arg(new_owner) ELSE created_by END,
@@ -47,4 +47,7 @@ SELECT color, COUNT(*) AS user_count FROM users GROUP BY color;
 -- and fills in whichever of the three the caller left alone, so a partial
 -- update needs no second statement.
 -- name: UpdateUserProfile :one
-UPDATE users SET display_name = ?, color = ?, locale = ?, updated_at = ? WHERE id = ? RETURNING *;
+UPDATE users
+SET display_name = ?, color = ?, locale = ?, updated_at = ?
+WHERE id = ?
+RETURNING *;

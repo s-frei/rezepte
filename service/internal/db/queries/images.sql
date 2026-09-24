@@ -22,7 +22,9 @@ SELECT CAST(COALESCE(MAX(position), -1) + 1 AS INTEGER) FROM images WHERE recipe
 UPDATE images SET position = ? WHERE recipe_id = ? AND id = ?;
 
 -- name: SetRecipeCover :exec
-UPDATE recipes SET cover_image_id = ?, updated_by = ?, updated_at = ? WHERE id = ?;
+UPDATE recipes
+SET cover_image_id = ?, updated_by = ?, updated_at = ?
+WHERE id = ?;
 
 -- name: TouchRecipe :exec
 UPDATE recipes SET updated_by = ?, updated_at = ? WHERE id = ?;
