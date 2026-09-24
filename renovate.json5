@@ -3,6 +3,9 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: ['config:recommended'],
+  // config:recommended would title runtime dependencies fix(deps); every
+  // dependency update here is a chore.
+  ignorePresets: [':semanticPrefixFixDepsChoreOthers'],
 
   // All development happens on develop; main only receives releases.
   baseBranchPatterns: ['develop'],
@@ -25,7 +28,9 @@
       groupName: 'Go modules',
     },
     {
-      matchManagers: ['npm'],
+      // The package.json files are handled by the bun manager, because
+      // each of them has a bun.lock beside it.
+      matchManagers: ['bun'],
       matchUpdateTypes: ['minor', 'patch'],
       groupName: 'JavaScript packages',
     },
