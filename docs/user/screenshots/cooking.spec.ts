@@ -39,3 +39,15 @@ test('cook-mode-sheet', async ({ page }, testInfo) => {
 	await expect(page.getByRole('checkbox', { name: 'minced lamb' })).toBeVisible();
 	await shot(page, 'cook-mode-sheet');
 });
+
+test('cook-mode-type-size', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto(`${DETAIL}/cook`);
+	await page.getByRole('button', { name: 'Type size' }).click();
+	// One step down from the default, so the step behind the open specimen
+	// shows the size it was just set in.
+	const smaller = page.getByRole('radio', { name: 'Bourgeois' });
+	await smaller.click();
+	await expect(smaller).toBeChecked();
+	await shot(page, 'cook-mode-type-size');
+});

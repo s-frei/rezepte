@@ -9,10 +9,12 @@
 	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
 	import CookProgress from '$lib/components/cook/CookProgress.svelte';
 	import IngredientSheet from '$lib/components/cook/IngredientSheet.svelte';
+	import TypeSpecimen from '$lib/components/cook/TypeSpecimen.svelte';
 	import StepText from '$lib/components/recipe/StepText.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { createServings } from '$lib/recipe/servings.svelte';
 	import { swipeDirection } from '$lib/recipe/swipe';
+	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '$lib/recipe/type-size';
 	import { ScreenWakeLock } from '$lib/recipe/wake-lock.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageProps } from './$types';
@@ -27,6 +29,10 @@
 
 	let index = $state(0);
 	let sheetOpen = $state(false);
+	// Held for this visit only: every visit to cook mode starts at the
+	// default, and a long step is sized down for the cook it is in.
+	let typeSize = $state<TypeSize>(DEFAULT_TYPE_SIZE);
+	let specimenOpen = $state(false);
 	// Which way the next step slides in: +1 forward, -1 back.
 	let direction = $state<1 | -1>(1);
 	const isLast = $derived(index >= count - 1);
@@ -79,8 +85,8 @@
 		}
 		// The open sheet owns the keyboard: it closes itself on Escape instead
 		// of leaving cook mode, and the arrows must not page steps the cook
-		// cannot see.
-		if (sheetOpen) {
+		// cannot see. The open specimen owns the arrows for its radio group.
+		if (sheetOpen || specimenOpen) {
 			return;
 		}
 		switch (event.key) {
@@ -169,8 +175,12 @@
 					{m.cook_step_counter({ number: index + 1, count })}
 				{/if}
 			</p>
-			<!-- Same width as the back button so the counter is centered. -->
-			<span class="size-10 shrink-0" aria-hidden="true"></span>
+			<!-- Same width as the back button, so the counter stays centered. -->
+			{#if count > 0}
+				<TypeSpecimen bind:value={typeSize} bind:open={specimenOpen} />
+			{:else}
+				<span class="size-10 shrink-0" aria-hidden="true"></span>
+			{/if}
 		</header>
 
 		{#if count > 0}
@@ -191,13 +201,25 @@
 				onpointerleave={cancelSwipe}
 			>
 				{#key index}
+					<!-- `safe center`: a step taller than the view starts at the top
+					     and scrolls, instead of centering its first lines out of reach. -->
 					<section
-						class="flex flex-col items-center justify-center overflow-y-auto py-6 text-center [grid-area:1/1]"
+						class="flex flex-col items-center justify-center-safe overflow-y-auto py-6 text-center [grid-area:1/1]"
 						in:fly={{ x: 40 * direction, duration }}
 						out:fade={{ duration }}
 					>
 						<h1 class="font-display text-body-lg text-primary italic">{recipe.title}</h1>
-						<p class="mt-4 max-w-[640px] font-display text-display-sm leading-[1.3] font-medium">
+						<!-- Hyphenation only for words of twelve characters or more, split no
+						     closer than four from either end: a long German compound
+						     breaks at the largest size instead of being clipped, while
+						     "potatoes" never turns into "pota-toes" on a line that had
+						     room. Browsers without `hyphenate-limit-chars` hyphenate
+						     every word instead. -->
+						<p
+							class="mt-4 max-w-[640px] font-display {TYPE_SIZE_CLASSES[
+								typeSize
+							]} leading-[1.3] font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4]"
+						>
 							<StepText
 								step={recipe.steps[index]}
 								groups={recipe.ingredientGroups}

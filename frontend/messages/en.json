@@ -226,6 +226,12 @@
 	"cook_wake_lock": "Screen stays on",
 	"cook_sheet_summary": "Ingredients · {count}",
 	"cook_sheet_close": "Close the ingredients",
+	"cook_type_size": "Type size",
+	"cook_type_size_brevier": "Brevier",
+	"cook_type_size_bourgeois": "Bourgeois",
+	"cook_type_size_pica": "Pica",
+	"cook_type_size_great_primer": "Great Primer",
+	"cook_type_size_double_pica": "Double Pica",
 
 	"images_cover_alt": "Cover photo of {title}",
 	"images_open": "Open photo {number} of {count}",

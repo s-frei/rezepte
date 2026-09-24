@@ -235,3 +235,74 @@ test('swipes between steps on touch', async ({ page, isMobile }) => {
 	await page.mouse.up();
 	await expect(page.getByText('Step 2 of 3')).toBeVisible();
 });
+
+/** The computed font size of the paragraph that sets the current step. */
+async function stepFontSize(page: Page, text: string) {
+	return page
+		.getByText(text)
+		.evaluate((node) => getComputedStyle(node.closest('p') ?? node).fontSize);
+}
+
+test('sets the step type size for this visit to cook mode only', async ({ page, isMobile }) => {
+	// A phone gets the smaller end of the scale, a large screen the larger;
+	// the default in the middle is the same on both.
+	const largest = isMobile ? '40px' : '52px';
+	const smallest = isMobile ? '19px' : '22px';
+	const recipe = await createRecipe(page, scalingRecipe(`Type ${uniqueToken()}`));
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await startCookMode(page);
+	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe('30px');
+
+	await page.getByRole('button', { name: 'Type size' }).click();
+	const sizes = page.getByRole('radiogroup', { name: 'Type size' });
+	await expect(sizes.getByRole('radio', { name: 'Pica', exact: true })).toBeChecked();
+	await sizes.getByRole('radio', { name: 'Double Pica' }).click();
+	await expect(sizes.getByRole('radio', { name: 'Double Pica' })).toBeChecked();
+	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe(largest);
+	await sizes.getByRole('radio', { name: 'Brevier' }).click();
+	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe(smallest);
+	await sizes.getByRole('radio', { name: 'Double Pica' }).click();
+
+	// Escape closes the specimen, not cook mode.
+	await page.keyboard.press('Escape');
+	await expect(sizes).toBeHidden();
+	await expect(page).toHaveURL(/\/cook$/);
+
+	// The size holds across steps.
+	await page.keyboard.press('ArrowRight');
+	await expect(page.getByText('Step 2 of 3')).toBeVisible();
+	expect(await stepFontSize(page, 'Add the water.')).toBe(largest);
+
+	// Leaving cook mode forgets it: the next visit starts at the default again.
+	await page.getByRole('button', { name: 'Back to the recipe' }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await startCookMode(page);
+	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe('30px');
+});
+
+test('keeps the start of a long step readable at the largest size', async ({ page }) => {
+	const opening = 'Heat the oven to 200 degrees';
+	const long = `${opening}, ${'then stir the sauce slowly while it thickens, '.repeat(8)}and serve.`;
+	const recipe = await createRecipe(page, {
+		...scalingRecipe(`Long ${uniqueToken()}`),
+		steps: [{ text: long, references: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/cook`);
+	await page.getByRole('button', { name: 'Type size' }).click();
+	await page.getByRole('radio', { name: 'Double Pica' }).click();
+	await page.keyboard.press('Escape');
+
+	// A centered, overflowing step would push its first line above the
+	// scroll container, out of reach; it must start at the top instead.
+	const step = page.getByText(opening, { exact: false });
+	const box = await step.boundingBox();
+	if (!box) {
+		throw new Error('step text has no bounding box');
+	}
+	const scroller = await step.evaluate(
+		(node) => node.closest('section')!.getBoundingClientRect().top
+	);
+	expect(box.y).toBeGreaterThanOrEqual(scroller);
+});

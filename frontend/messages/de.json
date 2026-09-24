@@ -226,6 +226,12 @@
 	"cook_wake_lock": "Bildschirm bleibt an",
 	"cook_sheet_summary": "Zutaten · {count} Stück",
 	"cook_sheet_close": "Zutaten schließen",
+	"cook_type_size": "Schriftgrad",
+	"cook_type_size_brevier": "Petit",
+	"cook_type_size_bourgeois": "Borgis",
+	"cook_type_size_pica": "Cicero",
+	"cook_type_size_great_primer": "Tertia",
+	"cook_type_size_double_pica": "Text",
 
 	"images_cover_alt": "Titelbild von {title}",
 	"images_open": "Bild {number} von {count} öffnen",
