@@ -51,6 +51,12 @@ test('the login form speaks to password managers', async ({ page }) => {
 	await expect(page.getByLabel('Password')).toHaveAttribute('autocomplete', 'current-password');
 });
 
+// The page has one job, so it saves the click into its first field.
+test('the login form starts in the username field', async ({ page }) => {
+	await page.goto('/login');
+	await expect(page.getByLabel('Username')).toBeFocused();
+});
+
 test('the password change names the account it belongs to', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
