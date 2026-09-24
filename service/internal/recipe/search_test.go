@@ -397,11 +397,10 @@ func TestFavoritesOnlyIsANoOpWithoutAUserID(t *testing.T) {
 }
 
 // TestListSortsByCreatedAt pins Sort: "created" against the default order,
-// which sorts by updated_at instead (see the ORDER BY note on
-// ListRecipesFiltered). For never-updated recipes, creation order and
-// update order are identical, so a test that only ever creates recipes
-// cannot tell the two apart: the default order produces the same head even
-// if Sort were ignored entirely. Updating the earliest-created recipe after
+// which sorts by updated_at instead. For never-updated recipes, creation
+// order and update order are identical, so a test that only ever creates
+// recipes cannot tell the two apart: the default order produces the same
+// head even if Sort were ignored entirely. Updating the earliest-created recipe after
 // all three exist makes its updated_at the newest while its created_at
 // stays the oldest, which is what makes the two orderings actually diverge
 // - then the whole sequence is checked under "created", and the default
@@ -496,11 +495,8 @@ func TestTagsWithCounts(t *testing.T) {
 
 // TestListCombinesFullTextTagsAndTimeFilters pins the one combination none
 // of the other tests exercise: a full-text query, a tag filter, a time
-// filter and a sort together. The AND chain that joins these conditions is
-// hand-duplicated across four queries - ListRecipesFiltered,
-// CountRecipesFiltered, SearchRecipesFiltered and CountSearchRecipesFiltered
-// - so a list/count pair drifting apart, or a filter that only works
-// without full-text search, would ship green under every other test here.
+// filter and a sort together, so every condition sqlc.RecipeFilter appends
+// is checked beside the others, in the list and in the count.
 //
 // "fleisch" alone matches all five fleisch-tagged recipes through the FTS
 // tags column (the same baseline TestFilterByTagAndCombined pins). Adding
