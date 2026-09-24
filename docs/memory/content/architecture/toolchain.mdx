@@ -13,7 +13,7 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 |---|---|
 | `mise run setup` | installs every package's dependencies plus the Playwright browser, installs the Git LFS hooks, then `go mod download` |
 | `mise run dev` | `//service:dev` (watchexec restarts the API on `.go` changes) and `//frontend:dev` |
-| `mise run check` | `guard:local-config` plus the four package `check` tasks |
+| `mise run check` | `guard:local-config`, `docker:compose:check` (skipped out loud where `docker compose` is missing) plus the four package `check` tasks |
 | `mise run build` | `//service:build`, which depends on `//frontend:build` — the SPA lands in `service/internal/web/dist` and is embedded |
 | `mise run docs` | both documentation sites |
 | `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |

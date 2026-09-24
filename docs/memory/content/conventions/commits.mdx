@@ -15,7 +15,7 @@ Format: `type(scope): summary` following [semantic commit messages](https://gist
 | `test` | tests only |
 | `style` | formatting only |
 
-Scopes: `service`, `frontend`, `docs`, or none.
+Scopes name the area a commit touches - a part of the repository (`service`, `frontend`, `docs`, `memory`, `e2e`, `mise`, `demo`) or a feature area (`api`, `settings`, `user`, `i18n`) - or are left out when no one area fits.
 
 ## Breaking changes
 
@@ -116,7 +116,7 @@ year. Merge only once the branch reads the way you want `develop` to read.
 
 ## Branches (git flow)
 
-- All development happens on `develop`. Phases, fixes and docs land there as ordinary commits.
+- All development happens on `develop`. Features, fixes and docs land there as ordinary commits.
 - `main` holds releases only. A release is a fast-forward from `develop` into `main`, done by `mise run release:finish` and tagged with a version (see [Release](/howtos/release)); `main` never gets its own merge commits or direct commits.
 - Feature branches are optional and short-lived; they branch from and merge back into `develop`.
 - Agents never merge to `main`, push, tag or open pull requests on their own. Releases are triggered by the maintainer.

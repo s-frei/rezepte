@@ -20,7 +20,7 @@ description: End-to-end tests and screenshots, no browser extensions
 
     The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
-    Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts` (added in phase 2).
+    Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts`.
 
   </Tab>
   <Tab value="Screenshots">
@@ -58,13 +58,13 @@ The Chromium build is installed by `mise run setup` (`bunx playwright install ch
 | Width | Stands for | Why it is in the list |
 | --- | --- | --- |
 | 320px | iPhone SE (1st gen) | The floor. Nothing may overflow here. |
-| **360px** | **The default phone** | **Verify here.** The user's Oppo Find X9 Ultra lands at 360-375px once display size or text scaling is raised, and most Android phones report 360px. |
+| **360px** | **The default phone** | **Verify here.** A phone with display size or text scaling raised lands at 360-375px, and most Android phones report 360px. |
 | 375px | iPhone SE 2/3, 13 mini | Second-narrowest common phone. |
 | 390px | iPhone 13/14/15 | What agents reach for by default - and it is too forgiving. |
 | 412px | Pixel 7 | What the repo's own Playwright projects use, so a green e2e run says nothing about 360px. |
 | 1440px | Desktop | The `md:` branch of every component. |
 
-A layout that only ever gets checked at 390px hides real bugs. The theme `SegmentedControl` was a content-sized `inline-flex` at a constant 297px: at 390px it fit with 5px to spare and every screenshot looked right, while on the user's phone it pushed out of its card. Sweep the widths whenever a row of controls looks tight.
+A layout that only ever gets checked at 390px hides real bugs: a content-sized `inline-flex` row of 297px fits there with 5px to spare, so every screenshot looks right, and pushes out of its card at 360px. Sweep the widths whenever a row of controls looks tight.
 
 ## A test that has never run is not a test
 
@@ -74,12 +74,12 @@ Two locator facts this repo will otherwise cost you twice: the user menu is a Bi
 
 ## Check the empty state, not just the seeded one
 
-The demo data is the *comfortable* case. The ingredient editor's bugs all hid there: seeded groups are called "Klopse" and "Kapernsauce", so their name field shows a short value and looks fine. Add a **new** group and the field falls back to its placeholder, "Name this group…", which needs 140px - and beside the count and "Remove" it had 90px. The seeded page never showed it.
+The demo data is the *comfortable* case. Seeded ingredient groups carry short names, so their name field shows a short value and looks fine; a **new** group's field falls back to its placeholder, "Name this group…", which needs 140px, and only an empty state shows whether its row leaves it that much.
 
 So exercise the states the fixture does not cover:
 
 - **Empty / just created:** placeholders instead of values, a list with one entry, a form with nothing filled in.
-- **One versus many:** singular labels ("1 ingredients" was live for months), the last row of a list, a list with a single item where an action is disabled.
+- **One versus many:** singular labels ("1 ingredient", not "1 ingredients"), the last row of a list, a list with a single item where an action is disabled.
 - **Long content:** a recipe title that wraps, a group name that fills the field.
 
 A placeholder is invisible to the usual truncation check, because `scrollWidth` measures the *value*, not the placeholder. Measure it against the rendered font instead:
@@ -118,7 +118,7 @@ Three assertions catch most layout bugs:
 - **No sideways scroll:** `document.documentElement.scrollWidth <= window.innerWidth`.
 - **Nothing truncated:** `scrollWidth <= clientWidth` on every text node that matters.
 
-For stacking bugs (something hidden behind a fixed bar), `document.elementFromPoint(x, y)` names the element that actually paints there, and `getComputedStyle` gives you `zIndex`, `position` and `backdropFilter` of both sides. That is how the recipe menu was found to be rendering 4px *underneath* the header rather than below it.
+For stacking bugs (something hidden behind a fixed bar), `document.elementFromPoint(x, y)` names the element that actually paints there, and `getComputedStyle` gives you `zIndex`, `position` and `backdropFilter` of both sides.
 
 ## Running a probe
 
@@ -132,5 +132,5 @@ Without a command, `mise run demo` keeps that instance up until Ctrl-C, which is
 
 Two traps worth knowing:
 
-- Both `mise run e2e` and `mise run demo` refuse to start on a busy port. Without that guard a stale process answers `/healthz` instead, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the ones that do not log in pass. That failure shape means the port, not your change: check `lsof -nP -iTCP:<port> -sTCP:LISTEN`, with the port from `mise run ports`.
+- Both `mise run e2e` and `mise run demo` refuse to start on a busy port. Without that guard a stale process answers `/healthz` instead, and every test that logs in fails with "That username or password is wrong." while the ones that do not log in pass. That failure shape means the port, not your change: check `lsof -nP -iTCP:<port> -sTCP:LISTEN`, with the port from `mise run ports`.
 - A locked screen does not stop Chromium. If a run does nothing, look at the port before the browser.

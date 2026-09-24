@@ -26,8 +26,6 @@ description: Dev servers, builds and the check gate
 
     Uploads land in `$REZEPTE_DATA_DIR/images/<recipeId>/` (default `./data/images/`, git-ignored with the database, see [Architecture overview](/architecture/overview)); delete that directory together with `rezepte.db` when resetting local data.
 
-    `0001_users_and_sessions.sql` gained its `locale` column in place rather than through a new migration (see [Data model](/architecture/data-model)), so a database created before that edit has no such column and fails to start; delete `rezepte.db` and let the migrations recreate it.
-
   </Step>
   <Step>
 
@@ -44,7 +42,7 @@ description: Dev servers, builds and the check gate
     ```bash
     cd service && REZEPTE_DATA_DIR=$(mktemp -d) mise exec -- go run ./cmd/rezepte --demo
     ```
-    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with placeholder photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. Unlike `mise run dev` above, this runs the binary directly without setting `REZEPTE_ADDR`, so it always binds `:8060` regardless of this worktree's offset. See [Demo mode](/features/demo-mode).
+    (or the built binary, `./bin/rezepte --demo`, from a temporary `REZEPTE_DATA_DIR`). Seeds twelve sample recipes with their photos and, with no `REZEPTE_ADMIN_PASSWORD` set, a `demo` / `demo1234` admin - log in at `http://localhost:8060`. Unlike `mise run dev` above, this runs the binary directly without setting `REZEPTE_ADDR`, so it always binds `:8060` regardless of this worktree's offset. See [Demo mode](/features/demo-mode).
 
   </Step>
   <Step>
@@ -78,7 +76,7 @@ description: Dev servers, builds and the check gate
 <Callout type="warn">
 
   - If `bunx playwright install chromium` times out downloading, run it once from a normal terminal. `mise run setup` is idempotent and will pick up the cached browser on the next run.
-  - A stale process holding the port is what makes an e2e run look broken rather than blocked: the binary cannot bind, the other app answers `/healthz`, and every test that logs in fails with "Benutzername oder Passwort ist falsch" while the rest pass. The task pre-checks the port and says so; `mise run ports` gives this worktree's numbers.
+  - A stale process holding the port is what makes an e2e run look broken rather than blocked: the binary cannot bind, the other app answers `/healthz`, and every test that logs in fails with "That username or password is wrong." while the rest pass. The task pre-checks the port and says so; `mise run ports` gives this worktree's numbers.
   - The screenshot suite is flaky by nature - `docs/user/playwright.config.ts` retries once because a run tends to lose a single, different test to a 30s timeout, and running it alongside another worktree's e2e makes that more likely. Read the diff before committing regenerated PNGs. The placeholder frames [Documentation sites](/architecture/docs) describes are for environments without a working Chromium, such as CI.
 
 </Callout>
