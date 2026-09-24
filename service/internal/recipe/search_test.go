@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 
 	"github.com/s-frei/rezepte/service/internal/recipe"
 )
@@ -461,10 +463,39 @@ func TestListSortsByTitle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c := collate.New(language.Und)
 	for i := 1; i < len(p.Items); i++ {
-		if strings.ToLower(p.Items[i-1].Title) > strings.ToLower(p.Items[i].Title) {
+		if c.CompareString(p.Items[i-1].Title, p.Items[i].Title) > 0 {
 			t.Fatalf("%q sorted before %q", p.Items[i-1].Title, p.Items[i].Title)
 		}
+	}
+}
+
+// Titles sort the way a German reader expects: an umlaut sorts with its
+// base letter and case does not matter, rather than every non-ASCII initial
+// landing after "Z" in byte order.
+func TestListSortsTitlesWithUmlautsAlphabetically(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	fixtures := loadFixtures(t)
+	for i, title := range []string{"Zwiebelkuchen", "überbackene Nudeln", "Bratapfel", "Äpfel im Schlafrock"} {
+		in := fixtures[i]
+		in.Title = title
+		if _, err := svc.Create(ctx, uid, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p, err := svc.List(ctx, recipe.ListParams{Sort: "title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Äpfel im Schlafrock", "Bratapfel", "überbackene Nudeln", "Zwiebelkuchen"}
+	got := make([]string, len(p.Items))
+	for i, item := range p.Items {
+		got[i] = item.Title
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Sort: title = %q, want %q", got, want)
 	}
 }
 
