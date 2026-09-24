@@ -32,7 +32,7 @@ test('an admin finds the served spec next to the token section', async ({ page }
 	await expect(page.getByText('Only an account with the admin role can issue one')).toHaveCount(0);
 });
 
-test('a member reaches the API page without the token section', async ({ page }) => {
+test('a member reaches the API page without the token section', async ({ page }, testInfo) => {
 	const username = `api${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -43,9 +43,11 @@ test('a member reaches the API page without the token section', async ({ page })
 	await expect(page).toHaveURL('/');
 
 	await page.goto('/settings');
-	// Each viewport renders its own nav variant - the chip row is `md:hidden`,
-	// the sidebar `hidden md:flex` - and only the visible one is in the
-	// accessibility tree, so this matches exactly one link either way.
+	// A phone lists the pages in the contents sheet behind the running head;
+	// the desktop sidebar shows them outright.
+	if (testInfo.project.name.startsWith('mobile')) {
+		await page.getByRole('button', { name: 'Profile, open contents' }).click();
+	}
 	await expect(page.getByRole('link', { name: 'API' })).toBeVisible();
 
 	await page.goto('/settings/api');

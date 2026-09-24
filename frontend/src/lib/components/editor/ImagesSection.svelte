@@ -26,7 +26,8 @@
 		recipeId,
 		initialImages = [],
 		initialCoverId = null,
-		pending = $bindable([])
+		pending = $bindable([]),
+		oncount
 	}: {
 		/** Set for an existing recipe: every action calls the API at once. Unset: files are queued into `pending`. */
 		recipeId?: string;
@@ -34,6 +35,8 @@
 		initialCoverId?: string | null;
 		/** New-recipe mode only: the queued files, in upload order. */
 		pending?: File[];
+		/** Told how many photos the section holds whenever that changes (the phone's contents sheet). */
+		oncount?: (count: number) => void;
 	} = $props();
 
 	/**
@@ -71,6 +74,10 @@
 	// svelte-ignore state_referenced_locally
 	let coverId = $state<string | null>(initialCoverId);
 	let dragging = $state(false);
+
+	$effect.pre(() => {
+		oncount?.(tiles.length);
+	});
 
 	const queued = $derived(recipeId === undefined);
 	const uploading = $derived(tiles.some((tile) => tile.uploading));
