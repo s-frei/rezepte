@@ -360,7 +360,7 @@ func TestCreateUserDefaultsTheProfile(t *testing.T) {
 	if created.DisplayName != "ida" {
 		t.Errorf("DisplayName = %q; want the login name", created.DisplayName)
 	}
-	// Three accounts are seeded, so the fourth colour of the palette is the
+	// Three accounts are seeded, so the fourth color of the palette is the
 	// least used one.
 	if created.Color != string(user.Colors[3]) {
 		t.Errorf("Color = %q; want %q", created.Color, user.Colors[3])

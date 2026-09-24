@@ -53,11 +53,11 @@ describe('parseCheckedKeys', () => {
 });
 
 describe('serializeCheckedKeys', () => {
-	it('serialises an empty iterable to an empty JSON array', () => {
+	it('serializes an empty iterable to an empty JSON array', () => {
 		expect(serializeCheckedKeys([])).toBe('[]');
 	});
 
-	it('serialises a Set in iteration order', () => {
+	it('serializes a Set in iteration order', () => {
 		expect(serializeCheckedKeys(new Set(['a', 'b']))).toBe('["a","b"]');
 	});
 });

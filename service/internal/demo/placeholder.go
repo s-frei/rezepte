@@ -26,7 +26,7 @@ const (
 	placeholderQuality = 85
 )
 
-// tints are the warm surface colours of the design system (see
+// tints are the warm surface colors of the design system (see
 // docs/memory/content/architecture/design-system), rotated per recipe.
 var tints = []color.RGBA{
 	{R: 0xf0, G: 0xdf, B: 0xc4, A: 0xff},
@@ -70,7 +70,7 @@ func Placeholder(index int, title string) ([]byte, error) {
 
 	letter := initial(title)
 	d := &font.Drawer{Dst: img, Src: image.NewUniform(ink), Face: face}
-	// Centre the glyph's ink box rather than its advance box so narrow and
+	// Center the glyph's ink box rather than its advance box so narrow and
 	// wide letters both sit in the middle of the plate.
 	bounds, _ := d.BoundString(letter)
 	d.Dot = fixed.Point26_6{

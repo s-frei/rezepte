@@ -54,7 +54,7 @@ func TestInitialUsesTheFirstLetterUppercased(t *testing.T) {
 
 // Several sample recipes share an initial (Königsberger Klopse, Käsespätzle,
 // Kartoffelsalat) and would collide if the tint only rotated, leaving the demo
-// catalogue with repeated tiles.
+// catalog with repeated tiles.
 func TestEverySampleGetsItsOwnPlaceholder(t *testing.T) {
 	samples, err := recipe.Samples("de") // titles below (Königsberger Klopse, Käsespätzle, Kartoffelsalat) are the German set
 	if err != nil {

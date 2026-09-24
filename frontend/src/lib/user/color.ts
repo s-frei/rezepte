@@ -1,7 +1,7 @@
 /**
- * The colour palette a person picks from, in palette order - the same order
+ * The color palette a person picks from, in palette order - the same order
  * and the same names as `user.Colors` in service/internal/user/profile.go and
- * the `--color-user-*` tokens in app.css. Adding a colour means editing all
+ * the `--color-user-*` tokens in app.css. Adding a color means editing all
  * three; the API's enum is what keeps a client from inventing a ninth.
  */
 export const USER_COLORS = [
@@ -18,7 +18,7 @@ export const USER_COLORS = [
 export type UserColor = (typeof USER_COLORS)[number];
 
 /**
- * The one place a colour becomes classes. Tailwind cannot compose a class
+ * The one place a color becomes classes. Tailwind cannot compose a class
  * name at runtime - `bg-user-${color}` is never emitted - so every pair is
  * written out.
  */
@@ -33,7 +33,7 @@ export const USER_COLOR_CLASSES: Record<UserColor, string> = {
 	slate: 'bg-user-slate text-user-slate-foreground'
 };
 
-/** Neutral, for a colour this build does not know. */
+/** Neutral, for a color this build does not know. */
 const NEUTRAL = 'bg-accent text-accent-foreground';
 
 export function isUserColor(value: unknown): value is UserColor {
@@ -41,8 +41,8 @@ export function isUserColor(value: unknown): value is UserColor {
 }
 
 /**
- * Classes for a colour that came from the API. A newer server could send a
- * ninth colour this build has no token for; that renders neutral rather than
+ * Classes for a color that came from the API. A newer server could send a
+ * ninth color this build has no token for; that renders neutral rather than
  * transparent, which would leave a circle with no background at all.
  */
 export function userColorClasses(color: string | null | undefined): string {
@@ -50,9 +50,9 @@ export function userColorClasses(color: string | null | undefined): string {
 }
 
 /**
- * The colour the fewest accounts hold, ties broken by palette order - the
+ * The color the fewest accounts hold, ties broken by palette order - the
  * same rule `leastUsed` in service/internal/user/profile.go applies when a
- * client omits the colour on `POST /users`. This is the client's own copy,
+ * client omits the color on `POST /users`. This is the client's own copy,
  * for the create dialog's preselection alone: the server decides the real
  * default when the field is actually omitted, and this function only has to
  * agree with it closely enough that the preselected swatch does not jump

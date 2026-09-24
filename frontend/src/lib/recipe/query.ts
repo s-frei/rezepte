@@ -10,7 +10,7 @@ const SORTS: readonly Sort[] = ['updated', 'created', 'title'];
  * Narrows a raw string to `Sort` iff it is one of the three known values -
  * exported so the sort `Select`'s `onchange` (which only ever hands back a
  * plain string, one of `sortOptions`' own values) can narrow it the same
- * way `normalise` does, without duplicating the check.
+ * way `normalize` does, without duplicating the check.
  */
 export function isSort(value: string): value is Sort {
 	return SORTS.some((sort) => sort === value);
@@ -22,8 +22,8 @@ export type ListQuery = {
 	tags: string[];
 	/** Maximum total time in minutes, 0 = off. */
 	maxMinutes: number;
-	/** Restrict to the caller's own favourites, off by default. */
-	favourites: boolean;
+	/** Restrict to the caller's own favorites, off by default. */
+	favorites: boolean;
 	/** Restrict to recipes written by this username, `''` = off. */
 	author: string;
 	/** Result order, `'updated'` (most recently changed first) is the default. */
@@ -35,7 +35,7 @@ export type ListQuery = {
  * Brings list state into the one shape both functions below agree on:
  *
  * - `q` is trimmed.
- * - every tag is normalised the way the editor normalises a typed tag
+ * - every tag is normalized the way the editor normalizes a typed tag
  *   (trimmed and lower-cased, see `normaliseTag`), and blank ones are dropped.
  * - `author` is trimmed but keeps its case: the service stores usernames as
  *   they were typed (it only trims them too), so lower-casing here the way
@@ -63,12 +63,12 @@ export type ListQuery = {
  * that narrower type, and this is what lets `parseListQuery` hand it
  * `searchParams.get('sort') ?? ''` straight through without a cast.
  */
-function normalise(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery {
+function normalize(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery {
 	return {
 		q: state.q.trim(),
 		tags: state.tags.map((tag) => normaliseTag(tag)).filter((tag) => tag.length > 0),
 		maxMinutes: snapMaxMinutes(state.maxMinutes),
-		favourites: Boolean(state.favourites),
+		favorites: Boolean(state.favorites),
 		author: state.author.trim(),
 		sort: isSort(state.sort) ? state.sort : 'updated',
 		page: Number.isInteger(state.page) && state.page >= 1 ? state.page : 1
@@ -78,33 +78,33 @@ function normalise(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery
 /**
  * Parses the overview page's URL query string into list state. Missing
  * params render as their default (`''`, `[]`, `1`); `tags` comes from a
- * single comma-separated `tags` param. Everything is normalised, so
+ * single comma-separated `tags` param. Everything is normalized, so
  * `?tags=Dessert,+SÜSS+` and `?tags=dessert,süss` parse to the same state.
  */
 export function parseListQuery(url: URL): ListQuery {
-	return normalise({
+	return normalize({
 		q: url.searchParams.get('q') ?? '',
 		tags: (url.searchParams.get('tags') ?? '').split(','),
 		// Number(null) and Number('') are 0, Number('abc') is NaN - all of
-		// which `normalise` turns into 0 (off).
+		// which `normalize` turns into 0 (off).
 		maxMinutes: Number(url.searchParams.get('maxMinutes')),
-		favourites: url.searchParams.get('favourites') === 'true',
+		favorites: url.searchParams.get('favorites') === 'true',
 		author: url.searchParams.get('author') ?? '',
 		sort: url.searchParams.get('sort') ?? '',
 		// Number(null) and Number('') are 0, Number('abc') is NaN - all of
-		// which `normalise` turns into page 1.
+		// which `normalize` turns into page 1.
 		page: Number(url.searchParams.get('page'))
 	});
 }
 
 /**
- * Serialises list state into a URL query string (no leading `?`), omitting
+ * Serializes list state into a URL query string (no leading `?`), omitting
  * fields at their default value and keeping a stable `q`, `tags`,
- * `maxMinutes`, `favourites`, `author`, `sort`, `page` order so the
+ * `maxMinutes`, `favorites`, `author`, `sort`, `page` order so the
  * resulting URL is predictable and diff-friendly.
  */
 export function buildListQuery(state: ListQuery): string {
-	const { q, tags, maxMinutes, favourites, author, sort, page } = normalise(state);
+	const { q, tags, maxMinutes, favorites, author, sort, page } = normalize(state);
 	const params = new URLSearchParams();
 	if (q) {
 		params.set('q', q);
@@ -115,8 +115,8 @@ export function buildListQuery(state: ListQuery): string {
 	if (maxMinutes > 0) {
 		params.set('maxMinutes', String(maxMinutes));
 	}
-	if (favourites) {
-		params.set('favourites', 'true');
+	if (favorites) {
+		params.set('favorites', 'true');
 	}
 	if (author) {
 		params.set('author', author);

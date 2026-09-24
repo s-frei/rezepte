@@ -27,7 +27,7 @@ export type RecipeCard = {
 	coverImageId: string | null;
 	updatedAt: string;
 	/** Whether the signed-in user has starred this recipe. */
-	favourite: boolean;
+	favorite: boolean;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;
@@ -81,7 +81,7 @@ export type Recipe = RecipeInput & {
 	updatedAt: string;
 	updatedBy: Person;
 	/** Whether the signed-in user has starred this recipe. */
-	favourite: boolean;
+	favorite: boolean;
 };
 
 export type RecipePage = {
@@ -122,7 +122,7 @@ export function listRecipes(
 		q?: string;
 		tags?: string[];
 		maxMinutes?: number;
-		favourites?: boolean;
+		favorites?: boolean;
 		author?: string;
 		sort?: 'updated' | 'created' | 'title';
 		page?: number;
@@ -140,8 +140,8 @@ export function listRecipes(
 	if (params.maxMinutes !== undefined && params.maxMinutes > 0) {
 		query.set('maxMinutes', String(params.maxMinutes));
 	}
-	if (params.favourites) {
-		query.set('favourites', 'true');
+	if (params.favorites) {
+		query.set('favorites', 'true');
 	}
 	if (params.author) {
 		query.set('author', params.author);
@@ -160,8 +160,8 @@ export function listRecipes(
 }
 
 /** Sets or clears the star on a recipe for the signed-in user. */
-export async function setFavourite(id: string, on: boolean): Promise<void> {
-	await api<void>(`/recipes/${encodeURIComponent(id)}/favourite`, {
+export async function setFavorite(id: string, on: boolean): Promise<void> {
+	await api<void>(`/recipes/${encodeURIComponent(id)}/favorite`, {
 		method: on ? 'PUT' : 'DELETE'
 	});
 }

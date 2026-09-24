@@ -20,7 +20,7 @@ export type LanguageOption = {
 
 /**
  * The names come from `Intl.DisplayNames` rather than from the message
- * catalogues. A catalogue entry per language would mean every locale
+ * catalogs. A catalog entry per language would mean every locale
  * naming every other one - four strings for two languages, nine for
  * three - and every one of them a chance to forget a file. The browser
  * already knows them all, in every locale it supports.

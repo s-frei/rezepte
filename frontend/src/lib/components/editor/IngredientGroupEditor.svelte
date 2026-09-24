@@ -46,9 +46,9 @@
 	 * fresh blank row.
 	 */
 	async function focusRowAfterRemoval(group: FormGroup, removedIndex: number) {
-		const neighbour = group.ingredients[Math.max(0, removedIndex - 1)];
+		const neighbor = group.ingredients[Math.max(0, removedIndex - 1)];
 		await tick();
-		document.getElementById(`ingredient-name-${neighbour.id}`)?.focus();
+		document.getElementById(`ingredient-name-${neighbor.id}`)?.focus();
 	}
 
 	async function removeRow(group: FormGroup, index: number) {
@@ -61,7 +61,7 @@
 		await focusRowAfterRemoval(group, index);
 	}
 
-	/** Backspace in an empty row deletes it and moves the caret to its neighbour. */
+	/** Backspace in an empty row deletes it and moves the caret to its neighbor. */
 	async function collapseRow(group: FormGroup, index: number) {
 		if (group.ingredients.length === 1) {
 			return;
@@ -111,7 +111,7 @@
 					placeholder={m.editor_group_name_placeholder()}
 					class="w-full min-w-0 border-b border-transparent bg-transparent pb-1 font-display text-body-lg font-medium text-primary italic transition outline-none placeholder:text-text-muted placeholder:not-italic focus:border-border md:w-auto md:flex-1"
 				/>
-				<!-- The catalogue has no plural variants, so the singular is its
+				<!-- The catalog has no plural variants, so the singular is its
 				     own message rather than "1 Zutaten". -->
 				<span class="shrink-0 text-caption text-text-muted">
 					{group.ingredients.length === 1

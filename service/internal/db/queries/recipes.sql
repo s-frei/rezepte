@@ -51,16 +51,16 @@ SELECT EXISTS(SELECT 1 FROM recipes WHERE slug = ?);
 -- caller that leaves the field unset (meaning "off") would bind NULL
 -- instead.
 --
--- favourites_only = 0 switches the favourites filter off the same way,
+-- favorites_only = 0 switches the favorites filter off the same way,
 -- CAST for the same reason as max_minutes. When it is set, only recipes
--- present in user_id's own favourites row match - user_id is never taken
+-- present in user_id's own favorites row match - user_id is never taken
 -- from a path, query or body parameter, only from the authenticated
--- caller (see docs/memory/content/features/favourites.mdx), so this
+-- caller (see docs/memory/content/features/favorites.mdx), so this
 -- condition can only ever narrow a caller's own list to their own
--- favourites.
+-- favorites.
 --
 -- sort never reaches SQL as an identifier, only as a value each CASE
--- compares against - sqlc cannot parameterise ORDER BY itself. An unknown
+-- compares against - sqlc cannot parameterize ORDER BY itself. An unknown
 -- sort (including anything injection-shaped) matches neither of the first
 -- two WHEN clauses, so sort_created and sort_title are both NULL and
 -- sort_updated (the third) is what actually orders the rows, falling back
@@ -95,8 +95,8 @@ WITH ordered AS (
     AND (CAST(sqlc.arg(max_minutes) AS INTEGER) = 0
          OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
                BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
-    AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
-          SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+    AND (CAST(sqlc.arg(favorites_only) AS INTEGER) = 0 OR r.id IN (
+          SELECT recipe_id FROM favorites WHERE user_id = sqlc.arg(user_id)))
     AND (CAST(sqlc.arg(author) AS TEXT) = ''
          OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)))
 )
@@ -115,8 +115,8 @@ WHERE (CAST(sqlc.arg(tag_count) AS INTEGER) = 0 OR r.id IN (
   AND (CAST(sqlc.arg(max_minutes) AS INTEGER) = 0
        OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
              BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
-  AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
-        SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+  AND (CAST(sqlc.arg(favorites_only) AS INTEGER) = 0 OR r.id IN (
+        SELECT recipe_id FROM favorites WHERE user_id = sqlc.arg(user_id)))
   AND (CAST(sqlc.arg(author) AS TEXT) = ''
        OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)));
 
@@ -144,8 +144,8 @@ WITH ordered AS (
     AND (CAST(sqlc.arg(max_minutes) AS INTEGER) = 0
          OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
                BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
-    AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
-          SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+    AND (CAST(sqlc.arg(favorites_only) AS INTEGER) = 0 OR r.id IN (
+          SELECT recipe_id FROM favorites WHERE user_id = sqlc.arg(user_id)))
     AND (CAST(sqlc.arg(author) AS TEXT) = ''
          OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)))
 )
@@ -165,8 +165,8 @@ WHERE r.rowid IN (SELECT rowid FROM recipes_fts(sqlc.arg(query)))
   AND (CAST(sqlc.arg(max_minutes) AS INTEGER) = 0
        OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
              BETWEEN 1 AND CAST(sqlc.arg(max_minutes) AS INTEGER)))
-  AND (CAST(sqlc.arg(favourites_only) AS INTEGER) = 0 OR r.id IN (
-        SELECT recipe_id FROM favourites WHERE user_id = sqlc.arg(user_id)))
+  AND (CAST(sqlc.arg(favorites_only) AS INTEGER) = 0 OR r.id IN (
+        SELECT recipe_id FROM favorites WHERE user_id = sqlc.arg(user_id)))
   AND (CAST(sqlc.arg(author) AS TEXT) = ''
        OR r.created_by = (SELECT id FROM users WHERE username = sqlc.arg(author)));
 
@@ -228,19 +228,19 @@ FROM users u JOIN recipes r ON r.created_by = u.id
 GROUP BY u.id, u.username, u.display_name, u.color
 ORDER BY recipe_count DESC, u.username;
 
--- name: SetFavourite :exec
-INSERT OR IGNORE INTO favourites (user_id, recipe_id, created_at) VALUES (?, ?, ?);
+-- name: SetFavorite :exec
+INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?);
 
--- name: DeleteFavourite :exec
-DELETE FROM favourites WHERE user_id = ? AND recipe_id = ?;
+-- name: DeleteFavorite :exec
+DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?;
 
--- name: ListFavouriteRecipeIDs :many
+-- name: ListFavoriteRecipeIDs :many
 -- One query per page rather than one per card: toCards already batches the
 -- tag lookup the same way. The recipe ids travel as a JSON array matched
 -- with json_each(), not sqlc.slice(): sqlc.slice() cannot be combined with
 -- sqlc.arg() in the same query. See
 -- docs/memory/content/features/recipes.mdx.
-SELECT recipe_id FROM favourites
+SELECT recipe_id FROM favorites
 WHERE user_id = sqlc.arg(user_id)
   AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
 

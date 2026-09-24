@@ -15,7 +15,7 @@
 	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '$lib/recipe/time-filter';
 	import { m } from '$lib/paraglide/messages';
 
-	// The filter dialog itself - centred on desktop, a bottom sheet on
+	// The filter dialog itself - centered on desktop, a bottom sheet on
 	// phones. One section per filter kind ("Zeit", "Favoriten" and
 	// "Sortierung"): each is its own sibling `<section>` rather than a
 	// rebuild of this shell.
@@ -39,13 +39,13 @@
 	// panel's own trigger, where there is room for it outside the panel.
 	let {
 		maxMinutes,
-		favouritesOnly,
+		favoritesOnly,
 		author,
 		authors,
 		sort,
 		filterCount,
 		onmaxminutes,
-		onfavourites,
+		onfavorites,
 		onauthor,
 		onsort,
 		onreset
@@ -55,7 +55,7 @@
 		maxMinutes: number;
 		/** Whether the "Nur Favoriten" switch is on - scoped to this
 		 * section, like `maxMinutes`. */
-		favouritesOnly: boolean;
+		favoritesOnly: boolean;
 		/** Username the list is narrowed to, `''` = off - scoped to this
 		 * section, like `maxMinutes`. */
 		author: string;
@@ -75,7 +75,7 @@
 		 * The page owns that state, this panel owns none of it. */
 		filterCount: number;
 		onmaxminutes: (value: number) => void;
-		onfavourites: (value: boolean) => void;
+		onfavorites: (value: boolean) => void;
 		onauthor: (value: string) => void;
 		onsort: (value: Sort) => void;
 		onreset: () => void;
@@ -83,7 +83,7 @@
 
 	const uid = $props.id();
 	const timeHeadingId = `${uid}-time-heading`;
-	const favouritesHeadingId = `${uid}-favourites-heading`;
+	const favoritesHeadingId = `${uid}-favorites-heading`;
 	const authorHeadingId = `${uid}-author-heading`;
 
 	const sortHeadingId = `${uid}-sort-heading`;
@@ -128,7 +128,7 @@
 	const PHONE_QUERY = '(max-width: 767.98px)';
 
 	/**
-	 * Scales in place as a centred dialog on desktop, slides up as a sheet
+	 * Scales in place as a centered dialog on desktop, slides up as a sheet
 	 * on phones - matching the design system's "Dialog: fade + scale" and
 	 * "Sheet: Dialog + slide" rows respectively. A `transition:` directive
 	 * only ever names one function, so this picks between the two built-ins
@@ -171,8 +171,8 @@
 		<Dialog.Content forceMount preventScroll={false}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
-					<!-- Desktop: the same centred-dialog placement as `BaseDialog`
-					     (fixed, centred by translate, `rounded-3xl`, `shadow-dialog`).
+					<!-- Desktop: the same centered-dialog placement as `BaseDialog`
+					     (fixed, centered by translate, `rounded-3xl`, `shadow-dialog`).
 					     Phones (`max-md:`): anchored to the bottom edge instead, full
 					     width, square bottom corners, `shadow-sheet` - `shadow-dialog`
 					     casts downward and would fall off-screen from an edge pinned
@@ -225,14 +225,14 @@
 								/>
 							</section>
 							<section
-								aria-labelledby={favouritesHeadingId}
+								aria-labelledby={favoritesHeadingId}
 								class="mt-4 space-y-2 border-t border-border pt-3"
 							>
 								<h3
-									id={favouritesHeadingId}
+									id={favoritesHeadingId}
 									class="text-caption font-semibold text-text-muted uppercase"
 								>
-									{m.overview_filter_favourites_heading()}
+									{m.overview_filter_favorites_heading()}
 								</h3>
 								<!-- A switch, not a checkbox: this turns one thing on and it
 								     takes effect at once, where a checkbox row in this app
@@ -242,18 +242,18 @@
 								<label
 									class="flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-1.5"
 								>
-									<span class="text-body-sm">{m.overview_filter_favourites()}</span>
+									<span class="text-body-sm">{m.overview_filter_favorites()}</span>
 									<Switch
-										checked={favouritesOnly}
-										label={m.overview_filter_favourites()}
-										onchange={onfavourites}
+										checked={favoritesOnly}
+										label={m.overview_filter_favorites()}
+										onchange={onfavorites}
 									/>
 								</label>
 							</section>
 							<!-- Hidden below two authors: where one person writes
 							     everything there is nothing to pick between, and an
 							     empty-looking control would only raise the question why.
-							     Each chip carries a dot in the person's colour, so the
+							     Each chip carries a dot in the person's color, so the
 							     filter and its results read as one thing. -->
 							{#if authors.length > 1}
 								<section

@@ -44,7 +44,7 @@
 
 	const FLIP_DURATION = 150;
 
-	// The props seed the section once: a `$state` initialiser runs on the
+	// The props seed the section once: a `$state` initializer runs on the
 	// first render only, so a later prop value never re-seeds and undoes the
 	// user's edits - which is what the `svelte-ignore` comments say out loud.
 	// Everything after that is this component's own state, kept in step with

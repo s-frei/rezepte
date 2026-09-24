@@ -19,7 +19,7 @@ export type User = {
 	locale: Locale;
 };
 
-/** One palette colour and how many accounts hold it. */
+/** One palette color and how many accounts hold it. */
 export type ColorUsage = { color: UserColor; count: number };
 
 export function login(username: string, password: string): Promise<User> {
@@ -77,7 +77,7 @@ export function changePassword(currentPassword: string, password: string): Promi
 	});
 }
 
-/** Changes the own display name, colour and/or locale. Its own path, because PATCH /auth/me is the password change. */
+/** Changes the own display name, color and/or locale. Its own path, because PATCH /auth/me is the password change. */
 export function updateOwnProfile(patch: {
 	displayName?: string;
 	color?: UserColor;
@@ -87,7 +87,7 @@ export function updateOwnProfile(patch: {
 }
 
 /**
- * The palette with a count per colour, so the picker can mark one as taken.
+ * The palette with a count per color, so the picker can mark one as taken.
  * Counts, not names: a plain member may not list users.
  */
 export async function listColorUsage(): Promise<ColorUsage[]> {

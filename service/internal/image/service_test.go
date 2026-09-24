@@ -60,7 +60,7 @@ func createUser(t *testing.T, e env, username string) string {
 	return u.ID
 }
 
-// pngBytes renders a w×h PNG in a flat colour.
+// pngBytes renders a w×h PNG in a flat color.
 func pngBytes(t *testing.T, w, h int) []byte {
 	t.Helper()
 	img := stdimage.NewNRGBA(stdimage.Rect(0, 0, w, h))

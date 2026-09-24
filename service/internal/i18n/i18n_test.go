@@ -40,16 +40,16 @@ func TestLocalesReturnsACopy(t *testing.T) {
 	}
 }
 
-// A language in the settings without a catalogue would compile: Paraglide
+// A language in the settings without a catalog would compile: Paraglide
 // falls back to the base locale for every missing message, so the interface
 // would silently render English under another language's name.
-func TestEveryLocaleHasACatalogue(t *testing.T) {
+func TestEveryLocaleHasACatalog(t *testing.T) {
 	for _, l := range Locales() {
 		// The tests run in service/internal/i18n, three levels below the
 		// repository root.
 		path := filepath.Join("..", "..", "..", "frontend", "messages", l+".json")
 		if _, err := os.Stat(path); err != nil {
-			t.Errorf("no message catalogue for %q: %v", l, err)
+			t.Errorf("no message catalog for %q: %v", l, err)
 		}
 	}
 }

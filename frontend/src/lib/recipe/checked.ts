@@ -1,5 +1,5 @@
 /**
- * Pure key-building and (de)serialisation logic for the recipe detail
+ * Pure key-building and (de)serialization logic for the recipe detail
  * page's "checked ingredient" state. Split out from `checked.svelte.ts` so
  * it can be unit tested without a browser or `sessionStorage`.
  */
@@ -47,7 +47,7 @@ export function parseCheckedKeys(raw: string | null): string[] {
 	}
 }
 
-/** Serialises a set of checked-ingredient keys for `sessionStorage`. */
+/** Serializes a set of checked-ingredient keys for `sessionStorage`. */
 export function serializeCheckedKeys(keys: Iterable<string>): string {
 	return JSON.stringify(Array.from(keys));
 }

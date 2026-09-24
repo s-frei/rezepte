@@ -50,7 +50,7 @@
 	const canManageAccount = $derived(
 		!isOwner && !isSelf && (user.role === 'user' || actorRole === 'superadmin')
 	);
-	// A name and a colour are the owner's to hand out, for every account but
+	// A name and a color are the owner's to hand out, for every account but
 	// their own: the profile page is the one place they rename themselves, so
 	// nobody has to wonder which of two forms is the real one.
 	const canEditProfile = $derived(!isOwner && !isSelf && actorRole === 'superadmin');
@@ -90,15 +90,15 @@
 <li
 	class="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-dashed border-border py-4 last:border-b-0 md:grid-cols-[1fr_140px_40px_280px]"
 >
-	<!-- The circle carries the person's own colour, the same one their recipe
+	<!-- The circle carries the person's own color, the same one their recipe
 	     cards are signed with, so the list reads as the cast of the household
-	     rather than as eight rows of grey. `min-w-0` on the text block and
+	     rather than as eight rows of gray. `min-w-0` on the text block and
 	     `shrink-0` on the circle are what keep a long name truncating instead
 	     of squeezing the avatar into an ellipse. -->
 	<div class="col-span-2 flex min-w-0 items-center gap-3 md:col-span-1">
 		<span
 			aria-hidden="true"
-			class="flex size-9 shrink-0 items-center justify-center rounded-full initial-centred font-display font-semibold {userColorClasses(
+			class="flex size-9 shrink-0 items-center justify-center rounded-full initial-centered font-display font-semibold {userColorClasses(
 				user.color
 			)}"
 		>
@@ -137,7 +137,7 @@
 			/>
 		{/if}
 
-		<!-- An icon, where the two account actions are words: labelled, this
+		<!-- An icon, where the two account actions are words: labeled, this
 		     one would be a third pill on a row that already fills a phone, and
 		     of the three it is the one a pencil says by itself. The name is
 		     spelled out for anyone who cannot see it. -->

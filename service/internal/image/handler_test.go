@@ -115,7 +115,7 @@ func multipartBody(t *testing.T, data []byte, partType string) ([]byte, string) 
 
 // pngHeader builds a PNG that is only the signature and a valid IHDR
 // claiming w×h - enough for image.DecodeConfig, never decodable in full.
-// It exercises the size guards without materialising the pixels. (The
+// It exercises the size guards without materializing the pixels. (The
 // in-package twin lives in process_test.go; the two test packages cannot
 // share a helper.)
 func pngHeader(w, h uint32) []byte {

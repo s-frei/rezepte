@@ -70,7 +70,7 @@ type updateProfileOutput struct {
 
 type colorUsageOutput struct {
 	Body struct {
-		Items []user.ColorCount `json:"items" doc:"Every palette colour and how many accounts hold it, in palette order"`
+		Items []user.ColorCount `json:"items" doc:"Every palette color and how many accounts hold it, in palette order"`
 	}
 }
 
@@ -181,7 +181,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		OperationID: "update-own-profile",
 		Method:      http.MethodPatch,
 		Path:        "/api/v1/auth/me/profile",
-		Summary:     "Change the current user's display name, colour and interface language",
+		Summary:     "Change the current user's display name, color and interface language",
 		Description: "Its own path rather than PATCH /api/v1/auth/me, which is the password change and demands the current password - a rename has nothing to do with it.",
 		Tags:        []string{"auth"},
 		Security:    SessionSecurity,
@@ -217,8 +217,8 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		OperationID: "list-color-usage",
 		Method:      http.MethodGet,
 		Path:        "/api/v1/auth/me/colors",
-		Summary:     "List the colour palette and how many accounts hold each colour",
-		Description: "Counts, not names: the picker needs to mark a colour as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.",
+		Summary:     "List the color palette and how many accounts hold each color",
+		Description: "Counts, not names: the picker needs to mark a color as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.",
 		Tags:        []string{"auth"},
 		Security:    SessionSecurity,
 		Errors:      []int{401},
@@ -237,7 +237,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 }
 
 // ProfileError maps the profile validation failures to the field they belong
-// to, and returns nil for anything else. An unknown colour or locale cannot
+// to, and returns nil for anything else. An unknown color or locale cannot
 // reach it through the API - huma refuses a value outside the enum with its
 // own 422 before the handler runs - but ErrInvalidColor and ErrInvalidLocale
 // are mapped anyway, because the service may be called from somewhere with
@@ -254,7 +254,7 @@ func ProfileError(err error) error {
 		})
 	case errors.Is(err, user.ErrInvalidColor):
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
-			Location: "body.color", Message: "unknown colour",
+			Location: "body.color", Message: "unknown color",
 		})
 	case errors.Is(err, user.ErrInvalidLocale):
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{

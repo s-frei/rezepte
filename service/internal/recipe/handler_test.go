@@ -32,7 +32,7 @@ func newRecipeHandler(t *testing.T) http.Handler {
 // newRecipeHandlerWithConn is newRecipeHandler, but also returns the
 // database connection so a test can create a second user directly (via
 // user.NewService, the same way setup does in service_test.go) to exercise
-// favourite isolation between users through the actual HTTP endpoints.
+// favorite isolation between users through the actual HTTP endpoints.
 func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	t.Helper()
 	conn := dbtest.Open(t)
@@ -70,7 +70,7 @@ func loginCookie(t *testing.T, h http.Handler) *http.Cookie {
 
 // loginAs logs in as username/password and returns the session cookie.
 // loginCookie is the "sam" (the handler's default admin) special case of
-// this, used to log in as a second user for favourite-isolation tests.
+// this, used to log in as a second user for favorite-isolation tests.
 func loginAs(t *testing.T, h http.Handler, username, password string) *http.Cookie {
 	t.Helper()
 	rec := doReq(h, http.MethodPost, "/api/v1/auth/login", mustMarshal(t, map[string]string{"username": username, "password": password}), nil)
@@ -360,7 +360,7 @@ func TestSearchAndTagQuery(t *testing.T) {
 		t.Fatalf("q=klop total = %d, body = %s", page.Total, rec.Body.String())
 	}
 
-	// Uppercase and padded on purpose: the handler must normalise (trim +
+	// Uppercase and padded on purpose: the handler must normalize (trim +
 	// lower) each tag query parameter before calling List.
 	rec = doReq(h, http.MethodGet, "/api/v1/recipes?tags="+url.QueryEscape(" FLEISCH "), "", cookie)
 	if rec.Code != http.StatusOK {
@@ -391,7 +391,7 @@ func TestSearchAndTagQuery(t *testing.T) {
 	}
 }
 
-func TestFavouriteEndpoints(t *testing.T) {
+func TestFavoriteEndpoints(t *testing.T) {
 	h := newRecipeHandler(t)
 	cookie := loginCookie(t, h)
 	fx := loadFixtures(t)[0]
@@ -405,7 +405,7 @@ func TestFavouriteEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favourite", "", cookie); resp.Code != http.StatusNoContent {
+	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favorite", "", cookie); resp.Code != http.StatusNoContent {
 		t.Fatalf("put = %d, body %s", resp.Code, resp.Body)
 	}
 	rec = doReq(h, http.MethodGet, "/api/v1/recipes/"+created.ID, "", cookie)
@@ -416,12 +416,12 @@ func TestFavouriteEndpoints(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if !got.Favourite {
+	if !got.Favorite {
 		t.Fatal("recipe must report the star")
 	}
 
-	// The list must report it too - Card.Favourite reads from the same
-	// per-user state as Recipe.Favourite.
+	// The list must report it too - Card.Favorite reads from the same
+	// per-user state as Recipe.Favorite.
 	rec = doReq(h, http.MethodGet, "/api/v1/recipes", "", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list status %d: %s", rec.Code, rec.Body.String())
@@ -430,11 +430,11 @@ func TestFavouriteEndpoints(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Items) != 1 || !page.Items[0].Favourite {
+	if len(page.Items) != 1 || !page.Items[0].Favorite {
 		t.Fatalf("card must report the star: %+v", page.Items)
 	}
 
-	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favourite", "", cookie); resp.Code != http.StatusNoContent {
+	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favorite", "", cookie); resp.Code != http.StatusNoContent {
 		t.Fatalf("delete = %d, body %s", resp.Code, resp.Body)
 	}
 	rec = doReq(h, http.MethodGet, "/api/v1/recipes/"+created.ID, "", cookie)
@@ -445,19 +445,19 @@ func TestFavouriteEndpoints(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.Favourite {
+	if got.Favorite {
 		t.Fatal("star must be gone")
 	}
 }
 
-// TestSetFavouriteOnUnknownRecipeReturns404 pins the asymmetry between the
-// two favourite endpoints: starring a recipe that doesn't exist (an
+// TestSetFavoriteOnUnknownRecipeReturns404 pins the asymmetry between the
+// two favorite endpoints: starring a recipe that doesn't exist (an
 // invented id, or one deleted in another tab) must 404, since
-// favourites.recipe_id has a foreign key to recipes(id) and there is
-// nothing sensible to create a favourite row against. Unstarring the same
-// id must still succeed with 204 - removing a favourite that was never
+// favorites.recipe_id has a foreign key to recipes(id) and there is
+// nothing sensible to create a favorite row against. Unstarring the same
+// id must still succeed with 204 - removing a favorite that was never
 // there, or whose recipe is already gone, is not an error.
-func TestSetFavouriteOnUnknownRecipeReturns404(t *testing.T) {
+func TestSetFavoriteOnUnknownRecipeReturns404(t *testing.T) {
 	h := newRecipeHandler(t)
 	cookie := loginCookie(t, h)
 	fx := loadFixtures(t)[0]
@@ -474,18 +474,18 @@ func TestSetFavouriteOnUnknownRecipeReturns404(t *testing.T) {
 		t.Fatalf("delete recipe status %d: %s", resp.Code, resp.Body)
 	}
 
-	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favourite", "", cookie); resp.Code != http.StatusNotFound {
+	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favorite", "", cookie); resp.Code != http.StatusNotFound {
 		t.Fatalf("put on deleted recipe = %d, body %s", resp.Code, resp.Body)
 	}
-	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/invented-id/favourite", "", cookie); resp.Code != http.StatusNotFound {
+	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/invented-id/favorite", "", cookie); resp.Code != http.StatusNotFound {
 		t.Fatalf("put on invented id = %d, body %s", resp.Code, resp.Body)
 	}
-	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favourite", "", cookie); resp.Code != http.StatusNoContent {
-		t.Fatalf("delete favourite on deleted recipe = %d, body %s", resp.Code, resp.Body)
+	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favorite", "", cookie); resp.Code != http.StatusNoContent {
+		t.Fatalf("delete favorite on deleted recipe = %d, body %s", resp.Code, resp.Body)
 	}
 }
 
-func TestFavouriteEndpointsRequireSession(t *testing.T) {
+func TestFavoriteEndpointsRequireSession(t *testing.T) {
 	h := newRecipeHandler(t)
 	cookie := loginCookie(t, h)
 	fx := loadFixtures(t)[0]
@@ -498,21 +498,21 @@ func TestFavouriteEndpointsRequireSession(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favourite", "", nil); resp.Code != http.StatusUnauthorized {
+	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favorite", "", nil); resp.Code != http.StatusUnauthorized {
 		t.Fatalf("put without session = %d, body %s", resp.Code, resp.Body)
 	}
-	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favourite", "", nil); resp.Code != http.StatusUnauthorized {
+	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favorite", "", nil); resp.Code != http.StatusUnauthorized {
 		t.Fatalf("delete without session = %d, body %s", resp.Code, resp.Body)
 	}
 }
 
-// TestFavouritesAreIsolatedBetweenUsers is the HTTP-level counterpart of
-// recipe.TestFavouritesAreNotSharedBetweenUsers and
-// recipe.TestDeletingFavouriteOnlyAffectsCaller: it exercises the same
+// TestFavoritesAreIsolatedBetweenUsers is the HTTP-level counterpart of
+// recipe.TestFavoritesAreNotSharedBetweenUsers and
+// recipe.TestDeletingFavoriteOnlyAffectsCaller: it exercises the same
 // isolation property through the actual endpoints, including that neither
 // endpoint accepts a user id from the request - the only way to change
-// whose favourite is affected is to log in as that user.
-func TestFavouritesAreIsolatedBetweenUsers(t *testing.T) {
+// whose favorite is affected is to log in as that user.
+func TestFavoritesAreIsolatedBetweenUsers(t *testing.T) {
 	h, conn := newRecipeHandlerWithConn(t)
 	cookieA := loginCookie(t, h)
 	fx := loadFixtures(t)[0]
@@ -526,7 +526,7 @@ func TestFavouritesAreIsolatedBetweenUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favourite", "", cookieA); resp.Code != http.StatusNoContent {
+	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID+"/favorite", "", cookieA); resp.Code != http.StatusNoContent {
 		t.Fatalf("user A put = %d, body %s", resp.Code, resp.Body)
 	}
 
@@ -543,12 +543,12 @@ func TestFavouritesAreIsolatedBetweenUsers(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &gotB); err != nil {
 		t.Fatal(err)
 	}
-	if gotB.Favourite {
+	if gotB.Favorite {
 		t.Fatal("user B must not see user A's star")
 	}
 
-	// User B "deleting" a favourite it never set must not clear user A's.
-	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favourite", "", cookieB); resp.Code != http.StatusNoContent {
+	// User B "deleting" a favorite it never set must not clear user A's.
+	if resp := doReq(h, http.MethodDelete, "/api/v1/recipes/"+created.ID+"/favorite", "", cookieB); resp.Code != http.StatusNoContent {
 		t.Fatalf("user B delete = %d, body %s", resp.Code, resp.Body)
 	}
 
@@ -560,12 +560,12 @@ func TestFavouritesAreIsolatedBetweenUsers(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &gotA); err != nil {
 		t.Fatal(err)
 	}
-	if !gotA.Favourite {
+	if !gotA.Favorite {
 		t.Fatal("user B's delete must not clear user A's star")
 	}
 }
 
-func TestFavouritesOnlyQueryParam(t *testing.T) {
+func TestFavoritesOnlyQueryParam(t *testing.T) {
 	h := newRecipeHandler(t)
 	cookie := loginCookie(t, h)
 	fx := loadFixtures(t)
@@ -583,11 +583,11 @@ func TestFavouritesOnlyQueryParam(t *testing.T) {
 		created = append(created, r)
 	}
 
-	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created[0].ID+"/favourite", "", cookie); resp.Code != http.StatusNoContent {
+	if resp := doReq(h, http.MethodPut, "/api/v1/recipes/"+created[0].ID+"/favorite", "", cookie); resp.Code != http.StatusNoContent {
 		t.Fatalf("put = %d, body %s", resp.Code, resp.Body)
 	}
 
-	rec := doReq(h, http.MethodGet, "/api/v1/recipes?favourites=true", "", cookie)
+	rec := doReq(h, http.MethodGet, "/api/v1/recipes?favorites=true", "", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
@@ -596,7 +596,7 @@ func TestFavouritesOnlyQueryParam(t *testing.T) {
 		t.Fatal(err)
 	}
 	if page.Total != 1 || page.Items[0].ID != created[0].ID {
-		t.Fatalf("favourites=true total = %d, body = %s", page.Total, rec.Body.String())
+		t.Fatalf("favorites=true total = %d, body = %s", page.Total, rec.Body.String())
 	}
 }
 

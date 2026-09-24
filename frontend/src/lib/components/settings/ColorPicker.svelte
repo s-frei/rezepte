@@ -12,7 +12,7 @@
 	}: {
 		value: UserColor;
 		/**
-		 * How many accounts hold each colour. Advisory: an empty list marks
+		 * How many accounts hold each color. Advisory: an empty list marks
 		 * nothing and the picker still works, because the counts are a hint
 		 * about who you will look like, never a rule about what you may pick.
 		 */
@@ -23,10 +23,10 @@
 
 	const uid = $props.id();
 
-	// Paraglide compiles one function per key, so the colour names cannot be
+	// Paraglide compiles one function per key, so the color names cannot be
 	// looked up as `m['user_color_' + color]` - the compiler has to see every
 	// call. Written out here rather than in $lib/user/color.ts: that module is
-	// the class table, and this is the only place a colour is ever named.
+	// the class table, and this is the only place a color is ever named.
 	const COLOR_LABELS: Record<UserColor, () => string> = {
 		amber: m.user_color_amber,
 		clay: m.user_color_clay,
@@ -41,9 +41,9 @@
 	const counts = $derived(new Map(usage.map((entry) => [entry.color, entry.count])));
 
 	/**
-	 * A colour held by somebody else. The selected one is never marked: its
+	 * A color held by somebody else. The selected one is never marked: its
 	 * count includes whoever this picker is editing, so marking it would tell
-	 * every person their own colour is taken - by themselves.
+	 * every person their own color is taken - by themselves.
 	 */
 	const taken = $derived(
 		new Set(USER_COLORS.filter((color) => color !== value && (counts.get(color) ?? 0) > 0))
@@ -71,10 +71,10 @@
 	>
 		{#each USER_COLORS as color (color)}
 			<!--
-				`aria-label` carries the colour's name alone and the "taken" note
+				`aria-label` carries the color's name alone and the "taken" note
 				arrives as a description, so the swatch keeps the name a person
 				would say out loud. The check mark, not the ring, is what makes
-				the choice readable without colour vision - the ring around a
+				the choice readable without color vision - the ring around a
 				pale swatch is easy to miss, a mark inside it is not.
 
 				The selected ring is ink, the focus ring is `primary`, and both
@@ -97,7 +97,7 @@
 						<Check class="size-5" aria-hidden="true" />
 					{:else if taken.has(color)}
 						<!-- `bg-current` is the swatch's own foreground token, so the
-						     dot keeps its measured contrast on every colour. -->
+						     dot keeps its measured contrast on every color. -->
 						<span aria-hidden="true" class="size-1.5 rounded-full bg-current"></span>
 					{/if}
 				{/snippet}

@@ -48,7 +48,7 @@ func setup(t *testing.T) (*recipe.Service, string) {
 // test files in this package call setup(t) expecting exactly its current
 // two return values. Keyed by *testing.T rather than a single shared
 // variable purely so each test's entry doesn't clobber another's; this map
-// is not synchronised and none of these tests call t.Parallel() - adding it
+// is not synchronized and none of these tests call t.Parallel() - adding it
 // to any test that uses setup/createUser would race on concurrent map
 // access and needs a mutex added here first, not just the key change.
 var testConns = map[*testing.T]*sql.DB{}
@@ -69,7 +69,7 @@ func createUser(t *testing.T, username string) string { //nolint:unparam // help
 	return u.ID
 }
 
-// createUserWithProfile is createUser plus a display name and colour,
+// createUserWithProfile is createUser plus a display name and color,
 // for tests that need to assert on what a card or facet shows for the
 // author rather than just who they are.
 func createUserWithProfile(t *testing.T, username, displayName string, color user.Color) string {
@@ -266,7 +266,7 @@ func TestDeleteRemovesImageDirectory(t *testing.T) {
 	}
 }
 
-func TestFavouriteRoundTrip(t *testing.T) {
+func TestFavoriteRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	created, err := svc.Create(ctx, uid, loadFixtures(t)[0])
@@ -274,35 +274,35 @@ func TestFavouriteRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := svc.SetFavourite(ctx, uid, created.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, uid, created.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	p, err := svc.List(ctx, recipe.ListParams{UserID: uid})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !p.Items[0].Favourite {
+	if !p.Items[0].Favorite {
 		t.Fatal("card must report the star")
 	}
 
 	// Setting it twice must not fail - the star is a state, not an event.
-	if err := svc.SetFavourite(ctx, uid, created.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, uid, created.ID, true); err != nil {
 		t.Fatalf("second set: %v", err)
 	}
 
-	if err := svc.SetFavourite(ctx, uid, created.ID, false); err != nil {
+	if err := svc.SetFavorite(ctx, uid, created.ID, false); err != nil {
 		t.Fatal(err)
 	}
 	p, err = svc.List(ctx, recipe.ListParams{UserID: uid})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Items[0].Favourite {
+	if p.Items[0].Favorite {
 		t.Fatal("star must be gone")
 	}
 }
 
-func TestFavouritesAreNotSharedBetweenUsers(t *testing.T) {
+func TestFavoritesAreNotSharedBetweenUsers(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	other := createUser(t, "zweite@example.com")
@@ -310,24 +310,24 @@ func TestFavouritesAreNotSharedBetweenUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SetFavourite(ctx, uid, created.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, uid, created.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	p, err := svc.List(ctx, recipe.ListParams{UserID: other})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Items[0].Favourite {
+	if p.Items[0].Favorite {
 		t.Fatal("another user's star must not show")
 	}
 }
 
-// TestDeletingFavouriteOnlyAffectsCaller is the write-side counterpart to
-// TestFavouritesAreNotSharedBetweenUsers: it isn't enough that user B can't
+// TestDeletingFavoriteOnlyAffectsCaller is the write-side counterpart to
+// TestFavoritesAreNotSharedBetweenUsers: it isn't enough that user B can't
 // see user A's star, user B must also be unable to clear it. Both users
-// favourite the same recipe, user B unfavourites it, and user A's star
+// favorite the same recipe, user B unfavorites it, and user A's star
 // must remain.
-func TestDeletingFavouriteOnlyAffectsCaller(t *testing.T) {
+func TestDeletingFavoriteOnlyAffectsCaller(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	other := createUser(t, "zweite@example.com")
@@ -335,14 +335,14 @@ func TestDeletingFavouriteOnlyAffectsCaller(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SetFavourite(ctx, uid, created.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, uid, created.ID, true); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SetFavourite(ctx, other, created.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, other, created.ID, true); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := svc.SetFavourite(ctx, other, created.ID, false); err != nil {
+	if err := svc.SetFavorite(ctx, other, created.ID, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -350,23 +350,23 @@ func TestDeletingFavouriteOnlyAffectsCaller(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !p.Items[0].Favourite {
+	if !p.Items[0].Favorite {
 		t.Fatal("user A's star must survive user B's delete")
 	}
 	p, err = svc.List(ctx, recipe.ListParams{UserID: other})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Items[0].Favourite {
+	if p.Items[0].Favorite {
 		t.Fatal("user B's star must be gone")
 	}
 }
 
-// TestIsFavouriteRespectsCaller is IsFavourite's isolation check, the
-// method the handler uses to fill Recipe.Favourite on the detail
-// lookups: only the user who starred a recipe sees it as a favourite
+// TestIsFavoriteRespectsCaller is IsFavorite's isolation check, the
+// method the handler uses to fill Recipe.Favorite on the detail
+// lookups: only the user who starred a recipe sees it as a favorite
 // through this path either.
-func TestIsFavouriteRespectsCaller(t *testing.T) {
+func TestIsFavoriteRespectsCaller(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 	other := createUser(t, "zweite@example.com")
@@ -374,38 +374,38 @@ func TestIsFavouriteRespectsCaller(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.SetFavourite(ctx, uid, created.ID, true); err != nil {
+	if err := svc.SetFavorite(ctx, uid, created.ID, true); err != nil {
 		t.Fatal(err)
 	}
 
-	fav, err := svc.IsFavourite(ctx, uid, created.ID)
+	fav, err := svc.IsFavorite(ctx, uid, created.ID)
 	if err != nil || !fav {
 		t.Fatalf("owner: fav=%v err=%v", fav, err)
 	}
-	fav, err = svc.IsFavourite(ctx, other, created.ID)
+	fav, err = svc.IsFavorite(ctx, other, created.ID)
 	if err != nil || fav {
 		t.Fatalf("other user: fav=%v err=%v", fav, err)
 	}
-	fav, err = svc.IsFavourite(ctx, "", created.ID)
+	fav, err = svc.IsFavorite(ctx, "", created.ID)
 	if err != nil || fav {
 		t.Fatalf("empty user id: fav=%v err=%v", fav, err)
 	}
 }
 
-// TestSetFavouriteOnMissingRecipeReturnsErrNotFound pins SetFavourite's
+// TestSetFavoriteOnMissingRecipeReturnsErrNotFound pins SetFavorite's
 // existence check: starring (on=true) a recipe id that doesn't exist must
 // report ErrNotFound rather than surfacing the underlying foreign key
 // violation INSERT OR IGNORE does not swallow. Unstarring (on=false) the
-// same missing id must not error at all - removing a favourite for a
+// same missing id must not error at all - removing a favorite for a
 // recipe that's already gone is a no-op, not a failure.
-func TestSetFavouriteOnMissingRecipeReturnsErrNotFound(t *testing.T) {
+func TestSetFavoriteOnMissingRecipeReturnsErrNotFound(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)
 
-	if err := svc.SetFavourite(ctx, uid, "missing", true); !errors.Is(err, recipe.ErrNotFound) {
+	if err := svc.SetFavorite(ctx, uid, "missing", true); !errors.Is(err, recipe.ErrNotFound) {
 		t.Fatalf("star missing recipe: %v", err)
 	}
-	if err := svc.SetFavourite(ctx, uid, "missing", false); err != nil {
+	if err := svc.SetFavorite(ctx, uid, "missing", false); err != nil {
 		t.Fatalf("unstar missing recipe must be a no-op: %v", err)
 	}
 }

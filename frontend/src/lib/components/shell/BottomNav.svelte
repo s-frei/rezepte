@@ -42,7 +42,7 @@
 	<!-- No icon/label column like the other items: the 48px circle already
 	     reads as the "add" action on its own, and stacking a label under it
 	     would either overflow the 64px bar or sit noticeably lower than the
-	     other three labels. Centred on the bar instead, label moved to
+	     other three labels. Centered on the bar instead, label moved to
 	     `aria-label` so the control keeps an accessible name. -->
 	<a
 		href={resolve('/recipes/new')}

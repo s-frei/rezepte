@@ -42,8 +42,8 @@ Nothing is kept: there is no volume and `--rm` removes the container, so stoppin
 
 - **Recipes** — ingredient groups with per-row notes, steps, servings, prep and cooking times and a source link. → [Docs](https://s-frei.github.io/rezepte/guide/recipes/)
 - **Photos** — upload several per recipe, reorder them, pick the cover, open them in a lightbox. → [Docs](https://s-frei.github.io/rezepte/guide/images/)
-- **Tags and search** — find recipes by title, description, ingredient or tag, and narrow by cooking time or favourites. → [Docs](https://s-frei.github.io/rezepte/guide/tags-and-search/)
-- **Favourites** — a personal star per member; the household shares one collection, the stars stay private. → [Docs](https://s-frei.github.io/rezepte/guide/tags-and-search/)
+- **Tags and search** — find recipes by title, description, ingredient or tag, and narrow by cooking time or favorites. → [Docs](https://s-frei.github.io/rezepte/guide/tags-and-search/)
+- **Favorites** — a personal star per member; the household shares one collection, the stars stay private. → [Docs](https://s-frei.github.io/rezepte/guide/tags-and-search/)
 - **Servings** — scale every quantity to the number of people at the table. → [Docs](https://s-frei.github.io/rezepte/guide/servings/)
 - **Cook mode** — a full-screen, step-by-step view made for a phone propped up next to the stove. → [Docs](https://s-frei.github.io/rezepte/guide/cook-mode/)
 - **Command palette** — <kbd>⌘</kbd><kbd>K</kbd> / <kbd>Ctrl</kbd><kbd>K</kbd> jumps to a recipe by name, or opens the editor and the settings, without leaving the keyboard. → [Docs](https://s-frei.github.io/rezepte/guide/shortcuts/)
@@ -100,7 +100,7 @@ The long-form developer documentation — architecture, conventions and how-tos 
 
 ## Contributing
 
-Contributions are welcome. Open an issue for anything you hit, and for a pull request: branch off `develop`, keep `mise run check` green, and write everything in English except the UI copy in `frontend/messages/`, one catalogue per language.
+Contributions are welcome. Open an issue for anything you hit, and for a pull request: branch off `develop`, keep `mise run check` green, and write everything in English except the UI copy in `frontend/messages/`, one catalog per language.
 
 A translation is the easiest way in: [Add a language](https://s-frei.github.io/rezepte/contributing/add-a-language/) walks through it, and it needs no code.
 

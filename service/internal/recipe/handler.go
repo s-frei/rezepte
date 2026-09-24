@@ -12,14 +12,14 @@ import (
 )
 
 type listInput struct {
-	Query          string   `query:"q" maxLength:"100" doc:"Full-text search query"`
-	Tags           []string `query:"tags" doc:"Restrict to recipes carrying all of these tags"`
-	MaxMinutes     int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
-	FavouritesOnly bool     `query:"favourites" doc:"Restrict to the caller's own favourites"`
-	Author         string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
-	Sort           string   `query:"sort" enum:"updated,created,title" default:"updated" doc:"Result order"`
-	Page           int      `query:"page" minimum:"1" default:"1" doc:"1-based page number"`
-	Limit          int      `query:"limit" minimum:"1" maximum:"100" default:"24" doc:"Page size"`
+	Query         string   `query:"q" maxLength:"100" doc:"Full-text search query"`
+	Tags          []string `query:"tags" doc:"Restrict to recipes carrying all of these tags"`
+	MaxMinutes    int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
+	FavoritesOnly bool     `query:"favorites" doc:"Restrict to the caller's own favorites"`
+	Author        string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
+	Sort          string   `query:"sort" enum:"updated,created,title" default:"updated" doc:"Result order"`
+	Page          int      `query:"page" minimum:"1" default:"1" doc:"1-based page number"`
+	Limit         int      `query:"limit" minimum:"1" maximum:"100" default:"24" doc:"Page size"`
 }
 
 type listOutput struct {
@@ -53,11 +53,11 @@ type deleteRecipeInput struct {
 
 type deleteRecipeOutput struct{}
 
-type favouriteInput struct {
+type favoriteInput struct {
 	ID string `path:"id"`
 }
 
-type favouriteOutput struct{}
+type favoriteOutput struct{}
 
 // TagList is the response body of the list-tags operation.
 type TagList struct {
@@ -93,22 +93,22 @@ func Register(api huma.API, svc *Service) {
 		Security:    auth.Protected(auth.ScopeRecipesRead),
 	}, func(ctx context.Context, in *listInput) (*listOutput, error) {
 		// UserID is filled from the context on every request, not only when
-		// a favourites filter is set - otherwise Card.Favourite would be
+		// a favorites filter is set - otherwise Card.Favorite would be
 		// wrong on every card for every caller. An unauthenticated context
 		// (not possible here, since this operation requires a session, but
-		// defended anyway) leaves it "", which disables the favourite
+		// defended anyway) leaves it "", which disables the favorite
 		// lookup rather than matching rows - see ListParams.UserID.
 		u, _ := auth.UserFrom(ctx)
 		page, err := svc.List(ctx, ListParams{
-			Query:          in.Query,
-			Tags:           NormalizeTagQuery(in.Tags),
-			MaxMinutes:     in.MaxMinutes,
-			FavouritesOnly: in.FavouritesOnly,
-			Author:         in.Author,
-			Sort:           in.Sort,
-			Page:           in.Page,
-			Limit:          in.Limit,
-			UserID:         u.ID,
+			Query:         in.Query,
+			Tags:          NormalizeTagQuery(in.Tags),
+			MaxMinutes:    in.MaxMinutes,
+			FavoritesOnly: in.FavoritesOnly,
+			Author:        in.Author,
+			Sort:          in.Sort,
+			Page:          in.Page,
+			Limit:         in.Limit,
+			UserID:        u.ID,
 		})
 		if err != nil {
 			return nil, err
@@ -132,7 +132,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		if err := fillFavourite(ctx, svc, &r); err != nil {
+		if err := fillFavorite(ctx, svc, &r); err != nil {
 			return nil, err
 		}
 		return &recipeOutput{Body: r}, nil
@@ -154,7 +154,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		if err := fillFavourite(ctx, svc, &r); err != nil {
+		if err := fillFavorite(ctx, svc, &r); err != nil {
 			return nil, err
 		}
 		return &recipeOutput{Body: r}, nil
@@ -238,45 +238,45 @@ func Register(api huma.API, svc *Service) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID:   "set-favourite",
+		OperationID:   "set-favorite",
 		Method:        http.MethodPut,
-		Path:          "/api/v1/recipes/{id}/favourite",
-		Summary:       "Mark a recipe as a favourite",
+		Path:          "/api/v1/recipes/{id}/favorite",
+		Summary:       "Mark a recipe as a favorite",
 		Tags:          []string{"recipes"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{404},
-	}, func(ctx context.Context, in *favouriteInput) (*favouriteOutput, error) {
+	}, func(ctx context.Context, in *favoriteInput) (*favoriteOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if err := svc.SetFavourite(ctx, u.ID, in.ID, true); err != nil {
+		if err := svc.SetFavorite(ctx, u.ID, in.ID, true); err != nil {
 			if errors.Is(err, ErrNotFound) {
 				return nil, huma.Error404NotFound("recipe not found")
 			}
 			return nil, err
 		}
-		return &favouriteOutput{}, nil
+		return &favoriteOutput{}, nil
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID:   "delete-favourite",
+		OperationID:   "delete-favorite",
 		Method:        http.MethodDelete,
-		Path:          "/api/v1/recipes/{id}/favourite",
-		Summary:       "Clear a recipe's favourite mark",
+		Path:          "/api/v1/recipes/{id}/favorite",
+		Summary:       "Clear a recipe's favorite mark",
 		Tags:          []string{"recipes"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,
-	}, func(ctx context.Context, in *favouriteInput) (*favouriteOutput, error) {
+	}, func(ctx context.Context, in *favoriteInput) (*favoriteOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if err := svc.SetFavourite(ctx, u.ID, in.ID, false); err != nil {
+		if err := svc.SetFavorite(ctx, u.ID, in.ID, false); err != nil {
 			return nil, err
 		}
-		return &favouriteOutput{}, nil
+		return &favoriteOutput{}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -320,22 +320,22 @@ func Register(api huma.API, svc *Service) {
 	})
 }
 
-// fillFavourite sets r.Favourite from the caller's own favourite state,
+// fillFavorite sets r.Favorite from the caller's own favorite state,
 // deriving the caller strictly from ctx (auth.UserFrom), never from r or
 // any path/query/body value - a caller must not be able to name whose
-// favourites are being read. An unauthenticated context (defended against
-// even though both call sites require a session) leaves r.Favourite false,
-// the same "empty user id disables the lookup" rule IsFavourite applies.
-func fillFavourite(ctx context.Context, svc *Service, r *Recipe) error {
+// favorites are being read. An unauthenticated context (defended against
+// even though both call sites require a session) leaves r.Favorite false,
+// the same "empty user id disables the lookup" rule IsFavorite applies.
+func fillFavorite(ctx context.Context, svc *Service, r *Recipe) error {
 	u, ok := auth.UserFrom(ctx)
 	if !ok {
 		return nil
 	}
-	fav, err := svc.IsFavourite(ctx, u.ID, r.ID)
+	fav, err := svc.IsFavorite(ctx, u.ID, r.ID)
 	if err != nil {
 		return err
 	}
-	r.Favourite = fav
+	r.Favorite = fav
 	return nil
 }
 

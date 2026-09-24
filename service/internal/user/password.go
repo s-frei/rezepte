@@ -20,7 +20,7 @@ const (
 	argonKeyLen  = 32
 	saltLen      = 16
 
-	// Upper bounds on parameters accepted from an encoded hash: defence
+	// Upper bounds on parameters accepted from an encoded hash: defense
 	// against a tampered database forcing huge allocations via
 	// VerifyPassword. This package never produces values above these.
 	maxArgonMemory  = 1 << 20 // 1 GiB

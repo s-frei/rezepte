@@ -16,7 +16,7 @@
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import FavouriteStar from '$lib/components/recipe/FavouriteStar.svelte';
+	import FavoriteStar from '$lib/components/recipe/FavoriteStar.svelte';
 	import ImageGallery from '$lib/components/recipe/ImageGallery.svelte';
 	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
 	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
@@ -63,7 +63,7 @@
 	// top of the cover image and needs a shadow.
 	// The header's cook action: the same 40px circle as the back and menu
 	// buttons, filled instead of outlined, so the title next to it keeps the
-	// width a labelled pill would take. The labelled button stays in the flow.
+	// width a labeled pill would take. The labeled button stays in the flow.
 	const cookTriggerClass =
 		'inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
@@ -288,7 +288,7 @@
 						{recipe.title}
 					</h1>
 					<div class="mt-1 shrink-0 md:mt-2">
-						<FavouriteStar id={recipe.id} active={recipe.favourite} />
+						<FavoriteStar id={recipe.id} active={recipe.favorite} />
 					</div>
 				</div>
 				{#if recipe.description}

@@ -22,7 +22,7 @@
 	let color = $state<UserColor>(session.user?.color ?? USER_COLORS[0]);
 	let usage = $state<ColorUsage[]>([]);
 
-	// Advisory: the counts only mark a colour somebody else already holds, so
+	// Advisory: the counts only mark a color somebody else already holds, so
 	// a failed load leaves the palette unmarked rather than the picker locked.
 	async function loadUsage() {
 		try {
@@ -37,7 +37,7 @@
 	});
 
 	/**
-	 * Picking a colour is the save. There is nothing else to fill in and no
+	 * Picking a color is the save. There is nothing else to fill in and no
 	 * second field to wait for, so a swatch that needed a separate button
 	 * would read as not having worked. The name below keeps its button
 	 * because a name is only finished when the person stops typing.
@@ -49,11 +49,11 @@
 	 * `RadioGroup.Root` is a WAI-ARIA radio group, so arrow keys *move*
 	 * selection rather than just focus it - a run across the palette calls
 	 * `pick` once per key. The save itself is trailing-edge debounced so
-	 * that run turns into one request for the colour the person landed on,
+	 * that run turns into one request for the color the person landed on,
 	 * not one per key. `saveSeq` guards the response side of the same race:
 	 * it names the most recent pick, and a save whose answer comes back
 	 * after a newer pick has already fired is dropped instead of
-	 * overwriting `session.user` with a stale colour.
+	 * overwriting `session.user` with a stale color.
 	 */
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	let saveSeq = 0;
@@ -80,7 +80,7 @@
 			}
 			session.user = saved;
 			toast.success(m.settings_profile_saved());
-			// The old colour is free again and the new one is taken; both
+			// The old color is free again and the new one is taken; both
 			// marks are wrong until the counts come back.
 			await loadUsage();
 		} catch (failure) {
@@ -88,7 +88,7 @@
 				return;
 			}
 			// Back to what the server still has, so the picker never shows a
-			// colour that was never stored.
+			// color that was never stored.
 			color = session.user?.color ?? color;
 			if (!isSignedOut(failure)) {
 				// 401 already redirects to the login page (see $lib/api/client).
@@ -110,13 +110,13 @@
 <SettingsLayout active="profile">
 	<section class={card} aria-labelledby="settings-profile">
 		<h2 id="settings-profile" class={title}>{m.settings_nav_profile()}</h2>
-		<!-- The avatar is the one place on this page where the chosen colour is
+		<!-- The avatar is the one place on this page where the chosen color is
 		     shown at size, and it is the same circle the recipe cards paint, so
 		     a pick can be judged here instead of on the overview. -->
 		<div class="flex items-center gap-4">
 			<span
 				aria-hidden="true"
-				class="flex size-14 items-center justify-center rounded-full initial-centred font-display text-heading font-semibold {userColorClasses(
+				class="flex size-14 items-center justify-center rounded-full initial-centered font-display text-heading font-semibold {userColorClasses(
 					session.user?.color
 				)}"
 			>
@@ -130,14 +130,14 @@
 
 		<!--
 			The order of this card is the avatar's doing. The avatar above is the
-			only place the chosen colour appears at size, so the picker sits
+			only place the chosen color appears at size, so the picker sits
 			directly under it and a pick can be judged where it lands. The login
 			name follows as the other thing about the account that simply is. The
 			one editable field with a button comes last, so the button ends the
 			card instead of splitting it in half - which is what made it read as
 			misplaced when the name sat on top.
 
-			Language sits with the colour rather than in a card of its own: both
+			Language sits with the color rather than in a card of its own: both
 			are choices that take effect the moment they are made, and a setting
 			people reach for once has no business below the fold on a page that
 			is mostly things they never touch.

@@ -55,7 +55,7 @@ function pathIsExempt(p: string): boolean {
 	if (p.includes('*')) return true; // a glob, not a file
 	if (p.includes('NNNN')) return true; // a naming template
 	if (/\/[a-z]+\.[A-Z]/.test(p)) return true; // a Go symbol such as demo.Seed
-	// Gitignored artefacts are named on purpose (local agent scratch space,
+	// Gitignored artifacts are named on purpose (local agent scratch space,
 	// static exports, build output, data dirs); they are absent from a clean
 	// checkout.
 	return /^(docs\/superpowers|docs\/design_handoff_rezepte|docs\/memory\/out|docs\/user\/out|frontend\/test-results|service\/bin|data)(\/|$)/.test(

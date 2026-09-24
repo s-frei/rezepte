@@ -7,7 +7,7 @@ description: Paraglide message keys
   <Step>
 
     ### Add the key
-    `frontend/messages/en.json` and `frontend/messages/de.json` are flat JSON objects (inlang message format), each holding the same set of keys. Add a new key to `en.json` first, and to `de.json` in the same commit - the parity gate in `mise run check` (`frontend/scripts/message-parity.ts`) fails the build if the two catalogues' key sets ever differ. Name keys `<area>_<name>` (`overview_search_placeholder`, `detail_delete_confirm_title`, ...), grouped under the existing blank-line-separated sections by area. Interpolate with `{param}` placeholders:
+    `frontend/messages/en.json` and `frontend/messages/de.json` are flat JSON objects (inlang message format), each holding the same set of keys. Add a new key to `en.json` first, and to `de.json` in the same commit - the parity gate in `mise run check` (`frontend/scripts/message-parity.ts`) fails the build if the two catalogs' key sets ever differ. Name keys `<area>_<name>` (`overview_search_placeholder`, `detail_delete_confirm_title`, ...), grouped under the existing blank-line-separated sections by area. Interpolate with `{param}` placeholders:
     ```json
     "overview_no_results_text": "No recipes found for \"{query}\"."
     ```
@@ -35,6 +35,6 @@ description: Paraglide message keys
 
 <Callout type="info">
 
-  Adding a whole language rather than a key is [Add a language](/howtos/add-language): one line in `service/internal/i18n/locales.json` and a catalogue; its own sample recipes are optional.
+  Adding a whole language rather than a key is [Add a language](/howtos/add-language): one line in `service/internal/i18n/locales.json` and a catalog; its own sample recipes are optional.
 
 </Callout>

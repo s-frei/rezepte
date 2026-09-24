@@ -31,7 +31,7 @@ func TestVariants(t *testing.T) {
 
 	// variants requires lower-cased input (see its doc comment); ftsQuery
 	// enforces that with strings.ToLower before calling it. These cases
-	// exercise that pairing end-to-end for capitalised/upper-case terms
+	// exercise that pairing end-to-end for capitalized/upper-case terms
 	// that, before that fix, never produced their umlaut variant because
 	// the replacers only match lower-case patterns.
 	caseInsensitive := map[string][]string{

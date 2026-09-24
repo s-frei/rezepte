@@ -24,7 +24,7 @@
 	<DropdownMenu.Root bind:open>
 		<DropdownMenu.Trigger
 			aria-label={m.nav_user_menu()}
-			class="flex size-9 items-center justify-center rounded-full bg-accent initial-centred font-display font-semibold text-accent-foreground"
+			class="flex size-9 items-center justify-center rounded-full bg-accent initial-centered font-display font-semibold text-accent-foreground"
 		>
 			{initial}
 		</DropdownMenu.Trigger>

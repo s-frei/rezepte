@@ -93,7 +93,7 @@ const fits = input.getBoundingClientRect().width >= ctx.measureText(input.placeh
 
 ## Measure, do not eyeball
 
-A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artefact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
+A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artifact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
 
 ```ts
 // scratch probe, run through `mise run demo` (demo/demo1234 on :8070 by default)

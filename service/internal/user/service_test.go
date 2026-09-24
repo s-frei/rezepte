@@ -458,7 +458,7 @@ func TestSetProfileWritesOnlyWhatIsGiven(t *testing.T) {
 	teal := user.Color("teal")
 	got, err = svc.SetProfile(ctx, u.ID, user.ProfileUpdate{Color: &teal})
 	if err != nil {
-		t.Fatalf("set colour: %v", err)
+		t.Fatalf("set color: %v", err)
 	}
 	if got.Color != "teal" || got.DisplayName != "Sam der Koch" {
 		t.Errorf("got %q / %q; want \"Sam der Koch\" / teal", got.DisplayName, got.Color)
@@ -484,7 +484,7 @@ func TestSetProfileEmptyNameFallsBackToTheUsername(t *testing.T) {
 	}
 }
 
-func TestSetProfileRefusesAnUnknownUserAndABadColour(t *testing.T) {
+func TestSetProfileRefusesAnUnknownUserAndABadColor(t *testing.T) {
 	ctx := context.Background()
 	svc := user.NewService(dbtest.Open(t))
 	u, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleUser})
@@ -514,7 +514,7 @@ func TestColorUsageCoversThePalette(t *testing.T) {
 
 	usage, err := svc.ColorUsage(ctx)
 	if err != nil {
-		t.Fatalf("colour usage: %v", err)
+		t.Fatalf("color usage: %v", err)
 	}
 	if len(usage) != len(user.Colors) {
 		t.Fatalf("len = %d; want %d", len(usage), len(user.Colors))

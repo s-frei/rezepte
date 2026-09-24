@@ -9,7 +9,7 @@ export function Mermaid({ chart }: { chart: string }) {
 	const [svg, setSvg] = useState('');
 
 	useEffect(() => {
-		let cancelled = false;
+		let canceled = false;
 		void (async () => {
 			const mermaid = (await import('mermaid')).default;
 			mermaid.initialize({
@@ -18,10 +18,10 @@ export function Mermaid({ chart }: { chart: string }) {
 				theme: resolvedTheme === 'dark' ? 'dark' : 'default'
 			});
 			const { svg } = await mermaid.render(`mermaid-${id}`, chart.replaceAll('\\n', '\n'));
-			if (!cancelled) setSvg(svg);
+			if (!canceled) setSvg(svg);
 		})();
 		return () => {
-			cancelled = true;
+			canceled = true;
 		};
 	}, [chart, id, resolvedTheme]);
 

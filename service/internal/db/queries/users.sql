@@ -38,7 +38,7 @@ SET created_by = CASE WHEN created_by = sqlc.arg(old_owner) THEN sqlc.arg(new_ow
     updated_by = CASE WHEN updated_by = sqlc.arg(old_owner) THEN sqlc.arg(new_owner) ELSE updated_by END
 WHERE created_by = sqlc.arg(old_owner) OR updated_by = sqlc.arg(old_owner);
 
--- Colours nobody holds are absent from this result; Go fills them in against
+-- Colors nobody holds are absent from this result; Go fills them in against
 -- user.Colors, because the database does not know the palette.
 -- name: CountUsersByColor :many
 SELECT color, COUNT(*) AS user_count FROM users GROUP BY color;

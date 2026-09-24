@@ -214,7 +214,7 @@ test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ pag
 	await expect(dialog).toHaveCount(0);
 });
 
-test('a member renames themselves and picks a colour, and their cards follow', async ({ page }) => {
+test('a member renames themselves and picks a color, and their cards follow', async ({ page }) => {
 	const token = uniqueToken();
 	const username = `col${token}`;
 	// The token rides along in the display name as well: both projects run
@@ -228,7 +228,7 @@ test('a member renames themselves and picks a colour, and their cards follow', a
 	await page.context().clearCookies();
 	await login(page, username);
 	await expect(page).toHaveURL('/');
-	await createRecipe(page, { ...loadFixture(0), title: `Colour test ${token}` });
+	await createRecipe(page, { ...loadFixture(0), title: `Color test ${token}` });
 
 	await page.goto('/settings');
 	await page.getByLabel('Display name').fill(displayName);
@@ -244,7 +244,7 @@ test('a member renames themselves and picks a colour, and their cards follow', a
 	await expect(avatar).toHaveClass(/bg-user-sage/);
 
 	// The recipe was written before the rename, and its card carries the name
-	// and the colour the account holds now: both are joined from `users` on
+	// and the color the account holds now: both are joined from `users` on
 	// every read rather than copied onto the recipe.
 	await page.goto('/');
 	await search(page, token);

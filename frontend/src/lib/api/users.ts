@@ -23,7 +23,7 @@ export function createUser(input: {
 	return api<UserAccount>('/users', { method: 'POST', body: JSON.stringify(input) });
 }
 
-/** Changes role, profile and/or resets the password; a reset ends all of that user's sessions. Display name and colour are the owner's alone. */
+/** Changes role, profile and/or resets the password; a reset ends all of that user's sessions. Display name and color are the owner's alone. */
 export function updateUser(
 	id: string,
 	patch: { password?: string; role?: UserRole; displayName?: string; color?: UserColor }

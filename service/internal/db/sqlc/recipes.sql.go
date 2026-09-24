@@ -20,18 +20,18 @@ WHERE (CAST(?1 AS INTEGER) = 0 OR r.id IN (
        OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
              BETWEEN 1 AND CAST(?3 AS INTEGER)))
   AND (CAST(?4 AS INTEGER) = 0 OR r.id IN (
-        SELECT recipe_id FROM favourites WHERE user_id = ?5))
+        SELECT recipe_id FROM favorites WHERE user_id = ?5))
   AND (CAST(?6 AS TEXT) = ''
        OR r.created_by = (SELECT id FROM users WHERE username = ?6))
 `
 
 type CountRecipesFilteredParams struct {
-	TagCount       int64
-	TagNames       interface{}
-	MaxMinutes     int64
-	FavouritesOnly int64
-	UserID         string
-	Author         string
+	TagCount      int64
+	TagNames      interface{}
+	MaxMinutes    int64
+	FavoritesOnly int64
+	UserID        string
+	Author        string
 }
 
 func (q *Queries) CountRecipesFiltered(ctx context.Context, arg CountRecipesFilteredParams) (int64, error) {
@@ -39,7 +39,7 @@ func (q *Queries) CountRecipesFiltered(ctx context.Context, arg CountRecipesFilt
 		arg.TagCount,
 		arg.TagNames,
 		arg.MaxMinutes,
-		arg.FavouritesOnly,
+		arg.FavoritesOnly,
 		arg.UserID,
 		arg.Author,
 	)
@@ -59,19 +59,19 @@ WHERE r.rowid IN (SELECT rowid FROM recipes_fts(?1))
        OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
              BETWEEN 1 AND CAST(?4 AS INTEGER)))
   AND (CAST(?5 AS INTEGER) = 0 OR r.id IN (
-        SELECT recipe_id FROM favourites WHERE user_id = ?6))
+        SELECT recipe_id FROM favorites WHERE user_id = ?6))
   AND (CAST(?7 AS TEXT) = ''
        OR r.created_by = (SELECT id FROM users WHERE username = ?7))
 `
 
 type CountSearchRecipesFilteredParams struct {
-	Query          interface{}
-	TagCount       int64
-	TagNames       interface{}
-	MaxMinutes     int64
-	FavouritesOnly int64
-	UserID         string
-	Author         string
+	Query         interface{}
+	TagCount      int64
+	TagNames      interface{}
+	MaxMinutes    int64
+	FavoritesOnly int64
+	UserID        string
+	Author        string
 }
 
 func (q *Queries) CountSearchRecipesFiltered(ctx context.Context, arg CountSearchRecipesFilteredParams) (int64, error) {
@@ -80,7 +80,7 @@ func (q *Queries) CountSearchRecipesFiltered(ctx context.Context, arg CountSearc
 		arg.TagCount,
 		arg.TagNames,
 		arg.MaxMinutes,
-		arg.FavouritesOnly,
+		arg.FavoritesOnly,
 		arg.UserID,
 		arg.Author,
 	)
@@ -89,17 +89,17 @@ func (q *Queries) CountSearchRecipesFiltered(ctx context.Context, arg CountSearc
 	return count, err
 }
 
-const deleteFavourite = `-- name: DeleteFavourite :exec
-DELETE FROM favourites WHERE user_id = ? AND recipe_id = ?
+const deleteFavorite = `-- name: DeleteFavorite :exec
+DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?
 `
 
-type DeleteFavouriteParams struct {
+type DeleteFavoriteParams struct {
 	UserID   string
 	RecipeID string
 }
 
-func (q *Queries) DeleteFavourite(ctx context.Context, arg DeleteFavouriteParams) error {
-	_, err := q.db.ExecContext(ctx, deleteFavourite, arg.UserID, arg.RecipeID)
+func (q *Queries) DeleteFavorite(ctx context.Context, arg DeleteFavoriteParams) error {
+	_, err := q.db.ExecContext(ctx, deleteFavorite, arg.UserID, arg.RecipeID)
 	return err
 }
 
@@ -460,13 +460,13 @@ func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCo
 	return items, nil
 }
 
-const listFavouriteRecipeIDs = `-- name: ListFavouriteRecipeIDs :many
-SELECT recipe_id FROM favourites
+const listFavoriteRecipeIDs = `-- name: ListFavoriteRecipeIDs :many
+SELECT recipe_id FROM favorites
 WHERE user_id = ?1
   AND recipe_id IN (SELECT value FROM json_each(?2))
 `
 
-type ListFavouriteRecipeIDsParams struct {
+type ListFavoriteRecipeIDsParams struct {
 	UserID    string
 	RecipeIds interface{}
 }
@@ -476,8 +476,8 @@ type ListFavouriteRecipeIDsParams struct {
 // with json_each(), not sqlc.slice(): sqlc.slice() cannot be combined with
 // sqlc.arg() in the same query. See
 // docs/memory/content/features/recipes.mdx.
-func (q *Queries) ListFavouriteRecipeIDs(ctx context.Context, arg ListFavouriteRecipeIDsParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listFavouriteRecipeIDs, arg.UserID, arg.RecipeIds)
+func (q *Queries) ListFavoriteRecipeIDs(ctx context.Context, arg ListFavoriteRecipeIDsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listFavoriteRecipeIDs, arg.UserID, arg.RecipeIds)
 	if err != nil {
 		return nil, err
 	}
@@ -584,7 +584,7 @@ WITH ordered AS (
          OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
                BETWEEN 1 AND CAST(?6 AS INTEGER)))
     AND (CAST(?7 AS INTEGER) = 0 OR r.id IN (
-          SELECT recipe_id FROM favourites WHERE user_id = ?8))
+          SELECT recipe_id FROM favorites WHERE user_id = ?8))
     AND (CAST(?9 AS TEXT) = ''
          OR r.created_by = (SELECT id FROM users WHERE username = ?9))
 )
@@ -596,15 +596,15 @@ LIMIT ?2 OFFSET ?1
 `
 
 type ListRecipesFilteredParams struct {
-	Offset         int64
-	Limit          int64
-	Sort           string
-	TagCount       int64
-	TagNames       interface{}
-	MaxMinutes     int64
-	FavouritesOnly int64
-	UserID         string
-	Author         string
+	Offset        int64
+	Limit         int64
+	Sort          string
+	TagCount      int64
+	TagNames      interface{}
+	MaxMinutes    int64
+	FavoritesOnly int64
+	UserID        string
+	Author        string
 }
 
 type ListRecipesFilteredRow struct {
@@ -647,16 +647,16 @@ type ListRecipesFilteredRow struct {
 // caller that leaves the field unset (meaning "off") would bind NULL
 // instead.
 //
-// favourites_only = 0 switches the favourites filter off the same way,
+// favorites_only = 0 switches the favorites filter off the same way,
 // CAST for the same reason as max_minutes. When it is set, only recipes
-// present in user_id's own favourites row match - user_id is never taken
+// present in user_id's own favorites row match - user_id is never taken
 // from a path, query or body parameter, only from the authenticated
-// caller (see docs/memory/content/features/favourites.mdx), so this
+// caller (see docs/memory/content/features/favorites.mdx), so this
 // condition can only ever narrow a caller's own list to their own
-// favourites.
+// favorites.
 //
 // sort never reaches SQL as an identifier, only as a value each CASE
-// compares against - sqlc cannot parameterise ORDER BY itself. An unknown
+// compares against - sqlc cannot parameterize ORDER BY itself. An unknown
 // sort (including anything injection-shaped) matches neither of the first
 // two WHEN clauses, so sort_created and sort_title are both NULL and
 // sort_updated (the third) is what actually orders the rows, falling back
@@ -685,7 +685,7 @@ func (q *Queries) ListRecipesFiltered(ctx context.Context, arg ListRecipesFilter
 		arg.TagCount,
 		arg.TagNames,
 		arg.MaxMinutes,
-		arg.FavouritesOnly,
+		arg.FavoritesOnly,
 		arg.UserID,
 		arg.Author,
 	)
@@ -888,7 +888,7 @@ WITH ordered AS (
          OR (COALESCE(r.prep_minutes, 0) + COALESCE(r.cook_minutes, 0)
                BETWEEN 1 AND CAST(?7 AS INTEGER)))
     AND (CAST(?8 AS INTEGER) = 0 OR r.id IN (
-          SELECT recipe_id FROM favourites WHERE user_id = ?9))
+          SELECT recipe_id FROM favorites WHERE user_id = ?9))
     AND (CAST(?10 AS TEXT) = ''
          OR r.created_by = (SELECT id FROM users WHERE username = ?10))
 )
@@ -900,16 +900,16 @@ LIMIT ?2 OFFSET ?1
 `
 
 type SearchRecipesFilteredParams struct {
-	Offset         int64
-	Limit          int64
-	Sort           string
-	Query          interface{}
-	TagCount       int64
-	TagNames       interface{}
-	MaxMinutes     int64
-	FavouritesOnly int64
-	UserID         string
-	Author         string
+	Offset        int64
+	Limit         int64
+	Sort          string
+	Query         interface{}
+	TagCount      int64
+	TagNames      interface{}
+	MaxMinutes    int64
+	FavoritesOnly int64
+	UserID        string
+	Author        string
 }
 
 type SearchRecipesFilteredRow struct {
@@ -945,7 +945,7 @@ func (q *Queries) SearchRecipesFiltered(ctx context.Context, arg SearchRecipesFi
 		arg.TagCount,
 		arg.TagNames,
 		arg.MaxMinutes,
-		arg.FavouritesOnly,
+		arg.FavoritesOnly,
 		arg.UserID,
 		arg.Author,
 	)
@@ -984,18 +984,18 @@ func (q *Queries) SearchRecipesFiltered(ctx context.Context, arg SearchRecipesFi
 	return items, nil
 }
 
-const setFavourite = `-- name: SetFavourite :exec
-INSERT OR IGNORE INTO favourites (user_id, recipe_id, created_at) VALUES (?, ?, ?)
+const setFavorite = `-- name: SetFavorite :exec
+INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?)
 `
 
-type SetFavouriteParams struct {
+type SetFavoriteParams struct {
 	UserID    string
 	RecipeID  string
 	CreatedAt string
 }
 
-func (q *Queries) SetFavourite(ctx context.Context, arg SetFavouriteParams) error {
-	_, err := q.db.ExecContext(ctx, setFavourite, arg.UserID, arg.RecipeID, arg.CreatedAt)
+func (q *Queries) SetFavorite(ctx context.Context, arg SetFavoriteParams) error {
+	_, err := q.db.ExecContext(ctx, setFavorite, arg.UserID, arg.RecipeID, arg.CreatedAt)
 	return err
 }
 

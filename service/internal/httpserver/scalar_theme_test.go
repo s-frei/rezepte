@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// appCSSPath is the app's Tailwind theme, the single source of the colours
+// appCSSPath is the app's Tailwind theme, the single source of the colors
 // scalar_theme.css repeats. It lives outside this Go module, so a checkout
 // without the frontend skips the test below rather than failing it.
 const appCSSPath = "../../../frontend/src/app.css"
@@ -18,8 +18,8 @@ var (
 )
 
 // TestScalarThemeUsesOnlyAppTokens keeps the copied palette honest: every
-// colour literal in scalar_theme.css must be one of the --color-* values in
-// the app's stylesheet. Recolour the app and this fails until the docs page
+// color literal in scalar_theme.css must be one of the --color-* values in
+// the app's stylesheet. Recolor the app and this fails until the docs page
 // follows.
 func TestScalarThemeUsesOnlyAppTokens(t *testing.T) {
 	appCSS, err := os.ReadFile(appCSSPath)

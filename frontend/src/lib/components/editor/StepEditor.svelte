@@ -64,9 +64,9 @@
 		if (steps.length === 0) {
 			steps.push(newStep());
 		}
-		const neighbour = steps[Math.max(0, index - 1)];
+		const neighbor = steps[Math.max(0, index - 1)];
 		await tick();
-		document.getElementById(`step-${neighbour.id}`)?.focus();
+		document.getElementById(`step-${neighbor.id}`)?.focus();
 	}
 
 	function reorder(event: CustomEvent<DndEvent<FormStep>>) {

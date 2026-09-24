@@ -40,7 +40,7 @@ func guardAssignRole(actor, role Role) error {
 func CanAssignRole(actor, role Role) error { return guardAssignRole(actor, role) }
 
 // guardProfileEdit reports whether actor may write the profile fields -
-// display name and colour - of another user. This is deliberately not
+// display name and color - of another user. This is deliberately not
 // guardTarget: that one lets an admin act on a member, which is right for a
 // role change or a password reset and wrong for a rename. Managing a member
 // is administration; renaming them is not.

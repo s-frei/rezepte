@@ -45,7 +45,7 @@ Every consumer reads the variable rather than a literal: `frontend/vite.config.t
 
 ## Why it is this way
 
-The binary embeds the frontend. Splitting the two across repositories would put a cross-repo coordination step in front of every release of a single artefact, so they share a repository and a version.
+The binary embeds the frontend. Splitting the two across repositories would put a cross-repo coordination step in front of every release of a single artifact, so they share a repository and a version.
 
 One command is the gate. `mise run check` runs the same four package gates a reviewer, an agent and CI run, which is only true while the tool versions are pinned in the repository rather than installed by hand.
 
@@ -53,7 +53,7 @@ Deriving the port register from the worktrees that exist cannot go stale. Any sc
 
 ## Rejected
 
-- **Separate repositories per package.** Simpler in isolation, but the binary embeds the frontend, so every release would need cross-repo coordination for one artefact.
+- **Separate repositories per package.** Simpler in isolation, but the binary embeds the frontend, so every release would need cross-repo coordination for one artifact.
 - **A Makefile or `just`.** Both run tasks; neither pins the toolchain. mise covers tasks and tools with one lockfile.
 - **An offset hashed from the worktree name.** No state and no script, but two names can hash to the same slot — a silent collision, which is the failure the scheme exists to prevent.
 - **A registry file of assigned offsets.** Unique by construction, but it goes stale the first time a worktree is removed by hand, and then hands out an offset that is still in use.

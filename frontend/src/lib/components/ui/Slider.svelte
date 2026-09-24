@@ -83,14 +83,14 @@
 			     the filled track, because at the tightest stop there is no
 			     filled track left to carry it: the range is zero wide there,
 			     so a scale set as far as it goes would otherwise show less
-			     colour than any other setting.
+			     color than any other setting.
 
 			     `bg-surface-elevated`, not `bg-surface`: the panel around it
 			     is `bg-surface` already, and in dark mode `shadow-card` is
 			     `none`, so a `surface` thumb there had nothing left to set it
 			     apart and read as a hole punched through the track.
 
-			     Centred with `top-1/2 -mt-3` (half of `size-6`), because Bits
+			     Centered with `top-1/2 -mt-3` (half of `size-6`), because Bits
 			     UI positions this element with an inline `left` and an inline
 			     `translate` alone and never a `top` - the vertical axis is
 			     left at the static position, which for a 24px circle in a 6px
@@ -98,7 +98,7 @@
 			     cannot fix it either: in Tailwind v4 that utility writes the
 			     very `translate` property the inline style already holds, and
 			     the inline one wins. `top` and `margin` are untouched by the
-			     library, so they are what is left to centre it. -->
+			     library, so they are what is left to center it. -->
 			<BitsSlider.Thumb
 				index={0}
 				aria-label={label}

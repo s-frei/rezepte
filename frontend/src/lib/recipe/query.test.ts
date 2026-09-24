@@ -11,7 +11,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -23,7 +23,7 @@ describe('parseListQuery', () => {
 			q: 'pasta',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -35,7 +35,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: ['vegetarisch', 'schnell'],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -47,7 +47,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: ['a', 'b'],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -59,7 +59,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: ['dessert', 'süss'],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -71,7 +71,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 3
@@ -83,7 +83,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -92,7 +92,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -101,7 +101,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -110,7 +110,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -122,7 +122,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 30,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'updated',
 			page: 1
@@ -134,14 +134,14 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('maxMinutes=-5')).maxMinutes).toBe(0);
 	});
 
-	it('parses favourites', () => {
-		expect(parseListQuery(urlWith('favourites=true')).favourites).toBe(true);
+	it('parses favorites', () => {
+		expect(parseListQuery(urlWith('favorites=true')).favorites).toBe(true);
 	});
 
-	it('treats anything but the literal "true" as favourites being off', () => {
-		expect(parseListQuery(urlWith('favourites=false')).favourites).toBe(false);
-		expect(parseListQuery(urlWith('favourites=1')).favourites).toBe(false);
-		expect(parseListQuery(urlWith('')).favourites).toBe(false);
+	it('treats anything but the literal "true" as favorites being off', () => {
+		expect(parseListQuery(urlWith('favorites=false')).favorites).toBe(false);
+		expect(parseListQuery(urlWith('favorites=1')).favorites).toBe(false);
+		expect(parseListQuery(urlWith('')).favorites).toBe(false);
 	});
 
 	it('parses sort', () => {
@@ -149,7 +149,7 @@ describe('parseListQuery', () => {
 			q: '',
 			tags: [],
 			maxMinutes: 0,
-			favourites: false,
+			favorites: false,
 			author: '',
 			sort: 'created',
 			page: 1
@@ -172,7 +172,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -186,7 +186,7 @@ describe('buildListQuery', () => {
 				q: 'pasta',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -200,7 +200,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: ['a', 'b'],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -214,7 +214,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: [],
 				maxMinutes: 30,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -228,7 +228,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -236,27 +236,27 @@ describe('buildListQuery', () => {
 		).toBe('');
 	});
 
-	it('includes favourites when set', () => {
+	it('includes favorites when set', () => {
 		expect(
 			buildListQuery({
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: true,
+				favorites: true,
 				author: '',
 				sort: 'updated',
 				page: 1
 			})
-		).toBe('favourites=true');
+		).toBe('favorites=true');
 	});
 
-	it('omits favourites at its default', () => {
+	it('omits favorites at its default', () => {
 		expect(
 			buildListQuery({
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -270,7 +270,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'title',
 				page: 1
@@ -284,7 +284,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -298,7 +298,7 @@ describe('buildListQuery', () => {
 				q: '',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 2
@@ -306,27 +306,27 @@ describe('buildListQuery', () => {
 		).toBe('page=2');
 	});
 
-	it('orders q, tags, maxMinutes, favourites, author, sort, page stably when all are set', () => {
+	it('orders q, tags, maxMinutes, favorites, author, sort, page stably when all are set', () => {
 		expect(
 			buildListQuery({
 				q: 'pasta',
 				tags: ['a', 'b'],
 				maxMinutes: 30,
-				favourites: true,
+				favorites: true,
 				author: 'mara',
 				sort: 'created',
 				page: 3
 			})
-		).toBe('q=pasta&tags=a%2Cb&maxMinutes=30&favourites=true&author=mara&sort=created&page=3');
+		).toBe('q=pasta&tags=a%2Cb&maxMinutes=30&favorites=true&author=mara&sort=created&page=3');
 	});
 
-	it('normalises the state it is handed, like parseListQuery does', () => {
+	it('normalizes the state it is handed, like parseListQuery does', () => {
 		expect(
 			buildListQuery({
 				q: '  pasta ',
 				tags: [' Dessert', '', 'B'],
 				maxMinutes: -5,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 0
@@ -338,12 +338,12 @@ describe('buildListQuery', () => {
 describe('round trip', () => {
 	it('parseListQuery(url with buildListQuery(state)) recovers the state', () => {
 		const states: ListQuery[] = [
-			{ q: '', tags: [], maxMinutes: 0, favourites: false, author: '', sort: 'updated', page: 1 },
+			{ q: '', tags: [], maxMinutes: 0, favorites: false, author: '', sort: 'updated', page: 1 },
 			{
 				q: 'pasta',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -352,7 +352,7 @@ describe('round trip', () => {
 				q: '',
 				tags: ['a', 'b'],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -361,13 +361,13 @@ describe('round trip', () => {
 				q: 'suppe',
 				tags: ['vegetarisch'],
 				maxMinutes: 30,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 4
 			},
-			{ q: '', tags: [], maxMinutes: 0, favourites: false, author: '', sort: 'title', page: 1 },
-			{ q: '', tags: [], maxMinutes: 0, favourites: true, author: '', sort: 'updated', page: 1 }
+			{ q: '', tags: [], maxMinutes: 0, favorites: false, author: '', sort: 'title', page: 1 },
+			{ q: '', tags: [], maxMinutes: 0, favorites: true, author: '', sort: 'updated', page: 1 }
 		];
 		for (const state of states) {
 			expect(parseListQuery(urlWith(buildListQuery(state)))).toEqual(state);
@@ -383,7 +383,7 @@ describe('round trip', () => {
 				q: 'pasta ',
 				tags: [],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -392,7 +392,7 @@ describe('round trip', () => {
 				q: '',
 				tags: ['Dessert'],
 				maxMinutes: 0,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 1
@@ -401,12 +401,12 @@ describe('round trip', () => {
 				q: ' suppe',
 				tags: [' Vegetarisch ', ''],
 				maxMinutes: 45,
-				favourites: false,
+				favorites: false,
 				author: '',
 				sort: 'created',
 				page: 2
 			},
-			{ q: '', tags: [], maxMinutes: 0, favourites: true, author: '', sort: 'updated', page: 1 }
+			{ q: '', tags: [], maxMinutes: 0, favorites: true, author: '', sort: 'updated', page: 1 }
 		];
 		for (const state of states) {
 			const qs = buildListQuery(state);
@@ -420,7 +420,7 @@ describe('the author filter', () => {
 		q: '',
 		tags: [],
 		maxMinutes: 0,
-		favourites: false,
+		favorites: false,
 		author: '',
 		sort: 'updated',
 		page: 1

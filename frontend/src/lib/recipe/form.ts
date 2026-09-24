@@ -145,11 +145,11 @@ export function parseNumber(value: string | number | null): number | null {
 	if (typeof value === 'number') {
 		return Number.isFinite(value) ? value : null;
 	}
-	const normalised = value.trim().replace(',', '.');
-	if (normalised === '') {
+	const normalized = value.trim().replace(',', '.');
+	if (normalized === '') {
 		return null;
 	}
-	const parsed = Number(normalised);
+	const parsed = Number(normalized);
 	return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -606,7 +606,7 @@ export function anchorId(field: string): string {
 	return `editor-${field}`;
 }
 
-/** Normalises a typed tag: trimmed and lower-cased, so `Dessert` and
+/** Normalizes a typed tag: trimmed and lower-cased, so `Dessert` and
  * ` dessert ` are the same tag. */
 export function normaliseTag(tag: string): string {
 	return tag.trim().toLowerCase();

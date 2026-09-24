@@ -25,8 +25,8 @@ export function tagSuggestions(params: {
 	selected: string[];
 }): TagSuggestions {
 	const prefix = normaliseTag(params.query);
-	// Normalised here rather than trusted from the caller, the way
-	// `normalise` in ./query.ts does for the same reason: a raw tag name
+	// Normalized here rather than trusted from the caller, the way
+	// `normalize` in ./query.ts does for the same reason: a raw tag name
 	// slipping through would not fail loudly, it would match
 	// case-sensitively and silently drop suggestions.
 	const known = params.known.map((name) => normaliseTag(name));

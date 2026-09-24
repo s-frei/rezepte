@@ -244,7 +244,7 @@ func (s *Service) Authors(ctx context.Context) ([]AuthorCount, error) {
 
 // Count returns how many recipes exist.
 func (s *Service) Count(ctx context.Context) (int, error) {
-	// TagCount: 0, MaxMinutes: 0 and FavouritesOnly: 0 switch those filters
+	// TagCount: 0, MaxMinutes: 0 and FavoritesOnly: 0 switch those filters
 	// off entirely (see the note on ListRecipesFiltered), so TagNames never
 	// has to hold real tag names and UserID never has to hold a real user
 	// id. All three are now a concrete int64 (see the CAST note on
@@ -255,7 +255,7 @@ func (s *Service) Count(ctx context.Context) (int, error) {
 	// - leaving it unset bound NULL and made the condition's "= 0" test
 	// false instead of switching the filter off.
 	n, err := s.q.CountRecipesFiltered(ctx, sqlc.CountRecipesFilteredParams{
-		TagNames: "[]", TagCount: 0, MaxMinutes: 0, FavouritesOnly: 0, UserID: "", Author: "",
+		TagNames: "[]", TagCount: 0, MaxMinutes: 0, FavoritesOnly: 0, UserID: "", Author: "",
 	})
 	if err != nil {
 		return 0, fmt.Errorf("count recipes: %w", err)
@@ -263,25 +263,25 @@ func (s *Service) Count(ctx context.Context) (int, error) {
 	return int(n), nil
 }
 
-// SetFavourite marks recipeID as favourited (on=true) or removes it
+// SetFavorite marks recipeID as favorited (on=true) or removes it
 // (on=false) for userID. Setting the same state twice is not an error: the
 // star is a state, not an event. Both branches key on userID directly, not
 // on anything derived from recipeID or an ambient value, so a caller can
-// only ever change its own favourites.
+// only ever change its own favorites.
 //
 // Starring (on=true) returns ErrNotFound for a recipe that doesn't exist -
 // checked explicitly, the same way Update and Delete check first, rather
-// than letting the insert fail: favourites.recipe_id has a foreign key to
+// than letting the insert fail: favorites.recipe_id has a foreign key to
 // recipes(id), and INSERT OR IGNORE only ignores its own uniqueness
 // conflict (a duplicate (user_id, recipe_id) row), not a foreign key
 // violation, so an unchecked insert against a missing recipe would surface
 // as a raw constraint-violation error instead of the caller-facing
 // ErrNotFound the handler maps to 404. Unstarring (on=false) is not
-// checked this way on purpose: deleting a favourite that was never there,
+// checked this way on purpose: deleting a favorite that was never there,
 // or whose recipe is already gone, is not an error - it's the same
 // "already in the desired state" idempotency DELETE gives everywhere else
 // in this package.
-func (s *Service) SetFavourite(ctx context.Context, userID, recipeID string, on bool) error {
+func (s *Service) SetFavorite(ctx context.Context, userID, recipeID string, on bool) error {
 	if on {
 		if _, err := s.q.GetRecipe(ctx, recipeID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -289,24 +289,24 @@ func (s *Service) SetFavourite(ctx context.Context, userID, recipeID string, on 
 			}
 			return fmt.Errorf("get recipe %s: %w", recipeID, err)
 		}
-		if err := s.q.SetFavourite(ctx, sqlc.SetFavouriteParams{
+		if err := s.q.SetFavorite(ctx, sqlc.SetFavoriteParams{
 			UserID: userID, RecipeID: recipeID, CreatedAt: db.FormatTime(s.now()),
 		}); err != nil {
-			return fmt.Errorf("set favourite: %w", err)
+			return fmt.Errorf("set favorite: %w", err)
 		}
 		return nil
 	}
-	if err := s.q.DeleteFavourite(ctx, sqlc.DeleteFavouriteParams{UserID: userID, RecipeID: recipeID}); err != nil {
-		return fmt.Errorf("delete favourite: %w", err)
+	if err := s.q.DeleteFavorite(ctx, sqlc.DeleteFavoriteParams{UserID: userID, RecipeID: recipeID}); err != nil {
+		return fmt.Errorf("delete favorite: %w", err)
 	}
 	return nil
 }
 
-// IsFavourite reports whether userID has favourited recipeID. An empty
+// IsFavorite reports whether userID has favorited recipeID. An empty
 // userID always reports false without querying, the same guard toCards
-// applies to the per-page favourite batch - unauthenticated callers must
-// never be told anything is favourited.
-func (s *Service) IsFavourite(ctx context.Context, userID, recipeID string) (bool, error) {
+// applies to the per-page favorite batch - unauthenticated callers must
+// never be told anything is favorited.
+func (s *Service) IsFavorite(ctx context.Context, userID, recipeID string) (bool, error) {
 	if userID == "" {
 		return false, nil
 	}
@@ -314,11 +314,11 @@ func (s *Service) IsFavourite(ctx context.Context, userID, recipeID string) (boo
 	if err != nil {
 		return false, fmt.Errorf("marshal recipe id: %w", err)
 	}
-	favIDs, err := s.q.ListFavouriteRecipeIDs(ctx, sqlc.ListFavouriteRecipeIDsParams{
+	favIDs, err := s.q.ListFavoriteRecipeIDs(ctx, sqlc.ListFavoriteRecipeIDsParams{
 		UserID: userID, RecipeIds: string(idsJSON),
 	})
 	if err != nil {
-		return false, fmt.Errorf("list favourite recipe ids: %w", err)
+		return false, fmt.Errorf("list favorite recipe ids: %w", err)
 	}
 	return len(favIDs) == 1, nil
 }

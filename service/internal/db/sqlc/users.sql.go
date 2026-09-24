@@ -29,7 +29,7 @@ type CountUsersByColorRow struct {
 	UserCount int64
 }
 
-// Colours nobody holds are absent from this result; Go fills them in against
+// Colors nobody holds are absent from this result; Go fills them in against
 // user.Colors, because the database does not know the palette.
 func (q *Queries) CountUsersByColor(ctx context.Context) ([]CountUsersByColorRow, error) {
 	rows, err := q.db.QueryContext(ctx, countUsersByColor)

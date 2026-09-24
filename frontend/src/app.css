@@ -35,11 +35,11 @@
 	--color-tint-1: #f0dfc4;
 	--color-tint-2: #e6e3cf;
 	--color-tint-3: #efd9cf;
-	/* One pair per palette colour. A foreground of its own rather than a
+	/* One pair per palette color. A foreground of its own rather than a
 	   shared one: the author circle is a 12px semibold capital, so it needs
 	   4.5:1 against its own background, and no single foreground holds that
 	   across eight hues in two themes. The tones stay muted and warm-leaning
-	   so a recipe card reads as a card, not as a status board. The colour is
+	   so a recipe card reads as a card, not as a status board. The color is
 	   never the only signal - the initial stays in the circle and the popover
 	   spells the name out. */
 	--color-user-amber: #f0dfc4;
@@ -231,33 +231,33 @@
  * font's metric box in the middle - ascent 19 over descent 5 at 16px in
  * Literata - but a capital or a lining figure never uses that descender
  * room, so its ink ends up ((ascent - descent) - capHeight) / 2 below the
- * circle's centre: 1.39px of a 36px avatar, measured. The shift is a
+ * circle's center: 1.39px of a 36px avatar, measured. The shift is a
  * property of the typeface rather than of any one size, so it is expressed
  * in em and lives here once instead of being re-derived per component.
  * Line height does not enter the result - the term cancels - so `leading-*`
  * is not a fix for it.
  *
  * It is padding rather than a transform because a transform would move the
- * circle as well, leaving the glyph exactly as off-centre as before. With
+ * circle as well, leaving the glyph exactly as off-center as before. With
  * border-box sizing the padding shrinks the content box without touching
  * the element's own size, so centring lands half of it - the 0.087em - on
  * the glyph alone. In em, so it scales with the letter rather than with the
  * circle: a 12px initial in a 20px circle needs a smaller shift than a 16px
  * one in a 36px circle, and gets it.
  */
-@utility initial-centred {
+@utility initial-centered {
 	padding-bottom: 0.174em;
 }
 
 /*
  * The horizontal half of the same problem, and only for italics: the slant
- * carries the ink past the advance box it is centred in, so an italic
- * capital lands right of centre - 2.17px of a 64px Literata "R", measured,
+ * carries the ink past the advance box it is centered in, so an italic
+ * capital lands right of center - 2.17px of a 64px Literata "R", measured,
  * against exactly 0 for the upright "A" beside it. Separate from
- * initial-centred because the two have separate causes: every capital
+ * initial-centered because the two have separate causes: every capital
  * needs the vertical shift, only a slanted one needs this. Combine them.
  */
-@utility italic-centred {
+@utility italic-centered {
 	padding-right: 0.068em;
 }
 
@@ -272,7 +272,7 @@ body {
  * Buttons point. Tailwind v4 dropped the preflight rule that gave them
  * `cursor: pointer`, deferring to the browser default of `default`, so
  * every button in the app - the avatar, the filter trigger, the tag chips,
- * the favourite star - stopped signalling that it can be clicked while
+ * the favorite star - stopped signaling that it can be clicked while
  * links kept doing so. Restoring it once here beats a `cursor-pointer`
  * class on each of them, which is a line that gets forgotten on the next
  * button. Disabled ones keep the default: they cannot be clicked.
@@ -289,7 +289,7 @@ button:not(:disabled),
  * which style the document without being part of it, so they can never be
  * expressed as Tailwind classes in markup. A confirmed link is filled and
  * solid, a proposal is a dotted rule - the same distinction the chips under
- * the field draw, so the two always read as the same two states. Both colours
+ * the field draw, so the two always read as the same two states. Both colors
  * come from the token set; nothing here is a literal.
  */
 .ref-confirmed {

@@ -11,7 +11,7 @@ import (
 
 const apiPrefix = "/api/v1"
 
-// scalarTheme repaints the docs page in the app's colours. Scalar takes it
+// scalarTheme repaints the docs page in the app's colors. Scalar takes it
 // as customCss and injects it as a style element; it cannot be served as a
 // stylesheet, because huma renders the page itself and its CSP allows
 // inline styles only (style-src 'unsafe-inline', no host).
@@ -21,10 +21,10 @@ var scalarTheme string
 
 // isSpecRoute reports whether p is one of the routes huma registers for the
 // contract itself rather than for an operation: the docs page, the schema
-// registry and the OpenAPI document in every flavour huma emits - 3.1 and
+// registry and the OpenAPI document in every flavor huma emits - 3.1 and
 // the "-3.0" downgrades, each as .json and .yaml. Matching by prefix rather
 // than listing the six paths keeps the guard correct if an upgrade adds
-// another flavour; the cost is that an operation must never be registered
+// another flavor; the cost is that an operation must never be registered
 // at a path starting with /api/v1/openapi or /api/v1/schemas/.
 func isSpecRoute(p string) bool {
 	return p == apiPrefix+"/docs" ||

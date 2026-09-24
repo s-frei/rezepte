@@ -100,7 +100,7 @@
 	}
 
 	// Pointer swipe, same shape as the lightbox: remember where the pointer
-	// went down, decide on up; a cancelled or departed pointer forgets the
+	// went down, decide on up; a canceled or departed pointer forgets the
 	// start so the next unrelated `pointerup` is not measured against it.
 	let swipeStart: number | null = null;
 
@@ -169,7 +169,7 @@
 					{m.cook_step_counter({ number: index + 1, count })}
 				{/if}
 			</p>
-			<!-- Same width as the back button so the counter is centred. -->
+			<!-- Same width as the back button so the counter is centered. -->
 			<span class="size-10 shrink-0" aria-hidden="true"></span>
 		</header>
 
