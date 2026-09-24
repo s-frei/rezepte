@@ -27,6 +27,10 @@
 	--color-destructive-foreground: #ffffff;
 	--color-destructive-soft: #f9e3dd;
 	--color-success: #7fb069;
+	/* The logo's colors; scripts/brand-palette.ts repeats them for image files. */
+	--color-logo-ink: #7c3d0a;
+	--color-logo-sprout: #7fb069;
+	--color-logo-ground: #f4ede2;
 	--color-inverse: #2b2118;
 	--color-inverse-foreground: #ffffff;
 	--color-inverse-muted: #c9b9a3;
@@ -159,6 +163,9 @@
 	--color-user-teal-foreground: #9fd0cd;
 	--color-user-slate: #2b2f36;
 	--color-user-slate-foreground: #bfc6d4;
+	--color-logo-ink: #f0c391;
+	--color-logo-sprout: #aed3a8;
+	--color-logo-ground: #1c1612;
 	--shadow-card: none;
 	--shadow-cover: none;
 	--shadow-cta: none;
@@ -205,6 +212,9 @@
 		--color-user-teal-foreground: #9fd0cd;
 		--color-user-slate: #2b2f36;
 		--color-user-slate-foreground: #bfc6d4;
+		--color-logo-ink: #f0c391;
+		--color-logo-sprout: #aed3a8;
+		--color-logo-ground: #1c1612;
 		--shadow-card: none;
 		--shadow-cover: none;
 		--shadow-cta: none;

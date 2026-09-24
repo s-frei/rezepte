@@ -14,6 +14,16 @@ test('there are twelve masters', () => {
 	expect(masters).toEqual(expected);
 });
 
+test('the logo tokens in app.css match the palette in every theme block', async () => {
+	const css = await Bun.file(new URL('../src/app.css', import.meta.url)).text();
+	const values = (token: string) =>
+		[...css.matchAll(new RegExp(`--color-logo-${token}:\\s*(#[0-9a-f]{6})`, 'g'))].map((m) => m[1]);
+	for (const token of ['ink', 'sprout', 'ground'] as const) {
+		// @theme, then the explicit dark block, then the system dark block.
+		expect(values(token)).toEqual([LIGHT[token], DARK[token], DARK[token]]);
+	}
+});
+
 for (const file of masters) {
 	test(`${file} is a clean master`, async () => {
 		const svg = await Bun.file(new URL(file, logo)).text();
