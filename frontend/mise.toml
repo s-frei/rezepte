@@ -25,7 +25,7 @@ description = "Fail if the message catalogs do not hold the same keys"
 run = "bun run messages:parity"
 
 [tasks."brand:export"]
-description = "Generate favicon, touch icon, manifest icons and manifest from assets/brand/logo"
+description = "Generate favicon, touch icon, manifest icons, manifest and social preview from assets/brand"
 run = "bun run brand:export"
 
 [tasks."brand:check"]
