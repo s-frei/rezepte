@@ -283,3 +283,16 @@ export async function createUser(
 	).toBeTruthy();
 	return (await response.json()) as UserAccount;
 }
+
+/** Switches the household lock through the API, as the signed-in owner. */
+export async function setRecipesLockedByDefault(page: Page, on: boolean): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch('/api/v1/settings', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { recipesLockedByDefault: on }
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}

@@ -59,6 +59,9 @@ export type IngredientRef = { word: string; groupName: string | null; ingredient
 
 export type Step = { text: string; references: IngredientRef[] };
 
+/** Who besides the author and admins may edit; `default` follows the household setting. */
+export type EditPolicy = 'default' | 'open' | 'locked';
+
 export type RecipeInput = {
 	title: string;
 	description: string;
@@ -69,6 +72,8 @@ export type RecipeInput = {
 	tags: string[];
 	ingredientGroups: IngredientGroup[];
 	steps: Step[];
+	/** Optional: an update without it keeps the stored policy. */
+	editPolicy?: EditPolicy;
 };
 
 export type Recipe = RecipeInput & {
@@ -82,6 +87,12 @@ export type Recipe = RecipeInput & {
 	updatedBy: Person;
 	/** Whether the signed-in user has starred this recipe. */
 	favorite: boolean;
+	/** The effective state: the policy resolved against the household setting. */
+	locked: boolean;
+	/** What the signed-in user may do with this recipe, decided by the server. */
+	canEdit: boolean;
+	canDelete: boolean;
+	canChangePolicy: boolean;
 };
 
 export type RecipePage = {
@@ -268,6 +279,7 @@ export function emptyInput(): RecipeInput {
 		ingredientGroups: [
 			{ name: null, ingredients: [{ quantity: null, unit: null, name: '', note: null }] }
 		],
-		steps: [{ text: '', references: [] }]
+		steps: [{ text: '', references: [] }],
+		editPolicy: 'default'
 	};
 }

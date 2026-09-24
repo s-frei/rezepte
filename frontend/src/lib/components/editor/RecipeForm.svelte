@@ -20,10 +20,13 @@
 		validate,
 		type FieldErrors
 	} from '$lib/recipe/form';
+	import { refusalOr } from '$lib/recipe/access';
 	import { applyDndAriaStrings } from '$lib/recipe/dnd';
+	import { currentSection, isAtBottom, nextBand } from '$lib/recipe/section-spy';
 	import { acceptAll, type DismissedWords } from '$lib/recipe/step-references';
 	import { shell } from '$lib/shell.svelte';
 	import BasicsSection from './BasicsSection.svelte';
+	import EditingSection from './EditingSection.svelte';
 	import ImagesSection from './ImagesSection.svelte';
 	import IngredientGroupEditor from './IngredientGroupEditor.svelte';
 	import SaveBar from './SaveBar.svelte';
@@ -34,6 +37,7 @@
 		heading,
 		cancelHref,
 		existing,
+		access,
 		save
 	}: {
 		/** Starting values - `emptyInput()` for a new recipe, the loaded recipe for an edit. */
@@ -43,6 +47,8 @@
 		cancelHref: ResolvedPathname;
 		/** Set when editing: lets the images section talk to the API for this recipe. */
 		existing?: { id: string; images: Image[]; coverImageId: string | null };
+		/** Set when editing an existing recipe; absent means the caller is creating it and is its author. */
+		access?: { canChangePolicy: boolean; isAuthor: boolean; authorName: string };
 		/** Performs the create or update call; `pendingFiles` is non-empty only for a new recipe with queued images. */
 		save: (input: RecipeInput, pendingFiles: File[]) => Promise<Recipe>;
 	} = $props();
@@ -79,15 +85,35 @@
 		{ id: 'editor-section-basics', label: m.editor_section_basics() },
 		{ id: 'editor-section-images', label: m.editor_section_images() },
 		{ id: 'editor-section-ingredients', label: m.recipe_ingredients() },
-		{ id: 'editor-section-steps', label: m.editor_section_steps() }
+		{ id: 'editor-section-steps', label: m.editor_section_steps() },
+		{ id: 'editor-section-editing', label: m.editor_section_editing() }
 	];
 	let activeSection = $state(sections[0].id);
 
 	const sectionCard = 'scroll-mt-24 rounded-2xl bg-surface p-6 md:p-7';
 	const sectionTitle = 'mb-4 font-display text-heading font-medium';
 
+	// True while a smooth scroll started by a nav click is running. The
+	// sections it passes on the way would otherwise take the highlight away
+	// from the one that was clicked. Not `$state`: nothing renders from it.
+	let steering = false;
+	let steeringTimer: ReturnType<typeof setTimeout> | undefined;
+
+	/**
+	 * Hands the nav back to the scroll position once the page has been quiet
+	 * for `ms`. `scrollend` normally does that first; this covers a click on
+	 * the section already in place (no scroll, so no `scrollend`) and
+	 * browsers without the event.
+	 */
+	function releaseSteeringAfter(ms: number) {
+		clearTimeout(steeringTimer);
+		steeringTimer = setTimeout(() => (steering = false), ms);
+	}
+
 	function scrollToSection(id: string) {
 		activeSection = id;
+		steering = true;
+		releaseSteeringAfter(300);
 		document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
@@ -105,14 +131,34 @@
 
 	/** Keeps the section nav in step with what the user has scrolled to. */
 	function trackSections(node: HTMLElement) {
+		const order = sections.map((section) => section.id);
+		// Every section inside the band right now, carried across callbacks
+		// (see `nextBand`).
+		let inBand: ReadonlySet<string> = new Set();
+
+		const update = () => {
+			if (steering) {
+				return;
+			}
+			activeSection = currentSection(
+				order,
+				inBand,
+				isAtBottom({
+					innerHeight: window.innerHeight,
+					scrollY: window.scrollY,
+					scrollHeight: document.documentElement.scrollHeight
+				}),
+				activeSection
+			);
+		};
+
 		const observer = new IntersectionObserver(
 			(entries) => {
-				const visible = entries
-					.filter((entry) => entry.isIntersecting)
-					.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-				if (visible.length > 0) {
-					activeSection = visible[0].target.id;
-				}
+				inBand = nextBand(
+					inBand,
+					entries.map((entry) => ({ id: entry.target.id, isIntersecting: entry.isIntersecting }))
+				);
+				update();
 			},
 			// Only the band just under the top bar counts as "current", so the
 			// section the user is reading wins over the ones below it.
@@ -121,7 +167,29 @@
 		for (const section of node.querySelectorAll('section[id]')) {
 			observer.observe(section);
 		}
-		return () => observer.disconnect();
+
+		// The observer alone never sees the page reach its end, which is the
+		// only way the short last section can become current.
+		const onScroll = () => {
+			if (steering) {
+				releaseSteeringAfter(150);
+				return;
+			}
+			update();
+		};
+		const onScrollEnd = () => {
+			clearTimeout(steeringTimer);
+			steering = false;
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		window.addEventListener('scrollend', onScrollEnd);
+
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('scroll', onScroll);
+			window.removeEventListener('scrollend', onScrollEnd);
+			clearTimeout(steeringTimer);
+		};
 	}
 
 	async function revealFirstError() {
@@ -178,7 +246,7 @@
 			} else if (!(error instanceof ApiError && error.status === 401)) {
 				// A 401 already sends the browser to the login page (see
 				// `$lib/api/client`), so a toast would only flash on the way out.
-				toast.error(m.editor_save_error());
+				toast.error(refusalOr(error, m.editor_save_error()));
 			}
 		} finally {
 			saving = false;
@@ -338,6 +406,16 @@
 					groups={form.ingredientGroups}
 					bind:dismissed
 					{errors}
+				/>
+			</section>
+
+			<section id="editor-section-editing" class={sectionCard}>
+				<h2 class={sectionTitle}>{m.editor_section_editing()}</h2>
+				<EditingSection
+					bind:policy={form.editPolicy}
+					canChange={access?.canChangePolicy ?? true}
+					isAuthor={access?.isAuthor ?? true}
+					authorName={access?.authorName ?? ''}
 				/>
 			</section>
 		</form>

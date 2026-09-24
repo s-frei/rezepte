@@ -19,6 +19,7 @@
 		type Image
 	} from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
+	import { refusalOr } from '$lib/recipe/access';
 	import { newId } from '$lib/recipe/form';
 
 	let {
@@ -129,7 +130,7 @@
 				return m.images_rejected_type();
 			}
 		}
-		return m.images_upload_error();
+		return refusalOr(error, m.images_upload_error());
 	}
 
 	function addFiles(list: FileList | File[]) {
@@ -177,8 +178,8 @@
 		if (!queued && recipeId) {
 			try {
 				await deleteImage(recipeId, tile.id);
-			} catch {
-				toast.error(m.images_delete_error());
+			} catch (error) {
+				toast.error(refusalOr(error, m.images_delete_error()));
 				return;
 			}
 		}
@@ -214,8 +215,8 @@
 		try {
 			await setCover(recipeId, tile.id);
 			coverId = tile.id;
-		} catch {
-			toast.error(m.images_cover_error());
+		} catch (error) {
+			toast.error(refusalOr(error, m.images_cover_error()));
 		}
 	}
 
@@ -251,13 +252,13 @@
 				return tile ? [tile] : [];
 			});
 			tiles = [...stored, ...tiles.filter((tile) => tile.file !== undefined)];
-		} catch {
+		} catch (error) {
 			// The server kept the old order, so the screen goes back to it
 			// rather than showing an order that only exists locally.
 			if (before !== null) {
 				tiles = before;
 			}
-			toast.error(m.images_reorder_error());
+			toast.error(refusalOr(error, m.images_reorder_error()));
 		}
 	}
 

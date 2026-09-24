@@ -13,6 +13,7 @@
 	} from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
 	import CreateUserDialog from '$lib/components/settings/CreateUserDialog.svelte';
+	import RecipeEditingCard from '$lib/components/settings/RecipeEditingCard.svelte';
 	import ResetPasswordDialog from '$lib/components/settings/ResetPasswordDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import UserTable from '$lib/components/settings/UserTable.svelte';
@@ -165,6 +166,7 @@
 			/>
 		{/if}
 	</section>
+	<RecipeEditingCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
 </SettingsLayout>
 
 <!-- The new account is appended, not sorted in: UserTable owns the display

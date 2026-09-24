@@ -112,14 +112,17 @@
 	});
 </script>
 
+<!-- Edit and delete show only to those the server lets do them; see `Recipe.canEdit`. -->
 {#snippet menuItems()}
-	<DropdownMenu.Item
-		onSelect={() => goto(editHref)}
-		class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
-	>
-		<Pencil class="size-4" aria-hidden="true" />
-		{m.detail_edit()}
-	</DropdownMenu.Item>
+	{#if recipe?.canEdit}
+		<DropdownMenu.Item
+			onSelect={() => goto(editHref)}
+			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
+		>
+			<Pencil class="size-4" aria-hidden="true" />
+			{m.detail_edit()}
+		</DropdownMenu.Item>
+	{/if}
 	<DropdownMenu.Item
 		onSelect={copyLink}
 		class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
@@ -127,19 +130,23 @@
 		<Link class="size-4" aria-hidden="true" />
 		{m.detail_copy_link()}
 	</DropdownMenu.Item>
-	<DropdownMenu.Item
-		onSelect={() => (deleteOpen = true)}
-		class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
-	>
-		<Trash2 class="size-4" aria-hidden="true" />
-		{m.common_delete()}
-	</DropdownMenu.Item>
+	{#if recipe?.canDelete}
+		<DropdownMenu.Item
+			onSelect={() => (deleteOpen = true)}
+			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
+		>
+			<Trash2 class="size-4" aria-hidden="true" />
+			{m.common_delete()}
+		</DropdownMenu.Item>
+	{/if}
 {/snippet}
 
 {#snippet topBarActions()}
-	<Button variant="secondary" href={editHref}>
-		{m.detail_edit()}
-	</Button>
+	{#if recipe?.canEdit}
+		<Button variant="secondary" href={editHref}>
+			{m.detail_edit()}
+		</Button>
+	{/if}
 	<Button variant="primary" href={cookHref}>
 		<ChefHat class="size-4" aria-hidden="true" />
 		{m.detail_cook_mode()}

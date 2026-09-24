@@ -57,6 +57,7 @@ function baseInput(overrides: Partial<RecipeInput> = {}): RecipeInput {
 			{ text: 'Mehl mischen.', references: [] },
 			{ text: 'Backen.', references: [] }
 		],
+		editPolicy: 'default',
 		...overrides
 	};
 }
@@ -247,7 +248,11 @@ describe('fromRecipe', () => {
 			createdBy: sam,
 			updatedAt: '2026-09-17T10:00:00Z',
 			updatedBy: sam,
-			favorite: false
+			favorite: false,
+			locked: false,
+			canEdit: true,
+			canDelete: true,
+			canChangePolicy: true
 		};
 		expect(fromRecipe(recipe).title).toBe('Zitronen-Tarte');
 	});
@@ -810,5 +815,22 @@ describe('isDirty', () => {
 		const form = cloneForm(initial);
 		form.ingredientGroups[0].ingredients.push(newIngredient());
 		expect(isDirty(form, initial)).toBe(true);
+	});
+});
+
+describe('editPolicy', () => {
+	it('defaults to "default" when the input has none', () => {
+		const input = baseInput();
+		delete input.editPolicy;
+		expect(fromRecipe(input).editPolicy).toBe('default');
+	});
+
+	it('round-trips through the form', () => {
+		const form = fromRecipe({ ...baseInput(), editPolicy: 'locked' });
+		expect(toInput(form).editPolicy).toBe('locked');
+	});
+
+	it('starts a new recipe on "default"', () => {
+		expect(emptyForm().editPolicy).toBe('default');
 	});
 });
