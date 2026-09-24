@@ -53,7 +53,11 @@ func newEnv(t *testing.T) env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := caller{svc: svc, create: create, update: update}
+	search, err := searchSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := caller{svc: svc, create: create, update: update, search: search}
 	return env{svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL, base: base}
 }
 

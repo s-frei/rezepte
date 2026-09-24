@@ -20,10 +20,14 @@ func init() {
 	)
 }
 
-// documentHelp is shared by create_recipe and update_recipe: how a step
-// points at an ingredient, which is the one part of the document a model
-// cannot guess from field names.
-const documentHelp = " Every step lists its ingredient references; send [] when it has none. " +
+// documentHelp is shared by create_recipe and update_recipe: which fields
+// take null, and how a step points at an ingredient - the parts of the
+// document a model cannot guess from field names.
+const documentHelp = " Send every field of recipe. Only prepMinutes, cookMinutes, sourceUrl, a group's name and an " +
+	"ingredient's quantity, unit and note take null when unset; description is a string (\"\" when empty) and " +
+	"tags, steps and each group's ingredients are arrays ([] when empty), never null; ingredientGroups is never " +
+	"null either and holds at least one group (one with name null when the recipe has no sections)." +
+	" Every step lists its ingredient references; send [] when it has none. " +
 	"A reference ties a word of the step's text to one ingredient: word must occur in the text as a whole word, " +
 	"ingredientName is the ingredient's name and groupName its group's name (null for the unnamed group). " +
 	"Ambiguous targets are refused, never guessed. " +
@@ -39,6 +43,7 @@ func addCreateRecipe(s *mcp.Server, c caller) {
 		Name:        "create_recipe",
 		Description: "Create a recipe as the token's owner and return it." + documentHelp,
 		InputSchema: c.create,
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, any, error) {
 		r, err := c.svc.Create(ctx, c.user.ID, in.Recipe)
 		if err != nil {
@@ -59,10 +64,14 @@ type updateIn struct {
 func addUpdateRecipe(s *mcp.Server, c caller) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "update_recipe",
-		Description: "Replace a recipe's whole document and return it. Call get_recipe first and send back every field, " +
-			"changed or not: anything left out is removed. The slug never changes." + documentHelp,
+		Description: "Replace a recipe's whole document and return it. Take the document from get_recipe and " +
+			"send back only the editable fields in recipe: title, description, servings, prepMinutes, cookMinutes, " +
+			"sourceUrl, tags, ingredientGroups, steps and optionally editPolicy. Anything else left out is removed. " +
+			"The slug never changes." + documentHelp,
 		InputSchema: c.update,
-		Annotations: &mcp.ToolAnnotations{IdempotentHint: true},
+		// DestructiveHint stays at its default (true): replacing the whole
+		// document can remove content the caller did not mean to touch.
+		Annotations: &mcp.ToolAnnotations{IdempotentHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in updateIn) (*mcp.CallToolResult, any, error) {
 		r, err := c.svc.Update(ctx, in.ID, c.user, in.Recipe)
 		if err != nil {
@@ -80,11 +89,10 @@ type idIn struct {
 }
 
 func addDeleteRecipe(s *mcp.Server, c caller) {
-	destructive := true
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "delete_recipe",
 		Description: "Delete a recipe with its photos. This cannot be undone.",
-		Annotations: &mcp.ToolAnnotations{DestructiveHint: &destructive, IdempotentHint: true},
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(true), IdempotentHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in idIn) (*mcp.CallToolResult, any, error) {
 		if err := c.svc.Delete(ctx, in.ID, c.user); err != nil {
 			return nil, nil, toolError(ctx, fmt.Errorf("delete recipe: %w", err))
@@ -105,7 +113,7 @@ func addFavoriteTool(on bool) func(*mcp.Server, caller) {
 		mcp.AddTool(s, &mcp.Tool{
 			Name:        name,
 			Description: desc,
-			Annotations: &mcp.ToolAnnotations{IdempotentHint: true},
+			Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: true, OpenWorldHint: new(false)},
 		}, func(ctx context.Context, _ *mcp.CallToolRequest, in idIn) (*mcp.CallToolResult, any, error) {
 			if err := c.svc.SetFavorite(ctx, c.user.ID, in.ID, on); err != nil {
 				return nil, nil, toolError(ctx, fmt.Errorf("%s: %w", name, err))
