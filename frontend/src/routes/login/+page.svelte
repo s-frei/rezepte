@@ -63,6 +63,8 @@
 				name="username"
 				type="text"
 				autocomplete="username"
+				autocapitalize="none"
+				spellcheck="false"
 				required
 				bind:value={username}
 				class="h-[50px] w-full rounded-md border border-border bg-surface-elevated px-4 text-body outline-none focus:border-primary aria-[invalid=true]:border-[1.5px] aria-[invalid=true]:border-destructive"
