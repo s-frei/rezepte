@@ -11,7 +11,7 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 
 | Task | What it pulls in |
 |---|---|
-| `mise run setup` | installs every package's dependencies plus the Playwright browser, then `go mod download` |
+| `mise run setup` | installs every package's dependencies plus the Playwright browser, installs the Git LFS hooks, then `go mod download` |
 | `mise run dev` | `//service:dev` (watchexec restarts the API on `.go` changes) and `//frontend:dev` |
 | `mise run check` | `guard:local-config` plus the four package `check` tasks |
 | `mise run build` | `//service:build`, which depends on `//frontend:build` — the SPA lands in `service/internal/web/dist` and is embedded |
@@ -25,7 +25,7 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 
 `mise/lib/` holds what is not a task. `mise/lib/instance.sh` is the only file there: the port guard and the `/healthz` wait that `//:demo` and `//:e2e` both source rather than run. It cannot live beside them, because a file inside `mise/tasks/` would become a task itself, and `mise/lib/` is not scanned. There is no `scripts/` directory.
 
-`[tools]` pins Go, Bun, golangci-lint, sqlc and watchexec, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
+`[tools]` pins Go, Bun, golangci-lint, sqlc, watchexec and git-lfs (for the demo photo originals under `assets/demo-photos/`; `.lfsconfig` keeps every clone, CI included, from downloading them, and `mise run demo-photos:pull` fetches them when a photo is regenerated), and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
 
 **Node is deliberately not pinned.** Every JavaScript tool here - Next, Vite, svelte-check, ESLint, Prettier, Playwright - ships a `#!/usr/bin/env node` shebang, but Bun puts its own `node` shim in front of them, so the whole build, lint, test and docs-export chain runs on Bun alone and a pinned Node would only be a download CI repeats per job. The Svelte MCP server in `.mcp.json` runs through `bunx` for the same reason. Re-add Node only for a tool that actually breaks under the shim, and say in this paragraph which one.
 
