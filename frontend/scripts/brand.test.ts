@@ -46,6 +46,43 @@ for (const file of masters) {
 	});
 }
 
+const lockups = new URL('../../assets/brand/lockups/', import.meta.url);
+const variants = ['', '-dark', '-mono', '-mono-dark'];
+const lockupFiles = ['wordmark', 'lockup-horizontal', 'lockup-stacked', 'lockup-compact'].flatMap(
+	(base) => variants.map((v) => `rezepte-${base}${v}.svg`)
+);
+
+test('there are sixteen wordmark and lockup files', () => {
+	const found = readdirSync(lockups)
+		.filter((f) => f.endsWith('.svg'))
+		.sort();
+	expect(found).toEqual([...lockupFiles].sort());
+});
+
+for (const file of lockupFiles) {
+	test(`${file} is a clean wordmark or lockup`, async () => {
+		const svg = await Bun.file(new URL(file, lockups)).text();
+		// Starting at 0 0 lets an <img> or inline SVG size it by height alone.
+		expect(svg).toMatch(/viewBox="0 0 [\d.]+ [\d.]+"/);
+		expect(svg).not.toMatch(/<(image|text|style|script|foreignObject|metadata)\b/);
+		expect(svg).toContain('<g class="wordmark"');
+
+		const colors = [...svg.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((m) => m[0].toLowerCase());
+		for (const color of colors) expect(ALLOWED).toContain(color);
+
+		const palette = file.includes('-dark') ? DARK : LIGHT;
+		const mono = file.includes('-mono');
+		expect(svg).toContain(`<g class="ink" fill="${palette.ink}"`);
+		// The wordmark alone has no sprout; every lockup carries the icon's.
+		const groups = file.includes('wordmark') ? 1 : 2;
+		if (groups === 2) {
+			expect(svg).toContain(`<g class="sprout" fill="${mono ? palette.ink : palette.sprout}"`);
+		}
+		expect([...svg.matchAll(/\s(fill|stroke|color|stop-color)=/g)].length).toBe(groups);
+		expect(svg).not.toMatch(/\s(style|opacity|fill-opacity)=|<(linearGradient|radialGradient)\b/);
+	});
+}
+
 const sample = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><g class="sprout" fill="${LIGHT.sprout}"><path d="M0 0h1v1z"/></g><g class="ink" fill="${LIGHT.ink}"><path d="M1 1h1v1z"/></g></svg>`;
 
 test('favicon switches ink and sprout to the dark values on a dark scheme', () => {
