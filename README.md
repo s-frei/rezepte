@@ -20,7 +20,7 @@
 Rezepte keeps a household's recipes in one place. Everyone in the house gets a login, writes recipes with ingredient groups and steps, tags and searches them, and cooks from a phone at the stove. It runs as **one binary** with the web app built in, an SQLite database and your photos in a single data directory — no Node runtime, no database server, no external services.
 
 > [!WARNING]
-> **Rezepte is at an early stage.** It works, but things can still change between releases — the API, the configuration and the way it is deployed included. Read the release notes before you update, and [back up your data](https://s-frei.github.io/rezepte/operations/data-and-backup/) first.
+> **Rezepte is at an early stage.** It works, but things can still change between releases — the API, the configuration and the way it is deployed included. Read the [changelog](https://s-frei.github.io/rezepte/changelog/) before you update, and [back up your data](https://s-frei.github.io/rezepte/operations/data-and-backup/) first.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/overview-desktop-dark.png">
@@ -32,7 +32,7 @@ Rezepte keeps a household's recipes in one place. Everyone in the house gets a l
 
 ## Why this exists
 
-I needed this myself and found nothing I liked, so I made it. It is also meant to be the more modern option: scoped [API tokens](https://s-frei.github.io/rezepte/api/tokens/) are already there, and the [roadmap](https://s-frei.github.io/rezepte/roadmap/) builds an MCP server for AI assistants and syncing between instances on top of them.
+I needed this myself and found nothing I liked, so I made it. It is also meant to be the more modern option: scoped [API tokens](https://s-frei.github.io/rezepte/api/tokens/) and an [MCP server](https://s-frei.github.io/rezepte/api/mcp/) for AI assistants are already there, and the [roadmap](https://s-frei.github.io/rezepte/roadmap/) builds syncing between instances on top of them.
 
 ## Try it
 
@@ -59,6 +59,7 @@ Nothing is kept: there is no volume and `--rm` removes the container, so stoppin
 - **Light and dark** — follows the system setting, or pick one. → [Docs](https://s-frei.github.io/rezepte/guide/settings/)
 - **English and German** — each member picks their own interface language, and it follows them to every device. → [Docs](https://s-frei.github.io/rezepte/guide/settings/)
 - **HTTP API** — everything the app does, reachable with a scoped bearer token for scripts and other instances, documented with a generated OpenAPI reference. → [Docs](https://s-frei.github.io/rezepte/api/)
+- **AI assistants** — an MCP endpoint lets an assistant such as Claude search, read and, with the right token, edit your recipes. → [Docs](https://s-frei.github.io/rezepte/api/mcp/)
 
 ## Run your own instance
 
@@ -87,7 +88,7 @@ Everything lives at **[s-frei.github.io/rezepte](https://s-frei.github.io/rezept
 | [Getting started](https://s-frei.github.io/rezepte/getting-started/) | Run Rezepte with Docker or as a binary, and log in for the first time. |
 | [Tour of the app](https://s-frei.github.io/rezepte/guide/) | Every feature, with screenshots. |
 | [Operations](https://s-frei.github.io/rezepte/operations/data-and-backup/) | Where the data lives, backups, updates and reverse proxies. |
-| [API](https://s-frei.github.io/rezepte/api/) | The HTTP API behind the app, with a generated reference. |
+| [API](https://s-frei.github.io/rezepte/api/) | The HTTP API behind the app, with a generated reference, and the MCP endpoint for AI assistants. |
 | [Contributing](https://s-frei.github.io/rezepte/contributing/add-a-language/) | Translate the interface into another language. |
 
 The site serves itself to AI assistants as well, generated from the same pages so it cannot drift from them: [`/llms.txt`](https://s-frei.github.io/rezepte/llms.txt) indexes the manual, [`/llms-full.txt`](https://s-frei.github.io/rezepte/llms-full.txt) is all of it in one file, and `/llms.mdx/<path>/content.md` is any single page as raw Markdown.
