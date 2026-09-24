@@ -9,12 +9,15 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 )
 
-// checkOrigin rejects mutating API requests whose Origin header names a
-// different host. Together with SameSite=Lax cookies this blocks CSRF.
-// Requests without an Origin header (non-browser clients) pass through.
+// checkOrigin rejects mutating API requests, and every request to the MCP
+// endpoint, whose Origin header names a different host. Together with
+// SameSite=Lax cookies this blocks CSRF; on /mcp it is the Origin check the
+// MCP Streamable HTTP transport requires of every server, whatever the
+// method. Requests without an Origin header (non-browser clients) pass
+// through.
 func checkOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isMutating(r.Method) && strings.HasPrefix(r.URL.Path, "/api/") {
+		if r.URL.Path == "/mcp" || (isMutating(r.Method) && strings.HasPrefix(r.URL.Path, "/api/")) {
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)
 				if err != nil || !strings.EqualFold(u.Host, r.Host) {

@@ -339,6 +339,43 @@ func TestMCPTokenWithoutRecipesReadIs403(t *testing.T) {
 	}
 }
 
+// TestMCPChecksOrigin pins the transport rule that a server MUST validate
+// Origin: a token does not make a foreign page's request acceptable, while a
+// same-origin or Origin-less client (every desktop MCP client) goes through.
+func TestMCPChecksOrigin(t *testing.T) {
+	a := newFullApp(t)
+	raw := a.issueToken(t, auth.ScopeRecipesRead)
+	cases := []struct {
+		name   string
+		origin string
+		want   int
+	}{
+		{"foreign origin", "https://evil.example", http.StatusForbidden},
+		{"same origin", "http://example.com", http.StatusOK},
+		{"no origin", "", http.StatusOK},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(
+				`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}`))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Accept", "application/json, text/event-stream")
+			req.Header.Set("Authorization", "Bearer "+raw)
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			rec := httptest.NewRecorder()
+			a.srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d: %s", rec.Code, tc.want, rec.Body.String())
+			}
+			if tc.want == http.StatusForbidden && !strings.HasPrefix(rec.Header().Get("Content-Type"), "application/problem+json") {
+				t.Fatalf("Content-Type = %q, want problem+json", rec.Header().Get("Content-Type"))
+			}
+		})
+	}
+}
+
 // bearer adds an Authorization header to every request the MCP client sends.
 type bearer struct{ raw string }
 
