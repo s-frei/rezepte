@@ -12,6 +12,14 @@ func testFS() fstest.MapFS {
 		"index.html":                 {Data: []byte("<html>app</html>")},
 		"_app/immutable/chunks/a.js": {Data: []byte("console.log(1)")},
 		"favicon.svg":                {Data: []byte("<svg/>")},
+		"manifest.webmanifest":       {Data: []byte("{}")},
+	}
+}
+
+func TestSPAServesManifestAsManifestJSON(t *testing.T) {
+	rec := get(t, SPAHandler(testFS()), "/manifest.webmanifest")
+	if got := rec.Header().Get("Content-Type"); got != "application/manifest+json" {
+		t.Fatalf("Content-Type = %q, want application/manifest+json", got)
 	}
 }
 
