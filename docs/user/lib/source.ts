@@ -33,6 +33,9 @@ export const docsLlms = llms(source, {
 				''
 			].join('\n');
 		}
-		return `# ${page.data.title} (${page.url})\n\n${await page.data.getText('processed')}`;
+		// A changelog page's upgrade notice is frontmatter, rendered by page.tsx;
+		// without this line the Markdown view would silently drop it.
+		const upgrade = page.data.upgrade ? `> **Before you upgrade:** ${page.data.upgrade}\n\n` : '';
+		return `# ${page.data.title} (${page.url})\n\n${upgrade}${await page.data.getText('processed')}`;
 	}
 });

@@ -5,6 +5,8 @@ description: How Rezepte applies database migrations and how to update it
 
 Every start of the binary applies any pending database migrations automatically — they are embedded in the binary itself (via [goose](https://github.com/pressly/goose)), so there is nothing separate to run. There is no automatic downgrade: rolling back to an older version after migrations have already run is not supported.
 
+Before updating, read the release's page in the [Changelog](/changelog). If the release needs anything from you, the page opens with **Before you upgrade**.
+
 <Callout type="warn">
   Back up the database before updating — see [Data and backup](/operations/data-and-backup). A migration that fails halfway is easier to recover from a backup than to fix in place.
 </Callout>

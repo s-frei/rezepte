@@ -1,11 +1,20 @@
 import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { remarkMdxMermaid } from 'fumadocs-core/mdx-plugins';
+import { pageSchema } from 'fumadocs-core/source/schema';
+import { z } from 'zod';
 
 // End-user content lives in docs/user/content and is the only collection of
 // this app; the agent memory is a separate site in docs/.
 export const docs = defineDocs({
 	dir: 'content',
 	docs: {
+		// Two fields only the changelog pages use (content/changelog/): the
+		// release date, and what someone running an instance must do before
+		// upgrading. mise/lib/release/ writes and reads the same fields.
+		schema: pageSchema.extend({
+			date: z.coerce.date().optional(),
+			upgrade: z.string().optional()
+		}),
 		postprocess: { includeProcessedMarkdown: true }
 	}
 });
