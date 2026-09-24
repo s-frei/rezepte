@@ -300,6 +300,8 @@
 	});
 </script>
 
+<svelte:head><title>{m.app_name()}</title></svelte:head>
+
 <section class="pt-6 md:pt-10">
 	<h1 class="font-display text-display-sm font-medium md:text-display-lg">
 		{m.overview_headline()}

@@ -38,6 +38,8 @@
 	}
 </script>
 
+<svelte:head><title>{m.login_title()} · {m.app_name()}</title></svelte:head>
+
 <main class="flex min-h-screen flex-col items-center justify-center gap-6 p-5">
 	<div class="flex items-center gap-3">
 		<span class="size-[30px] rounded-full bg-primary" aria-hidden="true"></span>

@@ -112,6 +112,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{recipe ? `${recipe.title} · ${m.app_name()}` : m.app_name()}</title>
+</svelte:head>
+
 <!-- Edit and delete show only to those the server lets do them; see `Recipe.canEdit`. -->
 {#snippet menuItems()}
 	{#if recipe?.canEdit}
