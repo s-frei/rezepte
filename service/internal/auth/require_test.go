@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,45 @@ func okHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+}
+
+// requireEnv is the shared setup for RequireToken tests: an admin, the token
+// service, and a session cookie value to prove a session is not accepted.
+type requireEnv struct {
+	tokens       *auth.TokenService
+	sessionToken string
+	ownerID      string
+}
+
+// newRequireEnv seeds an admin ("sam"), logs them in for a session cookie
+// value, and returns the token service alongside it.
+func newRequireEnv(t *testing.T) *requireEnv {
+	t.Helper()
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	sess, err := sessions.Login(ctx, "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &requireEnv{tokens: tokens, sessionToken: sess.Token, ownerID: sam.ID}
+}
+
+// issue creates a token carrying scopes for env's owner and returns its raw
+// value.
+func (e *requireEnv) issue(t *testing.T, scopes ...string) string {
+	t.Helper()
+	raw, _, err := e.tokens.Create(context.Background(), e.ownerID, "t", scopes, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
 }
 
 func TestRequireSessionRejectsMissingCookie(t *testing.T) {
@@ -300,5 +340,56 @@ func TestRequireAuthOrLoginNeverRedirectsABearerRequest(t *testing.T) {
 	guarded.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401 rather than a redirect", rec.Code)
+	}
+}
+
+// TestRequireTokenRefusesSession covers why RequireToken exists alongside
+// RequireAuth: a page on another site can make a logged-in browser send a
+// cookie, but it cannot make it send an Authorization header, so a route
+// only an API token may call must not accept one.
+func TestRequireTokenRefusesSession(t *testing.T) {
+	env := newRequireEnv(t)
+	h := auth.RequireToken(env.tokens, auth.ScopeRecipesRead)(okHandler())
+	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: env.sessionToken})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", rec.Code)
+	}
+	if got := rec.Header().Get("WWW-Authenticate"); got != "Bearer" {
+		t.Fatalf("WWW-Authenticate = %q, want Bearer", got)
+	}
+}
+
+func TestRequireTokenStoresScopes(t *testing.T) {
+	env := newRequireEnv(t)
+	raw := env.issue(t, auth.ScopeRecipesRead, auth.ScopeRecipesWrite)
+	var got []string
+	h := auth.RequireToken(env.tokens, auth.ScopeRecipesRead)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = auth.ScopesFrom(r.Context())
+		if _, ok := auth.UserFrom(r.Context()); !ok {
+			t.Error("user missing from context")
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if !slices.Equal(got, []string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}) {
+		t.Fatalf("scopes = %v", got)
+	}
+}
+
+func TestRequireTokenMissingScope(t *testing.T) {
+	env := newRequireEnv(t)
+	raw := env.issue(t, auth.ScopeUsersRead)
+	h := auth.RequireToken(env.tokens, auth.ScopeRecipesRead)(okHandler())
+	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rec.Code)
 	}
 }
