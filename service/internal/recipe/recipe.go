@@ -82,9 +82,11 @@ type Recipe struct {
 	// Favorite reports whether the caller has starred this recipe. It is
 	// caller-dependent, not a property (*Service).ByID or (*Service).BySlug
 	// fill in themselves: every handler operation that returns a Recipe
-	// populates it by calling fillCaller (handler.go) after loading it. A
-	// future caller of ByID/BySlug - a new handler operation, say - gets
-	// false unless it also calls fillCaller or (*Service).IsFavorite itself.
+	// populates it by calling fillCaller (handler.go) after loading it, and
+	// every mcpserver tool that returns one does the same through its
+	// caller.fill. A future caller of ByID/BySlug - a new handler operation,
+	// say - gets false unless it also calls fillCaller or
+	// (*Service).IsFavorite itself.
 	Favorite bool `json:"favorite"`
 	// Locked is the effective state: the recipe's policy resolved against
 	// the household default. The Can* fields are for the caller and, like
