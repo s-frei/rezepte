@@ -19,7 +19,7 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 | `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |
 | `mise run demo` | builds, starts `rezepte --demo` on the demo port and keeps it up; with `-- <cmd>` it runs that command against it instead |
 
-`//frontend:brand:export` regenerates the favicon, the touch and manifest icons and the manifest from the logo masters in `assets/brand/logo/`, and `//frontend:brand:check`, which `//frontend:check` depends on, fails when those committed files drift from the masters ([Design system](/architecture/design-system#logo)). `//docs/user:readme-images` rounds the overview screenshots into `assets/readme/` for the README, and `//docs/user:screenshots` runs it after every regeneration.
+`//frontend:brand:export` regenerates the favicon, the touch and manifest icons, the manifest and the social preview from the logo sources in `assets/brand/`, and `//frontend:brand:check`, which `//frontend:check` depends on, fails when the committed favicon or manifest drift from the masters and checks the rasters by format and size ([Design system](/architecture/design-system#logo)). `//docs/user:brand-assets` copies the lockups, the favicon and the social preview into the docs site, which cannot import them from outside its package. `//docs/user:readme-images` rounds the overview screenshots into `assets/readme/` for the README, and `//docs/user:screenshots` runs it after every regeneration.
 
 `//frontend:build` empties `service/internal/web/dist` before it writes, which would take the tracked `.gitkeep` with it, so the task restores that file afterwards and a clean checkout still has the directory the Go build embeds.
 
