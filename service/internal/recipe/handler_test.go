@@ -734,6 +734,51 @@ func TestSourceURLMustBeHTTP(t *testing.T) {
 	}
 }
 
+// TestNullListsAreRejected pins that a recipe's lists are arrays, never
+// null: a null passed minItems and replaced the stored steps, ingredients
+// or tags with nothing.
+func TestNullListsAreRejected(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0]
+
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := map[string]func(m map[string]any){
+		"steps":            func(m map[string]any) { m["steps"] = nil },
+		"ingredientGroups": func(m map[string]any) { m["ingredientGroups"] = nil },
+		"tags":             func(m map[string]any) { m["tags"] = nil },
+		"ingredients": func(m map[string]any) {
+			m["ingredientGroups"].([]any)[0].(map[string]any)["ingredients"] = nil
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			var body map[string]any
+			if err := json.Unmarshal([]byte(mustMarshal(t, fx)), &body); err != nil {
+				t.Fatal(err)
+			}
+			mutate(body)
+			for _, req := range []struct{ method, path string }{
+				{http.MethodPost, "/api/v1/recipes"},
+				{http.MethodPut, "/api/v1/recipes/" + created.ID},
+			} {
+				rec := doReq(h, req.method, req.path, mustMarshal(t, body), cookie)
+				if rec.Code != http.StatusUnprocessableEntity {
+					t.Errorf("%s %s: status %d, want 422", req.method, req.path, rec.Code)
+				}
+			}
+		})
+	}
+}
+
 func TestHandlerLockedRecipeAnswers403AndFlags(t *testing.T) {
 	h, conn := newRecipeHandlerWithConn(t)
 	users := user.NewService(conn)

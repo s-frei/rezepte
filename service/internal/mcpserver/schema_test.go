@@ -60,6 +60,12 @@ func TestInputSchemaCarriesHumaConstraints(t *testing.T) {
 		"zero servings":     func(m map[string]any) { m["servings"] = 0 },
 		"step without refs": func(m map[string]any) { m["steps"] = []any{map[string]any{"text": "Cook."}} },
 		"unknown field":     func(m map[string]any) { m["calories"] = 300 },
+		"null steps":        func(m map[string]any) { m["steps"] = nil },
+		"null groups":       func(m map[string]any) { m["ingredientGroups"] = nil },
+		"null tags":         func(m map[string]any) { m["tags"] = nil },
+		"null ingredients": func(m map[string]any) {
+			m["ingredientGroups"].([]any)[0].(map[string]any)["ingredients"] = nil
+		},
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

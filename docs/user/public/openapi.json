@@ -653,10 +653,7 @@
               "$ref": "#/components/schemas/Ingredient"
             },
             "maxItems": 100,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "name": {
             "maxLength": 60,
@@ -742,10 +739,7 @@
             },
             "maxItems": 20,
             "minItems": 1,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "prepMinutes": {
             "format": "int64",
@@ -776,10 +770,7 @@
               "$ref": "#/components/schemas/Step"
             },
             "maxItems": 50,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "tags": {
             "items": {
@@ -788,10 +779,7 @@
               "type": "string"
             },
             "maxItems": 20,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "title": {
             "maxLength": 200,
@@ -1040,10 +1028,7 @@
             },
             "maxItems": 20,
             "minItems": 1,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "locked": {
             "type": "boolean"
@@ -1080,10 +1065,7 @@
               "$ref": "#/components/schemas/Step"
             },
             "maxItems": 50,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "tags": {
             "items": {
@@ -1092,10 +1074,7 @@
               "type": "string"
             },
             "maxItems": 20,
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           },
           "title": {
             "maxLength": 200,
