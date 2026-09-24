@@ -17,7 +17,8 @@ run = "bun run dev"
 
 [tasks.e2e]
 description = "Run Playwright tests (expects the app on E2E_BASE_URL or :8060 at offset 0, see mise run ports)"
-run = "bun run test:e2e"
+usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files, --grep, --headed or other Playwright flags"'
+run = "bun run test:e2e{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 
 [tasks."messages:parity"]
 description = "Fail if the message catalogs do not hold the same keys"
@@ -38,7 +39,8 @@ run = "bun run format"
 
 [tasks.test]
 description = "Run Vitest once"
-run = "bun run test"
+usage = 'arg "[args]..." var=#true help="Passed to Vitest: test files, a name filter with -t, or other Vitest flags"'
+run = "bun run test{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 
 [tasks.build]
 description = "Build the SPA into service/internal/web/dist"

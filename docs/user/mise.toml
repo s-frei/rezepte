@@ -25,7 +25,8 @@ description = "Regenerate the screenshots against rezepte --demo on :8070 by def
 # `--update-snapshots` alone writes only what exceeds maxDiffPixelRatio, so a
 # change too small for the tolerance - a typeface swap across a few lines of a
 # 1440x900 page - leaves stale PNGs behind. Regenerating means all of them.
-run = "mise run //:demo -- bunx playwright test --update-snapshots=all"
+usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files or --grep to regenerate only some screenshots"'
+run = "mise run //:demo -- bunx playwright test --update-snapshots=all{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 # The pictures are English whatever the developer's own REZEPTE_LOCALE says:
 # the demo seeds its recipes and its account in that language, and the specs
 # select by English names. Not REZEPTE_LOCALE itself: the nested
@@ -39,5 +40,6 @@ run = "bun run screenshots:audit"
 
 [tasks."screenshots:check"]
 description = "Report screenshot drift against rezepte --demo (local only)"
-run = "mise run //:demo -- bunx playwright test"
+usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files or --grep to check only some screenshots"'
+run = "mise run //:demo -- bunx playwright test{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 env = { RZP_DEMO_LOCALE = "en" } # see tasks.screenshots

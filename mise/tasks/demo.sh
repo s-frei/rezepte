@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Start rezepte --demo on this worktree's demo port; with arguments, run them against it instead"
 #MISE depends=["//:build"]
+#USAGE arg "[command]..." var=#true double_dash="required" help="A command to run against the running demo instance, after --; it is stopped afterwards"
 #
 # `mise run demo` starts the binary with demo data and keeps it up until Ctrl-C
 # - the fastest way to a realistic instance to click through or point a probe
