@@ -39,3 +39,27 @@ test('logs in, survives reload, logs out', async ({ page }, testInfo) => {
 	await signOut(page, testInfo);
 	await expect(page).toHaveURL(/\/login/);
 });
+
+// A password manager fills and saves by these attributes alone, and a phone
+// keyboard that capitalized "sam" to "Sam" would fail the login.
+test('the login form speaks to password managers', async ({ page }) => {
+	await page.goto('/login');
+	const username = page.getByLabel('Username');
+	await expect(username).toHaveAttribute('autocomplete', 'username');
+	await expect(username).toHaveAttribute('autocapitalize', 'none');
+	await expect(username).toHaveAttribute('spellcheck', 'false');
+	await expect(page.getByLabel('Password')).toHaveAttribute('autocomplete', 'current-password');
+});
+
+test('the password change names the account it belongs to', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+	const account = page.locator('input[autocomplete="username"]');
+	await expect(account).toHaveValue('admin');
+	await expect(account).toBeHidden();
+	await expect(page.getByLabel('New password', { exact: true })).toHaveAttribute(
+		'autocomplete',
+		'new-password'
+	);
+});

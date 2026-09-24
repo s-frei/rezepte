@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import { changePassword } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { session } from '$lib/auth.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -50,6 +51,16 @@
 </script>
 
 <form onsubmit={submit} class="space-y-4">
+	<!-- Tells a password manager which account the new password belongs to;
+	     without it the change is saved as a second, nameless entry. -->
+	<input
+		type="text"
+		name="username"
+		autocomplete="username"
+		value={session.user?.username ?? ''}
+		readonly
+		hidden
+	/>
 	<Input
 		id="current-password"
 		label={m.settings_password_current()}
