@@ -10,6 +10,7 @@ bun = "1.4.2"
 golangci-lint = "2.13.2"
 sqlc = "1.31.1"
 watchexec = "2.7.3"
+git-lfs = "3.8.0"
 
 [settings]
 lockfile = true
@@ -38,7 +39,7 @@ RZP_DOCS_USER_PORT   = "{{ 4001 + (vars.REZEPTE_PORT_OFFSET | default(value=env.
 [tasks.setup]
 description = "Install all dependencies"
 depends = ["//frontend:install", "//docs/memory:install", "//docs/user:install"]
-run = "cd service && go mod download"
+run = ["git lfs install --local", "cd service && go mod download"]
 
 [tasks.dev]
 description = "Run Go API and SvelteKit dev server"
@@ -122,4 +123,12 @@ docker run --rm -p "$RZP_DEMO_PORT:8060" rezepte:local --demo
 [tasks.docs]
 description = "Run both documentation sites (memory :4000, user :4001 by default; mise run ports for this worktree)"
 depends = ["//docs/memory:dev", "//docs/user:dev"]
+
+
+[tasks."demo-photos:pull"]
+description = "Download the demo photo originals from Git LFS, which a clone skips"
+# .lfsconfig excludes assets/demo-photos so no clone pays ~150 MB for files
+# only a photo regeneration reads. An --include alone does not lift that
+# exclude; the empty --exclude clears it for this one call.
+run = 'git lfs pull --include="assets/demo-photos/**" --exclude=""'
 
