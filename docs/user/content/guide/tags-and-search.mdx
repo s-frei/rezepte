@@ -1,11 +1,11 @@
 ---
 title: Tags and search
-description: Find recipes by title, ingredient, tag, time or favorite
+description: Find recipes by title, ingredient, tag, time, favorite or author, and sort the list
 ---
 
 <Screenshot name="search" caption="Searching the overview" />
 
-Type into the search box to filter the overview. It matches the beginning of words in the title, description, ingredient names and tags — so "pota" finds "potatoes" wherever it appears. "Load more" loads the next page of results.
+Type into the search box to filter the overview. It matches the beginning of words in the title, description, ingredient names and tags — so "pota" finds "potatoes" wherever it appears. German umlauts can be typed either way: "kaese" finds "Käse", and "käse" finds "Kaese". "Load more" loads the next page of results.
 
 ## Tags
 
@@ -15,17 +15,19 @@ The row is one line. When the tags do not fit, the ones that do not are folded a
 
 ## Filtering
 
-Everything that narrows the list without being a tag lives behind the "Filters" button, and the number on that button counts what is currently set:
+Everything that narrows the list without being a tag lives behind the "Filters" button. The number on that button counts how far the list is narrowed: every filter that is set, plus every tag switched on in the row above.
 
 <Screenshot name="filters" caption="The filter panel with a time limit set" />
 
 **Time** is the total time a recipe takes, preparation and cooking together. The slider moves in steps — a quarter hour at a time up to an hour, then in larger jumps up to four hours — and its right-hand end means "Any": no limit at all. The list updates when you let go of the slider, not while you drag it.
 
-**Favorites only** limits the list to the recipes you have starred. Stars are your own; another household member's favorites are not in your list.
+**Favorites only** limits the list to the recipes you have starred (see [Favorites](/guide/recipes#favorites)). Stars are your own; another household member's favorites are not in your list.
 
-**Sort by** orders the result — most recently changed, newest first, or A–Z. It sits next to the search box on a wide screen and moves into this panel on a phone. Sorting is not counted on the "Filters" button: it reorders the list rather than shortening it.
+**Added by** limits the list to the recipes one person added: pick them from the chips, each with a dot in their color and the number of their recipes; pick the same chip again to let go. The section appears only once at least two people have added recipes.
 
-"Reset all filters" appears in the panel as soon as anything is set and clears the search term along with every filter.
+**Sort by** orders the result — "Recently changed", "Newest first" or "A–Z". It sits next to the search box on a wide screen and moves into this panel on a phone. Sorting is not counted on the "Filters" button: it reorders the list rather than shortening it.
+
+"Reset all filters" appears in the panel as soon as a tag or a filter is on — a search term alone does not bring it up — and clears the search term along with every tag and filter. It leaves the sort order as it is.
 
 <Callout type="info" title="Good to know">
   Every filter is part of the page address, so a narrowed list can be bookmarked or sent to someone — they open it on the same result. Tags are lower-cased and de-duplicated automatically, and a recipe can carry at most 20 of them.

@@ -1,6 +1,6 @@
 ---
 title: Tour of the app
-description: The top bar, bottom navigation and command palette
+description: The top bar, bottom navigation, settings and command palette
 ---
 
 <Screenshot name="overview" caption="The recipe overview with search, tag chips and the card grid" />
@@ -9,23 +9,36 @@ description: The top bar, bottom navigation and command palette
 
 ## Getting around
 
-On desktop, the top bar carries "New recipe" and a user menu (profile initial, top right) with links to "Settings" and "Sign out". On a phone, the same actions move into a bottom navigation bar: "Recipes" (the overview), "Search", "New" (the editor) and "More" (settings and everything not on the bar).
+On desktop, the top bar carries "New recipe" and the "Account menu" (your initial, top right) with links to "Settings" and "Sign out". Next to it sits an "Import" button that is not available yet — it only says "Coming soon" (see [Roadmap](/roadmap)). On a recipe, in the editor and in Settings, the top bar names the page next to the app's name, and the two buttons make way for what that page needs: a recipe's own "Edit", "Cook mode" and "More actions", or nothing at all in the editor and in Settings, which keep their actions on the page.
+
+On a phone, the same actions move into a bottom navigation bar: "Recipes" (the overview), "Search", "New" (the round button in the middle, which opens the editor) and "More", a sheet with "Settings" and "Sign out". The editor and Settings have a one-line head at the top instead of a sidebar: it names the section you are in, and tapping it opens "Contents", a sheet listing every section to jump to.
+
+## Settings
+
+"Settings" has a page for every member and one for admins only, listed in its sidebar (or its "Contents" sheet on a phone):
+
+- **Profile** — your display name, color and language, the theme, your password and a link to this guide. See [Settings](/guide/settings).
+- **API** — the address of this instance's API and its documentation; admins also issue [API tokens](/api/tokens) here.
+- **Members** — admins only: the member list and the household's recipe editing setting. See [Members](/guide/users).
+
+"Sign out" sits at the foot of the same list, set apart from the pages.
 
 ## Command palette
 
 <Screenshot name="command-palette" caption="The command palette, opened with ⌘K / Ctrl+K" />
 
-Press `⌘K` (macOS) or `Ctrl+K` (everywhere else) anywhere except the login page and [cook mode](/guide/cook-mode), or click the palette button in the search bar, to open the command palette. It jumps straight to a recipe by name, or runs "New recipe" and "Settings" without leaving the keyboard.
+Press `⌘K` (macOS) or `Ctrl+K` (everywhere else) anywhere except the login page and [cook mode](/guide/cook-mode), or on a wide screen click the palette button at the end of the search bar, to open the command palette. It jumps straight to a recipe by name, or runs "New recipe" and "Settings" without leaving the keyboard.
 
 ## Feature pages
 
 <Cards>
-  <Card href="/guide/recipes" title="Recipes" description="Create and edit recipes: ingredients, steps and tags." />
+  <Card href="/guide/recipes" title="Recipes" description="Create, edit and delete recipes: ingredients, steps, tags and favorites." />
   <Card href="/guide/images" title="Photos" description="Upload, reorder and remove recipe photos; the cover and the lightbox." />
-  <Card href="/guide/tags-and-search" title="Tags and search" description="Find recipes by title, ingredient, tag or free text." />
+  <Card href="/guide/tags-and-search" title="Tags and search" description="Find recipes by text and tags; filter by time, favorites and author, and sort the list." />
   <Card href="/guide/servings" title="Servings" description="Scale ingredient quantities to any number of servings." />
   <Card href="/guide/cook-mode" title="Cook mode" description="A full-screen, step-by-step view for cooking at the stove." />
-  <Card href="/guide/users" title="Members" description="Create accounts, reset passwords and delete members; the owner assigns roles." />
-  <Card href="/guide/settings" title="Settings" description="Theme, password and signing out." />
+  <Card href="/guide/users" title="Members" description="Create accounts, reset passwords and delete members; the owner assigns roles and edits profiles." />
+  <Card href="/guide/editing-rights" title="Editing rights" description="Who may change, re-photograph and delete a recipe." />
+  <Card href="/guide/settings" title="Settings" description="Your profile, color and language, theme, password, the API tab and help." />
   <Card href="/guide/shortcuts" title="Keyboard shortcuts" description="Every shortcut the app defines, in one table." />
 </Cards>

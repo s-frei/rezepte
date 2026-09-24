@@ -26,7 +26,7 @@ Photos follow the recipe's editing rights: whoever may edit a recipe may add, re
 
     ### Reorder or remove
 
-    Drag a photo to reorder it, or use "Remove photo" to delete it.
+    Drag a photo by its handle to reorder it, or use "Remove photo" to delete it.
 
   </Step>
 </Steps>
@@ -37,15 +37,15 @@ Photos follow the recipe's editing rights: whoever may edit a recipe may add, re
 
 ## On the detail page
 
-The cover photo shows large at the top, with the other photos as thumbnails below it. Clicking any of them opens the lightbox:
+On a wide screen, the cover photo shows large, with the other photos as thumbnails below it. Clicking a thumbnail puts that photo in the large spot; clicking the large photo opens the lightbox. On a phone, the photos form a carousel at the top of the page that starts on the cover: swipe through them, follow the dots, and tap one to open it in the lightbox.
 
 <Screenshot name="lightbox" caption="The lightbox, with the original download link" />
 
-"Download the original" downloads the full-resolution file.
+"Download the original" downloads the largest copy Rezepte keeps — the uploaded photo scaled to at most 2400 px on its longest side, not the file as it came off the camera.
 
 <Accordions type="single">
   <Accordion title="Formats and limits">
-    JPEG, PNG and WebP are accepted, up to 10 MiB per file and up to 20 photos per recipe. Each photo must be between 64 and 12000 px on its longest side, and decode to at most 60 megapixels.
+    JPEG, PNG and WebP are accepted, up to 10 MB per file and up to 20 photos per recipe. Each side of a photo must be between 64 and 12000 px, and the whole photo at most 60 megapixels.
   </Accordion>
   <Accordion title="Orientation and stored sizes">
     A photo's orientation is fixed from its EXIF data on upload, so it always displays upright regardless of how the camera recorded it. Three JPEG sizes are stored for every photo: the original (resized to at most 2400 px), a detail size (1600 px) and a thumbnail (960 px).

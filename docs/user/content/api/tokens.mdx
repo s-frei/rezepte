@@ -6,20 +6,21 @@ description: Let programs reach your recipes without a login form
 An API token lets a program talk to your instance the way the app does, without
 a login form. Use one for a script, a second instance, or an AI assistant.
 
-Only admins can issue tokens, under **Settings -> API**.
+Only admins can issue tokens, under **Settings → API**.
 
 ## Creating a token
 
-1. Open **Settings -> API** and choose **Create token**.
+1. Open **Settings → API** and choose **Create token**.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
    That name is how you tell tokens apart later.
 3. Choose what it may do. **Recipes** and **Members** are set separately, each
-   as no access, read, or read and write. Give a token the least it needs.
-4. Choose how long it should live: 30 days, 90 days, a year, or no expiry.
-5. Confirm.
+   as **No access**, **Read**, or **Read & write**. Give a token the least it needs.
+4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.
+5. Choose **Create**.
 
-The token is now shown **once**. Copy it before closing the dialog - it cannot
-be recovered afterwards. If you lose it, revoke it and create a new one.
+The token is now shown **once**. Copy it, then choose **I have saved it** to
+close the dialog - it cannot be recovered afterwards. If you lose it, revoke it
+and create a new one.
 
 ## Using a token
 
@@ -34,12 +35,18 @@ discover the API on its own.
 
 ## What a token cannot do
 
-A token acts as the admin who created it, limited by its scopes. Three things
+A token acts as the admin who issued it, limited by its scopes. Some things
 are out of reach whatever scopes it carries:
 
-- managing API tokens, so a token can never issue another one
-- changing a password or ending sessions
-- anything at all, once its owner loses the admin role or is deleted
+- managing API tokens, so a token can never list, issue or revoke one
+- anything about its own account: reading it (`GET /api/v1/auth/me`),
+  changing its password, display name or color, or looking up which colors
+  are taken
+- signing out, or any other session mechanics
+- changing the household's recipe editing setting (`PATCH /api/v1/settings`);
+  reading it works with **Recipes: Read**
+- anything at all, once the admin who issued it loses the admin role or is
+  deleted
 
 One consequence worth knowing before you automate account cleanup: deleting a
 member does not delete their recipes, it transfers them to the account that
@@ -47,7 +54,7 @@ performed the deletion - which for a token means the admin who issued it.
 
 It also inherits that admin's rank, which is what decides how far
 **Members: Read & write** reaches. Issued by an ordinary admin, a token
-can add and remove members but cannot make anyone an admin, because the
+can add and delete members but cannot make anyone an admin, because the
 account behind it cannot either (see [Members](/guide/users)). Issued by the
 owner, it can.
 
@@ -60,14 +67,14 @@ Recipe [editing rights](/guide/editing-rights) never narrow a working token
 either: admins may edit and delete every recipe, locked or not, and so may
 their tokens with **Recipes: Read & write**. That lasts only as long as the
 account behind the token is an admin - a token always acts with its
-creator's current role, and stops working once that role is gone. Only the owner can change the
+issuer's current role, and stops working once that role is gone. Only the owner can change the
 household's editing setting, and only in the browser.
 
 ## Revoking a token
 
 Choose **Revoke** on its row. The token stops working immediately.
 
-Expired tokens stay in the list, marked as such, until you remove them - so you
-can always see why an integration stopped. The list shows the first characters
+Expired tokens stay in the list, marked as such, until you revoke them - so you
+can always see why an integration stopped. The list shows who issued each token ("Issued by") and the first characters
 of each token, which is how you match a row to the entry in a program's
 configuration. "Last used" is accurate to the hour.

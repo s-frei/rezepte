@@ -16,12 +16,12 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | Change your own password | ✓ | ✓ | ✓ |
 | Change your own display name and color | ✓ | ✓ | ✓ |
 | See the member list | – | ✓ | ✓ |
-| Add a member, reset a member's password, remove a member | – | ✓ | ✓ |
-| Add an **admin**, reset an admin's password, remove an admin | – | – | ✓ |
+| Add a member, reset a member's password, delete a member | – | ✓ | ✓ |
+| Add an **admin**, reset an admin's password, delete an admin | – | – | ✓ |
 | Hand out the "Admin" role or take it back | – | – | ✓ |
 | Change **someone else's** display name or color | – | – | ✓ |
 | Issue [API tokens](/api/tokens) | – | ✓ | ✓ |
-| Remove or demote the **Owner**, or reset their password | – | – | – |
+| Delete or demote the **Owner**, or reset their password | – | – | – |
 | Delete your own account | – | – | – |
 
 There is exactly one Owner and it never changes: the role cannot be handed to anyone, which is why "Owner" is not offered when you create an account or change a role.
@@ -44,7 +44,7 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     <Screenshot name="user-create" caption="Creating a new member" />
 
-    "Admin" can manage users and everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
+    "Admin" manages members and can do everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
 
     "Language" starts on the language you are reading right now, on the assumption that a household sets up accounts in the language it speaks. It is only a starting point: the language is the one profile field nobody else can change once the account exists, so the new member switches it themselves in their own settings if you guessed wrong.
 
@@ -76,9 +76,9 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
   </Step>
   <Step>
 
-    ### Remove a member
+    ### Delete a member
 
-    Delete their row. Their recipes are not removed — see the note below.
+    "Delete" in their row asks "Delete member?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
 
   </Step>
 </Steps>
@@ -97,7 +97,7 @@ Below the member list, the **Recipe editing** card holds the household setting t
 
 <Accordions type="single">
   <Accordion title="What happens to a deleted member's recipes">
-    They are not deleted — they are transferred to the admin who performed the deletion, who becomes their author. Each recipe's editing setting stays as it was.
+    They are not deleted — they are transferred to the admin who performed the deletion, who becomes their author. Where the deleted member was the last to edit somebody else's recipe, that admin takes their place as "Last edited by" too; the recipe's author stays who it was. Each recipe's editing setting stays as it was.
   </Accordion>
   <Accordion title="Members and this page">
     A "Member" account that navigates directly to this page's URL is sent to their own settings instead; the same rule is enforced by the API, so this is purely a courtesy redirect, not the only protection.
