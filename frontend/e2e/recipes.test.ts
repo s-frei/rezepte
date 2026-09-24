@@ -1344,6 +1344,47 @@ test('keeps both step editors and their links after a drag', async ({ page }) =>
 	await expect(page.getByRole('main')).toContainText('Saft(400 ml) aufkochen.');
 });
 
+// Every zone in the editor is its own kind of list. Without a zone type
+// svelte-dnd-action files them all under one, so a keyboard drag offered to
+// carry an ingredient into the steps, and dropping it there broke the page.
+// Groups share a type, so an ingredient still moves between them.
+test('a dragged ingredient stays among the ingredients', async ({ page }) => {
+	const errors: string[] = [];
+	page.on('pageerror', (error) => errors.push(error.message));
+
+	await openNewRecipe(page);
+	await page.getByRole('textbox', { name: 'Ingredient', exact: true }).fill('Lemon');
+
+	const ingredients = page.getByRole('list', { name: 'Ingredients' });
+	const steps = page.getByRole('list', { name: 'Steps', exact: true });
+	const alert = page.locator('#dnd-action-aria-alert');
+
+	// The handle arms the drag and the item starts it, which is the order
+	// svelte-dnd-action's handle zones take a keyboard drag in.
+	await ingredients.getByRole('button', { name: 'Move ingredient' }).first().focus();
+	await page.keyboard.press('Enter');
+	await ingredients.getByRole('listitem').first().focus();
+	await page.keyboard.press('Enter');
+
+	await expect(alert).toHaveText(
+		'Moving "Lemon". Use the arrow keys to move it within the list Ingredients.'
+	);
+	// A zone the item may enter is made focusable for the drag.
+	await expect(steps).toHaveAttribute('tabindex', '-1');
+	await page.keyboard.press('Escape');
+
+	await page.getByRole('button', { name: 'Add group' }).click();
+	await ingredients.getByRole('button', { name: 'Move ingredient' }).first().focus();
+	await page.keyboard.press('Enter');
+	await ingredients.getByRole('listitem').first().focus();
+	await page.keyboard.press('Enter');
+	await expect(alert).toContainText('or Tab to switch to another list');
+	await expect(steps).toHaveAttribute('tabindex', '-1');
+	await page.keyboard.press('Escape');
+
+	expect(errors).toEqual([]);
+});
+
 // The phone's running head and contents sheet. A short recipe cannot scroll
 // "Steps" to the top, so the scroll a pick starts ends at the foot of the
 // page - where the spy used to hand the highlight straight on to the last

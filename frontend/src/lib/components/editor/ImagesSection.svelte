@@ -304,6 +304,7 @@
 		<ul
 			use:dragHandleZone={{
 				items: tiles,
+				type: 'photo',
 				flipDurationMs: FLIP_DURATION,
 				dropTargetStyle: {},
 				dragDisabled: uploading
