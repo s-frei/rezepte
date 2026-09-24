@@ -74,23 +74,23 @@ func (q *Queries) GetAPITokenByHash(ctx context.Context, tokenHash string) (ApiT
 }
 
 const listAPITokens = `-- name: ListAPITokens :many
-SELECT t.id, t.user_id, t.name, t.token_hash, t.token_prefix, t.scopes, t.expires_at, t.last_used_at, t.created_at, u.username AS owner_name
+SELECT t.id, t.user_id, t.name, t.token_hash, t.token_prefix, t.scopes, t.expires_at, t.last_used_at, t.created_at, u.username AS owner_username
 FROM api_tokens t
 JOIN users u ON u.id = t.user_id
 ORDER BY t.created_at DESC
 `
 
 type ListAPITokensRow struct {
-	ID          string
-	UserID      string
-	Name        string
-	TokenHash   string
-	TokenPrefix string
-	Scopes      string
-	ExpiresAt   *string
-	LastUsedAt  *string
-	CreatedAt   string
-	OwnerName   string
+	ID            string
+	UserID        string
+	Name          string
+	TokenHash     string
+	TokenPrefix   string
+	Scopes        string
+	ExpiresAt     *string
+	LastUsedAt    *string
+	CreatedAt     string
+	OwnerUsername string
 }
 
 func (q *Queries) ListAPITokens(ctx context.Context) ([]ListAPITokensRow, error) {
@@ -112,7 +112,7 @@ func (q *Queries) ListAPITokens(ctx context.Context) ([]ListAPITokensRow, error)
 			&i.ExpiresAt,
 			&i.LastUsedAt,
 			&i.CreatedAt,
-			&i.OwnerName,
+			&i.OwnerUsername,
 		); err != nil {
 			return nil, err
 		}

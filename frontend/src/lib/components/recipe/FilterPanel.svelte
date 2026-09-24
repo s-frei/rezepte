@@ -267,12 +267,12 @@
 										{m.overview_filter_author_heading()}
 									</h3>
 									<div class="flex flex-wrap gap-2">
-										{#each authors as person (person.name)}
+										{#each authors as person (person.username)}
 											<TagChip
 												label={person.displayName}
 												count={person.count}
-												active={author === person.name}
-												onclick={() => onauthor(author === person.name ? '' : person.name)}
+												active={author === person.username}
+												onclick={() => onauthor(author === person.username ? '' : person.username)}
 											>
 												{#snippet leading()}
 													<span

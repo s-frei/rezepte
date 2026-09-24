@@ -90,7 +90,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | set favourite | `PUT /recipes/{id}/favourite` | `204`; `404` for an unknown recipe; idempotent - starring twice is not an error |
 | clear favourite | `DELETE /recipes/{id}/favourite` | `204`; never `404` - clearing a star that was not set is not an error |
 | list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see [Recipes and search](/features/recipes)) |
-| list authors | `GET /authors` | `{items: [{name, displayName, color, count}]}`, most recipes first; the people who wrote at least one recipe. `name` is the username, because that is what `?author=` matches; `displayName` and `color` are what the facet chip shows. Readable by any signed-in member, unlike `/users` above: no roles, no ids and no accounts without recipes (see [Recipes and search](/features/recipes)) |
+| list authors | `GET /authors` | `{items: [{username, displayName, color, count}]}`, most recipes first; the people who wrote at least one recipe. `username` is what `?author=` matches; `displayName` and `color` are what the facet chip shows. Readable by any signed-in member, unlike `/users` above: no roles, no ids and no accounts without recipes (see [Recipes and search](/features/recipes)) |
 
 `GET /recipes` query parameters:
 

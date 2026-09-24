@@ -13,7 +13,7 @@ export type ApiToken = {
 	prefix: string;
 	scopes: TokenScope[];
 	ownerId: string;
-	ownerName: string;
+	ownerUsername: string;
 	createdAt: string;
 	/** Absent when the token never expires. */
 	expiresAt?: string;

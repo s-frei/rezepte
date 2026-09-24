@@ -63,10 +63,10 @@
 		revealOpen = true;
 		// Named fields only, not a rest spread: the secret must not linger in
 		// the list's state one moment longer than the reveal dialog needs it.
-		const { id, name, prefix, scopes, ownerId, ownerName, createdAt, expiresAt, lastUsedAt } =
+		const { id, name, prefix, scopes, ownerId, ownerUsername, createdAt, expiresAt, lastUsedAt } =
 			token;
 		tokens = [
-			{ id, name, prefix, scopes, ownerId, ownerName, createdAt, expiresAt, lastUsedAt },
+			{ id, name, prefix, scopes, ownerId, ownerUsername, createdAt, expiresAt, lastUsedAt },
 			...tokens
 		];
 	}
