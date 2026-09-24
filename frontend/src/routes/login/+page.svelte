@@ -58,10 +58,16 @@
 		<div class="space-y-1.5">
 			<Label.Root for="username" class="text-caption font-semibold">{m.login_username()}</Label.Root
 			>
+			<!-- The page has one job, so it starts in its first field. It has to
+			     be the attribute: SvelteKit moves focus to <body> after every
+			     navigation, the redirect here included, unless an element
+			     carries `autofocus`. -->
+			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				id="username"
 				name="username"
 				type="text"
+				autofocus
 				autocomplete="username"
 				autocapitalize="none"
 				spellcheck="false"
