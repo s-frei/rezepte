@@ -314,19 +314,7 @@ func (s *Service) Authors(ctx context.Context) ([]AuthorCount, error) {
 
 // Count returns how many recipes exist.
 func (s *Service) Count(ctx context.Context) (int, error) {
-	// TagCount: 0, MaxMinutes: 0 and FavoritesOnly: 0 switch those filters
-	// off entirely (see the note on ListRecipesFiltered), so TagNames never
-	// has to hold real tag names and UserID never has to hold a real user
-	// id. All three are now a concrete int64 (see the CAST note on
-	// ListRecipesFiltered) whose Go zero value is already 0, but they are
-	// still spelled out explicitly rather than leaning on that: this call
-	// site broke three times on this branch from omitting one of them
-	// while it was still an untyped param whose zero value was nil, not 0
-	// - leaving it unset bound NULL and made the condition's "= 0" test
-	// false instead of switching the filter off.
-	n, err := s.q.CountRecipesFiltered(ctx, sqlc.CountRecipesFilteredParams{
-		TagNames: "[]", TagCount: 0, MaxMinutes: 0, FavoritesOnly: 0, UserID: "", Author: "",
-	})
+	n, err := s.q.CountRecipes(ctx, sqlc.RecipeFilter{})
 	if err != nil {
 		return 0, fmt.Errorf("count recipes: %w", err)
 	}
