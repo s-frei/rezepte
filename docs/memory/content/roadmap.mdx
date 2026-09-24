@@ -25,13 +25,21 @@ claude.ai custom connectors need OAuth 2.1, not the static bearer token the [MCP
 
 Second authenticator next to sessions. Users are matched by the provider's subject identifier - the `users` table holds no email address to match on - and roles stay local.
 
+## Sharing
+
+A revocable public link per recipe that opens a read-only page without an account, with link previews for messengers. Sharing from a phone offers a choice: the public link, or a rendered picture of the recipe with its ingredients as text, sent through whichever messenger the phone offers.
+
+## Import and export
+
+Export a recipe or the whole collection with its photos in a lossless format of Rezepte's own; import that format and schema.org `Recipe` JSON-LD. Importing from a URL is the same pipeline behind a fetch: parse the page's `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk). A single import always opens as a draft in the editor; the importing member is its author, and the recipe notes where it came from. The export format is also the candidate format for instance sync. The "Import" buttons in the top bar and on the overview stay disabled, titled "coming soon", until import lands.
+
+## Shopping list
+
+Turn a recipe's ingredients, scaled to the chosen servings, into a shopping list; several recipes add up on one list. It holds recipe ingredients only.
+
 ## More recipe features
 
-Personal notes, "last cooked", shopping list, meal plan.
-
-## Recipe import from a URL
-
-Draft a recipe from a pasted URL: fetch the page, parse schema.org `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk), pre-fill the editor for review before saving. The "Import" buttons in the top bar and on the overview stay disabled, titled "coming soon", until it lands.
+Personal notes, "last cooked", meal plan.
 
 ## Tooling
 
