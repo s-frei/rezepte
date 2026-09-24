@@ -17,7 +17,7 @@ flowchart LR
 
 ## Runtime
 
-One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, opens SQLite (Phase 2), runs migrations (Phase 2), ensures the instance owner (Phase 2), and starts `httpserver`. `--reset-superadmin-password` cuts that short: it sets the owner's password from `REZEPTE_ADMIN_PASSWORD`, drops every session of that account and returns without serving. The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA for everything else with an `index.html` fallback.
+One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, opens SQLite, runs migrations, ensures the instance owner, and starts `httpserver`. `--reset-superadmin-password` cuts that short: it sets the owner's password from `REZEPTE_ADMIN_PASSWORD`, drops every session of that account and returns without serving. The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA for everything else with an `index.html` fallback.
 
 ## Packages
 
@@ -27,15 +27,18 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     - `internal/config` – env to struct
     - `internal/httpserver` – mux, huma, middleware, SPA handler, lifecycle
     - `internal/web` – embedded `dist/`
-    - one package per domain (`auth`, `user`, `recipe`, `image`) with `handler → service → sqlc` layering
-    - `internal/demo` – seeds the sample recipes and placeholder images through those services for `--demo` (see [Demo mode](/features/demo-mode))
+    - one package per domain (`auth`, `user`, `recipe`, `image`, `settings`) with `handler → service → sqlc` layering
+    - `internal/userapi`, `internal/tokenapi` – the admin-only user and token operations; handlers only, in packages of their own because they need `auth` and `auth` already imports `user`
+    - `internal/i18n` – the set of interface languages, read from `locales.json` (see [Languages](/features/languages))
+    - `internal/demo` – seeds the sample recipes with their embedded photos through those services for `--demo`, with generated placeholders only for a sample set that has no photos (see [Demo mode](/features/demo-mode))
+    - `cmd/demo-photos` – derives the embedded demo photos from the originals in `assets/demo-photos`
 
   </Tab>
   <Tab value="frontend">
 
     - `src/lib/api` – fetch wrapper and per-resource functions
     - `src/lib/components/ui` – styled wrappers around Bits UI
-    - `src/lib/components/recipe`, `editor`, `cook` – feature components
+    - `src/lib/components/recipe`, `editor`, `cook`, `nav`, `settings`, `shell` – feature components
     - `src/lib/recipe` – pure recipe logic (query state, form mapping, quantity formatting, servings scaling) and its rune stores
     - `src/routes` – file-based routes, `+layout.ts` sets `ssr = false`
     - `messages/en.json`, `de.json` – UI copy, one catalog per language
@@ -61,6 +64,7 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     REZEPTE_ADMIN_PASSWORD: { description: 'Instance owner password (first start, and --reset-superadmin-password)', type: 'string' },
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn, error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
+    REZEPTE_LOCALE: { description: 'Interface language of a new account, and the demo sample set', type: 'string', default: 'en' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie', type: 'boolean', default: 'false' },
   }}
 />

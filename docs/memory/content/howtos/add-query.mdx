@@ -12,7 +12,7 @@ description: Hand-written SQL compiled into typed Go
     -- name: ListUsers :many
     SELECT * FROM users ORDER BY username;
     ```
-    Suffixes: `:one`, `:many`, `:exec`, `:execrows`. Placeholders are `?` in order.
+    Suffixes: `:one`, `:many`, `:exec`, `:execrows`. Placeholders are `?` in order, or `sqlc.arg(name)` - but never both in one statement: SQLite numbers a plain `?` after the highest explicit index a `sqlc.arg()` compiles to, and the driver then never binds it, silently. All or none per statement; see [Recipes and search](/features/recipes).
 
   </Step>
   <Step>
