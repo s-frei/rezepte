@@ -1,0 +1,26 @@
+---
+title: Language
+description: American English everywhere in the repository, German only where a German reader is the audience
+---
+
+Everything in the repository is written in **American English**: code, identifiers, JSON keys, URL paths and query parameters, SQL, comments, commits, both docs sites and the English UI copy in `frontend/messages/en.json`. German appears in exactly three places, each because a German reader is its audience: `frontend/messages/de.json`, the German sample recipes in `service/internal/recipe/testdata/recipes.de.json`, and test data or assertions that exercise the German interface.
+
+## Why one variety, and why this one
+
+A rule that applies to every word can be followed without thinking about any of them. The alternative this replaced - American identifiers, British prose - asked for a decision on every line, and the repository had drifted into both at once: the API answered with `favourite` beside `color`, the table was `favourites`, and a comment would say "colour" about a field named `color`. The interface language is plain `en`, not `en-GB`, so nothing asks for British spelling in the first place. American is the variety the web platform, the libraries and API consumers already use - CSS `color`, `center`, `gray` - so identifiers read like the code around them.
+
+## The pairs that come up
+
+| Write | Not |
+|---|---|
+| color, colors, colored | colour |
+| favorite, favorites | favourite |
+| behavior | behaviour |
+| center, centered | centre, centred |
+| gray | grey |
+| catalog | catalogue |
+| artifact | artefact |
+| canceled, labeled, signaling, traveling | cancelled, labelled, signalling, travelling |
+| normalize, serialize, recognize, optimize, synchronize, authorization | normalise, serialise, recognise, optimise, synchronise, authorisation |
+
+The *-ize* column covers every verb of that family; words that end in *-ise* in American English as well - *promise*, *exercise*, *advise*, *surprise*, *mise* - stay as they are. A recipe's own vocabulary is not spelling: the English sample recipes are British dishes and keep their *caster sugar* and *double cream*.
