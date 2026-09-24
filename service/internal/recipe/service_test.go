@@ -137,7 +137,7 @@ func TestUpdateReplacesChildrenAndKeepsSlug(t *testing.T) {
 	in.Title = "Käsespätzle deluxe"
 	in.Tags = []string{"Vegetarisch", "neu"}
 	in.IngredientGroups = in.IngredientGroups[:1]
-	in.Steps = []string{"Alles mischen."}
+	in.Steps = []recipe.Step{{Text: "Alles mischen."}}
 	updated, err := svc.Update(ctx, created.ID, uid, in)
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -513,5 +513,201 @@ func TestCardsCarryTheAuthorsDisplayNameAndColour(t *testing.T) {
 	}
 	if authors[0].DisplayName != "Sam der Koch" || authors[0].Color != "teal" {
 		t.Errorf("facet = %q / %q; want the display name and teal", authors[0].DisplayName, authors[0].Color)
+	}
+}
+
+func f64(v float64) *float64 { return &v }
+
+func TestCreateAndLoadRoundTripsReferences(t *testing.T) {
+	svc, userID := setup(t)
+	ctx := context.Background()
+
+	teig, fuellung := "Teig", "Füllung"
+	in := recipe.Input{
+		Title:    "Maultaschen",
+		Servings: 4,
+		IngredientGroups: []recipe.IngredientGroup{
+			{Name: &teig, Ingredients: []recipe.Ingredient{{Name: "Ei", Quantity: f64(3)}}},
+			{Name: &fuellung, Ingredients: []recipe.Ingredient{{Name: "Ei", Quantity: f64(1)}}},
+		},
+		Steps: []recipe.Step{
+			{Text: "Mehl und Ei verkneten.", References: []recipe.IngredientRef{
+				{Word: "Ei", GroupName: &teig, IngredientName: "Ei"},
+			}},
+			{Text: "Spinat mit Ei vermengen.", References: []recipe.IngredientRef{
+				{Word: "Ei", GroupName: &fuellung, IngredientName: "Ei"},
+			}},
+		},
+	}
+
+	created, err := svc.Create(ctx, userID, in)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if len(got.Steps) != 2 {
+		t.Fatalf("steps = %d, want 2", len(got.Steps))
+	}
+	if n := len(got.Steps[0].References); n != 1 {
+		t.Fatalf("step 0 references = %d, want 1", n)
+	}
+	if g := got.Steps[0].References[0].GroupName; g == nil || *g != "Teig" {
+		t.Errorf("step 0 group = %v, want Teig", g)
+	}
+	if g := got.Steps[1].References[0].GroupName; g == nil || *g != "Füllung" {
+		t.Errorf("step 1 group = %v, want Füllung", g)
+	}
+}
+
+// TestCreateAndLoadRoundTripsReferencesWithinOneGroup pins the ingredient
+// index within a single group. TestCreateAndLoadRoundTripsReferences above
+// only discriminates by group (both ingredients there are named "Ei"), so
+// it would catch a group/ingredient axis swap but not an off-by-one within
+// one group's ingredient list. Here both ingredients live in the same
+// (unnamed) group and are named differently, so a wrong index resolves to
+// the wrong name.
+func TestCreateAndLoadRoundTripsReferencesWithinOneGroup(t *testing.T) {
+	svc, userID := setup(t)
+	ctx := context.Background()
+
+	in := recipe.Input{
+		Title:    "Gurkensalat",
+		Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{
+			{Ingredients: []recipe.Ingredient{
+				{Name: "Gurke", Quantity: f64(1)},
+				{Name: "Essig", Quantity: f64(2)},
+			}},
+		},
+		Steps: []recipe.Step{
+			{Text: "Gurke hobeln und mit Essig anmachen.", References: []recipe.IngredientRef{
+				{Word: "Gurke", IngredientName: "Gurke"},
+				{Word: "Essig", IngredientName: "Essig"},
+			}},
+		},
+	}
+
+	created, err := svc.Create(ctx, userID, in)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if n := len(got.Steps[0].References); n != 2 {
+		t.Fatalf("references = %d, want 2", n)
+	}
+	byWord := make(map[string]string, 2)
+	for _, r := range got.Steps[0].References {
+		byWord[r.Word] = r.IngredientName
+	}
+	if byWord["Gurke"] != "Gurke" {
+		t.Errorf(`reference for word "Gurke" resolved to ingredient %q, want "Gurke"`, byWord["Gurke"])
+	}
+	if byWord["Essig"] != "Essig" {
+		t.Errorf(`reference for word "Essig" resolved to ingredient %q, want "Essig"`, byWord["Essig"])
+	}
+}
+
+func TestReferencesSerialiseAsEmptySliceNotNil(t *testing.T) {
+	svc, userID := setup(t)
+	ctx := context.Background()
+	created, err := svc.Create(ctx, userID, recipe.Input{
+		Title: "Ohne", Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Salz"}}}},
+		Steps:            []recipe.Step{{Text: "Salzen."}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Steps[0].References == nil {
+		t.Fatal("References is nil; it must marshal as [] so GET->PUT round-trips")
+	}
+}
+
+func TestUpdateRewritesReferences(t *testing.T) {
+	svc, userID := setup(t)
+	ctx := context.Background()
+	created, err := svc.Create(ctx, userID, recipe.Input{
+		Title: "Suppe", Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Möhre", Quantity: f64(2)}}}},
+		Steps: []recipe.Step{{Text: "Möhre würfeln.", References: []recipe.IngredientRef{
+			{Word: "Möhre", IngredientName: "Möhre"},
+		}}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// Drop the reference; the row must not survive.
+	in := created.Input
+	in.Steps[0].References = nil
+	if _, err := svc.Update(ctx, created.ID, userID, in); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if n := len(got.Steps[0].References); n != 0 {
+		t.Fatalf("references = %d after removal, want 0", n)
+	}
+}
+
+// TestUpdateDroppingAReferencedIngredientStillLoads covers a document
+// rewrite that drops a referenced ingredient: the recipe must still save
+// and reload cleanly, keeping only the reference to the ingredient that
+// survives. It does not exercise the ingredient_id cascade on
+// step_references - Update always calls DeleteStepsByRecipe first, which
+// already removes every reference row for this recipe via the step_id
+// cascade, so this test would pass unchanged against a build with no
+// ingredient-side cascade at all. That cascade is covered one layer down,
+// in internal/db/db_test.go (TestStepReferencesCascadeOnIngredientDelete),
+// where an ingredient can be deleted directly while its step row survives.
+func TestUpdateDroppingAReferencedIngredientStillLoads(t *testing.T) {
+	svc, userID := setup(t)
+	ctx := context.Background()
+	created, err := svc.Create(ctx, userID, recipe.Input{
+		Title: "Salat", Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{
+			{Name: "Gurke", Quantity: f64(1)},
+			{Name: "Tomate", Quantity: f64(2)},
+		}}},
+		Steps: []recipe.Step{{Text: "Gurke und Tomate schneiden.", References: []recipe.IngredientRef{
+			{Word: "Gurke", IngredientName: "Gurke"},
+			{Word: "Tomate", IngredientName: "Tomate"},
+		}}},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Drop the "Gurke" ingredient entirely; its step still names it in the
+	// text, but no longer carries a reference to it.
+	in := created.Input
+	in.IngredientGroups[0].Ingredients = in.IngredientGroups[0].Ingredients[1:]
+	in.Steps[0].References = []recipe.IngredientRef{
+		{Word: "Tomate", IngredientName: "Tomate"},
+	}
+	if _, err := svc.Update(ctx, created.ID, userID, in); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get after update: %v", err)
+	}
+	if len(got.IngredientGroups[0].Ingredients) != 1 || got.IngredientGroups[0].Ingredients[0].Name != "Tomate" {
+		t.Fatalf("ingredients = %+v, want only Tomate", got.IngredientGroups[0].Ingredients)
+	}
+	if n := len(got.Steps[0].References); n != 1 || got.Steps[0].References[0].IngredientName != "Tomate" {
+		t.Fatalf("references = %+v, want a single Tomate reference (Gurke's row must not survive)", got.Steps[0].References)
 	}
 }

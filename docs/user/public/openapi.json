@@ -679,6 +679,37 @@
         ],
         "type": "object"
       },
+      "IngredientRef": {
+        "additionalProperties": false,
+        "properties": {
+          "groupName": {
+            "description": "Name of the ingredient group, null for the unnamed group",
+            "maxLength": 60,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ingredientName": {
+            "description": "Name of the ingredient this word points at",
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "word": {
+            "description": "The word in the step's text that names the ingredient",
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "word",
+          "groupName",
+          "ingredientName"
+        ],
+        "type": "object"
+      },
       "Input": {
         "additionalProperties": false,
         "properties": {
@@ -741,9 +772,7 @@
           },
           "steps": {
             "items": {
-              "maxLength": 2000,
-              "minLength": 1,
-              "type": "string"
+              "$ref": "#/components/schemas/Step"
             },
             "maxItems": 50,
             "type": [
@@ -1008,9 +1037,7 @@
           },
           "steps": {
             "items": {
-              "maxLength": 2000,
-              "minLength": 1,
-              "type": "string"
+              "$ref": "#/components/schemas/Step"
             },
             "maxItems": 50,
             "type": [
@@ -1072,6 +1099,30 @@
           "tags",
           "ingredientGroups",
           "steps"
+        ],
+        "type": "object"
+      },
+      "Step": {
+        "additionalProperties": false,
+        "properties": {
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientRef"
+            },
+            "maxItems": 30,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
         ],
         "type": "object"
       },
@@ -1950,7 +2001,7 @@
             },
             "description": "Created"
           },
-          "default": {
+          "422": {
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1958,7 +2009,17 @@
                 }
               }
             },
-            "description": "Error"
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
           }
         },
         "security": [

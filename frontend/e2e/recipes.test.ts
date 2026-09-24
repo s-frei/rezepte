@@ -801,3 +801,539 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
 	await expect(page).not.toHaveURL(/author=/);
 	await expect(cards(page)).toHaveCount(2);
 });
+
+// A word in a step shows the quantity of the ingredient it names. These two
+// cover the editor end of that: what the matcher proposes, and what the author
+// links by hand when the matcher cannot decide.
+/**
+ * Opens every step's folded list of links. The list is where a link's remove
+ * button lives now that the sentence's underline is the only thing shown by
+ * default.
+ */
+async function showLinks(page: Page) {
+	const folded = page.locator('button[aria-controls^="step-links-"][aria-expanded="false"]');
+	while ((await folded.count()) > 0) await folded.first().click();
+}
+
+const REFERENCE_RECIPE = {
+	description: 'Nachtisch',
+	servings: 4,
+	prepMinutes: null,
+	cookMinutes: null,
+	sourceUrl: null,
+	tags: [],
+	ingredientGroups: [
+		{
+			name: 'Grütze',
+			ingredients: [
+				{ quantity: 400, unit: 'ml', name: 'Saft', note: null },
+				{ quantity: 100, unit: 'g', name: 'Zucker', note: null }
+			]
+		},
+		{
+			name: 'Vanillesoße',
+			ingredients: [{ quantity: 50, unit: 'g', name: 'Zucker', note: null }]
+		}
+	]
+};
+
+// Deliberately full of characters an HTML round trip would mangle: opening the
+// editor has to give the text back exactly, which is why the suggestions are
+// ProseMirror decorations rather than anything written into the document.
+const REFERENCE_STEP = 'Saft aufkochen.  Bei < 100 °C & ruhen lassen.';
+
+test('accepts the matcher’s ingredient links and leaves the text as written', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Grütze ${token}`,
+		steps: [{ text: REFERENCE_STEP, references: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	await expect(step).toBeVisible();
+	// Not `toHaveText`, which collapses whitespace: this has to be the very
+	// string that was stored, character for character.
+	expect(await step.innerText()).toBe(REFERENCE_STEP);
+
+	// One proposal: "Saft". "Zucker" is not proposed, because it names a row in
+	// two groups and only the author can say which one is meant. The banner
+	// beside the proposals is what says a save will take them; the save button
+	// itself stays a plain "Save".
+	const banner = page.getByText('Saving accepts 1 suggestion');
+	await expect(banner).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveText('Save');
+
+	// The proposal is a dotted underline over the word - a decoration, not
+	// anything written into the text.
+	const marked = page.locator('[data-ref-word="Saft"]');
+	await expect(marked).toHaveClass('ref-suggestion');
+
+	await page.getByRole('button', { name: 'Accept now' }).click();
+	// Accepting runs no keystroke through the editor, so the underline only
+	// turns solid if the state change is pushed into ProseMirror. This is the
+	// assertion that holds that bridge in place.
+	await expect(marked).toHaveClass('ref-confirmed');
+	// Nothing left to take over, so the banner goes with it.
+	await expect(banner).toHaveCount(0);
+	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Saft · 400 ml · Grütze"' })
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	// The step reads as it was written, with the quantity beside the word. The
+	// exact string was already checked in the editor above; here the word and
+	// its annotation are separate elements, so this asserts the tail and the
+	// quantity rather than one run of text.
+	await expect(page.getByRole('main')).toContainText('Bei < 100 °C & ruhen lassen.');
+	await expect(page.getByText('(400 ml)', { exact: true })).toBeVisible();
+});
+
+test('links the right one of two same-named ingredients with the @ picker', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Soße ${token}`,
+		steps: [{ text: 'Alles verrühren.', references: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	await step.click();
+	await page.keyboard.press('End');
+
+	// Typing an ingredient's name underlines it as a proposal.
+	await page.keyboard.type(' Saft dazugeben.');
+	await expect(page.locator('[data-ref-word="Saft"]')).toHaveClass('ref-suggestion');
+
+	await page.keyboard.type(' @Zuck');
+
+	// Both rows side by side, quantity and group and all - this is what makes
+	// the ambiguity decidable at the moment of choosing.
+	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
+	await expect(picker.getByRole('option')).toHaveCount(2);
+	await expect(picker.getByRole('option').first()).toHaveText('Zucker · 100 g · Grütze');
+	await expect(picker.getByRole('option').last()).toHaveText('Zucker · 50 g · Vanillesoße');
+
+	// Take the second one, the 50 g from the custard.
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Enter');
+	// The plain word lands in the text; nothing else does.
+	expect(await step.innerText()).toBe('Alles verrühren. Saft dazugeben. Zucker');
+	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Zucker · 50 g · Vanillesoße"' })
+	).toBeVisible();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByText('(50 g)', { exact: true })).toBeVisible();
+});
+
+test('keeps a picked name apart from the word the @ was typed before', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Soße ${token}`,
+		steps: [{ text: 'Zum Schluss Sahne.', references: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	// The caret goes right in front of "Sahne" through the DOM selection, which
+	// ProseMirror follows: where a click or a tap lands differs per project.
+	await step.click();
+	await step.evaluate((field) => {
+		const text = field.querySelector('p')?.firstChild;
+		if (!text?.textContent) throw new Error('step has no text');
+		const range = document.createRange();
+		range.setStart(text, text.textContent.indexOf('Sahne'));
+		range.collapse(true);
+		document.getSelection()?.removeAllRanges();
+		document.getSelection()?.addRange(range);
+	});
+	await page.keyboard.type('@Zuck');
+
+	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
+	await expect(picker.getByRole('option')).toHaveCount(2);
+	await page.keyboard.press('Enter');
+	// Glued on, `ZuckerSahne` would be a link the API refuses.
+	expect(await step.innerText()).toBe('Zum Schluss Zucker Sahne.');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByText('(100 g)', { exact: true })).toBeVisible();
+});
+
+/**
+ * Selects `word` in a step field through the DOM selection ProseMirror follows.
+ * The word's text node is searched for, because a linked word sits in its own
+ * decoration span.
+ */
+async function selectWord(step: ReturnType<Page['getByRole']>, word: string) {
+	await step.click();
+	await step.evaluate((field, wanted) => {
+		const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+		let text: Node | null = walker.nextNode();
+		while (text && !text.textContent?.includes(wanted)) text = walker.nextNode();
+		const at = text?.textContent?.indexOf(wanted) ?? -1;
+		if (!text || at < 0) throw new Error(`"${wanted}" is not in the step`);
+		const range = document.createRange();
+		range.setStart(text, at);
+		range.setEnd(text, at + wanted.length);
+		document.getSelection()?.removeAllRanges();
+		document.getSelection()?.addRange(range);
+	}, word);
+}
+
+test('shows a link in a card at its word, and folds the list away', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Karte ${token}`,
+		steps: [
+			{
+				text: 'Den Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	// The underline is what shows the link; under the step there is only the
+	// count, folded.
+	const summary = page.getByRole('button', { name: '1 linked' });
+	await expect(summary).toHaveAttribute('aria-expanded', 'false');
+	const remove = page.getByRole('button', {
+		name: 'Remove link "Saft · 400 ml · Grütze"'
+	});
+	await expect(remove).toHaveCount(0);
+
+	// The caret in the word brings up the card: what the word points at, and
+	// without the group - "Saft" is in one group only, so it would say nothing.
+	await page.locator('[data-ref-word="Saft"]').click();
+	const card = page.getByRole('group', { name: 'Link for "Saft"' });
+	await expect(card).toContainText('Saft');
+	await expect(card).toContainText('400 ml');
+	await expect(card).not.toContainText('Grütze');
+
+	// Taking the link off there takes it off for good, and the caret stays in
+	// the step.
+	await card.getByRole('button', { name: 'Remove' }).click();
+	await expect(card).toHaveCount(0);
+	await expect(page.locator('[data-ref-word="Saft"]')).toHaveCount(0);
+	await expect(summary).toHaveCount(0);
+	await expect(page.getByRole('textbox', { name: 'Step 1', exact: true })).toBeFocused();
+});
+
+test('takes a proposal from the card at its word', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Vorschlag ${token}`,
+		steps: [{ text: 'Den Saft aufkochen.', references: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const marked = page.locator('[data-ref-word="Saft"]');
+	await expect(marked).toHaveClass('ref-suggestion');
+	await expect(page.getByRole('button', { name: '1 suggestion' })).toBeVisible();
+
+	await marked.click();
+	const card = page.getByRole('group', { name: 'Link for "Saft"' });
+	await card.getByRole('button', { name: 'Accept' }).click();
+
+	// The same card now shows the link it has become.
+	await expect(marked).toHaveClass('ref-confirmed');
+	await expect(card.getByRole('button', { name: 'Change' })).toBeVisible();
+	await expect(page.getByRole('button', { name: '1 linked' })).toBeVisible();
+});
+
+test('brings a link back when the edit that removed its word is undone', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Rückgängig ${token}`,
+		steps: [
+			{
+				text: 'Den Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	const chip = page.getByRole('button', { name: 'Remove link "Saft · 400 ml · Grütze"' });
+	await showLinks(page);
+	await expect(chip).toBeVisible();
+
+	// The word goes, and the link is out of sight with it...
+	await selectWord(step, 'Saft');
+	await page.keyboard.press('Backspace');
+	await expect(chip).toHaveCount(0);
+
+	// ...but not gone: the editor's history holds only the text, and the link
+	// comes back with the word it belongs to.
+	await page.keyboard.press('ControlOrMeta+z');
+	expect(await step.innerText()).toBe('Den Saft aufkochen.');
+	await showLinks(page);
+	await expect(chip).toBeVisible();
+	await expect(page.locator('[data-ref-word="Saft"]')).toHaveClass('ref-confirmed');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByText('(400 ml)', { exact: true })).toBeVisible();
+});
+
+test('saves a step whose linked word was deleted, without the link', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Ohne Wort ${token}`,
+		steps: [
+			{
+				text: 'Den Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	await selectWord(step, 'Saft');
+	await page.keyboard.type('Sud');
+
+	// The link stayed on the step while the word was gone; the save leaves it
+	// out instead of sending a word the API cannot find.
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByText('Den Sud aufkochen.')).toBeVisible();
+	await expect(page.getByText('(400 ml)', { exact: true })).toHaveCount(0);
+});
+
+test('shows a link as broken once its ingredient is deleted', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Gelöscht ${token}`,
+		steps: [
+			{
+				text: 'Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const marked = page.locator('[data-ref-word="Saft"]');
+	await expect(marked).toHaveClass('ref-confirmed');
+
+	// Renaming the row is not a break: the link is anchored to the row, so it
+	// follows the new name into the payload.
+	const name = page.getByRole('textbox', { name: 'Ingredient', exact: true }).first();
+	await name.fill('Traubensaft');
+	await expect(marked).toHaveClass('ref-confirmed');
+	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Traubensaft · 400 ml · Grütze"' })
+	).toBeVisible();
+
+	// Deleting it is: there is no row left to read a name off, and the API
+	// would answer the next save with a 422. The editor has to say so before
+	// the save, and must not quietly drop the link instead.
+	await page.getByRole('button', { name: 'Remove ingredient' }).first().click();
+
+	await expect(marked).toHaveClass('ref-broken');
+	await expect(page.getByText('Ingredient missing')).toBeVisible();
+
+	// And the save is refused rather than guessing. The names the link
+	// remembers describe a row that is gone; sending them could resolve it onto
+	// whatever carries those names now, and dropping it would take the author's
+	// work away without a word. So the step says what is wrong and the author
+	// decides.
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText('This link points at a deleted ingredient')).toBeVisible();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/edit`);
+});
+
+test('keeps the links when the unnamed group is finally given a name', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Benannt ${token}`,
+		// One group, no name - what a recipe written in one go looks like - and
+		// a link into it. Naming the group renames what the stored reference
+		// points at, and the link has to move with it rather than break.
+		ingredientGroups: [
+			{
+				name: null,
+				ingredients: [
+					{ quantity: 400, unit: 'ml', name: 'Saft', note: null },
+					{ quantity: 100, unit: 'g', name: 'Zucker', note: null }
+				]
+			}
+		],
+		steps: [
+			{
+				text: 'Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: null, ingredientName: 'Saft' }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const marked = page.locator('[data-ref-word="Saft"]');
+	await expect(marked).toHaveClass('ref-confirmed');
+
+	await page.getByRole('textbox', { name: 'Rename group' }).fill('Grütze');
+
+	// Still confirmed, and the chip now names the group it was just given: the
+	// link is anchored to the row, not to the names the row carried when the
+	// link was made.
+	await expect(marked).toHaveClass('ref-confirmed');
+	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Saft · 400 ml · Grütze"' })
+	).toBeVisible();
+
+	// The save has to go through - it used to come back a 422 saying the
+	// recipe has no unnamed group, with nothing stored.
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByRole('main')).toContainText('Saft(400 ml) aufkochen.');
+
+	// And the link is in the database, not just on the screen it was made on.
+	await page.reload();
+	await expect(page.getByRole('main')).toContainText('Saft(400 ml) aufkochen.');
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	await expect(page.locator('[data-ref-word="Saft"]')).toHaveClass('ref-confirmed');
+	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Saft · 400 ml · Grütze"' })
+	).toBeVisible();
+});
+
+test('links a word whose text differs from the ingredient’s name', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Flüssigkeit ${token}`,
+		// Nothing here matches an ingredient by text, which is the point: the
+		// sentence says "Flüssigkeit" and the list says "Saft". No matcher
+		// bridges that, and `@` cannot either - it inserts the ingredient's
+		// own name. Only a word the author selects can.
+		steps: [{ text: 'Langsam aufkochen: die Flüssigkeit.', references: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	// Three characters of the word, not the word: the editor grows a selection
+	// out to whole words before it anchors anything to it, because the API
+	// refuses a reference to half of one. Selected through the DOM, because
+	// where a click lands in the field differs between the two projects.
+	await selectWord(step, 'eit');
+
+	await page.getByRole('button', { name: 'Link word' }).click();
+	// The popup names the word it will link, so a selection that grew further
+	// than the author meant is visible before anything happens.
+	await expect(page.getByText('Ingredient for "Flüssigkeit"').first()).toBeVisible();
+
+	// The query field has the focus, so the whole link is one typed word and
+	// Enter - no pointer needed past opening it.
+	await page.keyboard.type('Saft');
+	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
+	await expect(picker.getByRole('option')).toHaveCount(1);
+	await page.keyboard.press('Enter');
+
+	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Saft · 400 ml · Grütze"' })
+	).toBeVisible();
+	// The word is underlined as a confirmed link although the text says
+	// something else entirely, and the step's text is untouched.
+	await expect(page.locator('[data-ref-word="Flüssigkeit"]')).toHaveClass('ref-confirmed');
+	expect(await step.innerText()).toBe('Langsam aufkochen: die Flüssigkeit.');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	// The quantity stands after the word the sentence uses. There is no space
+	// in the markup between the two - the gap is a CSS margin - so this is the
+	// rendered text exactly as the DOM holds it.
+	await expect(page.getByRole('main')).toContainText('Langsam aufkochen: die Flüssigkeit(400 ml).');
+});
+
+test('keeps both step editors and their links after a drag', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Sortiert ${token}`,
+		steps: [
+			{
+				text: 'Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+			},
+			{
+				text: 'Zucker einrühren.',
+				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const first = page.getByRole('listitem', { name: 'Step 1' });
+	const second = page.getByRole('listitem', { name: 'Step 2' });
+	await expect(first.getByRole('textbox')).toHaveText('Saft aufkochen.');
+	await expect(second.getByRole('textbox')).toHaveText('Zucker einrühren.');
+
+	// A drag is the one interaction that crosses a keyed `{#each}`, a
+	// ProseMirror view's lifetime and svelte-dnd-action at once: the list is
+	// keyed by step id so the editors move with their steps rather than being
+	// rebuilt around new text.
+	const handle = second.getByRole('button', { name: 'Move step', exact: true });
+	// The mouse works in viewport coordinates, and the steps sit below the
+	// fold on both viewports: without this the drag would be aimed at a point
+	// nothing is under.
+	await handle.scrollIntoViewIfNeeded();
+	const from = await handle.boundingBox();
+	const target = await first.boundingBox();
+	expect(from && target).toBeTruthy();
+	if (!from || !target) return;
+	const grip = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+	await page.mouse.move(grip.x, grip.y);
+	await page.mouse.down();
+	// svelte-dnd-action starts the drag after a few pixels and then decides
+	// where the item belongs on an observation interval, so the pointer has to
+	// come to rest over the target before the button is let go.
+	await page.mouse.move(grip.x, grip.y - 12, { steps: 4 });
+	await page.waitForTimeout(200);
+	await page.mouse.move(grip.x, target.y + target.height / 4, { steps: 12 });
+	await page.waitForTimeout(400);
+	await page.mouse.up();
+
+	// Both texts and both link lists, in the new order.
+	await expect(first.getByRole('textbox')).toHaveText('Zucker einrühren.');
+	await expect(second.getByRole('textbox')).toHaveText('Saft aufkochen.');
+	await showLinks(page);
+	await expect(
+		first.getByRole('button', { name: 'Remove link "Zucker · 50 g · Vanillesoße"' })
+	).toBeVisible();
+	await expect(
+		second.getByRole('button', { name: 'Remove link "Saft · 400 ml · Grütze"' })
+	).toBeVisible();
+
+	// Still a live editor rather than the corpse of one: typing has to reach
+	// the step it moved with.
+	await first.getByRole('textbox').click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' Fertig.');
+	await expect(first.getByRole('textbox')).toHaveText('Zucker einrühren. Fertig.');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByRole('main')).toContainText('Zucker(50 g) einrühren. Fertig.');
+	await expect(page.getByRole('main')).toContainText('Saft(400 ml) aufkochen.');
+});

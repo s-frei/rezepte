@@ -215,6 +215,97 @@ func TestCreateValidation(t *testing.T) {
 	}
 }
 
+// unresolvableRef points at an ingredient ("Einhorn") that does not exist
+// in the "Klopse" group of the Königsberger Klopse fixture, while its word
+// ("Zwiebel") does occur in the fixture's first step - so resolution fails
+// specifically on the ingredientName field, not on word or groupName.
+func unresolvableRef() recipe.IngredientRef {
+	group := "Klopse"
+	return recipe.IngredientRef{Word: "Zwiebel", GroupName: &group, IngredientName: "Einhorn"}
+}
+
+// problemErrors is the subset of huma's RFC 9457 error body this package's
+// tests read: the JSON pointer of each validation failure.
+type problemErrors struct {
+	Errors []struct {
+		Location string `json:"location"`
+	} `json:"errors"`
+}
+
+func TestCreateRejectsUnresolvableReference(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0] // Königsberger Klopse
+	fx.Steps[0].References = []recipe.IngredientRef{unresolvableRef()}
+
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var problem problemErrors
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if len(problem.Errors) == 0 || problem.Errors[0].Location != "body.steps[0].references[0].ingredientName" {
+		t.Fatalf("errors = %+v, body = %s", problem.Errors, rec.Body.String())
+	}
+}
+
+// TestCreateAcceptsAReferenceAsLongAsAnIngredientName pins the word limit to
+// the name limit: the editor's @ picker inserts an ingredient's own name as
+// the word, so any name the API takes has to be a word it takes too.
+func TestCreateAcceptsAReferenceAsLongAsAnIngredientName(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0] // Königsberger Klopse
+	name := strings.Repeat("ä", 120)
+	fx.IngredientGroups[0].Ingredients[0].Name = name
+	fx.Steps[0].Text = name + " vorbereiten."
+	fx.Steps[0].References = []recipe.IngredientRef{
+		{Word: name, GroupName: fx.IngredientGroups[0].Name, IngredientName: name},
+	}
+
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestUpdateRejectsUnresolvableReference is the update-side counterpart to
+// TestCreateRejectsUnresolvableReference, against a recipe that already
+// exists: the reference is resolved before Update's own 404 lookup
+// (Service.Update calls resolveRefs before opening its transaction), so an
+// existing recipe with a bad reference must report 422, not fall through to
+// a successful save.
+func TestUpdateRejectsUnresolvableReference(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0] // Königsberger Klopse
+
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	update := created.Input
+	update.Steps[0].References = []recipe.IngredientRef{unresolvableRef()}
+	rec = doReq(h, http.MethodPut, "/api/v1/recipes/"+created.ID, mustMarshal(t, update), cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("update status %d: %s", rec.Code, rec.Body.String())
+	}
+	var problem problemErrors
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if len(problem.Errors) == 0 || problem.Errors[0].Location != "body.steps[0].references[0].ingredientName" {
+		t.Fatalf("errors = %+v, body = %s", problem.Errors, rec.Body.String())
+	}
+}
+
 func TestTags(t *testing.T) {
 	h := newRecipeHandler(t)
 	cookie := loginCookie(t, h)

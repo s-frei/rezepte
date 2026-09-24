@@ -168,12 +168,20 @@ func Register(api huma.API, svc *Service) {
 		Tags:          []string{"recipes"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusCreated,
+		Errors:        []int{422},
 	}, func(ctx context.Context, in *createRecipeInput) (*recipeOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
 		r, err := svc.Create(ctx, u.ID, in.Body)
+		var refErr *RefError
+		if errors.As(err, &refErr) {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: refErr.Location(),
+				Message:  refErr.Msg,
+			})
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +195,7 @@ func Register(api huma.API, svc *Service) {
 		Summary:     "Update a recipe",
 		Tags:        []string{"recipes"},
 		Security:    auth.Protected(auth.ScopeRecipesWrite),
-		Errors:      []int{404},
+		Errors:      []int{404, 422},
 	}, func(ctx context.Context, in *updateRecipeInput) (*recipeOutput, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
@@ -196,6 +204,13 @@ func Register(api huma.API, svc *Service) {
 		r, err := svc.Update(ctx, in.ID, u.ID, in.Body)
 		if errors.Is(err, ErrNotFound) {
 			return nil, huma.Error404NotFound("recipe not found")
+		}
+		var refErr *RefError
+		if errors.As(err, &refErr) {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: refErr.Location(),
+				Message:  refErr.Msg,
+			})
 		}
 		if err != nil {
 			return nil, err

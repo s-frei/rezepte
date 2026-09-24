@@ -41,7 +41,7 @@ func setup(t *testing.T) env {
 	r, err := recipes.Create(ctx, u.ID, recipe.Input{
 		Title: "Testrezept", Servings: 2,
 		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Salz"}}}},
-		Steps:            []string{"Salzen."},
+		Steps:            []recipe.Step{{Text: "Salzen."}},
 	})
 	if err != nil {
 		t.Fatal(err)

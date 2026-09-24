@@ -34,12 +34,12 @@
       }
     ],
     "steps": [
-      "Zwiebel fein würfeln und mit Hackfleisch, Ei, ausgedrücktem Toastbrot, Senf, Salz und Pfeffer vermengen.",
-      "Aus der Masse mit angefeuchteten Händen Klopse formen.",
-      "Brühe in einem großen Topf erhitzen und die Klopse darin 15 Minuten gar ziehen lassen.",
-      "Klopse herausnehmen und die Brühe für die Sauce beiseitestellen.",
-      "Butter schmelzen, Mehl einrühren und mit der Brühe unter Rühren zu einer Sauce aufkochen.",
-      "Sahne, Kapern und Zitronensaft einrühren, mit Salz abschmecken und die Klopse darin erwärmen."
+      { "text": "Zwiebel fein würfeln und mit Hackfleisch, Ei, ausgedrücktem Toastbrot, Senf, Salz und Pfeffer vermengen.", "references": [{ "word": "Zwiebel", "groupName": "Klopse", "ingredientName": "Zwiebel" }, { "word": "Hackfleisch", "groupName": "Klopse", "ingredientName": "Rinderhackfleisch" }, { "word": "Ei", "groupName": "Klopse", "ingredientName": "Ei" }, { "word": "Toastbrot", "groupName": "Klopse", "ingredientName": "Toastbrot" }, { "word": "Senf", "groupName": "Klopse", "ingredientName": "Senf" }, { "word": "Pfeffer", "groupName": "Klopse", "ingredientName": "Pfeffer" }] },
+      { "text": "Aus der Masse mit angefeuchteten Händen Klopse formen.", "references": [] },
+      { "text": "Brühe in einem großen Topf erhitzen und die Klopse darin 15 Minuten gar ziehen lassen.", "references": [{ "word": "Brühe", "groupName": "Kapernsauce", "ingredientName": "Rinderbrühe" }] },
+      { "text": "Klopse herausnehmen und die Brühe für die Sauce beiseitestellen.", "references": [{ "word": "Brühe", "groupName": "Kapernsauce", "ingredientName": "Rinderbrühe" }] },
+      { "text": "Butter schmelzen, Mehl einrühren und mit der Brühe unter Rühren zu einer Sauce aufkochen.", "references": [{ "word": "Butter", "groupName": "Kapernsauce", "ingredientName": "Butter" }, { "word": "Mehl", "groupName": "Kapernsauce", "ingredientName": "Mehl" }, { "word": "Brühe", "groupName": "Kapernsauce", "ingredientName": "Rinderbrühe" }] },
+      { "text": "Sahne, Kapern und Zitronensaft einrühren, mit Salz abschmecken und die Klopse darin erwärmen.", "references": [{ "word": "Sahne", "groupName": "Kapernsauce", "ingredientName": "Sahne" }, { "word": "Kapern", "groupName": "Kapernsauce", "ingredientName": "Kapern" }, { "word": "Zitronensaft", "groupName": "Kapernsauce", "ingredientName": "Zitronensaft" }] }
     ]
   },
   {
@@ -76,12 +76,12 @@
       }
     ],
     "steps": [
-      "Rouladen flach auslegen, mit Senf bestreichen, mit Speck, Zwiebel- und Gurkenstreifen belegen, salzen und pfeffern.",
-      "Rouladen aufrollen und mit Rouladennadeln oder Küchengarn feststecken.",
-      "In einem Bräter rundum scharf anbraten.",
-      "Möhre und Zwiebel würfeln, zugeben und kurz mitrösten, Tomatenmark einrühren.",
-      "Mit Brühe ablöschen und die Rouladen zugedeckt bei kleiner Hitze etwa 90 Minuten schmoren.",
-      "Rouladen herausnehmen, Sauce mit Mehl binden, abschmecken und die Rouladen darin servieren."
+      { "text": "Rouladen flach auslegen, mit Senf bestreichen, mit Speck, Zwiebel- und Gurkenstreifen belegen, salzen und pfeffern.", "references": [{ "word": "Rouladen", "groupName": "Rouladen", "ingredientName": "Rinderrouladen" }, { "word": "Senf", "groupName": "Rouladen", "ingredientName": "Senf" }, { "word": "Speck", "groupName": "Rouladen", "ingredientName": "Speck" }, { "word": "Gurkenstreifen", "groupName": "Rouladen", "ingredientName": "Gewürzgurken" }] },
+      { "text": "Rouladen aufrollen und mit Rouladennadeln oder Küchengarn feststecken.", "references": [{ "word": "Rouladen", "groupName": "Rouladen", "ingredientName": "Rinderrouladen" }] },
+      { "text": "In einem Bräter rundum scharf anbraten.", "references": [] },
+      { "text": "Möhre und Zwiebel würfeln, zugeben und kurz mitrösten, Tomatenmark einrühren.", "references": [{ "word": "Möhre", "groupName": "Sauce", "ingredientName": "Möhre" }, { "word": "Tomatenmark", "groupName": "Sauce", "ingredientName": "Tomatenmark" }] },
+      { "text": "Mit Brühe ablöschen und die Rouladen zugedeckt bei kleiner Hitze etwa 90 Minuten schmoren.", "references": [{ "word": "Brühe", "groupName": "Sauce", "ingredientName": "Rinderbrühe" }, { "word": "Rouladen", "groupName": "Rouladen", "ingredientName": "Rinderrouladen" }] },
+      { "text": "Rouladen herausnehmen, Sauce mit Mehl binden, abschmecken und die Rouladen darin servieren.", "references": [{ "word": "Rouladen", "groupName": "Rouladen", "ingredientName": "Rinderrouladen" }, { "word": "Mehl", "groupName": "Sauce", "ingredientName": "Mehl" }] }
     ]
   },
   {
@@ -118,13 +118,13 @@
       }
     ],
     "steps": [
-      "Rotweinessig, Wasser, Zwiebel, Möhre, Lorbeer, Pfefferkörner und Salz aufkochen und abkühlen lassen.",
-      "Rindfleisch in die Beize legen und 3 Tage kühl ziehen lassen, dabei gelegentlich wenden.",
-      "Fleisch abtropfen lassen und trocken tupfen, die Beize aufheben.",
-      "Fleisch in Öl rundum scharf anbraten.",
-      "Tomatenmark zugeben, kurz mitrösten und mit der Beize auffüllen.",
-      "Zugedeckt bei kleiner Hitze etwa 2,5 Stunden schmoren, bis das Fleisch weich ist.",
-      "Fleisch herausnehmen, Sauce mit Rosinen und Sahne binden, abschmecken und in Scheiben aufschneiden."
+      { "text": "Rotweinessig, Wasser, Zwiebel, Möhre, Lorbeer, Pfefferkörner und Salz aufkochen und abkühlen lassen.", "references": [{ "word": "Rotweinessig", "groupName": "Beize", "ingredientName": "Rotweinessig" }, { "word": "Wasser", "groupName": "Beize", "ingredientName": "Wasser" }, { "word": "Zwiebel", "groupName": "Beize", "ingredientName": "Zwiebel" }, { "word": "Möhre", "groupName": "Beize", "ingredientName": "Möhre" }, { "word": "Pfefferkörner", "groupName": "Beize", "ingredientName": "Pfefferkörner" }, { "word": "Lorbeer", "groupName": "Beize", "ingredientName": "Lorbeerblätter" }] },
+      { "text": "Rindfleisch in die Beize legen und 3 Tage kühl ziehen lassen, dabei gelegentlich wenden.", "references": [{ "word": "Rindfleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }] },
+      { "text": "Fleisch abtropfen lassen und trocken tupfen, die Beize aufheben.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }] },
+      { "text": "Fleisch in Öl rundum scharf anbraten.", "references": [{ "word": "Öl", "groupName": "Braten", "ingredientName": "Öl" }, { "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }] },
+      { "text": "Tomatenmark zugeben, kurz mitrösten und mit der Beize auffüllen.", "references": [{ "word": "Tomatenmark", "groupName": "Braten", "ingredientName": "Tomatenmark" }] },
+      { "text": "Zugedeckt bei kleiner Hitze etwa 2,5 Stunden schmoren, bis das Fleisch weich ist.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }] },
+      { "text": "Fleisch herausnehmen, Sauce mit Rosinen und Sahne binden, abschmecken und in Scheiben aufschneiden.", "references": [{ "word": "Rosinen", "groupName": "Braten", "ingredientName": "Rosinen" }, { "word": "Sahne", "groupName": "Braten", "ingredientName": "Sahne" }, { "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }] }
     ]
   },
   {
@@ -156,11 +156,11 @@
       }
     ],
     "steps": [
-      "Mehl, Eier, Wasser und Salz zu einem zähen Teig verrühren, bis er Blasen wirft.",
-      "Teig durch eine Spätzlepresse oder vom Brett ins kochende Salzwasser schaben.",
-      "Spätzle garziehen lassen, bis sie an die Oberfläche steigen, abschöpfen.",
-      "Zwiebeln in Ringe schneiden und in Butter goldbraun braten.",
-      "Spätzle lagenweise mit Käse in eine Pfanne schichten, schmelzen lassen und mit Röstzwiebeln servieren."
+      { "text": "Mehl, Eier, Wasser und Salz zu einem zähen Teig verrühren, bis er Blasen wirft.", "references": [{ "word": "Mehl", "groupName": "Spätzle", "ingredientName": "Mehl" }, { "word": "Wasser", "groupName": "Spätzle", "ingredientName": "Wasser" }, { "word": "Eier", "groupName": "Spätzle", "ingredientName": "Ei" }] },
+      { "text": "Teig durch eine Spätzlepresse oder vom Brett ins kochende Salzwasser schaben.", "references": [] },
+      { "text": "Spätzle garziehen lassen, bis sie an die Oberfläche steigen, abschöpfen.", "references": [] },
+      { "text": "Zwiebeln in Ringe schneiden und in Butter goldbraun braten.", "references": [{ "word": "Zwiebeln", "groupName": "Röstzwiebeln", "ingredientName": "Zwiebeln" }, { "word": "Butter", "groupName": "Röstzwiebeln", "ingredientName": "Butter" }] },
+      { "text": "Spätzle lagenweise mit Käse in eine Pfanne schichten, schmelzen lassen und mit Röstzwiebeln servieren.", "references": [{ "word": "Käse", "groupName": "Spätzle", "ingredientName": "Bergkäse" }] }
     ]
   },
   {
@@ -189,11 +189,11 @@
       }
     ],
     "steps": [
-      "Kartoffeln kochen, abkühlen lassen, pellen und in Scheiben schneiden.",
-      "Schnitzel salzen und pfeffern, dann in Mehl, verquirltem Ei und Semmelbröseln panieren.",
-      "Schnitzel in Öl von beiden Seiten goldbraun braten.",
-      "Kartoffelscheiben und Zwiebel in Butterschmalz knusprig braten.",
-      "Schnitzel und Bratkartoffeln zusammen anrichten."
+      { "text": "Kartoffeln kochen, abkühlen lassen, pellen und in Scheiben schneiden.", "references": [{ "word": "Kartoffeln", "groupName": null, "ingredientName": "Kartoffeln" }] },
+      { "text": "Schnitzel salzen und pfeffern, dann in Mehl, verquirltem Ei und Semmelbröseln panieren.", "references": [{ "word": "Schnitzel", "groupName": null, "ingredientName": "Schweineschnitzel" }, { "word": "Mehl", "groupName": null, "ingredientName": "Mehl" }, { "word": "Ei", "groupName": null, "ingredientName": "Ei" }, { "word": "Semmelbröseln", "groupName": null, "ingredientName": "Semmelbrösel" }] },
+      { "text": "Schnitzel in Öl von beiden Seiten goldbraun braten.", "references": [{ "word": "Schnitzel", "groupName": null, "ingredientName": "Schweineschnitzel" }, { "word": "Öl", "groupName": null, "ingredientName": "Öl" }] },
+      { "text": "Kartoffelscheiben und Zwiebel in Butterschmalz knusprig braten.", "references": [{ "word": "Zwiebel", "groupName": null, "ingredientName": "Zwiebel" }, { "word": "Butterschmalz", "groupName": null, "ingredientName": "Butterschmalz" }] },
+      { "text": "Schnitzel und Bratkartoffeln zusammen anrichten.", "references": [{ "word": "Schnitzel", "groupName": null, "ingredientName": "Schweineschnitzel" }] }
     ]
   },
   {
@@ -227,11 +227,11 @@
       }
     ],
     "steps": [
-      "Kartoffeln und Zwiebel schälen und fein reiben.",
-      "Mit Ei, Mehl und Salz zu einem Teig vermengen.",
-      "Portionsweise in heißem Öl zu flachen Puffern braten, bis sie knusprig sind.",
-      "Äpfel schälen, würfeln und mit Wasser und Zucker weich kochen.",
-      "Apfelmus mit Zimt abschmecken und zu den Kartoffelpuffern servieren."
+      { "text": "Kartoffeln und Zwiebel schälen und fein reiben.", "references": [{ "word": "Kartoffeln", "groupName": "Puffer", "ingredientName": "Kartoffeln" }, { "word": "Zwiebel", "groupName": "Puffer", "ingredientName": "Zwiebel" }] },
+      { "text": "Mit Ei, Mehl und Salz zu einem Teig vermengen.", "references": [{ "word": "Ei", "groupName": "Puffer", "ingredientName": "Ei" }, { "word": "Mehl", "groupName": "Puffer", "ingredientName": "Mehl" }, { "word": "Salz", "groupName": "Puffer", "ingredientName": "Salz" }] },
+      { "text": "Portionsweise in heißem Öl zu flachen Puffern braten, bis sie knusprig sind.", "references": [{ "word": "Öl", "groupName": "Puffer", "ingredientName": "Öl" }] },
+      { "text": "Äpfel schälen, würfeln und mit Wasser und Zucker weich kochen.", "references": [{ "word": "Äpfel", "groupName": "Apfelmus", "ingredientName": "Äpfel" }, { "word": "Wasser", "groupName": "Apfelmus", "ingredientName": "Wasser" }, { "word": "Zucker", "groupName": "Apfelmus", "ingredientName": "Zucker" }] },
+      { "text": "Apfelmus mit Zimt abschmecken und zu den Kartoffelpuffern servieren.", "references": [{ "word": "Zimt", "groupName": "Apfelmus", "ingredientName": "Zimt" }] }
     ]
   },
   {
@@ -259,11 +259,11 @@
       }
     ],
     "steps": [
-      "Speck in einem großen Topf auslassen, Zwiebel darin andünsten.",
-      "Möhren und Kartoffeln würfeln und kurz mitdünsten.",
-      "Linsen und Brühe zugeben und aufkochen.",
-      "Zugedeckt etwa 40 Minuten köcheln, bis die Linsen weich sind.",
-      "Mit Essig, Salz und Pfeffer abschmecken."
+      { "text": "Speck in einem großen Topf auslassen, Zwiebel darin andünsten.", "references": [{ "word": "Speck", "groupName": null, "ingredientName": "Speck" }, { "word": "Zwiebel", "groupName": null, "ingredientName": "Zwiebel" }] },
+      { "text": "Möhren und Kartoffeln würfeln und kurz mitdünsten.", "references": [{ "word": "Möhren", "groupName": null, "ingredientName": "Möhren" }, { "word": "Kartoffeln", "groupName": null, "ingredientName": "Kartoffeln" }] },
+      { "text": "Linsen und Brühe zugeben und aufkochen.", "references": [{ "word": "Linsen", "groupName": null, "ingredientName": "Linsen" }, { "word": "Brühe", "groupName": null, "ingredientName": "Gemüsebrühe" }] },
+      { "text": "Zugedeckt etwa 40 Minuten köcheln, bis die Linsen weich sind.", "references": [{ "word": "Linsen", "groupName": null, "ingredientName": "Linsen" }] },
+      { "text": "Mit Essig, Salz und Pfeffer abschmecken.", "references": [{ "word": "Essig", "groupName": null, "ingredientName": "Essig" }, { "word": "Salz", "groupName": null, "ingredientName": "Salz" }, { "word": "Pfeffer", "groupName": null, "ingredientName": "Pfeffer" }] }
     ]
   },
   {
@@ -290,11 +290,11 @@
       }
     ],
     "steps": [
-      "Brötchen in Wasser einweichen und gut ausdrücken.",
-      "Zwiebel fein würfeln.",
-      "Hackfleisch mit Zwiebel, Ei, Brötchen, Senf, Salz und Pfeffer vermengen.",
-      "Aus der Masse mit feuchten Händen Frikadellen formen.",
-      "In Öl von beiden Seiten goldbraun braten."
+      { "text": "Brötchen in Wasser einweichen und gut ausdrücken.", "references": [{ "word": "Brötchen", "groupName": null, "ingredientName": "Brötchen" }] },
+      { "text": "Zwiebel fein würfeln.", "references": [{ "word": "Zwiebel", "groupName": null, "ingredientName": "Zwiebel" }] },
+      { "text": "Hackfleisch mit Zwiebel, Ei, Brötchen, Senf, Salz und Pfeffer vermengen.", "references": [{ "word": "Hackfleisch", "groupName": null, "ingredientName": "Hackfleisch" }, { "word": "Zwiebel", "groupName": null, "ingredientName": "Zwiebel" }, { "word": "Ei", "groupName": null, "ingredientName": "Ei" }, { "word": "Brötchen", "groupName": null, "ingredientName": "Brötchen" }, { "word": "Senf", "groupName": null, "ingredientName": "Senf" }, { "word": "Salz", "groupName": null, "ingredientName": "Salz" }, { "word": "Pfeffer", "groupName": null, "ingredientName": "Pfeffer" }] },
+      { "text": "Aus der Masse mit feuchten Händen Frikadellen formen.", "references": [] },
+      { "text": "In Öl von beiden Seiten goldbraun braten.", "references": [{ "word": "Öl", "groupName": null, "ingredientName": "Öl" }] }
     ]
   },
   {
@@ -327,11 +327,11 @@
       }
     ],
     "steps": [
-      "Mehl, Wasser, Öl und Salz zu einem glatten Teig verkneten und kurz ruhen lassen.",
-      "Teig dünn ausrollen und auf ein Blech legen.",
-      "Crème fraîche gleichmäßig auf dem Teig verstreichen.",
-      "Zwiebel in feine Ringe schneiden, mit dem Speck auf dem Belag verteilen, salzen und pfeffern.",
-      "Im heißen Ofen etwa 12 Minuten knusprig backen."
+      { "text": "Mehl, Wasser, Öl und Salz zu einem glatten Teig verkneten und kurz ruhen lassen.", "references": [{ "word": "Mehl", "groupName": "Teig", "ingredientName": "Mehl" }, { "word": "Wasser", "groupName": "Teig", "ingredientName": "Wasser" }, { "word": "Öl", "groupName": "Teig", "ingredientName": "Öl" }] },
+      { "text": "Teig dünn ausrollen und auf ein Blech legen.", "references": [] },
+      { "text": "Crème fraîche gleichmäßig auf dem Teig verstreichen.", "references": [{ "word": "fraîche", "groupName": "Belag", "ingredientName": "Crème fraîche" }] },
+      { "text": "Zwiebel in feine Ringe schneiden, mit dem Speck auf dem Belag verteilen, salzen und pfeffern.", "references": [{ "word": "Zwiebel", "groupName": "Belag", "ingredientName": "Zwiebel" }, { "word": "Speck", "groupName": "Belag", "ingredientName": "Speck" }] },
+      { "text": "Im heißen Ofen etwa 12 Minuten knusprig backen.", "references": [] }
     ]
   },
   {
@@ -358,11 +358,11 @@
       }
     ],
     "steps": [
-      "Kartoffeln kochen, pellen und noch warm in Scheiben schneiden.",
-      "Zwiebel fein würfeln.",
-      "Brühe, Essig, Öl und Senf zu einer Marinade verrühren.",
-      "Marinade über die warmen Kartoffeln geben und vorsichtig vermengen.",
-      "Mit Zwiebel, Salz und Pfeffer abschmecken und etwas ziehen lassen."
+      { "text": "Kartoffeln kochen, pellen und noch warm in Scheiben schneiden.", "references": [{ "word": "Kartoffeln", "groupName": null, "ingredientName": "Kartoffeln" }] },
+      { "text": "Zwiebel fein würfeln.", "references": [{ "word": "Zwiebel", "groupName": null, "ingredientName": "Zwiebel" }] },
+      { "text": "Brühe, Essig, Öl und Senf zu einer Marinade verrühren.", "references": [{ "word": "Brühe", "groupName": null, "ingredientName": "Gemüsebrühe" }, { "word": "Essig", "groupName": null, "ingredientName": "Essig" }, { "word": "Öl", "groupName": null, "ingredientName": "Öl" }, { "word": "Senf", "groupName": null, "ingredientName": "Senf" }] },
+      { "text": "Marinade über die warmen Kartoffeln geben und vorsichtig vermengen.", "references": [{ "word": "Kartoffeln", "groupName": null, "ingredientName": "Kartoffeln" }] },
+      { "text": "Mit Zwiebel, Salz und Pfeffer abschmecken und etwas ziehen lassen.", "references": [{ "word": "Zwiebel", "groupName": null, "ingredientName": "Zwiebel" }, { "word": "Salz", "groupName": null, "ingredientName": "Salz" }, { "word": "Pfeffer", "groupName": null, "ingredientName": "Pfeffer" }] }
     ]
   },
   {
@@ -394,11 +394,11 @@
       }
     ],
     "steps": [
-      "Saft mit Zucker aufkochen, Beeren zugeben und kurz mitkochen.",
-      "Speisestärke mit etwas kaltem Wasser anrühren und die Grütze damit binden.",
-      "Grütze abkühlen lassen.",
-      "Milch mit dem Mark der Vanilleschote erhitzen, Eigelb mit Zucker schaumig schlagen und unterrühren.",
-      "Vanillesoße unter Rühren bei kleiner Hitze cremig binden, ohne kochen zu lassen, und zur Grütze servieren."
+      { "text": "Saft mit Zucker aufkochen, Beeren zugeben und kurz mitkochen.", "references": [{ "word": "Saft", "groupName": "Grütze", "ingredientName": "Traubensaft" }, { "word": "Beeren", "groupName": "Grütze", "ingredientName": "Beeren" }, { "word": "Zucker", "groupName": "Grütze", "ingredientName": "Zucker" }] },
+      { "text": "Speisestärke mit etwas kaltem Wasser anrühren und die Grütze damit binden.", "references": [{ "word": "Speisestärke", "groupName": "Grütze", "ingredientName": "Speisestärke" }] },
+      { "text": "Grütze abkühlen lassen.", "references": [] },
+      { "text": "Milch mit dem Mark der Vanilleschote erhitzen, Eigelb mit Zucker schaumig schlagen und unterrühren.", "references": [{ "word": "Milch", "groupName": "Vanillesoße", "ingredientName": "Milch" }, { "word": "Vanilleschote", "groupName": "Vanillesoße", "ingredientName": "Vanilleschote" }, { "word": "Eigelb", "groupName": "Vanillesoße", "ingredientName": "Eigelb" }, { "word": "Zucker", "groupName": "Vanillesoße", "ingredientName": "Zucker" }] },
+      { "text": "Vanillesoße unter Rühren bei kleiner Hitze cremig binden, ohne kochen zu lassen, und zur Grütze servieren.", "references": [] }
     ]
   },
   {
@@ -434,12 +434,12 @@
       }
     ],
     "steps": [
-      "Mehl, Eier, Öl und Salz zu einem glatten Nudelteig verkneten und ruhen lassen.",
-      "Spinat blanchieren, ausdrücken und fein hacken.",
-      "Spinat mit Brät, eingeweichtem Brötchen, Zwiebel, Ei, Muskat und Salz zu einer Füllung vermengen.",
-      "Teig dünn ausrollen, mit der Füllung bestreichen und aufrollen oder zu Quadraten formen.",
-      "Maultaschen in siedender Brühe etwa 20 Minuten ziehen lassen.",
-      "Maultaschen in der heißen Brühe servieren."
+      { "text": "Mehl, Eier, Öl und Salz zu einem glatten Nudelteig verkneten und ruhen lassen.", "references": [{ "word": "Mehl", "groupName": "Teig", "ingredientName": "Mehl" }, { "word": "Öl", "groupName": "Teig", "ingredientName": "Öl" }, { "word": "Eier", "groupName": "Teig", "ingredientName": "Ei" }] },
+      { "text": "Spinat blanchieren, ausdrücken und fein hacken.", "references": [{ "word": "Spinat", "groupName": "Füllung", "ingredientName": "Blattspinat" }] },
+      { "text": "Spinat mit Brät, eingeweichtem Brötchen, Zwiebel, Ei, Muskat und Salz zu einer Füllung vermengen.", "references": [{ "word": "Spinat", "groupName": "Füllung", "ingredientName": "Blattspinat" }, { "word": "Brät", "groupName": "Füllung", "ingredientName": "Brät" }, { "word": "Brötchen", "groupName": "Füllung", "ingredientName": "Brötchen" }, { "word": "Zwiebel", "groupName": "Füllung", "ingredientName": "Zwiebel" }, { "word": "Muskat", "groupName": "Füllung", "ingredientName": "Muskat" }, { "word": "Ei", "groupName": "Füllung", "ingredientName": "Ei" }] },
+      { "text": "Teig dünn ausrollen, mit der Füllung bestreichen und aufrollen oder zu Quadraten formen.", "references": [] },
+      { "text": "Maultaschen in siedender Brühe etwa 20 Minuten ziehen lassen.", "references": [{ "word": "Brühe", "groupName": "Füllung", "ingredientName": "Gemüsebrühe" }] },
+      { "text": "Maultaschen in der heißen Brühe servieren.", "references": [{ "word": "Brühe", "groupName": "Füllung", "ingredientName": "Gemüsebrühe" }] }
     ]
   }
 ]

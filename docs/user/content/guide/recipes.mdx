@@ -38,6 +38,15 @@ description: Create, edit and delete recipes
   </Step>
   <Step>
 
+    ### Link ingredients in a step
+
+    As you type a step, a dotted underline appears under a word the app recognises as an ingredient — "Fry the onion and carrots" underlines "onion" and "carrots". Put the cursor in an underlined word to see what it points at and accept or dismiss the suggestion, or leave it be; under the step, a line counts the links and suggestions and opens into a list of them. Every open suggestion is accepted when you save, and a note above the steps says how many ("Saving accepts 3 suggestions") next to an "Accept now" button that accepts them right away.
+
+    Two ways to link a word yourself. Type `@` to pick an ingredient and insert its name — the picker lists every ingredient with its quantity and group, so the same name in two groups is easy to tell apart. Or select a word already in the sentence (putting the caret in it is enough) and click "Link word": that links the word as it stands to any ingredient, which is what you need when the wording differs from the ingredient's name — "mince" for an ingredient listed as "minced lamb". Deleting a linked word hides its link, and undoing the deletion brings both back; a link whose word is gone when you save is simply left out.
+
+  </Step>
+  <Step>
+
     ### Save
 
     Click "Save".
@@ -53,7 +62,7 @@ description: Create, edit and delete recipes
 
 <Screenshot name="recipe-detail" caption="A recipe's detail page" />
 
-Servings and times show as pills at the top. Ingredients list with tick boxes for checking items off while shopping or cooking; steps follow below. "Edit" opens the editor, and "Delete" — reached through the "More actions" menu — deletes the recipe after confirming.
+Servings and times show as pills at the top. Ingredients list with tick boxes for checking items off while shopping or cooking; steps follow below. A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode). "Edit" opens the editor, and "Delete" — reached through the "More actions" menu — deletes the recipe after confirming.
 
 <Accordions type="single">
   <Accordion title="Limits">
@@ -64,12 +73,15 @@ Servings and times show as pills at the top. Ingredients list with tick boxes fo
     - Source: an `http://` or `https://` link, up to 500 characters
     - Tags: up to 20, each up to 40 characters
     - Ingredient groups: 1–20, each with up to 100 ingredients
-    - Steps: up to 50, each up to 2000 characters
+    - Steps: up to 50, each up to 2000 characters, each with up to 30 linked ingredients
   </Accordion>
   <Accordion title="What is a slug?">
     Every recipe gets a URL-friendly slug derived from its title — German umlauts and ß are transliterated (ä→ae, ö→oe, ü→ue, ß→ss) and remaining diacritics and punctuation are stripped. If another recipe already has the same slug, a number is appended (`-2`, `-3`, …).
   </Accordion>
   <Accordion title="Deleting a recipe">
     Deleting a recipe also removes its uploaded photos. This cannot be undone.
+  </Accordion>
+  <Accordion title="Why a step shows no quantity">
+    Not every ingredient word is recognised automatically, and a recipe carries linked words only once it has been saved with them — open it in the editor, accept or add the links you want, and save. Only the first mention of a word in a step ever shows a quantity, even if the word appears again later in the same sentence.
   </Accordion>
 </Accordions>

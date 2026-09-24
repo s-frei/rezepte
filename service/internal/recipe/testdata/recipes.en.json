@@ -34,12 +34,12 @@
       }
     ],
     "steps": [
-      "Peel and chop the potatoes, then boil until tender.",
-      "Fry the onion and carrots until soft, then brown the mince alongside them.",
-      "Stir in the tomato puree and flour, then pour in the stock and Worcestershire sauce and simmer for 15 minutes.",
-      "Drain the potatoes and mash with the butter and milk, then season.",
-      "Spoon the filling into a baking dish, top with the mash and scatter over the cheddar.",
-      "Bake at 200°C for 20 minutes until golden and bubbling."
+      { "text": "Peel and chop the potatoes, then boil until tender.", "references": [{ "word": "potatoes", "groupName": "Mash topping", "ingredientName": "potatoes" }] },
+      { "text": "Fry the onion and carrots until soft, then brown the mince alongside them.", "references": [{ "word": "onion", "groupName": "Filling", "ingredientName": "onion" }, { "word": "carrots", "groupName": "Filling", "ingredientName": "carrots" }, { "word": "mince", "groupName": "Filling", "ingredientName": "minced lamb" }] },
+      { "text": "Stir in the tomato puree and flour, then pour in the stock and Worcestershire sauce and simmer for 15 minutes.", "references": [{ "word": "tomato puree", "groupName": "Filling", "ingredientName": "tomato puree" }, { "word": "flour", "groupName": "Filling", "ingredientName": "plain flour" }, { "word": "stock", "groupName": "Filling", "ingredientName": "beef stock" }, { "word": "Worcestershire sauce", "groupName": "Filling", "ingredientName": "Worcestershire sauce" }] },
+      { "text": "Drain the potatoes and mash with the butter and milk, then season.", "references": [{ "word": "potatoes", "groupName": "Mash topping", "ingredientName": "potatoes" }, { "word": "butter", "groupName": "Mash topping", "ingredientName": "butter" }, { "word": "milk", "groupName": "Mash topping", "ingredientName": "milk" }] },
+      { "text": "Spoon the filling into a baking dish, top with the mash and scatter over the cheddar.", "references": [{ "word": "cheddar", "groupName": "Mash topping", "ingredientName": "cheddar" }] },
+      { "text": "Bake at 200°C for 20 minutes until golden and bubbling.", "references": [] }
     ]
   },
   {
@@ -68,12 +68,12 @@
       }
     ],
     "steps": [
-      "Fry the sausages in a splash of oil over medium heat until browned all over, about 12 minutes.",
-      "Add the bacon and mushrooms to the pan and fry until crisp and golden.",
-      "Push everything to one side of the pan and fry the tomatoes and eggs alongside.",
-      "Warm the baked beans through in a small saucepan.",
-      "Toast the bread.",
-      "Plate everything together, season with salt and pepper, and serve with the toast."
+      { "text": "Fry the sausages in a splash of oil over medium heat until browned all over, about 12 minutes.", "references": [{ "word": "sausages", "groupName": null, "ingredientName": "pork sausages" }, { "word": "oil", "groupName": null, "ingredientName": "vegetable oil" }] },
+      { "text": "Add the bacon and mushrooms to the pan and fry until crisp and golden.", "references": [{ "word": "bacon", "groupName": null, "ingredientName": "bacon" }, { "word": "mushrooms", "groupName": null, "ingredientName": "mushrooms" }] },
+      { "text": "Push everything to one side of the pan and fry the tomatoes and eggs alongside.", "references": [{ "word": "tomatoes", "groupName": null, "ingredientName": "tomatoes" }, { "word": "eggs", "groupName": null, "ingredientName": "eggs" }] },
+      { "text": "Warm the baked beans through in a small saucepan.", "references": [{ "word": "baked beans", "groupName": null, "ingredientName": "baked beans" }] },
+      { "text": "Toast the bread.", "references": [{ "word": "bread", "groupName": null, "ingredientName": "bread" }] },
+      { "text": "Plate everything together, season with salt and pepper, and serve with the toast.", "references": [] }
     ]
   },
   {
@@ -109,12 +109,12 @@
       }
     ],
     "steps": [
-      "Grill or fry the sausages until browned and cooked through, about 20 minutes.",
-      "Meanwhile, boil the potatoes until tender.",
-      "Melt the butter and cook the onions slowly until soft and golden, about 15 minutes.",
-      "Stir the flour into the onions, then gradually add the stock and Worcestershire sauce, simmering until thickened.",
-      "Drain the potatoes and mash with the butter, milk and salt.",
-      "Serve the sausages on the mash, smothered in onion gravy."
+      { "text": "Grill or fry the sausages until browned and cooked through, about 20 minutes.", "references": [{ "word": "sausages", "groupName": "Mash", "ingredientName": "pork sausages" }] },
+      { "text": "Meanwhile, boil the potatoes until tender.", "references": [{ "word": "potatoes", "groupName": "Mash", "ingredientName": "potatoes" }] },
+      { "text": "Melt the butter and cook the onions slowly until soft and golden, about 15 minutes.", "references": [{ "word": "butter", "groupName": "Onion gravy", "ingredientName": "butter" }, { "word": "onions", "groupName": "Onion gravy", "ingredientName": "onions" }] },
+      { "text": "Stir the flour into the onions, then gradually add the stock and Worcestershire sauce, simmering until thickened.", "references": [{ "word": "flour", "groupName": "Onion gravy", "ingredientName": "plain flour" }, { "word": "onions", "groupName": "Onion gravy", "ingredientName": "onions" }, { "word": "stock", "groupName": "Onion gravy", "ingredientName": "beef stock" }, { "word": "Worcestershire sauce", "groupName": "Onion gravy", "ingredientName": "Worcestershire sauce" }] },
+      { "text": "Drain the potatoes and mash with the butter, milk and salt.", "references": [{ "word": "potatoes", "groupName": "Mash", "ingredientName": "potatoes" }, { "word": "butter", "groupName": "Mash", "ingredientName": "butter" }, { "word": "milk", "groupName": "Mash", "ingredientName": "milk" }] },
+      { "text": "Serve the sausages on the mash, smothered in onion gravy.", "references": [{ "word": "sausages", "groupName": "Mash", "ingredientName": "pork sausages" }] }
     ]
   },
   {
@@ -146,12 +146,12 @@
       }
     ],
     "steps": [
-      "Toss the chips in oil and salt and spread out on a baking tray.",
-      "Roast the chips at 220°C for 25 minutes, turning halfway, until crisp.",
-      "Whisk the flour, baking powder, beer and salt into a smooth batter.",
-      "Dip the fish fillets in the batter and place on a lined tray.",
-      "Bake the fish alongside the chips for the final 15 minutes until golden and cooked through.",
-      "Serve the fish and chips together with a wedge of lemon."
+      { "text": "Toss the chips in oil and salt and spread out on a baking tray.", "references": [{ "word": "chips", "groupName": "Chips", "ingredientName": "potatoes" }, { "word": "oil", "groupName": "Chips", "ingredientName": "vegetable oil" }] },
+      { "text": "Roast the chips at 220°C for 25 minutes, turning halfway, until crisp.", "references": [{ "word": "chips", "groupName": "Chips", "ingredientName": "potatoes" }] },
+      { "text": "Whisk the flour, baking powder, beer and salt into a smooth batter.", "references": [{ "word": "flour", "groupName": "Fish", "ingredientName": "plain flour" }, { "word": "baking powder", "groupName": "Fish", "ingredientName": "baking powder" }, { "word": "beer", "groupName": "Fish", "ingredientName": "cold beer" }] },
+      { "text": "Dip the fish fillets in the batter and place on a lined tray.", "references": [{ "word": "fish", "groupName": "Fish", "ingredientName": "white fish" }] },
+      { "text": "Bake the fish alongside the chips for the final 15 minutes until golden and cooked through.", "references": [{ "word": "fish", "groupName": "Fish", "ingredientName": "white fish" }] },
+      { "text": "Serve the fish and chips together with a wedge of lemon.", "references": [] }
     ]
   },
   {
@@ -182,12 +182,12 @@
       }
     ],
     "steps": [
-      "Toss the beef in the flour and brown in batches in hot oil, then set aside.",
-      "Fry the onion, carrots and celery in the same pot until softened.",
-      "Return the beef to the pot and stir in the tomato puree.",
-      "Pour in the ale and stock, add the bay leaves, and bring to a simmer.",
-      "Cover and cook on low heat for 2 hours, stirring occasionally, until the beef is tender.",
-      "Season with salt and pepper before serving."
+      { "text": "Toss the beef in the flour and brown in batches in hot oil, then set aside.", "references": [{ "word": "beef", "groupName": null, "ingredientName": "stewing beef" }, { "word": "flour", "groupName": null, "ingredientName": "plain flour" }, { "word": "oil", "groupName": null, "ingredientName": "vegetable oil" }] },
+      { "text": "Fry the onion, carrots and celery in the same pot until softened.", "references": [{ "word": "onion", "groupName": null, "ingredientName": "onion" }, { "word": "carrots", "groupName": null, "ingredientName": "carrots" }, { "word": "celery", "groupName": null, "ingredientName": "celery" }] },
+      { "text": "Return the beef to the pot and stir in the tomato puree.", "references": [{ "word": "beef", "groupName": null, "ingredientName": "stewing beef" }, { "word": "tomato puree", "groupName": null, "ingredientName": "tomato puree" }] },
+      { "text": "Pour in the ale and stock, add the bay leaves, and bring to a simmer.", "references": [{ "word": "ale", "groupName": null, "ingredientName": "brown ale" }, { "word": "stock", "groupName": null, "ingredientName": "beef stock" }, { "word": "bay leaves", "groupName": null, "ingredientName": "bay leaves" }] },
+      { "text": "Cover and cook on low heat for 2 hours, stirring occasionally, until the beef is tender.", "references": [] },
+      { "text": "Season with salt and pepper before serving.", "references": [] }
     ]
   },
   {
@@ -214,11 +214,11 @@
       }
     ],
     "steps": [
-      "Melt the butter and gently cook the leeks and onion until soft, without browning.",
-      "Add the potatoes and stock, bring to the boil, then simmer for 20 minutes until the potatoes are tender.",
-      "Blend the soup until smooth.",
-      "Stir in the cream and season with salt and pepper.",
-      "Warm through gently and serve."
+      { "text": "Melt the butter and gently cook the leeks and onion until soft, without browning.", "references": [{ "word": "butter", "groupName": null, "ingredientName": "butter" }, { "word": "leeks", "groupName": null, "ingredientName": "leeks" }, { "word": "onion", "groupName": null, "ingredientName": "onion" }] },
+      { "text": "Add the potatoes and stock, bring to the boil, then simmer for 20 minutes until the potatoes are tender.", "references": [{ "word": "potatoes", "groupName": null, "ingredientName": "potatoes" }, { "word": "stock", "groupName": null, "ingredientName": "vegetable stock" }] },
+      { "text": "Blend the soup until smooth.", "references": [] },
+      { "text": "Stir in the cream and season with salt and pepper.", "references": [{ "word": "cream", "groupName": null, "ingredientName": "single cream" }] },
+      { "text": "Warm through gently and serve.", "references": [] }
     ]
   },
   {
@@ -250,11 +250,11 @@
       }
     ],
     "steps": [
-      "Cook the macaroni in salted boiling water until just tender, then drain.",
-      "Melt the butter, stir in the flour and cook for a minute, then whisk in the milk until smooth.",
-      "Simmer the sauce until thickened, then stir in the cheddar and mustard powder until melted.",
-      "Fold the macaroni through the cheese sauce and season with salt.",
-      "Transfer to a baking dish, scatter over the breadcrumbs and bake at 200°C for 15 minutes until golden."
+      { "text": "Cook the macaroni in salted boiling water until just tender, then drain.", "references": [{ "word": "macaroni", "groupName": "Pasta", "ingredientName": "macaroni" }] },
+      { "text": "Melt the butter, stir in the flour and cook for a minute, then whisk in the milk until smooth.", "references": [{ "word": "butter", "groupName": "Sauce", "ingredientName": "butter" }, { "word": "flour", "groupName": "Sauce", "ingredientName": "plain flour" }, { "word": "milk", "groupName": "Sauce", "ingredientName": "milk" }] },
+      { "text": "Simmer the sauce until thickened, then stir in the cheddar and mustard powder until melted.", "references": [{ "word": "cheddar", "groupName": "Sauce", "ingredientName": "cheddar" }, { "word": "mustard powder", "groupName": "Sauce", "ingredientName": "mustard powder" }] },
+      { "text": "Fold the macaroni through the cheese sauce and season with salt.", "references": [{ "word": "macaroni", "groupName": "Pasta", "ingredientName": "macaroni" }] },
+      { "text": "Transfer to a baking dish, scatter over the breadcrumbs and bake at 200°C for 15 minutes until golden.", "references": [{ "word": "breadcrumbs", "groupName": "Pasta", "ingredientName": "breadcrumbs" }] }
     ]
   },
   {
@@ -287,11 +287,11 @@
       }
     ],
     "steps": [
-      "Whisk the flour, eggs, milk and salt into a smooth batter and rest for 20 minutes.",
-      "Put the oil and sausages in a roasting tin and roast at 220°C for 10 minutes until the oil is very hot.",
-      "Pour the batter around the sausages and return to the oven for 25 minutes until well risen and golden.",
-      "Meanwhile, fry the onion until soft, stir in the flour, then add the stock and simmer into a gravy.",
-      "Serve the toad in the hole straight from the tin with the onion gravy."
+      { "text": "Whisk the flour, eggs, milk and salt into a smooth batter and rest for 20 minutes.", "references": [{ "word": "flour", "groupName": "Batter", "ingredientName": "plain flour" }, { "word": "eggs", "groupName": "Batter", "ingredientName": "eggs" }, { "word": "milk", "groupName": "Batter", "ingredientName": "milk" }] },
+      { "text": "Put the oil and sausages in a roasting tin and roast at 220°C for 10 minutes until the oil is very hot.", "references": [{ "word": "oil", "groupName": "Sausages and gravy", "ingredientName": "vegetable oil" }, { "word": "sausages", "groupName": "Sausages and gravy", "ingredientName": "pork sausages" }] },
+      { "text": "Pour the batter around the sausages and return to the oven for 25 minutes until well risen and golden.", "references": [] },
+      { "text": "Meanwhile, fry the onion until soft, stir in the flour, then add the stock and simmer into a gravy.", "references": [{ "word": "onion", "groupName": "Sausages and gravy", "ingredientName": "onion" }, { "word": "flour", "groupName": "Sausages and gravy", "ingredientName": "plain flour" }, { "word": "stock", "groupName": "Sausages and gravy", "ingredientName": "beef stock" }] },
+      { "text": "Serve the toad in the hole straight from the tin with the onion gravy.", "references": [] }
     ]
   },
   {
@@ -317,11 +317,11 @@
       }
     ],
     "steps": [
-      "Mix the sausage meat with the onion, sage, salt and pepper.",
-      "Unroll the pastry and spoon the filling along one edge in a long log.",
-      "Roll the pastry around the filling and seal the edge with a little beaten egg.",
-      "Cut into six rolls and brush the tops with the remaining egg.",
-      "Bake at 200°C for 20 minutes until the pastry is puffed and golden."
+      { "text": "Mix the sausage meat with the onion, sage, salt and pepper.", "references": [{ "word": "sausage meat", "groupName": null, "ingredientName": "sausage meat" }, { "word": "onion", "groupName": null, "ingredientName": "onion" }, { "word": "sage", "groupName": null, "ingredientName": "dried sage" }] },
+      { "text": "Unroll the pastry and spoon the filling along one edge in a long log.", "references": [{ "word": "pastry", "groupName": null, "ingredientName": "puff pastry" }] },
+      { "text": "Roll the pastry around the filling and seal the edge with a little beaten egg.", "references": [{ "word": "egg", "groupName": null, "ingredientName": "egg" }] },
+      { "text": "Cut into six rolls and brush the tops with the remaining egg.", "references": [{ "word": "egg", "groupName": null, "ingredientName": "egg" }] },
+      { "text": "Bake at 200°C for 20 minutes until the pastry is puffed and golden.", "references": [] }
     ]
   },
   {
@@ -347,11 +347,11 @@
       }
     ],
     "steps": [
-      "Stir the mayonnaise, mango chutney and curry powder together.",
-      "Fold in the shredded chicken and sultanas and season with salt.",
-      "Spread the mixture generously over half the bread slices.",
-      "Top with the remaining bread and press down gently.",
-      "Cut the sandwiches in half to serve."
+      { "text": "Stir the mayonnaise, mango chutney and curry powder together.", "references": [{ "word": "mayonnaise", "groupName": null, "ingredientName": "mayonnaise" }, { "word": "mango chutney", "groupName": null, "ingredientName": "mango chutney" }, { "word": "curry powder", "groupName": null, "ingredientName": "curry powder" }] },
+      { "text": "Fold in the shredded chicken and sultanas and season with salt.", "references": [{ "word": "chicken", "groupName": null, "ingredientName": "cooked chicken" }, { "word": "sultanas", "groupName": null, "ingredientName": "sultanas" }] },
+      { "text": "Spread the mixture generously over half the bread slices.", "references": [{ "word": "bread", "groupName": null, "ingredientName": "bread" }] },
+      { "text": "Top with the remaining bread and press down gently.", "references": [{ "word": "bread", "groupName": null, "ingredientName": "bread" }] },
+      { "text": "Cut the sandwiches in half to serve.", "references": [] }
     ]
   },
   {
@@ -383,11 +383,11 @@
       }
     ],
     "steps": [
-      "Cream the butter and sugar together until light and fluffy.",
-      "Beat in the eggs one at a time, then fold in the flour, baking powder and lemon zest.",
-      "Spoon the batter into a lined loaf tin and bake at 180°C for 40 minutes until a skewer comes out clean.",
-      "Mix the lemon juice with the sugar for the drizzle.",
-      "Prick the warm cake all over and pour over the drizzle, letting it soak in and set into a crust."
+      { "text": "Cream the butter and sugar together until light and fluffy.", "references": [{ "word": "butter", "groupName": "Sponge", "ingredientName": "butter" }, { "word": "sugar", "groupName": "Sponge", "ingredientName": "caster sugar" }] },
+      { "text": "Beat in the eggs one at a time, then fold in the flour, baking powder and lemon zest.", "references": [{ "word": "eggs", "groupName": "Sponge", "ingredientName": "eggs" }, { "word": "flour", "groupName": "Sponge", "ingredientName": "self-raising flour" }, { "word": "baking powder", "groupName": "Sponge", "ingredientName": "baking powder" }, { "word": "lemon zest", "groupName": "Sponge", "ingredientName": "lemons" }] },
+      { "text": "Spoon the batter into a lined loaf tin and bake at 180°C for 40 minutes until a skewer comes out clean.", "references": [] },
+      { "text": "Mix the lemon juice with the sugar for the drizzle.", "references": [{ "word": "lemon juice", "groupName": "Drizzle", "ingredientName": "lemons" }, { "word": "sugar", "groupName": "Drizzle", "ingredientName": "caster sugar" }] },
+      { "text": "Prick the warm cake all over and pour over the drizzle, letting it soak in and set into a crust.", "references": [] }
     ]
   },
   {
@@ -421,11 +421,11 @@
       }
     ],
     "steps": [
-      "Simmer the dates in the water for 5 minutes, then stir in the bicarbonate of soda and set aside to cool slightly.",
-      "Cream the butter and sugar, beat in the eggs, then fold in the flour and the date mixture.",
-      "Pour the batter into a greased baking dish and bake at 180°C for 30 minutes until risen and firm.",
-      "Melt the butter, sugar and cream together for the sauce, stirring until smooth and glossy.",
-      "Pour half the sauce over the warm pudding and serve the rest alongside."
+      { "text": "Simmer the dates in the water for 5 minutes, then stir in the bicarbonate of soda and set aside to cool slightly.", "references": [{ "word": "dates", "groupName": "Sponge", "ingredientName": "pitted dates" }, { "word": "water", "groupName": "Sponge", "ingredientName": "water" }, { "word": "bicarbonate of soda", "groupName": "Sponge", "ingredientName": "bicarbonate of soda" }] },
+      { "text": "Cream the butter and sugar, beat in the eggs, then fold in the flour and the date mixture.", "references": [{ "word": "butter", "groupName": "Sponge", "ingredientName": "butter" }, { "word": "sugar", "groupName": "Sponge", "ingredientName": "soft brown sugar" }, { "word": "eggs", "groupName": "Sponge", "ingredientName": "eggs" }, { "word": "flour", "groupName": "Sponge", "ingredientName": "self-raising flour" }] },
+      { "text": "Pour the batter into a greased baking dish and bake at 180°C for 30 minutes until risen and firm.", "references": [] },
+      { "text": "Melt the butter, sugar and cream together for the sauce, stirring until smooth and glossy.", "references": [{ "word": "butter", "groupName": "Toffee sauce", "ingredientName": "butter" }, { "word": "sugar", "groupName": "Toffee sauce", "ingredientName": "soft brown sugar" }, { "word": "cream", "groupName": "Toffee sauce", "ingredientName": "double cream" }] },
+      { "text": "Pour half the sauce over the warm pudding and serve the rest alongside.", "references": [] }
     ]
   }
 ]

@@ -29,6 +29,33 @@ func TestSamplesPerLocale(t *testing.T) {
 	}
 }
 
+// TestSamplesSaveInEveryLocale runs every sample through Create, which is
+// where an ingredient reference is resolved: a word missing from its step or
+// a name the ingredient list does not hold fails here rather than at the
+// first demo start.
+func TestSamplesSaveInEveryLocale(t *testing.T) {
+	ctx := context.Background()
+	for _, l := range user.Locales {
+		svc, userID := setup(t)
+		in, err := recipe.Samples(l)
+		if err != nil {
+			t.Fatalf("Samples(%q): %v", l, err)
+		}
+		refs := 0
+		for _, r := range in {
+			if _, err := svc.Create(ctx, userID, r); err != nil {
+				t.Errorf("Samples(%q) %q: %v", l, r.Title, err)
+			}
+			for _, s := range r.Steps {
+				refs += len(s.References)
+			}
+		}
+		if refs == 0 {
+			t.Errorf("Samples(%q) carry no ingredient references", l)
+		}
+	}
+}
+
 func TestSamplesDifferPerLocale(t *testing.T) {
 	de, err := recipe.Samples("de")
 	if err != nil {

@@ -21,6 +21,7 @@
 		type FieldErrors
 	} from '$lib/recipe/form';
 	import { applyDndAriaStrings } from '$lib/recipe/dnd';
+	import { acceptAll, type DismissedWords } from '$lib/recipe/step-references';
 	import { shell } from '$lib/shell.svelte';
 	import BasicsSection from './BasicsSection.svelte';
 	import ImagesSection from './ImagesSection.svelte';
@@ -58,6 +59,10 @@
 	// Files the images section has queued for a not-yet-created recipe; the
 	// `save` callback uploads them once the recipe exists.
 	let pendingFiles = $state<File[]>([]);
+	// Proposals the author turned down, keyed by step id. Deliberately not part
+	// of `form`: turning one down changes nothing that is saved, so it must not
+	// make the form dirty, and it has no business surviving the page.
+	let dismissed = $state<DismissedWords>({});
 
 	// Not `$state`: they steer a navigation that is already under way, and
 	// nothing renders from them.
@@ -130,7 +135,13 @@
 			return;
 		}
 		target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+		// A step is a ProseMirror surface rather than a textarea, so the test
+		// asks what the element can do, not which class it is.
+		if (
+			target instanceof HTMLInputElement ||
+			target instanceof HTMLTextAreaElement ||
+			target.isContentEditable
+		) {
 			target.focus({ preventScroll: true });
 		}
 	}
@@ -146,6 +157,10 @@
 			return;
 		}
 
+		// What the button's label promises: every proposal still on screen
+		// becomes a real reference, so the payload carries what the author saw.
+		acceptAll(form.steps, form.ingredientGroups, dismissed);
+
 		saving = true;
 		try {
 			const recipe = await save(toInput(form), pendingFiles);
@@ -154,7 +169,7 @@
 			await goto(resolve('/recipes/[slug]', { slug: recipe.slug }));
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 422) {
-				errors = applyServerErrors(error.errors);
+				errors = applyServerErrors(error.errors, form.steps);
 				if (Object.keys(errors).length > 0) {
 					await revealFirstError();
 				} else {
@@ -318,7 +333,12 @@
 				{#if errors.steps}
 					<p class="mb-3 text-micro font-medium text-destructive">{errors.steps}</p>
 				{/if}
-				<StepEditor bind:steps={form.steps} />
+				<StepEditor
+					bind:steps={form.steps}
+					groups={form.ingredientGroups}
+					bind:dismissed
+					{errors}
+				/>
 			</section>
 		</form>
 	</div>

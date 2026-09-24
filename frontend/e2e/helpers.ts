@@ -158,6 +158,14 @@ export async function openNewRecipe(page: Page) {
 	await expect(page).toHaveURL(/\/recipes\/new$/);
 }
 
+/**
+ * The editor's save button. Matched on a prefix rather than exactly, because
+ * while a save runs the label reads "Speichern …".
+ */
+export function saveButton(page: Page) {
+	return page.getByRole('button', { name: /^Speichern/ });
+}
+
 /** Types into the overview's search field and waits out its 250ms debounce. */
 export async function search(page: Page, term: string) {
 	const field = page.getByRole('textbox', { name: 'Search recipes' });

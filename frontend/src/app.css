@@ -72,6 +72,11 @@
 	--radius-2xl: 20px;
 	--radius-3xl: 24px;
 	--radius-pill: 9999px;
+	/* Below the sm/md/lg scale on purpose: this rounds the highlight behind a
+	   single word inside running text, where 10px already reads as a button
+	   sitting in the sentence. Named for its one caller, the way
+	   --radius-toast is. */
+	--radius-word: 3px;
 	/* Doesn't fit the sm/md/lg/xl/2xl/3xl scale (between lg and xl); named for
 	   its one caller instead, the same way shadow-cta is. */
 	--radius-toast: 16px;
@@ -275,4 +280,47 @@ body {
 button:not(:disabled),
 [role='button']:not([aria-disabled='true']) {
 	cursor: pointer;
+}
+
+/*
+ * The step editor's ingredient links.
+ *
+ * ProseMirror owns these elements: both classes are carried by decorations,
+ * which style the document without being part of it, so they can never be
+ * expressed as Tailwind classes in markup. A confirmed link is filled and
+ * solid, a proposal is a dotted rule - the same distinction the chips under
+ * the field draw, so the two always read as the same two states. Both colours
+ * come from the token set; nothing here is a literal.
+ */
+.ref-confirmed {
+	border-bottom: 2px solid var(--color-primary);
+	background: var(--color-accent);
+	border-radius: var(--radius-word);
+}
+
+.ref-suggestion {
+	border-bottom: 2px dotted var(--color-primary);
+}
+
+/*
+ * A link whose ingredient row has since been renamed or deleted. The API
+ * refuses it, so it is marked as wrong here rather than left looking like the
+ * links that work - the same state the chip under the field spells out.
+ */
+.ref-broken {
+	text-decoration: underline wavy var(--color-destructive);
+	text-underline-offset: 3px;
+}
+
+/*
+ * The placeholder in an empty step. Tiptap's Placeholder extension marks the
+ * empty node with this class and the text as a data attribute, again through
+ * a decoration - so the text is shown by CSS and never enters the document.
+ */
+.step-editable p.is-empty:first-child::before {
+	content: attr(data-placeholder);
+	color: var(--color-text-muted);
+	float: left;
+	height: 0;
+	pointer-events: none;
 }

@@ -1,7 +1,13 @@
 import type { FieldError } from '$lib/api/client';
-import { emptyInput, type IngredientGroup, type RecipeInput } from '$lib/api/recipes';
+import {
+	emptyInput,
+	type IngredientGroup,
+	type IngredientRef,
+	type RecipeInput
+} from '$lib/api/recipes';
 import { m } from '$lib/paraglide/messages';
 import { getLocale } from '$lib/paraglide/runtime';
+import { wordPattern } from './references';
 
 /**
  * The editor's form model: the same shape as `RecipeInput`, but every field
@@ -26,9 +32,32 @@ export type FormGroup = {
 	ingredients: FormIngredient[];
 };
 
+/**
+ * A reference while it is being edited: anchored to the ingredient row, not to
+ * the names that row happens to carry right now.
+ *
+ * This is the middle one of the feature's three anchors - client id in the
+ * editor, names on the wire, foreign keys in the database. Holding the wire's
+ * names here instead would mean a link is pinned to whatever the group and the
+ * row were called at the moment it was made, so renaming either would break
+ * every link in the recipe; `toInput` reads the names off the row again
+ * instead, at save time.
+ */
+export type FormRef = {
+	word: string;
+	/** `FormIngredient.id` of the row this points at, or null when the
+	 *  incoming reference named a row this recipe no longer has. */
+	ingredientId: string | null;
+	/** What the reference named when it arrived. Kept only so an
+	 *  unresolved one can still be shown and sent back unchanged. */
+	groupName: string | null;
+	ingredientName: string;
+};
+
 export type FormStep = {
 	id: string;
 	text: string;
+	references: FormRef[];
 };
 
 export type RecipeForm = {
@@ -91,7 +120,7 @@ export function newGroup(): FormGroup {
 
 /** A blank step. */
 export function newStep(): FormStep {
-	return { id: newId(), text: '' };
+	return { id: newId(), text: '', references: [] };
 }
 
 /** True when a string is empty or only whitespace. */
@@ -187,7 +216,16 @@ export function fromRecipe(recipe: RecipeInput): RecipeForm {
 					}))
 				: [newIngredient()]
 	}));
-	const steps = recipe.steps.map((text) => ({ id: newId(), text }));
+	const steps = recipe.steps.map((step) => ({
+		id: newId(),
+		text: step.text,
+		references: step.references.map((ref) => ({
+			word: ref.word,
+			ingredientId: rowFor(groups, ref),
+			groupName: ref.groupName,
+			ingredientName: ref.ingredientName
+		}))
+	}));
 
 	return {
 		title: recipe.title,
@@ -199,6 +237,119 @@ export function fromRecipe(recipe: RecipeInput): RecipeForm {
 		tags: [...recipe.tags],
 		ingredientGroups: groups.length > 0 ? groups : [newGroup()],
 		steps: steps.length > 0 ? steps : [newStep()]
+	};
+}
+
+/**
+ * The client id of the row a stored reference names, or null when it names no
+ * row this recipe still has.
+ *
+ * The rule is the server's (`findGroup`/`findIngredient` in
+ * `service/internal/recipe/references.go`): the group whose trimmed name
+ * equals the reference's, with null and a blank name both meaning the group
+ * without a name, then the ingredient in that group whose trimmed name
+ * matches.
+ *
+ * Taking the first match where the server refuses an ambiguous one is safe
+ * because the ambiguity cannot be in the data: `resolveRefs` runs on every
+ * write path, before the transaction, and refuses a document in which a
+ * reference's group name or ingredient name occurs twice. So a stored
+ * reference that resolves here resolves to exactly one row - the database
+ * cannot hold the state in which "first" and "only" differ. The recipes this
+ * sees are the ones the server handed out, and nothing else reaches
+ * `fromRecipe`.
+ */
+function rowFor(groups: FormGroup[], ref: IngredientRef): string | null {
+	const wanted = blankToNull(ref.groupName ?? '');
+	const group = groups.find((candidate) => blankToNull(candidate.name) === wanted);
+	const row = group?.ingredients.find(
+		(candidate) => candidate.name.trim() === ref.ingredientName.trim()
+	);
+	return row?.id ?? null;
+}
+
+/**
+ * The group and the row carrying `id`, or null when no row does any more.
+ *
+ * A row whose name has been cleared counts as gone: `toInput` drops it, or
+ * `validate` refuses it, so a link to it has nothing to name. It comes back
+ * the moment the row is given a name again, because the id never changed.
+ */
+function rowById(
+	groups: FormGroup[],
+	id: string
+): { group: FormGroup; row: FormIngredient } | null {
+	for (const group of groups) {
+		for (const row of group.ingredients) {
+			if (row.id === id) {
+				return isBlank(row.name) ? null : { group, row };
+			}
+		}
+	}
+	return null;
+}
+
+/**
+ * True for a reference that pointed at a row when the recipe was loaded and
+ * whose row has since been deleted, or emptied of its name.
+ *
+ * This is NOT the same state as a reference that never resolved, and the two
+ * must never share a fallback. The names a deleted row's reference remembers
+ * are known-stale: delete the group `Vanillesoße` and rename `Grütze` to
+ * `Vanillesoße`, and those names now describe a DIFFERENT row. Sending them
+ * would have the server resolve the link happily onto 100 g where the author
+ * linked 50 g - a wrong quantity in somebody's kitchen, the one failure this
+ * feature exists to rule out. `validate` refuses the save instead.
+ */
+function pointsAtDeletedRow(groups: FormGroup[], ref: FormRef): boolean {
+	return ref.ingredientId !== null && rowById(groups, ref.ingredientId) === null;
+}
+
+/**
+ * The references whose word still stands in `text`.
+ *
+ * Editing a step never throws a link away: one whose word has been typed over
+ * or cut stays on the step, only out of sight, so undoing the edit or pasting
+ * the sentence back brings the link back with the word. The editor's history
+ * covers the text alone, and a link removed on every keystroke would be gone
+ * for good by the time Cmd+Z restored its word. What is out of sight is left
+ * out of everything that counts - the chips, `validate` and the payload - so a
+ * save never carries a link to a word the API cannot find.
+ */
+export function presentReferences(refs: FormRef[], text: string): FormRef[] {
+	return refs.filter((ref) => wordPattern(ref.word).test(text));
+}
+
+/**
+ * A reference as the API takes it, or null when it must not be sent at all.
+ *
+ * Three states, and they are deliberately not one:
+ *
+ * - The row is still there: its CURRENT group and ingredient names go out, so
+ *   a rename carries the link with it.
+ * - The reference never found a row when the recipe was loaded
+ *   (`ingredientId` is null): the names it arrived with are all there is, so
+ *   they go out unchanged. The editor has already drawn it broken and the API
+ *   refuses it with a 422 naming it - louder, and more honest, than a save
+ *   that quietly drops a link the author can still see.
+ * - The row was deleted while the recipe was open: null, because the names it
+ *   remembers may now belong to another row (see `pointsAtDeletedRow`).
+ *   `validate` stops the save before this is reached, so nothing is lost this
+ *   way; the drop is the belt to that braces, and it degrades to "no
+ *   reference" rather than to "wrong reference".
+ */
+function refToInput(groups: FormGroup[], ref: FormRef): IngredientRef | null {
+	if (ref.ingredientId === null) {
+		return { word: ref.word, groupName: ref.groupName, ingredientName: ref.ingredientName };
+	}
+	const found = rowById(groups, ref.ingredientId);
+	if (found === null) {
+		return null;
+	}
+	return {
+		word: ref.word,
+		groupName: blankToNull(found.group.name),
+		ingredientName: found.row.name.trim()
 	};
 }
 
@@ -241,7 +392,14 @@ export function toInput(form: RecipeForm): RecipeInput {
 		tags: form.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0),
 		// The API requires at least one group (`minItems:"1"`).
 		ingredientGroups: groups.length > 0 ? groups : [{ name: null, ingredients: [] }],
-		steps: form.steps.map((step) => step.text.trim()).filter((text) => text.length > 0)
+		steps: form.steps
+			.filter((step) => !isBlank(step.text))
+			.map((step) => ({
+				text: step.text.trim(),
+				references: presentReferences(step.references, step.text).flatMap(
+					(ref) => refToInput(form.ingredientGroups, ref) ?? []
+				)
+			}))
 	};
 }
 
@@ -299,6 +457,27 @@ export function validate(form: RecipeForm): FieldErrors {
 		errors.ingredientGroups = m.editor_validation_ingredients();
 	}
 
+	// A link whose row was deleted while the recipe was open is the one case
+	// that must stop a save rather than degrade. Its remembered names may since
+	// have come to describe another row, so sending them could re-point the
+	// link at a different quantity, and dropping it would take the author's
+	// work away without a word. The chip is already drawn broken; this says so
+	// where the save can see it, keyed to the step so the editor scrolls there,
+	// and leaves removing the link to the author.
+	//
+	// Blank steps are skipped for the same reason `toInput` drops them: they
+	// are not submitted, so an error under one would block a save over
+	// something nobody is saving.
+	for (const step of form.steps) {
+		if (isBlank(step.text)) {
+			continue;
+		}
+		const present = presentReferences(step.references, step.text);
+		if (present.some((ref) => pointsAtDeletedRow(form.ingredientGroups, ref))) {
+			errors[`step:${step.id}`] = m.editor_validation_reference_deleted();
+		}
+	}
+
 	return errors;
 }
 
@@ -336,12 +515,22 @@ function numberError(value: string): string | null {
  * locations like `body.title`, `body.servings` or
  * `body.ingredientGroups[0].ingredients[2].name`; everything below a
  * top-level field collapses onto that field, which is enough to highlight
- * the right section and scroll to it.
+ * the right section and scroll to it - except a problem inside one step
+ * (`body.steps[1]...`), which is keyed `step:<stepId>` the way an ingredient
+ * row is keyed `name:<rowId>`, so the editor can point at the step that
+ * failed instead of just the section.
+ *
+ * `steps` is the form's full, unfiltered list, but the server's index counts
+ * only the steps `toInput` actually submitted - a blank step in between is
+ * never sent and never rejected. Filtered here with the exact predicate
+ * `toInput` uses (`!isBlank(step.text)`), so `body.steps[1]` lands on the
+ * same step the server saw, not on whatever sits at index 1 of the form.
  */
-export function applyServerErrors(errors: FieldError[]): FieldErrors {
+export function applyServerErrors(errors: FieldError[], steps: FormStep[]): FieldErrors {
+	const submitted = steps.filter((step) => !isBlank(step.text));
 	const mapped: FieldErrors = {};
 	for (const error of errors) {
-		const field = serverField(error.location);
+		const field = serverField(error.location, submitted);
 		// First message wins - later ones for the same field would only
 		// overwrite the one the user is most likely to act on.
 		if (field !== null && !(field in mapped)) {
@@ -351,11 +540,17 @@ export function applyServerErrors(errors: FieldError[]): FieldErrors {
 	return mapped;
 }
 
-function serverField(location: string): string | null {
+function serverField(location: string, steps: FormStep[]): string | null {
 	if (!location.startsWith('body.')) {
 		return null;
 	}
-	const head = location.slice('body.'.length).split(/[.[]/, 1)[0];
+	const rest = location.slice('body.'.length);
+	const stepMatch = /^steps\[(\d+)\]/.exec(rest);
+	if (stepMatch) {
+		const step = steps[Number(stepMatch[1])];
+		return step ? `step:${step.id}` : 'steps';
+	}
+	const head = rest.split(/[.[]/, 1)[0];
 	return FIELD_ORDER.includes(head) ? head : null;
 }
 
@@ -385,6 +580,9 @@ function fieldRank(field: string): number {
 	if (field.startsWith('quantity:') || field.startsWith('name:')) {
 		return FIELD_ORDER.indexOf('ingredientGroups');
 	}
+	if (field.startsWith('step:')) {
+		return FIELD_ORDER.indexOf('steps');
+	}
 	return FIELD_ORDER.length;
 }
 
@@ -395,6 +593,9 @@ export function anchorId(field: string): string {
 	}
 	if (field.startsWith('name:')) {
 		return `ingredient-name-${field.slice('name:'.length)}`;
+	}
+	if (field.startsWith('step:')) {
+		return `step-${field.slice('step:'.length)}`;
 	}
 	if (field === 'ingredientGroups') {
 		return 'editor-section-ingredients';
