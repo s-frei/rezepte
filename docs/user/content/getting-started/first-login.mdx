@@ -14,6 +14,8 @@ description: Change the owner password and add the rest of the household
 
     The login page speaks the language this browser last used Rezepte in, or else the browser's own language if Rezepte has it, or else English; once you are signed in, your account's language takes over.
 
+    After five wrong passwords in a row, a username is locked for 30 seconds, and every further wrong try doubles the wait, up to 15 minutes. The login page says so instead of "wrong password". Devices that are already signed in are not affected. Once the wait is over, a correct password clears the count.
+
     This first account owns the instance. It cannot be deleted, it cannot be turned into an ordinary member, and it is the only account that can make someone else an admin.
 
   </Step>

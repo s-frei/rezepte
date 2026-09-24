@@ -87,6 +87,29 @@ func TestLoginRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+func TestLoginAnswersALockedNameWithTooManyRequests(t *testing.T) {
+	h, sessions := newHandlerWithSessions(t)
+	clock := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	sessions.SetClock(func() time.Time { return clock })
+	for range 5 {
+		do(h, http.MethodPost, "/api/v1/auth/login", `{"username":"sam","password":"x"}`, nil)
+	}
+	clock = clock.Add(500 * time.Millisecond)
+
+	rec := do(h, http.MethodPost, "/api/v1/auth/login", `{"username":"sam","password":"pw"}`, nil)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	// 29.5 s left rounds up, so a client that waits exactly this long is
+	// never refused again for being half a second early.
+	if got := rec.Header().Get("Retry-After"); got != "30" {
+		t.Fatalf("Retry-After = %q, want 30", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
+		t.Fatalf("content type %q", ct)
+	}
+}
+
 func TestLoginValidatesBody(t *testing.T) {
 	rec := do(newHandler(t), http.MethodPost, "/api/v1/auth/login", `{"username":""}`, nil)
 	if rec.Code != http.StatusUnprocessableEntity {
@@ -209,6 +232,7 @@ func TestOpenAPIDeclaresRetryAfter(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []struct{ path, method, status string }{
+		{"/api/v1/auth/login", "post", "429"},
 		{"/api/v1/auth/login", "post", "503"},
 		{"/api/v1/auth/me", "patch", "503"},
 	} {

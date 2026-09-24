@@ -63,6 +63,64 @@ func TestLoginWrongPassword(t *testing.T) {
 	}
 }
 
+// failLogins makes n wrong-password attempts for username, each of which
+// must come back as plain invalid credentials.
+func failLogins(t *testing.T, svc *auth.Service, username string, n int) {
+	t.Helper()
+	for i := range n {
+		if _, err := svc.Login(context.Background(), username, "nope"); !errors.Is(err, user.ErrInvalidCredentials) {
+			t.Fatalf("attempt %d: err = %v, want invalid credentials", i+1, err)
+		}
+	}
+}
+
+func TestLoginLocksANameAfterFiveFailures(t *testing.T) {
+	svc, _ := newServices(t)
+	failLogins(t, svc, "sam", 5)
+
+	// The right password does not help while the name is locked: the
+	// attempt is refused before the password is looked at.
+	_, err := svc.Login(context.Background(), "sam", "pw")
+	var throttled *auth.ThrottledError
+	if !errors.As(err, &throttled) {
+		t.Fatalf("err = %v, want ThrottledError", err)
+	}
+	if throttled.RetryAfter <= 0 || throttled.RetryAfter > 30*time.Second {
+		t.Fatalf("RetryAfter = %v, want within 30s", throttled.RetryAfter)
+	}
+}
+
+func TestLoginUnlocksWhenTheLockRunsOut(t *testing.T) {
+	svc, _ := newServices(t)
+	clock := time.Now()
+	svc.SetClock(func() time.Time { return clock })
+	failLogins(t, svc, "sam", 5)
+	clock = clock.Add(30 * time.Second)
+	if _, err := svc.Login(context.Background(), "sam", "pw"); err != nil {
+		t.Fatalf("login after the lock: %v", err)
+	}
+}
+
+func TestLoginSuccessResetsTheCount(t *testing.T) {
+	svc, _ := newServices(t)
+	failLogins(t, svc, "sam", 4)
+	if _, err := svc.Login(context.Background(), "sam", "pw"); err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	failLogins(t, svc, "sam", 5)
+}
+
+// An unknown name is locked like a real one, so a 429 never tells an
+// attacker which accounts exist.
+func TestLoginLocksAnUnknownNameToo(t *testing.T) {
+	svc, _ := newServices(t)
+	failLogins(t, svc, "nobody", 5)
+	var throttled *auth.ThrottledError
+	if _, err := svc.Login(context.Background(), "nobody", "nope"); !errors.As(err, &throttled) {
+		t.Fatalf("err = %v, want ThrottledError", err)
+	}
+}
+
 func TestLogoutInvalidatesToken(t *testing.T) {
 	ctx := context.Background()
 	svc, _ := newServices(t)

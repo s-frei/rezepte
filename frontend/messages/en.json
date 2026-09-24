@@ -11,6 +11,7 @@
 	"login_submit": "Sign in",
 	"login_submitting": "Signing in…",
 	"login_failed": "That username or password is wrong.",
+	"login_throttled": "Too many failed attempts. Wait a little, then try again.",
 	"login_error_generic": "Sign-in failed. Please try again later.",
 	"logout": "Sign out",
 	"common_coming_soon": "Coming soon",

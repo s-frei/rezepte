@@ -15,6 +15,12 @@
 	let error = $state<string | null>(null);
 	let submitting = $state(false);
 
+	function loginError(e: unknown): string {
+		if (e instanceof ApiError && e.status === 401) return m.login_failed();
+		if (e instanceof ApiError && e.status === 429) return m.login_throttled();
+		return m.login_error_generic();
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		error = null;
@@ -31,8 +37,7 @@
 				window.location.assign(next);
 			}
 		} catch (e) {
-			error =
-				e instanceof ApiError && e.status === 401 ? m.login_failed() : m.login_error_generic();
+			error = loginError(e);
 		} finally {
 			submitting = false;
 		}

@@ -11,6 +11,7 @@
 	"login_submit": "Anmelden",
 	"login_submitting": "Wird angemeldet …",
 	"login_failed": "Benutzername oder Passwort ist falsch.",
+	"login_throttled": "Zu viele Fehlversuche. Bitte etwas warten und dann erneut versuchen.",
 	"login_error_generic": "Anmeldung fehlgeschlagen. Bitte später erneut versuchen.",
 	"logout": "Abmelden",
 	"common_coming_soon": "Kommt bald",

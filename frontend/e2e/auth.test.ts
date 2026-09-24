@@ -12,6 +12,20 @@ test('rejects a wrong password', async ({ page }) => {
 	await expect(page).toHaveURL(/\/login/);
 });
 
+test('explains a sign-in locked after too many failures', async ({ page }, testInfo) => {
+	// A name of its own per project and run, so the lock never reaches the
+	// accounts other specs sign in with. Unknown names are locked like real ones.
+	const username = `locked-${testInfo.project.name}-${Date.now()}`;
+	for (let attempt = 0; attempt < 5; attempt++) {
+		await login(page, username, 'wrong');
+		await expect(page.getByRole('alert')).toBeVisible();
+	}
+	await login(page, username, 'wrong');
+	await expect(page.getByRole('alert')).toHaveText(
+		'Too many failed attempts. Wait a little, then try again.'
+	);
+});
+
 test('logs in, survives reload, logs out', async ({ page }, testInfo) => {
 	await login(page);
 	// Being on the overview is the proof: an anonymous visitor is bounced to

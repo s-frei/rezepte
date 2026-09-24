@@ -30,6 +30,16 @@ const renewAfter = 24 * time.Hour
 // ErrNoSession means the token is unknown or expired.
 var ErrNoSession = errors.New("session not found or expired")
 
+// ThrottledError means the username has used its free login attempts and
+// is locked for RetryAfter. Login returns it before the password is checked.
+type ThrottledError struct {
+	RetryAfter time.Duration
+}
+
+func (e *ThrottledError) Error() string {
+	return fmt.Sprintf("too many login attempts, retry in %v", e.RetryAfter)
+}
+
 // Session is what the client receives after login.
 type Session struct {
 	Token     string
@@ -39,25 +49,33 @@ type Session struct {
 
 // Service manages sessions.
 type Service struct {
-	q     *sqlc.Queries
-	users *user.Service
-	now   func() time.Time
+	q        *sqlc.Queries
+	users    *user.Service
+	throttle *throttle
+	now      func() time.Time
 }
 
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB, users *user.Service) *Service {
-	return &Service{q: sqlc.New(conn), users: users, now: time.Now}
+	return &Service{q: sqlc.New(conn), users: users, throttle: newThrottle(throttleCapacity), now: time.Now}
 }
 
 // SetClock overrides the time source. Intended for tests.
 func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
-// Login verifies the credentials and creates a session.
+// Login verifies the credentials and creates a session. A username that
+// has used its free attempts yields a ThrottledError without its password
+// being checked, so a locked attempt costs neither a query nor an argon2
+// evaluation.
 func (s *Service) Login(ctx context.Context, username, password string) (Session, error) {
+	if wait, ok := s.throttle.begin(username, s.now()); !ok {
+		return Session{}, &ThrottledError{RetryAfter: wait}
+	}
 	u, err := s.users.Authenticate(ctx, username, password)
 	if err != nil {
 		return Session{}, err
 	}
+	s.throttle.succeed(username)
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return Session{}, fmt.Errorf("generate session token: %w", err)
@@ -164,7 +182,8 @@ func (s *Service) DeleteExpired(ctx context.Context) error {
 
 // SweepLoop calls DeleteExpired every d until ctx is canceled, logging
 // failures instead of returning them so a transient DB error never takes
-// the sweep down permanently. Intended to run in its own goroutine.
+// the sweep down permanently. The same tick drops login throttle entries
+// nobody has tried for a day. Intended to run in its own goroutine.
 func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.Logger) {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
@@ -173,6 +192,7 @@ func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.L
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			s.throttle.sweep(s.now())
 			if err := s.DeleteExpired(ctx); err != nil {
 				logger.Warn("sweep expired sessions", "err", err)
 			}

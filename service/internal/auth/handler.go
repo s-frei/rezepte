@@ -93,11 +93,15 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Path:        "/api/v1/auth/login",
 		Summary:     "Log in with username and password",
 		Tags:        []string{"auth"},
-		Errors:      []int{401, 503},
+		Errors:      []int{401, 429, 503},
 	}, func(ctx context.Context, in *loginInput) (*loginOutput, error) {
 		sess, err := svc.Login(ctx, in.Body.Username, in.Body.Password)
 		if errors.Is(err, user.ErrInvalidCredentials) {
 			return nil, huma.Error401Unauthorized("invalid username or password")
+		}
+		var throttled *ThrottledError
+		if errors.As(err, &throttled) {
+			return nil, throttledError(throttled)
 		}
 		if mapped := BusyError(err); mapped != nil {
 			return nil, mapped
@@ -113,7 +117,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			Body: toResponse(sess.User),
 		}, nil
 	})
-	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/login", http.StatusServiceUnavailable)
+	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/login", http.StatusTooManyRequests, http.StatusServiceUnavailable)
 
 	huma.Register(api, huma.Operation{
 		OperationID:   "logout",
@@ -307,6 +311,16 @@ func ProfileError(err error) error {
 		})
 	}
 	return nil
+}
+
+// throttledError is the 429 for a locked username. Retry-After is rounded up
+// to whole seconds, so a client that waits exactly that long is let through.
+func throttledError(e *ThrottledError) error {
+	seconds := int64((e.RetryAfter + time.Second - 1) / time.Second)
+	return huma.ErrorWithHeaders(
+		huma.Error429TooManyRequests("too many failed login attempts, try again later"),
+		http.Header{"Retry-After": {strconv.FormatInt(seconds, 10)}},
+	)
 }
 
 func sessionCookie(token string, expires time.Time, secure bool) http.Cookie {
