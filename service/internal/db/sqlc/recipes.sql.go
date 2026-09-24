@@ -338,6 +338,27 @@ func (q *Queries) InsertStep(ctx context.Context, arg InsertStepParams) error {
 	return err
 }
 
+const insertStepReference = `-- name: InsertStepReference :exec
+INSERT INTO step_references (step_id, ingredient_id, word, position) VALUES (?, ?, ?, ?)
+`
+
+type InsertStepReferenceParams struct {
+	StepID       string
+	IngredientID string
+	Word         string
+	Position     int64
+}
+
+func (q *Queries) InsertStepReference(ctx context.Context, arg InsertStepReferenceParams) error {
+	_, err := q.db.ExecContext(ctx, insertStepReference,
+		arg.StepID,
+		arg.IngredientID,
+		arg.Word,
+		arg.Position,
+	)
+	return err
+}
+
 const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many
 SELECT id, display_name, color FROM users WHERE id IN (/*SLICE:ids*/?)
 `
@@ -678,6 +699,51 @@ func (q *Queries) ListRecipesFiltered(ctx context.Context, arg ListRecipesFilter
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStepReferencesByRecipe = `-- name: ListStepReferencesByRecipe :many
+SELECT sr.step_id, sr.word, g.name AS group_name, i.name AS ingredient_name
+FROM step_references sr
+JOIN steps s ON s.id = sr.step_id
+JOIN ingredients i ON i.id = sr.ingredient_id
+JOIN ingredient_groups g ON g.id = i.group_id
+WHERE s.recipe_id = ?
+ORDER BY s.position, sr.position
+`
+
+type ListStepReferencesByRecipeRow struct {
+	StepID         string
+	Word           string
+	GroupName      *string
+	IngredientName string
+}
+
+func (q *Queries) ListStepReferencesByRecipe(ctx context.Context, recipeID string) ([]ListStepReferencesByRecipeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listStepReferencesByRecipe, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListStepReferencesByRecipeRow{}
+	for rows.Next() {
+		var i ListStepReferencesByRecipeRow
+		if err := rows.Scan(
+			&i.StepID,
+			&i.Word,
+			&i.GroupName,
+			&i.IngredientName,
 		); err != nil {
 			return nil, err
 		}

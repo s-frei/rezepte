@@ -24,6 +24,13 @@
 	bar carries no title: the two buttons already say where you are, and a
 	headline squeezed between them would only ever truncate. The two ways out
 	sit at opposite edges, so neither is hit by accident.
+
+	Nothing else belongs in here. A line saying how many ingredient links a
+	save will confirm lived here for a while, and it cost a row of a bar that
+	is pinned over the form - permanently, because there is nearly always an
+	open proposal while a recipe is being written. It says the same thing in
+	the steps section, beside the proposals it is about, and costs nothing
+	when there are none.
 -->
 <div
 	class="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-5 backdrop-blur md:hidden"

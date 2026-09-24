@@ -92,6 +92,13 @@ type Step struct {
 	Text     string
 }
 
+type StepReference struct {
+	StepID       string
+	IngredientID string
+	Word         string
+	Position     int64
+}
+
 type Tag struct {
 	ID   string
 	Name string

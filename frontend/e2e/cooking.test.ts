@@ -25,7 +25,11 @@ function scalingRecipe(title: string): RecipeInput {
 				]
 			}
 		],
-		steps: ['Mix the flour and salt.', 'Add the water.', 'Knead and leave to rest.']
+		steps: [
+			{ text: 'Mix the flour and salt.', references: [] },
+			{ text: 'Add the water.', references: [] },
+			{ text: 'Knead and leave to rest.', references: [] }
+		]
 	};
 }
 

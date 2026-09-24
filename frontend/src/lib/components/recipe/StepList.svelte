@@ -1,5 +1,18 @@
 <script lang="ts">
-	let { steps }: { steps: string[] } = $props();
+	import type { IngredientGroup, Step } from '$lib/api/recipes';
+	import StepText from './StepText.svelte';
+
+	let {
+		steps,
+		groups,
+		servings,
+		baseServings
+	}: {
+		steps: Step[];
+		groups: IngredientGroup[];
+		servings: number;
+		baseServings: number;
+	} = $props();
 </script>
 
 <ol class="flex flex-col gap-[22px]">
@@ -11,7 +24,9 @@
 			>
 				{index + 1}
 			</span>
-			<p class="pt-1 text-[16px] leading-[1.6] text-text">{step}</p>
+			<p class="pt-1 text-[16px] leading-[1.6] text-text">
+				<StepText {step} {groups} {servings} {baseServings} />
+			</p>
 		</li>
 	{/each}
 </ol>

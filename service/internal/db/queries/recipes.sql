@@ -196,6 +196,18 @@ WHERE g.recipe_id = ? ORDER BY g.position, i.position;
 -- name: ListStepsByRecipe :many
 SELECT * FROM steps WHERE recipe_id = ? ORDER BY position;
 
+-- name: InsertStepReference :exec
+INSERT INTO step_references (step_id, ingredient_id, word, position) VALUES (?, ?, ?, ?);
+
+-- name: ListStepReferencesByRecipe :many
+SELECT sr.step_id, sr.word, g.name AS group_name, i.name AS ingredient_name
+FROM step_references sr
+JOIN steps s ON s.id = sr.step_id
+JOIN ingredients i ON i.id = sr.ingredient_id
+JOIN ingredient_groups g ON g.id = i.group_id
+WHERE s.recipe_id = ?
+ORDER BY s.position, sr.position;
+
 -- name: ListTagNamesByRecipe :many
 SELECT t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id WHERE rt.recipe_id = ? ORDER BY t.name;
 

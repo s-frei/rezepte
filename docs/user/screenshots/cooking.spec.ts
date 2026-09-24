@@ -25,7 +25,10 @@ test('servings', async ({ page }, testInfo) => {
 test('cook-mode', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(`${DETAIL}/cook`);
-	await expect(page.getByText('Peel and chop the potatoes')).toBeVisible();
+	// "potatoes" carries an ingredient reference, so its quantity is inserted
+	// right after it and splits that text node. Match across the split so this
+	// also proves the reference itself renders - the word AND its quantity.
+	await expect(page.getByText(/potatoes\s*\(1\s*kg\),\s*then boil/)).toBeVisible();
 	await shot(page, 'cook-mode');
 });
 

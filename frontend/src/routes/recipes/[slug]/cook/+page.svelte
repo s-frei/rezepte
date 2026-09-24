@@ -9,6 +9,7 @@
 	import ChevronLeft from 'lucide-svelte/icons/chevron-left';
 	import CookProgress from '$lib/components/cook/CookProgress.svelte';
 	import IngredientSheet from '$lib/components/cook/IngredientSheet.svelte';
+	import StepText from '$lib/components/recipe/StepText.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { createServings } from '$lib/recipe/servings.svelte';
 	import { swipeDirection } from '$lib/recipe/swipe';
@@ -197,7 +198,12 @@
 					>
 						<h1 class="font-display text-body-lg text-primary italic">{recipe.title}</h1>
 						<p class="mt-4 max-w-[640px] font-display text-display-sm leading-[1.3] font-medium">
-							{recipe.steps[index]}
+							<StepText
+								step={recipe.steps[index]}
+								groups={recipe.ingredientGroups}
+								servings={servings.value}
+								baseServings={servings.base}
+							/>
 						</p>
 					</section>
 				{/key}

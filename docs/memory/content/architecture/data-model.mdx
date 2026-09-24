@@ -11,6 +11,8 @@ erDiagram
   recipes ||--o{ ingredient_groups : has
   ingredient_groups ||--o{ ingredients : has
   recipes ||--o{ steps : has
+  steps ||--o{ step_references : has
+  ingredients ||--o{ step_references : "named by"
   recipes ||--o{ recipe_tags : tagged
   tags ||--o{ recipe_tags : tags
   recipes ||--o{ images : has
@@ -80,6 +82,12 @@ erDiagram
     integer position
     text text
   }
+  step_references {
+    text step_id PK "also FK to steps.id"
+    text ingredient_id FK
+    text word PK
+    integer position
+  }
   tags {
     text id PK
     text name UK
@@ -120,6 +128,7 @@ erDiagram
 - `ingredient_groups.position`, `ingredients.position` and `steps.position` are 0-based integers, rewritten sequentially in full on every recipe save (see [Recipes and search](/features/recipes)) - never edited in place, so there are no gaps or renumbering to reason about between saves.
 - NULL means "absent," not "empty": `prep_minutes`, `cook_minutes`, `source_url`, `cover_image_id`, `ingredient_groups.name`, `ingredients.unit` and `ingredients.note` are stored as `NULL`, never `''`, when unset (the service converts an empty string to `nil` on write). `recipes.description` is the exception - it defaults to `''`, not `NULL`, when omitted.
 - Tags are implicit: `tags` only ever holds names currently used by at least one recipe (see [Recipes and search](/features/recipes)); there is no separate tag-management table or endpoint.
+- `step_references` is keyed by `(step_id, word)`, following `recipe_tags`: a word carries at most one reference per step. Both foreign keys cascade, so deleting the step or the ingredient it names removes the reference with it - a dangling reference is a state the database cannot hold. See [Ingredient references](/features/ingredient-references) for the anchor it encodes and why it names an ingredient rather than a position.
 - `images.filename` is `<id>.jpg`; the three variants (`<id>.jpg`, `<id>_detail.jpg`, `<id>_thumb.jpg`) live in `<REZEPTE_DATA_DIR>/images/<recipe_id>/`, outside the database; `width`/`height` are the largest variant's; `size_bytes` sums all three; `position` is compact `0..n-1` like the other position columns, rewritten on delete and reorder. See [Images](/features/images).
 - `recipes_fts` is not shown above: an FTS5 virtual table is a search index rather than a relation - it holds no copy of the text and no foreign keys, so there is nothing for the diagram to connect it to. [Recipes](/features/recipes) owns how it is declared, keyed and kept in step.
 - `recipes.created_by` and `recipes.updated_by` are both `NOT NULL` without `ON DELETE`; deleting a user moves every recipe they wrote **or last edited** to the acting admin (see [Users and authentication](/features/users-and-auth)). Sessions and API tokens both cascade: deleting a user removes both.

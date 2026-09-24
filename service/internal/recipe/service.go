@@ -49,8 +49,12 @@ func NewService(conn *sql.DB, opts ...Option) *Service {
 // the title (numbered on collision), and indexes it for search.
 func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recipe, error) {
 	tags := NormalizeTags(in.Tags)
+	targets, err := resolveRefs(in.IngredientGroups, in.Steps)
+	if err != nil {
+		return Recipe{}, err
+	}
 	var id string
-	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		slug, err := uniqueSlug(ctx, q, Slugify(in.Title))
 		if err != nil {
 			return err
@@ -73,7 +77,7 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 		}); err != nil {
 			return fmt.Errorf("insert recipe: %w", err)
 		}
-		if err := writeChildren(ctx, q, id, in); err != nil {
+		if err := writeChildren(ctx, q, id, in, targets); err != nil {
 			return err
 		}
 		if err := writeTags(ctx, q, id, tags); err != nil {
@@ -94,7 +98,11 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 // returns ErrNotFound when no such recipe exists.
 func (s *Service) Update(ctx context.Context, id string, updatedBy string, in Input) (Recipe, error) {
 	tags := NormalizeTags(in.Tags)
-	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+	targets, err := resolveRefs(in.IngredientGroups, in.Steps)
+	if err != nil {
+		return Recipe{}, err
+	}
+	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		if _, err := q.GetRecipe(ctx, id); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ErrNotFound
@@ -124,7 +132,7 @@ func (s *Service) Update(ctx context.Context, id string, updatedBy string, in In
 		if err := q.DeleteRecipeTags(ctx, id); err != nil {
 			return fmt.Errorf("delete recipe tags: %w", err)
 		}
-		if err := writeChildren(ctx, q, id, in); err != nil {
+		if err := writeChildren(ctx, q, id, in, targets); err != nil {
 			return err
 		}
 		if err := writeTags(ctx, q, id, tags); err != nil {
@@ -329,6 +337,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list steps: %w", err)
 	}
+	refRows, err := s.q.ListStepReferencesByRecipe(ctx, row.ID)
+	if err != nil {
+		return Recipe{}, fmt.Errorf("list step references: %w", err)
+	}
 	tagNames, err := s.q.ListTagNamesByRecipe(ctx, row.ID)
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list tags: %w", err)
@@ -367,9 +379,22 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 		outGroups[i] = IngredientGroup{Name: g.Name, Ingredients: byGroup[g.ID]}
 	}
 
-	outSteps := make([]string, len(steps))
+	refsByStep := make(map[string][]IngredientRef, len(steps))
+	for _, r := range refRows {
+		refsByStep[r.StepID] = append(refsByStep[r.StepID], IngredientRef{
+			Word:           r.Word,
+			GroupName:      r.GroupName,
+			IngredientName: r.IngredientName,
+		})
+	}
+	outSteps := make([]Step, len(steps))
 	for i, st := range steps {
-		outSteps[i] = st.Text
+		refs := refsByStep[st.ID]
+		if refs == nil {
+			// Never nil: a null here would break a GET -> PUT round-trip.
+			refs = []IngredientRef{}
+		}
+		outSteps[i] = Step{Text: st.Text, References: refs}
 	}
 
 	images := make([]Image, len(imgRows))
@@ -405,8 +430,12 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 }
 
 // writeChildren inserts the ingredient groups (with their ingredients) and
-// steps of in under recipeID, in order.
-func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Input) error {
+// steps of in under recipeID, in order, then the step references targets
+// resolved against those same groups and steps.
+func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Input, targets map[[2]int]refTarget) error {
+	// The ids minted for the ingredients are what the references point at, so
+	// remember them while inserting rather than querying them back.
+	ingredientIDs := make(map[refTarget]string, len(in.IngredientGroups))
 	for gi, group := range in.IngredientGroups {
 		groupID := uuid.Must(uuid.NewV7()).String()
 		if err := q.InsertIngredientGroup(ctx, sqlc.InsertIngredientGroupParams{
@@ -418,8 +447,10 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 			return fmt.Errorf("insert ingredient group: %w", err)
 		}
 		for ii, ing := range group.Ingredients {
+			ingredientID := uuid.Must(uuid.NewV7()).String()
+			ingredientIDs[refTarget{Group: gi, Ingredient: ii}] = ingredientID
 			if err := q.InsertIngredient(ctx, sqlc.InsertIngredientParams{
-				ID:       uuid.Must(uuid.NewV7()).String(),
+				ID:       ingredientID,
 				GroupID:  groupID,
 				Quantity: ing.Quantity,
 				Unit:     nonEmpty(ing.Unit),
@@ -432,13 +463,40 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 		}
 	}
 	for si, step := range in.Steps {
+		stepID := uuid.Must(uuid.NewV7()).String()
 		if err := q.InsertStep(ctx, sqlc.InsertStepParams{
-			ID:       uuid.Must(uuid.NewV7()).String(),
+			ID:       stepID,
 			RecipeID: recipeID,
 			Position: int64(si),
-			Text:     step,
+			Text:     step.Text,
 		}); err != nil {
 			return fmt.Errorf("insert step: %w", err)
+		}
+		// References come after the step because they need its id.
+		for ri, ref := range step.References {
+			// Both lookups are checked rather than taking the zero value. A
+			// missing key yields refTarget{0, 0} and then the first ingredient
+			// of the first group - the one place in this feature that could
+			// write a reference pointing at an ingredient nobody named. It
+			// cannot happen today, because resolveRefs fills every key or
+			// fails the whole write, but "no reference" is the only failure
+			// this feature is allowed to have, so a wrong one stops the save.
+			target, ok := targets[[2]int{si, ri}]
+			if !ok {
+				return fmt.Errorf("step %d reference %d: not resolved", si, ri)
+			}
+			ingredientID, ok := ingredientIDs[target]
+			if !ok {
+				return fmt.Errorf("step %d reference %d: resolved to ingredient %d of group %d, which was not written", si, ri, target.Ingredient, target.Group)
+			}
+			if err := q.InsertStepReference(ctx, sqlc.InsertStepReferenceParams{
+				StepID:       stepID,
+				IngredientID: ingredientID,
+				Word:         strings.TrimSpace(ref.Word),
+				Position:     int64(ri),
+			}); err != nil {
+				return fmt.Errorf("insert step reference: %w", err)
+			}
 		}
 	}
 	return nil

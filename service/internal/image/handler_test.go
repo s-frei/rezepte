@@ -80,7 +80,7 @@ func loginCookie(t *testing.T, h http.Handler) *http.Cookie {
 
 func createRecipe(t *testing.T, h http.Handler, cookie *http.Cookie) recipe.Recipe {
 	t.Helper()
-	body := []byte(`{"title":"Bildrezept","description":"","servings":2,"prepMinutes":null,"cookMinutes":null,"sourceUrl":null,"tags":[],"ingredientGroups":[{"name":null,"ingredients":[{"quantity":null,"unit":null,"name":"Salz","note":null}]}],"steps":["Salzen."]}`)
+	body := []byte(`{"title":"Bildrezept","description":"","servings":2,"prepMinutes":null,"cookMinutes":null,"sourceUrl":null,"tags":[],"ingredientGroups":[{"name":null,"ingredients":[{"quantity":null,"unit":null,"name":"Salz","note":null}]}],"steps":[{"text":"Salzen.","references":[]}]}`)
 	rec := doReq(h, http.MethodPost, "/api/v1/recipes", body, "application/json", cookie)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create recipe %d: %s", rec.Code, rec.Body.String())

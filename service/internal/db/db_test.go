@@ -2,12 +2,17 @@ package db_test
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 func TestOpenAndMigrate(t *testing.T) {
@@ -114,5 +119,163 @@ func TestSuperadminTriggers(t *testing.T) {
 	}
 	if _, err := conn.ExecContext(ctx, `DELETE FROM users WHERE id = 'kim'`); err != nil {
 		t.Fatalf("delete member: %v", err)
+	}
+}
+
+// seedIDs holds the ids of the rows seedMinimalRecipe inserts.
+type seedIDs struct {
+	UserID       string
+	RecipeID     string
+	GroupID      string
+	IngredientID string
+	StepID       string
+}
+
+// seedMinimalRecipe inserts one user, one recipe, one ingredient group, one
+// ingredient and one step directly, bypassing the recipe service so this
+// package's tests can exercise the schema without importing it.
+func seedMinimalRecipe(t *testing.T, conn *sql.DB) seedIDs {
+	t.Helper()
+	ctx := context.Background()
+	q := sqlc.New(conn)
+
+	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatalf("seedMinimalRecipe: create user: %v", err)
+	}
+
+	now := db.FormatTime(time.Now().UTC())
+	recipeID := uuid.Must(uuid.NewV7()).String()
+	if _, err := q.InsertRecipe(ctx, sqlc.InsertRecipeParams{
+		ID:          recipeID,
+		Slug:        "test-recipe-" + recipeID,
+		Title:       "Test Recipe",
+		Description: "",
+		Servings:    4,
+		CreatedBy:   u.ID,
+		CreatedAt:   now,
+		UpdatedBy:   u.ID,
+		UpdatedAt:   now,
+	}); err != nil {
+		t.Fatalf("seedMinimalRecipe: insert recipe: %v", err)
+	}
+
+	groupID := uuid.Must(uuid.NewV7()).String()
+	if err := q.InsertIngredientGroup(ctx, sqlc.InsertIngredientGroupParams{
+		ID:       groupID,
+		RecipeID: recipeID,
+		Position: 0,
+	}); err != nil {
+		t.Fatalf("seedMinimalRecipe: insert ingredient group: %v", err)
+	}
+
+	ingredientID := uuid.Must(uuid.NewV7()).String()
+	if err := q.InsertIngredient(ctx, sqlc.InsertIngredientParams{
+		ID:       ingredientID,
+		GroupID:  groupID,
+		Name:     "Zwiebel",
+		Position: 0,
+	}); err != nil {
+		t.Fatalf("seedMinimalRecipe: insert ingredient: %v", err)
+	}
+
+	stepID := uuid.Must(uuid.NewV7()).String()
+	if err := q.InsertStep(ctx, sqlc.InsertStepParams{
+		ID:       stepID,
+		RecipeID: recipeID,
+		Position: 0,
+		Text:     "Die Zwiebel schneiden.",
+	}); err != nil {
+		t.Fatalf("seedMinimalRecipe: insert step: %v", err)
+	}
+
+	return seedIDs{
+		UserID:       u.ID,
+		RecipeID:     recipeID,
+		GroupID:      groupID,
+		IngredientID: ingredientID,
+		StepID:       stepID,
+	}
+}
+
+func TestStepReferencesCascade(t *testing.T) {
+	conn := dbtest.Open(t)
+	ctx := context.Background()
+	q := sqlc.New(conn)
+
+	ids := seedMinimalRecipe(t, conn)
+
+	if err := q.InsertStepReference(ctx, sqlc.InsertStepReferenceParams{
+		StepID:       ids.StepID,
+		IngredientID: ids.IngredientID,
+		Word:         "Zwiebel",
+		Position:     0,
+	}); err != nil {
+		t.Fatalf("insert reference: %v", err)
+	}
+
+	if err := q.DeleteStepsByRecipe(ctx, ids.RecipeID); err != nil {
+		t.Fatalf("delete steps: %v", err)
+	}
+	rows, err := q.ListStepReferencesByRecipe(ctx, ids.RecipeID)
+	if err != nil {
+		t.Fatalf("list references: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("references survived the step delete: %d", len(rows))
+	}
+}
+
+// TestStepReferencesCascadeOnIngredientDelete is TestStepReferencesCascade's
+// sibling for the other foreign key on step_references: ingredient_id. The
+// service never exercises this path on its own - Update always deletes
+// every step (and with it, via the step_id cascade, every reference) before
+// it deletes ingredient groups, so there is no way to reach it through the
+// recipe service API. This goes one layer down and deletes the ingredient
+// groups directly, leaving the step row untouched.
+//
+// The row count is read with a raw query against step_references rather
+// than through ListStepReferencesByRecipe: that query INNER JOINs through
+// ingredients, so once the ingredient is gone it reports zero rows whether
+// or not the step_references row itself was actually deleted - it would
+// pass just as well against a build with no ingredient-side cascade. Only a
+// direct count, plus the survival of the step row (asserted via
+// ListStepsByRecipe, ruling out that this is just the step_id cascade
+// already covered above), pins this as the ingredient-side cascade
+// specifically.
+func TestStepReferencesCascadeOnIngredientDelete(t *testing.T) {
+	conn := dbtest.Open(t)
+	ctx := context.Background()
+	q := sqlc.New(conn)
+
+	ids := seedMinimalRecipe(t, conn)
+
+	if err := q.InsertStepReference(ctx, sqlc.InsertStepReferenceParams{
+		StepID:       ids.StepID,
+		IngredientID: ids.IngredientID,
+		Word:         "Zwiebel",
+		Position:     0,
+	}); err != nil {
+		t.Fatalf("insert reference: %v", err)
+	}
+
+	if err := q.DeleteIngredientGroupsByRecipe(ctx, ids.RecipeID); err != nil {
+		t.Fatalf("delete ingredient groups: %v", err)
+	}
+
+	var n int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM step_references WHERE step_id = ?`, ids.StepID).Scan(&n); err != nil {
+		t.Fatalf("count step_references: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("reference rows survived the ingredient delete: %d", n)
+	}
+
+	steps, err := q.ListStepsByRecipe(ctx, ids.RecipeID)
+	if err != nil {
+		t.Fatalf("list steps: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("step row = %d, want 1 (it must survive - only the reference should be gone)", len(steps))
 	}
 }

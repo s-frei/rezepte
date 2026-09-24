@@ -38,6 +38,16 @@ export type IngredientGroup = {
 	ingredients: Ingredient[];
 };
 
+/**
+ * One word of a step's text, tied to an ingredient of the same recipe.
+ * `word` and `ingredient` differ when the sentence says "Fleisch" and the list
+ * says "Rinderbraten"; `group` breaks the tie between two entries of one name
+ * and is null for the unnamed group.
+ */
+export type IngredientRef = { word: string; groupName: string | null; ingredientName: string };
+
+export type Step = { text: string; references: IngredientRef[] };
+
 export type RecipeInput = {
 	title: string;
 	description: string;
@@ -47,7 +57,7 @@ export type RecipeInput = {
 	sourceUrl: string | null;
 	tags: string[];
 	ingredientGroups: IngredientGroup[];
-	steps: string[];
+	steps: Step[];
 };
 
 export type Recipe = RecipeInput & {
@@ -257,6 +267,6 @@ export function emptyInput(): RecipeInput {
 		ingredientGroups: [
 			{ name: null, ingredients: [{ quantity: null, unit: null, name: '', note: null }] }
 		],
-		steps: ['']
+		steps: [{ text: '', references: [] }]
 	};
 }

@@ -40,7 +40,7 @@ type Input struct {
 	SourceURL        *string           `json:"sourceUrl" maxLength:"500" format:"uri" pattern:"^https?://" nullable:"true"`
 	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40"`
 	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20"`
-	Steps            []string          `json:"steps" maxItems:"50" minLength:"1" maxLength:"2000"`
+	Steps            []Step            `json:"steps" maxItems:"50"`
 }
 
 // Image is a photo attached to a recipe. Width and height describe the

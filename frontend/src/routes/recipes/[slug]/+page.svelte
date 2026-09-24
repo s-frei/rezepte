@@ -357,7 +357,12 @@
 			</section>
 			<section>
 				<h2 class="mb-5 font-display text-heading font-medium">{m.recipe_steps()}</h2>
-				<StepList steps={recipe.steps} />
+				<StepList
+					steps={recipe.steps}
+					groups={recipe.ingredientGroups}
+					servings={servings.value}
+					baseServings={servings.base}
+				/>
 			</section>
 		</div>
 

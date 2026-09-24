@@ -44,6 +44,20 @@ CREATE TABLE steps (
 );
 CREATE INDEX steps_recipe_idx ON steps(recipe_id, position);
 
+-- One word of a step's text, tied to the ingredient row it names. Both foreign
+-- keys cascade, so the update path's DeleteStepsByRecipe and
+-- DeleteIngredientGroupsByRecipe clear this table on their own and a dangling
+-- reference is a state the database cannot hold. The composite key follows
+-- recipe_tags: a word carries at most one reference per step.
+CREATE TABLE step_references (
+    step_id       TEXT NOT NULL REFERENCES steps(id) ON DELETE CASCADE,
+    ingredient_id TEXT NOT NULL REFERENCES ingredients(id) ON DELETE CASCADE,
+    word          TEXT NOT NULL,
+    position      INTEGER NOT NULL,
+    PRIMARY KEY (step_id, word)
+);
+CREATE INDEX step_references_ingredient_idx ON step_references(ingredient_id);
+
 CREATE TABLE tags (
     id   TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
@@ -87,6 +101,7 @@ CREATE VIRTUAL TABLE recipes_fts USING fts5(
 );
 
 -- +goose Down
+DROP TABLE step_references;
 DROP TABLE recipes_fts;
 DROP TABLE images;
 DROP TABLE favourites;
