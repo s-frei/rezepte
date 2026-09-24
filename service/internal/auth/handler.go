@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -92,11 +93,14 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Path:        "/api/v1/auth/login",
 		Summary:     "Log in with username and password",
 		Tags:        []string{"auth"},
-		Errors:      []int{401},
+		Errors:      []int{401, 503},
 	}, func(ctx context.Context, in *loginInput) (*loginOutput, error) {
 		sess, err := svc.Login(ctx, in.Body.Username, in.Body.Password)
 		if errors.Is(err, user.ErrInvalidCredentials) {
 			return nil, huma.Error401Unauthorized("invalid username or password")
+		}
+		if mapped := BusyError(err); mapped != nil {
+			return nil, mapped
 		}
 		if err != nil {
 			return nil, err
@@ -109,6 +113,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			Body: toResponse(sess.User),
 		}, nil
 	})
+	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/login", http.StatusServiceUnavailable)
 
 	huma.Register(api, huma.Operation{
 		OperationID:   "logout",
@@ -155,7 +160,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Tags:          []string{"auth"},
 		Security:      SessionSecurity,
 		DefaultStatus: http.StatusNoContent,
-		Errors:        []int{401, 422},
+		Errors:        []int{401, 422, 503},
 	}, func(ctx context.Context, in *changePasswordInput) (*changePasswordOutput, error) {
 		u, ok := UserFrom(ctx)
 		if !ok {
@@ -168,6 +173,9 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 				Message:  "current password is wrong",
 			})
 		}
+		if mapped := BusyError(err); mapped != nil {
+			return nil, mapped
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -176,6 +184,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		}
 		return &changePasswordOutput{}, nil
 	})
+	DeclareRetryAfter(api, http.MethodPatch, "/api/v1/auth/me", http.StatusServiceUnavailable)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "update-own-profile",
@@ -234,6 +243,42 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		out.Body.Items = usage
 		return out, nil
 	})
+}
+
+// DeclareRetryAfter adds the Retry-After header, in whole seconds, to the
+// listed error responses of the operation registered at method and path.
+// huma writes an operation's error responses from its Errors list and
+// declares no headers on them, so this runs after huma.Register.
+func DeclareRetryAfter(api huma.API, method, path string, statuses ...int) {
+	item := api.OpenAPI().Paths[path]
+	op := map[string]*huma.Operation{
+		http.MethodPost:  item.Post,
+		http.MethodPatch: item.Patch,
+		http.MethodPut:   item.Put,
+	}[method]
+	for _, status := range statuses {
+		resp := op.Responses[strconv.Itoa(status)]
+		if resp.Headers == nil {
+			resp.Headers = map[string]*huma.Header{}
+		}
+		resp.Headers["Retry-After"] = &huma.Header{
+			Description: "Seconds to wait before trying again",
+			Schema:      &huma.Schema{Type: huma.TypeInteger},
+		}
+	}
+}
+
+// BusyError maps a full argon2 queue (user.ErrBusy) to a 503 that asks the
+// client to retry in a second, and returns nil for anything else. Every
+// operation that hashes or checks a password can meet it.
+func BusyError(err error) error {
+	if !errors.Is(err, user.ErrBusy) {
+		return nil
+	}
+	return huma.ErrorWithHeaders(
+		huma.Error503ServiceUnavailable("too many password checks at once, try again"),
+		http.Header{"Retry-After": {"1"}},
+	)
 }
 
 // ProfileError maps the profile validation failures to the field they belong

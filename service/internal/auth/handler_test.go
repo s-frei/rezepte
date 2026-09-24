@@ -194,6 +194,30 @@ func TestOpenAPIDeclaresSessionSecurity(t *testing.T) {
 	}
 }
 
+// TestOpenAPIDeclaresRetryAfter checks that the responses that ask a client
+// to wait say how long in the document, not only on the wire.
+func TestOpenAPIDeclaresRetryAfter(t *testing.T) {
+	rec := do(newHandler(t), http.MethodGet, "/api/v1/openapi.json", "", nil)
+	var doc struct {
+		Paths map[string]map[string]struct {
+			Responses map[string]struct {
+				Headers map[string]json.RawMessage `json:"headers"`
+			} `json:"responses"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct{ path, method, status string }{
+		{"/api/v1/auth/login", "post", "503"},
+		{"/api/v1/auth/me", "patch", "503"},
+	} {
+		if _, ok := doc.Paths[want.path][want.method].Responses[want.status].Headers["Retry-After"]; !ok {
+			t.Errorf("%s %s %s: no Retry-After header declared", want.method, want.path, want.status)
+		}
+	}
+}
+
 // pathParam matches OpenAPI {param}-style path segments.
 var pathParam = regexp.MustCompile(`\{[^}]+\}`)
 
