@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
-	import ChevronUp from 'lucide-svelte/icons/chevron-up';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
 	import type { ColorUsage } from '$lib/api/auth';
 	import type { UserAccount, UserRole } from '$lib/api/users';
 	import { m } from '$lib/paraglide/messages';

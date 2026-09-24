@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
-	import Copy from 'lucide-svelte/icons/copy';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { toast } from 'svelte-sonner';
 	import { MCP_GUIDE_URL } from '$lib/docs';
 	import { m } from '$lib/paraglide/messages';

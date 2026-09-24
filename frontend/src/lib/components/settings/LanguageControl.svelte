@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Languages from 'lucide-svelte/icons/languages';
+	import Languages from '@lucide/svelte/icons/languages';
 	import { toast } from 'svelte-sonner';
 	import { updateOwnProfile } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';

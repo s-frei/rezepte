@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import Clock from 'lucide-svelte/icons/clock';
-	import ExternalLink from 'lucide-svelte/icons/external-link';
+	import Clock from '@lucide/svelte/icons/clock';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import { formatMinutes } from '$lib/recipe/format';
 	import { m } from '$lib/paraglide/messages';
 

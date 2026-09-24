@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import Filter from 'lucide-svelte/icons/filter';
+	import Filter from '@lucide/svelte/icons/filter';
 	import { fade, fly, scale } from 'svelte/transition';
 	import type { TransitionConfig } from 'svelte/transition';
 	import Button from '$lib/components/ui/Button.svelte';

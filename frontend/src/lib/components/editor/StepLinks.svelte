@@ -1,9 +1,9 @@
 <script lang="ts">
-	import Check from 'lucide-svelte/icons/check';
-	import ChevronDown from 'lucide-svelte/icons/chevron-down';
-	import Link2 from 'lucide-svelte/icons/link-2';
-	import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
-	import X from 'lucide-svelte/icons/x';
+	import Check from '@lucide/svelte/icons/check';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Link2 from '@lucide/svelte/icons/link-2';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import X from '@lucide/svelte/icons/x';
 	import { m } from '$lib/paraglide/messages';
 	import type { FormRef } from '$lib/recipe/form';
 	import { refLabel, refView, type PickerEntry } from '$lib/recipe/step-references';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog, Tabs } from 'bits-ui';
-	import Copy from 'lucide-svelte/icons/copy';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { toast } from 'svelte-sonner';
 	import type { TokenScope } from '$lib/api/tokens';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';

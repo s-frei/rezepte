@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import GripVertical from 'lucide-svelte/icons/grip-vertical';
-	import ImagePlus from 'lucide-svelte/icons/image-plus';
-	import X from 'lucide-svelte/icons/x';
+	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import ImagePlus from '@lucide/svelte/icons/image-plus';
+	import X from '@lucide/svelte/icons/x';
 	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '$lib/api/client';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Plus from 'lucide-svelte/icons/plus';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { listColorUsage, type ColorUsage } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';

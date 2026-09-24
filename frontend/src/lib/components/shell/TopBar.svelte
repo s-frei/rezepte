@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Plus from 'lucide-svelte/icons/plus';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { resolve } from '$app/paths';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { m } from '$lib/paraglide/messages';

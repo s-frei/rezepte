@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import { toast } from 'svelte-sonner';
 	import { getSettings, setRecipesLockedByDefault } from '$lib/api/settings';
 	import { session } from '$lib/auth.svelte';

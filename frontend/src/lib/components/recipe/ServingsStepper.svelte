@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { scale } from 'svelte/transition';
-	import Minus from 'lucide-svelte/icons/minus';
-	import Plus from 'lucide-svelte/icons/plus';
+	import Minus from '@lucide/svelte/icons/minus';
+	import Plus from '@lucide/svelte/icons/plus';
 	import { servingsUnit } from '$lib/recipe/format';
 	import { SERVINGS_MAX, SERVINGS_MIN } from '$lib/recipe/servings';
 	import { m } from '$lib/paraglide/messages';

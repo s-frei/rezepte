@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Checkbox } from 'bits-ui';
-	import Check from 'lucide-svelte/icons/check';
+	import Check from '@lucide/svelte/icons/check';
 	import type { IngredientGroup } from '$lib/api/recipes';
 	import { ingredientKey } from '$lib/recipe/checked';
 	import { isChecked, toggle } from '$lib/recipe/checked.svelte';
