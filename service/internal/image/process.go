@@ -27,7 +27,9 @@ type variant struct {
 var variants = []variant{
 	{suffix: "", maxSide: 2400, quality: 90},
 	{suffix: "_detail", maxSide: 1600, quality: 85},
-	{suffix: "_thumb", maxSide: 480, quality: 80},
+	// 960 px so a square card crop of a 4:3 photo keeps 720 px, enough
+	// for a ~300 CSS px card on a 2x screen.
+	{suffix: "_thumb", maxSide: 960, quality: 80},
 }
 
 // supportedFormats are the image.Decode format names accepted for upload.

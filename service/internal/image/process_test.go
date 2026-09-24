@@ -112,7 +112,7 @@ func TestWriteVariants(t *testing.T) {
 	if got.Width != 2400 || got.Height != 1600 || got.Size <= 0 {
 		t.Fatalf("written = %+v", got)
 	}
-	want := map[string][2]int{"img1.jpg": {2400, 1600}, "img1_detail.jpg": {1600, 1067}, "img1_thumb.jpg": {480, 320}}
+	want := map[string][2]int{"img1.jpg": {2400, 1600}, "img1_detail.jpg": {1600, 1067}, "img1_thumb.jpg": {960, 640}}
 	for name, dims := range want {
 		f, err := os.Open(filepath.Join(dir, "r1", name))
 		if err != nil {
