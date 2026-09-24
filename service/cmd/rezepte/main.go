@@ -22,6 +22,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/demo"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/mcpserver"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
@@ -164,6 +165,11 @@ func run() error {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	recipe.Register(srv.API(), recipes)
+	mcpHandler, err := mcpserver.Handler(recipes, srv.API(), version)
+	if err != nil {
+		return fmt.Errorf("mcp: %w", err)
+	}
+	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
 	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
 	settings.Register(srv.API(), settings.NewService(conn))

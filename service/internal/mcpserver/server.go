@@ -68,7 +68,17 @@ func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, e
 			}
 		}
 		return s
-	}, &mcp.StreamableHTTPOptions{Stateless: true, JSONResponse: true, Logger: slog.Default()}), nil
+	}, &mcp.StreamableHTTPOptions{
+		Stateless:    true,
+		JSONResponse: true,
+		Logger:       slog.Default(),
+		// The SDK's DNS-rebinding guard protects unauthenticated local MCP
+		// servers. /mcp always requires a bearer token (auth.RequireToken),
+		// which a rebinding page can neither know nor send, while the guard
+		// would 403 every request from a reverse proxy on the same host: a
+		// loopback local address carrying the public Host header.
+		DisableLocalhostProtection: true,
+	}), nil
 }
 
 // fill sets r's caller-dependent fields for the token owner - the favorite
