@@ -258,7 +258,7 @@ export type Author = { username: string; displayName: string; color: UserColor; 
 
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the
- * overview's "Angelegt von" filter. Readable by any signed-in member,
+ * overview's "Added by" filter. Readable by any signed-in member,
  * unlike the admin-only user management in `$lib/api/users`.
  */
 export async function listAuthors(): Promise<Author[]> {

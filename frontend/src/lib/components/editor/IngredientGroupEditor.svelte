@@ -112,7 +112,7 @@
 					class="w-full min-w-0 border-b border-transparent bg-transparent pb-1 font-display text-body-lg font-medium text-primary italic transition outline-none placeholder:text-text-muted placeholder:not-italic focus:border-border md:w-auto md:flex-1"
 				/>
 				<!-- The catalog has no plural variants, so the singular is its
-				     own message rather than "1 Zutaten". -->
+				     own message rather than "1 ingredients". -->
 				<span class="shrink-0 text-caption text-text-muted">
 					{group.ingredients.length === 1
 						? m.editor_ingredient_group_summary_one()

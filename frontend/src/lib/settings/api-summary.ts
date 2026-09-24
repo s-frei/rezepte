@@ -22,7 +22,7 @@ function tagsOf(operation: unknown): string[] {
  * separate from the fetch so the 75 KB document is thrown away at the call
  * site instead of living in component state.
  */
-export function summariseSpec(doc: SpecDocument): ApiSummary {
+export function summarizeSpec(doc: SpecDocument): ApiSummary {
 	const areas = new Set<string>();
 	let operations = 0;
 	for (const item of Object.values(doc.paths ?? {})) {
