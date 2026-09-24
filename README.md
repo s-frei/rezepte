@@ -28,7 +28,7 @@ I needed this myself and found nothing I liked, so I made it. It is also meant t
 
 ## Try it
 
-Demo mode fills an empty instance with twelve sample recipes, most of them with placeholder photos, so you can click through the real app without setting anything up:
+Demo mode fills an empty instance with twelve sample recipes, most of them with photos, so you can click through the real app without setting anything up. The photos are AI-generated:
 
 ```bash
 docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo

@@ -16,7 +16,24 @@ import (
 
 var quiet = slog.New(slog.DiscardHandler)
 
-func TestSeedCreatesSamplesWithPlaceholders(t *testing.T) {
+func TestSeedUploadsEmbeddedPhotos(t *testing.T) {
+	cases := []struct {
+		locale   user.Locale
+		first    string   // the overview's first title
+		withSet  string   // a sample with three photos
+		withNone []string // the samples left without a photo
+	}{
+		{"en", "Shepherd's Pie", "shepherd-s-pie", []string{"leek-and-potato-soup", "coronation-chicken-sandwiches", "bangers-and-mash"}},
+		{"de", "Königsberger Klopse", "koenigsberger-klopse", []string{"linseneintopf", "kartoffelsalat", "frikadellen"}},
+	}
+	for _, c := range cases {
+		t.Run(string(c.locale), func(t *testing.T) {
+			seedPhotos(t, c.locale, c.first, c.withSet, c.withNone)
+		})
+	}
+}
+
+func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNone []string) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
@@ -24,41 +41,45 @@ func TestSeedCreatesSamplesWithPlaceholders(t *testing.T) {
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
 
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet) // "de": assertions below check German titles
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", locale, quiet)
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
-	if sum.Skipped || sum.Recipes != 12 || sum.Images != 9 {
-		t.Fatalf("summary = %+v, want 12 recipes, 9 images, not skipped", sum)
+	if sum.Skipped || sum.Recipes != 12 || sum.Images != 27 {
+		t.Fatalf("summary = %+v, want 12 recipes, 27 images, not skipped", sum)
 	}
 
 	recipes := recipe.NewService(conn)
-	klopse, err := recipes.BySlug(ctx, "koenigsberger-klopse")
+	r, err := recipes.BySlug(ctx, withSet)
 	if err != nil {
-		t.Fatalf("klopse: %v", err)
+		t.Fatalf("%s: %v", withSet, err)
 	}
-	if klopse.CoverImageID == nil || len(klopse.Images) != 1 || len(klopse.IngredientGroups) != 2 {
-		t.Fatalf("klopse: cover %v, %d images, %d groups; want a cover, 1 image, 2 groups",
-			klopse.CoverImageID, len(klopse.Images), len(klopse.IngredientGroups))
+	if len(r.Images) != 3 || r.CoverImageID == nil || *r.CoverImageID != r.Images[0].ID {
+		t.Fatalf("%s: %d images, cover %v; want 3 with the first as cover", withSet, len(r.Images), r.CoverImageID)
 	}
-	thumb := filepath.Join(imageDir, klopse.ID, klopse.Images[0].ID+"_thumb.jpg")
+	if r.Images[0].Width != 1600 {
+		t.Fatalf("%s cover is %d px wide, want the embedded 1600", withSet, r.Images[0].Width)
+	}
+	thumb := filepath.Join(imageDir, r.ID, r.Images[0].ID+"_thumb.jpg")
 	if _, err := os.Stat(thumb); err != nil {
 		t.Fatalf("thumb variant missing: %v", err)
 	}
-	salat, err := recipes.BySlug(ctx, "kartoffelsalat")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if salat.CoverImageID != nil || len(salat.Images) != 0 {
-		t.Fatalf("kartoffelsalat should have no image, got %+v", salat.Images)
+	for _, slug := range withNone {
+		r, err := recipes.BySlug(ctx, slug)
+		if err != nil {
+			t.Fatalf("%s: %v", slug, err)
+		}
+		if r.CoverImageID != nil || len(r.Images) != 0 {
+			t.Fatalf("%s should have no photo, got %d", slug, len(r.Images))
+		}
 	}
 
 	page, err := recipes.List(ctx, recipe.ListParams{Page: 1, Limit: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page.Total != 12 || len(page.Items) != 1 || page.Items[0].Title != "Königsberger Klopse" {
-		t.Fatalf("overview: total %d, first %q; want 12 and Königsberger Klopse first", page.Total, page.Items[0].Title)
+	if page.Total != 12 || len(page.Items) != 1 || page.Items[0].Title != first {
+		t.Fatalf("overview: total %d, first %q; want 12 and %q first", page.Total, page.Items[0].Title, first)
 	}
 }
 

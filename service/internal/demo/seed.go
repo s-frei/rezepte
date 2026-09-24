@@ -1,17 +1,20 @@
 // Package demo fills an empty Rezepte instance with the sample recipes and
-// the deterministic placeholder photos that stand in for real pictures, so
-// documentation screenshots and manual testing have realistic data. It
-// writes only through the domain services and only when the recipes table
-// is empty.
+// their photos, so documentation screenshots and manual testing have
+// realistic data. A sample set with embedded photos gets those; a set
+// without any gets deterministic placeholders instead. It writes only
+// through the domain services and only when the recipes table is empty.
 package demo
 
 import (
 	"bytes"
 	"context"
 	"database/sql"
+	"embed"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
+	"path"
 
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -26,8 +29,20 @@ const (
 )
 
 // imagedRecipes is how many samples, counted from the top of the list, get
-// a placeholder image. The rest show the overview's placeholder tiles.
+// a placeholder image when their set has no photos. The rest show the
+// overview's placeholder tiles.
 const imagedRecipes = 9
+
+// photos holds the demo photos as photos/<locale>/<slug>/<n>.jpg, numbered
+// from 1 in gallery order. They are derived from the AI-generated originals
+// in assets/demo-photos by `mise run demo-photos`; do not edit them here.
+//
+//go:embed photos
+var embedded embed.FS
+
+// photos is what photosFor reads; a variable so tests can seed a set that
+// has no photos.
+var photos fs.FS = embedded
 
 // ErrNoUsers is returned when no user exists to own the sample recipes.
 var ErrNoUsers = errors.New("demo: no user to own the sample recipes")
@@ -42,9 +57,11 @@ type Summary struct {
 
 // Seed creates the sample recipes in locale's language, owned by the user
 // named owner (or the first user by name when no such user exists), and
-// uploads a placeholder image for the first imagedRecipes of them below
-// imageDir. It is idempotent: a database that already holds recipes is left
-// untouched.
+// uploads their images below imageDir. When any sample of the set has
+// embedded photos, every sample gets its own photos, the first as cover, and
+// a sample without photos stays without an image. A set with no photos at
+// all gets a placeholder for each of its first imagedRecipes samples. It is
+// idempotent: a database that already holds recipes is left untouched.
 func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user.Locale, logger *slog.Logger) (Summary, error) {
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	n, err := recipes.Count(ctx)
@@ -63,6 +80,14 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 	if err != nil {
 		return Summary{}, err
 	}
+	sets := make([][][]byte, len(samples))
+	withPhotos := false
+	for i, s := range samples {
+		if sets[i], err = photosFor(recipe.Slugify(s.Title)); err != nil {
+			return Summary{}, err
+		}
+		withPhotos = withPhotos || len(sets[i]) > 0
+	}
 	images := image.NewService(conn, imageDir)
 	var sum Summary
 	// The overview sorts by updated_at desc: seeding back to front puts the
@@ -73,6 +98,15 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 			return sum, fmt.Errorf("create sample %q: %w", samples[i].Title, err)
 		}
 		sum.Recipes++
+		if withPhotos {
+			for n, data := range sets[i] {
+				if _, err := images.Upload(ctx, r.ID, o, bytes.NewReader(data)); err != nil {
+					return sum, fmt.Errorf("upload photo %d for %q: %w", n+1, r.Title, err)
+				}
+				sum.Images++
+			}
+			continue
+		}
 		if i >= imagedRecipes {
 			continue
 		}
@@ -87,6 +121,28 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 	}
 	logger.Info("demo: sample data seeded", "recipes", sum.Recipes, "images", sum.Images)
 	return sum, nil
+}
+
+// photosFor returns the embedded photos of the sample whose slug is slug,
+// 1.jpg first, stopping at the first missing number; nil when it has none.
+// The slug alone identifies the sample: sample sets are different dishes,
+// and a language falling back to another's set finds that set's photos.
+func photosFor(slug string) ([][]byte, error) {
+	dirs, err := fs.Glob(photos, path.Join("photos", "*", slug))
+	if err != nil || len(dirs) == 0 {
+		return nil, err
+	}
+	var set [][]byte
+	for n := 1; ; n++ {
+		data, err := fs.ReadFile(photos, path.Join(dirs[0], fmt.Sprintf("%d.jpg", n)))
+		if errors.Is(err, fs.ErrNotExist) {
+			return set, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read photo %d of %s: %w", n, slug, err)
+		}
+		set = append(set, data)
+	}
 }
 
 // findOwner resolves the user named username, falling back to the first
