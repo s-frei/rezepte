@@ -7,6 +7,7 @@
 	import { isAppPath, login, safeNext } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
 	import { session } from '$lib/auth.svelte';
+	import Lockup from '$lib/components/brand/Lockup.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	let username = $state('');
@@ -41,10 +42,7 @@
 <svelte:head><title>{m.login_title()} · {m.app_name()}</title></svelte:head>
 
 <main class="flex min-h-screen flex-col items-center justify-center gap-6 p-5">
-	<div class="flex items-center gap-3">
-		<span class="size-[30px] rounded-full bg-primary" aria-hidden="true"></span>
-		<span class="font-display text-heading font-semibold">{m.app_name()}</span>
-	</div>
+	<Lockup variant="stacked" label={m.app_name()} class="h-[120px]" />
 	<p class="text-body text-text-muted">{m.login_welcome()}</p>
 	<form
 		onsubmit={submit}
