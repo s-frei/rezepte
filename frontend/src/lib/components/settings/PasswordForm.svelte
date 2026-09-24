@@ -11,6 +11,7 @@
 		validateNewPassword,
 		type PasswordErrors
 	} from '$lib/settings/password';
+	import PasswordStrength from './PasswordStrength.svelte';
 
 	let current = $state('');
 	let next = $state('');
@@ -69,14 +70,20 @@
 		bind:value={current}
 		error={errors.current ?? null}
 	/>
-	<Input
-		id="new-password"
-		label={m.settings_password_new()}
-		type="password"
-		autocomplete="new-password"
-		bind:value={next}
-		error={errors.next ?? null}
-	/>
+	<div class="space-y-1.5">
+		<Input
+			id="new-password"
+			label={m.settings_password_new()}
+			type="password"
+			autocomplete="new-password"
+			bind:value={next}
+			error={errors.next ?? null}
+		/>
+		<PasswordStrength
+			password={next}
+			userInputs={[session.user?.username ?? '', session.user?.displayName ?? '']}
+		/>
+	</div>
 	<Input
 		id="repeat-password"
 		label={m.settings_password_repeat()}
