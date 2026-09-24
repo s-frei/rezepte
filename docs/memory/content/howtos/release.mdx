@@ -1,6 +1,6 @@
 ---
 title: Release
-description: Maintainer-only checklist for cutting a release
+description: "Maintainer-only: release:start, write the notes, release:finish, push"
 ---
 
 <Callout type="warn" title="Maintainer only">
@@ -12,85 +12,60 @@ description: Maintainer-only checklist for cutting a release
 <Steps>
   <Step>
 
-    ### Gate `develop`
-    ```bash
-    mise run check && mise run build
-    ```
-    Run on `develop`, both green.
-
-  </Step>
-  <Step>
-
-    ### Update the docs
-    Update [Roadmap](/roadmap) for anything the release finishes or starts, and any `docs/user/` page the release changes user-visible behavior for. Commit on `develop` like any other docs change.
-
-  </Step>
-  <Step>
-
     ### Only after changing the release workflow: dispatch a test run
 
-    Not an every-release step. Run it before the first release, and whenever this release changed `.github/workflows/release.yml` — it has to happen before the merge, because a dispatch runs the workflow as it exists on the ref it is started from, so the branch carrying the change is the only place the change can be tested.
-
-    Run the workflow from the Actions tab, selecting that branch and one of the two offered image tags (`dev` or `edge`). It publishes the image under that one tag and creates no GitHub release, so the build, the push and the multi-architecture step are exercised without spending a version number. A dispatch from a tag is rejected by the job's first step - see [Releases](/architecture/releases).
+    Not an every-release step. Run it before the first release, and whenever this release changed `.github/workflows/release.yml` — a dispatch runs the workflow as it exists on the ref it is started from, so the branch carrying the change is the only place the change can be tested. Pick `dev` or `edge` as the image tag; nothing else is published. See [Releases](/architecture/releases).
 
   </Step>
   <Step>
 
     ### First release only: make the package public
 
-    A GHCR package does not inherit the repository's visibility: it is created private by the first push to it, and every anonymous `docker pull` fails with an authentication error until it is set public once, under the repository's Packages settings.
-
-    Do it as soon as the package exists - which is the moment the dispatch above first pushes - and before the release is announced. Left until after the tag push, the documented quick start is broken for everyone between the release going out and the setting being changed.
+    A GHCR package is created private by its first push, and every anonymous `docker pull` fails until it is set public once, under the repository's Packages settings. Do it as soon as the dispatch above has created the package, before the release is announced.
 
   </Step>
   <Step>
 
-    ### Merge into `main`
+    ### Start the release
     ```bash
-    git checkout main
-    git merge --ff-only develop
+    mise run release:start
     ```
-    Fast-forward only - `main` never gets its own merge commits or direct commits (see [Commits and branches](/conventions/commits)).
+    In the main checkout, on a clean `develop`. It prints how many breaking, `feat` and other commits came since the last release and names the breaking ones, suggests the version (breaking → major, `feat` → minor, else patch; `v1.0.0` without a tag; after a release candidate the release it previews, unless what landed since needs a bigger step) and asks; pass a version (`mise run release:start v1.2.0`) to skip the question; a version smaller than the suggestion gets a warning, not a refusal, because a `!` commit may break nothing anyone runs. `--dry-run` shows the suggestion, the branch and worktree it would open and the draft page, and creates nothing. It opens `release/vX.Y.Z` in its own worktree, installs its dependencies, and drafts `docs/user/content/changelog/<version>.mdx`.
 
   </Step>
   <Step>
 
-    ### Push `main` and wait for CI
+    ### Write the release notes
+
+    In the release worktree, turn the draft into the page: `title` (version and a headline), `description` (one sentence — also the GitHub summary and the tag message), `upgrade` if anything is breaking, the highlights as `##` sections with a `<Screenshot>` where it helps, and **Also in this release**. Write for the people running and using Rezepte, not for developers. Remove the `DRAFT` line and the commit list. Update [Roadmap](/roadmap) and any `docs/user/` page the release changes. Commit: `docs(changelog): write the vX.Y.Z release notes`.
+
+  </Step>
+  <Step>
+
+    ### Finish the release
     ```bash
-    git push origin main
+    mise run release:finish
     ```
-    This push also triggers `.github/workflows/pages.yml`, which CI calls once its gate is green; it rebuilds `docs/user/` and publishes it to `https://s-frei.github.io/rezepte` - see [Documentation sites](/architecture/docs). There is no separate opt-in: every push to `main` republishes the docs site. A documentation fix between releases needs none of this: dispatch the `Pages` workflow from `main` or `develop` instead.
-
-    Waiting for that run before tagging is a convenience, not a safety net: `.github/workflows/release.yml` runs the same gate itself and publishes nothing if it fails. Pushing the tag straight after the branch only means two gate runs on the same commit.
+    In the release worktree. It refuses a page that still has the draft marker, `FILL IN`, a missing field, or no upgrade notice despite breaking commits; stops if `develop` moved on meanwhile (`git rebase develop` in the release worktree, then run it again), if the tag already exists, if a local `main` is diverged or checked out in a worktree, or if `origin/develop` or `origin/main` has commits the release lacks - before the gate and once more after it; runs `mise run check`; fast-forwards `develop`, then `main`; tags `main` with an annotated `vX.Y.Z`; removes the worktree and the branch. All of it is local. `mise run release:finish --dry-run` runs every check except `mise run check`, then lists the exact git commands it would run and the push; it exits 0 only when the release is ready. If a step fails in a real run, the message lists what already happened and the remaining commands, quoted so they can be pasted.
 
   </Step>
   <Step>
 
-    ### Tag and push the tag
+    ### Push
     ```bash
-    git tag vX.Y.Z
-    git push origin vX.Y.Z
+    git push --atomic origin develop main vX.Y.Z
     ```
+    `--atomic` pushes all three or none: without it a rejected `develop` would still let `main` and the tag through, and the tag alone starts the release. The `main` push publishes the docs (CI, then `.github/workflows/pages.yml`). The tag starts `.github/workflows/release.yml`: gate, image, binaries, and the GitHub release, whose body `release:publish` builds from the changelog page once that page is live.
 
-  </Step>
-  <Step>
+    If the `binaries` job fails after `release:publish` has started, the GitHub release already exists and re-running fails with "release already exists": `gh release delete vX.Y.Z`, then re-run. If it timed out waiting for the docs, re-run it once the Pages run is green.
 
-    ### Let CI publish
-    The tag push above starts `.github/workflows/release.yml`, which builds and pushes `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/arm64` and attaches the platform binaries to the GitHub release — see [Releases](/architecture/releases). Nothing is built by hand.
-
-    If the `binaries` job fails after `release:publish` has started, the GitHub release already exists and re-running the job fails with "release already exists". Delete the release first (`gh release delete vX.Y.Z`) and then re-run; the tag and the pushed image can stay as they are.
+    The local gate is `mise run check`; CI also builds and runs the end-to-end tests. A failure only CI finds leaves a pushed tag that published nothing, and the fix costs a new patch version. The careful path, for a release that touches the build: push `develop` and `main` first, wait for CI, then push the tag.
 
   </Step>
   <Step>
 
     ### Back up before deploying
-    Back up the existing deployment's data directory before rolling out the new image - see the user docs' `operations/data-and-backup` page (`docs/user/content/operations/data-and-backup.mdx`).
+    Back up the existing deployment's data directory before rolling out the new image — see the user docs' `operations/data-and-backup` page (`docs/user/content/operations/data-and-backup.mdx`).
 
   </Step>
 </Steps>
-
-<Callout type="info">
-
-  Nothing else is bumped: no version file is maintained yet, and the huma API version in `internal/httpserver/api.go` (currently `0.1.0`) stays as-is until the API is public.
-
-</Callout>
