@@ -9,7 +9,12 @@ export const SITE_URL = 'https://s-frei.github.io/rezepte/';
 // Next merges metadata shallowly: a page-level `openGraph` REPLACES the root
 // layout's rather than extending it. Every page that sets its own og:title has
 // to spread these in, or it silently loses og:type, og:site_name and og:locale.
-export const OG_SHARED = { type: 'website', siteName: 'Rezepte', locale: 'en_US' } as const;
+// The link preview, public/og.png (a copy of assets/brand/social-preview.png).
+export const OG_IMAGES = [
+	{ url: './og.png', width: 1280, height: 640, alt: 'The Rezepte logo, a brush-painted onion above the name Rezepte' }
+];
+
+export const OG_SHARED = { type: 'website', siteName: 'Rezepte', locale: 'en_US', images: OG_IMAGES } as const;
 
 const getContentUrl = createGetUrl('/llms.mdx');
 

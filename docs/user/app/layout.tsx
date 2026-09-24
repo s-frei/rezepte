@@ -2,7 +2,7 @@ import './global.css';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { OG_SHARED, SITE_URL } from '@/lib/shared';
+import { OG_IMAGES, OG_SHARED, SITE_URL } from '@/lib/shared';
 
 export const metadata: Metadata = {
 	metadataBase: new URL(SITE_URL),
@@ -12,7 +12,8 @@ export const metadata: Metadata = {
 		...OG_SHARED,
 		title: 'Rezepte',
 		description: 'A self-hosted recipe manager for your household'
-	}
+	},
+	twitter: { card: 'summary_large_image', images: OG_IMAGES }
 };
 
 // The static search client's default endpoint resolves via `import.meta.env.BASE_URL`,

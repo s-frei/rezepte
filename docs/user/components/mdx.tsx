@@ -8,6 +8,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import type { MDXComponents } from 'mdx/types';
 import { Mermaid } from '@/components/mdx/mermaid';
+import { Lockup } from '@/components/lockup';
 import { Screenshot } from '@/components/screenshot';
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -21,6 +22,7 @@ export function getMDXComponents(components?: MDXComponents) {
 		File,
 		Files,
 		Folder,
+		Lockup,
 		Mermaid,
 		Screenshot,
 		Step,

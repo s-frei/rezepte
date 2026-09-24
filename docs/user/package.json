@@ -13,6 +13,7 @@
     "screenshots": "playwright test",
     "screenshots:audit": "bun scripts/screenshots-audit.ts",
     "readme-images": "bun scripts/readme-images.ts",
+    "brand-assets": "bun scripts/brand-assets.ts",
     "base-path:audit": "bun scripts/base-path-audit.ts"
   },
   "dependencies": {
