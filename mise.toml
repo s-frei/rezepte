@@ -47,11 +47,15 @@ depends = ["//service:dev", "//frontend:dev"]
 
 [tasks.check]
 description = "All lint, format and test gates"
-depends = ["guard:local-config", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
+depends = ["guard:local-config", "test:release", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
 
 [tasks.build]
 description = "Build frontend, then the Go binary with embedded assets"
 depends = ["//service:build"]
+
+[tasks."test:release"]
+description = "Unit tests for the release tooling in mise/lib/release"
+run = "bun test mise/lib"
 
 [tasks."guard:local-config"]
 description = "Fail if a mise.local.toml ever got committed"

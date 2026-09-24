@@ -21,7 +21,6 @@ if [ -z "$VERSION" ]; then
 	exit 1
 fi
 
-DIST="$ROOT/dist"
 # An empty dist/ would publish an assetless release that still reads as a
 # finished one, and re-running cannot repair it because the tag is then taken.
 if [ -z "$(ls -A "$DIST" 2>/dev/null || true)" ]; then
@@ -44,5 +43,26 @@ case "$VERSION" in
 	;;
 esac
 
+# The body comes from the release's changelog page (release:notes); the page
+# itself goes live through the main push's Pages run, which races this
+# workflow. Wait for it, so the release never links a page that is not there
+# yet. On timeout nothing is created: re-run this job once the docs are up.
+NOTES="$(mktemp)"
+trap 'rm -f "$NOTES"' EXIT
+./mise/tasks/release/notes.ts "$VERSION" >"$NOTES"
+PAGE="$(./mise/tasks/release/notes.ts "$VERSION" --url)"
+
+for attempt in $(seq 1 40); do
+	if curl -fsS -o /dev/null "$PAGE"; then
+		break
+	fi
+	if [ "$attempt" = 40 ]; then
+		echo "release:publish: $PAGE is not live after 20 minutes - re-run once the Pages workflow has finished" >&2
+		exit 1
+	fi
+	echo "release:publish: waiting for $PAGE ($attempt/40)"
+	sleep 30
+done
+
 echo "release:publish: creating release $VERSION from $DIST"
-gh release create "$VERSION" "$@" --generate-notes "$DIST"/*
+gh release create "$VERSION" "$@" --notes-file "$NOTES" "$DIST"/*
