@@ -25,6 +25,12 @@ func TestCheckOrigin(t *testing.T) {
 		{"delete foreign origin", http.MethodDelete, "/api/v1/x", "https://evil.example", 403},
 		{"get foreign origin is fine", http.MethodGet, "/api/v1/x", "https://evil.example", 200},
 		{"post foreign origin outside api", http.MethodPost, "/healthz", "https://evil.example", 200},
+		{"mcp post foreign origin", http.MethodPost, "/mcp", "https://evil.example", 403},
+		{"mcp get foreign origin", http.MethodGet, "/mcp", "https://evil.example", 403},
+		{"mcp delete foreign origin", http.MethodDelete, "/mcp", "https://evil.example", 403},
+		{"mcp malformed origin", http.MethodPost, "/mcp", "://", 403},
+		{"mcp post same origin", http.MethodPost, "/mcp", "http://localhost:8060", 200},
+		{"mcp post without origin", http.MethodPost, "/mcp", "", 200},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

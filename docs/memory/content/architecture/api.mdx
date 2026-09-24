@@ -151,7 +151,7 @@ Upload-specific error statuses, on top of the standard ones below:
 
 ## CSRF
 
-Cookies are `SameSite=Lax`, and a cross-origin write under `/api/` is refused on top of that - [Users and auth](/features/users-and-auth) owns the rule and what passes it. The refusal is a `403` `application/problem+json` body: `{"title":"Forbidden","status":403,"detail":"origin not allowed"}`.
+Cookies are `SameSite=Lax`, and a cross-origin write under `/api/` - or any cross-origin request to `/mcp` - is refused on top of that - [Users and auth](/features/users-and-auth) owns the rule and what passes it. The refusal is a `403` `application/problem+json` body: `{"title":"Forbidden","status":403,"detail":"origin not allowed"}`.
 
 ## Errors
 
