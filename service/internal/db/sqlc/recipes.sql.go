@@ -144,7 +144,8 @@ func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, err
 }
 
 const insertIngredient = `-- name: InsertIngredient :exec
-INSERT INTO ingredients (id, group_id, quantity, unit, name, note, position) VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO ingredients (id, group_id, quantity, unit, name, note, position)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertIngredientParams struct {
@@ -192,8 +193,10 @@ func (q *Queries) InsertIngredientGroup(ctx context.Context, arg InsertIngredien
 }
 
 const insertRecipe = `-- name: InsertRecipe :one
-INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at, edit_policy)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO recipes (
+    id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
+    created_by, created_at, updated_by, updated_at, edit_policy
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 `
 
@@ -343,7 +346,8 @@ func (q *Queries) ListAuthorsForIDs(ctx context.Context, ids []string) ([]ListAu
 
 const listAuthorsWithCount = `-- name: ListAuthorsWithCount :many
 SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
-FROM users u JOIN recipes r ON r.created_by = u.id
+FROM users u
+JOIN recipes r ON r.created_by = u.id
 GROUP BY u.id, u.username, u.display_name, u.color
 ORDER BY recipe_count DESC, u.username
 `
@@ -356,7 +360,7 @@ type ListAuthorsWithCountRow struct {
 }
 
 // Everyone who has written at least one recipe, most recipes first, for the
-// "Angelegt von" filter. Counting here rather than in Go keeps the list and
+// "added by" filter. Counting here rather than in Go keeps the list and
 // its counts one statement, the way ListTagsWithCount does.
 func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCountRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAuthorsWithCount)
@@ -387,7 +391,8 @@ func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCo
 }
 
 const listFavoriteRecipeIDs = `-- name: ListFavoriteRecipeIDs :many
-SELECT recipe_id FROM favorites
+SELECT recipe_id
+FROM favorites
 WHERE user_id = ?1
   AND recipe_id IN (SELECT value FROM json_each(?2))
 `
@@ -458,9 +463,11 @@ func (q *Queries) ListIngredientGroupsByRecipe(ctx context.Context, recipeID str
 }
 
 const listIngredientsByRecipe = `-- name: ListIngredientsByRecipe :many
-SELECT i.id, i.group_id, i.quantity, i.unit, i.name, i.note, i.position FROM ingredients i
+SELECT i.id, i.group_id, i.quantity, i.unit, i.name, i.note, i.position
+FROM ingredients i
 JOIN ingredient_groups g ON g.id = i.group_id
-WHERE g.recipe_id = ? ORDER BY g.position, i.position
+WHERE g.recipe_id = ?
+ORDER BY g.position, i.position
 `
 
 func (q *Queries) ListIngredientsByRecipe(ctx context.Context, recipeID string) ([]Ingredient, error) {
@@ -572,7 +579,11 @@ func (q *Queries) ListStepsByRecipe(ctx context.Context, recipeID string) ([]Ste
 }
 
 const listTagNamesByRecipe = `-- name: ListTagNamesByRecipe :many
-SELECT t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id WHERE rt.recipe_id = ? ORDER BY t.name
+SELECT t.name
+FROM tags t
+JOIN recipe_tags rt ON rt.tag_id = t.id
+WHERE rt.recipe_id = ?
+ORDER BY t.name
 `
 
 func (q *Queries) ListTagNamesByRecipe(ctx context.Context, recipeID string) ([]string, error) {
@@ -599,8 +610,11 @@ func (q *Queries) ListTagNamesByRecipe(ctx context.Context, recipeID string) ([]
 }
 
 const listTagNamesForRecipes = `-- name: ListTagNamesForRecipes :many
-SELECT rt.recipe_id, t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id
-WHERE rt.recipe_id IN (/*SLICE:recipe_ids*/?) ORDER BY rt.recipe_id, t.name
+SELECT rt.recipe_id, t.name
+FROM tags t
+JOIN recipe_tags rt ON rt.tag_id = t.id
+WHERE rt.recipe_id IN (/*SLICE:recipe_ids*/?)
+ORDER BY rt.recipe_id, t.name
 `
 
 type ListTagNamesForRecipesRow struct {
@@ -673,7 +687,9 @@ func (q *Queries) SlugExists(ctx context.Context, slug string) (bool, error) {
 }
 
 const updateRecipe = `-- name: UpdateRecipe :one
-UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
+UPDATE recipes
+SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?,
+    source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
 RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 `

@@ -28,9 +28,11 @@ func (q *Queries) DeleteRecipeTags(ctx context.Context, recipeID string) error {
 }
 
 const listTagsWithCount = `-- name: ListTagsWithCount :many
-SELECT t.name, COUNT(rt.recipe_id) AS count FROM tags t
+SELECT t.name, COUNT(rt.recipe_id) AS count
+FROM tags t
 JOIN recipe_tags rt ON rt.tag_id = t.id
-GROUP BY t.id ORDER BY count DESC, t.name
+GROUP BY t.id
+ORDER BY count DESC, t.name
 `
 
 type ListTagsWithCountRow struct {

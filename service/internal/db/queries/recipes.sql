@@ -1,10 +1,14 @@
 -- name: InsertRecipe :one
-INSERT INTO recipes (id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, created_by, created_at, updated_by, updated_at, edit_policy)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO recipes (
+    id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
+    created_by, created_at, updated_by, updated_at, edit_policy
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRecipe :one
-UPDATE recipes SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?, source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
+UPDATE recipes
+SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?,
+    source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
 RETURNING *;
 
@@ -29,7 +33,8 @@ SELECT EXISTS(SELECT 1 FROM recipes WHERE slug = ?);
 INSERT INTO ingredient_groups (id, recipe_id, name, position) VALUES (?, ?, ?, ?);
 
 -- name: InsertIngredient :exec
-INSERT INTO ingredients (id, group_id, quantity, unit, name, note, position) VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO ingredients (id, group_id, quantity, unit, name, note, position)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertStep :exec
 INSERT INTO steps (id, recipe_id, position, text) VALUES (?, ?, ?, ?);
@@ -44,9 +49,11 @@ DELETE FROM steps WHERE recipe_id = ?;
 SELECT * FROM ingredient_groups WHERE recipe_id = ? ORDER BY position;
 
 -- name: ListIngredientsByRecipe :many
-SELECT i.* FROM ingredients i
+SELECT i.*
+FROM ingredients i
 JOIN ingredient_groups g ON g.id = i.group_id
-WHERE g.recipe_id = ? ORDER BY g.position, i.position;
+WHERE g.recipe_id = ?
+ORDER BY g.position, i.position;
 
 -- name: ListStepsByRecipe :many
 SELECT * FROM steps WHERE recipe_id = ? ORDER BY position;
@@ -64,22 +71,30 @@ WHERE s.recipe_id = ?
 ORDER BY s.position, sr.position;
 
 -- name: ListTagNamesByRecipe :many
-SELECT t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id WHERE rt.recipe_id = ? ORDER BY t.name;
+SELECT t.name
+FROM tags t
+JOIN recipe_tags rt ON rt.tag_id = t.id
+WHERE rt.recipe_id = ?
+ORDER BY t.name;
 
 -- name: ListTagNamesForRecipes :many
-SELECT rt.recipe_id, t.name FROM tags t JOIN recipe_tags rt ON rt.tag_id = t.id
-WHERE rt.recipe_id IN (sqlc.slice(recipe_ids)) ORDER BY rt.recipe_id, t.name;
+SELECT rt.recipe_id, t.name
+FROM tags t
+JOIN recipe_tags rt ON rt.tag_id = t.id
+WHERE rt.recipe_id IN (sqlc.slice(recipe_ids))
+ORDER BY rt.recipe_id, t.name;
 
 -- The people behind a page of recipes, batched like ListTagNamesForRecipes.
 -- name: ListAuthorsForIDs :many
 SELECT id, username, display_name, color FROM users WHERE id IN (sqlc.slice(ids));
 
 -- Everyone who has written at least one recipe, most recipes first, for the
--- "Angelegt von" filter. Counting here rather than in Go keeps the list and
+-- "added by" filter. Counting here rather than in Go keeps the list and
 -- its counts one statement, the way ListTagsWithCount does.
 -- name: ListAuthorsWithCount :many
 SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
-FROM users u JOIN recipes r ON r.created_by = u.id
+FROM users u
+JOIN recipes r ON r.created_by = u.id
 GROUP BY u.id, u.username, u.display_name, u.color
 ORDER BY recipe_count DESC, u.username;
 
@@ -95,7 +110,8 @@ DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?;
 -- with json_each(), not sqlc.slice(): sqlc.slice() cannot be combined with
 -- sqlc.arg() in the same query. See
 -- docs/memory/content/features/recipes.mdx.
-SELECT recipe_id FROM favorites
+SELECT recipe_id
+FROM favorites
 WHERE user_id = sqlc.arg(user_id)
   AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
 

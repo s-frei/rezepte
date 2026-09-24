@@ -152,7 +152,9 @@ func (q *Queries) NextImagePosition(ctx context.Context, recipeID string) (int64
 }
 
 const setRecipeCover = `-- name: SetRecipeCover :exec
-UPDATE recipes SET cover_image_id = ?, updated_by = ?, updated_at = ? WHERE id = ?
+UPDATE recipes
+SET cover_image_id = ?, updated_by = ?, updated_at = ?
+WHERE id = ?
 `
 
 type SetRecipeCoverParams struct {
