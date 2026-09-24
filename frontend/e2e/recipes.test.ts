@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { Editor } from '@tiptap/core';
 import {
 	createRecipe,
 	createUser,
@@ -816,7 +817,10 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
  * button lives now that the sentence's underline is the only thing shown by
  * default.
  */
+// Waits for a toggle first: the links are derived after the editor renders,
+// and a loop that counts before then opens nothing and passes.
 async function showLinks(page: Page) {
+	await expect(page.locator('button[aria-controls^="step-links-"]').first()).toBeVisible();
 	const folded = page.locator('button[aria-controls^="step-links-"][aria-expanded="false"]');
 	while ((await folded.count()) > 0) await folded.first().click();
 }
@@ -949,18 +953,9 @@ test('keeps a picked name apart from the word the @ was typed before', async ({ 
 
 	await page.goto(`/recipes/${recipe.slug}/edit`);
 	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
-	// The caret goes right in front of "Sahne" through the DOM selection, which
-	// ProseMirror follows: where a click or a tap lands differs per project.
-	await step.click();
-	await step.evaluate((field) => {
-		const text = field.querySelector('p')?.firstChild;
-		if (!text?.textContent) throw new Error('step has no text');
-		const range = document.createRange();
-		range.setStart(text, text.textContent.indexOf('Sahne'));
-		range.collapse(true);
-		document.getSelection()?.removeAllRanges();
-		document.getSelection()?.addRange(range);
-	});
+	// The caret goes right in front of "Sahne": where a click or a tap lands
+	// differs per project.
+	await selectInStep(step, 'Sahne', 'caret');
 	await page.keyboard.type('@Zuck');
 
 	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
@@ -974,25 +969,37 @@ test('keeps a picked name apart from the word the @ was typed before', async ({ 
 	await expect(page.getByText('(100 g)', { exact: true })).toBeVisible();
 });
 
+/** Selects `word` in a step field. */
+function selectWord(step: Locator, word: string) {
+	return selectInStep(step, word, 'word');
+}
+
 /**
- * Selects `word` in a step field through the DOM selection ProseMirror follows.
- * The word's text node is searched for, because a linked word sits in its own
- * decoration span.
+ * Selects `word` in a step field, or puts the caret in front of it.
+ *
+ * The selection goes through the editor, not through the DOM selection: the
+ * editor reads a DOM selection only on the `selectionchange` event that follows
+ * it, and a key pressed before that event is handled at the old selection -
+ * where the click landed. Under a loaded full run that window is wide enough to
+ * hit. The word's text node is searched for, because a linked word sits in its
+ * own decoration span.
  */
-async function selectWord(step: ReturnType<Page['getByRole']>, word: string) {
+async function selectInStep(step: Locator, word: string, what: 'word' | 'caret') {
 	await step.click();
-	await step.evaluate((field, wanted) => {
-		const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
-		let text: Node | null = walker.nextNode();
-		while (text && !text.textContent?.includes(wanted)) text = walker.nextNode();
-		const at = text?.textContent?.indexOf(wanted) ?? -1;
-		if (!text || at < 0) throw new Error(`"${wanted}" is not in the step`);
-		const range = document.createRange();
-		range.setStart(text, at);
-		range.setEnd(text, at + wanted.length);
-		document.getSelection()?.removeAllRanges();
-		document.getSelection()?.addRange(range);
-	}, word);
+	await step.evaluate(
+		(field, [wanted, what]) => {
+			const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+			let text: Node | null = walker.nextNode();
+			while (text && !text.textContent?.includes(wanted)) text = walker.nextNode();
+			const at = text?.textContent?.indexOf(wanted) ?? -1;
+			if (!text || at < 0) throw new Error(`"${wanted}" is not in the step`);
+			const { editor } = field as HTMLElement & { editor: Editor };
+			const from = editor.view.posAtDOM(text, at);
+			const to = what === 'word' ? from + wanted.length : from;
+			editor.chain().focus().setTextSelection({ from, to }).run();
+		},
+		[word, what] as const
+	);
 }
 
 test('shows a link in a card at its word, and folds the list away', async ({ page }) => {
