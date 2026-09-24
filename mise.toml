@@ -132,3 +132,7 @@ description = "Download the demo photo originals from Git LFS, which a clone ski
 # exclude; the empty --exclude clears it for this one call.
 run = 'git lfs pull --include="assets/demo-photos/**" --exclude=""'
 
+[tasks."demo-photos"]
+description = "Rebuild the photos demo mode embeds from the originals in assets/demo-photos"
+depends = ["demo-photos:pull"]
+run = "cd service && go run ./cmd/demo-photos -src ../assets/demo-photos -dst internal/demo/photos"
