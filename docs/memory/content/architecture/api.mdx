@@ -162,7 +162,7 @@ RFC 9457 `application/problem+json`:
 ```
 The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `GET /auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `GET /auth/me` is excluded (mutating calls such as `PATCH /auth/me` still redirect) because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.
 
-Every operation that hashes or checks a password answers `503` with `Retry-After: 1` when too many password checks are already running or waiting; [Users and auth](/features/users-and-auth) owns the rule.
+The login operation also answers `429` with a `Retry-After` header when the username is locked after too many attempts, and every operation that hashes or checks a password answers `503` with `Retry-After: 1` when too many password checks are already running or waiting; [Users and auth](/features/users-and-auth) owns both rules.
 
 ## Why it is this way
 
