@@ -191,13 +191,49 @@ func TestDeleteIsDestructive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	i := slices.IndexFunc(res.Tools, func(tl *mcp.Tool) bool { return tl.Name == "delete_recipe" })
-	if i < 0 {
-		t.Fatal("delete_recipe not listed")
+	byName := func(name string) *mcp.ToolAnnotations {
+		i := slices.IndexFunc(res.Tools, func(tl *mcp.Tool) bool { return tl.Name == name })
+		if i < 0 {
+			t.Fatalf("%s not listed", name)
+		}
+		return res.Tools[i].Annotations
 	}
-	a := res.Tools[i].Annotations
-	if a == nil || a.DestructiveHint == nil || !*a.DestructiveHint {
-		t.Fatal("delete_recipe lacks destructiveHint")
+	if a := byName("delete_recipe"); a == nil || a.DestructiveHint == nil || !*a.DestructiveHint {
+		t.Error("delete_recipe lacks destructiveHint")
+	}
+	for _, name := range []string{"create_recipe", "add_favorite", "remove_favorite"} {
+		if a := byName(name); a == nil || a.DestructiveHint == nil || *a.DestructiveHint {
+			t.Errorf("%s: destructiveHint = %v, want explicit false", name, a)
+		}
+	}
+}
+
+// TestToolsAreClosedWorld pins openWorldHint: false on every tool. Each one
+// works on this instance's own collection only, and the SDK leaves the hint
+// unset, which clients read as true.
+func TestToolsAreClosedWorld(t *testing.T) {
+	e := newEnv(t)
+	res, err := e.connect(t, full...).ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Tools) != 8 {
+		t.Fatalf("%d tools, want 8", len(res.Tools))
+	}
+	for _, tl := range res.Tools {
+		if a := tl.Annotations; a == nil || a.OpenWorldHint == nil || *a.OpenWorldHint {
+			t.Errorf("%s: openWorldHint not explicitly false", tl.Name)
+		}
+	}
+}
+
+// TestDocumentHelpNamesNullableFields checks that the write tools say which
+// fields take null, so a model does not send null for description or [].
+func TestDocumentHelpNamesNullableFields(t *testing.T) {
+	for _, want := range []string{"every field", "description is a string", "prepMinutes", "quantity", "never null", "ingredientGroups", "at least one group"} {
+		if !strings.Contains(documentHelp, want) {
+			t.Errorf("documentHelp lacks %q", want)
+		}
 	}
 }
 

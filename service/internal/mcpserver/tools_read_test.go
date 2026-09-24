@@ -69,6 +69,69 @@ func TestSearchRecipesRejectsLongQuery(t *testing.T) {
 	}
 }
 
+// TestSearchRecipesBoundsInput holds search_recipes to the bounds REST puts
+// on GET /recipes. Each refusal is a tool error a model can read - never one
+// that names the Go type the arguments decode into.
+func TestSearchRecipesBoundsInput(t *testing.T) {
+	e := newEnv(t)
+	cs := e.connect(t, auth.ScopeRecipesRead)
+	for name, args := range map[string]map[string]any{
+		"unknown sort":    {"sort": "bogus"},
+		"zero limit":      {"limit": 0},
+		"limit above 100": {"limit": 101},
+		"zero page":       {"page": 0},
+		"huge page":       {"page": 1e12},
+		"page overflow":   {"page": 1e30},
+		"negative time":   {"maxMinutes": -1},
+		"time above 1440": {"maxMinutes": 1441},
+		"long query":      {"query": strings.Repeat("ä", 101)},
+		"long author":     {"author": strings.Repeat("ä", 51)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res := call(t, cs, "search_recipes", args)
+			text := fmt.Sprint(res.Content[0].(*mcp.TextContent).Text)
+			if !res.IsError {
+				t.Fatalf("accepted: %s", text)
+			}
+			t.Log(text)
+			for _, internal := range []string{"searchIn", "Go struct", "of type int"} {
+				if strings.Contains(text, internal) {
+					t.Fatalf("error names %q: %s", internal, text)
+				}
+			}
+		})
+	}
+}
+
+// TestSearchRecipesAcceptsBounds is the other edge: the limits themselves
+// are allowed, and "ä" counts as one character, as it does over REST.
+func TestSearchRecipesAcceptsBounds(t *testing.T) {
+	e := newEnv(t)
+	cs := e.connect(t, auth.ScopeRecipesRead)
+	res := call(t, cs, "search_recipes", map[string]any{
+		"sort": "title", "limit": 100, "page": 1, "maxMinutes": 1440,
+		"query": strings.Repeat("ä", 100), "author": strings.Repeat("ä", 50),
+	})
+	if res.IsError {
+		t.Fatalf("bounds refused: %v", res.Content)
+	}
+}
+
+// TestSearchRecipesEmptySortIsDefault mirrors REST's ?sort=: an empty sort
+// is the default order (updated, newest first), not an error.
+func TestSearchRecipesEmptySortIsDefault(t *testing.T) {
+	e := newEnv(t)
+	e.seed(t, "Apple pie")
+	e.seed(t, "Leek soup")
+	cs := e.connect(t, auth.ScopeRecipesRead)
+	page := structured[struct {
+		Items []struct{ Title string } `json:"items"`
+	}](t, call(t, cs, "search_recipes", map[string]any{"sort": ""}))
+	if len(page.Items) != 2 || page.Items[0].Title != "Leek soup" {
+		t.Fatalf("items = %+v, want the newest first", page.Items)
+	}
+}
+
 func TestGetRecipeByIDAndSlug(t *testing.T) {
 	e := newEnv(t)
 	r := e.seed(t, "Leek soup")

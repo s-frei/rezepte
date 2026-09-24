@@ -24,6 +24,20 @@ type caller struct {
 	user   user.User
 	create *jsonschema.Schema
 	update *jsonschema.Schema
+	search *jsonschema.Schema
+}
+
+// resolveAsAddTool resolves s the way mcp.AddTool does. AddTool resolves a
+// tool's InputSchema when the tool is registered and panics if that fails;
+// Handler registers tools per request, so doing it once at start-up with the
+// same options turns a broken schema into a boot error instead of a panic on
+// the first request that registers the tool.
+func resolveAsAddTool(s *jsonschema.Schema) error {
+	// The options mcp.AddTool passes (go-sdk mcp/server.go, setSchema).
+	if _, err := s.Resolve(&jsonschema.ResolveOptions{ValidateDefaults: true}); err != nil {
+		return fmt.Errorf("resolve: %w", err)
+	}
+	return nil
 }
 
 // tool pairs a tool with the scope a token needs to be offered it.
@@ -50,6 +64,15 @@ func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, e
 	if err != nil {
 		return nil, fmt.Errorf("update_recipe schema: %w", err)
 	}
+	search, err := searchSchema()
+	if err != nil {
+		return nil, err
+	}
+	for name, s := range map[string]*jsonschema.Schema{"create_recipe": create, "update_recipe": update, "search_recipes": search} {
+		if err := resolveAsAddTool(s); err != nil {
+			return nil, fmt.Errorf("resolve %s schema: %w", name, err)
+		}
+	}
 	cache := mcp.NewSchemaCache()
 	impl := &mcp.Implementation{Name: "rezepte", Version: version}
 	return mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
@@ -61,7 +84,7 @@ func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, e
 		}
 		scopes := auth.ScopesFrom(r.Context())
 		s := mcp.NewServer(impl, &mcp.ServerOptions{SchemaCache: cache})
-		c := caller{svc: svc, user: u, create: create, update: update}
+		c := caller{svc: svc, user: u, create: create, update: update, search: search}
 		for _, t := range tools {
 			if slices.Contains(scopes, t.scope) {
 				t.add(s, c)

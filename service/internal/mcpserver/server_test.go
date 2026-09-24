@@ -1,16 +1,43 @@
 package mcpserver
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2/humatest"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/recipe"
 )
+
+// TestHandlerFailsAtBootWithoutRecipeRegister pins Handler's contract: a
+// broken schema is a start-up error, never a panic on the first request that
+// needs it. Without recipe.Register, componentDefs cannot find the recipe
+// components, which is the cheapest way to make the schema build fail.
+func TestHandlerFailsAtBootWithoutRecipeRegister(t *testing.T) {
+	_, api := humatest.New(t)
+	if _, err := Handler(&recipe.Service{}, api, "test"); err == nil || !strings.Contains(err.Error(), "recipe.Register") {
+		t.Fatalf("err = %v, want a recipe.Register error", err)
+	}
+}
+
+// TestBootResolveMatchesAddTool pins that the start-up check is as strict as
+// mcp.AddTool, which resolves with ValidateDefaults: a default the schema
+// itself refuses must fail at boot, not panic on the first request.
+func TestBootResolveMatchesAddTool(t *testing.T) {
+	s := &jsonschema.Schema{Type: "object", Properties: map[string]*jsonschema.Schema{
+		"limit": {Type: "integer", Minimum: jsonschema.Ptr(1.0), Default: json.RawMessage(`0`)},
+	}}
+	if err := resolveAsAddTool(s); err == nil {
+		t.Fatal("invalid default accepted at boot")
+	}
+}
 
 func TestReadTokenListsReadTools(t *testing.T) {
 	e := newEnv(t)
