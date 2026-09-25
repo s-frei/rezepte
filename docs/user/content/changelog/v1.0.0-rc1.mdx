@@ -1,0 +1,27 @@
+---
+title: "v1.0.0-rc1 — Your household's recipes, on your own server"
+description: "The first release candidate of Rezepte: write, find and cook your household's recipes on your own server, in English or German, with an API and an MCP endpoint for AI assistants."
+date: 2026-09-24
+---
+
+This is the first release of Rezepte, published as a release candidate: everything below is what 1.0.0 is meant to ship, and it is out for you to try before it is called stable. Because it is a prerelease, `latest` does not point at it; pull `ghcr.io/s-frei/rezepte:1.0.0-rc1`, or pick an archive from the release page, and follow [Quick start](/getting-started). Try it on a fresh data directory, or [back up](/operations/data-and-backup) the one you use.
+
+## Your recipes in one place
+
+Rezepte is one binary, or one container, that keeps your household's recipes in an SQLite database and your photos next to it in a single data directory. Write a recipe with ingredient groups, preparation steps, tags, times and photos, and find it again by title, ingredient, tag, time, favorite or author. The [Recipes](/guide/recipes) and [Tags and search](/guide/tags-and-search) guides cover it, and `--demo` starts an instance filled with sample recipes to look around in.
+
+<Screenshot name="overview" caption="The recipe overview with search, tag chips and the card grid" />
+
+## Cook from your phone
+
+Cook mode shows one step at a time in large type, with the ingredient list a tap away and a choice of five text sizes. Steps can link the ingredients they use, so the amount shows right in the step, scaled to the servings you chose. See [Cook mode](/guide/cook-mode) and [Servings](/guide/servings).
+
+<Screenshot name="cook-mode" caption="A step in cook mode" />
+
+## Let programs and AI assistants in
+
+Every member can issue API tokens under Settings → API, each limited to reading, to reading and writing, or to full access that may also delete. The same token connects an AI assistant to the MCP endpoint at `/mcp`, and the token dialog hands you the command or configuration to paste. See [API tokens](/api/tokens) and [Connect an AI assistant](/api/mcp).
+
+## Everything else
+
+As the first release, everything in Rezepte is new, so this page names only the highlights. [Features](/guide) walks through the rest — members and roles, editing rights, English and German, favorites, photos, settings and keyboard shortcuts — and [Operations](/operations/data-and-backup) covers running it.
