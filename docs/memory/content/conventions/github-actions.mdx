@@ -46,7 +46,7 @@ A workflow is named by what a run of it is *for*, and a job belongs in it only i
 
 That is why the Pages deploy is a workflow rather than a job in `ci.yml`, even though CI is what normally starts it. A deployment carries what a gate never should - `pages: write` and `id-token: write`, a GitHub `environment`, a `concurrency` group serializing it against itself - and it has to be startable on its own, which a gate's triggers cannot say: a manual run of `ci.yml` would mean "run the gate", not "publish the docs".
 
-**Nothing publishes without the gate in front of it, and the gate is a workflow so that it can be in front of more than one thing.** `check.yml` holds the job and is only ever called: `ci.yml` calls it on every push and pull request, `release.yml` calls it before the image is built, and `pages.yml` runs after it. A gate that lives inside one workflow can only guard that workflow, and the rule it leaves unexpressed has to be carried by a checklist instead - which is where it gets skipped.
+**Nothing publishes without the gate in front of it, and the gate is a workflow so that it can be in front of more than one thing.** `check.yml` holds the gate's jobs and is only ever called: `ci.yml` calls it on every push and pull request, `release.yml` calls it before anything is pushed, and `pages.yml` runs after it. A gate that lives inside one workflow can only guard that workflow, and the rule it leaves unexpressed has to be carried by a checklist instead - which is where it gets skipped.
 
 The coupling survives the split because a caller job is still a job:
 
@@ -62,6 +62,14 @@ pages:
 ```
 
 A caller job has no steps of its own, so the step rules above do not apply to it. Its `permissions` are a ceiling rather than a grant: the called workflow's job may ask for less and never for more, so the caller has to name everything the callee needs. Where the callee needs nothing beyond the defaults - `check.yml` - the caller names nothing either.
+
+## The gate fans out
+
+`check.yml` does not run `mise run check` in one job. Its `plan` job reads the task's `depends` from `mise tasks info check --json` and hands them to a matrix, so every gate - `//service:check`, `//frontend:check`, each docs site and the small root tasks - runs on a runner of its own; beside them `generated` regenerates the API reference and fails on a diff, and `e2e` runs `mise run e2e --shard=N/2` twice. On one runner the gates share four cores and each of them takes four or five minutes; on runners of their own the slowest job sets the pace. Reading the list from mise keeps `mise.toml` its only definition: a gate added to `check` runs in CI without an edit here. The price is that `check` must stay a list of depends - `plan` fails when the task grows a `run` of its own, because nothing would execute it.
+
+Each gate job restores the Go build, module and golangci-lint caches and Bun's package cache through `actions/cache`, keyed on the job and the lockfiles. A cache is not a tool, so it does not break the rule above; without it every job compiles the Go dependencies from nothing.
+
+A caller's `needs: check` waits for every job of the called workflow, matrix included, so the fan-out changes nothing for `ci.yml` or `release.yml`.
 
 ## Why it is this way
 
