@@ -9,9 +9,10 @@ jobs:
   check:
     uses: ./.github/workflows/check.yml
 
+  # Publishes nothing, so it need not wait for the gate: it proves the image
+  # still builds, side by side with the gate instead of after it.
   docker:
     runs-on: ubuntu-latest
-    needs: check
     steps:
       - name: "Check out the repository"
         uses: actions/checkout@v7
