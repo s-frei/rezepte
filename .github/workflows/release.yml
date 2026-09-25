@@ -19,18 +19,20 @@ on:
           - edge
 
 jobs:
-  # Both entry points pass the gate before anything is published. A dispatch
-  # started from a tag is rejected by the `image` job below, so that mistake
-  # costs one gate run before it is caught.
+  # Nothing is published until the gate is green, but everything that gets
+  # published is built while it runs: `image-build` fills the build cache and
+  # `binaries` leaves the archives as a workflow artifact, neither of which
+  # leaves the run. Once the gate passes, `image` pushes from the warm cache
+  # and `release` uploads the archives.
   check:
     uses: ./.github/workflows/check.yml
 
-  image:
+  image-build:
     runs-on: ubuntu-latest
-    needs: check
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: "Reject a manual run from a tag"
         if: github.event_name == 'workflow_dispatch' && github.ref_type == 'tag'
@@ -43,13 +45,6 @@ jobs:
 
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v4
-
-      - name: "Log in to the container registry"
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
 
       - name: "Derive the image tags from the git tag"
         id: meta
@@ -76,25 +71,54 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=${{ inputs.image_tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
-      - name: "Build and push the container image"
+      # The same build arguments as the push below, or the Go stage would miss
+      # the cache there and rebuild after the gate.
+      - name: "Build the container image into the cache"
         uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
+          push: false
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             REZEPTE_VERSION=${{ steps.meta.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  image:
+    runs-on: ubuntu-latest
+    needs: [check, image-build]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: "Check out the repository"
+        uses: actions/checkout@v7
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Log in to the container registry"
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: "Push the container image from the cache"
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ needs.image-build.outputs.tags }}
+          labels: ${{ needs.image-build.outputs.labels }}
+          build-args: |
+            REZEPTE_VERSION=${{ needs.image-build.outputs.version }}
+          cache-from: type=gha
+
   binaries:
     runs-on: ubuntu-latest
-    needs: image
     if: github.event_name == 'push'
-    permissions:
-      contents: write
     steps:
       - name: "Check out the repository"
         uses: actions/checkout@v7
@@ -111,6 +135,34 @@ jobs:
         run: mise run release:binaries
         env:
           REZEPTE_VERSION: ${{ github.ref_name }}
+
+      - name: "Keep the archives for the release job"
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [image, binaries]
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+    steps:
+      - name: "Check out the repository"
+        uses: actions/checkout@v7
+
+      - name: "Set up mise"
+        uses: jdx/mise-action@v4
+        with:
+          cache: true
+
+      - name: "Fetch the release archives"
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
 
       - name: "Publish the GitHub release"
         run: mise run release:publish
