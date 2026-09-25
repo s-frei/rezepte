@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Build, start the binary on a free port with a temp data dir, run Playwright"
 #MISE depends=["//:build"]
+#USAGE arg "[args]..." var=#true help="Passed to Playwright: spec files, --grep, --shard or other Playwright flags"
 #
 # The frontend end-to-end suite runs against the production binary, which
 # serves the built SPA from one origin. This starts an *empty* instance - no
@@ -36,4 +37,4 @@ PID=$!
 trap 'rzp_stop "$PID"' EXIT
 rzp_wait_healthz e2e "$PORT" "$PID" 5
 
-cd frontend && E2E_BASE_URL="http://localhost:$PORT" bun run test:e2e
+cd frontend && E2E_BASE_URL="http://localhost:$PORT" bun run test:e2e "$@"
