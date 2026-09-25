@@ -94,12 +94,16 @@ await Bun.write(path.join(dir, CHANGELOG_DIR, `${version}.mdx`), draft);
 const metaPath = path.join(dir, CHANGELOG_DIR, 'meta.json');
 await Bun.write(metaPath, insertIntoMeta(await Bun.file(metaPath).text(), version));
 
+// The main checkout stays on develop on purpose: release:finish fast-forwards
+// it there. Say so, or the release looks like it never started.
 console.log(`
-Release ${version} is open in ${dir} on ${branch}.
+Release ${version} is open in its own worktree:
+  ${path.relative(root, dir)}   (branch ${branch})
+This checkout stays on develop - open that folder to work on the release.
 
-Next:
-  1. Write ${CHANGELOG_DIR}/${version}.mdx there - highlights, the rest, and
+Next, in that worktree:
+  1. Write ${CHANGELOG_DIR}/${version}.mdx - highlights, the rest, and
      the upgrade notice if anything is breaking. Remove the DRAFT line.
   2. Commit it:  docs(changelog): write the ${version} release notes
-  3. Run in that worktree:  mise run release:finish
+  3. Run:  mise run release:finish
 `);
