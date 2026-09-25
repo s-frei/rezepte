@@ -15,6 +15,7 @@ description: End-to-end tests and screenshots, no browser extensions
     ```bash
     mise run e2e
     REZEPTE_E2E_PORT=8061 mise run e2e   # when something already holds the offset-0 port (8060)
+    mise run e2e e2e/tokens.test.ts      # arguments go to Playwright: spec files, --grep, --shard
     ```
     Builds the binary, starts it on `:8060` by default (`RZP_BACKEND_PORT`, override with `REZEPTE_E2E_PORT`) with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=admin1234` ([Development credentials](/conventions/dev-credentials)), runs every `frontend/e2e/*.test.ts` on a desktop and a mobile (Pixel 7) project, then stops the binary and deletes the directory. Run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree). Traces and screenshots of failures land in `frontend/test-results/`.
 
