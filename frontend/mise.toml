@@ -1,9 +1,8 @@
 [tasks."install:deps"]
 description = "Install frontend dependencies only, without the Playwright browser"
-# The release workflow builds the SPA but runs no browser test, and it runs
-# after the image is already pushed. Downloading Chromium there would let a
-# slow or failing Playwright CDN leave a tag with a published image and no
-# GitHub release, so the release path installs packages and nothing else.
+# The release workflow builds the SPA but runs no browser test. Downloading
+# Chromium there would only let a slow or failing Playwright CDN fail a
+# release, so the release path installs packages and nothing else.
 run = "bun install --frozen-lockfile"
 
 [tasks.install]

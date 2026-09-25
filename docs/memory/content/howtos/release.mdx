@@ -55,9 +55,9 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
     ```bash
     git push --atomic origin develop main vX.Y.Z
     ```
-    `--atomic` pushes all three or none: without it a rejected `develop` would still let `main` and the tag through, and the tag alone starts the release. The `main` push publishes the docs (CI, then `.github/workflows/pages.yml`). The tag starts `.github/workflows/release.yml`: gate, image, binaries, and the GitHub release, whose body `release:publish` builds from the changelog page once that page is live.
+    `--atomic` pushes all three or none: without it a rejected `develop` would still let `main` and the tag through, and the tag alone starts the release. The `main` push publishes the docs (CI, then `.github/workflows/pages.yml`). The tag starts `.github/workflows/release.yml`: the gate, with the image and the archives built beside it, then the image push and the GitHub release, whose body `release:publish` builds from the changelog page once that page is live.
 
-    If the `binaries` job fails after `release:publish` has started, the GitHub release already exists and re-running fails with "release already exists": `gh release delete vX.Y.Z`, then re-run. If it timed out waiting for the docs, re-run it once the Pages run is green.
+    If the `release` job fails after `release:publish` has started, the GitHub release already exists and re-running fails with "release already exists": `gh release delete vX.Y.Z`, then re-run. If it timed out waiting for the docs, re-run it once the Pages run is green.
 
     The local gate is `mise run check`; CI also builds and runs the end-to-end tests. A failure only CI finds leaves a pushed tag that published nothing, and the fix costs a new patch version. The careful path, for a release that touches the build: push `develop` and `main` first, wait for CI, then push the tag.
 
