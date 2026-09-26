@@ -49,15 +49,16 @@ VS Code's `mcp.json` expects the same entry under a top-level `servers` key inst
 
 ## What the assistant can do
 
-Eight tools, each reaching as far as the token's scopes allow. The assistant acts as the admin who issued the token, under the same [editing rights](/guide/editing-rights) as in the app:
+Ten tools, each reaching as far as the token's scopes allow. The assistant acts as the admin who issued the token, under the same [editing rights](/guide/editing-rights) as in the app:
 
-- **Search** the collection by keyword, tag, time, favorites or author.
-- **Read** one recipe in full — ingredients, steps, tags, and whether you have starred it.
+- **Search** the collection by keyword, tag, time, favorites or author, and sort it by the most tasty marks.
+- **Read** one recipe in full — ingredients, steps, tags, whether you have starred it, and who marked it tasty.
 - **List the tags** already in use, so it reuses yours instead of inventing new ones.
 - **Create** a recipe.
 - **Edit** a recipe — it replaces the whole document, the same as saving in the editor, including who may edit it.
 - **Delete** a recipe and its photos, with a **Full** token only. This cannot be undone.
 - **Star or unstar** a recipe as a favorite.
+- **Mark a recipe tasty**, or take the mark back — never on a recipe the token's admin wrote.
 
 ## What it cannot do
 
