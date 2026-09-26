@@ -11,6 +11,8 @@
     "delete-recipe",
     "update-recipe",
     "delete-favorite",
-    "set-favorite"
+    "set-favorite",
+    "delete-tasty",
+    "set-tasty"
   ]
 }
