@@ -188,6 +188,7 @@
 	"overview_sort_updated": "Zuletzt geändert",
 	"overview_sort_created": "Neueste zuerst",
 	"overview_sort_title": "A–Z",
+	"overview_sort_tasty": "Am leckersten",
 
 	"recipe_servings": "Portionen",
 	"recipe_ingredients": "Zutaten",
@@ -198,6 +199,13 @@
 	"recipe_favorite_add": "Zu Favoriten hinzufügen",
 	"recipe_favorite_remove": "Aus Favoriten entfernen",
 	"recipe_favorite_error": "Favorit konnte nicht gespeichert werden.",
+	"recipe_tasty_add": "Als lecker markieren",
+	"recipe_tasty_remove": "Doch nicht lecker",
+	"recipe_tasty_error": "Lecker konnte nicht gespeichert werden.",
+	"recipe_tasty_count_one": "1 Person findet das lecker",
+	"recipe_tasty_count": "{count} Personen finden das lecker",
+	"recipe_tasty_none": "Noch niemand findet das lecker",
+	"recipe_tasty_by": "Lecker für",
 
 	"servings_unit_one": "Portion",
 	"servings_unit_other": "Portionen",

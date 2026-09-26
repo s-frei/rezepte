@@ -29,6 +29,10 @@ export type RecipeCard = {
 	updatedAt: string;
 	/** Whether the signed-in user has starred this recipe. */
 	favorite: boolean;
+	/** How many members marked this recipe tasty; the same for everyone. */
+	tastyCount: number;
+	/** Whether the signed-in user is one of them. */
+	tasty: boolean;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;
@@ -88,6 +92,11 @@ export type Recipe = RecipeInput & {
 	updatedBy: Person;
 	/** Whether the signed-in user has starred this recipe. */
 	favorite: boolean;
+	/** How many members marked this recipe tasty, and who, in the order they did. */
+	tastyCount: number;
+	tastyBy: Person[];
+	/** Whether the signed-in user is one of them. */
+	tasty: boolean;
 	/** The effective state: the policy resolved against the household setting. */
 	locked: boolean;
 	/** What the signed-in user may do with this recipe, decided by the server. */
@@ -136,7 +145,7 @@ export function listRecipes(
 		maxMinutes?: number;
 		favorites?: boolean;
 		author?: string;
-		sort?: 'updated' | 'created' | 'title';
+		sort?: 'updated' | 'created' | 'title' | 'tasty';
 		page?: number;
 		limit?: number;
 	} = {},
@@ -174,6 +183,16 @@ export function listRecipes(
 /** Sets or clears the star on a recipe for the signed-in user. */
 export async function setFavorite(id: string, on: boolean): Promise<void> {
 	await api<void>(`/recipes/${encodeURIComponent(id)}/favorite`, {
+		method: on ? 'PUT' : 'DELETE'
+	});
+}
+
+/**
+ * Sets or clears the signed-in user's tasty mark on a recipe. The service
+ * answers 403 when the recipe is the user's own.
+ */
+export async function setTasty(id: string, on: boolean): Promise<void> {
+	await api<void>(`/recipes/${encodeURIComponent(id)}/tasty`, {
 		method: on ? 'PUT' : 'DELETE'
 	});
 }

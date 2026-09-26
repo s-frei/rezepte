@@ -188,6 +188,7 @@
 	"overview_sort_updated": "Recently changed",
 	"overview_sort_created": "Newest first",
 	"overview_sort_title": "A–Z",
+	"overview_sort_tasty": "Tastiest",
 
 	"recipe_servings": "Servings",
 	"recipe_ingredients": "Ingredients",
@@ -198,6 +199,13 @@
 	"recipe_favorite_add": "Add to favorites",
 	"recipe_favorite_remove": "Remove from favorites",
 	"recipe_favorite_error": "Favorite could not be saved.",
+	"recipe_tasty_add": "Mark as tasty",
+	"recipe_tasty_remove": "Take back tasty",
+	"recipe_tasty_error": "Tasty could not be saved.",
+	"recipe_tasty_count_one": "1 person finds this tasty",
+	"recipe_tasty_count": "{count} people find this tasty",
+	"recipe_tasty_none": "Nobody has marked this tasty yet",
+	"recipe_tasty_by": "Tasty for",
 
 	"servings_unit_one": "serving",
 	"servings_unit_other": "servings",
