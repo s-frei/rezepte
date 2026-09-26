@@ -155,6 +155,7 @@ describe('parseListQuery', () => {
 			page: 1
 		});
 		expect(parseListQuery(urlWith('sort=title')).sort).toBe('title');
+		expect(parseListQuery(urlWith('sort=tasty')).sort).toBe('tasty');
 	});
 
 	it('falls back to updated for an unknown sort', () => {

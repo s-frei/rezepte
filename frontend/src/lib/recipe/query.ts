@@ -1,13 +1,13 @@
 import { normaliseTag } from './form';
 import { snapMaxMinutes } from './time-filter';
 
-/** The three orders the overview grid can be sorted by. */
-export type Sort = 'updated' | 'created' | 'title';
+/** The orders the overview grid can be sorted by. */
+export type Sort = 'updated' | 'created' | 'title' | 'tasty';
 
-const SORTS: readonly Sort[] = ['updated', 'created', 'title'];
+const SORTS: readonly Sort[] = ['updated', 'created', 'title', 'tasty'];
 
 /**
- * Narrows a raw string to `Sort` iff it is one of the three known values -
+ * Narrows a raw string to `Sort` iff it is one of the known values -
  * exported so the sort `Select`'s `onchange` (which only ever hands back a
  * plain string, one of `sortOptions`' own values) can narrow it the same
  * way `normalize` does, without duplicating the check.
@@ -41,7 +41,7 @@ export type ListQuery = {
  *   they were typed (it only trims them too), so lower-casing here the way
  *   tags are would stop "Mara" from matching anything.
  * - `sort` falls back to `'updated'` (the default) for anything outside the
- *   three known values - the same rule the server applies, so a value that
+ *   known values - the same rule the server applies, so a value that
  *   can only arrive from a stale bookmark degrades to the default list
  *   rather than failing to parse.
  * - `maxMinutes` snaps to one of the filter's own stops (see `time-filter`),

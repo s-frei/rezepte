@@ -91,12 +91,13 @@
 	const sortOptions: { value: Sort; label: string }[] = [
 		{ value: 'updated', label: m.overview_sort_updated() },
 		{ value: 'created', label: m.overview_sort_created() },
-		{ value: 'title', label: m.overview_sort_title() }
+		{ value: 'title', label: m.overview_sort_title() },
+		{ value: 'tasty', label: m.overview_sort_tasty() }
 	];
 
 	function handleSort(value: string) {
 		// Select's `value` is a plain string (any Bits UI item value fits);
-		// narrowed back to Sort since sortOptions only ever offers the three
+		// narrowed back to Sort since sortOptions only ever offers the
 		// known values as options, so this always succeeds in practice.
 		if (isSort(value)) {
 			onsort(value);
