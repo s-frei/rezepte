@@ -17,6 +17,8 @@ func init() {
 		tool{auth.ScopeRecipesDelete, addDeleteRecipe},
 		tool{auth.ScopeRecipesWrite, addFavoriteTool(true)},
 		tool{auth.ScopeRecipesWrite, addFavoriteTool(false)},
+		tool{auth.ScopeRecipesWrite, addTastyTool(true)},
+		tool{auth.ScopeRecipesWrite, addTastyTool(false)},
 	)
 }
 
@@ -119,6 +121,29 @@ func addFavoriteTool(on bool) func(*mcp.Server, caller) {
 				return nil, nil, toolError(ctx, fmt.Errorf("%s: %w", name, err))
 			}
 			return nil, map[string]any{"id": in.ID, "favorite": on}, nil
+		})
+	}
+}
+
+// addTastyTool builds add_tasty (on) or remove_tasty (off), the tasty
+// counterpart of addFavoriteTool. The token owner cannot mark a recipe they
+// wrote; removing is idempotent.
+func addTastyTool(on bool) func(*mcp.Server, caller) {
+	name, desc := "remove_tasty", "Take back the token owner's tasty mark on a recipe."
+	if on {
+		name, desc = "add_tasty", "Mark a recipe as tasty for the token owner. Everyone sees how many members marked it "+
+			"and who (tastyCount and tastyBy in get_recipe). A recipe the token owner wrote cannot be marked."
+	}
+	return func(s *mcp.Server, c caller) {
+		mcp.AddTool(s, &mcp.Tool{
+			Name:        name,
+			Description: desc,
+			Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: true, OpenWorldHint: new(false)},
+		}, func(ctx context.Context, _ *mcp.CallToolRequest, in idIn) (*mcp.CallToolResult, any, error) {
+			if err := c.svc.SetTasty(ctx, c.user.ID, in.ID, on); err != nil {
+				return nil, nil, toolError(ctx, fmt.Errorf("%s: %w", name, err))
+			}
+			return nil, map[string]any{"id": in.ID, "tasty": on}, nil
 		})
 	}
 }

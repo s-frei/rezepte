@@ -31,7 +31,7 @@ type searchIn struct {
 	MaxMinutes int      `json:"maxMinutes,omitempty" jsonschema:"Only recipes whose prep plus cook time is at most this many minutes, 0-1440; 0 is off"`
 	Favorites  bool     `json:"favorites,omitempty" jsonschema:"Only the token owner's favorites"`
 	Author     string   `json:"author,omitempty" jsonschema:"Only recipes written by this username (createdBy.username in get_recipe), max 50 characters"`
-	Sort       string   `json:"sort,omitempty" jsonschema:"Result order: updated (default), created or title"`
+	Sort       string   `json:"sort,omitempty" jsonschema:"Result order: updated (default), created, title or tasty (most tasty marks first)"`
 	Page       int      `json:"page,omitempty" jsonschema:"1-based page, default 1"`
 	Limit      int      `json:"limit,omitempty" jsonschema:"Page size, 1-100, default 24"`
 }
@@ -59,7 +59,7 @@ func searchSchema() (*jsonschema.Schema, error) {
 	p["maxMinutes"].Minimum, p["maxMinutes"].Maximum = jsonschema.Ptr(0.0), jsonschema.Ptr(1440.0)
 	// "" is the default, as REST's ?sort= is: huma applies the default
 	// before validating, the service maps "" to updated.
-	p["sort"].Enum = []any{"", "updated", "created", "title"}
+	p["sort"].Enum = []any{"", "updated", "created", "title", "tasty"}
 	p["page"].Minimum, p["page"].Maximum = jsonschema.Ptr(1.0), jsonschema.Ptr(float64(maxSearchPage))
 	p["limit"].Minimum, p["limit"].Maximum = jsonschema.Ptr(1.0), jsonschema.Ptr(100.0)
 	return s, nil
@@ -150,6 +150,8 @@ func toolError(ctx context.Context, err error) error {
 		return errors.New("you may not make this change: only the recipe's author and admins may edit a locked recipe or change its editPolicy")
 	case errors.Is(err, recipe.ErrDeleteForbidden):
 		return errors.New("only the recipe's author or an admin may delete it")
+	case errors.Is(err, recipe.ErrOwnRecipe):
+		return errors.New("you wrote this recipe: a tasty mark is for somebody else's recipe")
 	case errors.As(err, &ref):
 		return errors.New(ref.Error())
 	default:
