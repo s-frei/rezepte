@@ -39,16 +39,21 @@ const (
 	RecipeSortUpdated RecipeSort = "updated"
 	RecipeSortCreated RecipeSort = "created"
 	RecipeSortTitle   RecipeSort = "title"
+	RecipeSortTasty   RecipeSort = "tasty"
 )
 
 // The title order uses the "unicode" collation package db registers, so
 // umlauts sort beside their base letter. Every order ends on id DESC: timestamps have second resolution, so a burst
 // of writes shares one, and ids are UUIDv7, so the tiebreak still reads
-// newest first.
+// newest first. The tasty order counts each row's marks in a correlated
+// subquery on tasty_recipe_idx rather than keeping a counter on recipes: a
+// household's collection is small enough that the count is cheap, and a
+// counter would be one more thing to keep in step with the tasty table.
 var recipeOrderBy = map[RecipeSort]string{
 	RecipeSortUpdated: "r.updated_at DESC, r.id DESC",
 	RecipeSortCreated: "r.created_at DESC, r.id DESC",
 	RecipeSortTitle:   "r.title COLLATE unicode, r.id DESC",
+	RecipeSortTasty:   "(SELECT COUNT(*) FROM tasty t WHERE t.recipe_id = r.id) DESC, r.updated_at DESC, r.id DESC",
 }
 
 const recipeColumns = `r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes,

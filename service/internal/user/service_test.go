@@ -248,6 +248,57 @@ func TestDeleteKeepsTheEditPolicyOfReassignedRecipes(t *testing.T) {
 	}
 }
 
+// An author cannot mark their own recipe tasty. A recipe that moves to the
+// acting admin makes them its author, so a mark they had left on it goes:
+// kept, it would count for a recipe they now own, and the UI shows an author
+// no button to take it back. Other members' marks stay.
+func TestDeleteDropsTheNewOwnersTastyMarkOnReassignedRecipes(t *testing.T) {
+	ctx := context.Background()
+	conn, svc, sam, kim := seedTwo(t)
+	lea, err := svc.Create(ctx, user.CreateParams{Username: "lea", Password: "lea1234", Role: user.RoleUser})
+	if err != nil {
+		t.Fatalf("Create lea: %v", err)
+	}
+	_, err = conn.ExecContext(ctx, `INSERT INTO recipes (id, slug, title, description, servings, created_by, created_at, updated_by, updated_at)
+		VALUES ('r1', 'r1', 'Kims Rezept', '', 4, ?, '2026-01-01T00:00:00Z', ?, '2026-01-01T00:00:00Z'),
+		       ('r2', 'r2', 'Leas Rezept', '', 4, ?, '2026-01-01T00:00:00Z', ?, '2026-01-01T00:00:00Z')`,
+		kim.ID, kim.ID, lea.ID, lea.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = conn.ExecContext(ctx, `INSERT INTO tasty (user_id, recipe_id, created_at)
+		VALUES (?, 'r1', '2026-01-02T00:00:00Z'), (?, 'r1', '2026-01-02T00:00:00Z'), (?, 'r2', '2026-01-02T00:00:00Z')`,
+		sam.ID, lea.ID, sam.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Delete(ctx, sam, kim.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	rows, err := conn.QueryContext(ctx, `SELECT user_id || '/' || recipe_id FROM tasty ORDER BY recipe_id, user_id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var marks []string
+	for rows.Next() {
+		var mark string
+		if err := rows.Scan(&mark); err != nil {
+			t.Fatal(err)
+		}
+		marks = append(marks, mark)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{lea.ID + "/r1", sam.ID + "/r2"}
+	if strings.Join(marks, ",") != strings.Join(want, ",") {
+		t.Fatalf("tasty marks = %v, want %v (sam's mark on the recipe sam now owns gone, the rest kept)", marks, want)
+	}
+}
+
 func TestSetAndChangePassword(t *testing.T) {
 	ctx := context.Background()
 	_, svc, sam, kim := seedTwo(t)

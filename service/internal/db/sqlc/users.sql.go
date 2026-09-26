@@ -100,6 +100,25 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteTastyOfNewOwner = `-- name: DeleteTastyOfNewOwner :exec
+DELETE FROM tasty
+WHERE user_id = ?1
+  AND recipe_id IN (SELECT id FROM recipes WHERE created_by = ?2)
+`
+
+type DeleteTastyOfNewOwnerParams struct {
+	NewOwner string
+	OldOwner string
+}
+
+// The acting admin becomes the author of every recipe the deleted user
+// wrote, and an author cannot mark their own recipe tasty: a mark the admin
+// had left on one of them goes before it changes hands.
+func (q *Queries) DeleteTastyOfNewOwner(ctx context.Context, arg DeleteTastyOfNewOwnerParams) error {
+	_, err := q.db.ExecContext(ctx, deleteTastyOfNewOwner, arg.NewOwner, arg.OldOwner)
+	return err
+}
+
 const deleteUser = `-- name: DeleteUser :execrows
 DELETE FROM users WHERE id = ?
 `

@@ -11,6 +11,11 @@ import (
 // ErrNotFound is returned when a recipe id or slug has no match.
 var ErrNotFound = errors.New("recipe not found")
 
+// ErrOwnRecipe is returned when the author marks their own recipe tasty. A
+// tasty mark is feedback to whoever wrote the recipe, so the author has
+// nothing to tell themselves.
+var ErrOwnRecipe = errors.New("recipe is your own")
+
 // Ingredient is a single ingredient line within an IngredientGroup.
 type Ingredient struct {
 	Quantity *float64 `json:"quantity" minimum:"0" nullable:"true"`
@@ -93,6 +98,13 @@ type Recipe struct {
 	// say - gets false unless it also calls fillCaller or
 	// (*Service).IsFavorite itself.
 	Favorite bool `json:"favorite"`
+	// TastyCount and TastyBy are how many members marked the recipe tasty
+	// and who, in the order they did. Unlike Favorite they are the same for
+	// every caller, so ByID and BySlug fill them. Tasty is whether the
+	// caller is one of them, filled with Favorite by fillCaller.
+	TastyCount int      `json:"tastyCount"`
+	TastyBy    []Person `json:"tastyBy"`
+	Tasty      bool     `json:"tasty"`
 	// Locked is the effective state: the recipe's policy resolved against
 	// the household default. The Can* fields are for the caller and, like
 	// Favorite, are filled by the handler (FillAccess), not by ByID/BySlug.
@@ -112,6 +124,10 @@ type Card struct {
 	CoverImageID *string   `json:"coverImageId" nullable:"true"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 	Favorite     bool      `json:"favorite"`
+	// TastyCount is how many members marked the recipe tasty; Tasty is
+	// whether the caller is one of them.
+	TastyCount int  `json:"tastyCount"`
+	Tasty      bool `json:"tasty"`
 	// Who wrote the recipe and who last changed it, in the same shape as on
 	// Recipe. The card shows them as initials.
 	CreatedBy Person `json:"createdBy"`

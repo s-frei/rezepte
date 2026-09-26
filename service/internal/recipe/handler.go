@@ -17,7 +17,7 @@ type listInput struct {
 	MaxMinutes    int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
 	FavoritesOnly bool     `query:"favorites" doc:"Restrict to the caller's own favorites"`
 	Author        string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
-	Sort          string   `query:"sort" enum:"updated,created,title" default:"updated" doc:"Result order"`
+	Sort          string   `query:"sort" enum:"updated,created,title,tasty" default:"updated" doc:"Result order: tasty puts the most tasty marks first"`
 	Page          int      `query:"page" minimum:"1" default:"1" doc:"1-based page number"`
 	Limit         int      `query:"limit" minimum:"1" maximum:"100" default:"24" doc:"Page size"`
 }
