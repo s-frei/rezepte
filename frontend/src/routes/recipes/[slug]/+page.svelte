@@ -11,6 +11,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
 	import { deleteRecipe } from '$lib/api/recipes';
+	import { session } from '$lib/auth.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
@@ -24,6 +25,8 @@
 	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
 	import ServingsStepper from '$lib/components/recipe/ServingsStepper.svelte';
 	import StepList from '$lib/components/recipe/StepList.svelte';
+	import TastyButton from '$lib/components/recipe/TastyButton.svelte';
+	import TastyPeople from '$lib/components/recipe/TastyPeople.svelte';
 	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
 	import { clearServings, createServings } from '$lib/recipe/servings.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -44,6 +47,25 @@
 	// for another slug (command palette, back/forward), reading that recipe's
 	// stored choice. Mutations go through `servings.set()`, not this binding.
 	const servings = $derived(recipe && createServings(recipe.id, recipe.servings));
+
+	// The people behind the tasty count. Derived from the loaded recipe, and
+	// written over when the reader marks or unmarks it, so their own circle
+	// follows the button without reloading the recipe.
+	let tastyBy = $derived(recipe?.tastyBy ?? []);
+	const ownRecipe = $derived(recipe && session.user?.id === recipe.createdBy.id);
+
+	function onTasty(active: boolean) {
+		const me = session.user;
+		if (!me) {
+			return;
+		}
+		tastyBy = active
+			? [
+					...tastyBy,
+					{ id: me.id, username: me.username, displayName: me.displayName, color: me.color }
+				]
+			: tastyBy.filter((person) => person.id !== me.id);
+	}
 
 	let deleteOpen = $state(false);
 	let lightboxOpen = $state(false);
@@ -295,13 +317,37 @@
 					</div>
 				{/if}
 				<div class="mt-3 flex items-start gap-3 md:mt-4">
-					<h1 class="font-display text-display-md font-medium md:text-display-xl">
+					<!-- Star and heart leave a 320px phone about 180px of title, less
+					     than "Königsberger" needs at this size: the title may shrink
+					     and break its long compounds, as in cook mode, rather than
+					     push the pair off the page. -->
+					<h1
+						class="min-w-0 font-display text-display-md font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4] md:text-display-xl"
+					>
 						{recipe.title}
 					</h1>
-					<div class="mt-1 shrink-0 md:mt-2">
+					<!-- Star and heart sit together beside the title, outside any link,
+					     and this is where a phone sets both: its cards leave the
+					     photo to the photo. -->
+					<div class="mt-1 flex shrink-0 items-center gap-2 md:mt-2">
 						<FavoriteStar id={recipe.id} active={recipe.favorite} />
+						{#if !ownRecipe || recipe.tastyCount > 0}
+							<TastyButton
+								id={recipe.id}
+								active={recipe.tasty}
+								count={recipe.tastyCount}
+								readonly={ownRecipe}
+								onchange={onTasty}
+							/>
+						{/if}
 					</div>
 				</div>
+				{#if tastyBy.length > 0}
+					<div class="mt-3 flex items-center gap-2 text-caption text-text-muted">
+						<span>{m.recipe_tasty_by()}</span>
+						<TastyPeople people={tastyBy} />
+					</div>
+				{/if}
 				{#if recipe.description}
 					<p class="mt-3 text-body-lg text-text-muted">{recipe.description}</p>
 				{/if}
