@@ -155,7 +155,7 @@ Migrations are embedded with `go:embed` and applied by `db.Migrate` as the proce
 
 Tests run against a real migrated database rather than mocks. `dbtest.Open` opens a throwaway file in the test's own temp directory and applies every migration to it, so a query test meets the same SQLite, the same pragmas and the same schema as production - including the FTS5 table and the `_txlock=immediate` transaction behavior that the rank guards on the `users` table lean on.
 
-[Add a database migration](/howtos/add-migration) owns the procedure, and the rule about editing an existing migration rather than adding one that holds until the first release ships.
+[Add a database migration](/howtos/add-migration) owns the procedure, and the rule that a migration which has shipped in a release is never edited: every schema change is a new migration on top.
 
 ## Rejected
 
