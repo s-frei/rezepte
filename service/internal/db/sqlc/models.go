@@ -110,6 +110,12 @@ type Tag struct {
 	Name string
 }
 
+type Tasty struct {
+	UserID    string
+	RecipeID  string
+	CreatedAt string
+}
+
 type User struct {
 	ID           string
 	Username     string
