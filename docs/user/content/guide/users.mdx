@@ -1,9 +1,9 @@
 ---
-title: Members
-description: Create accounts, reset passwords and delete members; the owner assigns roles and edits profiles
+title: People
+description: See who has an account; admins add, reset and delete accounts, and the owner assigns roles and edits profiles
 ---
 
-This page is for admins; a "Member" account does not see "Members" in Settings, and is redirected to their own settings if they open its URL directly.
+Everyone with an account finds "People" in Settings: a list of every account on this Rezepte, with its display name, its login name, its color and its role, so it is always clear who takes part and who looks after the accounts. A "Member" account reads the list and nothing more; the actions on this page are for admins.
 
 Admins are not all equal here. Every admin looks after the members; admins themselves belong to the instance owner — the account created on the very first start (see [First login](/getting-started/first-login)). Actions you are not allowed to take are simply not shown in the row, so the list already reflects this table:
 
@@ -15,7 +15,7 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | Lock recipes to their authors for the whole household | – | – | ✓ |
 | Change your own password | ✓ | ✓ | ✓ |
 | Change your own display name and color | ✓ | ✓ | ✓ |
-| See the member list | – | ✓ | ✓ |
+| See everyone who has an account, and their role | ✓ | ✓ | ✓ |
 | Add a member, reset a member's password, delete a member | – | ✓ | ✓ |
 | Add an **admin**, reset an admin's password, delete an admin | – | – | ✓ |
 | Hand out the "Admin" role or take it back | – | – | ✓ |
@@ -26,25 +26,27 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 
 There is exactly one Owner and it never changes: the role cannot be handed to anyone, which is why "Owner" is not offered when you create an account or change a role.
 
-<Screenshot name="users" caption="The member list in Settings" />
+<Screenshot name="users" caption="The list of people in Settings, as an admin sees it" />
 
 <Steps>
   <Step>
 
-    ### Open member management
+    ### Open the list
 
-    Go to "Settings" → "Members". The list is sorted by name. On a wide screen the "Name" and "Role" column headings sort it: click one to sort by it, click the same one again to turn the whole order around, names included. "Role" groups by rank, Owner first, then Admin, then Member, and sorts by name inside each group. On a phone the rows are cards without headings and stay sorted by name.
+    Go to "Settings" → "People". Everyone is listed under their role — "Owner" first, then "Admins", then "Members", with the number of people beside the last two — and by name within each group. Each person shows their display name and, under it, the login name.
+
+    On a wide screen the actions you may take sit at the end of each row. On a phone, tap a person to open a sheet with their actions; rows with a small arrow are the ones that open something, and your own row takes you to your profile.
 
   </Step>
   <Step>
 
-    ### Add a member
+    ### Add an account
 
-    Click "Add member" and fill in a username, a password (8–128 characters) and a role. The password is rated as you type, the same way as in [Change password](/guide/settings#change-password), against the username and display name you entered. "Reset password" rates the new one too.
+    Click "Add account" and fill in a username, a password (8–128 characters) and a role. The password is rated as you type, the same way as in [Change password](/guide/settings#change-password), against the username and display name you entered. "Reset password" rates the new one too.
 
-    <Screenshot name="user-create" caption="Creating a new member" />
+    <Screenshot name="user-create" caption="Creating a new account" />
 
-    "Admin" manages members and can do everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
+    "Admin" manages accounts and can do everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
 
     "Language" starts on the language you are reading right now, on the assumption that a household sets up accounts in the language it speaks. It is only a starting point: the language is the one profile field nobody else can change once the account exists, so the new member switches it themselves in their own settings if you guessed wrong.
 
@@ -55,14 +57,14 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     ### Change a role
 
-    Use the "Role" select in a member's row to switch them between "Admin" and "Member". Only the owner has this select; for every other admin the role is shown as plain text.
+    Use the "Role" select in a member's row — on a phone, the "Admin" / "Member" switch in their sheet — to change their role; they move to the matching group straight away. Only the owner has this control; every other admin reads the role from the group the person is listed under.
 
   </Step>
   <Step>
 
     ### Change someone's name or color
 
-    The pencil in a member's row opens "Edit profile": their display name and their color. This is the owner's alone — no other admin sees the pencil.
+    The pencil in a member's row — "Edit profile" in their sheet on a phone — opens their display name and their color. This is the owner's alone — no other admin sees it.
 
     It is not offered on your own row either. Your own name and color live in "Settings" → "Profile", so there is only ever one place to change them (see [Settings](/guide/settings)).
 
@@ -76,19 +78,19 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
   </Step>
   <Step>
 
-    ### Delete a member
+    ### Delete an account
 
-    "Delete" in their row asks "Delete member?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
+    "Delete" in their row — "Delete account" in their sheet on a phone — asks "Delete account?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
 
   </Step>
 </Steps>
 
 ## Recipe editing
 
-Below the member list, the **Recipe editing** card holds the household setting that locks recipes to their authors and admins. The owner switches it; every other admin sees what applies right now. [Editing rights](/guide/editing-rights) explains how it combines with the setting on each recipe.
+Below the list, admins find the **Recipe editing** card, which holds the household setting that locks recipes to their authors and admins. The owner switches it; every other admin sees what applies right now. [Editing rights](/guide/editing-rights) explains how it combines with the setting on each recipe.
 
 <Callout type="info" title="Good to know">
-  The owner's row is marked "Owner" and carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
+  The owner is listed under "Owner" and their row carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
 </Callout>
 
 <Callout type="info" title="A display name is not a login">
@@ -99,7 +101,7 @@ Below the member list, the **Recipe editing** card holds the household setting t
   <Accordion title="What happens to a deleted member's recipes">
     They are not deleted — they are transferred to the admin who performed the deletion, who becomes their author. Where the deleted member was the last to edit somebody else's recipe, that admin takes their place as "Last edited by" too; the recipe's author stays who it was. Each recipe's editing setting stays as it was.
   </Accordion>
-  <Accordion title="Members and this page">
-    A "Member" account that navigates directly to this page's URL is sent to their own settings instead; the same rule is enforced by the API, so this is purely a courtesy redirect, not the only protection.
+  <Accordion title="What a Member sees here">
+    The same list, with a line saying that admins manage the accounts, and no buttons: no "Add account", no role select, no "Reset password" or "Delete", and no Recipe editing card. On a phone only your own row opens anything — your profile. The same rule is enforced by the API, so the missing buttons are a courtesy, not the only protection. The list shows login names, so everyone in the household can see what the others sign in with — never their passwords.
   </Accordion>
 </Accordions>

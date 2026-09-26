@@ -88,7 +88,7 @@ export function updateOwnProfile(patch: {
 
 /**
  * The palette with a count per color, so the picker can mark one as taken.
- * Counts, not names: a plain member may not list users.
+ * Counts, not names: the picker only has to mark a color as taken.
  */
 export async function listColorUsage(): Promise<ColorUsage[]> {
 	const page = await api<{ items: ColorUsage[] }>('/auth/me/colors');

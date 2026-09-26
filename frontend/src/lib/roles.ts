@@ -22,7 +22,7 @@ export function roleLabel(role: UserRole | undefined): string {
 }
 
 /**
- * The rank of a role, owner first: the order the member list sorts by when it
+ * The rank of a role, owner first: the order the people list sorts by when it
  * sorts by role, and the same descending order the permission table uses.
  * An unknown role ranks as a plain member, matching `roleLabel`.
  */

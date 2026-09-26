@@ -2,7 +2,7 @@
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { updateUser, type UserAccount } from '$lib/api/users';
+	import { updateUser, type PersonEntry } from '$lib/api/users';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -14,7 +14,7 @@
 	// `{#if user}` tore it down the moment the page dropped its target, so the
 	// close transition never played. The page keeps the target until the next
 	// open, which also keeps the title in place while the dialog animates out.
-	let { open = $bindable(false), user }: { open?: boolean; user: UserAccount | null } = $props();
+	let { open = $bindable(false), user }: { open?: boolean; user: PersonEntry | null } = $props();
 
 	let password = $state('');
 	let error = $state<string | null>(null);

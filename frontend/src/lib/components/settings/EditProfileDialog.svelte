@@ -2,7 +2,7 @@
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { updateUser, type UserAccount } from '$lib/api/users';
+	import { updateUser, type PersonEntry } from '$lib/api/users';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -18,12 +18,12 @@
 		onsaved
 	}: {
 		open?: boolean;
-		user: UserAccount;
+		user: PersonEntry;
 		usage: ColorUsage[];
-		onsaved: (user: UserAccount) => void;
+		onsaved: (user: PersonEntry) => void;
 	} = $props();
 
-	// One dialog per row, so the field's id has to be unique per instance.
+	// The field's id has to be unique per mounted dialog.
 	const uid = $props.id();
 
 	let displayName = $state('');

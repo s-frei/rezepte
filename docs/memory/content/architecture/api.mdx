@@ -46,7 +46,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
 | me | `GET /auth/me` | `{id, username, displayName, role, color, locale}` |
 | change-own-password | `PATCH /auth/me` | body `{currentPassword, password}`; 204; wrong `currentPassword` → `422` at `body.currentPassword`; ends every other session of the caller (see [Users and authentication](/features/users-and-auth)) |
 | update-own-profile | `PATCH /auth/me/profile` | body `{displayName?, color?, locale?}`, at least one of them (`422` `nothing to change` otherwise); returns the user and, with it, a fresh `PARAGLIDE_LOCALE` cookie. Its own path rather than `PATCH /auth/me`, which is the password change and demands the current password - a rename has nothing to do with it. Every role may use it, on its own row only; an empty `displayName` falls back to the login name, a name over 64 runes is `422` at `body.displayName`, and a color or locale outside its `enum` is huma's own `422` before the handler runs |
-| list-color-usage | `GET /auth/me/colors` | `{items: [{color, count}]}`, every palette color in palette order, zeros included. Counts, never names: the picker has to mark a color as taken, and a plain member may not list users. It sits under `/auth/me` because it describes what the caller may choose for themselves |
+| list-color-usage | `GET /auth/me/colors` | `{items: [{color, count}]}`, every palette color in palette order, zeros included. Counts, never names: the picker only has to mark a color as taken. It sits under `/auth/me` because it describes what the caller may choose for themselves |
 
 The contract routes under `/api/v1/` - the Scalar docs page, the OpenAPI document and the schema registry - are not public either: they require a session of any role or a valid API token of any scope, enforced in front of the mux rather than by `auth.Middleware`, which only ever sees huma operations. [Users and auth](/features/users-and-auth) owns that guard, the prefix rule it derives from and the redirect-versus-`401` split it applies to a browser.
 
@@ -59,6 +59,12 @@ Every operation below requires an admin session; no API token can reach `/api/v1
 | list | `GET /tokens` | instance-wide: every token in the table, including one whose owner has since been demoted, with owner |
 | create | `POST /tokens` | `201`, body `{name, scopes, expiresInDays}`; response carries the raw token once, never again; `422` on an unknown scope or an empty `scopes` |
 | revoke | `DELETE /tokens/{id}` | `204`; `404` for an unknown id |
+
+## People
+
+| Operation | Path | Notes |
+|---|---|---|
+| list-people | `GET /people` | `{items: [{id, username, displayName, color, role}]}`, ordered by username; every account, for any session or a token carrying `users:read`. No `locale`, no `createdAt` - those stay with the admin operations below. `401` without a caller. Why it is separate from `/users`: [Users and authentication](/features/users-and-auth) |
 
 ## Users (admin only)
 
@@ -90,7 +96,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | set favorite | `PUT /recipes/{id}/favorite` | `204`; `404` for an unknown recipe; idempotent - starring twice is not an error |
 | clear favorite | `DELETE /recipes/{id}/favorite` | `204`; never `404` - clearing a star that was not set is not an error |
 | list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see [Recipes and search](/features/recipes)) |
-| list authors | `GET /authors` | `{items: [{username, displayName, color, count}]}`, most recipes first; the people who wrote at least one recipe. `username` is what `?author=` matches; `displayName` and `color` are what the facet chip shows. Readable by any signed-in member, unlike `/users` above: no roles, no ids and no accounts without recipes (see [Recipes and search](/features/recipes)) |
+| list authors | `GET /authors` | `{items: [{username, displayName, color, count}]}`, most recipes first; the people who wrote at least one recipe. `username` is what `?author=` matches; `displayName` and `color` are what the facet chip shows. A facet of the recipe list under `recipes:read`, not a list of people: no roles, no ids and no accounts without recipes - who has an account at all is `/people` (see [Recipes and search](/features/recipes)) |
 
 `GET /recipes` query parameters:
 
@@ -107,7 +113,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 
 Every parameter above combines with AND when more than one is set.
 
-`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response because user management is admin-only and a member could resolve neither an id nor a color themselves (see [Recipes and search](/features/recipes)).
+`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response so a card names and colors its author without a second request, and because a token scoped to `recipes:read` cannot read `/people` (see [Recipes and search](/features/recipes)).
 
 Whose favorites either favorite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favorites](/features/favorites)). `Card.favorite` is filled on every list; `Recipe.favorite` by get, get by slug, create and update.
 

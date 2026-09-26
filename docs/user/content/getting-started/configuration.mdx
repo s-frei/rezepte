@@ -18,7 +18,7 @@ Rezepte takes its entire configuration from environment variables — there is n
   }}
 />
 
-`REZEPTE_LOCALE` is only a starting point: every member picks their own language in [Settings](/guide/settings), and the "Add member" dialog in the app starts on the language of the admin filling it in rather than on this value.
+`REZEPTE_LOCALE` is only a starting point: every member picks their own language in [Settings](/guide/settings), and the "Add account" dialog in the app starts on the language of the admin filling it in rather than on this value.
 
 The account created on the first start owns the instance. It cannot be deleted, it cannot lose its admin rights, nobody else can reset its password, and it is the only account that can make someone else an admin — see [First login](/getting-started/first-login). Changing `REZEPTE_ADMIN_USER` later changes nothing — it is read only while the instance has no accounts at all. `REZEPTE_ADMIN_PASSWORD` is read on that first start too, and after that by `--reset-superadmin-password` below and by nothing else, so setting it on a running instance changes no password on its own.
 
@@ -40,7 +40,7 @@ REZEPTE_ADMIN_PASSWORD='the new password' rezepte --reset-superadmin-password
 
 The way back in when the owner's password is lost. Nobody inside the app can reset that account, so this runs on the server instead: it sets the owner's password to `REZEPTE_ADMIN_PASSWORD` (an empty value is an error), signs that account out on every device, and exits without starting the server. Start Rezepte normally afterwards and log in with the new password.
 
-Everyone else's password is reset from "Settings" → "Members" — see [Members](/guide/users).
+Everyone else's password is reset from "Settings" → "People" — see [People](/guide/users).
 
 ### `--version`
 

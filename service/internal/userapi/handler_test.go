@@ -127,6 +127,63 @@ func TestUsersRequireAdmin(t *testing.T) {
 	}
 }
 
+func TestPeopleIsReadableByEveryAccount(t *testing.T) {
+	h := newHandler(t)
+	kim := loginAs(t, h, "kim", "pw")
+	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("people as member: status %d: %s", rec.Code, rec.Body.String())
+	}
+	var list userapi.PersonList
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, p := range list.Items {
+		got = append(got, p.Username+":"+p.Role)
+	}
+	want := "kim:user owner:superadmin sam:admin"
+	if strings.Join(got, " ") != want {
+		t.Fatalf("people = %v, want %s", got, want)
+	}
+}
+
+// The list is what every account may know about the others, so its shape is
+// pinned key by key: a field added to PersonEntry has to be added here on
+// purpose, not ride along.
+func TestPeopleHidesAccountDetails(t *testing.T) {
+	h := newHandler(t)
+	kim := loginAs(t, h, "kim", "pw")
+	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
+	var body struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Items) == 0 {
+		t.Fatalf("no people in %s", rec.Body.String())
+	}
+	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true}
+	for _, item := range body.Items {
+		if len(item) != len(want) {
+			t.Fatalf("keys of %v, want exactly %v", item, want)
+		}
+		for key := range item {
+			if !want[key] {
+				t.Fatalf("unexpected key %q in %v", key, item)
+			}
+		}
+	}
+}
+
+func TestPeopleRequiresSignIn(t *testing.T) {
+	h := newHandler(t)
+	if rec := doReq(h, http.MethodGet, "/api/v1/people", "", nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous: status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestListAndCreate(t *testing.T) {
 	h := newHandler(t)
 	sam := loginAs(t, h, "sam", "pw")
@@ -504,5 +561,22 @@ func TestOpenAPIDeclaresRetryAfter(t *testing.T) {
 		if _, ok := doc.Paths[want.path][want.method].Responses["503"].Headers["Retry-After"]; !ok {
 			t.Errorf("%s %s 503: no Retry-After header declared", want.method, want.path)
 		}
+	}
+}
+
+// Two operations list accounts, so the document says which one a reader
+// wants: list-people for who takes part, list-users for managing accounts.
+func TestOpenAPISaysWhyThereAreTwoLists(t *testing.T) {
+	rec := doReq(newHandler(t), http.MethodGet, "/api/v1/openapi.json", "", nil)
+	var doc struct {
+		Paths map[string]map[string]struct {
+			Description string `json:"description"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.Paths["/api/v1/people"]["get"].Description; !strings.Contains(got, "/api/v1/users") {
+		t.Fatalf("list-people description %q does not point at /api/v1/users", got)
 	}
 }

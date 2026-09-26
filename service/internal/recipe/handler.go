@@ -321,10 +321,9 @@ func Register(api huma.API, svc *Service) {
 		Tags:        []string{"recipes"},
 		Security:    auth.Protected(auth.ScopeRecipesRead),
 	}, func(ctx context.Context, _ *struct{}) (*authorListOutput, error) {
-		// Readable by any signed-in member, unlike /api/v1/users: it gives
-		// up the usernames the overview already prints on its cards and
-		// nothing else - no roles, no timestamps, no accounts without
-		// recipes.
+		// A facet, not a list of people: it names who wrote recipes and how
+		// many, under the recipes:read scope the overview already holds.
+		// Who has an account at all, and in which role, is /api/v1/people.
 		authors, err := svc.Authors(ctx)
 		if err != nil {
 			return nil, err

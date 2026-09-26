@@ -6,6 +6,21 @@ export type UserAccount = User & { createdAt: string };
 
 export type UserRole = User['role'];
 
+/**
+ * An account as every signed-in account sees it: who takes part and in which
+ * role - the `Person` a recipe names, plus the role. The people list shows
+ * nothing else, so the admin's view of it is built from this too;
+ * `UserAccount` is what the admin-only operations return. Named after the
+ * service's `PersonEntry` so it cannot be mistaken for that roleless `Person`.
+ */
+export type PersonEntry = Pick<User, 'id' | 'username' | 'displayName' | 'color' | 'role'>;
+
+/** Every account, ordered by username; readable by any signed-in account. */
+export async function listPeople(): Promise<PersonEntry[]> {
+	const list = await api<{ items: PersonEntry[] }>('/people');
+	return list.items;
+}
+
 export async function listUsers(): Promise<UserAccount[]> {
 	const list = await api<{ items: UserAccount[] }>('/users');
 	return list.items;

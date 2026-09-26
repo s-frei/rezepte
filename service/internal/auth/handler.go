@@ -231,7 +231,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Method:      http.MethodGet,
 		Path:        "/api/v1/auth/me/colors",
 		Summary:     "List the color palette and how many accounts hold each color",
-		Description: "Counts, not names: the picker needs to mark a color as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.",
+		Description: "Counts, not names: the picker only needs to mark a color as taken. It sits under /auth/me because it describes what the caller may choose for themselves; /people names every account without counting colors, and everything under /users is admin-only.",
 		Tags:        []string{"auth"},
 		Security:    SessionSecurity,
 		Errors:      []int{401},

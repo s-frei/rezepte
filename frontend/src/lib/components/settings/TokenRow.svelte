@@ -15,11 +15,11 @@
 </script>
 
 <!--
-	Same collapsing technique as UserRow.svelte: on a phone the row is a single
-	stacked column (name on its own line, everything else below it), and
-	`md:contents` on the second wrapper dissolves it so scopes/owner/activity/
-	actions become the grid's own columns 2-5. Scopes, owner and activity carry
-	an inline label on mobile (`md:hidden`) since there's no header row there;
+	On a phone the row is a single stacked column (name on its own line,
+	everything else below it), and `md:contents` on the second wrapper
+	dissolves it so scopes/owner/activity/actions become the grid's own
+	columns 2-5. Scopes, owner and activity carry an inline label on mobile
+	(`md:hidden`) since there's no header row there;
 	activity keeps its two labels at every width because "Aktivität" alone
 	doesn't say which line is which.
 -->

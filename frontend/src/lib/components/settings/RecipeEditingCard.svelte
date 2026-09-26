@@ -54,7 +54,7 @@
 				<Switch checked={locked} label={m.settings_recipe_editing_switch()} onchange={change} />
 			</div>
 		{:else if ownerName}
-			<!-- Waits for the members list: without it the sentence has no one to name. -->
+			<!-- Waits for the people list: without it the sentence has no one to name. -->
 			<p class="max-w-[60ch] text-body-sm text-text-muted">
 				{locked
 					? m.settings_recipe_editing_state_locked({ owner: ownerName })

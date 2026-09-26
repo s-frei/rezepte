@@ -43,7 +43,7 @@ test('users', async ({ page }, testInfo) => {
 test('user-create', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Add member' }).click();
+	await page.getByRole('button', { name: 'Add account' }).click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await shot(page, 'user-create');
 });

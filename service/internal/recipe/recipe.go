@@ -62,9 +62,10 @@ type Image struct {
 }
 
 // Person is somebody a recipe names - who wrote it, who last changed it -
-// with what the app shows of them. The whole of it travels with the recipe
-// because user management is admin-only: a member could resolve neither the
-// id nor the color themselves.
+// with what the app shows of them. The whole of it travels with the recipe,
+// so a card names and colors its author without a second request, and a
+// token scoped to recipes:read, which cannot read /api/v1/people, still gets
+// the names.
 type Person struct {
 	ID          string `json:"id"`
 	Username    string `json:"username" doc:"Login name, which ?author= filters by"`

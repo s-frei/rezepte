@@ -1,6 +1,7 @@
-// Package userapi exposes user management (admin only) over HTTP. It is a
-// separate package because it needs auth.UserFrom and auth.SessionSecurity,
-// and package auth already imports package user.
+// Package userapi exposes user management (admin only) and the people list
+// (every signed-in account) over HTTP. It is a separate package because it
+// needs auth.UserFrom and auth.Protected, and package auth already
+// imports package user.
 package userapi
 
 import (
@@ -33,6 +34,27 @@ type UserAccountList struct {
 
 type listOutput struct {
 	Body UserAccountList
+}
+
+// PersonEntry is an account as every signed-in account may see it: who takes
+// part and in which role, nothing about the account itself - no language, no
+// creation date. The JSON is the person a recipe's createdBy carries, plus
+// the role.
+type PersonEntry struct {
+	ID          string `json:"id" doc:"User id"`
+	Username    string `json:"username" doc:"Login name"`
+	DisplayName string `json:"displayName" doc:"Name shown wherever the UI names this person"`
+	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
+	Role        string `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
+}
+
+// PersonList is the response body of list-people.
+type PersonList struct {
+	Items []PersonEntry `json:"items"`
+}
+
+type peopleOutput struct {
+	Body PersonList
 }
 
 type createInput struct {
@@ -108,9 +130,39 @@ func toResponse(u user.User) UserAccount {
 	}
 }
 
-// Register installs list, create, update and delete for users. All four
-// require an admin session.
+// Register installs list, create, update and delete for users, which require
+// an admin, and list-people, which any signed-in account may read.
 func Register(api huma.API, users *user.Service, sessions *auth.Service) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-people",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/people",
+		Summary:     "List people",
+		Description: "Every account's login name, display name, color and role, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+		Tags:        []string{"users"},
+		Security:    auth.Protected(auth.ScopeUsersRead),
+		Errors:      []int{401},
+	}, func(ctx context.Context, _ *struct{}) (*peopleOutput, error) {
+		if _, ok := auth.UserFrom(ctx); !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		list, err := users.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		items := make([]PersonEntry, 0, len(list))
+		for _, u := range list {
+			items = append(items, PersonEntry{
+				ID:          u.ID,
+				Username:    u.Username,
+				DisplayName: u.DisplayName,
+				Color:       string(u.Color),
+				Role:        string(u.Role),
+			})
+		}
+		return &peopleOutput{Body: PersonList{Items: items}}, nil
+	})
+
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",
 		Method:      http.MethodGet,

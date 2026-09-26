@@ -6,8 +6,9 @@ import { api } from './client';
 
 /**
  * Somebody a recipe names - who wrote it, who last changed it. The service
- * sends the whole of it because user management is admin-only, so a member
- * could not resolve the id themselves.
+ * sends the whole of it, so a card names and colors its author without a
+ * second request, and a token scoped to recipes:read, which cannot read
+ * /api/v1/people, still gets the names.
  */
 export type Person = {
 	id: string;
@@ -258,8 +259,8 @@ export type Author = { username: string; displayName: string; color: UserColor; 
 
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the
- * overview's "Added by" filter. Readable by any signed-in member,
- * unlike the admin-only user management in `$lib/api/users`.
+ * overview's "Added by" filter. A facet of the recipe list; who has an
+ * account at all is `listPeople` in `$lib/api/users`.
  */
 export async function listAuthors(): Promise<Author[]> {
 	const page = await api<{ items: Author[] }>('/authors');

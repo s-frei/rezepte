@@ -31,7 +31,7 @@
 		/**
 		 * Trigger shape. `field` is a bordered control the height of `Input`,
 		 * for a select that sits among form fields; `pill` is the compact
-		 * chip the members table uses in a row. It decides shape only - never
+		 * chip the people table uses in a row. It decides shape only - never
 		 * the background, see `class`.
 		 */
 		variant?: 'field' | 'pill';
@@ -67,7 +67,7 @@
 	// against the closed set of this design system's font-size tokens
 	// (`app.css`) and Tailwind's font-weight keywords specifically, rather
 	// than a bare `text-`/`font-` prefix: `text-` also names color
-	// utilities (UserRow.svelte's role pill passes `text-accent-foreground`
+	// utilities (PersonRow.svelte's role pill passes `text-accent-foreground`
 	// / `text-text-muted`, which must NOT suppress the default size here)
 	// and `font-` also names this app's font-family tokens (`font-display`,
 	// `font-sans`).
@@ -113,7 +113,7 @@
 			as --bits-floating-anchor-width, rather than a round number: the
 			list is never narrower than the control it belongs to, and
 			otherwise as wide as its longest entry. A fixed floor gets both
-			ends wrong - too wide under the members table's compact role chip,
+			ends wrong - too wide under the people table's compact role chip,
 			too narrow under a form-wide trigger.
 		-->
 		<BitsSelect.Content

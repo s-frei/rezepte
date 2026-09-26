@@ -952,6 +952,81 @@
         ],
         "type": "object"
       },
+      "PersonEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "description": "Palette token identifying this person",
+            "enum": [
+              "amber",
+              "clay",
+              "rose",
+              "plum",
+              "sage",
+              "olive",
+              "teal",
+              "slate"
+            ],
+            "type": "string"
+          },
+          "displayName": {
+            "description": "Name shown wherever the UI names this person",
+            "type": "string"
+          },
+          "id": {
+            "description": "User id",
+            "type": "string"
+          },
+          "role": {
+            "description": "Authorization role",
+            "enum": [
+              "superadmin",
+              "admin",
+              "user"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "description": "Login name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "color",
+          "role"
+        ],
+        "type": "object"
+      },
+      "PersonList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PersonList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PersonEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "Recipe": {
         "additionalProperties": false,
         "properties": {
@@ -1782,7 +1857,7 @@
     },
     "/api/v1/auth/me/colors": {
       "get": {
-        "description": "Counts, not names: the picker needs to mark a color as taken, and a plain member may not list users. It sits under /auth/me because it describes what the caller may choose for themselves; everything under /users is admin-only.",
+        "description": "Counts, not names: the picker only needs to mark a color as taken. It sits under /auth/me because it describes what the caller may choose for themselves; /people names every account without counting colors, and everything under /users is admin-only.",
         "operationId": "list-color-usage",
         "responses": {
           "200": {
@@ -1939,6 +2014,58 @@
         "summary": "List the people who wrote recipes, with counts",
         "tags": [
           "recipes"
+        ]
+      }
+    },
+    "/api/v1/people": {
+      "get": {
+        "description": "Every account's login name, display name, color and role, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+        "operationId": "list-people",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "users:read"
+            ]
+          }
+        ],
+        "summary": "List people",
+        "tags": [
+          "users"
         ]
       }
     },

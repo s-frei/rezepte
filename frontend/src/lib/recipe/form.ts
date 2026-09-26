@@ -156,7 +156,7 @@ export function parseNumber(value: string | number | null): number | null {
 }
 
 // Cached per locale, exactly as `format.ts`'s `decimals()`/`longDate()` and
-// `user-sort.ts`'s `nameCollator()` cache theirs - getLocale() only changes
+// `people-groups.ts`'s `nameCollator()` cache theirs - getLocale() only changes
 // after Paraglide's setLocale() reloads the page.
 let decimalSeparator: string | undefined;
 let decimalSeparatorLocale: string | undefined;
