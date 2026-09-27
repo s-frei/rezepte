@@ -55,6 +55,7 @@ erDiagram
     integer prep_minutes "nullable"
     integer cook_minutes "nullable"
     text source_url "nullable"
+    text source_name "nullable"
     text cover_image_id "nullable, no FK - see below"
     text created_by FK
     text created_at
@@ -131,7 +132,7 @@ erDiagram
 - `user.ErrNoSuperadmin` refuses to start against a non-empty `users` table without an owner, and it has to stay that strict: it is what turns a database without `users_superadmin_idx` and the two triggers into a refusal at startup rather than an instance running with no storage backstop, where the Go guards would be the only thing holding the invariant. Anything that relaxes it - promoting the first admin to owner on start, say - removes that net. A database whose `users` table lacks a column the current schema has fails on the query that finds the owner instead, loudly (`no such column`); the fix for both is to delete the file and let the migrations recreate it.
 - A session id is the SHA-256 digest of the session's own random token; the raw value exists only in the cookie and is never stored. An API token is a distinct credential (see [API tokens](/features/api-tokens)): its row keeps a UUIDv7 `id` and stores the raw value's digest separately, in `token_hash`.
 - `ingredient_groups.position`, `ingredients.position` and `steps.position` are 0-based integers, rewritten sequentially in full on every recipe save (see [Recipes and search](/features/recipes)) - never edited in place, so there are no gaps or renumbering to reason about between saves.
-- NULL means "absent," not "empty": `prep_minutes`, `cook_minutes`, `source_url`, `cover_image_id`, `ingredient_groups.name`, `ingredients.unit` and `ingredients.note` are stored as `NULL`, never `''`, when unset (the service converts an empty string to `nil` on write). `recipes.description` is the exception - it defaults to `''`, not `NULL`, when omitted.
+- NULL means "absent," not "empty": `prep_minutes`, `cook_minutes`, `source_url`, `source_name`, `cover_image_id`, `ingredient_groups.name`, `ingredients.unit` and `ingredients.note` are stored as `NULL`, never `''`, when unset (the service converts an empty string to `nil` on write). `recipes.description` is the exception - it defaults to `''`, not `NULL`, when omitted.
 - Tags are implicit: `tags` only ever holds names currently used by at least one recipe (see [Recipes and search](/features/recipes)); there is no separate tag-management table or endpoint.
 - `step_references` is keyed by `(step_id, word)`, following `recipe_tags`: a word carries at most one reference per step. Both foreign keys cascade, so deleting the step or the ingredient it names removes the reference with it - a dangling reference is a state the database cannot hold. See [Ingredient references](/features/ingredient-references) for the anchor it encodes and why it names an ingredient rather than a position.
 - `images.filename` is `<id>.jpg`; the three variants (`<id>.jpg`, `<id>_detail.jpg`, `<id>_thumb.jpg`) live in `<REZEPTE_DATA_DIR>/images/<recipe_id>/`, outside the database; `width`/`height` are the largest variant's; `size_bytes` sums all three; `position` is compact `0..n-1` like the other position columns, rewritten on delete and reorder. See [Images](/features/images).
