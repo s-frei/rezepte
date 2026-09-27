@@ -55,10 +55,34 @@ export async function pinLocale(page: Page, locale: 'en' | 'de' = 'en'): Promise
  */
 export async function login(page: Page, username = 'admin', password = devPassword(username)) {
 	await pinLocale(page, 'en');
-	await page.goto('/login');
-	await page.getByLabel('Username').fill(username);
-	await page.getByLabel('Password').fill(password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	// The login throttle counts an attempt when it begins, so the workers of
+	// one run signing `admin` in at the same moment lock the name before the
+	// first of them succeeds - and that success unlocks it again. A lock on
+	// the right password is that race and nothing else, so it is tried again
+	// once the others are through; any other outcome is the caller's to judge.
+	const retries = password === devPassword(username) ? 5 : 0;
+	for (let attempt = 0; ; attempt++) {
+		await page.goto('/login');
+		await page.getByLabel('Username').fill(username);
+		await page.getByLabel('Password').fill(password);
+		await page.getByRole('button', { name: 'Sign in' }).click();
+		if (attempt >= retries) return;
+		const alert = page.getByRole('alert');
+		const outcome = await Promise.race([
+			page
+				.waitForURL((url) => url.pathname !== '/login')
+				.then(
+					() => 'in' as const,
+					() => 'timeout' as const
+				),
+			alert.waitFor().then(
+				() => 'alert' as const,
+				() => 'timeout' as const
+			)
+		]);
+		if (outcome !== 'alert' || !(await alert.textContent())?.startsWith('Too many')) return;
+		await page.waitForTimeout(250 * (attempt + 1));
+	}
 }
 
 /**
