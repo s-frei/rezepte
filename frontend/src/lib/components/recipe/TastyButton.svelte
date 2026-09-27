@@ -96,12 +96,13 @@
 	</span>
 {:else}
 	<!-- The count sits inside the button rather than beside it, so one tap
-	     target carries both and the pill mirrors the star's circle. -->
+	     target carries both and the pill mirrors the star's circle. A toggle:
+	     the name stays, `aria-pressed` carries the state. -->
 	<button
 		type="button"
 		onclick={toggle}
 		aria-pressed={active}
-		aria-label={active ? m.recipe_tasty_remove() : m.recipe_tasty_add()}
+		aria-label={m.recipe_tasty()}
 		aria-describedby={countId}
 		title={countLabel}
 		class="inline-flex items-center rounded-pill bg-surface font-semibold text-text shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {pill}"

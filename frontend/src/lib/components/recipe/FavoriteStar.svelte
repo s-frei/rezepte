@@ -40,12 +40,13 @@
 
 <!-- 44px on a phone, the floor for an action there, since the recipe page
      is where a phone sets the star; 36px from md up, where it also sits over
-     every card's photo. -->
+     every card's photo. A toggle: the name stays, `aria-pressed` carries the
+     state. -->
 <button
 	type="button"
 	onclick={toggle}
 	aria-pressed={active}
-	aria-label={active ? m.recipe_favorite_remove() : m.recipe_favorite_add()}
+	aria-label={m.recipe_favorite()}
 	class="inline-flex size-11 items-center justify-center rounded-pill bg-surface shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
 >
 	<Star

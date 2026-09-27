@@ -430,12 +430,16 @@ test('stars a recipe from the card and keeps it after a reload', async ({ page, 
 	await createRecipe(page, { ...loadFixture(1), title: `Star ${token}` });
 
 	await page.goto(`/?q=${token}`);
-	const star = page.getByRole('button', { name: 'Add to favorites' });
+	const star = page.getByRole('button', { name: 'Favorite', exact: true, pressed: false });
 	await star.click();
-	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
+	).toBeVisible();
 
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
+	).toBeVisible();
 });
 
 test('keeps the star off phone cards and sets it on the recipe page', async ({
@@ -448,11 +452,13 @@ test('keeps the star off phone cards and sets it on the recipe page', async ({
 
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveText([`Phone star ${token}`]);
-	await expect(page.getByRole('button', { name: 'Add to favorites' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Favorite', exact: true })).toHaveCount(0);
 
 	await cards(page).first().click();
-	await page.getByRole('button', { name: 'Add to favorites' }).click();
-	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
+	await page.getByRole('button', { name: 'Favorite', exact: true, pressed: false }).click();
+	await expect(
+		page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
+	).toBeVisible();
 });
 
 test('filters the overview down to favorites', async ({ page, isMobile }) => {
@@ -469,11 +475,16 @@ test('filters the overview down to favorites', async ({ page, isMobile }) => {
 	await page.goto(`/?q=${token}&sort=title`);
 	if (isMobile) {
 		await cards(page).first().click();
-		await page.getByRole('button', { name: 'Add to favorites' }).click();
-		await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
+		await page.getByRole('button', { name: 'Favorite', exact: true, pressed: false }).click();
+		await expect(
+			page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
+		).toBeVisible();
 		await page.goto(`/?q=${token}&sort=title`);
 	} else {
-		await page.getByRole('button', { name: 'Add to favorites' }).first().click();
+		await page
+			.getByRole('button', { name: 'Favorite', exact: true, pressed: false })
+			.first()
+			.click();
 	}
 	await page.getByRole('button', { name: 'Filters' }).click();
 	// `role="switch"`, not checkbox: the control is a Switch, and Playwright's
@@ -764,7 +775,9 @@ test('the recipe page never scrolls sideways', async ({ page }, testInfo) => {
 	await expect(page).toHaveURL('/');
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Mark as tasty' })).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Tasty', exact: true, pressed: false })
+	).toBeVisible();
 
 	// 768 is where the two columns appear, 858 where the cover stops giving
 	// way; 320 is the narrowest phone the design system admits.
@@ -797,8 +810,8 @@ test('the recipe title keeps the whole width on a phone', async ({ page }, testI
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	const title = page.getByRole('heading', { level: 1 });
-	const heart = page.getByRole('button', { name: 'Mark as tasty' });
-	const star = page.getByRole('button', { name: 'Add to favorites' });
+	const heart = page.getByRole('button', { name: 'Tasty', exact: true, pressed: false });
+	const star = page.getByRole('button', { name: 'Favorite', exact: true, pressed: false });
 	await expect(heart).toBeVisible();
 
 	const titleBox = (await title.boundingBox())!;

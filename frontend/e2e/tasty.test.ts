@@ -38,19 +38,25 @@ test('a member marks somebody else’s recipe tasty and everyone sees it', async
 	// The author has nothing to press, on the card or on the recipe page.
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveText([`Tasty ${token}`]);
-	await expect(page.getByRole('button', { name: 'Mark as tasty' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Tasty', exact: true })).toHaveCount(0);
 	await page.goto(`/recipes/${recipe.slug}`);
-	await expect(page.getByRole('button', { name: 'Add to favorites' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Mark as tasty' })).toHaveCount(0);
+	await expect(
+		page.getByRole('button', { name: 'Favorite', exact: true, pressed: false })
+	).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Tasty', exact: true })).toHaveCount(0);
 
 	await switchTo(page, testInfo, mara);
 	await page.goto(`/recipes/${recipe.slug}`);
-	await page.getByRole('button', { name: 'Mark as tasty' }).click();
-	await expect(page.getByRole('button', { name: 'Take back tasty' })).toBeVisible();
+	await page.getByRole('button', { name: 'Tasty', exact: true, pressed: false }).click();
+	await expect(
+		page.getByRole('button', { name: 'Tasty', exact: true, pressed: true })
+	).toBeVisible();
 	await expect(page.getByRole('button', { name: `Tasty for: ${mara}` })).toBeVisible();
 
 	await page.reload();
-	await expect(page.getByRole('button', { name: 'Take back tasty' })).toBeVisible();
+	await expect(
+		page.getByRole('button', { name: 'Tasty', exact: true, pressed: true })
+	).toBeVisible();
 
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveText([`Tasty ${token}`]);
@@ -61,9 +67,11 @@ test('a member marks somebody else’s recipe tasty and everyone sees it', async
 			page.getByRole('main').getByText('1 person finds this tasty').filter({ visible: true })
 		).toHaveCount(1);
 	} else {
-		const heart = page.getByRole('button', { name: 'Take back tasty' });
+		const heart = page.getByRole('button', { name: 'Tasty', exact: true, pressed: true });
 		await heart.click();
-		await expect(page.getByRole('button', { name: 'Mark as tasty' })).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: 'Tasty', exact: true, pressed: false })
+		).toBeVisible();
 		// The heart sits over the card's link and must not open the recipe.
 		await expect(page).toHaveURL(`/?q=${token}`);
 	}
@@ -71,7 +79,7 @@ test('a member marks somebody else’s recipe tasty and everyone sees it', async
 	// The author sees the count too.
 	await switchTo(page, testInfo, 'admin');
 	await page.goto(`/recipes/${recipe.slug}`);
-	await expect(page.getByRole('button', { name: 'Mark as tasty' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Tasty', exact: true })).toHaveCount(0);
 	if (isMobile) {
 		await expect(page.getByRole('button', { name: `Tasty for: ${mara}` })).toBeVisible();
 	} else {
@@ -215,8 +223,8 @@ test('the star and the heart on the recipe page are thumb-sized on a phone', asy
 	await switchTo(page, testInfo, kai);
 	await page.goto(`/recipes/${recipe.slug}`);
 
-	for (const name of ['Add to favorites', 'Mark as tasty']) {
-		const box = await page.getByRole('button', { name }).boundingBox();
+	for (const name of ['Favorite', 'Tasty']) {
+		const box = await page.getByRole('button', { name, exact: true }).boundingBox();
 		expect(box!.height, name).toBeGreaterThanOrEqual(44);
 		expect(box!.width, name).toBeGreaterThanOrEqual(44);
 	}
