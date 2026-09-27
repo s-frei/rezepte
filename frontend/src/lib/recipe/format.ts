@@ -139,3 +139,26 @@ export function formatDate(iso: string): string {
 	const date = new Date(iso);
 	return Number.isNaN(date.getTime()) ? '' : longDate().format(date);
 }
+
+const dayFormats = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * A day without a year in the active locale, with its weekday by default
+ * (`Sunday, September 27`, `Sonntag, 27. September`) or without it
+ * (`September 27`, `27. September`) - the date the overview's running head
+ * prints for today, short where a phone has no room for the weekday.
+ */
+export function formatDay(date: Date, { weekday = true } = {}): string {
+	const locale = getLocale();
+	const key = `${locale}:${weekday}`;
+	let format = dayFormats.get(key);
+	if (!format) {
+		format = new Intl.DateTimeFormat(locale, {
+			weekday: weekday ? 'long' : undefined,
+			day: 'numeric',
+			month: 'long'
+		});
+		dayFormats.set(key, format);
+	}
+	return format.format(date);
+}

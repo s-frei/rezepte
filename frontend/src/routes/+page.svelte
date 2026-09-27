@@ -24,6 +24,7 @@
 	import ResultCount from '$lib/components/recipe/ResultCount.svelte';
 	import SearchBar from '$lib/components/recipe/SearchBar.svelte';
 	import TagFilter from '$lib/components/recipe/TagFilter.svelte';
+	import { formatDay } from '$lib/recipe/format';
 	import { overviewViewState } from '$lib/recipe/overview-state';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
 	import { m } from '$lib/paraglide/messages';
@@ -46,6 +47,17 @@
 	// from the URL lets a shared/reloaded link resume where "Mehr laden" left
 	// off; searching or changing tags resets it back to 1.
 	let pageNum = $state(untrack(() => data.page));
+
+	// Read once: a page left open past midnight keeps yesterday's date,
+	// which is fine for a running head.
+	const today = new Date();
+	// The local calendar day; toISOString() would give the UTC one, a day
+	// off in the hours around midnight.
+	const todayIso = [
+		today.getFullYear(),
+		String(today.getMonth() + 1).padStart(2, '0'),
+		String(today.getDate()).padStart(2, '0')
+	].join('-');
 
 	let items = $state<RecipeCardData[]>([]);
 	let total = $state(0);
@@ -285,12 +297,40 @@
 
 <svelte:head><title>{m.app_name()}</title></svelte:head>
 
-<section class="pt-6 md:pt-10">
+<section class="pt-5 md:pt-8">
+	<!-- A running head, as at the top of a cookbook page: the section on the
+	     left, a dotted leader like the ones in a table of contents, and on
+	     the right how many recipes the list holds and today's date. The
+	     count is ResultCount, so it turns into "3 found" under a filter;
+	     there is no separate count line under the filters. The section name
+	     is hidden from screen readers - it repeats the navigation, and the
+	     headline right below says what the page is. -->
+	<div
+		class="mb-5 flex items-baseline gap-2.5 text-caption whitespace-nowrap text-text-muted md:mb-7"
+	>
+		<span aria-hidden="true" class="font-display text-body font-medium text-primary italic">
+			{m.nav_recipes()}
+		</span>
+		<span
+			aria-hidden="true"
+			class="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted border-handle"
+		></span>
+		<ResultCount count={total} {filtered} />
+		<span aria-hidden="true">·</span>
+		<!-- A long weekday ("Donnerstag") does not fit a phone's line next to
+		     the count, so below sm the date goes without it. -->
+		<time datetime={todayIso}>
+			<span class="sm:hidden">{formatDay(today, { weekday: false })}</span>
+			<span class="hidden sm:inline">{formatDay(today)}</span>
+		</time>
+	</div>
+
 	<h1 class="font-display text-display-sm font-medium md:text-display-lg">
 		{m.overview_headline()}
 	</h1>
 
-	<div class="mt-4 space-y-3 border-b border-border pb-4 md:mt-5">
+	<!-- The same dotted leader closes the filters off from the grid. -->
+	<div class="mt-4 space-y-3 border-b-2 border-dotted border-handle pb-4 md:mt-5">
 		<div class="flex items-center gap-3">
 			<SearchBar bind:value={q} onsearch={handleSearch} class="md:max-w-md" />
 			<FilterPanel
@@ -333,10 +373,6 @@
 			</div>
 		</div>
 		<TagFilter tags={allTags} active={tags} ontoggle={toggleTag} />
-	</div>
-
-	<div class="mt-3">
-		<ResultCount count={total} {filtered} />
 	</div>
 
 	<div class="mt-7 md:mt-9">

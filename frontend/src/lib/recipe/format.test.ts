@@ -6,8 +6,15 @@ vi.mock('$lib/paraglide/runtime', () => ({
 	experimentalStaticLocale: undefined
 }));
 
-const { formatDate, formatFactor, formatMinutes, formatQuantity, formatServings, servingsUnit } =
-	await import('./format');
+const {
+	formatDate,
+	formatDay,
+	formatFactor,
+	formatMinutes,
+	formatQuantity,
+	formatServings,
+	servingsUnit
+} = await import('./format');
 
 // Every test starts in English; a test that needs German sets `locale = 'de'`
 // itself. Without this reset, a locale left over from an earlier test would
@@ -178,5 +185,25 @@ describe('formatDate', () => {
 	it('renders an unusable value as an empty string', () => {
 		expect(formatDate('')).toBe('');
 		expect(formatDate('not a date')).toBe('');
+	});
+});
+
+describe('formatDay', () => {
+	// Local noon, so the day is the same in every time zone the test runs in.
+	const sunday = new Date(2026, 8, 27, 12);
+
+	it('names an English day with its weekday', () => {
+		expect(formatDay(sunday)).toBe('Sunday, September 27');
+	});
+
+	it('names a German day with its weekday', () => {
+		locale = 'de';
+		expect(formatDay(sunday)).toBe('Sonntag, 27. September');
+	});
+
+	it('leaves the weekday out when asked to', () => {
+		expect(formatDay(sunday, { weekday: false })).toBe('September 27');
+		locale = 'de';
+		expect(formatDay(sunday, { weekday: false })).toBe('27. September');
 	});
 });
