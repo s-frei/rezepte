@@ -86,7 +86,7 @@
 		     lines and the desktop grid has the height to spare. -->
 		<h3
 			id={titleId}
-			class="line-clamp-2 min-h-[calc(2lh+4px)] pb-1 font-display text-[16px] leading-snug font-medium hyphens-auto md:line-clamp-3 md:text-card"
+			class="line-clamp-2 min-h-[calc(2lh+4px)] pb-1 font-display text-card-sm leading-snug font-medium hyphens-auto md:line-clamp-3 md:text-card"
 		>
 			<!-- The anchor must not be positioned itself, or its `::after` would
 			     stretch over the title instead of over the card. -->

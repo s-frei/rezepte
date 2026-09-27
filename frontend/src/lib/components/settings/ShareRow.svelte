@@ -58,7 +58,7 @@
 				<span class="inline-flex items-center gap-1.5">
 					<span
 						aria-hidden="true"
-						class="flex size-4 items-center justify-center rounded-full initial-centered font-display text-[10px] font-semibold {userColorClasses(
+						class="flex size-4 items-center justify-center rounded-full initial-centered font-display text-label font-semibold tracking-normal {userColorClasses(
 							creator.color
 						)}"
 					>
