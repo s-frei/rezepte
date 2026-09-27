@@ -151,13 +151,19 @@ test('the bar keeps keyboard focus when it changes shape', async ({ page }) => {
 
 	// Shrunk, the one button left says what it does; focusing and pressing it
 	// brings the bar back with focus on the current place, not on the page.
+	// A key press puts the browser in keyboard mode, as Tab would for a real
+	// keyboard user; without it, focus set from a script is not
+	// `:focus-visible`, and the bar rightly shrinks again.
 	await page.mouse.wheel(0, 800);
 	const expand = nav.getByRole('button', { name: 'Show navigation' });
+	await page.keyboard.press('Escape');
 	await expand.focus();
 	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeFocused();
 
-	// While focus is in the bar, reading on does not pull it away.
+	// While focus is in the bar, reading on does not pull it away. The check
+	// waits for the scroll to land, or it could pass before the bar reacts.
 	await page.mouse.wheel(0, 800);
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1500);
 	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeFocused();
 	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();
 });
