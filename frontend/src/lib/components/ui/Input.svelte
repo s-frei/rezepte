@@ -21,12 +21,12 @@
 		error?: string | null;
 		/** Helper text below the field, hidden while an error takes its place. */
 		hint?: string;
-		/** Unit rendered inside the field, right-aligned (e.g. "Min"). */
 		/**
 		 * Words rendered inside the field, left, before whatever is typed - the
 		 * start of a sentence the value completes ("Adapted from …").
 		 */
 		prefix?: string;
+		/** Unit rendered inside the field, right-aligned (e.g. "Min"). */
 		suffix?: string;
 		/**
 		 * Character limit to count towards, shown inside the field once the
