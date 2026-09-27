@@ -1561,3 +1561,25 @@ test('opens the full unit list on every tap, even over a chosen unit', async ({ 
 	await unit.press('Tab');
 	await expect(unit).toHaveValue('bunch');
 });
+
+test('sets the unit list apart from the fields in dark mode', async ({ page }) => {
+	// The shadow that sets the list apart in light does not read on dark
+	// surfaces, so the popover tokens have to carry it: a list in the fields'
+	// own color and border melts into the rows below it.
+	await page.emulateMedia({ colorScheme: 'dark' });
+	await openNewRecipe(page);
+
+	const unit = page.getByRole('combobox', { name: 'Unit', exact: true });
+	await unit.click();
+	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
+	await expect(list).toBeVisible();
+
+	const style = (el: Element) => {
+		const cs = getComputedStyle(el);
+		return { background: cs.backgroundColor, border: cs.borderTopColor };
+	};
+	const field = await unit.evaluate(style);
+	const popover = await list.evaluate(style);
+	expect(popover.background).not.toBe(field.background);
+	expect(popover.border).not.toBe(field.border);
+});

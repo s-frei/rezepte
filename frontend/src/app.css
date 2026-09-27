@@ -17,6 +17,11 @@
 	--color-surface: #fdf9f2;
 	--color-surface-elevated: #ffffff;
 	--color-border: #e3d7c3;
+	/* Lists that open over form fields (select, tag and unit suggestions).
+	   In light the shadow sets them apart; in dark it does not read, so the
+	   dark values lift them a step above the fields they cover. */
+	--color-popover: #ffffff;
+	--color-popover-border: #e3d7c3;
 	--color-text: #2b2118;
 	--color-text-muted: #756554;
 	--color-primary: #b45309;
@@ -130,6 +135,8 @@
 	--color-surface: #26201a;
 	--color-surface-elevated: #2f2822;
 	--color-border: #3b322a;
+	--color-popover: #3a3129;
+	--color-popover-border: #56493c;
 	--color-text: #f3ebe0;
 	--color-text-muted: #a8998a;
 	--color-primary: #d97a2b;
@@ -179,6 +186,8 @@
 		--color-surface: #26201a;
 		--color-surface-elevated: #2f2822;
 		--color-border: #3b322a;
+		--color-popover: #3a3129;
+		--color-popover-border: #56493c;
 		--color-text: #f3ebe0;
 		--color-text-muted: #a8998a;
 		--color-primary: #d97a2b;

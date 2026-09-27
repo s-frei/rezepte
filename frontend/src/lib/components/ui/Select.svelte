@@ -104,10 +104,11 @@
 			belongs to. Aligning on the start edge is what a select is expected
 			to do at any trigger width.
 
-			bg-surface-elevated with a border, not bg-surface: inside a dialog
-			the card is already bg-surface, so a list in the same color has no
-			visible edge, and shadow-dialog does not read against the dark
-			scheme's surfaces.
+			bg-popover with a border, not bg-surface: inside a dialog the card
+			is already bg-surface, so a list in the same color has no visible
+			edge, and shadow-dialog does not read against the dark scheme's
+			surfaces. The popover tokens lift it a step above the fields in
+			dark, where surface-elevated would match the fields it covers.
 
 			The width floor is the trigger's own width, which bits-ui exposes
 			as --bits-floating-anchor-width, rather than a round number: the
@@ -120,7 +121,7 @@
 			preventScroll={false}
 			align="start"
 			sideOffset={6}
-			class="z-50 min-w-[var(--bits-floating-anchor-width)] rounded-2xl border border-border bg-surface-elevated p-1.5 shadow-dialog"
+			class="z-50 min-w-[var(--bits-floating-anchor-width)] rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog"
 		>
 			{#each options as option (option.value)}
 				<BitsSelect.Item
