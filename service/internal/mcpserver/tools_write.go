@@ -23,7 +23,7 @@ func init() {
 // documentHelp is shared by create_recipe and update_recipe: which fields
 // take null, and how a step points at an ingredient - the parts of the
 // document a model cannot guess from field names.
-const documentHelp = " Send every field of recipe. Only prepMinutes, cookMinutes, sourceUrl, a group's name and an " +
+const documentHelp = " Send every field of recipe. Only prepMinutes, cookMinutes, sourceUrl, sourceName, a group's name and an " +
 	"ingredient's quantity, unit and note take null when unset; description is a string (\"\" when empty) and " +
 	"tags, steps and each group's ingredients are arrays ([] when empty), never null; ingredientGroups is never " +
 	"null either and holds at least one group (one with name null when the recipe has no sections)." +
@@ -66,7 +66,7 @@ func addUpdateRecipe(s *mcp.Server, c caller) {
 		Name: "update_recipe",
 		Description: "Replace a recipe's whole document and return it. Take the document from get_recipe and " +
 			"send back only the editable fields in recipe: title, description, servings, prepMinutes, cookMinutes, " +
-			"sourceUrl, tags, ingredientGroups, steps and optionally editPolicy. Anything else left out is removed. " +
+			"sourceUrl, sourceName, tags, ingredientGroups, steps and optionally editPolicy. Anything else left out is removed. " +
 			"The slug never changes." + documentHelp,
 		InputSchema: c.update,
 		// DestructiveHint stays at its default (true): replacing the whole

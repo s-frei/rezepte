@@ -756,6 +756,14 @@
             "minimum": 1,
             "type": "integer"
           },
+          "sourceName": {
+            "description": "Where the recipe comes from - a book, a website or a person. Shown after \"Adapted from\"; it is text, never a link target.",
+            "maxLength": 200,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "sourceUrl": {
             "format": "uri",
             "maxLength": 500,
@@ -1050,6 +1058,14 @@
           },
           "slug": {
             "type": "string"
+          },
+          "sourceName": {
+            "description": "Where the recipe comes from - a book, a website or a person. Shown after \"Adapted from\"; it is text, never a link target.",
+            "maxLength": 200,
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "sourceUrl": {
             "format": "uri",

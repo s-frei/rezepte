@@ -6,7 +6,7 @@
     "prepMinutes": 30,
     "cookMinutes": 30,
     "sourceUrl": null,
-    "sourceName": null,
+    "sourceName": "Oma Hildes Rezeptdose",
     "tags": ["klassiker", "fleisch"],
     "ingredientGroups": [
       {
@@ -247,7 +247,7 @@
     "prepMinutes": 20,
     "cookMinutes": 45,
     "sourceUrl": null,
-    "sourceName": null,
+    "sourceName": "Tante Gerda",
     "tags": ["suppe", "für-viele"],
     "ingredientGroups": [
       {
@@ -382,7 +382,7 @@
     "prepMinutes": 20,
     "cookMinutes": 10,
     "sourceUrl": null,
-    "sourceName": null,
+    "sourceName": "Kochbuch der Landfrauen, S. 34",
     "tags": ["süß", "dessert"],
     "ingredientGroups": [
       {

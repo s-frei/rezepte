@@ -6,7 +6,7 @@
     "prepMinutes": 25,
     "cookMinutes": 45,
     "sourceUrl": null,
-    "sourceName": null,
+    "sourceName": "Grandma Hilde's recipe tin",
     "tags": ["classic", "meat"],
     "ingredientGroups": [
       {
@@ -202,7 +202,7 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "sourceUrl": null,
-    "sourceName": null,
+    "sourceName": "Aunt Maggie",
     "tags": ["vegetarian", "soup"],
     "ingredientGroups": [
       {
@@ -371,7 +371,7 @@
     "prepMinutes": 20,
     "cookMinutes": 45,
     "sourceUrl": null,
-    "sourceName": null,
+    "sourceName": "The village fête cookbook, p. 34",
     "tags": ["sweet", "dessert", "baking"],
     "ingredientGroups": [
       {
