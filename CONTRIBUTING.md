@@ -10,7 +10,7 @@ Thanks for wanting to help. Rezepte is a small project with one maintainer, so t
 | An idea or a feature wish | [Ideas in Discussions](https://github.com/s-frei/rezepte/discussions/categories/ideas) |
 | A question about installing or using Rezepte | [Q&A in Discussions](https://github.com/s-frei/rezepte/discussions/categories/q-a) |
 | A security problem | **Not an issue.** See [SECURITY.md](SECURITY.md) |
-| A new interface language | [Add a language](https://s-frei.github.io/rezepte/contributing/add-a-language/) - a pull request is welcome straight away |
+| A new interface language | [Add a language](https://s-frei.github.io/rezepte/contributing/add-a-language/) - a pull request is welcome right away |
 
 ## Pull requests
 

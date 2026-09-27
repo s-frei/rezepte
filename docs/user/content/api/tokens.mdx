@@ -18,7 +18,9 @@ Only admins can issue tokens, under **Settings → API**.
    includes the ones before it; the sentence under the ladder says what the
    chosen step allows. **Recipes** has a fourth step, **Delete** — a **Write**
    token can create and edit recipes but never delete one. Give a token the
-   least it needs.
+   least it needs — but not nothing: as soon as both ladders stand at
+   **None**, the dialog says "Please choose at least one kind of access"
+   under them, and **Create** does nothing until one of them is raised.
 4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.
 5. Choose **Create**.
 

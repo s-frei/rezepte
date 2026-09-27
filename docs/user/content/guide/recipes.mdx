@@ -24,7 +24,7 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
     ### Add ingredients
 
-    Under "Ingredients", use "Add group" to split the list into sections, e.g. "Filling" and "Mash topping". Each row takes an "Amount", a "Unit", the "Ingredient" itself and an optional "Note"; "Add row" adds another.
+    Under "Ingredients", use "Add group" to split the list into sections, e.g. "Filling" and "Mash topping". Each row takes an "Amount", a "Unit", the "Ingredient" itself and an optional "Note"; "Add row" adds another. "Unit" suggests the usual units in your interface language — "tsp", "cup" or "oz" in English, "TL", "Bund" or "Zehe" in German. Opening the field lists all of them, typing narrows the list, and a unit that is not on it is fine too: whatever you type is kept as written.
 
     <Screenshot name="editor-ingredients" caption="Ingredient groups in the editor" />
 
@@ -44,7 +44,7 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
     As you type a step, a dotted underline appears under a word the app recognizes as an ingredient — "Fry the onion and carrots" underlines "onion" and "carrots". Put the cursor in an underlined word to see what it points at and accept or dismiss the suggestion, or leave it be; under the step, a line counts the links and suggestions and opens into a list of them. Every open suggestion is accepted when you save, and a note above the steps says how many ("Saving accepts 3 suggestions") next to an "Accept now" button that accepts them right away.
 
-    Two ways to link a word yourself. Type `@` to pick an ingredient and insert its name — the picker lists every ingredient with its quantity and group, so the same name in two groups is easy to tell apart. Or select a word already in the sentence (putting the caret in it is enough) and click "Link word": that links the word as it stands to any ingredient, which is what you need when the wording differs from the ingredient's name — "mince" for an ingredient listed as "minced lamb". Deleting a linked word hides its link, and undoing the deletion brings both back; a link whose word is gone when you save is simply left out.
+    Two ways to link a word yourself. Type `@` to pick an ingredient and insert its name — the picker lists every ingredient with its quantity and group, so the same name in two groups is easy to tell apart. Or select a word already in the sentence (putting the caret in it is enough) and click "Link word": that links the word as it stands to any ingredient, which is what you need when the wording differs from the ingredient's name — "meat" for an ingredient listed as "ground beef". Deleting a linked word hides its link, and undoing the deletion brings both back; a link whose word is gone when you save is simply left out.
 
   </Step>
   <Step>
@@ -73,9 +73,9 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
 <Screenshot name="recipe-detail" caption="A recipe's detail page" />
 
-Servings and times show as pills at the top. Ingredients list with tick boxes for checking items off while shopping or cooking; the steps follow under "Method". A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode).
+Servings and times show as pills at the top. Ingredients list with checkboxes for checking items off while shopping or cooking; the steps follow under "Method". A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode).
 
-"Edit" opens the editor. The "More actions" menu (`…`) holds "Edit" as well, "Copy link", which copies the recipe's address to share, and "Delete", which deletes the recipe after confirming. On a phone, a share button next to it copies the link too. Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you (see [Editing rights](/guide/editing-rights)).
+"Edit" opens the editor. The "More actions" menu (`…`) holds "Edit" as well, "Copy link", which copies the recipe's address to share, "Share publicly…", which makes a link for someone without an account, and "Delete", which deletes the recipe after confirming. "Share publicly…" appears while the owner allows public links and you may create them; once you have a link for the recipe, the item reads "Public link…" instead (see [Sharing recipes](/guide/sharing)). On a phone, a share button next to the menu opens the phone's share sheet with the recipe's link; where the browser has no share sheet, it copies the link instead. Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you (see [Editing rights](/guide/editing-rights)).
 
 At the foot of the page, a line says who added the recipe and when ("Added by … on …"), a second one who last changed it ("Last edited by … on …") once somebody has, and — on a locked recipe — who can edit it.
 
