@@ -34,7 +34,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`, `GET /api/v1/public/shares/{token}` (see [Public shares](/features/public-shares)). `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `GET /public-images/…` and `GET /link-preview/…` are the opposite kind of exception: plain mux routes outside `/api/v1`, deliberately without authentication, since the stranger or the crawler behind either has no session to carry. `POST /mcp` is the same kind of exception as `/images`, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
+    Operations without `Security` are public: `POST /api/v1/auth/login`, `GET /healthz`, `GET /api/v1/public/shares/{token}` (see [Public shares](/features/public-shares)). `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `GET /public-images/…` and `GET /link-preview/…` are the opposite kind of exception: plain mux routes outside `/api/v1`, deliberately without authentication, since the stranger or the crawler behind either has no session to carry. `POST /mcp` is the same kind of exception as `/images`, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
 
   </Tab>
 </Tabs>
@@ -135,7 +135,7 @@ The household-wide settings, one row for the instance (see [Editing rights](/fea
 
 ## Public shares
 
-Public, revocable recipe links a member creates and manages; see [Public shares](/features/public-shares) for the validity rule, the statuses and the UI. A `Share` in every response below is `{id, recipe: {id, slug, title}, path: "/s/<token>", createdAt, expiresAt, status: "active"|"paused"|"limited", createdBy?}` - `expiresAt` is the effective expiry (earlier of the link's own and the instance maximum), `createdBy` (`{displayName, color}`) only in an admin's `?all=true` list.
+Public, revocable recipe links a member creates and manages; see [Public shares](/features/public-shares) for the validity rule, the statuses and the UI. A `Share` in every response below is `{id, recipe: {id, slug, title}, path: "/s/<token>", createdAt, expiresAt, status: "active"|"paused"|"limited", createdBy?}` - `expiresAt` is the effective expiry (earlier of the link's own and the instance maximum), `createdBy` (`{id, displayName, color}`, the `id` because display names need not be unique) only in an admin's `?all=true` list.
 
 | Operation | Path | Notes |
 |---|---|---|
@@ -143,7 +143,7 @@ Public, revocable recipe links a member creates and manages; see [Public shares]
 | get-my-public-share | `GET /shares/by-recipe/{recipeId}` | session only; `200` `{share}` - the caller's own share, or `null` when there is none, or the recipe is unknown; never `404` for "no link", since the recipe page calls this on every view. Not nested under `/recipes/{id}/`: a `GET` there would collide with `GET /recipes/by-slug/{slug}` in the mux (see [Public shares](/features/public-shares)) |
 | list-shares | `GET /shares` | session only; the caller's own shares, newest first; `?all=true` for admins: everyone's, each with `createdBy`; `403` for `all` from a non-admin |
 | revoke-share | `DELETE /shares/{id}` | session only; own share, or any as admin; `204`; `404` otherwise |
-| revoke-all-shares | `DELETE /shares` | admin only; `204` |
+| revoke-all-shares | `DELETE /shares` | session only; every link in the household, whoever created it; `204`; `403` `admin role required` for a non-admin |
 | get-public-recipe | `GET /public/shares/{token}` | no security - reachable without a session or a token; the `PublicRecipe` DTO, never `Recipe`; every invalid token (unknown, revoked, paused, limited or expired) is the same `404` `"not available"` |
 | serve a public image | `GET /public-images/{token}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation, no security; only a photo still belonging to the share's recipe while the share serves; `404` otherwise |
 
