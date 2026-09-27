@@ -20,29 +20,71 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
   </Folder>
 </Files>
 
-`rezepte.db` is the SQLite database: recipes with their ingredients, steps, tags and photo records, accounts and sessions, API tokens, favorites and the household settings; `rezepte.db-wal` and `rezepte.db-shm` are its write-ahead log while the app is running. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (960 px).
+`rezepte.db` is the SQLite database: recipes with their ingredients, steps, tags and photo records, accounts and sessions, API tokens, favorites and tasty marks, public links, and the household settings — editing rights, public sharing, link previews and the key that signs link previews. While Rezepte runs, SQLite keeps its most recent writes in `rezepte.db-wal` (with `rezepte.db-shm` as its index) before folding them into `rezepte.db`, so the three files are one database: copy them together or not at all. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (960 px).
 
 ## Backing up
 
-The database is safe to back up while the app is running with SQLite's own backup command, which takes a WAL-consistent snapshot:
+<Tabs items={['Docker', 'Binary']}>
+  <Tab value="Docker">
 
-```bash
-sqlite3 data/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
-```
+    The [compose file](/getting-started/docker) keeps `/data` in a named volume, and the image has neither a shell nor the `sqlite3` tool, so the backup runs in a throwaway container that borrows the volume. Stop Rezepte for the few seconds it takes, so the database cannot change mid-copy, and pack the whole data directory into one archive:
 
-Copy the images alongside it:
+    ```bash
+    docker compose stop rezepte
+    docker run --rm --volumes-from "$(docker compose ps -aq rezepte)" \
+      -v "$PWD/backups:/backup" alpine:3 \
+      tar czf "/backup/rezepte-$(date +%F).tar.gz" -C /data .
+    docker compose start rezepte
+    ```
 
-```bash
-rsync -a data/images/ /backups/images/
-```
+    Run it next to your `docker-compose.yaml`; the archive lands in `backups/`. `--volumes-from` finds the volume through the container, which also works while it is stopped, so you never need the volume's full name, and the same commands work for a bind mount. The archive holds the database with any `-wal` and `-shm` files beside it, and every photo.
+
+    Started with `docker run --name rezepte` instead of compose? Use `docker stop rezepte` and `docker start rezepte`, and `--volumes-from rezepte`.
+
+  </Tab>
+  <Tab value="Binary">
+
+    With the binary, or with a bind-mounted `./data` directory, the database is an ordinary file on the host, and SQLite's own backup command takes a consistent copy while the app keeps running. It needs the `sqlite3` command-line tool on the host:
+
+    ```bash
+    sqlite3 /var/lib/rezepte/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
+    rsync -a /var/lib/rezepte/images/ /backups/images/
+    ```
+
+    The backup is a single file with everything from the `-wal` folded in. Run it as the account that owns the data directory — `rezepte` in the [systemd unit](/getting-started/binary), UID 65532 for a bind mount used by the container — so any file SQLite creates next to the database belongs to that account, not to root.
+
+  </Tab>
+</Tabs>
 
 <Callout type="warn">
-  Never copy `rezepte.db` alone with `cp` while the app is running. SQLite's WAL mode keeps recent writes in `rezepte.db-wal`, so a plain file copy of `rezepte.db` can miss them or capture the database mid-write. Use `sqlite3 .backup` (above) or stop the app first.
+  Never copy `rezepte.db` alone with `cp` while the app is running. SQLite's WAL mode keeps recent writes in `rezepte.db-wal`, so a plain file copy of `rezepte.db` can miss them or capture the database mid-write. Use `sqlite3 .backup`, or stop the app first, as the Docker variant does.
 </Callout>
 
 ## Restoring
 
-1. Stop Rezepte.
-2. Replace `data/rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it.
-3. Copy the backed-up `images/` directory back into place.
-4. Start Rezepte again.
+<Tabs items={['Docker', 'Binary']}>
+  <Tab value="Docker">
+
+    Stop Rezepte, empty the volume, unpack the archive you want into it and give every file back to the container's user, UID 65532 — the throwaway container runs as root, and Rezepte cannot write to files root owns:
+
+    ```bash
+    docker compose stop rezepte
+    docker run --rm --volumes-from "$(docker compose ps -aq rezepte)" \
+      -v "$PWD/backups:/backup:ro" alpine:3 \
+      sh -c 'rm -rf /data/* && tar xzf /backup/rezepte-2026-01-31.tar.gz -C /data && chown -R 65532:65532 /data'
+    docker compose start rezepte
+    ```
+
+    Replace `rezepte-2026-01-31.tar.gz` with the name of your archive. The `-wal` and `-shm` files in it belong to the database next to them, so they are restored with it.
+
+  </Tab>
+  <Tab value="Binary">
+
+    1. Stop Rezepte.
+    2. Replace `rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it — they belong to the database you replaced, not to the backup.
+    3. Copy the backed-up `images/` directory back into place.
+    4. Give the data directory back to the account Rezepte runs as, for example `chown -R rezepte:rezepte /var/lib/rezepte`.
+    5. Start Rezepte again.
+
+  </Tab>
+</Tabs>

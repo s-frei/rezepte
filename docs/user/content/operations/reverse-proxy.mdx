@@ -25,7 +25,7 @@ sequenceDiagram
     }
     ```
 
-    Caddy forwards `Host` and `Origin` unchanged and provisions TLS automatically.
+    Caddy forwards `Host` and `Origin` unchanged and provisions TLS automatically. It sets no limit on the size of a request by default, so photo uploads need nothing extra.
 
   </Tab>
   <Tab value="nginx">
@@ -35,8 +35,11 @@ sequenceDiagram
       proxy_pass http://127.0.0.1:8060;
       proxy_set_header Host $host;
       proxy_set_header Origin $http_origin;
+      client_max_body_size 10m;
     }
     ```
+
+    `client_max_body_size` matches Rezepte's own limit of 10 MB per photo upload. nginx's default is 1 MB, which turns away most photos from a phone camera with `413 Request Entity Too Large` before they reach Rezepte.
 
   </Tab>
 </Tabs>
