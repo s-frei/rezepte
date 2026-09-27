@@ -143,6 +143,10 @@
 		onpointerdown={(event) => {
 			// Keeps the focus in the field, so opening does not blur it first.
 			event.preventDefault();
+		}}
+		onclick={() => {
+			// Not on pointerdown: a finger that lands here may be starting a
+			// scroll, and only a tap ends in a click.
 			if (document.activeElement !== input) {
 				input?.focus();
 			} else if (listboxOpen) {

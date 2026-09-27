@@ -181,17 +181,16 @@
 				class="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog"
 			>
 				{#each rows as row, index (row.isNew ? `new:${row.name}` : row.name)}
+					<!-- The keys belong to the field, which drives the options through
+					     aria-activedescendant; the click is the pointer's way in. It
+					     waits for the click because a swipe through the list never
+					     produces one. -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
 					<li
 						id="{id}-option-{index}"
 						role="option"
 						aria-selected={index === highlighted}
-						onpointerdown={(event) => {
-							// Keeps focus in the field so `onblur` doesn't fire first;
-							// pointer events fire before mousedown and the focus
-							// shift on every modern engine, touch included.
-							event.preventDefault();
-							add(row.name);
-						}}
+						onclick={() => add(row.name)}
 						class="flex h-10 cursor-pointer items-center rounded-sm px-3 text-body-sm {index ===
 						highlighted
 							? 'bg-background font-semibold'

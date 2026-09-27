@@ -635,7 +635,8 @@ test('adds a suggested tag by tapping it on touch', async ({ page, isMobile }) =
 	await openNewRecipe(page);
 	await page.getByRole('combobox', { name: 'Tags', exact: true }).fill(token);
 	// Playwright's click() also dispatches pointer events, so only tap()
-	// actually exercises the touch path `onpointerdown` is meant to cover.
+	// actually exercises the touch path, where the list keeps the focus in
+	// the field on `pointerdown` and the option is taken on the click.
 	await page.getByRole('option', { name: tag, exact: true }).tap();
 
 	await expect(page.getByText(tag, { exact: true })).toBeVisible();
@@ -653,6 +654,26 @@ test('adds a suggested tag by clicking it', async ({ page }) => {
 
 	await expect(page.getByText(tag, { exact: true })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(1);
+});
+
+test('leaves a suggested tag alone when a scroll starts on it', async ({ page }) => {
+	const token = uniqueToken();
+	const tag = `${token}cinnamon`;
+	await createRecipe(page, { ...loadFixture(6), title: `Suggested ${token}`, tags: [tag] });
+
+	await openNewRecipe(page);
+	const tags = page.getByRole('combobox', { name: 'Tags', exact: true });
+	await tags.fill(token);
+	const option = page.getByRole('option', { name: tag, exact: true });
+
+	// A finger that lands on an option and drags is a scroll through the
+	// list: the browser cancels the pointer, and no click follows.
+	const touch = { pointerType: 'touch', isPrimary: true, bubbles: true, cancelable: true };
+	await option.dispatchEvent('pointerdown', touch);
+	await option.dispatchEvent('pointercancel', touch);
+	await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+	await expect(option).toBeVisible();
+	await expect(tags).toHaveValue(token);
 });
 
 // The editor's save actions sit in the section rail, so that nothing on this
@@ -1579,6 +1600,29 @@ test('opens the full unit list on every tap, even over a chosen unit', async ({ 
 	await expect(list).toBeHidden();
 	await unit.press('Tab');
 	await expect(unit).toHaveValue('bunch');
+});
+
+test('leaves the unit list shut when a scroll starts on the chevron', async ({ page }) => {
+	await openNewRecipe(page);
+
+	const unit = page.getByRole('combobox', { name: 'Unit', exact: true });
+	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
+	const chevron = page.getByRole('button', { name: 'Show units' });
+
+	// A finger that lands on the chevron and drags is a scroll: the browser
+	// takes it over and cancels the pointer, and no click follows.
+	const touch = { pointerType: 'touch', isPrimary: true, bubbles: true, cancelable: true };
+	await chevron.dispatchEvent('pointerdown', touch);
+	await chevron.dispatchEvent('pointercancel', touch);
+	await expect(list).toBeHidden();
+	await expect(unit).not.toBeFocused();
+
+	// A tap still opens it.
+	await chevron.click();
+	await expect(list).toBeVisible();
+	await expect(unit).toBeFocused();
+	await chevron.click();
+	await expect(list).toBeHidden();
 });
 
 test('sets the unit list apart from the fields in dark mode', async ({ page }) => {
