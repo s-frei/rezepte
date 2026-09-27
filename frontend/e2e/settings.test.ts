@@ -106,13 +106,49 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await expect(page.getByText(`${username}'s role changed`)).toBeVisible();
 
 	await row.getByRole('button', { name: `Reset ${username}'s password` }).click();
-	await page.getByRole('dialog').getByLabel('New password').fill(devPasswordNext(username));
+	await page
+		.getByRole('dialog')
+		.getByLabel('New password', { exact: true })
+		.fill(devPasswordNext(username));
+	await page
+		.getByRole('dialog')
+		.getByLabel('Repeat the new password')
+		.fill(devPasswordNext(username));
 	await page.getByRole('dialog').getByRole('button', { name: 'Reset', exact: true }).click();
 	await expect(page.getByText('Password reset')).toBeVisible();
 
 	await row.getByRole('button', { name: 'Delete' }).click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
 	await expect(row).toHaveCount(0);
+});
+
+test('a reset password has to be typed the same twice', async ({ page }) => {
+	const username = `u${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, role: 'user' });
+	await page.goto('/settings/users');
+
+	const row = page
+		.getByRole('list', { name: 'Members' })
+		.getByRole('listitem')
+		.filter({ hasText: username });
+	await row.getByRole('button', { name: `Reset ${username}'s password` }).click();
+	const dialog = page.getByRole('dialog');
+	const repeat = dialog.getByLabel('Repeat the new password');
+
+	await dialog.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
+	await repeat.fill(`${devPasswordNext(username)}x`);
+	await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
+	await expect(dialog.getByText('The passwords do not match')).toBeVisible();
+	await expect(repeat).toHaveAttribute('aria-invalid', 'true');
+
+	// The mismatch answered the last attempt; retyping the field clears it.
+	await repeat.fill(devPasswordNext(username));
+	await expect(repeat).not.toHaveAttribute('aria-invalid', 'true');
+
+	await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
+	await expect(page.getByText('Password reset')).toBeVisible();
 });
 
 test('the owner sorts the member list by role', async ({ page, isMobile }) => {

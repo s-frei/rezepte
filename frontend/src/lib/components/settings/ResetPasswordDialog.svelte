@@ -6,8 +6,13 @@
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
+	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
-	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
+	import {
+		passwordErrorsFromApi,
+		validateNewPassword,
+		type PasswordErrors
+	} from '$lib/settings/password';
 	import PasswordStrength from './PasswordStrength.svelte';
 
 	// Takes a nullable user and stays mounted: wrapping the dialog in an
@@ -17,14 +22,18 @@
 	let { open = $bindable(false), user }: { open?: boolean; user: UserAccount | null } = $props();
 
 	let password = $state('');
-	let error = $state<string | null>(null);
+	// Typed twice, like the own password change: the admin passes this one on
+	// to someone else, and a typo nobody saw would lock that person out.
+	let repeat = $state('');
+	let errors = $state<PasswordErrors>({});
 	let saving = $state(false);
 
-	// A fresh field every time the dialog opens.
+	// Fresh fields every time the dialog opens.
 	$effect(() => {
 		if (open) {
 			password = '';
-			error = null;
+			repeat = '';
+			errors = {};
 		}
 	});
 
@@ -33,8 +42,8 @@
 		if (!user) {
 			return;
 		}
-		error = validateNewPassword(password, password).next ?? null;
-		if (error) {
+		errors = validateNewPassword(password, repeat);
+		if (Object.keys(errors).length > 0) {
 			return;
 		}
 		saving = true;
@@ -44,8 +53,8 @@
 			open = false;
 		} catch (failure) {
 			if (failure instanceof ApiError && failure.status === 422) {
-				error = passwordErrorsFromApi(failure.errors).next ?? null;
-				if (!error) toast.error(failure.detail ?? m.users_update_error());
+				errors = passwordErrorsFromApi(failure.errors);
+				if (!errors.next) toast.error(failure.detail ?? m.users_update_error());
 			} else if (!isSignedOut(failure)) {
 				// 401 already redirects to the login page (see $lib/api/client).
 				toast.error(m.users_update_error());
@@ -71,11 +80,20 @@
 				type="password"
 				autocomplete="new-password"
 				bind:value={password}
-				oninput={() => (error = null)}
-				{error}
+				oninput={() => (errors = withoutErrors(errors, ['next']))}
+				error={errors.next ?? null}
 			/>
 			<PasswordStrength {password} userInputs={[user?.username ?? '', user?.displayName ?? '']} />
 		</div>
+		<Input
+			id="reset-password-repeat"
+			label={m.settings_password_repeat()}
+			type="password"
+			autocomplete="new-password"
+			bind:value={repeat}
+			oninput={() => (errors = withoutErrors(errors, ['repeat']))}
+			error={errors.repeat ?? null}
+		/>
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.users_reset_submit()}</Button>
