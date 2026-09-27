@@ -10,8 +10,8 @@ The Model Context Protocol (MCP) lets an AI assistant work with your recipe coll
 Follow [API tokens](/api/tokens) to issue one from **Settings → API**. What the assistant may do follows the **Recipes** level you choose:
 
 - **Read** — search and read recipes, nothing else.
-- **Read & write** — also create and edit recipes.
-- **Full** — also delete recipes.
+- **Write** — also create and edit recipes.
+- **Delete** — also delete recipes.
 
 Give it the least it needs.
 
@@ -56,7 +56,7 @@ Ten tools, each reaching as far as the token's scopes allow. The assistant acts 
 - **List the tags** already in use, so it reuses yours instead of inventing new ones.
 - **Create** a recipe.
 - **Edit** a recipe — it replaces the whole document, the same as saving in the editor, including who may edit it.
-- **Delete** a recipe and its photos, with a **Full** token only. This cannot be undone.
+- **Delete** a recipe and its photos, with a **Delete** token only. This cannot be undone.
 - **Star or unstar** a recipe as a favorite.
 - **Mark a recipe tasty**, or take the mark back — never on a recipe the token's admin wrote.
 
@@ -64,7 +64,7 @@ Ten tools, each reaching as far as the token's scopes allow. The assistant acts 
 
 - It cannot upload or see photos. Recipe images are not part of MCP.
 - It cannot do anything about members, passwords or anyone else's account.
-- It can never do more than the token's scopes allow — a **Read** token cannot create, edit or delete, and only **Full** can delete.
+- It can never do more than the token's scopes allow — a **Read** token cannot create, edit or delete, and only **Delete** can delete.
 
 ## Clients that need OAuth
 

@@ -63,7 +63,7 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 	await expect(row).toBeHidden();
 });
 
-test('a Full recipes token carries the delete scope', async ({ page }) => {
+test('a Delete recipes token carries the delete scope', async ({ page }) => {
 	const name = `full-${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -71,7 +71,10 @@ test('a Full recipes token carries the delete scope', async ({ page }) => {
 	await page.getByRole('button', { name: 'Create token' }).first().click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Name').fill(name);
-	await dialog.getByRole('radio', { name: 'Full' }).click();
+	const recipes = dialog.getByRole('radiogroup', { name: 'Recipes' });
+	await recipes.getByRole('radio', { name: 'Delete' }).click();
+	// The levels stack, so the sentence under the ladder names all three.
+	await expect(recipes).toHaveAccessibleDescription('Can read, write and delete recipes.');
 	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 
 	const reveal = page.getByRole('dialog');
@@ -102,9 +105,14 @@ test('a users-only token gets no MCP snippet', async ({ page }) => {
 	await page.getByRole('button', { name: 'Create token' }).first().click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Name').fill(name);
-	// exact: true on 'Read' - a substring match also catches 'Read & write'.
-	await dialog.getByRole('radio', { name: 'No access' }).first().click();
-	await dialog.getByRole('radio', { name: 'Read', exact: true }).nth(1).click();
+	await dialog
+		.getByRole('radiogroup', { name: 'Recipes' })
+		.getByRole('radio', { name: 'None' })
+		.click();
+	await dialog
+		.getByRole('radiogroup', { name: 'Accounts' })
+		.getByRole('radio', { name: 'Read' })
+		.click();
 	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 
 	const reveal = page.getByRole('dialog');

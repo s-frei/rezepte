@@ -23,7 +23,10 @@ test('token-mcp', async ({ page }, testInfo) => {
 	await page.getByRole('button', { name: 'Create token' }).first().click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Name').fill('MCP on the laptop');
-	await dialog.getByRole('radio', { name: 'Full' }).click();
+	await dialog
+		.getByRole('radiogroup', { name: 'Recipes' })
+		.getByRole('radio', { name: 'Delete' })
+		.click();
 	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 	const reveal = page.getByRole('dialog');
 	await expect(reveal.getByRole('tab', { name: 'Claude Code' })).toBeVisible();

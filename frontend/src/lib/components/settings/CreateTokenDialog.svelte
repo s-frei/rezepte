@@ -8,10 +8,10 @@
 		type TokenExpiry,
 		type TokenScope
 	} from '$lib/api/tokens';
+	import AccessLadder from '$lib/components/ui/AccessLadder.svelte';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
@@ -23,26 +23,40 @@
 
 	/** One row of the scope picker. Each level carries every level below it. */
 	type Access = 'none' | 'read' | 'write' | 'full';
+	type UserAccess = Exclude<Access, 'full'>;
 
 	let name = $state('');
 	let recipes = $state<Access>('read');
-	let users = $state<Access>('none');
+	let users = $state<UserAccess>('none');
 	let expiry = $state('90');
 	let errors = $state<{ name?: string; scopes?: string }>({});
 	let saving = $state(false);
 
-	const accessOptions: { value: Access; label: string }[] = [
+	const accessOptions: { value: UserAccess; label: string }[] = [
 		{ value: 'none', label: m.tokens_access_none() },
 		{ value: 'read', label: m.tokens_access_read() },
 		{ value: 'write', label: m.tokens_access_write() }
 	];
 
 	// Only recipes can be deleted through a token; users:write already covers
-	// removing an account, so the Users row stops at write.
+	// removing an account, so the Accounts ladder stops at write.
 	const recipeAccessOptions = [
 		...accessOptions,
-		{ value: 'full' as const, label: m.tokens_access_full() }
+		{ value: 'full' as const, label: m.tokens_access_delete() }
 	];
+
+	const recipeAccessText: Record<Access, () => string> = {
+		none: m.tokens_access_recipes_none,
+		read: m.tokens_access_recipes_read,
+		write: m.tokens_access_recipes_write,
+		full: m.tokens_access_recipes_delete
+	};
+
+	const userAccessText: Record<UserAccess, () => string> = {
+		none: m.tokens_access_users_none,
+		read: m.tokens_access_users_read,
+		write: m.tokens_access_users_write
+	};
 
 	const expiryOptions = [
 		{ value: '30', label: m.tokens_expiry_30() },
@@ -124,21 +138,20 @@
 		<div class="space-y-3">
 			<div class="flex flex-col gap-1.5">
 				<span class="text-body-sm font-semibold">{m.tokens_access_recipes()}</span>
-				<SegmentedControl
+				<AccessLadder
 					bind:value={recipes}
 					options={recipeAccessOptions}
 					label={m.tokens_access_recipes()}
+					description={recipeAccessText[recipes]()}
 				/>
-				{#if recipes === 'full'}
-					<p class="text-caption text-text-muted">{m.tokens_access_full_hint()}</p>
-				{/if}
 			</div>
 			<div class="flex flex-col gap-1.5">
 				<span class="text-body-sm font-semibold">{m.tokens_access_users()}</span>
-				<SegmentedControl
+				<AccessLadder
 					bind:value={users}
 					options={accessOptions}
 					label={m.tokens_access_users()}
+					description={userAccessText[users]()}
 				/>
 			</div>
 			{#if errors.scopes}

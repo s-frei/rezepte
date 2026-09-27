@@ -14,8 +14,9 @@ Only admins can issue tokens, under **Settings → API**.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
    That name is how you tell tokens apart later.
 3. Choose what it may do. **Recipes** and **Accounts** are set separately,
-   each as **No access**, **Read**, or **Read & write**. **Recipes** has a
-   fourth level, **Full**, which can also delete recipes — a **Read & write**
+   each on a ladder of **None**, **Read** and **Write**, where every step
+   includes the ones before it; the sentence under the ladder says what the
+   chosen step allows. **Recipes** has a fourth step, **Delete** — a **Write**
    token can create and edit recipes but never delete one. Give a token the
    least it needs.
 4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.
@@ -56,7 +57,7 @@ member does not delete their recipes, it transfers them to the account that
 performed the deletion - which for a token means the admin who issued it.
 
 It also inherits that admin's rank, which is what decides how far
-**Accounts: Read & write** reaches. Issued by an ordinary admin, a token
+**Accounts: Write** reaches. Issued by an ordinary admin, a token
 can add and delete members but cannot make anyone an admin, because the
 account behind it cannot either (see [People](/guide/users)). Issued by the
 owner, it can.
@@ -68,7 +69,7 @@ from a setting anyone could forget.
 
 Recipe [editing rights](/guide/editing-rights) never narrow a working token
 either: admins may edit and delete every recipe, locked or not, and so may
-their tokens with **Recipes: Read & write**. That lasts only as long as the
+their tokens with **Recipes: Write**. That lasts only as long as the
 account behind the token is an admin - a token always acts with its
 issuer's current role, and stops working once that role is gone. Only the owner can change the
 household's editing setting, and only in the browser.
