@@ -1,5 +1,15 @@
 import { describe, expect, test } from 'vitest';
-import { unitOptions } from './units';
+import { parseUnitList, unitOptions } from './units';
+
+describe('parseUnitList', () => {
+	test('splits on commas and keeps a unit with a space whole', () => {
+		expect(parseUnitList('tsp, tbsp, fl oz,oz')).toEqual(['tsp', 'tbsp', 'fl oz', 'oz']);
+	});
+
+	test('drops the empty entries a stray comma leaves', () => {
+		expect(parseUnitList(' g,, kg, ')).toEqual(['g', 'kg']);
+	});
+});
 
 const units = ['g', 'kg', 'ml', 'l', 'EL', 'TL', 'Stück', 'Prise'];
 

@@ -6,18 +6,22 @@
  */
 import { m } from '$lib/paraglide/messages';
 
+/**
+ * Splits a catalog's comma-separated unit list. One message per language
+ * rather than one per unit, because the lists do not line up: an American
+ * kitchen measures in cups and ounces, a German one in Bund and Zehe, and a
+ * key per unit would force every language to carry the same entries.
+ */
+export function parseUnitList(list: string): string[] {
+	return list
+		.split(',')
+		.map((unit) => unit.trim())
+		.filter((unit) => unit !== '');
+}
+
 /** The suggested units, in the language the editor is reading. */
 export function unitSuggestions(): string[] {
-	return [
-		m.editor_unit_gram(),
-		m.editor_unit_kilogram(),
-		m.editor_unit_milliliter(),
-		m.editor_unit_liter(),
-		m.editor_unit_tablespoon(),
-		m.editor_unit_teaspoon(),
-		m.editor_unit_piece(),
-		m.editor_unit_pinch()
-	];
+	return parseUnitList(m.editor_unit_options());
 }
 
 /**

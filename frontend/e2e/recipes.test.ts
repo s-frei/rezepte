@@ -1528,7 +1528,20 @@ test('opens the full unit list on every tap, even over a chosen unit', async ({ 
 
 	const unit = page.getByRole('combobox', { name: 'Unit', exact: true });
 	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
-	const everyUnit = ['g', 'kg', 'ml', 'l', 'tbsp', 'tsp', 'piece', 'pinch'];
+	const everyUnit = [
+		'g',
+		'kg',
+		'ml',
+		'l',
+		'tsp',
+		'tbsp',
+		'cup',
+		'fl oz',
+		'oz',
+		'lb',
+		'pinch',
+		'piece'
+	];
 
 	// Typing narrows the list; a tap on an option takes it.
 	await unit.fill('tb');
