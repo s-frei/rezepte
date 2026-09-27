@@ -7,9 +7,13 @@
 // demo admin first and replays the cookie. That is also why the task needs a
 // demo instance rather than any running server: it has to be one whose
 // credentials we know.
-import { writeFileSync } from 'node:fs';
+//
+// info.version is not taken from the binary: the committed document keeps
+// the version of the release it was published with (see openapi-version.ts).
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { DEMO_USER } from './demo-user';
+import { keepCommittedVersion } from './openapi-version';
 
 const base = process.env.SCREENSHOT_BASE_URL ?? `http://localhost:${process.env.RZP_SCREENSHOTS_PORT ?? 8080}`;
 
@@ -29,6 +33,7 @@ if (!session) throw new Error(`${base}/api/v1/auth/login: no Set-Cookie in the r
 
 const res = await fetch(`${base}/api/v1/openapi.json`, { headers: { Cookie: session } });
 if (!res.ok) throw new Error(`${base}/api/v1/openapi.json: ${res.status}`);
-const doc = await res.json();
-writeFileSync('public/openapi.json', JSON.stringify(doc, null, 2) + '\n');
+const OUT = 'public/openapi.json';
+const doc = keepCommittedVersion(await res.json(), existsSync(OUT) ? readFileSync(OUT, 'utf8') : null);
+writeFileSync(OUT, JSON.stringify(doc, null, 2) + '\n');
 console.log(`openapi.json: ${Object.keys(doc.paths).length} paths, version ${doc.info.version}`);

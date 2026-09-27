@@ -5,6 +5,12 @@ description: Conventions, auth and error format
 
 Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at `/api/v1/docs`.
 
+## Version
+
+The API has no version of its own. `info.version` in the served document is the build version - the one `-X main.version` stamps into the binary, `rezepte --version` prints and `/healthz` reports (see [Releases](/architecture/releases)): `httpserver.New` sets it from `WithVersion` once the options have run, and a build without it says `"dev"` in both places. So there is nothing to bump by hand; the release tag is the one place a version is written. `/api/v1` in the path is a different thing, the compatibility line: it changes only if the API ever has to serve two incompatible shapes side by side.
+
+The committed copy, `docs/user/public/openapi.json`, cannot carry the build version: between releases that is `git describe --tags --always`, which changes with every commit, and CI regenerates the document and runs `git diff --exit-code` (see [Regenerate the API reference](/howtos/regenerate-api-reference)). It carries the version of the release it is published with instead. `docs/user/scripts/fetch-openapi.ts` keeps the committed `info.version` when it regenerates (`openapi-version.ts`), `release:start` stamps the release's version into it on the release branch, and `release:finish` refuses a release whose document says anything else (`mise/lib/release/openapi.ts`). The user docs are published from `main`, which only ever holds release commits, so the published reference always names the release it describes.
+
 ## Interactive docs
 
 `/api/v1/docs` is Scalar, rendered by huma from the same OpenAPI document, and it wears the app's colors. Its sidebar names each operation by its route (`operationTitleSource: "path"`) rather than by its summary, which is both what the generated reference in `docs/user/` does and what keeps the entries to one line each. `service/internal/httpserver/scalar_theme.css` maps the design tokens in `frontend/src/app.css` onto Scalar's `--scalar-*` variables; it is embedded into the binary and handed to Scalar as `customCss`, because huma renders the page itself and its CSP permits inline styles only. The values are copied rather than imported, so `scalar_theme_test.go` reads `app.css` and fails on any color in `scalar_theme.css` that is not one of its `--color-*` tokens.
@@ -15,7 +21,7 @@ Two of Scalar's own features are off in `DocsRendererConfig`, both of which lead
 
 The document also declares its tags, in `apiTags` in `service/internal/httpserver/api.go`. An operation's own `Tags` field names a tag but does not declare it, and both consumers need the declaration: the Scalar page titles and describes its sections from it, and the generated reference in `docs/user/` takes each folder's title, description and position from it, falling back to a bare tag name for one it does not find. `TestEveryTagIsDeclared` fails on a tag used without a declaration and on a declaration nothing uses; the order they are declared in is the order both renderings present.
 
-The app points at the Scalar page rather than duplicating it: Settings → API carries a card - open to every signed-in member, see [API tokens](/features/api-tokens) - with the base URL to copy, the endpoint and area counts read off the OpenAPI document, and links to `/api/v1/docs` and the document itself. The version beside them comes from `/healthz`, not from the document's `info.version`, which stays the fixed `"0.1.0"` of `huma.DefaultConfig`. Stamping the build version into the document would break a gate rather than improve it: the build version is `git describe --tags --always`, so it changes with every commit, while `docs/user/public/openapi.json` and the generated pages under `content/api/reference/` are checked in and CI regenerates both and runs `git diff --exit-code` (see [Regenerate the API reference](/howtos/regenerate-api-reference)). `/healthz` already publishes that number without authentication and is the one place an operator can read what is running, so the card asks it there.
+The app points at the Scalar page rather than duplicating it: Settings → API carries a card - open to every signed-in member, see [API tokens](/features/api-tokens) - with the base URL to copy, the endpoint and area counts read off the OpenAPI document, and links to `/api/v1/docs` and the document itself. The version beside them comes from `/healthz`; the document's `info.version` is the same number (see [Version](#version)), and `/healthz` is the one place an operator can read it without signing in.
 
 ## Authentication
 
@@ -202,6 +208,8 @@ The typed shape is also a layering rule. The input and output structs *are* the 
 
 ## Rejected
 
+- **An API version bumped separately from the application.** A second number nobody keeps in step: it would have to be raised by hand on every API change, and a breaking change is already marked by the commit convention and announced by the release that ships it ([Commits and branches](/conventions/commits)).
+- **Writing the build version into the committed document.** Every commit would change it and fail CI's regenerate-and-diff check. Stripping `info.version` instead is not open either: OpenAPI requires it.
 - **Plain stdlib without huma.** Nothing to learn beyond `net/http`, but the validation and the OpenAPI document would have to be hand-written, and both are load-bearing for the roadmap rather than decoration.
 - **chi, echo or gin.** A router in place of the one already in the standard library; method patterns cover what this API asks of routing.
 - **Spec-first generation (oapi-codegen, ogen).** Handlers generated from a hand-written specification. Code-first keeps the contract in the same file as the code that serves it, which is fewer places to keep honest.

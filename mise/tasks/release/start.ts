@@ -8,6 +8,7 @@
 import path from 'node:path';
 import { CHANGELOG_DIR, draftPage, insertIntoMeta } from '../../lib/release/changelog';
 import { env, fail, git, gitOk, lastTag, mainCheckout, subjectsSince } from '../../lib/release/git';
+import { OPENAPI_PATH, specVersion, stampSpec } from '../../lib/release/openapi';
 import { type Args, parseArgs } from '../../lib/release/steps';
 import { belowSuggestion, classificationBase, classify, suggest, validate } from '../../lib/release/version';
 
@@ -78,6 +79,7 @@ Dry run - nothing was created. release:start would:
   on a new branch ${branch} off develop${taken}
   run mise run setup there
   add ${version} to ${CHANGELOG_DIR}/meta.json
+  set info.version in ${OPENAPI_PATH} to ${specVersion(version)}
   write ${CHANGELOG_DIR}/${version}.mdx:
 
 ${draft}`);
@@ -93,6 +95,9 @@ if (setup.exitCode !== 0) fail(`mise run setup failed in ${dir}`);
 await Bun.write(path.join(dir, CHANGELOG_DIR, `${version}.mdx`), draft);
 const metaPath = path.join(dir, CHANGELOG_DIR, 'meta.json');
 await Bun.write(metaPath, insertIntoMeta(await Bun.file(metaPath).text(), version));
+// The published API reference names the release it documents.
+const specPath = path.join(dir, OPENAPI_PATH);
+await Bun.write(specPath, stampSpec(await Bun.file(specPath).text(), version));
 
 // The main checkout stays on develop on purpose: release:finish fast-forwards
 // it there. Say so, or the release looks like it never started.
@@ -104,6 +109,7 @@ This checkout stays on develop - open that folder to work on the release.
 Next, in that worktree:
   1. Write ${CHANGELOG_DIR}/${version}.mdx - highlights, the rest, and
      the upgrade notice if anything is breaking. Remove the DRAFT line.
-  2. Commit it:  docs(changelog): write the ${version} release notes
+  2. Commit it, together with ${OPENAPI_PATH}:
+       docs(changelog): write the ${version} release notes
   3. Run:  mise run release:finish
 `);

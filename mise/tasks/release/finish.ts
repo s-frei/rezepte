@@ -5,6 +5,7 @@
 // docs/memory/content/howtos/release.mdx.
 import { CHANGELOG_DIR, checkPage, parseFrontmatter } from '../../lib/release/changelog';
 import { env, fail, git, gitOk, lastTag, mainBlocker, mainCheckout, remoteBlocker, subjectsSince, tagBlocker } from '../../lib/release/git';
+import { checkSpec, OPENAPI_PATH } from '../../lib/release/openapi';
 import { finishSteps, formatStep, parseArgs } from '../../lib/release/steps';
 import { classificationBase, classify, parseVersion } from '../../lib/release/version';
 
@@ -44,6 +45,10 @@ const fm = parseFrontmatter(src);
 if ('error' in fm) fail(fm.error); // checkPage already reported it; narrows the type
 const description = fm.data.description ?? '';
 
+// The OpenAPI document the docs publish names this release.
+const specProblem = checkSpec(await Bun.file(OPENAPI_PATH).text(), version);
+if (specProblem) fail(specProblem);
+
 // 2. Everything that would stop the steps after the gate, checked before
 //    it, so a doomed release fails in a second rather than after minutes -
 //    and never after develop has already moved. Run again right before
@@ -67,7 +72,7 @@ const push = `git push --atomic origin develop main ${version}`;
 
 if (dryRun) {
 	console.log(`
-${pagePath} is ready and nothing blocks ${version}.
+${pagePath} and ${OPENAPI_PATH} are ready and nothing blocks ${version}.
 Skipped in a dry run: mise run check, and the same checks again after it.
 
 release:finish would run, in ${root}:

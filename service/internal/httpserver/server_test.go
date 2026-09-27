@@ -73,6 +73,33 @@ func TestOpenAPIIsServed(t *testing.T) {
 	}
 }
 
+func TestOpenAPIVersionIsTheBuildVersion(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{"with WithVersion", []Option{WithVersion("1.2.3")}, "1.2.3"},
+		{"without WithVersion", nil, "dev"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			newTestServer(t, tc.opts...).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil))
+			var doc struct {
+				Info struct {
+					Version string `json:"version"`
+				} `json:"info"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+				t.Fatalf("body is not JSON: %v", err)
+			}
+			if doc.Info.Version != tc.want {
+				t.Fatalf("info.version = %q, want %q", doc.Info.Version, tc.want)
+			}
+		})
+	}
+}
+
 func TestDocsIsServed(t *testing.T) {
 	rec := httptest.NewRecorder()
 	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil))

@@ -30,14 +30,14 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
     ```bash
     mise run release:start
     ```
-    In the main checkout, on a clean `develop`. It prints how many breaking, `feat` and other commits came since the last release and names the breaking ones, suggests the version (breaking → major, `feat` → minor, else patch; `v1.0.0` without a tag; after a release candidate the release it previews, unless what landed since needs a bigger step) and asks; pass a version (`mise run release:start v1.2.0`) to skip the question; a version smaller than the suggestion gets a warning, not a refusal, because a `!` commit may break nothing anyone runs. `--dry-run` shows the suggestion, the branch and worktree it would open and the draft page, and creates nothing. It opens `release/vX.Y.Z` in its own worktree under `.claude/worktrees/release-vX.Y.Z`, installs its dependencies, and drafts `docs/user/content/changelog/<version>.mdx` there. The main checkout stays on `develop`, because `release:finish` fast-forwards `develop` in it: the notes are written and committed in the release worktree, never on `develop`.
+    In the main checkout, on a clean `develop`. It prints how many breaking, `feat` and other commits came since the last release and names the breaking ones, suggests the version (breaking → major, `feat` → minor, else patch; `v1.0.0` without a tag; after a release candidate the release it previews, unless what landed since needs a bigger step) and asks; pass a version (`mise run release:start v1.2.0`) to skip the question; a version smaller than the suggestion gets a warning, not a refusal, because a `!` commit may break nothing anyone runs. `--dry-run` shows the suggestion, the branch and worktree it would open and the draft page, and creates nothing. It opens `release/vX.Y.Z` in its own worktree under `.claude/worktrees/release-vX.Y.Z`, installs its dependencies, drafts `docs/user/content/changelog/<version>.mdx` there, and stamps the version into `info.version` of `docs/user/public/openapi.json`. The main checkout stays on `develop`, because `release:finish` fast-forwards `develop` in it: the notes are written and committed in the release worktree, never on `develop`.
 
   </Step>
   <Step>
 
     ### Write the release notes
 
-    In the release worktree, turn the draft into the page - usually an agent does, following [Write release notes](/howtos/write-release-notes), and the maintainer reads the result. Update [Roadmap](/roadmap) and any `docs/user/` page the release changes. Commit: `docs(changelog): write the vX.Y.Z release notes`.
+    In the release worktree, turn the draft into the page - usually an agent does, following [Write release notes](/howtos/write-release-notes), and the maintainer reads the result. Update [Roadmap](/roadmap) and any `docs/user/` page the release changes. Commit it together with the stamped `openapi.json`: `docs(changelog): write the vX.Y.Z release notes`.
 
   </Step>
   <Step>
@@ -46,7 +46,7 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
     ```bash
     mise run release:finish
     ```
-    In the release worktree. It refuses a page that still has the draft marker, `FILL IN`, a missing field, or no upgrade notice despite breaking commits; stops if `develop` moved on meanwhile (`git rebase develop` in the release worktree, then run it again), if the tag already exists, if a local `main` is diverged or checked out in a worktree, or if `origin/develop` or `origin/main` has commits the release lacks - before the gate and once more after it; runs `mise run check`; fast-forwards `develop`, then `main`; tags `main` with an annotated `vX.Y.Z`; removes the worktree and the branch. All of it is local. `mise run release:finish --dry-run` runs every check except `mise run check`, then lists the exact git commands it would run and the push; it exits 0 only when the release is ready. If a step fails in a real run, the message lists what already happened and the remaining commands, quoted so they can be pasted.
+    In the release worktree. It refuses a page that still has the draft marker, `FILL IN`, a missing field, or no upgrade notice despite breaking commits, and an `openapi.json` whose `info.version` is not the release's; stops if `develop` moved on meanwhile (`git rebase develop` in the release worktree, then run it again), if the tag already exists, if a local `main` is diverged or checked out in a worktree, or if `origin/develop` or `origin/main` has commits the release lacks - before the gate and once more after it; runs `mise run check`; fast-forwards `develop`, then `main`; tags `main` with an annotated `vX.Y.Z`; removes the worktree and the branch. All of it is local. `mise run release:finish --dry-run` runs every check except `mise run check`, then lists the exact git commands it would run and the push; it exits 0 only when the release is ready. If a step fails in a real run, the message lists what already happened and the remaining commands, quoted so they can be pasted.
 
   </Step>
   <Step>

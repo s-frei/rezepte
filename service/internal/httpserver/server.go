@@ -82,8 +82,9 @@ func WithShellHeaders(f ShellHeaderFunc) Option {
 	return func(s *Server) { s.headers = f }
 }
 
-// WithVersion sets the build version /healthz reports. Without it the server
-// reports "dev", which is what a plain `go build` produces.
+// WithVersion sets the build version /healthz reports and the OpenAPI
+// document carries as info.version. Without it both say "dev", which is what
+// a plain `go build` produces.
 func WithVersion(v string) Option {
 	return func(s *Server) { s.version = v }
 }
@@ -153,7 +154,7 @@ func installErrorHook() {
 // middleware (such as auth.Middleware) with that guarantee.
 func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *Server {
 	mux := http.NewServeMux()
-	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux), version: "dev"}
+	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux), version: defaultVersion}
 
 	installErrorHook()
 	errorLogger.Store(logger)
@@ -161,6 +162,9 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 	for _, opt := range opts {
 		opt(s)
 	}
+	// The API is versioned with the application: one number, bumped by the
+	// release tag, never by hand. See docs/memory/content/architecture/api.mdx.
+	s.api.OpenAPI().Info.Version = s.version
 
 	// The version is public here by decision: it is the one place an operator
 	// can read what a running instance is without shell access to it.

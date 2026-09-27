@@ -53,10 +53,17 @@ var apiTags = []*huma.Tag{
 	{Name: "tokens", Description: "Managing the API tokens a program authenticates with."},
 }
 
+// defaultVersion is what a build without -X main.version reports, both on
+// /healthz and as the document's info.version.
+const defaultVersion = "dev"
+
 // newAPI configures huma on the given mux. Operations register with full
 // paths (e.g. /api/v1/recipes) so the mux and OpenAPI agree.
+//
+// The API has no version of its own: info.version is the build version, so
+// it is set by New once WithVersion has run, not here.
 func newAPI(mux *http.ServeMux) huma.API {
-	cfg := huma.DefaultConfig("Rezepte API", "0.1.0")
+	cfg := huma.DefaultConfig("Rezepte API", defaultVersion)
 	cfg.Tags = apiTags
 	cfg.OpenAPIPath = apiPrefix + "/openapi"
 	cfg.DocsPath = apiPrefix + "/docs"

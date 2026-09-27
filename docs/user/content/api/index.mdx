@@ -9,6 +9,8 @@ Rezepte's frontend talks to the same HTTP API documented here — there is nothi
 
 Every endpoint lives under `/api/v1` of your instance (e.g. `http://localhost:8060/api/v1`). Requests and responses are JSON, with camelCase field names.
 
+The API is versioned with Rezepte itself: `info.version` in `/api/v1/openapi.json` is the Rezepte version the instance runs, the same number `/healthz` reports, and a release's [changelog](/changelog) page says what changed in the API.
+
 ## Authentication
 
 Two credentials work. An **API token** is what programs should use - see
