@@ -15,6 +15,7 @@ function scalingRecipe(title: string): RecipeInput {
 		prepMinutes: null,
 		cookMinutes: null,
 		sourceUrl: null,
+		sourceName: null,
 		tags: [],
 		ingredientGroups: [
 			{

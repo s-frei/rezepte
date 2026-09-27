@@ -44,6 +44,7 @@ function baseInput(overrides: Partial<RecipeInput> = {}): RecipeInput {
 		prepMinutes: 30,
 		cookMinutes: 45,
 		sourceUrl: 'https://example.test/tarte',
+		sourceName: 'Ottolenghi – Simple, S. 142',
 		tags: ['dessert', 'backen'],
 		ingredientGroups: [
 			{
@@ -174,14 +175,18 @@ describe('fromRecipe', () => {
 		expect(form.prepMinutes).toBe('30');
 		expect(form.cookMinutes).toBe('45');
 		expect(form.sourceUrl).toBe('https://example.test/tarte');
+		expect(form.sourceName).toBe('Ottolenghi – Simple, S. 142');
 		expect(form.tags).toEqual(['dessert', 'backen']);
 	});
 
 	it('renders null scalars as empty strings', () => {
-		const form = fromRecipe(baseInput({ prepMinutes: null, cookMinutes: null, sourceUrl: null }));
+		const form = fromRecipe(
+			baseInput({ prepMinutes: null, cookMinutes: null, sourceUrl: null, sourceName: null })
+		);
 		expect(form.prepMinutes).toBe('');
 		expect(form.cookMinutes).toBe('');
 		expect(form.sourceUrl).toBe('');
+		expect(form.sourceName).toBe('');
 	});
 
 	it('renders a fractional quantity with a decimal point in English', () => {
@@ -294,12 +299,13 @@ describe('toInput', () => {
 	});
 
 	it('converts blank optional strings to null', () => {
-		const form = validForm({ sourceUrl: '   ' });
+		const form = validForm({ sourceUrl: '   ', sourceName: '  ' });
 		form.ingredientGroups[0].name = '';
 		form.ingredientGroups[0].ingredients[0].unit = '';
 		form.ingredientGroups[0].ingredients[0].note = '  ';
 		const result = toInput(form);
 		expect(result.sourceUrl).toBeNull();
+		expect(result.sourceName).toBeNull();
 		expect(result.ingredientGroups[0].name).toBeNull();
 		expect(result.ingredientGroups[0].ingredients[0].unit).toBeNull();
 		expect(result.ingredientGroups[0].ingredients[0].note).toBeNull();

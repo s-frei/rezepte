@@ -69,6 +69,8 @@ export type RecipeInput = {
 	prepMinutes: number | null;
 	cookMinutes: number | null;
 	sourceUrl: string | null;
+	/** A book, a website or a person; printed after "Adapted from". */
+	sourceName: string | null;
 	tags: string[];
 	ingredientGroups: IngredientGroup[];
 	steps: Step[];
@@ -275,6 +277,7 @@ export function emptyInput(): RecipeInput {
 		prepMinutes: null,
 		cookMinutes: null,
 		sourceUrl: null,
+		sourceName: null,
 		tags: [],
 		ingredientGroups: [
 			{ name: null, ingredients: [{ quantity: null, unit: null, name: '', note: null }] }

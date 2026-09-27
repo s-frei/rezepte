@@ -831,6 +831,7 @@ const REFERENCE_RECIPE = {
 	prepMinutes: null,
 	cookMinutes: null,
 	sourceUrl: null,
+	sourceName: null,
 	tags: [],
 	ingredientGroups: [
 		{

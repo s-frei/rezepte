@@ -68,6 +68,7 @@ export type RecipeForm = {
 	prepMinutes: string;
 	cookMinutes: string;
 	sourceUrl: string;
+	sourceName: string;
 	tags: string[];
 	ingredientGroups: FormGroup[];
 	steps: FormStep[];
@@ -93,6 +94,7 @@ const FIELD_ORDER = [
 	'servings',
 	'prepMinutes',
 	'cookMinutes',
+	'sourceName',
 	'sourceUrl',
 	'tags',
 	'ingredientGroups',
@@ -244,6 +246,7 @@ export function fromRecipe(recipe: RecipeInput): RecipeForm {
 		prepMinutes: recipe.prepMinutes === null ? '' : String(recipe.prepMinutes),
 		cookMinutes: recipe.cookMinutes === null ? '' : String(recipe.cookMinutes),
 		sourceUrl: recipe.sourceUrl ?? '',
+		sourceName: recipe.sourceName ?? '',
 		tags: [...recipe.tags],
 		ingredientGroups: groups.length > 0 ? groups : [newGroup()],
 		steps: steps.length > 0 ? steps : [newStep()],
@@ -400,6 +403,7 @@ export function toInput(form: RecipeForm): RecipeInput {
 		prepMinutes: minutesOrNull(form.prepMinutes),
 		cookMinutes: minutesOrNull(form.cookMinutes),
 		sourceUrl: blankToNull(form.sourceUrl),
+		sourceName: blankToNull(form.sourceName),
 		tags: form.tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0),
 		// The API requires at least one group (`minItems:"1"`).
 		ingredientGroups: groups.length > 0 ? groups : [{ name: null, ingredients: [] }],
