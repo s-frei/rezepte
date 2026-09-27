@@ -1,8 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_name": "Rezepte",
-	"home_placeholder": "Rezepte ist noch leer.",
-	"home_signed_in_as": "Angemeldet als {username}",
 	"not_found": "Diese Seite gibt es nicht.",
 	"login_welcome": "Willkommen zurück.",
 	"login_title": "Anmelden",
@@ -438,7 +436,6 @@
 	"settings_nav_api": "API",
 	"api_section_title": "HTTP-API",
 	"api_section_intro": "Rezepte spricht OpenAPI 3.1 – dieselben Endpunkte, die auch diese App benutzt.",
-	"api_base_url_label": "Basis-URL",
 	"api_base_url_copy": "Basis-URL kopieren",
 	"api_base_url_copied": "Basis-URL kopiert",
 	"api_stat_operations": "Endpunkte",
