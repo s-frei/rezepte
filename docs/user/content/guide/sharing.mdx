@@ -1,9 +1,11 @@
 ---
 title: Sharing recipes
-description: Send a recipe link, and what the chat preview shows
+description: Send a recipe link to the household, what the chat preview shows, and public links for people outside it
 ---
 
 A recipe's page has two ways to hand out its address: **Copy link** in the "…" menu, and on a phone the share button over the cover photo, which opens the phone's own share sheet. The link is the recipe's normal address. Whoever opens it needs an account on your instance to see the recipe; the link does not let anyone in.
+
+For someone who does not have an account, and should not need one, the same "…" menu offers **Create public link…** instead - see [Public links](#public-links) below.
 
 ## The link preview
 
@@ -13,7 +15,7 @@ To build the card, the chat app fetches the link without being signed in to Reze
 
 ## The household setting
 
-The owner of the instance finds **Link previews** under **Settings → Members**. It is off until the owner switches on **Show recipes in link previews**; while it is off, every link shows the Rezepte logo. Once it is on, the owner picks how long a shared link shows the recipe: **15 min** (the default), **1 hour** or **1 day**.
+The owner of the instance finds **Link previews** under **Settings → People**. It is off until the owner switches on **Show recipes in link previews**; while it is off, every link shows the Rezepte logo. Once it is on, the owner picks how long a shared link shows the recipe: **15 min** (the default), **1 hour** or **1 day**.
 
 Switching it off applies at once, also to links already sent. A new time applies to links shared from then on. Admins see the card too, with a sentence saying what applies right now, but only the owner can change it.
 
@@ -24,3 +26,48 @@ Switching it off applies at once, also to links already sent. A new time applies
 - A recipe without a photo shows its title and description with the Rezepte logo.
 - Anyone the link is forwarded to within that time sees the preview too; the recipe itself still needs an account.
 - Some chat apps only show a picture from an `https` address. Behind a reverse proxy, set `REZEPTE_SECURE_COOKIES=true` as [Reverse proxy](/operations/reverse-proxy) describes, so Rezepte names its pictures over `https`.
+
+## Public links
+
+A public link is different from **Copy link** above: it opens the recipe for anyone who has it, with no account at all, until you revoke it or it expires. Making one is deliberate, and it stays deliberate for as long as it exists - your instance's owner decides whether public links are allowed at all, and every one you create shows up in a list you can take back at any time.
+
+<Callout type="info">
+  Your instance's owner turns public links on for the household before this section applies to you. Until then, "Create public link…" is not in the menu.
+</Callout>
+
+<Steps>
+  <Step>
+
+    ### Create a link
+
+    Open a recipe and choose **Create public link…** from the "…" menu. Pick how long it lasts - a day, a week, a month, a year, or permanent, whichever your instance offers - and confirm. The link opens a read-only page: the recipe's photos, ingredients (with the servings scaler) and steps, and nothing about who wrote it or the rest of your collection.
+
+    <Screenshot name="public-link-create" caption="Creating a public link from a recipe's menu" />
+
+  </Step>
+  <Step>
+
+    ### Share it
+
+    Copy the link, or use the share button where your browser offers one, and send it however you like - it works for anyone who opens it, signed in or not.
+
+    <Screenshot name="public-page" caption="What someone opening the link sees, without an account" />
+
+  </Step>
+  <Step>
+
+    ### Manage or revoke it
+
+    Once you have a link, the same menu item reads **Public link…**, a **Shared publicly** marker sits among the tags above the recipe's title, and the end of the page says how long your link runs, with **Manage link**. Only you see these: every member has their own link to a recipe, and nobody else's shows on the recipe page - an admin finds everyone's under Shared links. Any of them opens the same dialog, where you can copy the link again or **Revoke** it. Revoking stops the link working at once. **Settings → Shared links** lists every public link you have created, across all your recipes, with the same actions - useful once you have more than one. Once your links are in more than one state, **Status** narrows the list to active, paused or limited ones; a note above the list says when public sharing is switched off or your own right to share was withdrawn.
+
+    <Screenshot name="shared-links" caption="Shared links, as an admin sees everyone's" />
+
+  </Step>
+</Steps>
+
+- A public link shows the recipe as it is right now. Editing the recipe afterwards changes what the link shows.
+- A link that reaches the end of its own lifetime is gone for good the moment it does: it stops working and leaves Shared links on its own, without you having to revoke it.
+- A link the owner switches off for the household, or one now past a lowered maximum lifetime, is different: it stops working but stays in Shared links, marked "Paused" or "Limited by the maximum", and starts working again on its own once the setting is reversed.
+- An admin can withdraw your own right to share publicly, without touching the household switch. Your existing links pause the same way - they stop working but stay in your list, marked "Paused" - until it is restored; "Create public link…" disappears from the menu meanwhile.
+- Only one public link exists per recipe per person: sharing the same recipe again shows you the link you already have, rather than making a second one.
+- Deleting the recipe, or your account being deleted, removes its public links with it.

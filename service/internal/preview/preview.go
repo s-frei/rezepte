@@ -124,7 +124,7 @@ func (s *Service) forSlug(ctx context.Context, slug, token string) (*httpserver.
 	p := &httpserver.LinkPreview{
 		URL:         recipePath(rec.Slug) + query,
 		Title:       rec.Title,
-		Description: summary(rec.Description),
+		Description: Summary(rec.Description),
 	}
 	if rec.CoverImageID == nil {
 		return p, nil
@@ -192,9 +192,10 @@ func coverPath(recipeID, imageID string) string {
 	return "/link-preview/" + url.PathEscape(recipeID) + "/" + url.PathEscape(imageID)
 }
 
-// summary folds a description onto one line and cuts it to descriptionRunes
-// at a word boundary.
-func summary(s string) string {
+// Summary folds a description onto one line and cuts it to descriptionRunes
+// at a word boundary: the og:description of every link preview, the
+// public share page's included.
+func Summary(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	if utf8.RuneCountInString(s) <= descriptionRunes {
 		return s

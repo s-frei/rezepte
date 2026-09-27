@@ -21,6 +21,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
+	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -56,12 +57,14 @@ func newFullApp(t *testing.T) fullApp {
 	if err != nil {
 		t.Fatal(err)
 	}
+	shares := share.NewService(conn, instance, users)
 
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte("app")}},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
 		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
-		httpserver.WithLinkPreview(previews.ForRequest))
+		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
+		httpserver.WithShellHeaders(share.ShellHeaders))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	recipe.Register(srv.API(), recipes)
@@ -76,6 +79,9 @@ func newFullApp(t *testing.T) fullApp {
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	preview.Register(srv.API(), previews)
 	srv.Handle("GET /link-preview/{recipeId}/{imageId}", previews.CoverHandler())
+	share.Register(srv.API(), shares)
+	share.RegisterPublic(srv.API(), shares, recipes)
+	srv.Handle("GET /public-images/{token}/{imageId}/{file}", shares.ImageHandler(images))
 	userapi.Register(srv.API(), users, sessions)
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
@@ -246,9 +252,9 @@ func TestEveryFeatureRegisters(t *testing.T) {
 			ids[op.OperationID] = true
 		}
 	}
-	// One operation per feature package: proof that all seven registrations
+	// One operation per feature package: proof that all nine registrations
 	// made it into the same document.
-	for _, id := range []string{"login", "list-recipes", "upload-image", "get-settings", "create-share-link", "list-users", "list-api-tokens"} {
+	for _, id := range []string{"login", "list-recipes", "upload-image", "get-settings", "create-share-link", "list-users", "list-api-tokens", "create-public-share", "get-public-recipe"} {
 		if !ids[id] {
 			t.Errorf("operation %q missing from the OpenAPI document", id)
 		}
@@ -468,4 +474,50 @@ func TestLinkPreviewCoverIsNotTheSPA(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "app") {
 		t.Errorf("the cover route fell through to the SPA: %q", rec.Body.String())
 	}
+}
+
+// TestPublicSharesWiring pins the boundary of public shares on the whole
+// server: managing them needs a session, while the public recipe and its
+// photos answer a stranger for themselves - a 404 for a link that serves
+// nothing, never the app shell and never a login redirect.
+func TestPublicSharesWiring(t *testing.T) {
+	app := newFullApp(t)
+	if got := app.get("/api/v1/shares", nil).Code; got != http.StatusUnauthorized {
+		t.Errorf("GET /api/v1/shares without a session: status %d, want 401", got)
+	}
+	for _, route := range []string{"/api/v1/public/shares/x", "/public-images/x/y/thumb.jpg"} {
+		for _, accept := range []string{"", "text/html,application/xhtml+xml"} {
+			req := httptest.NewRequest(http.MethodGet, route, nil)
+			if accept != "" {
+				req.Header.Set("Accept", accept)
+			}
+			rec := httptest.NewRecorder()
+			app.srv.Handler().ServeHTTP(rec, req)
+			if rec.Code != http.StatusNotFound {
+				t.Errorf("GET %s (Accept %q) without a session: status %d, want 404", route, accept, rec.Code)
+			}
+			if strings.Contains(rec.Body.String(), "app") {
+				t.Errorf("GET %s fell through to the SPA: %q", route, rec.Body.String())
+			}
+		}
+	}
+
+	rec := app.get("/api/v1/users", app.loginAdmin(t))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canSharePublicly":true`) {
+		t.Errorf("users payload: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+// loginAdmin creates an admin and returns their session cookie.
+func (a fullApp) loginAdmin(t *testing.T) *http.Cookie {
+	t.Helper()
+	ctx := t.Context()
+	if _, err := a.users.Create(ctx, user.CreateParams{Username: "keeper", Password: "secret123", Role: user.RoleAdmin}); err != nil {
+		t.Fatal(err)
+	}
+	s, err := a.sessions.Login(ctx, "keeper", "secret123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &http.Cookie{Name: auth.CookieName, Value: s.Token}
 }

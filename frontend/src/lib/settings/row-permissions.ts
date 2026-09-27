@@ -9,6 +9,8 @@ export type RowPermissions = {
 	manageAccount: boolean;
 	/** Rename and recolor someone else. */
 	editProfile: boolean;
+	/** Withdraw or restore the right to share recipes publicly. */
+	toggleSharing: boolean;
 };
 
 /**
@@ -23,7 +25,9 @@ export type RowPermissions = {
  * color are the owner's to hand out for every account but their own - the
  * profile page is where anyone renames themselves, and the own account is
  * never reset or deleted from here, because a reset ends the viewer's own
- * sessions.
+ * sessions. The right to share publicly follows reset and delete: the API
+ * guards all three with the same rank check, so one request may carry them
+ * together.
  */
 export function rowPermissions(
 	actorRole: UserRole,
@@ -31,12 +35,14 @@ export function rowPermissions(
 	isSelf: boolean
 ): RowPermissions {
 	if (!isAdminRole(actorRole) || target.role === 'superadmin') {
-		return { changeRole: false, manageAccount: false, editProfile: false };
+		return { changeRole: false, manageAccount: false, editProfile: false, toggleSharing: false };
 	}
 	const isOwner = actorRole === 'superadmin';
+	const manageAccount = !isSelf && (target.role === 'user' || isOwner);
 	return {
 		changeRole: isOwner,
-		manageAccount: !isSelf && (target.role === 'user' || isOwner),
-		editProfile: !isSelf && isOwner
+		manageAccount,
+		editProfile: !isSelf && isOwner,
+		toggleSharing: manageAccount
 	};
 }

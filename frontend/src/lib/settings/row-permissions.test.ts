@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { UserRole } from '$lib/api/users';
 import { rowPermissions } from './row-permissions';
 
-const none = { changeRole: false, manageAccount: false, editProfile: false };
+const none = { changeRole: false, manageAccount: false, editProfile: false, toggleSharing: false };
 const roles: UserRole[] = ['user', 'admin', 'superadmin'];
 
 describe('rowPermissions', () => {
@@ -24,15 +24,16 @@ describe('rowPermissions', () => {
 	});
 
 	it('lets the owner do everything to an admin or a member', () => {
-		const all = { changeRole: true, manageAccount: true, editProfile: true };
+		const all = { changeRole: true, manageAccount: true, editProfile: true, toggleSharing: true };
 		expect(rowPermissions('superadmin', { role: 'admin' }, false)).toEqual(all);
 		expect(rowPermissions('superadmin', { role: 'user' }, false)).toEqual(all);
 	});
 
-	it('lets an admin reset and delete a member, nothing more', () => {
+	it('lets an admin reset, delete and switch sharing for a member, nothing more', () => {
 		expect(rowPermissions('admin', { role: 'user' }, false)).toEqual({
 			...none,
-			manageAccount: true
+			manageAccount: true,
+			toggleSharing: true
 		});
 	});
 

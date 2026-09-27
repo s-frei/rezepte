@@ -26,6 +26,15 @@ func TestDefaultsToOpen(t *testing.T) {
 	if got.LinkPreviewMinutes != 15 {
 		t.Errorf("LinkPreviewMinutes = %d on a fresh instance, want 15", got.LinkPreviewMinutes)
 	}
+	if got.PublicShares {
+		t.Error("PublicShares = true on a fresh instance, want false")
+	}
+	if got.PublicShareDefaultDays != nil {
+		t.Errorf("PublicShareDefaultDays = %v on a fresh instance, want nil", got.PublicShareDefaultDays)
+	}
+	if got.PublicShareMaxDays != nil {
+		t.Errorf("PublicShareMaxDays = %v on a fresh instance, want nil", got.PublicShareMaxDays)
+	}
 }
 
 func TestOnlyTheOwnerSetsLinkPreviews(t *testing.T) {
@@ -73,6 +82,53 @@ func TestLinkPreviewKeyIsStable(t *testing.T) {
 	}
 	if !bytes.Equal(first, second) {
 		t.Error("a second service read a different key")
+	}
+}
+
+func intPtr(i int) *int { return &i }
+
+func TestShareLifetimes(t *testing.T) {
+	ctx := context.Background()
+	svc := settings.NewService(dbtest.Open(t))
+	admin := user.User{ID: "a", Role: user.RoleAdmin}
+	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
+
+	if _, err := svc.SetShareLifetimes(ctx, admin, intPtr(30), intPtr(7)); !errors.Is(err, settings.ErrOwnerRequired) {
+		t.Errorf("admin: err = %v, want ErrOwnerRequired", err)
+	}
+
+	// A default above the new maximum is lowered to the maximum.
+	got, err := svc.SetShareLifetimes(ctx, owner, intPtr(30), intPtr(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PublicShareDefaultDays == nil || *got.PublicShareDefaultDays != 7 {
+		t.Errorf("PublicShareDefaultDays = %v, want 7 (lowered to the maximum)", got.PublicShareDefaultDays)
+	}
+	if got.PublicShareMaxDays == nil || *got.PublicShareMaxDays != 7 {
+		t.Errorf("PublicShareMaxDays = %v, want 7", got.PublicShareMaxDays)
+	}
+
+	// Both nil is permanent for both.
+	got, err = svc.SetShareLifetimes(ctx, owner, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PublicShareDefaultDays != nil || got.PublicShareMaxDays != nil {
+		t.Errorf("got %+v, want both nil (permanent)", got)
+	}
+
+	if _, err := svc.SetShareLifetimes(ctx, owner, intPtr(2), nil); !errors.Is(err, settings.ErrUnknownShareLifetime) {
+		t.Errorf("2 days: err = %v, want ErrUnknownShareLifetime", err)
+	}
+}
+
+func TestMigrationRefusesDefaultAboveMaximum(t *testing.T) {
+	conn := dbtest.Open(t)
+	_, err := conn.ExecContext(context.Background(),
+		`UPDATE instance_settings SET public_share_default_days = 30, public_share_max_days = 7`)
+	if err == nil {
+		t.Error("UPDATE with default above maximum succeeded, want a CHECK failure")
 	}
 }
 

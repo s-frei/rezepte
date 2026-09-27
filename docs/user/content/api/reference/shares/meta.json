@@ -1,0 +1,12 @@
+{
+  "title": "Shares",
+  "description": "Public links to recipes: creating, listing and revoking them. Session only.",
+  "pages": [
+    "index",
+    "create-public-share",
+    "list-shares",
+    "revoke-all-shares",
+    "get-my-public-share",
+    "revoke-share"
+  ]
+}

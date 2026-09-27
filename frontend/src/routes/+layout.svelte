@@ -16,7 +16,10 @@
 	// nav, no command palette and no Cmd+K. Matched on the route id rather
 	// than the pathname so the check is exact and independent of the slug.
 	const isFullscreenRoute = $derived(page.route.id === '/recipes/[slug]/cook');
-	const bare = $derived(isLoginRoute || isFullscreenRoute);
+	// A public share has no session and no household to show a nav for -
+	// its own page owns the whole viewport, wordmark and footer included.
+	const isPublicShareRoute = $derived(page.url.pathname.startsWith('/s/'));
+	const bare = $derived(isLoginRoute || isFullscreenRoute || isPublicShareRoute);
 
 	// app.html ships a static lang attribute; the real locale is only known
 	// once Paraglide has resolved it. Screen readers and spell checking read

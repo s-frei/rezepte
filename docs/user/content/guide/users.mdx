@@ -21,6 +21,9 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | Hand out the "Admin" role or take it back | – | – | ✓ |
 | Change **someone else's** display name or color | – | – | ✓ |
 | Issue [API tokens](/api/tokens) | – | ✓ | ✓ |
+| Withdraw or restore a member's right to share publicly | – | ✓ | ✓ |
+| Withdraw or restore an **admin's** right to share publicly | – | – | ✓ |
+| Turn public links on or off for the household, and set their lifetime | – | – | ✓ |
 | Delete or demote the **Owner**, or reset their password | – | – | – |
 | Delete your own account | – | – | – |
 
@@ -71,6 +74,13 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
   </Step>
   <Step>
 
+    ### Allow or withdraw public sharing
+
+    On a wide screen the "More actions" menu in a person's row (next to the pencil, where there is one) carries "May share publicly" as a checkbox; on a phone it is a switch in the sheet that opens when you tap the person. It follows the same rule as resetting a password: any admin can switch it for a member, only the owner for an admin, and nobody for the owner. Turning it off pauses that person's existing public links until it is turned back on, and hides "Create public link…" on their recipe pages meanwhile. It has nothing to do with whether public links are allowed for the household at all - that is the owner's own **Public sharing** switch, below the list of people. See [Public links](/guide/sharing#public-links).
+
+  </Step>
+  <Step>
+
     ### Reset a password
 
     "Reset password" sets a new password for that member and signs them out on every device. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
@@ -88,6 +98,12 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 ## Recipe editing
 
 Below the list, admins find the **Recipe editing** card, which holds the household setting that locks recipes to their authors and admins. The owner switches it; every other admin sees what applies right now. [Editing rights](/guide/editing-rights) explains how it combines with the setting on each recipe.
+
+## Public sharing
+
+The **Public sharing** card is where the owner turns public links on for the household - after confirming, since from then on anyone a link reaches sees the recipe - and picks the default and the longest lifetime a new link may have; every other admin sees a sentence stating what currently applies. This is the household-wide switch - whether any member may create a public link at all - separate from "May share publicly" per person above. See [Public links](/guide/sharing#public-links).
+
+<Screenshot name="public-sharing-card" caption="The Public sharing card, switched on" />
 
 <Callout type="info" title="Good to know">
   The owner is listed under "Owner" and their row carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.

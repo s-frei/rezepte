@@ -59,3 +59,6 @@ UPDATE users
 SET display_name = ?, color = ?, locale = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
+
+-- name: SetCanSharePublicly :one
+UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING *;

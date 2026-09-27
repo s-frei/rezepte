@@ -17,6 +17,8 @@ export type User = {
 	role: 'superadmin' | 'admin' | 'user';
 	color: UserColor;
 	locale: Locale;
+	/** Whether an admin lets this person create public, no-login recipe links. */
+	canSharePublicly: boolean;
 };
 
 /** One palette color and how many accounts hold it. */

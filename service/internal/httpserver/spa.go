@@ -45,12 +45,35 @@ type LinkPreview struct {
 // nil for the app's own.
 type PreviewFunc func(r *http.Request) *LinkPreview
 
+// PreviewFuncs combines several PreviewFuncs into one: the first that returns
+// a preview for a request wins, and the rest are not asked. Nil entries are
+// skipped.
+func PreviewFuncs(fs ...PreviewFunc) PreviewFunc {
+	return func(r *http.Request) *LinkPreview {
+		for _, f := range fs {
+			if f == nil {
+				continue
+			}
+			if p := f(r); p != nil {
+				return p
+			}
+		}
+		return nil
+	}
+}
+
+// ShellHeaderFunc adds or overrides response headers of the app shell for the
+// page a request asks for - the public share page's noindex and no-referrer,
+// say. It runs after the shell's own headers are set, so it may replace them.
+type ShellHeaderFunc func(r *http.Request, h http.Header)
+
 // SPAHandler serves files from fsys. Requests for paths that do not exist
 // receive index.html so client-side routing works. API paths never fall back.
 // secure says the instance is reached over HTTPS (REZEPTE_SECURE_COOKIES),
 // which the app shell's link preview needs to name its URLs absolutely.
-// preview, when not nil, supplies a page's own link preview.
-func SPAHandler(fsys fs.FS, secure bool, preview PreviewFunc) http.Handler {
+// preview, when not nil, supplies a page's own link preview; headers, when
+// not nil, adjusts the shell's response headers per page.
+func SPAHandler(fsys fs.FS, secure bool, preview PreviewFunc, headers ShellHeaderFunc) http.Handler {
 	files := http.FileServerFS(fsys)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
@@ -74,13 +97,13 @@ func SPAHandler(fsys fs.FS, secure bool, preview PreviewFunc) http.Handler {
 		if preview != nil {
 			p = preview(r)
 		}
-		serveShell(w, r, fsys, requestOrigin(r, secure), p)
+		serveShell(w, r, fsys, requestOrigin(r, secure), p, headers)
 	})
 }
 
 // serveShell answers with index.html, its link preview filled in for the
 // page and made absolute for origin.
-func serveShell(w http.ResponseWriter, r *http.Request, fsys fs.FS, origin string, p *LinkPreview) {
+func serveShell(w http.ResponseWriter, r *http.Request, fsys fs.FS, origin string, p *LinkPreview, headers ShellHeaderFunc) {
 	page, err := fs.ReadFile(fsys, "index.html")
 	if err != nil {
 		http.NotFound(w, r)
@@ -88,6 +111,9 @@ func serveShell(w http.ResponseWriter, r *http.Request, fsys fs.FS, origin strin
 	}
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if headers != nil {
+		headers(r, w.Header())
+	}
 	page = renderLinkPreview(page, origin, r.URL.EscapedPath(), p)
 	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(page))
 }

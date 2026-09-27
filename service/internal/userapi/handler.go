@@ -24,7 +24,9 @@ type UserAccount struct {
 	Role        string      `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
-	CreatedAt   time.Time   `json:"createdAt" doc:"When the account was created"`
+	// CanSharePublicly is an admin's per-person switch; see share.
+	CanSharePublicly bool      `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
+	CreatedAt        time.Time `json:"createdAt" doc:"When the account was created"`
 }
 
 // UserAccountList is the response body of list-users.
@@ -79,6 +81,11 @@ type updateInput struct {
 		Role        *string `json:"role,omitempty" enum:"admin,user"`
 		DisplayName *string `json:"displayName,omitempty" maxLength:"64" doc:"Owner only"`
 		Color       *string `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Owner only"`
+		// CanSharePublicly is refused for the owner's own row (the owner
+		// governs public sharing for the whole instance) and for the
+		// caller's own row (one admin cannot re-grant a right another admin
+		// just withdrew from them).
+		CanSharePublicly *bool `json:"canSharePublicly,omitempty" doc:"Allow or withdraw creating public links; withdrawing pauses the person's existing links. Same rank rule as a password reset: only the owner reaches an admin, and nobody the owner."`
 	}
 }
 
@@ -120,13 +127,14 @@ func rankError(err error) error {
 
 func toResponse(u user.User) UserAccount {
 	return UserAccount{
-		ID:          u.ID,
-		Username:    u.Username,
-		DisplayName: u.DisplayName,
-		Role:        string(u.Role),
-		Color:       string(u.Color),
-		Locale:      u.Locale,
-		CreatedAt:   u.CreatedAt,
+		ID:               u.ID,
+		Username:         u.Username,
+		DisplayName:      u.DisplayName,
+		Role:             string(u.Role),
+		Color:            string(u.Color),
+		Locale:           u.Locale,
+		CanSharePublicly: u.CanSharePublicly,
+		CreatedAt:        u.CreatedAt,
 	}
 }
 
@@ -251,7 +259,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		OperationID: "update-user",
 		Method:      http.MethodPatch,
 		Path:        "/api/v1/users/{id}",
-		Summary:     "Change a user's role or profile, and/or reset the password",
+		Summary:     "Change a user's role, profile or public sharing, and/or reset the password",
 		Tags:        []string{"users"},
 		Security:    auth.Protected(auth.ScopeUsersWrite),
 		Errors:      []int{401, 403, 404, 409, 422, 503},
@@ -261,7 +269,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 			return nil, err
 		}
 		hasProfile := in.Body.DisplayName != nil || in.Body.Color != nil
-		if in.Body.Password == nil && in.Body.Role == nil && !hasProfile {
+		if in.Body.Password == nil && in.Body.Role == nil && !hasProfile && in.Body.CanSharePublicly == nil {
 			return nil, huma.Error422UnprocessableEntity("nothing to change")
 		}
 		// Renaming somebody is not administration, so it is the owner's alone -
@@ -292,6 +300,22 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		}
 		if err != nil {
 			return nil, err
+		}
+		// Before the profile, so a refused change leaves nothing
+		// half-written. It follows guardTarget like the role change above and
+		// the password reset below, so none of the three can land while
+		// another is refused.
+		if in.Body.CanSharePublicly != nil {
+			u, err = users.SetCanSharePublicly(ctx, actor, in.ID, *in.Body.CanSharePublicly)
+			if mapped := rankError(err); mapped != nil {
+				return nil, mapped
+			}
+			if errors.Is(err, user.ErrNotFound) {
+				return nil, huma.Error404NotFound("user not found")
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 		if hasProfile {
 			update := user.ProfileUpdate{DisplayName: in.Body.DisplayName}

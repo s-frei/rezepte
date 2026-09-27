@@ -58,7 +58,7 @@ const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     id, username, display_name, password_hash, role, color, locale, created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at
+RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
 `
 
 type CreateUserParams struct {
@@ -96,6 +96,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CanSharePublicly,
 	)
 	return i, err
 }
@@ -132,7 +133,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
 }
 
 const getSuperadmin = `-- name: GetSuperadmin :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at FROM users WHERE role = 'superadmin'
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users WHERE role = 'superadmin'
 `
 
 func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
@@ -148,12 +149,13 @@ func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CanSharePublicly,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at FROM users WHERE id = ?
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -169,12 +171,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CanSharePublicly,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at FROM users WHERE username = ?
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users WHERE username = ?
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -190,12 +193,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CanSharePublicly,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at FROM users ORDER BY username
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users ORDER BY username
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -217,6 +221,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Locale,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CanSharePublicly,
 		); err != nil {
 			return nil, err
 		}
@@ -252,6 +257,33 @@ func (q *Queries) ReassignRecipes(ctx context.Context, arg ReassignRecipesParams
 	return err
 }
 
+const setCanSharePublicly = `-- name: SetCanSharePublicly :one
+UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
+`
+
+type SetCanSharePubliclyParams struct {
+	CanSharePublicly bool
+	ID               string
+}
+
+func (q *Queries) SetCanSharePublicly(ctx context.Context, arg SetCanSharePubliclyParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, setCanSharePublicly, arg.CanSharePublicly, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.DisplayName,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Color,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CanSharePublicly,
+	)
+	return i, err
+}
+
 const updateUserPasswordHash = `-- name: UpdateUserPasswordHash :execrows
 UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?
 `
@@ -274,7 +306,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = ?, color = ?, locale = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at
+RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
 `
 
 type UpdateUserProfileParams struct {
@@ -307,12 +339,13 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CanSharePublicly,
 	)
 	return i, err
 }
 
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at
+UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
 `
 
 type UpdateUserRoleParams struct {
@@ -334,6 +367,7 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CanSharePublicly,
 	)
 	return i, err
 }

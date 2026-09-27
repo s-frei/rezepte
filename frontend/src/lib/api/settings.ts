@@ -1,3 +1,4 @@
+import type { ShareLifetime } from './shares';
 import { api } from './client';
 
 /** How many minutes a link preview lasts: 15 minutes, an hour or a day. */
@@ -10,6 +11,12 @@ export type Settings = {
 	linkPreviews: boolean;
 	/** How long such a link shows the recipe. */
 	linkPreviewMinutes: PreviewLifetime;
+	/** Whether members may open public, no-login links to recipes at all. */
+	publicShares: boolean;
+	/** The lifetime preselected when a member creates a public link. */
+	publicShareDefaultDays: ShareLifetime;
+	/** The longest lifetime a public link may have; null allows permanent links. */
+	publicShareMaxDays: ShareLifetime;
 };
 
 export function getSettings(): Promise<Settings> {

@@ -19,6 +19,8 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/settings"
+	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -59,6 +61,32 @@ var memberMarks = map[string][]int{
 	"mila":  {0, 1, 3},
 	"jonas": {0, 2, 5},
 }
+
+// sharedSample is one public link the demo creates: the sample (by index,
+// as in memberMarks) and the link's lifetime in days.
+type sharedSample struct {
+	index, days int
+}
+
+// Demo sharing: the admin and each member hold public links of their own, so
+// Shared links, its filters and a recipe's marker have something to show,
+// but public sharing itself is off, as on every instance until its owner
+// turns it on - the links are paused, and turning sharing on is part of what
+// one tries out. New links default to a week and run at most a month.
+// Nothing touches the first sample: the documentation photographs it, and
+// the admin's own link would put its marker into those pictures.
+const (
+	shareDefaultDays = 7
+	shareMaxDays     = 30
+)
+
+var (
+	adminShares  = []sharedSample{{4, 30}}
+	memberShares = map[string][]sharedSample{
+		"mila":  {{1, 7}, {3, 30}},
+		"jonas": {{2, 7}, {5, 30}},
+	}
+)
 
 // ErrNoUsers is returned when no user exists to own the sample recipes.
 var ErrNoUsers = errors.New("demo: no user to own the sample recipes")
@@ -186,20 +214,43 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 }
 
 // SeedMembers adds Members to an instance Seed has just filled, in locale's
-// language, and marks the samples in memberMarks tasty on their behalf. It
-// follows the seed: after a skipped seed it writes nothing, since the
-// members belong to the sample data rather than to an instance in use. A
-// member name somebody already holds is left to them, marks included.
+// language, marks the samples in memberMarks tasty on their behalf, and
+// creates the public links in adminShares and memberShares - the admin's as
+// the user named owner, who must be the instance owner, since only the owner
+// switches sharing on, which creating a link needs. It is switched off again
+// once the links exist, so they start out paused. It follows the seed: after a skipped
+// seed it writes nothing, since the members belong to the sample data rather
+// than to an instance in use. A member name somebody already holds is left
+// to them, marks and links included.
 //
 // The members' passwords are public, so only a demo that runs on the
 // published demo credentials may call it; an operator who set their own
 // admin password gets no accounts they did not ask for.
-func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, locale user.Locale, logger *slog.Logger) error {
+func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string, locale user.Locale, logger *slog.Logger) error {
 	if sum.Skipped {
 		return nil
 	}
 	users := user.NewService(conn)
 	recipes := recipe.NewService(conn)
+	instance := settings.NewService(conn)
+	shares := share.NewService(conn, instance, users)
+	admin, err := findOwner(ctx, users, owner)
+	if err != nil {
+		return err
+	}
+	sharing := admin.Role.IsSuperadmin()
+	if sharing {
+		if _, err := instance.SetPublicShares(ctx, admin, true); err != nil {
+			return fmt.Errorf("turn public sharing on: %w", err)
+		}
+		def, maxDays := shareDefaultDays, shareMaxDays
+		if _, err := instance.SetShareLifetimes(ctx, admin, &def, &maxDays); err != nil {
+			return fmt.Errorf("set share lifetimes: %w", err)
+		}
+		if err := shareSamples(ctx, shares, admin, sum, adminShares); err != nil {
+			return err
+		}
+	}
 	for _, name := range Members {
 		m, err := users.Create(ctx, user.CreateParams{
 			Username:    name,
@@ -223,7 +274,31 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, locale user.Loc
 				return fmt.Errorf("mark sample %d tasty for %s: %w", i, name, err)
 			}
 		}
+		if sharing {
+			if err := shareSamples(ctx, shares, m, sum, memberShares[name]); err != nil {
+				return err
+			}
+		}
+	}
+	if sharing {
+		if _, err := instance.SetPublicShares(ctx, admin, false); err != nil {
+			return fmt.Errorf("turn public sharing off: %w", err)
+		}
 	}
 	logger.Info("demo: members seeded", "users", strings.Join(Members, ", "))
+	return nil
+}
+
+// shareSamples creates a public link to each of links' samples as actor.
+func shareSamples(ctx context.Context, shares *share.Service, actor user.User, sum Summary, links []sharedSample) error {
+	for _, l := range links {
+		if l.index >= len(sum.RecipeIDs) {
+			continue
+		}
+		days := l.days
+		if _, err := shares.Create(ctx, actor, sum.RecipeIDs[l.index], &days); err != nil {
+			return fmt.Errorf("share sample %d as %s: %w", l.index, actor.Username, err)
+		}
+	}
 	return nil
 }

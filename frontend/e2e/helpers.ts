@@ -354,3 +354,79 @@ export async function setLinkPreviews(
 		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
 }
+
+/**
+ * Switches public sharing through the API, as the signed-in owner. Like
+ * `setLinkPreviews`, it is instance-wide - a test that turns it on turns it
+ * off again. `null` for either lifetime means no maximum / permanent by
+ * default, matching the settings API.
+ */
+export async function setPublicShares(
+	page: Page,
+	on: boolean,
+	defaultDays: 1 | 7 | 30 | 365 | null = null,
+	maxDays: 1 | 7 | 30 | 365 | null = null
+): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch('/api/v1/settings', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: {
+			publicShares: on,
+			publicShareDefaultDays: defaultDays,
+			publicShareMaxDays: maxDays
+		}
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}
+
+/** A public link, as `POST /recipes/{id}/public-share` hands it out. */
+export type PublicShare = {
+	id: string;
+	recipe: { id: string; slug: string; title: string };
+	path: string;
+	createdAt: string;
+	expiresAt: string | null;
+	status: string;
+};
+
+/**
+ * Opens a public link to a recipe through the API, as the signed-in owner.
+ * `days` follows the API: 1, 7, 30 or 365, `null` (the default) for
+ * permanent.
+ */
+export async function createPublicShare(
+	page: Page,
+	recipeId: string,
+	days: 1 | 7 | 30 | 365 | null = null
+): Promise<PublicShare> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.post(`/api/v1/recipes/${recipeId}/public-share`, {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { days }
+	});
+	expect(
+		response.ok(),
+		`POST /api/v1/recipes/${recipeId}/public-share failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+	return (await response.json()) as PublicShare;
+}
+
+/**
+ * Allows or withdraws a person's right to create public links, through the
+ * API as the signed-in admin. Withdrawing pauses their existing links -
+ * see the share validity rules.
+ */
+export async function setCanSharePublicly(page: Page, userId: string, on: boolean): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch(`/api/v1/users/${userId}`, {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { canSharePublicly: on }
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/users/${userId} failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}

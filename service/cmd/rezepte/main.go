@@ -26,6 +26,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
+	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -35,6 +36,11 @@ import (
 // sweepInterval is how often expired sessions are swept from the database
 // in the background, in addition to the sweep at boot.
 const sweepInterval = 24 * time.Hour
+
+// shareSweepInterval is how often public links whose own expiry has passed
+// are deleted. They serve nothing from that moment on; the sweep only
+// removes the rows.
+const shareSweepInterval = time.Hour
 
 // version is the build version, set with -ldflags "-X main.version=...".
 // A plain `go build` leaves it at "dev", which is what a development binary
@@ -163,12 +169,16 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	shares := share.NewService(conn, instance, users)
+	go shares.SweepLoop(ctx, shareSweepInterval, logger)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
 		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
-		httpserver.WithLinkPreview(previews.ForRequest),
+		// A public share's page first: /s/{token} is never a recipe page.
+		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
+		httpserver.WithShellHeaders(share.ShellHeaders),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
@@ -186,6 +196,11 @@ func run() error {
 	// Without a session on purpose: the crawler building a link preview has
 	// none. The handler decides from the household setting and share token.
 	srv.Handle("GET /link-preview/{recipeId}/{imageId}", previews.CoverHandler())
+	share.Register(srv.API(), shares)
+	// Without a session on purpose, like the cover route: whoever holds a
+	// public link has none. The token alone decides, per request.
+	share.RegisterPublic(srv.API(), shares, recipes)
+	srv.Handle("GET /public-images/{token}/{imageId}/{file}", shares.ImageHandler(images))
 	userapi.Register(srv.API(), users, sessions)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
@@ -252,7 +267,7 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 		password = demo.AdminPassword
 		// The members' passwords are as public as the admin's, so they come
 		// only with the published credentials, never beside an operator's own.
-		if err := demo.SeedMembers(ctx, conn, sum, user.Locale(cfg.Locale), logger); err != nil {
+		if err := demo.SeedMembers(ctx, conn, sum, cfg.AdminUser, user.Locale(cfg.Locale), logger); err != nil {
 			return err
 		}
 	}

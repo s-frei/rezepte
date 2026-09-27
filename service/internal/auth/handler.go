@@ -20,6 +20,9 @@ type UserResponse struct {
 	Role        string      `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
+	// CanSharePublicly decides, together with the household's publicShares
+	// setting, whether the UI offers to create a public link.
+	CanSharePublicly bool `json:"canSharePublicly" doc:"Whether an admin lets this person create public links"`
 }
 
 type loginInput struct {
@@ -398,5 +401,7 @@ func toResponse(u user.User) UserResponse {
 		Role:        string(u.Role),
 		Color:       string(u.Color),
 		Locale:      u.Locale,
+		// From the users row this request loaded, like every field here.
+		CanSharePublicly: u.CanSharePublicly,
 	}
 }

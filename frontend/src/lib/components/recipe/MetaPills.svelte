@@ -41,7 +41,12 @@
 		</span>
 	{/if}
 	{#if sourceUrl}
-		<a href={sourceUrl} target="_blank" rel="noopener external" class="{pillClass} text-primary">
+		<a
+			href={sourceUrl}
+			target="_blank"
+			rel="noreferrer noopener external"
+			class="{pillClass} text-primary"
+		>
 			{m.recipe_source()}
 			<ExternalLink class="size-3.5" aria-hidden="true" />
 		</a>

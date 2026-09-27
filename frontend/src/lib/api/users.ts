@@ -38,10 +38,21 @@ export function createUser(input: {
 	return api<UserAccount>('/users', { method: 'POST', body: JSON.stringify(input) });
 }
 
-/** Changes role, profile and/or resets the password; a reset ends all of that user's sessions. Display name and color are the owner's alone. */
+/**
+ * Changes role, profile, public sharing and/or resets the password; a reset
+ * ends all of that user's sessions. Display name and color are the owner's
+ * alone; `canSharePublicly` follows the same rank rule as a reset (only the
+ * owner reaches an admin) and is refused (409) for the owner's own row.
+ */
 export function updateUser(
 	id: string,
-	patch: { password?: string; role?: UserRole; displayName?: string; color?: UserColor }
+	patch: {
+		password?: string;
+		role?: UserRole;
+		displayName?: string;
+		color?: UserColor;
+		canSharePublicly?: boolean;
+	}
 ): Promise<UserAccount> {
 	return api<UserAccount>(`/users/${encodeURIComponent(id)}`, {
 		method: 'PATCH',

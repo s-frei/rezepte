@@ -8,6 +8,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
 	import { focusManageButton } from '$lib/settings/person-focus';
@@ -19,7 +20,9 @@
 		person,
 		actorRole,
 		isSelf,
+		canShare,
 		onrole,
+		onshare,
 		onedit,
 		onreset,
 		ondelete
@@ -29,8 +32,13 @@
 		/** The signed-in user's role; decides which actions the sheet offers. */
 		actorRole: UserRole;
 		isSelf: boolean;
+		/** Whether this person may share publicly; undefined where the viewer
+		 * cannot see it. */
+		canShare?: boolean;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
+		/** Rejects when the API refused; the switch then snaps back. */
+		onshare: (person: PersonEntry, on: boolean) => Promise<void>;
 		onedit: (person: PersonEntry) => void;
 		onreset: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
@@ -48,6 +56,19 @@
 		{ value: 'admin', label: m.users_role_admin() },
 		{ value: 'user', label: m.users_role_member() }
 	];
+
+	// Follows the list like `role`, and snaps back when the API refuses.
+	let sharing = $derived<boolean>(canShare ?? false);
+	const showSharing = $derived(permissions.toggleSharing && canShare !== undefined);
+
+	async function toggleSharing(next: boolean) {
+		sharing = next;
+		try {
+			await onshare(person, next);
+		} catch {
+			sharing = canShare ?? false;
+		}
+	}
 
 	// One change at a time: the control's arrow keys move and check in one
 	// step, and every step would otherwise be a request of its own, their
@@ -168,6 +189,20 @@
 									/>
 								{:else}
 									<p class="text-body font-medium">{roleLabel(person.role)}</p>
+								{/if}
+								{#if showSharing}
+									<!-- A setting on the person, like the role above, so it
+									     sits in the same panel rather than among the actions. -->
+									<div
+										class="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"
+									>
+										<span class="text-body font-medium">{m.users_share_toggle()}</span>
+										<Switch
+											checked={sharing}
+											label={m.users_share_toggle()}
+											onchange={toggleSharing}
+										/>
+									</div>
 								{/if}
 							</div>
 

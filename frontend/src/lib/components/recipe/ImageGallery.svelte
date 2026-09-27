@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { imageUrl, type Image } from '$lib/api/recipes';
+	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -8,7 +8,8 @@
 		images,
 		coverId,
 		layout,
-		onopen
+		onopen,
+		src = (imageId, variant) => imageUrl(recipeId, imageId, variant)
 	}: {
 		recipeId: string;
 		title: string;
@@ -20,6 +21,9 @@
 		layout: 'mobile' | 'desktop';
 		/** Called with the index of the picture the user tapped/clicked. */
 		onopen: (index: number) => void;
+		/** One rendition's URL. Defaults to the signed-in `/images/...` route;
+		 * the public share page passes its own `/public-images/...` route. */
+		src?: (imageId: string, variant: ImageVariant) => string;
 	} = $props();
 
 	// Where the gallery opens. The cover is not always the first image, and a
@@ -76,7 +80,7 @@
 					class="size-full shrink-0 snap-center"
 				>
 					<img
-						src={imageUrl(recipeId, image.id, 'detail')}
+						src={src(image.id, 'detail')}
 						alt={i === coverIndex ? m.images_cover_alt({ title }) : ''}
 						loading={i === coverIndex ? 'eager' : 'lazy'}
 						decoding="async"
@@ -107,7 +111,7 @@
 		>
 			{#key images[active].id}
 				<img
-					src={imageUrl(recipeId, images[active].id, 'detail')}
+					src={src(images[active].id, 'detail')}
 					alt={m.images_cover_alt({ title })}
 					decoding="async"
 					class="size-full object-cover"
@@ -133,7 +137,7 @@
 							: 'opacity-80 hover:opacity-100'}"
 					>
 						<img
-							src={imageUrl(recipeId, image.id, 'thumb')}
+							src={src(image.id, 'thumb')}
 							alt=""
 							loading="lazy"
 							decoding="async"

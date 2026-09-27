@@ -105,6 +105,28 @@ export type Recipe = RecipeInput & {
 	canChangePolicy: boolean;
 };
 
+/**
+ * The fields `RecipeView` renders: both the signed-in detail page's `Recipe`
+ * and the public share's `PublicRecipe` carry them. `id` is kept as a
+ * client-side key only (servings memory, gallery keys) - `RecipeView` never
+ * sends it to the server itself, only through `imageSrc`'s default.
+ */
+export type RecipeContent = Pick<
+	Recipe,
+	| 'id'
+	| 'title'
+	| 'description'
+	| 'servings'
+	| 'prepMinutes'
+	| 'cookMinutes'
+	| 'sourceUrl'
+	| 'tags'
+	| 'ingredientGroups'
+	| 'steps'
+	| 'images'
+	| 'coverImageId'
+>;
+
 export type RecipePage = {
 	items: RecipeCard[];
 	page: number;

@@ -14,7 +14,9 @@
 		meId,
 		actorRole,
 		usage,
+		sharing = {},
 		onrole,
+		onshare,
 		onreset,
 		ondelete,
 		onprofile
@@ -24,8 +26,13 @@
 		actorRole: UserRole;
 		/** Palette counts for the profile dialog's picker. */
 		usage: ColorUsage[];
+		/** Who may share publicly, by id - loaded for admins only, so a
+		 * member's view has no entries and no share controls. */
+		sharing?: Record<string, boolean>;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
+		/** Rejects when the API refused; the control then snaps back. */
+		onshare: (person: PersonEntry, on: boolean) => Promise<void>;
 		onreset: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 		/** The account as the profile dialog saved it. */
@@ -107,7 +114,9 @@
 					{person}
 					isSelf={person.id === meId}
 					{actorRole}
+					canShare={sharing[person.id]}
 					onrole={changeRole}
+					{onshare}
 					onmanage={manage}
 					onedit={edit}
 					{onreset}
@@ -124,7 +133,9 @@
 		person={sheetPerson}
 		{actorRole}
 		isSelf={sheetPerson.id === meId}
+		canShare={sharing[sheetPerson.id]}
 		onrole={changeRole}
+		{onshare}
 		onedit={edit}
 		{onreset}
 		{ondelete}

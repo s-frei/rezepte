@@ -34,7 +34,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`. `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `POST /mcp` is the same kind of exception, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
+    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`, `GET /api/v1/public/shares/{token}` (see [Public shares](/features/public-shares)). `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `GET /public-images/…` and `GET /link-preview/…` are the opposite kind of exception: plain mux routes outside `/api/v1`, deliberately without authentication, since the stranger or the crawler behind either has no session to carry. `POST /mcp` is the same kind of exception as `/images`, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
 
   </Tab>
 </Tabs>
@@ -130,8 +130,26 @@ The household-wide settings, one row for the instance (see [Editing rights](/fea
 
 | Operation | Path | Notes |
 |---|---|---|
-| get-settings | `GET /settings` | `{recipesLockedByDefault, linkPreviews, linkPreviewMinutes}`; the link preview signing key is never part of it; any session, or a token carrying `recipes:read` |
-| update-settings | `PATCH /settings` | body with any of `recipesLockedByDefault`, `linkPreviews` and `linkPreviewMinutes` (`15`, `60`, `1440`, else `422`); a field left out stays as it is; returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
+| get-settings | `GET /settings` | `{recipesLockedByDefault, linkPreviews, linkPreviewMinutes, publicShares, publicShareDefaultDays, publicShareMaxDays}`; the link preview signing key is never part of it; any session, or a token carrying `recipes:read` |
+| update-settings | `PATCH /settings` | body with any of `recipesLockedByDefault`, `linkPreviews`, `linkPreviewMinutes` (`15`, `60`, `1440`, else `422`), `publicShares`, `publicShareDefaultDays` and `publicShareMaxDays` (each `1`, `7`, `30`, `365` or `null` for permanent, else `422`); a field left out stays as it is - `publicShareDefaultDays`/`publicShareMaxDays` tell an absent key apart from an explicit `null`, so a lifetime can be set back to permanent; lowering the maximum below the stored default lowers the default with it; returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
+
+## Public shares
+
+Public, revocable recipe links a member creates and manages; see [Public shares](/features/public-shares) for the validity rule, the statuses and the UI. A `Share` in every response below is `{id, recipe: {id, slug, title}, path: "/s/<token>", createdAt, expiresAt, status: "active"|"paused"|"limited", createdBy?}` - `expiresAt` is the effective expiry (earlier of the link's own and the instance maximum), `createdBy` (`{displayName, color}`) only in an admin's `?all=true` list.
+
+| Operation | Path | Notes |
+|---|---|---|
+| create-public-share | `POST /recipes/{id}/public-share` | body `{days}` (`1`, `7`, `30`, `365` or `null`); session only; `201`; `409` with the caller's existing share in the problem body's `share` field when one already exists; `403` `public sharing is off` / `public sharing not allowed for this user`; `422` `body.days` when the lifetime exceeds the maximum; `404` unknown recipe |
+| get-my-public-share | `GET /shares/by-recipe/{recipeId}` | session only; `200` `{share}` - the caller's own share, or `null` when there is none, or the recipe is unknown; never `404` for "no link", since the recipe page calls this on every view. Not nested under `/recipes/{id}/`: a `GET` there would collide with `GET /recipes/by-slug/{slug}` in the mux (see [Public shares](/features/public-shares)) |
+| list-shares | `GET /shares` | session only; the caller's own shares, newest first; `?all=true` for admins: everyone's, each with `createdBy`; `403` for `all` from a non-admin |
+| revoke-share | `DELETE /shares/{id}` | session only; own share, or any as admin; `204`; `404` otherwise |
+| revoke-all-shares | `DELETE /shares` | admin only; `204` |
+| get-public-recipe | `GET /public/shares/{token}` | no security - reachable without a session or a token; the `PublicRecipe` DTO, never `Recipe`; every invalid token (unknown, revoked, paused, limited or expired) is the same `404` `"not available"` |
+| serve a public image | `GET /public-images/{token}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation, no security; only a photo still belonging to the share's recipe while the share serves; `404` otherwise |
+
+Every session-only operation above (the first five) is unreachable by an API token: `auth.Middleware`'s bearer branch answers a token carrying `Authorization: Bearer` with `403` `API tokens cannot use this operation` before it ever checks the token's validity, which is a different status than the `401` a request with no credential gets on the same route.
+
+The public routes, and the `/s/{token}` app shell, all answer with `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` and `Cache-Control: private, no-cache`.
 
 ## Images
 

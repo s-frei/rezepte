@@ -7,6 +7,7 @@
 	import {
 		deleteUser,
 		listPeople,
+		listUsers,
 		updateUser,
 		type PersonEntry,
 		type UserRole
@@ -14,6 +15,7 @@
 	import { session } from '$lib/auth.svelte';
 	import CreateUserDialog from '$lib/components/settings/CreateUserDialog.svelte';
 	import LinkPreviewsCard from '$lib/components/settings/LinkPreviewsCard.svelte';
+	import PublicSharingCard from '$lib/components/settings/PublicSharingCard.svelte';
 	import RecipeEditingCard from '$lib/components/settings/RecipeEditingCard.svelte';
 	import ResetPasswordDialog from '$lib/components/settings/ResetPasswordDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
@@ -26,6 +28,10 @@
 
 	let users = $state<PersonEntry[]>([]);
 	let usage = $state<ColorUsage[]>([]);
+	// Who may share publicly, by id. The people list leaves it out - it is an
+	// admin's business, not everyone's - so an admin reads it from the
+	// account list alongside; a member's view has no entries at all.
+	let sharing = $state<Record<string, boolean>>({});
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let createOpen = $state(false);
@@ -57,8 +63,13 @@
 		loading = true;
 		loadFailed = false;
 		try {
-			const [list] = await Promise.all([listPeople(), isAdmin ? loadUsage() : undefined]);
+			const [list, accounts] = await Promise.all([
+				listPeople(),
+				isAdmin ? listUsers() : Promise.resolve([]),
+				isAdmin ? loadUsage() : undefined
+			]);
 			users = list;
+			sharing = Object.fromEntries(accounts.map((a) => [a.id, a.canSharePublicly]));
 		} catch (error) {
 			// On a 401 the client is already navigating to the login page.
 			loadFailed = !isSignedOut(error);
@@ -103,6 +114,25 @@
 			if (error instanceof ApiError && error.status === 409) {
 				toast.error(m.users_owner_protected());
 			} else if (error instanceof ApiError && error.status === 403) {
+				toast.error(m.users_rank_required());
+			} else if (!isSignedOut(error)) {
+				toast.error(m.users_update_error());
+			}
+			throw error; // lets the row or the sheet snap its control back
+		}
+	}
+
+	async function toggleShare(user: PersonEntry, on: boolean) {
+		try {
+			const updated = await updateUser(user.id, { canSharePublicly: on });
+			sharing = { ...sharing, [updated.id]: updated.canSharePublicly };
+			toast.success(
+				on
+					? m.users_share_enabled({ username: user.username })
+					: m.users_share_disabled({ username: user.username })
+			);
+		} catch (error) {
+			if (error instanceof ApiError && error.status === 403) {
 				toast.error(m.users_rank_required());
 			} else if (!isSignedOut(error)) {
 				toast.error(m.users_update_error());
@@ -194,7 +224,9 @@
 				meId={session.user?.id ?? ''}
 				actorRole={session.user?.role ?? 'user'}
 				{usage}
+				{sharing}
 				onrole={changeRole}
+				onshare={toggleShare}
 				onreset={askReset}
 				ondelete={askDelete}
 				onprofile={profileSaved}
@@ -204,6 +236,7 @@
 	{#if isAdmin}
 		<RecipeEditingCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
 		<LinkPreviewsCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
+		<PublicSharingCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
 	{/if}
 </SettingsLayout>
 

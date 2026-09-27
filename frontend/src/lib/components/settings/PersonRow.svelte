@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { DropdownMenu } from 'bits-ui';
+	import Check from '@lucide/svelte/icons/check';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import { resolve } from '$app/paths';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
@@ -15,7 +18,9 @@
 		person,
 		isSelf,
 		actorRole,
+		canShare,
 		onrole,
+		onshare,
 		onmanage,
 		onedit,
 		onreset,
@@ -25,8 +30,13 @@
 		isSelf: boolean;
 		/** The signed-in user's role; decides which controls this row offers. */
 		actorRole: UserRole;
+		/** Whether this person may share publicly; undefined where the viewer
+		 * cannot see it (a member's view of the list). */
+		canShare?: boolean;
 		/** Rejects when the API refused; the select then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
+		/** Rejects when the API refused; the menu item then snaps back. */
+		onshare: (person: PersonEntry, on: boolean) => Promise<void>;
 		/** A phone's tap on the row: opens the sheet with this person's actions. */
 		onmanage: (person: PersonEntry) => void;
 		onedit: (person: PersonEntry) => void;
@@ -38,13 +48,17 @@
 	// but can be overridden locally so a refused change snaps back even though
 	// the list's value never changed.
 	let role = $derived<string>(person.role);
+	// Same trick for the share menu's checkbox: it flips at once, and snaps
+	// back to `canShare` if the write is refused.
+	let sharing = $derived<boolean>(canShare ?? false);
 
 	const isOwner = $derived(person.role === 'superadmin');
 	// Which controls this viewer gets on this row; rowPermissions holds the
 	// rank rules and why each one is absent rather than disabled.
 	const permissions = $derived(rowPermissions(actorRole, person, isSelf));
+	const showShareMenu = $derived(permissions.toggleSharing && canShare !== undefined);
 	const hasActions = $derived(
-		permissions.changeRole || permissions.manageAccount || permissions.editProfile
+		permissions.changeRole || permissions.manageAccount || permissions.editProfile || showShareMenu
 	);
 
 	const roleOptions = [
@@ -55,6 +69,14 @@
 	const pillClass = $derived(
 		role === 'user' ? 'bg-background text-text-muted' : 'bg-accent text-accent-foreground'
 	);
+
+	async function toggleSharing(next: boolean) {
+		try {
+			await onshare(person, next);
+		} catch {
+			sharing = canShare ?? false;
+		}
+	}
 
 	async function changeRole(next: string) {
 		try {
@@ -130,6 +152,41 @@
 			>
 				<Pencil class="size-4" aria-hidden="true" />
 			</button>
+		{/if}
+		<!-- Whether this person may create public links: neither "manage the
+		     account" nor "rename it", so a menu of its own beside the pencil,
+		     with the one checkbox. -->
+		{#if showShareMenu}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					aria-label={m.users_share_menu()}
+					title={m.users_share_menu()}
+					class="inline-flex size-8 items-center justify-center rounded-full text-text-muted transition hover:bg-background hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				>
+					<Ellipsis class="size-4" aria-hidden="true" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Portal>
+					<DropdownMenu.Content
+						preventScroll={false}
+						sideOffset={8}
+						align="end"
+						class="w-56 rounded-2xl bg-surface p-2 shadow-dialog"
+					>
+						<DropdownMenu.CheckboxItem
+							bind:checked={sharing}
+							onCheckedChange={toggleSharing}
+							class="flex h-10 items-center justify-between gap-2 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
+						>
+							{#snippet children({ checked })}
+								<span>{m.users_share_toggle()}</span>
+								{#if checked}
+									<Check class="size-4 shrink-0 text-primary" aria-hidden="true" />
+								{/if}
+							{/snippet}
+						</DropdownMenu.CheckboxItem>
+					</DropdownMenu.Content>
+				</DropdownMenu.Portal>
+			</DropdownMenu.Root>
 		{/if}
 		{#if permissions.manageAccount}
 			<Button

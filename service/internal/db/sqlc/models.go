@@ -56,6 +56,9 @@ type InstanceSetting struct {
 	LinkPreviews           bool
 	LinkPreviewMinutes     int64
 	LinkPreviewKey         []byte
+	PublicShares           bool
+	PublicShareDefaultDays *int64
+	PublicShareMaxDays     *int64
 }
 
 type Recipe struct {
@@ -94,6 +97,15 @@ type Session struct {
 	CreatedAt string
 }
 
+type Share struct {
+	ID        string
+	Token     string
+	RecipeID  string
+	CreatedBy string
+	CreatedAt string
+	ExpiresAt *string
+}
+
 type Step struct {
 	ID       string
 	RecipeID string
@@ -120,13 +132,14 @@ type Tasty struct {
 }
 
 type User struct {
-	ID           string
-	Username     string
-	DisplayName  string
-	PasswordHash string
-	Role         string
-	Color        string
-	Locale       string
-	CreatedAt    string
-	UpdatedAt    string
+	ID               string
+	Username         string
+	DisplayName      string
+	PasswordHash     string
+	Role             string
+	Color            string
+	Locale           string
+	CreatedAt        string
+	UpdatedAt        string
+	CanSharePublicly bool
 }

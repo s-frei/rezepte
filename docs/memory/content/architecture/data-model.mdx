@@ -20,6 +20,8 @@ erDiagram
   recipes ||--o{ favorites : starred
   users ||--o{ tasty : marks
   recipes ||--o{ tasty : "marked tasty"
+  users ||--o{ shares : creates
+  recipes ||--o{ shares : "shared by"
   users {
     text id PK
     text username UK
@@ -28,8 +30,17 @@ erDiagram
     text role "superadmin, admin or user"
     text color "palette token"
     text locale "en or de, interface language"
+    boolean can_share_publicly "an admin's per-person switch"
     text created_at
     text updated_at
+  }
+  shares {
+    text id PK
+    text token UK "16 random bytes, base64url, plain text"
+    text recipe_id FK
+    text created_by FK
+    text created_at
+    text expires_at "nullable, null is permanent"
   }
   sessions {
     text id PK "sha256 of the session token"
@@ -70,6 +81,9 @@ erDiagram
     boolean link_previews
     integer link_preview_minutes "15, 60 or 1440"
     blob link_preview_key "32 bytes, never in an API"
+    boolean public_shares "owner switch, off by default"
+    integer public_share_default_days "nullable, 1/7/30/365, null is permanent"
+    integer public_share_max_days "nullable, 1/7/30/365, null is no maximum"
   }
   ingredient_groups {
     text id PK
@@ -148,7 +162,9 @@ erDiagram
 - `images.filename` is `<id>.jpg`; the three variants (`<id>.jpg`, `<id>_detail.jpg`, `<id>_thumb.jpg`) live in `<REZEPTE_DATA_DIR>/images/<recipe_id>/`, outside the database; `width`/`height` are the largest variant's; `size_bytes` sums all three; `position` is compact `0..n-1` like the other position columns, rewritten on delete and reorder. See [Images](/features/images).
 - `recipes_fts` is not shown above: an FTS5 virtual table is a search index rather than a relation - it holds no copy of the text and no foreign keys, so there is nothing for the diagram to connect it to. [Recipes](/features/recipes) owns how it is declared, keyed and kept in step.
 - `recipes.created_by` and `recipes.updated_by` are both `NOT NULL` without `ON DELETE`; deleting a user moves every recipe they wrote **or last edited** to the acting admin (see [Users and authentication](/features/users-and-auth)). Sessions and API tokens both cascade: deleting a user removes both.
-- `recipes.edit_policy` is `NULL`, `'open'` or `'locked'` (a `CHECK` constraint); `NULL` means "follow the household setting" and is never written as a string. `instance_settings` holds that setting and exactly one row: `id INTEGER PRIMARY KEY CHECK (id = 1)`, inserted by the migration that creates the table, so reading it never has to handle "no row" and writing it is an `UPDATE`. It stands alone in the diagram because nothing references it. [Editing rights](/features/editing-rights) owns what the two columns decide. `instance_settings.link_previews` (off by default), `link_preview_minutes` (15, 60 or 1440 under a `CHECK` constraint, 15 by default) and `link_preview_key` (32 random bytes the migration writes with `randomblob`, since SQLite refuses a non-constant default in `ADD COLUMN`) belong to [Link previews](/features/link-previews); `GetInstanceSettings` names its columns so the key never rides along.
+- `recipes.edit_policy` is `NULL`, `'open'` or `'locked'` (a `CHECK` constraint); `NULL` means "follow the household setting" and is never written as a string. `instance_settings` holds that setting and exactly one row: `id INTEGER PRIMARY KEY CHECK (id = 1)`, inserted by the migration that creates the table, so reading it never has to handle "no row" and writing it is an `UPDATE`. It stands alone in the diagram because nothing references it. [Editing rights](/features/editing-rights) owns what the two columns decide. `instance_settings.link_previews` (off by default), `link_preview_minutes` (15, 60 or 1440 under a `CHECK` constraint, 15 by default) and `link_preview_key` (32 random bytes the migration writes with `randomblob`, since SQLite refuses a non-constant default in `ADD COLUMN`) belong to [Link previews](/features/link-previews); `GetInstanceSettings` names its columns so the key never rides along. `public_shares`, `public_share_default_days` and `public_share_max_days` belong to [Public shares](/features/public-shares); the cross-column rule that the default may never exceed the maximum sits as a `CHECK` on `public_share_max_days` alone, since SQLite's `ALTER TABLE` cannot add a table-level constraint and a column constraint may only name a column that already exists by the time it is added.
+- `shares.token` is a plain `UNIQUE TEXT`, not a hash: unlike a session id ([Users and authentication](/features/users-and-auth)) or an API token ([API tokens](/features/api-tokens)), this credential is a link a member sends to someone else and has to be able to read again to copy it a second time. `UNIQUE (recipe_id, created_by)` caps a person at one live link per recipe; both foreign keys cascade, so deleting the recipe or the creator removes the link with it. `shares_created_by_idx` serves the member's own list; there is no index on `token` beyond the `UNIQUE` constraint's own, which is what a public request resolves against. See [Public shares](/features/public-shares) for the validity rule the stored rows are evaluated against.
+- `users.can_share_publicly` is `NOT NULL DEFAULT 1`: an admin's per-person switch for [public shares](/features/public-shares), separate from the household-wide `instance_settings.public_shares` above it.
 - `updated_by` always names somebody: a new recipe seeds it from `created_by`, so "never edited" is "both columns still match their `created_*` twin" rather than a NULL. Reading it needs both — with second resolution, an edit in the same second as the create moves only `updated_by`. Every write that moves `updated_at` moves `updated_by` with it - image uploads and cover changes included (see [Recipes and search](/features/recipes)).
 - `api_tokens.token_hash` is `UNIQUE`, which doubles as the lookup index for authentication; `id` is a separate UUIDv7 rather than the hash, because a token is deleted from a list at a moment the raw value no longer exists to hash again. `token_prefix` keeps the first 8 characters of the raw value in clear, for matching a row in the list against an entry in a client configuration. See [API tokens](/features/api-tokens).
 

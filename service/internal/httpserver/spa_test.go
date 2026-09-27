@@ -18,7 +18,7 @@ func testFS() fstest.MapFS {
 }
 
 func TestSPAServesManifestAsManifestJSON(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false, nil), "/manifest.webmanifest")
+	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/manifest.webmanifest")
 	if got := rec.Header().Get("Content-Type"); got != "application/manifest+json" {
 		t.Fatalf("Content-Type = %q, want application/manifest+json", got)
 	}
@@ -32,21 +32,21 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 }
 
 func TestSPAServesExistingFile(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false, nil), "/favicon.svg")
+	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/favicon.svg")
 	if rec.Code != http.StatusOK || rec.Body.String() != "<svg/>" {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
 }
 
 func TestSPAImmutableAssetsAreCached(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false, nil), "/_app/immutable/chunks/a.js")
+	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/_app/immutable/chunks/a.js")
 	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
 		t.Fatalf("Cache-Control = %q", got)
 	}
 }
 
 func TestSPAFallsBackToIndex(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false, nil), "/recipes/some-slug")
+	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/recipes/some-slug")
 	if rec.Code != http.StatusOK || rec.Body.String() != "<html>app</html>" {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
@@ -56,7 +56,7 @@ func TestSPAFallsBackToIndex(t *testing.T) {
 }
 
 func TestSPADoesNotFallBackForAPI(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false, nil), "/api/v1/unknown")
+	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/api/v1/unknown")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("got %d, want 404", rec.Code)
 	}
@@ -65,7 +65,7 @@ func TestSPADoesNotFallBackForAPI(t *testing.T) {
 func TestSPAFallbackRejectsNonGet(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/recipes/x", nil)
-	SPAHandler(testFS(), false, nil).ServeHTTP(rec, req)
+	SPAHandler(testFS(), false, nil, nil).ServeHTTP(rec, req)
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("got %d, want 405", rec.Code)
 	}
@@ -92,7 +92,7 @@ func serveShellFor(t *testing.T, secure bool, host, path string, headers map[str
 		req.Header.Set(k, v)
 	}
 	rec := httptest.NewRecorder()
-	SPAHandler(shellFS(), secure, nil).ServeHTTP(rec, req)
+	SPAHandler(shellFS(), secure, nil, nil).ServeHTTP(rec, req)
 	return rec
 }
 
@@ -139,7 +139,7 @@ func TestSPAShellEscapesTheHost(t *testing.T) {
 func TestSPAShellAnswersHead(t *testing.T) {
 	req := httptest.NewRequest(http.MethodHead, "/recipes/x", nil)
 	rec := httptest.NewRecorder()
-	SPAHandler(shellFS(), false, nil).ServeHTTP(rec, req)
+	SPAHandler(shellFS(), false, nil, nil).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || rec.Body.Len() != 0 {
 		t.Fatalf("got %d with %d bytes, want 200 and no body", rec.Code, rec.Body.Len())
 	}
@@ -173,7 +173,7 @@ func TestSPAShellShowsAPagesOwnLinkPreview(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/recipes/salat?share=t", nil)
 	req.Host = "rezepte.example"
 	rec := httptest.NewRecorder()
-	SPAHandler(fsys, true, preview).ServeHTTP(rec, req)
+	SPAHandler(fsys, true, preview, nil).ServeHTTP(rec, req)
 	want := `<title>Salat &#34;scharf&#34; &amp; kalt · Rezepte</title>
 <meta property="og:title" content="Salat &#34;scharf&#34; &amp; kalt" />
 <meta property="og:description" content="Frisch." />
@@ -195,9 +195,44 @@ func TestSPAShellShowsAPagesOwnLinkPreview(t *testing.T) {
 	req = httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Host = "rezepte.example"
 	rec = httptest.NewRecorder()
-	SPAHandler(fsys, true, preview).ServeHTTP(rec, req)
+	SPAHandler(fsys, true, preview, nil).ServeHTTP(rec, req)
 	if !strings.Contains(rec.Body.String(), `<meta property="og:title" content="Rezepte" />`) ||
 		!strings.Contains(rec.Body.String(), `<meta property="og:image" content="https://rezepte.example/og.png" />`) {
 		t.Fatalf("app preview changed:\n%s", rec.Body.String())
+	}
+}
+
+func TestPreviewFuncsFirstWins(t *testing.T) {
+	calls := 0
+	none := func(*http.Request) *LinkPreview { calls++; return nil }
+	first := func(*http.Request) *LinkPreview { calls++; return &LinkPreview{Title: "first"} }
+	second := func(*http.Request) *LinkPreview { calls++; return &LinkPreview{Title: "second"} }
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if p := PreviewFuncs(none, nil, first, second)(req); p == nil || p.Title != "first" || calls != 2 {
+		t.Errorf("preview = %+v after %d calls, want first after 2", p, calls)
+	}
+	if p := PreviewFuncs(none)(req); p != nil {
+		t.Errorf("preview = %+v, want nil", p)
+	}
+}
+
+func TestShellHeadersOverrideTheShellsOwn(t *testing.T) {
+	headers := func(r *http.Request, h http.Header) {
+		if r.URL.Path == "/s/x" {
+			h.Set("Cache-Control", "private, no-cache")
+		}
+	}
+	rec := get(t, SPAHandler(testFS(), false, nil, headers), "/s/x")
+	if got := rec.Header().Get("Cache-Control"); got != "private, no-cache" {
+		t.Errorf("shell Cache-Control = %q", got)
+	}
+	rec = get(t, SPAHandler(testFS(), false, nil, headers), "/recipes/x")
+	if got := rec.Header().Get("Cache-Control"); got != "no-cache" {
+		t.Errorf("shell elsewhere Cache-Control = %q", got)
+	}
+	// A static file is not the shell and keeps its own headers.
+	rec = get(t, SPAHandler(testFS(), false, nil, func(_ *http.Request, h http.Header) { h.Set("X-Shell", "1") }), "/favicon.svg")
+	if rec.Header().Get("X-Shell") != "" {
+		t.Errorf("the shell headers ran for a static file")
 	}
 }

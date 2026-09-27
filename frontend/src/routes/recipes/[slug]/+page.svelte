@@ -5,30 +5,27 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import Globe from '@lucide/svelte/icons/globe';
 	import Link from '@lucide/svelte/icons/link';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
 	import { deleteRecipe } from '$lib/api/recipes';
-	import { session } from '$lib/auth.svelte';
+	import type { PublicShare } from '$lib/api/shares';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import FavoriteStar from '$lib/components/recipe/FavoriteStar.svelte';
-	import ImageGallery from '$lib/components/recipe/ImageGallery.svelte';
-	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
-	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
-	import PlaceholderTile from '$lib/components/recipe/PlaceholderTile.svelte';
+	import PublicShareDialog from '$lib/components/recipe/PublicShareDialog.svelte';
 	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
-	import ServingsStepper from '$lib/components/recipe/ServingsStepper.svelte';
-	import StepList from '$lib/components/recipe/StepList.svelte';
+	import RecipeView from '$lib/components/recipe/RecipeView.svelte';
 	import TastyButton from '$lib/components/recipe/TastyButton.svelte';
 	import TastyPeople from '$lib/components/recipe/TastyPeople.svelte';
+	import { session } from '$lib/auth.svelte';
 	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
-	import { clearServings, createServings } from '$lib/recipe/servings.svelte';
+	import { clearServings } from '$lib/recipe/servings.svelte';
 	import { copyLink, shareLink, ShareLink } from '$lib/recipe/share.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { shell } from '$lib/shell.svelte';
@@ -44,10 +41,7 @@
 	const recipe = $derived(data.recipe);
 	const editHref = $derived(recipe && resolve('/recipes/[slug]/edit', { slug: recipe.slug }));
 	const cookHref = $derived(recipe && resolve('/recipes/[slug]/cook', { slug: recipe.slug }));
-	// One store per recipe: `$derived` re-creates it when the page is reused
-	// for another slug (command palette, back/forward), reading that recipe's
-	// stored choice. Mutations go through `servings.set()`, not this binding.
-	const servings = $derived(recipe && createServings(recipe.id, recipe.servings));
+	const settings = $derived(data.settings);
 
 	// The people behind the tasty count. Derived from the loaded recipe, and
 	// written over when the reader marks or unmarks it, so their own circle
@@ -67,6 +61,23 @@
 				]
 			: tastyBy.filter((person) => person.id !== me.id);
 	}
+
+	// The caller's own public link, if any. A *writable* $derived: reading it
+	// tracks `data.share` (so navigating to another recipe resets it), but
+	// `PublicShareDialog` also reassigns it in place on create/revoke, which
+	// overrides that until `data.share` itself changes again - exactly what
+	// lets the menu item, the tag-row marker and the colophon line below update
+	// without a reload.
+	let share: PublicShare | null = $derived(data.share);
+	let shareDialogOpen = $state(false);
+	// Public sharing is on and this member may use it.
+	// With an existing link the menu item and the marker show regardless of
+	// either: they open the dialog, which shows the link as paused if either
+	// has since gone off, with Revoke still available.
+	const canCreateShare = $derived(
+		Boolean(settings?.publicShares) && Boolean(session.user?.canSharePublicly)
+	);
+	const showShareMenuItem = $derived(canCreateShare || share !== null);
 
 	let deleteOpen = $state(false);
 	let lightboxOpen = $state(false);
@@ -174,6 +185,15 @@
 		<Link class="size-4" aria-hidden="true" />
 		{m.detail_copy_link()}
 	</DropdownMenu.Item>
+	{#if showShareMenuItem}
+		<DropdownMenu.Item
+			onSelect={() => (shareDialogOpen = true)}
+			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
+		>
+			<Globe class="size-4" aria-hidden="true" />
+			{share ? m.public_share_menu_manage() : m.public_share_menu_create()}
+		</DropdownMenu.Item>
+	{/if}
 	{#if recipe?.canDelete}
 		<DropdownMenu.Item
 			onSelect={() => (deleteOpen = true)}
@@ -290,103 +310,47 @@
 	</div>
 
 	<article class="pt-6 md:pt-10">
-		<div class="mb-6 h-[260px] overflow-hidden rounded-3xl bg-surface p-3 md:hidden">
-			{#if recipe.images.length > 0}
-				<ImageGallery
-					recipeId={recipe.id}
-					title={recipe.title}
-					images={recipe.images}
-					coverId={recipe.coverImageId}
-					layout="mobile"
-					onopen={openLightbox}
-				/>
-			{:else}
-				<PlaceholderTile
-					id={recipe.id}
-					title={recipe.title}
-					size="detail"
-					class="size-full rounded-2xl"
-				/>
-			{/if}
-		</div>
-
-		<!--
-			The cover column is `minmax(0,420px)`, not a flat `420px`: a `1fr`
-			track cannot shrink past its own min-content, and here that floor
-			is the longest word of the title at 52px - 335px for "Königsberger".
-			With a rigid 420px beside it the row demanded 795px, which is more
-			than this card has between 768px (where the two columns appear) and
-			about 858px, and the cover hung over the edge of the page. Letting
-			the cover give way keeps the title's floor intact; above 858px the
-			cover still takes its full 420px and nothing about this row changes.
-
-			The text column keeps its plain `1fr` on purpose. `minmax(0,1fr)`
-			there would take the floor out from under the title instead, and
-			the word would leave its column rather than the cover leaving the
-			page - the same overflow, one step further in.
-		-->
-		<div class="md:grid md:grid-cols-[1fr_minmax(0,420px)] md:items-start md:gap-10">
-			<div>
-				{#if recipe.tags.length > 0}
-					<div class="flex flex-wrap gap-2">
-						{#each recipe.tags as tag (tag)}
-							<TagChip label={tag} />
-						{/each}
-					</div>
+		<RecipeView {recipe} onopenimage={openLightbox}>
+			{#snippet actions()}
+				<FavoriteStar id={recipe.id} active={recipe.favorite} />
+				{#if !ownRecipe || recipe.tastyCount > 0}
+					<TastyButton
+						id={recipe.id}
+						active={recipe.tasty}
+						count={recipe.tastyCount}
+						readonly={ownRecipe}
+						onchange={onTasty}
+					/>
 				{/if}
-				<div class="mt-3 flex items-start gap-3 md:mt-4">
-					<!-- Star and heart leave a 320px phone about 180px of title, less
-					     than "Königsberger" needs at this size: the title may shrink
-					     and break its long compounds, as in cook mode, rather than
-					     push the pair off the page. -->
-					<h1
-						class="min-w-0 font-display text-display-md font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4] md:text-display-xl"
-					>
-						{recipe.title}
-					</h1>
-					<!-- Star and heart sit together beside the title, outside any link,
-					     and this is where a phone sets both: its cards leave the
-					     photo to the photo. -->
-					<div class="mt-1 flex shrink-0 items-center gap-2 md:mt-2">
-						<FavoriteStar id={recipe.id} active={recipe.favorite} />
-						{#if !ownRecipe || recipe.tastyCount > 0}
-							<TastyButton
-								id={recipe.id}
-								active={recipe.tasty}
-								count={recipe.tastyCount}
-								readonly={ownRecipe}
-								onchange={onTasty}
-							/>
-						{/if}
-					</div>
-				</div>
+			{/snippet}
+			{#snippet belowTitle()}
 				{#if tastyBy.length > 0}
 					<div class="mt-3 flex items-center gap-2 text-caption text-text-muted">
 						<span>{m.recipe_tasty_by()}</span>
 						<TastyPeople people={tastyBy} />
 					</div>
 				{/if}
-				{#if recipe.description}
-					<p class="mt-3 text-body-lg text-text-muted">{recipe.description}</p>
-				{/if}
-				<div class="mt-5">
-					<MetaPills
-						prepMinutes={recipe.prepMinutes}
-						cookMinutes={recipe.cookMinutes}
-						sourceUrl={recipe.sourceUrl}
+			{/snippet}
+			{#snippet kicker()}
+				<!-- The viewer's own public link, at a glance: in the tag row rather
+				     than beside the title, so it wraps with the tags instead of
+				     pushing the title into the photo. Outlined, so it never reads as
+				     one more tag; the colophon below carries the details. -->
+				{#if share}
+					<button
+						type="button"
+						onclick={() => (shareDialogOpen = true)}
+						class="inline-flex items-center gap-1.5 rounded-pill border px-3 py-0.5 text-caption font-semibold transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {share.status ===
+						'active'
+							? 'border-primary text-primary'
+							: 'border-border text-text-muted'}"
 					>
-						<ServingsStepper value={servings.value} onchange={(next) => servings.set(next)} />
-						{#if servings.scaled}
-							<button
-								type="button"
-								onclick={() => servings.reset()}
-								class="text-body-sm font-medium text-primary underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-							>
-								{m.servings_reset()}
-							</button>
-						{/if}
-					</MetaPills>
-				</div>
+						<Globe class="size-3.5" aria-hidden="true" />
+						{m.public_share_marker()}
+					</button>
+				{/if}
+			{/snippet}
+			{#snippet belowMeta()}
 				<!-- On phones the primary action lives in the flow, right under the
 			     servings it scales; the desktop top bar carries it there. -->
 				<Button
@@ -398,50 +362,11 @@
 					<ChefHat class="size-5" aria-hidden="true" />
 					{m.detail_cook_mode_start()}
 				</Button>
-			</div>
-			<div class="hidden md:block">
-				{#if recipe.images.length > 0}
-					<ImageGallery
-						recipeId={recipe.id}
-						title={recipe.title}
-						images={recipe.images}
-						coverId={recipe.coverImageId}
-						layout="desktop"
-						onopen={openLightbox}
-					/>
-				{:else}
-					<PlaceholderTile
-						id={recipe.id}
-						title={recipe.title}
-						size="detail"
-						class="aspect-[4/3] rounded-3xl shadow-cover"
-					/>
-				{/if}
-			</div>
-		</div>
-
-		<div class="mt-8 grid gap-8 md:mt-10 md:grid-cols-[400px_1fr] md:gap-10">
-			<section>
-				<h2 class="mb-4 font-display text-heading font-medium">{m.recipe_ingredients()}</h2>
-				<IngredientList
-					recipeId={recipe.id}
-					groups={recipe.ingredientGroups}
-					servings={servings.value}
-					baseServings={servings.base}
-				/>
-			</section>
-			<section>
-				<h2 class="mb-5 font-display text-heading font-medium">{m.recipe_steps()}</h2>
-				<StepList
-					steps={recipe.steps}
-					groups={recipe.ingredientGroups}
-					servings={servings.value}
-					baseServings={servings.base}
-				/>
-			</section>
-		</div>
-
-		<RecipeColophon {recipe} />
+			{/snippet}
+			{#snippet footer()}
+				<RecipeColophon {recipe} {share} onmanageshare={() => (shareDialogOpen = true)} />
+			{/snippet}
+		</RecipeView>
 	</article>
 
 	<ConfirmDialog
@@ -451,6 +376,15 @@
 		confirmLabel={m.common_delete()}
 		destructive
 		onconfirm={handleDelete}
+	/>
+
+	<PublicShareDialog
+		bind:open={shareDialogOpen}
+		recipeId={recipe.id}
+		recipeTitle={recipe.title}
+		defaultDays={settings?.publicShareDefaultDays ?? null}
+		maxDays={settings?.publicShareMaxDays ?? null}
+		bind:share
 	/>
 
 	<Lightbox
