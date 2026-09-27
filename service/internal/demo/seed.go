@@ -62,6 +62,21 @@ var memberMarks = map[string][]int{
 	"jonas": {0, 2, 5},
 }
 
+// memberRecipes lists, per member, the samples (by index, as in
+// memberMarks) they wrote, so the admin meets recipes that are not their own:
+// ones to mark tasty, and an author's name that is somebody else's. None is
+// one its author marks, and none is the first sample or Macaroni Cheese,
+// which the documentation photographs as the admin's.
+var memberRecipes = map[string][]int{
+	"jonas": {1, 8},
+	"mila":  {2, 10},
+}
+
+// lockedSample is the one of Mila's samples she locked, so the lock line
+// shows under a recipe and the editor offers the policy another member
+// cannot change.
+const lockedSample = 2
+
 // sharedSample is one public link the demo creates: the sample (by index,
 // as in memberMarks) and the link's lifetime in days.
 type sharedSample struct {
@@ -98,18 +113,22 @@ type Summary struct {
 	// RecipeIDs are the created recipes in sample order, the overview's
 	// order from the top, for SeedMembers to mark.
 	RecipeIDs []string
+	// Members are the members AddMembers created, for SeedMembers to mark
+	// and share as.
+	Members []user.User
 	// Skipped is true when the recipes table was not empty; nothing was written.
 	Skipped bool
 }
 
 // Seed creates the sample recipes in locale's language, owned by the user
-// named owner (or the first user by name when no such user exists), and
+// named owner (or the first user by name when no such user exists) except
+// for those memberRecipes gives to one of members, and
 // uploads their images below imageDir. When any sample of the set has
 // embedded photos, every sample gets its own photos, the first as cover, and
 // a sample without photos stays without an image. A set with no photos at
 // all gets a placeholder for each of its first imagedRecipes samples. It is
 // idempotent: a database that already holds recipes is left untouched.
-func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user.Locale, logger *slog.Logger) (Summary, error) {
+func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []user.User, locale user.Locale, logger *slog.Logger) (Summary, error) {
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	n, err := recipes.Count(ctx)
 	if err != nil {
@@ -135,12 +154,27 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 		}
 		withPhotos = withPhotos || len(sets[i]) > 0
 	}
+	authors := make([]user.User, len(samples))
+	for i := range authors {
+		authors[i] = o
+	}
+	for _, m := range members {
+		for _, i := range memberRecipes[m.Username] {
+			if i < len(authors) {
+				authors[i] = m
+			}
+		}
+	}
+	if lockedSample < len(samples) && authors[lockedSample].Username == "mila" {
+		samples[lockedSample].EditPolicy = recipe.PolicyLocked
+	}
 	images := image.NewService(conn, imageDir)
-	sum := Summary{RecipeIDs: make([]string, len(samples))}
+	sum := Summary{RecipeIDs: make([]string, len(samples)), Members: members}
 	// The overview sorts by updated_at desc: seeding back to front puts the
 	// first sample on top.
 	for i := len(samples) - 1; i >= 0; i-- {
-		r, err := recipes.Create(ctx, o.ID, samples[i])
+		a := authors[i]
+		r, err := recipes.Create(ctx, a.ID, samples[i])
 		if err != nil {
 			return sum, fmt.Errorf("create sample %q: %w", samples[i].Title, err)
 		}
@@ -148,7 +182,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 		sum.RecipeIDs[i] = r.ID
 		if withPhotos {
 			for n, data := range sets[i] {
-				if _, err := images.Upload(ctx, r.ID, o, bytes.NewReader(data)); err != nil {
+				if _, err := images.Upload(ctx, r.ID, a, bytes.NewReader(data)); err != nil {
 					return sum, fmt.Errorf("upload photo %d for %q: %w", n+1, r.Title, err)
 				}
 				sum.Images++
@@ -162,7 +196,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 		if err != nil {
 			return sum, err
 		}
-		if _, err := images.Upload(ctx, r.ID, o, bytes.NewReader(data)); err != nil {
+		if _, err := images.Upload(ctx, r.ID, a, bytes.NewReader(data)); err != nil {
 			return sum, fmt.Errorf("upload placeholder for %q: %w", r.Title, err)
 		}
 		sum.Images++
@@ -213,20 +247,51 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 	return list[0], nil
 }
 
-// SeedMembers adds Members to an instance Seed has just filled, in locale's
-// language, marks the samples in memberMarks tasty on their behalf, and
-// creates the public links in adminShares and memberShares - the admin's as
-// the user named owner, who must be the instance owner, since only the owner
-// switches sharing on, which creating a link needs. It is switched off again
-// once the links exist, so they start out paused. It follows the seed: after a skipped
-// seed it writes nothing, since the members belong to the sample data rather
-// than to an instance in use. A member name somebody already holds is left
-// to them, marks and links included.
+// AddMembers creates Members in locale's language, before Seed, so the
+// samples in memberRecipes can be theirs. Like the seed it writes nothing to
+// an instance that already holds recipes, since the members belong to the
+// sample data rather than to an instance in use, and a member name somebody
+// already holds is left to them: that account gets no recipes, marks or
+// links.
 //
 // The members' passwords are public, so only a demo that runs on the
 // published demo credentials may call it; an operator who set their own
 // admin password gets no accounts they did not ask for.
-func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string, locale user.Locale, logger *slog.Logger) error {
+func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *slog.Logger) ([]user.User, error) {
+	n, err := recipe.NewService(conn).Count(ctx)
+	if err != nil || n > 0 {
+		return nil, err
+	}
+	users := user.NewService(conn)
+	var members []user.User
+	for _, name := range Members {
+		m, err := users.Create(ctx, user.CreateParams{
+			Username:    name,
+			Password:    name + "1234",
+			Role:        user.RoleUser,
+			DisplayName: strings.ToUpper(name[:1]) + name[1:],
+			Locale:      locale,
+		})
+		if errors.Is(err, user.ErrUsernameTaken) {
+			logger.Info("demo: member name taken, not seeding it", "user", name)
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("create member %s: %w", name, err)
+		}
+		members = append(members, m)
+	}
+	logger.Info("demo: members added", "users", strings.Join(Members, ", "))
+	return members, nil
+}
+
+// SeedMembers marks the samples in memberMarks tasty on behalf of the
+// members Seed was given, and creates the public links in adminShares and
+// memberShares - the admin's as the user named owner, who must be the
+// instance owner, since only the owner switches sharing on, which creating a
+// link needs. It is switched off again once the links exist, so they start
+// out paused. After a skipped seed it writes nothing.
+func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) error {
 	if sum.Skipped {
 		return nil
 	}
@@ -251,31 +316,17 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string, l
 			return err
 		}
 	}
-	for _, name := range Members {
-		m, err := users.Create(ctx, user.CreateParams{
-			Username:    name,
-			Password:    name + "1234",
-			Role:        user.RoleUser,
-			DisplayName: strings.ToUpper(name[:1]) + name[1:],
-			Locale:      locale,
-		})
-		if errors.Is(err, user.ErrUsernameTaken) {
-			logger.Info("demo: member name taken, not seeding it", "user", name)
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("create member %s: %w", name, err)
-		}
-		for _, i := range memberMarks[name] {
+	for _, m := range sum.Members {
+		for _, i := range memberMarks[m.Username] {
 			if i >= len(sum.RecipeIDs) {
 				continue
 			}
 			if err := recipes.SetTasty(ctx, m.ID, sum.RecipeIDs[i], true); err != nil {
-				return fmt.Errorf("mark sample %d tasty for %s: %w", i, name, err)
+				return fmt.Errorf("mark sample %d tasty for %s: %w", i, m.Username, err)
 			}
 		}
 		if sharing {
-			if err := shareSamples(ctx, shares, m, sum, memberShares[name]); err != nil {
+			if err := shareSamples(ctx, shares, m, sum, memberShares[m.Username]); err != nil {
 				return err
 			}
 		}
@@ -285,7 +336,6 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string, l
 			return fmt.Errorf("turn public sharing off: %w", err)
 		}
 	}
-	logger.Info("demo: members seeded", "users", strings.Join(Members, ", "))
 	return nil
 }
 

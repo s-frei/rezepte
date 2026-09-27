@@ -42,7 +42,7 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
 
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", locale, quiet)
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", nil, locale, quiet)
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
@@ -91,10 +91,10 @@ func TestSeedIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet); err != nil {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet) // "de": Count below expects the German fixture count
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet) // "de": Count below expects the German fixture count
 	if err != nil {
 		t.Fatalf("second Seed: %v", err)
 	}
@@ -110,14 +110,14 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	imageDir := filepath.Join(t.TempDir(), "images")
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet); !errors.Is(err, demo.ErrNoUsers) {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); !errors.Is(err, demo.ErrNoUsers) {
 		t.Fatalf("Seed without users: err = %v, want ErrNoUsers", err)
 	}
 	sam, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", "de", quiet); err != nil { // "de": the slug below is the German fixture's
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); err != nil { // "de": the slug below is the German fixture's
 		t.Fatalf("Seed with fallback owner: %v", err)
 	}
 	r, err := recipe.NewService(conn).BySlug(ctx, "flammkuchen")
@@ -140,12 +140,16 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", "de", quiet)
+	members, err := demo.AddMembers(ctx, conn, "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := demo.SeedMembers(ctx, conn, sum, "demo", "de", quiet); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 
@@ -175,43 +179,141 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 	}
 }
 
-// A seed that found recipes already there wrote nothing, and neither do the
-// members: they belong to the sample data, not to an instance in use. A
-// member name somebody already took is left to them.
-func TestSeedMembersFollowTheSeed(t *testing.T) {
+// An instance that already holds recipes gets no members, and neither marks
+// nor links: they belong to the sample data, not to an instance in use.
+func TestMembersFollowTheSeed(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, "de", quiet); err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, "de", quiet)
+	if err != nil {
+		t.Fatalf("AddMembers on a seeded instance: %v", err)
+	}
+	if len(members) != 0 {
+		t.Fatalf("members on a seeded instance = %v, want none", members)
+	}
+	if err := demo.SeedMembers(ctx, conn, demo.Summary{Skipped: true}, "demo"); err != nil {
+		t.Fatalf("SeedMembers after a skipped seed: %v", err)
+	}
+	if list, _ := users.List(ctx); len(list) != 1 {
+		t.Fatalf("users after a skipped seed = %d, want 1", len(list))
+	}
+	var shares int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM shares`).Scan(&shares); err != nil {
+		t.Fatal(err)
+	}
+	if shares != 0 {
+		t.Fatalf("shares after a skipped seed = %d, want none", shares)
+	}
+}
+
+// A member name somebody already took is left to them: that account gets no
+// password, recipes or marks from the demo.
+func TestMembersLeaveATakenNameAlone(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, demo.Summary{Skipped: true}, "demo", "de", quiet); err != nil {
-		t.Fatalf("SeedMembers after a skipped seed: %v", err)
-	}
-	if list, _ := users.List(ctx); len(list) != 1 {
-		t.Fatalf("users after a skipped seed = %d, want 1", len(list))
-	}
-
 	taken, err := users.Create(ctx, user.CreateParams{Username: demo.Members[0], Password: "their-own-pw", Role: user.RoleUser})
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", "de", quiet)
+	members, err := demo.AddMembers(ctx, conn, "de", quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo", "de", quiet); err != nil {
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
 		t.Fatalf("SeedMembers with a taken name: %v", err)
 	}
 	if _, err := users.Authenticate(ctx, taken.Username, "their-own-pw"); err != nil {
 		t.Fatalf("the existing %s lost their password: %v", taken.Username, err)
 	}
-	var theirs int
-	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasty WHERE user_id = ?`, taken.ID).Scan(&theirs); err != nil {
+	for table, column := range map[string]string{"tasty": "user_id", "recipes": "created_by"} {
+		var theirs int
+		if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE `+column+` = ?`, taken.ID).Scan(&theirs); err != nil {
+			t.Fatal(err)
+		}
+		if theirs != 0 {
+			t.Fatalf("the existing %s got %d %s rows, want none", taken.Username, theirs, table)
+		}
+	}
+}
+
+// TestMembersWriteSomeSamples: Jonas and Mila each wrote two samples, none
+// of them one they mark tasty, and Mila locked one of hers; the first sample
+// stays the admin's.
+func TestMembersWriteSomeSamples(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
 		t.Fatal(err)
 	}
-	if theirs != 0 {
-		t.Fatalf("the existing %s got %d tasty marks, want none", taken.Username, theirs)
+	members, err := demo.AddMembers(ctx, conn, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+		t.Fatal(err)
+	}
+
+	perAuthor := map[string]int{}
+	rows, err := conn.QueryContext(ctx, `SELECT u.username, COUNT(*) FROM recipes r JOIN users u ON u.id = r.created_by GROUP BY u.username`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var name string
+		var n int
+		if err := rows.Scan(&name, &n); err != nil {
+			t.Fatal(err)
+		}
+		perAuthor[name] = n
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if perAuthor["demo"] != 8 || perAuthor["jonas"] != 2 || perAuthor["mila"] != 2 {
+		t.Fatalf("recipes per author = %v, want demo 8, jonas 2, mila 2", perAuthor)
+	}
+	var ownMarks int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasty t JOIN recipes r ON r.id = t.recipe_id WHERE r.created_by = t.user_id`).Scan(&ownMarks); err != nil {
+		t.Fatal(err)
+	}
+	if ownMarks != 0 {
+		t.Fatalf("members marked %d of their own recipes tasty, want none", ownMarks)
+	}
+
+	recipes := recipe.NewService(conn)
+	first, err := recipes.BySlug(ctx, "shepherd-s-pie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.CreatedBy.Username != "demo" {
+		t.Fatalf("first sample written by %q, want demo", first.CreatedBy.Username)
+	}
+	locked, err := recipes.BySlug(ctx, "bangers-and-mash")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if locked.CreatedBy.Username != "mila" || locked.EditPolicy != recipe.PolicyLocked {
+		t.Fatalf("Bangers and Mash: by %q, policy %q; want mila, locked", locked.CreatedBy.Username, locked.EditPolicy)
 	}
 }
 
@@ -226,11 +328,15 @@ func TestSeedMembersShareSamples(t *testing.T) {
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", "en", quiet)
+	members, err := demo.AddMembers(ctx, conn, "en", quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo", "en", quiet); err != nil {
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 
@@ -274,11 +380,15 @@ func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", "en", quiet)
+	members, err := demo.AddMembers(ctx, conn, "en", quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo", "en", quiet); err != nil {
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 	var n int
