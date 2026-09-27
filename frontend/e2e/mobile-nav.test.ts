@@ -37,7 +37,7 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 	const sheet = page.getByRole('dialog', { name: 'admin' });
 	await expect(sheet).toBeVisible();
 	await expect(sheet.getByText('Owner, signed in as admin')).toBeVisible();
-	await expect(sheet.getByRole('link')).toHaveText(['Profile', 'People', 'API']);
+	await expect(sheet.getByRole('link')).toHaveText(['Profile', 'API', 'Shared links', 'People']);
 
 	await sheet.getByRole('link', { name: 'People' }).click();
 	await expect(page).toHaveURL('/settings/users');

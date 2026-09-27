@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Code from '@lucide/svelte/icons/code';
+	import Globe from '@lucide/svelte/icons/globe';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import UsersRound from '@lucide/svelte/icons/users-round';
@@ -28,15 +29,22 @@
 	const user = $derived(session.user);
 	const initial = $derived(user?.displayName.charAt(0).toUpperCase() ?? '');
 
+	// The settings pages in the order `SettingsLayout` lists them.
 	const pages = [
 		{ id: 'profile', href: resolve('/settings'), label: m.settings_nav_profile(), icon: UserRound },
+		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api(), icon: Code },
+		{
+			id: 'shares',
+			href: resolve('/settings/shares'),
+			label: m.settings_nav_shares(),
+			icon: Globe
+		},
 		{
 			id: 'people',
 			href: resolve('/settings/users'),
 			label: m.settings_nav_users(),
 			icon: UsersRound
-		},
-		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api(), icon: Code }
+		}
 	];
 
 	const row =
