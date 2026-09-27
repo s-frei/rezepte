@@ -120,3 +120,22 @@ test('a users-only token gets no MCP snippet', async ({ page }) => {
 	await expect(reveal.getByRole('tab', { name: 'Claude Code' })).toHaveCount(0);
 	await reveal.getByRole('button', { name: 'I have saved it' }).click();
 });
+
+test('a token with no access says so before it is submitted', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/api');
+	await page.getByRole('button', { name: 'Create token' }).first().click();
+	const dialog = page.getByRole('dialog');
+	const hint = dialog
+		.getByRole('alert')
+		.filter({ hasText: 'Please choose at least one kind of access' });
+	const recipes = dialog.getByRole('radiogroup', { name: 'Recipes' });
+
+	// Accounts start at None, so taking Recipes down to None leaves nothing.
+	await expect(hint).toBeHidden();
+	await recipes.getByRole('radio', { name: 'None' }).click();
+	await expect(hint).toBeVisible();
+	await recipes.getByRole('radio', { name: 'Read' }).click();
+	await expect(hint).toBeHidden();
+});

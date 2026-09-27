@@ -29,7 +29,7 @@
 	let recipes = $state<Access>('read');
 	let users = $state<UserAccess>('none');
 	let expiry = $state('90');
-	let errors = $state<{ name?: string; scopes?: string }>({});
+	let errors = $state<{ name?: string }>({});
 	let saving = $state(false);
 
 	const accessOptions: { value: UserAccess; label: string }[] = [
@@ -75,6 +75,11 @@
 
 	const scopes = $derived([...scopesOf('recipes', recipes), ...scopesOf('users', users)]);
 
+	// A token with no scope could do nothing, and the server refuses one.
+	// Said the moment both ladders reach None rather than on submit, so
+	// nobody fills in the rest of the form before finding out.
+	const noAccess = $derived(scopes.length === 0);
+
 	// A fresh form every time the dialog opens.
 	$effect(() => {
 		if (open) {
@@ -92,10 +97,7 @@
 		if (name.trim() === '') {
 			errors.name = m.tokens_validation_name();
 		}
-		if (scopes.length === 0) {
-			errors.scopes = m.tokens_validation_scopes();
-		}
-		if (Object.keys(errors).length > 0) {
+		if (noAccess || Object.keys(errors).length > 0) {
 			return;
 		}
 		saving = true;
@@ -154,8 +156,8 @@
 					description={userAccessText[users]()}
 				/>
 			</div>
-			{#if errors.scopes}
-				<p class="text-caption text-destructive">{errors.scopes}</p>
+			{#if noAccess}
+				<p role="alert" class="text-caption text-destructive">{m.tokens_validation_scopes()}</p>
 			{/if}
 		</div>
 		<div class="flex flex-col gap-1.5">
