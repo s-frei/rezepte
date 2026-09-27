@@ -145,7 +145,7 @@ Public, revocable recipe links a member creates and manages; see [Public shares]
 
 | Operation | Path | Notes |
 |---|---|---|
-| create-public-share | `POST /recipes/{id}/public-share` | body `{days}` (`1`, `7`, `30`, `365` or `null`); session only; `201`; `409` with the caller's existing share in the problem body's `share` field when one already exists; `403` `public sharing is off` / `public sharing not allowed for this user`; `422` `body.days` when the lifetime exceeds the maximum; `404` unknown recipe |
+| create-public-share | `POST /recipes/{id}/public-share` | body `{days}` (`1`, `7`, `30`, `365` or `null`); session only; `201`; `409` with the caller's existing share in the problem body's `share` field when one already exists; `403` with `reason` `sharing-off` / `not-allowed` in the problem body; `422` `body.days` when the lifetime exceeds the maximum; `404` unknown recipe |
 | get-my-public-share | `GET /shares/by-recipe/{recipeId}` | session only; `200` `{share}` - the caller's own share, or `null` when there is none, or the recipe is unknown; never `404` for "no link", since the recipe page calls this on every view. Not nested under `/recipes/{id}/`: a `GET` there would collide with `GET /recipes/by-slug/{slug}` in the mux (see [Public shares](/features/public-shares)) |
 | list-shares | `GET /shares` | session only; the caller's own shares, newest first; `?all=true` for admins: everyone's, each with `createdBy`; `403` for `all` from a non-admin |
 | revoke-share | `DELETE /shares/{id}` | session only; own share, or any as admin; `204`; `404` otherwise |

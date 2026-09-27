@@ -245,6 +245,59 @@ test('a member creates, copies and revokes a public link', async ({ page }, test
 	}
 });
 
+test('a refused link says whether sharing is off or the right withdrawn', async ({
+	page,
+	browser
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const token = uniqueToken();
+	const username = `refused${token}`;
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Refused ${token}` });
+	const member = await createUser(page, { username, role: 'user' });
+
+	// The dialog is opened while sharing is allowed and the refusal happens
+	// behind its back, the way a second tab or another admin would cause it.
+	async function refuse(on: typeof page, change: () => Promise<unknown>, toast: string) {
+		await on.goto(`/recipes/${recipe.slug}`);
+		await openRecipeMenu(on);
+		await on.getByRole('menuitem', { name: 'Share publicly…' }).click();
+		const dialog = on.getByRole('dialog', { name: 'Your public link' });
+		await expect(dialog).toBeVisible();
+		await change();
+		await dialog.getByRole('button', { name: 'Create public link' }).click();
+		await expect(on.getByText(toast)).toBeVisible();
+	}
+
+	try {
+		await setPublicShares(page, true);
+		await refuse(
+			page,
+			() => setPublicShares(page, false),
+			'Public sharing is off for this household.'
+		);
+
+		await setPublicShares(page, true);
+		const memberContext = await browser.newContext();
+		try {
+			const memberPage = await memberContext.newPage();
+			await login(memberPage, username);
+			await expect(memberPage).toHaveURL('/');
+			await refuse(
+				memberPage,
+				() => setCanSharePublicly(page, member.id, false),
+				"You don't have permission to create public links."
+			);
+		} finally {
+			await memberContext.close();
+		}
+	} finally {
+		await setCanSharePublicly(page, member.id, true);
+		await setPublicShares(page, false);
+	}
+});
+
 test('a member without the right sees no menu item', async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);

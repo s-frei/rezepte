@@ -8,7 +8,8 @@
 		createPublicShare,
 		revokeShare,
 		type PublicShare,
-		type ShareLifetime
+		type ShareLifetime,
+		type ShareRefusal
 	} from '$lib/api/shares';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -81,10 +82,9 @@
 				}
 			}
 			if (error instanceof ApiError && error.status === 403) {
+				const reason = error.body.reason as ShareRefusal | undefined;
 				toast.error(
-					error.detail === 'public sharing is off'
-						? m.public_share_error_off()
-						: m.public_share_error_not_allowed()
+					reason === 'sharing-off' ? m.public_share_error_off() : m.public_share_error_not_allowed()
 				);
 				return;
 			}

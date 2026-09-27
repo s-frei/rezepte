@@ -26,10 +26,14 @@ export type PublicShare = {
 	createdBy?: ShareCreator;
 };
 
+/** Why the service refused to open a public link: a 403's `body.reason`. */
+export type ShareRefusal = 'sharing-off' | 'not-allowed';
+
 /**
  * Opens a public link to a recipe. `days` is capped by the instance
  * maximum - see `$lib/recipe/lifetimes`. Throws `ApiError` with status 409
- * when the caller already has one; its `body.share` carries that link.
+ * when the caller already has one; its `body.share` carries that link. A
+ * 403 says why in `body.reason` (`ShareRefusal`).
  */
 export function createPublicShare(recipeId: string, days: ShareLifetime): Promise<PublicShare> {
 	return api<PublicShare>(`/recipes/${recipeId}/public-share`, {

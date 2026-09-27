@@ -26,6 +26,31 @@ type ExistingShareError struct {
 	Share Share `json:"share" doc:"The caller's existing public link for this recipe"`
 }
 
+// RefusedError is the 403 create-public-share answers when the caller may
+// not open a link: its reason says why in a word a client can switch on, so
+// the detail stays free to change wording.
+type RefusedError struct {
+	huma.ErrorModel
+	Reason string `json:"reason" enum:"sharing-off,not-allowed" doc:"sharing-off: the owner has switched public sharing off for the instance; not-allowed: an admin has withdrawn the right from this user"`
+}
+
+// The reasons a RefusedError carries.
+const (
+	ReasonSharingOff = "sharing-off"
+	ReasonNotAllowed = "not-allowed"
+)
+
+func refused(err error, reason string) *RefusedError {
+	return &RefusedError{
+		ErrorModel: huma.ErrorModel{
+			Title:  http.StatusText(http.StatusForbidden),
+			Status: http.StatusForbidden,
+			Detail: err.Error(),
+		},
+		Reason: reason,
+	}
+}
+
 type shareOutput struct {
 	Body Share
 }
@@ -113,8 +138,14 @@ func Register(api huma.API, svc *Service) {
 		Tags:          []string{"shares"},
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{401, 403, 404, 422},
+		Errors:        []int{401, 404, 422},
 		Responses: map[string]*huma.Response{
+			"403": {
+				Description: "Public sharing is off, or the caller may not share publicly; reason says which",
+				Content: map[string]*huma.MediaType{
+					"application/problem+json": {Schema: registry.Schema(reflect.TypeFor[RefusedError](), true, "")},
+				},
+			},
 			"409": {
 				Description: "The caller already has a public link for this recipe; the problem document carries it as share",
 				Content: map[string]*huma.MediaType{
@@ -138,8 +169,10 @@ func Register(api huma.API, svc *Service) {
 				},
 				Share: sh,
 			}
-		case errors.Is(err, ErrSharingOff), errors.Is(err, ErrNotAllowed):
-			return nil, huma.Error403Forbidden(err.Error())
+		case errors.Is(err, ErrSharingOff):
+			return nil, refused(err, ReasonSharingOff)
+		case errors.Is(err, ErrNotAllowed):
+			return nil, refused(err, ReasonNotAllowed)
 		case errors.Is(err, ErrLifetime):
 			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
 				Location: "body.days",

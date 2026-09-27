@@ -284,8 +284,8 @@ func TestCreatePublicShare(t *testing.T) {
 		t.Errorf("status after the right was withdrawn = %+v, want paused", paused.Share)
 	}
 	rec = s.do(http.MethodPost, "/api/v1/recipes/"+other.ID+"/public-share", `{"days":null}`, mia)
-	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "public sharing not allowed for this user") {
-		t.Errorf("create while withdrawn: %d %s", rec.Code, rec.Body.String())
+	if refusal := decode[share.RefusedError](t, rec); rec.Code != http.StatusForbidden || refusal.Reason != share.ReasonNotAllowed {
+		t.Errorf("create while withdrawn: %d %s, want 403 reason %s", rec.Code, rec.Body.String(), share.ReasonNotAllowed)
 	}
 	if _, err := s.users.SetCanSharePublicly(ctx, s.admin, s.member.ID, true); err != nil {
 		t.Fatal(err)
@@ -295,8 +295,8 @@ func TestCreatePublicShare(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec = s.do(http.MethodPost, "/api/v1/recipes/"+other.ID+"/public-share", `{"days":null}`, mia)
-	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "public sharing is off") {
-		t.Errorf("create while sharing is off: %d %s", rec.Code, rec.Body.String())
+	if refusal := decode[share.RefusedError](t, rec); rec.Code != http.StatusForbidden || refusal.Reason != share.ReasonSharingOff {
+		t.Errorf("create while sharing is off: %d %s, want 403 reason %s", rec.Code, rec.Body.String(), share.ReasonSharingOff)
 	}
 	if _, err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
 		t.Fatal(err)
