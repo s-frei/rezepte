@@ -80,6 +80,11 @@ test('adding a member marks username and password, not the display name', async 
 		'aria-required',
 		'true'
 	);
+	// Typed twice, like every other form that sets a password.
+	await expect(dialog.getByLabel('Repeat the new password')).toHaveAttribute(
+		'aria-required',
+		'true'
+	);
 	// The star is the convention now; "(optional)" would be the opposite one.
 	const displayName = dialog.getByRole('textbox', { name: 'Display name', exact: true });
 	await expect(displayName).not.toHaveAttribute('aria-required', 'true');

@@ -14,7 +14,7 @@
 	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
-	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
+	import { PASSWORD_MIN, passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
 	import { leastUsedColor, USER_COLORS, type UserColor } from '$lib/user/color';
 	import ColorPicker from './ColorPicker.svelte';
 	import PasswordStrength from './PasswordStrength.svelte';
@@ -28,6 +28,9 @@
 	let username = $state('');
 	let displayName = $state('');
 	let password = $state('');
+	// Typed twice, like the reset and the own change: the admin hands this
+	// password on, and a typo nobody saw would lock the new member out.
+	let repeat = $state('');
 	let role = $state<string>('user');
 	let color = $state<UserColor>(USER_COLORS[0]);
 	// Seeded from the language this admin is reading, not from the instance
@@ -39,7 +42,7 @@
 	// Held as a plain string because that is what the select binds; narrowed
 	// back to Locale on submit, where the API type demands it.
 	let locale = $state<string>(getLocale());
-	let errors = $state<{ username?: string; password?: string }>({});
+	let errors = $state<{ username?: string; password?: string; repeat?: string }>({});
 	let saving = $state(false);
 
 	const localeOptions = languageOptions();
@@ -65,6 +68,7 @@
 			username = '';
 			displayName = '';
 			password = '';
+			repeat = '';
 			role = 'user';
 			color = leastUsedColor(usage);
 			locale = getLocale();
@@ -78,9 +82,12 @@
 		if (username.trim() === '') {
 			errors.username = m.users_validation_username();
 		}
-		const pw = validateNewPassword(password, password);
+		const pw = validateNewPassword(password, repeat);
 		if (pw.next) {
 			errors.password = pw.next;
+		}
+		if (pw.repeat) {
+			errors.repeat = pw.repeat;
 		}
 		if (Object.keys(errors).length > 0) {
 			return;
@@ -155,9 +162,20 @@
 				bind:value={password}
 				oninput={() => (errors = withoutErrors(errors, ['password']))}
 				error={errors.password ?? null}
+				hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
 			/>
 			<PasswordStrength {password} userInputs={[username, displayName]} />
 		</div>
+		<Input
+			id="new-user-password-repeat"
+			label={m.settings_password_repeat()}
+			type="password"
+			autocomplete="new-password"
+			required
+			bind:value={repeat}
+			oninput={() => (errors = withoutErrors(errors, ['repeat']))}
+			error={errors.repeat ?? null}
+		/>
 		<RadioGroup.Root
 			bind:value={role}
 			aria-label={m.users_field_role()}

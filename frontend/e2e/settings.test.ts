@@ -85,6 +85,7 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Username').fill(username);
 	await dialog.getByLabel('Password', { exact: true }).fill(devPassword(username));
+	await dialog.getByLabel('Repeat the new password').fill(devPassword(username));
 	await dialog.getByRole('radio', { name: /Member/ }).click();
 	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
 
@@ -106,15 +107,12 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await expect(page.getByText(`${username}'s role changed`)).toBeVisible();
 
 	await row.getByRole('button', { name: `Reset ${username}'s password` }).click();
-	await page
-		.getByRole('dialog')
-		.getByLabel('New password', { exact: true })
-		.fill(devPasswordNext(username));
-	await page
-		.getByRole('dialog')
-		.getByLabel('Repeat the new password')
-		.fill(devPasswordNext(username));
-	await page.getByRole('dialog').getByRole('button', { name: 'Reset', exact: true }).click();
+	// By name: "Add member" can still be playing its close transition, and it
+	// has a "Repeat the new password" field of its own.
+	const reset = page.getByRole('dialog', { name: `Reset ${username}'s password` });
+	await reset.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
+	await reset.getByLabel('Repeat the new password').fill(devPasswordNext(username));
+	await reset.getByRole('button', { name: 'Reset', exact: true }).click();
 	await expect(page.getByText('Password reset')).toBeVisible();
 
 	await row.getByRole('button', { name: 'Delete' }).click();
@@ -149,6 +147,56 @@ test('a reset password has to be typed the same twice', async ({ page }) => {
 
 	await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
 	await expect(page.getByText('Password reset')).toBeVisible();
+});
+
+test('adding a member refuses a password typed differently twice', async ({ page }) => {
+	const username = `u${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/users');
+
+	await page.getByRole('button', { name: 'Add member' }).click();
+	const dialog = page.getByRole('dialog');
+	const repeat = dialog.getByLabel('Repeat the new password');
+	await dialog.getByLabel('Username').fill(username);
+	await dialog.getByLabel('Password', { exact: true }).fill(devPassword(username));
+	await repeat.fill(`${devPassword(username)}x`);
+	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+
+	await expect(dialog.getByText('The passwords do not match')).toBeVisible();
+	await repeat.fill(devPassword(username));
+	await expect(repeat).not.toHaveAttribute('aria-invalid', 'true');
+	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+	await expect(page.getByText(`${username} added`)).toBeVisible();
+});
+
+test('every field that sets a password says how long it has to be', async ({ page }) => {
+	const username = `u${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, role: 'user' });
+
+	await page.goto('/settings');
+	await expect(page.getByLabel('New password', { exact: true })).toHaveAccessibleDescription(
+		'At least 8 characters'
+	);
+
+	await page.goto('/settings/users');
+	await page.getByRole('button', { name: 'Add member' }).click();
+	await expect(
+		page.getByRole('dialog').getByLabel('Password', { exact: true })
+	).toHaveAccessibleDescription('At least 8 characters');
+	await page.keyboard.press('Escape');
+
+	await page
+		.getByRole('list', { name: 'Members' })
+		.getByRole('listitem')
+		.filter({ hasText: username })
+		.getByRole('button', { name: `Reset ${username}'s password` })
+		.click();
+	await expect(
+		page.getByRole('dialog').getByLabel('New password', { exact: true })
+	).toHaveAccessibleDescription('At least 8 characters');
 });
 
 test('the owner sorts the member list by role', async ({ page, isMobile }) => {

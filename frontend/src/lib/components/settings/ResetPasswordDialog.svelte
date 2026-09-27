@@ -9,6 +9,7 @@
 	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
 	import {
+		PASSWORD_MIN,
 		passwordErrorsFromApi,
 		validateNewPassword,
 		type PasswordErrors
@@ -82,6 +83,7 @@
 				bind:value={password}
 				oninput={() => (errors = withoutErrors(errors, ['next']))}
 				error={errors.next ?? null}
+				hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
 			/>
 			<PasswordStrength {password} userInputs={[user?.username ?? '', user?.displayName ?? '']} />
 		</div>
