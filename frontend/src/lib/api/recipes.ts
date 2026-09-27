@@ -114,9 +114,6 @@ export type RecipePage = {
 
 export type Tag = { name: string; count: number };
 
-/** Unit suggestions offered in the ingredient row's unit combobox. */
-export const UNIT_SUGGESTIONS = ['g', 'kg', 'ml', 'l', 'EL', 'TL', 'Stück', 'Prise'];
-
 /** Most images the API accepts per recipe. */
 export const MAX_IMAGES = 20;
 

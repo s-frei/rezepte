@@ -3,7 +3,6 @@
 	import { flip } from 'svelte/animate';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { dragHandleZone, type DndEvent } from 'svelte-dnd-action';
-	import { UNIT_SUGGESTIONS } from '$lib/api/recipes';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import {
@@ -85,13 +84,6 @@
 		group.ingredients = event.detail.items;
 	}
 </script>
-
-<!-- One datalist for every unit field on the page. -->
-<datalist id="unit-suggestions">
-	{#each UNIT_SUGGESTIONS as unit (unit)}
-		<option value={unit}></option>
-	{/each}
-</datalist>
 
 <div class="space-y-6">
 	{#each groups as group, groupIndex (group.id)}

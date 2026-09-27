@@ -57,7 +57,7 @@ test('creates a recipe through the editor', async ({ page }) => {
 	// label of the field inside it ("Ingredient 1", "Step 1") so
 	// svelte-dnd-action can announce a drag, which leaves `getByLabel`
 	// matching two elements. "Unit" is a combobox rather than a textbox
-	// because its input points a `list` at the shared unit `<datalist>`.
+	// because it offers a list of units beside free text.
 	await page.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
 	await page.getByRole('textbox', { name: 'Amount', exact: true }).fill('2');
 	await page.getByRole('combobox', { name: 'Unit', exact: true }).fill('pcs');
@@ -1520,4 +1520,44 @@ test('the contents sheet jumps to a section and the running head keeps it', asyn
 	// The reader scrolling again hands the head back to the scroll position.
 	await page.mouse.wheel(0, -400);
 	await expect(page.getByRole('button', { name: 'Ingredients, open contents' })).toBeVisible();
+});
+
+test('opens the full unit list on every tap, even over a chosen unit', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	await openNewRecipe(page);
+
+	const unit = page.getByRole('combobox', { name: 'Unit', exact: true });
+	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
+	const everyUnit = ['g', 'kg', 'ml', 'l', 'tbsp', 'tsp', 'piece', 'pinch'];
+
+	// Typing narrows the list; a tap on an option takes it.
+	await unit.fill('tb');
+	await expect(list.getByRole('option')).toHaveText(['tbsp']);
+	await list.getByRole('option', { name: 'tbsp' }).click();
+	await expect(unit).toHaveValue('tbsp');
+	await expect(list).toBeHidden();
+
+	// A second tap on the field that kept its focus opens it again - with
+	// every unit, not only the ones that match the value, and the current one
+	// marked. A native datalist showed nothing here.
+	await unit.click();
+	await expect(list.getByRole('option')).toHaveText(everyUnit);
+	await expect(list.getByRole('option', { name: 'tbsp' })).toHaveAttribute('aria-selected', 'true');
+	const box = await list.boundingBox();
+	expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+	await list.getByRole('option', { name: 'g', exact: true }).click();
+	await expect(unit).toHaveValue('g');
+
+	// The chevron opens it too, and the keys walk it from the field.
+	await page.getByRole('button', { name: 'Show units' }).click();
+	await expect(list.getByRole('option')).toHaveText(everyUnit);
+	await unit.press('ArrowDown');
+	await unit.press('Enter');
+	await expect(unit).toHaveValue('kg');
+
+	// Free text stays free: a unit of its own is kept as typed.
+	await unit.fill('bunch');
+	await expect(list).toBeHidden();
+	await unit.press('Tab');
+	await expect(unit).toHaveValue('bunch');
 });
