@@ -80,7 +80,7 @@
 			type="password"
 			autocomplete="new-password"
 			bind:value={next}
-			oninput={() => (errors = withoutErrors(errors, ['next']))}
+			oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
 			error={errors.next ?? null}
 			hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
 		/>

@@ -91,6 +91,23 @@ test('the own password change refuses a new password typed differently twice', a
 	await expect(repeat).not.toHaveAttribute('aria-invalid', 'true');
 });
 
+test('fixing the first password field clears the mismatch too', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+	await page.getByLabel('Current password').fill(devPassword('admin'));
+	const next = page.getByLabel('New password', { exact: true });
+	const repeat = page.getByLabel('Repeat the new password');
+	await next.fill(`${devPasswordNext('admin')}x`);
+	await repeat.fill(devPasswordNext('admin'));
+	await page.getByRole('button', { name: 'Save password' }).click();
+	await expect(repeat).toHaveAttribute('aria-invalid', 'true');
+
+	// The mismatch is about the pair, so retyping either half answers it.
+	await next.fill(devPasswordNext('admin'));
+	await expect(repeat).not.toHaveAttribute('aria-invalid', 'true');
+});
+
 test('the new password is rated as it is typed, and only advised on', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');

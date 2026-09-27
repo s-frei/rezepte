@@ -38,6 +38,9 @@ test('a name with a link is the link', async ({ page }) => {
 	const link = credit(page).getByRole('link', { name: 'Aunt Erika' });
 	await expect(link).toHaveAttribute('href', 'https://www.example.test/pie');
 	await expect(link).toHaveAttribute('target', '_blank');
+	// The household's own address stays home: a source site learns nothing
+	// about the instance it was opened from.
+	await expect(link).toHaveAttribute('rel', /\bnoreferrer\b/);
 });
 
 test('no source means no credit line, and no source pill', async ({ page }) => {
@@ -49,6 +52,14 @@ test('no source means no credit line, and no source pill', async ({ page }) => {
 test('a long name wraps on a phone instead of widening the page', async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 780 });
 	await open(page, { sourceName: 'Kochbuch '.repeat(22).trim(), sourceUrl: null });
+	await expect(credit(page)).toBeVisible();
+	const width = await page.evaluate(() => document.documentElement.scrollWidth);
+	expect(width).toBeLessThanOrEqual(360);
+});
+
+test('a name without spaces, a pasted URL say, still wraps on a phone', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	await open(page, { sourceName: `https://www.example.test/${'x'.repeat(170)}`, sourceUrl: null });
 	await expect(credit(page)).toBeVisible();
 	const width = await page.evaluate(() => document.documentElement.scrollWidth);
 	expect(width).toBeLessThanOrEqual(360);

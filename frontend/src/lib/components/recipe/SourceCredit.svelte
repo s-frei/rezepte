@@ -12,16 +12,20 @@
 	The credit a cookbook prints under a recipe's title. It exists only when
 	there is something to credit, so "Adapted from" never stands alone, and it
 	wraps rather than truncates: a cookbook's name with its page number is the
-	case this line is for.
+	case this line is for. `wrap-anywhere` because a name can be one long word
+	- a URL pasted into the name field - and a word is also what the text
+	column's `1fr` floor is made of, so without it the cover leaves the page.
+	`noreferrer` so the site a recipe came from never learns the household's
+	own address.
 -->
 {#if label}
-	<p class="font-display text-body text-text-muted italic">
+	<p class="font-display text-body wrap-anywhere text-text-muted italic">
 		{m.recipe_source_prefix()}
 		{#if url}
 			<a
 				href={url}
 				target="_blank"
-				rel="noopener external"
+				rel="noreferrer noopener external"
 				class="text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>{label}<ExternalLink class="ml-1 inline size-3.5 align-[-0.125em]" aria-hidden="true" /></a
 			>

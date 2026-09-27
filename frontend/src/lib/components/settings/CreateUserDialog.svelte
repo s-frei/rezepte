@@ -160,7 +160,7 @@
 				autocomplete="new-password"
 				required
 				bind:value={password}
-				oninput={() => (errors = withoutErrors(errors, ['password']))}
+				oninput={() => (errors = withoutErrors(errors, ['password', 'repeat']))}
 				error={errors.password ?? null}
 				hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
 			/>
