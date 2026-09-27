@@ -1,0 +1,69 @@
+---
+title: "v1.0.0 — Your household's recipes, now stable"
+description: "The first stable release of Rezepte: your household's recipes on your own server, in English or German, with cook mode, an API and an MCP endpoint, public links and link previews for sharing, and tasty marks."
+date: 2026-09-27
+---
+
+Rezepte 1.0.0 is the first stable release: everything [v1.0.0-rc1](/changelog/v1.0.0-rc1) was out to try, plus what came after it. `latest` now points at it; pull `ghcr.io/s-frei/rezepte:1.0.0` or pick an archive from the release page, and follow [Quick start](/getting-started).
+
+If you tried rc1, [back up your data directory](/operations/data-and-backup) and follow [Updates](/operations/updates): the new version adds its database tables on the first start. Public links and link previews start switched off, so nothing becomes reachable from outside until an owner turns them on. What is new since rc1 is marked below.
+
+## Your recipes in one place
+
+Rezepte is one binary, or one container, that keeps your household's recipes in an SQLite database and your photos next to it in a single data directory. Write a recipe with ingredient groups, preparation steps, tags, times, photos and a source, and find it again by title, ingredient, tag, time, favorite or author. The [Recipes](/guide/recipes) and [Tags and search](/guide/tags-and-search) guides cover it, and `--demo` starts an instance filled with sample recipes to look around in.
+
+<Screenshot name="overview" caption="The recipe overview with search, tag chips and the card grid" />
+
+## Cook from your phone
+
+Cook mode shows one step at a time in large type, with the ingredient list a tap away and a choice of five text sizes. Steps can link the ingredients they use, so the amount shows right in the step, scaled to the servings you chose. See [Cook mode](/guide/cook-mode) and [Servings](/guide/servings).
+
+<Screenshot name="cook-mode" caption="A step in cook mode" />
+
+## Share a recipe with anyone
+
+New since rc1: a recipe can get a public link that works without an account, for as long as you choose. Settings → Shared links lists every link you handed out and revokes one or all of them. Owners decide whether the household shares publicly at all, set the default and longest lifetime, and choose who may share. See [Public links](/guide/sharing#public-links).
+
+<Screenshot name="public-page" caption="A recipe opened from a public link" />
+
+When you paste a recipe link into a chat app, the preview can show the recipe's title and photo for a limited time, without making the recipe itself public. See [The link preview](/guide/sharing#the-link-preview).
+
+## Mark what tasted good
+
+New since rc1: next to your own favorites, a heart marks a recipe as tasty for the whole household. The recipe page shows who liked it, cards show the count, and the overview can be sorted by the tastiest recipes. See [Tasty](/guide/recipes#tasty).
+
+## Let programs and AI assistants in
+
+Admins issue API tokens under Settings → API, each with its own access to recipes and to accounts, picked on a ladder from None to Read, Write and Delete. The same token connects an AI assistant to the MCP endpoint at `/mcp`, and the token dialog hands you the command or configuration to paste. See [API tokens](/api/tokens) and [Connect an AI assistant](/api/mcp).
+
+## API
+
+Changes since rc1:
+
+- New endpoints mark recipes tasty, create and revoke public links, and hand out preview links; recipes carry `tastyCount`, `tastyBy` and `tasty`, and lists sort with `sort=tasty`.
+- Recipes have an optional `sourceName` beside `sourceUrl`.
+- `GET /api/v1/people` lists every account's name, color and role.
+- A refused public link answers `403` with a `reason`, `sharing-off` or `not-allowed`.
+- `PATCH /api/v1/settings` changes only the fields you send.
+- The OpenAPI document carries the Rezepte version, the same one `/healthz` reports.
+- The MCP endpoint gains `add_tasty` and `remove_tasty`, `sort: tasty` in search, and the source name on recipes.
+
+The [API reference](/api/reference) lists every endpoint.
+
+## Also in this release
+
+[Features](/guide) walks through everything else — accounts and roles, editing rights, English and German, favorites, photos, settings and keyboard shortcuts — and [Operations](/operations/data-and-backup) covers running it. Since rc1:
+
+- **New:** A recipe's source can carry a name, such as a cookbook and page, shown under the description and linked when there is a URL.
+- **New:** Every account sees who takes part, grouped by role; on a phone a person opens in a sheet.
+- **Improved:** On a phone, a compact bar with Recipes, Search and You shrinks while you scroll; You opens a sheet with your account pages, and Search opens the command palette.
+- **Improved:** New passwords are typed twice, and the form states the minimum length.
+- **Improved:** Required fields are marked, and errors clear as soon as you fix them.
+- **Improved:** The unit field suggests units in the recipe's language, such as cups and oz in English, TL, EL and Bund in German.
+- **Improved:** The overview opens with a cookbook-style head, and cards lift under the pointer.
+- **Improved:** API token access fits a phone, with a warning as soon as a token would have no access.
+- **Improved:** The demo's sample recipes come from several accounts, who also mark some of them tasty.
+- **Fixed:** Dialogs taller than a phone screen scroll.
+- **Fixed:** Suggestion lists stand apart from the fields in dark mode.
+- **Fixed:** Unit and tag lists open on a tap, not when a scroll starts.
+- **Fixed:** The recipe title uses the full width, with the star and heart below it.
