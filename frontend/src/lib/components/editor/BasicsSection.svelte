@@ -44,8 +44,8 @@
 	-->
 	<!-- The name reads as the end of the credit line the recipe page prints,
 	     so the field starts that sentence for the author: whoever sees
-	     "Adapted from" in front of the cursor writes "Ottolenghi", not
-	     "From Ottolenghi". -->
+	     "Adapted from" in front of the cursor writes "Grandma's cookbook",
+	     not "From Grandma's cookbook". -->
 	<Input
 		id="editor-sourceName"
 		label={m.recipe_source()}

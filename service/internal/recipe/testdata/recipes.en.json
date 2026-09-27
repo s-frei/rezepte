@@ -164,8 +164,8 @@
     "servings": 4,
     "prepMinutes": 20,
     "cookMinutes": 120,
-    "sourceUrl": null,
-    "sourceName": null,
+    "sourceUrl": "https://example.com/beef-and-ale-stew",
+    "sourceName": "Sunday Stews",
     "tags": ["classic", "meat", "stew"],
     "ingredientGroups": [
       {
@@ -270,7 +270,7 @@
     "servings": 4,
     "prepMinutes": 15,
     "cookMinutes": 35,
-    "sourceUrl": null,
+    "sourceUrl": "https://www.example.com/toad-in-the-hole",
     "sourceName": null,
     "tags": ["oven", "meat"],
     "ingredientGroups": [

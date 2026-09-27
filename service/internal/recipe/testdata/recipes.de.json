@@ -49,8 +49,8 @@
     "servings": 4,
     "prepMinutes": 30,
     "cookMinutes": 100,
-    "sourceUrl": null,
-    "sourceName": null,
+    "sourceUrl": "https://example.com/rinderrouladen",
+    "sourceName": "Sonntagsküche",
     "tags": ["klassiker", "fleisch", "schmoren"],
     "ingredientGroups": [
       {
@@ -136,7 +136,7 @@
     "servings": 4,
     "prepMinutes": 20,
     "cookMinutes": 20,
-    "sourceUrl": null,
+    "sourceUrl": "https://www.example.com/kaesespaetzle",
     "sourceName": null,
     "tags": ["vegetarisch", "schwäbisch"],
     "ingredientGroups": [

@@ -44,7 +44,7 @@ function baseInput(overrides: Partial<RecipeInput> = {}): RecipeInput {
 		prepMinutes: 30,
 		cookMinutes: 45,
 		sourceUrl: 'https://example.test/tarte',
-		sourceName: 'Ottolenghi – Simple, S. 142',
+		sourceName: 'Omas Kochbuch, S. 42',
 		tags: ['dessert', 'backen'],
 		ingredientGroups: [
 			{
@@ -175,7 +175,7 @@ describe('fromRecipe', () => {
 		expect(form.prepMinutes).toBe('30');
 		expect(form.cookMinutes).toBe('45');
 		expect(form.sourceUrl).toBe('https://example.test/tarte');
-		expect(form.sourceName).toBe('Ottolenghi – Simple, S. 142');
+		expect(form.sourceName).toBe('Omas Kochbuch, S. 42');
 		expect(form.tags).toEqual(['dessert', 'backen']);
 	});
 

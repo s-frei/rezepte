@@ -758,7 +758,7 @@ func TestSourceNameRoundTrips(t *testing.T) {
 		return got
 	}
 
-	book := "Ottolenghi – Simple, p. 142"
+	book := "Grandma's cookbook, p. 42"
 	if got := decode(create(&book)); got.SourceName == nil || *got.SourceName != book {
 		t.Fatalf("sourceName = %v", got.SourceName)
 	}

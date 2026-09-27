@@ -69,7 +69,7 @@
 	);
 
 	// Prefix and suffix are part of what the field means ("30" is 30 minutes,
-	// "Ottolenghi" is adapted from Ottolenghi), so they are described rather
+	// "Grandma's cookbook" is what it was adapted from), so they are described rather
 	// than hidden from assistive tech.
 	const describedBy = $derived(
 		[
