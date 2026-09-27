@@ -6,6 +6,12 @@ import { createGetUrl } from 'fumadocs-core/source';
 // `https://host/og.png`, not `https://host/rezepte/og.png`.
 export const SITE_URL = 'https://s-frei.github.io/rezepte/';
 
+// What a search result shows for the home page. "Rezepte" is an everyday German
+// word that recipe sites rank for, so the name alone finds nothing; the words
+// people actually search with have to be in the title. Other pages keep the
+// short `%s — Rezepte` template.
+export const SITE_TITLE = 'Rezepte — Self-hosted recipe manager for your household';
+
 // Next merges metadata shallowly: a page-level `openGraph` REPLACES the root
 // layout's rather than extending it. Every page that sets its own og:title has
 // to spread these in, or it silently loses og:type, og:site_name and og:locale.

@@ -9,7 +9,7 @@ import { InlineCode } from '@/components/inline-code';
 import { getMDXComponents } from '@/components/mdx';
 import { openapi } from '@/lib/openapi';
 import { source } from '@/lib/source';
-import { getPageMarkdownUrl, OG_SHARED } from '@/lib/shared';
+import { getPageMarkdownUrl, OG_SHARED, SITE_TITLE } from '@/lib/shared';
 
 type Props = { params: Promise<{ slug?: string[] }> };
 
@@ -75,9 +75,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	const { slug = [] } = await params;
 	const page = source.getPage(slug);
 	if (!page) notFound();
+	// The home page's heading is the bare name, which the template would turn
+	// into "Rezepte — Rezepte"; it takes the site title whole instead.
+	const title = slug.length === 0 ? SITE_TITLE : page.data.title;
 	return {
-		title: page.data.title,
+		title: slug.length === 0 ? { absolute: title } : title,
 		description: page.data.description,
-		openGraph: { ...OG_SHARED, title: page.data.title, description: page.data.description }
+		openGraph: { ...OG_SHARED, title, description: page.data.description }
 	};
 }

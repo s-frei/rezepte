@@ -2,17 +2,17 @@ import './global.css';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { OG_IMAGES, OG_SHARED, SITE_URL } from '@/lib/shared';
+import { OG_IMAGES, OG_SHARED, SITE_TITLE, SITE_URL } from '@/lib/shared';
+import { source } from '@/lib/source';
+
+// The home page's description is the site's; content/index.mdx owns the wording.
+const description = source.getPage([])?.data.description;
 
 export const metadata: Metadata = {
 	metadataBase: new URL(SITE_URL),
-	title: { default: 'Rezepte', template: '%s — Rezepte' },
-	description: 'A self-hosted recipe manager for your household',
-	openGraph: {
-		...OG_SHARED,
-		title: 'Rezepte',
-		description: 'A self-hosted recipe manager for your household'
-	},
+	title: { default: SITE_TITLE, template: '%s — Rezepte' },
+	description,
+	openGraph: { ...OG_SHARED, title: SITE_TITLE, description },
 	twitter: { card: 'summary_large_image', images: OG_IMAGES }
 };
 
