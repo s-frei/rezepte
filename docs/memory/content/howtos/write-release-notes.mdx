@@ -38,14 +38,14 @@ Remove the `{/* DRAFT */}` line and the commit comment. Every `FILL IN` must be 
 
 ## A stable release after release candidates
 
-The people who read the page of a stable release that follows candidates, say `v1.2.0` after `v1.2.0-rc2`, are mostly the ones who tried a candidate: they want to know what changed since then, not to read the whole release again. So write that page against the **last candidate**:
+The page of a stable release that follows candidates, say `v1.2.0` after `v1.2.0-rc2`, is the one most people land on: `latest` and the GitHub release point at it, while a candidate was out only for the few who tried it. So that page stands on its own and covers the whole release, candidates included:
 
-- Gather the material from the last candidate on: `git log --format='%h %s%n%b' <last rc tag>..HEAD`, and `git diff --stat <last rc tag>..HEAD -- docs/user/content`.
-- Say in the opening lines which candidate it follows, and link that candidate's page (`/changelog/<rc version>`) for the full picture; its highlights stay there and are not repeated.
-- The highlights, the API section and the list are the changes since that candidate. With nothing but fixes, a single `## Also in this release` list is the whole body.
-- The frontmatter still speaks for the whole release, since it becomes the tag message and the GitHub release for people upgrading from the last stable version: `description` covers everything since that version, and `upgrade` carries every breaking change since then, including those a candidate already announced - `release:finish` requires it whenever any commit since the last stable release is breaking.
+- The highlights are those of the whole release. Carry over the candidate's highlights, updated to what is true now, and add what came after it.
+- Say in the opening lines which candidate it follows, link that candidate's page (`/changelog/<rc version>`), and tell whoever ran the candidate how to upgrade.
+- Mark what is new since the last candidate - "New since rc1:" at the start of a highlight, "Changes since rc1:" above the `## API` list, "Since rc1:" above the `## Also in this release` list - so that people who tried it find the difference at a glance.
+- The frontmatter speaks for the whole release, since it becomes the tag message and the GitHub release for people upgrading from the last stable version: `description` covers everything since that version, and `upgrade` carries every breaking change since then, including those a candidate already announced - `release:finish` requires it whenever any commit since the last stable release is breaking.
 
-The draft does not do this narrowing for you. `release:start` classifies a candidate from the nearest tag, but a stable release from the last release that is not a candidate (`classificationBase` in `mise/lib/release/version.ts`), so the draft's comment lists everything since the last stable version - or every commit, when there is none. That list is what the frontmatter is written from; the body takes only the part after the last candidate.
+Gather the material both ways: `git log --format='%h %s%n%b' <last rc tag>..HEAD` for what is new since the candidate, and the draft's comment for the whole release. `release:start` classifies a stable release from the last release that is not a candidate (`classificationBase` in `mise/lib/release/version.ts`), so that comment lists everything since the last stable version - or every commit, when there is none.
 
 ## A finished page
 
