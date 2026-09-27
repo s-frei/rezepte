@@ -16,7 +16,7 @@ mise run //docs/user:openapi
 ```
 
 1. Builds the Go binary (`//service:build`).
-2. `mise run demo --` starts it with `--demo` on `:8070` (offset 0; `mise run ports` for this worktree) against a throwaway data directory and waits for `/healthz`.
+2. `mise run demo --` starts it with `--demo` on the screenshots' port, `:8080` (offset 0; `mise run ports` for this worktree), so a running demo can stay up, against a throwaway data directory and waits for `/healthz`.
 3. `docs/user/scripts/fetch-openapi.ts` logs in as the demo admin (`docs/user/scripts/demo-user.ts`, shared with the screenshot specs), fetches `/api/v1/openapi.json` from that instance with the session cookie and writes `docs/user/public/openapi.json`. The login step is not optional: the document sits behind the session (see [Users and authentication](/features/users-and-auth)), which is also why this task needs a demo instance rather than any running server - it has to be one whose credentials we know.
 4. `docs/user/scripts/generate-api.ts` reads `docs/user/public/openapi.json` (no running server needed for this step) and hands it to `generateFiles` from `fumadocs-openapi`, which writes `content/api/reference/`: one page per operation in a folder per tag, a card page per folder, one over all of them, and the `meta.json` files that order them.
 5. `//:demo` stops the binary and deletes the data directory.
@@ -41,4 +41,4 @@ Run it whenever an endpoint, parameter or schema changes - see [Keep the user do
 
 After any change there, run the task and read the diff in `docs/user/content/api/reference/` before committing.
 
-`SCREENSHOT_BASE_URL` also affects this task: `fetch-openapi.ts` reads it (default `http://localhost:8070`) to find the running instance - see [Add a screenshot](/howtos/add-screenshot) for when to override it.
+`SCREENSHOT_BASE_URL` also affects this task: `fetch-openapi.ts` reads it (default `http://localhost:8080`, `RZP_SCREENSHOTS_PORT`) to find the running instance - see [Add a screenshot](/howtos/add-screenshot) for when to override it.

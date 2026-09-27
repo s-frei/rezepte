@@ -15,7 +15,7 @@ description = "Run the SvelteKit dev server"
 run = "bun run dev"
 
 [tasks.e2e]
-description = "Run Playwright tests (expects the app on E2E_BASE_URL or :8060 at offset 0, see mise run ports)"
+description = "Run Playwright tests (expects the app on E2E_BASE_URL or the backend port, :8060 at offset 0, see mise run ports)"
 usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files, --grep, --headed or other Playwright flags"'
 run = "bun run test:e2e{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 

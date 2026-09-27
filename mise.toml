@@ -33,6 +33,11 @@ REZEPTE_PORT_OFFSET  = "{{ vars.REZEPTE_PORT_OFFSET | default(value='0') }}"
 RZP_BACKEND_PORT     = "{{ 8060 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
 RZP_FRONTEND_PORT    = "{{ 9060 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
 RZP_DEMO_PORT        = "{{ 8070 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
+# The e2e suite and the docs screenshots each start an instance of their own;
+# with ports of their own they run beside `mise run dev` and `mise run demo`
+# instead of refusing to start until one of those is stopped.
+RZP_E2E_PORT         = "{{ 8050 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
+RZP_SCREENSHOTS_PORT = "{{ 8080 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
 RZP_DOCS_MEMORY_PORT = "{{ 4000 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
 RZP_DOCS_USER_PORT   = "{{ 4001 + (vars.REZEPTE_PORT_OFFSET | default(value=env.REZEPTE_PORT_OFFSET | default(value='0')) | int) * 100 }}"
 

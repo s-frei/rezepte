@@ -10,7 +10,8 @@
 set -euo pipefail
 . mise/lib/instance.sh
 
-PORT="${REZEPTE_E2E_PORT:-${RZP_BACKEND_PORT:?run this through mise: mise run e2e}}"
+# Its own port, not the backend's: the suite runs beside `mise run dev`.
+PORT="${REZEPTE_E2E_PORT:-${RZP_E2E_PORT:?run this through mise: mise run e2e}}"
 RZP_PORT_HINT="stop that process, or run with REZEPTE_E2E_PORT=<other>"
 
 rzp_require_binary e2e

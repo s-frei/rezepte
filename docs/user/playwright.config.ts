@@ -29,7 +29,7 @@ export default defineConfig({
   use: {
     baseURL:
       process.env.SCREENSHOT_BASE_URL ??
-      `http://localhost:${process.env.RZP_DEMO_PORT ?? 8070}`,
+      `http://localhost:${process.env.RZP_SCREENSHOTS_PORT ?? 8080}`,
     // Paraglide has no PARAGLIDE_LOCALE cookie to read before login, so the
     // login screen falls back to this browser locale (its `preferredLanguage`
     // strategy) rather than to REZEPTE_LOCALE; every other screen instead

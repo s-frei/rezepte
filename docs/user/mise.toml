@@ -19,9 +19,11 @@ description = "Fetch openapi.json from rezepte --demo and regenerate content/api
 # //:demo brings the binary through its own depends, waits for /healthz and
 # stops the instance afterwards.
 run = ["mise run //:demo -- bun run openapi:fetch", "bun run openapi:generate"]
+# The screenshots' port, not the demo's, so a running demo can stay up.
+env = { RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}" }
 
 [tasks.screenshots]
-description = "Regenerate the screenshots against rezepte --demo on :8070 by default (needs a Chromium that starts; not run in CI)"
+description = "Regenerate the screenshots against rezepte --demo on its own port, :8080 by default (needs a Chromium that starts; not run in CI)"
 # `--update-snapshots` alone writes only what exceeds maxDiffPixelRatio, so a
 # change too small for the tolerance - a typeface swap across a few lines of a
 # 1440x900 page - leaves stale PNGs behind. Regenerating means all of them.
@@ -35,7 +37,7 @@ run = [
 # select by English names. Not REZEPTE_LOCALE itself: the nested
 # `mise run //:demo` loads the config env again, and a REZEPTE_LOCALE set in
 # a mise.local.toml would win over this one. demo.sh prefers RZP_DEMO_LOCALE.
-env = { RZP_DEMO_LOCALE = "en" }
+env = { RZP_DEMO_LOCALE = "en", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}" }
 
 [tasks."brand-assets"]
 description = "Copy the logo, favicon and social preview into the docs site (public/brand, app/)"
@@ -53,4 +55,4 @@ run = "bun run screenshots:audit"
 description = "Report screenshot drift against rezepte --demo (local only)"
 usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files or --grep to check only some screenshots"'
 run = "mise run //:demo -- bunx playwright test{% for a in usage.args %} {{ a | quote }}{% endfor %}"
-env = { RZP_DEMO_LOCALE = "en" } # see tasks.screenshots
+env = { RZP_DEMO_LOCALE = "en", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}" } # see tasks.screenshots

@@ -11,7 +11,7 @@ import { writeFileSync } from 'node:fs';
 
 import { DEMO_USER } from './demo-user';
 
-const base = process.env.SCREENSHOT_BASE_URL ?? `http://localhost:${process.env.RZP_DEMO_PORT ?? 8070}`;
+const base = process.env.SCREENSHOT_BASE_URL ?? `http://localhost:${process.env.RZP_SCREENSHOTS_PORT ?? 8080}`;
 
 const login = await fetch(`${base}/api/v1/auth/login`, {
   method: 'POST',

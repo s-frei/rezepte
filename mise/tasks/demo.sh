@@ -12,7 +12,12 @@ set -euo pipefail
 . mise/lib/instance.sh
 
 : "${RZP_DEMO_PORT:?run this through mise: mise run demo}"
-PORT="$RZP_DEMO_PORT"
+# RZP_DEMO_INSTANCE_PORT, when set, beats RZP_DEMO_PORT, for the reason
+# RZP_DEMO_LOCALE beats REZEPTE_LOCALE below: the screenshot and OpenAPI
+# tasks start their own instance on their own port, so it runs beside a demo
+# someone is clicking through, and this task's config env would put
+# RZP_DEMO_PORT back on the way in.
+PORT="${RZP_DEMO_INSTANCE_PORT:-$RZP_DEMO_PORT}"
 
 rzp_require_binary demo
 rzp_require_free_port demo "$PORT"

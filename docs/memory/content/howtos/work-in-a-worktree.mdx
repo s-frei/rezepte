@@ -38,10 +38,14 @@ description: One worktree per feature, one port offset per worktree
     | Go API (`RZP_BACKEND_PORT`) | 8060 |
     | Vite dev server (`RZP_FRONTEND_PORT`) | 9060 |
     | Demo instance (`RZP_DEMO_PORT`) | 8070 |
+    | E2E instance (`RZP_E2E_PORT`) | 8050 |
+    | Docs screenshot and OpenAPI instance (`RZP_SCREENSHOTS_PORT`) | 8080 |
     | Docs memory (`RZP_DOCS_MEMORY_PORT`) | 4000 |
     | Docs user (`RZP_DOCS_USER_PORT`) | 4001 |
 
     A worktree at offset *n* adds `n * 100` to each. The main checkout is always offset 0 and keeps exactly these numbers.
+
+    Every instance a task starts for itself has a port of its own, so `mise run e2e` and `mise run //docs/user:screenshots` run while `mise run dev` and `mise run demo` stay up.
 
   </Step>
   <Step>
