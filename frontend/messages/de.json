@@ -459,7 +459,7 @@
 	"tokens_validation_scopes": "Bitte mindestens ein Zugriffsrecht wählen",
 	"tokens_access_recipes": "Rezepte",
 	"tokens_access_users": "Benutzer",
-	"tokens_access_none": "Keiner",
+	"tokens_access_none": "Nichts",
 	"tokens_access_read": "Lesen",
 	"tokens_access_write": "Schreiben",
 	"tokens_access_delete": "Löschen",
