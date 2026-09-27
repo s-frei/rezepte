@@ -30,7 +30,7 @@ test('public-link-create', async ({ page }) => {
 	// A recipe nobody has shared, so the dialog offers the lifetime.
 	await page.goto('/recipes/macaroni-cheese');
 	await page.getByRole('button', { name: 'More actions' }).click();
-	await page.getByRole('menuitem', { name: 'Create public link…' }).click();
+	await page.getByRole('menuitem', { name: 'Share publicly…' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Your public link' });
 	await expect(dialog.getByRole('button', { name: 'Create public link' })).toBeVisible();
 	await shot(page, 'public-link-create');

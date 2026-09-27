@@ -520,7 +520,7 @@
 	"public_share_footer": "Shared via Rezepte",
 	"public_share_unavailable": "This link is no longer available.",
 
-	"public_share_menu_create": "Create public link…",
+	"public_share_menu_create": "Share publicly…",
 	"public_share_menu_manage": "Public link…",
 	"detail_public_share_until": "Shared publicly by you until {date}",
 	"detail_public_share_permanent": "Shared publicly by you, without an end date",

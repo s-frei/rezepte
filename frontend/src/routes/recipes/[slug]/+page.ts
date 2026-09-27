@@ -10,7 +10,7 @@ import type { PageLoad } from './$types';
  *
  * Settings and the share both fail soft (`null`) rather than failing the
  * whole page - a recipe is still worth showing without them, just without
- * the "Create public link…" menu item. Runs in the browser only (`ssr =
+ * the "Share publicly…" menu item. Runs in the browser only (`ssr =
  * false` is set for the whole app in the root layout), so this is a plain
  * client fetch rather than something SvelteKit needs to serialize across
  * the network.

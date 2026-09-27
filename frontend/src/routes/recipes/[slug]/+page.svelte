@@ -195,6 +195,8 @@
 		</DropdownMenu.Item>
 	{/if}
 	{#if recipe?.canDelete}
+		<!-- The one destructive item sits apart from the rest. -->
+		<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-border" />
 		<DropdownMenu.Item
 			onSelect={() => (deleteOpen = true)}
 			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"

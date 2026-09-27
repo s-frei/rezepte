@@ -191,7 +191,7 @@ test('a member creates, copies and revokes a public link', async ({ page }, test
 		await page.goto(`/recipes/${recipe.slug}`);
 
 		await openRecipeMenu(page);
-		await page.getByRole('menuitem', { name: 'Create public link…' }).click();
+		await page.getByRole('menuitem', { name: 'Share publicly…' }).click();
 
 		const dialog = page.getByRole('dialog', { name: 'Your public link' });
 		await expect(
@@ -226,7 +226,7 @@ test('a member creates, copies and revokes a public link', async ({ page }, test
 
 		await openRecipeMenu(page);
 		await expect(page.getByRole('menuitem', { name: 'Public link…' })).toBeVisible();
-		await expect(page.getByRole('menuitem', { name: 'Create public link…' })).toHaveCount(0);
+		await expect(page.getByRole('menuitem', { name: 'Share publicly…' })).toHaveCount(0);
 		await page.keyboard.press('Escape');
 
 		await marker.click();
@@ -265,9 +265,7 @@ test('a member without the right sees no menu item', async ({ page, browser }, t
 			await expect(memberPage).toHaveURL('/');
 			await memberPage.goto(`/recipes/${recipe.slug}`);
 			await openRecipeMenu(memberPage);
-			await expect(memberPage.getByRole('menuitem', { name: 'Create public link…' })).toHaveCount(
-				0
-			);
+			await expect(memberPage.getByRole('menuitem', { name: 'Share publicly…' })).toHaveCount(0);
 			await expect(memberPage.getByRole('menuitem', { name: 'Public link…' })).toHaveCount(0);
 		} finally {
 			await memberContext.close();
@@ -288,7 +286,7 @@ test('with public sharing off there is no menu item', async ({ page }, testInfo)
 	await setPublicShares(page, false);
 	await page.goto(`/recipes/${recipe.slug}`);
 	await openRecipeMenu(page);
-	await expect(page.getByRole('menuitem', { name: 'Create public link…' })).toHaveCount(0);
+	await expect(page.getByRole('menuitem', { name: 'Share publicly…' })).toHaveCount(0);
 	await expect(page.getByRole('menuitem', { name: 'Public link…' })).toHaveCount(0);
 });
 
