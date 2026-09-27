@@ -63,16 +63,22 @@
 	{/if}
 </div>
 
+<!--
+	svelte-sonner ships its own unlayered styles for `[data-styled]` toasts,
+	and unlayered CSS beats anything in Tailwind's utilities layer whatever
+	its specificity - without the `!` every toast rendered white, with a black
+	action button. Only the properties sonner sets carry it.
+-->
 <Toaster
 	richColors={false}
 	toastOptions={{
 		classes: {
 			toast:
-				'rounded-toast border-none bg-inverse px-[18px] py-3.5 text-body-sm font-semibold text-inverse-foreground shadow-dialog',
-			description: 'text-inverse-muted',
-			actionButton: 'bg-transparent font-medium text-inverse-muted',
-			cancelButton: 'bg-transparent font-medium text-inverse-muted',
-			closeButton: 'border-border bg-inverse text-inverse-foreground'
+				'rounded-toast! border-none! bg-inverse! px-[18px]! py-3.5! text-body-sm! font-semibold! text-inverse-foreground! shadow-dialog!',
+			description: 'text-inverse-muted!',
+			actionButton: 'bg-transparent! font-medium! text-inverse-muted!',
+			cancelButton: 'bg-transparent! font-medium! text-inverse-muted!',
+			closeButton: 'border-border! bg-inverse! text-inverse-foreground!'
 		}
 	}}
 />
