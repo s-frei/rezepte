@@ -48,14 +48,16 @@ Nothing is kept: there is no volume and `--rm` removes the container, so stoppin
 
 ## Features
 
-- **Recipes** — ingredient groups with per-row notes, steps, servings, prep and cooking times and a source link. → [Docs](https://s-frei.github.io/rezepte/guide/recipes/)
+- **Recipes** — ingredient groups with per-row notes, unit suggestions in your language, steps, servings, prep and cooking times, and where the recipe comes from: a book, a website or a person, with or without a link. → [Docs](https://s-frei.github.io/rezepte/guide/recipes/)
 - **Photos** — upload several per recipe, reorder them, pick the cover, open them in a lightbox. → [Docs](https://s-frei.github.io/rezepte/guide/images/)
 - **Tags and search** — find recipes by title, description, ingredient or tag, and narrow by cooking time or favorites. → [Docs](https://s-frei.github.io/rezepte/guide/tags-and-search/)
 - **Favorites** — a personal star per member; the household shares one collection, the stars stay private. → [Docs](https://s-frei.github.io/rezepte/guide/tags-and-search/)
+- **Tasty** — tell whoever wrote a recipe that you liked it; everyone sees how many found it tasty, and who. → [Docs](https://s-frei.github.io/rezepte/guide/recipes/#tasty)
 - **Servings** — scale every quantity to the number of people at the table. → [Docs](https://s-frei.github.io/rezepte/guide/servings/)
 - **Cook mode** — a full-screen, step-by-step view made for a phone propped up next to the stove. → [Docs](https://s-frei.github.io/rezepte/guide/cook-mode/)
 - **Command palette** — <kbd>⌘</kbd><kbd>K</kbd> / <kbd>Ctrl</kbd><kbd>K</kbd> jumps to a recipe by name, or opens the editor and the settings, without leaving the keyboard. → [Docs](https://s-frei.github.io/rezepte/guide/shortcuts/)
 - **Members** — accounts, roles and password resets for everyone in the household. → [Docs](https://s-frei.github.io/rezepte/guide/users/)
+- **Sharing** — send a recipe link to the household with the recipe's title and photo in the chat preview, or a public link that lets someone without an account read it until you revoke it or it expires; the owner decides whether either is allowed. → [Docs](https://s-frei.github.io/rezepte/guide/sharing/)
 - **Light and dark** — follows the system setting, or pick one. → [Docs](https://s-frei.github.io/rezepte/guide/settings/)
 - **English and German** — each member picks their own interface language, and it follows them to every device. → [Docs](https://s-frei.github.io/rezepte/guide/settings/)
 - **HTTP API** — everything the app does, reachable with a scoped bearer token for scripts and other instances, documented with a generated OpenAPI reference. → [Docs](https://s-frei.github.io/rezepte/api/)
