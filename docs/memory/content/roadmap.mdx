@@ -1,25 +1,25 @@
 ---
 title: Roadmap
-description: Where Rezepte is heading after v1
+description: Where Rezepte is heading next
 ---
 
 <Callout type="info">
 
-  Nothing here is in v1. It records direction so current decisions do not block it.
+  Nothing on this page exists in Rezepte yet. It records direction, so that a decision taken on the code that does exist does not block it. A direction that ships leaves this page for a page of its own.
 
 </Callout>
 
 ## Instance sync
 
-Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`. Instance B stores its URL and that token and mirrors recipes read-only. Bearer-token authentication already exists; what is missing is the `/api/v1/sync/*` endpoints themselves.
+Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`. Instance B stores its URL and that token and mirrors recipes read-only. Bearer-token authentication exists; what is missing is the `/api/v1/sync/*` endpoints themselves.
 
 ## Public REST API
 
-Already prepared by huma: OpenAPI 3.1 and Scalar docs, and bearer [API tokens](/features/api-tokens) for programmatic access. Missing: a versioning policy and rate limits.
+The ground is there: huma's OpenAPI 3.1 document and Scalar reference, bearer [API tokens](/features/api-tokens) for programmatic access, and the failed-login throttle that answers `429` ([Users and authentication](/features/users-and-auth)). Missing: a versioning policy, and rate limits beyond login.
 
 ## OAuth for MCP
 
-claude.ai custom connectors need OAuth 2.1, not the static bearer token the [MCP server](/features/mcp) uses today - see that page's Limits. With OIDC login in place (below), Rezepte adds protected-resource metadata, a JWT verifier beside the `rzp_` one, and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
+claude.ai custom connectors need OAuth 2.1, not the static bearer token the [MCP server](/features/mcp) takes - see that page's Limits. With OIDC login in place (below), Rezepte adds protected-resource metadata, a JWT verifier beside the `rzp_` one, and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
 
 ## OIDC login
 
@@ -31,7 +31,7 @@ Sharing a rendered picture of a recipe, with its ingredients as text, through wh
 
 ## Import and export
 
-Export a recipe or the whole collection with its photos in a lossless format of Rezepte's own; import that format and schema.org `Recipe` JSON-LD. Importing from a URL is the same pipeline behind a fetch: parse the page's `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk). A single import always opens as a draft in the editor; the importing member is its author, and the recipe notes where it came from. The export format is also the candidate format for instance sync. The "Import" buttons in the top bar and on the overview stay disabled, titled "coming soon", until import lands.
+Export a recipe or the whole collection with its photos in a lossless format of Rezepte's own; import that format and schema.org `Recipe` JSON-LD. Importing from a URL is the same pipeline behind a fetch: parse the page's `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk). A single import always opens as a draft in the editor, with the importing member as its author; recipes already carry a source link and a source name ([Recipes and search](/features/recipes)), so the import fills both from where the recipe came from. The export format is also the candidate format for instance sync. The "Import" button in the top bar and on the empty overview is disabled, with a "Coming soon" tooltip, until import exists.
 
 ## Shopping list
 
