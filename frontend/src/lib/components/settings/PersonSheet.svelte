@@ -128,7 +128,7 @@
 						transition:fly={{ duration, y: 200 }}
 					>
 						<Dialog.Close
-							aria-label={m.users_sheet_close()}
+							aria-label={m.common_close()}
 							class="flex w-full shrink-0 justify-center pt-2 pb-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
 						>
 							<span class="h-1 w-9 rounded-pill bg-handle" aria-hidden="true"></span>

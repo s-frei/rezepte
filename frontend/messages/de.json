@@ -19,7 +19,10 @@
 	"nav_recipes": "Rezepte",
 	"nav_search": "Suche",
 	"nav_new": "Neu",
-	"nav_more": "Mehr",
+	"nav_main": "Hauptmenü",
+	"nav_you": "Du",
+	"nav_expand": "Navigation anzeigen",
+	"nav_you_signed_in": "{role}, angemeldet als {username}",
 	"nav_contents_title": "Inhalt",
 	"nav_contents_open": "{current}, Inhalt öffnen",
 	"nav_contents_close": "Inhalt schließen",
@@ -141,7 +144,7 @@
 	"users_open_own_profile": "Dein Profil öffnen",
 	"users_login_name": "Benutzername: {username}",
 	"users_delete_account": "Benutzer löschen",
-	"users_sheet_close": "Schließen",
+	"common_close": "Schließen",
 
 	"palette_title": "Befehlspalette",
 	"palette_description": "Rezept suchen oder Aktion wählen",
@@ -150,6 +153,7 @@
 	"palette_group_recipes": "Rezepte",
 	"palette_group_actions": "Aktionen",
 	"palette_no_recipes": "Keine Rezepte gefunden",
+	"palette_all_results": "Alle Treffer für „{query}“",
 
 	"overview_headline": "Was kochen wir heute?",
 	"overview_search_placeholder": "Suchen … Titel, Zutaten, Tags",

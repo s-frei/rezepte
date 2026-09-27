@@ -14,7 +14,7 @@
 		value?: string;
 		/** Called 250ms after the field settles, and immediately on clear. */
 		onsearch: (value: string) => void;
-		/** Id of the text field, so a caller can focus it (`?focus=search`). */
+		/** Id of the text field, for a label or a caller that needs to reach it. */
 		id?: string;
 		/** Extra classes appended to the wrapper, e.g. to constrain its width. */
 		class?: string;

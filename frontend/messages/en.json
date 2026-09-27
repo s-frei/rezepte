@@ -19,7 +19,10 @@
 	"nav_recipes": "Recipes",
 	"nav_search": "Search",
 	"nav_new": "New",
-	"nav_more": "More",
+	"nav_main": "Main",
+	"nav_you": "You",
+	"nav_expand": "Show navigation",
+	"nav_you_signed_in": "{role}, signed in as {username}",
 	"nav_contents_title": "Contents",
 	"nav_contents_open": "{current}, open contents",
 	"nav_contents_close": "Close contents",
@@ -141,7 +144,7 @@
 	"users_open_own_profile": "Open your profile",
 	"users_login_name": "Login name: {username}",
 	"users_delete_account": "Delete account",
-	"users_sheet_close": "Close",
+	"common_close": "Close",
 
 	"palette_title": "Command palette",
 	"palette_description": "Search for a recipe or pick an action",
@@ -150,6 +153,7 @@
 	"palette_group_recipes": "Recipes",
 	"palette_group_actions": "Actions",
 	"palette_no_recipes": "No recipes found",
+	"palette_all_results": "All results for “{query}”",
 
 	"overview_headline": "What are we cooking today?",
 	"overview_search_placeholder": "Search… title, ingredients, tags",

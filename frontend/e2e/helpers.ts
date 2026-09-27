@@ -88,10 +88,10 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 /**
  * Signs out through the menu that holds "Settings" and "Sign out". The two
  * viewports build it differently - a Bits UI dropdown behind the avatar on
- * desktop, whose entries are `menuitem`s, and the "More" sheet with real
- * buttons on phones, since the top bar is `md:` only - so the walk depends on
- * the project the test runs in. `locale` is the language the signed-in
- * account reads, for the one spec that signs a German account out.
+ * desktop, whose entries are `menuitem`s, and the bottom nav's "You" sheet
+ * with a real button on phones, since the top bar is `md:` only - so the walk
+ * depends on the project the test runs in. `locale` is the language the
+ * signed-in account reads, for the one spec that signs a German account out.
  */
 export async function signOut(
 	page: Page,
@@ -99,18 +99,32 @@ export async function signOut(
 	locale: 'en' | 'de' = 'en'
 ): Promise<void> {
 	const labels = {
-		en: { more: 'More', accountMenu: 'Account menu', signOut: 'Sign out' },
-		de: { more: 'Mehr', accountMenu: 'Kontomenü', signOut: 'Abmelden' }
+		en: {
+			nav: 'Main',
+			you: 'You',
+			expand: 'Show navigation',
+			accountMenu: 'Account menu',
+			signOut: 'Sign out'
+		},
+		de: {
+			nav: 'Hauptmenü',
+			you: 'Du',
+			expand: 'Navigation anzeigen',
+			accountMenu: 'Kontomenü',
+			signOut: 'Abmelden'
+		}
 	}[locale];
-	const mobile = testInfo.project.name.startsWith('mobile');
-	// exact: true on the phone bottom-nav button - without it, "More" also
-	// matches the overview's "Load more" button once enough recipes have
-	// piled up in the shared database for the grid to paginate, which turns
-	// this into a strict-mode violation (two matching buttons at once).
-	await page
-		.getByRole('button', { name: mobile ? labels.more : labels.accountMenu, exact: mobile })
-		.click();
-	await page.getByRole(mobile ? 'button' : 'menuitem', { name: labels.signOut }).click();
+	if (testInfo.project.name.startsWith('mobile')) {
+		const nav = page.getByRole('navigation', { name: labels.nav });
+		// A page read far enough shows the shrunk bar; bring the rest back.
+		const expand = nav.getByRole('button', { name: labels.expand });
+		if (await expand.isVisible()) await expand.click();
+		await nav.getByRole('button', { name: labels.you, exact: true }).click();
+		await page.getByRole('dialog').getByRole('button', { name: labels.signOut }).click();
+		return;
+	}
+	await page.getByRole('button', { name: labels.accountMenu }).click();
+	await page.getByRole('menuitem', { name: labels.signOut }).click();
 }
 
 /**
