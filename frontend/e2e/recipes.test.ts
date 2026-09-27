@@ -667,23 +667,28 @@ test('the source field owns its line at every width', async ({ page }) => {
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Source ${uniqueToken()}` });
 	await page.goto(`/recipes/${recipe.slug}/edit`);
 
-	const source = page.locator('#editor-sourceUrl');
 	const description = page.locator('#editor-description');
 	const card = page.locator('#editor-section-basics');
-	await expect(source).toBeVisible();
-
-	// Under the description, not beside the numbers.
-	const below = (await source.boundingBox())!.y > (await description.boundingBox())!.y;
-	expect(below).toBeTruthy();
-
-	// Full width: the field spans the card's content box, so it never has to
-	// share its line with anything.
 	const inner = await card.evaluate((el) => {
 		const style = getComputedStyle(el);
 		const box = el.getBoundingClientRect();
 		return box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
 	});
-	expect(Math.round((await source.boundingBox())!.width)).toBe(Math.round(inner));
+
+	// Both source fields: the name with its prefix is as long a line as the
+	// URL, and a cookbook's title with its page number needs the room.
+	for (const id of ['#editor-sourceName', '#editor-sourceUrl']) {
+		const source = page.locator(id);
+		await expect(source).toBeVisible();
+
+		// Under the description, not beside the numbers.
+		const below = (await source.boundingBox())!.y > (await description.boundingBox())!.y;
+		expect(below).toBeTruthy();
+
+		// Full width: the field spans the card's content box, so it never has
+		// to share its line with anything.
+		expect(Math.round((await source.boundingBox())!.width)).toBe(Math.round(inner));
+	}
 });
 
 // The detail page's hero is a text column beside the cover. A `1fr` track
