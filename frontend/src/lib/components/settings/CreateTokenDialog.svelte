@@ -13,6 +13,7 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -115,7 +116,9 @@
 			label={m.tokens_field_name()}
 			hint={m.tokens_field_name_hint()}
 			autocomplete="off"
+			required
 			bind:value={name}
+			oninput={() => (errors = withoutErrors(errors, ['name']))}
 			error={errors.name ?? null}
 		/>
 		<div class="space-y-3">

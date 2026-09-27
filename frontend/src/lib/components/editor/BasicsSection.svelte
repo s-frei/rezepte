@@ -21,6 +21,7 @@
 		bind:value={form.title}
 		error={errors.title ?? null}
 		required
+		data-error-key="title"
 	/>
 
 	<Textarea
@@ -28,6 +29,7 @@
 		label={m.editor_field_description()}
 		bind:value={form.description}
 		error={errors.description ?? null}
+		data-error-key="description"
 		rows={3}
 		placeholder={m.editor_description_placeholder()}
 	/>
@@ -45,6 +47,7 @@
 		label={m.recipe_source()}
 		bind:value={form.sourceUrl}
 		error={errors.sourceUrl ?? null}
+		data-error-key="sourceUrl"
 		type="url"
 		inputmode="url"
 		placeholder={m.editor_source_placeholder()}
@@ -59,6 +62,8 @@
 			label={m.recipe_servings()}
 			bind:value={form.servings}
 			error={errors.servings ?? null}
+			required
+			data-error-key="servings"
 			type="text"
 			inputmode="numeric"
 		/>
@@ -67,6 +72,7 @@
 			label={m.recipe_prep_time()}
 			bind:value={form.prepMinutes}
 			error={errors.prepMinutes ?? null}
+			data-error-key="prepMinutes"
 			suffix={m.editor_minutes_suffix()}
 			type="text"
 			inputmode="numeric"
@@ -76,6 +82,7 @@
 			label={m.recipe_cook_time()}
 			bind:value={form.cookMinutes}
 			error={errors.cookMinutes ?? null}
+			data-error-key="cookMinutes"
 			suffix={m.editor_minutes_suffix()}
 			type="text"
 			inputmode="numeric"

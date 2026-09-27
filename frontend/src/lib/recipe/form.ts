@@ -190,6 +190,14 @@ function blankToNull(value: string): string | null {
 	return trimmed === '' ? null : trimmed;
 }
 
+/**
+ * True once any row in any group has a name - the one thing `validate`
+ * needs from the ingredients. Drives the required mark on the section.
+ */
+export function hasNamedIngredient(groups: FormGroup[]): boolean {
+	return groups.some((group) => group.ingredients.some((row) => !isBlank(row.name)));
+}
+
 /** True when a row carries any content at all - blank rows are dropped by `toInput`. */
 function isFilledRow(row: FormIngredient): boolean {
 	return !isBlank(row.quantity) || !isBlank(row.unit) || !isBlank(row.name) || !isBlank(row.note);

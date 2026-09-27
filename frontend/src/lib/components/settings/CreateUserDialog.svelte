@@ -11,6 +11,7 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { languageOptions } from '$lib/i18n/languages';
+	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
@@ -129,14 +130,16 @@
 			id="new-user-name"
 			label={m.login_username()}
 			autocomplete="off"
+			required
 			bind:value={username}
+			oninput={() => (errors = withoutErrors(errors, ['username']))}
 			error={errors.username ?? null}
 		/>
 		<!-- Optional: an empty one means the API keeps the login name, which is
 		     exactly what a household of first names wants. -->
 		<Input
 			id="new-user-display-name"
-			label={m.users_field_display_name_optional()}
+			label={m.users_field_display_name()}
 			autocomplete="off"
 			maxlength={64}
 			counter={64}
@@ -148,7 +151,9 @@
 				label={m.login_password()}
 				type="password"
 				autocomplete="new-password"
+				required
 				bind:value={password}
+				oninput={() => (errors = withoutErrors(errors, ['password']))}
 				error={errors.password ?? null}
 			/>
 			<PasswordStrength {password} userInputs={[username, displayName]} />

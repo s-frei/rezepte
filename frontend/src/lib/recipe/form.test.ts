@@ -7,6 +7,7 @@ import {
 	emptyForm,
 	firstErrorField,
 	fromRecipe,
+	hasNamedIngredient,
 	isBlank,
 	isDirty,
 	newGroup,
@@ -832,5 +833,26 @@ describe('editPolicy', () => {
 
 	it('starts a new recipe on "default"', () => {
 		expect(emptyForm().editPolicy).toBe('default');
+	});
+});
+
+describe('hasNamedIngredient', () => {
+	it('is false while no row carries a name', () => {
+		const form = emptyForm();
+		form.ingredientGroups[0].ingredients[0].quantity = '200';
+		expect(hasNamedIngredient(form.ingredientGroups)).toBe(false);
+	});
+
+	it('ignores a name that is only whitespace', () => {
+		const form = emptyForm();
+		form.ingredientGroups[0].ingredients[0].name = '   ';
+		expect(hasNamedIngredient(form.ingredientGroups)).toBe(false);
+	});
+
+	it('is true once any row in any group has a name', () => {
+		const form = emptyForm();
+		form.ingredientGroups.push(newGroup());
+		form.ingredientGroups[1].ingredients[0].name = 'Mehl';
+		expect(hasNamedIngredient(form.ingredientGroups)).toBe(true);
 	});
 });

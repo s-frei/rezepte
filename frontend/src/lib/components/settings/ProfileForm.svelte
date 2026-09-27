@@ -62,6 +62,7 @@
 		maxlength={64}
 		counter={64}
 		bind:value={displayName}
+		oninput={() => (error = null)}
 		{error}
 	/>
 	<!-- Beside the field's right edge at every width, because the password

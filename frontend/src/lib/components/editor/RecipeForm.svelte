@@ -11,6 +11,8 @@
 	import RunningHead from '$lib/components/nav/RunningHead.svelte';
 	import type { ContentsEntry } from '$lib/components/nav/contents';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+	import RequiredMark, { requiredState } from '$lib/components/ui/RequiredMark.svelte';
+	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
 	import {
 		anchorId,
@@ -18,6 +20,7 @@
 		cloneForm,
 		firstErrorField,
 		fromRecipe,
+		hasNamedIngredient,
 		isDirty,
 		toInput,
 		validate,
@@ -288,6 +291,21 @@
 		}
 	}
 
+	// An error answers the last save; once its field is edited it no longer
+	// describes what is there, so it goes. Fields name the errors they own
+	// with `data-error-key` (space-separated - an ingredient's name also
+	// answers the section's "at least one"), which lets this one listener on
+	// the form serve every field without each section wiring its own.
+	function clearEditedErrors(event: Event) {
+		const keys =
+			event.target instanceof HTMLElement
+				? event.target.closest<HTMLElement>('[data-error-key]')?.dataset.errorKey
+				: undefined;
+		if (keys) {
+			errors = withoutErrors(errors, keys.split(' '));
+		}
+	}
+
 	async function handleSave() {
 		if (saving) {
 			return;
@@ -441,9 +459,23 @@
 			<SaveBar {dirty} {saving} oncancel={handleCancel} onsave={handleSave} />
 		</div>
 
-		<form {@attach trackSections} onsubmit={(event) => event.preventDefault()} class="space-y-5">
+		<form
+			{@attach trackSections}
+			onsubmit={(event) => event.preventDefault()}
+			oninput={clearEditedErrors}
+			class="space-y-5"
+		>
 			<section id="editor-section-basics" class={sectionCard}>
-				<h2 class={sectionTitle}>{m.editor_section_basics()}</h2>
+				<!-- The legend sits once, by the first section, where the first
+				     star is. Hidden from assistive tech, which hears
+				     `aria-required` on each field and has no star to decode. -->
+				<div class="mb-4 flex items-baseline justify-between gap-3">
+					<h2 class="font-display text-heading font-medium">{m.editor_section_basics()}</h2>
+					<p aria-hidden="true" class="text-micro text-text-muted">
+						<span class="text-primary">*</span>
+						{m.editor_required_legend()}
+					</p>
+				</div>
 				<BasicsSection bind:form {errors} />
 			</section>
 
@@ -459,7 +491,18 @@
 			</section>
 
 			<section id="editor-section-ingredients" class={sectionCard}>
-				<h2 class={sectionTitle}>{m.recipe_ingredients()}</h2>
+				<!-- The section needs one named ingredient, not any row in
+				     particular, so the star sits on the heading. No margin
+				     stroke: there is no single field it could stand beside. -->
+				<h2 class={sectionTitle}>
+					{m.recipe_ingredients()}
+					<RequiredMark
+						state={requiredState(
+							hasNamedIngredient(form.ingredientGroups),
+							!!errors.ingredientGroups
+						)}
+					/>
+				</h2>
 				{#if errors.ingredientGroups}
 					<p class="mb-3 text-micro font-medium text-destructive">{errors.ingredientGroups}</p>
 				{/if}

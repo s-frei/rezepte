@@ -5,6 +5,7 @@
 	import { session } from '$lib/auth.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
+	import { withoutErrors } from '$lib/form-errors';
 	import { m } from '$lib/paraglide/messages';
 	import {
 		passwordErrorsFromApi,
@@ -68,6 +69,7 @@
 		type="password"
 		autocomplete="current-password"
 		bind:value={current}
+		oninput={() => (errors = withoutErrors(errors, ['current']))}
 		error={errors.current ?? null}
 	/>
 	<div class="space-y-1.5">
@@ -77,6 +79,7 @@
 			type="password"
 			autocomplete="new-password"
 			bind:value={next}
+			oninput={() => (errors = withoutErrors(errors, ['next']))}
 			error={errors.next ?? null}
 		/>
 		<PasswordStrength
@@ -90,6 +93,7 @@
 		type="password"
 		autocomplete="new-password"
 		bind:value={repeat}
+		oninput={() => (errors = withoutErrors(errors, ['repeat']))}
 		error={errors.repeat ?? null}
 	/>
 	<div class="flex justify-end">

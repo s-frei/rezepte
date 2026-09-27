@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Label } from 'bits-ui';
 	import type { HTMLInputAttributes } from 'svelte/elements';
+	import RequiredMark, { requiredState } from './RequiredMark.svelte';
 
 	let {
 		id,
@@ -9,6 +10,7 @@
 		hint,
 		suffix,
 		counter,
+		required = false,
 		value = $bindable(''),
 		class: className = '',
 		...rest
@@ -25,6 +27,13 @@
 		 * value approaches it. Pass the same number as `maxlength`.
 		 */
 		counter?: number;
+		/**
+		 * Marks the field as one the form cannot be saved without: a star on
+		 * the label and a stroke in the margin while it is empty. Deliberately
+		 * not the native attribute, which would have the browser stop the
+		 * submit with its own bubble instead of the form's error on save.
+		 */
+		required?: boolean;
 		value?: string;
 		class?: string;
 	} & Omit<HTMLInputAttributes, 'id' | 'value' | 'class'> = $props();
@@ -42,6 +51,8 @@
 	// not only while the counter shows: text that reflowed at the 48th
 	// character would draw more attention than the counter appearing does.
 
+	const status = $derived(requiredState(value.trim() !== '', !!error));
+
 	const classes = $derived(
 		`h-11 w-full rounded-md border bg-surface-elevated px-4 text-body transition outline-none focus:border-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
 	);
@@ -56,7 +67,15 @@
 </script>
 
 <div class="space-y-1.5">
-	<Label.Root for={id} class="text-caption font-semibold">{label}</Label.Root>
+	<!-- The star stands beside the label, not inside it: the label's text is
+	     what `getByLabel`, password managers and autofill match the field
+	     by, and "Password *" is not the field's name. -->
+	<div class="flex items-baseline gap-1 text-caption font-semibold">
+		<Label.Root for={id}>{label}</Label.Root>
+		{#if required}
+			<RequiredMark state={status} />
+		{/if}
+	</div>
 	<!-- Wraps only the field, so an absolutely positioned suffix lines up
 	     with it regardless of the label above or the error below. -->
 	<div class="relative">
@@ -64,10 +83,31 @@
 			{id}
 			bind:value
 			aria-invalid={error ? 'true' : undefined}
+			aria-required={required ? 'true' : undefined}
 			aria-describedby={describedBy}
 			class={classes}
 			{...rest}
 		/>
+		{#if required}
+			<!--
+				A pencil tick in the margin, the way a cook marks the line still to
+				do. It says one thing - this is empty and needs filling - so it
+				leaves once there is content, and also once a save has failed:
+				the red border and message say it louder then, and a third red
+				mark would only shout. It sits outside the field, so it needs
+				free space on the left; the containers that hold required fields
+				all have at least 24px of padding there.
+			-->
+			<span
+				aria-hidden="true"
+				data-required-stroke
+				data-state={status}
+				class="pointer-events-none absolute inset-y-2 -left-2.5 w-0.75 rounded-pill bg-primary transition-opacity motion-reduce:transition-none {status ===
+				'empty'
+					? 'opacity-100'
+					: 'opacity-0'}"
+			></span>
+		{/if}
 		{#if suffix}
 			<span
 				id="{id}-suffix"

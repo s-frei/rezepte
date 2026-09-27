@@ -73,6 +73,7 @@
 				autocomplete="off"
 				aria-label={m.editor_ingredient_quantity()}
 				aria-invalid={quantityError ? 'true' : undefined}
+				data-error-key="quantity:{row.id}"
 				aria-describedby={quantityError ? `ingredient-quantity-error-${row.id}` : undefined}
 				placeholder={m.editor_ingredient_quantity()}
 				class="{fieldClasses} font-semibold {quantityError ? errorClasses : ''}"
@@ -96,6 +97,7 @@
 				autocomplete="off"
 				aria-label={m.editor_ingredient_name()}
 				aria-invalid={nameError ? 'true' : undefined}
+				data-error-key="name:{row.id} ingredientGroups"
 				aria-describedby={nameError ? `ingredient-name-error-${row.id}` : undefined}
 				placeholder={m.editor_ingredient_name()}
 				class="{fieldClasses} order-first col-span-2 md:order-none md:col-span-1 {nameError

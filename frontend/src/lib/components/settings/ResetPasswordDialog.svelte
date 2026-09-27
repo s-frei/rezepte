@@ -71,6 +71,7 @@
 				type="password"
 				autocomplete="new-password"
 				bind:value={password}
+				oninput={() => (error = null)}
 				{error}
 			/>
 			<PasswordStrength {password} userInputs={[user?.username ?? '', user?.displayName ?? '']} />
