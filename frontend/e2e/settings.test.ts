@@ -428,3 +428,25 @@ test('a phone reaches the settings pages and sign-out through the contents sheet
 	await sheet.getByRole('button', { name: 'Sign out' }).click();
 	await expect(page).toHaveURL(/\/login/);
 });
+
+test('the add-account dialog fits a short phone screen and scrolls', async ({ page }) => {
+	// 360 wide, as docs/memory's verify-ui asks for, and short enough to
+	// stand for a phone with its browser bar and keyboard up: the form is
+	// taller than that, so it must scroll inside the dialog instead of
+	// pushing its title and its buttons off the screen.
+	await page.setViewportSize({ width: 360, height: 560 });
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/users');
+	await page.getByRole('button', { name: 'Add account' }).click();
+
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByRole('heading', { name: 'Add account' })).toBeInViewport();
+	const box = await dialog.boundingBox();
+	expect(box!.y).toBeGreaterThanOrEqual(0);
+	expect(box!.y + box!.height).toBeLessThanOrEqual(560);
+
+	const submit = dialog.getByRole('button', { name: 'Add', exact: true });
+	await submit.scrollIntoViewIfNeeded();
+	await expect(submit).toBeInViewport();
+});
