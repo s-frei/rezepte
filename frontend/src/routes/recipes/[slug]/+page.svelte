@@ -20,6 +20,7 @@
 	import ImageGallery from '$lib/components/recipe/ImageGallery.svelte';
 	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
 	import MetaPills from '$lib/components/recipe/MetaPills.svelte';
+	import SourceCredit from '$lib/components/recipe/SourceCredit.svelte';
 	import PlaceholderTile from '$lib/components/recipe/PlaceholderTile.svelte';
 	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
 	import ServingsStepper from '$lib/components/recipe/ServingsStepper.svelte';
@@ -305,12 +306,11 @@
 				{#if recipe.description}
 					<p class="mt-3 text-body-lg text-text-muted">{recipe.description}</p>
 				{/if}
+				<div class="mt-2 empty:hidden">
+					<SourceCredit name={recipe.sourceName} url={recipe.sourceUrl} />
+				</div>
 				<div class="mt-5">
-					<MetaPills
-						prepMinutes={recipe.prepMinutes}
-						cookMinutes={recipe.cookMinutes}
-						sourceUrl={recipe.sourceUrl}
-					>
+					<MetaPills prepMinutes={recipe.prepMinutes} cookMinutes={recipe.cookMinutes}>
 						<ServingsStepper value={servings.value} onchange={(next) => servings.set(next)} />
 						{#if servings.scaled}
 							<button

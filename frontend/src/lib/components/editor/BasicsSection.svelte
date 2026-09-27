@@ -42,9 +42,27 @@
 		decides the line here, not the field's kind: the three numbers are two
 		digits each and share a row happily.
 	-->
+	<!-- The name reads as the end of the credit line the recipe page prints,
+	     so the field starts that sentence for the author: whoever sees
+	     "Adapted from" in front of the cursor writes "Ottolenghi", not
+	     "From Ottolenghi". -->
+	<Input
+		id="editor-sourceName"
+		label={m.recipe_source()}
+		bind:value={form.sourceName}
+		error={errors.sourceName ?? null}
+		prefix={m.recipe_source_prefix()}
+		placeholder={m.editor_source_name_placeholder()}
+		hint={m.editor_source_name_hint()}
+		maxlength={200}
+		counter={200}
+		autocomplete="off"
+		data-error-key="sourceName"
+	/>
+
 	<Input
 		id="editor-sourceUrl"
-		label={m.recipe_source()}
+		label={m.editor_source_link()}
 		bind:value={form.sourceUrl}
 		error={errors.sourceUrl ?? null}
 		data-error-key="sourceUrl"
