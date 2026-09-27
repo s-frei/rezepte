@@ -8,6 +8,7 @@ CREATE TABLE recipes (
     prep_minutes   INTEGER,
     cook_minutes   INTEGER,
     source_url     TEXT,
+    source_name    TEXT,
     cover_image_id TEXT,
     created_by     TEXT NOT NULL REFERENCES users(id),
     created_at     TEXT NOT NULL,

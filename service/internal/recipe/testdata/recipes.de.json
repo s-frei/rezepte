@@ -6,6 +6,7 @@
     "prepMinutes": 30,
     "cookMinutes": 30,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["klassiker", "fleisch"],
     "ingredientGroups": [
       {
@@ -49,6 +50,7 @@
     "prepMinutes": 30,
     "cookMinutes": 100,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["klassiker", "fleisch", "schmoren"],
     "ingredientGroups": [
       {
@@ -91,6 +93,7 @@
     "prepMinutes": 30,
     "cookMinutes": 150,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["klassiker", "fleisch", "schmoren"],
     "ingredientGroups": [
       {
@@ -134,6 +137,7 @@
     "prepMinutes": 20,
     "cookMinutes": 20,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["vegetarisch", "schwäbisch"],
     "ingredientGroups": [
       {
@@ -170,6 +174,7 @@
     "prepMinutes": 15,
     "cookMinutes": 15,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["schnell", "fleisch"],
     "ingredientGroups": [
       {
@@ -203,6 +208,7 @@
     "prepMinutes": 20,
     "cookMinutes": 20,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["vegetarisch", "schnell"],
     "ingredientGroups": [
       {
@@ -241,6 +247,7 @@
     "prepMinutes": 20,
     "cookMinutes": 45,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["suppe", "für-viele"],
     "ingredientGroups": [
       {
@@ -273,6 +280,7 @@
     "prepMinutes": 15,
     "cookMinutes": 15,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["schnell", "fleisch"],
     "ingredientGroups": [
       {
@@ -304,6 +312,7 @@
     "prepMinutes": 20,
     "cookMinutes": 15,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["ofen", "schnell"],
     "ingredientGroups": [
       {
@@ -341,6 +350,7 @@
     "prepMinutes": 20,
     "cookMinutes": 20,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["vegetarisch", "beilage"],
     "ingredientGroups": [
       {
@@ -372,6 +382,7 @@
     "prepMinutes": 20,
     "cookMinutes": 10,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["süß", "dessert"],
     "ingredientGroups": [
       {
@@ -408,6 +419,7 @@
     "prepMinutes": 45,
     "cookMinutes": 20,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["schwäbisch", "klassiker"],
     "ingredientGroups": [
       {

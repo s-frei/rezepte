@@ -1,14 +1,14 @@
 -- name: InsertRecipe :one
 INSERT INTO recipes (
     id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
-    created_by, created_at, updated_by, updated_at, edit_policy
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    source_name, created_by, created_at, updated_by, updated_at, edit_policy
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRecipe :one
 UPDATE recipes
 SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?,
-    source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
+    source_url = ?, source_name = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
 RETURNING *;
 

@@ -6,6 +6,7 @@
     "prepMinutes": 25,
     "cookMinutes": 45,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["classic", "meat"],
     "ingredientGroups": [
       {
@@ -49,6 +50,7 @@
     "prepMinutes": 10,
     "cookMinutes": 20,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["quick", "breakfast"],
     "ingredientGroups": [
       {
@@ -83,6 +85,7 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["classic", "meat"],
     "ingredientGroups": [
       {
@@ -124,6 +127,7 @@
     "prepMinutes": 20,
     "cookMinutes": 30,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["quick", "seafood"],
     "ingredientGroups": [
       {
@@ -161,6 +165,7 @@
     "prepMinutes": 20,
     "cookMinutes": 120,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["classic", "meat", "stew"],
     "ingredientGroups": [
       {
@@ -197,6 +202,7 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["vegetarian", "soup"],
     "ingredientGroups": [
       {
@@ -228,6 +234,7 @@
     "prepMinutes": 15,
     "cookMinutes": 30,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["vegetarian", "quick"],
     "ingredientGroups": [
       {
@@ -264,6 +271,7 @@
     "prepMinutes": 15,
     "cookMinutes": 35,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["oven", "meat"],
     "ingredientGroups": [
       {
@@ -301,6 +309,7 @@
     "prepMinutes": 20,
     "cookMinutes": 25,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["snack", "baked"],
     "ingredientGroups": [
       {
@@ -331,6 +340,7 @@
     "prepMinutes": 20,
     "cookMinutes": 0,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["quick", "lunch"],
     "ingredientGroups": [
       {
@@ -361,6 +371,7 @@
     "prepMinutes": 20,
     "cookMinutes": 45,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["sweet", "dessert", "baking"],
     "ingredientGroups": [
       {
@@ -397,6 +408,7 @@
     "prepMinutes": 20,
     "cookMinutes": 40,
     "sourceUrl": null,
+    "sourceName": null,
     "tags": ["sweet", "dessert"],
     "ingredientGroups": [
       {

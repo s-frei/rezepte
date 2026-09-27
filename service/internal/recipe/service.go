@@ -71,6 +71,7 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 			PrepMinutes: intToInt64Ptr(in.PrepMinutes),
 			CookMinutes: intToInt64Ptr(in.CookMinutes),
 			SourceUrl:   in.SourceURL,
+			SourceName:  nonEmpty(trimmed(in.SourceName)),
 			CreatedBy:   createdBy,
 			CreatedAt:   now,
 			UpdatedBy:   createdBy,
@@ -127,6 +128,7 @@ func (s *Service) Update(ctx context.Context, id string, actor user.User, in Inp
 			PrepMinutes: intToInt64Ptr(in.PrepMinutes),
 			CookMinutes: intToInt64Ptr(in.CookMinutes),
 			SourceUrl:   in.SourceURL,
+			SourceName:  nonEmpty(trimmed(in.SourceName)),
 			UpdatedBy:   actor.ID,
 			UpdatedAt:   now,
 			EditPolicy:  policy.toDB(),
@@ -470,6 +472,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			PrepMinutes:      int64ToIntPtr(row.PrepMinutes),
 			CookMinutes:      int64ToIntPtr(row.CookMinutes),
 			SourceURL:        row.SourceUrl,
+			SourceName:       row.SourceName,
 			Tags:             tagNames,
 			IngredientGroups: outGroups,
 			Steps:            outSteps,
@@ -612,6 +615,16 @@ func reindex(ctx context.Context, q *sqlc.Queries, recipeID string, in Input, ta
 		return fmt.Errorf("insert fts: %w", err)
 	}
 	return nil
+}
+
+// trimmed trims surrounding whitespace, so a name made of spaces is
+// stored as absent rather than as an invisible credit.
+func trimmed(p *string) *string {
+	if p == nil {
+		return nil
+	}
+	s := strings.TrimSpace(*p)
+	return &s
 }
 
 // nonEmpty turns a pointer to an empty string into nil, so optional text

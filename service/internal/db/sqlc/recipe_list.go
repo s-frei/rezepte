@@ -52,7 +52,7 @@ var recipeOrderBy = map[RecipeSort]string{
 }
 
 const recipeColumns = `r.id, r.slug, r.title, r.description, r.servings, r.prep_minutes, r.cook_minutes,
-       r.source_url, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at, r.edit_policy`
+       r.source_url, r.source_name, r.cover_image_id, r.created_by, r.created_at, r.updated_by, r.updated_at, r.edit_policy`
 
 // where renders f as a WHERE clause, empty when no filter is set, and the
 // arguments its placeholders bind in order.
@@ -123,6 +123,7 @@ func (q *Queries) ListRecipes(ctx context.Context, f RecipeFilter, sort RecipeSo
 			&i.PrepMinutes,
 			&i.CookMinutes,
 			&i.SourceUrl,
+			&i.SourceName,
 			&i.CoverImageID,
 			&i.CreatedBy,
 			&i.CreatedAt,

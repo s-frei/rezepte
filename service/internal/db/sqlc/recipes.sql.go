@@ -55,7 +55,7 @@ func (q *Queries) DeleteStepsByRecipe(ctx context.Context, recipeID string) erro
 }
 
 const getRecipe = `-- name: GetRecipe :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE id = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE id = ?
 `
 
 func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
@@ -70,6 +70,7 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
+		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -118,7 +119,7 @@ func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAut
 }
 
 const getRecipeBySlug = `-- name: GetRecipeBySlug :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE slug = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE slug = ?
 `
 
 func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, error) {
@@ -133,6 +134,7 @@ func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, err
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
+		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -195,9 +197,9 @@ func (q *Queries) InsertIngredientGroup(ctx context.Context, arg InsertIngredien
 const insertRecipe = `-- name: InsertRecipe :one
 INSERT INTO recipes (
     id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
-    created_by, created_at, updated_by, updated_at, edit_policy
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
+    source_name, created_by, created_at, updated_by, updated_at, edit_policy
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 `
 
 type InsertRecipeParams struct {
@@ -209,6 +211,7 @@ type InsertRecipeParams struct {
 	PrepMinutes *int64
 	CookMinutes *int64
 	SourceUrl   *string
+	SourceName  *string
 	CreatedBy   string
 	CreatedAt   string
 	UpdatedBy   string
@@ -226,6 +229,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		arg.PrepMinutes,
 		arg.CookMinutes,
 		arg.SourceUrl,
+		arg.SourceName,
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.UpdatedBy,
@@ -242,6 +246,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
+		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -689,9 +694,9 @@ func (q *Queries) SlugExists(ctx context.Context, slug string) (bool, error) {
 const updateRecipe = `-- name: UpdateRecipe :one
 UPDATE recipes
 SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?,
-    source_url = ?, updated_by = ?, updated_at = ?, edit_policy = ?
+    source_url = ?, source_name = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
 `
 
 type UpdateRecipeParams struct {
@@ -701,6 +706,7 @@ type UpdateRecipeParams struct {
 	PrepMinutes *int64
 	CookMinutes *int64
 	SourceUrl   *string
+	SourceName  *string
 	UpdatedBy   string
 	UpdatedAt   string
 	EditPolicy  *string
@@ -715,6 +721,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		arg.PrepMinutes,
 		arg.CookMinutes,
 		arg.SourceUrl,
+		arg.SourceName,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
 		arg.EditPolicy,
@@ -730,6 +737,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
+		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,

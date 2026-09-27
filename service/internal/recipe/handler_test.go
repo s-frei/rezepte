@@ -734,6 +734,48 @@ func TestSourceURLMustBeHTTP(t *testing.T) {
 	}
 }
 
+// TestSourceNameRoundTrips pins the source name: stored as sent, a blank
+// one stored as absent, and bounded like the other free-text fields.
+func TestSourceNameRoundTrips(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0]
+
+	create := func(name *string) *httptest.ResponseRecorder {
+		in := fx
+		in.SourceName = name
+		return doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, in), cookie)
+	}
+	decode := func(rec *httptest.ResponseRecorder) recipe.Recipe {
+		t.Helper()
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+		}
+		var got recipe.Recipe
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+
+	book := "Ottolenghi – Simple, p. 142"
+	if got := decode(create(&book)); got.SourceName == nil || *got.SourceName != book {
+		t.Fatalf("sourceName = %v", got.SourceName)
+	}
+
+	// Spaces are no credit: stored as absent, so no page prints
+	// "Adapted from" in front of nothing.
+	blank := "   "
+	if got := decode(create(&blank)); got.SourceName != nil {
+		t.Fatalf("blank sourceName stored as %q, want null", *got.SourceName)
+	}
+
+	long := strings.Repeat("x", 201)
+	if rec := create(&long); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("201 chars: status %d", rec.Code)
+	}
+}
+
 // TestNullListsAreRejected pins that a recipe's lists are arrays, never
 // null: a null passed minItems and replaced the stored steps, ingredients
 // or tags with nothing.

@@ -28,6 +28,11 @@ type IngredientGroup struct {
 
 // Input is the recipe payload accepted by Service.Create and Service.Update.
 //
+// SourceName is optional where every other field is required: it came
+// after API tokens and MCP clients did, and a required field would turn
+// every one of their writes into a 422. Left out, it is absent, the same
+// as null.
+//
 // SourceURL carries a pattern on top of format:"uri" because a URI only
 // has to have some scheme: without it "javascript:alert(1)" validates and
 // the frontend renders it as a link the user can click.
@@ -42,6 +47,7 @@ type Input struct {
 	PrepMinutes      *int              `json:"prepMinutes" minimum:"0" maximum:"1440" nullable:"true"`
 	CookMinutes      *int              `json:"cookMinutes" minimum:"0" maximum:"1440" nullable:"true"`
 	SourceURL        *string           `json:"sourceUrl" maxLength:"500" format:"uri" pattern:"^https?://" nullable:"true"`
+	SourceName       *string           `json:"sourceName" maxLength:"200" nullable:"true" required:"false" doc:"Where the recipe comes from - a book, a website or a person. Shown after \"Adapted from\"; it is text, never a link target."`
 	Tags             []string          `json:"tags" maxItems:"20" minLength:"1" maxLength:"40" nullable:"false"`
 	IngredientGroups []IngredientGroup `json:"ingredientGroups" minItems:"1" maxItems:"20" nullable:"false"`
 	Steps            []Step            `json:"steps" maxItems:"50" nullable:"false"`

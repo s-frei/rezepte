@@ -64,6 +64,7 @@ type Recipe struct {
 	PrepMinutes  *int64
 	CookMinutes  *int64
 	SourceUrl    *string
+	SourceName   *string
 	CoverImageID *string
 	CreatedBy    string
 	CreatedAt    string
