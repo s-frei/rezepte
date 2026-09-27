@@ -226,8 +226,9 @@ func resetError(err error, dataDir string) error {
 	return err
 }
 
-// seedDemo fills an empty instance with the sample recipes and logs the
-// demo admin's credentials so operators know how to log in. demoDefaults
+// seedDemo fills an empty instance with the sample recipes - and, on the
+// demo credentials, with the demo's other members and their tasty marks -
+// and logs the demo admin's credentials so operators know how to log in. demoDefaults
 // tells whether cfg.AdminUser/AdminPassword were replaced with the
 // well-known demo credentials, or came from the operator's configuration.
 func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, logger *slog.Logger) error {
@@ -238,6 +239,11 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 	password := "from REZEPTE_ADMIN_PASSWORD" //nolint:gosec // G101: log label, not a credential
 	if demoDefaults {
 		password = demo.AdminPassword
+		// The members' passwords are as public as the admin's, so they come
+		// only with the published credentials, never beside an operator's own.
+		if err := demo.SeedMembers(ctx, conn, sum, user.Locale(cfg.Locale), logger); err != nil {
+			return err
+		}
 	}
 	logger.Info("demo mode", "user", cfg.AdminUser, "password", password, "seeded", !sum.Skipped, "dataDir", cfg.DataDir)
 	return nil

@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"strings"
 
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -44,6 +45,21 @@ var embedded embed.FS
 // has no photos.
 var photos fs.FS = embedded
 
+// Members are the household the demo adds beside its admin, so that what
+// one member shows another is on screen from the first start. Each signs in
+// with the development-credential password, the username with 1234
+// appended.
+var Members = []string{"mila", "jonas"}
+
+// memberMarks lists, per member, the samples (by index, the overview's order
+// from the top) they mark tasty: the top card gets two marks, the rest of
+// the first row one, so the count and the tasty order both have something
+// to show.
+var memberMarks = map[string][]int{
+	"mila":  {0, 1, 3},
+	"jonas": {0, 2, 5},
+}
+
 // ErrNoUsers is returned when no user exists to own the sample recipes.
 var ErrNoUsers = errors.New("demo: no user to own the sample recipes")
 
@@ -51,6 +67,9 @@ var ErrNoUsers = errors.New("demo: no user to own the sample recipes")
 type Summary struct {
 	Recipes int
 	Images  int
+	// RecipeIDs are the created recipes in sample order, the overview's
+	// order from the top, for SeedMembers to mark.
+	RecipeIDs []string
 	// Skipped is true when the recipes table was not empty; nothing was written.
 	Skipped bool
 }
@@ -89,7 +108,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 		withPhotos = withPhotos || len(sets[i]) > 0
 	}
 	images := image.NewService(conn, imageDir)
-	var sum Summary
+	sum := Summary{RecipeIDs: make([]string, len(samples))}
 	// The overview sorts by updated_at desc: seeding back to front puts the
 	// first sample on top.
 	for i := len(samples) - 1; i >= 0; i-- {
@@ -98,6 +117,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, locale user
 			return sum, fmt.Errorf("create sample %q: %w", samples[i].Title, err)
 		}
 		sum.Recipes++
+		sum.RecipeIDs[i] = r.ID
 		if withPhotos {
 			for n, data := range sets[i] {
 				if _, err := images.Upload(ctx, r.ID, o, bytes.NewReader(data)); err != nil {
@@ -163,4 +183,47 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 		}
 	}
 	return list[0], nil
+}
+
+// SeedMembers adds Members to an instance Seed has just filled, in locale's
+// language, and marks the samples in memberMarks tasty on their behalf. It
+// follows the seed: after a skipped seed it writes nothing, since the
+// members belong to the sample data rather than to an instance in use. A
+// member name somebody already holds is left to them, marks included.
+//
+// The members' passwords are public, so only a demo that runs on the
+// published demo credentials may call it; an operator who set their own
+// admin password gets no accounts they did not ask for.
+func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, locale user.Locale, logger *slog.Logger) error {
+	if sum.Skipped {
+		return nil
+	}
+	users := user.NewService(conn)
+	recipes := recipe.NewService(conn)
+	for _, name := range Members {
+		m, err := users.Create(ctx, user.CreateParams{
+			Username:    name,
+			Password:    name + "1234",
+			Role:        user.RoleUser,
+			DisplayName: strings.ToUpper(name[:1]) + name[1:],
+			Locale:      locale,
+		})
+		if errors.Is(err, user.ErrUsernameTaken) {
+			logger.Info("demo: member name taken, not seeding it", "user", name)
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("create member %s: %w", name, err)
+		}
+		for _, i := range memberMarks[name] {
+			if i >= len(sum.RecipeIDs) {
+				continue
+			}
+			if err := recipes.SetTasty(ctx, m.ID, sum.RecipeIDs[i], true); err != nil {
+				return fmt.Errorf("mark sample %d tasty for %s: %w", i, name, err)
+			}
+		}
+	}
+	logger.Info("demo: members seeded", "users", strings.Join(Members, ", "))
+	return nil
 }

@@ -127,3 +127,89 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 		t.Fatalf("owner = %s, want %s (first user)", r.CreatedBy.ID, sam.ID)
 	}
 }
+
+// The demo's other members exist so that what one member shows another -
+// tasty marks, for now - is on screen from the first start. Each signs in
+// with the development-credential password, and the first sample, the
+// overview's top card, carries two marks.
+func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := demo.SeedMembers(ctx, conn, sum, "de", quiet); err != nil {
+		t.Fatalf("SeedMembers: %v", err)
+	}
+
+	for _, name := range demo.Members {
+		u, err := users.Authenticate(ctx, name, name+"1234")
+		if err != nil {
+			t.Fatalf("sign in as %s: %v", name, err)
+		}
+		if u.Role != user.RoleUser || u.Locale != "de" {
+			t.Fatalf("%s: role %s, locale %s; want user, de", name, u.Role, u.Locale)
+		}
+	}
+	recipes := recipe.NewService(conn)
+	top, err := recipes.BySlug(ctx, "koenigsberger-klopse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if top.TastyCount != 2 || len(top.TastyBy) != 2 {
+		t.Fatalf("top card: tastyCount %d, tastyBy %v; want 2 marks", top.TastyCount, top.TastyBy)
+	}
+	var marks int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasty`).Scan(&marks); err != nil {
+		t.Fatal(err)
+	}
+	if marks != 6 {
+		t.Fatalf("tasty marks = %d, want 6", marks)
+	}
+}
+
+// A seed that found recipes already there wrote nothing, and neither do the
+// members: they belong to the sample data, not to an instance in use. A
+// member name somebody already took is left to them.
+func TestSeedMembersFollowTheSeed(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn)
+	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, demo.Summary{Skipped: true}, "de", quiet); err != nil {
+		t.Fatalf("SeedMembers after a skipped seed: %v", err)
+	}
+	if list, _ := users.List(ctx); len(list) != 1 {
+		t.Fatalf("users after a skipped seed = %d, want 1", len(list))
+	}
+
+	taken, err := users.Create(ctx, user.CreateParams{Username: demo.Members[0], Password: "their-own-pw", Role: user.RoleUser})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "de", quiet); err != nil {
+		t.Fatalf("SeedMembers with a taken name: %v", err)
+	}
+	if _, err := users.Authenticate(ctx, taken.Username, "their-own-pw"); err != nil {
+		t.Fatalf("the existing %s lost their password: %v", taken.Username, err)
+	}
+	var theirs int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasty WHERE user_id = ?`, taken.ID).Scan(&theirs); err != nil {
+		t.Fatal(err)
+	}
+	if theirs != 0 {
+		t.Fatalf("the existing %s got %d tasty marks, want none", taken.Username, theirs)
+	}
+}
