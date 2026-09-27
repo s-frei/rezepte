@@ -95,6 +95,11 @@
 	--shadow-dialog: 0 24px 60px -24px rgb(80 50 20 / 0.4);
 	--shadow-sheet: 0 -12px 40px -20px rgb(80 50 20 / 0.4);
 	--shadow-cta: 0 8px 20px -8px rgb(180 83 9 / 0.5);
+	/* A recipe card picked up off the table: shadow-card, lifted further. */
+	--shadow-lift: 0 2px 4px rgb(80 50 20 / 0.06), 0 18px 36px -14px rgb(80 50 20 / 0.32);
+
+	/* Overshoots and settles back - a card that springs up when picked. */
+	--ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
 
 	--text-label: 11px;
 	--text-label--line-height: 1.2;
@@ -120,6 +125,16 @@
 	--text-display-xl: 52px;
 	--text-display-xl--line-height: 1.05;
 	--text-display-xl--letter-spacing: -0.01em;
+}
+
+/*
+ * One period of the hand-drawn underline a recipe card draws under its
+ * title on hover (see the `squiggle` utility below). An SVG in a url()
+ * cannot read a custom property, so the stroke carries --color-primary's
+ * value spelled out, and the dark blocks repeat the token with theirs.
+ */
+:root {
+	--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23b45309' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 /*
@@ -176,6 +191,7 @@
 	--shadow-card: none;
 	--shadow-cover: none;
 	--shadow-cta: none;
+	--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23d97a2b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -227,6 +243,7 @@
 		--shadow-card: none;
 		--shadow-cover: none;
 		--shadow-cta: none;
+		--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23d97a2b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 	}
 }
 
@@ -278,6 +295,74 @@
  */
 @utility italic-centered {
 	padding-right: 0.068em;
+}
+
+/*
+ * A recipe card is a stretched link (see RecipeCard.svelte), so "the card
+ * is hovered" means "its title link is hovered": pointing at the star or
+ * the author initials inside the card leaves it at rest. Only on a device
+ * that really hovers - a tap on a phone would otherwise leave the card
+ * tilted until the next tap somewhere else.
+ */
+@custom-variant card-hover {
+	@media (hover: hover) {
+		&:has(a:hover) {
+			@slot;
+		}
+	}
+}
+
+/*
+ * The hand-drawn line a recipe card draws under its title while hovered.
+ * Two background layers on the title's inline span: the wave repeating
+ * along the bottom, and over it a strip in the card's own surface color
+ * that covers it at rest and shrinks toward the right on hover, uncovering
+ * the wave from left to right. Backgrounds paint under the text, so the
+ * strip only ever hides the wave. `box-decoration-break: clone` gives each
+ * line of a wrapped title its own copy of both layers, so every line is
+ * underlined, and they all draw at once.
+ *
+ * Leaving is quicker than arriving and starts at once, the same asymmetry
+ * as the card's tilt: when the pointer moves on to the next card, the line
+ * is gone before the new one starts drawing.
+ */
+@utility squiggle {
+	background-image:
+		linear-gradient(var(--color-surface), var(--color-surface)), var(--image-squiggle);
+	background-repeat: no-repeat, repeat-x;
+	/* The strip overhangs the span by a pixel on each side: flush with it,
+	   antialiasing at its edges left a sliver of the wave showing at the
+	   end of each line. The padding drops the wave clear of the letters;
+	   it hangs below the last line box, so the title has to leave room for
+	   it under its line-clamp, and between lines it needs a leading loose
+	   enough not to touch the next line's ascenders (both in RecipeCard). */
+	padding-bottom: 3px;
+	background-position:
+		calc(100% + 1px) 100%,
+		0 100%;
+	background-size:
+		calc(100% + 2px) 8px,
+		12px 6px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+	transition: background-size 120ms ease-out;
+
+	@media (hover: hover) {
+		.group:has(a:hover) & {
+			background-size:
+				0% 8px,
+				12px 6px;
+			transition: background-size 550ms cubic-bezier(0.4, 0, 0.2, 1) 170ms;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+
+		.group:has(a:hover) & {
+			transition: none;
+		}
+	}
 }
 
 body {

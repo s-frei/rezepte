@@ -33,10 +33,18 @@
 	invalid HTML and a focus trap), while Tab still finds one stop per
 	interactive thing rather than one per element the card draws.
 
-	Hover and focus live on this wrapper through `has-[a:…]`, not on the
-	anchor, so an effect covers the whole card while still answering to the
-	link alone: pointing at the star or the initials leaves the card at rest,
-	which is what you want once the hover state grows into an animation.
+	Hover and focus live on this wrapper through `has-[a:…]` and the
+	`card-hover` variant, not on the anchor, so an effect covers the whole
+	card while still answering to the link alone: pointing at the star or
+	the initials leaves the card at rest.
+
+	Hovered, the card is picked up like an index card off a pile: it rises,
+	tips a little and its shadow deepens, while the `squiggle` line draws
+	itself under the title. Every card tips the same way, and arriving and
+	leaving are timed apart on purpose - the tip springs in 90ms late, the
+	return is quick and flat. With both moving at once and mirrored, running
+	the pointer across a row read as one seesaw rocking two cards. Reduced
+	motion keeps the shadow and the line and drops the movement.
 
 	`<article>` labeled by the title, rather than a bare `<div>`: with the
 	anchor no longer wrapping the card, the title is the only thing that
@@ -46,7 +54,7 @@
 <article
 	bind:this={cardEl}
 	aria-labelledby={titleId}
-	class="group @container relative overflow-hidden rounded-xl bg-surface shadow-card transition has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary has-[a:hover]:brightness-[0.98] md:rounded-2xl"
+	class="group @container relative origin-bottom overflow-hidden rounded-xl bg-surface shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none md:rounded-2xl card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg]"
 >
 	<div class="aspect-square p-1.5 md:p-2">
 		{#if recipe.coverImageId}
@@ -65,6 +73,10 @@
 		<!-- The title is what you recognize the card by, so it wraps rather than
 		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
 		     reserved either way, so the time pills of a row stay on one line.
+		     The hover line needs room of its own: `leading-snug` rather than
+		     text-card's 1.2 keeps it off the next line's ascenders, and `pb-1`
+		     keeps the last line's copy, which hangs below the line box, from
+		     being clipped by the clamp.
 		     A phone card leaves 124px of text, which German compounds outrun on
 		     their own - so `hyphens-auto` (the document carries the account's
 		     locale) lets them break instead of running out of the card unseen.
@@ -74,7 +86,7 @@
 		     lines and the desktop grid has the height to spare. -->
 		<h3
 			id={titleId}
-			class="line-clamp-2 min-h-[2lh] font-display text-[16px] font-medium hyphens-auto md:line-clamp-3 md:text-card"
+			class="line-clamp-2 min-h-[calc(2lh+4px)] pb-1 font-display text-[16px] leading-snug font-medium hyphens-auto md:line-clamp-3 md:text-card"
 		>
 			<!-- The anchor must not be positioned itself, or its `::after` would
 			     stretch over the title instead of over the card. -->
@@ -82,11 +94,11 @@
 				href={resolve('/recipes/[slug]', { slug: recipe.slug })}
 				class="outline-none after:absolute after:inset-0 after:content-['']"
 			>
-				{recipe.title}
+				<span class="squiggle">{recipe.title}</span>
 			</a>
 		</h3>
 		{#if recipe.tags.length > 0}
-			<p class="mt-1 truncate text-caption text-text-muted">{recipe.tags.join(', ')}</p>
+			<p class="truncate text-caption text-text-muted">{recipe.tags.join(', ')}</p>
 		{/if}
 		<!-- One row for the two pieces of metadata that are not the recipe
 		     itself. It renders even when neither the time nor a second
