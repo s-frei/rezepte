@@ -778,6 +778,37 @@ test('the recipe page never scrolls sideways', async ({ page }, testInfo) => {
 	}
 });
 
+// The star and the heart sit in the line under the title, beside the people
+// who find it tasty, so the title keeps the whole width: beside it they left a
+// phone about 180px, and "Königsberger Klopse" broke into three lines.
+test('the recipe title keeps the whole width on a phone', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'sets the phone width itself');
+
+	const reader = `ida${uniqueToken()}`.slice(0, 20);
+	await createUser(page, { username: reader, role: 'user' });
+	const recipe = await createRecipe(page, {
+		...loadFixture(0, 'de'),
+		title: 'Königsberger Klopse'
+	});
+	await signOut(page, testInfo);
+	await login(page, reader);
+	await expect(page).toHaveURL('/');
+	await page.setViewportSize({ width: 360, height: 800 });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const title = page.getByRole('heading', { level: 1 });
+	const heart = page.getByRole('button', { name: 'Mark as tasty' });
+	const star = page.getByRole('button', { name: 'Add to favorites' });
+	await expect(heart).toBeVisible();
+
+	const titleBox = (await title.boundingBox())!;
+	const lineHeight = await title.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));
+	expect(Math.round(titleBox.height / lineHeight), 'title lines').toBe(2);
+	for (const button of [star, heart]) {
+		expect((await button.boundingBox())!.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+	}
+});
+
 // From `md` up a card carries the star and the tasty heart over its photo,
 // and the grid, not the card, owns the room they need: four fixed columns
 // squeezed a card to 160px at 768px, where the two 36px controls hid the

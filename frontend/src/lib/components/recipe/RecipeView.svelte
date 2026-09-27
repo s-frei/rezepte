@@ -17,9 +17,8 @@
 		imageSrc,
 		tagHref,
 		onopenimage,
-		actions,
+		byline,
 		kicker,
-		belowTitle,
 		belowMeta,
 		footer
 	}: {
@@ -30,12 +29,10 @@
 		tagHref?: (tag: string) => string;
 		/** Called with the index of the picture the caller tapped/clicked, for a lightbox it owns. */
 		onopenimage: (index: number) => void;
-		/** Rendered next to the title - the detail page puts its favorite star
-		 * and tasty button here. */
-		actions?: Snippet;
-		/** Rendered under the title row, before the description - the detail
-		 * page's "tasty" people. */
-		belowTitle?: Snippet;
+		/** The line under the title, before the description - the detail page
+		 * sets its favorite star, tasty heart and "tasty" people here, so the
+		 * title keeps the whole width. */
+		byline?: Snippet;
 		/** Rendered at the end of the tag row above the title, which it opens
 		 * even for a recipe without tags - the detail page's public-link
 		 * marker lives here: a status of the recipe as a whole, which wraps
@@ -109,26 +106,19 @@
 				{@render kicker?.()}
 			</div>
 		{/if}
-		<div class="mt-3 flex items-start gap-3 md:mt-4">
-			<!-- Star and heart leave a 320px phone about 180px of title, less
-			     than "Königsberger" needs at this size: the title may shrink
-			     and break its long compounds, as in cook mode, rather than
-			     push the pair off the page. -->
-			<h1
-				class="min-w-0 font-display text-display-md font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4] md:text-display-xl"
-			>
-				{recipe.title}
-			</h1>
-			{#if actions}
-				<!-- Star and heart sit together beside the title, outside any link,
-				     and this is where a phone sets both: its cards leave the
-				     photo to the photo. -->
-				<div class="mt-1 flex shrink-0 items-center gap-2 md:mt-2">
-					{@render actions()}
-				</div>
-			{/if}
-		</div>
-		{@render belowTitle?.()}
+		<!-- The title has the column to itself. A long compound that still
+		     does not fit a 320px phone breaks, as in cook mode, rather than
+		     push the page sideways. -->
+		<h1
+			class="mt-3 font-display text-display-md font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4] md:mt-4 md:text-display-xl"
+		>
+			{recipe.title}
+		</h1>
+		{#if byline}
+			<div class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2">
+				{@render byline()}
+			</div>
+		{/if}
 		{#if recipe.description}
 			<p class="mt-3 text-body-lg text-text-muted">{recipe.description}</p>
 		{/if}

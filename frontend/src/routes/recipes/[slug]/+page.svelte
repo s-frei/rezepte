@@ -311,7 +311,11 @@
 
 	<article class="pt-6 md:pt-10">
 		<RecipeView {recipe} onopenimage={openLightbox}>
-			{#snippet actions()}
+			{#snippet byline()}
+				<!-- Star and heart sit under the title, outside any link, and this
+				     is where a phone sets both: its cards leave the photo to the
+				     photo. The heart's count and the people it counts read as one
+				     line, like a dedication under a cookbook's title. -->
 				<FavoriteStar id={recipe.id} active={recipe.favorite} />
 				{#if !ownRecipe || recipe.tastyCount > 0}
 					<TastyButton
@@ -322,10 +326,8 @@
 						onchange={onTasty}
 					/>
 				{/if}
-			{/snippet}
-			{#snippet belowTitle()}
 				{#if tastyBy.length > 0}
-					<div class="mt-3 flex items-center gap-2 text-caption text-text-muted">
+					<div class="ml-1 flex items-center gap-2 text-caption text-text-muted">
 						<span>{m.recipe_tasty_by()}</span>
 						<TastyPeople people={tastyBy} />
 					</div>
