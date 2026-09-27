@@ -809,6 +809,37 @@
         ],
         "type": "object"
       },
+      "Link": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/Link.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "When the share token stops showing the recipe in previews; null when the path carries none",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "The recipe's path, carrying a token for its link preview when link previews are on",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
       "LoginInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1230,12 +1261,26 @@
             "readOnly": true,
             "type": "string"
           },
+          "linkPreviewMinutes": {
+            "enum": [
+              15,
+              60,
+              1440
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "linkPreviews": {
+            "type": "boolean"
+          },
           "recipesLockedByDefault": {
             "type": "boolean"
           }
         },
         "required": [
-          "recipesLockedByDefault"
+          "recipesLockedByDefault",
+          "linkPreviews",
+          "linkPreviewMinutes"
         ],
         "type": "object"
       },
@@ -1407,14 +1452,25 @@
             "readOnly": true,
             "type": "string"
           },
+          "linkPreviewMinutes": {
+            "description": "How many minutes such a link shows the recipe",
+            "enum": [
+              15,
+              60,
+              1440
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "linkPreviews": {
+            "description": "Let a recipe link shared from the app show the recipe's title, description and cover in link previews",
+            "type": "boolean"
+          },
           "recipesLockedByDefault": {
             "description": "Lock every recipe on the default policy to its author and admins",
             "type": "boolean"
           }
         },
-        "required": [
-          "recipesLockedByDefault"
-        ],
         "type": "object"
       },
       "UserAccount": {
@@ -3093,6 +3149,80 @@
         "summary": "Delete an image",
         "tags": [
           "images"
+        ]
+      }
+    },
+    "/api/v1/recipes/{id}/share-link": {
+      "post": {
+        "description": "The recipe's path. While the owner has link previews on, it carries a token that shows the recipe's title, description and cover in link previews for linkPreviewMinutes; otherwise it is the plain path.",
+        "operationId": "create-share-link",
+        "parameters": [
+          {
+            "description": "Recipe id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Recipe id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Link"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "Create the address to share a recipe by",
+        "tags": [
+          "recipes"
         ]
       }
     },

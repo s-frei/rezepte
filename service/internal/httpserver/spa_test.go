@@ -18,7 +18,7 @@ func testFS() fstest.MapFS {
 }
 
 func TestSPAServesManifestAsManifestJSON(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false), "/manifest.webmanifest")
+	rec := get(t, SPAHandler(testFS(), false, nil), "/manifest.webmanifest")
 	if got := rec.Header().Get("Content-Type"); got != "application/manifest+json" {
 		t.Fatalf("Content-Type = %q, want application/manifest+json", got)
 	}
@@ -32,21 +32,21 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 }
 
 func TestSPAServesExistingFile(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false), "/favicon.svg")
+	rec := get(t, SPAHandler(testFS(), false, nil), "/favicon.svg")
 	if rec.Code != http.StatusOK || rec.Body.String() != "<svg/>" {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
 }
 
 func TestSPAImmutableAssetsAreCached(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false), "/_app/immutable/chunks/a.js")
+	rec := get(t, SPAHandler(testFS(), false, nil), "/_app/immutable/chunks/a.js")
 	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
 		t.Fatalf("Cache-Control = %q", got)
 	}
 }
 
 func TestSPAFallsBackToIndex(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false), "/recipes/some-slug")
+	rec := get(t, SPAHandler(testFS(), false, nil), "/recipes/some-slug")
 	if rec.Code != http.StatusOK || rec.Body.String() != "<html>app</html>" {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
@@ -56,7 +56,7 @@ func TestSPAFallsBackToIndex(t *testing.T) {
 }
 
 func TestSPADoesNotFallBackForAPI(t *testing.T) {
-	rec := get(t, SPAHandler(testFS(), false), "/api/v1/unknown")
+	rec := get(t, SPAHandler(testFS(), false, nil), "/api/v1/unknown")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("got %d, want 404", rec.Code)
 	}
@@ -65,7 +65,7 @@ func TestSPADoesNotFallBackForAPI(t *testing.T) {
 func TestSPAFallbackRejectsNonGet(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/recipes/x", nil)
-	SPAHandler(testFS(), false).ServeHTTP(rec, req)
+	SPAHandler(testFS(), false, nil).ServeHTTP(rec, req)
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("got %d, want 405", rec.Code)
 	}
@@ -92,7 +92,7 @@ func serveShellFor(t *testing.T, secure bool, host, path string, headers map[str
 		req.Header.Set(k, v)
 	}
 	rec := httptest.NewRecorder()
-	SPAHandler(shellFS(), secure).ServeHTTP(rec, req)
+	SPAHandler(shellFS(), secure, nil).ServeHTTP(rec, req)
 	return rec
 }
 
@@ -139,8 +139,65 @@ func TestSPAShellEscapesTheHost(t *testing.T) {
 func TestSPAShellAnswersHead(t *testing.T) {
 	req := httptest.NewRequest(http.MethodHead, "/recipes/x", nil)
 	rec := httptest.NewRecorder()
-	SPAHandler(shellFS(), false).ServeHTTP(rec, req)
+	SPAHandler(shellFS(), false, nil).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK || rec.Body.Len() != 0 {
 		t.Fatalf("got %d with %d bytes, want 200 and no body", rec.Code, rec.Body.Len())
+	}
+}
+
+func TestSPAShellShowsAPagesOwnLinkPreview(t *testing.T) {
+	fsys := fstest.MapFS{"index.html": {Data: []byte(`<title>Rezepte</title>
+<meta property="og:title" content="Rezepte" />
+<meta property="og:description" content="A recipe manager" />
+<meta property="og:url" content="/" />
+<meta property="og:image" content="/og.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1280" />
+<meta property="og:image:height" content="640" />
+<meta
+	property="og:image:alt"
+	content="The Rezepte logo"
+/>
+<meta name="twitter:image" content="/og.png" />
+<meta name="twitter:image:alt" content="The Rezepte logo" />`)}}
+	preview := func(r *http.Request) *LinkPreview {
+		if r.URL.Path != "/recipes/salat" {
+			return nil
+		}
+		return &LinkPreview{
+			URL: "/recipes/salat?share=t", Title: `Salat "scharf" & kalt`, Description: "Frisch.",
+			Image: "/link-preview/r/i?share=t", ImageWidth: 960, ImageHeight: 640,
+			ImageType: "image/jpeg", ImageAlt: "Salat",
+		}
+	}
+	req := httptest.NewRequest(http.MethodGet, "/recipes/salat?share=t", nil)
+	req.Host = "rezepte.example"
+	rec := httptest.NewRecorder()
+	SPAHandler(fsys, true, preview).ServeHTTP(rec, req)
+	want := `<title>Salat &#34;scharf&#34; &amp; kalt · Rezepte</title>
+<meta property="og:title" content="Salat &#34;scharf&#34; &amp; kalt" />
+<meta property="og:description" content="Frisch." />
+<meta property="og:url" content="https://rezepte.example/recipes/salat?share=t" />
+<meta property="og:image" content="https://rezepte.example/link-preview/r/i?share=t" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="960" />
+<meta property="og:image:height" content="640" />
+<meta
+	property="og:image:alt"
+	content="Salat"
+/>
+<meta name="twitter:image" content="https://rezepte.example/link-preview/r/i?share=t" />
+<meta name="twitter:image:alt" content="Salat" />`
+	if got := rec.Body.String(); got != want {
+		t.Fatalf("got\n%s\nwant\n%s", got, want)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Host = "rezepte.example"
+	rec = httptest.NewRecorder()
+	SPAHandler(fsys, true, preview).ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), `<meta property="og:title" content="Rezepte" />`) ||
+		!strings.Contains(rec.Body.String(), `<meta property="og:image" content="https://rezepte.example/og.png" />`) {
+		t.Fatalf("app preview changed:\n%s", rec.Body.String())
 	}
 }

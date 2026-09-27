@@ -12,6 +12,7 @@
     "update-recipe",
     "delete-favorite",
     "set-favorite",
+    "create-share-link",
     "delete-tasty",
     "set-tasty"
   ]

@@ -334,3 +334,23 @@ export async function setRecipesLockedByDefault(page: Page, on: boolean): Promis
 		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
 }
+
+/**
+ * Switches link previews through the API, as the signed-in owner. The suite
+ * shares one instance, so a test that turns them on turns them off again.
+ */
+export async function setLinkPreviews(
+	page: Page,
+	on: boolean,
+	minutes: 15 | 60 | 1440 = 15
+): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch('/api/v1/settings', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { linkPreviews: on, linkPreviewMinutes: minutes }
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}

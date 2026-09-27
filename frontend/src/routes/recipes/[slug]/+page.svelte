@@ -29,6 +29,7 @@
 	import TastyPeople from '$lib/components/recipe/TastyPeople.svelte';
 	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
 	import { clearServings, createServings } from '$lib/recipe/servings.svelte';
+	import { copyLink, shareLink, ShareLink } from '$lib/recipe/share.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { shell } from '$lib/shell.svelte';
 	import type { PageProps } from './$types';
@@ -92,9 +93,26 @@
 	const menuTriggerClass =
 		'inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
-	async function copyLink() {
-		await navigator.clipboard.writeText(location.href);
-		toast.success(m.detail_link_copied());
+	// The address "Copy link" and the share button hand out; see
+	// `$lib/recipe/share.svelte.ts`. One per recipe: re-created when the page
+	// is reused for another slug, released when it goes.
+	let shareable: ShareLink | null = null;
+	$effect(() => {
+		const id = recipe?.id;
+		if (!id) {
+			return;
+		}
+		const link = new ShareLink(id);
+		shareable = link;
+		return () => link.destroy();
+	});
+
+	function copyRecipeLink() {
+		return copyLink(shareable?.url ?? location.href);
+	}
+
+	function shareRecipe() {
+		return shareLink(recipe.title, shareable?.url ?? location.href);
 	}
 
 	async function handleDelete() {
@@ -150,7 +168,7 @@
 		</DropdownMenu.Item>
 	{/if}
 	<DropdownMenu.Item
-		onSelect={copyLink}
+		onSelect={copyRecipeLink}
 		class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
 	>
 		<Link class="size-4" aria-hidden="true" />
@@ -235,8 +253,8 @@
 			</a>
 		{:else}
 			<IconButton
-				label={m.detail_copy_link()}
-				onclick={copyLink}
+				label={m.detail_share()}
+				onclick={shareRecipe}
 				class="pointer-events-auto shadow-card"
 			>
 				<Share2 class="size-5" aria-hidden="true" />

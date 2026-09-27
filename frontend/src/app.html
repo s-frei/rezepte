@@ -31,8 +31,9 @@
 			paths; the Go service makes og:url, og:image and twitter:image
 			absolute for the request's origin when it serves this page
 			(service/internal/httpserver/spa.go), because most crawlers ignore a
-			relative one. Every page is behind a login, so the preview is the
-			app's, never a recipe's.
+			relative one. A shared recipe's page gets its own title, description
+			and cover in these tags when the household allows it
+			(service/internal/preview).
 		-->
 		<meta property="og:type" content="website" />
 		<meta property="og:site_name" content="Rezepte" />

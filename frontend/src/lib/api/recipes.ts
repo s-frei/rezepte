@@ -300,3 +300,15 @@ export function emptyInput(): RecipeInput {
 		editPolicy: 'default'
 	};
 }
+
+/**
+ * The address to share a recipe by. `path` carries a share token that shows
+ * the recipe's title and cover in link previews until `expiresAt`, when the
+ * household shows recipes to share links; otherwise it is the plain path and
+ * `expiresAt` is null.
+ */
+export type ShareLink = { path: string; expiresAt: string | null };
+
+export function createShareLink(id: string): Promise<ShareLink> {
+	return api<ShareLink>(`/recipes/${encodeURIComponent(id)}/share-link`, { method: 'POST' });
+}

@@ -80,6 +80,12 @@ func decode(data []byte) (stdimage.Image, error) {
 	return img, nil
 }
 
+// ThumbSize returns the dimensions of the thumb variant of an image whose
+// stored (original) dimensions are w×h.
+func ThumbSize(w, h int) (int, int) {
+	return fit(w, h, variants[2].maxSide)
+}
+
 // fit scales w×h down so the longest side is at most maxSide, keeping the
 // aspect ratio (rounded to the nearest pixel, at least 1). It never scales up.
 func fit(w, h, maxSide int) (int, int) {

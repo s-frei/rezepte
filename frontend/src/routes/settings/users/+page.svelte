@@ -13,6 +13,7 @@
 	} from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
 	import CreateUserDialog from '$lib/components/settings/CreateUserDialog.svelte';
+	import LinkPreviewsCard from '$lib/components/settings/LinkPreviewsCard.svelte';
 	import RecipeEditingCard from '$lib/components/settings/RecipeEditingCard.svelte';
 	import ResetPasswordDialog from '$lib/components/settings/ResetPasswordDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
@@ -202,6 +203,7 @@
 	</section>
 	{#if isAdmin}
 		<RecipeEditingCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
+		<LinkPreviewsCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
 	{/if}
 </SettingsLayout>
 

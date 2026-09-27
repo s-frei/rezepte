@@ -1,0 +1,44 @@
+---
+title: Link previews
+description: A recipe link shared from the app shows the recipe in chat previews for a lifetime the owner sets, through a signed token on the normal recipe path
+---
+
+A link pasted into WhatsApp, Signal, Telegram, iMessage, Slack, Discord, Mastodon, X, Facebook or LinkedIn turns into a card built from the page's Open Graph and Twitter Card tags. Every page carries the app's card: the social preview image, "Rezepte" and a one-line description ([Design system](/architecture/design-system#logo) owns the image and the tags in `app.html`). A recipe link shared from the app - the "Copy link" menu item or the mobile share button - can carry the recipe's own title, description and cover instead, while the owner has link previews on. That is an internal share: the link is the normal recipe path, and opening the recipe still takes an account. The code is `service/internal/preview`; the tags are filled in by `renderLinkPreview` in `service/internal/httpserver/spa.go`; the page's side is `frontend/src/lib/recipe/share.svelte.ts`. `docs/user/content/guide/sharing.mdx` tells the same rule to the people cooking from the instance.
+
+## How it works
+
+**The crawler is never signed in.** WhatsApp builds the card on the sender's phone, Telegram, Slack and Discord on their servers; none of them holds the Rezepte session cookie, and a `User-Agent` proves nothing. So the link itself has to carry the permission, and only for as long as a chat app needs to build its card.
+
+**The owner's setting.** `instance_settings.link_previews` switches it on (off by default, also after upgrading), `link_preview_minutes` sets the lifetime - 15 (the default), 60 or 1440 - both on the members page and through `PATCH /api/v1/settings`, owner only. Switching off takes effect at once, for links already sent too. A new lifetime applies to links issued afterwards, since the expiry is inside the token.
+
+**Tokens.** `preview.Signer` makes `<expiry in Unix seconds, base 36>.<MAC>`, the MAC being the first 16 bytes of HMAC-SHA256 over a fixed label, the recipe id and the expiry. The key is `instance_settings.link_preview_key`, 32 random bytes the migration writes; it never leaves the service - `settings.Settings` does not carry it and `GetInstanceSettings` does not select it. `preview.NewService` reads it at start and fails without it, so the binary refuses to start rather than sign with an empty key. Tokens therefore outlive a restart. Nothing else is stored: no row per token, no list, no revocation of a single link. A token unlocks the preview only; no route under `/api/v1` accepts it.
+
+**Three places.**
+
+- `POST /api/v1/recipes/{id}/share-link`, for any member or a `recipes:read` token, returns `{path, expiresAt}`: the recipe's path with `?share=<token>` while previews are on, the plain path and `expiresAt: null` while they are off, so sharing always works.
+- `preview.Service.ForRequest`, the `httpserver.PreviewFunc` installed with `httpserver.WithLinkPreview`, answers for `/recipes/{slug}` exactly - not `/cook`, not `/edit`. With previews on and a token valid for that recipe it returns a `httpserver.LinkPreview`: the title, the description folded onto one line and cut to 200 runes at a word boundary (empty when the recipe has none), `og:url` with the token in it (Facebook and LinkedIn scrape `og:url` again), and the cover's path with the same token and its thumb dimensions from `image.ThumbSize`. A recipe without a cover keeps the app's picture under its own title. Anything else, a failure included (logged), is the app's card. Slugs never change, so a link sent before a rename previews the new title.
+- `GET /link-preview/{recipeId}/{imageId}` is registered in `main.go` without an authenticator. `CoverHandler` serves the thumb only while previews are on, the token verifies for that recipe and the image is the recipe's current cover; every other answer is a `404`, identical to an unknown recipe's.
+
+**The page.** `ShareLink` in `share.svelte.ts` fetches the link when the recipe page loads and renews it two minutes before `expiresAt` (`renewDelay` in `share.ts`, at least a minute apart), and again when the tab becomes visible with a stale link, because timers are throttled in background tabs and suspended on phones. A tap then copies or shares at once: Safari withdraws the clipboard and the share sheet once an await has spent the tap's user activation. Until a link arrives, or if fetching fails, the page's own address stands in. When the owner switches previews on, open pages share token-less links until they reload.
+
+## Why it is this way
+
+The default of a self-hosted app is private: a household that installs Rezepte expects its recipes behind the login. A preview needs the recipe's title, description and cover in the hands of a crawler without a session, so the owner decides whether that happens, and a token scopes it to the recipe a member chose to share, for about as long as a chat app needs to build its card. The card then lives in the chat, and the link falls back to the app's card on its own.
+
+The key is stored because lifetimes go up to a day: a key drawn at start would end every open link on each restart or upgrade.
+
+A preview is not a share. Showing a recipe to people outside the household on purpose, for good and with a list of what is shared, is a separate feature (public shares, [Roadmap](/roadmap)); it gets its own path, its own table and its own switch, and none of it is built on these tokens.
+
+## Rejected
+
+- **A mode where every recipe address previews.** Guessable slugs (`kaesespaetzle`) would put every title and cover in reach of anyone, for good; lasting exposure is what public shares are for.
+- **A signing key drawn at start and held in memory.** Every restart ended every open link early.
+- **A database row per token.** A table, a sweeper and a migration for something the MAC already proves; listing and revoking belong to public shares.
+- **Recognizing crawlers by `User-Agent`.** Anyone can send `WhatsApp/2` with `curl`.
+- **A dedicated 1200 × 630 rendition per cover.** Images are rendered on write for sizes the UI needs ([Images](/features/images)); every crawler crops the thumb to its own frame.
+
+## Limits
+
+- A card already sent keeps what it showed: switching previews off does not reach into anyone's chat history, and Facebook or LinkedIn may keep a scraped card for weeks.
+- A recipe address copied from the browser's address bar carries no token and shows the app's card.
+- Anyone the link is forwarded to within its lifetime sees the preview too; the recipe itself stays behind the login.

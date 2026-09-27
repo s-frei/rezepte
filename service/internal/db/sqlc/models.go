@@ -53,6 +53,9 @@ type IngredientGroup struct {
 type InstanceSetting struct {
 	ID                     int64
 	RecipesLockedByDefault bool
+	LinkPreviews           bool
+	LinkPreviewMinutes     int64
+	LinkPreviewKey         []byte
 }
 
 type Recipe struct {

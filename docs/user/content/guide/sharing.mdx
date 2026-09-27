@@ -1,0 +1,26 @@
+---
+title: Sharing recipes
+description: Send a recipe link, and what the chat preview shows
+---
+
+A recipe's page has two ways to hand out its address: **Copy link** in the "…" menu, and on a phone the share button over the cover photo, which opens the phone's own share sheet. The link is the recipe's normal address. Whoever opens it needs an account on your instance to see the recipe; the link does not let anyone in.
+
+## The link preview
+
+When a link lands in WhatsApp, Signal, Telegram, iMessage, Slack, Discord or a similar app, the app shows a small card for it. For Rezepte that card shows either the Rezepte logo or the recipe itself: its title, the start of its description and its cover photo.
+
+To build the card, the chat app fetches the link without being signed in to Rezepte. So a link from **Copy link** or the share button carries a code that shows the recipe's title, description and cover photo for a limited time — never its ingredients, steps or other photos, and never the rest of your recipes. After that time the link still works, but a new preview of it shows the logo.
+
+## The household setting
+
+The owner of the instance finds **Link previews** under **Settings → Members**. It is off until the owner switches on **Show recipes in link previews**; while it is off, every link shows the Rezepte logo. Once it is on, the owner picks how long a shared link shows the recipe: **15 min** (the default), **1 hour** or **1 day**.
+
+Switching it off applies at once, also to links already sent. A new time applies to links shared from then on. Admins see the card too, with a sentence saying what applies right now, but only the owner can change it.
+
+## Good to know
+
+- A card that has already been sent stays as it is. Switching previews off does not change what a chat already shows.
+- A recipe address copied from the browser's address bar has no code and shows the logo. Use **Copy link** or the share button.
+- A recipe without a photo shows its title and description with the Rezepte logo.
+- Anyone the link is forwarded to within that time sees the preview too; the recipe itself still needs an account.
+- Some chat apps only show a picture from an `https` address. Behind a reverse proxy, set `REZEPTE_SECURE_COOKIES=true` as [Reverse proxy](/operations/reverse-proxy) describes, so Rezepte names its pictures over `https`.

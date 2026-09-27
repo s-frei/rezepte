@@ -94,6 +94,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | update | `PUT /recipes/{id}` | full replace of title, description and every child (groups, ingredients, steps, tags); `404`; `403` `recipe edit locked` when the caller may not edit the recipe or change its `editPolicy`; an omitted `editPolicy` keeps the stored one |
 | delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes; requires `recipes:delete`, not `recipes:write`; `403` `recipe delete not allowed` for anyone but the author and admins |
 | set favorite | `PUT /recipes/{id}/favorite` | `204`; `404` for an unknown recipe; idempotent - starring twice is not an error |
+| create share link | `POST /recipes/{id}/share-link` | `{path, expiresAt}`: the recipe's path, with a `?share=` token valid for `linkPreviewMinutes` while `linkPreviews` is on (else the plain path and `expiresAt: null`); any session or a token carrying `recipes:read`; `404`. A `POST` because each call signs a new token and because a `GET` under `/recipes/{id}/` collides with `GET /recipes/by-slug/{slug}` in the mux (see [Link previews](/features/link-previews)) |
 | clear favorite | `DELETE /recipes/{id}/favorite` | `204`; never `404` - clearing a star that was not set is not an error |
 | set tasty | `PUT /recipes/{id}/tasty` | `204`; `404` for an unknown recipe; `403` when the caller wrote the recipe; idempotent |
 | clear tasty | `DELETE /recipes/{id}/tasty` | `204`; never `404` or `403` - clearing a mark that was not set is not an error |
@@ -129,8 +130,8 @@ The household-wide settings, one row for the instance (see [Editing rights](/fea
 
 | Operation | Path | Notes |
 |---|---|---|
-| get-settings | `GET /settings` | `{recipesLockedByDefault}`; any session, or a token carrying `recipes:read` |
-| update-settings | `PATCH /settings` | body `{recipesLockedByDefault}`, returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
+| get-settings | `GET /settings` | `{recipesLockedByDefault, linkPreviews, linkPreviewMinutes}`; the link preview signing key is never part of it; any session, or a token carrying `recipes:read` |
+| update-settings | `PATCH /settings` | body with any of `recipesLockedByDefault`, `linkPreviews` and `linkPreviewMinutes` (`15`, `60`, `1440`, else `422`); a field left out stays as it is; returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
 
 ## Images
 
@@ -143,6 +144,7 @@ See [Images](/features/images) for why each upload becomes three server-rendered
 | reorder | `PUT /recipes/{id}/images/order` | body `{imageIds}` - every image id of the recipe, in the new order; response `OrderResult` (`{items: [...]}`), the images in their new order |
 | set cover | `PUT /recipes/{id}/cover` | body `{imageId}`; `204`; `404` unless the image belongs to the recipe |
 | serve a variant | `GET /images/{recipeId}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireAuth`, reachable by a session of any role or a token carrying `recipes:read`; `Content-Type: image/jpeg`, `Cache-Control: private, max-age=31536000, immutable`; `404` for anything else (unknown recipe/image/variant, wrong extension) |
+| serve a link preview cover | `GET /link-preview/{recipeId}/{imageId}` | not under `/api/v1`, and deliberately without authentication: the crawler building a chat preview has no session. Serves the `thumb` of the recipe's current cover only, while `linkPreviews` is on and with a valid `?share=` token; `Cache-Control: private, max-age=3600`; `404` for anything else, the same answer as for an unknown recipe (see [Link previews](/features/link-previews)) |
 
 Every image write - upload, delete, reorder and set cover - answers `403` `recipe edit locked` when the caller may not edit the recipe ([Editing rights](/features/editing-rights)).
 

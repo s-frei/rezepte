@@ -85,6 +85,22 @@ func TestSettingsEndpoints(t *testing.T) {
 		t.Errorf("patch as owner: %d %s", rec.Code, rec.Body.String())
 	}
 
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"linkPreviews":true}`, login(t, h, "olga"))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"linkPreviews":true`) ||
+		!strings.Contains(rec.Body.String(), `"recipesLockedByDefault":true`) {
+		t.Errorf("patch one field as owner: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"linkPreviewMinutes":30}`, login(t, h, "olga"))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("patch with an unknown lifetime: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = do(h, http.MethodGet, "/api/v1/settings", "", login(t, h, "olga"))
+	if strings.Contains(strings.ToLower(rec.Body.String()), "key") {
+		t.Errorf("settings expose the signing key: %s", rec.Body.String())
+	}
+
 	rec = do(h, http.MethodPatch, "/api/v1/settings", body, nil)
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("patch without session: %d", rec.Code)

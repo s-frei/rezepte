@@ -23,6 +23,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
@@ -156,11 +157,18 @@ func run() error {
 	}
 	go sessions.SweepLoop(ctx, sweepInterval, logger)
 	tokens := auth.NewTokenService(conn, users)
+	images := image.NewService(conn, imageDir)
+	instance := settings.NewService(conn)
+	previews, err := preview.NewService(ctx, conn, instance, images, logger)
+	if err != nil {
+		return err
+	}
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
 		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
+		httpserver.WithLinkPreview(previews.ForRequest),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
@@ -170,11 +178,14 @@ func run() error {
 		return fmt.Errorf("mcp: %w", err)
 	}
 	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
-	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
-	settings.Register(srv.API(), settings.NewService(conn))
+	settings.Register(srv.API(), instance)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
+	preview.Register(srv.API(), previews)
+	// Without a session on purpose: the crawler building a link preview has
+	// none. The handler decides from the household setting and share token.
+	srv.Handle("GET /link-preview/{recipeId}/{imageId}", previews.CoverHandler())
 	userapi.Register(srv.API(), users, sessions)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)

@@ -18,6 +18,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
@@ -48,13 +49,20 @@ func newFullApp(t *testing.T) fullApp {
 	users := user.NewService(conn)
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
+	imageDir := filepath.Join(t.TempDir(), "images")
+	images := image.NewService(conn, imageDir)
+	instance := settings.NewService(conn)
+	previews, err := preview.NewService(t.Context(), conn, instance, images, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte("app")}},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
-		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)))
+		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
+		httpserver.WithLinkPreview(previews.ForRequest))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
-	imageDir := filepath.Join(t.TempDir(), "images")
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
 	recipe.Register(srv.API(), recipes)
 	mcpHandler, err := mcpserver.Handler(recipes, srv.API(), "test")
@@ -62,11 +70,12 @@ func newFullApp(t *testing.T) fullApp {
 		t.Fatal(err)
 	}
 	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
-	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
-	settings.Register(srv.API(), settings.NewService(conn))
+	settings.Register(srv.API(), instance)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
+	preview.Register(srv.API(), previews)
+	srv.Handle("GET /link-preview/{recipeId}/{imageId}", previews.CoverHandler())
 	userapi.Register(srv.API(), users, sessions)
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
@@ -237,9 +246,9 @@ func TestEveryFeatureRegisters(t *testing.T) {
 			ids[op.OperationID] = true
 		}
 	}
-	// One operation per feature package: proof that all six registrations
+	// One operation per feature package: proof that all seven registrations
 	// made it into the same document.
-	for _, id := range []string{"login", "list-recipes", "upload-image", "get-settings", "list-users", "list-api-tokens"} {
+	for _, id := range []string{"login", "list-recipes", "upload-image", "get-settings", "create-share-link", "list-users", "list-api-tokens"} {
 		if !ids[id] {
 			t.Errorf("operation %q missing from the OpenAPI document", id)
 		}
@@ -430,5 +439,33 @@ func TestMCPSpeaksTheProtocol(t *testing.T) {
 	}
 	if res.IsError {
 		t.Fatalf("create_recipe: %v", res.Content)
+	}
+}
+
+// TestShareLinksNeedASession pins the one boundary link previews rest on: a
+// token is minted only for someone who may read recipes. A stranger who could
+// mint one would get any recipe's title, description and cover out of the
+// unauthenticated preview routes.
+func TestShareLinksNeedASession(t *testing.T) {
+	app := newFullApp(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/recipes/01a0dcd1-18a9-77b8-95a5-467da6963beb/share-link", nil)
+	rec := httptest.NewRecorder()
+	app.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("POST share-link without a session: status %d, want 401", rec.Code)
+	}
+}
+
+// TestLinkPreviewCoverIsNotTheSPA pins that the cover route answers for
+// itself without a session: a 404 for a cover it will not show, never the app
+// shell with a 200 and never a login redirect.
+func TestLinkPreviewCoverIsNotTheSPA(t *testing.T) {
+	app := newFullApp(t)
+	rec := app.get("/link-preview/01a0dcd1-18a9-77b8-95a5-467da6963beb/01a0dcd1-18ab-7eb1-8ca2-4d435a0d5157?share=x.y", nil)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("GET a cover without a valid token: status %d, want 404", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), "app") {
+		t.Errorf("the cover route fell through to the SPA: %q", rec.Body.String())
 	}
 }
