@@ -49,6 +49,22 @@ test('a wrong current password shows an inline error', async ({ page }) => {
 	await expect(page.getByText('The current password is wrong')).toBeVisible();
 });
 
+test('the own password change refuses a new password typed differently twice', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+	// Stopped before the API, so the owner's password is never at risk here.
+	await page.getByLabel('Current password').fill(devPassword('admin'));
+	await page.getByLabel('New password', { exact: true }).fill(devPasswordNext('admin'));
+	const repeat = page.getByLabel('Repeat the new password');
+	await repeat.fill(`${devPasswordNext('admin')}x`);
+	await page.getByRole('button', { name: 'Save password' }).click();
+
+	await expect(page.getByText('The passwords do not match')).toBeVisible();
+	await repeat.fill(devPasswordNext('admin'));
+	await expect(repeat).not.toHaveAttribute('aria-invalid', 'true');
+});
+
 test('the new password is rated as it is typed, and only advised on', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
