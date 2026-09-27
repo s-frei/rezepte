@@ -230,10 +230,40 @@ func TestToolsAreClosedWorld(t *testing.T) {
 // TestDocumentHelpNamesNullableFields checks that the write tools say which
 // fields take null, so a model does not send null for description or [].
 func TestDocumentHelpNamesNullableFields(t *testing.T) {
-	for _, want := range []string{"every field", "description is a string", "prepMinutes", "quantity", "never null", "ingredientGroups", "at least one group"} {
+	for _, want := range []string{"every field", "description is a string", "prepMinutes", "quantity", "never null", "ingredientGroups", "at least one group", "sourceName"} {
 		if !strings.Contains(documentHelp, want) {
 			t.Errorf("documentHelp lacks %q", want)
 		}
+	}
+}
+
+// TestSourceNameRoundTrips pins the source name through MCP: a model can
+// send it with create_recipe, get_recipe hands it back, and update_recipe
+// without it clears it - the tools replace the whole document.
+func TestSourceNameRoundTrips(t *testing.T) {
+	e := newEnv(t)
+	cs := e.connect(t, full...)
+	rec := validRecipe()
+	rec["sourceName"] = "Grandma's cookbook, p. 42"
+	rec["sourceUrl"] = "https://example.com/soup"
+	created := structured[struct {
+		ID string `json:"id"`
+	}](t, call(t, cs, "create_recipe", map[string]any{"recipe": rec}))
+
+	type source struct {
+		SourceName *string `json:"sourceName"`
+		SourceURL  *string `json:"sourceUrl"`
+	}
+	got := structured[source](t, call(t, cs, "get_recipe", map[string]any{"id": created.ID}))
+	if got.SourceName == nil || *got.SourceName != "Grandma's cookbook, p. 42" {
+		t.Fatalf("get_recipe sourceName = %v", got.SourceName)
+	}
+
+	delete(rec, "sourceName")
+	call(t, cs, "update_recipe", map[string]any{"id": created.ID, "recipe": rec})
+	got = structured[source](t, call(t, cs, "get_recipe", map[string]any{"id": created.ID}))
+	if got.SourceName != nil {
+		t.Fatalf("sourceName after update without it = %q, want null", *got.SourceName)
 	}
 }
 
