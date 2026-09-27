@@ -32,6 +32,7 @@ jobs:
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       labels: ${{ steps.meta.outputs.labels }}
+      annotations: ${{ steps.meta.outputs.annotations }}
       version: ${{ steps.meta.outputs.version }}
     steps:
       - name: "Reject a manual run from a tag"
@@ -49,6 +50,11 @@ jobs:
       - name: "Derive the image tags from the git tag"
         id: meta
         uses: docker/metadata-action@v6
+        # The image is a multi-architecture index, and GHCR reads a package's
+        # description from the index's annotations, not from any image's
+        # labels. Without the `index` level the package page stays blank.
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: ghcr.io/s-frei/rezepte
           # `latest=auto` applies `latest` only to a non-prerelease semver tag,
@@ -59,11 +65,13 @@ jobs:
           # The action derives title, description and url from the GitHub repo,
           # which gives a lowercase name and whatever the repo description says.
           # These win over the Dockerfile's LABEL, so the curated values belong
-          # here rather than there.
-          labels: |
+          # here rather than there. The annotations repeat them through the
+          # anchor, so the registry page and `docker inspect` cannot disagree.
+          labels: &oci-metadata |
             org.opencontainers.image.title=Rezepte
             org.opencontainers.image.description=Self-hosted recipe manager with the web app built in and SQLite storage
             org.opencontainers.image.url=https://s-frei.github.io/rezepte/
+          annotations: *oci-metadata
           flavor: |
             latest=${{ github.event_name == 'workflow_dispatch' && 'false' || 'auto' }}
           tags: |
@@ -112,6 +120,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ needs.image-build.outputs.tags }}
           labels: ${{ needs.image-build.outputs.labels }}
+          annotations: ${{ needs.image-build.outputs.annotations }}
           build-args: |
             REZEPTE_VERSION=${{ needs.image-build.outputs.version }}
           cache-from: type=gha

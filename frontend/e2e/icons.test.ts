@@ -26,8 +26,14 @@ test('the head carries a link preview whose image loads', async ({ page, request
 	await expect(meta('og:title')).toHaveAttribute('content', 'Rezepte');
 	await expect(meta('og:description')).toHaveAttribute('content', /recipe/i);
 	await expect(meta('twitter:card')).toHaveAttribute('content', 'summary_large_image');
+	// Absolute, on the origin the page came from: crawlers such as WhatsApp's
+	// drop a relative URL.
+	await expect(meta('og:url')).toHaveAttribute('content', page.url());
 	const image = await meta('og:image').getAttribute('content');
-	const res = await request.get(new URL(image!, page.url()).pathname);
+	expect(image).toBe(new URL('/og.png', page.url()).href);
+	await expect(meta('twitter:image')).toHaveAttribute('content', image!);
+	await expect(meta('og:image:alt')).toHaveAttribute('content', /Rezepte/);
+	const res = await request.get(new URL(image!).pathname);
 	expect(res.headers()['content-type']).toBe('image/png');
 });
 

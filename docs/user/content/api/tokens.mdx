@@ -13,7 +13,7 @@ Only admins can issue tokens, under **Settings → API**.
 1. Open **Settings → API** and choose **Create token**.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
    That name is how you tell tokens apart later.
-3. Choose what it may do. **Recipes** and **Members** are set separately,
+3. Choose what it may do. **Recipes** and **Accounts** are set separately,
    each as **No access**, **Read**, or **Read & write**. **Recipes** has a
    fourth level, **Full**, which can also delete recipes — a **Read & write**
    token can create and edit recipes but never delete one. Give a token the
@@ -56,9 +56,9 @@ member does not delete their recipes, it transfers them to the account that
 performed the deletion - which for a token means the admin who issued it.
 
 It also inherits that admin's rank, which is what decides how far
-**Members: Read & write** reaches. Issued by an ordinary admin, a token
+**Accounts: Read & write** reaches. Issued by an ordinary admin, a token
 can add and delete members but cannot make anyone an admin, because the
-account behind it cannot either (see [Members](/guide/users)). Issued by the
+account behind it cannot either (see [People](/guide/users)). Issued by the
 owner, it can.
 
 So if you are the owner and want a token that is unable to hand out admin

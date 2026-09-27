@@ -8,18 +8,24 @@ const ME_PATH = '/api/v1/auth/me';
 
 export type FieldError = { location: string; message: string };
 
+// & Record<string, unknown> rather than a closed shape: a handler can attach
+// an extra field to its problem+json body (create-public-share's 409 carries
+// the caller's existing share as `share`), and ApiError.body below is how a
+// caller reaches it without every route needing its own error subclass.
 type Problem = {
 	title?: string;
 	detail?: string;
 	status?: number;
 	errors?: Array<{ location?: string; message?: string }>;
-};
+} & Record<string, unknown>;
 
 export class ApiError extends Error {
 	readonly status: number;
 	readonly title: string;
 	readonly detail?: string;
 	readonly errors: FieldError[];
+	/** The raw problem+json body, for a caller that needs a field beyond the ones above. */
+	readonly body: Problem;
 
 	constructor(status: number, problem: Problem) {
 		super(problem.detail ?? problem.title ?? `HTTP ${status}`);
@@ -31,6 +37,7 @@ export class ApiError extends Error {
 			location: e.location ?? '',
 			message: e.message ?? ''
 		}));
+		this.body = problem;
 	}
 }
 

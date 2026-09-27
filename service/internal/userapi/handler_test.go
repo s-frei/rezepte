@@ -127,6 +127,63 @@ func TestUsersRequireAdmin(t *testing.T) {
 	}
 }
 
+func TestPeopleIsReadableByEveryAccount(t *testing.T) {
+	h := newHandler(t)
+	kim := loginAs(t, h, "kim", "pw")
+	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("people as member: status %d: %s", rec.Code, rec.Body.String())
+	}
+	var list userapi.PersonList
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, p := range list.Items {
+		got = append(got, p.Username+":"+p.Role)
+	}
+	want := "kim:user owner:superadmin sam:admin"
+	if strings.Join(got, " ") != want {
+		t.Fatalf("people = %v, want %s", got, want)
+	}
+}
+
+// The list is what every account may know about the others, so its shape is
+// pinned key by key: a field added to PersonEntry has to be added here on
+// purpose, not ride along.
+func TestPeopleHidesAccountDetails(t *testing.T) {
+	h := newHandler(t)
+	kim := loginAs(t, h, "kim", "pw")
+	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
+	var body struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Items) == 0 {
+		t.Fatalf("no people in %s", rec.Body.String())
+	}
+	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true}
+	for _, item := range body.Items {
+		if len(item) != len(want) {
+			t.Fatalf("keys of %v, want exactly %v", item, want)
+		}
+		for key := range item {
+			if !want[key] {
+				t.Fatalf("unexpected key %q in %v", key, item)
+			}
+		}
+	}
+}
+
+func TestPeopleRequiresSignIn(t *testing.T) {
+	h := newHandler(t)
+	if rec := doReq(h, http.MethodGet, "/api/v1/people", "", nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous: status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestListAndCreate(t *testing.T) {
 	h := newHandler(t)
 	sam := loginAs(t, h, "sam", "pw")
@@ -504,5 +561,105 @@ func TestOpenAPIDeclaresRetryAfter(t *testing.T) {
 		if _, ok := doc.Paths[want.path][want.method].Responses["503"].Headers["Retry-After"]; !ok {
 			t.Errorf("%s %s 503: no Retry-After header declared", want.method, want.path)
 		}
+	}
+}
+
+// Two operations list accounts, so the document says which one a reader
+// wants: list-people for who takes part, list-users for managing accounts.
+func TestOpenAPISaysWhyThereAreTwoLists(t *testing.T) {
+	rec := doReq(newHandler(t), http.MethodGet, "/api/v1/openapi.json", "", nil)
+	var doc struct {
+		Paths map[string]map[string]struct {
+			Description string `json:"description"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.Paths["/api/v1/people"]["get"].Description; !strings.Contains(got, "/api/v1/users") {
+		t.Fatalf("list-people description %q does not point at /api/v1/users", got)
+	}
+}
+
+// TestAdminsWithdrawPublicSharing covers canSharePublicly on PATCH: an admin
+// turns it off for a member and the account shows it, a member may not touch
+// it, and the owner's own right cannot be withdrawn - the owner governs public
+// sharing for the whole instance.
+func TestAdminsWithdrawPublicSharing(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	admin := loginAs(t, h, "sam", "pw")
+	member := loginAs(t, h, "kim", "pw")
+	kim := userNamed(t, h, owner, "kim")
+	if !kim.CanSharePublicly {
+		t.Fatalf("a new member may not share publicly: %+v", kim)
+	}
+
+	rec := doReq(h, http.MethodPatch, "/api/v1/users/"+kim.ID, `{"canSharePublicly":false}`, admin)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canSharePublicly":false`) {
+		t.Errorf("admin withdraws: status %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := userNamed(t, h, owner, "kim"); got.CanSharePublicly {
+		t.Errorf("the list still says kim may share publicly")
+	}
+
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+kim.ID, `{"canSharePublicly":true}`, member)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("member restores their own right: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+
+	row := userNamed(t, h, owner, "owner")
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+row.ID, `{"canSharePublicly":false}`, admin)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("admin withdraws from the owner: status %d, want 409: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestOnlyTheOwnerSwitchesAnAdminsSharing: canSharePublicly follows the rank
+// rule of every other write on an account, so an admin reaches neither
+// another admin's row nor their own, and the owner reaches both.
+func TestOnlyTheOwnerSwitchesAnAdminsSharing(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	sam := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"ren","password":"ren-password","role":"admin"}`, owner)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create second admin: status %d: %s", rec.Code, rec.Body.String())
+	}
+	ren := loginAs(t, h, "ren", "ren-password")
+	renAccount := userNamed(t, h, owner, "ren")
+
+	for what, caller := range map[string]*http.Cookie{"ren on their own row": ren, "sam on ren's row": sam} {
+		rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renAccount.ID, `{"canSharePublicly":false}`, caller)
+		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "superadmin role required") {
+			t.Errorf("%s: status %d, want 403: %s", what, rec.Code, rec.Body.String())
+		}
+	}
+
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renAccount.ID, `{"canSharePublicly":false}`, owner)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canSharePublicly":false`) {
+		t.Errorf("owner withdraws ren's right: status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestRefusedPatchWritesNothing: a body that mixes canSharePublicly with a
+// password reset is refused as a whole when the target outranks the caller -
+// the right is not withdrawn behind a 403.
+func TestRefusedPatchWritesNothing(t *testing.T) {
+	h := newHandler(t)
+	owner := loginAs(t, h, "owner", "pw")
+	sam := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"ren","password":"ren-password","role":"admin"}`, owner)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create second admin: status %d: %s", rec.Code, rec.Body.String())
+	}
+	renAccount := userNamed(t, h, owner, "ren")
+
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renAccount.ID, `{"canSharePublicly":false,"password":"new-password-1"}`, sam)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("sam withdraws and resets ren: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	if got := userNamed(t, h, owner, "ren"); !got.CanSharePublicly {
+		t.Error("ren lost the right to share although the request was refused")
 	}
 }

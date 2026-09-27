@@ -45,4 +45,4 @@ sequenceDiagram
   The proxy must forward the `Host` and `Origin` headers unchanged. The API rejects a mutating request (`POST`/`PUT`/`PATCH`/`DELETE`) whose `Origin` header names a different host than the request's `Host` — this is what stops cross-site requests from acting on a logged-in session. A proxy that rewrites either header, or that terminates TLS without passing the original `Host` through, will lock the app's own login and editing out.
 </Callout>
 
-Once the app is reachable over HTTPS, set `REZEPTE_SECURE_COOKIES=true` so the session cookie gets the `Secure` attribute (see [Configuration](/getting-started/configuration)).
+Once the app is reachable over HTTPS, set `REZEPTE_SECURE_COOKIES=true` so the session cookie gets the `Secure` attribute (see [Configuration](/getting-started/configuration)). It also tells Rezepte to link its preview image over `https`, so a link shared in a chat app shows the Rezepte logo.

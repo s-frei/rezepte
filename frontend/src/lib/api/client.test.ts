@@ -114,7 +114,8 @@ describe('api central 401 handling', () => {
 			displayName: 'Sam',
 			role: 'user',
 			color: 'amber',
-			locale: 'en'
+			locale: 'en',
+			canSharePublicly: true
 		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
@@ -152,7 +153,8 @@ describe('api central 401 handling', () => {
 			displayName: 'Sam',
 			role: 'user',
 			color: 'amber',
-			locale: 'en'
+			locale: 'en',
+			canSharePublicly: true
 		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 

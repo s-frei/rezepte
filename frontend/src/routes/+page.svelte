@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
@@ -30,9 +30,6 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-
-	/** Id of the search field, so `?focus=search` can hand it the caret. */
-	const SEARCH_FIELD_ID = 'overview-search';
 
 	// Seeded once from the initial load - after that, this component owns
 	// them (searching/toggling tags updates them directly rather than
@@ -226,12 +223,13 @@
 	const sortOptions: { value: Sort; label: string }[] = [
 		{ value: 'updated', label: m.overview_sort_updated() },
 		{ value: 'created', label: m.overview_sort_created() },
-		{ value: 'title', label: m.overview_sort_title() }
+		{ value: 'title', label: m.overview_sort_title() },
+		{ value: 'tasty', label: m.overview_sort_tasty() }
 	];
 
 	function handleSort(value: string) {
 		// Select's `value` is a plain string; narrowed back to Sort since
-		// sortOptions only ever offers the three known values as options.
+		// sortOptions only ever offers the known values as options.
 		if (isSort(value)) {
 			setSort(value);
 		}
@@ -239,7 +237,7 @@
 
 	/**
 	 * Follows a URL this page did not write itself: the shell's "Rezepte"
-	 * links point back at `/`, the bottom nav's "Suche" adds `?focus=search`,
+	 * links point back at `/`, the command palette's "all results" adds `?q=`,
 	 * and the back button or a shared link restores an earlier filter. `load`
 	 * re-runs for all of those, but the filter state lives in this component,
 	 * so without reseeding it the grid would keep showing the old filter and
@@ -263,21 +261,6 @@
 			// by reload.
 			void fetchPage(next.page, false);
 		}
-		if (page.url.searchParams.get('focus') === 'search') {
-			void focusSearchField();
-		}
-	}
-
-	/**
-	 * Carries out `?focus=search` and drops the param again: it is a one-shot
-	 * instruction, and leaving it in the URL would mean every later write had
-	 * to preserve it. `syncUrl` rewrites the query string from the list state
-	 * alone, which is exactly the URL without it.
-	 */
-	async function focusSearchField() {
-		await tick();
-		document.getElementById(SEARCH_FIELD_ID)?.focus();
-		syncUrl();
 	}
 
 	afterNavigate(followUrl);
@@ -309,7 +292,7 @@
 
 	<div class="mt-4 space-y-3 border-b border-border pb-4 md:mt-5">
 		<div class="flex items-center gap-3">
-			<SearchBar id={SEARCH_FIELD_ID} bind:value={q} onsearch={handleSearch} class="md:max-w-md" />
+			<SearchBar bind:value={q} onsearch={handleSearch} class="md:max-w-md" />
 			<FilterPanel
 				{maxMinutes}
 				{favoritesOnly}

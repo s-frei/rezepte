@@ -34,7 +34,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`. `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `POST /mcp` is the same kind of exception, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
+    Operations without `Security` are public. Today: `POST /api/v1/auth/login`, `GET /healthz`, `GET /api/v1/public/shares/{token}` (see [Public shares](/features/public-shares)). `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `GET /public-images/…` and `GET /link-preview/…` are the opposite kind of exception: plain mux routes outside `/api/v1`, deliberately without authentication, since the stranger or the crawler behind either has no session to carry. `POST /mcp` is the same kind of exception as `/images`, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
 
   </Tab>
 </Tabs>
@@ -46,7 +46,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
 | me | `GET /auth/me` | `{id, username, displayName, role, color, locale}` |
 | change-own-password | `PATCH /auth/me` | body `{currentPassword, password}`; 204; wrong `currentPassword` → `422` at `body.currentPassword`; ends every other session of the caller (see [Users and authentication](/features/users-and-auth)) |
 | update-own-profile | `PATCH /auth/me/profile` | body `{displayName?, color?, locale?}`, at least one of them (`422` `nothing to change` otherwise); returns the user and, with it, a fresh `PARAGLIDE_LOCALE` cookie. Its own path rather than `PATCH /auth/me`, which is the password change and demands the current password - a rename has nothing to do with it. Every role may use it, on its own row only; an empty `displayName` falls back to the login name, a name over 64 runes is `422` at `body.displayName`, and a color or locale outside its `enum` is huma's own `422` before the handler runs |
-| list-color-usage | `GET /auth/me/colors` | `{items: [{color, count}]}`, every palette color in palette order, zeros included. Counts, never names: the picker has to mark a color as taken, and a plain member may not list users. It sits under `/auth/me` because it describes what the caller may choose for themselves |
+| list-color-usage | `GET /auth/me/colors` | `{items: [{color, count}]}`, every palette color in palette order, zeros included. Counts, never names: the picker only has to mark a color as taken. It sits under `/auth/me` because it describes what the caller may choose for themselves |
 
 The contract routes under `/api/v1/` - the Scalar docs page, the OpenAPI document and the schema registry - are not public either: they require a session of any role or a valid API token of any scope, enforced in front of the mux rather than by `auth.Middleware`, which only ever sees huma operations. [Users and auth](/features/users-and-auth) owns that guard, the prefix rule it derives from and the redirect-versus-`401` split it applies to a browser.
 
@@ -59,6 +59,12 @@ Every operation below requires an admin session; no API token can reach `/api/v1
 | list | `GET /tokens` | instance-wide: every token in the table, including one whose owner has since been demoted, with owner |
 | create | `POST /tokens` | `201`, body `{name, scopes, expiresInDays}`; response carries the raw token once, never again; `422` on an unknown scope or an empty `scopes` |
 | revoke | `DELETE /tokens/{id}` | `204`; `404` for an unknown id |
+
+## People
+
+| Operation | Path | Notes |
+|---|---|---|
+| list-people | `GET /people` | `{items: [{id, username, displayName, color, role}]}`, ordered by username; every account, for any session or a token carrying `users:read`. No `locale`, no `createdAt` - those stay with the admin operations below. `401` without a caller. Why it is separate from `/users`: [Users and authentication](/features/users-and-auth) |
 
 ## Users (admin only)
 
@@ -88,9 +94,12 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | update | `PUT /recipes/{id}` | full replace of title, description and every child (groups, ingredients, steps, tags); `404`; `403` `recipe edit locked` when the caller may not edit the recipe or change its `editPolicy`; an omitted `editPolicy` keeps the stored one |
 | delete | `DELETE /recipes/{id}` | `204`; also prunes tags left with no recipes; requires `recipes:delete`, not `recipes:write`; `403` `recipe delete not allowed` for anyone but the author and admins |
 | set favorite | `PUT /recipes/{id}/favorite` | `204`; `404` for an unknown recipe; idempotent - starring twice is not an error |
+| create share link | `POST /recipes/{id}/share-link` | `{path, expiresAt}`: the recipe's path, with a `?share=` token valid for `linkPreviewMinutes` while `linkPreviews` is on (else the plain path and `expiresAt: null`); any session or a token carrying `recipes:read`; `404`. A `POST` because each call signs a new token and because a `GET` under `/recipes/{id}/` collides with `GET /recipes/by-slug/{slug}` in the mux (see [Link previews](/features/link-previews)) |
 | clear favorite | `DELETE /recipes/{id}/favorite` | `204`; never `404` - clearing a star that was not set is not an error |
+| set tasty | `PUT /recipes/{id}/tasty` | `204`; `404` for an unknown recipe; `403` when the caller wrote the recipe; idempotent |
+| clear tasty | `DELETE /recipes/{id}/tasty` | `204`; never `404` or `403` - clearing a mark that was not set is not an error |
 | list tags | `GET /tags` | `{items: [{name, count}]}`, most used first; always exactly the tags currently in use (see [Recipes and search](/features/recipes)) |
-| list authors | `GET /authors` | `{items: [{username, displayName, color, count}]}`, most recipes first; the people who wrote at least one recipe. `username` is what `?author=` matches; `displayName` and `color` are what the facet chip shows. Readable by any signed-in member, unlike `/users` above: no roles, no ids and no accounts without recipes (see [Recipes and search](/features/recipes)) |
+| list authors | `GET /authors` | `{items: [{username, displayName, color, count}]}`, most recipes first; the people who wrote at least one recipe. `username` is what `?author=` matches; `displayName` and `color` are what the facet chip shows. A facet of the recipe list under `recipes:read`, not a list of people: no roles, no ids and no accounts without recipes - who has an account at all is `/people` (see [Recipes and search](/features/recipes)) |
 
 `GET /recipes` query parameters:
 
@@ -101,15 +110,15 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | `maxMinutes` | 0-1440, anything outside is a `422`; keeps recipes whose prep and cook minutes sum to at least 1 and at most this bound, so a recipe with neither time set is excluded while the bound is active. `0` is off - see [Recipes and search](/features/recipes) |
 | `favorites` | `true` restricts the page to the caller's own favorites - see [Favorites](/features/favorites) |
 | `author` | a username (max 50 chars, longer is a `422`); restricts the page to the recipes that person wrote. Matched exactly against `users.username` and not against the display name, so a filter link survives a rename; an unknown name yields an empty page rather than dropping the filter - see [Recipes and search](/features/recipes) |
-| `sort` | `updated`, `created` or `title`, declared as an `enum`, so any other value is a `422` on `query.sort`; absent or empty (`?sort=`) takes the `updated` default before validation runs |
+| `sort` | `updated`, `created`, `title` or `tasty` (most tasty marks first), declared as an `enum`, so any other value is a `422` on `query.sort`; absent or empty (`?sort=`) takes the `updated` default before validation runs |
 | `page` | 1-based, at least 1, defaults to 1; `0` or below is a `422` |
 | `limit` | defaults to 24; outside `[1, 100]` is a `422`. `clampLimit` in `recipe/search.go` clamps only for in-process callers of `List`, which an HTTP request never reaches with such a value |
 
 Every parameter above combines with AND when more than one is set.
 
-`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response because user management is admin-only and a member could resolve neither an id nor a color themselves (see [Recipes and search](/features/recipes)).
+`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response so a card names and colors its author without a second request, and because a token scoped to `recipes:read` cannot read `/people` (see [Recipes and search](/features/recipes)).
 
-Whose favorites either favorite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favorites](/features/favorites)). `Card.favorite` is filled on every list; `Recipe.favorite` by get, get by slug, create and update.
+Whose favorites either favorite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favorites](/features/favorites)). `Card.favorite` is filled on every list; `Recipe.favorite` by get, get by slug, create and update. The tasty pair works the same way; `tastyCount` on both and `tastyBy` (people) on `Recipe` are the same for every reader, `tasty` is the caller's own mark - see [Tasty](/features/tasty).
 
 `Recipe` also carries `editPolicy` (`default`, `open` or `locked`), `locked` (the effective state against the household setting) and `canEdit`, `canDelete` and `canChangePolicy` for the caller, filled on the same four operations; `Card` carries none of them. The input body takes `editPolicy` as optional. [Editing rights](/features/editing-rights) owns the rule behind them.
 
@@ -121,8 +130,26 @@ The household-wide settings, one row for the instance (see [Editing rights](/fea
 
 | Operation | Path | Notes |
 |---|---|---|
-| get-settings | `GET /settings` | `{recipesLockedByDefault}`; any session, or a token carrying `recipes:read` |
-| update-settings | `PATCH /settings` | body `{recipesLockedByDefault}`, returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
+| get-settings | `GET /settings` | `{recipesLockedByDefault, linkPreviews, linkPreviewMinutes, publicShares, publicShareDefaultDays, publicShareMaxDays}`; the link preview signing key is never part of it; any session, or a token carrying `recipes:read` |
+| update-settings | `PATCH /settings` | body with any of `recipesLockedByDefault`, `linkPreviews`, `linkPreviewMinutes` (`15`, `60`, `1440`, else `422`), `publicShares`, `publicShareDefaultDays` and `publicShareMaxDays` (each `1`, `7`, `30`, `365` or `null` for permanent, else `422`); a field left out stays as it is - `publicShareDefaultDays`/`publicShareMaxDays` tell an absent key apart from an explicit `null`, so a lifetime can be set back to permanent; lowering the maximum below the stored default lowers the default with it; returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
+
+## Public shares
+
+Public, revocable recipe links a member creates and manages; see [Public shares](/features/public-shares) for the validity rule, the statuses and the UI. A `Share` in every response below is `{id, recipe: {id, slug, title}, path: "/s/<token>", createdAt, expiresAt, status: "active"|"paused"|"limited", createdBy?}` - `expiresAt` is the effective expiry (earlier of the link's own and the instance maximum), `createdBy` (`{displayName, color}`) only in an admin's `?all=true` list.
+
+| Operation | Path | Notes |
+|---|---|---|
+| create-public-share | `POST /recipes/{id}/public-share` | body `{days}` (`1`, `7`, `30`, `365` or `null`); session only; `201`; `409` with the caller's existing share in the problem body's `share` field when one already exists; `403` `public sharing is off` / `public sharing not allowed for this user`; `422` `body.days` when the lifetime exceeds the maximum; `404` unknown recipe |
+| get-my-public-share | `GET /shares/by-recipe/{recipeId}` | session only; `200` `{share}` - the caller's own share, or `null` when there is none, or the recipe is unknown; never `404` for "no link", since the recipe page calls this on every view. Not nested under `/recipes/{id}/`: a `GET` there would collide with `GET /recipes/by-slug/{slug}` in the mux (see [Public shares](/features/public-shares)) |
+| list-shares | `GET /shares` | session only; the caller's own shares, newest first; `?all=true` for admins: everyone's, each with `createdBy`; `403` for `all` from a non-admin |
+| revoke-share | `DELETE /shares/{id}` | session only; own share, or any as admin; `204`; `404` otherwise |
+| revoke-all-shares | `DELETE /shares` | admin only; `204` |
+| get-public-recipe | `GET /public/shares/{token}` | no security - reachable without a session or a token; the `PublicRecipe` DTO, never `Recipe`; every invalid token (unknown, revoked, paused, limited or expired) is the same `404` `"not available"` |
+| serve a public image | `GET /public-images/{token}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation, no security; only a photo still belonging to the share's recipe while the share serves; `404` otherwise |
+
+Every session-only operation above (the first five) is unreachable by an API token: `auth.Middleware`'s bearer branch answers a token carrying `Authorization: Bearer` with `403` `API tokens cannot use this operation` before it ever checks the token's validity, which is a different status than the `401` a request with no credential gets on the same route.
+
+The public routes, and the `/s/{token}` app shell, all answer with `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` and `Cache-Control: private, no-cache`.
 
 ## Images
 
@@ -135,6 +162,7 @@ See [Images](/features/images) for why each upload becomes three server-rendered
 | reorder | `PUT /recipes/{id}/images/order` | body `{imageIds}` - every image id of the recipe, in the new order; response `OrderResult` (`{items: [...]}`), the images in their new order |
 | set cover | `PUT /recipes/{id}/cover` | body `{imageId}`; `204`; `404` unless the image belongs to the recipe |
 | serve a variant | `GET /images/{recipeId}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireAuth`, reachable by a session of any role or a token carrying `recipes:read`; `Content-Type: image/jpeg`, `Cache-Control: private, max-age=31536000, immutable`; `404` for anything else (unknown recipe/image/variant, wrong extension) |
+| serve a link preview cover | `GET /link-preview/{recipeId}/{imageId}` | not under `/api/v1`, and deliberately without authentication: the crawler building a chat preview has no session. Serves the `thumb` of the recipe's current cover only, while `linkPreviews` is on and with a valid `?share=` token; `Cache-Control: private, max-age=3600`; `404` for anything else, the same answer as for an unknown recipe (see [Link previews](/features/link-previews)) |
 
 Every image write - upload, delete, reorder and set cover - answers `403` `recipe edit locked` when the caller may not edit the recipe ([Editing rights](/features/editing-rights)).
 

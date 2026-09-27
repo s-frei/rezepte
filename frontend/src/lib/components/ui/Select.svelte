@@ -31,7 +31,7 @@
 		/**
 		 * Trigger shape. `field` is a bordered control the height of `Input`,
 		 * for a select that sits among form fields; `pill` is the compact
-		 * chip the members table uses in a row. It decides shape only - never
+		 * chip the people table uses in a row. It decides shape only - never
 		 * the background, see `class`.
 		 */
 		variant?: 'field' | 'pill';
@@ -67,7 +67,7 @@
 	// against the closed set of this design system's font-size tokens
 	// (`app.css`) and Tailwind's font-weight keywords specifically, rather
 	// than a bare `text-`/`font-` prefix: `text-` also names color
-	// utilities (UserRow.svelte's role pill passes `text-accent-foreground`
+	// utilities (PersonRow.svelte's role pill passes `text-accent-foreground`
 	// / `text-text-muted`, which must NOT suppress the default size here)
 	// and `font-` also names this app's font-family tokens (`font-display`,
 	// `font-sans`).
@@ -104,23 +104,24 @@
 			belongs to. Aligning on the start edge is what a select is expected
 			to do at any trigger width.
 
-			bg-surface-elevated with a border, not bg-surface: inside a dialog
-			the card is already bg-surface, so a list in the same color has no
-			visible edge, and shadow-dialog does not read against the dark
-			scheme's surfaces.
+			bg-popover with a border, not bg-surface: inside a dialog the card
+			is already bg-surface, so a list in the same color has no visible
+			edge, and shadow-dialog does not read against the dark scheme's
+			surfaces. The popover tokens lift it a step above the fields in
+			dark, where surface-elevated would match the fields it covers.
 
 			The width floor is the trigger's own width, which bits-ui exposes
 			as --bits-floating-anchor-width, rather than a round number: the
 			list is never narrower than the control it belongs to, and
 			otherwise as wide as its longest entry. A fixed floor gets both
-			ends wrong - too wide under the members table's compact role chip,
+			ends wrong - too wide under the people table's compact role chip,
 			too narrow under a form-wide trigger.
 		-->
 		<BitsSelect.Content
 			preventScroll={false}
 			align="start"
 			sideOffset={6}
-			class="z-50 min-w-[var(--bits-floating-anchor-width)] rounded-2xl border border-border bg-surface-elevated p-1.5 shadow-dialog"
+			class="z-50 min-w-[var(--bits-floating-anchor-width)] rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog"
 		>
 			{#each options as option (option.value)}
 				<BitsSelect.Item

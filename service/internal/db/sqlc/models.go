@@ -53,6 +53,12 @@ type IngredientGroup struct {
 type InstanceSetting struct {
 	ID                     int64
 	RecipesLockedByDefault bool
+	LinkPreviews           bool
+	LinkPreviewMinutes     int64
+	LinkPreviewKey         []byte
+	PublicShares           bool
+	PublicShareDefaultDays *int64
+	PublicShareMaxDays     *int64
 }
 
 type Recipe struct {
@@ -64,13 +70,13 @@ type Recipe struct {
 	PrepMinutes  *int64
 	CookMinutes  *int64
 	SourceUrl    *string
-	SourceName   *string
 	CoverImageID *string
 	CreatedBy    string
 	CreatedAt    string
 	UpdatedBy    string
 	UpdatedAt    string
 	EditPolicy   *string
+	SourceName   *string
 }
 
 type RecipeTag struct {
@@ -92,6 +98,15 @@ type Session struct {
 	CreatedAt string
 }
 
+type Share struct {
+	ID        string
+	Token     string
+	RecipeID  string
+	CreatedBy string
+	CreatedAt string
+	ExpiresAt *string
+}
+
 type Step struct {
 	ID       string
 	RecipeID string
@@ -111,14 +126,21 @@ type Tag struct {
 	Name string
 }
 
+type Tasty struct {
+	UserID    string
+	RecipeID  string
+	CreatedAt string
+}
+
 type User struct {
-	ID           string
-	Username     string
-	DisplayName  string
-	PasswordHash string
-	Role         string
-	Color        string
-	Locale       string
-	CreatedAt    string
-	UpdatedAt    string
+	ID               string
+	Username         string
+	DisplayName      string
+	PasswordHash     string
+	Role             string
+	Color            string
+	Locale           string
+	CreatedAt        string
+	UpdatedAt        string
+	CanSharePublicly bool
 }

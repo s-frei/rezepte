@@ -1,0 +1,8 @@
+{
+  "title": "Public",
+  "description": "What a public link shows to anyone, without signing in.",
+  "pages": [
+    "index",
+    "get-public-recipe"
+  ]
+}

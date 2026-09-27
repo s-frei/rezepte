@@ -13,7 +13,7 @@
 </script>
 
 <TopBar />
-<main class="mx-auto max-w-[1280px] px-5 md:px-8 md:pb-8 {withNav ? 'pb-24' : 'pb-10'}">
+<main class="mx-auto max-w-[1280px] px-5 md:px-8 md:pb-8 {withNav ? 'pb-20' : 'pb-10'}">
 	{@render children()}
 </main>
 {#if withNav}

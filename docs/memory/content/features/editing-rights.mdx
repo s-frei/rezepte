@@ -3,7 +3,7 @@ title: Editing rights
 description: A household lock and a per-recipe policy decide who may edit, re-photograph and delete a recipe
 ---
 
-Every member reads every recipe, but who may change one is a rule with two inputs: a household switch the instance owner flips on the members page, and a policy the author sets on each recipe in the editor. The rule itself is `service/internal/recipe/permission.go`; the switch lives in `service/internal/settings`; the SPA only shows and hides what the service answers. `docs/user/content/guide/editing-rights.mdx` tells the same rule to the people cooking from the instance.
+Every member reads every recipe, but who may change one is a rule with two inputs: a household switch the instance owner flips on the People page, and a policy the author sets on each recipe in the editor. The rule itself is `service/internal/recipe/permission.go`; the switch lives in `service/internal/settings`; the SPA only shows and hides what the service answers. `docs/user/content/guide/editing-rights.mdx` tells the same rule to the people cooking from the instance.
 
 ## How it works
 
@@ -41,7 +41,7 @@ A recipe on Default follows the switch live: nothing is copied onto the row when
 
 **The editor's last section is the policy.** `frontend/src/lib/components/editor/EditingSection.svelte` is a `SegmentedControl` of Default, Everyone and Locked, with a hint that states what applies right now; for Default it reads the household setting through `GET /api/v1/settings`. Without `canChangePolicy` - a member editing someone else's recipe - it shows a sentence instead of the control: who opened the recipe when it is `open`, the Default hint otherwise. A locked recipe never reaches that branch, because such a member never reaches its editor.
 
-**The switch is the owner's.** `settings.Service.SetRecipesLockedByDefault` refuses anyone but `Role.IsSuperadmin` with `ErrOwnerRequired`. `PATCH /api/v1/settings` takes `auth.SessionSecurity` only and answers a non-owner `403` `superadmin role required`, the wording `userapi` uses; `GET /api/v1/settings` takes any session or a token carrying `recipes:read`. `frontend/src/lib/components/settings/RecipeEditingCard.svelte` sits below the members table: a `Switch` that applies on flip for the owner, a sentence naming the owner for every other admin, and a link to the user guide's page.
+**The switch is the owner's.** `settings.Service.SetRecipesLockedByDefault` refuses anyone but `Role.IsSuperadmin` with `ErrOwnerRequired`. `PATCH /api/v1/settings` takes `auth.SessionSecurity` only and answers a non-owner `403` `superadmin role required`, the wording `userapi` uses; `GET /api/v1/settings` takes any session or a token carrying `recipes:read`. `frontend/src/lib/components/settings/RecipeEditingCard.svelte` sits below the people table: a `Switch` that applies on flip for the owner, a sentence naming the owner for every other admin, and a link to the user guide's page.
 
 **Deleting a user keeps the policies.** `ReassignRecipes` moves `created_by` and `updated_by` to the acting admin and does not touch `edit_policy`, so a locked recipe stays locked - now to its new author.
 
@@ -55,7 +55,7 @@ The rule is decided once on the server and shipped as `can*` flags, so the SPA a
 
 An update without `editPolicy` keeps the stored one because the field is newer than the clients that write recipes. A script written against the earlier contract would otherwise reset every recipe it saves to Default, and a member's script saving an open recipe would trip `CanChangePolicy` on a change it never asked for.
 
-The switch sits on the members page because it is a household setting and that page is where the household is administered; `/settings` is the personal page. Admins see the card with a sentence rather than a disabled switch, because a value you can only read is a fact, not a field. The lock line sits in the colophon, where authorship already lives, and only for locked recipes: the lock is about editing, and browsing or cooking should not notice it - no badge on cards, no icon beside the title, no banner, and no tooltip, since phones have none.
+The switch sits on the People page because it is a household setting and that page is where admins administer the household; `/settings` is the personal page. Members see the list without the card, and admins see the card with a sentence rather than a disabled switch, because a value you can only read is a fact, not a field. The lock line sits in the colophon, where authorship already lives, and only for locked recipes: the lock is about editing, and browsing or cooking should not notice it - no badge on cards, no icon beside the title, no banner, and no tooltip, since phones have none.
 
 ## Rejected
 

@@ -21,6 +21,13 @@ import (
 // handler plus a raw token carrying only recipes:read.
 func newBearerStack(t *testing.T) (http.Handler, string) {
 	t.Helper()
+	return newBearerStackWithScopes(t, auth.ScopeRecipesRead)
+}
+
+// newBearerStackWithScopes is newBearerStack with the token's scopes chosen
+// by the caller; the token belongs to the admin "sam".
+func newBearerStackWithScopes(t *testing.T, scopes ...string) (http.Handler, string) {
+	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn)
@@ -30,7 +37,7 @@ func newBearerStack(t *testing.T) (http.Handler, string) {
 	}
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	raw, _, err := tokens.Create(ctx, sam.ID, "reader", []string{auth.ScopeRecipesRead}, nil)
+	raw, _, err := tokens.Create(ctx, sam.ID, "reader", scopes, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +66,20 @@ func TestBearerTokenWithoutTheScopeIsForbidden(t *testing.T) {
 	// list-users declares users:read; the token only has recipes:read.
 	if rec := bearerReq(h, http.MethodGet, "/api/v1/users", raw); rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403 for a missing scope: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// list-people declares users:read like list-users, but answers any caller
+// that gets past the scope check, whatever its rank.
+func TestPeopleNeedsTheUsersReadScope(t *testing.T) {
+	h, raw := newBearerStack(t)
+	if rec := bearerReq(h, http.MethodGet, "/api/v1/people", raw); rec.Code != http.StatusForbidden {
+		t.Fatalf("recipes:read token: status = %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	h, raw = newBearerStackWithScopes(t, auth.ScopeUsersRead)
+	rec := bearerReq(h, http.MethodGet, "/api/v1/people", raw)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"username":"sam"`) {
+		t.Fatalf("users:read token: status = %d, want 200 listing sam: %s", rec.Code, rec.Body.String())
 	}
 }
 

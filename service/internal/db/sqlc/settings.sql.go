@@ -10,14 +10,71 @@ import (
 )
 
 const getInstanceSettings = `-- name: GetInstanceSettings :one
-SELECT id, recipes_locked_by_default FROM instance_settings WHERE id = 1
+SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
+       public_shares, public_share_default_days, public_share_max_days
+FROM instance_settings WHERE id = 1
 `
 
-func (q *Queries) GetInstanceSettings(ctx context.Context) (InstanceSetting, error) {
+type GetInstanceSettingsRow struct {
+	RecipesLockedByDefault bool
+	LinkPreviews           bool
+	LinkPreviewMinutes     int64
+	PublicShares           bool
+	PublicShareDefaultDays *int64
+	PublicShareMaxDays     *int64
+}
+
+// Lists its columns so the link preview key never rides along.
+func (q *Queries) GetInstanceSettings(ctx context.Context) (GetInstanceSettingsRow, error) {
 	row := q.db.QueryRowContext(ctx, getInstanceSettings)
-	var i InstanceSetting
-	err := row.Scan(&i.ID, &i.RecipesLockedByDefault)
+	var i GetInstanceSettingsRow
+	err := row.Scan(
+		&i.RecipesLockedByDefault,
+		&i.LinkPreviews,
+		&i.LinkPreviewMinutes,
+		&i.PublicShares,
+		&i.PublicShareDefaultDays,
+		&i.PublicShareMaxDays,
+	)
 	return i, err
+}
+
+const getLinkPreviewKey = `-- name: GetLinkPreviewKey :one
+SELECT link_preview_key FROM instance_settings WHERE id = 1
+`
+
+func (q *Queries) GetLinkPreviewKey(ctx context.Context) ([]byte, error) {
+	row := q.db.QueryRowContext(ctx, getLinkPreviewKey)
+	var link_preview_key []byte
+	err := row.Scan(&link_preview_key)
+	return link_preview_key, err
+}
+
+const setLinkPreviewMinutes = `-- name: SetLinkPreviewMinutes :exec
+UPDATE instance_settings SET link_preview_minutes = ? WHERE id = 1
+`
+
+func (q *Queries) SetLinkPreviewMinutes(ctx context.Context, linkPreviewMinutes int64) error {
+	_, err := q.db.ExecContext(ctx, setLinkPreviewMinutes, linkPreviewMinutes)
+	return err
+}
+
+const setLinkPreviews = `-- name: SetLinkPreviews :exec
+UPDATE instance_settings SET link_previews = ? WHERE id = 1
+`
+
+func (q *Queries) SetLinkPreviews(ctx context.Context, linkPreviews bool) error {
+	_, err := q.db.ExecContext(ctx, setLinkPreviews, linkPreviews)
+	return err
+}
+
+const setPublicShares = `-- name: SetPublicShares :exec
+UPDATE instance_settings SET public_shares = ? WHERE id = 1
+`
+
+func (q *Queries) SetPublicShares(ctx context.Context, publicShares bool) error {
+	_, err := q.db.ExecContext(ctx, setPublicShares, publicShares)
+	return err
 }
 
 const setRecipesLockedByDefault = `-- name: SetRecipesLockedByDefault :exec
@@ -26,5 +83,24 @@ UPDATE instance_settings SET recipes_locked_by_default = ? WHERE id = 1
 
 func (q *Queries) SetRecipesLockedByDefault(ctx context.Context, recipesLockedByDefault bool) error {
 	_, err := q.db.ExecContext(ctx, setRecipesLockedByDefault, recipesLockedByDefault)
+	return err
+}
+
+const setShareLifetimes = `-- name: SetShareLifetimes :exec
+UPDATE instance_settings
+SET public_share_default_days = ?, public_share_max_days = ?
+WHERE id = 1
+`
+
+type SetShareLifetimesParams struct {
+	PublicShareDefaultDays *int64
+	PublicShareMaxDays     *int64
+}
+
+// Both lifetime columns at once: a maximum that lowers the default has to
+// land with it, in the one statement, or a reader between the two writes
+// could see a default the new maximum already forbids.
+func (q *Queries) SetShareLifetimes(ctx context.Context, arg SetShareLifetimesParams) error {
+	_, err := q.db.ExecContext(ctx, setShareLifetimes, arg.PublicShareDefaultDays, arg.PublicShareMaxDays)
 	return err
 }

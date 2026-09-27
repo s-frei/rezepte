@@ -21,6 +21,8 @@ The household shares one recipe collection, but a star on a recipe is personal: 
 
 **The star is optimistic in the browser.** `FavoriteStar.svelte` flips the icon, calls the endpoint, and on failure puts the previous value back and raises a toast. It never sits inside a link: a `<button>` inside an `<a>` is invalid HTML and a focus trap, and the whole card *is* one link, so `RecipeCard.svelte` wraps both in a `relative` container and positions the star absolutely over the image as the anchor's sibling — Tab then reaches the star and the card link as two separate stops. The detail page puts it beside the title, outside any link, for the same reason. The component guards its click with `preventDefault` and `stopPropagation` anyway, since it sits visually over a link on a card.
 
+**The card shows the star from `md` up only.** On a phone the card image is about 150px wide and the 36px circle covers a large part of the photo, so the star's wrapper is `hidden md:block` and a phone sets the star on the recipe page, where the star is 44px, the phone floor for an action, and 36px from `md` up. The [tasty](/features/tasty) mark follows the same split, in the image's opposite corner. The split follows the layout, not the card's size: `md` is where the whole app turns from bottom nav to top bar, so the controls come and go exactly once while a window is resized. The room they need from `md` up is the grid's to guarantee - `RecipeGrid.svelte` never lets a column fall below 220px (three columns just past `md`, where four fixed ones left 160px cards mostly covered) and never adds a fifth.
+
 ## Why it is this way
 
 A column on `recipes` can hold exactly one answer, and the question has as many answers as the household has members. A join table is the shape that has somewhere to put "whose" — and, as a side effect, the referential integrity that keeps a favorite from outliving either end of it.
@@ -30,6 +32,9 @@ Deriving the user from the session makes isolation a property of the code's shap
 Loading the state one batch per page keeps a list at a fixed number of queries however many cards it shows, which is the same bargain the tag lookup beside it already made. Loading it on every list rather than only on a filtered one is what keeps the star from lying: a page that showed every star empty until the reader switched a filter on would be wrong far more often than right.
 
 ## Rejected
+
+- **The star on phone cards.** It covers too much of a photo that narrow, and a card is mostly tapped to open the recipe; the recipe page has the room for the star.
+- **Hiding the controls on cards below a width (a container query).** It would cover the photo less, but a button that appears and vanishes several times while a window is resized, with no visible reason, reads as broken. The grid keeps cards wide enough instead.
 
 - **A `favorite` boolean column on `recipes`.** One flag for a household of several people: there is nowhere to put the second person's answer, which is the whole requirement.
 - **A JSON array of user ids on `recipes`.** It avoids the join table, but turns "is this one of mine" into a per-row JSON scan instead of an indexed lookup, and gives up the foreign keys that clean up after a deleted user.

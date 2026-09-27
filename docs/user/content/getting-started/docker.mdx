@@ -29,6 +29,10 @@ The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/
   </Tab>
 </Tabs>
 
+## Image tags
+
+`latest` is the newest stable release. Every version is listed on the [GitHub releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte); use one in place of `latest` to run that version.
+
 ## Bind mounts
 
 The container runs as the nonroot user (UID 65532), so a bind-mounted `./data` directory must be writable by that UID before the first start:

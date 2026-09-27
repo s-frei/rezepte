@@ -26,7 +26,8 @@ function userWith(locale: 'en' | 'de'): User {
 		displayName: 'Sam',
 		role: 'user',
 		color: 'amber',
-		locale
+		locale,
+		canSharePublicly: true
 	};
 }
 

@@ -38,12 +38,15 @@
 	}
 </script>
 
+<!-- 44px on a phone, the floor for an action there, since the recipe page
+     is where a phone sets the star; 36px from md up, where it also sits over
+     every card's photo. -->
 <button
 	type="button"
 	onclick={toggle}
 	aria-pressed={active}
 	aria-label={active ? m.recipe_favorite_remove() : m.recipe_favorite_add()}
-	class="inline-flex size-9 items-center justify-center rounded-pill bg-surface shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+	class="inline-flex size-11 items-center justify-center rounded-pill bg-surface shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
 >
 	<Star
 		class="size-5 {active ? 'fill-primary text-primary' : 'text-text-muted'}"

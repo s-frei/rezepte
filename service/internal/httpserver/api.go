@@ -46,6 +46,8 @@ var apiTags = []*huma.Tag{
 	{Name: "recipes", Description: "Creating, reading, updating and deleting recipes, and searching them."},
 	{Name: "tags", Description: "The tags recipes are filed under."},
 	{Name: "images", Description: "Uploading recipe images and serving them in their rendered sizes."},
+	{Name: "shares", Description: "Public links to recipes: creating, listing and revoking them. Session only."},
+	{Name: "public", Description: "What a public link shows to anyone, without signing in."},
 	{Name: "settings", Description: "The household-wide settings. Everyone reads them; only the owner changes them."},
 	{Name: "users", Description: "Managing the accounts of an instance. Administrators only."},
 	{Name: "tokens", Description: "Managing the API tokens a program authenticates with."},

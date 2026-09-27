@@ -47,6 +47,10 @@ type User struct {
 	Locale      Locale
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// CanSharePublicly is whether this person may create or keep a public
+	// recipe link. An admin withdraws it per person; it is separate from the
+	// household-wide public sharing switch in package settings.
+	CanSharePublicly bool
 }
 
 // Errors returned by the service.
@@ -306,11 +310,42 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 	return out, err
 }
 
+// SetCanSharePublicly switches whether id may create or keep a public recipe
+// link. It follows guardTarget like the role change and the password reset:
+// an admin switches it for plain users, only the superadmin for admins, and
+// the superadmin's own row is refused - public sharing for the whole instance
+// is the owner's call, made through package settings, not a per-person switch
+// on their own row. The same rule for all three is what lets update-user
+// combine them without one landing while another is refused.
+func (s *Service) SetCanSharePublicly(ctx context.Context, actor User, id string, on bool) (User, error) {
+	var out User
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := getForUpdate(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+			return err
+		}
+		updated, err := q.SetCanSharePublicly(ctx, sqlc.SetCanSharePubliclyParams{
+			CanSharePublicly: on,
+			ID:               id,
+		})
+		if err != nil {
+			return fmt.Errorf("set can share publicly of %s: %w", id, err)
+		}
+		out, err = fromRow(updated)
+		return err
+	})
+	return out, err
+}
+
 // Delete removes a user. Deleting yourself is refused, and so is any target
 // the actor outranks too little to touch. Recipes the user created or last
 // edited move to actor.ID (created_by and updated_by are both NOT NULL and
-// have no ON DELETE clause); sessions go with the row through ON DELETE
-// CASCADE.
+// have no ON DELETE clause), after actor's own tasty marks on the recipes
+// they are about to author are dropped; sessions go with the row through ON
+// DELETE CASCADE.
 func (s *Service) Delete(ctx context.Context, actor User, id string) error {
 	if actor.ID == id {
 		return ErrSelfDelete
@@ -322,6 +357,9 @@ func (s *Service) Delete(ctx context.Context, actor User, id string) error {
 		}
 		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
+		}
+		if err := q.DeleteTastyOfNewOwner(ctx, sqlc.DeleteTastyOfNewOwnerParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
+			return fmt.Errorf("drop tasty marks on recipes of %s: %w", id, err)
 		}
 		if err := q.ReassignRecipes(ctx, sqlc.ReassignRecipesParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
 			return fmt.Errorf("reassign recipes of %s: %w", id, err)
@@ -535,14 +573,15 @@ func fromRow(row sqlc.User) (User, error) {
 		return User{}, err
 	}
 	return User{
-		ID:          row.ID,
-		Username:    row.Username,
-		DisplayName: row.DisplayName,
-		Role:        Role(row.Role),
-		Color:       Color(row.Color),
-		Locale:      Locale(row.Locale),
-		CreatedAt:   created,
-		UpdatedAt:   updated,
+		ID:               row.ID,
+		Username:         row.Username,
+		DisplayName:      row.DisplayName,
+		Role:             Role(row.Role),
+		Color:            Color(row.Color),
+		Locale:           Locale(row.Locale),
+		CreatedAt:        created,
+		UpdatedAt:        updated,
+		CanSharePublicly: row.CanSharePublicly,
 	}, nil
 }
 

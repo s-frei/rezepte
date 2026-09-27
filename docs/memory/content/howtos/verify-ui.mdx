@@ -21,7 +21,7 @@ description: End-to-end tests and screenshots, no browser extensions
 
     The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
-    Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts`.
+    Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts`. It retries a sign-in the login throttle refused on the right password: the throttle counts an attempt when it begins, so the workers of one run signing `admin` in together lock the name until the first of them succeeds, and a spec that hits "Too many failed attempts" with correct credentials is that race, never a lock worth testing.
 
   </Tab>
   <Tab value="Screenshots">

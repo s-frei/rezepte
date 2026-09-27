@@ -6,8 +6,9 @@ import { api } from './client';
 
 /**
  * Somebody a recipe names - who wrote it, who last changed it. The service
- * sends the whole of it because user management is admin-only, so a member
- * could not resolve the id themselves.
+ * sends the whole of it, so a card names and colors its author without a
+ * second request, and a token scoped to recipes:read, which cannot read
+ * /api/v1/people, still gets the names.
  */
 export type Person = {
 	id: string;
@@ -28,6 +29,10 @@ export type RecipeCard = {
 	updatedAt: string;
 	/** Whether the signed-in user has starred this recipe. */
 	favorite: boolean;
+	/** How many members marked this recipe tasty; the same for everyone. */
+	tastyCount: number;
+	/** Whether the signed-in user is one of them. */
+	tasty: boolean;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;
@@ -89,6 +94,11 @@ export type Recipe = RecipeInput & {
 	updatedBy: Person;
 	/** Whether the signed-in user has starred this recipe. */
 	favorite: boolean;
+	/** How many members marked this recipe tasty, and who, in the order they did. */
+	tastyCount: number;
+	tastyBy: Person[];
+	/** Whether the signed-in user is one of them. */
+	tasty: boolean;
 	/** The effective state: the policy resolved against the household setting. */
 	locked: boolean;
 	/** What the signed-in user may do with this recipe, decided by the server. */
@@ -96,6 +106,29 @@ export type Recipe = RecipeInput & {
 	canDelete: boolean;
 	canChangePolicy: boolean;
 };
+
+/**
+ * The fields `RecipeView` renders: both the signed-in detail page's `Recipe`
+ * and the public share's `PublicRecipe` carry them. `id` is kept as a
+ * client-side key only (servings memory, gallery keys) - `RecipeView` never
+ * sends it to the server itself, only through `imageSrc`'s default.
+ */
+export type RecipeContent = Pick<
+	Recipe,
+	| 'id'
+	| 'title'
+	| 'description'
+	| 'servings'
+	| 'prepMinutes'
+	| 'cookMinutes'
+	| 'sourceUrl'
+	| 'sourceName'
+	| 'tags'
+	| 'ingredientGroups'
+	| 'steps'
+	| 'images'
+	| 'coverImageId'
+>;
 
 export type RecipePage = {
 	items: RecipeCard[];
@@ -105,9 +138,6 @@ export type RecipePage = {
 };
 
 export type Tag = { name: string; count: number };
-
-/** Unit suggestions offered in the ingredient row's unit combobox. */
-export const UNIT_SUGGESTIONS = ['g', 'kg', 'ml', 'l', 'EL', 'TL', 'Stück', 'Prise'];
 
 /** Most images the API accepts per recipe. */
 export const MAX_IMAGES = 20;
@@ -137,7 +167,7 @@ export function listRecipes(
 		maxMinutes?: number;
 		favorites?: boolean;
 		author?: string;
-		sort?: 'updated' | 'created' | 'title';
+		sort?: 'updated' | 'created' | 'title' | 'tasty';
 		page?: number;
 		limit?: number;
 	} = {},
@@ -175,6 +205,16 @@ export function listRecipes(
 /** Sets or clears the star on a recipe for the signed-in user. */
 export async function setFavorite(id: string, on: boolean): Promise<void> {
 	await api<void>(`/recipes/${encodeURIComponent(id)}/favorite`, {
+		method: on ? 'PUT' : 'DELETE'
+	});
+}
+
+/**
+ * Sets or clears the signed-in user's tasty mark on a recipe. The service
+ * answers 403 when the recipe is the user's own.
+ */
+export async function setTasty(id: string, on: boolean): Promise<void> {
+	await api<void>(`/recipes/${encodeURIComponent(id)}/tasty`, {
 		method: on ? 'PUT' : 'DELETE'
 	});
 }
@@ -260,8 +300,8 @@ export type Author = { username: string; displayName: string; color: UserColor; 
 
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the
- * overview's "Added by" filter. Readable by any signed-in member,
- * unlike the admin-only user management in `$lib/api/users`.
+ * overview's "Added by" filter. A facet of the recipe list; who has an
+ * account at all is `listPeople` in `$lib/api/users`.
  */
 export async function listAuthors(): Promise<Author[]> {
 	const page = await api<{ items: Author[] }>('/authors');
@@ -285,4 +325,16 @@ export function emptyInput(): RecipeInput {
 		steps: [{ text: '', references: [] }],
 		editPolicy: 'default'
 	};
+}
+
+/**
+ * The address to share a recipe by. `path` carries a share token that shows
+ * the recipe's title and cover in link previews until `expiresAt`, when the
+ * household shows recipes to share links; otherwise it is the plain path and
+ * `expiresAt` is null.
+ */
+export type ShareLink = { path: string; expiresAt: string | null };
+
+export function createShareLink(id: string): Promise<ShareLink> {
+	return api<ShareLink>(`/recipes/${encodeURIComponent(id)}/share-link`, { method: 'POST' });
 }

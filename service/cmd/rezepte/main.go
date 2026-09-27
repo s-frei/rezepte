@@ -23,8 +23,10 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
+	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -34,6 +36,11 @@ import (
 // sweepInterval is how often expired sessions are swept from the database
 // in the background, in addition to the sweep at boot.
 const sweepInterval = 24 * time.Hour
+
+// shareSweepInterval is how often public links whose own expiry has passed
+// are deleted. They serve nothing from that moment on; the sweep only
+// removes the rows.
+const shareSweepInterval = time.Hour
 
 // version is the build version, set with -ldflags "-X main.version=...".
 // A plain `go build` leaves it at "dev", which is what a development binary
@@ -156,11 +163,22 @@ func run() error {
 	}
 	go sessions.SweepLoop(ctx, sweepInterval, logger)
 	tokens := auth.NewTokenService(conn, users)
+	images := image.NewService(conn, imageDir)
+	instance := settings.NewService(conn)
+	previews, err := preview.NewService(ctx, conn, instance, images, logger)
+	if err != nil {
+		return err
+	}
+	shares := share.NewService(conn, instance, users)
+	go shares.SweepLoop(ctx, shareSweepInterval, logger)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
 		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
+		// A public share's page first: /s/{token} is never a recipe page.
+		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
+		httpserver.WithShellHeaders(share.ShellHeaders),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
@@ -170,11 +188,19 @@ func run() error {
 		return fmt.Errorf("mcp: %w", err)
 	}
 	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
-	images := image.NewService(conn, imageDir)
 	image.Register(srv.API(), images)
-	settings.Register(srv.API(), settings.NewService(conn))
+	settings.Register(srv.API(), instance)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
+	preview.Register(srv.API(), previews)
+	// Without a session on purpose: the crawler building a link preview has
+	// none. The handler decides from the household setting and share token.
+	srv.Handle("GET /link-preview/{recipeId}/{imageId}", previews.CoverHandler())
+	share.Register(srv.API(), shares)
+	// Without a session on purpose, like the cover route: whoever holds a
+	// public link has none. The token alone decides, per request.
+	share.RegisterPublic(srv.API(), shares, recipes)
+	srv.Handle("GET /public-images/{token}/{imageId}/{file}", shares.ImageHandler(images))
 	userapi.Register(srv.API(), users, sessions)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
@@ -226,8 +252,9 @@ func resetError(err error, dataDir string) error {
 	return err
 }
 
-// seedDemo fills an empty instance with the sample recipes and logs the
-// demo admin's credentials so operators know how to log in. demoDefaults
+// seedDemo fills an empty instance with the sample recipes - and, on the
+// demo credentials, with the demo's other members and their tasty marks -
+// and logs the demo admin's credentials so operators know how to log in. demoDefaults
 // tells whether cfg.AdminUser/AdminPassword were replaced with the
 // well-known demo credentials, or came from the operator's configuration.
 func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, logger *slog.Logger) error {
@@ -238,6 +265,11 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 	password := "from REZEPTE_ADMIN_PASSWORD" //nolint:gosec // G101: log label, not a credential
 	if demoDefaults {
 		password = demo.AdminPassword
+		// The members' passwords are as public as the admin's, so they come
+		// only with the published credentials, never beside an operator's own.
+		if err := demo.SeedMembers(ctx, conn, sum, cfg.AdminUser, user.Locale(cfg.Locale), logger); err != nil {
+			return err
+		}
 	}
 	logger.Info("demo mode", "user", cfg.AdminUser, "password", password, "seeded", !sum.Skipped, "dataDir", cfg.DataDir)
 	return nil

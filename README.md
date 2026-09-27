@@ -74,6 +74,8 @@ docker run -d --name rezepte -p 8060:8060 \
 
 Open <http://localhost:8060> and log in as **`admin`** with the password you set. That account owns the instance; there is no self-registration, so add everyone else from the settings once you are in.
 
+`latest` is the newest stable release. Every version is listed on the [releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte).
+
 > [!IMPORTANT]
 > `REZEPTE_ADMIN_PASSWORD` is read only on the very first start, to create the owner. Afterwards change the password inside the app — editing the variable does nothing.
 

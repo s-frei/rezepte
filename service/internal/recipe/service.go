@@ -409,6 +409,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	if err != nil {
 		return Recipe{}, fmt.Errorf("get recipe authors: %w", err)
 	}
+	tastyRows, err := s.q.ListTastyUsers(ctx, row.ID)
+	if err != nil {
+		return Recipe{}, fmt.Errorf("list tasty users: %w", err)
+	}
 	imgRows, err := s.q.ListImagesByRecipe(ctx, row.ID)
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list images: %w", err)
@@ -457,6 +461,12 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 		outSteps[i] = Step{Text: st.Text, References: refs}
 	}
 
+	// Never nil, like the steps' references: "nobody yet" is an empty list.
+	tastyBy := make([]Person, len(tastyRows))
+	for i, u := range tastyRows {
+		tastyBy[i] = Person{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, Color: u.Color}
+	}
+
 	images := make([]Image, len(imgRows))
 	for i, im := range imgRows {
 		images[i] = Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position)}
@@ -494,6 +504,8 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			DisplayName: authors.UpdatedByDisplayName,
 			Color:       authors.UpdatedByColor,
 		},
+		TastyCount: len(tastyBy),
+		TastyBy:    tastyBy,
 	}, nil
 }
 

@@ -43,13 +43,14 @@
 		>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
-					<!-- Never taller than the screen, with the same 1.25rem margin the
-					     width keeps: a fixed box that outgrows the viewport cannot be
-					     scrolled by the page, so "Add member" on a 720px laptop left
-					     its submit button below the fold with no way to reach it. -->
+					<!-- Capped at the dynamic viewport and scrolling inside itself: the
+					     create-user form is taller than a phone screen, and a centered
+					     box without a cap pushes its title and its buttons off both
+					     edges where nothing can scroll them back. `dvh` rather than
+					     `vh` so the cap follows the browser bar and the keyboard. -->
 					<div
 						{...props}
-						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2.5rem)] w-[calc(100%-2.5rem)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-7 shadow-dialog"
+						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 shadow-dialog md:p-7"
 						transition:scale={{ duration: 200, start: 0.95 }}
 					>
 						{@render children()}

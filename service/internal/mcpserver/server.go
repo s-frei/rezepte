@@ -105,13 +105,18 @@ func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, e
 }
 
 // fill sets r's caller-dependent fields for the token owner - the favorite
-// star and what they may do with it - the way REST's fillCaller does.
+// star, their own tasty mark and what they may do with it - the way REST's fillCaller does.
 func (c caller) fill(ctx context.Context, r *recipe.Recipe) error {
 	fav, err := c.svc.IsFavorite(ctx, c.user.ID, r.ID)
 	if err != nil {
 		return fmt.Errorf("read favorite: %w", err)
 	}
 	r.Favorite = fav
+	tasty, err := c.svc.IsTasty(ctx, c.user.ID, r.ID)
+	if err != nil {
+		return fmt.Errorf("read tasty: %w", err)
+	}
+	r.Tasty = tasty
 	if err := c.svc.FillAccess(ctx, c.user, r); err != nil {
 		return fmt.Errorf("fill access: %w", err)
 	}

@@ -57,7 +57,7 @@ test('creates a recipe through the editor', async ({ page }) => {
 	// label of the field inside it ("Ingredient 1", "Step 1") so
 	// svelte-dnd-action can announce a drag, which leaves `getByLabel`
 	// matching two elements. "Unit" is a combobox rather than a textbox
-	// because its input points a `list` at the shared unit `<datalist>`.
+	// because it offers a list of units beside free text.
 	await page.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
 	await page.getByRole('textbox', { name: 'Amount', exact: true }).fill('2');
 	await page.getByRole('combobox', { name: 'Unit', exact: true }).fill('pcs');
@@ -422,7 +422,10 @@ test('keeps the tag row toggle inside the row at 360px', async ({ page }) => {
 		.toBeLessThanOrEqual(0);
 });
 
-test('stars a recipe from the card and keeps it after a reload', async ({ page }) => {
+test('stars a recipe from the card and keeps it after a reload', async ({ page, isMobile }) => {
+	// A phone card leaves its photo alone: the star is set on the recipe
+	// page there, which 'keeps the star off phone cards' below checks.
+	test.skip(isMobile, 'phone cards carry no star');
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(1), title: `Star ${token}` });
 
@@ -435,7 +438,24 @@ test('stars a recipe from the card and keeps it after a reload', async ({ page }
 	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
 });
 
-test('filters the overview down to favorites', async ({ page }) => {
+test('keeps the star off phone cards and sets it on the recipe page', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'the desktop card has its star');
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(1), title: `Phone star ${token}` });
+
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveText([`Phone star ${token}`]);
+	await expect(page.getByRole('button', { name: 'Add to favorites' })).toHaveCount(0);
+
+	await cards(page).first().click();
+	await page.getByRole('button', { name: 'Add to favorites' }).click();
+	await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
+});
+
+test('filters the overview down to favorites', async ({ page, isMobile }) => {
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(1), title: `Starred ${token}` });
 	await createRecipe(page, { ...loadFixture(2), title: `Unstarred ${token}` });
@@ -444,9 +464,17 @@ test('filters the overview down to favorites', async ({ page }) => {
 	// "most recently changed first" order, which is nondeterministic here:
 	// both recipes are created within the same request burst, so which one
 	// counts as "most recent" isn't guaranteed - and `.first()` below needs
-	// to land on "Starred" specifically.
+	// to land on "Starred" specifically. A phone card has no star, so there
+	// the recipe is starred on its own page.
 	await page.goto(`/?q=${token}&sort=title`);
-	await page.getByRole('button', { name: 'Add to favorites' }).first().click();
+	if (isMobile) {
+		await cards(page).first().click();
+		await page.getByRole('button', { name: 'Add to favorites' }).click();
+		await expect(page.getByRole('button', { name: 'Remove from favorites' })).toBeVisible();
+		await page.goto(`/?q=${token}&sort=title`);
+	} else {
+		await page.getByRole('button', { name: 'Add to favorites' }).first().click();
+	}
 	await page.getByRole('button', { name: 'Filters' }).click();
 	// `role="switch"`, not checkbox: the control is a Switch, and Playwright's
 	// `check()` only drives a real checkbox or radio - clicking it and reading
@@ -698,16 +726,24 @@ test('the source field owns its line at every width', async ({ page }) => {
 // edge of the page. That band lies between the Playwright projects' own
 // viewports, which is why it survived a green suite - so sweep it here.
 // German on purpose: "Königsberger" is the long single word that sets the
-// floor, and English titles rarely carry one that long.
+// floor, and English titles rarely carry one that long. The sweep reads the
+// page as another member, since only they see the tasty heart beside the
+// star, and the pair is what a phone has to fit beside that word.
 test('the recipe page never scrolls sideways', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'the sweep covers the phone widths itself');
 
+	const reader = `ida${uniqueToken()}`.slice(0, 20);
+	await createUser(page, { username: reader, role: 'user' });
 	const recipe = await createRecipe(page, {
 		...loadFixture(0, 'de'),
 		title: 'Königsberger Klopse'
 	});
+	await signOut(page, testInfo);
+	await login(page, reader);
+	await expect(page).toHaveURL('/');
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Mark as tasty' })).toBeVisible();
 
 	// 768 is where the two columns appear, 858 where the cover stops giving
 	// way; 320 is the narrowest phone the design system admits.
@@ -718,6 +754,36 @@ test('the recipe page never scrolls sideways', async ({ page }, testInfo) => {
 				message: `horizontal overflow at ${width}px`
 			})
 			.toBeLessThanOrEqual(width);
+	}
+});
+
+// From `md` up a card carries the star and the tasty heart over its photo,
+// and the grid, not the card, owns the room they need: four fixed columns
+// squeezed a card to 160px at 768px, where the two 36px controls hid the
+// dish. So every width of the desktop layout keeps a column at 220px or
+// more, and the widest window still gets four, not a fifth.
+test('overview columns leave a card room for its controls', async ({ page }, testInfo) => {
+	test.skip(
+		testInfo.project.name.startsWith('mobile'),
+		'the sweep covers the desktop widths itself'
+	);
+
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(2), title: `Columns ${token}` });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveText([`Columns ${token}`]);
+
+	for (const width of [768, 820, 900, 1000, 1023, 1024, 1100, 1280, 1440, 1920]) {
+		await page.setViewportSize({ width, height: 900 });
+		const tracks = await page.evaluate(() => {
+			let grid = document.querySelector('main h3')?.parentElement ?? null;
+			while (grid && getComputedStyle(grid).display !== 'grid') {
+				grid = grid.parentElement;
+			}
+			return getComputedStyle(grid!).gridTemplateColumns.split(' ').map(parseFloat);
+		});
+		expect(tracks.length, `columns at ${width}px`).toBeLessThanOrEqual(4);
+		expect(Math.min(...tracks), `column width at ${width}px`).toBeGreaterThanOrEqual(220);
 	}
 });
 
@@ -1460,4 +1526,79 @@ test('the contents sheet jumps to a section and the running head keeps it', asyn
 	// The reader scrolling again hands the head back to the scroll position.
 	await page.mouse.wheel(0, -400);
 	await expect(page.getByRole('button', { name: 'Ingredients, open contents' })).toBeVisible();
+});
+
+test('opens the full unit list on every tap, even over a chosen unit', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	await openNewRecipe(page);
+
+	const unit = page.getByRole('combobox', { name: 'Unit', exact: true });
+	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
+	const everyUnit = [
+		'g',
+		'kg',
+		'ml',
+		'l',
+		'tsp',
+		'tbsp',
+		'cup',
+		'fl oz',
+		'oz',
+		'lb',
+		'pinch',
+		'piece'
+	];
+
+	// Typing narrows the list; a tap on an option takes it.
+	await unit.fill('tb');
+	await expect(list.getByRole('option')).toHaveText(['tbsp']);
+	await list.getByRole('option', { name: 'tbsp' }).click();
+	await expect(unit).toHaveValue('tbsp');
+	await expect(list).toBeHidden();
+
+	// A second tap on the field that kept its focus opens it again - with
+	// every unit, not only the ones that match the value, and the current one
+	// marked. A native datalist showed nothing here.
+	await unit.click();
+	await expect(list.getByRole('option')).toHaveText(everyUnit);
+	await expect(list.getByRole('option', { name: 'tbsp' })).toHaveAttribute('aria-selected', 'true');
+	const box = await list.boundingBox();
+	expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+	await list.getByRole('option', { name: 'g', exact: true }).click();
+	await expect(unit).toHaveValue('g');
+
+	// The chevron opens it too, and the keys walk it from the field.
+	await page.getByRole('button', { name: 'Show units' }).click();
+	await expect(list.getByRole('option')).toHaveText(everyUnit);
+	await unit.press('ArrowDown');
+	await unit.press('Enter');
+	await expect(unit).toHaveValue('kg');
+
+	// Free text stays free: a unit of its own is kept as typed.
+	await unit.fill('bunch');
+	await expect(list).toBeHidden();
+	await unit.press('Tab');
+	await expect(unit).toHaveValue('bunch');
+});
+
+test('sets the unit list apart from the fields in dark mode', async ({ page }) => {
+	// The shadow that sets the list apart in light does not read on dark
+	// surfaces, so the popover tokens have to carry it: a list in the fields'
+	// own color and border melts into the rows below it.
+	await page.emulateMedia({ colorScheme: 'dark' });
+	await openNewRecipe(page);
+
+	const unit = page.getByRole('combobox', { name: 'Unit', exact: true });
+	await unit.click();
+	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
+	await expect(list).toBeVisible();
+
+	const style = (el: Element) => {
+		const cs = getComputedStyle(el);
+		return { background: cs.backgroundColor, border: cs.borderTopColor };
+	};
+	const field = await unit.evaluate(style);
+	const popover = await list.evaluate(style);
+	expect(popover.background).not.toBe(field.background);
+	expect(popover.border).not.toBe(field.border);
 });

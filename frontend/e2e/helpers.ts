@@ -55,19 +55,43 @@ export async function pinLocale(page: Page, locale: 'en' | 'de' = 'en'): Promise
  */
 export async function login(page: Page, username = 'admin', password = devPassword(username)) {
 	await pinLocale(page, 'en');
-	await page.goto('/login');
-	await page.getByLabel('Username').fill(username);
-	await page.getByLabel('Password').fill(password);
-	await page.getByRole('button', { name: 'Sign in' }).click();
+	// The login throttle counts an attempt when it begins, so the workers of
+	// one run signing `admin` in at the same moment lock the name before the
+	// first of them succeeds - and that success unlocks it again. A lock on
+	// the right password is that race and nothing else, so it is tried again
+	// once the others are through; any other outcome is the caller's to judge.
+	const retries = password === devPassword(username) ? 5 : 0;
+	for (let attempt = 0; ; attempt++) {
+		await page.goto('/login');
+		await page.getByLabel('Username').fill(username);
+		await page.getByLabel('Password').fill(password);
+		await page.getByRole('button', { name: 'Sign in' }).click();
+		if (attempt >= retries) return;
+		const alert = page.getByRole('alert');
+		const outcome = await Promise.race([
+			page
+				.waitForURL((url) => url.pathname !== '/login')
+				.then(
+					() => 'in' as const,
+					() => 'timeout' as const
+				),
+			alert.waitFor().then(
+				() => 'alert' as const,
+				() => 'timeout' as const
+			)
+		]);
+		if (outcome !== 'alert' || !(await alert.textContent())?.startsWith('Too many')) return;
+		await page.waitForTimeout(250 * (attempt + 1));
+	}
 }
 
 /**
  * Signs out through the menu that holds "Settings" and "Sign out". The two
  * viewports build it differently - a Bits UI dropdown behind the avatar on
- * desktop, whose entries are `menuitem`s, and the "More" sheet with real
- * buttons on phones, since the top bar is `md:` only - so the walk depends on
- * the project the test runs in. `locale` is the language the signed-in
- * account reads, for the one spec that signs a German account out.
+ * desktop, whose entries are `menuitem`s, and the bottom nav's "You" sheet
+ * with a real button on phones, since the top bar is `md:` only - so the walk
+ * depends on the project the test runs in. `locale` is the language the
+ * signed-in account reads, for the one spec that signs a German account out.
  */
 export async function signOut(
 	page: Page,
@@ -75,18 +99,32 @@ export async function signOut(
 	locale: 'en' | 'de' = 'en'
 ): Promise<void> {
 	const labels = {
-		en: { more: 'More', accountMenu: 'Account menu', signOut: 'Sign out' },
-		de: { more: 'Mehr', accountMenu: 'Kontomenü', signOut: 'Abmelden' }
+		en: {
+			nav: 'Main',
+			you: 'You',
+			expand: 'Show navigation',
+			accountMenu: 'Account menu',
+			signOut: 'Sign out'
+		},
+		de: {
+			nav: 'Hauptmenü',
+			you: 'Du',
+			expand: 'Navigation anzeigen',
+			accountMenu: 'Kontomenü',
+			signOut: 'Abmelden'
+		}
 	}[locale];
-	const mobile = testInfo.project.name.startsWith('mobile');
-	// exact: true on the phone bottom-nav button - without it, "More" also
-	// matches the overview's "Load more" button once enough recipes have
-	// piled up in the shared database for the grid to paginate, which turns
-	// this into a strict-mode violation (two matching buttons at once).
-	await page
-		.getByRole('button', { name: mobile ? labels.more : labels.accountMenu, exact: mobile })
-		.click();
-	await page.getByRole(mobile ? 'button' : 'menuitem', { name: labels.signOut }).click();
+	if (testInfo.project.name.startsWith('mobile')) {
+		const nav = page.getByRole('navigation', { name: labels.nav });
+		// A page read far enough shows the shrunk bar; bring the rest back.
+		const expand = nav.getByRole('button', { name: labels.expand });
+		if (await expand.isVisible()) await expand.click();
+		await nav.getByRole('button', { name: labels.you, exact: true }).click();
+		await page.getByRole('dialog').getByRole('button', { name: labels.signOut }).click();
+		return;
+	}
+	await page.getByRole('button', { name: labels.accountMenu }).click();
+	await page.getByRole('menuitem', { name: labels.signOut }).click();
 }
 
 /**
@@ -294,5 +332,101 @@ export async function setRecipesLockedByDefault(page: Page, on: boolean): Promis
 	expect(
 		response.ok(),
 		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}
+
+/**
+ * Switches link previews through the API, as the signed-in owner. The suite
+ * shares one instance, so a test that turns them on turns them off again.
+ */
+export async function setLinkPreviews(
+	page: Page,
+	on: boolean,
+	minutes: 15 | 60 | 1440 = 15
+): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch('/api/v1/settings', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { linkPreviews: on, linkPreviewMinutes: minutes }
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}
+
+/**
+ * Switches public sharing through the API, as the signed-in owner. Like
+ * `setLinkPreviews`, it is instance-wide - a test that turns it on turns it
+ * off again. `null` for either lifetime means no maximum / permanent by
+ * default, matching the settings API.
+ */
+export async function setPublicShares(
+	page: Page,
+	on: boolean,
+	defaultDays: 1 | 7 | 30 | 365 | null = null,
+	maxDays: 1 | 7 | 30 | 365 | null = null
+): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch('/api/v1/settings', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: {
+			publicShares: on,
+			publicShareDefaultDays: defaultDays,
+			publicShareMaxDays: maxDays
+		}
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+}
+
+/** A public link, as `POST /recipes/{id}/public-share` hands it out. */
+export type PublicShare = {
+	id: string;
+	recipe: { id: string; slug: string; title: string };
+	path: string;
+	createdAt: string;
+	expiresAt: string | null;
+	status: string;
+};
+
+/**
+ * Opens a public link to a recipe through the API, as the signed-in owner.
+ * `days` follows the API: 1, 7, 30 or 365, `null` (the default) for
+ * permanent.
+ */
+export async function createPublicShare(
+	page: Page,
+	recipeId: string,
+	days: 1 | 7 | 30 | 365 | null = null
+): Promise<PublicShare> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.post(`/api/v1/recipes/${recipeId}/public-share`, {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { days }
+	});
+	expect(
+		response.ok(),
+		`POST /api/v1/recipes/${recipeId}/public-share failed: ${response.status()} ${await response.text()}`
+	).toBeTruthy();
+	return (await response.json()) as PublicShare;
+}
+
+/**
+ * Allows or withdraws a person's right to create public links, through the
+ * API as the signed-in admin. Withdrawing pauses their existing links -
+ * see the share validity rules.
+ */
+export async function setCanSharePublicly(page: Page, userId: string, on: boolean): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch(`/api/v1/users/${userId}`, {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { canSharePublicly: on }
+	});
+	expect(
+		response.ok(),
+		`PATCH /api/v1/users/${userId} failed: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
 }

@@ -1,6 +1,7 @@
-// Package userapi exposes user management (admin only) over HTTP. It is a
-// separate package because it needs auth.UserFrom and auth.SessionSecurity,
-// and package auth already imports package user.
+// Package userapi exposes user management (admin only) and the people list
+// (every signed-in account) over HTTP. It is a separate package because it
+// needs auth.UserFrom and auth.Protected, and package auth already
+// imports package user.
 package userapi
 
 import (
@@ -23,7 +24,9 @@ type UserAccount struct {
 	Role        string      `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
-	CreatedAt   time.Time   `json:"createdAt" doc:"When the account was created"`
+	// CanSharePublicly is an admin's per-person switch; see share.
+	CanSharePublicly bool      `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
+	CreatedAt        time.Time `json:"createdAt" doc:"When the account was created"`
 }
 
 // UserAccountList is the response body of list-users.
@@ -33,6 +36,27 @@ type UserAccountList struct {
 
 type listOutput struct {
 	Body UserAccountList
+}
+
+// PersonEntry is an account as every signed-in account may see it: who takes
+// part and in which role, nothing about the account itself - no language, no
+// creation date. The JSON is the person a recipe's createdBy carries, plus
+// the role.
+type PersonEntry struct {
+	ID          string `json:"id" doc:"User id"`
+	Username    string `json:"username" doc:"Login name"`
+	DisplayName string `json:"displayName" doc:"Name shown wherever the UI names this person"`
+	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
+	Role        string `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
+}
+
+// PersonList is the response body of list-people.
+type PersonList struct {
+	Items []PersonEntry `json:"items"`
+}
+
+type peopleOutput struct {
+	Body PersonList
 }
 
 type createInput struct {
@@ -57,6 +81,11 @@ type updateInput struct {
 		Role        *string `json:"role,omitempty" enum:"admin,user"`
 		DisplayName *string `json:"displayName,omitempty" maxLength:"64" doc:"Owner only"`
 		Color       *string `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Owner only"`
+		// CanSharePublicly is refused for the owner's own row (the owner
+		// governs public sharing for the whole instance) and for the
+		// caller's own row (one admin cannot re-grant a right another admin
+		// just withdrew from them).
+		CanSharePublicly *bool `json:"canSharePublicly,omitempty" doc:"Allow or withdraw creating public links; withdrawing pauses the person's existing links. Same rank rule as a password reset: only the owner reaches an admin, and nobody the owner."`
 	}
 }
 
@@ -98,19 +127,50 @@ func rankError(err error) error {
 
 func toResponse(u user.User) UserAccount {
 	return UserAccount{
-		ID:          u.ID,
-		Username:    u.Username,
-		DisplayName: u.DisplayName,
-		Role:        string(u.Role),
-		Color:       string(u.Color),
-		Locale:      u.Locale,
-		CreatedAt:   u.CreatedAt,
+		ID:               u.ID,
+		Username:         u.Username,
+		DisplayName:      u.DisplayName,
+		Role:             string(u.Role),
+		Color:            string(u.Color),
+		Locale:           u.Locale,
+		CanSharePublicly: u.CanSharePublicly,
+		CreatedAt:        u.CreatedAt,
 	}
 }
 
-// Register installs list, create, update and delete for users. All four
-// require an admin session.
+// Register installs list, create, update and delete for users, which require
+// an admin, and list-people, which any signed-in account may read.
 func Register(api huma.API, users *user.Service, sessions *auth.Service) {
+	huma.Register(api, huma.Operation{
+		OperationID: "list-people",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/people",
+		Summary:     "List people",
+		Description: "Every account's login name, display name, color and role, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+		Tags:        []string{"users"},
+		Security:    auth.Protected(auth.ScopeUsersRead),
+		Errors:      []int{401},
+	}, func(ctx context.Context, _ *struct{}) (*peopleOutput, error) {
+		if _, ok := auth.UserFrom(ctx); !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		list, err := users.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		items := make([]PersonEntry, 0, len(list))
+		for _, u := range list {
+			items = append(items, PersonEntry{
+				ID:          u.ID,
+				Username:    u.Username,
+				DisplayName: u.DisplayName,
+				Color:       string(u.Color),
+				Role:        string(u.Role),
+			})
+		}
+		return &peopleOutput{Body: PersonList{Items: items}}, nil
+	})
+
 	huma.Register(api, huma.Operation{
 		OperationID: "list-users",
 		Method:      http.MethodGet,
@@ -199,7 +259,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		OperationID: "update-user",
 		Method:      http.MethodPatch,
 		Path:        "/api/v1/users/{id}",
-		Summary:     "Change a user's role or profile, and/or reset the password",
+		Summary:     "Change a user's role, profile or public sharing, and/or reset the password",
 		Tags:        []string{"users"},
 		Security:    auth.Protected(auth.ScopeUsersWrite),
 		Errors:      []int{401, 403, 404, 409, 422, 503},
@@ -209,7 +269,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 			return nil, err
 		}
 		hasProfile := in.Body.DisplayName != nil || in.Body.Color != nil
-		if in.Body.Password == nil && in.Body.Role == nil && !hasProfile {
+		if in.Body.Password == nil && in.Body.Role == nil && !hasProfile && in.Body.CanSharePublicly == nil {
 			return nil, huma.Error422UnprocessableEntity("nothing to change")
 		}
 		// Renaming somebody is not administration, so it is the owner's alone -
@@ -240,6 +300,22 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		}
 		if err != nil {
 			return nil, err
+		}
+		// Before the profile, so a refused change leaves nothing
+		// half-written. It follows guardTarget like the role change above and
+		// the password reset below, so none of the three can land while
+		// another is refused.
+		if in.Body.CanSharePublicly != nil {
+			u, err = users.SetCanSharePublicly(ctx, actor, in.ID, *in.Body.CanSharePublicly)
+			if mapped := rankError(err); mapped != nil {
+				return nil, mapped
+			}
+			if errors.Is(err, user.ErrNotFound) {
+				return nil, huma.Error404NotFound("user not found")
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 		if hasProfile {
 			update := user.ProfileUpdate{DisplayName: in.Body.DisplayName}

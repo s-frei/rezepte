@@ -8,6 +8,13 @@ export const ssr = false;
 export const prerender = false;
 
 export const load: LayoutLoad = async ({ url }) => {
+	// A public share is read without a session; a stranger has none to load
+	// and a signed-in member sees the same page without a redirect. Never
+	// calls `me()` here, so a member's expired cookie cannot bounce them
+	// off a link someone just handed them.
+	if (url.pathname.startsWith('/s/')) {
+		return { user: session.user ?? null };
+	}
 	if (session.user) return { user: session.user };
 	try {
 		session.user = await me();

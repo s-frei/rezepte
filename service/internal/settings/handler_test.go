@@ -85,8 +85,86 @@ func TestSettingsEndpoints(t *testing.T) {
 		t.Errorf("patch as owner: %d %s", rec.Code, rec.Body.String())
 	}
 
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"linkPreviews":true}`, login(t, h, "olga"))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"linkPreviews":true`) ||
+		!strings.Contains(rec.Body.String(), `"recipesLockedByDefault":true`) {
+		t.Errorf("patch one field as owner: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"linkPreviewMinutes":30}`, login(t, h, "olga"))
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("patch with an unknown lifetime: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = do(h, http.MethodGet, "/api/v1/settings", "", login(t, h, "olga"))
+	if strings.Contains(strings.ToLower(rec.Body.String()), "key") {
+		t.Errorf("settings expose the signing key: %s", rec.Body.String())
+	}
+
 	rec = do(h, http.MethodPatch, "/api/v1/settings", body, nil)
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("patch without session: %d", rec.Code)
+	}
+}
+
+func TestPublicShareSettingsEndpoint(t *testing.T) {
+	h := newHandler(t)
+	owner := login(t, h, "olga")
+
+	rec := do(h, http.MethodPatch, "/api/v1/settings", `{"publicShares":true,"publicShareMaxDays":30}`, owner)
+	if rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"publicShares":true`) ||
+		!strings.Contains(rec.Body.String(), `"publicShareDefaultDays":30`) ||
+		!strings.Contains(rec.Body.String(), `"publicShareMaxDays":30`) {
+		t.Errorf("patch public share settings: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareMaxDays":2}`, owner)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("patch with an unknown share lifetime: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// An explicit null on one lifetime field makes it permanent again and
+	// leaves the other untouched - the whole point of nullableDay: a plain
+	// *int could never tell "send null" apart from "field absent" once
+	// publicShareMaxDays had already been set to 30 above.
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareMaxDays":null}`, owner)
+	if rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"publicShareDefaultDays":30`) ||
+		!strings.Contains(rec.Body.String(), `"publicShareMaxDays":null`) {
+		t.Errorf("null the maximum: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// The maximum is null now, so nulling the default too needs no clamping:
+	// both end up permanent.
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareDefaultDays":null}`, owner)
+	if rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"publicShareDefaultDays":null`) ||
+		!strings.Contains(rec.Body.String(), `"publicShareMaxDays":null`) {
+		t.Errorf("null the default while the maximum is already null: %d %s", rec.Code, rec.Body.String())
+	}
+
+	// Set the maximum back to 30, then null the default while a maximum is
+	// in force: SetShareLifetimes clamps a nil default up to the maximum
+	// rather than refusing the request, so the default comes back as 30,
+	// not null.
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareMaxDays":30}`, owner)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set the maximum back to 30: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareDefaultDays":null}`, owner)
+	if rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"publicShareDefaultDays":30`) ||
+		!strings.Contains(rec.Body.String(), `"publicShareMaxDays":30`) {
+		t.Errorf("null the default while the maximum is 30 (clamped, not permanent): %d %s", rec.Code, rec.Body.String())
+	}
+
+	// An empty body names neither field, so both lifetimes stay exactly as
+	// they are - the "absent" half of the three-way distinction.
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{}`, owner)
+	if rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), `"publicShareDefaultDays":30`) ||
+		!strings.Contains(rec.Body.String(), `"publicShareMaxDays":30`) {
+		t.Errorf("empty body: %d %s", rec.Code, rec.Body.String())
 	}
 }

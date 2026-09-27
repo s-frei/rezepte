@@ -17,7 +17,7 @@ type listInput struct {
 	MaxMinutes    int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
 	FavoritesOnly bool     `query:"favorites" doc:"Restrict to the caller's own favorites"`
 	Author        string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
-	Sort          string   `query:"sort" enum:"updated,created,title" default:"updated" doc:"Result order"`
+	Sort          string   `query:"sort" enum:"updated,created,title,tasty" default:"updated" doc:"Result order: tasty puts the most tasty marks first"`
 	Page          int      `query:"page" minimum:"1" default:"1" doc:"1-based page number"`
 	Limit         int      `query:"limit" minimum:"1" maximum:"100" default:"24" doc:"Page size"`
 }
@@ -53,6 +53,8 @@ type deleteRecipeInput struct {
 
 type deleteRecipeOutput struct{}
 
+// favoriteInput and favoriteOutput also serve the tasty pair, which takes
+// the same path parameter and answers with the same empty body.
 type favoriteInput struct {
 	ID string `path:"id"`
 }
@@ -296,6 +298,52 @@ func Register(api huma.API, svc *Service) {
 	})
 
 	huma.Register(api, huma.Operation{
+		OperationID:   "set-tasty",
+		Method:        http.MethodPut,
+		Path:          "/api/v1/recipes/{id}/tasty",
+		Summary:       "Mark somebody else's recipe as tasty",
+		Description:   "Everyone sees how many members marked a recipe tasty and who. The author cannot mark their own recipe: 403.",
+		Tags:          []string{"recipes"},
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{403, 404},
+	}, func(ctx context.Context, in *favoriteInput) (*favoriteOutput, error) {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		if err := svc.SetTasty(ctx, u.ID, in.ID, true); err != nil {
+			switch {
+			case errors.Is(err, ErrNotFound):
+				return nil, huma.Error404NotFound("recipe not found")
+			case errors.Is(err, ErrOwnRecipe):
+				return nil, huma.Error403Forbidden(err.Error())
+			}
+			return nil, err
+		}
+		return &favoriteOutput{}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-tasty",
+		Method:        http.MethodDelete,
+		Path:          "/api/v1/recipes/{id}/tasty",
+		Summary:       "Clear a recipe's tasty mark",
+		Tags:          []string{"recipes"},
+		Security:      auth.Protected(auth.ScopeRecipesWrite),
+		DefaultStatus: http.StatusNoContent,
+	}, func(ctx context.Context, in *favoriteInput) (*favoriteOutput, error) {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		if err := svc.SetTasty(ctx, u.ID, in.ID, false); err != nil {
+			return nil, err
+		}
+		return &favoriteOutput{}, nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID: "list-tags",
 		Method:      http.MethodGet,
 		Path:        "/api/v1/tags",
@@ -321,10 +369,9 @@ func Register(api huma.API, svc *Service) {
 		Tags:        []string{"recipes"},
 		Security:    auth.Protected(auth.ScopeRecipesRead),
 	}, func(ctx context.Context, _ *struct{}) (*authorListOutput, error) {
-		// Readable by any signed-in member, unlike /api/v1/users: it gives
-		// up the usernames the overview already prints on its cards and
-		// nothing else - no roles, no timestamps, no accounts without
-		// recipes.
+		// A facet, not a list of people: it names who wrote recipes and how
+		// many, under the recipes:read scope the overview already holds.
+		// Who has an account at all, and in which role, is /api/v1/people.
 		authors, err := svc.Authors(ctx)
 		if err != nil {
 			return nil, err
@@ -336,7 +383,7 @@ func Register(api huma.API, svc *Service) {
 	})
 }
 
-// fillFavorite sets r.Favorite from the caller's own favorite state,
+// fillFavorite sets r.Favorite and r.Tasty from the caller's own state,
 // deriving the caller strictly from ctx (auth.UserFrom), never from r or
 // any path/query/body value - a caller must not be able to name whose
 // favorites are being read. A token caller carries its creator as that
@@ -354,10 +401,16 @@ func fillFavorite(ctx context.Context, svc *Service, r *Recipe) error {
 		return err
 	}
 	r.Favorite = fav
+	tasty, err := svc.IsTasty(ctx, u.ID, r.ID)
+	if err != nil {
+		return err
+	}
+	r.Tasty = tasty
 	return nil
 }
 
-// fillCaller sets the caller-dependent fields: the favorite star and what
+// fillCaller sets the caller-dependent fields: the favorite star, the
+// caller's own tasty mark and what
 // the caller may do. Both derive the caller from ctx only.
 func fillCaller(ctx context.Context, svc *Service, r *Recipe) error {
 	if err := fillFavorite(ctx, svc, r); err != nil {

@@ -25,6 +25,8 @@ type Server struct {
 	mux       *http.ServeMux
 	api       huma.API
 	specGuard func(http.Handler) http.Handler
+	preview   PreviewFunc
+	headers   ShellHeaderFunc
 	version   string
 }
 
@@ -63,6 +65,21 @@ func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.specGuard = mw
 	}
+}
+
+// WithLinkPreview installs the function that gives a page its own link
+// preview in the app shell - a shared recipe's title and cover. Without it
+// every page carries the app's own. See docs/memory/content/features/link-previews.mdx.
+func WithLinkPreview(f PreviewFunc) Option {
+	return func(s *Server) { s.preview = f }
+}
+
+// WithShellHeaders installs the function that adjusts the app shell's
+// response headers for the page a request asks for - the public share page
+// sends noindex and no-referrer, for one. Without it every page gets the
+// shell's own headers.
+func WithShellHeaders(f ShellHeaderFunc) Option {
+	return func(s *Server) { s.headers = f }
 }
 
 // WithVersion sets the build version /healthz reports. Without it the server
@@ -159,7 +176,7 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 	// 401 from /mcp looks there for OAuth metadata, and the SPA's index.html
 	// with a 200 would read as a broken document rather than "none here".
 	mux.Handle("/.well-known/", notFound("no such document"))
-	mux.Handle("/", SPAHandler(static))
+	mux.Handle("/", SPAHandler(static, cfg.SecureCookies, s.preview, s.headers))
 	return s
 }
 

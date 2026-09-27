@@ -31,8 +31,8 @@ func TestToolListsPerScope(t *testing.T) {
 		want   int
 	}{
 		{[]string{auth.ScopeRecipesRead}, 3},
-		{[]string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, 7},
-		{full, 8},
+		{[]string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, 9},
+		{full, 10},
 	}
 	for _, tc := range cases {
 		if got := toolNames(t, e.connect(t, tc.scopes...)); len(got) != tc.want {
@@ -201,7 +201,7 @@ func TestDeleteIsDestructive(t *testing.T) {
 	if a := byName("delete_recipe"); a == nil || a.DestructiveHint == nil || !*a.DestructiveHint {
 		t.Error("delete_recipe lacks destructiveHint")
 	}
-	for _, name := range []string{"create_recipe", "add_favorite", "remove_favorite"} {
+	for _, name := range []string{"create_recipe", "add_favorite", "remove_favorite", "add_tasty", "remove_tasty"} {
 		if a := byName(name); a == nil || a.DestructiveHint == nil || *a.DestructiveHint {
 			t.Errorf("%s: destructiveHint = %v, want explicit false", name, a)
 		}
@@ -217,8 +217,8 @@ func TestToolsAreClosedWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 8 {
-		t.Fatalf("%d tools, want 8", len(res.Tools))
+	if len(res.Tools) != 10 {
+		t.Fatalf("%d tools, want 10", len(res.Tools))
 	}
 	for _, tl := range res.Tools {
 		if a := tl.Annotations; a == nil || a.OpenWorldHint == nil || *a.OpenWorldHint {
@@ -248,5 +248,36 @@ func TestFavorites(t *testing.T) {
 	call(t, cs, "remove_favorite", map[string]any{"id": r.ID})
 	if on, _ := e.svc.IsFavorite(t.Context(), e.owner.ID, r.ID); on {
 		t.Fatal("remove_favorite did not unstar")
+	}
+}
+
+func TestTasty(t *testing.T) {
+	e := newEnv(t)
+	r := e.seed(t, "Leek soup")
+	mara := e.member(t, "mara")
+	cs := e.connectAs(t, mara, auth.ScopeRecipesRead, auth.ScopeRecipesWrite)
+	call(t, cs, "add_tasty", map[string]any{"id": r.ID})
+	if on, _ := e.svc.IsTasty(t.Context(), mara.ID, r.ID); !on {
+		t.Fatal("add_tasty did not mark")
+	}
+	call(t, cs, "remove_tasty", map[string]any{"id": r.ID})
+	if on, _ := e.svc.IsTasty(t.Context(), mara.ID, r.ID); on {
+		t.Fatal("remove_tasty did not clear")
+	}
+}
+
+// TestTastyRefusesTheAuthor checks the author's own mark comes back as a
+// tool error that says why, not as "internal error".
+func TestTastyRefusesTheAuthor(t *testing.T) {
+	e := newEnv(t)
+	r := e.seed(t, "Leek soup")
+	cs := e.connect(t, auth.ScopeRecipesRead, auth.ScopeRecipesWrite)
+	res := call(t, cs, "add_tasty", map[string]any{"id": r.ID})
+	if !res.IsError {
+		t.Fatal("add_tasty on the owner's own recipe must fail")
+	}
+	text, ok := res.Content[0].(*mcp.TextContent)
+	if !ok || !strings.Contains(text.Text, "you wrote this recipe") {
+		t.Fatalf("error = %+v", res.Content)
 	}
 }

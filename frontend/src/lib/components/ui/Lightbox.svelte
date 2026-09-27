@@ -5,7 +5,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Download from '@lucide/svelte/icons/download';
 	import X from '@lucide/svelte/icons/x';
-	import { imageUrl, type Image } from '$lib/api/recipes';
+	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -13,7 +13,8 @@
 		index = $bindable(0),
 		recipeId,
 		title,
-		images
+		images,
+		src = (imageId, variant) => imageUrl(recipeId, imageId, variant)
 	}: {
 		open?: boolean;
 		/** Index into `images` of the picture on screen. */
@@ -21,6 +22,9 @@
 		recipeId: string;
 		title: string;
 		images: Image[];
+		/** One rendition's URL. Defaults to the signed-in `/images/...` route;
+		 * the public share page passes its own `/public-images/...` route. */
+		src?: (imageId: string, variant: ImageVariant) => string;
 	} = $props();
 
 	const SWIPE_THRESHOLD = 50;
@@ -98,7 +102,7 @@
 							     router, so there is no route id for `resolve()` to take. -->
 							<!-- eslint-disable svelte/no-navigation-without-resolve -->
 							<a
-								href={imageUrl(recipeId, current.id, 'original')}
+								href={src(current.id, 'original')}
 								download={`${title}-${index + 1}.jpg`}
 								aria-label={m.lightbox_download()}
 								class={iconButton}
@@ -135,7 +139,7 @@
 							{/if}
 							{#key current.id}
 								<img
-									src={imageUrl(recipeId, current.id, 'original')}
+									src={src(current.id, 'original')}
 									alt={m.lightbox_thumbnail({ number: index + 1 })}
 									width={current.width}
 									height={current.height}
@@ -174,7 +178,7 @@
 											: 'opacity-50 hover:opacity-80'}"
 									>
 										<img
-											src={imageUrl(recipeId, image.id, 'thumb')}
+											src={src(image.id, 'thumb')}
 											alt=""
 											loading="lazy"
 											decoding="async"

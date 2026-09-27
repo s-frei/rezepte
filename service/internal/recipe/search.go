@@ -22,8 +22,9 @@ const (
 // whose prep and cook time sum to at most that many minutes, excluding
 // recipes with neither time set (0 = off). When several are set they
 // combine with AND. Sort orders the result: "created" (newest created
-// first), "title" (A-Z), or anything else including "" (most recently
-// updated first, the default). Limit is clamped to [1, 100] (0 defaults to
+// first), "title" (A-Z), "tasty" (most tasty marks first, ties most recently
+// updated first), or anything else including "" (most recently updated
+// first, the default). Limit is clamped to [1, 100] (0 defaults to
 // 24); Page is clamped to at least 1.
 //
 // UserID is the caller's id, used to fill Card.Favorite for the returned
@@ -110,7 +111,7 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 // about a predictable API, since sort only ever selects a fixed ORDER BY.
 func normalizeSort(sort string) sqlc.RecipeSort {
 	switch s := sqlc.RecipeSort(sort); s {
-	case sqlc.RecipeSortCreated, sqlc.RecipeSortTitle:
+	case sqlc.RecipeSortCreated, sqlc.RecipeSortTitle, sqlc.RecipeSortTasty:
 		return s
 	default:
 		return sqlc.RecipeSortUpdated
@@ -132,8 +133,9 @@ func clampLimit(limit int) int {
 	}
 }
 
-// toCards loads the tags, the authors' display names and colors and, when
-// userID is set, the favorite state for rows in one batch each and
+// toCards loads the tags, the authors' display names and colors, the tasty
+// counts and, when userID is set, the caller's favorite and tasty state for
+// rows in one batch each and
 // assembles them into Cards, in the same order as rows. It always returns a
 // non-nil slice.
 //
@@ -183,6 +185,7 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	}
 
 	favorites := make(map[string]bool)
+	tasty := make(map[string]bool)
 	if userID != "" {
 		idsJSON, err := json.Marshal(ids)
 		if err != nil {
@@ -197,6 +200,15 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		for _, id := range favIDs {
 			favorites[id] = true
 		}
+		if tasty, err = s.tastyOf(ctx, userID, ids); err != nil {
+			return nil, err
+		}
+	}
+	// The counts are the same for every caller, so they are loaded with or
+	// without one.
+	tastyCounts, err := s.tastyCounts(ctx, ids)
+	if err != nil {
+		return nil, err
 	}
 
 	for _, r := range rows {
@@ -205,6 +217,8 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		if err != nil {
 			return nil, err
 		}
+		card.TastyCount = tastyCounts[r.ID]
+		card.Tasty = tasty[r.ID]
 		items = append(items, card)
 	}
 	return items, nil

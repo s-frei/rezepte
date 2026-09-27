@@ -115,6 +115,36 @@ FROM favorites
 WHERE user_id = sqlc.arg(user_id)
   AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
 
+-- name: SetTasty :exec
+INSERT OR IGNORE INTO tasty (user_id, recipe_id, created_at) VALUES (?, ?, ?);
+
+-- name: DeleteTasty :exec
+DELETE FROM tasty WHERE user_id = ? AND recipe_id = ?;
+
+-- name: ListTastyRecipeIDs :many
+-- The caller's own marks among a page of recipes, batched the way
+-- ListFavoriteRecipeIDs is and for the same reason.
+SELECT recipe_id
+FROM tasty
+WHERE user_id = sqlc.arg(user_id)
+  AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
+
+-- name: ListTastyCounts :many
+-- How many members marked each recipe of a page. Recipes nobody marked have
+-- no row; the caller reads them as zero.
+SELECT recipe_id, COUNT(*) AS tasty_count
+FROM tasty
+WHERE recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)))
+GROUP BY recipe_id;
+
+-- name: ListTastyUsers :many
+-- Everyone who marked one recipe, in the order they did.
+SELECT u.id, u.username, u.display_name, u.color
+FROM tasty t
+JOIN users u ON u.id = t.user_id
+WHERE t.recipe_id = ?
+ORDER BY t.created_at, u.id;
+
 -- The people behind the detail view. They come from a query of their own
 -- rather than a join in GetRecipe because that row is also what the image
 -- service reads to check a recipe exists, and it has no use for people.

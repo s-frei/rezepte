@@ -4,6 +4,7 @@
 	import { dragHandle } from 'svelte-dnd-action';
 	import { m } from '$lib/paraglide/messages';
 	import { isBlank, type FormIngredient } from '$lib/recipe/form';
+	import UnitInput from './UnitInput.svelte';
 
 	let {
 		row = $bindable(),
@@ -78,15 +79,10 @@
 				placeholder={m.editor_ingredient_quantity()}
 				class="{fieldClasses} font-semibold {quantityError ? errorClasses : ''}"
 			/>
-			<input
+			<UnitInput
 				id="ingredient-unit-{row.id}"
 				bind:value={row.unit}
 				onkeydown={(event) => handleKeydown(event, false)}
-				type="text"
-				list="unit-suggestions"
-				autocomplete="off"
-				aria-label={m.editor_ingredient_unit()}
-				placeholder={m.editor_ingredient_unit()}
 				class={fieldClasses}
 			/>
 			<input

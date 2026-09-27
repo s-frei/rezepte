@@ -178,7 +178,7 @@
 					// list itself, so its padding and scrollbar are covered too.
 					event.preventDefault();
 				}}
-				class="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-md bg-surface-elevated py-1 shadow-dialog"
+				class="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog"
 			>
 				{#each rows as row, index (row.isNew ? `new:${row.name}` : row.name)}
 					<li
@@ -192,7 +192,8 @@
 							event.preventDefault();
 							add(row.name);
 						}}
-						class="cursor-pointer px-3 py-2 text-body-sm {index === highlighted
+						class="flex h-10 cursor-pointer items-center rounded-sm px-3 text-body-sm {index ===
+						highlighted
 							? 'bg-background font-semibold'
 							: ''}"
 					>

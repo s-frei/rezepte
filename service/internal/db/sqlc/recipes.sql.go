@@ -54,8 +54,22 @@ func (q *Queries) DeleteStepsByRecipe(ctx context.Context, recipeID string) erro
 	return err
 }
 
+const deleteTasty = `-- name: DeleteTasty :exec
+DELETE FROM tasty WHERE user_id = ? AND recipe_id = ?
+`
+
+type DeleteTastyParams struct {
+	UserID   string
+	RecipeID string
+}
+
+func (q *Queries) DeleteTasty(ctx context.Context, arg DeleteTastyParams) error {
+	_, err := q.db.ExecContext(ctx, deleteTasty, arg.UserID, arg.RecipeID)
+	return err
+}
+
 const getRecipe = `-- name: GetRecipe :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE id = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name FROM recipes WHERE id = ?
 `
 
 func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
@@ -70,13 +84,13 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
-		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.EditPolicy,
+		&i.SourceName,
 	)
 	return i, err
 }
@@ -119,7 +133,7 @@ func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAut
 }
 
 const getRecipeBySlug = `-- name: GetRecipeBySlug :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy FROM recipes WHERE slug = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name FROM recipes WHERE slug = ?
 `
 
 func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, error) {
@@ -134,13 +148,13 @@ func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, err
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
-		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.EditPolicy,
+		&i.SourceName,
 	)
 	return i, err
 }
@@ -199,7 +213,7 @@ INSERT INTO recipes (
     id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
     source_name, created_by, created_at, updated_by, updated_at, edit_policy
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name
 `
 
 type InsertRecipeParams struct {
@@ -246,13 +260,13 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
-		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.EditPolicy,
+		&i.SourceName,
 	)
 	return i, err
 }
@@ -660,6 +674,124 @@ func (q *Queries) ListTagNamesForRecipes(ctx context.Context, recipeIds []string
 	return items, nil
 }
 
+const listTastyCounts = `-- name: ListTastyCounts :many
+SELECT recipe_id, COUNT(*) AS tasty_count
+FROM tasty
+WHERE recipe_id IN (SELECT value FROM json_each(?1))
+GROUP BY recipe_id
+`
+
+type ListTastyCountsRow struct {
+	RecipeID   string
+	TastyCount int64
+}
+
+// How many members marked each recipe of a page. Recipes nobody marked have
+// no row; the caller reads them as zero.
+func (q *Queries) ListTastyCounts(ctx context.Context, recipeIds interface{}) ([]ListTastyCountsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTastyCounts, recipeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTastyCountsRow{}
+	for rows.Next() {
+		var i ListTastyCountsRow
+		if err := rows.Scan(&i.RecipeID, &i.TastyCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTastyRecipeIDs = `-- name: ListTastyRecipeIDs :many
+SELECT recipe_id
+FROM tasty
+WHERE user_id = ?1
+  AND recipe_id IN (SELECT value FROM json_each(?2))
+`
+
+type ListTastyRecipeIDsParams struct {
+	UserID    string
+	RecipeIds interface{}
+}
+
+// The caller's own marks among a page of recipes, batched the way
+// ListFavoriteRecipeIDs is and for the same reason.
+func (q *Queries) ListTastyRecipeIDs(ctx context.Context, arg ListTastyRecipeIDsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listTastyRecipeIDs, arg.UserID, arg.RecipeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var recipe_id string
+		if err := rows.Scan(&recipe_id); err != nil {
+			return nil, err
+		}
+		items = append(items, recipe_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTastyUsers = `-- name: ListTastyUsers :many
+SELECT u.id, u.username, u.display_name, u.color
+FROM tasty t
+JOIN users u ON u.id = t.user_id
+WHERE t.recipe_id = ?
+ORDER BY t.created_at, u.id
+`
+
+type ListTastyUsersRow struct {
+	ID          string
+	Username    string
+	DisplayName string
+	Color       string
+}
+
+// Everyone who marked one recipe, in the order they did.
+func (q *Queries) ListTastyUsers(ctx context.Context, recipeID string) ([]ListTastyUsersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTastyUsers, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTastyUsersRow{}
+	for rows.Next() {
+		var i ListTastyUsersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.DisplayName,
+			&i.Color,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setFavorite = `-- name: SetFavorite :exec
 INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?)
 `
@@ -672,6 +804,21 @@ type SetFavoriteParams struct {
 
 func (q *Queries) SetFavorite(ctx context.Context, arg SetFavoriteParams) error {
 	_, err := q.db.ExecContext(ctx, setFavorite, arg.UserID, arg.RecipeID, arg.CreatedAt)
+	return err
+}
+
+const setTasty = `-- name: SetTasty :exec
+INSERT OR IGNORE INTO tasty (user_id, recipe_id, created_at) VALUES (?, ?, ?)
+`
+
+type SetTastyParams struct {
+	UserID    string
+	RecipeID  string
+	CreatedAt string
+}
+
+func (q *Queries) SetTasty(ctx context.Context, arg SetTastyParams) error {
+	_, err := q.db.ExecContext(ctx, setTasty, arg.UserID, arg.RecipeID, arg.CreatedAt)
 	return err
 }
 
@@ -696,7 +843,7 @@ UPDATE recipes
 SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?,
     source_url = ?, source_name = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, source_name, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name
 `
 
 type UpdateRecipeParams struct {
@@ -737,13 +884,13 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		&i.PrepMinutes,
 		&i.CookMinutes,
 		&i.SourceUrl,
-		&i.SourceName,
 		&i.CoverImageID,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 		&i.EditPolicy,
+		&i.SourceName,
 	)
 	return i, err
 }

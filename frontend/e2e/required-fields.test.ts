@@ -69,9 +69,9 @@ test('an editor error leaves the field as soon as someone types in it', async ({
 	await expect(markOf(ingredients)).toHaveAttribute('data-state', 'filled');
 });
 
-test('adding a member marks username and password, not the display name', async ({ page }) => {
+test('adding an account marks username and password, not the display name', async ({ page }) => {
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Add member' }).click();
+	await page.getByRole('button', { name: 'Add account' }).click();
 	const dialog = page.getByRole('dialog');
 
 	const username = dialog.getByRole('textbox', { name: 'Username' });

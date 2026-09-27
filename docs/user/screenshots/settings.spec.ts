@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ensureUser, prepare, shot } from './helpers';
+import { prepare, shot } from './helpers';
 
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
@@ -32,9 +32,8 @@ test('token-mcp', async ({ page }, testInfo) => {
 
 test('users', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
-	// The demo seeds one account; the second row on the picture is created
-	// here, so the four projects can run against the same demo instance.
-	await ensureUser(page, 'mila', 'user');
+	// The demo seeds its admin and two members, mila and jonas, so the list
+	// needs nothing created here.
 	await page.goto('/settings/users');
 	await expect(page.getByRole('listitem').filter({ hasText: 'mila' })).toBeVisible();
 	await shot(page, 'users');
@@ -43,7 +42,7 @@ test('users', async ({ page }, testInfo) => {
 test('user-create', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Add member' }).click();
+	await page.getByRole('button', { name: 'Add account' }).click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await shot(page, 'user-create');
 });

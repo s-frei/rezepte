@@ -16,7 +16,10 @@
 	// nav, no command palette and no Cmd+K. Matched on the route id rather
 	// than the pathname so the check is exact and independent of the slug.
 	const isFullscreenRoute = $derived(page.route.id === '/recipes/[slug]/cook');
-	const bare = $derived(isLoginRoute || isFullscreenRoute);
+	// A public share has no session and no household to show a nav for -
+	// its own page owns the whole viewport, wordmark and footer included.
+	const isPublicShareRoute = $derived(page.url.pathname.startsWith('/s/'));
+	const bare = $derived(isLoginRoute || isFullscreenRoute || isPublicShareRoute);
 
 	// app.html ships a static lang attribute; the real locale is only known
 	// once Paraglide has resolved it. Screen readers and spell checking read
@@ -63,16 +66,22 @@
 	{/if}
 </div>
 
+<!--
+	svelte-sonner ships its own unlayered styles for `[data-styled]` toasts,
+	and unlayered CSS beats anything in Tailwind's utilities layer whatever
+	its specificity - without the `!` every toast rendered white, with a black
+	action button. Only the properties sonner sets carry it.
+-->
 <Toaster
 	richColors={false}
 	toastOptions={{
 		classes: {
 			toast:
-				'rounded-toast border-none bg-inverse px-[18px] py-3.5 text-body-sm font-semibold text-inverse-foreground shadow-dialog',
-			description: 'text-inverse-muted',
-			actionButton: 'bg-transparent font-medium text-inverse-muted',
-			cancelButton: 'bg-transparent font-medium text-inverse-muted',
-			closeButton: 'border-border bg-inverse text-inverse-foreground'
+				'rounded-toast! border-none! bg-inverse! px-[18px]! py-3.5! text-body-sm! font-semibold! text-inverse-foreground! shadow-dialog!',
+			description: 'text-inverse-muted!',
+			actionButton: 'bg-transparent! font-medium! text-inverse-muted!',
+			cancelButton: 'bg-transparent! font-medium! text-inverse-muted!',
+			closeButton: 'border-border! bg-inverse! text-inverse-foreground!'
 		}
 	}}
 />

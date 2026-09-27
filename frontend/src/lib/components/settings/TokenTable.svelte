@@ -6,9 +6,9 @@
 	let { tokens, onrevoke }: { tokens: ApiToken[]; onrevoke: (token: ApiToken) => void } = $props();
 </script>
 
-<!-- A CSS grid, not a table: the same UserTable/UserRow pattern as the users
-	 list. Rows stack on a phone instead of forcing a wide, horizontally
-	 scrolling table - see UserRow.svelte for the column-collapsing technique. -->
+<!-- A CSS grid, not a table. Rows stack on a phone instead of forcing a wide,
+	 horizontally scrolling table - see TokenRow.svelte for the
+	 column-collapsing technique. -->
 <div
 	aria-hidden="true"
 	class="hidden grid-cols-[1.4fr_1fr_90px_160px_110px] gap-3 border-b border-border pb-2 text-micro font-semibold tracking-[0.08em] text-text-muted uppercase md:grid"

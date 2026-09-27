@@ -440,8 +440,8 @@ func TestUpdateRecordsTheEditor(t *testing.T) {
 	}
 }
 
-// The detail view shows names, and /api/v1/users is admin-only, so the
-// recipe has to carry them itself.
+// The detail view shows names without a second request, so the recipe
+// carries them itself.
 func TestRecipeCarriesAuthorNames(t *testing.T) {
 	ctx := context.Background()
 	svc, uid := setup(t)

@@ -558,3 +558,13 @@ func TestLogoutClearsTheLocaleCookie(t *testing.T) {
 	}
 	t.Fatalf("no %s cookie in %v", auth.LocaleCookieName, rec.Header())
 }
+
+// TestMeCarriesCanSharePublicly pins the field the recipe page decides its
+// "Create public link" menu item on.
+func TestMeCarriesCanSharePublicly(t *testing.T) {
+	h := newHandler(t)
+	rec := do(h, http.MethodGet, "/api/v1/auth/me", "", login(t, h))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canSharePublicly":true`) {
+		t.Errorf("me: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}

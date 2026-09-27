@@ -28,6 +28,14 @@ UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?;
 -- name: DeleteUser :execrows
 DELETE FROM users WHERE id = ?;
 
+-- The acting admin becomes the author of every recipe the deleted user
+-- wrote, and an author cannot mark their own recipe tasty: a mark the admin
+-- had left on one of them goes before it changes hands.
+-- name: DeleteTastyOfNewOwner :exec
+DELETE FROM tasty
+WHERE user_id = sqlc.arg(new_owner)
+  AND recipe_id IN (SELECT id FROM recipes WHERE created_by = sqlc.arg(old_owner));
+
 -- recipes.created_by and recipes.updated_by are both NOT NULL without ON
 -- DELETE, so every mention of a user has to move before their row can go -
 -- a recipe somebody else wrote but this user last edited names them in
@@ -51,3 +59,6 @@ UPDATE users
 SET display_name = ?, color = ?, locale = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
+
+-- name: SetCanSharePublicly :one
+UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING *;

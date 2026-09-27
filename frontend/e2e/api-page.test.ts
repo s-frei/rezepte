@@ -49,6 +49,8 @@ test('a member reaches the API page without the token section', async ({ page },
 		await page.getByRole('button', { name: 'Profile, open contents' }).click();
 	}
 	await expect(page.getByRole('link', { name: 'API' })).toBeVisible();
+	// The people list is theirs to read, so its nav entry is there too.
+	await expect(page.getByRole('link', { name: 'People' })).toBeVisible();
 
 	await page.goto('/settings/api');
 	await expect(page).toHaveURL('/settings/api');
@@ -57,8 +59,6 @@ test('a member reaches the API page without the token section', async ({ page },
 
 	await expect(page.getByRole('heading', { name: 'API tokens' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Create token' })).toHaveCount(0);
-	// The admin-only nav entry is still hidden from them.
-	await expect(page.getByRole('link', { name: 'Members' })).toHaveCount(0);
 });
 
 test('the API page shows the MCP endpoint', async ({ page }) => {
