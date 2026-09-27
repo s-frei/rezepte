@@ -59,6 +59,21 @@ describe('Input marked required', () => {
 	});
 });
 
+describe('Input with a prefix', () => {
+	it('draws the prefix inside the field and describes the field with it', () => {
+		const { body } = render(Input, {
+			props: { id: 'src', label: 'Source', prefix: 'Adapted from' }
+		});
+		expect(body).toMatch(/<span[^>]*id="src-prefix"[^>]*>Adapted from<\/span>/);
+		expect(body).toMatch(/aria-describedby="[^"]*src-prefix/);
+	});
+
+	it('draws no prefix when none is given', () => {
+		const { body } = render(Input, { props: { id: 'src', label: 'Source' } });
+		expect(body).not.toContain('src-prefix');
+	});
+});
+
 describe('Textarea', () => {
 	it('merges a caller-supplied class with the built-in classes', () => {
 		const { body } = render(Textarea, {

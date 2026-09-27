@@ -8,6 +8,7 @@
 		label,
 		error = null,
 		hint,
+		prefix,
 		suffix,
 		counter,
 		required = false,
@@ -21,6 +22,11 @@
 		/** Helper text below the field, hidden while an error takes its place. */
 		hint?: string;
 		/** Unit rendered inside the field, right-aligned (e.g. "Min"). */
+		/**
+		 * Words rendered inside the field, left, before whatever is typed - the
+		 * start of a sentence the value completes ("Adapted from …").
+		 */
+		prefix?: string;
 		suffix?: string;
 		/**
 		 * Character limit to count towards, shown inside the field once the
@@ -53,14 +59,24 @@
 
 	const status = $derived(requiredState(value.trim() !== '', !!error));
 
+	// Measured, not fixed: the prefix is a word in the reader's language,
+	// "Nach" in one and "Adapted from" in another, and typed text must never
+	// start underneath it.
+	let prefixWidth = $state(0);
+
 	const classes = $derived(
 		`h-11 w-full rounded-md border bg-surface-elevated px-4 text-body transition outline-none focus:border-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
 	);
 
-	// The suffix is part of what the field means ("30" is 30 minutes), so it
-	// is described rather than hidden from assistive tech.
+	// Prefix and suffix are part of what the field means ("30" is 30 minutes,
+	// "Ottolenghi" is adapted from Ottolenghi), so they are described rather
+	// than hidden from assistive tech.
 	const describedBy = $derived(
-		[error ? `${id}-error` : hint ? `${id}-hint` : null, suffix ? `${id}-suffix` : null]
+		[
+			prefix ? `${id}-prefix` : null,
+			error ? `${id}-error` : hint ? `${id}-hint` : null,
+			suffix ? `${id}-suffix` : null
+		]
 			.filter(Boolean)
 			.join(' ') || undefined
 	);
@@ -86,6 +102,7 @@
 			aria-required={required ? 'true' : undefined}
 			aria-describedby={describedBy}
 			class={classes}
+			style:padding-left={prefix ? `calc(${prefixWidth}px + 1.5rem)` : undefined}
 			{...rest}
 		/>
 		{#if required}
@@ -107,6 +124,14 @@
 					? 'opacity-100'
 					: 'opacity-0'}"
 			></span>
+		{/if}
+		{#if prefix}
+			<span
+				id="{id}-prefix"
+				bind:offsetWidth={prefixWidth}
+				class="pointer-events-none absolute inset-y-0 left-4 flex items-center font-display text-body-sm text-text-muted italic"
+				>{prefix}</span
+			>
 		{/if}
 		{#if suffix}
 			<span
