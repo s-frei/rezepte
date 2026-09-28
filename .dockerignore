@@ -7,7 +7,6 @@
 # Frontend build inputs - stage 1 runs `bun install` and `vite build`.
 !frontend/package.json
 !frontend/bun.lock
-!frontend/.npmrc
 !frontend/vite.config.ts
 !frontend/scripts/inlang-settings.ts
 !frontend/tsconfig.json

@@ -23,13 +23,13 @@ export default defineConfig({
 			// The logo's sources live outside the app (assets/brand), next to
 			// the icon masters; $brand is how components import them.
 			alias: { $brand: '../assets/brand' },
-			adapter: adapter({
-				pages: '../service/internal/web/dist',
-				assets: '../service/internal/web/dist',
-				fallback: 'index.html',
-				precompress: false,
-				strict: true
-			})
+			adapter: adapter({ pages: '../service/internal/web/dist', fallback: 'index.html' }),
+			// svelte-check type-checks the Playwright specs and config too.
+			typescript: {
+				config: (config) => {
+					config.include.push('../e2e/**/*.ts', '../playwright.config.ts');
+				}
+			}
 		}),
 
 		paraglideVitePlugin({
@@ -70,16 +70,8 @@ export default defineConfig({
 	},
 	test: {
 		expect: { requireAssertions: true },
-		projects: [
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'server',
-					environment: 'node',
-					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-				}
-			}
-		]
+		environment: 'node',
+		include: ['src/**/*.{test,spec}.{js,ts}'],
+		exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
 	}
 });

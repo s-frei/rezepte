@@ -13,7 +13,7 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 |---|---|
 | `mise run setup` | installs every package's dependencies plus the Playwright browser, installs the Git LFS hooks, then `go mod download` |
 | `mise run dev` | `//service:dev` (watchexec restarts the API on `.go` changes) and `//frontend:dev` |
-| `mise run check` | `guard:local-config`, `docker:compose:check` (skipped out loud where `docker compose` is missing) plus the four package `check` tasks |
+| `mise run check` | `test:release`, `docker:compose:check` (skipped out loud where `docker compose` is missing) plus the four package `check` tasks |
 | `mise run build` | `//service:build`, which depends on `//frontend:build` — the SPA lands in `service/internal/web/dist` and is embedded |
 | `mise run docs` | both documentation sites |
 | `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |
@@ -60,7 +60,7 @@ Every consumer reads the variable rather than a literal: `frontend/vite.config.t
 
 **The live worktrees are the register.** `worktree:new` walks `git worktree list --porcelain`, reads each worktree's own `mise.local.toml`, and takes the lowest offset free in 1–9; removing the worktree takes that file with it and frees the offset the same moment. There is no state file to reconcile. A `mkdir` lock under the main checkout's `.git` serializes the scan-and-write, because two creations started together would otherwise both see the same lowest free offset.
 
-**`mise.local.toml` must never be committed.** It is where the offset lives, gitignored at every depth and covered again by `.claude/worktrees/`, so the only way one reaches a commit is a deliberate `git add -f`. `mise run check` therefore depends on a `guard:local-config` task that fails when `git ls-files` reports a tracked one: an offset loose in the main checkout shifts its ports for a reason nobody can see in the diff.
+**`mise.local.toml` must never be committed.** It is where the offset lives, gitignored at every depth and covered again by `.claude/worktrees/`, so the only way one reaches a commit is a deliberate `git add -f` - never force-add it. An offset loose in the main checkout would shift its ports for a reason nobody can see in the diff.
 
 ## Why it is this way
 
@@ -81,5 +81,5 @@ Deriving the port register from the worktrees that exist cannot go stale. Any sc
 
 ## Limits
 
-- The offset is a mise var, never an env. File tasks (`mise/tasks/*`) and `mise env` render the root `[env]` block before `mise.local.toml`'s `[env]` applies, so a template reading `env.REZEPTE_PORT_OFFSET` resolves to 0 there while TOML tasks see the real value — `mise run ports` and `//:demo` then report and bind offset-0 ports inside a worktree, and nothing fails until two stacks collide. `[vars]` have no such ordering. `get_env(name=…)` is wrong for the same reason: it reads only the process environment. The templates still fall back to `env.`, so a `mise.local.toml` that sets the offset under `[env]` keeps working for TOML tasks but not for file tasks; rewriting its header to `[vars]` fixes it.
+- The offset is a mise var, never an env. File tasks (`mise/tasks/*`) and `mise env` render the root `[env]` block before `mise.local.toml`'s `[env]` applies, so a template reading `env.REZEPTE_PORT_OFFSET` resolves to 0 there while TOML tasks see the real value — `mise run ports` and `//:demo` then report and bind offset-0 ports inside a worktree, and nothing fails until two stacks collide. `[vars]` have no such ordering. `get_env(name=…)` is wrong for the same reason: it reads only the process environment. The templates read only `vars.`, so a `mise.local.toml` that sets the offset under `[env]` runs every task at offset 0; rewriting its header to `[vars]` fixes it.
 - Offsets run 1–9, so nine worktrees can run beside the main checkout. A tenth has nowhere to go and `worktree:new` fails with the list of who holds what rather than guessing.

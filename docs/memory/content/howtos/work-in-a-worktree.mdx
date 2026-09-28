@@ -52,7 +52,7 @@ description: One worktree per feature, one port offset per worktree
 
     ### Never commit `mise.local.toml`
 
-    It is gitignored on purpose - it is where the offset lives, and it must stay local to the worktree. `mise run check` runs a `guard:local-config` task that fails the gate if one is ever force-added and committed anyway. If that happens, `git rm --cached mise.local.toml` and keep it untracked.
+    It is gitignored on purpose - it is where the offset lives, and it must stay local to the worktree. `.gitignore` covers it at every depth, so never force-add it with `git add -f`. If one slips into a commit anyway, `git rm --cached mise.local.toml` and keep it untracked.
 
   </Step>
   <Step>

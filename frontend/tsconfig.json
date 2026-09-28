@@ -11,30 +11,7 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler"
-	},
-	// Copied from .svelte-kit/tsconfig.json and extended with e2e/ plus the
-	// Playwright config, so `svelte-check` type-checks the Playwright specs
-	// too. `include` is replaced rather than merged when a config extends
-	// another, so this list has to be kept in sync with the generated one.
-	"include": [
-		"./.svelte-kit/ambient.d.ts",
-		"./.svelte-kit/env.d.ts",
-		"./.svelte-kit/non-ambient.d.ts",
-		"./.svelte-kit/types/**/$types.d.ts",
-		"./vite.config.js",
-		"./vite.config.ts",
-		"./playwright.config.ts",
-		"./src/**/*.js",
-		"./src/**/*.ts",
-		"./src/**/*.svelte",
-		"./test/**/*.js",
-		"./test/**/*.ts",
-		"./test/**/*.svelte",
-		"./tests/**/*.js",
-		"./tests/**/*.ts",
-		"./tests/**/*.svelte",
-		"./e2e/**/*.ts"
-	]
+	}
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

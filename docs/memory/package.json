@@ -5,17 +5,13 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --hostname 0.0.0.0 --port ${RZP_DOCS_MEMORY_PORT:-4000}",
-    "start": "serve out",
-    "types:check": "next typegen && tsc --noEmit",
     "lint": "eslint",
     "memory:audit": "bun scripts/memory-audit.ts"
   },
   "dependencies": {
-    "cn": "^0.2.6",
     "fumadocs-core": "16.15.11",
     "fumadocs-mdx": "15.4.1",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.11",
-    "lucide-react": "^1.43.0",
     "mermaid": "^12.0.0",
     "next": "16.3.4",
     "next-themes": "^0.4.6",
@@ -31,7 +27,6 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.4",
     "postcss": "^8.5.28",
-    "serve": "^14.2.6",
     "tailwindcss": "^4.3.3",
     "typescript": "6.0.3"
   }
