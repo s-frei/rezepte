@@ -1,12 +1,9 @@
 package httpserver
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/danielgtaylor/huma/v2"
 )
 
 // checkOrigin rejects mutating API requests, and every request to the MCP
@@ -21,25 +18,12 @@ func checkOrigin(next http.Handler) http.Handler {
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)
 				if err != nil || !strings.EqualFold(u.Host, r.Host) {
-					writeForbiddenOrigin(w)
+					WriteProblem(w, http.StatusForbidden, "origin not allowed")
 					return
 				}
 			}
 		}
 		next.ServeHTTP(w, r)
-	})
-}
-
-// writeForbiddenOrigin answers a rejected cross-origin request with an
-// RFC 9457 problem+json body, matching every other error response the API
-// returns.
-func writeForbiddenOrigin(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusForbidden)
-	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
-		Title:  "Forbidden",
-		Status: http.StatusForbidden,
-		Detail: "origin not allowed",
 	})
 }
 

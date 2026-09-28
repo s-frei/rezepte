@@ -23,7 +23,7 @@ import (
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	for _, seed := range []struct {
 		name string
 		role user.Role

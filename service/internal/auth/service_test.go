@@ -14,7 +14,7 @@ import (
 func newServices(t *testing.T) (*auth.Service, *user.Service) { //nolint:unparam // helper mirrors brief signature; second value documents the seeded user.Service for future tests
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}

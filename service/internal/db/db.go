@@ -72,3 +72,12 @@ func ParseTime(s string) (time.Time, error) {
 	}
 	return t, nil
 }
+
+// Conv converts an optional integer between the width a domain type carries
+// and the one sqlc generates for a nullable column; nil stays nil.
+func Conv[To, From int | int64](p *From) *To {
+	if p == nil {
+		return nil
+	}
+	return new(To(*p))
+}

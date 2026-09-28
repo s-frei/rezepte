@@ -42,12 +42,12 @@ func setup(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "olga", Password: "pw", Role: user.RoleSuperadmin})
+	u, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "olga", Password: "pw", Role: user.RoleSuperadmin})
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	recipes := recipe.NewService(conn, recipe.WithImageDir(dir))
+	recipes := recipe.NewService(conn, dir)
 	r, err := recipes.Create(ctx, u.ID, recipe.Input{
 		Title: "Asiatischer Gurkensalat", Description: "Knackig,  frisch\nund scharf.", Servings: 2,
 		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Gurke"}}}},
@@ -183,8 +183,9 @@ func TestShareLinkPreviewsTheRecipe(t *testing.T) {
 		}
 	}
 
-	if rec := e.cover(p.Image); rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/jpeg" {
-		t.Errorf("cover with token: %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	if rec := e.cover(p.Image); rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/jpeg" ||
+		rec.Header().Get("Cache-Control") != "private, max-age=3600" {
+		t.Errorf("cover with token: %d %q %q", rec.Code, rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"))
 	}
 	for name, target := range map[string]string{
 		"no token":    "/link-preview/" + e.recipe.ID + "/" + e.coverID,

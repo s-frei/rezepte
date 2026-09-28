@@ -38,6 +38,30 @@ func TestListPaginates(t *testing.T) {
 	}
 }
 
+// TestListClampsLimitAndPage pins List's bounds: a zero limit is the
+// default 24, anything else lands in [1, 100], and a page below 1 is 1.
+func TestListClampsLimitAndPage(t *testing.T) {
+	svc := seedAll(t)
+	cases := []struct{ page, limit, wantPage, wantLimit int }{
+		{0, 0, 1, 24},
+		{-3, -5, 1, 1},
+		{1, 1, 1, 1},
+		{2, 7, 2, 7},
+		{1, 100, 1, 100},
+		{1, 101, 1, 100},
+		{1, 1000, 1, 100},
+	}
+	for _, tc := range cases {
+		p, err := svc.List(context.Background(), recipe.ListParams{Page: tc.page, Limit: tc.limit})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.Page != tc.wantPage || p.Limit != tc.wantLimit {
+			t.Errorf("page %d, limit %d = page %d, limit %d; want %d, %d", tc.page, tc.limit, p.Page, p.Limit, tc.wantPage, tc.wantLimit)
+		}
+	}
+}
+
 // TestListPutsTheNewestFirstWithinASecond pins the ORDER BY tiebreak.
 // Timestamps are stored as RFC3339 with second resolution, so a burst of
 // writes - demo seeding, a bulk import - shares one updated_at and is

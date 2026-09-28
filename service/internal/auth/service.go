@@ -77,9 +77,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (Session
 	}
 	s.throttle.succeed(username)
 	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return Session{}, fmt.Errorf("generate session token: %w", err)
-	}
+	_, _ = rand.Read(raw) // never fails since Go 1.24
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	now := s.now()
 	expires := now.Add(SessionTTL)

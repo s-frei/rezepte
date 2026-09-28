@@ -56,7 +56,7 @@ func newStack(t *testing.T) *stack {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	s := &stack{users: users, clock: time.Now().UTC()}
 	for name, role := range map[string]user.Role{"olga": user.RoleSuperadmin, "adam": user.RoleAdmin, "mia": user.RoleUser} {
 		u, err := users.Create(ctx, user.CreateParams{Username: name, Password: "pw", Role: role})
@@ -77,7 +77,7 @@ func newStack(t *testing.T) *stack {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
-	s.recipes = recipe.NewService(conn, recipe.WithImageDir(imageDir))
+	s.recipes = recipe.NewService(conn, imageDir)
 	s.images = image.NewService(conn, imageDir)
 	s.shares = share.NewService(conn, s.settings, users)
 	s.shares.SetClock(func() time.Time { return s.clock })

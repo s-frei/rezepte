@@ -1,7 +1,9 @@
 package image
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -24,18 +26,29 @@ func FileHandler(svc *Service) http.Handler {
 			return
 		}
 		f, err := svc.Open(r.PathValue("recipeId"), r.PathValue("imageId"), variant)
+		if err == nil {
+			err = ServeJPEG(w, r, f, immutableCache)
+		}
 		if err != nil {
 			http.NotFound(w, r)
-			return
 		}
-		defer f.Close()
-		info, err := f.Stat()
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Header().Set("Cache-Control", immutableCache)
-		http.ServeContent(w, r, "", info.ModTime(), f)
 	})
+}
+
+// ServeJPEG serves the open image file f and closes it, with Range and
+// conditional-request support from http.ServeContent. cacheControl is set
+// unless empty. On an error nothing has been written, so the caller still
+// answers.
+func ServeJPEG(w http.ResponseWriter, r *http.Request, f *os.File, cacheControl string) error {
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("stat image: %w", err)
+	}
+	w.Header().Set("Content-Type", "image/jpeg")
+	if cacheControl != "" {
+		w.Header().Set("Cache-Control", cacheControl)
+	}
+	http.ServeContent(w, r, "", info.ModTime(), f)
+	return nil
 }

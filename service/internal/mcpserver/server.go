@@ -56,11 +56,11 @@ var tools []tool
 // auth.RequireToken: it reads the caller from auth.UserFrom and the token's
 // scopes from auth.ScopesFrom. api must already have recipe.Register applied.
 func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, error) {
-	create, err := recipeInputSchema(api)
+	create, err := recipeSchema(api, false)
 	if err != nil {
 		return nil, fmt.Errorf("create_recipe schema: %w", err)
 	}
-	update, err := recipeUpdateSchema(api)
+	update, err := recipeSchema(api, true)
 	if err != nil {
 		return nil, fmt.Errorf("update_recipe schema: %w", err)
 	}
@@ -104,21 +104,7 @@ func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, e
 	}), nil
 }
 
-// fill sets r's caller-dependent fields for the token owner - the favorite
-// star, their own tasty mark and what they may do with it - the way REST's fillCaller does.
+// fill sets r's caller-dependent fields for the token owner.
 func (c caller) fill(ctx context.Context, r *recipe.Recipe) error {
-	fav, err := c.svc.IsFavorite(ctx, c.user.ID, r.ID)
-	if err != nil {
-		return fmt.Errorf("read favorite: %w", err)
-	}
-	r.Favorite = fav
-	tasty, err := c.svc.IsTasty(ctx, c.user.ID, r.ID)
-	if err != nil {
-		return fmt.Errorf("read tasty: %w", err)
-	}
-	r.Tasty = tasty
-	if err := c.svc.FillAccess(ctx, c.user, r); err != nil {
-		return fmt.Errorf("fill access: %w", err)
-	}
-	return nil
+	return c.svc.FillCaller(ctx, c.user, r)
 }

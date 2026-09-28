@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -76,8 +77,8 @@ func (s *Service) Get(ctx context.Context) (Settings, error) {
 		LinkPreviews:           row.LinkPreviews,
 		LinkPreviewMinutes:     int(row.LinkPreviewMinutes),
 		PublicShares:           row.PublicShares,
-		PublicShareDefaultDays: toIntPtr(row.PublicShareDefaultDays),
-		PublicShareMaxDays:     toIntPtr(row.PublicShareMaxDays),
+		PublicShareDefaultDays: db.Conv[int](row.PublicShareDefaultDays),
+		PublicShareMaxDays:     db.Conv[int](row.PublicShareMaxDays),
 	}, nil
 }
 
@@ -155,8 +156,8 @@ func (s *Service) SetShareLifetimes(ctx context.Context, actor user.User, defaul
 		defaultDays = maxDays
 	}
 	if err := s.q.SetShareLifetimes(ctx, sqlc.SetShareLifetimesParams{
-		PublicShareDefaultDays: fromIntPtr(defaultDays),
-		PublicShareMaxDays:     fromIntPtr(maxDays),
+		PublicShareDefaultDays: db.Conv[int64](defaultDays),
+		PublicShareMaxDays:     db.Conv[int64](maxDays),
 	}); err != nil {
 		return Settings{}, fmt.Errorf("set share lifetimes: %w", err)
 	}
@@ -174,23 +175,4 @@ func (s *Service) LinkPreviewKey(ctx context.Context) ([]byte, error) {
 		return nil, ErrNoLinkPreviewKey
 	}
 	return key, nil
-}
-
-// toIntPtr converts a nullable database column to the *int Settings carries.
-func toIntPtr(v *int64) *int {
-	if v == nil {
-		return nil
-	}
-	i := int(*v)
-	return &i
-}
-
-// fromIntPtr is toIntPtr's inverse, for writing a *int back to a nullable
-// column.
-func fromIntPtr(v *int) *int64 {
-	if v == nil {
-		return nil
-	}
-	i := int64(*v)
-	return &i
 }

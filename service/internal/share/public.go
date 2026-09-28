@@ -3,7 +3,6 @@ package share
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -198,14 +197,10 @@ func (s *Service) ImageHandler(images *image.Service) http.Handler {
 			writeNotAvailable(w)
 			return
 		}
-		defer f.Close()
-		info, err := f.Stat()
-		if err != nil {
+		// Cache-Control is publicHeaders' own.
+		if err := image.ServeJPEG(w, r, f, ""); err != nil {
 			writeNotAvailable(w)
-			return
 		}
-		w.Header().Set("Content-Type", "image/jpeg")
-		http.ServeContent(w, r, "", info.ModTime(), f)
 	})
 }
 
@@ -246,9 +241,7 @@ func (s *Service) openPublicImage(ctx context.Context, images *image.Service, to
 // writeNotAvailable answers with the problem+json 404 get-public-recipe
 // gives, so every public route fails the same way.
 func writeNotAvailable(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusNotFound)
-	_ = json.NewEncoder(w).Encode(errNotAvailable())
+	httpserver.WriteProblem(w, http.StatusNotFound, notAvailable)
 }
 
 // ForRequest returns the link preview for the public share page /s/{token},

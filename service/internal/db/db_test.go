@@ -6,8 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
@@ -139,13 +138,13 @@ func seedMinimalRecipe(t *testing.T, conn *sql.DB) seedIDs {
 	ctx := context.Background()
 	q := sqlc.New(conn)
 
-	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatalf("seedMinimalRecipe: create user: %v", err)
 	}
 
 	now := db.FormatTime(time.Now().UTC())
-	recipeID := uuid.Must(uuid.NewV7()).String()
+	recipeID := uuid.NewV7().String()
 	if _, err := q.InsertRecipe(ctx, sqlc.InsertRecipeParams{
 		ID:          recipeID,
 		Slug:        "test-recipe-" + recipeID,
@@ -160,7 +159,7 @@ func seedMinimalRecipe(t *testing.T, conn *sql.DB) seedIDs {
 		t.Fatalf("seedMinimalRecipe: insert recipe: %v", err)
 	}
 
-	groupID := uuid.Must(uuid.NewV7()).String()
+	groupID := uuid.NewV7().String()
 	if err := q.InsertIngredientGroup(ctx, sqlc.InsertIngredientGroupParams{
 		ID:       groupID,
 		RecipeID: recipeID,
@@ -169,7 +168,7 @@ func seedMinimalRecipe(t *testing.T, conn *sql.DB) seedIDs {
 		t.Fatalf("seedMinimalRecipe: insert ingredient group: %v", err)
 	}
 
-	ingredientID := uuid.Must(uuid.NewV7()).String()
+	ingredientID := uuid.NewV7().String()
 	if err := q.InsertIngredient(ctx, sqlc.InsertIngredientParams{
 		ID:       ingredientID,
 		GroupID:  groupID,
@@ -179,7 +178,7 @@ func seedMinimalRecipe(t *testing.T, conn *sql.DB) seedIDs {
 		t.Fatalf("seedMinimalRecipe: insert ingredient: %v", err)
 	}
 
-	stepID := uuid.Must(uuid.NewV7()).String()
+	stepID := uuid.NewV7().String()
 	if err := q.InsertStep(ctx, sqlc.InsertStepParams{
 		ID:       stepID,
 		RecipeID: recipeID,

@@ -18,7 +18,7 @@ import (
 func newTokenService(t *testing.T) (*auth.TokenService, *user.Service, string) {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sam, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)

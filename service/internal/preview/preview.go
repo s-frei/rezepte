@@ -153,20 +153,13 @@ func (s *Service) CoverHandler() http.Handler {
 			return
 		}
 		f, err := s.images.Open(recipeID, imageID, "thumb")
+		if err == nil {
+			// A crawler fetches it once; nobody else should keep it around.
+			err = image.ServeJPEG(w, r, f, "private, max-age=3600")
+		}
 		if err != nil {
 			http.NotFound(w, r)
-			return
 		}
-		defer f.Close()
-		info, err := f.Stat()
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "image/jpeg")
-		// A crawler fetches it once; nobody else should keep it around.
-		w.Header().Set("Cache-Control", "private, max-age=3600")
-		http.ServeContent(w, r, "", info.ModTime(), f)
 	})
 }
 

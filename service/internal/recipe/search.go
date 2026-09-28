@@ -2,7 +2,6 @@ package recipe
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -62,21 +61,20 @@ type Page struct {
 // List returns a page of recipe cards, most recently updated first,
 // optionally narrowed by full-text search query and/or tags.
 func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
-	limit := clampLimit(p.Limit)
-	page := p.Page
-	if page < 1 {
-		page = 1
+	limit := p.Limit
+	if limit == 0 {
+		limit = defaultListLimit
 	}
+	limit = min(max(limit, 1), maxListLimit)
+	page := max(p.Page, 1)
 	offset := int64((page - 1) * limit)
 
-	// Normalized and de-duplicated here, not trusted from the caller: the
-	// SQL matches on COUNT(DISTINCT t.name) = len(Tags), so a duplicate tag
-	// would silently match nothing. The handler also calls
-	// NormalizeTagQuery, for the API-level cap on the raw query parameter,
-	// but List must not depend on that.
+	// Normalized, de-duplicated and capped here, the one place every caller
+	// passes through: the SQL matches on COUNT(DISTINCT t.name) = len(Tags),
+	// so a duplicate tag would silently match nothing.
 	f := sqlc.RecipeFilter{
 		Match:  ftsQuery(p.Query),
-		Tags:   NormalizeTagQuery(p.Tags),
+		Tags:   normalizeTagQuery(p.Tags),
 		Author: p.Author,
 	}
 	// A negative bound is ignored like an invalid Limit. There is no upper
@@ -118,19 +116,33 @@ func normalizeSort(sort string) sqlc.RecipeSort {
 	}
 }
 
-// clampLimit applies List's limit rules: 0 defaults to 24, anything else is
-// clamped to [1, 100].
-func clampLimit(limit int) int {
-	switch {
-	case limit == 0:
-		return defaultListLimit
-	case limit < 1:
-		return 1
-	case limit > maxListLimit:
-		return maxListLimit
-	default:
-		return limit
+// maxTagFilters caps the number of tags normalizeTagQuery keeps - the same
+// ceiling Input.Tags carries as maxItems:"20".
+const maxTagFilters = 20
+
+// normalizeTagQuery trims and lower-cases each tag filter so "?tags=Fleisch"
+// or "?tags= fleisch " match the lower-cased tag names NormalizeTags stores.
+// Blanks are dropped, duplicates collapsed, and the result capped at
+// maxTagFilters - a caller passing 500 tags would otherwise build a 500-way
+// subquery.
+func normalizeTagQuery(tags []string) []string {
+	out := make([]string, 0, len(tags))
+	seen := make(map[string]struct{}, len(tags))
+	for _, tag := range tags {
+		name := strings.ToLower(strings.TrimSpace(tag))
+		if name == "" {
+			continue
+		}
+		if _, dup := seen[name]; dup {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+		if len(out) == maxTagFilters {
+			break
+		}
 	}
+	return out
 }
 
 // toCards loads the tags, the authors' display names and colors, the tasty
@@ -187,18 +199,8 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	favorites := make(map[string]bool)
 	tasty := make(map[string]bool)
 	if userID != "" {
-		idsJSON, err := json.Marshal(ids)
-		if err != nil {
-			return nil, fmt.Errorf("marshal recipe ids: %w", err)
-		}
-		favIDs, err := s.q.ListFavoriteRecipeIDs(ctx, sqlc.ListFavoriteRecipeIDsParams{
-			UserID: userID, RecipeIds: string(idsJSON),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("list favorite recipe ids: %w", err)
-		}
-		for _, id := range favIDs {
-			favorites[id] = true
+		if favorites, err = s.favoritesOf(ctx, userID, ids); err != nil {
+			return nil, err
 		}
 		if tasty, err = s.tastyOf(ctx, userID, ids); err != nil {
 			return nil, err

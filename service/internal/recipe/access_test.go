@@ -23,7 +23,7 @@ func newAccessEnv(t *testing.T, policy recipe.Policy) accessEnv {
 	t.Helper()
 	svc, _ := setup(t)
 	conn := testConns[t]
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	ctx := context.Background()
 	mk := func(name string, role user.Role) user.User {
 		u, err := users.Create(ctx, user.CreateParams{Username: name, Password: "pw", Role: role})

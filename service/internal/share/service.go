@@ -10,8 +10,8 @@ import (
 	"log/slog"
 	"slices"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 
@@ -106,17 +106,14 @@ func (s *Service) Create(ctx context.Context, actor user.User, recipeID string, 
 	if err != nil {
 		return Share{}, fmt.Errorf("get recipe %s: %w", recipeID, err)
 	}
-	token, err := newToken()
-	if err != nil {
-		return Share{}, fmt.Errorf("generate share token: %w", err)
-	}
+	token := newToken()
 	var expiresAt *string
 	if days != nil {
 		e := db.FormatTime(now.AddDate(0, 0, *days))
 		expiresAt = &e
 	}
 	params := sqlc.CreateShareParams{
-		ID:        uuid.Must(uuid.NewV7()).String(),
+		ID:        uuid.NewV7().String(),
 		Token:     token,
 		RecipeID:  recipeID,
 		CreatedBy: actor.ID,
@@ -225,37 +222,21 @@ func (s *Service) List(ctx context.Context, actor user.User, all bool) ([]Share,
 	if err != nil {
 		return nil, fmt.Errorf("get settings: %w", err)
 	}
-	now := s.now()
+	var rows []sqlc.ListAllSharesRow
 	if all {
-		rows, err := s.q.ListAllShares(ctx)
-		if err != nil {
+		if rows, err = s.q.ListAllShares(ctx); err != nil {
 			return nil, fmt.Errorf("list all shares: %w", err)
 		}
-		out := make([]Share, 0, len(rows))
-		for _, row := range rows {
-			expired, err := ownExpired(row.ExpiresAt, now)
-			if err != nil {
-				return nil, err
-			}
-			if expired {
-				continue
-			}
-			share, err := s.buildShare(
-				sqlc.Share{ID: row.ID, Token: row.Token, RecipeID: row.RecipeID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, ExpiresAt: row.ExpiresAt},
-				row.RecipeSlug, row.RecipeTitle, st, row.CreatorCanSharePublicly,
-				&Creator{ID: row.CreatedBy, DisplayName: row.CreatorDisplayName, Color: row.CreatorColor}, now,
-			)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, share)
+	} else {
+		mine, err := s.q.ListSharesByCreator(ctx, actor.ID)
+		if err != nil {
+			return nil, fmt.Errorf("list shares of %s: %w", actor.ID, err)
 		}
-		return out, nil
+		for _, row := range mine {
+			rows = append(rows, sqlc.ListAllSharesRow(row))
+		}
 	}
-	rows, err := s.q.ListSharesByCreator(ctx, actor.ID)
-	if err != nil {
-		return nil, fmt.Errorf("list shares of %s: %w", actor.ID, err)
-	}
+	now := s.now()
 	out := make([]Share, 0, len(rows))
 	for _, row := range rows {
 		expired, err := ownExpired(row.ExpiresAt, now)
@@ -265,9 +246,13 @@ func (s *Service) List(ctx context.Context, actor user.User, all bool) ([]Share,
 		if expired {
 			continue
 		}
+		var creator *Creator
+		if all {
+			creator = &Creator{ID: row.CreatedBy, DisplayName: row.CreatorDisplayName, Color: row.CreatorColor}
+		}
 		share, err := s.buildShare(
 			sqlc.Share{ID: row.ID, Token: row.Token, RecipeID: row.RecipeID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, ExpiresAt: row.ExpiresAt},
-			row.RecipeSlug, row.RecipeTitle, st, row.CreatorCanSharePublicly, nil, now,
+			row.RecipeSlug, row.RecipeTitle, st, row.CreatorCanSharePublicly, creator, now,
 		)
 		if err != nil {
 			return nil, err
@@ -420,12 +405,10 @@ func ownExpired(expiresAt *string, now time.Time) (bool, error) {
 
 // newToken returns 16 random bytes from crypto/rand, base64url encoded
 // without padding - 22 characters, 128 bits of entropy.
-func newToken() (string, error) {
+func newToken() string {
 	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("read random bytes: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	_, _ = rand.Read(b) // never fails since Go 1.24
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // isUniqueViolation reports whether err is a SQLite UNIQUE constraint

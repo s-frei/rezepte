@@ -11,8 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
@@ -28,22 +27,11 @@ type Service struct {
 	imageDir string // "" disables image directory cleanup on Delete
 }
 
-// Option configures a Service.
-type Option func(*Service)
-
-// WithImageDir tells Delete where recipe image directories live
-// (<dir>/<recipeId>) so it can remove them after the recipe row is gone.
-func WithImageDir(dir string) Option {
-	return func(s *Service) { s.imageDir = dir }
-}
-
-// NewService returns a Service backed by conn.
-func NewService(conn *sql.DB, opts ...Option) *Service {
-	s := &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s
+// NewService returns a Service backed by conn. imageDir tells Delete where
+// recipe image directories live (<dir>/<recipeId>) so it can remove them
+// after the recipe row is gone; "" disables that cleanup.
+func NewService(conn *sql.DB, imageDir string) *Service {
+	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now, imageDir: imageDir}
 }
 
 // Create stores a new recipe as createdBy, assigning it a slug derived from
@@ -60,7 +48,7 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 		if err != nil {
 			return err
 		}
-		id = uuid.Must(uuid.NewV7()).String()
+		id = uuid.NewV7().String()
 		now := db.FormatTime(s.now())
 		if _, err := q.InsertRecipe(ctx, sqlc.InsertRecipeParams{
 			ID:          id,
@@ -68,8 +56,8 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 			Title:       in.Title,
 			Description: in.Description,
 			Servings:    int64(in.Servings),
-			PrepMinutes: intToInt64Ptr(in.PrepMinutes),
-			CookMinutes: intToInt64Ptr(in.CookMinutes),
+			PrepMinutes: db.Conv[int64](in.PrepMinutes),
+			CookMinutes: db.Conv[int64](in.CookMinutes),
 			SourceUrl:   in.SourceURL,
 			SourceName:  nonEmpty(trimmed(in.SourceName)),
 			CreatedBy:   createdBy,
@@ -125,8 +113,8 @@ func (s *Service) Update(ctx context.Context, id string, actor user.User, in Inp
 			Title:       in.Title,
 			Description: in.Description,
 			Servings:    int64(in.Servings),
-			PrepMinutes: intToInt64Ptr(in.PrepMinutes),
-			CookMinutes: intToInt64Ptr(in.CookMinutes),
+			PrepMinutes: db.Conv[int64](in.PrepMinutes),
+			CookMinutes: db.Conv[int64](in.CookMinutes),
 			SourceUrl:   in.SourceURL,
 			SourceName:  nonEmpty(trimmed(in.SourceName)),
 			UpdatedBy:   actor.ID,
@@ -241,6 +229,27 @@ func lockedByDefault(ctx context.Context, q *sqlc.Queries) (bool, error) {
 		return false, fmt.Errorf("get instance settings: %w", err)
 	}
 	return s.RecipesLockedByDefault, nil
+}
+
+// FillCaller sets r's caller-dependent fields for actor: the favorite star,
+// actor's own tasty mark and, through FillAccess, what actor may do. REST
+// and MCP both call it after loading a recipe, with the caller they
+// resolved from the request - never one the request names.
+func (s *Service) FillCaller(ctx context.Context, actor user.User, r *Recipe) error {
+	fav, err := s.IsFavorite(ctx, actor.ID, r.ID)
+	if err != nil {
+		return fmt.Errorf("read favorite: %w", err)
+	}
+	r.Favorite = fav
+	tasty, err := s.IsTasty(ctx, actor.ID, r.ID)
+	if err != nil {
+		return fmt.Errorf("read tasty: %w", err)
+	}
+	r.Tasty = tasty
+	if err := s.FillAccess(ctx, actor, r); err != nil {
+		return fmt.Errorf("fill access: %w", err)
+	}
+	return nil
 }
 
 // FillAccess sets r's Locked and Can* fields for actor. It reads the
@@ -370,17 +379,30 @@ func (s *Service) IsFavorite(ctx context.Context, userID, recipeID string) (bool
 	if userID == "" {
 		return false, nil
 	}
-	idsJSON, err := json.Marshal([]string{recipeID})
+	mine, err := s.favoritesOf(ctx, userID, []string{recipeID})
 	if err != nil {
-		return false, fmt.Errorf("marshal recipe id: %w", err)
+		return false, err
 	}
-	favIDs, err := s.q.ListFavoriteRecipeIDs(ctx, sqlc.ListFavoriteRecipeIDsParams{
+	return mine[recipeID], nil
+}
+
+// favoritesOf returns which of ids userID favorited, in one query.
+func (s *Service) favoritesOf(ctx context.Context, userID string, ids []string) (map[string]bool, error) {
+	idsJSON, err := json.Marshal(ids)
+	if err != nil {
+		return nil, fmt.Errorf("marshal recipe ids: %w", err)
+	}
+	rows, err := s.q.ListFavoriteRecipeIDs(ctx, sqlc.ListFavoriteRecipeIDsParams{
 		UserID: userID, RecipeIds: string(idsJSON),
 	})
 	if err != nil {
-		return false, fmt.Errorf("list favorite recipe ids: %w", err)
+		return nil, fmt.Errorf("list favorite recipe ids: %w", err)
 	}
-	return len(favIDs) == 1, nil
+	mine := make(map[string]bool, len(rows))
+	for _, id := range rows {
+		mine[id] = true
+	}
+	return mine, nil
 }
 
 // load assembles a Recipe from its row plus child tables.
@@ -479,8 +501,8 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			Title:            row.Title,
 			Description:      row.Description,
 			Servings:         int(row.Servings),
-			PrepMinutes:      int64ToIntPtr(row.PrepMinutes),
-			CookMinutes:      int64ToIntPtr(row.CookMinutes),
+			PrepMinutes:      db.Conv[int](row.PrepMinutes),
+			CookMinutes:      db.Conv[int](row.CookMinutes),
 			SourceURL:        row.SourceUrl,
 			SourceName:       row.SourceName,
 			Tags:             tagNames,
@@ -517,7 +539,7 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 	// remember them while inserting rather than querying them back.
 	ingredientIDs := make(map[refTarget]string, len(in.IngredientGroups))
 	for gi, group := range in.IngredientGroups {
-		groupID := uuid.Must(uuid.NewV7()).String()
+		groupID := uuid.NewV7().String()
 		if err := q.InsertIngredientGroup(ctx, sqlc.InsertIngredientGroupParams{
 			ID:       groupID,
 			RecipeID: recipeID,
@@ -527,7 +549,7 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 			return fmt.Errorf("insert ingredient group: %w", err)
 		}
 		for ii, ing := range group.Ingredients {
-			ingredientID := uuid.Must(uuid.NewV7()).String()
+			ingredientID := uuid.NewV7().String()
 			ingredientIDs[refTarget{Group: gi, Ingredient: ii}] = ingredientID
 			if err := q.InsertIngredient(ctx, sqlc.InsertIngredientParams{
 				ID:       ingredientID,
@@ -543,7 +565,7 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 		}
 	}
 	for si, step := range in.Steps {
-		stepID := uuid.Must(uuid.NewV7()).String()
+		stepID := uuid.NewV7().String()
 		if err := q.InsertStep(ctx, sqlc.InsertStepParams{
 			ID:       stepID,
 			RecipeID: recipeID,
@@ -586,7 +608,7 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 func writeTags(ctx context.Context, q *sqlc.Queries, recipeID string, tags []string) error {
 	for _, tag := range tags {
 		tagID, err := q.UpsertTag(ctx, sqlc.UpsertTagParams{
-			ID:   uuid.Must(uuid.NewV7()).String(),
+			ID:   uuid.NewV7().String(),
 			Name: tag,
 		})
 		if err != nil {
@@ -646,24 +668,4 @@ func nonEmpty(p *string) *string {
 		return nil
 	}
 	return p
-}
-
-// intToInt64Ptr adapts an optional int (Input's minute fields) to the
-// *int64 sqlc parameter type; nil stays nil.
-func intToInt64Ptr(p *int) *int64 {
-	if p == nil {
-		return nil
-	}
-	v := int64(*p)
-	return &v
-}
-
-// int64ToIntPtr is the inverse of intToInt64Ptr, used when mapping a stored
-// row back to an Input.
-func int64ToIntPtr(p *int64) *int {
-	if p == nil {
-		return nil
-	}
-	v := int(*p)
-	return &v
 }

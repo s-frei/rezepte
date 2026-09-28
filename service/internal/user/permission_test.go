@@ -57,11 +57,11 @@ func TestGuardAssignRole(t *testing.T) {
 		{"superadmin is never assignable", RoleSuperadmin, RoleSuperadmin, ErrSuperadminProtected},
 		{"nor by an admin", RoleAdmin, RoleSuperadmin, ErrSuperadminProtected},
 	} {
-		if got := guardAssignRole(tc.actor, tc.role); !errors.Is(got, tc.want) {
-			t.Errorf("%s: guardAssignRole(%s, %s) = %v, want %v", tc.name, tc.actor, tc.role, got, tc.want)
+		if got := guardTarget(tc.actor, tc.role); !errors.Is(got, tc.want) {
+			t.Errorf("%s: guardTarget(%s, %s) = %v, want %v", tc.name, tc.actor, tc.role, got, tc.want)
 		}
 		if got := CanAssignRole(tc.actor, tc.role); !errors.Is(got, tc.want) {
-			t.Errorf("%s: CanAssignRole disagrees with guardAssignRole: %v", tc.name, got)
+			t.Errorf("%s: CanAssignRole disagrees with guardTarget: %v", tc.name, got)
 		}
 	}
 }

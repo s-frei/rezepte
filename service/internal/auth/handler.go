@@ -341,16 +341,16 @@ func sessionCookie(token string, expires time.Time, secure bool) http.Cookie {
 // expiredSessionCookie is a Set-Cookie value that tells the browser to
 // delete the session cookie immediately.
 func expiredSessionCookie(secure bool) http.Cookie {
-	return http.Cookie{ //nolint:gosec // G124: Secure follows the secureCookies config flag (false only for local http dev); HttpOnly and SameSite are always set.
-		Name:     CookieName,
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-	}
+	return expired(sessionCookie("", time.Time{}, secure))
+}
+
+// expired turns a live cookie into the Set-Cookie value that deletes it,
+// keeping the attributes the browser matches it by.
+func expired(c http.Cookie) http.Cookie { //nolint:gosec // G124: c keeps the Secure, HttpOnly and SameSite of the live cookie it came from.
+	c.Value = ""
+	c.Expires = time.Unix(0, 0)
+	c.MaxAge = -1
+	return c
 }
 
 // LocaleCookieName is the cookie Paraglide's cookie strategy reads. The name
@@ -382,15 +382,7 @@ func localeCookie(l user.Locale, secure bool) http.Cookie {
 // strategy (the browser's own Accept-Language) instead of staying stuck on
 // whichever account last logged out - which matters on a shared machine.
 func expiredLocaleCookie(secure bool) http.Cookie {
-	return http.Cookie{ //nolint:gosec // G124: not HttpOnly by design (Paraglide reads it in the browser); Secure follows the secureCookies config flag and SameSite is always set.
-		Name:     LocaleCookieName,
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-	}
+	return expired(localeCookie("", secure))
 }
 
 func toResponse(u user.User) UserResponse {

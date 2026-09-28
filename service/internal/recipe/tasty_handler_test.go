@@ -33,7 +33,7 @@ func TestTastyEndpoints(t *testing.T) {
 		t.Fatalf("author put = %d, body %s", resp.Code, resp.Body)
 	}
 
-	if _, err := user.NewService(conn).Create(context.Background(), user.CreateParams{
+	if _, err := user.NewService(conn, "").Create(context.Background(), user.CreateParams{
 		Username: "mara", Password: "pw", Role: user.RoleUser, DisplayName: "Mara",
 	}); err != nil {
 		t.Fatal(err)

@@ -118,7 +118,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 | `author` | a username (max 50 chars, longer is a `422`); restricts the page to the recipes that person wrote. Matched exactly against `users.username` and not against the display name, so a filter link survives a rename; an unknown name yields an empty page rather than dropping the filter - see [Recipes and search](/features/recipes) |
 | `sort` | `updated`, `created`, `title` or `tasty` (most tasty marks first), declared as an `enum`, so any other value is a `422` on `query.sort`; absent or empty (`?sort=`) takes the `updated` default before validation runs |
 | `page` | 1-based, at least 1, defaults to 1; `0` or below is a `422` |
-| `limit` | defaults to 24; outside `[1, 100]` is a `422`. `clampLimit` in `recipe/search.go` clamps only for in-process callers of `List`, which an HTTP request never reaches with such a value |
+| `limit` | defaults to 24; outside `[1, 100]` is a `422`. `List` in `recipe/search.go` clamps only for in-process callers of `List`, which an HTTP request never reaches with such a value |
 
 Every parameter above combines with AND when more than one is set.
 

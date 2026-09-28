@@ -2,13 +2,11 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/danielgtaylor/huma/v2"
-
+	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -126,7 +124,8 @@ func authenticateBearer(w http.ResponseWriter, r *http.Request, tokens *TokenSer
 		return VerifiedToken{}, false
 	}
 	if missing := missingScopes(v.Scopes, scopes); len(missing) > 0 {
-		writeForbiddenScope(w, missing)
+		// Naming the missing scopes tells the operator which token to re-issue.
+		httpserver.WriteProblem(w, http.StatusForbidden, "api token is missing scope "+strings.Join(missing, ", "))
 		return VerifiedToken{}, false
 	}
 	return v, true
@@ -135,18 +134,6 @@ func authenticateBearer(w http.ResponseWriter, r *http.Request, tokens *TokenSer
 // serveAs runs next with u stored in the request context.
 func serveAs(w http.ResponseWriter, r *http.Request, next http.Handler, u user.User) {
 	next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, u)))
-}
-
-// writeForbiddenScope answers with an RFC 9457 problem+json 403 naming the
-// scopes the token lacks, so the operator knows which token to re-issue.
-func writeForbiddenScope(w http.ResponseWriter, missing []string) {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusForbidden)
-	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
-		Title:  http.StatusText(http.StatusForbidden),
-		Status: http.StatusForbidden,
-		Detail: "api token is missing scope " + strings.Join(missing, ", "),
-	})
 }
 
 // navigatingBrowser reports whether r looks like someone typing the address
@@ -158,14 +145,7 @@ func navigatingBrowser(r *http.Request) bool {
 }
 
 // writeUnauthorized answers with an RFC 9457 problem+json 401 body, matching
-// the shape huma.WriteErr produces for protected huma operations (see
-// httpserver.checkOrigin's writeForbiddenOrigin for the same pattern).
+// the shape huma.WriteErr produces for protected huma operations.
 func writeUnauthorized(w http.ResponseWriter, detail string) {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusUnauthorized)
-	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
-		Title:  http.StatusText(http.StatusUnauthorized),
-		Status: http.StatusUnauthorized,
-		Detail: detail,
-	})
+	httpserver.WriteProblem(w, http.StatusUnauthorized, detail)
 }

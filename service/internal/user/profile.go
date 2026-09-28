@@ -1,6 +1,8 @@
 package user
 
 import (
+	"cmp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -37,12 +39,10 @@ const maxDisplayName = 64
 // declares as an enum, so anything else is a client error rather than a
 // typo to be repaired.
 func ParseColor(s string) (Color, error) {
-	for _, c := range Colors {
-		if Color(s) == c {
-			return c, nil
-		}
+	if !slices.Contains(Colors, Color(s)) {
+		return "", ErrInvalidColor
 	}
-	return "", ErrInvalidColor
+	return Color(s), nil
 }
 
 // Locale is the interface language of one account. It is a display choice
@@ -87,12 +87,10 @@ func (Locale) Schema(huma.Registry) *huma.Schema {
 // case folding and no BCP 47 parsing: the value becomes a Paraglide locale id,
 // which is one of the literals in the settings.
 func ParseLocale(s string) (Locale, error) {
-	for _, l := range Locales {
-		if Locale(s) == l {
-			return l, nil
-		}
+	if !slices.Contains(Locales, Locale(s)) {
+		return "", ErrInvalidLocale
 	}
-	return "", ErrInvalidLocale
+	return Locale(s), nil
 }
 
 // normalizeDisplayName produces the value the column stores. An empty name
@@ -134,11 +132,6 @@ func fillPalette(rows map[Color]int) []ColorCount {
 // household out is the property worth keeping. counts must come from
 // fillPalette, so it is complete and in palette order.
 func leastUsed(counts []ColorCount) Color {
-	best := counts[0]
-	for _, c := range counts[1:] {
-		if c.Count < best.Count {
-			best = c
-		}
-	}
-	return best.Color
+	// MinFunc returns the first of several minima, which is the tie-break.
+	return slices.MinFunc(counts, func(a, b ColorCount) int { return cmp.Compare(a.Count, b.Count) }).Color
 }

@@ -193,7 +193,7 @@ func TestArgonWaitGivesUpWithTheContext(t *testing.T) {
 // 503 would tell which accounts exist.
 func TestAuthenticateReportsBusyForAnUnknownNameToo(t *testing.T) {
 	ctx := context.Background()
-	svc := NewService(dbtest.Open(t))
+	svc := NewService(dbtest.Open(t), "")
 	if _, err := svc.Create(ctx, CreateParams{Username: "sam", Password: "secret123", Role: RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}

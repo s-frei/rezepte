@@ -95,17 +95,8 @@ func Register(api huma.API, svc *Service) {
 		file := in.RawBody.Data().File
 		defer file.Close()
 		img, err := svc.Upload(ctx, in.ID, u, file)
-		switch {
-		case errors.Is(err, ErrNotFound):
-			return nil, huma.Error404NotFound(err.Error())
-		case errors.Is(err, recipe.ErrEditForbidden):
-			return nil, huma.Error403Forbidden(err.Error())
-		case errors.Is(err, ErrUnsupported):
-			return nil, huma.Error415UnsupportedMediaType(err.Error())
-		case errors.Is(err, ErrInvalid), errors.Is(err, ErrTooLarge), errors.Is(err, ErrTooMany):
-			return nil, huma.Error422UnprocessableEntity(err.Error())
-		case err != nil:
-			return nil, err
+		if err != nil {
+			return nil, imageErr(err)
 		}
 		return &imageOutput{Body: img}, nil
 	})
@@ -125,13 +116,7 @@ func Register(api huma.API, svc *Service) {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
 		if err := svc.Delete(ctx, in.ID, in.ImageID, u); err != nil {
-			if errors.Is(err, ErrNotFound) {
-				return nil, huma.Error404NotFound(err.Error())
-			}
-			if errors.Is(err, recipe.ErrEditForbidden) {
-				return nil, huma.Error403Forbidden(err.Error())
-			}
-			return nil, err
+			return nil, imageErr(err)
 		}
 		return &deleteImageOutput{}, nil
 	})
@@ -150,15 +135,8 @@ func Register(api huma.API, svc *Service) {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
 		items, err := svc.Reorder(ctx, in.ID, u, in.Body.ImageIDs)
-		switch {
-		case errors.Is(err, ErrNotFound):
-			return nil, huma.Error404NotFound(err.Error())
-		case errors.Is(err, recipe.ErrEditForbidden):
-			return nil, huma.Error403Forbidden(err.Error())
-		case errors.Is(err, ErrBadOrder):
-			return nil, huma.Error422UnprocessableEntity(err.Error())
-		case err != nil:
-			return nil, err
+		if err != nil {
+			return nil, imageErr(err)
 		}
 		if items == nil {
 			items = []recipe.Image{}
@@ -181,16 +159,26 @@ func Register(api huma.API, svc *Service) {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
 		if err := svc.SetCover(ctx, in.ID, in.Body.ImageID, u); err != nil {
-			if errors.Is(err, ErrNotFound) {
-				return nil, huma.Error404NotFound(err.Error())
-			}
-			if errors.Is(err, recipe.ErrEditForbidden) {
-				return nil, huma.Error403Forbidden(err.Error())
-			}
-			return nil, err
+			return nil, imageErr(err)
 		}
 		return &coverOutput{}, nil
 	})
+}
+
+// imageErr maps the service's domain errors to their HTTP status; anything
+// else is returned as is and becomes a 500.
+func imageErr(err error) error {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return huma.Error404NotFound(err.Error())
+	case errors.Is(err, recipe.ErrEditForbidden):
+		return huma.Error403Forbidden(err.Error())
+	case errors.Is(err, ErrUnsupported):
+		return huma.Error415UnsupportedMediaType(err.Error())
+	case errors.Is(err, ErrInvalid), errors.Is(err, ErrTooLarge), errors.Is(err, ErrTooMany), errors.Is(err, ErrBadOrder):
+		return huma.Error422UnprocessableEntity(err.Error())
+	}
+	return err
 }
 
 // limitUpload enforces the upload cap on the wire. huma's multipart path

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -103,7 +102,7 @@ func Register(api huma.API, svc *Service) {
 		u, _ := auth.UserFrom(ctx)
 		page, err := svc.List(ctx, ListParams{
 			Query:         in.Query,
-			Tags:          NormalizeTagQuery(in.Tags),
+			Tags:          in.Tags,
 			MaxMinutes:    in.MaxMinutes,
 			FavoritesOnly: in.FavoritesOnly,
 			Author:        in.Author,
@@ -383,44 +382,18 @@ func Register(api huma.API, svc *Service) {
 	})
 }
 
-// fillFavorite sets r.Favorite and r.Tasty from the caller's own state,
-// deriving the caller strictly from ctx (auth.UserFrom), never from r or
-// any path/query/body value - a caller must not be able to name whose
-// favorites are being read. A token caller carries its creator as that
-// user, so it reads the creator's favorites. A context without a user
-// (defended against even though every operation calling it requires a
-// session or a token) leaves r.Favorite false, the same "empty user id
-// disables the lookup" rule IsFavorite applies.
-func fillFavorite(ctx context.Context, svc *Service, r *Recipe) error {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return nil
-	}
-	fav, err := svc.IsFavorite(ctx, u.ID, r.ID)
-	if err != nil {
-		return err
-	}
-	r.Favorite = fav
-	tasty, err := svc.IsTasty(ctx, u.ID, r.ID)
-	if err != nil {
-		return err
-	}
-	r.Tasty = tasty
-	return nil
-}
-
-// fillCaller sets the caller-dependent fields: the favorite star, the
-// caller's own tasty mark and what
-// the caller may do. Both derive the caller from ctx only.
+// fillCaller runs FillCaller for the caller, derived strictly from ctx
+// (auth.UserFrom), never from r or any path/query/body value - a caller must
+// not be able to name whose favorites are being read. A token caller carries
+// its creator as that user. A context without a user (defended against even
+// though every operation calling it requires a session or a token) leaves
+// the caller-dependent fields unset.
 func fillCaller(ctx context.Context, svc *Service, r *Recipe) error {
-	if err := fillFavorite(ctx, svc, r); err != nil {
-		return err
-	}
 	u, ok := auth.UserFrom(ctx)
 	if !ok {
 		return nil
 	}
-	return svc.FillAccess(ctx, u, r)
+	return svc.FillCaller(ctx, u, r)
 }
 
 // accessError maps the two permission errors to 403; nil for anything else.
@@ -430,33 +403,4 @@ func accessError(err error) error {
 		return huma.Error403Forbidden(err.Error())
 	}
 	return nil
-}
-
-// maxTagFilters caps the number of tags NormalizeTagQuery keeps - the same
-// ceiling Input.Tags carries as maxItems:"20".
-const maxTagFilters = 20
-
-// NormalizeTagQuery trims and lower-cases each tag query parameter so
-// "?tags=Fleisch" or "?tags= fleisch " match the lower-cased tag names
-// Service.List and NormalizeTags store and expect. Blanks are dropped,
-// duplicates collapsed, and the result capped at maxTagFilters - a caller
-// passing 500 tags would otherwise build a 500-way subquery.
-func NormalizeTagQuery(tags []string) []string {
-	out := make([]string, 0, len(tags))
-	seen := make(map[string]struct{}, len(tags))
-	for _, tag := range tags {
-		name := strings.ToLower(strings.TrimSpace(tag))
-		if name == "" {
-			continue
-		}
-		if _, dup := seen[name]; dup {
-			continue
-		}
-		seen[name] = struct{}{}
-		out = append(out, name)
-		if len(out) == maxTagFilters {
-			break
-		}
-	}
-	return out
 }

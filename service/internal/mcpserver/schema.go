@@ -12,22 +12,14 @@ import (
 // recipeDefs are the huma component schemas a recipe document is built from.
 var recipeDefs = []string{"Input", "IngredientGroup", "Ingredient", "Step", "IngredientRef"}
 
-// recipeInputSchema is create_recipe's input schema: {"recipe": Input}.
+// recipeSchema is create_recipe's input schema, {"recipe": Input}, and with
+// withID update_recipe's, {"id", "recipe": Input}.
 //
 // The constraints on recipe.Input live only in its huma struct tags -
 // recipe.Service validates none of them - so the tool schema is taken from
 // the same registry REST validates against rather than inferred again. The
 // SDK validates every call against it, which is what keeps a 10,000-character
 // title or a javascript: source URL out through MCP as well.
-func recipeInputSchema(api huma.API) (*jsonschema.Schema, error) {
-	return recipeSchema(api, false)
-}
-
-// recipeUpdateSchema is update_recipe's input schema: {"id", "recipe": Input}.
-func recipeUpdateSchema(api huma.API) (*jsonschema.Schema, error) {
-	return recipeSchema(api, true)
-}
-
 func recipeSchema(api huma.API, withID bool) (*jsonschema.Schema, error) {
 	defs, err := componentDefs(api)
 	if err != nil {

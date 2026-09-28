@@ -37,7 +37,7 @@ func newRecipeHandler(t *testing.T) http.Handler {
 func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	recipe.Register(srv.API(), recipe.NewService(conn))
+	recipe.Register(srv.API(), recipe.NewService(conn, ""))
 	return srv.Handler(), conn
 }
 
@@ -109,7 +109,7 @@ type tokenEnv struct {
 func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sam, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
@@ -120,7 +120,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	recipe.Register(srv.API(), recipe.NewService(conn))
+	recipe.Register(srv.API(), recipe.NewService(conn, ""))
 	raw, _, err := tokens.Create(context.Background(), sam.ID, "t", scopes, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -616,7 +616,7 @@ func TestFavoritesAreIsolatedBetweenUsers(t *testing.T) {
 		t.Fatalf("user A put = %d, body %s", resp.Code, resp.Body)
 	}
 
-	if _, err := user.NewService(conn).Create(context.Background(), user.CreateParams{Username: "zweite", Password: "pw", Role: user.RoleAdmin}); err != nil {
+	if _, err := user.NewService(conn, "").Create(context.Background(), user.CreateParams{Username: "zweite", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	cookieB := loginAs(t, h, "zweite", "pw")
@@ -823,7 +823,7 @@ func TestNullListsAreRejected(t *testing.T) {
 
 func TestHandlerLockedRecipeAnswers403AndFlags(t *testing.T) {
 	h, conn := newRecipeHandlerWithConn(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	for _, name := range []string{"anna", "ben"} {
 		if _, err := users.Create(context.Background(), user.CreateParams{Username: name, Password: "pw", Role: user.RoleUser}); err != nil {
 			t.Fatal(err)

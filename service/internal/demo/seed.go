@@ -129,7 +129,7 @@ type Summary struct {
 // all gets a placeholder for each of its first imagedRecipes samples. It is
 // idempotent: a database that already holds recipes is left untouched.
 func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []user.User, locale user.Locale, logger *slog.Logger) (Summary, error) {
-	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
+	recipes := recipe.NewService(conn, imageDir)
 	n, err := recipes.Count(ctx)
 	if err != nil {
 		return Summary{}, err
@@ -138,7 +138,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 		logger.Info("demo: recipes present, not seeding", "count", n)
 		return Summary{Skipped: true}, nil
 	}
-	o, err := findOwner(ctx, user.NewService(conn), owner)
+	o, err := findOwner(ctx, user.NewService(conn, ""), owner)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -258,11 +258,11 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 // published demo credentials may call it; an operator who set their own
 // admin password gets no accounts they did not ask for.
 func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *slog.Logger) ([]user.User, error) {
-	n, err := recipe.NewService(conn).Count(ctx)
+	n, err := recipe.NewService(conn, "").Count(ctx)
 	if err != nil || n > 0 {
 		return nil, err
 	}
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	var members []user.User
 	for _, name := range Members {
 		m, err := users.Create(ctx, user.CreateParams{
@@ -295,8 +295,8 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) e
 	if sum.Skipped {
 		return nil
 	}
-	users := user.NewService(conn)
-	recipes := recipe.NewService(conn)
+	users := user.NewService(conn, "")
+	recipes := recipe.NewService(conn, "")
 	instance := settings.NewService(conn)
 	shares := share.NewService(conn, instance, users)
 	admin, err := findOwner(ctx, users, owner)

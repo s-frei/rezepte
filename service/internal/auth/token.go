@@ -10,8 +10,7 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
@@ -114,13 +113,11 @@ func (s *TokenService) Create(ctx context.Context, ownerID, name string, scopes 
 		return "", Token{}, err
 	}
 	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", Token{}, fmt.Errorf("generate api token: %w", err)
-	}
+	_, _ = rand.Read(buf) // never fails since Go 1.24
 	raw := TokenPrefix + base64.RawURLEncoding.EncodeToString(buf)
 	now := s.now()
 	tok := Token{
-		ID:            uuid.Must(uuid.NewV7()).String(),
+		ID:            uuid.NewV7().String(),
 		Name:          name,
 		Prefix:        raw[:prefixLen],
 		Scopes:        scopes,
@@ -186,7 +183,7 @@ func (s *TokenService) Authenticate(ctx context.Context, raw string) (VerifiedTo
 	}
 	if used == nil || now.Sub(*used) >= touchAfter {
 		if err := s.q.TouchAPIToken(ctx, sqlc.TouchAPITokenParams{
-			LastUsedAt: ptr(db.FormatTime(now)),
+			LastUsedAt: new(db.FormatTime(now)),
 			ID:         row.ID,
 		}); err != nil {
 			return VerifiedToken{}, fmt.Errorf("touch api token: %w", err)
@@ -261,7 +258,7 @@ func formatNullable(t *time.Time) *string {
 	if t == nil {
 		return nil
 	}
-	return ptr(db.FormatTime(*t))
+	return new(db.FormatTime(*t))
 }
 
 // parseNullable reads a nullable TEXT timestamp back.
@@ -275,5 +272,3 @@ func parseNullable(s *string) (*time.Time, error) {
 	}
 	return &t, nil
 }
-
-func ptr[T any](v T) *T { return &v }

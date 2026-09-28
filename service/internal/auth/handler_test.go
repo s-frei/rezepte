@@ -26,7 +26,7 @@ import (
 func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service) {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ var pathParam = regexp.MustCompile(`\{[^}]+\}`)
 // but this test still exercises every currently registered operation.
 func TestEveryProtectedOperationRejectsAnonymous(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)

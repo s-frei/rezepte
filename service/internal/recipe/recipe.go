@@ -100,9 +100,9 @@ type Recipe struct {
 	// fill in themselves: every handler operation that returns a Recipe
 	// populates it by calling fillCaller (handler.go) after loading it, and
 	// every mcpserver tool that returns one does the same through its
-	// caller.fill. A future caller of ByID/BySlug - a new handler operation,
-	// say - gets false unless it also calls fillCaller or
-	// (*Service).IsFavorite itself.
+	// caller.fill, both running (*Service).FillCaller. A future caller of
+	// ByID/BySlug - a new handler operation, say - gets false unless it also
+	// calls FillCaller.
 	Favorite bool `json:"favorite"`
 	// TastyCount and TastyBy are how many members marked the recipe tasty
 	// and who, in the order they did. Unlike Favorite they are the same for

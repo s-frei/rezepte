@@ -75,10 +75,7 @@ func deriveKey(ctx context.Context, password, salt []byte, time, memory uint32, 
 
 // HashPassword returns an argon2id hash in PHC string format.
 func HashPassword(ctx context.Context, password string) (string, error) {
-	salt, err := newSalt()
-	if err != nil {
-		return "", err
-	}
+	salt := newSalt()
 	key, err := deriveKey(ctx, []byte(password), salt, argonTime, argonMemory, argonThreads)
 	if err != nil {
 		return "", err
@@ -86,12 +83,10 @@ func HashPassword(ctx context.Context, password string) (string, error) {
 	return encodeHash(salt, key), nil
 }
 
-func newSalt() ([]byte, error) {
+func newSalt() []byte {
 	salt := make([]byte, saltLen)
-	if _, err := rand.Read(salt); err != nil {
-		return nil, fmt.Errorf("generate salt: %w", err)
-	}
-	return salt, nil
+	_, _ = rand.Read(salt) // never fails since Go 1.24
+	return salt
 }
 
 func encodeHash(salt, key []byte) string {

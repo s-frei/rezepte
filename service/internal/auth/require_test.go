@@ -34,7 +34,7 @@ func newRequireEnv(t *testing.T) *requireEnv {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
@@ -61,7 +61,7 @@ func (e *requireEnv) issue(t *testing.T, scopes ...string) string {
 
 func TestRequireSessionRejectsMissingCookie(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	h := auth.RequireAuth(sessions, tokens, false)(okHandler())
@@ -83,7 +83,7 @@ func TestRequireSessionRejectsMissingCookie(t *testing.T) {
 
 func TestRequireSessionAcceptsValidCookieAndStoresUser(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestRequireSessionAcceptsValidCookieAndStoresUser(t *testing.T) {
 
 func TestRequireSessionReissuesCookieOnRenewal(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ const browserAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*
 
 func TestRequireAuthOrLoginRedirectsABrowser(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	h := auth.RequireAuthOrLogin(sessions, tokens, false)(okHandler())
@@ -185,7 +185,7 @@ func TestRequireAuthOrLoginRedirectsABrowser(t *testing.T) {
 // openapi.json. Anything that is not a browser navigating stays a 401.
 func TestRequireAuthOrLoginKeeps401ForEverythingElse(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	h := auth.RequireAuthOrLogin(sessions, tokens, false)(okHandler())
@@ -221,7 +221,7 @@ func TestRequireAuthOrLoginKeeps401ForEverythingElse(t *testing.T) {
 
 func TestRequireAuthOrLoginServesAValidSession(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestRequireAuthOrLoginServesAValidSession(t *testing.T) {
 func TestRequireAuthAcceptsABearerTokenWithTheScope(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
@@ -298,7 +298,7 @@ func TestRequireAuthAcceptsABearerTokenWithTheScope(t *testing.T) {
 // cookie pasted as a bearer token must get the same message there too.
 func TestRequireAuthValueWithoutPrefixGetsAComprehensibleMessage(t *testing.T) {
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	h := auth.RequireAuth(sessions, tokens, false, auth.ScopeRecipesRead)(okHandler())
@@ -320,7 +320,7 @@ func TestRequireAuthValueWithoutPrefixGetsAComprehensibleMessage(t *testing.T) {
 func TestRequireAuthOrLoginNeverRedirectsABearerRequest(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}

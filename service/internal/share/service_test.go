@@ -34,7 +34,7 @@ func setup(t *testing.T) *env {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	owner, err := users.Create(ctx, user.CreateParams{Username: "olga", Password: "pw", Role: user.RoleSuperadmin})
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +47,7 @@ func setup(t *testing.T) *env {
 	if _, err := st.SetPublicShares(ctx, owner, true); err != nil {
 		t.Fatal(err)
 	}
-	recipes := recipe.NewService(conn)
+	recipes := recipe.NewService(conn, "")
 	r, err := recipes.Create(ctx, member.ID, recipe.Input{
 		Title: "Gurkensalat", Servings: 2,
 		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Gurke"}}}},

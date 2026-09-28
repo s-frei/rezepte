@@ -2,6 +2,7 @@
 package user
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -9,8 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 
@@ -79,23 +80,12 @@ type Service struct {
 	defaultLocale Locale
 }
 
-// Option configures a Service.
-type Option func(*Service)
-
-// WithDefaultLocale sets the interface language new accounts get when the
-// caller names none. It comes from REZEPTE_LOCALE. Without it a Service
-// defaults to BaseLocale, so a test or a tool needs no configuration.
-func WithDefaultLocale(l Locale) Option {
-	return func(s *Service) { s.defaultLocale = l }
-}
-
-// NewService returns a Service backed by conn.
-func NewService(conn *sql.DB, opts ...Option) *Service {
-	s := &Service{conn: conn, q: sqlc.New(conn), now: time.Now, defaultLocale: BaseLocale}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s
+// NewService returns a Service backed by conn. defaultLocale is the interface
+// language new accounts get when the caller names none; it comes from
+// REZEPTE_LOCALE, and "" means BaseLocale, so a test or a tool needs no
+// configuration.
+func NewService(conn *sql.DB, defaultLocale Locale) *Service {
+	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now, defaultLocale: cmp.Or(defaultLocale, BaseLocale)}
 }
 
 // CreateParams is what it takes to open an account. DisplayName, Color and
@@ -147,7 +137,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 	}
 	now := db.FormatTime(s.now())
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
-		ID:           uuid.Must(uuid.NewV7()).String(),
+		ID:           uuid.NewV7().String(),
 		Username:     username,
 		DisplayName:  displayName,
 		PasswordHash: hash,
@@ -233,7 +223,7 @@ func (s *Service) SetRole(ctx context.Context, actor User, id string, role Role)
 		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
 		}
-		if err := guardAssignRole(actor.Role, role); err != nil {
+		if err := guardTarget(actor.Role, role); err != nil {
 			return err
 		}
 		updated, err := q.UpdateUserRole(ctx, sqlc.UpdateUserRoleParams{
@@ -473,11 +463,7 @@ func getForUpdate(ctx context.Context, q *sqlc.Queries, id string) (sqlc.User, e
 // wrong-password response by timing. It derives its key outside the argon2
 // queue: it runs once per process, and a full queue must not make it fail.
 var dummyHash = sync.OnceValue(func() string {
-	salt, err := newSalt()
-	if err != nil {
-		// Only fails if the OS RNG is broken, which is unrecoverable anyway.
-		panic(fmt.Sprintf("hash dummy password: %v", err))
-	}
+	salt := newSalt()
 	return encodeHash(salt, idKey([]byte("dummy"), salt, argonTime, argonMemory, argonThreads, argonKeyLen))
 })
 

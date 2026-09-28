@@ -4,34 +4,67 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 )
 
-func TestTxCommitsAndRollsBack(t *testing.T) {
-	ctx := context.Background()
-	conn := dbtest.Open(t)
-	err := db.Tx(ctx, conn, func(q *sqlc.Queries) error {
-		_, err := q.UpsertTag(ctx, sqlc.UpsertTagParams{ID: "t1", Name: "kept"})
-		return err
-	})
+func minutes(t *testing.T, ctx context.Context, q *sqlc.Queries) int64 {
+	t.Helper()
+	s, err := q.GetInstanceSettings(ctx)
 	if err != nil {
-		t.Fatalf("commit tx: %v", err)
+		t.Fatalf("GetInstanceSettings: %v", err)
 	}
+	return s.LinkPreviewMinutes
+}
+
+func TestTx(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn := dbtest.Open(t)
+	q := sqlc.New(conn)
+	before := minutes(t, ctx, q)
+	other := int64(15) // link_preview_minutes only takes 15, 60 or 1440
+	if before == other {
+		other = 1440
+	}
+
+	set := func(v int64) func(q *sqlc.Queries) error {
+		return func(q *sqlc.Queries) error { return q.SetLinkPreviewMinutes(ctx, v) }
+	}
+
 	boom := errors.New("boom")
-	err = db.Tx(ctx, conn, func(q *sqlc.Queries) error {
-		if _, err := q.UpsertTag(ctx, sqlc.UpsertTagParams{ID: "t2", Name: "dropped"}); err != nil {
-			return err
-		}
+	if err := db.Tx(ctx, conn, func(q *sqlc.Queries) error {
+		_ = set(other)(q)
 		return boom
-	})
-	if !errors.Is(err, boom) {
-		t.Fatalf("err = %v, want boom", err)
+	}); !errors.Is(err, boom) {
+		t.Fatalf("error = %v, want boom", err)
 	}
-	var n int
-	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM tags`).Scan(&n); err != nil || n != 1 {
-		t.Fatalf("tags = %d (%v), want 1 (rollback)", n, err)
+	if got := minutes(t, ctx, q); got != before {
+		t.Fatalf("after error = %d, want rollback to %d", got, before)
+	}
+
+	func() {
+		defer func() {
+			if p := recover(); p != "panic in fn" {
+				t.Fatalf("recovered %v, want the panic re-raised", p)
+			}
+		}()
+		_ = db.Tx(ctx, conn, func(q *sqlc.Queries) error {
+			_ = set(other)(q)
+			panic("panic in fn")
+		})
+	}()
+	if got := minutes(t, ctx, q); got != before {
+		t.Fatalf("after panic = %d, want rollback to %d", got, before)
+	}
+
+	if err := db.Tx(ctx, conn, set(other)); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	if got := minutes(t, ctx, q); got != other {
+		t.Fatalf("after commit = %d, want %d", got, other)
 	}
 }

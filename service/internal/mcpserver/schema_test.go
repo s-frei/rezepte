@@ -13,7 +13,7 @@ import (
 func registeredAPI(t *testing.T) humatest.TestAPI {
 	t.Helper()
 	_, api := humatest.New(t)
-	recipe.Register(api, recipe.NewService(dbtest.Open(t)))
+	recipe.Register(api, recipe.NewService(dbtest.Open(t), ""))
 	return api
 }
 
@@ -39,7 +39,7 @@ func validRecipe() map[string]any {
 }
 
 func TestInputSchemaAcceptsValidRecipe(t *testing.T) {
-	s, err := recipeInputSchema(registeredAPI(t))
+	s, err := recipeSchema(registeredAPI(t), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestInputSchemaAcceptsValidRecipe(t *testing.T) {
 }
 
 func TestInputSchemaCarriesHumaConstraints(t *testing.T) {
-	s, err := recipeInputSchema(registeredAPI(t))
+	s, err := recipeSchema(registeredAPI(t), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestInputSchemaCarriesHumaConstraints(t *testing.T) {
 }
 
 func TestUpdateSchemaRequiresID(t *testing.T) {
-	s, err := recipeUpdateSchema(registeredAPI(t))
+	s, err := recipeSchema(registeredAPI(t), true)
 	if err != nil {
 		t.Fatal(err)
 	}

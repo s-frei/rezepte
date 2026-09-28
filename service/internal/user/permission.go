@@ -8,9 +8,11 @@ package user
 // where the actor belongs and still compile into something plausible.
 
 // guardTarget reports whether actor may delete, re-role or reset the password
-// of a user whose role is target. The superadmin check comes first: that it is
-// refused holds for every caller, including the superadmin, so it is the more
-// specific answer.
+// of a user whose role is target, and equally whether actor may hand out the
+// role target. The superadmin check comes first: that it is refused holds for
+// every caller, including the superadmin, so it is the more specific answer.
+// It is also why the superadmin role is never assignable through the
+// application; the bootstrap path is its only writer.
 func guardTarget(actor, target Role) error {
 	if target.IsSuperadmin() {
 		return ErrSuperadminProtected
@@ -21,23 +23,10 @@ func guardTarget(actor, target Role) error {
 	return nil
 }
 
-// guardAssignRole reports whether actor may hand out role. The superadmin role
-// is never assignable through the application; the bootstrap path is its only
-// writer.
-func guardAssignRole(actor, role Role) error {
-	if role.IsSuperadmin() {
-		return ErrSuperadminProtected
-	}
-	if role.IsAdmin() && !actor.IsSuperadmin() {
-		return ErrSuperadminRequired
-	}
-	return nil
-}
-
-// CanAssignRole is guardAssignRole for callers outside this package. Creating
-// a user has no target row to read, so userapi checks the requested role
-// itself before calling Create.
-func CanAssignRole(actor, role Role) error { return guardAssignRole(actor, role) }
+// CanAssignRole reports whether actor may hand out role, for callers outside
+// this package. Creating a user has no target row to read, so userapi checks
+// the requested role itself before calling Create.
+func CanAssignRole(actor, role Role) error { return guardTarget(actor, role) }
 
 // guardProfileEdit reports whether actor may write the profile fields -
 // display name and color - of another user. This is deliberately not

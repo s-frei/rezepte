@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -101,9 +102,7 @@ func WithSecuritySchemes(schemes map[string]*huma.SecurityScheme) Option {
 		if components.SecuritySchemes == nil {
 			components.SecuritySchemes = map[string]*huma.SecurityScheme{}
 		}
-		for name, scheme := range schemes {
-			components.SecuritySchemes[name] = scheme
-		}
+		maps.Copy(components.SecuritySchemes, schemes)
 	}
 }
 
@@ -188,13 +187,19 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 // RFC 9457 problem+json 404 instead of the stdlib's plain-text one.
 func notFound(detail string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/problem+json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(huma.ErrorModel{
-			Title:  "Not Found",
-			Status: http.StatusNotFound,
-			Detail: detail,
-		})
+		WriteProblem(w, http.StatusNotFound, detail)
+	})
+}
+
+// WriteProblem answers with an RFC 9457 problem+json body in the shape huma
+// gives its own errors, for the responses written outside a huma operation.
+func WriteProblem(w http.ResponseWriter, status int, detail string) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(huma.ErrorModel{
+		Title:  http.StatusText(status),
+		Status: status,
+		Detail: detail,
 	})
 }
 

@@ -37,7 +37,7 @@ func TestSeedUploadsEmbeddedPhotos(t *testing.T) {
 func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNone []string) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -50,7 +50,7 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 		t.Fatalf("summary = %+v, want 12 recipes, 27 images, not skipped", sum)
 	}
 
-	recipes := recipe.NewService(conn)
+	recipes := recipe.NewService(conn, "")
 	r, err := recipes.BySlug(ctx, withSet)
 	if err != nil {
 		t.Fatalf("%s: %v", withSet, err)
@@ -87,7 +87,7 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 func TestSeedIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -101,7 +101,7 @@ func TestSeedIsIdempotent(t *testing.T) {
 	if !sum.Skipped || sum.Recipes != 0 || sum.Images != 0 {
 		t.Fatalf("second summary = %+v, want skipped and zero counts", sum)
 	}
-	if n, _ := recipe.NewService(conn).Count(ctx); n != 12 {
+	if n, _ := recipe.NewService(conn, "").Count(ctx); n != 12 {
 		t.Fatalf("recipes after second seed = %d, want 12", n)
 	}
 }
@@ -113,14 +113,14 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); !errors.Is(err, demo.ErrNoUsers) {
 		t.Fatalf("Seed without users: err = %v, want ErrNoUsers", err)
 	}
-	sam, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleAdmin})
+	sam, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); err != nil { // "de": the slug below is the German fixture's
 		t.Fatalf("Seed with fallback owner: %v", err)
 	}
-	r, err := recipe.NewService(conn).BySlug(ctx, "flammkuchen")
+	r, err := recipe.NewService(conn, "").BySlug(ctx, "flammkuchen")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 			t.Fatalf("%s: role %s, locale %s; want user, de", name, u.Role, u.Locale)
 		}
 	}
-	recipes := recipe.NewService(conn)
+	recipes := recipe.NewService(conn, "")
 	top, err := recipes.BySlug(ctx, "koenigsberger-klopse")
 	if err != nil {
 		t.Fatal(err)
@@ -184,7 +184,7 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 func TestMembersFollowTheSeed(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestMembersFollowTheSeed(t *testing.T) {
 func TestMembersLeaveATakenNameAlone(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestMembersLeaveATakenNameAlone(t *testing.T) {
 func TestMembersWriteSomeSamples(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
+	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
 		t.Fatal(err)
 	}
 	members, err := demo.AddMembers(ctx, conn, "en", quiet)
@@ -300,7 +300,7 @@ func TestMembersWriteSomeSamples(t *testing.T) {
 		t.Fatalf("members marked %d of their own recipes tasty, want none", ownMarks)
 	}
 
-	recipes := recipe.NewService(conn)
+	recipes := recipe.NewService(conn, "")
 	first, err := recipes.BySlug(ctx, "shepherd-s-pie")
 	if err != nil {
 		t.Fatal(err)
@@ -324,7 +324,7 @@ func TestMembersWriteSomeSamples(t *testing.T) {
 func TestSeedMembersShareSamples(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -377,7 +377,7 @@ func TestSeedMembersShareSamples(t *testing.T) {
 func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	if _, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
 	members, err := demo.AddMembers(ctx, conn, "en", quiet)

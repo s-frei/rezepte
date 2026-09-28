@@ -29,7 +29,7 @@ import (
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func newHandler(t *testing.T) http.Handler {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
 	dir := filepath.Join(t.TempDir(), "images")
-	recipe.Register(srv.API(), recipe.NewService(conn, recipe.WithImageDir(dir)))
+	recipe.Register(srv.API(), recipe.NewService(conn, dir))
 	images := image.NewService(conn, dir)
 	image.Register(srv.API(), images)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",

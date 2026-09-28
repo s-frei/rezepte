@@ -35,11 +35,11 @@ func setup(t *testing.T) (*recipe.Service, string) {
 	conn := dbtest.Open(t)
 	testConns[t] = conn
 	t.Cleanup(func() { delete(testConns, t) })
-	u, err := user.NewService(conn).Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(conn, "").Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return recipe.NewService(conn), u.ID
+	return recipe.NewService(conn, ""), u.ID
 }
 
 // testConns lets createUser find the database setup opened for the current
@@ -65,7 +65,7 @@ func createUser(t *testing.T, username string) string { //nolint:unparam // help
 	if !ok {
 		t.Fatal("createUser: call setup(t) first")
 	}
-	u, err := user.NewService(conn).Create(context.Background(), user.CreateParams{Username: username, Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(conn, "").Create(context.Background(), user.CreateParams{Username: username, Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func createUserWithProfile(t *testing.T, username, displayName string, color use
 	if !ok {
 		t.Fatal("createUserWithProfile: call setup(t) first")
 	}
-	u, err := user.NewService(conn).Create(context.Background(), user.CreateParams{
+	u, err := user.NewService(conn, "").Create(context.Background(), user.CreateParams{
 		Username: username, Password: "pw", Role: user.RoleAdmin,
 		DisplayName: displayName, Color: color,
 	})
@@ -204,11 +204,11 @@ func TestReservedSlugIsSkipped(t *testing.T) {
 func TestLoadListsImagesInPositionOrderWithCover(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := recipe.NewService(conn)
+	svc := recipe.NewService(conn, "")
 	created, err := svc.Create(ctx, u.ID, loadFixtures(t)[0])
 	if err != nil {
 		t.Fatal(err)
@@ -244,12 +244,12 @@ func TestLoadListsImagesInPositionOrderWithCover(t *testing.T) {
 func TestDeleteRemovesImageDirectory(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	svc := recipe.NewService(conn, recipe.WithImageDir(dir))
+	svc := recipe.NewService(conn, dir)
 	created, err := svc.Create(ctx, u.ID, loadFixtures(t)[1])
 	if err != nil {
 		t.Fatal(err)

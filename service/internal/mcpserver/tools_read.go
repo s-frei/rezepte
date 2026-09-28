@@ -74,7 +74,7 @@ func addSearchRecipes(s *mcp.Server, c caller) {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in searchIn) (*mcp.CallToolResult, any, error) {
 		page, err := c.svc.List(ctx, recipe.ListParams{
 			Query:         in.Query,
-			Tags:          recipe.NormalizeTagQuery(in.Tags),
+			Tags:          in.Tags,
 			MaxMinutes:    in.MaxMinutes,
 			FavoritesOnly: in.Favorites,
 			Author:        in.Author,

@@ -13,7 +13,7 @@ import (
 
 func TestCreateAndAuthenticate(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 
 	created, err := svc.Create(ctx, user.CreateParams{Username: "Sam", Password: "secret123", Role: user.RoleAdmin})
 	if err != nil {
@@ -37,7 +37,7 @@ func TestCreateAndAuthenticate(t *testing.T) {
 
 func TestCreateTrimsUsername(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 
 	if _, err := svc.Create(ctx, user.CreateParams{Username: "  ", Password: "secret123", Role: user.RoleUser}); !errors.Is(err, user.ErrInvalidUsername) {
 		t.Fatalf("blank username: err = %v, want ErrInvalidUsername", err)
@@ -61,7 +61,7 @@ func TestCreateTrimsUsername(t *testing.T) {
 
 func TestCreateRejectsDuplicateUsername(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	if _, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "x", Role: user.RoleUser}); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestCreateRejectsDuplicateUsername(t *testing.T) {
 }
 
 func TestByIDNotFound(t *testing.T) {
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	if _, err := svc.ByID(context.Background(), "missing"); !errors.Is(err, user.ErrNotFound) {
 		t.Fatalf("err = %v, want ErrNotFound", err)
 	}
@@ -81,7 +81,7 @@ func TestEnsureSuperadmin(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("creates the owner on an empty instance", func(t *testing.T) {
-		svc := user.NewService(dbtest.Open(t))
+		svc := user.NewService(dbtest.Open(t), "")
 		if err := svc.EnsureSuperadmin(ctx, "boss", "secret123"); err != nil {
 			t.Fatalf("EnsureSuperadmin: %v", err)
 		}
@@ -92,7 +92,7 @@ func TestEnsureSuperadmin(t *testing.T) {
 	})
 
 	t.Run("is a no-op once an owner exists", func(t *testing.T) {
-		svc := user.NewService(dbtest.Open(t))
+		svc := user.NewService(dbtest.Open(t), "")
 		if err := svc.EnsureSuperadmin(ctx, "boss", "secret123"); err != nil {
 			t.Fatal(err)
 		}
@@ -109,14 +109,14 @@ func TestEnsureSuperadmin(t *testing.T) {
 	})
 
 	t.Run("needs a password on an empty instance", func(t *testing.T) {
-		svc := user.NewService(dbtest.Open(t))
+		svc := user.NewService(dbtest.Open(t), "")
 		if err := svc.EnsureSuperadmin(ctx, "boss", ""); !errors.Is(err, user.ErrAdminPasswordRequired) {
 			t.Fatalf("err = %v, want ErrAdminPasswordRequired", err)
 		}
 	})
 
 	t.Run("refuses a populated instance with no owner", func(t *testing.T) {
-		svc := user.NewService(dbtest.Open(t))
+		svc := user.NewService(dbtest.Open(t), "")
 		if _, err := svc.Create(ctx, user.CreateParams{Username: "stray", Password: "secret123", Role: user.RoleAdmin}); err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +130,7 @@ func seedTwo(t *testing.T) (*sql.DB, *user.Service, user.User, user.User) {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn)
+	svc := user.NewService(conn, "")
 	sam, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "password-sam", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
@@ -335,7 +335,7 @@ func TestSetAndChangePassword(t *testing.T) {
 func seedRanks(t *testing.T) (*user.Service, map[string]user.User) {
 	t.Helper()
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	out := map[string]user.User{}
 	for _, seed := range []struct {
 		name string
@@ -425,7 +425,7 @@ func TestSuperadminChangesTheirOwnPassword(t *testing.T) {
 
 func TestResetSuperadminPassword(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	if err := svc.EnsureSuperadmin(ctx, "boss", "secret123"); err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +444,7 @@ func TestResetSuperadminPassword(t *testing.T) {
 		t.Fatalf("empty password: err = %v, want ErrAdminPasswordRequired", err)
 	}
 
-	empty := user.NewService(dbtest.Open(t))
+	empty := user.NewService(dbtest.Open(t), "")
 	if _, err := empty.ResetSuperadminPassword(ctx, "newsecret1"); !errors.Is(err, user.ErrNoSuperadmin) {
 		t.Fatalf("no owner: err = %v, want ErrNoSuperadmin", err)
 	}
@@ -452,7 +452,7 @@ func TestResetSuperadminPassword(t *testing.T) {
 
 func TestCreateFillsTheProfileDefaults(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 
 	first, err := svc.Create(ctx, user.CreateParams{Username: " sam ", Password: "sam-password", Role: user.RoleUser})
 	if err != nil {
@@ -476,7 +476,7 @@ func TestCreateFillsTheProfileDefaults(t *testing.T) {
 
 func TestCreateAcceptsAnExplicitProfile(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 
 	u, err := svc.Create(ctx, user.CreateParams{
 		Username: "sam", Password: "sam-password", Role: user.RoleUser,
@@ -492,7 +492,7 @@ func TestCreateAcceptsAnExplicitProfile(t *testing.T) {
 
 func TestCreateRefusesABadProfile(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 
 	_, err := svc.Create(ctx, user.CreateParams{
 		Username: "sam", Password: "sam-password", Role: user.RoleUser,
@@ -512,7 +512,7 @@ func TestCreateRefusesABadProfile(t *testing.T) {
 
 func TestSetProfileWritesOnlyWhatIsGiven(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	u, err := svc.Create(ctx, user.CreateParams{
 		Username: "sam", Password: "sam-password", Role: user.RoleUser,
 		DisplayName: "Sam", Color: "amber",
@@ -545,7 +545,7 @@ func TestSetProfileWritesOnlyWhatIsGiven(t *testing.T) {
 
 func TestSetProfileEmptyNameFallsBackToTheUsername(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	u, err := svc.Create(ctx, user.CreateParams{
 		Username: "sam", Password: "sam-password", Role: user.RoleUser, DisplayName: "Sam",
 	})
@@ -564,7 +564,7 @@ func TestSetProfileEmptyNameFallsBackToTheUsername(t *testing.T) {
 
 func TestSetProfileRefusesAnUnknownUserAndABadColor(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	u, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleUser})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -583,7 +583,7 @@ func TestSetProfileRefusesAnUnknownUserAndABadColor(t *testing.T) {
 
 func TestColorUsageCoversThePalette(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	if _, err := svc.Create(ctx, user.CreateParams{
 		Username: "sam", Password: "sam-password", Role: user.RoleUser, Color: "sage",
 	}); err != nil {
@@ -609,7 +609,7 @@ func TestColorUsageCoversThePalette(t *testing.T) {
 
 func TestCreateUsesTheDefaultLocale(t *testing.T) {
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn, user.WithDefaultLocale("de"))
+	svc := user.NewService(conn, "de")
 
 	u, err := svc.Create(t.Context(), user.CreateParams{
 		Username: "anna", Password: "anna1234", Role: user.RoleUser,
@@ -624,7 +624,7 @@ func TestCreateUsesTheDefaultLocale(t *testing.T) {
 
 func TestCreateWithoutOptionDefaultsToEnglish(t *testing.T) {
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn)
+	svc := user.NewService(conn, "")
 
 	u, err := svc.Create(t.Context(), user.CreateParams{
 		Username: "bob", Password: "bob1234", Role: user.RoleUser,
@@ -639,7 +639,7 @@ func TestCreateWithoutOptionDefaultsToEnglish(t *testing.T) {
 
 func TestCreateHonoursAnExplicitLocale(t *testing.T) {
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn, user.WithDefaultLocale("en"))
+	svc := user.NewService(conn, "en")
 
 	u, err := svc.Create(t.Context(), user.CreateParams{
 		Username: "cara", Password: "cara1234", Role: user.RoleUser, Locale: "de",
@@ -654,7 +654,7 @@ func TestCreateHonoursAnExplicitLocale(t *testing.T) {
 
 func TestCreateRejectsAnUnknownLocale(t *testing.T) {
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn)
+	svc := user.NewService(conn, "")
 
 	_, err := svc.Create(t.Context(), user.CreateParams{
 		Username: "dan", Password: "dan1234", Role: user.RoleUser, Locale: "xx",
@@ -666,7 +666,7 @@ func TestCreateRejectsAnUnknownLocale(t *testing.T) {
 
 func TestSetProfileChangesTheLocale(t *testing.T) {
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn)
+	svc := user.NewService(conn, "")
 	u, err := svc.Create(t.Context(), user.CreateParams{
 		Username: "eva", Password: "eva1234", Role: user.RoleUser,
 	})
@@ -689,7 +689,7 @@ func TestSetProfileChangesTheLocale(t *testing.T) {
 
 func TestCanSharePubliclyDefaultsOn(t *testing.T) {
 	ctx := context.Background()
-	svc := user.NewService(dbtest.Open(t))
+	svc := user.NewService(dbtest.Open(t), "")
 	u, err := svc.Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleUser})
 	if err != nil {
 		t.Fatalf("create: %v", err)
@@ -763,7 +763,7 @@ func TestSharingFollowsRank(t *testing.T) {
 
 func TestSetProfileRejectsAnUnknownLocale(t *testing.T) {
 	conn := dbtest.Open(t)
-	svc := user.NewService(conn)
+	svc := user.NewService(conn, "")
 	u, err := svc.Create(t.Context(), user.CreateParams{
 		Username: "finn", Password: "finn1234", Role: user.RoleUser,
 	})

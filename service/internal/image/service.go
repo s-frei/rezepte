@@ -8,9 +8,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
@@ -79,7 +79,7 @@ func (s *Service) Upload(ctx context.Context, recipeID string, actor user.User, 
 	if len(data) > maxUploadBytes {
 		return recipe.Image{}, fmt.Errorf("%w: larger than %d bytes", ErrInvalid, maxUploadBytes)
 	}
-	id := uuid.Must(uuid.NewV7()).String()
+	id := uuid.NewV7().String()
 	recipeDir := filepath.Join(s.dir, recipeID)
 	w, err := s.render(ctx, data, recipeDir, id)
 	if err != nil {
@@ -331,20 +331,9 @@ func toImage(im sqlc.Image) recipe.Image {
 }
 
 // isID accepts the canonical 36-character UUID spelling and nothing else.
+// uuid.Parse also takes the braced, URN and dashless forms and upper case,
+// which the length and the lower-case check rule out.
 func isID(s string) bool {
-	if len(s) != 36 {
-		return false
-	}
-	for i, c := range s {
-		switch {
-		case i == 8 || i == 13 || i == 18 || i == 23:
-			if c != '-' {
-				return false
-			}
-		case c >= '0' && c <= '9', c >= 'a' && c <= 'f':
-		default:
-			return false
-		}
-	}
-	return true
+	_, err := uuid.Parse(s)
+	return err == nil && len(s) == 36 && s == strings.ToLower(s)
 }

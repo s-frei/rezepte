@@ -38,7 +38,7 @@ func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler
 		t.Fatalf("load config: %v", err)
 	}
 	conn := dbtest.Open(t)
-	users := user.NewService(conn, user.WithDefaultLocale(user.Locale(cfg.Locale)))
+	users := user.NewService(conn, user.Locale(cfg.Locale))
 	for _, seed := range []struct {
 		name string
 		role user.Role

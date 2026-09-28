@@ -30,7 +30,7 @@ func newBearerStackWithScopes(t *testing.T, scopes ...string) (http.Handler, str
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)

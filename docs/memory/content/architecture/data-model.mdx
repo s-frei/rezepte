@@ -145,7 +145,7 @@ erDiagram
 
 ## Conventions
 
-- IDs: UUIDv7 strings (`uuid.Must(uuid.NewV7()).String()`), sortable by creation time.
+- IDs: UUIDv7 strings (`uuid.NewV7().String()` from the standard `uuid` package), sortable by creation time.
 - Timestamps: RFC 3339 UTC strings via `db.FormatTime` / `db.ParseTime`, with **second** resolution (`time.RFC3339`, no fractional part). Because two writes in the same second get the same `updated_at`, the recipe list and search queries (`queries/recipes.sql`) break ties with `id DESC`: UUIDv7 ids sort lexicographically by creation time, so the newest row still sorts first. Without that tiebreaker, two recipes saved in the same second come back oldest first. If a fractional part is ever added to `FormatTime`, it must be fixed-width - `time.RFC3339Nano` trims trailing zeros, and a shortened fraction no longer sorts lexicographically the same as the full value.
 - The connection DSN in `service/internal/db/db.go` sets the pragmas: `journal_mode(WAL)`, `busy_timeout(5000)`, `synchronous(NORMAL)`, `foreign_keys(ON)`, `recursive_triggers(ON)` and `_txlock=immediate`. The recursive triggers are not for a trigger that writes - there is none - but because SQLite fires a `BEFORE DELETE` trigger for the delete half of a `REPLACE` only when that pragma is on.
 - Foreign keys are enforced; deletes cascade. The one exception is `recipes.cover_image_id`, a plain nullable `TEXT` with no `REFERENCES` constraint: it points at `images.id` but carries no FK because the image service keeps it consistent itself (set on first upload, moved on delete of the cover) - a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).

@@ -133,7 +133,7 @@ func run() error {
 		return err
 	}
 
-	users := user.NewService(conn, user.WithDefaultLocale(user.Locale(cfg.Locale)))
+	users := user.NewService(conn, user.Locale(cfg.Locale))
 	if *resetOwner {
 		owner, err := users.ResetSuperadminPassword(ctx, cfg.AdminPassword)
 		if err != nil {
@@ -181,7 +181,7 @@ func run() error {
 		httpserver.WithShellHeaders(share.ShellHeaders),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
-	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
+	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
 	mcpHandler, err := mcpserver.Handler(recipes, srv.API(), version)
 	if err != nil {

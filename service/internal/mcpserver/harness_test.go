@@ -30,9 +30,9 @@ type env struct {
 func newEnv(t *testing.T) env {
 	t.Helper()
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	tokens := auth.NewTokenService(conn, users)
-	svc := recipe.NewService(conn)
+	svc := recipe.NewService(conn, "")
 	_, api := humatest.New(t)
 	recipe.Register(api, svc)
 	owner, err := users.Create(t.Context(), user.CreateParams{Username: "cook", Password: "secret123", Role: user.RoleAdmin})
@@ -45,11 +45,11 @@ func newEnv(t *testing.T) env {
 	}
 	ts := httptest.NewServer(auth.RequireToken(tokens, auth.ScopeRecipesRead)(h))
 	t.Cleanup(ts.Close)
-	create, err := recipeInputSchema(api)
+	create, err := recipeSchema(api, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	update, err := recipeUpdateSchema(api)
+	update, err := recipeSchema(api, true)
 	if err != nil {
 		t.Fatal(err)
 	}

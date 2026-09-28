@@ -33,12 +33,12 @@ func setup(t *testing.T) env {
 	t.Helper()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
-	u, err := user.NewService(conn).Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	recipes := recipe.NewService(conn, recipe.WithImageDir(dir))
+	recipes := recipe.NewService(conn, dir)
 	r, err := recipes.Create(ctx, u.ID, recipe.Input{
 		Title: "Testrezept", Servings: 2,
 		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Salz"}}}},
@@ -56,7 +56,7 @@ func adminOf(e env) user.User { return user.User{ID: e.owner, Role: user.RoleAdm
 // an editor who is not the recipe's author.
 func createUser(t *testing.T, e env, username string) string {
 	t.Helper()
-	u, err := user.NewService(e.conn).Create(context.Background(), user.CreateParams{Username: username, Password: "pw", Role: user.RoleAdmin})
+	u, err := user.NewService(e.conn, "").Create(context.Background(), user.CreateParams{Username: username, Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestImageOperationsRecordTheEditor(t *testing.T) {
 func lockedForMember(t *testing.T, e env) user.User {
 	t.Helper()
 	ctx := context.Background()
-	m, err := user.NewService(e.conn).Create(ctx, user.CreateParams{Username: "ben", Password: "pw", Role: user.RoleUser})
+	m, err := user.NewService(e.conn, "").Create(ctx, user.CreateParams{Username: "ben", Password: "pw", Role: user.RoleUser})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -47,7 +47,7 @@ func newFullApp(t *testing.T) fullApp {
 		t.Fatal(err)
 	}
 	conn := dbtest.Open(t)
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -66,7 +66,7 @@ func newFullApp(t *testing.T) fullApp {
 		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
 		httpserver.WithShellHeaders(share.ShellHeaders))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
-	recipes := recipe.NewService(conn, recipe.WithImageDir(imageDir))
+	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
 	mcpHandler, err := mcpserver.Handler(recipes, srv.API(), "test")
 	if err != nil {

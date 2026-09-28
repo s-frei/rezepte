@@ -5,8 +5,7 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
@@ -28,12 +27,12 @@ func TestIsUniqueViolationOnARealDuplicateInsert(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 
-	users := user.NewService(conn)
+	users := user.NewService(conn, "")
 	member, err := users.Create(ctx, user.CreateParams{Username: "mira", Password: "pw", Role: user.RoleUser})
 	if err != nil {
 		t.Fatal(err)
 	}
-	recipes := recipe.NewService(conn)
+	recipes := recipe.NewService(conn, "")
 	r, err := recipes.Create(ctx, member.ID, recipe.Input{
 		Title: "Gurkensalat", Servings: 2,
 		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Gurke"}}}},
@@ -46,7 +45,7 @@ func TestIsUniqueViolationOnARealDuplicateInsert(t *testing.T) {
 	q := sqlc.New(conn)
 	now := db.FormatTime(time.Now().UTC())
 	if _, err := q.CreateShare(ctx, sqlc.CreateShareParams{
-		ID: uuid.Must(uuid.NewV7()).String(), Token: "token-one-aaaaaaaaaaaa",
+		ID: uuid.NewV7().String(), Token: "token-one-aaaaaaaaaaaa",
 		RecipeID: r.ID, CreatedBy: member.ID, CreatedAt: now,
 	}); err != nil {
 		t.Fatalf("first insert: %v", err)
@@ -56,7 +55,7 @@ func TestIsUniqueViolationOnARealDuplicateInsert(t *testing.T) {
 		// Same recipe_id and created_by as above, everything else distinct -
 		// the composite UNIQUE(recipe_id, created_by) is what must fail,
 		// not the primary key or token's own UNIQUE column.
-		ID: uuid.Must(uuid.NewV7()).String(), Token: "token-two-aaaaaaaaaaaa",
+		ID: uuid.NewV7().String(), Token: "token-two-aaaaaaaaaaaa",
 		RecipeID: r.ID, CreatedBy: member.ID, CreatedAt: now,
 	})
 	if err == nil {
