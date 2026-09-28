@@ -1,4 +1,5 @@
 import type { UserColor } from '$lib/user/color';
+import { buildListQuery, type ListQuery } from '$lib/recipe/query';
 import { api } from './client';
 
 // Contract types (binding for both the backend and the frontend, see
@@ -156,45 +157,29 @@ export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
  * Lists recipe cards, optionally filtered by search term and/or a
  * combination of tags, paginated.
  *
+ * The filters go through `buildListQuery`, the same serializer the
+ * overview's URL uses, so both omit a default the same way; only `limit`,
+ * which the URL never carries, is added here.
+ *
  * `init` is forwarded to the underlying `fetch` call (e.g. `{ signal }` to
  * cancel a stale request when the overview page's filters change again
  * before this one resolves).
  */
 export function listRecipes(
-	params: {
-		q?: string;
-		tags?: string[];
-		maxMinutes?: number;
-		favorites?: boolean;
-		author?: string;
-		sort?: 'updated' | 'created' | 'title' | 'tasty';
-		page?: number;
-		limit?: number;
-	} = {},
+	params: Partial<ListQuery> & { limit?: number } = {},
 	init: RequestInit = {}
 ): Promise<RecipePage> {
-	const query = new URLSearchParams();
-	if (params.q) {
-		query.set('q', params.q);
-	}
-	if (params.tags && params.tags.length > 0) {
-		query.set('tags', params.tags.join(','));
-	}
-	if (params.maxMinutes !== undefined && params.maxMinutes > 0) {
-		query.set('maxMinutes', String(params.maxMinutes));
-	}
-	if (params.favorites) {
-		query.set('favorites', 'true');
-	}
-	if (params.author) {
-		query.set('author', params.author);
-	}
-	if (params.sort !== undefined && params.sort !== 'updated') {
-		query.set('sort', params.sort);
-	}
-	if (params.page !== undefined) {
-		query.set('page', String(params.page));
-	}
+	const query = new URLSearchParams(
+		buildListQuery({
+			q: params.q ?? '',
+			tags: params.tags ?? [],
+			maxMinutes: params.maxMinutes ?? 0,
+			favorites: params.favorites ?? false,
+			author: params.author ?? '',
+			sort: params.sort ?? 'updated',
+			page: params.page ?? 1
+		})
+	);
 	if (params.limit !== undefined) {
 		query.set('limit', String(params.limit));
 	}
