@@ -187,7 +187,8 @@ function quantityToText(quantity: number | null): string {
 	return quantity === null ? '' : String(quantity).replace('.', localeDecimalSeparator());
 }
 
-function blankToNull(value: string): string | null {
+/** Trims a typed value; an empty one becomes null, the API's "not set". */
+export function blankToNull(value: string): string | null {
 	const trimmed = value.trim();
 	return trimmed === '' ? null : trimmed;
 }
@@ -626,11 +627,6 @@ export function anchorId(field: string): string {
  * ` dessert ` are the same tag. */
 export function normaliseTag(tag: string): string {
 	return tag.trim().toLowerCase();
-}
-
-/** A deep copy, used to snapshot the pristine form for the dirty check. */
-export function cloneForm(form: RecipeForm): RecipeForm {
-	return JSON.parse(JSON.stringify(form)) as RecipeForm;
 }
 
 /** True when the form differs from the snapshot it started out as. */

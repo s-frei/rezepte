@@ -4,9 +4,8 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { Dialog } from 'bits-ui';
 	import { tick } from 'svelte';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { fade, fly } from 'svelte/transition';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
+	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -43,9 +42,6 @@
 		onreset: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 	} = $props();
-
-	const duration = $derived(prefersReducedMotion.current ? 0 : 250);
-	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
 	const permissions = $derived(rowPermissions(actorRole, person, isSelf));
 
@@ -127,111 +123,70 @@
 	stacked as full-width lines a thumb can hit. Shaped like the contents
 	sheet, so the phone has one kind of sheet.
 -->
-<Dialog.Root bind:open>
-	<Dialog.Portal>
-		<Dialog.Overlay forceMount>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: fadeDuration }}
-					></div>
-				{/if}
-			{/snippet}
-		</Dialog.Overlay>
-		<Dialog.Content forceMount preventScroll={false} onCloseAutoFocus={returnFocus}>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[80dvh] w-full max-w-[640px] flex-col rounded-t-3xl bg-background shadow-sheet outline-none"
-						transition:fly={{ duration, y: 200 }}
-					>
-						<Dialog.Close
-							aria-label={m.common_close()}
-							class="flex w-full shrink-0 justify-center pt-2 pb-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-						>
-							<span class="h-1 w-9 rounded-pill bg-handle" aria-hidden="true"></span>
-						</Dialog.Close>
-						<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-							<div class="flex items-center gap-4">
-								<span
-									aria-hidden="true"
-									class="flex size-14 shrink-0 items-center justify-center rounded-full initial-centered font-display text-heading font-semibold {userColorClasses(
-										person.color
-									)}"
-								>
-									{initial}
-								</span>
-								<div class="min-w-0">
-									<Dialog.Title class="truncate font-display text-heading font-medium">
-										{person.displayName}
-									</Dialog.Title>
-									<p class="truncate text-caption text-text-muted">
-										{m.users_login_name({ username: person.username })}
-									</p>
-								</div>
-							</div>
+<BottomSheet bind:open closeLabel={m.common_close()} onCloseAutoFocus={returnFocus}>
+	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+		<div class="flex items-center gap-4">
+			<span
+				aria-hidden="true"
+				class="flex size-14 shrink-0 items-center justify-center rounded-full initial-centered font-display text-heading font-semibold {userColorClasses(
+					person.color
+				)}"
+			>
+				{initial}
+			</span>
+			<div class="min-w-0">
+				<Dialog.Title class="truncate font-display text-heading font-medium">
+					{person.displayName}
+				</Dialog.Title>
+				<p class="truncate text-caption text-text-muted">
+					{m.users_login_name({ username: person.username })}
+				</p>
+			</div>
+		</div>
 
-							<!-- A surface panel, as on the settings cards: the segmented
-								control's track is the background color and vanishes on a
-								sheet that is the background color too, leaving "Admin" to
-								read as one more action line. -->
-							<div class="mt-6 rounded-xl bg-surface p-4">
-								<p class="mb-2 text-caption text-text-muted">{m.users_field_role()}</p>
-								{#if permissions.changeRole}
-									<SegmentedControl
-										bind:value={role}
-										options={roleOptions}
-										label={m.users_role_aria({ username: person.username })}
-										onchange={changeRole}
-									/>
-								{:else}
-									<p class="text-body font-medium">{roleLabel(person.role)}</p>
-								{/if}
-								{#if showSharing}
-									<!-- A setting on the person, like the role above, so it
-									     sits in the same panel rather than among the actions. -->
-									<div
-										class="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4"
-									>
-										<span class="text-body font-medium">{m.users_share_toggle()}</span>
-										<Switch
-											checked={sharing}
-											label={m.users_share_toggle()}
-											onchange={toggleSharing}
-										/>
-									</div>
-								{/if}
-							</div>
+		<!-- A surface panel, as on the settings cards: the segmented
+				control's track is the background color and vanishes on a
+				sheet that is the background color too, leaving "Admin" to
+				read as one more action line. -->
+		<div class="mt-6 rounded-xl bg-surface p-4">
+			<p class="mb-2 text-caption text-text-muted">{m.users_field_role()}</p>
+			{#if permissions.changeRole}
+				<SegmentedControl
+					bind:value={role}
+					options={roleOptions}
+					label={m.users_role_aria({ username: person.username })}
+					onchange={changeRole}
+				/>
+			{:else}
+				<p class="text-body font-medium">{roleLabel(person.role)}</p>
+			{/if}
+			{#if showSharing}
+				<!-- A setting on the person, like the role above, so it
+					     sits in the same panel rather than among the actions. -->
+				<div class="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
+					<span class="text-body font-medium">{m.users_share_toggle()}</span>
+					<Switch checked={sharing} label={m.users_share_toggle()} onchange={toggleSharing} />
+				</div>
+			{/if}
+		</div>
 
-							<div class="-mx-3 mt-5 border-t border-border pt-2">
-								{#if permissions.editProfile}
-									<button type="button" class={row} onclick={() => hand(onedit)}>
-										<Pencil class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-										{m.users_edit_profile()}
-									</button>
-								{/if}
-								{#if permissions.manageAccount}
-									<button type="button" class={row} onclick={() => hand(onreset)}>
-										<KeyRound class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-										{m.users_reset_password()}
-									</button>
-									<button
-										type="button"
-										class="{row} text-destructive"
-										onclick={() => hand(ondelete)}
-									>
-										<Trash2 class="size-4 shrink-0" aria-hidden="true" />
-										{m.users_delete_account()}
-									</button>
-								{/if}
-							</div>
-						</div>
-					</div>
-				{/if}
-			{/snippet}
-		</Dialog.Content>
-	</Dialog.Portal>
-</Dialog.Root>
+		<div class="-mx-3 mt-5 border-t border-border pt-2">
+			{#if permissions.editProfile}
+				<button type="button" class={row} onclick={() => hand(onedit)}>
+					<Pencil class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+					{m.users_edit_profile()}
+				</button>
+			{/if}
+			{#if permissions.manageAccount}
+				<button type="button" class={row} onclick={() => hand(onreset)}>
+					<KeyRound class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+					{m.users_reset_password()}
+				</button>
+				<button type="button" class="{row} text-destructive" onclick={() => hand(ondelete)}>
+					<Trash2 class="size-4 shrink-0" aria-hidden="true" />
+					{m.users_delete_account()}
+				</button>
+			{/if}
+		</div>
+	</div>
+</BottomSheet>

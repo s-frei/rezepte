@@ -7,6 +7,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
+	import { swipeDirection } from '$lib/recipe/swipe';
 
 	let {
 		open = $bindable(false),
@@ -26,8 +27,6 @@
 		 * the public share page passes its own `/public-images/...` route. */
 		src?: (imageId: string, variant: ImageVariant) => string;
 	} = $props();
-
-	const SWIPE_THRESHOLD = 50;
 
 	const count = $derived(images.length);
 	const current = $derived(images[index]);
@@ -61,11 +60,11 @@
 		if (swipeStart === null) {
 			return;
 		}
-		const delta = event.clientX - swipeStart;
+		const swipe = swipeDirection(swipeStart, event.clientX);
 		swipeStart = null;
-		if (delta <= -SWIPE_THRESHOLD) {
+		if (swipe === 'next') {
 			show(index + 1);
-		} else if (delta >= SWIPE_THRESHOLD) {
+		} else if (swipe === 'previous') {
 			show(index - 1);
 		}
 	}

@@ -8,16 +8,12 @@ export type SwipeDirection = 'next' | 'previous' | null;
  * dragging left (content moves left, like turning a page forward) is
  * `next`, dragging right is `previous`, shorter moves are `null`.
  */
-export function swipeDirection(
-	startX: number,
-	endX: number,
-	threshold: number = SWIPE_THRESHOLD
-): SwipeDirection {
+export function swipeDirection(startX: number, endX: number): SwipeDirection {
 	const delta = endX - startX;
-	if (delta <= -threshold) {
+	if (delta <= -SWIPE_THRESHOLD) {
 		return 'next';
 	}
-	if (delta >= threshold) {
+	if (delta >= SWIPE_THRESHOLD) {
 		return 'previous';
 	}
 	return null;

@@ -17,7 +17,6 @@
 	import {
 		anchorId,
 		applyServerErrors,
-		cloneForm,
 		firstErrorField,
 		fromRecipe,
 		hasNamedIngredient,
@@ -64,7 +63,7 @@
 	// Seeding the editor from a later `initial` would throw away what the user
 	// has typed, so that one-time read is marked with `untrack`.
 	const pristine = untrack(() => fromRecipe(initial));
-	let form = $state(cloneForm(pristine));
+	let form = $state(structuredClone(pristine));
 	let errors = $state<FieldErrors>({});
 	let saving = $state(false);
 	let discardOpen = $state(false);

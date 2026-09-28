@@ -224,11 +224,6 @@ export function getRecipeBySlug(slug: string): Promise<Recipe> {
 	return api<Recipe>(`/recipes/by-slug/${encodeURIComponent(slug)}`);
 }
 
-/** Fetches a single recipe by id. */
-export function getRecipe(id: string): Promise<Recipe> {
-	return api<Recipe>(`/recipes/${encodeURIComponent(id)}`);
-}
-
 /** Creates a new recipe. */
 export function createRecipe(input: RecipeInput): Promise<Recipe> {
 	return api<Recipe>('/recipes', { method: 'POST', body: JSON.stringify(input) });

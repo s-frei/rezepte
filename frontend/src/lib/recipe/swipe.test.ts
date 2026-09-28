@@ -21,9 +21,4 @@ describe('swipeDirection', () => {
 		expect(swipeDirection(100, 51)).toBeNull();
 		expect(swipeDirection(100, 100)).toBeNull();
 	});
-
-	it('takes a custom threshold', () => {
-		expect(swipeDirection(100, 80, 10)).toBe('next');
-		expect(swipeDirection(100, 80, 30)).toBeNull();
-	});
 });

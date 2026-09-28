@@ -70,6 +70,42 @@ test('opens the lightbox and walks through the images', async ({ page }) => {
 	await expect(dialog).toBeHidden();
 });
 
+test('swipes between the lightbox images', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'pointer swipe is exercised on the mobile project only');
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Swipe ${token}` });
+	await uploadImage(page, recipe.id, tinyPng([200, 120, 40]));
+	await uploadImage(page, recipe.id, tinyPng([40, 120, 200]));
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await page.getByRole('button', { name: 'Open photo 1 of 2' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByText('1 / 2')).toBeVisible();
+
+	const area = dialog.getByRole('group').first();
+	const box = await area.boundingBox();
+	if (!box) {
+		throw new Error('swipe area has no bounding box');
+	}
+	const y = box.y + box.height / 2;
+	const drag = async (from: number, to: number) => {
+		await page.mouse.move(box.x + from, y);
+		await page.mouse.down();
+		await page.mouse.move(box.x + to, y, { steps: 4 });
+		await page.mouse.up();
+	};
+
+	// Exactly the 50px threshold, leftwards: the next image.
+	await drag(250, 200);
+	await expect(dialog.getByText('2 / 2')).toBeVisible();
+	// 49px rightwards is below the threshold and must not page.
+	await drag(200, 249);
+	await expect(dialog.getByText('2 / 2')).toBeVisible();
+	// 50px rightwards: back to the previous one.
+	await drag(200, 250);
+	await expect(dialog.getByText('1 / 2')).toBeVisible();
+});
+
 test('uploads, re-covers and removes images in the editor', async ({ page }) => {
 	const token = uniqueToken();
 	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Editor photos ${token}` });

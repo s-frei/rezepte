@@ -3,7 +3,6 @@ import type { Person, Recipe, RecipeInput } from '$lib/api/recipes';
 import {
 	anchorId,
 	applyServerErrors,
-	cloneForm,
 	emptyForm,
 	firstErrorField,
 	fromRecipe,
@@ -803,26 +802,26 @@ describe('anchorId', () => {
 describe('isDirty', () => {
 	it('is false for an untouched copy', () => {
 		const form = validForm();
-		expect(isDirty(form, cloneForm(form))).toBe(false);
+		expect(isDirty(form, structuredClone(form))).toBe(false);
 	});
 
 	it('notices an edited field', () => {
 		const initial = validForm();
-		const form = cloneForm(initial);
+		const form = structuredClone(initial);
 		form.title = 'Anders';
 		expect(isDirty(form, initial)).toBe(true);
 	});
 
 	it('notices a reordered list', () => {
 		const initial = validForm();
-		const form = cloneForm(initial);
+		const form = structuredClone(initial);
 		form.steps.reverse();
 		expect(isDirty(form, initial)).toBe(true);
 	});
 
 	it('notices an added blank row', () => {
 		const initial = validForm();
-		const form = cloneForm(initial);
+		const form = structuredClone(initial);
 		form.ingredientGroups[0].ingredients.push(newIngredient());
 		expect(isDirty(form, initial)).toBe(true);
 	});

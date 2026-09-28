@@ -1,5 +1,5 @@
 import type { IngredientGroup } from '$lib/api/recipes';
-import { parseNumber, type FormGroup, type FormRef, type FormStep } from './form';
+import { blankToNull, parseNumber, type FormGroup, type FormRef, type FormStep } from './form';
 import { isWordChar, suggestReferences, wordPattern } from './references';
 import { formatQuantity } from './format';
 
@@ -82,11 +82,6 @@ export function toIngredientGroups(groups: FormGroup[]): IngredientGroup[] {
 			note: null
 		}))
 	}));
-}
-
-function blankToNull(value: string): string | null {
-	const trimmed = value.trim();
-	return trimmed === '' ? null : trimmed;
 }
 
 /**
