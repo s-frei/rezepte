@@ -901,8 +901,11 @@ test('the initials on a card name their people without opening the recipe', asyn
 
 	// Tapping the initials is what a phone can do - there is no hover there -
 	// and it must resolve the letters rather than follow the card's link.
+	// The letters open the author's card, which names them and links to
+	// their recipes.
 	await page.getByRole('button', { name: /^Added by admin/ }).click();
-	await expect(page.getByText('Added by admin', { exact: true })).toBeVisible();
+	await expect(page.getByText('@admin', { exact: false })).toBeVisible();
+	await expect(page.getByRole('link', { name: /Recipes by admin$/ })).toBeVisible();
 	await expect(page).toHaveURL(new RegExp(`\\?q=${token}$`));
 
 	// The card itself still navigates, so the popover has not swallowed it.

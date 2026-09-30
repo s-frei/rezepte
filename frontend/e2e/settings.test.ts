@@ -146,9 +146,11 @@ test('a member sees everyone, read-only', async ({ page, isMobile }) => {
 
 	// Nothing to act on: no way to add an account, and not one control in
 	// any row - no role select, no pencil, no reset, no delete, and on a
-	// phone no row that opens anything but their own profile.
+	// phone no row that opens anything but their own profile. The one button
+	// a row keeps is its circle, which only shows who that person is.
 	await expect(page.getByRole('button', { name: 'Add account' })).toHaveCount(0);
-	await expect(people(page).getByRole('button')).toHaveCount(0);
+	await expect(people(page).getByRole('button', { name: /^(?!About )/ })).toHaveCount(0);
+	await expect(people(page).getByRole('button', { name: `About ${adminName}` })).toBeVisible();
 	await expect(page.getByText('This account cannot be removed.')).toHaveCount(0);
 	if (isMobile) {
 		await personRow(page, username).getByRole('link', { name: 'Open your profile' }).click();
@@ -353,9 +355,11 @@ test('a second admin cannot touch the instance owner', async ({ page, isMobile }
 	await page.goto('/settings/users');
 
 	// The owner's row offers nothing: no role control, no actions, and on a
-	// phone no sheet to open.
+	// phone no sheet to open. Only the circle, which shows who they are.
 	await expect(people(page).getByRole('list', { name: 'Owner' })).toContainText('admin');
-	await expect(personRow(page, 'admin').getByRole('button')).toHaveCount(0);
+	await expect(personRow(page, 'admin').getByRole('button', { name: /^(?!About )/ })).toHaveCount(
+		0
+	);
 	// A wide screen says why, where the other rows have their actions.
 	if (!isMobile) {
 		await expect(
