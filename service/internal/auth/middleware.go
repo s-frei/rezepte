@@ -118,6 +118,18 @@ func UserFrom(ctx context.Context) (user.User, bool) {
 	return u, ok
 }
 
+type viaTokenKey struct{}
+
+// ViaToken reports whether ctx's request was authenticated by an API token
+// rather than a session cookie. Set only by Middleware's bearer branch, so it
+// answers truthfully only for huma-registered operations. create-user is its first
+// caller: a bearer caller can never see a password it did not choose, so it
+// cannot be handed a setup link either, and needs a typed password instead.
+func ViaToken(ctx context.Context) bool {
+	v, _ := ctx.Value(viaTokenKey{}).(bool)
+	return v
+}
+
 type scopesKey struct{}
 
 // ScopesFrom returns the scopes of the API token that authenticated ctx's
@@ -170,6 +182,7 @@ func Middleware(sessions *Service, tokens *TokenService, secureCookies bool) fun
 					return
 				}
 				ctx = huma.WithValue(ctx, userKey{}, v.User)
+				ctx = huma.WithValue(ctx, viaTokenKey{}, true)
 				next(huma.WithValue(ctx, scopesKey{}, v.Scopes))
 				return
 			}

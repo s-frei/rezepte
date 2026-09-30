@@ -58,6 +58,61 @@ func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler
 	return srv.Handler()
 }
 
+// tokenEnv is newHandlerWithEnv's counterpart for bearer-token tests: a
+// full-stack handler seeded the same way, plus an API token for "sam" (the
+// admin) carrying the requested scopes. Follows internal/recipe/handler_test.go's
+// tokenEnv.
+type tokenEnv struct {
+	h     http.Handler
+	token string
+}
+
+func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
+	t.Helper()
+	cfg, err := config.LoadFrom(map[string]string{})
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, user.Locale(cfg.Locale))
+	var samID string
+	for _, seed := range []struct {
+		name string
+		role user.Role
+	}{{"owner", user.RoleSuperadmin}, {"sam", user.RoleAdmin}, {"kim", user.RoleUser}} {
+		u, err := users.Create(context.Background(), user.CreateParams{Username: seed.name, Password: "pw", Role: seed.role})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if seed.name == "sam" {
+			samID = u.ID
+		}
+	}
+	sessions := auth.NewService(conn, users)
+	tokens := auth.NewTokenService(conn, users)
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	auth.Register(srv.API(), sessions, false)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
+	raw, _, err := tokens.Create(context.Background(), samID, "t", scopes, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &tokenEnv{h: srv.Handler(), token: raw}
+}
+
+// do sends a bearer-authenticated request against env's handler.
+func (e *tokenEnv) do(method, path, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Host = "localhost:8060"
+	req.Header.Set("Origin", "http://localhost:8060")
+	req.Header.Set("Authorization", "Bearer "+e.token)
+	rec := httptest.NewRecorder()
+	e.h.ServeHTTP(rec, req)
+	return rec
+}
+
 func doReq(h http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -176,6 +231,131 @@ func TestPeopleHidesAccountDetails(t *testing.T) {
 				t.Fatalf("unexpected key %q in %v", key, item)
 			}
 		}
+	}
+}
+
+func TestCreateUserWithoutPasswordReturnsASetupLink(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user"}`, c)
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"path":"/welcome#`) {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateUserStillRejectsAShortPassword(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user","password":"short"}`, c)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.password") {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestIssueSetupLinkIsSessionOnlyAndRanked(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	items := listUsers(t, h, c)
+	kim := idOf(t, items, "kim")
+	owner := idOf(t, items, "owner")
+	if rec := doReq(h, http.MethodPost, "/api/v1/users/"+kim+"/setup-link", ``, c); rec.Code != http.StatusCreated {
+		t.Fatalf("member: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := doReq(h, http.MethodPost, "/api/v1/users/"+owner+"/setup-link", ``, c); rec.Code != http.StatusConflict {
+		t.Fatalf("owner: %d", rec.Code)
+	}
+}
+
+// TestIssueAndRevokeSetupLinkRejectAnonymous pins the 401 an anonymous
+// caller gets - no credential at all, which is a different case from a
+// bearer token that authenticates but is refused for the operation (see
+// TestIssueAndRevokeSetupLinkRejectABearerToken).
+func TestIssueAndRevokeSetupLinkRejectAnonymous(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	kimID := idOf(t, listUsers(t, h, c), "kim")
+	if rec := doReq(h, http.MethodPost, "/api/v1/users/"+kimID+"/setup-link", ``, nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous issue: status %d, want 401: %s", rec.Code, rec.Body.String())
+	}
+	if rec := doReq(h, http.MethodDelete, "/api/v1/users/"+kimID+"/setup-link", ``, nil); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous revoke: status %d, want 401: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestIssueAndRevokeSetupLinkRejectABearerToken pins that setup-link
+// management is session-only like every other credential action: a real
+// users:write (and users:read) token - one that can list and would
+// otherwise manage users - still cannot issue or revoke a setup link.
+// auth.SessionSecurity declares no token scheme at all, so
+// auth.Middleware's bearer branch refuses it with 403 before the handler
+// ever runs, the same "API tokens cannot use this operation" every other
+// session-only write answers with.
+func TestIssueAndRevokeSetupLinkRejectABearerToken(t *testing.T) {
+	env := newTokenEnv(t, []string{auth.ScopeUsersRead, auth.ScopeUsersWrite})
+	rec := env.do(http.MethodGet, "/api/v1/users", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list with token: %d %s", rec.Code, rec.Body.String())
+	}
+	var list userapi.UserAccountList
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	kimID := idOf(t, list.Items, "kim")
+
+	if rec := env.do(http.MethodPost, "/api/v1/users/"+kimID+"/setup-link", ""); rec.Code != http.StatusForbidden {
+		t.Fatalf("issue with token: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	if rec := env.do(http.MethodDelete, "/api/v1/users/"+kimID+"/setup-link", ""); rec.Code != http.StatusForbidden {
+		t.Fatalf("revoke with token: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestCreateUserWithBearerTokenRequiresAPassword: an API token has no admin
+// dialog to show a setup link through, so create-user refuses to hand one
+// out to a bearer caller and asks for a typed password instead, the way the
+// form always did.
+func TestCreateUserWithBearerTokenRequiresAPassword(t *testing.T) {
+	env := newTokenEnv(t, []string{auth.ScopeUsersRead, auth.ScopeUsersWrite})
+	rec := env.do(http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user"}`)
+	if rec.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(rec.Body.String(), `"location":"body.password"`) ||
+		!strings.Contains(rec.Body.String(), "a password is required when creating an account with an API token") {
+		t.Fatalf("status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	rec = env.do(http.MethodGet, "/api/v1/users", "")
+	if strings.Contains(rec.Body.String(), `"username":"anna"`) {
+		t.Fatalf("account created despite the refusal: %s", rec.Body.String())
+	}
+
+	// A token with a real password still works exactly like a session.
+	rec = env.do(http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user","password":"anna1234"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("with password: status %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRevokeSetupLinkOverHTTP(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user"}`, c)
+	var created struct {
+		ID        string                `json:"id"`
+		SetupLink struct{ Path string } `json:"setupLink"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
+	if !strings.Contains(doReq(h, http.MethodGet, "/api/v1/users", ``, c).Body.String(), `"setupLinkExpiresAt"`) {
+		t.Fatal("open link not listed")
+	}
+	if rec := doReq(h, http.MethodDelete, "/api/v1/users/"+created.ID+"/setup-link", ``, c); rec.Code != http.StatusNoContent {
+		t.Fatalf("revoke: %d %s", rec.Code, rec.Body.String())
+	}
+	token := strings.TrimPrefix(created.SetupLink.Path, "/welcome#")
+	if rec := doReq(h, http.MethodPost, "/api/v1/auth/setup/inspect", `{"token":"`+token+`"}`, nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("inspect after revoke: %d", rec.Code)
+	}
+	if strings.Contains(doReq(h, http.MethodGet, "/api/v1/users", ``, c).Body.String(), `"setupLinkExpiresAt"`) {
+		t.Fatal("revoked link still listed")
 	}
 }
 

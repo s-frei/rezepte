@@ -83,6 +83,31 @@ type colorUsageOutput struct {
 	}
 }
 
+type setupTokenBody struct {
+	Token string `json:"token" minLength:"1" maxLength:"128"`
+}
+
+type inspectSetupInput struct{ Body setupTokenBody }
+
+type inspectSetupOutput struct {
+	Body struct {
+		Username    string `json:"username"`
+		DisplayName string `json:"displayName"`
+	}
+}
+
+type redeemSetupInput struct {
+	Body struct {
+		Token    string `json:"token" minLength:"1" maxLength:"128"`
+		Password string `json:"password" minLength:"8" maxLength:"128"`
+	}
+}
+
+type redeemSetupOutput struct {
+	SetCookie []http.Cookie `header:"Set-Cookie"`
+	Body      UserResponse
+}
+
 // Register installs the login, logout, me and change-password operations.
 //
 // The session security scheme itself is not declared here: it comes from
@@ -256,6 +281,55 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		out.Body.Items = usage
 		return out, nil
 	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "inspect-setup-link",
+		Method:      http.MethodPost,
+		Path:        "/api/v1/auth/setup/inspect",
+		Summary:     "Look up the account a setup link belongs to, without using it",
+		Tags:        []string{"auth"},
+		Errors:      []int{404},
+	}, func(ctx context.Context, in *inspectSetupInput) (*inspectSetupOutput, error) {
+		u, err := svc.PeekSetupLink(ctx, in.Body.Token)
+		if errors.Is(err, ErrNoSetupLink) {
+			return nil, huma.Error404NotFound("setup link not found or expired")
+		}
+		if err != nil {
+			return nil, err
+		}
+		out := &inspectSetupOutput{}
+		out.Body.Username = u.Username
+		out.Body.DisplayName = u.DisplayName
+		return out, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "redeem-setup-link",
+		Method:      http.MethodPost,
+		Path:        "/api/v1/auth/setup/password",
+		Summary:     "Set a password through a setup link and sign in",
+		Tags:        []string{"auth"},
+		Errors:      []int{404, 422, 503},
+	}, func(ctx context.Context, in *redeemSetupInput) (*redeemSetupOutput, error) {
+		sess, err := svc.RedeemWithPassword(ctx, in.Body.Token, in.Body.Password)
+		if errors.Is(err, ErrNoSetupLink) {
+			return nil, huma.Error404NotFound("setup link not found or expired")
+		}
+		if mapped := BusyError(err); mapped != nil {
+			return nil, mapped
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &redeemSetupOutput{
+			SetCookie: []http.Cookie{
+				sessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
+				localeCookie(sess.User.Locale, secureCookies),
+			},
+			Body: toResponse(sess.User),
+		}, nil
+	})
+	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/setup/password", http.StatusServiceUnavailable)
 }
 
 // DeclareRetryAfter adds the Retry-After header, in whole seconds, to the

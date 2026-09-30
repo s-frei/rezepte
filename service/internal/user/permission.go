@@ -28,6 +28,10 @@ func guardTarget(actor, target Role) error {
 // the requested role itself before calling Create.
 func CanAssignRole(actor, role Role) error { return guardTarget(actor, role) }
 
+// CanManage reports whether actor may reset target's credentials: the same
+// rule as a password reset, which issuing a setup link is.
+func CanManage(actor, target Role) error { return guardTarget(actor, target) }
+
 // guardProfileEdit reports whether actor may write the profile fields -
 // display name and color - of another user. This is deliberately not
 // guardTarget: that one lets an admin act on a member, which is right for a

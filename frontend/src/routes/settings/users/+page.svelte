@@ -6,10 +6,13 @@
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import {
 		deleteUser,
+		issueSetupLink,
 		listPeople,
 		listUsers,
+		revokeSetupLink,
 		updateUser,
 		type PersonEntry,
+		type SetupLinkInfo,
 		type UserRole
 	} from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
@@ -19,6 +22,7 @@
 	import RecipeEditingCard from '$lib/components/settings/RecipeEditingCard.svelte';
 	import ResetPasswordDialog from '$lib/components/settings/ResetPasswordDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
+	import SetupLinkDialog from '$lib/components/settings/SetupLinkDialog.svelte';
 	import PeopleList from '$lib/components/settings/PeopleList.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -32,6 +36,9 @@
 	// admin's business, not everyone's - so an admin reads it from the
 	// account list alongside; a member's view has no entries at all.
 	let sharing = $state<Record<string, boolean>>({});
+	// hasPassword and the open setup link's expiry, by id - an admin's
+	// business like `sharing`, and left out of a member's view the same way.
+	let setup = $state<Record<string, { hasPassword: boolean; setupLinkExpiresAt?: string }>>({});
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let createOpen = $state(false);
@@ -39,6 +46,9 @@
 	let resetTarget = $state<PersonEntry | null>(null);
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<PersonEntry | null>(null);
+	let setupLinkOpen = $state(false);
+	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
+	let setupLinkName = $state('');
 
 	// Every account reads this page; only an admin gets the controls, the
 	// pickers that need the color counts, and the household's editing card.
@@ -70,6 +80,12 @@
 			]);
 			users = list;
 			sharing = Object.fromEntries(accounts.map((a) => [a.id, a.canSharePublicly]));
+			setup = Object.fromEntries(
+				accounts.map((a) => [
+					a.id,
+					{ hasPassword: a.hasPassword, setupLinkExpiresAt: a.setupLinkExpiresAt }
+				])
+			);
 		} catch (error) {
 			// On a 401 the client is already navigating to the login page.
 			loadFailed = !isSignedOut(error);
@@ -89,9 +105,61 @@
 		void loadUsage();
 	}
 
-	function userCreated(user: PersonEntry) {
+	function userCreated(user: PersonEntry, setupLink: SetupLinkInfo | null) {
 		users = [...users, user];
 		void loadUsage();
+		// Recorded either way: a password-mode create has one already
+		// (hasPassword true, no open link), and without this the new row
+		// reads "Not set up yet" until the next reload.
+		setup = {
+			...setup,
+			[user.id]: { hasPassword: !setupLink, setupLinkExpiresAt: setupLink?.expiresAt }
+		};
+		if (setupLink) {
+			setupLinkInfo = setupLink;
+			setupLinkName = user.displayName;
+			setupLinkOpen = true;
+		}
+	}
+
+	// Issuing replaces any open link, the same act as a password reset, so it
+	// needs no confirmation - the dialog that follows is confirmation enough.
+	async function askSetupLink(user: PersonEntry) {
+		try {
+			const link = await issueSetupLink(user.id);
+			setup = {
+				...setup,
+				[user.id]: {
+					hasPassword: setup[user.id]?.hasPassword ?? false,
+					setupLinkExpiresAt: link.expiresAt
+				}
+			};
+			setupLinkInfo = link;
+			setupLinkName = user.displayName;
+			setupLinkOpen = true;
+		} catch (error) {
+			if (error instanceof ApiError && error.status === 409) {
+				toast.error(m.users_owner_protected());
+			} else if (error instanceof ApiError && error.status === 403) {
+				toast.error(m.users_rank_required());
+			} else if (!isSignedOut(error)) {
+				toast.error(m.users_update_error());
+			}
+		}
+	}
+
+	// No confirmation: a revoked link is replaced in one click, and issuing a
+	// fresh one is right there if it was a mistake.
+	async function revokeLink(user: PersonEntry) {
+		try {
+			await revokeSetupLink(user.id);
+			toast.success(m.users_setup_link_revoked());
+			await load();
+		} catch (error) {
+			if (!isSignedOut(error)) {
+				toast.error(m.users_update_error());
+			}
+		}
 	}
 
 	// A role takes effect with one tap and carries rights, so the toast names
@@ -225,9 +293,12 @@
 				actorRole={session.user?.role ?? 'user'}
 				{usage}
 				{sharing}
+				{setup}
 				onrole={changeRole}
 				onshare={toggleShare}
 				onreset={askReset}
+				onsetuplink={askSetupLink}
+				onrevokelink={revokeLink}
 				ondelete={askDelete}
 				onprofile={profileSaved}
 			/>
@@ -247,6 +318,10 @@
 	<!-- Stays mounted and keeps its target after closing so the close transition
 	     can play; `askReset` replaces the target on the next open. -->
 	<ResetPasswordDialog bind:open={resetOpen} user={resetTarget} />
+	<!-- Opens right after Add account closes (a fresh account with no
+	     password), or from a row's "Setup link" action. Stays mounted like
+	     the dialogs above. -->
+	<SetupLinkDialog bind:open={setupLinkOpen} link={setupLinkInfo} displayName={setupLinkName} />
 	<ConfirmDialog
 		bind:open={deleteOpen}
 		title={m.users_delete_confirm_title()}

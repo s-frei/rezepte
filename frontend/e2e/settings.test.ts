@@ -167,6 +167,9 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page, is
 	await page.getByRole('button', { name: 'Add account' }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Username').fill(username);
+	// "Send a setup link" is the default mode; this test wants the old
+	// admin-hands-over-a-password form.
+	await dialog.getByRole('radio', { name: 'Set a password now' }).click();
 	await dialog.getByLabel('Password', { exact: true }).fill(devPassword(username));
 	await dialog.getByLabel('Repeat the new password').fill(devPassword(username));
 	await dialog.getByRole('radio', { name: /Member/ }).click();
@@ -259,6 +262,7 @@ test('adding an account refuses a password typed differently twice', async ({ pa
 
 	await page.getByRole('button', { name: 'Add account' }).click();
 	const dialog = page.getByRole('dialog', { name: 'Add account' });
+	await dialog.getByRole('radio', { name: 'Set a password now' }).click();
 	const repeat = dialog.getByLabel('Repeat the new password');
 	await dialog.getByLabel('Username').fill(username);
 	await dialog.getByLabel('Password', { exact: true }).fill(devPassword(username));
@@ -286,6 +290,7 @@ test('every field that sets a password says how long it has to be', async ({ pag
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
 	const add = page.getByRole('dialog', { name: 'Add account' });
+	await add.getByRole('radio', { name: 'Set a password now' }).click();
 	await expect(add.getByLabel('Password', { exact: true })).toHaveAccessibleDescription(
 		'At least 8 characters'
 	);

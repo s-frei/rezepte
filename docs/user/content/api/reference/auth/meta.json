@@ -10,6 +10,8 @@
     "delete-own-avatar",
     "set-own-avatar",
     "list-color-usage",
-    "update-own-profile"
+    "update-own-profile",
+    "inspect-setup-link",
+    "redeem-setup-link"
   ]
 }

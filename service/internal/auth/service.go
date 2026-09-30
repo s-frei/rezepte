@@ -49,6 +49,7 @@ type Session struct {
 
 // Service manages sessions.
 type Service struct {
+	conn     *sql.DB
 	q        *sqlc.Queries
 	users    *user.Service
 	throttle *throttle
@@ -57,7 +58,7 @@ type Service struct {
 
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB, users *user.Service) *Service {
-	return &Service{q: sqlc.New(conn), users: users, throttle: newThrottle(throttleCapacity), now: time.Now}
+	return &Service{conn: conn, q: sqlc.New(conn), users: users, throttle: newThrottle(throttleCapacity), now: time.Now}
 }
 
 // SetClock overrides the time source. Intended for tests.
@@ -76,18 +77,21 @@ func (s *Service) Login(ctx context.Context, username, password string) (Session
 		return Session{}, err
 	}
 	s.throttle.succeed(username)
+	return s.StartSession(ctx, u)
+}
+
+// StartSession opens a session for u. Login calls it after the password
+// check; a setup link and an identity provider call it after theirs.
+func (s *Service) StartSession(ctx context.Context, u user.User) (Session, error) {
 	raw := make([]byte, 32)
 	_, _ = rand.Read(raw) // never fails since Go 1.24
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	now := s.now()
 	expires := now.Add(SessionTTL)
-	err = s.q.CreateSession(ctx, sqlc.CreateSessionParams{
-		ID:        hashToken(token),
-		UserID:    u.ID,
-		ExpiresAt: db.FormatTime(expires),
-		CreatedAt: db.FormatTime(now),
-	})
-	if err != nil {
+	if err := s.q.CreateSession(ctx, sqlc.CreateSessionParams{
+		ID: hashToken(token), UserID: u.ID,
+		ExpiresAt: db.FormatTime(expires), CreatedAt: db.FormatTime(now),
+	}); err != nil {
 		return Session{}, fmt.Errorf("insert session: %w", err)
 	}
 	return Session{Token: token, ExpiresAt: expires, User: u}, nil
@@ -170,10 +174,13 @@ func (s *Service) DeleteUserSessionsExcept(ctx context.Context, userID, keepToke
 	return nil
 }
 
-// DeleteExpired removes sessions past their expiry.
+// DeleteExpired removes sessions and setup links past their expiry.
 func (s *Service) DeleteExpired(ctx context.Context) error {
 	if err := s.q.DeleteExpiredSessions(ctx, db.FormatTime(s.now())); err != nil {
 		return fmt.Errorf("delete expired sessions: %w", err)
+	}
+	if err := s.q.DeleteExpiredSetupLinks(ctx, db.FormatTime(s.now())); err != nil {
+		return fmt.Errorf("delete expired setup links: %w", err)
 	}
 	return nil
 }

@@ -99,6 +99,14 @@ type Session struct {
 	CreatedAt string
 }
 
+type SetupLink struct {
+	ID        string
+	UserID    string
+	CreatedBy string
+	ExpiresAt string
+	CreatedAt string
+}
+
 type Share struct {
 	ID        string
 	Token     string

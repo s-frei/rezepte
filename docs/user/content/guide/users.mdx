@@ -49,9 +49,15 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     ### Add an account
 
-    Click "Add account" and fill in a username, a password (8–128 characters) twice and a role; the fields you cannot leave empty carry a `*`. The password is rated as you type, the same way as in [Change password](/guide/settings#change-password), against the username and display name you entered. "Reset password" rates the new one too.
+    Click "Add account", type a username and pick a role — the fields you cannot leave empty carry a `*` — then choose how the person gets in.
 
     <Screenshot name="user-create" caption="Creating a new account" />
+
+    "Send a setup link" is the default and the way most accounts should start: it creates the account with no password at all and hands you a one-time link, which you send the person yourself however you normally would — chat, email, in person. You never see or choose their password.
+
+    <Screenshot name="setup-link-dialog" caption="The setup link for a freshly created account" />
+
+    "Set a password now" is the older way, for when you are setting the account up together and can hand it over on the spot: type a password twice (8–128 characters), rated as you type against the username and display name you entered.
 
     "Admin" manages accounts and can do everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
 
@@ -88,6 +94,15 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
     ### Reset a password
 
     "Reset password" sets a new password for that member and signs them out on every device. Type the new password twice; the reset only goes through when both match. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
+
+    "Setup link", next to it, is the alternative that keeps you from ever knowing their password: it works exactly like the one offered when creating an account, and signs them out everywhere too once they use it.
+
+  </Step>
+  <Step>
+
+    ### Revoking a link
+
+    While a setup link is unused, the person's row reads "Setup link open until" the date it stops working — a week after it was issued. "Revoke link" right there ends it at once, no confirmation needed, since sending a fresh one is the same "Setup link" action again. Before anyone has been sent a link at all, the row reads "Not set up yet" instead.
 
   </Step>
   <Step>

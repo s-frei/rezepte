@@ -5,7 +5,7 @@ import { isAdminRole } from '$lib/roles';
 export type RowPermissions = {
 	/** The role select instead of the role pill. */
 	changeRole: boolean;
-	/** Reset the password and delete the account. */
+	/** Reset the password, issue or revoke a setup link, and delete the account. */
 	manageAccount: boolean;
 	/** Rename and recolor someone else. */
 	editProfile: boolean;

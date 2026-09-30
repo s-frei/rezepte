@@ -11,7 +11,12 @@
 
 	let { children }: { children: Snippet } = $props();
 
-	const isLoginRoute = $derived(page.url.pathname.startsWith('/login'));
+	// /welcome is a setup link's landing page, reachable with no session at
+	// all (see routes/+layout.ts) and bare for the same reason /login is:
+	// its own full-page form, not a page inside the household's nav.
+	const isLoginRoute = $derived(
+		page.url.pathname.startsWith('/login') || page.url.pathname.startsWith('/welcome')
+	);
 	// Full-screen routes render without the app shell: no top bar, no bottom
 	// nav, no command palette and no Cmd+K. Matched on the route id rather
 	// than the pathname so the check is exact and independent of the slug.

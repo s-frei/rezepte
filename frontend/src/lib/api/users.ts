@@ -4,9 +4,21 @@ import { avatarBody, cropQuery } from '$lib/user/avatar';
 import type { Crop } from '$lib/user/crop';
 import { api } from './client';
 
-export type UserAccount = User & { createdAt: string };
+export type UserAccount = User & {
+	createdAt: string;
+	/** When the account's open setup link expires; absent when none is open. */
+	setupLinkExpiresAt?: string;
+};
 
 export type UserRole = User['role'];
+
+/** A freshly issued setup link, shown once. */
+export type SetupLinkInfo = { path: string; expiresAt: string };
+
+/** The full URL a setup link's `path` resolves to, on this instance. */
+export function setupLinkUrl(info: SetupLinkInfo): string {
+	return window.location.origin + info.path;
+}
 
 /**
  * An account as every signed-in account sees it: who takes part and in which
@@ -31,16 +43,31 @@ export async function listUsers(): Promise<UserAccount[]> {
 	return list.items;
 }
 
+/**
+ * Creates an account. Omitting `password` creates it without one: the
+ * response then carries `setupLink`, the one-time link the person uses to
+ * set their own.
+ */
 export function createUser(input: {
 	username: string;
-	password: string;
+	password?: string;
 	role: UserRole;
 	displayName?: string;
 	color?: UserColor;
 	/** Omitted means the instance default (`REZEPTE_LOCALE`). */
 	locale?: Locale;
-}): Promise<UserAccount> {
-	return api<UserAccount>('/users', { method: 'POST', body: JSON.stringify(input) });
+}): Promise<UserAccount & { setupLink?: SetupLinkInfo }> {
+	return api('/users', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/** Issues a one-time setup link for id, replacing any open one. Session-only, like a password reset. */
+export function issueSetupLink(id: string): Promise<SetupLinkInfo> {
+	return api<SetupLinkInfo>(`/users/${encodeURIComponent(id)}/setup-link`, { method: 'POST' });
+}
+
+/** Revokes id's open setup link, if there is one. Not an error when none is open. */
+export function revokeSetupLink(id: string): Promise<void> {
+	return api<void>(`/users/${encodeURIComponent(id)}/setup-link`, { method: 'DELETE' });
 }
 
 /**

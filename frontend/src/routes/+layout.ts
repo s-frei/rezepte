@@ -25,7 +25,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		return { user: session.user };
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 401) {
-			if (url.pathname === '/login') return { user: null };
+			if (url.pathname === '/login' || url.pathname === '/welcome') return { user: null };
 			redirect(302, `/login?next=${encodeURIComponent(url.pathname + url.search)}`);
 		}
 		throw e;

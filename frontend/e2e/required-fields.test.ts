@@ -73,6 +73,9 @@ test('adding an account marks username and password, not the display name', asyn
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
 	const dialog = page.getByRole('dialog');
+	// "Send a setup link" is the default mode and shows no password fields;
+	// this test is about the password fields of the other mode.
+	await dialog.getByRole('radio', { name: 'Set a password now' }).click();
 
 	const username = dialog.getByRole('textbox', { name: 'Username' });
 	await expect(username).toHaveAttribute('aria-required', 'true');

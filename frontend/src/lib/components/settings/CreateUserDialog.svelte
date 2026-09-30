@@ -4,7 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import type { ColorUsage, Locale } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { createUser, type UserAccount, type UserRole } from '$lib/api/users';
+	import { createUser, type SetupLinkInfo, type UserAccount, type UserRole } from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -23,8 +23,17 @@
 		open = $bindable(false),
 		usage,
 		oncreated
-	}: { open?: boolean; usage: ColorUsage[]; oncreated: (user: UserAccount) => void } = $props();
+	}: {
+		open?: boolean;
+		usage: ColorUsage[];
+		oncreated: (user: UserAccount, setupLink: SetupLinkInfo | null) => void;
+	} = $props();
 
+	// "link" sends a one-time setup link and never shows the admin the
+	// password; "password" is the old form, for the rare case the admin
+	// hands the account over in person. Link first, since not knowing the
+	// password is the point.
+	let mode = $state<'link' | 'password'>('link');
 	let username = $state('');
 	let displayName = $state('');
 	let password = $state('');
@@ -65,6 +74,7 @@
 	// A fresh form every time the dialog opens.
 	$effect(() => {
 		if (open) {
+			mode = 'link';
 			username = '';
 			displayName = '';
 			password = '';
@@ -82,12 +92,14 @@
 		if (username.trim() === '') {
 			errors.username = m.users_validation_username();
 		}
-		const pw = validateNewPassword(password, repeat);
-		if (pw.next) {
-			errors.password = pw.next;
-		}
-		if (pw.repeat) {
-			errors.repeat = pw.repeat;
+		if (mode === 'password') {
+			const pw = validateNewPassword(password, repeat);
+			if (pw.next) {
+				errors.password = pw.next;
+			}
+			if (pw.repeat) {
+				errors.repeat = pw.repeat;
+			}
 		}
 		if (Object.keys(errors).length > 0) {
 			return;
@@ -97,14 +109,14 @@
 			const created = await createUser({
 				username: username.trim(),
 				displayName: displayName.trim(),
-				password,
+				password: mode === 'password' ? password : undefined,
 				role: role as UserRole,
 				color,
 				locale: locale as Locale
 			});
 			toast.success(m.users_created({ username: created.username }));
 			open = false;
-			oncreated(created);
+			oncreated(created, created.setupLink ?? null);
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 409) {
 				toast.error(m.users_username_taken());
@@ -152,30 +164,54 @@
 			counter={64}
 			bind:value={displayName}
 		/>
-		<div class="space-y-1.5">
+		<RadioGroup.Root
+			bind:value={mode}
+			aria-label={m.users_create_title()}
+			class="grid grid-cols-2 gap-3"
+		>
+			{#each [{ value: 'link' as const, label: m.users_create_mode_link() }, { value: 'password' as const, label: m.users_create_mode_password() }] as option (option.value)}
+				<RadioGroup.Item
+					value={option.value}
+					class="flex items-center gap-2 rounded-md border border-border bg-surface-elevated px-4 py-3 text-left text-body-sm font-semibold transition data-[state=checked]:border-[1.5px] data-[state=checked]:border-primary data-[state=checked]:bg-accent"
+				>
+					{#snippet children({ checked })}
+						<span
+							aria-hidden="true"
+							class="size-4 shrink-0 rounded-full border {checked
+								? 'border-[5px] border-primary bg-surface'
+								: 'border-border bg-surface-elevated'}"
+						></span>
+						{option.label}
+					{/snippet}
+				</RadioGroup.Item>
+			{/each}
+		</RadioGroup.Root>
+		{#if mode === 'password'}
+			<div class="space-y-1.5">
+				<Input
+					id="new-user-password"
+					label={m.login_password()}
+					type="password"
+					autocomplete="new-password"
+					required
+					bind:value={password}
+					oninput={() => (errors = withoutErrors(errors, ['password', 'repeat']))}
+					error={errors.password ?? null}
+					hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
+				/>
+				<PasswordStrength {password} userInputs={[username, displayName]} />
+			</div>
 			<Input
-				id="new-user-password"
-				label={m.login_password()}
+				id="new-user-password-repeat"
+				label={m.settings_password_repeat()}
 				type="password"
 				autocomplete="new-password"
 				required
-				bind:value={password}
-				oninput={() => (errors = withoutErrors(errors, ['password', 'repeat']))}
-				error={errors.password ?? null}
-				hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
+				bind:value={repeat}
+				oninput={() => (errors = withoutErrors(errors, ['repeat']))}
+				error={errors.repeat ?? null}
 			/>
-			<PasswordStrength {password} userInputs={[username, displayName]} />
-		</div>
-		<Input
-			id="new-user-password-repeat"
-			label={m.settings_password_repeat()}
-			type="password"
-			autocomplete="new-password"
-			required
-			bind:value={repeat}
-			oninput={() => (errors = withoutErrors(errors, ['repeat']))}
-			error={errors.repeat ?? null}
-		/>
+		{/if}
 		<RadioGroup.Root
 			bind:value={role}
 			aria-label={m.users_field_role()}

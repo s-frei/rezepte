@@ -93,6 +93,21 @@ test('user-create', async ({ page }, testInfo) => {
 	await shot(page, 'user-create');
 });
 
+// "Add account" defaults to "Send a setup link", so finishing it here is
+// what opens the dialog the shot is of.
+test('setup-link-dialog', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/users');
+	await page.getByRole('button', { name: 'Add account' }).click();
+	const username = `invited-${testInfo.project.name}`;
+	await page.getByLabel('Username').fill(username);
+	await page.getByRole('button', { name: 'Add', exact: true }).click();
+	// Named, not just `getByRole('dialog')`: the create dialog it replaces can
+	// still be mid-close, and the two would otherwise both match.
+	await expect(page.getByRole('dialog', { name: `Setup link for ${username}` })).toBeVisible();
+	await shot(page, 'setup-link-dialog');
+});
+
 test('settings-recipe-editing', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/users');

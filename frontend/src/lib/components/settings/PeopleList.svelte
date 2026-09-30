@@ -15,9 +15,12 @@
 		actorRole,
 		usage,
 		sharing = {},
+		setup = {},
 		onrole,
 		onshare,
 		onreset,
+		onsetuplink,
+		onrevokelink,
 		ondelete,
 		onprofile
 	}: {
@@ -29,11 +32,18 @@
 		/** Who may share publicly, by id - loaded for admins only, so a
 		 * member's view has no entries and no share controls. */
 		sharing?: Record<string, boolean>;
+		/** hasPassword and the open setup link's expiry, by id - loaded for
+		 * admins only, like `sharing`. */
+		setup?: Record<string, { hasPassword: boolean; setupLinkExpiresAt?: string }>;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the control then snaps back. */
 		onshare: (person: PersonEntry, on: boolean) => Promise<void>;
 		onreset: (person: PersonEntry) => void;
+		/** Issues a fresh setup link and opens the dialog that shows it. */
+		onsetuplink: (person: PersonEntry) => void;
+		/** Revokes the open setup link. */
+		onrevokelink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 		/** The account as the profile dialog saved it. */
 		onprofile: (person: PersonEntry) => void;
@@ -115,11 +125,15 @@
 					isSelf={person.id === meId}
 					{actorRole}
 					canShare={sharing[person.id]}
+					hasPassword={setup[person.id]?.hasPassword}
+					setupLinkExpiresAt={setup[person.id]?.setupLinkExpiresAt}
 					onrole={changeRole}
 					{onshare}
 					onmanage={manage}
 					onedit={edit}
 					{onreset}
+					{onsetuplink}
+					{onrevokelink}
 					{ondelete}
 				/>
 			{/each}
@@ -134,10 +148,14 @@
 		{actorRole}
 		isSelf={sheetPerson.id === meId}
 		canShare={sharing[sheetPerson.id]}
+		hasPassword={setup[sheetPerson.id]?.hasPassword}
+		setupLinkExpiresAt={setup[sheetPerson.id]?.setupLinkExpiresAt}
 		onrole={changeRole}
 		{onshare}
 		onedit={edit}
 		{onreset}
+		{onsetuplink}
+		{onrevokelink}
 		{ondelete}
 	/>
 {/if}

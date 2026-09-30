@@ -1,10 +1,26 @@
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { prepare, shot } from './helpers';
 
 test('login', async ({ page }, testInfo) => {
 	await prepare(page, testInfo);
 	await page.goto('/login');
 	await shot(page, 'login');
+});
+
+// The demo seed has no account with an open setup link (its invited account
+// is a later change), so this issues one itself through the API, as the
+// signed-in admin the page already is.
+test('welcome', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	const origin = new URL(page.url()).origin;
+	const res = await page.request.post('/api/v1/users', {
+		headers: { Origin: origin },
+		data: { username: `welcome-${testInfo.project.name}`, role: 'user' }
+	});
+	const created = (await res.json()) as { setupLink: { path: string } };
+	await page.goto(created.setupLink.path);
+	await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible();
+	await shot(page, 'welcome');
 });
 
 // A fresh instance has no recipes, but the demo seeds some, so the three list

@@ -9,6 +9,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { formatDate } from '$lib/recipe/format';
 	import { isAdminRole } from '$lib/roles';
 	import { manageButtonId, personRowId } from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
@@ -20,11 +21,15 @@
 		isSelf,
 		actorRole,
 		canShare,
+		hasPassword,
+		setupLinkExpiresAt,
 		onrole,
 		onshare,
 		onmanage,
 		onedit,
 		onreset,
+		onsetuplink,
+		onrevokelink,
 		ondelete
 	}: {
 		person: PersonEntry;
@@ -34,6 +39,10 @@
 		/** Whether this person may share publicly; undefined where the viewer
 		 * cannot see it (a member's view of the list). */
 		canShare?: boolean;
+		/** Admin-only, like `canShare`: undefined where the viewer cannot see it. */
+		hasPassword?: boolean;
+		/** Admin-only; set while this person has an open setup link. */
+		setupLinkExpiresAt?: string;
 		/** Rejects when the API refused; the select then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the menu item then snaps back. */
@@ -42,6 +51,10 @@
 		onmanage: (person: PersonEntry) => void;
 		onedit: (person: PersonEntry) => void;
 		onreset: (person: PersonEntry) => void;
+		/** Issues a fresh setup link and opens the dialog that shows it. */
+		onsetuplink: (person: PersonEntry) => void;
+		/** Revokes the open setup link. */
+		onrevokelink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 	} = $props();
 
@@ -58,6 +71,17 @@
 	// rank rules and why each one is absent rather than disabled.
 	const permissions = $derived(rowPermissions(actorRole, person, isSelf));
 	const showShareMenu = $derived(permissions.toggleSharing && canShare !== undefined);
+	// Only where the row already offers reset/delete: a member's view never
+	// sees these fields at all (they are admin-only, like canShare).
+	const setupStatus = $derived(
+		!permissions.manageAccount
+			? null
+			: setupLinkExpiresAt
+				? m.users_setup_link_open({ date: formatDate(setupLinkExpiresAt) })
+				: !hasPassword
+					? m.users_not_set_up()
+					: null
+	);
 	const hasActions = $derived(
 		permissions.changeRole || permissions.manageAccount || permissions.editProfile || showShareMenu
 	);
@@ -135,6 +159,21 @@
 			{/if}
 		</p>
 		<p class="truncate text-micro text-text-muted">{person.username}</p>
+		{#if setupStatus}
+			<p class="pointer-events-auto flex flex-wrap items-center gap-x-2 text-micro text-text-muted">
+				<span>{setupStatus}</span>
+				{#if setupLinkExpiresAt}
+					<button
+						type="button"
+						aria-label={m.users_setup_link_revoke_aria({ username: person.username })}
+						onclick={() => onrevokelink(person)}
+						class="font-semibold text-text underline decoration-dotted underline-offset-2 hover:text-primary"
+					>
+						{m.users_setup_link_revoke()}
+					</button>
+				{/if}
+			</p>
+		{/if}
 	</div>
 
 	<!-- Wide screens: the actions themselves, right-aligned, or a line saying
@@ -209,6 +248,14 @@
 				onclick={() => onreset(person)}
 			>
 				{m.users_reset_password()}
+			</Button>
+			<Button
+				variant="secondary"
+				class="h-8 px-3 text-caption whitespace-nowrap"
+				label={m.users_setup_link_action_aria({ username: person.username })}
+				onclick={() => onsetuplink(person)}
+			>
+				{m.users_setup_link_action()}
 			</Button>
 			<button
 				type="button"

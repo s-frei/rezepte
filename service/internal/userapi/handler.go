@@ -26,9 +26,17 @@ type UserAccount struct {
 	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
 	// CanSharePublicly is an admin's per-person switch; see share.
-	CanSharePublicly bool      `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
-	CreatedAt        time.Time `json:"createdAt" doc:"When the account was created"`
-	AvatarID         *string   `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
+	CanSharePublicly   bool       `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
+	CreatedAt          time.Time  `json:"createdAt" doc:"When the account was created"`
+	AvatarID           *string    `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
+	HasPassword        bool       `json:"hasPassword" doc:"False until the person sets one through a setup link or their profile"`
+	SetupLinkExpiresAt *time.Time `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
+}
+
+// setupLinkBody is a freshly issued setup link, shown once.
+type setupLinkBody struct {
+	Path      string    `json:"path" doc:"Append to the instance's origin"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 // UserAccountList is the response body of list-users.
@@ -65,7 +73,7 @@ type peopleOutput struct {
 type createInput struct {
 	Body struct {
 		Username    string       `json:"username" minLength:"1" maxLength:"64"`
-		Password    string       `json:"password" minLength:"8" maxLength:"128"`
+		Password    string       `json:"password,omitempty" maxLength:"128" doc:"Omitted creates the account without a password and returns a setupLink the person uses to set their own"`
 		Role        string       `json:"role" enum:"admin,user"`
 		DisplayName *string      `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
 		Color       *string      `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Omitted picks the least-used color"`
@@ -76,6 +84,29 @@ type createInput struct {
 type userOutput struct {
 	Body UserAccount
 }
+
+// CreatedUserAccount is create-user's response body: the new account, plus
+// the setup link issued for it when it was created with no password. A named
+// type rather than an inline struct, so the OpenAPI document names this
+// schema for what it is instead of a generated "CreateOutputBody".
+type CreatedUserAccount struct {
+	UserAccount
+	SetupLink *setupLinkBody `json:"setupLink,omitempty"`
+}
+
+type createOutput struct {
+	Body CreatedUserAccount
+}
+
+type setupLinkInput struct {
+	ID string `path:"id"`
+}
+
+type setupLinkOutput struct {
+	Body setupLinkBody
+}
+
+type revokeSetupLinkOutput struct{}
 
 type updateInput struct {
 	ID   string `path:"id"`
@@ -139,6 +170,7 @@ func toResponse(u user.User) UserAccount {
 		CanSharePublicly: u.CanSharePublicly,
 		CreatedAt:        u.CreatedAt,
 		AvatarID:         u.AvatarID,
+		HasPassword:      u.HasPassword,
 	}
 }
 
@@ -193,9 +225,17 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
+		open, err := sessions.OpenSetupLinks(ctx)
+		if err != nil {
+			return nil, err
+		}
 		items := make([]UserAccount, 0, len(list))
 		for _, u := range list {
-			items = append(items, toResponse(u))
+			item := toResponse(u)
+			if expires, ok := open[u.ID]; ok {
+				item.SetupLinkExpiresAt = &expires
+			}
+			items = append(items, item)
 		}
 		return &listOutput{Body: UserAccountList{Items: items}}, nil
 	})
@@ -209,7 +249,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		Security:      auth.Protected(auth.ScopeUsersWrite),
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{401, 403, 409, 422, 503},
-	}, func(ctx context.Context, in *createInput) (*userOutput, error) {
+	}, func(ctx context.Context, in *createInput) (*createOutput, error) {
 		actor, err := requireAdmin(ctx)
 		if err != nil {
 			return nil, err
@@ -223,6 +263,21 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, mapped
 			}
 			return nil, err
+		}
+		if in.Body.Password != "" && len(in.Body.Password) < 8 {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: "body.password", Message: "expected length >= 8",
+			})
+		}
+		// A setup link is handed over through the admin UI, which an API
+		// token has no dialog to show; nothing would ever redeem it, so a
+		// token creating a user has to choose a password like the old form
+		// did.
+		if in.Body.Password == "" && auth.ViaToken(ctx) {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: "body.password",
+				Message:  "a password is required when creating an account with an API token",
+			})
 		}
 		params := user.CreateParams{
 			Username: in.Body.Username,
@@ -257,9 +312,73 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
-		return &userOutput{Body: toResponse(u)}, nil
+		out := &createOutput{}
+		out.Body.UserAccount = toResponse(u)
+		if in.Body.Password == "" {
+			link, err := sessions.IssueSetupLink(ctx, actor, u.ID)
+			if err != nil {
+				return nil, err
+			}
+			out.Body.SetupLink = &setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
+			out.Body.SetupLinkExpiresAt = &link.ExpiresAt
+		}
+		return out, nil
 	})
 	auth.DeclareRetryAfter(api, http.MethodPost, "/api/v1/users", http.StatusServiceUnavailable)
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "issue-setup-link",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/users/{id}/setup-link",
+		Summary:       "Issue a one-time setup link for a user, replacing any open one",
+		Tags:          []string{"users"},
+		Security:      auth.SessionSecurity,
+		DefaultStatus: http.StatusCreated,
+		Errors:        []int{401, 403, 404, 409},
+	}, func(ctx context.Context, in *setupLinkInput) (*setupLinkOutput, error) {
+		actor, err := requireAdmin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		link, err := sessions.IssueSetupLink(ctx, actor, in.ID)
+		if mapped := rankError(err); mapped != nil {
+			return nil, mapped
+		}
+		if errors.Is(err, user.ErrNotFound) {
+			return nil, huma.Error404NotFound("user not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &setupLinkOutput{Body: setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "revoke-setup-link",
+		Method:        http.MethodDelete,
+		Path:          "/api/v1/users/{id}/setup-link",
+		Summary:       "Revoke a user's open setup link",
+		Tags:          []string{"users"},
+		Security:      auth.SessionSecurity,
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{401, 403, 404, 409},
+	}, func(ctx context.Context, in *setupLinkInput) (*revokeSetupLinkOutput, error) {
+		actor, err := requireAdmin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		err = sessions.RevokeSetupLink(ctx, actor, in.ID)
+		if mapped := rankError(err); mapped != nil {
+			return nil, mapped
+		}
+		if errors.Is(err, user.ErrNotFound) {
+			return nil, huma.Error404NotFound("user not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &revokeSetupLinkOutput{}, nil
+	})
 
 	huma.Register(api, huma.Operation{
 		OperationID: "update-user",

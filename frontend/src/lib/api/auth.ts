@@ -130,3 +130,22 @@ export async function listColorUsage(): Promise<ColorUsage[]> {
 	const page = await api<{ items: ColorUsage[] }>('/auth/me/colors');
 	return page.items;
 }
+
+/**
+ * Looks up the account a setup link belongs to, without using it - what
+ * `/welcome` greets the invited person with before they have typed anything.
+ * Throws a 404 `ApiError` when the token is unknown, used or expired.
+ */
+export function inspectSetupLink(
+	token: string
+): Promise<{ username: string; displayName: string }> {
+	return api('/auth/setup/inspect', { method: 'POST', body: JSON.stringify({ token }) });
+}
+
+/** Sets the account's password through its setup link and signs in as it. */
+export function redeemSetupLink(token: string, password: string): Promise<User> {
+	return api<User>('/auth/setup/password', {
+		method: 'POST',
+		body: JSON.stringify({ token, password })
+	});
+}

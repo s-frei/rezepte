@@ -1,5 +1,6 @@
 <script lang="ts">
 	import KeyRound from '@lucide/svelte/icons/key-round';
+	import Link from '@lucide/svelte/icons/link';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { tick } from 'svelte';
@@ -8,6 +9,7 @@
 	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { formatDate } from '$lib/recipe/format';
 	import { roleLabel } from '$lib/roles';
 	import { focusManageButton } from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
@@ -19,10 +21,14 @@
 		actorRole,
 		isSelf,
 		canShare,
+		hasPassword,
+		setupLinkExpiresAt,
 		onrole,
 		onshare,
 		onedit,
 		onreset,
+		onsetuplink,
+		onrevokelink,
 		ondelete
 	}: {
 		open?: boolean;
@@ -33,16 +39,33 @@
 		/** Whether this person may share publicly; undefined where the viewer
 		 * cannot see it. */
 		canShare?: boolean;
+		/** Admin-only, like `canShare`: undefined where the viewer cannot see it. */
+		hasPassword?: boolean;
+		/** Admin-only; set while this person has an open setup link. */
+		setupLinkExpiresAt?: string;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the switch then snaps back. */
 		onshare: (person: PersonEntry, on: boolean) => Promise<void>;
 		onedit: (person: PersonEntry) => void;
 		onreset: (person: PersonEntry) => void;
+		/** Issues a fresh setup link and opens the dialog that shows it. */
+		onsetuplink: (person: PersonEntry) => void;
+		/** Revokes the open setup link. */
+		onrevokelink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 	} = $props();
 
 	const permissions = $derived(rowPermissions(actorRole, person, isSelf));
+	const setupStatus = $derived(
+		!permissions.manageAccount
+			? null
+			: setupLinkExpiresAt
+				? m.users_setup_link_open({ date: formatDate(setupLinkExpiresAt) })
+				: !hasPassword
+					? m.users_not_set_up()
+					: null
+	);
 
 	// Writable derived: follows the list, so a successful change shows the new
 	// role, and snaps back on its own when the API refuses one.
@@ -124,6 +147,20 @@
 <BottomSheet bind:open closeLabel={m.common_close()} onCloseAutoFocus={returnFocus}>
 	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 		<PersonCard {person} asTitle />
+		{#if setupStatus}
+			<p class="mt-2 flex flex-wrap items-center gap-x-2 text-micro text-text-muted">
+				<span>{setupStatus}</span>
+				{#if setupLinkExpiresAt}
+					<button
+						type="button"
+						onclick={() => onrevokelink(person)}
+						class="font-semibold text-text underline decoration-dotted underline-offset-2"
+					>
+						{m.users_setup_link_revoke()}
+					</button>
+				{/if}
+			</p>
+		{/if}
 
 		<!-- A surface panel, as on the settings cards: the segmented
 				control's track is the background color and vanishes on a
@@ -162,6 +199,10 @@
 				<button type="button" class={row} onclick={() => hand(onreset)}>
 					<KeyRound class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
 					{m.users_reset_password()}
+				</button>
+				<button type="button" class={row} onclick={() => hand(onsetuplink)}>
+					<Link class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+					{m.users_setup_link_action()}
 				</button>
 				<button type="button" class="{row} text-destructive" onclick={() => hand(ondelete)}>
 					<Trash2 class="size-4 shrink-0" aria-hidden="true" />
