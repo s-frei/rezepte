@@ -1,0 +1,13 @@
+# Test-only identity provider for OIDC login; never part of a deployment.
+# Started by `mise run oidc:up`, which renders the config for this worktree's
+# ports. Rezepte itself runs on the host, so "localhost" means the same thing
+# to the browser and to the service.
+name: rezepte-test-${RZP_DEX_PORT:-5556}
+services:
+  dex:
+    image: ghcr.io/dexidp/dex:v2.45.1
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    ports:
+      - "${RZP_DEX_PORT:-5556}:5556"
+    volumes:
+      - ./.oidc/dex.yaml:/etc/dex/config.yaml:ro

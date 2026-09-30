@@ -22,6 +22,19 @@ PORT="${RZP_DEMO_INSTANCE_PORT:-$RZP_DEMO_PORT}"
 rzp_require_binary demo
 rzp_require_free_port demo "$PORT"
 rzp_make_data_dir
+# With the test provider up (mise run oidc:up) the demo signs in through it
+# too. A caller that configures OIDC itself - the screenshot task, which needs
+# the same picture whether Dex runs or not - is left alone.
+if [ -n "${REZEPTE_OIDC_ISSUER:-}" ]; then
+	OIDC_ENV=()
+else
+	rzp_oidc_env "$PORT"
+	[ "${#OIDC_ENV[@]}" -gt 0 ] && echo "demo: signing in through Dex is on - anna@example.org / anna1234"
+fi
+# "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
+# bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an
+# unbound variable under `set -u`. The `+` form expands to nothing at all
+# when the array is empty instead of touching it.
 # -u clears REZEPTE_ADMIN_USER and REZEPTE_ADMIN_PASSWORD from the environment
 # so a developer who has them exported still gets the demo/demo1234 credentials
 # the screenshot specs and the OpenAPI fetch log in with, instead of whatever
@@ -34,6 +47,7 @@ rzp_make_data_dir
 env -u REZEPTE_ADMIN_USER -u REZEPTE_ADMIN_PASSWORD \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_LOG_LEVEL=warn \
 	REZEPTE_LOCALE="${RZP_DEMO_LOCALE:-${REZEPTE_LOCALE:-en}}" \
+	"${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" \
 	service/bin/rezepte --demo &
 PID=$!
 trap 'rzp_stop "$PID"' EXIT

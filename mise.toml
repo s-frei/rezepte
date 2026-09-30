@@ -37,6 +37,9 @@ RZP_E2E_PORT         = "{{ 8050 + (vars.REZEPTE_PORT_OFFSET | default(value='0')
 RZP_SCREENSHOTS_PORT = "{{ 8080 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 RZP_DOCS_MEMORY_PORT = "{{ 4000 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 RZP_DOCS_USER_PORT   = "{{ 4001 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+# The test OIDC provider (mise run oidc:up), Docker rather than the binary -
+# see docs/memory/content/howtos/test-oidc.mdx.
+RZP_DEX_PORT         = "{{ 5556 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 
 [tasks.setup]
 description = "Install all dependencies"
@@ -91,6 +94,7 @@ if ! docker compose version >/dev/null 2>&1; then
 	exit 0
 fi
 docker compose -f docker-compose.yaml config -q
+docker compose -f docker-compose.test.yaml config -q
 '''
 
 [tasks."docker:demo"]

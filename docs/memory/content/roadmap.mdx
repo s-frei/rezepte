@@ -19,11 +19,7 @@ The ground is there: huma's OpenAPI 3.1 document and Scalar reference, bearer [A
 
 ## OAuth for MCP
 
-claude.ai custom connectors need OAuth 2.1, not the static bearer token the [MCP server](/features/mcp) takes - see that page's Limits. With OIDC login in place (below), Rezepte adds protected-resource metadata, a JWT verifier beside the `rzp_` one, and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
-
-## OIDC login
-
-Second authenticator next to sessions. Users are matched by the provider's subject identifier - the `users` table holds no email address to match on - and roles stay local.
+OIDC login exists ([OIDC](/features/oidc)); what is missing is OAuth 2.1 itself - claude.ai custom connectors need it, not the static bearer token the [MCP server](/features/mcp) takes (see that page's Limits). Rezepte adds protected-resource metadata, a JWT verifier beside the `rzp_` one, and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
 
 ## Sharing
 

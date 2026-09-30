@@ -93,8 +93,9 @@ test('token-mcp', async ({ page }, testInfo) => {
 
 test('users', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
-	// The demo seeds its admin and two members, mila and jonas, so the list
-	// needs nothing created here.
+	// The demo seeds its admin, two members (mila, jonas) and a third,
+	// noah, with an open setup link and no password, so the list needs
+	// nothing created here.
 	await page.goto('/settings/users');
 	await expect(page.getByRole('listitem').filter({ hasText: 'mila' })).toBeVisible();
 	await shot(page, 'users');

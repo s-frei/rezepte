@@ -17,6 +17,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
@@ -58,8 +59,8 @@ var Members = []string{"mila", "jonas"}
 // as the name shown beside it. Each keeps its username's initial, which is
 // what the author circles show. A locale without its own set uses English.
 var displayNames = map[user.Locale]map[string]string{
-	"de": {AdminUser: "Dattel Dill", "mila": "Mila Majoran", "jonas": "Jonas Zimt"},
-	"en": {AdminUser: "Damson Dill", "mila": "Mila Marjoram", "jonas": "Jonas Cinnamon"},
+	"de": {AdminUser: "Dattel Dill", "mila": "Mila Majoran", "jonas": "Jonas Zimt", Invited: "Noah Nelke"},
+	"en": {AdminUser: "Damson Dill", "mila": "Mila Marjoram", "jonas": "Jonas Cinnamon", Invited: "Noah Nutmeg"},
 }
 
 // displayName is the name the demo gives username in locale.
@@ -70,6 +71,11 @@ func displayName(locale user.Locale, username string) string {
 	}
 	return names[username]
 }
+
+// Invited is the one household member the demo leaves without a password,
+// so the people list shows an account with an open setup link from the
+// first start - what an admin sees while somebody has not yet signed in.
+const Invited = "noah"
 
 // memberMarks lists, per member, the samples (by index, the overview's order
 // from the top) they mark tasty: the top card gets two marks, the rest of
@@ -265,13 +271,16 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 	return list[0], nil
 }
 
-// AddMembers creates Members in locale's language, before Seed, so the
-// samples in memberRecipes can be theirs, and gives the admin its demo
-// display name. Like the seed it writes nothing to
-// an instance that already holds recipes, since the members belong to the
-// sample data rather than to an instance in use, and a member name somebody
-// already holds is left to them: that account gets no recipes, marks or
-// links.
+// AddMembers creates Members, plus Invited, in locale's language, before
+// Seed, so the samples in memberRecipes can be theirs, and gives the admin
+// its demo display name. Every member gets an unverified sample email
+// (name@example.org), profile data a real account would fill in eventually;
+// Invited gets no password, so it signs in only through a setup link or an
+// identity provider - SeedMembers issues that link. Like the seed it writes
+// nothing to an instance that already holds recipes, since the members
+// belong to the sample data rather than to an instance in use, and a name
+// somebody already holds is left to them: that account gets no recipes,
+// marks, links or email from the demo.
 //
 // The members' passwords are public, so only a demo that runs on the
 // published demo credentials may call it; an operator who set their own
@@ -286,22 +295,35 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 		return nil, err
 	}
 	var members []user.User
-	for _, name := range Members {
+	add := func(name, password string) error {
 		m, err := users.Create(ctx, user.CreateParams{
 			Username:    name,
-			Password:    name + "1234",
+			Password:    password,
 			Role:        user.RoleUser,
 			DisplayName: displayName(locale, name),
 			Locale:      locale,
 		})
 		if errors.Is(err, user.ErrUsernameTaken) {
 			logger.Info("demo: member name taken, not seeding it", "user", name)
-			continue
+			return nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("create member %s: %w", name, err)
+			return fmt.Errorf("create member %s: %w", name, err)
+		}
+		addr := name + "@example.org"
+		if m, err = users.SetProfile(ctx, m.ID, user.ProfileUpdate{Email: &addr}); err != nil {
+			return fmt.Errorf("set email for %s: %w", name, err)
 		}
 		members = append(members, m)
+		return nil
+	}
+	for _, name := range Members {
+		if err := add(name, name+"1234"); err != nil {
+			return nil, err
+		}
+	}
+	if err := add(Invited, ""); err != nil {
+		return nil, err
 	}
 	logger.Info("demo: members added", "users", strings.Join(Members, ", "))
 	return members, nil
@@ -326,12 +348,13 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 	return nil
 }
 
-// SeedMembers marks the samples in memberMarks tasty on behalf of the
-// members Seed was given, and creates the public links in adminShares and
-// memberShares - the admin's as the user named owner, who must be the
-// instance owner, since only the owner switches sharing on, which creating a
-// link needs. It is switched off again once the links exist, so they start
-// out paused. After a skipped seed it writes nothing.
+// SeedMembers issues Invited's open setup link, marks the samples in
+// memberMarks tasty on behalf of the members Seed was given, and creates the
+// public links in adminShares and memberShares - the admin's as the user
+// named owner, who must be the instance owner, since only the owner
+// switches sharing on, which creating a link needs. It is switched off
+// again once the links exist, so they start out paused. After a skipped
+// seed it writes nothing.
 func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) error {
 	if sum.Skipped {
 		return nil
@@ -343,6 +366,17 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) e
 	admin, err := findOwner(ctx, users, owner)
 	if err != nil {
 		return err
+	}
+	for _, m := range sum.Members {
+		if m.Username != Invited {
+			continue
+		}
+		// ReplaceSetupLink upserts on the invited user's id, so issuing it
+		// again - a second --demo run over the same data directory - stays
+		// a no-op rather than an error.
+		if _, err := auth.NewService(conn, users).IssueSetupLink(ctx, admin, m.ID); err != nil {
+			return fmt.Errorf("issue setup link for %s: %w", m.Username, err)
+		}
 	}
 	sharing := admin.Role.IsSuperadmin()
 	if sharing {

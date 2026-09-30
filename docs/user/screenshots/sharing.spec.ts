@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { prepare, shot } from './helpers';
 
-// The demo gives its admin and both members public links of their own but
-// leaves public sharing off, as every instance starts
+// The demo gives its admin and its two signed-in members (mila, jonas)
+// public links of their own - its third member, noah, has no password and
+// no links - but leaves public sharing off, as every instance starts
 // (service/internal/demo/seed.go). These pictures show it on, so each test
 // switches it on as the demo admin - the owner - and off again afterwards:
 // the specs run one after another against the same instance, and every other

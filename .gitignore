@@ -32,3 +32,6 @@ docs/memory/.source/
 
 # runtime data
 data/
+
+# rendered test OIDC provider config (mise run oidc:up)
+/.oidc/

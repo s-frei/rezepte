@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/demo"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -403,6 +404,61 @@ func TestSeedMembersShareSamples(t *testing.T) {
 	}
 	if perUser["demo"] != 1 || perUser["mila"] != 2 || perUser["jonas"] != 2 {
 		t.Fatalf("links per user = %v, want demo 1, mila 2, jonas 2", perUser)
+	}
+}
+
+// TestAddMembersInvitesOneWithoutAPassword: the demo's extra member has no
+// password and an open setup link, so the people list shows an account
+// someone can still claim; the others each get an unverified sample email.
+func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	admin, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+		t.Fatalf("SeedMembers: %v", err)
+	}
+
+	var invited user.User
+	for _, m := range members {
+		if m.Username == demo.Invited {
+			invited = m
+			continue
+		}
+		if m.Email != m.Username+"@example.org" || m.EmailVerified {
+			t.Fatalf("%s: email %q verified %v; want an unverified %s@example.org", m.Username, m.Email, m.EmailVerified, m.Username)
+		}
+	}
+	if invited.ID == "" {
+		t.Fatalf("members = %v, want %s among them", members, demo.Invited)
+	}
+	got, err := users.ByID(ctx, invited.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.HasPassword {
+		t.Fatalf("%s has a password, want none", demo.Invited)
+	}
+
+	// Issuing the same user's link a second time stays a no-op rather than
+	// an error: ReplaceSetupLink upserts on the invited user's id. A real
+	// second --demo run never reaches this - Seed's own idempotence
+	// (TestSeedIsIdempotent) stops seedDemo short of a second SeedMembers -
+	// but SeedMembers's own call to IssueSetupLink should not depend on that
+	// guard to stay safe.
+	if _, err := auth.NewService(conn, users).IssueSetupLink(ctx, admin, invited.ID); err != nil {
+		t.Fatalf("second IssueSetupLink: %v", err)
 	}
 }
 

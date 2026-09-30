@@ -86,3 +86,21 @@ rzp_stop() {
 	[ -n "$RZP_OWNED_DATA_DIR" ] && rm -rf "$RZP_OWNED_DATA_DIR"
 	return 0
 }
+
+# rzp_oidc_env <public-port>
+#
+# Sets OIDC_ENV (an array, empty when Dex is not running) to the
+# REZEPTE_PUBLIC_URL/REZEPTE_OIDC_* pairs `mise run oidc:up` prints, so
+# //:e2e and //:demo can try OIDC without a developer wiring the four
+# variables by hand. Detected by discovery answering, the same document
+# oidc.Login's own discover() reads - not just the port accepting a
+# connection, which a container still starting would too.
+rzp_oidc_env() {
+	OIDC_ENV=()
+	if curl -fsS "http://localhost:$RZP_DEX_PORT/dex/.well-known/openid-configuration" >/dev/null 2>&1; then
+		OIDC_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$1"
+			REZEPTE_OIDC_ISSUER="http://localhost:$RZP_DEX_PORT/dex"
+			REZEPTE_OIDC_CLIENT_ID=rezepte REZEPTE_OIDC_CLIENT_SECRET=rezepte-test-secret
+			REZEPTE_OIDC_NAME=Dex)
+	fi
+}

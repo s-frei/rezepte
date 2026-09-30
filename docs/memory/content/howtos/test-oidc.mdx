@@ -1,0 +1,44 @@
+---
+title: Test OIDC sign-in
+description: Running the OIDC login feature against Dex, the test identity provider
+---
+
+[OIDC login](/features/oidc) needs a real identity provider to sign in against - no unit test can stand in for the browser leaving Rezepte, authenticating elsewhere, and coming back. Dex (`ghcr.io/dexidp/dex`) fills that role locally: a self-hosted provider that starts from a static config in seconds and needs no account of its own.
+
+## Start it
+
+```bash
+mise run oidc:up
+```
+
+`mise/tasks/oidc/up.sh` renders `mise/oidc/dex.yaml.tmpl` into `.oidc/dex.yaml` (gitignored, regenerated every run) with this worktree's ports substituted in, then starts `docker-compose.test.yaml`. It prints the configuration Rezepte needs:
+
+```
+oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - anna@example.org / anna1234
+  REZEPTE_PUBLIC_URL=http://localhost:$RZP_BACKEND_PORT REZEPTE_OIDC_ISSUER=http://localhost:$RZP_DEX_PORT/dex REZEPTE_OIDC_CLIENT_ID=rezepte REZEPTE_OIDC_CLIENT_SECRET=rezepte-test-secret REZEPTE_OIDC_NAME=Dex
+```
+
+Export that line, or start `mise run dev` with it, to sign in against Dex by hand. `mise run oidc:down` stops it.
+
+Two accounts are seeded, passwords by the [development-credential](/conventions/dev-credentials) rule: `anna@example.org` / `anna1234` and `ben@example.org` / `ben1234`. Their Dex subjects are fixed (`userID: anna`, `userID: ben`), so a re-rendered config never changes who they are.
+
+## Automatic pickup
+
+`mise run e2e` and `mise run demo` both call `rzp_oidc_env` (`mise/lib/instance.sh`) before starting their instance: it polls Dex's discovery document and, when Dex answers, sets `REZEPTE_PUBLIC_URL` and the four `REZEPTE_OIDC_*` variables for that instance - `Dex` as the provider name. Without Dex running, neither task sets them, and `frontend/e2e/oidc.test.ts` skips itself (it asks `GET /api/v1/auth/oidc` in a `beforeEach` and calls `test.skip` when `enabled` is false). Nothing has to be told which case it is in:
+
+```bash
+mise run oidc:up && mise run e2e     # OIDC specs run
+mise run oidc:down && mise run e2e   # OIDC specs skip, the rest is unaffected
+```
+
+`mise run demo` leaves a caller's own `REZEPTE_OIDC_ISSUER` alone - the user-docs screenshot tasks configure OIDC against an address nothing answers, on purpose, so every screenshot shows the same neutral button whether or not Dex happens to be running.
+
+## Once a release
+
+Dex proves the protocol, not every provider's quirks. Before a release, sign in with a real Google account by hand once - `docs/memory/content/features/oidc.mdx` names the exact routes and cookies the flow uses.
+
+## Why it is this way
+
+A container rather than a fake HTTP server in Go: `service/internal/oidc` already depends on `go-oidc` doing real discovery and JWKS verification against whatever `REZEPTE_OIDC_ISSUER` names, and a hand-rolled stand-in would test that package against a shape no real provider has. Dex speaks the protocol for real, for the cost of a container most contributors already have.
+
+Static passwords with fixed subjects, not a database migration or an admin API call: the two accounts exist the moment the container is up, and a subject that never changes means a test asserting on `(iss, sub)` never has to look one up first.
