@@ -2,13 +2,14 @@
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { updateUser, type PersonEntry } from '$lib/api/users';
+	import { removeUserAvatar, setUserAvatar, updateUser, type PersonEntry } from '$lib/api/users';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { ColorUsage } from '$lib/api/auth';
 	import type { UserColor } from '$lib/user/color';
+	import AvatarControl from './AvatarControl.svelte';
 	import ColorPicker from './ColorPicker.svelte';
 
 	let {
@@ -65,6 +66,14 @@
 		{m.users_edit_profile_title({ username: user.username })}
 	</Dialog.Title>
 	<Dialog.Description class="sr-only">{m.users_edit_profile_description()}</Dialog.Description>
+	<div class="mt-5">
+		<AvatarControl
+			person={user}
+			upload={(file, crop) => setUserAvatar(user.id, file, crop)}
+			remove={() => removeUserAvatar(user.id)}
+			onchange={(avatarId) => onsaved({ ...user, avatarId })}
+		/>
+	</div>
 	<form onsubmit={submit} class="mt-5 space-y-4">
 		<!-- `maxlength` mirrors the API's 64-rune limit. -->
 		<Input

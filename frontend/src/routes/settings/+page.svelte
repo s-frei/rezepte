@@ -1,9 +1,16 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { listColorUsage, updateOwnProfile, type ColorUsage } from '$lib/api/auth';
+	import {
+		listColorUsage,
+		removeOwnAvatar,
+		setOwnAvatar,
+		updateOwnProfile,
+		type ColorUsage
+	} from '$lib/api/auth';
 	import { isSignedOut } from '$lib/api/client';
 	import { session } from '$lib/auth.svelte';
+	import AvatarControl from '$lib/components/settings/AvatarControl.svelte';
 	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
 	import AboutCard from '$lib/components/settings/AboutCard.svelte';
 	import HelpCard from '$lib/components/settings/HelpCard.svelte';
@@ -12,7 +19,6 @@
 	import ProfileForm from '$lib/components/settings/ProfileForm.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
 	import { USER_COLORS, type UserColor } from '$lib/user/color';
@@ -114,8 +120,17 @@
 		<!-- The avatar is the one place on this page where the chosen color is
 		     shown at size, and it is the same circle the recipe cards paint, so
 		     a pick can be judged here instead of on the overview. -->
-		<div class="flex items-center gap-4">
-			{#if session.user}<PersonMark person={session.user} size="xl" />{/if}
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+			{#if session.user}
+				<AvatarControl
+					person={session.user}
+					upload={setOwnAvatar}
+					remove={removeOwnAvatar}
+					onchange={(avatarId) => {
+						if (session.user) session.user = { ...session.user, avatarId };
+					}}
+				/>
+			{/if}
 			<div>
 				<p class="text-body-lg font-semibold">{session.user?.displayName}</p>
 				<p class="text-caption text-text-muted">{roleLabel(session.user?.role)}</p>

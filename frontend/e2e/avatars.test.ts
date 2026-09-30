@@ -21,3 +21,65 @@ test('shows the picture in the profile and falls back when it fails', async ({ p
 		page.getByText(name.charAt(0).toUpperCase(), { exact: true }).locator('visible=true').first()
 	).toBeVisible();
 });
+
+test('crops and sets the own picture, then removes it', async ({ page }) => {
+	const name = `crop${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await login(page, name);
+	await page.goto('/settings');
+
+	await page.locator('input[type=file]').setInputFiles({
+		name: 'me.png',
+		mimeType: 'image/png',
+		buffer: tinyPng([200, 60, 60])
+	});
+	const dialog = page.getByRole('dialog', { name: 'Crop your photo' });
+	await expect(dialog).toBeVisible();
+	// tinyPng is 64 px, the smallest the service takes, so the test keeps
+	// zoom 1: any zoom would cut the square below 64 px and earn a 422.
+	await expect(dialog.getByRole('application', { name: 'Photo section' })).toBeVisible();
+	const put = page.waitForRequest(
+		(r) => r.method() === 'PUT' && r.url().includes('/auth/me/avatar?crop=')
+	);
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	await put;
+	await expect(page.getByText('Photo saved')).toBeVisible();
+	await expect(page.locator('img[src^="/avatars/"]:visible').first()).toBeVisible();
+
+	await page.getByRole('button', { name: 'Remove photo' }).click();
+	await expect(page.getByText('Photo removed')).toBeVisible();
+	await expect(page.locator('img[src^="/avatars/"]:visible')).toHaveCount(0);
+});
+
+test("the owner sets another account's picture", async ({ page, isMobile }) => {
+	const name = `other${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await page.goto('/settings/users');
+	// A wide screen has the button in the row, a phone behind the row's sheet.
+	const row = page
+		.getByRole('region', { name: 'People' })
+		.getByRole('listitem')
+		.filter({ has: page.getByText(name, { exact: true }) });
+	if (isMobile) {
+		await row.getByRole('button', { name: `Manage ${name}` }).click();
+		await page
+			.getByRole('dialog', { name, exact: true })
+			.getByRole('button', { name: 'Edit profile' })
+			.click();
+	} else {
+		await row.getByRole('button', { name: 'Edit profile' }).click();
+	}
+	const edit = page.getByRole('dialog');
+	await edit.locator('input[type=file]').setInputFiles({
+		name: 'x.png',
+		mimeType: 'image/png',
+		buffer: tinyPng([60, 60, 200])
+	});
+	await page
+		.getByRole('dialog', { name: 'Crop your photo' })
+		.getByRole('button', { name: 'Save' })
+		.click();
+	await expect(page.getByText('Photo saved')).toBeVisible();
+});

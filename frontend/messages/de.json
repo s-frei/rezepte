@@ -581,5 +581,18 @@
 	"public_share_revoke_title": "Öffentlichen Link widerrufen?",
 	"public_share_revoke_text": "Wer den Link hat, verliert sofort den Zugriff. Das kann nicht rückgängig gemacht werden.",
 	"public_share_revoked": "Öffentlicher Link widerrufen",
-	"public_share_revoke_error": "Der öffentliche Link konnte nicht widerrufen werden."
+	"public_share_revoke_error": "Der öffentliche Link konnte nicht widerrufen werden.",
+	"avatar_change": "Foto ändern",
+	"avatar_add": "Foto hinzufügen",
+	"avatar_remove": "Foto entfernen",
+	"avatar_crop_title": "Foto zuschneiden",
+	"avatar_crop_description": "Ziehen verschiebt, Zwei-Finger-Geste oder Regler zoomt. Pfeiltasten verschieben, Plus und Minus zoomen.",
+	"avatar_crop_zoom": "Zoom",
+	"avatar_crop_frame": "Bildausschnitt",
+	"avatar_saved": "Foto gespeichert",
+	"avatar_removed": "Foto entfernt",
+	"avatar_error_too_large": "Das Foto ist größer als 10 MB.",
+	"avatar_error_format": "Bitte ein JPEG-, PNG- oder WebP-Foto verwenden.",
+	"avatar_error_invalid": "Das Foto oder der Ausschnitt ist zu klein.",
+	"avatar_error": "Das Foto konnte nicht gespeichert werden."
 }
