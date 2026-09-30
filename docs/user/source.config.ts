@@ -11,9 +11,12 @@ export const docs = defineDocs({
 		// Two fields only the changelog pages use (content/changelog/): the
 		// release date, and what someone running an instance must do before
 		// upgrading. mise/lib/release/ writes and reads the same fields.
+		// `audience` marks a page that is not for everyone; components/audience.tsx
+		// turns it into the mark beside the page's name and title.
 		schema: pageSchema.extend({
 			date: z.coerce.date().optional(),
-			upgrade: z.string().optional()
+			upgrade: z.string().optional(),
+			audience: z.enum(['admin', 'owner']).optional()
 		}),
 		postprocess: { includeProcessedMarkdown: true }
 	}

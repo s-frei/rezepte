@@ -3,6 +3,8 @@ title: Sharing recipes
 description: Send a recipe link to the household, what the chat preview shows, and public links for people outside it
 ---
 
+import { Audience } from '@/components/audience';
+
 A recipe's page has two ways to hand out its address: **Copy link** in the "…" menu, and on a phone the share button over the cover photo, which opens the phone's own share sheet. The link is the recipe's normal address. Whoever opens it needs an account on your instance to see the recipe; the link does not let anyone in.
 
 For someone who does not have an account, and should not need one, the same "…" menu offers **Share publicly…** instead - see [Public links](#public-links) below.
@@ -13,7 +15,7 @@ When a link lands in WhatsApp, Signal, Telegram, iMessage, Slack, Discord or a s
 
 To build the card, the chat app fetches the link without being signed in to Rezepte. So a link from **Copy link** or the share button carries a code that shows the recipe's title, description and cover photo for a limited time — never its ingredients, steps or other photos, and never the rest of your recipes. After that time the link still works, but a new preview of it shows the logo.
 
-## The household setting
+## The household setting<Audience role="owner" />
 
 The owner of the instance finds **Link previews** under **Settings → People**. It is off until the owner switches on **Show recipes in link previews**; while it is off, every link shows the Rezepte logo. Once it is on, the owner picks how long a shared link shows the recipe: **15 min** (the default), **1 hour** or **1 day**.
 

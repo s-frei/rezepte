@@ -10,12 +10,15 @@ import type { MDXComponents } from 'mdx/types';
 import { Mermaid } from '@/components/mdx/mermaid';
 import { Lockup } from '@/components/lockup';
 import { Screenshot } from '@/components/screenshot';
+import { Audience, AudienceLegend } from '@/components/audience';
 
 export function getMDXComponents(components?: MDXComponents) {
 	return {
 		...defaultMdxComponents,
 		Accordion,
 		Accordions,
+		Audience,
+		AudienceLegend,
 		Callout,
 		Card,
 		Cards,

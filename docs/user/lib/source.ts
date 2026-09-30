@@ -4,6 +4,7 @@ import { openapiPlugin } from 'fumadocs-openapi/server';
 // .source/index.ts), so the collections are imported from '@/.source/server'.
 import { docs } from '@/.source/server';
 import { SITE_URL } from '@/lib/shared';
+import { ROLE_LABEL } from '@/components/audience';
 
 // Pages generated from the OpenAPI document live under this prefix. They are
 // real files in content/api/reference/, but their body is a single
@@ -36,6 +37,9 @@ export const docsLlms = llms(source, {
 		// A changelog page's upgrade notice is frontmatter, rendered by page.tsx;
 		// without this line the Markdown view would silently drop it.
 		const upgrade = page.data.upgrade ? `> **Before you upgrade:** ${page.data.upgrade}\n\n` : '';
-		return `# ${page.data.title} (${page.url})\n\n${upgrade}${await page.data.getText('processed')}`;
+		// The audience is a badge in the page chrome, which the Markdown view has
+		// none of; a line keeps it.
+		const audience = page.data.audience ? `> **${ROLE_LABEL[page.data.audience]}.**\n\n` : '';
+		return `# ${page.data.title} (${page.url})\n\n${audience}${upgrade}${await page.data.getText('processed')}`;
 	}
 });

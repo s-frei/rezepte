@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { OpenAPIPageProps_Preloaded } from 'fumadocs-openapi/ui';
 import { OpenAPIPage } from '@/components/api-page';
+import { Audience } from '@/components/audience';
 import { InlineCode } from '@/components/inline-code';
 import { getMDXComponents } from '@/components/mdx';
 import { openapi } from '@/lib/openapi';
@@ -26,7 +27,10 @@ export default async function Page({ params }: Props) {
 	const MDX = page.data.body;
 	return (
 		<DocsPage toc={page.data.toc} full={page.data.full}>
-			<DocsTitle>{page.data.title}</DocsTitle>
+			<DocsTitle>
+				{page.data.title}
+				{page.data.audience && <Audience role={page.data.audience} className="ms-3" />}
+			</DocsTitle>
 			<DocsDescription>{page.data.description}</DocsDescription>
 			{page.data.date && (
 				<p className="-mt-4 text-sm text-fd-muted-foreground">

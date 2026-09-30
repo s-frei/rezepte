@@ -3,11 +3,13 @@ title: Editing rights
 description: Who may change, re-photograph and delete a recipe
 ---
 
+import { Audience } from '@/components/audience';
+
 Out of the box, everyone in the household may edit every recipe. Two settings narrow that down: one for the whole household, set by the owner, and one on each recipe, set by its author.
 
 <Screenshot name="editor-editing" caption="The Editing section at the end of the editor" />
 
-## The household setting
+## The household setting<Audience role="owner" />
 
 The owner of the instance finds **Recipe editing** under **Settings → People**. With "Only authors and admins edit recipes" switched on, every recipe left on **Default** can only be edited by its author and by admins. The switch applies as soon as you flip it. Admins see the card too, with a sentence saying what applies right now, but only the owner can change it.
 

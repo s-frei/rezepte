@@ -3,12 +3,14 @@ title: API tokens
 description: Let programs reach your recipes without a login form
 ---
 
+import { Audience } from '@/components/audience';
+
 An API token lets a program talk to your instance the way the app does, without
 a login form. Use one for a script, a second instance, or [an AI assistant](/api/mcp).
 
 Only admins can issue tokens, under **Settings → API**.
 
-## Creating a token
+## Creating a token<Audience role="admin" />
 
 1. Open **Settings → API** and choose **Create token**.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
@@ -76,7 +78,7 @@ account behind the token is an admin - a token always acts with its
 issuer's current role, and stops working once that role is gone. Only the owner can change the
 household's editing setting, and only in the browser.
 
-## Revoking a token
+## Revoking a token<Audience role="admin" />
 
 Choose **Revoke** on its row. The token stops working immediately.
 
