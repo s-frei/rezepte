@@ -196,7 +196,7 @@
 	{/if}
 	{#if recipe?.canDelete}
 		<!-- The one destructive item sits apart from the rest. -->
-		<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-border" />
+		<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
 		<DropdownMenu.Item
 			onSelect={() => (deleteOpen = true)}
 			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
@@ -226,7 +226,7 @@
 				preventScroll={false}
 				sideOffset={8}
 				align="end"
-				class="w-52 rounded-2xl bg-surface p-2 shadow-dialog"
+				class="w-52 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 			>
 				{@render menuItems()}
 			</DropdownMenu.Content>
@@ -303,7 +303,7 @@
 					preventScroll={false}
 					sideOffset={scrolled ? 20 : 8}
 					align="end"
-					class="z-50 w-52 rounded-2xl bg-surface p-2 shadow-dialog"
+					class="z-50 w-52 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 				>
 					{@render menuItems()}
 				</DropdownMenu.Content>

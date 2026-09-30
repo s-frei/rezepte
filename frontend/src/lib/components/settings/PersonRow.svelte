@@ -170,7 +170,7 @@
 						preventScroll={false}
 						sideOffset={8}
 						align="end"
-						class="w-56 rounded-2xl bg-surface p-2 shadow-dialog"
+						class="w-56 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 					>
 						<DropdownMenu.CheckboxItem
 							bind:checked={sharing}
