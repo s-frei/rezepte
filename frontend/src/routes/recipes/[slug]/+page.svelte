@@ -21,12 +21,13 @@
 	import PublicShareDialog from '$lib/components/recipe/PublicShareDialog.svelte';
 	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
 	import RecipeView from '$lib/components/recipe/RecipeView.svelte';
+	import ShareSheet from '$lib/components/recipe/ShareSheet.svelte';
 	import TastyButton from '$lib/components/recipe/TastyButton.svelte';
 	import TastyPeople from '$lib/components/recipe/TastyPeople.svelte';
 	import { session } from '$lib/auth.svelte';
 	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
 	import { clearServings } from '$lib/recipe/servings.svelte';
-	import { copyLink, shareLink, ShareLink } from '$lib/recipe/share.svelte';
+	import { copyLink, ShareLink } from '$lib/recipe/share.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { shell } from '$lib/shell.svelte';
 	import type { PageProps } from './$types';
@@ -76,6 +77,7 @@
 	// without a reload.
 	let share: PublicShare | null = $derived(data.share);
 	let shareDialogOpen = $state(false);
+	let passOnOpen = $state(false);
 	// Public sharing is on and this member may use it.
 	// With an existing link the menu item and the marker show regardless of
 	// either: they open the dialog, which shows the link as paused if either
@@ -126,10 +128,6 @@
 
 	function copyRecipeLink() {
 		return copyLink(shareable?.url ?? location.href);
-	}
-
-	function shareRecipe() {
-		return shareLink(recipe.title, shareable?.url ?? location.href);
 	}
 
 	async function handleDelete() {
@@ -191,6 +189,13 @@
 		<Link class="size-4" aria-hidden="true" />
 		{m.detail_copy_link()}
 	</DropdownMenu.Item>
+	<DropdownMenu.Item
+		onSelect={() => (passOnOpen = true)}
+		class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
+	>
+		<Share2 class="size-4" aria-hidden="true" />
+		{m.share_pass_on()}
+	</DropdownMenu.Item>
 	{#if showShareMenuItem}
 		<DropdownMenu.Item
 			onSelect={() => (shareDialogOpen = true)}
@@ -219,6 +224,10 @@
 			{m.detail_edit()}
 		</Button>
 	{/if}
+	<Button variant="secondary" onclick={() => (passOnOpen = true)}>
+		<Share2 class="size-4" aria-hidden="true" />
+		{m.share_pass_on()}
+	</Button>
 	<Button variant="primary" href={cookHref}>
 		<ChefHat class="size-4" aria-hidden="true" />
 		{m.detail_cook_mode()}
@@ -282,7 +291,7 @@
 		{:else}
 			<IconButton
 				label={m.detail_share()}
-				onclick={shareRecipe}
+				onclick={() => (passOnOpen = true)}
 				class="pointer-events-auto shadow-card"
 			>
 				<Share2 class="size-5" aria-hidden="true" />
@@ -395,6 +404,13 @@
 		defaultDays={settings?.publicShareDefaultDays ?? null}
 		maxDays={settings?.publicShareMaxDays ?? null}
 		bind:share
+	/>
+
+	<ShareSheet
+		bind:open={passOnOpen}
+		{recipe}
+		attribution={settings?.publicShareAttribution ?? true}
+		linkUrl={() => shareable?.url ?? location.href}
 	/>
 
 	<Lightbox

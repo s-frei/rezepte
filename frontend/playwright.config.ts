@@ -14,6 +14,9 @@ export default defineConfig({
 	},
 	projects: [
 		{ name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-		{ name: 'mobile', use: { ...devices['Pixel 7'] } }
+		{ name: 'mobile', use: { ...devices['Pixel 7'] } },
+		// Safari draws the recipe card differently enough (fonts, pictures,
+		// canvas size) to deserve its own run; only that test pays for it.
+		{ name: 'webkit', use: { ...devices['iPhone 15'] }, testMatch: /share-image\.test\.ts/ }
 	]
 });

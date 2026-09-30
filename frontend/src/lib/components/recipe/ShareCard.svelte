@@ -30,7 +30,7 @@
 	let coverFailed = $state(false);
 	const source = SOURCE_URL.replace(/^https?:\/\//, '');
 	const pill =
-		'inline-flex h-8 items-center gap-1.5 rounded-pill bg-surface px-3 text-caption font-medium shadow-card';
+		'inline-flex h-8 items-center gap-1.5 rounded-pill border border-border bg-surface px-3 text-caption font-medium';
 </script>
 
 <div class="w-[420px] bg-background text-text">

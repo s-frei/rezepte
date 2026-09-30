@@ -8,7 +8,7 @@ run = "bun install --frozen-lockfile"
 [tasks.install]
 description = "Install frontend dependencies and the Playwright browser"
 depends = ["install:deps"]
-run = "bunx playwright install ${PLAYWRIGHT_INSTALL_ARGS:-} chromium"
+run = "bunx playwright install ${PLAYWRIGHT_INSTALL_ARGS:-} chromium webkit"
 
 [tasks.dev]
 description = "Run the SvelteKit dev server"
