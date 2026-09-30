@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { banner, horizontal, manifest, parseWordmark, stacked } from './brand-export';
+import { horizontal, manifest, parseWordmark, stacked } from './brand-export';
 import { BOOK, EDGE, GROUND, INK } from './brand-palette';
 
 // brand:check never reads the mascot master: it sits in Git LFS, which CI
@@ -30,13 +30,9 @@ test('the favicon book is a flat vector in its own palette', async () => {
 	expect(svg).not.toMatch(/<(image|text|style|script|foreignObject)\b|transform=|\sstyle=/);
 });
 
-const expected = [
-	'rezepte-banner.svg',
-	'rezepte-lockup-horizontal.svg',
-	'rezepte-lockup-stacked.svg'
-];
+const expected = ['rezepte-lockup-horizontal.svg', 'rezepte-lockup-stacked.svg'];
 
-test('the lockups are the banner, the horizontal and the stacked one', () => {
+test('the lockups are the horizontal and the stacked one', () => {
 	const found = readdirSync(lockups).filter(
 		(f) => f.endsWith('.svg') && f !== 'rezepte-wordmark.svg'
 	);
@@ -60,7 +56,7 @@ for (const file of expected) {
 test('the layouts keep the wordmark inside the box', async () => {
 	const word = parseWordmark(await text(new URL('rezepte-wordmark.svg', lockups)));
 	const mascot = { href: 'data:image/webp;base64,', aspect: 1 };
-	for (const svg of [horizontal(mascot, word), stacked(mascot, word), banner(mascot, word)]) {
+	for (const svg of [horizontal(mascot, word), stacked(mascot, word)]) {
 		const [, width, height] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!.map(Number);
 		for (const m of svg.matchAll(
 			/<svg x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g

@@ -75,30 +75,18 @@ export function stacked(m: Mascot, word: Art): string {
 	);
 }
 
-// The banner and the social preview share one composition: the mascot large
-// on the left, the wordmark beside it, centered as a group on 1280x640.
-const BANNER = { width: 1280, height: 640, mascot: 540, word: 125, gap: 48 };
+// The social preview: the mascot large on the left, the wordmark beside it,
+// centered as a group on 1280x640.
+const SOCIAL = { width: 1280, height: 640, mascot: 540, word: 125, gap: 48 };
 
-function bannerLayout(aspect: number, word: Art) {
-	const mascotWidth = BANNER.mascot * aspect;
-	const wordWidth = (BANNER.word * word.width) / word.height;
-	const x = (BANNER.width - mascotWidth - BANNER.gap - wordWidth) / 2;
+function socialLayout(aspect: number, word: Art) {
+	const mascotWidth = SOCIAL.mascot * aspect;
+	const wordWidth = (SOCIAL.word * word.width) / word.height;
+	const x = (SOCIAL.width - mascotWidth - SOCIAL.gap - wordWidth) / 2;
 	return {
-		mascot: { x, y: (BANNER.height - BANNER.mascot) / 2 + 20 },
-		word: { x: x + mascotWidth + BANNER.gap, y: (BANNER.height - BANNER.word) / 2 }
+		mascot: { x, y: (SOCIAL.height - SOCIAL.mascot) / 2 + 20 },
+		word: { x: x + mascotWidth + SOCIAL.gap, y: (SOCIAL.height - SOCIAL.word) / 2 }
 	};
-}
-
-/** The README header and the docs home: the social preview's picture as a rounded box. */
-export function banner(m: Mascot, word: Art): string {
-	const at = bannerLayout(m.aspect, word);
-	return svg(
-		BANNER.width,
-		BANNER.height,
-		box(BANNER.width, BANNER.height, 48) +
-			image(m, at.mascot.x, at.mascot.y, BANNER.mascot) +
-			place(word, at.word.x, at.word.y, BANNER.word)
-	);
 }
 
 export function manifest(): string {
@@ -160,13 +148,13 @@ async function socialPreview(
 	wordmark: string,
 	word: Art
 ): Promise<Buffer> {
-	const at = bannerLayout(aspect, word);
-	const art = await sharp(master).resize({ height: BANNER.mascot }).toBuffer();
+	const at = socialLayout(aspect, word);
+	const art = await sharp(master).resize({ height: SOCIAL.mascot }).toBuffer();
 	const letters = await sharp(Buffer.from(wordmark), { density: 400 })
-		.resize({ height: BANNER.word })
+		.resize({ height: SOCIAL.word })
 		.toBuffer();
 	return sharp({
-		create: { width: BANNER.width, height: BANNER.height, channels: 3, background: GROUND }
+		create: { width: SOCIAL.width, height: SOCIAL.height, channels: 3, background: GROUND }
 	})
 		.composite([
 			{ input: art, left: Math.round(at.mascot.x), top: Math.round(at.mascot.y) },
@@ -208,10 +196,6 @@ async function main() {
 	await Bun.write(
 		new URL('rezepte-lockup-stacked.svg', lockups),
 		stacked(await embedded(master, aspect, 400), word)
-	);
-	await Bun.write(
-		new URL('rezepte-banner.svg', lockups),
-		banner(await embedded(master, aspect, 720), word)
 	);
 	await Bun.write(new URL('rezepte-mascot.webp', lockups), await webp(master, 144));
 

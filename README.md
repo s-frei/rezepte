@@ -1,6 +1,6 @@
 <div align="center">
 
-<img alt="Rezepte" src="assets/brand/lockups/rezepte-banner.svg" width="640">
+<img alt="Rezepte: the waving cookbook mascot on a kitchen counter with herbs, a steaming pot and recipe cards" src="docs/user/public/heroes/kitchen.jpg" width="800">
 
 **The recipe manager I wanted for my own kitchen.** Self-hosted, one binary, no cloud account.
 

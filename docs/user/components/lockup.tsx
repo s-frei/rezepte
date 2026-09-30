@@ -1,5 +1,5 @@
 type Props = {
-	variant: 'horizontal' | 'banner';
+	variant: 'horizontal';
 	/** Sizes it; the other side follows the lockup's own proportions. */
 	className?: string;
 };
@@ -11,7 +11,7 @@ type Props = {
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 export function Lockup({ variant, className = '' }: Props) {
-	const src = `${basePath}/brand/rezepte-${variant === 'banner' ? 'banner' : 'lockup-horizontal'}.svg`;
+	const src = `${basePath}/brand/rezepte-lockup-${variant}.svg`;
 	// eslint-disable-next-line @next/next/no-img-element -- see above
 	return <img src={src} alt="Rezepte" className={className} />;
 }

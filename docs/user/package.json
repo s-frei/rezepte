@@ -10,6 +10,7 @@
     "openapi:generate": "bun scripts/generate-api.ts",
     "screenshots:audit": "bun scripts/screenshots-audit.ts",
     "readme-images": "bun scripts/readme-images.ts",
+    "hero-images": "bun scripts/hero-images.ts",
     "brand-assets": "bun scripts/brand-assets.ts",
     "base-path:audit": "bun scripts/base-path-audit.ts"
   },
