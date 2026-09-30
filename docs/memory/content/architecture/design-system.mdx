@@ -33,7 +33,7 @@ description: Tokens, type scale, components and interaction rules of the “Warm
     | `tint-1` / `tint-2` / `tint-3` | `#f0dfc4` / `#e6e3cf` / `#efd9cf` | card placeholder tiles when a recipe has no photo |
     | `lightbox` / `lightbox-foreground` | `#120e0b` / `#ffffff` | lightbox background and its icon/text color - both theme-independent, since the lightbox sits behind the photo rather than behind the page |
     | `overlay` | `rgb(43 33 24 / 0.4)` | dialog/scrim backdrop (both themes) |
-    | `scene-ink` / `scene-muted` | `#7c3d0a` / `#756554` | text set on a painting (the login's wordmark and welcome on the kitchen scene) - theme-independent, since it sits on the painting's cream rather than on the page |
+    | `scene-ink` / `scene-muted` | `#7c3d0a` / `#756554` | text set on a painting (the wordmark and the line under it on the kitchen scene of the login and setup-link pages) - theme-independent, since it sits on the painting's cream rather than on the page |
 
   </Tab>
   <Tab value="Dark">
@@ -175,7 +175,7 @@ Mascot and wordmark always share **one rounded cream box with a hairline edge** 
 
 The SVG embeds the mascot as a WebP data URI, so it is one self-contained file an `<img>` can load - on GitHub, on the docs site and in the app alike. It is generated, never edited by hand. Never: recolor a lockup, set the mascot without its box on a busy picture, stretch it, or redraw the figure as a vector.
 
-The wordmark alone stands without the box in one place, the login screen, and there it is the one piece of the logo that may change color. On the kitchen scene it keeps its ink (`scene-ink`); on the narrow login's text page it takes `accent-foreground`, which is the same ink in the light theme and a light amber in the dark one, where the ink would vanish into the page. The login sets it as a CSS mask over that color rather than as an `<img>`, so the file itself stays the one in the ink.
+The wordmark alone stands without the box in one place, the kitchen scene that `frontend/src/lib/components/auth/AuthScene.svelte` lays out for the login and for the setup-link page `/welcome`, and there it is the one piece of the logo that may change color. The two pages differ only in the line under the wordmark and the card's contents, which they pass in; the scene, the fold and the ornament live in the component, so the two cannot drift apart. On the kitchen scene the wordmark keeps its ink (`scene-ink`); on the narrow text page it takes `accent-foreground`, which is the same ink in the light theme and a light amber in the dark one, where the ink would vanish into the page. `AuthScene` sets it as a CSS mask over that color rather than as an `<img>`, so the file itself stays the one in the ink.
 
 ### Icons and preview
 

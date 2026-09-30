@@ -6,9 +6,9 @@
 	import { inspectSetupLink, redeemSetupLink } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
 	import { getOidc, type OidcInfo } from '$lib/api/oidc';
+	import AuthScene from '$lib/components/auth/AuthScene.svelte';
 	import ProviderButton from '$lib/components/auth/ProviderButton.svelte';
 	import { session } from '$lib/auth.svelte';
-	import Lockup from '$lib/components/brand/Lockup.svelte';
 	import PasswordStrength from '$lib/components/settings/PasswordStrength.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
@@ -131,13 +131,12 @@
 
 <svelte:head><title>{pageTitle}</title></svelte:head>
 
-<main class="flex min-h-screen flex-col items-center justify-center gap-6 p-5">
-	<Lockup variant="horizontal" label={m.app_name()} class="h-12" />
+<!-- Every state shares the login's scene and card; only the form states
+     carry the line under the wordmark. -->
+<AuthScene lead={ready ? (oidc?.enabled ? m.welcome_lead_choose() : m.welcome_lead()) : ''}>
 	{#if !loading}
 		{#if !token && oidc?.enabled && (oidcReturn === 'failed' || oidcReturn === 'taken')}
-			<div
-				class="w-full max-w-[440px] space-y-2 rounded-2xl bg-surface p-5 text-center shadow-card dark:border dark:border-border"
-			>
+			<div class="space-y-2 text-center lg:text-left">
 				<p role="alert" class="text-body font-medium text-destructive">
 					{oidcReturn === 'taken'
 						? m.oidc_taken({ name: oidc.name })
@@ -146,90 +145,74 @@
 				<p class="text-body text-text-muted">{m.welcome_reopen()}</p>
 			</div>
 		{:else if invalid}
-			<div
-				class="w-full max-w-[440px] space-y-2 rounded-2xl bg-surface p-5 text-center shadow-card dark:border dark:border-border"
-			>
+			<div class="space-y-2 text-center lg:text-left">
 				<h1 class="font-display text-heading font-medium">{m.welcome_invalid()}</h1>
 				<p class="text-body text-text-muted">{m.welcome_invalid_hint()}</p>
 			</div>
 		{:else if loadError}
-			<div
-				class="w-full max-w-[440px] space-y-4 rounded-2xl bg-surface p-5 text-center shadow-card dark:border dark:border-border"
-			>
-				<p class="text-body text-text-muted">{m.login_error_generic()}</p>
-				<Button variant="secondary" onclick={loadInvite}>{m.common_retry()}</Button>
-			</div>
+			<p class="text-center text-body text-text-muted lg:text-left">{m.login_error_generic()}</p>
+			<Button variant="secondary" onclick={loadInvite}>{m.common_retry()}</Button>
 		{:else}
+			<h1 class="font-display text-heading font-medium">
+				{m.welcome_title({ name: displayName })}
+			</h1>
 			{#if session.user && session.user.username !== username}
 				<!-- Another account is signed in on this browser: the link is
 				     still usable, but finishing it signs that account out here. -->
-				<p
-					role="status"
-					class="w-full max-w-[440px] rounded-2xl bg-surface p-4 text-body text-text-muted shadow-card dark:border dark:border-border"
-				>
+				<p role="status" class="text-body text-text-muted">
 					{m.welcome_signed_in_as({ name: session.user.displayName, invited: displayName })}
 				</p>
 			{/if}
-			<p class="text-body text-text-muted">
-				{oidc?.enabled ? m.welcome_lead_choose() : m.welcome_lead()}
-			</p>
-			<div
-				class="w-full max-w-[440px] space-y-5 rounded-2xl bg-surface p-5 shadow-card dark:border dark:border-border"
-			>
-				<h1 class="font-display text-heading font-medium">
-					{m.welcome_title({ name: displayName })}
-				</h1>
-				{#if oidc?.enabled}
-					<ProviderButton intent="setup" name={oidc.name} setup={token} />
-					<div class="flex items-center gap-3 text-caption text-text-muted">
-						<span class="h-px flex-1 bg-border"></span>
-						{m.login_or()}
-						<span class="h-px flex-1 bg-border"></span>
-					</div>
-				{/if}
-				<form onsubmit={submit} class="space-y-5">
-					<!-- Tells a password manager which account this is: without it the
+			{#if oidc?.enabled}
+				<ProviderButton intent="setup" name={oidc.name} setup={token} />
+				<div class="flex items-center gap-3 text-caption text-text-muted">
+					<span class="h-px flex-1 bg-border"></span>
+					{m.login_or()}
+					<span class="h-px flex-1 bg-border"></span>
+				</div>
+			{/if}
+			<form onsubmit={submit} class="flex flex-col gap-5">
+				<!-- Tells a password manager which account this is: without it the
 				     new password is saved as a second, nameless entry. -->
-					<input
-						type="text"
-						name="username"
-						autocomplete="username"
-						value={username}
-						readonly
-						hidden
-					/>
-					<div class="space-y-1.5">
-						<Input
-							id="welcome-password"
-							label={m.settings_password_new()}
-							type="password"
-							autocomplete="new-password"
-							required
-							bind:value={password}
-							oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
-							error={errors.next ?? null}
-							hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
-						/>
-						<PasswordStrength {password} userInputs={[username, displayName]} />
-					</div>
+				<input
+					type="text"
+					name="username"
+					autocomplete="username"
+					value={username}
+					readonly
+					hidden
+				/>
+				<div class="space-y-1.5">
 					<Input
-						id="welcome-password-repeat"
-						label={m.settings_password_repeat()}
+						id="welcome-password"
+						label={m.settings_password_new()}
 						type="password"
 						autocomplete="new-password"
 						required
-						bind:value={repeat}
-						oninput={() => (errors = withoutErrors(errors, ['repeat']))}
-						error={errors.repeat ?? null}
+						bind:value={password}
+						oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
+						error={errors.next ?? null}
+						hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
 					/>
-					{#if submitError}
-						<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
-					{/if}
-					<Button type="submit" size="lg" class="w-full" disabled={submitting}>
-						{m.welcome_submit()}
-					</Button>
-				</form>
-			</div>
+					<PasswordStrength {password} userInputs={[username, displayName]} />
+				</div>
+				<Input
+					id="welcome-password-repeat"
+					label={m.settings_password_repeat()}
+					type="password"
+					autocomplete="new-password"
+					required
+					bind:value={repeat}
+					oninput={() => (errors = withoutErrors(errors, ['repeat']))}
+					error={errors.repeat ?? null}
+				/>
+				{#if submitError}
+					<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
+				{/if}
+				<Button type="submit" size="lg" class="w-full" disabled={submitting}>
+					{m.welcome_submit()}
+				</Button>
+			</form>
 		{/if}
 	{/if}
-</main>
+</AuthScene>
