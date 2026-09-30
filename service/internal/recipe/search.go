@@ -193,7 +193,7 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	}
 	authors := make(map[string]Person, len(authorRows))
 	for _, a := range authorRows {
-		authors[a.ID] = Person{ID: a.ID, Username: a.Username, DisplayName: a.DisplayName, Color: a.Color}
+		authors[a.ID] = Person{ID: a.ID, Username: a.Username, DisplayName: a.DisplayName, Color: a.Color, AvatarID: a.AvatarID}
 	}
 
 	favorites := make(map[string]bool)

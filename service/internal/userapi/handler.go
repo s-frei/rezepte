@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -27,6 +28,7 @@ type UserAccount struct {
 	// CanSharePublicly is an admin's per-person switch; see share.
 	CanSharePublicly bool      `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
 	CreatedAt        time.Time `json:"createdAt" doc:"When the account was created"`
+	AvatarID         *string   `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 }
 
 // UserAccountList is the response body of list-users.
@@ -43,11 +45,12 @@ type listOutput struct {
 // creation date. The JSON is the person a recipe's createdBy carries, plus
 // the role.
 type PersonEntry struct {
-	ID          string `json:"id" doc:"User id"`
-	Username    string `json:"username" doc:"Login name"`
-	DisplayName string `json:"displayName" doc:"Name shown wherever the UI names this person"`
-	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
-	Role        string `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
+	ID          string  `json:"id" doc:"User id"`
+	Username    string  `json:"username" doc:"Login name"`
+	DisplayName string  `json:"displayName" doc:"Name shown wherever the UI names this person"`
+	Color       string  `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
+	Role        string  `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
+	AvatarID    *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 }
 
 // PersonList is the response body of list-people.
@@ -135,12 +138,14 @@ func toResponse(u user.User) UserAccount {
 		Locale:           u.Locale,
 		CanSharePublicly: u.CanSharePublicly,
 		CreatedAt:        u.CreatedAt,
+		AvatarID:         u.AvatarID,
 	}
 }
 
 // Register installs list, create, update and delete for users, which require
-// an admin, and list-people, which any signed-in account may read.
-func Register(api huma.API, users *user.Service, sessions *auth.Service) {
+// an admin, and list-people, which any signed-in account may read. avatars
+// removes a deleted account's pictures.
+func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-people",
 		Method:      http.MethodGet,
@@ -166,6 +171,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 				DisplayName: u.DisplayName,
 				Color:       string(u.Color),
 				Role:        string(u.Role),
+				AvatarID:    u.AvatarID,
 			})
 		}
 		return &peopleOutput{Body: PersonList{Items: items}}, nil
@@ -377,6 +383,10 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service) {
 		case err != nil:
 			return nil, err
 		}
+		// The row is gone, so nothing names the files any more; a leftover
+		// would only cost disk, never leak, which is why a failure here does
+		// not fail the delete.
+		_ = avatars.RemoveAll(in.ID)
 		return &deleteOutput{}, nil
 	})
 }

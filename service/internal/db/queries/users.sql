@@ -62,3 +62,6 @@ RETURNING *;
 
 -- name: SetCanSharePublicly :one
 UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING *;
+
+-- name: SetUserAvatar :execrows
+UPDATE users SET avatar_id = ?, updated_at = ? WHERE id = ?;

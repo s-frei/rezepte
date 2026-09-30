@@ -86,7 +86,7 @@ ORDER BY rt.recipe_id, t.name;
 
 -- The people behind a page of recipes, batched like ListTagNamesForRecipes.
 -- name: ListAuthorsForIDs :many
-SELECT id, username, display_name, color FROM users WHERE id IN (sqlc.slice(ids));
+SELECT id, username, display_name, color, avatar_id FROM users WHERE id IN (sqlc.slice(ids));
 
 -- Everyone who has written at least one recipe, most recipes first, for the
 -- "added by" filter. Counting here rather than in Go keeps the list and
@@ -139,7 +139,7 @@ GROUP BY recipe_id;
 
 -- name: ListTastyUsers :many
 -- Everyone who marked one recipe, in the order they did.
-SELECT u.id, u.username, u.display_name, u.color
+SELECT u.id, u.username, u.display_name, u.color, u.avatar_id
 FROM tasty t
 JOIN users u ON u.id = t.user_id
 WHERE t.recipe_id = ?
@@ -152,7 +152,8 @@ ORDER BY t.created_at, u.id;
 SELECT c.username AS created_by_username, c.display_name AS created_by_display_name,
        c.color AS created_by_color,
        u.username AS updated_by_username, u.display_name AS updated_by_display_name,
-       u.color AS updated_by_color
+       u.color AS updated_by_color,
+       c.avatar_id AS created_by_avatar_id, u.avatar_id AS updated_by_avatar_id
 FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by

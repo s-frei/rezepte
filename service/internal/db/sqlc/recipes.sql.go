@@ -99,7 +99,8 @@ const getRecipeAuthors = `-- name: GetRecipeAuthors :one
 SELECT c.username AS created_by_username, c.display_name AS created_by_display_name,
        c.color AS created_by_color,
        u.username AS updated_by_username, u.display_name AS updated_by_display_name,
-       u.color AS updated_by_color
+       u.color AS updated_by_color,
+       c.avatar_id AS created_by_avatar_id, u.avatar_id AS updated_by_avatar_id
 FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by
@@ -113,6 +114,8 @@ type GetRecipeAuthorsRow struct {
 	UpdatedByUsername    string
 	UpdatedByDisplayName string
 	UpdatedByColor       string
+	CreatedByAvatarID    *string
+	UpdatedByAvatarID    *string
 }
 
 // The people behind the detail view. They come from a query of their own
@@ -128,6 +131,8 @@ func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAut
 		&i.UpdatedByUsername,
 		&i.UpdatedByDisplayName,
 		&i.UpdatedByColor,
+		&i.CreatedByAvatarID,
+		&i.UpdatedByAvatarID,
 	)
 	return i, err
 }
@@ -314,7 +319,7 @@ func (q *Queries) InsertStepReference(ctx context.Context, arg InsertStepReferen
 }
 
 const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many
-SELECT id, username, display_name, color FROM users WHERE id IN (/*SLICE:ids*/?)
+SELECT id, username, display_name, color, avatar_id FROM users WHERE id IN (/*SLICE:ids*/?)
 `
 
 type ListAuthorsForIDsRow struct {
@@ -322,6 +327,7 @@ type ListAuthorsForIDsRow struct {
 	Username    string
 	DisplayName string
 	Color       string
+	AvatarID    *string
 }
 
 // The people behind a page of recipes, batched like ListTagNamesForRecipes.
@@ -349,6 +355,7 @@ func (q *Queries) ListAuthorsForIDs(ctx context.Context, ids []string) ([]ListAu
 			&i.Username,
 			&i.DisplayName,
 			&i.Color,
+			&i.AvatarID,
 		); err != nil {
 			return nil, err
 		}
@@ -749,7 +756,7 @@ func (q *Queries) ListTastyRecipeIDs(ctx context.Context, arg ListTastyRecipeIDs
 }
 
 const listTastyUsers = `-- name: ListTastyUsers :many
-SELECT u.id, u.username, u.display_name, u.color
+SELECT u.id, u.username, u.display_name, u.color, u.avatar_id
 FROM tasty t
 JOIN users u ON u.id = t.user_id
 WHERE t.recipe_id = ?
@@ -761,6 +768,7 @@ type ListTastyUsersRow struct {
 	Username    string
 	DisplayName string
 	Color       string
+	AvatarID    *string
 }
 
 // Everyone who marked one recipe, in the order they did.
@@ -778,6 +786,7 @@ func (q *Queries) ListTastyUsers(ctx context.Context, recipeID string) ([]ListTa
 			&i.Username,
 			&i.DisplayName,
 			&i.Color,
+			&i.AvatarID,
 		); err != nil {
 			return nil, err
 		}

@@ -486,7 +486,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	// Never nil, like the steps' references: "nobody yet" is an empty list.
 	tastyBy := make([]Person, len(tastyRows))
 	for i, u := range tastyRows {
-		tastyBy[i] = Person{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, Color: u.Color}
+		tastyBy[i] = Person{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName, Color: u.Color, AvatarID: u.AvatarID}
 	}
 
 	images := make([]Image, len(imgRows))
@@ -518,6 +518,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			Username:    authors.CreatedByUsername,
 			DisplayName: authors.CreatedByDisplayName,
 			Color:       authors.CreatedByColor,
+			AvatarID:    authors.CreatedByAvatarID,
 		},
 		UpdatedAt: updated,
 		UpdatedBy: Person{
@@ -525,6 +526,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			Username:    authors.UpdatedByUsername,
 			DisplayName: authors.UpdatedByDisplayName,
 			Color:       authors.UpdatedByColor,
+			AvatarID:    authors.UpdatedByAvatarID,
 		},
 		TastyCount: len(tastyBy),
 		TastyBy:    tastyBy,

@@ -1181,6 +1181,13 @@
       "Person": {
         "additionalProperties": false,
         "properties": {
+          "avatarId": {
+            "description": "The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "color": {
             "type": "string"
           },
@@ -1199,13 +1206,21 @@
           "id",
           "username",
           "displayName",
-          "color"
+          "color",
+          "avatarId"
         ],
         "type": "object"
       },
       "PersonEntry": {
         "additionalProperties": false,
         "properties": {
+          "avatarId": {
+            "description": "The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "color": {
             "description": "Palette token identifying this person",
             "enum": [
@@ -1247,7 +1262,8 @@
           "username",
           "displayName",
           "color",
-          "role"
+          "role",
+          "avatarId"
         ],
         "type": "object"
       },
@@ -1584,6 +1600,28 @@
         },
         "required": [
           "reason"
+        ],
+        "type": "object"
+      },
+      "Result": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/Result.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "avatarId": {
+            "description": "The new picture, served at /avatars/{userId}/{avatarId}.jpg",
+            "type": "string"
+          }
+        },
+        "required": [
+          "avatarId"
         ],
         "type": "object"
       },
@@ -1981,6 +2019,13 @@
             "readOnly": true,
             "type": "string"
           },
+          "avatarId": {
+            "description": "The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "canSharePublicly": {
             "description": "Whether this person may create public links; their existing links pause while it is off",
             "type": "boolean"
@@ -2042,7 +2087,8 @@
           "color",
           "locale",
           "canSharePublicly",
-          "createdAt"
+          "createdAt",
+          "avatarId"
         ],
         "type": "object"
       },
@@ -2084,6 +2130,13 @@
             "format": "uri",
             "readOnly": true,
             "type": "string"
+          },
+          "avatarId": {
+            "description": "The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "canSharePublicly": {
             "description": "Whether an admin lets this person create public links",
@@ -2140,7 +2193,8 @@
           "role",
           "color",
           "locale",
-          "canSharePublicly"
+          "canSharePublicly",
+          "avatarId"
         ],
         "type": "object"
       }
@@ -2440,6 +2494,157 @@
           }
         ],
         "summary": "Change the current user's password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me/avatar": {
+      "delete": {
+        "operationId": "delete-own-avatar",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Remove the own picture",
+        "tags": [
+          "auth"
+        ]
+      },
+      "put": {
+        "description": "The square to keep, as x,y,size: x and y place its top-left corner as fractions of the upright image's width and height, size is its side as a fraction of the shorter side. Absent keeps the centered square.",
+        "operationId": "set-own-avatar",
+        "parameters": [
+          {
+            "description": "The square to keep, as x,y,size; see the operation description",
+            "explode": false,
+            "in": "query",
+            "name": "crop",
+            "schema": {
+              "description": "The square to keep, as x,y,size; see the operation description",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg,image/png,image/webp"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Set the own picture (JPEG, PNG or WebP, at most 10 MiB)",
         "tags": [
           "auth"
         ]
@@ -5118,6 +5323,235 @@
           }
         ],
         "summary": "Change a user's role, profile or public sharing, and/or reset the password",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/avatar": {
+      "delete": {
+        "operationId": "delete-user-avatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "users:write"
+            ]
+          }
+        ],
+        "summary": "Remove another account's picture (owner only)",
+        "tags": [
+          "users"
+        ]
+      },
+      "put": {
+        "description": "The square to keep, as x,y,size: x and y place its top-left corner as fractions of the upright image's width and height, size is its side as a fraction of the shorter side. Absent keeps the centered square.",
+        "operationId": "set-user-avatar",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The square to keep, as x,y,size; see the operation description",
+            "explode": false,
+            "in": "query",
+            "name": "crop",
+            "schema": {
+              "description": "The square to keep, as x,y,size; see the operation description",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "encoding": {
+                "file": {
+                  "contentType": "image/jpeg,image/png,image/webp"
+                }
+              },
+              "schema": {
+                "properties": {
+                  "file": {
+                    "contentEncoding": "binary",
+                    "contentMediaType": "application/octet-stream",
+                    "format": "binary",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Result"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "users:write"
+            ]
+          }
+        ],
+        "summary": "Set another account's picture (owner only)",
         "tags": [
           "users"
         ]

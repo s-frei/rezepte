@@ -10,9 +10,11 @@ import (
 	"testing/fstest"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
+	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 )
@@ -46,7 +48,7 @@ func newBearerStackWithScopes(t *testing.T, scopes ...string) (http.Handler, str
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
 	return srv.Handler(), raw
 }
 

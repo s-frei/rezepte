@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
@@ -82,7 +83,7 @@ func newFullApp(t *testing.T) fullApp {
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes)
 	srv.Handle("GET /public-images/{token}/{imageId}/{file}", shares.ImageHandler(images))
-	userapi.Register(srv.API(), users, sessions)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images))
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
 }

@@ -58,7 +58,7 @@ const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     id, username, display_name, password_hash, role, color, locale, created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
+RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
 `
 
 type CreateUserParams struct {
@@ -97,6 +97,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
 }
@@ -133,7 +134,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
 }
 
 const getSuperadmin = `-- name: GetSuperadmin :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users WHERE role = 'superadmin'
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users WHERE role = 'superadmin'
 `
 
 func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
@@ -150,12 +151,13 @@ func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users WHERE id = ?
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -172,12 +174,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users WHERE username = ?
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users WHERE username = ?
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -194,12 +197,13 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly FROM users ORDER BY username
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users ORDER BY username
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -222,6 +226,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.CanSharePublicly,
+			&i.AvatarID,
 		); err != nil {
 			return nil, err
 		}
@@ -258,7 +263,7 @@ func (q *Queries) ReassignRecipes(ctx context.Context, arg ReassignRecipesParams
 }
 
 const setCanSharePublicly = `-- name: SetCanSharePublicly :one
-UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
+UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
 `
 
 type SetCanSharePubliclyParams struct {
@@ -280,8 +285,27 @@ func (q *Queries) SetCanSharePublicly(ctx context.Context, arg SetCanSharePublic
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
+}
+
+const setUserAvatar = `-- name: SetUserAvatar :execrows
+UPDATE users SET avatar_id = ?, updated_at = ? WHERE id = ?
+`
+
+type SetUserAvatarParams struct {
+	AvatarID  *string
+	UpdatedAt string
+	ID        string
+}
+
+func (q *Queries) SetUserAvatar(ctx context.Context, arg SetUserAvatarParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUserAvatar, arg.AvatarID, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateUserPasswordHash = `-- name: UpdateUserPasswordHash :execrows
@@ -306,7 +330,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = ?, color = ?, locale = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
+RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
 `
 
 type UpdateUserProfileParams struct {
@@ -340,12 +364,13 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
 }
 
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly
+UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
 `
 
 type UpdateUserRoleParams struct {
@@ -368,6 +393,7 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
+		&i.AvatarID,
 	)
 	return i, err
 }

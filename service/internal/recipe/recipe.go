@@ -78,10 +78,11 @@ type Image struct {
 // token scoped to recipes:read, which cannot read /api/v1/people, still gets
 // the names.
 type Person struct {
-	ID          string `json:"id"`
-	Username    string `json:"username" doc:"Login name, which ?author= filters by"`
-	DisplayName string `json:"displayName"`
-	Color       string `json:"color"`
+	ID          string  `json:"id"`
+	Username    string  `json:"username" doc:"Login name, which ?author= filters by"`
+	DisplayName string  `json:"displayName"`
+	Color       string  `json:"color"`
+	AvatarID    *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 }
 
 // Recipe is a stored recipe: an Input plus the fields the service assigns.

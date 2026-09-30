@@ -11,9 +11,11 @@ import (
 	"testing/fstest"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
+	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 )
@@ -52,7 +54,7 @@ func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
 	return srv.Handler()
 }
 
@@ -164,7 +166,7 @@ func TestPeopleHidesAccountDetails(t *testing.T) {
 	if len(body.Items) == 0 {
 		t.Fatalf("no people in %s", rec.Body.String())
 	}
-	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true}
+	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true}
 	for _, item := range body.Items {
 		if len(item) != len(want) {
 			t.Fatalf("keys of %v, want exactly %v", item, want)

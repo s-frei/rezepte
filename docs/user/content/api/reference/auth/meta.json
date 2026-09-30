@@ -7,6 +7,8 @@
     "logout",
     "me",
     "change-own-password",
+    "delete-own-avatar",
+    "set-own-avatar",
     "list-color-usage",
     "update-own-profile"
   ]

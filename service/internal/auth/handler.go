@@ -22,7 +22,8 @@ type UserResponse struct {
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
 	// CanSharePublicly decides, together with the household's publicShares
 	// setting, whether the UI offers to create a public link.
-	CanSharePublicly bool `json:"canSharePublicly" doc:"Whether an admin lets this person create public links"`
+	CanSharePublicly bool    `json:"canSharePublicly" doc:"Whether an admin lets this person create public links"`
+	AvatarID         *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 }
 
 type loginInput struct {
@@ -395,5 +396,6 @@ func toResponse(u user.User) UserResponse {
 		Locale:      u.Locale,
 		// From the users row this request loaded, like every field here.
 		CanSharePublicly: u.CanSharePublicly,
+		AvatarID:         u.AvatarID,
 	}
 }

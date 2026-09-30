@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/demo"
@@ -164,6 +165,7 @@ func run() error {
 	go sessions.SweepLoop(ctx, sweepInterval, logger)
 	tokens := auth.NewTokenService(conn, users)
 	images := image.NewService(conn, imageDir)
+	avatars := avatar.NewService(conn, filepath.Join(cfg.DataDir, "avatars"), images)
 	instance := settings.NewService(conn)
 	previews, err := preview.NewService(ctx, conn, instance, images, logger)
 	if err != nil {
@@ -189,6 +191,9 @@ func run() error {
 	}
 	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
 	image.Register(srv.API(), images)
+	avatar.Register(srv.API(), avatars)
+	srv.Handle("GET /avatars/{userId}/{file}",
+		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeUsersRead)(avatar.FileHandler(avatars)))
 	settings.Register(srv.API(), instance)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
@@ -201,7 +206,7 @@ func run() error {
 	// public link has none. The token alone decides, per request.
 	share.RegisterPublic(srv.API(), shares, recipes)
 	srv.Handle("GET /public-images/{token}/{imageId}/{file}", shares.ImageHandler(images))
-	userapi.Register(srv.API(), users, sessions)
+	userapi.Register(srv.API(), users, sessions, avatars)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
 }

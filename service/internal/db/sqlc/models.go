@@ -144,4 +144,5 @@ type User struct {
 	CreatedAt        string
 	UpdatedAt        string
 	CanSharePublicly bool
+	AvatarID         *string
 }

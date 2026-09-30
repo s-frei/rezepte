@@ -52,6 +52,8 @@ type User struct {
 	// recipe link. An admin withdraws it per person; it is separate from the
 	// household-wide public sharing switch in package settings.
 	CanSharePublicly bool
+	// AvatarID names the current picture under <data>/avatars/<ID>/; nil when there is none.
+	AvatarID *string
 }
 
 // Errors returned by the service.
@@ -568,6 +570,7 @@ func fromRow(row sqlc.User) (User, error) {
 		CreatedAt:        created,
 		UpdatedAt:        updated,
 		CanSharePublicly: row.CanSharePublicly,
+		AvatarID:         row.AvatarID,
 	}, nil
 }
 
