@@ -24,6 +24,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
+	"github.com/s-frei/rezepte/service/internal/transfer"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 )
@@ -51,7 +52,8 @@ func newFullApp(t *testing.T) fullApp {
 	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	imageDir := filepath.Join(t.TempDir(), "images")
+	dataDir := t.TempDir()
+	imageDir := filepath.Join(dataDir, "images")
 	images := image.NewService(conn, imageDir)
 	instance := settings.NewService(conn)
 	previews, err := preview.NewService(t.Context(), conn, instance, images, slog.New(slog.DiscardHandler))
@@ -75,6 +77,7 @@ func newFullApp(t *testing.T) fullApp {
 	}
 	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
 	image.Register(srv.API(), images)
+	transfer.Register(srv.API(), transfer.NewService(recipes, images, dataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
@@ -253,9 +256,9 @@ func TestEveryFeatureRegisters(t *testing.T) {
 			ids[op.OperationID] = true
 		}
 	}
-	// One operation per feature package: proof that all nine registrations
+	// One operation per feature package: proof that all ten registrations
 	// made it into the same document.
-	for _, id := range []string{"login", "list-recipes", "upload-image", "get-settings", "create-share-link", "list-users", "list-api-tokens", "create-public-share", "get-public-recipe"} {
+	for _, id := range []string{"login", "list-recipes", "upload-image", "import-recipes", "get-settings", "create-share-link", "list-users", "list-api-tokens", "create-public-share", "get-public-recipe"} {
 		if !ids[id] {
 			t.Errorf("operation %q missing from the OpenAPI document", id)
 		}

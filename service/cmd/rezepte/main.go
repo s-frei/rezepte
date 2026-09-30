@@ -29,6 +29,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
+	"github.com/s-frei/rezepte/service/internal/transfer"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 	"github.com/s-frei/rezepte/service/internal/web"
@@ -194,6 +195,12 @@ func run() error {
 	avatar.Register(srv.API(), avatars)
 	srv.Handle("GET /avatars/{userId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeUsersRead)(avatar.FileHandler(avatars)))
+	// Leftovers of a killed process are only wasted disk, so a failed sweep
+	// is worth a warning, not a refusal to start.
+	if err := transfer.SweepTemp(cfg.DataDir); err != nil {
+		logger.Warn("transfer temp files", "err", err)
+	}
+	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance)
 	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
 		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))

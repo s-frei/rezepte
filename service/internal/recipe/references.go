@@ -56,6 +56,14 @@ type refTarget struct {
 	Ingredient int
 }
 
+// ResolveRefs checks that every step reference resolves, as Create does
+// before it writes; the import checks a whole file before creating anything.
+// The error is a *RefError.
+func ResolveRefs(groups []IngredientGroup, steps []Step) error {
+	_, err := resolveRefs(groups, steps)
+	return err
+}
+
 // resolveRefs maps every reference onto the ingredient it names.
 //
 // Ambiguity is refused rather than resolved: two groups sharing a name, two
