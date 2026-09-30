@@ -264,6 +264,8 @@
 	"detail_menu": "Weitere Aktionen",
 	"detail_copy_link": "Link kopieren",
 	"detail_link_copied": "Link kopiert",
+	"share_image_saved": "Bild gespeichert",
+	"share_image_copied": "Bild kopiert",
 	"detail_share": "Teilen",
 	"detail_delete_confirm_title": "Rezept löschen?",
 	"detail_delete_confirm_text": "Möchtest du „{title}“ wirklich löschen?",

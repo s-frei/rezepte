@@ -86,3 +86,66 @@ export async function shareLink(title: string, url: string): Promise<void> {
 		}
 	}
 }
+
+/** Whether this browser's share sheet takes files - Safari and Chrome on phones and macOS. */
+export function canShareFiles(): boolean {
+	if (typeof navigator.canShare !== 'function') {
+		return false;
+	}
+	try {
+		return navigator.canShare({ files: [new File([], 'card.png', { type: 'image/png' })] });
+	} catch {
+		return false;
+	}
+}
+
+/** Whether an image can go on the clipboard (`ClipboardItem`). */
+export function canCopyImage(): boolean {
+	return typeof ClipboardItem !== 'undefined' && typeof navigator.clipboard?.write === 'function';
+}
+
+/** Saves `blob` as a download named `fileName`. */
+export function downloadImage(blob: Blob, fileName: string): void {
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = fileName;
+	link.click();
+	// Revoked a moment later: some browsers start the download only after
+	// the click handler has returned.
+	setTimeout(() => URL.revokeObjectURL(url), 1000);
+	toast.success(m.share_image_saved());
+}
+
+/** Puts the PNG on the clipboard, for pasting into a chat on a desktop. */
+export async function copyImage(blob: Blob): Promise<void> {
+	await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+	toast.success(m.share_image_copied());
+}
+
+/**
+ * The phone's share sheet with the picture where it takes files, a
+ * download elsewhere. `navigator.share` is the first thing awaited, so the
+ * tap's user activation is still there for Safari; should Safari refuse
+ * anyway (`NotAllowedError`), the picture is saved instead of lost. A
+ * cancelled sheet (`AbortError`) does nothing.
+ */
+export async function shareImage(
+	blob: Blob,
+	fileName: string,
+	title: string
+): Promise<'shared' | 'saved' | 'aborted'> {
+	const file = new File([blob], fileName, { type: 'image/png' });
+	if (navigator.canShare?.({ files: [file] })) {
+		try {
+			await navigator.share({ files: [file], title });
+			return 'shared';
+		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') {
+				return 'aborted';
+			}
+		}
+	}
+	downloadImage(blob, fileName);
+	return 'saved';
+}
