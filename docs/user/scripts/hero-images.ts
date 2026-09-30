@@ -184,7 +184,7 @@ export function matrix3d(
 }
 
 // Pushes each corner a few pixels away from the center, so the screenshot
-// also covers the anti-aliased rim the mask lets through.
+// also covers the green fringe the mask lets through.
 function grow(
   quad: [Point, Point, Point, Point],
   by: number,
@@ -206,11 +206,28 @@ async function screenMask(file: string) {
   for (let i = 0; i < alpha.length; i++) {
     if (isGreen(data[i * 3], data[i * 3 + 1], data[i * 3 + 2])) alpha[i] = 255;
   }
-  // Widen the mask by a pixel or two, over the green fringe of the edge.
-  const widened = await sharp(alpha, {
+  // The screen's edge fades through dark green, (0, 40, 0) and the like, which
+  // the strict test misses. Within a few pixels of the screen, any pixel with
+  // a clear green cast joins the mask - only there, or a bunch of herbs
+  // elsewhere in the painting would too.
+  const near = await sharp(alpha, {
     raw: { width: info.width, height: info.height, channels: 1 },
   })
-    .blur(1.5)
+    .blur(3)
+    .threshold(1)
+    .toColourspace("b-w")
+    .raw()
+    .toBuffer();
+  const fringe = Buffer.alloc(alpha.length);
+  for (let i = 0; i < alpha.length; i++) {
+    const [r, g, b] = [data[i * 3], data[i * 3 + 1], data[i * 3 + 2]];
+    if (alpha[i] || (near[i] && g - Math.max(r, b) > 20)) fringe[i] = 255;
+  }
+  // And one more pixel all round, for the anti-aliasing between fringe and bezel.
+  const widened = await sharp(fringe, {
+    raw: { width: info.width, height: info.height, channels: 1 },
+  })
+    .blur(1)
     .threshold(40)
     .toColourspace("b-w")
     .raw()
@@ -285,7 +302,7 @@ async function main() {
           const transform = matrix3d(
             meta.width!,
             meta.height!,
-            grow(screen.quad, 3),
+            grow(screen.quad, 8),
           );
           const mask = `data:image/png;base64,${screen.mask.toString("base64")}`;
           shotLayer = `<div style="position:absolute;inset:0;-webkit-mask-image:url(${mask});mask-image:url(${mask});mask-size:100% 100%">
