@@ -31,7 +31,7 @@ Sharing a rendered picture of a recipe, with its ingredients as text, through wh
 
 ## Import and export
 
-Export a recipe or the whole collection with its photos in a lossless format of Rezepte's own; import that format and schema.org `Recipe` JSON-LD. Importing from a URL is the same pipeline behind a fetch: parse the page's `Recipe` JSON-LD (`golang.org/x/net/html` for the fallback HTML walk). A single import always opens as a draft in the editor, with the importing member as its author; recipes already carry a source link and a source name ([Recipes and search](/features/recipes)), so the import fills both from where the recipe came from. The export format is also the candidate format for instance sync. The "Import" button in the top bar and on the empty overview is disabled, with a "Coming soon" tooltip, until import exists.
+Recipes move between instances as a zip ([Import and export](/features/import-export)). What is left is other sources: schema.org `Recipe` JSON-LD import and importing from a URL, which is the same pipeline behind a fetch (parse the page's `Recipe` JSON-LD, `golang.org/x/net/html` for the fallback HTML walk), reusing the import pipeline of that page. A single JSON-LD or URL import opens as a draft in the editor, with the importing member as its author; recipes already carry a source link and a source name ([Recipes and search](/features/recipes)), so the import fills both from where the recipe came from.
 
 ## Shopping list
 

@@ -1,0 +1,9 @@
+{
+  "title": "Transfer",
+  "description": "Exporting recipes with their photos as a zip and importing such a file. Administrators only.",
+  "pages": [
+    "index",
+    "export-recipes",
+    "import-recipes"
+  ]
+}

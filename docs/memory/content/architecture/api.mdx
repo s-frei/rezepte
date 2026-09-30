@@ -89,6 +89,15 @@ Rank decides the rest, and it shows up as two status codes on every operation th
 
 Every field of `PATCH /users/{id}` is optional and at least one is required (`422` `nothing to change` otherwise). One request may carry several of them; they are applied role first, then profile, then password.
 
+## Transfer (admin only)
+
+Both operations require the admin role, for a session and for a token alike; a member's token is refused with `401` by auth, a member's session with `403` `admin role required`. [Import and export](/features/import-export) owns the format and the rules.
+
+| operation | route | notes |
+|---|---|---|
+| export-recipes | `POST /export` | body `{recipeIds}` (1-500, unique); `200 application/zip` with `Content-Length` and `Content-Disposition`; `404` unknown id; `403` `admin role required`; token scope `recipes:read` |
+| import-recipes | `POST /import` | body `application/zip` ≤ 1 GiB, not multipart; `201 {created: [{id, slug, title}]}`; `413`; `422` with `location` = path in the zip; `403`; token scope `recipes:write` |
+
 ## Recipes and tags
 
 | Operation | Path | Notes |
@@ -125,6 +134,8 @@ Every parameter above combines with AND when more than one is set.
 `Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color, avatarId}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response so a card names and colors its author without a second request, and because a token scoped to `recipes:read` cannot read `/people` (see [Recipes and search](/features/recipes)).
 
 Whose favorites either favorite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favorites](/features/favorites)). `Card.favorite` is filled on every list; `Recipe.favorite` by get, get by slug, create and update. The tasty pair works the same way; `tastyCount` on both and `tastyBy` (people) on `Recipe` are the same for every reader, `tasty` is the caller's own mark - see [Tasty](/features/tasty).
+
+`Card` also carries `imageCount` and `imageBytes`, the photos of the recipe and the bytes of all three variants on disk, which the export card sums up to estimate a zip; an export carries only the largest variant, so the estimate runs high.
 
 `Recipe` also carries `editPolicy` (`default`, `open` or `locked`), `locked` (the effective state against the household setting) and `canEdit`, `canDelete` and `canChangePolicy` for the caller, filled on the same four operations; `Card` carries none of them. The input body takes `editPolicy` as optional. [Editing rights](/features/editing-rights) owns the rule behind them.
 

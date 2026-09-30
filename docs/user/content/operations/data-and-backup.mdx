@@ -27,6 +27,8 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
 
 `rezepte.db` is the SQLite database: recipes with their ingredients, steps, tags and photo records, accounts and sessions, API tokens, favorites and tasty marks, public links, and the household settings — editing rights, public sharing, link previews and the key that signs link previews. While Rezepte runs, SQLite keeps its most recent writes in `rezepte.db-wal` (with `rezepte.db-shm` as its index) before folding them into `rezepte.db`, so the three files are one database: copy them together or not at all. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (960 px). The profile photos of the accounts are one small square JPEG each, in `avatars/` beside `images/`; the database only records which file is whose, so a backup without `avatars/` restores every account with its initial instead of its photo.
 
+To pass recipes to another instance rather than back them up, see [Import and export](/guide/import-export).
+
 ## Backing up
 
 <Tabs items={['Docker', 'Binary']}>

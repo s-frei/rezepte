@@ -1,0 +1,48 @@
+---
+title: Import and export
+description: Recipes and their photos move between instances as a zip, one folder per recipe; admins only
+---
+
+An admin can export a selection of recipes with their photos as one zip and import such a zip on another instance, from Settings → Import & export. It moves recipes between instances; it is not a backup, which is the database plus the images directory ([Images](/features/images)). `service/internal/transfer` holds the format, the export and the two-phase import; `frontend/src/lib/transfer/zip.ts` and `frontend/src/lib/api/transfer.ts` hold the browser side. [HTTP API](/architecture/api) owns the endpoints and their status codes.
+
+## How it works
+
+**Access.** Admins only. The token scopes are `recipes:read` (export) and `recipes:write` (import), and `requireAdmin` refuses a non-admin session with `403`. A member-owned API token never gets that far: `TokenService.Authenticate` refuses a non-admin owner, so auth answers `401`. The import checks the role in `spoolBody` before it reads a byte of the body.
+
+**The format.** A zip with one folder per recipe, named by the recipe's slug: `<slug>/recipe.json` and its photos `1.jpg`, `2.jpg` and so on in display order. `recipe.json` is `recipe.Input`, the shape the API accepts on create, plus `format` (`rezepte.recipe`), `version` (`1`), `images` (the photo file names in order) and `cover` (one of them, or null). Photos are the 2400 px variant, stored as they are; the JSON is deflated. Every entry is dated by the recipe's last change. Left out: `editPolicy`, so the target's default applies; the author, because the importing admin becomes the author; and every id, because the target assigns its own. A reader refuses another `format` and any higher `version`.
+
+**Export.** `POST /export` with the recipe ids. `Service.Export` loads every id first, so an unknown id is a `404` that costs no disk, then writes the zip to a temp file in the data directory, checking between recipes whether the client is still there. The handler serves it through `http.ServeContent`, which sets the exact `Content-Length`, and removes the file when the response ends. `SweepTemp` removes any `export-*.zip` and `import-*.zip` a killed process left in the data directory when the service starts.
+
+**Import.** `POST /import` with the zip as the body. The `spoolBody` operation middleware streams the body into a temp file (`archive/zip` needs to seek), refusing more than 1 GiB; huma never reads the body, because the operation has no `Body` field and the request schema is a binary string. Then two phases:
+
+1. `check` validates the whole zip and writes nothing: entry names (a folder per recipe, only `recipe.json` and `.jpg`; macOS clutter such as `__MACOSX/` and dot files is skipped), sizes measured on the bytes actually inflated, `format` and `version`, the recipe against the schema huma registered for `recipe.Input` (`InputValidator`), `recipe.ResolveRefs` for ingredient references, and each photo's header.
+2. `Import` creates the recipes in zip order with `recipe.Service.Create`, uploads each photo through `image.Service.Upload` and moves the cover with `SetCover`. Any failure deletes every recipe this call created, using `context.WithoutCancel` so a gone client cannot stop the rollback.
+
+Errors are located by zip path in the `location` of the `422`: `a/recipe.json: body.title` for a schema error, `a/recipe.json: body.steps[0]...` for a bad reference, `a/2.jpg` for a photo.
+
+**The browser.** `readExport` uses `fflate` to list the chosen file's recipes, inflating only each folder's `recipe.json` and then its cover photo; the other photos stay unread until import. The card keeps the raw bytes, and `packFolder` inflates one folder from them and repacks it, stored rather than deflated. A missing, non-number or zero `version` reads as an unsupported version, a higher one as made by a newer Rezepte, on both sides. The Import card sends one request per recipe, so each row shows upload percent, then processing, then done or failed; a failure's message stands under the title in place of the tags. A screen reader hears only the state changes, through one live region for the card, never the percentages. Rows whose normalized title (trimmed, case-insensitive) matches a recipe already here are marked "already here" and start unticked; the card waits, with a skeleton, until the whole recipe list has loaded so that default is right. The Export card lists the recipes in a height-capped box with its own scroll and estimates the zip from `imageCount` and `imageBytes` on each card; `imageBytes` counts all three variants on disk while an export carries only the largest, so the estimate runs high. `importZip` uses `XMLHttpRequest` because `fetch` reports no upload progress; it reports 1 on `upload.onload` and rejects on abort and timeout. `saveBlob` revokes its object URL late so the download is not cancelled. The page is the fifth Settings page, admin only, also in the phone You sheet; a member who opens its URL is redirected to Settings.
+
+## Why it is this way
+
+**A request per recipe.** Progress per recipe needs one request per recipe, and huma has no streamed progress. The cost is that a selection is not all or nothing: each recipe is, the selection is not.
+
+**A temp file for the export.** A zip cannot report its length before it is written. Writing it first lets the response carry `Content-Length`, so the browser can show a real percentage.
+
+**Photos are decoded again.** An import is untrusted input, so every photo passes through `image.Service.Upload` like any upload, and the instance renders its own variants.
+
+## Rejected
+
+- **Base64 photos inside one JSON file.** A third larger and the whole file in memory.
+- **schema.org JSON-LD as the format.** It has no place for photo order, the cover or ingredient references.
+- **Staging an upload on the server, then choosing.** State on the server for a choice the browser can make from the zip.
+- **One request for the whole selection.** No progress per recipe and one bad recipe hides the rest.
+- **Streaming the export without a length.** No percentage, and an error midway looks like a truncated success.
+- **`GET` with the ids in the query.** 500 ids exceed URL limits.
+
+## Limits
+
+- At most 500 recipes per export, 1 GiB per import, 1 MiB of JSON and 10 MiB per photo, 20 photos per recipe. They are constants in `service/internal/transfer/format.go`.
+- Photos are re-encoded once on import, so a photo loses a little more quality with each round trip.
+- Duplicates are detected only by the title hint in the browser; the server creates whatever it is given.
+- A `401` during an import does not send the browser to the login page.
+- Only the format above is read: no JSON-LD and no URL import ([Roadmap](/roadmap)).

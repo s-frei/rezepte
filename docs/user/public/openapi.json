@@ -179,6 +179,14 @@
           "id": {
             "type": "string"
           },
+          "imageBytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "imageCount": {
+            "format": "int64",
+            "type": "integer"
+          },
           "slug": {
             "type": "string"
           },
@@ -227,6 +235,8 @@
           "favorite",
           "tastyCount",
           "tasty",
+          "imageCount",
+          "imageBytes",
           "createdBy",
           "updatedBy"
         ],
@@ -479,6 +489,26 @@
         ],
         "type": "object"
       },
+      "Created": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title"
+        ],
+        "type": "object"
+      },
       "CreatedAPIToken": {
         "additionalProperties": false,
         "properties": {
@@ -724,6 +754,33 @@
         ],
         "type": "object"
       },
+      "ExportInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ExportInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "recipeIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "recipeIds"
+        ],
+        "type": "object"
+      },
       "Image": {
         "additionalProperties": false,
         "properties": {
@@ -757,6 +814,33 @@
           "width",
           "height",
           "position"
+        ],
+        "type": "object"
+      },
+      "ImportOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ImportOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created": {
+            "items": {
+              "$ref": "#/components/schemas/Created"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "created"
         ],
         "type": "object"
       },
@@ -2809,6 +2893,172 @@
         "summary": "List the people who wrote recipes, with counts",
         "tags": [
           "recipes"
+        ]
+      }
+    },
+    "/api/v1/export": {
+      "post": {
+        "operationId": "export-recipes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The zip, one folder per recipe"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "Export recipes with their photos as a zip",
+        "tags": [
+          "transfer"
+        ]
+      }
+    },
+    "/api/v1/import": {
+      "post": {
+        "operationId": "import-recipes",
+        "requestBody": {
+          "content": {
+            "application/zip": {
+              "schema": {
+                "contentMediaType": "application/octet-stream",
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOutputBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "Import recipes from an export zip (at most 1 GiB)",
+        "tags": [
+          "transfer"
         ]
       }
     },
@@ -5574,6 +5824,10 @@
     {
       "description": "Uploading recipe images and serving them in their rendered sizes.",
       "name": "images"
+    },
+    {
+      "description": "Exporting recipes with their photos as a zip and importing such a file. Administrators only.",
+      "name": "transfer"
     },
     {
       "description": "Public links to recipes: creating, listing and revoking them. Session only.",

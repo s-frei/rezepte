@@ -11,4 +11,12 @@ import { createOpenAPIPage } from 'fumadocs-openapi/ui';
 //
 // A playground that reaches no instance is worse than none. The app serves
 // Scalar at /api/v1/docs, same-origin, where it does reach one.
-export const OpenAPIPage = createOpenAPIPage({ playground: { enabled: false } });
+
+// The import takes a zip as its body. The renderer refuses a media type it
+// has no adapter for; this one shows the schema and skips the code samples.
+export const OpenAPIPage = createOpenAPIPage({
+	playground: { enabled: false },
+	mediaAdapters: {
+		'application/zip': { encode: (data) => data.body as BodyInit, generateExample: () => undefined }
+	}
+});

@@ -1,0 +1,42 @@
+---
+title: Import and export
+description: Pass recipes with their photos to another Rezepte
+---
+
+Admins find **Settings → Import & export**, and the "Import" button in the top bar leads there too. It moves recipes between two Rezepte instances; it is not a backup — see [Data and backup](/operations/data-and-backup) for that.
+
+<Screenshot name="import-export" caption="Picking recipes to export" />
+
+## Export
+
+Tick the recipes to pass on — search and sort help with long lists, and "Tick all shown" ticks whatever the search leaves — and choose **Export .zip**. The line under the list estimates the file's size; the estimate runs a little high. The button first says "Preparing…" while the file is put together, then shows the download's progress.
+
+The file holds one folder per recipe with its text and photos. It does not carry who wrote a recipe, favorites, tasty marks or public links.
+
+## Import
+
+Choose or drop a `.zip` exported from Rezepte. The recipes in it are listed before anything is sent, on a slip headed with the file's name.
+
+<Screenshot name="import-export-import" caption="A file's recipes before the import, some of them already here" />
+
+A recipe whose title already exists here is marked **already here** and left unticked; tick it to import it anyway, as a second recipe — the arrow beside it opens the one you have, to compare. Each recipe is imported on its own and shows its progress; if one fails, the ones before it stay, its reason appears under its title, and **Import remaining** carries on after you have looked at it.
+
+You become the author of every recipe you import.
+
+### When a file is refused
+
+- **This file is not a zip**, **No Rezepte recipes in this file** or **Not a Rezepte export** — the file, or that recipe in it, is not an export from Rezepte.
+- **Made by a newer Rezepte** — the recipe comes from a newer version of Rezepte than this one. Update this instance first.
+- **Unsupported format version** or **recipe.json cannot be read** — the recipe's file was changed or damaged after the export.
+- A photo that cannot be read fails that recipe's import; nothing of that recipe is kept.
+
+## Limits
+
+- An export holds at most 500 recipes, and an import file may be at most 1 GiB.
+- A recipe brings at most 20 photos of at most 10 MiB each.
+- Photos are the largest size Rezepte keeps (2400 px on the long side) and are prepared again on import, so a photo passed back and forth loses a little quality each time.
+- Recipes are matched by title only: two different recipes with the same name are both marked **already here**.
+
+## From a program
+
+Both steps are API operations: `POST /api/v1/export` and `POST /api/v1/import`, for an admin's API token with `recipes:read` or `recipes:write`. See the [API reference](/api).

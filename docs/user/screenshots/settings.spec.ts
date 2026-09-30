@@ -22,6 +22,35 @@ test('avatar-crop', async ({ page }, testInfo) => {
 	await shot(page, 'avatar-crop');
 });
 
+test('import-export', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/transfer');
+	await expect(page.getByRole('heading', { name: 'Export' })).toBeVisible();
+	await page.getByRole('checkbox').nth(0).check();
+	await page.getByRole('checkbox').nth(2).check();
+	await shot(page, 'import-export');
+});
+
+test('import-export-import', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	// The demo's own first recipes, exported through the API: the slip then
+	// shows what a real file looks like, "already here" marks included.
+	const list = await (await page.request.get('/api/v1/recipes?limit=4&sort=title')).json();
+	const zip = await page.request.post('/api/v1/export', {
+		headers: { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' },
+		data: { recipeIds: list.items.map((r: { id: string }) => r.id) }
+	});
+	await page.goto('/settings/transfer');
+	await page.getByLabel('Choose a file').setInputFiles({
+		name: 'rezepte-2026-09-30.zip',
+		mimeType: 'application/zip',
+		buffer: await zip.body()
+	});
+	await expect(page.getByText('already here').first()).toBeVisible();
+	await page.locator('#import').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+	await shot(page, 'import-export-import');
+});
+
 test('api', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/api');
