@@ -84,8 +84,8 @@ func Register(api huma.API, svc *Service) {
 		Tags:          []string{"images"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusCreated,
-		MaxBodyBytes:  maxUploadBytes,
-		Middlewares:   huma.Middlewares{limitUpload(api)},
+		MaxBodyBytes:  MaxUploadBytes,
+		Middlewares:   huma.Middlewares{LimitUpload(api)},
 		Errors:        []int{403, 404, 413, 415, 422},
 	}, func(ctx context.Context, in *uploadInput) (*imageOutput, error) {
 		u, ok := auth.UserFrom(ctx)
@@ -181,7 +181,7 @@ func imageErr(err error) error {
 	return err
 }
 
-// limitUpload enforces the upload cap on the wire. huma's multipart path
+// LimitUpload enforces the upload cap on the wire. huma's multipart path
 // does not apply Operation.MaxBodyBytes (verified in v2.39.1: humago's
 // GetMultipartForm calls ParseMultipartForm with no limit reader, and
 // readBody, which honors MaxBodyBytes, is only used for non-multipart
@@ -193,14 +193,14 @@ func imageErr(err error) error {
 // raw header: net/http parses the header into it for every server request
 // (-1 when the length is unknown, e.g. chunked), and httptest.NewRequest
 // populates it without writing the header at all.
-func limitUpload(api huma.API) func(ctx huma.Context, next func(huma.Context)) {
+func LimitUpload(api huma.API) func(ctx huma.Context, next func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		r, w := humago.Unwrap(ctx)
-		if r.ContentLength > maxUploadBytes {
+		if r.ContentLength > MaxUploadBytes {
 			_ = huma.WriteErr(api, ctx, http.StatusRequestEntityTooLarge, "upload larger than 10 MiB")
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+		r.Body = http.MaxBytesReader(w, r.Body, MaxUploadBytes)
 		next(ctx)
 	}
 }

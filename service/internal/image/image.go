@@ -13,6 +13,7 @@ var (
 	ErrBadOrder    = errors.New("imageIds must list every image exactly once")
 	ErrInvalid     = errors.New("image must be 64-12000 px per side")
 	ErrTooLarge    = errors.New("image has more than 60 megapixels")
+	ErrBadCrop     = errors.New("crop must be a square inside the image, at least 64 px")
 )
 
 const (

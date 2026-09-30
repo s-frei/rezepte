@@ -24,8 +24,8 @@ func TestIsID(t *testing.T) {
 		"0192f0a47-b1c-7d3e-8f4a-5b6c7d8e9f00":          false,
 		"":                                              false,
 	} {
-		if got := isID(s); got != want {
-			t.Errorf("isID(%q) = %v, want %v", s, got, want)
+		if got := IsID(s); got != want {
+			t.Errorf("IsID(%q) = %v, want %v", s, got, want)
 		}
 	}
 }

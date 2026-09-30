@@ -18,9 +18,9 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// maxUploadBytes caps an upload body; the handler enforces it on the wire,
+// MaxUploadBytes caps an upload body; the handler enforces it on the wire,
 // the service reads at most this much so a bug there cannot exhaust memory.
-const maxUploadBytes = 10 << 20
+const MaxUploadBytes = 10 << 20
 
 // variantSuffixes maps the public variant names to file name suffixes.
 var variantSuffixes = map[string]string{"original": "", "detail": "_detail", "thumb": "_thumb"}
@@ -60,7 +60,7 @@ func NewService(conn *sql.DB, dir string) *Service {
 // recipe.ErrEditForbidden, ErrUnsupported, ErrInvalid, ErrTooLarge,
 // ErrTooMany.
 func (s *Service) Upload(ctx context.Context, recipeID string, actor user.User, r io.Reader) (recipe.Image, error) {
-	if !isID(recipeID) {
+	if !IsID(recipeID) {
 		return recipe.Image{}, ErrNotFound
 	}
 	// Cheap checks before decoding a possibly 10 MiB body.
@@ -72,12 +72,12 @@ func (s *Service) Upload(ctx context.Context, recipeID string, actor user.User, 
 	} else if n >= maxImages {
 		return recipe.Image{}, ErrTooMany
 	}
-	data, err := io.ReadAll(io.LimitReader(r, maxUploadBytes+1))
+	data, err := io.ReadAll(io.LimitReader(r, MaxUploadBytes+1))
 	if err != nil {
 		return recipe.Image{}, fmt.Errorf("read upload: %w", err)
 	}
-	if len(data) > maxUploadBytes {
-		return recipe.Image{}, fmt.Errorf("%w: larger than %d bytes", ErrInvalid, maxUploadBytes)
+	if len(data) > MaxUploadBytes {
+		return recipe.Image{}, fmt.Errorf("%w: larger than %d bytes", ErrInvalid, MaxUploadBytes)
 	}
 	id := uuid.NewV7().String()
 	recipeDir := filepath.Join(s.dir, recipeID)
@@ -164,7 +164,7 @@ func (s *Service) render(ctx context.Context, data []byte, recipeDir, id string)
 // actor is recorded as the recipe's editor. Errors: ErrNotFound,
 // recipe.ErrEditForbidden.
 func (s *Service) Delete(ctx context.Context, recipeID, imageID string, actor user.User) error {
-	if !isID(recipeID) || !isID(imageID) {
+	if !IsID(recipeID) || !IsID(imageID) {
 		return ErrNotFound
 	}
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
@@ -214,7 +214,7 @@ func (s *Service) Delete(ctx context.Context, recipeID, imageID string, actor us
 // images in their new order. actor is recorded as the recipe's editor.
 // Errors: ErrNotFound, recipe.ErrEditForbidden, ErrBadOrder.
 func (s *Service) Reorder(ctx context.Context, recipeID string, actor user.User, ids []string) ([]recipe.Image, error) {
-	if !isID(recipeID) {
+	if !IsID(recipeID) {
 		return nil, ErrNotFound
 	}
 	var out []recipe.Image
@@ -266,7 +266,7 @@ func (s *Service) Reorder(ctx context.Context, recipeID string, actor user.User,
 // the recipe (ErrNotFound otherwise). actor is recorded as the recipe's
 // editor. Errors: ErrNotFound, recipe.ErrEditForbidden.
 func (s *Service) SetCover(ctx context.Context, recipeID, imageID string, actor user.User) error {
-	if !isID(recipeID) || !isID(imageID) {
+	if !IsID(recipeID) || !IsID(imageID) {
 		return ErrNotFound
 	}
 	return db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
@@ -293,7 +293,7 @@ func (s *Service) SetCover(ctx context.Context, recipeID, imageID string, actor 
 // component can escape the image directory.
 func (s *Service) Open(recipeID, imageID, variant string) (*os.File, error) {
 	suffix, ok := variantSuffixes[variant]
-	if !ok || !isID(recipeID) || !isID(imageID) {
+	if !ok || !IsID(recipeID) || !IsID(imageID) {
 		return nil, ErrNotFound
 	}
 	f, err := os.Open(variantPath(s.dir, recipeID, imageID, suffix))
@@ -330,10 +330,10 @@ func toImage(im sqlc.Image) recipe.Image {
 	return recipe.Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position)}
 }
 
-// isID accepts the canonical 36-character UUID spelling and nothing else.
+// IsID accepts the canonical 36-character UUID spelling and nothing else.
 // uuid.Parse also takes the braced, URN and dashless forms and upper case,
 // which the length and the lower-case check rule out.
-func isID(s string) bool {
+func IsID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil && len(s) == 36 && s == strings.ToLower(s)
 }
