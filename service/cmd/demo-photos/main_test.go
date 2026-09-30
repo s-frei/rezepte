@@ -49,7 +49,7 @@ func TestRunShrinksEveryPhotoAndDropsStaleOnes(t *testing.T) {
 	}
 	writeJPEG(t, filepath.Join(dst, "en", "gone", "1.jpg"), 100, 100)
 
-	if err := run(src, dst); err != nil {
+	if err := run(src, dst, 1600); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -71,10 +71,10 @@ func TestRunIsDeterministic(t *testing.T) {
 	src := t.TempDir()
 	writeJPEG(t, filepath.Join(src, "en", "x", "1.jpg"), 2000, 1500)
 	a, b := t.TempDir(), t.TempDir()
-	if err := run(src, a); err != nil {
+	if err := run(src, a, 1600); err != nil {
 		t.Fatal(err)
 	}
-	if err := run(src, b); err != nil {
+	if err := run(src, b, 1600); err != nil {
 		t.Fatal(err)
 	}
 	ga, _ := os.ReadFile(filepath.Join(a, "en", "x", "1.jpg"))
@@ -94,7 +94,7 @@ func TestRunNamesAnLFSPointer(t *testing.T) {
 	if err := os.WriteFile(p, []byte(pointer), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := run(src, t.TempDir())
+	err := run(src, t.TempDir(), 1600)
 	if !errors.Is(err, errPointer) {
 		t.Fatalf("err = %v, want errPointer", err)
 	}

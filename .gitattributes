@@ -1,2 +1,3 @@
-# Demo photo originals, exactly as generated; the build embeds smaller copies.
+# Demo photo and avatar originals, exactly as generated; the build embeds smaller copies.
 assets/demo-photos/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+assets/demo-avatars/**/*.jpg filter=lfs diff=lfs merge=lfs -text

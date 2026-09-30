@@ -126,3 +126,7 @@ run = 'git lfs pull --include="assets/demo-photos/**" --exclude=""'
 description = "Rebuild the photos demo mode embeds from the originals in assets/demo-photos"
 depends = ["demo-photos:pull"]
 run = "cd service && go run ./cmd/demo-photos -src ../assets/demo-photos -dst internal/demo/photos"
+
+[tasks."demo-avatars"]
+description = "Rebuild the avatars demo mode embeds from the originals in assets/demo-avatars/seed"
+run = "cd service && go run ./cmd/demo-photos -src ../assets/demo-avatars/seed -dst internal/demo/avatars -max 640"
