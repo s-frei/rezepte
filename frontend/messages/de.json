@@ -266,6 +266,7 @@
 	"detail_link_copied": "Link kopiert",
 	"share_image_saved": "Bild gespeichert",
 	"share_image_copied": "Bild kopiert",
+	"share_image_copy_failed": "Das Bild ließ sich nicht kopieren.",
 	"share_card_footer": "Rezepte selbst hosten",
 	"share_pass_on": "Weitergeben",
 	"share_sheet_title": "Rezept weitergeben",

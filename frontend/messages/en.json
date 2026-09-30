@@ -266,6 +266,7 @@
 	"detail_link_copied": "Link copied",
 	"share_image_saved": "Image saved",
 	"share_image_copied": "Image copied",
+	"share_image_copy_failed": "The image could not be copied.",
 	"share_card_footer": "Host Rezepte yourself",
 	"share_pass_on": "Pass on",
 	"share_sheet_title": "Pass on recipe",

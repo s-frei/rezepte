@@ -83,7 +83,7 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	await openPassOn(page, testInfo);
-	const card = page.locator('[inert]');
+	const card = page.locator('[data-testid="share-card"]');
 	await expect(card.getByText(`${chosen} servings`)).toHaveCount(1);
 	await expect(card.locator('img[src*="/images/"]')).toHaveCount(0);
 });
@@ -161,7 +161,7 @@ test('falls back to the placeholder when the cover does not load', async ({ page
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	await openPassOn(page, testInfo);
-	await expect(page.locator('[inert] img[src*="/images/"]')).toHaveCount(0);
+	await expect(page.locator('[data-testid="share-card"] img[src*="/images/"]')).toHaveCount(0);
 });
 
 // Plain http on a home network is not a secure context: browsers then offer
@@ -217,4 +217,24 @@ test('when nothing can copy, the text is shown instead', async ({ page }, testIn
 	await sheet.getByRole('button', { name: 'Link' }).click();
 	await expect(page.getByText('Copying is not available here')).toBeVisible();
 	await expect(page.getByText(new RegExp(`/recipes/${recipe.slug}`))).toBeVisible();
+});
+
+test('says so when the image cannot be copied', async ({ page }, testInfo) => {
+	test.skip(isPhone(testInfo), 'Copy image is on the desktop dialog');
+	await noShareSheet(page);
+	await page.addInitScript(() => {
+		Object.defineProperty(Navigator.prototype, 'clipboard', {
+			get: () => ({
+				write: () => Promise.reject(new DOMException('denied', 'NotAllowedError')),
+				writeText: () => Promise.resolve()
+			})
+		});
+	});
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Copy ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	await sheet.getByRole('button', { name: 'Copy image' }).click();
+	await expect(page.getByText('The image could not be copied.')).toBeVisible();
 });

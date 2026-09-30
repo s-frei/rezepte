@@ -231,12 +231,12 @@ test('the credit on a recipe card follows the owner setting', async ({ page }, t
 		await setPublicShareAttribution(page, false);
 		await page.goto(`/recipes/${recipe.slug}`);
 		await openCard();
-		await expect(page.locator('[inert] footer')).toHaveCount(0);
+		await expect(page.locator('[data-testid="share-card"] footer')).toHaveCount(0);
 
 		await setPublicShareAttribution(page, true);
 		await page.reload();
 		await openCard();
-		await expect(page.locator('[inert] footer')).toHaveCount(1);
+		await expect(page.locator('[data-testid="share-card"] footer')).toHaveCount(1);
 	} finally {
 		await setPublicShareAttribution(page, true);
 	}

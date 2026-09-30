@@ -128,14 +128,19 @@
      focus and screen readers. Not `display: none` - a hidden node has no
      layout to draw. Inherits the page's theme from <html>. -->
 {#if open}
-	<div
-		{@attach draw}
-		aria-hidden="true"
-		inert
-		class="pointer-events-none fixed top-0 left-[-10000px]"
-	>
-		<ShareCard {recipe} {servings} {attribution} />
-	</div>
+	<!-- Keyed on the recipe: a reload of the page's data while the sheet is
+	     open draws the picture again instead of keeping the old one. -->
+	{#key recipe}
+		<div
+			{@attach draw}
+			aria-hidden="true"
+			inert
+			data-testid="share-card"
+			class="pointer-events-none fixed top-0 left-[-10000px]"
+		>
+			<ShareCard {recipe} {servings} {attribution} />
+		</div>
+	{/key}
 {/if}
 
 {#if phone.current}

@@ -160,8 +160,12 @@ export function downloadImage(blob: Blob, fileName: string): void {
 
 /** Puts the PNG on the clipboard, for pasting into a chat on a desktop. */
 export async function copyImage(blob: Blob): Promise<void> {
-	await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-	toast.success(m.share_image_copied());
+	try {
+		await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+		toast.success(m.share_image_copied());
+	} catch {
+		toast.error(m.share_image_copy_failed());
+	}
 }
 
 /**

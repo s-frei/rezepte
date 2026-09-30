@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CANVAS_PIXELS, pickScale } from './share-image';
+import { MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, pickScale } from './share-image';
 
 describe('pickScale', () => {
 	it('renders a short card at 3x', () => {
@@ -20,6 +20,12 @@ describe('pickScale', () => {
 		for (let height = 400; height <= 38_000; height += 97) {
 			const scale = pickScale(420, height);
 			expect(420 * scale * height * scale).toBeLessThanOrEqual(MAX_CANVAS_PIXELS);
+		}
+	});
+
+	it('keeps a very tall card under the longest side a canvas may have', () => {
+		for (let height = 20_000; height <= MAX_CANVAS_SIDE; height += 997) {
+			expect(height * pickScale(420, height)).toBeLessThanOrEqual(MAX_CANVAS_SIDE);
 		}
 	});
 });
