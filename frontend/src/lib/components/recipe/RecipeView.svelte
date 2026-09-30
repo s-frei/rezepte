@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Copy from '@lucide/svelte/icons/copy';
 	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import ImageGallery from './ImageGallery.svelte';
@@ -9,7 +10,9 @@
 	import SourceCredit from './SourceCredit.svelte';
 	import ServingsStepper from './ServingsStepper.svelte';
 	import StepList from './StepList.svelte';
+	import { fullList } from '$lib/recipe/ingredient-text';
 	import { createServings } from '$lib/recipe/servings.svelte';
+	import { copyText } from '$lib/recipe/share.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -167,12 +170,33 @@
 
 <div class="mt-8 grid gap-8 md:mt-10 md:grid-cols-[400px_1fr] md:gap-10">
 	<section>
-		<h2 class="mb-4 font-display text-heading font-medium">{m.recipe_ingredients()}</h2>
+		<!-- A contents-sheet leader ties the copy action to the heading of the list it copies. -->
+		<div class="mb-4 flex items-baseline gap-3">
+			<h2 class="font-display text-heading font-medium">{m.recipe_ingredients()}</h2>
+			<span
+				class="h-1 flex-1 bg-[radial-gradient(circle,var(--color-handle)_1.6px,transparent_2px)] bg-[length:9px_4px] bg-repeat-x"
+				aria-hidden="true"
+			></span>
+			<button
+				type="button"
+				aria-label={m.ingredients_copy_all()}
+				onclick={() =>
+					copyText(
+						fullList(recipe.ingredientGroups, servings.base, servings.value),
+						m.ingredients_copied()
+					)}
+				class="inline-flex items-center gap-1.5 font-display text-[16px] font-medium text-primary italic underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			>
+				<Copy class="size-[15px]" aria-hidden="true" />
+				{m.ingredients_copy()}
+			</button>
+		</div>
 		<IngredientList
 			recipeId={recipe.id}
 			groups={recipe.ingredientGroups}
 			servings={servings.value}
 			baseServings={servings.base}
+			copyable
 		/>
 	</section>
 	<section>

@@ -62,9 +62,14 @@ export class ShareLink {
 	}
 }
 
-export async function copyLink(url: string): Promise<void> {
-	await navigator.clipboard.writeText(url);
-	toast.success(m.detail_link_copied());
+/** Puts `text` on the clipboard and confirms it with `message`. */
+export async function copyText(text: string, message: string): Promise<void> {
+	await navigator.clipboard.writeText(text);
+	toast.success(message);
+}
+
+export function copyLink(url: string): Promise<void> {
+	return copyText(url, m.detail_link_copied());
 }
 
 /** The phone's share sheet where there is one, the clipboard elsewhere. */

@@ -88,6 +88,34 @@ test('scales quantities with the servings stepper and keeps the choice', async (
 	await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0);
 });
 
+test('copies the open ingredients as a shopping list and the whole list', async ({
+	page,
+	context
+}) => {
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	const recipe = await createRecipe(page, scalingRecipe(`Slip ${uniqueToken()}`));
+	await page.goto(`/recipes/${recipe.slug}`);
+	const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+	const slip = page.getByRole('button', { name: 'Copy shopping list' });
+
+	await expect(slip).toHaveAccessibleDescription('2 of 2 ingredients · for 4 servings');
+	await page.getByRole('checkbox', { name: 'Salt' }).click();
+	await page.getByRole('button', { name: 'More servings' }).click();
+	await expect(slip).toHaveAccessibleDescription('1 of 2 ingredients · for 5 servings');
+
+	await slip.click();
+	await expect(page.getByText('Shopping list copied')).toBeVisible();
+	expect(await clipboard()).toBe('250 g Flour');
+
+	await page.getByRole('button', { name: 'Copy full list' }).click();
+	await expect(page.getByText('Ingredients copied')).toBeVisible();
+	expect(await clipboard()).toBe('250 g Flour\n1 ¼ pinch Salt');
+
+	await page.getByRole('checkbox', { name: 'Flour' }).click();
+	await expect(slip).toBeDisabled();
+	await expect(slip).toHaveAccessibleDescription('Everything is in the house');
+});
+
 test('rounds scaled quantities to kitchen fractions', async ({ page }) => {
 	const recipe = await createRecipe(page, {
 		...scalingRecipe(`Fractions ${uniqueToken()}`),
