@@ -70,9 +70,20 @@
 		{/if}
 	</div>
 	<div class="px-4 pt-2 pb-[18px]">
+		<!-- The time runs above the title like the timing over a cookbook
+		     heading, a label rather than a pill: without the pill's padding
+		     and with a line of its own, the longest time the service allows
+		     ("47 Std 59 Min" - prep and cook are capped at 1440 each) still
+		     fits a 320px phone's card, where a pill beside the initials broke
+		     onto two lines from "2 Std 45 Min" on. The line is kept when there
+		     is no time, so every card of a row starts its title at one height;
+		     `truncate` only guards against a catalog that outgrows it. -->
+		<p class="mb-1 h-[1lh] truncate text-label font-semibold text-accent-foreground uppercase">
+			{time}
+		</p>
 		<!-- The title is what you recognize the card by, so it wraps rather than
 		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
-		     reserved either way, so the time pills of a row stay on one line.
+		     reserved either way, so the footer of a row stays on one line.
 		     The hover line needs room of its own: `leading-snug` rather than
 		     text-card's 1.2 keeps it off the next line's ascenders, and `pb-1`
 		     keeps the last line's copy, which hangs below the line box, from
@@ -97,22 +108,11 @@
 				<span class="squiggle">{recipe.title}</span>
 			</a>
 		</h3>
-		{#if recipe.tags.length > 0}
-			<p class="truncate text-caption text-text-muted">{recipe.tags.join(', ')}</p>
-		{/if}
-		<!-- One row for the two pieces of metadata that are not the recipe
-		     itself. It renders even when neither the time nor a second
-		     author is there, so cards in a row keep the same height. -->
+		<!-- One footer for the tags and the authors. It renders whatever is
+		     missing, so the initials of a row sit at one height; the tags give
+		     way with an ellipsis, the initials never do. -->
 		<div class="mt-2 flex h-5 items-center justify-between gap-2">
-			{#if time}
-				<span
-					class="inline-flex h-5 items-center rounded-pill bg-accent px-2 text-micro font-semibold text-accent-foreground"
-				>
-					{time}
-				</span>
-			{:else}
-				<span></span>
-			{/if}
+			<p class="min-w-0 truncate text-caption text-text-muted">{recipe.tags.join(', ')}</p>
 			<!-- `relative` lifts the initials out of the link's `::after`, so a
 			     tap reaches their popover instead of opening the recipe. -->
 			<div class="relative">
