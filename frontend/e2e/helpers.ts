@@ -440,3 +440,14 @@ export async function setCanSharePublicly(page: Page, userId: string, on: boolea
 		`PATCH /api/v1/users/${userId} failed: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
 }
+
+/** Sets the signed-in account's picture through the API (centered crop). */
+export async function setOwnAvatarViaApi(page: Page, png: Buffer): Promise<string> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.put('/api/v1/auth/me/avatar', {
+		headers: { Origin: origin },
+		multipart: { file: { name: 'me.png', mimeType: 'image/png', buffer: png } }
+	});
+	expect(response.ok(), `PUT /api/v1/auth/me/avatar failed: ${response.status()}`).toBeTruthy();
+	return ((await response.json()) as { avatarId: string }).avatarId;
+}

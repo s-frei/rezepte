@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { avatarUrl } from '$lib/user/avatar';
 	import { userColorClasses } from '$lib/user/color';
 
 	type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'card';
 
-	// eslint-disable-next-line svelte/no-unused-props -- id and avatarId are read once the picture lands
 	let {
 		person,
 		size,
@@ -34,6 +34,12 @@
 	const colors = $derived(
 		neutral ? 'bg-accent text-accent-foreground' : userColorClasses(person.color)
 	);
+
+	const src = $derived(avatarUrl(person));
+	// The id whose file failed to load. Keyed by id rather than a boolean,
+	// so a new picture gets its own chance without an effect resetting it.
+	let failed = $state<string | null>(null);
+	const showImage = $derived(src !== null && failed !== person.avatarId);
 </script>
 
 <!--
@@ -55,5 +61,17 @@
 		`measureText`) the nudge (inkAscent + fontDescent - fontAscent) / 2 is
 		-0.79px, rounded to 0.8.
 	-->
-	<span class={size === 'xs' ? '-translate-y-[0.8px]' : ''}>{initial}</span>
+	{#if showImage}
+		<!-- Decorative: the name is always beside the mark or in its trigger's label. -->
+		<img
+			{src}
+			alt=""
+			loading="lazy"
+			decoding="async"
+			class="size-full object-cover"
+			onerror={() => (failed = person.avatarId ?? null)}
+		/>
+	{:else}
+		<span class={size === 'xs' ? '-translate-y-[0.8px]' : ''}>{initial}</span>
+	{/if}
 </span>
