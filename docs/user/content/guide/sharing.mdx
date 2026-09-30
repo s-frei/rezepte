@@ -5,7 +5,7 @@ description: Send a recipe link to the household, what the chat preview shows, a
 
 import { Audience } from '@/components/audience';
 
-A recipe's page has two ways to hand out its address: **Copy link** in the "…" menu, and on a phone the share button over the cover photo, which opens the phone's own share sheet. The link is the recipe's normal address. Whoever opens it needs an account on your instance to see the recipe; the link does not let anyone in.
+A recipe's page has two ways to hand out its address: **Copy link** in the "…" menu, and **Pass on** - the share button over the cover photo on a phone, a button in the top bar on a computer - which offers the link or the recipe as a card. The link is the recipe's normal address. Whoever opens it needs an account on your instance to see the recipe; the link does not let anyone in.
 
 For someone who does not have an account, and should not need one, the same "…" menu offers **Share publicly…** instead - see [Public links](#public-links) below.
 
@@ -28,6 +28,17 @@ Switching it off applies at once, also to links already sent. A new time applies
 - A recipe without a photo shows its title and description with the Rezepte logo.
 - Anyone the link is forwarded to within that time sees the preview too; the recipe itself still needs an account.
 - Some chat apps only show a picture from an `https` address. Behind a reverse proxy, set `REZEPTE_SECURE_COOKIES=true` as [Reverse proxy](/operations/reverse-proxy) describes, so Rezepte names its pictures over `https`.
+
+## Pass on as a recipe card
+
+**Pass on** also turns the recipe into one picture: the cover photo, title, description, servings and times, every ingredient and every step, in the theme you are using. Whoever gets it needs nothing to cook from it - no account, no link, no connection to your instance.
+
+- On a phone, **Card** opens the phone's share sheet with the picture, for WhatsApp, Signal, Photos and the like. Long recipes make a long picture; in WhatsApp, send it in HD so it stays sharp.
+- On a computer, **Copy image** puts it on the clipboard for pasting into a chat, **Save image** downloads it, and **Share…** appears where the browser can share files.
+- Quantities follow the servings you set on the page.
+- The card leaves out the recipe's source, tags, other photos and anything that points to your instance. Its foot names Rezepte unless the owner switched that off (see [Users](/guide/users)).
+
+<Screenshot name="recipe-card" caption="Passing a recipe on as a card" />
 
 ## Public links
 

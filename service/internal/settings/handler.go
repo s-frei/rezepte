@@ -64,7 +64,7 @@ type updateSettingsInput struct {
 		PublicShares           *bool       `json:"publicShares,omitempty" required:"false" doc:"Let members turn a recipe into a public, read-only link"`
 		PublicShareDefaultDays nullableDay `json:"publicShareDefaultDays,omitzero" required:"false" enum:"1,7,30,365" doc:"Lifetime preselected when a member creates a public link; omitted leaves it unchanged, null makes it permanent"`
 		PublicShareMaxDays     nullableDay `json:"publicShareMaxDays,omitzero" required:"false" enum:"1,7,30,365" doc:"Longest lifetime a public link may have; omitted leaves it unchanged, null removes the maximum"`
-		PublicShareAttribution *bool       `json:"publicShareAttribution,omitempty" required:"false" doc:"Name Rezepte, with a link to the project, at the foot of a public share page"`
+		PublicShareAttribution *bool       `json:"publicShareAttribution,omitempty" required:"false" doc:"Name Rezepte, with a link to the project, at the foot of a public share page and of a recipe card"`
 	}
 }
 

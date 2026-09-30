@@ -2049,7 +2049,7 @@
             "type": "boolean"
           },
           "publicShareAttribution": {
-            "description": "Name Rezepte, with a link to the project, at the foot of a public share page",
+            "description": "Name Rezepte, with a link to the project, at the foot of a public share page and of a recipe card",
             "type": "boolean"
           },
           "publicShareDefaultDays": {

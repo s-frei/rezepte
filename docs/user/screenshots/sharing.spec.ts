@@ -82,3 +82,15 @@ test('public-sharing-card', async ({ page }) => {
 	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 	await shot(page, 'public-sharing-card');
 });
+
+test('recipe-card', async ({ page }, testInfo) => {
+	await page.goto('/recipes/macaroni-cheese');
+	if (testInfo.project.use.isMobile) {
+		await page.getByRole('button', { name: 'Share' }).click();
+	} else {
+		await page.getByRole('button', { name: 'Pass on' }).click();
+	}
+	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+	await expect(sheet.getByRole('img', { name: /^Recipe card:/ })).toBeVisible({ timeout: 20_000 });
+	await shot(page, 'recipe-card');
+});
