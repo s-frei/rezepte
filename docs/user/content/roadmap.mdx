@@ -11,21 +11,17 @@ description: Where Rezepte could go next
 
 One Rezepte instance could mirror another's recipes read-only, using an [API token](/api/tokens) the source instance issues.
 
-## Public REST API
-
-The API already exists: it takes [bearer tokens](/api/tokens) as well as the session cookie the app itself uses (see [API](/api)), and repeated failed logins are already slowed down with `429 Too Many Requests`. What's still missing is a versioning policy, and rate limits beyond that failed-login throttle.
-
 ## OAuth for MCP clients
 
 MCP clients that accept a static header already work — see [Connect an AI assistant](/api/mcp). Clients that only connect through OAuth, such as claude.ai's custom connectors, need OAuth 2.1 instead. [Single sign-on](/operations/single-sign-on) already exists; OAuth 2.1 for MCP clients is a separate piece still to come.
 
-## Sharing
-
-Sending a recipe as a rendered picture, with its ingredients as text, through whichever messenger your phone offers - an alternative to [public links](/guide/sharing#public-links) for someone who would rather send a picture than a link.
-
 ## Import and export
 
 Passing recipes with their photos from one Rezepte to another already works — see [Import and export](/guide/import-export). Still open: importing the common recipe format other apps and websites use, and pasting a recipe's URL. Such an imported recipe would open as a draft for you to check before it is saved.
+
+## Email
+
+Rezepte sending mail itself: a new account's [setup link](/guide/users) by email instead of passing it on yourself, confirming the address on your profile, and notifications.
 
 ## Shopping list
 

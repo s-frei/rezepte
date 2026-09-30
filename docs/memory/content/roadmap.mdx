@@ -13,21 +13,17 @@ description: Where Rezepte is heading next
 
 Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`. Instance B stores its URL and that token and mirrors recipes read-only. Bearer-token authentication exists; what is missing is the `/api/v1/sync/*` endpoints themselves.
 
-## Public REST API
-
-The ground is there: huma's OpenAPI 3.1 document and Scalar reference, bearer [API tokens](/features/api-tokens) for programmatic access, and the failed-login throttle that answers `429` ([Users and authentication](/features/users-and-auth)). Missing: a versioning policy, and rate limits beyond login.
-
 ## OAuth for MCP
 
 OIDC login exists ([OIDC](/features/oidc)); what is missing is OAuth 2.1 itself - claude.ai custom connectors need it, not the static bearer token the [MCP server](/features/mcp) takes (see that page's Limits). Rezepte adds protected-resource metadata, a JWT verifier beside the `rzp_` one, and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
 
-## Sharing
-
-Sharing a rendered picture of a recipe, with its ingredients as text, through whichever messenger the phone offers - an alternative to the public link ([Public shares](/features/public-shares)) for someone who would rather send a picture than a link.
-
 ## Import and export
 
 Recipes move between instances as a zip ([Import and export](/features/import-export)). What is left is other sources: schema.org `Recipe` JSON-LD import and importing from a URL, which is the same pipeline behind a fetch (parse the page's `Recipe` JSON-LD, `golang.org/x/net/html` for the fallback HTML walk), reusing the import pipeline of that page. A single JSON-LD or URL import opens as a draft in the editor, with the importing member as its author; recipes already carry a source link and a source name ([Recipes and search](/features/recipes)), so the import fills both from where the recipe came from.
+
+## Email
+
+Rezepte sends no mail. Accounts already carry an optional email address and start from a setup link ([Users and authentication](/features/users-and-auth)), but the admin copies that link and passes it on by hand. Outgoing mail through a configured SMTP server would deliver setup links, confirm a typed address (today only an identity provider sets `email_verified`), and carry notifications.
 
 ## Shopping list
 
