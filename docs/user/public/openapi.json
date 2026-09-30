@@ -626,7 +626,7 @@
             "type": "string"
           },
           "hasIdentity": {
-            "description": "Whether the person has connected an identity provider account; set only by list-users",
+            "description": "Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users",
             "type": "boolean"
           },
           "hasPassword": {
@@ -2396,7 +2396,7 @@
             "type": "string"
           },
           "hasIdentity": {
-            "description": "Whether the person has connected an identity provider account; set only by list-users",
+            "description": "Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users",
             "type": "boolean"
           },
           "hasPassword": {

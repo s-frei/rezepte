@@ -24,11 +24,22 @@ type fakeIdP struct {
 	key      *rsa.PrivateKey
 	clientID string
 	mu       sync.Mutex
-	codes    map[string]idClaims // code -> claims to issue
+	codes    map[string]grant // code -> what the provider approved
 	// tamper lets a test change the token after the claims are set.
 	tamper func(claims map[string]any) map[string]any
 	signer *rsa.PrivateKey // nil: key
 }
+
+// grant is what approve hands out a code for: the claims to issue, and the
+// PKCE challenge and redirect URI the token request must match.
+type grant struct {
+	claims              idClaims
+	challenge, redirect string
+}
+
+// callbackURL is the only redirect URI the fake provider accepts, as a real
+// one accepts only the URIs registered for the client.
+const callbackURL = publicURL + "/api/v1/auth/oidc/callback"
 
 type idClaims struct {
 	Subject, Email string
@@ -42,7 +53,7 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &fakeIdP{key: key, clientID: "rezepte", codes: map[string]idClaims{}}
+	f := &fakeIdP{key: key, clientID: "rezepte", codes: map[string]grant{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -62,13 +73,17 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 	mux.HandleFunc("POST /token", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		f.mu.Lock()
-		c, ok := f.codes[r.Form.Get("code")]
+		g, ok := f.codes[r.Form.Get("code")]
 		delete(f.codes, r.Form.Get("code"))
 		f.mu.Unlock()
-		if !ok || r.Form.Get("code_verifier") == "" {
-			http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
+		sum := sha256.Sum256([]byte(r.Form.Get("code_verifier")))
+		if !ok || b64(sum[:]) != g.challenge || r.Form.Get("redirect_uri") != g.redirect {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
 			return
 		}
+		c := g.claims
 		claims := map[string]any{
 			"iss": f.URL, "aud": f.clientID, "sub": c.Subject, "nonce": c.Nonce,
 			"email": c.Email, "email_verified": c.EmailVerified,
@@ -98,10 +113,13 @@ func (f *fakeIdP) approve(t *testing.T, authorizeURL string, c idClaims) (state,
 	if q.Get("code_challenge_method") != "S256" || q.Get("code_challenge") == "" {
 		t.Fatalf("no PKCE in %s", authorizeURL)
 	}
+	if q.Get("redirect_uri") != callbackURL {
+		t.Fatalf("redirect_uri %q, want %q", q.Get("redirect_uri"), callbackURL)
+	}
 	c.Nonce = q.Get("nonce")
 	code = rand.Text()
 	f.mu.Lock()
-	f.codes[code] = c
+	f.codes[code] = grant{claims: c, challenge: q.Get("code_challenge"), redirect: q.Get("redirect_uri")}
 	f.mu.Unlock()
 	return q.Get("state"), code
 }

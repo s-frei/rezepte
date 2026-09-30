@@ -100,11 +100,11 @@ func (q *Queries) InsertIdentity(ctx context.Context, arg InsertIdentityParams) 
 }
 
 const listLinkedUserIDs = `-- name: ListLinkedUserIDs :many
-SELECT DISTINCT user_id FROM user_identities
+SELECT user_id FROM user_identities WHERE issuer = ?
 `
 
-func (q *Queries) ListLinkedUserIDs(ctx context.Context) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listLinkedUserIDs)
+func (q *Queries) ListLinkedUserIDs(ctx context.Context, issuer string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listLinkedUserIDs, issuer)
 	if err != nil {
 		return nil, err
 	}

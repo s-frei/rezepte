@@ -235,8 +235,6 @@
 					{m.users_setup_link_action()}
 				</button>
 				{#if canUnlink}
-					<!-- No handover: nothing opens after it, and the sheet stays
-					     to show what is left once the line is gone. -->
 					<button
 						type="button"
 						class={row}
@@ -244,7 +242,7 @@
 							name: provider ?? '',
 							username: person.username
 						})}
-						onclick={() => onunlink(person)}
+						onclick={() => hand(onunlink)}
 					>
 						<Unlink class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
 						{m.users_identity_unlink({ name: provider ?? '' })}

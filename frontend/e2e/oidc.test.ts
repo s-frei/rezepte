@@ -108,14 +108,20 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	expect(me.hasPassword).toBe(false);
 	await context.close();
 
-	// The admin disconnects the new account's identity; without a password
-	// it is not set up any more. This file runs on desktop only, so
-	// "Disconnect" is always in the row's "..." menu, not the phone's sheet.
+	// The admin disconnects the new account's identity, after confirming;
+	// without a password it is not set up any more. This file runs on
+	// desktop only, so "Disconnect" is always in the row's "..." menu, not
+	// the phone's sheet.
 	await page.reload();
 	const row = page.getByRole('listitem').filter({ hasText: name });
-	await row.getByRole('button', { name: `More actions for ${name}` }).click();
+	const more = row.getByRole('button', { name: `More actions for ${name}` });
+	await more.click();
 	await page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` }).click();
+	const confirm = page.getByRole('dialog', { name: 'Disconnect Dex?' });
+	await expect(confirm).toContainText(`${name} is signed out on every device`);
+	await confirm.getByRole('button', { name: 'Disconnect Dex' }).click();
 	await expect(page.getByText(`Dex disconnected from ${name}`)).toBeVisible();
-	await row.getByRole('button', { name: `More actions for ${name}` }).click();
+	await expect(more).toBeFocused();
+	await more.click();
 	await expect(page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` })).toHaveCount(0);
 });

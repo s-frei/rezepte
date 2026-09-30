@@ -215,6 +215,8 @@
 	"users_identity_status": "Signs in with {name}",
 	"users_identity_unlink": "Disconnect {name}",
 	"users_identity_unlink_aria": "Disconnect {name} from {username}",
+	"users_identity_unlink_confirm_title": "Disconnect {name}?",
+	"users_identity_unlink_confirm_text": "{username} is signed out on every device. Without a password, they need a setup link to get back in.",
 	"users_identity_unlinked": "{name} disconnected from {username}",
 	"setup_link_dialog_title": "Setup link for {name}",
 	"setup_link_dialog_hint": "Send this link to them yourself. It works once; a new link replaces this one.",

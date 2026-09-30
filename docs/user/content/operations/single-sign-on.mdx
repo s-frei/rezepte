@@ -53,7 +53,7 @@ Then set these variables (see [Configuration](/getting-started/configuration)), 
   </Tab>
 </Tabs>
 
-`REZEPTE_PUBLIC_URL` is the address people open Rezepte at, exactly as in the browser, without a path. Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
+`REZEPTE_PUBLIC_URL` is the address people open Rezepte at, exactly as in the browser, without a path. Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider. With an `https://` address, the short-lived cookie that carries a sign-in to the provider and back is only ever sent over HTTPS, whatever `REZEPTE_SECURE_COOKIES` says. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
 
 <Tabs items={['Google', 'Authelia']}>
   <Tab value="Google">

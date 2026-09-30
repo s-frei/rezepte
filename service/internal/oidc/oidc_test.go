@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -73,7 +74,11 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
+	issuer := ""
+	if cfg != nil {
+		issuer = cfg.Issuer
+	}
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer)
 	var login *oidc.Login
 	if cfg != nil {
 		login = oidc.New(*cfg, sessions, users, false)
@@ -209,7 +214,7 @@ func (e *env) owner(t *testing.T, subject string) string {
 
 func (e *env) linkedAnyone(t *testing.T) bool {
 	t.Helper()
-	linked, err := e.users.LinkedUserIDs(context.Background())
+	linked, err := e.users.LinkedUserIDs(context.Background(), e.idp.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,6 +362,33 @@ func TestSetupViaProvider(t *testing.T) {
 	}
 }
 
+// TestSetupFlowCookieHoldsNoToken: the flow cookie carries the setup link's
+// hash, never the token, and the hash is enough to finish the setup.
+func TestSetupFlowCookieHoldsNoToken(t *testing.T) {
+	e := newEnv(t)
+	link, err := e.sessions.IssueSetupLink(context.Background(), e.sam, e.anna.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorize, fc := flow(t, e.h, "setup", url.Values{"setup": {link.Token}}, nil)
+	sealed, _, _ := strings.Cut(fc.Value, ".")
+	payload, err := base64.RawURLEncoding.DecodeString(sealed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(payload), link.Token) || strings.Contains(fc.Value, link.Token) {
+		t.Fatalf("flow cookie carries the raw setup token: %s", payload)
+	}
+	if !strings.Contains(string(payload), auth.SetupLinkHash(link.Token)) {
+		t.Fatalf("flow cookie lacks the setup link's hash: %s", payload)
+	}
+	state, code := e.idp.approve(t, authorize, idClaims{Subject: "sub-anna"})
+	wantRedirect(t, callback(t, e.h, state, code, fc), "/")
+	if got := e.owner(t, "sub-anna"); got != "anna" {
+		t.Fatalf("identity belongs to %q, want anna", got)
+	}
+}
+
 func TestSetupWithUsedLink(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
@@ -478,6 +510,22 @@ func TestCallbackRejectsForeignSignature(t *testing.T) {
 	wantFailed(t, e.run(t, "login", nil, nil, idClaims{Subject: "sub-anna"}))
 }
 
+// TestCallbackRejectsWrongVerifier proves the fake provider's PKCE check is
+// live: a token request whose verifier does not hash to the challenge
+// approved at authorize time is refused, and so is the sign-in.
+func TestCallbackRejectsWrongVerifier(t *testing.T) {
+	e := newEnv(t)
+	e.link(t, e.anna, "sub-anna")
+	authorize, fc := flow(t, e.h, "login", nil, nil)
+	state, code := e.idp.approve(t, authorize, idClaims{Subject: "sub-anna"})
+	e.idp.mu.Lock()
+	g := e.idp.codes[code]
+	g.challenge = b64([]byte("another verifier's challenge"))
+	e.idp.codes[code] = g
+	e.idp.mu.Unlock()
+	wantFailed(t, callback(t, e.h, state, code, fc))
+}
+
 func TestCallbackProviderError(t *testing.T) {
 	e := newEnv(t)
 	e.link(t, e.anna, "sub-anna")
@@ -496,6 +544,54 @@ func TestUnverifiedEmailIsStoredUnverified(t *testing.T) {
 	if sam.Email != "sam@example.com" || sam.EmailVerified {
 		t.Fatalf("email %q verified=%v", sam.Email, sam.EmailVerified)
 	}
+}
+
+// TestEmailVerifiedForms: providers disagree on email_verified's type. Only
+// JSON true and the string "true" (any case) mean verified; no form of it
+// fails the sign-in.
+func TestEmailVerifiedForms(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value any
+		want  bool
+	}{
+		{"bool true", true, true},
+		{"string true", "TRUE", true},
+		{"string false", "false", false},
+		{"number", 1, false},
+		{"object", map[string]any{"value": true}, false},
+		{"missing", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e := newEnv(t)
+			e.idp.tamper = func(c map[string]any) map[string]any {
+				if tc.value == nil {
+					delete(c, "email_verified")
+				} else {
+					c["email_verified"] = tc.value
+				}
+				return c
+			}
+			rec := e.run(t, "link", nil, e.passwordLogin(t), idClaims{Subject: "sub-sam", Email: "sam@example.com"})
+			wantRedirect(t, rec, "/settings?oidc=linked")
+			sam, _ := e.users.ByID(context.Background(), e.sam.ID)
+			if sam.Email != "sam@example.com" || sam.EmailVerified != tc.want {
+				t.Fatalf("email %q verified=%v, want verified=%v", sam.Email, sam.EmailVerified, tc.want)
+			}
+		})
+	}
+}
+
+// TestMalformedClaimsDoNotFailLogin: an email claim of the wrong type is
+// ignored; a verified ID token still signs the person in.
+func TestMalformedClaimsDoNotFailLogin(t *testing.T) {
+	e := newEnv(t)
+	e.link(t, e.anna, "sub-anna")
+	e.idp.tamper = func(c map[string]any) map[string]any {
+		c["email"], c["email_verified"] = 42, []any{"true"}
+		return c
+	}
+	wantRedirect(t, e.run(t, "login", nil, nil, idClaims{Subject: "sub-anna"}), "/")
 }
 
 func TestProviderDownDoesNotBreakStartup(t *testing.T) {

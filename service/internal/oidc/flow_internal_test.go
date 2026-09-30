@@ -101,7 +101,7 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := httptest.NewRecorder()
-	l.setup(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentSetup, Setup: link.Token}, token("sub-anna"), claims{})
+	l.setup(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentSetup, Setup: auth.SetupLinkHash(link.Token)}, token("sub-anna"), claims{})
 	if location(rec) != "/" {
 		t.Fatalf("setup ended at %q", location(rec))
 	}
@@ -128,5 +128,27 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 	l.login(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentLogin}, token("sub-anna"))
 	if location(rec) != "/" {
 		t.Fatalf("login ended at %q", location(rec))
+	}
+}
+
+// TestFlowCookieSecure: an https public URL makes the flow cookie Secure
+// whatever REZEPTE_SECURE_COOKIES says; on http it follows the setting.
+func TestFlowCookieSecure(t *testing.T) {
+	for _, tc := range []struct {
+		publicURL string
+		secure    bool
+		want      bool
+	}{
+		{"https://rezepte.example", false, true},
+		{"https://rezepte.example", true, true},
+		{"http://localhost:8060", false, false},
+		{"http://localhost:8060", true, true},
+	} {
+		l := New(Config{PublicURL: tc.publicURL}, nil, nil, tc.secure)
+		for _, c := range []http.Cookie{l.flowCookie("v", 60), l.flowCookie("", -1)} {
+			if c.Secure != tc.want {
+				t.Errorf("%s, secure cookies %v: Secure = %v, want %v", tc.publicURL, tc.secure, c.Secure, tc.want)
+			}
+		}
 	}
 }

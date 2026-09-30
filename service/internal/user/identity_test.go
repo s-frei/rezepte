@@ -38,7 +38,10 @@ func TestLinkIdentity(t *testing.T) {
 	if _, err := svc.IdentityLinkedAt(ctx, kim.ID, issuer); !errors.Is(err, user.ErrNotFound) {
 		t.Fatalf("IdentityLinkedAt of kim: %v, want ErrNotFound", err)
 	}
-	linked, err := svc.LinkedUserIDs(ctx)
+	if err := svc.LinkIdentity(ctx, kim.ID, "https://other.example", "sub-kim"); err != nil {
+		t.Fatal(err)
+	}
+	linked, err := svc.LinkedUserIDs(ctx, issuer)
 	if err != nil || !linked[sam.ID] || linked[kim.ID] {
 		t.Fatalf("LinkedUserIDs = %v, %v; want only sam", linked, err)
 	}

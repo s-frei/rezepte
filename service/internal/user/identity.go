@@ -105,10 +105,10 @@ func (s *Service) deleteIdentity(ctx context.Context, userID, issuer string) err
 	return nil
 }
 
-// LinkedUserIDs is the set of accounts with an identity at any provider, for
-// the admin's people list.
-func (s *Service) LinkedUserIDs(ctx context.Context) (map[string]bool, error) {
-	ids, err := s.q.ListLinkedUserIDs(ctx)
+// LinkedUserIDs is the set of accounts with an identity at issuer, for the
+// admin's people list.
+func (s *Service) LinkedUserIDs(ctx context.Context, issuer string) (map[string]bool, error) {
+	ids, err := s.q.ListLinkedUserIDs(ctx, issuer)
 	if err != nil {
 		return nil, fmt.Errorf("list linked users: %w", err)
 	}

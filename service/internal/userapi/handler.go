@@ -31,7 +31,7 @@ type UserAccount struct {
 	AvatarID           *string    `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 	HasPassword        bool       `json:"hasPassword" doc:"False until the person sets one through a setup link or their profile"`
 	SetupLinkExpiresAt *time.Time `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
-	HasIdentity        bool       `json:"hasIdentity" doc:"Whether the person has connected an identity provider account; set only by list-users"`
+	HasIdentity        bool       `json:"hasIdentity" doc:"Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users"`
 }
 
 // setupLinkBody is a freshly issued setup link, shown once.
@@ -177,8 +177,10 @@ func toResponse(u user.User) UserAccount {
 
 // Register installs list, create, update and delete for users, which require
 // an admin, and list-people, which any signed-in account may read. avatars
-// removes a deleted account's pictures.
-func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service) {
+// removes a deleted account's pictures. issuer is the configured OIDC issuer,
+// empty when OIDC is off: list-users reports hasIdentity only for an identity
+// there, the one sign-in and disconnect use.
+func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer string) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-people",
 		Method:      http.MethodGet,
@@ -230,9 +232,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
-		linked, err := users.LinkedUserIDs(ctx)
-		if err != nil {
-			return nil, err
+		linked := map[string]bool{}
+		if issuer != "" {
+			if linked, err = users.LinkedUserIDs(ctx, issuer); err != nil {
+				return nil, err
+			}
 		}
 		items := make([]UserAccount, 0, len(list))
 		for _, u := range list {

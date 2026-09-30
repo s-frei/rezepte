@@ -62,7 +62,7 @@ func newStack(t *testing.T, environment map[string]string) (http.Handler, *user.
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), cfg.OIDCIssuer)
 	return srv.Handler(), users
 }
 
@@ -101,7 +101,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), "")
 	raw, _, err := tokens.Create(context.Background(), samID, "t", scopes, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -854,16 +854,38 @@ func TestRefusedPatchWritesNothing(t *testing.T) {
 	}
 }
 
+// TestListUsersReportsLinkedIdentities: hasIdentity means an identity at the
+// configured issuer - the one sign-in and disconnect use. One left behind at
+// an earlier provider does not count, and nothing counts with OIDC off.
 func TestListUsersReportsLinkedIdentities(t *testing.T) {
-	h, users := newStack(t, map[string]string{})
-	cookie := loginAs(t, h, "sam", "pw")
-	kimID := idOf(t, listUsers(t, h, cookie), "kim")
-	if err := users.LinkIdentity(context.Background(), kimID, "https://id.example", "sub-kim"); err != nil {
-		t.Fatal(err)
+	oidcEnv := map[string]string{
+		"REZEPTE_OIDC_ISSUER": "https://id.example", "REZEPTE_OIDC_CLIENT_ID": "rezepte",
+		"REZEPTE_PUBLIC_URL": "http://localhost:8060",
 	}
-	for _, u := range listUsers(t, h, cookie) {
-		if u.HasIdentity != (u.Username == "kim") {
-			t.Errorf("%s: hasIdentity = %v", u.Username, u.HasIdentity)
-		}
+	for _, tc := range []struct {
+		name        string
+		environment map[string]string
+		want        map[string]bool
+	}{
+		{"configured issuer", oidcEnv, map[string]bool{"kim": true}},
+		{"OIDC off", map[string]string{}, map[string]bool{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h, users := newStack(t, tc.environment)
+			cookie := loginAs(t, h, "sam", "pw")
+			list := listUsers(t, h, cookie)
+			ctx := context.Background()
+			if err := users.LinkIdentity(ctx, idOf(t, list, "kim"), "https://id.example", "sub-kim"); err != nil {
+				t.Fatal(err)
+			}
+			if err := users.LinkIdentity(ctx, idOf(t, list, "owner"), "https://old.example", "sub-owner"); err != nil {
+				t.Fatal(err)
+			}
+			for _, u := range listUsers(t, h, cookie) {
+				if u.HasIdentity != tc.want[u.Username] {
+					t.Errorf("%s: hasIdentity = %v", u.Username, u.HasIdentity)
+				}
+			}
+		})
 	}
 }

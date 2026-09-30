@@ -12,4 +12,4 @@ SELECT * FROM user_identities WHERE user_id = ? AND issuer = ?;
 DELETE FROM user_identities WHERE user_id = ? AND issuer = ?;
 
 -- name: ListLinkedUserIDs :many
-SELECT DISTINCT user_id FROM user_identities;
+SELECT user_id FROM user_identities WHERE issuer = ?;

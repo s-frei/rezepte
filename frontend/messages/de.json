@@ -215,6 +215,8 @@
 	"users_identity_status": "Meldet sich mit {name} an",
 	"users_identity_unlink": "{name} trennen",
 	"users_identity_unlink_aria": "{name} von {username} trennen",
+	"users_identity_unlink_confirm_title": "{name} trennen?",
+	"users_identity_unlink_confirm_text": "{username} wird auf allen Geräten abgemeldet. Ohne Passwort ist danach ein Einrichtungslink nötig, um wieder hineinzukommen.",
 	"users_identity_unlinked": "{name} von {username} getrennt",
 	"setup_link_dialog_title": "Einrichtungslink für {name}",
 	"setup_link_dialog_hint": "Schick diesen Link selbst weiter. Er funktioniert einmal; ein neuer Link ersetzt diesen.",

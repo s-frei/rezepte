@@ -122,6 +122,14 @@ test('setup-link-dialog', async ({ page }, testInfo) => {
 	// still be mid-close, and the two would otherwise both match.
 	await expect(page.getByRole('dialog', { name: `Setup link for ${username}` })).toBeVisible();
 	await shot(page, 'setup-link-dialog');
+	// Gone again, so the people screenshots of the shared instance never list it.
+	const users = (await (await page.request.get('/api/v1/users')).json()) as {
+		items: { id: string; username: string }[];
+	};
+	const id = users.items.find((u) => u.username === username)?.id;
+	await page.request.delete(`/api/v1/users/${id}`, {
+		headers: { Origin: new URL(page.url()).origin }
+	});
 });
 
 test('settings-recipe-editing', async ({ page }, testInfo) => {

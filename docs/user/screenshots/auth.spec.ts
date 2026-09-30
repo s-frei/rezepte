@@ -10,7 +10,9 @@ test('login', async ({ page }, testInfo) => {
 // The demo's invited account has an open link, but only its hash is stored,
 // so this issues one itself through the API, as the signed-in admin the page
 // is - then drops the session, since the person a link reaches is not
-// signed in (a signed-in browser gets a notice above the form).
+// signed in (a signed-in browser gets a notice above the form). The account
+// goes again afterwards: the run shares one instance, and the people
+// screenshots would otherwise list it.
 test('welcome', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	const origin = new URL(page.url()).origin;
@@ -18,11 +20,14 @@ test('welcome', async ({ page }, testInfo) => {
 		headers: { Origin: origin },
 		data: { username: `welcome-${testInfo.project.name}`, role: 'user' }
 	});
-	const created = (await res.json()) as { setupLink: { path: string } };
+	const created = (await res.json()) as { id: string; setupLink: { path: string } };
+	const session = (await page.context().cookies()).filter((c) => c.name === 'rezepte_session');
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await page.goto(created.setupLink.path);
 	await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible();
 	await shot(page, 'welcome');
+	await page.context().addCookies(session);
+	await page.request.delete(`/api/v1/users/${created.id}`, { headers: { Origin: origin } });
 });
 
 // A fresh instance has no recipes, but the demo seeds some, so the three list

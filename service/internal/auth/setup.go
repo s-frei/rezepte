@@ -55,10 +55,20 @@ func (s *Service) IssueSetupLink(ctx context.Context, actor user.User, userID st
 	return SetupLink{Token: token, ExpiresAt: expires}, nil
 }
 
+// SetupLinkHash is the digest a setup link is stored and looked up under.
+// A caller that must carry a link across requests (the OIDC flow cookie)
+// keeps this instead of the token.
+func SetupLinkHash(token string) string { return hashToken(token) }
+
 // PeekSetupLink returns the account an open link belongs to, without using it.
 func (s *Service) PeekSetupLink(ctx context.Context, token string) (user.User, error) {
+	return s.PeekSetupLinkByHash(ctx, hashToken(token))
+}
+
+// PeekSetupLinkByHash is PeekSetupLink for a link known by SetupLinkHash.
+func (s *Service) PeekSetupLinkByHash(ctx context.Context, hash string) (user.User, error) {
 	row, err := s.q.GetOpenSetupLink(ctx, sqlc.GetOpenSetupLinkParams{
-		ID: hashToken(token), ExpiresAt: db.FormatTime(s.now()),
+		ID: hash, ExpiresAt: db.FormatTime(s.now()),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return user.User{}, ErrNoSetupLink
@@ -72,16 +82,22 @@ func (s *Service) PeekSetupLink(ctx context.Context, token string) (user.User, e
 // ConsumeSetupLink uses the link up and returns its account. Of two callers
 // with the same token, exactly one gets the id.
 func (s *Service) ConsumeSetupLink(ctx context.Context, token string) (string, error) {
-	return s.consumeWith(ctx, s.q, token)
+	return s.consumeWith(ctx, s.q, hashToken(token))
 }
 
-// consumeWith runs the delete-returning consume against q - s.q outside a
-// transaction, or a transaction's own *sqlc.Queries - and maps sql.ErrNoRows
-// to ErrNoSetupLink. The one place both ConsumeSetupLink and
-// RedeemWithPassword's transactional consume do this.
-func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, token string) (string, error) {
+// ConsumeSetupLinkByHash is ConsumeSetupLink for a link known by
+// SetupLinkHash.
+func (s *Service) ConsumeSetupLinkByHash(ctx context.Context, hash string) (string, error) {
+	return s.consumeWith(ctx, s.q, hash)
+}
+
+// consumeWith runs the delete-returning consume of the link stored under
+// hash against q - s.q outside a transaction, or a transaction's own
+// *sqlc.Queries - and maps sql.ErrNoRows to ErrNoSetupLink. The one place
+// both consumes and RedeemWithPassword's transactional consume do this.
+func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, hash string) (string, error) {
 	id, err := q.ConsumeSetupLink(ctx, sqlc.ConsumeSetupLinkParams{
-		ID: hashToken(token), ExpiresAt: db.FormatTime(s.now()),
+		ID: hash, ExpiresAt: db.FormatTime(s.now()),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNoSetupLink
@@ -106,7 +122,7 @@ func (s *Service) RedeemWithPassword(ctx context.Context, token, password string
 	}
 	var userID string
 	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		id, err := s.consumeWith(ctx, q, token)
+		id, err := s.consumeWith(ctx, q, hashToken(token))
 		if err != nil {
 			return err
 		}

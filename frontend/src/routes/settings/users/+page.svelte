@@ -53,6 +53,8 @@
 	let resetTarget = $state<PersonEntry | null>(null);
 	let deleteOpen = $state(false);
 	let deleteTarget = $state<PersonEntry | null>(null);
+	let unlinkOpen = $state(false);
+	let unlinkTarget = $state<PersonEntry | null>(null);
 	let setupLinkOpen = $state(false);
 	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
 	let setupLinkName = $state('');
@@ -183,9 +185,16 @@
 		}
 	}
 
-	// No confirmation, like revoking a link: the person can connect again, or
-	// be sent a setup link when they have no password.
-	async function unlinkIdentity(user: PersonEntry) {
+	// Confirmed first, like a delete: it signs the person out everywhere, and
+	// without a password they are locked out until they get a setup link.
+	function askUnlink(user: PersonEntry) {
+		unlinkTarget = user;
+		unlinkOpen = true;
+	}
+
+	async function unlinkIdentity() {
+		const user = unlinkTarget;
+		if (!user) return;
 		try {
 			await unlinkUserIdentity(user.id);
 			const entry = setup[user.id];
@@ -340,7 +349,7 @@
 				onreset={askReset}
 				onsetuplink={askSetupLink}
 				onrevokelink={revokeLink}
-				onunlink={unlinkIdentity}
+				onunlink={askUnlink}
 				ondelete={askDelete}
 				onprofile={profileSaved}
 			/>
@@ -371,5 +380,13 @@
 		confirmLabel={m.common_delete()}
 		destructive
 		onconfirm={remove}
+	/>
+	<ConfirmDialog
+		bind:open={unlinkOpen}
+		title={m.users_identity_unlink_confirm_title({ name: provider ?? '' })}
+		text={m.users_identity_unlink_confirm_text({ username: unlinkTarget?.username ?? '' })}
+		confirmLabel={m.users_identity_unlink({ name: provider ?? '' })}
+		destructive
+		onconfirm={unlinkIdentity}
 	/>
 {/if}

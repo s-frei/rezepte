@@ -210,7 +210,7 @@ func run() error {
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
-	userapi.Register(srv.API(), users, sessions, avatars)
+	userapi.Register(srv.API(), users, sessions, avatars, cfg.OIDCIssuer)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
 }

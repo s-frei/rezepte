@@ -67,10 +67,8 @@ const (
 type flow struct {
 	State, Nonce, Verifier, Intent, Next string
 	UserID                               string `json:",omitempty"` // intent link: who started it
-	// Setup is the raw setup token, needed to consume the link at the end.
-	// It rides inside this HMAC-authenticated, HttpOnly cookie, scoped to
-	// flowPath, for at most flowTTL - the same browser already held it in
-	// its address bar.
+	// Setup is the setup link's hash (auth.SetupLinkHash), enough to peek
+	// and consume the link at the end; the raw token never enters the cookie.
 	Setup   string `json:",omitempty"`
 	Expires time.Time
 }
@@ -150,8 +148,8 @@ func (l *Login) start(w http.ResponseWriter, r *http.Request) {
 		}
 		f.UserID = v.User.ID
 	case intentSetup:
-		f.Setup = r.PostFormValue("setup")
-		if _, err := l.sessions.PeekSetupLink(ctx, f.Setup); err != nil {
+		f.Setup = auth.SetupLinkHash(r.PostFormValue("setup"))
+		if _, err := l.sessions.PeekSetupLinkByHash(ctx, f.Setup); err != nil {
 			l.fail(w, r, intentSetup, "setup link not open", err)
 			return
 		}
@@ -174,8 +172,27 @@ func (l *Login) start(w http.ResponseWriter, r *http.Request) {
 
 // claims are the ID token claims Rezepte reads besides iss and sub.
 type claims struct {
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
+	Email         string   `json:"email"`
+	EmailVerified verified `json:"email_verified"`
+}
+
+// verified reads email_verified leniently: JSON true or the string "true" in
+// any case (some providers send a string) mean verified; anything else -
+// false, "false", a number, an object - means unverified, never an error.
+type verified bool
+
+func (v *verified) UnmarshalJSON(b []byte) error {
+	var x any
+	_ = json.Unmarshal(b, &x)
+	switch x := x.(type) {
+	case bool:
+		*v = verified(x)
+	case string:
+		*v = verified(strings.EqualFold(x, "true"))
+	default:
+		*v = false
+	}
+	return nil
 }
 
 func (l *Login) callback(w http.ResponseWriter, r *http.Request) {
@@ -223,10 +240,12 @@ func (l *Login) callback(w http.ResponseWriter, r *http.Request) {
 		l.fail(w, r, f.Intent, "nonce mismatch", nil)
 		return
 	}
+	// The email claims only fill an empty profile; claims that do not
+	// decode leave it empty rather than fail a verified sign-in.
 	var cl claims
 	if err := idt.Claims(&cl); err != nil {
-		l.fail(w, r, f.Intent, "ID token claims unreadable", err)
-		return
+		l.logger.Info("oidc email claims unreadable", "intent", f.Intent, "err", err)
+		cl = claims{}
 	}
 	// Only from here on is anything written: the ID token is verified.
 	switch f.Intent {
@@ -280,7 +299,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 		l.fail(w, r, f.Intent, "link identity", err)
 		return
 	}
-	if err := l.users.SetEmailIfEmpty(ctx, f.UserID, cl.Email, cl.EmailVerified); err != nil {
+	if err := l.users.SetEmailIfEmpty(ctx, f.UserID, cl.Email, bool(cl.EmailVerified)); err != nil {
 		l.logger.Warn("oidc link: store email", "user", f.UserID, "err", err)
 	}
 	redirect(w, r, "/settings?oidc=linked")
@@ -288,7 +307,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 
 func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc.IDToken, cl claims) {
 	ctx := r.Context()
-	u, err := l.sessions.PeekSetupLink(ctx, f.Setup)
+	u, err := l.sessions.PeekSetupLinkByHash(ctx, f.Setup)
 	if err != nil {
 		l.fail(w, r, f.Intent, "setup link no longer open", err)
 		return
@@ -303,11 +322,11 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 		l.fail(w, r, f.Intent, "link identity", err)
 		return
 	}
-	if _, err := l.sessions.ConsumeSetupLink(ctx, f.Setup); err != nil {
+	if _, err := l.sessions.ConsumeSetupLinkByHash(ctx, f.Setup); err != nil {
 		l.fail(w, r, f.Intent, "setup link used meanwhile", err)
 		return
 	}
-	if err := l.users.SetEmailIfEmpty(ctx, u.ID, cl.Email, cl.EmailVerified); err != nil {
+	if err := l.users.SetEmailIfEmpty(ctx, u.ID, cl.Email, bool(cl.EmailVerified)); err != nil {
 		l.logger.Warn("oidc setup: store email", "user", u.ID, "err", err)
 	}
 	if err := l.sessions.DeleteUserSessionsExcept(ctx, u.ID, ""); err != nil {
@@ -347,13 +366,15 @@ func redirect(w http.ResponseWriter, r *http.Request, to string) {
 }
 
 func (l *Login) flowCookie(value string, maxAge int) http.Cookie {
-	return http.Cookie{ //nolint:gosec // G124: Secure follows the secureCookies config flag (false only for local http dev); HttpOnly and SameSite are always set.
+	return http.Cookie{ //nolint:gosec // G124: Secure always on an https public URL, else the secureCookies flag (false only for local http dev); HttpOnly and SameSite are always set.
 		Name:     flowCookie,
 		Value:    value,
 		Path:     flowPath,
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   l.secure,
+		// An https public URL means the browser reaches Rezepte over TLS,
+		// whatever REZEPTE_SECURE_COOKIES says.
+		Secure: l.secure || strings.HasPrefix(l.cfg.PublicURL, "https://"),
 		// Lax, not Strict: the callback is a top-level GET navigation coming
 		// from the provider's site, which Lax lets the cookie ride along.
 		SameSite: http.SameSiteLaxMode,
