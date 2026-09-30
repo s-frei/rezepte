@@ -371,9 +371,9 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) e
 		if m.Username != Invited {
 			continue
 		}
-		// ReplaceSetupLink upserts on the invited user's id, so issuing it
-		// again - a second --demo run over the same data directory - stays
-		// a no-op rather than an error.
+		// Issued once, by the run that wrote the samples: a later --demo run
+		// over the same data directory is a skipped seed and returns above,
+		// so the link keeps its first expiry.
 		if _, err := auth.NewService(conn, users).IssueSetupLink(ctx, admin, m.ID); err != nil {
 			return fmt.Errorf("issue setup link for %s: %w", m.Username, err)
 		}

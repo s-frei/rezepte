@@ -3,6 +3,7 @@
 	import Link from '@lucide/svelte/icons/link';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Unlink from '@lucide/svelte/icons/unlink';
 	import { tick } from 'svelte';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
@@ -23,6 +24,7 @@
 		canShare,
 		hasPassword,
 		hasIdentity,
+		provider,
 		setupLinkExpiresAt,
 		onrole,
 		onshare,
@@ -30,6 +32,7 @@
 		onreset,
 		onsetuplink,
 		onrevokelink,
+		onunlink,
 		ondelete
 	}: {
 		open?: boolean;
@@ -44,6 +47,8 @@
 		hasPassword?: boolean;
 		/** Admin-only: whether the person connected an identity provider. */
 		hasIdentity?: boolean;
+		/** The identity provider's name; undefined while this instance has none. */
+		provider?: string;
 		/** Admin-only; set while this person has an open setup link. */
 		setupLinkExpiresAt?: string;
 		/** Rejects when the API refused; the control then snaps back. */
@@ -56,10 +61,13 @@
 		onsetuplink: (person: PersonEntry) => void;
 		/** Revokes the open setup link. */
 		onrevokelink: (person: PersonEntry) => void;
+		/** Disconnects the person's identity-provider account. */
+		onunlink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 	} = $props();
 
 	const permissions = $derived(rowPermissions(actorRole, person, isSelf));
+	const canUnlink = $derived(permissions.manageAccount && hasIdentity && provider !== undefined);
 	const setupStatus = $derived(
 		!permissions.manageAccount
 			? null
@@ -207,6 +215,22 @@
 					<Link class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
 					{m.users_setup_link_action()}
 				</button>
+				{#if canUnlink}
+					<!-- No handover: nothing opens after it, and the sheet stays
+					     to show what is left once the line is gone. -->
+					<button
+						type="button"
+						class={row}
+						aria-label={m.users_identity_unlink_aria({
+							name: provider ?? '',
+							username: person.username
+						})}
+						onclick={() => onunlink(person)}
+					>
+						<Unlink class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+						{m.users_identity_unlink({ name: provider ?? '' })}
+					</button>
+				{/if}
 				<button type="button" class="{row} text-destructive" onclick={() => hand(ondelete)}>
 					<Trash2 class="size-4 shrink-0" aria-hidden="true" />
 					{m.users_delete_account()}

@@ -16,11 +16,13 @@
 		usage,
 		sharing = {},
 		setup = {},
+		provider,
 		onrole,
 		onshare,
 		onreset,
 		onsetuplink,
 		onrevokelink,
+		onunlink,
 		ondelete,
 		onprofile
 	}: {
@@ -38,6 +40,8 @@
 			string,
 			{ hasPassword: boolean; hasIdentity?: boolean; setupLinkExpiresAt?: string }
 		>;
+		/** The identity provider's name; undefined while this instance has none. */
+		provider?: string;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the control then snaps back. */
@@ -47,6 +51,8 @@
 		onsetuplink: (person: PersonEntry) => void;
 		/** Revokes the open setup link. */
 		onrevokelink: (person: PersonEntry) => void;
+		/** Disconnects the person's identity-provider account. */
+		onunlink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 		/** The account as the profile dialog saved it. */
 		onprofile: (person: PersonEntry) => void;
@@ -130,6 +136,7 @@
 					canShare={sharing[person.id]}
 					hasPassword={setup[person.id]?.hasPassword}
 					hasIdentity={setup[person.id]?.hasIdentity}
+					{provider}
 					setupLinkExpiresAt={setup[person.id]?.setupLinkExpiresAt}
 					onrole={changeRole}
 					{onshare}
@@ -138,6 +145,7 @@
 					{onreset}
 					{onsetuplink}
 					{onrevokelink}
+					{onunlink}
 					{ondelete}
 				/>
 			{/each}
@@ -154,6 +162,7 @@
 		canShare={sharing[sheetPerson.id]}
 		hasPassword={setup[sheetPerson.id]?.hasPassword}
 		hasIdentity={setup[sheetPerson.id]?.hasIdentity}
+		{provider}
 		setupLinkExpiresAt={setup[sheetPerson.id]?.setupLinkExpiresAt}
 		onrole={changeRole}
 		{onshare}
@@ -161,6 +170,7 @@
 		{onreset}
 		{onsetuplink}
 		{onrevokelink}
+		{onunlink}
 		{ondelete}
 	/>
 {/if}

@@ -3071,8 +3071,17 @@
     },
     "/api/v1/auth/me/identity": {
       "delete": {
-        "description": "Refused with 409 while the account has no password: it would have no way left to sign in.",
+        "description": "Ends every other session of the account; the session making the call stays valid. Refused with 409 while the account has no password: it would have no way left to sign in.",
         "operationId": "unlink-own-identity",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "rezepte_session",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": "No Content"
@@ -3106,6 +3115,16 @@
               }
             },
             "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
           },
           "500": {
             "content": {
@@ -6453,6 +6472,98 @@
           }
         ],
         "summary": "Set another account's picture (owner only)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{id}/identity": {
+      "delete": {
+        "description": "Admin only, under the rank rule of a password reset. Ends every session of the user. Allowed even when the user has no password; issue a setup link afterwards so they can sign in again.",
+        "operationId": "unlink-user-identity",
+        "parameters": [
+          {
+            "description": "User id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "User id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Disconnect a user from the identity provider",
         "tags": [
           "users"
         ]

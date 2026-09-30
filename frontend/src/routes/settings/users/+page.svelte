@@ -4,12 +4,14 @@
 	import { toast } from 'svelte-sonner';
 	import { listColorUsage, type ColorUsage } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { getOidc } from '$lib/api/oidc';
 	import {
 		deleteUser,
 		issueSetupLink,
 		listPeople,
 		listUsers,
 		revokeSetupLink,
+		unlinkUserIdentity,
 		updateUser,
 		type PersonEntry,
 		type SetupLinkInfo,
@@ -41,6 +43,9 @@
 	let setup = $state<
 		Record<string, { hasPassword: boolean; hasIdentity?: boolean; setupLinkExpiresAt?: string }>
 	>({});
+	// The provider's name while this instance has one: the rows offer to
+	// disconnect it only then.
+	let provider = $state<string | undefined>(undefined);
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let createOpen = $state(false);
@@ -100,7 +105,16 @@
 		}
 	}
 
-	onMount(load);
+	onMount(() => {
+		void load();
+		// An extra, like the provider button on the login page: a failed
+		// lookup leaves the action out.
+		if (isAdmin) {
+			getOidc()
+				.then((info) => (provider = info.enabled ? info.name : undefined))
+				.catch(() => {});
+		}
+	});
 
 	function replace(updated: PersonEntry) {
 		users = users.map((u) => (u.id === updated.id ? updated : u));
@@ -164,6 +178,25 @@
 			await load();
 		} catch (error) {
 			if (!isSignedOut(error)) {
+				toast.error(m.users_update_error());
+			}
+		}
+	}
+
+	// No confirmation, like revoking a link: the person can connect again, or
+	// be sent a setup link when they have no password.
+	async function unlinkIdentity(user: PersonEntry) {
+		try {
+			await unlinkUserIdentity(user.id);
+			const entry = setup[user.id];
+			if (entry) setup = { ...setup, [user.id]: { ...entry, hasIdentity: false } };
+			toast.success(m.users_identity_unlinked({ name: provider ?? '', username: user.username }));
+		} catch (error) {
+			if (error instanceof ApiError && error.status === 409) {
+				toast.error(m.users_owner_protected());
+			} else if (error instanceof ApiError && error.status === 403) {
+				toast.error(m.users_rank_required());
+			} else if (!isSignedOut(error)) {
 				toast.error(m.users_update_error());
 			}
 		}
@@ -301,11 +334,13 @@
 				{usage}
 				{sharing}
 				{setup}
+				{provider}
 				onrole={changeRole}
 				onshare={toggleShare}
 				onreset={askReset}
 				onsetuplink={askSetupLink}
 				onrevokelink={revokeLink}
+				onunlink={unlinkIdentity}
 				ondelete={askDelete}
 				onprofile={profileSaved}
 			/>

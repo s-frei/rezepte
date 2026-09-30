@@ -36,6 +36,7 @@ type env struct {
 	idp       *fakeIdP
 	users     *user.Service
 	sessions  *auth.Service
+	tokens    *auth.TokenService
 	sam, anna user.User
 }
 
@@ -78,7 +79,7 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 		login = oidc.New(*cfg, sessions, users, false)
 	}
 	oidc.Register(srv.API(), login)
-	return &env{h: srv.Handler(), users: users, sessions: sessions, sam: sam, anna: anna}
+	return &env{h: srv.Handler(), users: users, sessions: sessions, tokens: tokens, sam: sam, anna: anna}
 }
 
 func send(h http.Handler, req *http.Request, cookies ...*http.Cookie) *httptest.ResponseRecorder {
@@ -292,6 +293,24 @@ func TestLinkNeedsASession(t *testing.T) {
 	}
 }
 
+// TestLinkAnotherAccountSignedInMidFlow: the browser still has a valid
+// session at the callback, but it is somebody else's - the account that
+// started the flow signed out and another signed in meanwhile.
+func TestLinkAnotherAccountSignedInMidFlow(t *testing.T) {
+	e := newEnv(t)
+	authorize, fc := flow(t, e.h, "link", nil, e.passwordLogin(t))
+	sess, err := e.sessions.StartSession(context.Background(), e.anna)
+	if err != nil {
+		t.Fatal(err)
+	}
+	annaSession := &http.Cookie{Name: auth.CookieName, Value: sess.Token}
+	state, code := e.idp.approve(t, authorize, idClaims{Subject: "sub-sam"})
+	wantRedirect(t, callback(t, e.h, state, code, fc, annaSession), "/settings?oidc=failed")
+	if e.linkedAnyone(t) {
+		t.Fatal("identity linked to the account signed in mid-flow")
+	}
+}
+
 func TestLinkSessionChangedMidFlow(t *testing.T) {
 	e := newEnv(t)
 	session := e.passwordLogin(t)
@@ -391,7 +410,11 @@ func TestCallbackRejectsTamperedFlowCookie(t *testing.T) {
 	wantFailed(t, callback(t, e.h, state, code, fc))
 }
 
-func TestCallbackRejectsReplay(t *testing.T) {
+// TestCallbackRunsOnce: a finished flow cannot be finished again. Two things
+// stop it independently - the provider refuses a used code (the fake deletes
+// it, as real providers do), and the callback clears the flow cookie, so a
+// browser has nothing to carry into a second callback even with a fresh code.
+func TestCallbackRunsOnce(t *testing.T) {
 	e := newEnv(t)
 	e.link(t, e.anna, "sub-anna")
 	authorize, fc := flow(t, e.h, "login", nil, nil)
@@ -401,7 +424,11 @@ func TestCallbackRejectsReplay(t *testing.T) {
 	if c := cookieNamed(first, "rezepte_oidc"); c == nil || c.MaxAge >= 0 {
 		t.Fatalf("flow cookie not cleared: %+v", c)
 	}
+	// The used code, with the old cookie replayed by hand: the provider says no.
 	wantFailed(t, callback(t, e.h, state, code, fc))
+	// A fresh, valid code for the same flow, without the cleared cookie.
+	_, fresh := e.idp.approve(t, authorize, idClaims{Subject: "sub-anna"})
+	wantFailed(t, callback(t, e.h, state, fresh))
 }
 
 func TestCallbackClearsTheFlowCookieOnFailure(t *testing.T) {
@@ -496,6 +523,10 @@ func TestUnlinkRefusedWithoutPassword(t *testing.T) {
 func TestUnlinkWithPassword(t *testing.T) {
 	e := newEnv(t)
 	e.link(t, e.sam, "sub-sam")
+	other, err := e.sessions.StartSession(context.Background(), e.sam)
+	if err != nil {
+		t.Fatal(err)
+	}
 	session := e.passwordLogin(t)
 	if rec := api(e.h, http.MethodGet, "/api/v1/auth/me/identity", "", session); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"linkedAt"`) {
 		t.Fatalf("identity: %d %s", rec.Code, rec.Body.String())
@@ -503,8 +534,112 @@ func TestUnlinkWithPassword(t *testing.T) {
 	if rec := api(e.h, http.MethodDelete, "/api/v1/auth/me/identity", "", session); rec.Code != http.StatusNoContent {
 		t.Fatalf("unlink: %d %s", rec.Code, rec.Body.String())
 	}
+	// The caller's session stays (this answers 404, not 401); others end.
 	if rec := api(e.h, http.MethodGet, "/api/v1/auth/me/identity", "", session); rec.Code != http.StatusNotFound {
 		t.Fatalf("identity after unlink: %d %s", rec.Code, rec.Body.String())
+	}
+	if _, err := e.sessions.Authenticate(context.Background(), other.Token); !errors.Is(err, auth.ErrNoSession) {
+		t.Fatalf("sam's other session survived the unlink: %v", err)
+	}
+}
+
+// adminUnlink sends unlink-user-identity for target as session.
+func (e *env) adminUnlink(target string, session *http.Cookie) *httptest.ResponseRecorder {
+	return api(e.h, http.MethodDelete, "/api/v1/users/"+target+"/identity", "", session)
+}
+
+func (e *env) create(t *testing.T, name string, role user.Role) user.User {
+	t.Helper()
+	u, err := e.users.Create(context.Background(), user.CreateParams{Username: name, Password: "pw", Role: role})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u
+}
+
+func (e *env) sessionOf(t *testing.T, u user.User) *http.Cookie {
+	t.Helper()
+	sess, err := e.sessions.StartSession(context.Background(), u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &http.Cookie{Name: auth.CookieName, Value: sess.Token}
+}
+
+// TestAdminUnlinksMember: anna has no password, and the admin may still
+// disconnect her - the admin then issues a setup link.
+func TestAdminUnlinksMember(t *testing.T) {
+	e := newEnv(t)
+	e.link(t, e.anna, "sub-anna")
+	annaSession := e.sessionOf(t, e.anna)
+	if rec := e.adminUnlink(e.anna.ID, e.passwordLogin(t)); rec.Code != http.StatusNoContent {
+		t.Fatalf("unlink: %d %s", rec.Code, rec.Body.String())
+	}
+	if e.owner(t, "sub-anna") != "" {
+		t.Fatal("identity still linked")
+	}
+	if _, err := e.sessions.Authenticate(context.Background(), annaSession.Value); !errors.Is(err, auth.ErrNoSession) {
+		t.Fatalf("anna's session survived: %v", err)
+	}
+}
+
+func TestAdminUnlinkRankRule(t *testing.T) {
+	e := newEnv(t)
+	kim := e.create(t, "kim", user.RoleAdmin)
+	owner := e.create(t, "owner", user.RoleSuperadmin)
+	e.link(t, kim, "sub-kim")
+	e.link(t, owner, "sub-owner")
+	e.link(t, e.anna, "sub-anna")
+	sam := e.passwordLogin(t)
+	for _, tc := range []struct {
+		name    string
+		target  string
+		session *http.Cookie
+		want    int
+	}{
+		{"admin on admin", kim.ID, sam, http.StatusForbidden},
+		{"admin on owner", owner.ID, sam, http.StatusConflict},
+		{"owner on owner", owner.ID, e.sessionOf(t, owner), http.StatusConflict},
+		{"member on member", e.anna.ID, e.sessionOf(t, e.anna), http.StatusForbidden},
+		{"anonymous", e.anna.ID, nil, http.StatusUnauthorized},
+	} {
+		if rec := e.adminUnlink(tc.target, tc.session); rec.Code != tc.want {
+			t.Errorf("%s: %d, want %d: %s", tc.name, rec.Code, tc.want, rec.Body.String())
+		}
+	}
+	for _, sub := range []string{"sub-kim", "sub-owner", "sub-anna"} {
+		if e.owner(t, sub) == "" {
+			t.Errorf("%s unlinked by a refused call", sub)
+		}
+	}
+}
+
+func TestAdminUnlinkRejectsABearerToken(t *testing.T) {
+	e := newEnv(t)
+	e.link(t, e.anna, "sub-anna")
+	raw, _, err := e.tokens.Create(context.Background(), e.sam.ID, "t", []string{auth.ScopeUsersRead, auth.ScopeUsersWrite}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/users/"+e.anna.ID+"/identity", nil)
+	req.Header.Set("Origin", publicURL)
+	req.Header.Set("Authorization", "Bearer "+raw)
+	if rec := send(e.h, req); rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+	if e.owner(t, "sub-anna") != "anna" {
+		t.Fatal("identity gone")
+	}
+}
+
+func TestAdminUnlinkWithoutIdentity(t *testing.T) {
+	e := newEnv(t)
+	if rec := e.adminUnlink(e.anna.ID, e.passwordLogin(t)); rec.Code != http.StatusNotFound {
+		t.Fatalf("no identity: %d %s", rec.Code, rec.Body.String())
+	}
+	off := newServer(t, nil)
+	if rec := off.adminUnlink(off.anna.ID, off.passwordLogin(t)); rec.Code != http.StatusNotFound {
+		t.Fatalf("OIDC off: %d %s", rec.Code, rec.Body.String())
 	}
 }
 

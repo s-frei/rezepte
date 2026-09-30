@@ -19,7 +19,9 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | Change your own display name, color and photo | ✓ | ✓ | ✓ |
 | See everyone who has an account, and their role | ✓ | ✓ | ✓ |
 | Add a member, reset a member's password, delete a member | – | ✓ | ✓ |
+| Disconnect a member's single sign-on | – | ✓ | ✓ |
 | Add an **admin**, reset an admin's password, delete an admin | – | – | ✓ |
+| Disconnect an **admin's** single sign-on | – | – | ✓ |
 | Hand out the "Admin" role or take it back | – | – | ✓ |
 | Change **someone else's** display name, color or photo | – | – | ✓ |
 | Issue [API tokens](/api/tokens) | – | ✓ | ✓ |
@@ -57,7 +59,7 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     <Screenshot name="setup-link-dialog" caption="The setup link for a freshly created account" />
 
-    "Set a password now" is the older way, for when you are setting the account up together and can hand it over on the spot: type a password twice (8–128 characters), rated as you type against the username and display name you entered.
+    "Set a password now" is for when you are setting the account up together and can hand it over on the spot: type a password twice (8–128 characters), rated as you type against the username and display name you entered.
 
     "Admin" manages accounts and can do everything a member can; "Member" cooks and edits recipes. The "Admin" option is offered to the owner only — any other admin creates members.
 
@@ -103,6 +105,13 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
     ### Revoking a link
 
     While a setup link is unused, the person's row reads "Setup link open until" the date it stops working — a week after it was issued. "Revoke link" right there ends it at once, no confirmation needed, since sending a fresh one is the same "Setup link" action again. Before anyone has been sent a link at all, the row reads "Not set up yet" instead - unless the person already signs in through [single sign-on](/operations/single-sign-on).
+
+  </Step>
+  <Step>
+
+    ### Disconnect single sign-on
+
+    When your Rezepte uses [single sign-on](/operations/single-sign-on) and a person has connected their account to it, their row carries "Disconnect" and the provider's name under their login name, and in their sheet on a phone. It follows the same rule as resetting a password, needs no confirmation, and signs the person out on every device. It works even when they have no password: their row then reads "Not set up yet", and a "Setup link" is how they get back in, with a password or by connecting the provider again.
 
   </Step>
   <Step>

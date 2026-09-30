@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { login, signOut, uniqueToken } from './helpers';
+import { createUser, login, signOut, uniqueToken } from './helpers';
 
 // Exercises sign-in through the test OIDC provider (mise run oidc:up, see
 // docs/memory/content/howtos/test-oidc.mdx). Every test below shares the two
@@ -36,18 +36,27 @@ async function unlinkDex(page: Page): Promise<void> {
 }
 
 test('connect Dex in the profile, then sign in with it', async ({ page }, testInfo) => {
-	await login(page); // admin
+	// An account of its own, not the shared admin: disconnecting ends the
+	// account's other sessions, and other workers are signed in as admin.
+	const name = `dexlink${uniqueToken()}`;
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await page.context().clearCookies({ name: 'rezepte_session' });
+	await login(page, name);
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Continue with Dex' }).click();
 	await dexLogin(page, 'anna@example.org', 'anna1234');
-	await expect(page.getByText('Connected to Dex')).toBeVisible();
+	// The toast says "Connected to Dex" too; the card's line is the lasting one.
+	await expect(page.getByText(/^Connected to Dex since/)).toBeVisible();
 
 	await signOut(page, testInfo);
 	await page.getByRole('button', { name: 'Continue with Dex' }).click();
-	// Dex keeps its own session, so it may return without a form.
+	// Dex keeps no login session of its own, so it asks again.
+	await dexLogin(page, 'anna@example.org', 'anna1234');
 	await expect(page).toHaveURL('/');
 
-	// anna's account (admin) keeps its password, so the service allows this.
+	// The Rezepte account (signed in as anna at Dex) keeps its password, so
+	// the service allows this.
 	await unlinkDex(page);
 });
 
@@ -88,7 +97,8 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	const url = await linkDialog.getByRole('textbox').inputValue();
 	inviteeUsername = name;
 
-	const invited = await (await browser.newContext()).newPage();
+	const context = await browser.newContext();
+	const invited = await context.newPage();
 	await invited.goto(url);
 	await invited.getByRole('button', { name: 'Continue with Dex' }).click();
 	await dexLogin(invited, 'ben@example.org', 'ben1234');
@@ -96,4 +106,12 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	const me = await (await invited.request.get('/api/v1/auth/me')).json();
 	expect(me.username).toBe(name);
 	expect(me.hasPassword).toBe(false);
+	await context.close();
+
+	// The admin disconnects the new account's identity; without a password
+	// it is not set up any more.
+	await page.reload();
+	await page.getByRole('button', { name: `Disconnect Dex from ${name}` }).click();
+	await expect(page.getByText(`Dex disconnected from ${name}`)).toBeVisible();
+	await expect(page.getByRole('button', { name: `Disconnect Dex from ${name}` })).toHaveCount(0);
 });

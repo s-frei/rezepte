@@ -7,9 +7,10 @@ test('login', async ({ page }, testInfo) => {
 	await shot(page, 'login');
 });
 
-// The demo seed has no account with an open setup link (its invited account
-// is a later change), so this issues one itself through the API, as the
-// signed-in admin the page already is.
+// The demo's invited account has an open link, but only its hash is stored,
+// so this issues one itself through the API, as the signed-in admin the page
+// is - then drops the session, since the person a link reaches is not
+// signed in (a signed-in browser gets a notice above the form).
 test('welcome', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	const origin = new URL(page.url()).origin;
@@ -18,6 +19,7 @@ test('welcome', async ({ page }, testInfo) => {
 		data: { username: `welcome-${testInfo.project.name}`, role: 'user' }
 	});
 	const created = (await res.json()) as { setupLink: { path: string } };
+	await page.context().clearCookies({ name: 'rezepte_session' });
 	await page.goto(created.setupLink.path);
 	await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible();
 	await shot(page, 'welcome');

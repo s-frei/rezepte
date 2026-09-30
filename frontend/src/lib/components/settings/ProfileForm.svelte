@@ -111,6 +111,6 @@
 	     stacked on one page whose buttons are shaped differently read as an
 	     oversight, not as a decision about thumbs. -->
 	<div class="flex justify-end">
-		<Button type="submit" disabled={saving}>{m.settings_profile_name_save()}</Button>
+		<Button type="submit" disabled={saving}>{m.settings_profile_save()}</Button>
 	</div>
 </form>

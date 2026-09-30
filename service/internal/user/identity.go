@@ -77,6 +77,24 @@ func (s *Service) UnlinkIdentity(ctx context.Context, userID, issuer string) err
 	if !u.HasPassword {
 		return ErrLastCredential
 	}
+	return s.deleteIdentity(ctx, userID, issuer)
+}
+
+// RemoveIdentity is an admin disconnecting userID's identity at issuer, under
+// the rank rule of a password reset (CanManage). Unlike UnlinkIdentity it
+// does not need a password to remain: the admin follows up with a setup link.
+func (s *Service) RemoveIdentity(ctx context.Context, actor User, userID, issuer string) error {
+	target, err := s.ByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if err := CanManage(actor.Role, target.Role); err != nil {
+		return err
+	}
+	return s.deleteIdentity(ctx, userID, issuer)
+}
+
+func (s *Service) deleteIdentity(ctx context.Context, userID, issuer string) error {
 	n, err := s.q.DeleteIdentityOfUser(ctx, sqlc.DeleteIdentityOfUserParams{UserID: userID, Issuer: issuer})
 	if err != nil {
 		return fmt.Errorf("unlink identity of %s: %w", userID, err)

@@ -73,6 +73,14 @@ export function revokeSetupLink(id: string): Promise<void> {
 }
 
 /**
+ * Disconnects id's identity-provider account and ends every session of id.
+ * Allowed without a password; issue a setup link afterwards so they get back in.
+ */
+export function unlinkUserIdentity(id: string): Promise<void> {
+	return api<void>(`/users/${encodeURIComponent(id)}/identity`, { method: 'DELETE' });
+}
+
+/**
  * Changes role, profile, public sharing and/or resets the password; a reset
  * ends all of that user's sessions. Display name and color are the owner's
  * alone; `canSharePublicly` follows the same rank rule as a reset (only the

@@ -448,7 +448,7 @@ test('a member renames themselves and picks a color, and their cards follow', as
 
 	await page.goto('/settings');
 	await page.getByLabel('Display name').fill(displayName);
-	await page.getByRole('button', { name: 'Save name' }).click();
+	await page.getByRole('button', { name: 'Save profile' }).click();
 	await expect(page.getByText('Profile saved')).toBeVisible();
 
 	// Picking a swatch is the save, and it raises a second toast carrying the

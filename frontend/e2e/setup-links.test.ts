@@ -61,3 +61,22 @@ test('an admin revokes an open setup link', async ({ page, browser }) => {
 	await invited.goto(url);
 	await expect(invited.getByText('This link no longer works')).toBeVisible();
 });
+
+test('a setup link opened while signed in says whose it is', async ({ page }) => {
+	const name = `signedin${uniqueToken()}`;
+	await login(page);
+	await page.goto('/settings/users');
+	await page.getByRole('button', { name: 'Add account' }).click();
+	await page.getByLabel('Username').fill(name);
+	await page.getByRole('button', { name: 'Add', exact: true }).click();
+	const linkDialog = page.getByRole('dialog', { name: `Setup link for ${name}` });
+	const url = await linkDialog.getByRole('textbox').inputValue();
+
+	await page.goto(url);
+	await expect(page.getByRole('heading', { name: `Welcome, ${name}` })).toBeVisible();
+	await expect(
+		page.getByText(new RegExp(`^You are signed in as .+\\. This link is for ${name}\\.$`))
+	).toBeVisible();
+	// Nothing else changes: the form is still there to finish the link.
+	await expect(page.getByRole('button', { name: 'Save and sign in' })).toBeVisible();
+});

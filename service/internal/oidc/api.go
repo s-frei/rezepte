@@ -26,10 +26,10 @@ type identityOutput struct {
 	}
 }
 
-// Register installs get-oidc, the two steps of the flow and the own-identity
-// operations. A nil l (OIDC not configured) registers the same operations
-// answering enabled:false and 404, so the OpenAPI document does not depend on
-// configuration.
+// Register installs get-oidc, the two steps of the flow, the own-identity
+// operations and an admin's unlink-user-identity. A nil l (OIDC not
+// configured) registers the same operations answering enabled:false and 404,
+// so the OpenAPI document does not depend on configuration.
 func Register(api huma.API, l *Login) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-oidc",
@@ -79,12 +79,12 @@ func Register(api huma.API, l *Login) {
 		Method:        http.MethodDelete,
 		Path:          "/api/v1/auth/me/identity",
 		Summary:       "Disconnect the current account from the identity provider",
-		Description:   "Refused with 409 while the account has no password: it would have no way left to sign in.",
+		Description:   "Ends every other session of the account; the session making the call stays valid. Refused with 409 while the account has no password: it would have no way left to sign in.",
 		Tags:          []string{"auth"},
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 404, 409},
-	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
+	}, func(ctx context.Context, in *sessionInput) (*struct{}, error) {
 		u, ok := auth.UserFrom(ctx)
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
@@ -99,6 +99,48 @@ func Register(api huma.API, l *Login) {
 		case errors.Is(err, user.ErrNotFound):
 			return nil, huma.Error404NotFound("no identity connected")
 		case err != nil:
+			return nil, err
+		}
+		// A credential change: other devices signed in with it go.
+		if err := l.sessions.DeleteUserSessionsExcept(ctx, u.ID, in.Cookie); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "unlink-user-identity",
+		Method:        http.MethodDelete,
+		Path:          "/api/v1/users/{id}/identity",
+		Summary:       "Disconnect a user from the identity provider",
+		Description:   "Admin only, under the rank rule of a password reset. Ends every session of the user. Allowed even when the user has no password; issue a setup link afterwards so they can sign in again.",
+		Tags:          []string{"users"},
+		Security:      auth.SessionSecurity,
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{401, 403, 404, 409},
+	}, func(ctx context.Context, in *userInput) (*struct{}, error) {
+		actor, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		if !actor.Role.IsAdmin() {
+			return nil, huma.Error403Forbidden("admin role required")
+		}
+		if l == nil {
+			return nil, huma.Error404NotFound("no identity connected")
+		}
+		err := l.users.RemoveIdentity(ctx, actor, in.ID, l.cfg.Issuer)
+		switch {
+		case errors.Is(err, user.ErrSuperadminProtected):
+			return nil, huma.Error409Conflict("the superadmin cannot be modified")
+		case errors.Is(err, user.ErrSuperadminRequired):
+			return nil, huma.Error403Forbidden("superadmin role required")
+		case errors.Is(err, user.ErrNotFound):
+			return nil, huma.Error404NotFound("no identity connected")
+		case err != nil:
+			return nil, err
+		}
+		if err := l.sessions.DeleteUserSessionsExcept(ctx, in.ID, ""); err != nil {
 			return nil, err
 		}
 		return nil, nil
@@ -137,4 +179,12 @@ func Register(api huma.API, l *Login) {
 		DefaultStatus: http.StatusSeeOther,
 		Errors:        []int{404},
 	}, step((*Login).callback))
+}
+
+type sessionInput struct {
+	Cookie string `cookie:"rezepte_session"`
+}
+
+type userInput struct {
+	ID string `path:"id" doc:"User id"`
 }

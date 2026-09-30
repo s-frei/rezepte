@@ -23,6 +23,7 @@
 		canShare,
 		hasPassword,
 		hasIdentity,
+		provider,
 		setupLinkExpiresAt,
 		onrole,
 		onshare,
@@ -31,6 +32,7 @@
 		onreset,
 		onsetuplink,
 		onrevokelink,
+		onunlink,
 		ondelete
 	}: {
 		person: PersonEntry;
@@ -44,6 +46,8 @@
 		hasPassword?: boolean;
 		/** Admin-only: whether the person connected an identity provider. */
 		hasIdentity?: boolean;
+		/** The identity provider's name; undefined while this instance has none. */
+		provider?: string;
 		/** Admin-only; set while this person has an open setup link. */
 		setupLinkExpiresAt?: string;
 		/** Rejects when the API refused; the select then snaps back. */
@@ -58,6 +62,8 @@
 		onsetuplink: (person: PersonEntry) => void;
 		/** Revokes the open setup link. */
 		onrevokelink: (person: PersonEntry) => void;
+		/** Disconnects the person's identity-provider account. */
+		onunlink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 	} = $props();
 
@@ -85,6 +91,7 @@
 					? m.users_not_set_up()
 					: null
 	);
+	const canUnlink = $derived(permissions.manageAccount && hasIdentity && provider !== undefined);
 	const hasActions = $derived(
 		permissions.changeRole || permissions.manageAccount || permissions.editProfile || showShareMenu
 	);
@@ -175,6 +182,21 @@
 						{m.users_setup_link_revoke()}
 					</button>
 				{/if}
+			</p>
+		{/if}
+		{#if canUnlink}
+			<p class="pointer-events-auto text-micro">
+				<button
+					type="button"
+					aria-label={m.users_identity_unlink_aria({
+						name: provider ?? '',
+						username: person.username
+					})}
+					onclick={() => onunlink(person)}
+					class="font-semibold text-text underline decoration-dotted underline-offset-2 hover:text-primary"
+				>
+					{m.users_identity_unlink({ name: provider ?? '' })}
+				</button>
 			</p>
 		{/if}
 	</div>

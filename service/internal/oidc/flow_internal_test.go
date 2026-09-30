@@ -1,10 +1,20 @@
 package oidc
 
 import (
+	"context"
 	"encoding/base64"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
+
+	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 func TestFlowCookieSeal(t *testing.T) {
@@ -57,5 +67,66 @@ func TestSafeNext(t *testing.T) {
 		if got := safeNext(in); got != want {
 			t.Errorf("safeNext(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// TestIdentitiesKeyedByConfiguredIssuer: go-oidc accepts Google's scheme-less
+// iss for the configured https://accounts.google.com, which the fake provider
+// cannot issue (go-oidc allows that exception for Google only). So the
+// callback's three endings get such a token directly, and every one must
+// store or find the identity under the configured issuer.
+func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	sessions := auth.NewService(conn, users)
+	const issuer = "https://accounts.google.com"
+	l := New(Config{Issuer: issuer}, sessions, users, false)
+	l.logger = slog.New(slog.DiscardHandler)
+	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	anna, err := users.Create(ctx, user.CreateParams{Username: "anna", Role: user.RoleUser})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token := func(sub string) *gooidc.IDToken {
+		return &gooidc.IDToken{Issuer: "accounts.google.com", Subject: sub}
+	}
+	location := func(rec *httptest.ResponseRecorder) string { return rec.Header().Get("Location") }
+
+	link, err := sessions.IssueSetupLink(ctx, sam, anna.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	l.setup(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentSetup, Setup: link.Token}, token("sub-anna"), claims{})
+	if location(rec) != "/" {
+		t.Fatalf("setup ended at %q", location(rec))
+	}
+
+	sess, err := sessions.StartSession(ctx, sam)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: sess.Token})
+	rec = httptest.NewRecorder()
+	l.link(rec, req, flow{Intent: intentLink, UserID: sam.ID}, token("sub-sam"), claims{})
+	if location(rec) != "/settings?oidc=linked" {
+		t.Fatalf("link ended at %q", location(rec))
+	}
+
+	for sub, want := range map[string]string{"sub-anna": "anna", "sub-sam": "sam"} {
+		if u, err := users.ByIdentity(ctx, issuer, sub); err != nil || u.Username != want {
+			t.Errorf("%s under the configured issuer: %q, %v", sub, u.Username, err)
+		}
+	}
+
+	rec = httptest.NewRecorder()
+	l.login(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentLogin}, token("sub-anna"))
+	if location(rec) != "/" {
+		t.Fatalf("login ended at %q", location(rec))
 	}
 }

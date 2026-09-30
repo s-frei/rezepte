@@ -55,7 +55,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
 | list-color-usage | `GET /auth/me/colors` | `{items: [{color, count}]}`, every palette color in palette order, zeros included. Counts, never names: the picker only has to mark a color as taken. It sits under `/auth/me` because it describes what the caller may choose for themselves |
 | get-oidc | `GET /auth/oidc` | public; `{enabled, name}` - whether the login page offers "Continue with …", and the provider's name. Registered whether or not OIDC is configured, answering `{enabled: false}` when it is not, so the OpenAPI document never depends on configuration |
 | get-own-identity | `GET /auth/me/identity` | session only; `{linkedAt}`, or `404` when the caller has no identity at the configured provider (and always with OIDC off) |
-| unlink-own-identity | `DELETE /auth/me/identity` | session only; `204`; `409` `set a password before disconnecting` for an account without a password, `404` when nothing is linked (see [OIDC](/features/oidc)) |
+| unlink-own-identity | `DELETE /auth/me/identity` | session only; `204`, ending every other session of the caller; `409` `set a password before disconnecting` for an account without a password, `404` when nothing is linked (see [OIDC](/features/oidc)) |
 | start-oidc | `POST /auth/oidc/start` | public; a form (`intent`, `next`, `setup`), not JSON; `303` to the provider, or back into the SPA with `?oidc=failed` |
 | finish-oidc | `GET /auth/oidc/callback` | public; the provider's `code` and `state`; `303` into the SPA; a failure carries `?oidc=` with `unlinked`, `taken`, `linked` or `failed` |
 
@@ -92,6 +92,7 @@ Rank decides the rest, and it shows up as two status codes on every operation th
 | update role | `PATCH /users/{id}` | body `{role}`; `404`; `403` `superadmin role required`; `409` `the superadmin cannot be modified` |
 | update profile | `PATCH /users/{id}` | body `{displayName?, color?}`; `404`; `403` `superadmin role required` for every caller but the instance owner, whoever the target is - renaming somebody is not administration, so it does not follow the rank rule the rest of this table does. The check runs before any write, so a body that mixes a rename with a password reset changes neither |
 | reset password | `PATCH /users/{id}` | body `{password}`; `404`; `403` / `409` as above; ends every session of that user. No caller can use it on their own row: an admin's own row is an admin target and the owner's row is refused for everyone, so self-service is the profile page's `PATCH /auth/me` |
+| unlink identity | `DELETE /users/{id}/identity` | session only (a token gets `403`), registered by `oidc.Register`; `204`, ending every session of that user; the reset's rank rule (`403` / `409` as above); allowed without a password; `404` when the user has no identity or OIDC is off (see [OIDC](/features/oidc)) |
 | delete | `DELETE /users/{id}` | `204`; `409` `cannot delete yourself` or `the superadmin cannot be modified`; `403` `superadmin role required`; `404`; reassigns the recipes the user created to the acting admin instead of deleting or orphaning them |
 
 Every field of `PATCH /users/{id}` is optional and at least one is required (`422` `nothing to change` otherwise). One request may carry several of them; they are applied role first, then profile, then password.

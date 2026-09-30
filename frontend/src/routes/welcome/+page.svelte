@@ -160,7 +160,19 @@
 				<Button variant="secondary" onclick={loadInvite}>{m.common_retry()}</Button>
 			</div>
 		{:else}
-			<p class="text-body text-text-muted">{m.welcome_lead()}</p>
+			{#if session.user && session.user.username !== username}
+				<!-- Another account is signed in on this browser: the link is
+				     still usable, but finishing it signs that account out here. -->
+				<p
+					role="status"
+					class="w-full max-w-[440px] rounded-2xl bg-surface p-4 text-body text-text-muted shadow-card dark:border dark:border-border"
+				>
+					{m.welcome_signed_in_as({ name: session.user.displayName, invited: displayName })}
+				</p>
+			{/if}
+			<p class="text-body text-text-muted">
+				{oidc?.enabled ? m.welcome_lead_choose() : m.welcome_lead()}
+			</p>
 			<div
 				class="w-full max-w-[440px] space-y-5 rounded-2xl bg-surface p-5 shadow-card dark:border dark:border-border"
 			>

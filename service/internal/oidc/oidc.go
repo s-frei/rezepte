@@ -27,7 +27,10 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// Config is the provider an instance signs in with.
+// Config is the provider an instance signs in with. Identities are stored and
+// looked up under Issuer, never under an ID token's iss: go-oidc accepts
+// Google's scheme-less "accounts.google.com" for "https://accounts.google.com",
+// and one person must not end up under two keys.
 type Config struct {
 	PublicURL, Issuer, ClientID, ClientSecret, Name string
 }
@@ -238,7 +241,7 @@ func (l *Login) callback(w http.ResponseWriter, r *http.Request) {
 
 func (l *Login) login(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc.IDToken) {
 	ctx := r.Context()
-	u, err := l.users.ByIdentity(ctx, idt.Issuer, idt.Subject)
+	u, err := l.users.ByIdentity(ctx, l.cfg.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrNotFound) {
 		l.logger.Info("oidc login with an unlinked identity")
 		redirect(w, r, "/login?oidc=unlinked")
@@ -267,7 +270,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 		l.fail(w, r, f.Intent, "session changed during the flow", nil)
 		return
 	}
-	err = l.users.LinkIdentity(ctx, f.UserID, idt.Issuer, idt.Subject)
+	err = l.users.LinkIdentity(ctx, f.UserID, l.cfg.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
 		l.logger.Info("oidc link refused: identity taken", "user", f.UserID)
 		redirect(w, r, "/settings?oidc=taken")
@@ -290,7 +293,7 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 		l.fail(w, r, f.Intent, "setup link no longer open", err)
 		return
 	}
-	err = l.users.LinkIdentity(ctx, u.ID, idt.Issuer, idt.Subject)
+	err = l.users.LinkIdentity(ctx, u.ID, l.cfg.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
 		l.logger.Info("oidc setup refused: identity taken", "user", u.ID)
 		redirect(w, r, "/welcome?oidc=taken")
