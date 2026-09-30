@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
 	import Code from '@lucide/svelte/icons/code';
 	import Globe from '@lucide/svelte/icons/globe';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -11,7 +12,7 @@
 	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { roleLabel } from '$lib/roles';
+	import { isAdminRole, roleLabel } from '$lib/roles';
 	import { signOut } from '$lib/sign-out';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
@@ -25,8 +26,9 @@
 
 	const user = $derived(session.user);
 
-	// The settings pages in the order `SettingsLayout` lists them.
-	const pages = [
+	// The settings pages in the order `SettingsLayout` lists them, the
+	// admin-only import and export last.
+	const pages = $derived([
 		{ id: 'profile', href: resolve('/settings'), label: m.settings_nav_profile(), icon: UserRound },
 		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api(), icon: Code },
 		{
@@ -40,8 +42,18 @@
 			href: resolve('/settings/users'),
 			label: m.settings_nav_users(),
 			icon: UsersRound
-		}
-	];
+		},
+		...(isAdminRole(user?.role)
+			? [
+					{
+						id: 'transfer',
+						href: resolve('/settings/transfer'),
+						label: m.settings_nav_transfer(),
+						icon: ArrowLeftRight
+					}
+				]
+			: [])
+	]);
 
 	const row =
 		'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-3 text-left text-body font-medium transition hover:bg-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary';

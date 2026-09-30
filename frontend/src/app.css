@@ -299,6 +299,17 @@
 }
 
 /*
+ * A scroll box inside a page - the export list - wears a thin thumb in the
+ * handle color on no track, instead of the platform's gray bar, and keeps
+ * its gutter reserved so the rows do not shift when it appears.
+ */
+@utility scrollbar-themed {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-handle) transparent;
+	scrollbar-gutter: stable;
+}
+
+/*
  * A recipe card is a stretched link (see RecipeCard.svelte), so "the card
  * is hovered" means "its title link is hovered": pointing at the star or
  * the author initials inside the card leaves it at rest. Only on a device

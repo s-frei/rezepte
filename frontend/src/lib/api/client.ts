@@ -12,7 +12,7 @@ export type FieldError = { location: string; message: string };
 // an extra field to its problem+json body (create-public-share's 409 carries
 // the caller's existing share as `share`), and ApiError.body below is how a
 // caller reaches it without every route needing its own error subclass.
-type Problem = {
+export type Problem = {
 	title?: string;
 	detail?: string;
 	status?: number;

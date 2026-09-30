@@ -23,8 +23,8 @@
 		type?: 'button' | 'submit' | 'reset';
 		disabled?: boolean;
 		/** Renders an `<a>` styled like the button instead of a `<button>`. Pass
-		 * the result of `resolve()` from `$app/paths`. */
-		href?: ResolvedPathname;
+		 * the result of `resolve()` from `$app/paths`, optionally with a `#anchor`. */
+		href?: ResolvedPathname | `${ResolvedPathname}#${string}`;
 		title?: string;
 		/** Accessible name, when the visible text needs more context. */
 		label?: string;
@@ -54,6 +54,9 @@
 </script>
 
 {#if href}
+	<!-- The prop's type already demands resolve() output; the rule only loses
+	     track of it once a `#anchor` may follow. -->
+	<!-- eslint-disable svelte/no-navigation-without-resolve -->
 	<a
 		{href}
 		{title}
@@ -64,6 +67,7 @@
 	>
 		{@render children()}
 	</a>
+	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
 	<BitsButton.Root
 		{type}

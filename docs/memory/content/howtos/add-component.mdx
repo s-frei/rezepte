@@ -44,6 +44,6 @@ description: Token classes, Bits UI wrapping, svelte-autofixer
 
 <Callout type="info">
 
-  When a change is split across tasks, a control whose target isn't built yet still gets its final button/link placed in the layout - `disabled`, with `title={m.common_coming_soon()}` - rather than being left out until the target ships. That keeps the layout stable across the tasks that fill it in.
+  When a change is split across tasks, a control whose target isn't built yet still gets its final button/link placed in the layout - `disabled`, with a "Coming soon" `title` from a `common_coming_soon` message (add it to both catalogs while a control needs it, remove it with the last use) - rather than being left out until the target ships. That keeps the layout stable across the tasks that fill it in.
 
 </Callout>

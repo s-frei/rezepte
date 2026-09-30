@@ -212,7 +212,7 @@ The README cannot use either trick, since GitHub strips its CSS: the header swit
 
 ## Interaction rules
 
-- **Buttons point.** `app.css` restores `cursor: pointer` on `button:not(:disabled)` and `[role="button"]`, which Tailwind v4 dropped from its preflight in favor of the browser default. Without it every button in the app - the avatar, the filter trigger, the tag chips, the star - reads as non-clickable while links still point. Disabled buttons keep the default cursor, which is how "Import" stays legible as unavailable.
+- **Buttons point.** `app.css` restores `cursor: pointer` on `button:not(:disabled)` and `[role="button"]`, which Tailwind v4 dropped from its preflight in favor of the browser default. Without it every button in the app - the avatar, the filter trigger, the tag chips, the star - reads as non-clickable while links still point. Disabled buttons keep the default cursor, so a control that is not available yet stays legible as unavailable.
 - Search debounced 250ms; show skeletons only when loading takes longer than 300ms.
 - Tag filters are multi-select and mirrored into the URL query.
 - The time filter is a bound in minutes with a fixed scale of stops (15/30/45/60/90/120/180/240 and "no bound"), defined in `$lib/recipe/time-filter`. `query.ts` snaps `maxMinutes` to that scale on the way in, rounding up — a bound rounded down would drop recipes the caller asked to see, and a URL that named a value between stops would leave the slider's label naming a different bound than the grid answers.

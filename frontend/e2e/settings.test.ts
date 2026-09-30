@@ -545,7 +545,13 @@ test('a phone reaches the settings pages and sign-out through the contents sheet
 
 	await page.getByRole('button', { name: 'Profile, open contents' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Contents' });
-	await expect(sheet.getByRole('link')).toHaveText(['Profile', 'API', 'Shared links', 'People']);
+	await expect(sheet.getByRole('link')).toHaveText([
+		'Profile',
+		'API',
+		'Shared links',
+		'People',
+		'Import & export'
+	]);
 	await expect(sheet.getByRole('link', { name: 'Profile' })).toHaveAttribute(
 		'aria-current',
 		'page'

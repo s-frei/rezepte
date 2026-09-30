@@ -3,12 +3,16 @@
 	import { resolve } from '$app/paths';
 	import ContentsSheet from '$lib/components/nav/ContentsSheet.svelte';
 	import RunningHead from '$lib/components/nav/RunningHead.svelte';
+	import { session } from '$lib/auth.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { isAdminRole } from '$lib/roles';
 	import { shell } from '$lib/shell.svelte';
 	import { signOut } from '$lib/sign-out';
 
-	let { active, children }: { active: 'profile' | 'shares' | 'users' | 'api'; children: Snippet } =
-		$props();
+	let {
+		active,
+		children
+	}: { active: 'profile' | 'shares' | 'users' | 'api' | 'transfer'; children: Snippet } = $props();
 
 	// Same top-bar contract as the editor: breadcrumb instead of the default
 	// action buttons, reset when leaving.
@@ -22,14 +26,17 @@
 	});
 
 	// The pages of the settings area, in the order both navs list them. Every
-	// account has all four: Shared links is everyone's own list of public
+	// account has the first four: Shared links is everyone's own list of public
 	// links, and the people page is a list to read for everyone and the place
-	// admins manage accounts.
+	// admins manage accounts. Import and export is for admins only.
 	const pages = $derived([
 		{ id: 'profile', href: resolve('/settings'), label: m.settings_nav_profile() },
 		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api() },
 		{ id: 'shares', href: resolve('/settings/shares'), label: m.settings_nav_shares() },
-		{ id: 'users', href: resolve('/settings/users'), label: m.settings_nav_users() }
+		{ id: 'users', href: resolve('/settings/users'), label: m.settings_nav_users() },
+		...(isAdminRole(session.user?.role)
+			? [{ id: 'transfer', href: resolve('/settings/transfer'), label: m.settings_nav_transfer() }]
+			: [])
 	]);
 
 	let contentsOpen = $state(false);
