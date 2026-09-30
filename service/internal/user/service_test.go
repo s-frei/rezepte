@@ -776,3 +776,40 @@ func TestSetProfileRejectsAnUnknownLocale(t *testing.T) {
 		t.Errorf("SetProfile error = %v, want ErrInvalidLocale", err)
 	}
 }
+
+func TestSetEmailIfEmptyLeavesATypedAddressAlone(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	u, err := svc.Create(ctx, user.CreateParams{Username: "anna", Password: "pw", Role: user.RoleUser})
+	if err != nil {
+		t.Fatal(err)
+	}
+	typed := "anna@home.example"
+	if _, err := svc.SetProfile(ctx, u.ID, user.ProfileUpdate{Email: &typed}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetEmailIfEmpty(ctx, u.ID, "anna@gmail.example", true); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := svc.ByID(ctx, u.ID)
+	if got.Email != typed || got.EmailVerified {
+		t.Fatalf("got %q verified=%v, want %q unverified", got.Email, got.EmailVerified, typed)
+	}
+}
+
+func TestChangingTheEmailDropsVerification(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	u, _ := svc.Create(ctx, user.CreateParams{Username: "anna", Password: "pw", Role: user.RoleUser})
+	if err := svc.SetEmailIfEmpty(ctx, u.ID, "anna@gmail.example", true); err != nil {
+		t.Fatal(err)
+	}
+	next := "anna@home.example"
+	got, err := svc.SetProfile(ctx, u.ID, user.ProfileUpdate{Email: &next})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.EmailVerified {
+		t.Fatal("a changed address kept its verified mark")
+	}
+}

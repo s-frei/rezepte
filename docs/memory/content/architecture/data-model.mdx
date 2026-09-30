@@ -32,6 +32,8 @@ erDiagram
     text locale "en or de, interface language"
     boolean can_share_publicly "an admin's per-person switch"
     text avatar_id "nullable, names the current picture file"
+    text email "profile data, not unique, empty means none"
+    boolean email_verified "true only when an identity provider vouched for it"
     text created_at
     text updated_at
   }
@@ -169,6 +171,7 @@ erDiagram
 - `shares.token` is a plain `UNIQUE TEXT`, not a hash: unlike a session id ([Users and authentication](/features/users-and-auth)) or an API token ([API tokens](/features/api-tokens)), this credential is a link a member sends to someone else and has to be able to read again to copy it a second time. `UNIQUE (recipe_id, created_by)` caps a person at one live link per recipe; both foreign keys cascade, so deleting the recipe or the creator removes the link with it. `shares_created_by_idx` serves the member's own list; there is no index on `token` beyond the `UNIQUE` constraint's own, which is what a public request resolves against. See [Public shares](/features/public-shares) for the validity rule the stored rows are evaluated against.
 - `users.avatar_id` is nullable: `NULL` is no picture, and otherwise it is the UUID that names `<REZEPTE_DATA_DIR>/avatars/<users.id>/<avatar_id>.jpg`. It carries no foreign key because the file is not a row; [Users and authentication](/features/users-and-auth) owns the order of a replace, which keeps the column from naming a missing file.
 - `users.can_share_publicly` is `NOT NULL DEFAULT 1`: an admin's per-person switch for [public shares](/features/public-shares), separate from the household-wide `instance_settings.public_shares` above it.
+- `users.email` is `NOT NULL DEFAULT ''`, profile data like `display_name` and `color`, so no migration had to backfill existing rows and no reader has to handle `NULL`; it carries no `UNIQUE` or `CHECK`, because nothing signs in by it. `users.email_verified` is `NOT NULL DEFAULT 0` and is true only when an identity provider's `email_verified` claim vouched for the address currently stored; see [Users and authentication](/features/users-and-auth) for who writes each column and when the mark is dropped.
 - `updated_by` always names somebody: a new recipe seeds it from `created_by`, so "never edited" is "both columns still match their `created_*` twin" rather than a NULL. Reading it needs both — with second resolution, an edit in the same second as the create moves only `updated_by`. Every write that moves `updated_at` moves `updated_by` with it - image uploads and cover changes included (see [Recipes and search](/features/recipes)).
 - `api_tokens.token_hash` is `UNIQUE`, which doubles as the lookup index for authentication; `id` is a separate UUIDv7 rather than the hash, because a token is deleted from a list at a moment the raw value no longer exists to hash again. `token_prefix` keeps the first 8 characters of the raw value in clear, for matching a row in the list against an entry in a client configuration. See [API tokens](/features/api-tokens).
 

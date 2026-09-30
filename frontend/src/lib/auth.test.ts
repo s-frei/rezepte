@@ -28,7 +28,9 @@ function userWith(locale: 'en' | 'de'): User {
 		color: 'amber',
 		locale,
 		avatarId: null,
-		canSharePublicly: true
+		canSharePublicly: true,
+		email: '',
+		emailVerified: false
 	};
 }
 

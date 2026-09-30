@@ -54,6 +54,10 @@ type User struct {
 	CanSharePublicly bool
 	// AvatarID names the current picture under <data>/avatars/<ID>/; nil when there is none.
 	AvatarID *string
+	// Email is profile data, never an identity; EmailVerified is true only
+	// when an identity provider vouched for it.
+	Email         string
+	EmailVerified bool
 }
 
 // Errors returned by the service.
@@ -248,6 +252,7 @@ type ProfileUpdate struct {
 	DisplayName *string
 	Color       *Color
 	Locale      *Locale
+	Email       *string
 }
 
 // SetProfile writes a user's display name, color and locale. It takes no actor and
@@ -286,12 +291,27 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 				return err
 			}
 		}
+		email, verified := row.Email, row.EmailVerified
+		if p.Email != nil {
+			parsed, err := ParseEmail(*p.Email)
+			if err != nil {
+				return err
+			}
+			// A typed address is unverified, even when it is the same one
+			// the provider vouched for with different spelling: only an
+			// unchanged value keeps the mark.
+			if parsed != row.Email {
+				email, verified = parsed, false
+			}
+		}
 		updated, err := q.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
-			DisplayName: displayName,
-			Color:       string(color),
-			Locale:      string(locale),
-			UpdatedAt:   db.FormatTime(s.now()),
-			ID:          id,
+			DisplayName:   displayName,
+			Color:         string(color),
+			Locale:        string(locale),
+			Email:         email,
+			EmailVerified: verified,
+			UpdatedAt:     db.FormatTime(s.now()),
+			ID:            id,
 		})
 		if err != nil {
 			return fmt.Errorf("update profile of %s: %w", id, err)
@@ -300,6 +320,21 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 		return err
 	})
 	return out, err
+}
+
+// SetEmailIfEmpty stores an address an identity provider supplied, but only
+// while the account has none: after that the field is the person's.
+func (s *Service) SetEmailIfEmpty(ctx context.Context, id, email string, verified bool) error {
+	parsed, err := ParseEmail(email)
+	if err != nil || parsed == "" {
+		return nil // a provider's unusable address is simply not taken
+	}
+	if err := s.q.SetEmailIfEmpty(ctx, sqlc.SetEmailIfEmptyParams{
+		Email: parsed, EmailVerified: verified, UpdatedAt: db.FormatTime(s.now()), ID: id,
+	}); err != nil {
+		return fmt.Errorf("set email of %s: %w", id, err)
+	}
+	return nil
 }
 
 // SetCanSharePublicly switches whether id may create or keep a public recipe
@@ -571,6 +606,8 @@ func fromRow(row sqlc.User) (User, error) {
 		UpdatedAt:        updated,
 		CanSharePublicly: row.CanSharePublicly,
 		AvatarID:         row.AvatarID,
+		Email:            row.Email,
+		EmailVerified:    row.EmailVerified,
 	}, nil
 }
 

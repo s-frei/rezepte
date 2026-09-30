@@ -116,7 +116,9 @@ describe('api central 401 handling', () => {
 			color: 'amber',
 			locale: 'en',
 			avatarId: null,
-			canSharePublicly: true
+			canSharePublicly: true,
+			email: '',
+			emailVerified: false
 		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
@@ -156,7 +158,9 @@ describe('api central 401 handling', () => {
 			color: 'amber',
 			locale: 'en',
 			avatarId: null,
-			canSharePublicly: true
+			canSharePublicly: true,
+			email: '',
+			emailVerified: false
 		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 

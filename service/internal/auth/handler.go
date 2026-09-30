@@ -24,6 +24,8 @@ type UserResponse struct {
 	// setting, whether the UI offers to create a public link.
 	CanSharePublicly bool    `json:"canSharePublicly" doc:"Whether an admin lets this person create public links"`
 	AvatarID         *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
+	Email            string  `json:"email" doc:"The account's email address; empty when none. Never used to sign in."`
+	EmailVerified    bool    `json:"emailVerified" doc:"Whether an identity provider vouched for the address"`
 }
 
 type loginInput struct {
@@ -65,6 +67,7 @@ type updateProfileInput struct {
 		DisplayName *string      `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
 		Color       *string      `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate"`
 		Locale      *user.Locale `json:"locale,omitempty" doc:"The account holder's interface language"`
+		Email       *string      `json:"email,omitempty" maxLength:"254" doc:"Empty clears it; a changed address is unverified"`
 	}
 }
 
@@ -208,7 +211,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if in.Body.DisplayName == nil && in.Body.Color == nil && in.Body.Locale == nil {
+		if in.Body.DisplayName == nil && in.Body.Color == nil && in.Body.Locale == nil && in.Body.Email == nil {
 			return nil, huma.Error422UnprocessableEntity("nothing to change")
 		}
 		update := user.ProfileUpdate{DisplayName: in.Body.DisplayName}
@@ -217,6 +220,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			update.Color = &c
 		}
 		update.Locale = in.Body.Locale
+		update.Email = in.Body.Email
 		updated, err := svc.users.SetProfile(ctx, u.ID, update)
 		if mapped := ProfileError(err); mapped != nil {
 			return nil, mapped
@@ -313,6 +317,10 @@ func ProfileError(err error) error {
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
 			Location: "body.locale", Message: "unknown interface language",
 		})
+	case errors.Is(err, user.ErrInvalidEmail):
+		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+			Location: "body.email", Message: "not a valid email address",
+		})
 	}
 	return nil
 }
@@ -397,5 +405,7 @@ func toResponse(u user.User) UserResponse {
 		// From the users row this request loaded, like every field here.
 		CanSharePublicly: u.CanSharePublicly,
 		AvatarID:         u.AvatarID,
+		Email:            u.Email,
+		EmailVerified:    u.EmailVerified,
 	}
 }

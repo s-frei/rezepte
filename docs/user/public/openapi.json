@@ -2011,6 +2011,11 @@
             "maxLength": 64,
             "type": "string"
           },
+          "email": {
+            "description": "Empty clears it; a changed address is unverified",
+            "maxLength": 254,
+            "type": "string"
+          },
           "locale": {
             "description": "The account holder's interface language",
             "enum": [
@@ -2244,6 +2249,14 @@
             "description": "Name shown wherever the UI names this person",
             "type": "string"
           },
+          "email": {
+            "description": "The account's email address; empty when none. Never used to sign in.",
+            "type": "string"
+          },
+          "emailVerified": {
+            "description": "Whether an identity provider vouched for the address",
+            "type": "boolean"
+          },
           "id": {
             "description": "User id",
             "type": "string"
@@ -2278,7 +2291,9 @@
           "color",
           "locale",
           "canSharePublicly",
-          "avatarId"
+          "avatarId",
+          "email",
+          "emailVerified"
         ],
         "type": "object"
       }

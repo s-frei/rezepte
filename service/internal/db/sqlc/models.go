@@ -145,4 +145,6 @@ type User struct {
 	UpdatedAt        string
 	CanSharePublicly bool
 	AvatarID         *string
+	Email            string
+	EmailVerified    bool
 }

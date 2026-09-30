@@ -23,6 +23,10 @@ export type User = {
 	canSharePublicly: boolean;
 	/** The current picture, null without one; see avatarUrl. */
 	avatarId: string | null;
+	/** The account's email address; empty when none. Never used to sign in. */
+	email: string;
+	/** Whether an identity provider vouched for the address. */
+	emailVerified: boolean;
 };
 
 /** One palette color and how many accounts hold it. */
@@ -101,6 +105,7 @@ export function updateOwnProfile(patch: {
 	displayName?: string;
 	color?: UserColor;
 	locale?: Locale;
+	email?: string;
 }): Promise<User> {
 	return api<User>('/auth/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
 }

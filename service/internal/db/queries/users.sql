@@ -52,13 +52,19 @@ WHERE created_by = sqlc.arg(old_owner) OR updated_by = sqlc.arg(old_owner);
 SELECT color, COUNT(*) AS user_count FROM users GROUP BY color;
 
 -- Every self-service profile column at once. SetProfile reads the row first
--- and fills in whichever of the three the caller left alone, so a partial
--- update needs no second statement.
+-- and fills in whichever the caller left alone, so a partial update needs no
+-- second statement.
 -- name: UpdateUserProfile :one
 UPDATE users
-SET display_name = ?, color = ?, locale = ?, updated_at = ?
+SET display_name = ?, color = ?, locale = ?, email = ?, email_verified = ?, updated_at = ?
 WHERE id = ?
 RETURNING *;
+
+-- The identity provider's address lands only in an empty field: once a person
+-- has an address, it is theirs to change.
+-- name: SetEmailIfEmpty :exec
+UPDATE users SET email = ?, email_verified = ?, updated_at = ?
+WHERE id = ? AND email = '';
 
 -- name: SetCanSharePublicly :one
 UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING *;

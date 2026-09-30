@@ -559,6 +559,23 @@ func TestLogoutClearsTheLocaleCookie(t *testing.T) {
 	t.Fatalf("no %s cookie in %v", auth.LocaleCookieName, rec.Header())
 }
 
+func TestProfileTakesAndClearsAnEmail(t *testing.T) {
+	h := newHandler(t)
+	c := login(t, h)
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"sam@example.org"}`, c)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"email":"sam@example.org"`) {
+		t.Fatalf("set: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"Sam <sam@example.org>"}`, c)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.email") {
+		t.Fatalf("invalid: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":""}`, c)
+	if !strings.Contains(rec.Body.String(), `"email":""`) {
+		t.Fatalf("clear: %s", rec.Body.String())
+	}
+}
+
 // TestMeCarriesCanSharePublicly pins the field the recipe page decides its
 // "Create public link" menu item on.
 func TestMeCarriesCanSharePublicly(t *testing.T) {

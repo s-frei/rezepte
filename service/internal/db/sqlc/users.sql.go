@@ -58,7 +58,7 @@ const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     id, username, display_name, password_hash, role, color, locale, created_at, updated_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
+RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified
 `
 
 type CreateUserParams struct {
@@ -98,6 +98,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -134,7 +136,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
 }
 
 const getSuperadmin = `-- name: GetSuperadmin :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users WHERE role = 'superadmin'
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified FROM users WHERE role = 'superadmin'
 `
 
 func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
@@ -152,12 +154,14 @@ func (q *Queries) GetSuperadmin(ctx context.Context) (User, error) {
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users WHERE id = ?
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified FROM users WHERE id = ?
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
@@ -175,12 +179,14 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users WHERE username = ?
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified FROM users WHERE username = ?
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -198,12 +204,14 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id FROM users ORDER BY username
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified FROM users ORDER BY username
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -227,6 +235,8 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.UpdatedAt,
 			&i.CanSharePublicly,
 			&i.AvatarID,
+			&i.Email,
+			&i.EmailVerified,
 		); err != nil {
 			return nil, err
 		}
@@ -263,7 +273,7 @@ func (q *Queries) ReassignRecipes(ctx context.Context, arg ReassignRecipesParams
 }
 
 const setCanSharePublicly = `-- name: SetCanSharePublicly :one
-UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
+UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified
 `
 
 type SetCanSharePubliclyParams struct {
@@ -286,8 +296,34 @@ func (q *Queries) SetCanSharePublicly(ctx context.Context, arg SetCanSharePublic
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
+}
+
+const setEmailIfEmpty = `-- name: SetEmailIfEmpty :exec
+UPDATE users SET email = ?, email_verified = ?, updated_at = ?
+WHERE id = ? AND email = ''
+`
+
+type SetEmailIfEmptyParams struct {
+	Email         string
+	EmailVerified bool
+	UpdatedAt     string
+	ID            string
+}
+
+// The identity provider's address lands only in an empty field: once a person
+// has an address, it is theirs to change.
+func (q *Queries) SetEmailIfEmpty(ctx context.Context, arg SetEmailIfEmptyParams) error {
+	_, err := q.db.ExecContext(ctx, setEmailIfEmpty,
+		arg.Email,
+		arg.EmailVerified,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
 }
 
 const setUserAvatar = `-- name: SetUserAvatar :execrows
@@ -328,27 +364,31 @@ func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPass
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
-SET display_name = ?, color = ?, locale = ?, updated_at = ?
+SET display_name = ?, color = ?, locale = ?, email = ?, email_verified = ?, updated_at = ?
 WHERE id = ?
-RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
+RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified
 `
 
 type UpdateUserProfileParams struct {
-	DisplayName string
-	Color       string
-	Locale      string
-	UpdatedAt   string
-	ID          string
+	DisplayName   string
+	Color         string
+	Locale        string
+	Email         string
+	EmailVerified bool
+	UpdatedAt     string
+	ID            string
 }
 
 // Every self-service profile column at once. SetProfile reads the row first
-// and fills in whichever of the three the caller left alone, so a partial
-// update needs no second statement.
+// and fills in whichever the caller left alone, so a partial update needs no
+// second statement.
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, updateUserProfile,
 		arg.DisplayName,
 		arg.Color,
 		arg.Locale,
+		arg.Email,
+		arg.EmailVerified,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -365,12 +405,14 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const updateUserRole = `-- name: UpdateUserRole :one
-UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id
+UPDATE users SET role = ?, updated_at = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified
 `
 
 type UpdateUserRoleParams struct {
@@ -394,6 +436,8 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.UpdatedAt,
 		&i.CanSharePublicly,
 		&i.AvatarID,
+		&i.Email,
+		&i.EmailVerified,
 	)
 	return i, err
 }
