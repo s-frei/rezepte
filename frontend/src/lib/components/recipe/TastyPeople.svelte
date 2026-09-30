@@ -14,6 +14,7 @@
 	const circles = $derived(people.slice(0, shown));
 	const more = $derived(people.length - circles.length);
 	const names = $derived(people.map((person) => person.displayName).join(', '));
+	let open = $state(false);
 </script>
 
 <!--
@@ -22,7 +23,7 @@
 	out of reach.
 -->
 {#if people.length > 0}
-	<Popover.Root>
+	<Popover.Root bind:open>
 		<Popover.Trigger
 			openOnHover
 			openDelay={300}
@@ -49,7 +50,7 @@
 				<p class="text-inverse-muted">{m.recipe_tasty_by()}</p>
 				<ul class="mt-2 space-y-3">
 					{#each people as person (person.id)}
-						<li><PersonCard {person} compact /></li>
+						<li><PersonCard {person} compact onnavigate={() => (open = false)} /></li>
 					{/each}
 				</ul>
 			</Popover.Content>

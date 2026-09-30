@@ -27,6 +27,7 @@
 	const people = $derived(sameAuthor ? [createdBy] : [createdBy, updatedBy]);
 	const edited = $derived(!sameAuthor);
 	const label = $derived(authorLabel(createdBy, updatedBy));
+	let open = $state(false);
 </script>
 
 <!--
@@ -36,7 +37,7 @@
 	letters. A popover opens on tap everywhere and, with `openOnHover`,
 	still behaves like a tooltip under a mouse.
 -->
-<Popover.Root>
+<Popover.Root bind:open>
 	<Popover.Trigger
 		openOnHover
 		openDelay={300}
@@ -79,11 +80,15 @@
 			collisionPadding={12}
 			class="z-50 w-[var(--bits-floating-anchor-width)] rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
 		>
+			<!-- Two cards each carry their label above them; one card needs none. -->
 			<div class="space-y-3">
-				<PersonCard person={createdBy} compact />
+				{#if edited}
+					<p class="text-inverse-muted">{m.card_author({ user: createdBy.displayName })}</p>
+				{/if}
+				<PersonCard person={createdBy} compact onnavigate={() => (open = false)} />
 				{#if edited}
 					<p class="text-inverse-muted">{m.card_editor({ user: updatedBy.displayName })}</p>
-					<PersonCard person={updatedBy} compact />
+					<PersonCard person={updatedBy} compact onnavigate={() => (open = false)} />
 				{/if}
 			</div>
 		</Popover.Content>

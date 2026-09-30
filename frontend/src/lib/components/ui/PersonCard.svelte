@@ -9,7 +9,8 @@
 	let {
 		person,
 		compact = false,
-		asTitle = false
+		asTitle = false,
+		onnavigate
 	}: {
 		person: {
 			id: string;
@@ -22,6 +23,9 @@
 		compact?: boolean;
 		/** The name names the dialog the card sits in (the people sheet). */
 		asTitle?: boolean;
+		/** Called when the "Recipes by" link is followed, so a popover can
+		 * close: the card may stay in the filtered list it leads to. */
+		onnavigate?: () => void;
 	} = $props();
 
 	const details = personDetails();
@@ -45,10 +49,14 @@
 		<p class="truncate text-caption opacity-80">
 			@{person.username}{#if role}&ensp;·&ensp;{roleLabel(role)}{/if}
 		</p>
-		{#if details.loaded}
+		<!-- No link for someone without recipes: it would lead to an empty filter. -->
+		{#if details.loaded && count === 0}
+			<p class="text-caption">{m.person_card_recipes({ count })}</p>
+		{:else if details.loaded}
 			<a
 				href="{resolve('/')}?author={encodeURIComponent(person.username)}"
 				class="text-caption underline underline-offset-2"
+				onclick={onnavigate}
 			>
 				{count === 1 ? m.person_card_recipes_one() : m.person_card_recipes({ count })}
 				&ensp;→&ensp;{m.person_card_recipes_by({ name: person.displayName })}
