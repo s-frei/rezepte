@@ -12,7 +12,7 @@
 	import { isAdminRole } from '$lib/roles';
 	import { manageButtonId, personRowId } from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
-	import { userColorClasses } from '$lib/user/color';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let {
 		person,
@@ -65,7 +65,6 @@
 		{ value: 'admin', label: m.users_role_admin() },
 		{ value: 'user', label: m.users_role_member() }
 	];
-	const initial = $derived(person.displayName.charAt(0).toUpperCase());
 	const pillClass = $derived(
 		role === 'user' ? 'bg-background text-text-muted' : 'bg-accent text-accent-foreground'
 	);
@@ -106,14 +105,7 @@
 	id={personRowId(person.id)}
 	class="relative isolate flex min-h-14 items-center gap-3 py-2 md:border-b md:border-dashed md:border-border md:py-3 md:last:border-b-0"
 >
-	<span
-		aria-hidden="true"
-		class="pointer-events-none flex size-9 shrink-0 items-center justify-center rounded-full initial-centered font-display font-semibold md:pointer-events-auto {userColorClasses(
-			person.color
-		)}"
-	>
-		{initial}
-	</span>
+	<PersonMark {person} size="lg" class="pointer-events-none md:pointer-events-auto" />
 	<div class="pointer-events-none min-w-0 flex-1 md:pointer-events-auto">
 		<p class="flex items-baseline gap-2">
 			<span class="truncate text-body font-medium">{person.displayName}</span>

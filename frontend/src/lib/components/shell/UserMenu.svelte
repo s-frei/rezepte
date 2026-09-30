@@ -12,24 +12,20 @@
 	import { signOut } from '$lib/sign-out';
 	import { isTheme } from '$lib/theme';
 	import { setTheme, theme } from '$lib/theme.svelte';
-	import { userColorClasses } from '$lib/user/color';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	/** The desktop top bar's avatar menu; a phone reaches the same through the bottom nav's "You". */
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
 	const user = $derived(session.user);
-	const initial = $derived(user?.displayName.charAt(0).toUpperCase() ?? '');
 
 	const row =
 		'flex h-10 items-center gap-2.5 rounded-sm px-3 text-body-sm transition hover:bg-background';
 </script>
 
 <DropdownMenu.Root bind:open>
-	<DropdownMenu.Trigger
-		aria-label={m.nav_user_menu()}
-		class="flex size-9 items-center justify-center rounded-full bg-accent initial-centered font-display font-semibold text-accent-foreground"
-	>
-		{initial}
+	<DropdownMenu.Trigger aria-label={m.nav_user_menu()} class="rounded-full">
+		{#if user}<PersonMark person={user} size="lg" neutral />{/if}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Portal>
 		<DropdownMenu.Content
@@ -42,14 +38,7 @@
 			     read the same: who is signed in, then the rows with their icons. -->
 			{#if user}
 				<div class="flex items-center gap-2.5 px-3 pt-2 pb-2.5">
-					<span
-						aria-hidden="true"
-						class="flex size-8 shrink-0 items-center justify-center rounded-full initial-centered font-display font-semibold {userColorClasses(
-							user.color
-						)}"
-					>
-						{initial}
-					</span>
+					<PersonMark person={user} size="md" />
 					<div class="min-w-0">
 						<p class="truncate font-display text-body font-medium">{user.displayName}</p>
 						<p class="truncate text-caption text-text-muted">

@@ -13,7 +13,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
 	import { signOut } from '$lib/sign-out';
-	import { userColorClasses } from '$lib/user/color';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
@@ -24,7 +24,6 @@
 	});
 
 	const user = $derived(session.user);
-	const initial = $derived(user?.displayName.charAt(0).toUpperCase() ?? '');
 
 	// The settings pages in the order `SettingsLayout` lists them.
 	const pages = [
@@ -58,14 +57,7 @@
 	<BottomSheet bind:open closeLabel={m.common_close()}>
 		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 			<div class="flex items-center gap-4 border-b border-border pb-5">
-				<span
-					aria-hidden="true"
-					class="flex size-14 shrink-0 items-center justify-center rounded-full initial-centered font-display text-heading font-semibold {userColorClasses(
-						user.color
-					)}"
-				>
-					{initial}
-				</span>
+				<PersonMark person={user} size="xl" />
 				<div class="min-w-0">
 					<Dialog.Title class="truncate font-display text-heading font-medium">
 						{user.displayName}

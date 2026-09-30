@@ -3,7 +3,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { Person } from '$lib/api/recipes';
 	import { authorLabel } from '$lib/recipe/authorship';
-	import { userColorClasses } from '$lib/user/color';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let {
 		createdBy,
@@ -44,36 +44,7 @@
 		class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
 		{#each people as person, index (person.id)}
-			<!--
-				`relative` is what makes the overlap read as one circle in front
-				of another. Without it these are unpositioned boxes, and CSS
-				paints every background first and every piece of text
-				afterwards - so the editor's circle covered the author's circle
-				but not the author's letter, which went on floating over the
-				gap. Positioned elements are painted whole, in document order.
-			-->
-			<span
-				aria-hidden="true"
-				class="relative flex size-5 items-center justify-center rounded-full initial-centered font-display text-micro font-semibold ring-2 ring-surface {userColorClasses(
-					person.color
-				)} {index > 0 ? '-ml-1.5' : ''}"
-			>
-				<!--
-					`items-center` centers the line box, not the letter. A capital
-					has no descender, so the descender space the font reserves
-					below the baseline pushes the visible glyph down off center.
-					How far is a property of the font alone - the circle's size
-					and the line height both cancel out of the arithmetic:
-
-					    nudge = (inkAscent + fontDescent - fontAscent) / 2
-
-					which for Literata at 12px (8.41, 4, 14 - measured through
-					canvas `measureText`) is -0.79px. Rounded to 0.8; anything
-					coarser is visible at this size, as a 1px nudge the wrong way
-					proved.
-				-->
-				<span class="-translate-y-[0.8px]">{person.displayName.charAt(0).toUpperCase()}</span>
-			</span>
+			<PersonMark {person} size="xs" class="ring-2 ring-surface {index > 0 ? '-ml-1.5' : ''}" />
 		{/each}
 	</Popover.Trigger>
 	<Popover.Portal>

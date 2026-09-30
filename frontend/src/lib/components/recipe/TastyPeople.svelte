@@ -2,7 +2,7 @@
 	import { Popover } from 'bits-ui';
 	import { m } from '$lib/paraglide/messages';
 	import type { Person } from '$lib/api/recipes';
-	import { userColorClasses } from '$lib/user/color';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let { people }: { people: Person[] } = $props();
 
@@ -29,16 +29,7 @@
 			class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
 			{#each circles as person, index (person.id)}
-				<!-- `relative`, so each circle is painted whole over the one
-				     before it - see AuthorInitials for why that matters. -->
-				<span
-					aria-hidden="true"
-					class="relative flex size-7 items-center justify-center rounded-full initial-centered font-display text-micro font-semibold ring-2 ring-background {userColorClasses(
-						person.color
-					)} {index > 0 ? '-ml-2' : ''}"
-				>
-					{person.displayName.charAt(0).toUpperCase()}
-				</span>
+				<PersonMark {person} size="sm" class="ring-2 ring-background {index > 0 ? '-ml-2' : ''}" />
 			{/each}
 			{#if more > 0}
 				<span aria-hidden="true" class="ml-1.5 text-caption text-text-muted">+{more}</span>

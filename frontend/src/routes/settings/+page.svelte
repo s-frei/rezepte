@@ -12,13 +12,13 @@
 	import ProfileForm from '$lib/components/settings/ProfileForm.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
-	import { userColorClasses, USER_COLORS, type UserColor } from '$lib/user/color';
+	import { USER_COLORS, type UserColor } from '$lib/user/color';
 
 	const card = 'rounded-2xl bg-surface p-6 md:p-7';
 	const title = 'mb-4 font-display text-heading font-medium';
-	const initial = $derived(session.user?.displayName.charAt(0).toUpperCase() ?? '');
 
 	let color = $state<UserColor>(session.user?.color ?? USER_COLORS[0]);
 	let usage = $state<ColorUsage[]>([]);
@@ -115,14 +115,7 @@
 		     shown at size, and it is the same circle the recipe cards paint, so
 		     a pick can be judged here instead of on the overview. -->
 		<div class="flex items-center gap-4">
-			<span
-				aria-hidden="true"
-				class="flex size-14 items-center justify-center rounded-full initial-centered font-display text-heading font-semibold {userColorClasses(
-					session.user?.color
-				)}"
-			>
-				{initial}
-			</span>
+			{#if session.user}<PersonMark person={session.user} size="xl" />{/if}
 			<div>
 				<p class="text-body-lg font-semibold">{session.user?.displayName}</p>
 				<p class="text-caption text-text-muted">{roleLabel(session.user?.role)}</p>

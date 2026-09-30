@@ -12,7 +12,7 @@
 	import { roleLabel } from '$lib/roles';
 	import { focusManageButton } from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
-	import { userColorClasses } from '$lib/user/color';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let {
 		open = $bindable(false),
@@ -112,7 +112,6 @@
 		handingOver = false;
 	}
 
-	const initial = $derived(person.displayName.charAt(0).toUpperCase());
 	const row =
 		'flex min-h-12 w-full items-center gap-3 rounded-md px-3 py-3 text-left text-body font-medium transition hover:bg-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary';
 </script>
@@ -126,14 +125,7 @@
 <BottomSheet bind:open closeLabel={m.common_close()} onCloseAutoFocus={returnFocus}>
 	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 		<div class="flex items-center gap-4">
-			<span
-				aria-hidden="true"
-				class="flex size-14 shrink-0 items-center justify-center rounded-full initial-centered font-display text-heading font-semibold {userColorClasses(
-					person.color
-				)}"
-			>
-				{initial}
-			</span>
+			<PersonMark {person} size="xl" />
 			<div class="min-w-0">
 				<Dialog.Title class="truncate font-display text-heading font-medium">
 					{person.displayName}
