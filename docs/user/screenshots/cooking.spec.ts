@@ -22,6 +22,17 @@ test('servings', async ({ page }, testInfo) => {
 	await shot(page, 'servings');
 });
 
+test('shopping-list', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto(DETAIL);
+	// Two ingredients already at home, so the stub counts what is left to buy.
+	await page.getByRole('checkbox', { name: 'minced lamb' }).click();
+	await page.getByRole('checkbox', { name: 'onion' }).click();
+	const stub = page.getByRole('button', { name: 'Copy shopping list' });
+	await stub.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+	await shot(page, 'shopping-list');
+});
+
 test('cook-mode', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(`${DETAIL}/cook`);
