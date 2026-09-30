@@ -26,6 +26,7 @@ type UserResponse struct {
 	AvatarID         *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 	Email            string  `json:"email" doc:"The account's email address; empty when none. Never used to sign in."`
 	EmailVerified    bool    `json:"emailVerified" doc:"Whether an identity provider vouched for the address"`
+	HasPassword      bool    `json:"hasPassword" doc:"False for an account that signs in only through a setup link or an identity provider"`
 }
 
 type loginInput struct {
@@ -55,7 +56,7 @@ type meOutput struct {
 type changePasswordInput struct {
 	Cookie string `cookie:"rezepte_session"`
 	Body   struct {
-		CurrentPassword string `json:"currentPassword" minLength:"1" maxLength:"1024" doc:"The password in use now"`
+		CurrentPassword string `json:"currentPassword,omitempty" maxLength:"1024" doc:"The password in use now; omitted when the account has none"`
 		Password        string `json:"password" minLength:"8" maxLength:"128" doc:"The new password"`
 	}
 }
@@ -167,7 +168,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Method:        http.MethodPatch,
 		Path:          "/api/v1/auth/me",
 		Summary:       "Change the current user's password",
-		Description:   "Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid.",
+		Description:   "Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid. An account without a password sets one without currentPassword.",
 		Tags:          []string{"auth"},
 		Security:      SessionSecurity,
 		DefaultStatus: http.StatusNoContent,
@@ -407,5 +408,6 @@ func toResponse(u user.User) UserResponse {
 		AvatarID:         u.AvatarID,
 		Email:            u.Email,
 		EmailVerified:    u.EmailVerified,
+		HasPassword:      u.HasPassword,
 	}
 }

@@ -22,8 +22,10 @@ import (
 )
 
 // newHandlerWithSessions is like newHandler but also returns the auth.Service
-// so tests can control its clock (e.g. for sliding-renewal assertions).
-func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service) {
+// (so tests can control its clock, e.g. for sliding-renewal assertions) and
+// the user.Service (so tests can create accounts the login form cannot,
+// such as one with no password).
+func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service, *user.Service) {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -37,12 +39,12 @@ func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service) {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
-	return srv.Handler(), sessions
+	return srv.Handler(), sessions, users
 }
 
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
-	h, _ := newHandlerWithSessions(t)
+	h, _, _ := newHandlerWithSessions(t)
 	return h
 }
 
@@ -88,7 +90,7 @@ func TestLoginRejectsWrongPassword(t *testing.T) {
 }
 
 func TestLoginAnswersALockedNameWithTooManyRequests(t *testing.T) {
-	h, sessions := newHandlerWithSessions(t)
+	h, sessions, _ := newHandlerWithSessions(t)
 	clock := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
 	sessions.SetClock(func() time.Time { return clock })
 	for range 5 {
@@ -172,7 +174,7 @@ func sessionCookieFrom(rec *httptest.ResponseRecorder) (*http.Cookie, bool) {
 // extending the row in the database alone does nothing for a client holding
 // the login-time cookie.
 func TestSlidingRenewalReissuesCookie(t *testing.T) {
-	h, sessions := newHandlerWithSessions(t)
+	h, sessions, _ := newHandlerWithSessions(t)
 
 	clock := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	sessions.SetClock(func() time.Time { return clock })
@@ -557,6 +559,29 @@ func TestLogoutClearsTheLocaleCookie(t *testing.T) {
 		}
 	}
 	t.Fatalf("no %s cookie in %v", auth.LocaleCookieName, rec.Header())
+}
+
+func TestChangePasswordAllowsMissingCurrentInSchema(t *testing.T) {
+	h := newHandler(t)
+	c := login(t, h)
+	// sam has a password, so a missing current password is a wrong one.
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me", `{"password":"sam12345"}`, c)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.currentPassword") {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPasswordlessAccountLoginIs401(t *testing.T) {
+	h, _, users := newHandlerWithSessions(t)
+	if _, err := users.Create(context.Background(), user.CreateParams{Username: "anna", Role: user.RoleUser}); err != nil {
+		t.Fatal(err)
+	}
+	for _, pw := range []string{"x", "anna1234"} {
+		rec := do(h, http.MethodPost, "/api/v1/auth/login", `{"username":"anna","password":"`+pw+`"}`, nil)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("password %q: %d %s", pw, rec.Code, rec.Body.String())
+		}
+	}
 }
 
 func TestProfileTakesAndClearsAnEmail(t *testing.T) {

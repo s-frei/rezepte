@@ -195,7 +195,9 @@
 	</section>
 
 	<section class={card} aria-labelledby="settings-password">
-		<h2 id="settings-password" class={title}>{m.settings_password_title()}</h2>
+		<h2 id="settings-password" class={title}>
+			{session.user?.hasPassword ? m.settings_password_title() : m.settings_password_set_title()}
+		</h2>
 		<PasswordForm />
 	</section>
 

@@ -813,3 +813,44 @@ func TestChangingTheEmailDropsVerification(t *testing.T) {
 		t.Fatal("a changed address kept its verified mark")
 	}
 }
+
+func TestPasswordlessAccountCannotLogInWithAnyPassword(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	u, err := svc.Create(ctx, user.CreateParams{Username: "anna", Role: user.RoleUser})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.HasPassword {
+		t.Fatal("HasPassword on an account created without one")
+	}
+	for _, pw := range []string{"", "anything"} {
+		if _, err := svc.Authenticate(ctx, "anna", pw); !errors.Is(err, user.ErrInvalidCredentials) {
+			t.Fatalf("Authenticate(%q) = %v, want ErrInvalidCredentials", pw, err)
+		}
+	}
+}
+
+func TestPasswordlessAccountSetsAPasswordWithoutCurrent(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	u, _ := svc.Create(ctx, user.CreateParams{Username: "anna", Role: user.RoleUser})
+	if err := svc.ChangePassword(ctx, u.ID, "", "anna1234"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Authenticate(ctx, "anna", "anna1234"); err != nil {
+		t.Fatal(err)
+	}
+	// Once set, the current password is required again.
+	if err := svc.ChangePassword(ctx, u.ID, "", "anna5678"); !errors.Is(err, user.ErrWrongPassword) {
+		t.Fatalf("got %v, want ErrWrongPassword", err)
+	}
+}
+
+func TestSuperadminNeedsAPassword(t *testing.T) {
+	svc := user.NewService(dbtest.Open(t), "")
+	_, err := svc.Create(context.Background(), user.CreateParams{Username: "owner", Role: user.RoleSuperadmin})
+	if !errors.Is(err, user.ErrAdminPasswordRequired) {
+		t.Fatalf("got %v", err)
+	}
+}

@@ -27,6 +27,8 @@ export type User = {
 	email: string;
 	/** Whether an identity provider vouched for the address. */
 	emailVerified: boolean;
+	/** False for an account that signs in only through a setup link or an identity provider. */
+	hasPassword: boolean;
 };
 
 /** One palette color and how many accounts hold it. */
@@ -92,11 +94,21 @@ export function isAppPath(path: string): boolean {
 	return !path.startsWith('/api/');
 }
 
-/** Changes the own password; other sessions of the user are ended server-side. */
-export function changePassword(currentPassword: string, password: string): Promise<void> {
+/**
+ * Changes the own password; other sessions of the user are ended server-side.
+ * currentPassword is undefined for an account that has none yet - the field
+ * is then omitted from the body rather than sent as an empty string, so the
+ * request looks the same as a client that has never heard of the concept.
+ */
+export function changePassword(
+	currentPassword: string | undefined,
+	password: string
+): Promise<void> {
 	return api<void>('/auth/me', {
 		method: 'PATCH',
-		body: JSON.stringify({ currentPassword, password })
+		body: JSON.stringify(
+			currentPassword === undefined ? { password } : { currentPassword, password }
+		)
 	});
 }
 

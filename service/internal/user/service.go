@@ -58,6 +58,9 @@ type User struct {
 	// when an identity provider vouched for it.
 	Email         string
 	EmailVerified bool
+	// HasPassword is false for an account set up through a setup link or an
+	// identity provider only; such an account cannot sign in with a password.
+	HasPassword bool
 }
 
 // Errors returned by the service.
@@ -137,9 +140,17 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 	} else if _, err := ParseLocale(string(locale)); err != nil {
 		return User{}, err
 	}
-	hash, err := HashPassword(ctx, p.Password)
-	if err != nil {
-		return User{}, err
+	// An empty password is an account without one: it signs in through a
+	// setup link or an identity provider. The owner is the instance's way
+	// back in and always has one.
+	hash := ""
+	if p.Password != "" {
+		hash, err = HashPassword(ctx, p.Password)
+		if err != nil {
+			return User{}, err
+		}
+	} else if p.Role == RoleSuperadmin {
+		return User{}, ErrAdminPasswordRequired
 	}
 	now := db.FormatTime(s.now())
 	row, err := s.q.CreateUser(ctx, sqlc.CreateUserParams{
@@ -467,6 +478,11 @@ func (s *Service) ChangePassword(ctx context.Context, id, current, next string) 
 	if err != nil {
 		return fmt.Errorf("get user %s: %w", id, err)
 	}
+	// Without a password there is nothing to confirm; the caller's session
+	// is the proof, as it is for the profile.
+	if row.PasswordHash == "" {
+		return s.setPassword(ctx, id, next)
+	}
 	ok, err := VerifyPassword(ctx, row.PasswordHash, current)
 	if err != nil {
 		return fmt.Errorf("verify password of %s: %w", id, err)
@@ -520,6 +536,14 @@ func (s *Service) Authenticate(ctx context.Context, username, password string) (
 	}
 	if err != nil {
 		return User{}, fmt.Errorf("get user %q: %w", username, err)
+	}
+	if row.PasswordHash == "" {
+		// Charged like a wrong password, so timing does not tell which
+		// accounts have none.
+		if _, err := VerifyPassword(ctx, dummyHash(), password); err != nil {
+			return User{}, fmt.Errorf("verify password for %q: %w", username, err)
+		}
+		return User{}, ErrInvalidCredentials
 	}
 	ok, err := VerifyPassword(ctx, row.PasswordHash, password)
 	if err != nil {
@@ -608,6 +632,7 @@ func fromRow(row sqlc.User) (User, error) {
 		AvatarID:         row.AvatarID,
 		Email:            row.Email,
 		EmailVerified:    row.EmailVerified,
+		HasPassword:      row.PasswordHash != "",
 	}, nil
 }
 

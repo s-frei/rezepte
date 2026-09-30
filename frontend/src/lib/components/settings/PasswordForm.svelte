@@ -21,10 +21,14 @@
 	let errors = $state<PasswordErrors>({});
 	let saving = $state(false);
 
+	// An account with no password yet has nothing to confirm - the session
+	// itself is the proof, same as the profile write.
+	const hasPassword = $derived(!!session.user?.hasPassword);
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		errors = validateNewPassword(next, repeat);
-		if (current === '') {
+		if (hasPassword && current === '') {
 			errors = { ...errors, current: m.settings_password_current_required() };
 		}
 		if (Object.keys(errors).length > 0) {
@@ -32,7 +36,10 @@
 		}
 		saving = true;
 		try {
-			await changePassword(current, next);
+			await changePassword(hasPassword ? current : undefined, next);
+			if (session.user) {
+				session.user = { ...session.user, hasPassword: true };
+			}
 			toast.success(m.settings_password_changed());
 			current = '';
 			next = '';
@@ -64,15 +71,19 @@
 		readonly
 		hidden
 	/>
-	<Input
-		id="current-password"
-		label={m.settings_password_current()}
-		type="password"
-		autocomplete="current-password"
-		bind:value={current}
-		oninput={() => (errors = withoutErrors(errors, ['current']))}
-		error={errors.current ?? null}
-	/>
+	{#if hasPassword}
+		<Input
+			id="current-password"
+			label={m.settings_password_current()}
+			type="password"
+			autocomplete="current-password"
+			bind:value={current}
+			oninput={() => (errors = withoutErrors(errors, ['current']))}
+			error={errors.current ?? null}
+		/>
+	{:else}
+		<p class="text-caption text-text-muted">{m.settings_password_set_hint()}</p>
+	{/if}
 	<div class="space-y-1.5">
 		<Input
 			id="new-password"

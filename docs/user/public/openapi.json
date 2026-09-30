@@ -255,9 +255,8 @@
             "type": "string"
           },
           "currentPassword": {
-            "description": "The password in use now",
+            "description": "The password in use now; omitted when the account has none",
             "maxLength": 1024,
-            "minLength": 1,
             "type": "string"
           },
           "password": {
@@ -268,7 +267,6 @@
           }
         },
         "required": [
-          "currentPassword",
           "password"
         ],
         "type": "object"
@@ -2257,6 +2255,10 @@
             "description": "Whether an identity provider vouched for the address",
             "type": "boolean"
           },
+          "hasPassword": {
+            "description": "False for an account that signs in only through a setup link or an identity provider",
+            "type": "boolean"
+          },
           "id": {
             "description": "User id",
             "type": "string"
@@ -2293,7 +2295,8 @@
           "canSharePublicly",
           "avatarId",
           "email",
-          "emailVerified"
+          "emailVerified",
+          "hasPassword"
         ],
         "type": "object"
       }
@@ -2513,7 +2516,7 @@
         ]
       },
       "patch": {
-        "description": "Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid.",
+        "description": "Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid. An account without a password sets one without currentPassword.",
         "operationId": "change-own-password",
         "parameters": [
           {

@@ -55,6 +55,8 @@
 	"user_color_teal": "Petrol",
 	"user_color_slate": "Schiefer",
 	"settings_password_title": "Passwort ändern",
+	"settings_password_set_title": "Passwort festlegen",
+	"settings_password_set_hint": "Dein Konto hat noch kein Passwort. Lege eines fest, um dich auch ohne deinen Anmeldedienst anzumelden.",
 	"settings_password_current": "Aktuelles Passwort",
 	"settings_password_new": "Neues Passwort",
 	"settings_password_repeat": "Neues Passwort wiederholen",

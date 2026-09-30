@@ -30,7 +30,8 @@ function userWith(locale: 'en' | 'de'): User {
 		avatarId: null,
 		canSharePublicly: true,
 		email: '',
-		emailVerified: false
+		emailVerified: false,
+		hasPassword: true
 	};
 }
 

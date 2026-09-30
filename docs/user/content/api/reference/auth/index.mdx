@@ -9,7 +9,7 @@ description: Signing in, signing out and reading the current session.
 <Card href="/api/reference/auth/login" title="Log in with username and password" />
 <Card href="/api/reference/auth/logout" title="End the current session" />
 <Card href="/api/reference/auth/me" title="Return the current user" />
-<Card href="/api/reference/auth/change-own-password" title="Change the current user's password" description="Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid." />
+<Card href="/api/reference/auth/change-own-password" title="Change the current user's password" description="Verifies the current password, stores the new one and ends every other session of the user; the session making the call stays valid. An account without a password sets one without currentPassword." />
 <Card href="/api/reference/auth/delete-own-avatar" title="Remove the own picture" />
 <Card href="/api/reference/auth/set-own-avatar" title="Set the own picture (JPEG, PNG or WebP, at most 10 MiB)" description="The square to keep, as x,y,size: x and y place its top-left corner as fractions of the upright image's width and height, size is its side as a fraction of the shorter side. Absent keeps the centered square." />
 <Card href="/api/reference/auth/list-color-usage" title="List the color palette and how many accounts hold each color" description="Counts, not names: the picker only needs to mark a color as taken. It sits under /auth/me because it describes what the caller may choose for themselves; /people names every account without counting colors, and everything under /users is admin-only." />

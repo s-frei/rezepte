@@ -118,7 +118,8 @@ describe('api central 401 handling', () => {
 			avatarId: null,
 			canSharePublicly: true,
 			email: '',
-			emailVerified: false
+			emailVerified: false,
+			hasPassword: true
 		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
@@ -160,7 +161,8 @@ describe('api central 401 handling', () => {
 			avatarId: null,
 			canSharePublicly: true,
 			email: '',
-			emailVerified: false
+			emailVerified: false,
+			hasPassword: true
 		};
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
 
