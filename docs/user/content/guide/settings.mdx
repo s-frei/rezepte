@@ -27,6 +27,12 @@ If a photo is missing or cannot be loaded, Rezepte shows your initial in your co
 
 "Email" is optional and never used to sign in - it is only there for the future. Leave it empty, fill it in, or clear it again with "Save name". If you signed in through an identity provider, this may already show the address it gave Rezepte, marked "Confirmed by your sign-in provider"; typing your own address here replaces that and starts fresh unconfirmed.
 
+## Sign-in
+
+<Screenshot name="settings-signin" caption="The Sign-in card, before the account is connected" />
+
+This card is there only when your instance offers sign-in through an identity provider such as Google (see [Single sign-on](/operations/single-sign-on)). "Continue with …" takes you to the provider and back; from then on the same button on the login page signs you in without a password. Once connected, the card says since when, and "Disconnect" undoes it - but only while your account also has a password, because without one you could no longer sign in at all. Set a password below first.
+
 ## Change password
 
 Enter the current password once, then the new password (8–128 characters) twice. Changing your password signs out every other device that was logged in as you; this device stays signed in.

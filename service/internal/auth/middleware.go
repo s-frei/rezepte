@@ -202,7 +202,7 @@ func Middleware(sessions *Service, tokens *TokenService, secureCookies bool) fun
 				return
 			}
 			if v.Renewed {
-				fresh := sessionCookie(cookie.Value, v.ExpiresAt, secureCookies)
+				fresh := SessionCookie(cookie.Value, v.ExpiresAt, secureCookies)
 				ctx.AppendHeader("Set-Cookie", fresh.String())
 			}
 			next(huma.WithValue(ctx, userKey{}, v.User))

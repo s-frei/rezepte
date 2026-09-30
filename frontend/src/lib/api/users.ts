@@ -8,6 +8,8 @@ export type UserAccount = User & {
 	createdAt: string;
 	/** When the account's open setup link expires; absent when none is open. */
 	setupLinkExpiresAt?: string;
+	/** Whether the person connected an identity provider; true only in listUsers (other responses carry false). */
+	hasIdentity: boolean;
 };
 
 export type UserRole = User['role'];

@@ -36,9 +36,11 @@
 	// admin's business, not everyone's - so an admin reads it from the
 	// account list alongside; a member's view has no entries at all.
 	let sharing = $state<Record<string, boolean>>({});
-	// hasPassword and the open setup link's expiry, by id - an admin's
+	// hasPassword, hasIdentity and the open setup link's expiry, by id - an admin's
 	// business like `sharing`, and left out of a member's view the same way.
-	let setup = $state<Record<string, { hasPassword: boolean; setupLinkExpiresAt?: string }>>({});
+	let setup = $state<
+		Record<string, { hasPassword: boolean; hasIdentity?: boolean; setupLinkExpiresAt?: string }>
+	>({});
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let createOpen = $state(false);
@@ -83,7 +85,11 @@
 			setup = Object.fromEntries(
 				accounts.map((a) => [
 					a.id,
-					{ hasPassword: a.hasPassword, setupLinkExpiresAt: a.setupLinkExpiresAt }
+					{
+						hasPassword: a.hasPassword,
+						hasIdentity: a.hasIdentity,
+						setupLinkExpiresAt: a.setupLinkExpiresAt
+					}
 				])
 			);
 		} catch (error) {
@@ -131,6 +137,7 @@
 				...setup,
 				[user.id]: {
 					hasPassword: setup[user.id]?.hasPassword ?? false,
+					hasIdentity: setup[user.id]?.hasIdentity,
 					setupLinkExpiresAt: link.expiresAt
 				}
 			};

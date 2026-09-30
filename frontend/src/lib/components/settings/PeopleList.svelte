@@ -32,9 +32,12 @@
 		/** Who may share publicly, by id - loaded for admins only, so a
 		 * member's view has no entries and no share controls. */
 		sharing?: Record<string, boolean>;
-		/** hasPassword and the open setup link's expiry, by id - loaded for
+		/** hasPassword, hasIdentity and the open setup link's expiry, by id - loaded for
 		 * admins only, like `sharing`. */
-		setup?: Record<string, { hasPassword: boolean; setupLinkExpiresAt?: string }>;
+		setup?: Record<
+			string,
+			{ hasPassword: boolean; hasIdentity?: boolean; setupLinkExpiresAt?: string }
+		>;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the control then snaps back. */
@@ -126,6 +129,7 @@
 					{actorRole}
 					canShare={sharing[person.id]}
 					hasPassword={setup[person.id]?.hasPassword}
+					hasIdentity={setup[person.id]?.hasIdentity}
 					setupLinkExpiresAt={setup[person.id]?.setupLinkExpiresAt}
 					onrole={changeRole}
 					{onshare}
@@ -149,6 +153,7 @@
 		isSelf={sheetPerson.id === meId}
 		canShare={sharing[sheetPerson.id]}
 		hasPassword={setup[sheetPerson.id]?.hasPassword}
+		hasIdentity={setup[sheetPerson.id]?.hasIdentity}
 		setupLinkExpiresAt={setup[sheetPerson.id]?.setupLinkExpiresAt}
 		onrole={changeRole}
 		{onshare}

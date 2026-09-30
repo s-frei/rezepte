@@ -31,6 +31,7 @@ type UserAccount struct {
 	AvatarID           *string    `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 	HasPassword        bool       `json:"hasPassword" doc:"False until the person sets one through a setup link or their profile"`
 	SetupLinkExpiresAt *time.Time `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
+	HasIdentity        bool       `json:"hasIdentity" doc:"Whether the person has connected an identity provider account; set only by list-users"`
 }
 
 // setupLinkBody is a freshly issued setup link, shown once.
@@ -229,9 +230,14 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
+		linked, err := users.LinkedUserIDs(ctx)
+		if err != nil {
+			return nil, err
+		}
 		items := make([]UserAccount, 0, len(list))
 		for _, u := range list {
 			item := toResponse(u)
+			item.HasIdentity = linked[u.ID]
 			if expires, ok := open[u.ID]; ok {
 				item.SetupLinkExpiresAt = &expires
 			}

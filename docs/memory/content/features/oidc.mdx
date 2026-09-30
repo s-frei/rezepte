@@ -1,0 +1,52 @@
+---
+title: OIDC
+description: Sign-in through one OpenID Connect provider, linked to existing accounts only and matched by issuer and subject, ending in an ordinary session
+---
+
+An instance may name one OpenID Connect provider - Google, or a self-hosted one such as Authelia, Authentik, Pocket ID, Keycloak or Dex - and people whose account is connected to it sign in with "Continue with …" instead of a password. The provider only tells Rezepte who someone is; roles, rights and the session stay Rezepte's own. `service/internal/oidc` is the whole service side (`oidc.go` runs the flow, `api.go` the three huma operations); `(*user.Service).LinkIdentity` and its neighbours in `service/internal/user/identity.go` own the `user_identities` table. [Data model](/architecture/data-model) owns the table, [HTTP API](/architecture/api) the operations and the two plain routes, [Users and authentication](/features/users-and-auth) the session a sign-in ends in.
+
+## How it works
+
+**Configured by four variables, discovered on first use.** `REZEPTE_OIDC_ISSUER`, `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_PUBLIC_URL` switch it on and must be set together - `config.load` refuses one without the others, and refuses a public URL with a path or query, since Rezepte is served from the root of its host. `REZEPTE_OIDC_CLIENT_SECRET` is optional (a public client with PKCE needs none) and `REZEPTE_OIDC_NAME` labels the button, `single sign-on` by default. `cmd/rezepte` builds an `*oidc.Login` only when `Config.OIDCEnabled()`; `oidc.New` never contacts the provider. `(*Login).discover` runs discovery under a mutex on the first start and caches the provider; a failure is returned and not cached, so the next press tries again. go-oidc and oauth2 read their HTTP client from the context, which `(*Login).ctx` fills with one ten-second-timeout client.
+
+**The flow cookie carries everything from start to callback.** `POST /api/v1/auth/oidc/start` is a real form post from the SPA's `ProviderButton` (`frontend/src/lib/components/auth/ProviderButton.svelte`) - a `fetch` would not follow the `303` to the provider - with `intent` (`login`, `link` or `setup`), `next` and, for setup, the setup token. It draws `state` and `nonce` with `rand.Text()` and a PKCE verifier with `oauth2.GenerateVerifier()`, and stores them with the intent, `next`, the signed-in user's id (link) and the raw setup token (setup) in the `rezepte_oidc` cookie: JSON, base64url, a dot, and an HMAC-SHA256 over the JSON with a key drawn per process. The cookie is `HttpOnly`, `SameSite=Lax` (the callback is a top-level navigation coming from the provider's site, which Strict would strip it from), `Secure` as configured, `Path=/api/v1/auth/oidc/`, ten minutes both as `Max-Age` and as an expiry inside the MAC. The authorize URL asks for `openid email` with an `S256` challenge and the nonce; the redirect URI is `REZEPTE_PUBLIC_URL + /api/v1/auth/oidc/callback`.
+
+**The callback verifies everything before it writes anything.** It expires the flow cookie first, whatever follows, then checks the MAC and the expiry, refuses an `error=` answer, compares `state` in constant time, exchanges the code with the PKCE verifier, and has go-oidc verify the ID token - signature against the provider's JWKS, `iss`, `aud` against the client id, `exp` - before comparing its `nonce`. Every refusal logs at `Info` with a reason and never the code, a token or the cookie value (the request log records the path, never the query), and answers `303` back to the page the flow started from with `?oidc=failed`: `/login`, `/settings` or `/welcome`. Only then does the intent decide:
+
+- **login** looks up `(iss, sub)` with `ByIdentity`. Unknown: `/login?oidc=unlinked`. Known: `StartSession`, the session and locale cookies exactly as password login sets them (`auth.SessionCookie`, `auth.LocaleCookie`), and `303` to `safeNext(next)`, the Go twin of the SPA's `safeNext` in `frontend/src/lib/api/auth.ts` - a path on this origin, never `//`, `/\`, a scheme or `/login`.
+- **link** re-authenticates the session cookie the callback arrives with; it must still be the account that started the flow, else `/settings?oidc=failed`. `LinkIdentity` answers `ErrIdentityTaken` when the identity belongs to another account or this account already has one at this issuer (`/settings?oidc=taken`); otherwise the email is offered to `SetEmailIfEmpty` and the browser lands on `/settings?oidc=linked`.
+- **setup** peeks the setup link again, links the identity to its account (`/welcome?oidc=taken` when taken), consumes the link (`/welcome?oidc=failed` if it was used meanwhile), offers the email, ends every session the account had and starts a new one - the same end state as setting a password through the link.
+
+**Only `(iss, sub)` identifies a person.** The issuer stored is the ID token's own `iss`, which go-oidc has already checked against the configured one. Email is never matched on: the provider's address goes through `SetEmailIfEmpty`, which fills the profile only while it is empty, with `email_verified` copied from the claim, so a typed address always outranks a provider's.
+
+**The session is an ordinary one.** Nothing marks a session as having come from the provider; it slides, expires and ends on logout like any other. A sign-in through the provider goes through neither the password throttle nor argon2.
+
+**Disconnecting needs a password to fall back on.** `DELETE /api/v1/auth/me/identity` calls `UnlinkIdentity`, which refuses with `ErrLastCredential` (`409`) while the account has no password; the profile's Sign-in card disables its button with the same hint. `GET /api/v1/auth/oidc` tells the SPA whether to offer the button at all and what to call it; it and the identity operations are registered with or without OIDC configured, answering `enabled: false` and `404`, so the OpenAPI document does not change with configuration.
+
+**The SPA offers it in three places.** `getOidc()` in `frontend/src/lib/api/oidc.ts` decides whether any of them renders. The login page puts "or" and the button under the password form and reads `?oidc=unlinked|failed` into an alert. `/welcome` puts the button, with the in-memory setup token, above the password form; a flow that comes back there has lost the token (the service redirects without a fragment), so `?oidc=failed|taken` shows the reason and asks the person to open their link again. The profile's `SignInCard.svelte`, between the profile and password cards, connects or disconnects and turns `?oidc=linked|taken|failed` into a toast before dropping the query. The admin's people list shows "Not set up yet" only for an account with neither a password nor an identity nor an open setup link; `list-users` carries `hasIdentity` for that, from one `ListLinkedUserIDs` query.
+
+## Why it is this way
+
+Accounts are only ever *linked*, never created, from a provider: somebody signed in to Rezepte (or holding a setup link an admin issued) connects their own identity. That is what makes a public provider such as Google safe to configure - anyone in the world can hold a Google account, and none of them gets into the household by it.
+
+`REZEPTE_PUBLIC_URL` builds the redirect URI rather than the request's `Host` or `X-Forwarded-*` headers, for the reason the login throttle does not trust proxies: a header anyone can send must not decide where a provider sends an authorization code.
+
+`github.com/coreos/go-oidc/v3` is a deliberate exception to standard-library-first ([Go conventions](/conventions/go)): signature verification is security code, and a maintained, widely used verifier beats one written here. `golang.org/x/oauth2` does the exchange and PKCE.
+
+The flow state lives in an authenticated cookie rather than a table, so a flow that is never finished leaves nothing behind to sweep, and a restart only fails the flows in progress.
+
+## Rejected
+
+- **Creating an account on first sign-in (auto-provisioning).** Anybody with an account at the provider would become a member; with Google that is anybody.
+- **Matching an existing account by email.** An address is profile data, not unique and not always verified; whoever controls a matching address at the provider would take the account over.
+- **GitHub and other OAuth-2.0-only providers.** No ID token, so nothing standard to verify; each would need its own user-info adapter.
+- **More than one provider.** One issuer keeps configuration, the button and the Sign-in card simple; `user_identities` already keys by issuer, should that change.
+- **RP-initiated logout.** Signing out of Rezepte ends the Rezepte session only; ending the person's session at Google on the way would surprise them.
+- **Hand-rolled JWT verification.** See Why: security code is taken from go-oidc, not written here.
+
+## Limits
+
+- One provider per instance.
+- Signing out at the provider does not end a Rezepte session; it runs its normal course.
+- A restart draws a new flow-cookie key, so a sign-in in progress across a restart fails and has to be started again.
+- A failed flow tells the person only that it failed; the reason is in the service log at `Info`.

@@ -3,18 +3,21 @@ module github.com/s-frei/rezepte/service
 go 1.27.1
 
 require (
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/google/jsonschema-go v0.4.3
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pressly/goose/v3 v3.28.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.46.0
+	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.42.0
 	modernc.org/sqlite v1.59.0
 )
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
@@ -25,7 +28,6 @@ require (
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/time v0.15.0 // indirect

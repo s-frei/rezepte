@@ -2,8 +2,11 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { inspectSetupLink, redeemSetupLink } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
+	import { getOidc, type OidcInfo } from '$lib/api/oidc';
+	import ProviderButton from '$lib/components/auth/ProviderButton.svelte';
 	import { session } from '$lib/auth.svelte';
 	import Lockup from '$lib/components/brand/Lockup.svelte';
 	import PasswordStrength from '$lib/components/settings/PasswordStrength.svelte';
@@ -24,7 +27,14 @@
 	// in the address bar or in history. See auth.SetupPath on the service
 	// side for why the token was in the fragment at all - it never reaches a
 	// server or proxy log or a Referer header.
-	let token = '';
+	// $state rather than a plain variable because the provider button renders
+	// it into its form; it still never reaches the address bar again.
+	let token = $state('');
+	let oidc = $state<OidcInfo | null>(null);
+	// Set when a provider sign-in came back here. The service redirects
+	// without the fragment, so the token is gone and the person has to open
+	// the link again.
+	const oidcReturn = $derived(page.url.searchParams.get('oidc'));
 	let username = $state('');
 	let displayName = $state('');
 	let loading = $state(true);
@@ -71,10 +81,18 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		token = window.location.hash.slice(1);
-		window.history.replaceState(null, '', '/welcome');
+		window.history.replaceState(null, '', '/welcome' + window.location.search);
+		// The button is an extra, so a failed lookup simply leaves it out.
+		const info = getOidc().catch(() => null);
+		void info.then((i) => (oidc = i));
 		if (!token) {
+			// Coming back from the provider: wait for its name, so the page
+			// does not flash "this link no longer works" first.
+			if (oidcReturn) {
+				await info;
+			}
 			invalid = true;
 			loading = false;
 			return;
@@ -116,7 +134,18 @@
 <main class="flex min-h-screen flex-col items-center justify-center gap-6 p-5">
 	<Lockup variant="horizontal" label={m.app_name()} class="h-12" />
 	{#if !loading}
-		{#if invalid}
+		{#if !token && oidc?.enabled && (oidcReturn === 'failed' || oidcReturn === 'taken')}
+			<div
+				class="w-full max-w-[440px] space-y-2 rounded-2xl bg-surface p-5 text-center shadow-card dark:border dark:border-border"
+			>
+				<p role="alert" class="text-body font-medium text-destructive">
+					{oidcReturn === 'taken'
+						? m.oidc_taken({ name: oidc.name })
+						: m.oidc_failed({ name: oidc.name })}
+				</p>
+				<p class="text-body text-text-muted">{m.welcome_reopen()}</p>
+			</div>
+		{:else if invalid}
 			<div
 				class="w-full max-w-[440px] space-y-2 rounded-2xl bg-surface p-5 text-center shadow-card dark:border dark:border-border"
 			>
@@ -132,54 +161,63 @@
 			</div>
 		{:else}
 			<p class="text-body text-text-muted">{m.welcome_lead()}</p>
-			<form
-				onsubmit={submit}
+			<div
 				class="w-full max-w-[440px] space-y-5 rounded-2xl bg-surface p-5 shadow-card dark:border dark:border-border"
 			>
 				<h1 class="font-display text-heading font-medium">
 					{m.welcome_title({ name: displayName })}
 				</h1>
-				<!-- Tells a password manager which account this is: without it the
+				{#if oidc?.enabled}
+					<ProviderButton intent="setup" name={oidc.name} setup={token} />
+					<div class="flex items-center gap-3 text-caption text-text-muted">
+						<span class="h-px flex-1 bg-border"></span>
+						{m.login_or()}
+						<span class="h-px flex-1 bg-border"></span>
+					</div>
+				{/if}
+				<form onsubmit={submit} class="space-y-5">
+					<!-- Tells a password manager which account this is: without it the
 				     new password is saved as a second, nameless entry. -->
-				<input
-					type="text"
-					name="username"
-					autocomplete="username"
-					value={username}
-					readonly
-					hidden
-				/>
-				<div class="space-y-1.5">
+					<input
+						type="text"
+						name="username"
+						autocomplete="username"
+						value={username}
+						readonly
+						hidden
+					/>
+					<div class="space-y-1.5">
+						<Input
+							id="welcome-password"
+							label={m.settings_password_new()}
+							type="password"
+							autocomplete="new-password"
+							required
+							bind:value={password}
+							oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
+							error={errors.next ?? null}
+							hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
+						/>
+						<PasswordStrength {password} userInputs={[username, displayName]} />
+					</div>
 					<Input
-						id="welcome-password"
-						label={m.settings_password_new()}
+						id="welcome-password-repeat"
+						label={m.settings_password_repeat()}
 						type="password"
 						autocomplete="new-password"
 						required
-						bind:value={password}
-						oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
-						error={errors.next ?? null}
-						hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
+						bind:value={repeat}
+						oninput={() => (errors = withoutErrors(errors, ['repeat']))}
+						error={errors.repeat ?? null}
 					/>
-					<PasswordStrength {password} userInputs={[username, displayName]} />
-				</div>
-				<Input
-					id="welcome-password-repeat"
-					label={m.settings_password_repeat()}
-					type="password"
-					autocomplete="new-password"
-					required
-					bind:value={repeat}
-					oninput={() => (errors = withoutErrors(errors, ['repeat']))}
-					error={errors.repeat ?? null}
-				/>
-				{#if submitError}
-					<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
-				{/if}
-				<Button type="submit" size="lg" class="w-full" disabled={submitting}>
-					{m.welcome_submit()}
-				</Button>
-			</form>
+					{#if submitError}
+						<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
+					{/if}
+					<Button type="submit" size="lg" class="w-full" disabled={submitting}>
+						{m.welcome_submit()}
+					</Button>
+				</form>
+			</div>
 		{/if}
 	{/if}
 </main>

@@ -640,3 +640,8 @@ func isUniqueViolation(err error) bool {
 	var serr *sqlite.Error
 	return errors.As(err, &serr) && serr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE
 }
+
+func isPrimaryKeyViolation(err error) bool {
+	var serr *sqlite.Error
+	return errors.As(err, &serr) && serr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY
+}

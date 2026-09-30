@@ -144,8 +144,8 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		}
 		return &loginOutput{
 			SetCookie: []http.Cookie{
-				sessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
-				localeCookie(sess.User.Locale, secureCookies),
+				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
+				LocaleCookie(sess.User.Locale, secureCookies),
 			},
 			Body: toResponse(sess.User),
 		}, nil
@@ -255,7 +255,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			return nil, err
 		}
 		return &updateProfileOutput{
-			SetCookie: []http.Cookie{localeCookie(updated.Locale, secureCookies)},
+			SetCookie: []http.Cookie{LocaleCookie(updated.Locale, secureCookies)},
 			Body:      toResponse(updated),
 		}, nil
 	})
@@ -323,8 +323,8 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		}
 		return &redeemSetupOutput{
 			SetCookie: []http.Cookie{
-				sessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
-				localeCookie(sess.User.Locale, secureCookies),
+				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
+				LocaleCookie(sess.User.Locale, secureCookies),
 			},
 			Body: toResponse(sess.User),
 		}, nil
@@ -410,7 +410,9 @@ func throttledError(e *ThrottledError) error {
 	)
 }
 
-func sessionCookie(token string, expires time.Time, secure bool) http.Cookie {
+// SessionCookie is the session cookie every sign-in sets: password login, a
+// setup link, and an identity provider.
+func SessionCookie(token string, expires time.Time, secure bool) http.Cookie {
 	return http.Cookie{ //nolint:gosec // G124: Secure follows the secureCookies config flag (false only for local http dev); HttpOnly and SameSite are always set.
 		Name:     CookieName,
 		Value:    token,
@@ -425,7 +427,7 @@ func sessionCookie(token string, expires time.Time, secure bool) http.Cookie {
 // expiredSessionCookie is a Set-Cookie value that tells the browser to
 // delete the session cookie immediately.
 func expiredSessionCookie(secure bool) http.Cookie {
-	return expired(sessionCookie("", time.Time{}, secure))
+	return expired(SessionCookie("", time.Time{}, secure))
 }
 
 // expired turns a live cookie into the Set-Cookie value that deletes it,
@@ -442,14 +444,14 @@ func expired(c http.Cookie) http.Cookie { //nolint:gosec // G124: c keeps the Se
 // have to agree, and this is the writing end.
 const LocaleCookieName = "PARAGLIDE_LOCALE"
 
-// localeCookie carries the account's interface language to the SPA, which
+// LocaleCookie carries the account's interface language to the SPA, which
 // resolves its locale before the first render and cannot wait for
 // GET /auth/me. The users row stays the source of truth: only the service
 // writes this cookie, and only from that column.
 //
 // Deliberately not HttpOnly - Paraglide reads it from JavaScript. It holds a
 // display preference and nothing a session could be hijacked with.
-func localeCookie(l user.Locale, secure bool) http.Cookie {
+func LocaleCookie(l user.Locale, secure bool) http.Cookie {
 	return http.Cookie{ //nolint:gosec // G124: not HttpOnly by design (Paraglide reads it in the browser); Secure follows the secureCookies config flag and SameSite is always set.
 		Name:     LocaleCookieName,
 		Value:    string(l),
@@ -466,7 +468,7 @@ func localeCookie(l user.Locale, secure bool) http.Cookie {
 // strategy (the browser's own Accept-Language) instead of staying stuck on
 // whichever account last logged out - which matters on a shared machine.
 func expiredLocaleCookie(secure bool) http.Cookie {
-	return expired(localeCookie("", secure))
+	return expired(LocaleCookie("", secure))
 }
 
 func toResponse(u user.User) UserResponse {

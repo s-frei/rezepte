@@ -51,6 +51,21 @@ test('import-export-import', async ({ page }, testInfo) => {
 	await shot(page, 'import-export-import');
 });
 
+// The screenshot instance always has OIDC configured (docs/user/mise.toml),
+// so the card is there, unconnected, with the neutral provider name.
+test('settings-signin', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings');
+	const button = page.getByRole('button', { name: 'Continue with single sign-on' });
+	await expect(button).toBeVisible();
+	// Centered, so neither the phone's sticky header nor its bottom navigation
+	// covers the card.
+	await page
+		.getByRole('heading', { name: 'Sign-in' })
+		.evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'center' }));
+	await shot(page, 'settings-signin');
+});
+
 test('api', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/api');

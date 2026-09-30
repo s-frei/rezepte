@@ -92,6 +92,7 @@ func TestLoadFromEmptyMeansDefault(t *testing.T) {
 	for _, name := range []string{
 		"REZEPTE_ADDR", "REZEPTE_DATA_DIR", "REZEPTE_ADMIN_USER", "REZEPTE_ADMIN_PASSWORD",
 		"REZEPTE_LOG_LEVEL", "REZEPTE_LOG_FORMAT", "REZEPTE_LOCALE", "REZEPTE_SECURE_COOKIES",
+		"REZEPTE_OIDC_NAME",
 	} {
 		got, err := LoadFrom(map[string]string{name: ""})
 		if err != nil || got != want {
@@ -160,5 +161,37 @@ func TestLoadReadsTheProcessEnvironment(t *testing.T) {
 	cfg, err := Load()
 	if err != nil || cfg.Addr != ":7000" || cfg.Locale != "de" || cfg.LogLevel != slog.LevelInfo {
 		t.Errorf("Load = %+v, %v", cfg, err)
+	}
+}
+
+func TestLoadFromOIDC(t *testing.T) {
+	all := map[string]string{
+		"REZEPTE_OIDC_ISSUER":    "https://id.example",
+		"REZEPTE_OIDC_CLIENT_ID": "rezepte",
+		"REZEPTE_PUBLIC_URL":     "https://rezepte.example/",
+	}
+	cfg, err := LoadFrom(all)
+	if err != nil || !cfg.OIDCEnabled() {
+		t.Fatalf("all three set: %+v, %v", cfg, err)
+	}
+	if cfg.PublicURL != "https://rezepte.example" || cfg.OIDCName != "single sign-on" {
+		t.Errorf("PublicURL = %q, OIDCName = %q", cfg.PublicURL, cfg.OIDCName)
+	}
+	if off, _ := LoadFrom(map[string]string{}); off.OIDCEnabled() {
+		t.Error("enabled without configuration")
+	}
+	for _, tc := range []struct {
+		name string
+		env  map[string]string
+	}{
+		{"issuer without public URL", map[string]string{"REZEPTE_OIDC_ISSUER": "https://id.example", "REZEPTE_OIDC_CLIENT_ID": "rezepte"}},
+		{"client id alone", map[string]string{"REZEPTE_OIDC_CLIENT_ID": "rezepte", "REZEPTE_PUBLIC_URL": "https://rezepte.example"}},
+		{"public URL with a path", map[string]string{"REZEPTE_OIDC_ISSUER": "https://id.example", "REZEPTE_OIDC_CLIENT_ID": "rezepte", "REZEPTE_PUBLIC_URL": "https://x.example/app"}},
+		{"public URL with a query", map[string]string{"REZEPTE_PUBLIC_URL": "https://x.example/?a=b"}},
+		{"public URL without scheme", map[string]string{"REZEPTE_PUBLIC_URL": "x.example"}},
+	} {
+		if cfg, err := LoadFrom(tc.env); err == nil {
+			t.Errorf("%s: accepted %+v", tc.name, cfg)
+		}
 	}
 }

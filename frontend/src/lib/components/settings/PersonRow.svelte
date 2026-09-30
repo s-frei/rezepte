@@ -22,6 +22,7 @@
 		actorRole,
 		canShare,
 		hasPassword,
+		hasIdentity,
 		setupLinkExpiresAt,
 		onrole,
 		onshare,
@@ -41,6 +42,8 @@
 		canShare?: boolean;
 		/** Admin-only, like `canShare`: undefined where the viewer cannot see it. */
 		hasPassword?: boolean;
+		/** Admin-only: whether the person connected an identity provider. */
+		hasIdentity?: boolean;
 		/** Admin-only; set while this person has an open setup link. */
 		setupLinkExpiresAt?: string;
 		/** Rejects when the API refused; the select then snaps back. */
@@ -78,7 +81,7 @@
 			? null
 			: setupLinkExpiresAt
 				? m.users_setup_link_open({ date: formatDate(setupLinkExpiresAt) })
-				: !hasPassword
+				: !hasPassword && !hasIdentity
 					? m.users_not_set_up()
 					: null
 	);

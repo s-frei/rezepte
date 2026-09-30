@@ -156,3 +156,10 @@ type User struct {
 	Email            string
 	EmailVerified    bool
 }
+
+type UserIdentity struct {
+	UserID    string
+	Issuer    string
+	Subject   string
+	CreatedAt string
+}

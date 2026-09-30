@@ -24,6 +24,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
@@ -184,6 +185,14 @@ func run() error {
 		httpserver.WithShellHeaders(share.ShellHeaders),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
+	var login *oidc.Login
+	if cfg.OIDCEnabled() {
+		login = oidc.New(oidc.Config{
+			PublicURL: cfg.PublicURL, Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret, Name: cfg.OIDCName,
+		}, sessions, users, cfg.SecureCookies)
+	}
+	oidc.Register(srv.API(), login)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
 	if err := mcpserver.Register(srv.API(), recipes, version); err != nil {

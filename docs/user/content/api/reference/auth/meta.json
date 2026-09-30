@@ -10,7 +10,12 @@
     "delete-own-avatar",
     "set-own-avatar",
     "list-color-usage",
+    "get-own-identity",
+    "unlink-own-identity",
     "update-own-profile",
+    "get-oidc",
+    "finish-oidc",
+    "start-oidc",
     "inspect-setup-link",
     "redeem-setup-link"
   ]

@@ -8,6 +8,7 @@ erDiagram
   users ||--o{ sessions : has
   users ||--o{ api_tokens : issues
   users ||--o{ setup_links : has
+  users ||--o{ user_identities : "signs in as"
   users ||--o{ recipes : creates
   recipes ||--o{ ingredient_groups : has
   ingredient_groups ||--o{ ingredients : has
@@ -58,6 +59,12 @@ erDiagram
     text created_by FK "the admin who issued it"
     text expires_at
     text created_at
+  }
+  user_identities {
+    text user_id FK "one per account per issuer"
+    text issuer PK "the provider's iss"
+    text subject PK "the provider's sub"
+    text created_at "when the account was connected"
   }
   api_tokens {
     text id PK "uuidv7, not the hash"
@@ -169,6 +176,7 @@ erDiagram
 - `user.ErrNoSuperadmin` refuses to start against a non-empty `users` table without an owner, and it has to stay that strict: it is what turns a database without `users_superadmin_idx` and the two triggers into a refusal at startup rather than an instance running with no storage backstop, where the Go guards would be the only thing holding the invariant. Anything that relaxes it - promoting the first admin to owner on start, say - removes that net. A database whose `users` table lacks a column the current schema has fails on the query that finds the owner instead, loudly (`no such column`); the fix for both is to delete the file and let the migrations recreate it.
 - A session id is the SHA-256 digest of the session's own random token; the raw value exists only in the cookie and is never stored. An API token is a distinct credential (see [API tokens](/features/api-tokens)): its row keeps a UUIDv7 `id` and stores the raw value's digest separately, in `token_hash`.
 - `setup_links.id` is the SHA-256 digest of the setup token, following `sessions.id`; the raw value exists only in the link and is never stored. `setup_links_user_idx` is a unique index on `user_id`, so a second `ReplaceSetupLink` for the same account is an `UPDATE` by construction - there is no state where two links resolve to one account. Both foreign keys cascade: deleting the invited account or the admin who issued the link removes the row. See [Users and authentication](/features/users-and-auth).
+- `user_identities` is keyed by `(issuer, subject)`, the pair an OIDC ID token names a person by, so one identity belongs to at most one account; the unique `user_identities_user_idx` on `(user_id, issuer)` gives an account at most one identity per provider. `issuer` is stored although an instance has one provider, so that pointing the instance at another provider cannot match a subject some other provider issued. `user_id` cascades: deleting the account removes the link. Nothing is keyed by email. See [OIDC](/features/oidc).
 - `ingredient_groups.position`, `ingredients.position` and `steps.position` are 0-based integers, rewritten sequentially in full on every recipe save (see [Recipes and search](/features/recipes)) - never edited in place, so there are no gaps or renumbering to reason about between saves.
 - NULL means "absent," not "empty": `prep_minutes`, `cook_minutes`, `source_url`, `source_name`, `cover_image_id`, `ingredient_groups.name`, `ingredients.unit` and `ingredients.note` are stored as `NULL`, never `''`, when unset (the service converts an empty string to `nil` on write). `recipes.description` is the exception - it defaults to `''`, not `NULL`, when omitted.
 - Tags are implicit: `tags` only ever holds names currently used by at least one recipe (see [Recipes and search](/features/recipes)); there is no separate tag-management table or endpoint.

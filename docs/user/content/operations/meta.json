@@ -1,4 +1,4 @@
 {
 	"title": "Operations",
-	"pages": ["data-and-backup", "updates", "reverse-proxy"]
+	"pages": ["data-and-backup", "updates", "reverse-proxy", "single-sign-on"]
 }

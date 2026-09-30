@@ -1,0 +1,76 @@
+---
+title: Single sign-on
+description: Let people sign in with Google or your own identity provider instead of a password
+---
+
+Rezepte can offer one OpenID Connect provider next to its own passwords: Google, or one you run yourself such as Authelia, Authentik, Pocket ID, Keycloak or Dex. The login page then shows "Continue with …" under the password form.
+
+## What it does and what it does not
+
+- **It only signs in people who already have an account.** Somebody connects their provider account to their Rezepte account first, from their profile or through a setup link. A provider account nobody connected gets "not connected to Rezepte yet", never a new account. That is what makes Google safe to use: anybody can have a Google account, and none of them gets into your household by it.
+- **Accounts are matched only by the provider's own account ID**, never by email address.
+- **One provider per instance.** GitHub, Facebook and other providers that are not OpenID Connect do not work.
+- **Roles stay in Rezepte.** The provider says who somebody is; what they may do is still decided under "People".
+- **Signing out of Rezepte ends the Rezepte session only**, and signing out at the provider does not sign anybody out of Rezepte.
+- **If the provider is down, passwords keep working.** Rezepte starts without contacting it.
+
+## Configure it
+
+Register Rezepte at your provider as a web application with this redirect URI:
+
+```text
+https://<your Rezepte address>/api/v1/auth/oidc/callback
+```
+
+Then set these variables (see [Configuration](/getting-started/configuration)):
+
+```bash
+REZEPTE_PUBLIC_URL=https://rezepte.example.org
+REZEPTE_OIDC_ISSUER=https://accounts.google.com
+REZEPTE_OIDC_CLIENT_ID=<client ID>
+REZEPTE_OIDC_CLIENT_SECRET=<client secret>
+REZEPTE_OIDC_NAME=Google
+```
+
+`REZEPTE_PUBLIC_URL` is the address people open Rezepte at, exactly as in the browser, without a path. Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
+
+<Tabs items={['Google', 'Authelia']}>
+  <Tab value="Google">
+
+    1. Open the [Google Cloud Console](https://console.cloud.google.com/), pick or create a project, and go to "APIs & Services" → "OAuth consent screen". Choose "External", fill in the app name and your email address, and save. The scopes Rezepte asks for (`openid` and `email`) need no review.
+    2. The consent screen may stay in "Testing": add the Google accounts of your household under "Test users". Only they can then sign in with Google at all.
+    3. Under "Credentials", create an "OAuth client ID" of type "Web application" and add `https://<your Rezepte address>/api/v1/auth/oidc/callback` as an authorized redirect URI.
+    4. Copy the client ID and secret into `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_OIDC_CLIENT_SECRET`, set `REZEPTE_OIDC_ISSUER=https://accounts.google.com` and `REZEPTE_OIDC_NAME=Google`, and restart Rezepte.
+
+  </Tab>
+  <Tab value="Authelia">
+
+    Add a client to Authelia's `identity_providers.oidc.clients`:
+
+    ```yaml
+    - client_id: rezepte
+      client_name: Rezepte
+      client_secret: '$pbkdf2-sha512$...'  # the hashed secret
+      public: false
+      authorization_policy: one_factor
+      require_pkce: true
+      pkce_challenge_method: S256
+      redirect_uris:
+        - https://rezepte.example.org/api/v1/auth/oidc/callback
+      scopes: [openid, email]
+      response_types: [code]
+      grant_types: [authorization_code]
+      token_endpoint_auth_method: client_secret_basic
+    ```
+
+    Then set `REZEPTE_OIDC_ISSUER` to your Authelia address (for example `https://auth.example.org`), `REZEPTE_OIDC_CLIENT_ID=rezepte`, the plain secret in `REZEPTE_OIDC_CLIENT_SECRET`, and `REZEPTE_OIDC_NAME=Authelia`.
+
+  </Tab>
+</Tabs>
+
+## How people connect
+
+- **An existing account** signs in with its password once, opens "Settings", and presses "Continue with …" on the "Sign-in" card. From then on the button on the login page signs them in. The same card disconnects it again - but only once the account has a password, so nobody locks themselves out.
+- **A new account** gets a setup link as usual (see [People](/guide/users)). The page the link opens offers "Continue with …" above the password form, so the person can pick the provider instead of a password.
+
+If the login page says the account is not connected yet, that person has not connected it: sign in with the password and connect it, or ask an admin for a setup link.

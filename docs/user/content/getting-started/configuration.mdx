@@ -15,12 +15,19 @@ Rezepte takes its entire configuration from environment variables — there is n
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
+    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org - scheme and host only, no path. Required for sign-in through an identity provider', type: 'string' },
+    REZEPTE_OIDC_ISSUER: { description: 'Issuer URL of the OpenID Connect provider people may sign in with; setting it turns that sign-in on', type: 'string' },
+    REZEPTE_OIDC_CLIENT_ID: { description: 'Client ID Rezepte is registered under at the provider', type: 'string' },
+    REZEPTE_OIDC_CLIENT_SECRET: { description: 'Client secret, if the provider issued one', type: 'string' },
+    REZEPTE_OIDC_NAME: { description: 'The provider name on the "Continue with …" button, such as Google', type: 'string', default: 'single sign-on' },
   }}
 />
 
 `REZEPTE_LOCALE` is only a starting point: every member picks their own language in [Settings](/guide/settings), and the "Add account" dialog in the app starts on the language of the admin filling it in rather than on this value.
 
 The account created on the first start owns the instance. It cannot be deleted, it cannot lose its admin rights, nobody else can reset its password, and it is the only account that can make someone else an admin — see [First login](/getting-started/first-login). Changing `REZEPTE_ADMIN_USER` later changes nothing — it is read only while the instance has no accounts at all. `REZEPTE_ADMIN_PASSWORD` is read on that first start too, and after that by `--reset-superadmin-password` below and by nothing else, so setting it on a running instance changes no password on its own.
+
+`REZEPTE_OIDC_ISSUER`, `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_PUBLIC_URL` go together: set one of the first two without the others and Rezepte refuses to start, naming all three. Rezepte asks the provider for its settings only when someone first presses the button, so a provider that is down never keeps Rezepte from starting, and password sign-in keeps working without it. [Single sign-on](/operations/single-sign-on) walks through setting it up with Google and Authelia.
 
 ## Command-line flags
 

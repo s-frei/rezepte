@@ -59,7 +59,7 @@ func RequireAuthOrLogin(sessions *Service, tokens *TokenService, secure bool) fu
 				return
 			}
 			if v.Renewed {
-				fresh := sessionCookie(cookie.Value, v.ExpiresAt, secure)
+				fresh := SessionCookie(cookie.Value, v.ExpiresAt, secure)
 				http.SetCookie(w, &fresh)
 			}
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userKey{}, v.User)))

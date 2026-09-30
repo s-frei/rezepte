@@ -9,6 +9,7 @@
 		type ColorUsage
 	} from '$lib/api/auth';
 	import { isSignedOut } from '$lib/api/client';
+	import { getOidc, type OidcInfo } from '$lib/api/oidc';
 	import { session } from '$lib/auth.svelte';
 	import AvatarControl from '$lib/components/settings/AvatarControl.svelte';
 	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
@@ -18,6 +19,7 @@
 	import PasswordForm from '$lib/components/settings/PasswordForm.svelte';
 	import ProfileForm from '$lib/components/settings/ProfileForm.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
+	import SignInCard from '$lib/components/settings/SignInCard.svelte';
 	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
@@ -28,6 +30,9 @@
 
 	let color = $state<UserColor>(session.user?.color ?? USER_COLORS[0]);
 	let usage = $state<ColorUsage[]>([]);
+	// Whether the instance offers a sign-in provider; the Sign-in card only
+	// exists when it does, and a failed lookup leaves it out.
+	let oidc = $state<OidcInfo | null>(null);
 
 	// Advisory: the counts only mark a color somebody else already holds, so
 	// a failed load leaves the palette unmarked rather than the picker locked.
@@ -41,6 +46,10 @@
 
 	onMount(() => {
 		void loadUsage();
+		getOidc().then(
+			(info) => (oidc = info),
+			() => (oidc = null)
+		);
 	});
 
 	/**
@@ -193,6 +202,13 @@
 			<ProfileForm />
 		</div>
 	</section>
+
+	{#if oidc?.enabled}
+		<section class={card} aria-labelledby="settings-signin">
+			<h2 id="settings-signin" class={title}>{m.settings_signin_title()}</h2>
+			<SignInCard name={oidc.name} />
+		</section>
+	{/if}
 
 	<section class={card} aria-labelledby="settings-password">
 		<h2 id="settings-password" class={title}>

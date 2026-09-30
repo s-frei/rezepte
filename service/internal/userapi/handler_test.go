@@ -35,6 +35,14 @@ func newHandler(t *testing.T) http.Handler {
 // package default behind it.
 func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler {
 	t.Helper()
+	h, _ := newStack(t, environment)
+	return h
+}
+
+// newStack is newHandlerWithEnv that also returns the user service, for a
+// test that needs state the API cannot create, such as a linked identity.
+func newStack(t *testing.T, environment map[string]string) (http.Handler, *user.Service) {
+	t.Helper()
 	cfg, err := config.LoadFrom(environment)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
@@ -55,7 +63,7 @@ func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())))
-	return srv.Handler()
+	return srv.Handler(), users
 }
 
 // tokenEnv is newHandlerWithEnv's counterpart for bearer-token tests: a
@@ -843,5 +851,19 @@ func TestRefusedPatchWritesNothing(t *testing.T) {
 	}
 	if got := userNamed(t, h, owner, "ren"); !got.CanSharePublicly {
 		t.Error("ren lost the right to share although the request was refused")
+	}
+}
+
+func TestListUsersReportsLinkedIdentities(t *testing.T) {
+	h, users := newStack(t, map[string]string{})
+	cookie := loginAs(t, h, "sam", "pw")
+	kimID := idOf(t, listUsers(t, h, cookie), "kim")
+	if err := users.LinkIdentity(context.Background(), kimID, "https://id.example", "sub-kim"); err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range listUsers(t, h, cookie) {
+		if u.HasIdentity != (u.Username == "kim") {
+			t.Errorf("%s: hasIdentity = %v", u.Username, u.HasIdentity)
+		}
 	}
 }
