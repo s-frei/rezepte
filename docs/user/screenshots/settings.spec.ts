@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { prepare, shot } from './helpers';
 
@@ -6,6 +7,19 @@ test('settings', async ({ page }, testInfo) => {
 	await page.goto('/settings');
 	await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
 	await shot(page, 'settings');
+});
+
+test('avatar-crop', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings');
+	// Jonas's demo picture: embedded for the demo, but not set on anyone, so
+	// the dialog shows a real photo and nothing is saved.
+	await page
+		.locator('input[type=file]')
+		.setInputFiles(path.join(__dirname, '../../../service/internal/demo/avatars/jonas.jpg'));
+	const dialog = page.getByRole('dialog', { name: 'Crop the photo' });
+	await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
+	await shot(page, 'avatar-crop');
 });
 
 test('api', async ({ page }, testInfo) => {

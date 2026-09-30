@@ -138,7 +138,7 @@
 	"users_field_language_hint": "They can change this themselves later.",
 	"users_edit_profile": "Edit profile",
 	"users_edit_profile_title": "Edit {username}'s profile",
-	"users_edit_profile_description": "Display name and color for this account.",
+	"users_edit_profile_description": "Photo, display name and color for this account.",
 	"users_profile_saved": "Profile saved",
 	"users_profile_error": "Profile could not be saved.",
 	"users_profile_forbidden": "Only the owner can change profiles.",
@@ -589,7 +589,7 @@
 	"avatar_change": "Change photo",
 	"avatar_add": "Add photo",
 	"avatar_remove": "Remove photo",
-	"avatar_crop_title": "Crop your photo",
+	"avatar_crop_title": "Crop the photo",
 	"avatar_crop_description": "Drag to move, pinch or use the slider to zoom. Arrow keys move, plus and minus zoom.",
 	"avatar_crop_zoom": "Zoom",
 	"avatar_crop_frame": "Photo section",
@@ -598,5 +598,6 @@
 	"avatar_error_too_large": "That photo is larger than 10 MB.",
 	"avatar_error_format": "Use a JPEG, PNG or WebP photo.",
 	"avatar_error_invalid": "That photo or section is too small.",
-	"avatar_error": "The photo could not be saved."
+	"avatar_error": "The photo could not be saved.",
+	"avatar_error_remove": "The photo could not be removed."
 }

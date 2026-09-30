@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
@@ -31,12 +32,16 @@
 	let color = $state<UserColor>('amber');
 	let saving = $state(false);
 
-	// A fresh form every time the dialog opens, seeded from the row.
+	// A fresh form every time the dialog opens, seeded from the row. Only
+	// `open` is tracked: a picture set while the dialog is open replaces
+	// `user`, and re-seeding then would wipe the name and color being edited.
 	$effect(() => {
 		if (open) {
-			displayName = user.displayName;
-			color = user.color;
-			saving = false;
+			untrack(() => {
+				displayName = user.displayName;
+				color = user.color;
+				saving = false;
+			});
 		}
 	});
 

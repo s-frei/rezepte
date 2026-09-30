@@ -218,20 +218,23 @@ export async function openRecipeMenu(page: Page) {
 }
 
 /**
- * A valid 64×64 RGB PNG built in-process (signature, IHDR, one deflated
- * IDAT, IEND), so the suite needs no binary fixtures. `tint` picks the
- * color so two uploads are distinguishable in a screenshot.
+ * A valid RGB PNG, 64×64 unless told otherwise, built in-process (signature,
+ * IHDR, one deflated IDAT, IEND), so the suite needs no binary fixtures.
+ * `tint` picks the color so two uploads are distinguishable in a screenshot.
  *
  * 64 px is deliberate: the service rejects anything smaller than 64 px on
  * either side (`image.minSide`), so this is the cheapest picture it accepts.
  */
-export function tinyPng(tint: [number, number, number] = [200, 120, 40]): Buffer {
-	const size = 64;
-	const raw = Buffer.alloc(size * (1 + size * 3));
-	for (let y = 0; y < size; y++) {
-		const row = y * (1 + size * 3);
+export function tinyPng(
+	tint: [number, number, number] = [200, 120, 40],
+	width = 64,
+	height = 64
+): Buffer {
+	const raw = Buffer.alloc(height * (1 + width * 3));
+	for (let y = 0; y < height; y++) {
+		const row = y * (1 + width * 3);
 		raw[row] = 0; // filter: none
-		for (let x = 0; x < size; x++) {
+		for (let x = 0; x < width; x++) {
 			raw.set(tint, row + 1 + x * 3);
 		}
 	}
@@ -244,8 +247,8 @@ export function tinyPng(tint: [number, number, number] = [200, 120, 40]): Buffer
 		return out;
 	};
 	const ihdr = Buffer.alloc(13);
-	ihdr.writeUInt32BE(size, 0);
-	ihdr.writeUInt32BE(size, 4);
+	ihdr.writeUInt32BE(width, 0);
+	ihdr.writeUInt32BE(height, 4);
 	ihdr.set([8, 2, 0, 0, 0], 8); // depth 8, RGB, deflate, filter 0, no interlace
 	return Buffer.concat([
 		Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

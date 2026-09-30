@@ -117,9 +117,10 @@
 <SettingsLayout active="profile">
 	<section class={card} aria-labelledby="settings-profile">
 		<h2 id="settings-profile" class={title}>{m.settings_nav_profile()}</h2>
-		<!-- The avatar is the one place on this page where the chosen color is
-		     shown at size, and it is the same circle the recipe cards paint, so
-		     a pick can be judged here instead of on the overview. -->
+		<!-- The avatar is the same circle the recipe cards paint. Without a
+		     picture it shows the chosen color at size, so a pick can be judged
+		     here instead of on the overview; the color picker's swatches show
+		     the color whether or not a picture is set. -->
 		{#if session.user}
 			<AvatarControl
 				person={session.user}

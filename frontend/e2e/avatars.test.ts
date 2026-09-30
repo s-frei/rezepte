@@ -43,7 +43,7 @@ test('crops and sets the own picture, then removes it', async ({ page }) => {
 		mimeType: 'image/png',
 		buffer: tinyPng([200, 60, 60])
 	});
-	const dialog = page.getByRole('dialog', { name: 'Crop your photo' });
+	const dialog = page.getByRole('dialog', { name: 'Crop the photo' });
 	await expect(dialog).toBeVisible();
 	// tinyPng is 64 px, the smallest the service takes, so the test keeps
 	// zoom 1: any zoom would cut the square below 64 px and earn a 422.
@@ -59,6 +59,54 @@ test('crops and sets the own picture, then removes it', async ({ page }) => {
 	await page.getByRole('button', { name: 'Remove photo' }).click();
 	await expect(page.getByText('Photo removed')).toBeVisible();
 	await expect(page.locator('img[src^="/avatars/"]:visible')).toHaveCount(0);
+});
+
+test('a second file is cropped by its own size', async ({ page }) => {
+	const name = `swap${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await login(page, name);
+	await page.goto('/settings');
+	const input = page.locator('input[type=file]');
+	const dialog = page.getByRole('dialog', { name: 'Crop the photo' });
+
+	// A tall file centers with a vertical offset that a wide file cannot take.
+	await input.setInputFiles({
+		name: 'tall.png',
+		mimeType: 'image/png',
+		buffer: tinyPng([200, 60, 60], 64, 256)
+	});
+	await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
+	await dialog.getByRole('button', { name: 'Cancel' }).click();
+	await expect(dialog).toBeHidden();
+
+	await input.setInputFiles({
+		name: 'wide.png',
+		mimeType: 'image/png',
+		buffer: tinyPng([60, 60, 200], 256, 64)
+	});
+	const put = page.waitForRequest(
+		(r) => r.method() === 'PUT' && r.url().includes('/auth/me/avatar?crop=')
+	);
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	const [x, y, size] = new URL((await put).url()).searchParams.get('crop')!.split(',').map(Number);
+	// The wide file's centered square: a quarter of its width, all of its height.
+	expect(y).toBe(0);
+	expect(size).toBe(1);
+	expect(x).toBeCloseTo(0.375, 3);
+	await expect(page.getByText('Photo saved')).toBeVisible();
+});
+
+test('a file over 10 MB is refused before the dialog', async ({ page }) => {
+	await login(page);
+	await page.goto('/settings');
+	await page.locator('input[type=file]').setInputFiles({
+		name: 'big.png',
+		mimeType: 'image/png',
+		buffer: Buffer.alloc(10 * 1024 * 1024 + 1)
+	});
+	await expect(page.getByText('That photo is larger than 10 MB.')).toBeVisible();
+	await expect(page.getByRole('dialog', { name: 'Crop the photo' })).toHaveCount(0);
 });
 
 test("the owner sets another account's picture", async ({ page, isMobile }) => {
@@ -87,7 +135,7 @@ test("the owner sets another account's picture", async ({ page, isMobile }) => {
 		buffer: tinyPng([60, 60, 200])
 	});
 	await page
-		.getByRole('dialog', { name: 'Crop your photo' })
+		.getByRole('dialog', { name: 'Crop the photo' })
 		.getByRole('button', { name: 'Save' })
 		.click();
 	await expect(page.getByText('Photo saved')).toBeVisible();
@@ -105,6 +153,9 @@ test('opens the author card from a recipe card and filters by author', async ({ 
 	await expect(link).toBeVisible();
 	await link.click();
 	await expect(page).toHaveURL(/\?author=admin/);
+	// The card stays in the filtered list; its popover must not stay open over it.
+	await expect(card).toBeVisible();
+	await expect(link).toBeHidden();
 });
 
 test('a picture fills its whole circle', async ({ page }) => {

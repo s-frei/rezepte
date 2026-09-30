@@ -32,11 +32,15 @@
 	const uid = $props.id();
 
 	let frame = $state(0);
-	let natural = $state<{ w: number; h: number } | null>(null);
+	let measured = $state<{ src: string; w: number; h: number } | null>(null);
 	let view = $state<View>({ zoom: 1, x: 0, y: 0 });
 
 	// An object URL per file, revoked when the file changes or the dialog goes.
 	const src = $derived(file ? URL.createObjectURL(file) : null);
+	// The size counts only for the image it was measured on: a new file has
+	// none until it loads, so Save waits instead of cropping the new file
+	// with the old one's measurements.
+	const natural = $derived(measured && measured.src === src ? measured : null);
 	$effect(() => {
 		const url = src;
 		return () => {
@@ -46,8 +50,9 @@
 
 	function loaded(event: Event) {
 		const img = event.currentTarget as HTMLImageElement;
-		natural = { w: img.naturalWidth, h: img.naturalHeight };
-		view = centered(natural.w, natural.h, frame);
+		if (!src) return;
+		measured = { src, w: img.naturalWidth, h: img.naturalHeight };
+		view = centered(measured.w, measured.h, frame);
 	}
 
 	const scale = $derived(natural ? scaleOf(natural.w, natural.h, frame, view.zoom) : 1);

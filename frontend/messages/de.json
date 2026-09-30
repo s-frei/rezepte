@@ -138,7 +138,7 @@
 	"users_field_language_hint": "Kann später selbst geändert werden.",
 	"users_edit_profile": "Profil bearbeiten",
 	"users_edit_profile_title": "Profil von {username} bearbeiten",
-	"users_edit_profile_description": "Anzeigename und Farbe dieses Kontos.",
+	"users_edit_profile_description": "Foto, Anzeigename und Farbe dieses Kontos.",
 	"users_profile_saved": "Profil gespeichert",
 	"users_profile_error": "Profil konnte nicht gespeichert werden.",
 	"users_profile_forbidden": "Nur der Inhaber kann Profile ändern.",
@@ -598,5 +598,6 @@
 	"avatar_error_too_large": "Das Foto ist größer als 10 MB.",
 	"avatar_error_format": "Bitte ein JPEG-, PNG- oder WebP-Foto verwenden.",
 	"avatar_error_invalid": "Das Foto oder der Ausschnitt ist zu klein.",
-	"avatar_error": "Das Foto konnte nicht gespeichert werden."
+	"avatar_error": "Das Foto konnte nicht gespeichert werden.",
+	"avatar_error_remove": "Das Foto konnte nicht entfernt werden."
 }

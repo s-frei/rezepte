@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { MAX_IMAGE_BYTES } from '$lib/api/recipes';
 	import Button from '$lib/components/ui/Button.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -34,6 +35,10 @@
 		file = target.files?.[0] ?? null;
 		// Cleared so picking the same file again still fires `change`.
 		target.value = '';
+		if (file && file.size > MAX_IMAGE_BYTES) {
+			toast.error(m.avatar_error_too_large());
+			file = null;
+		}
 		if (file) cropOpen = true;
 	}
 
@@ -68,7 +73,7 @@
 			onchange(null);
 			toast.success(m.avatar_removed());
 		} catch (error) {
-			if (!isSignedOut(error)) toast.error(m.avatar_error());
+			if (!isSignedOut(error)) toast.error(m.avatar_error_remove());
 		} finally {
 			busy = false;
 		}
