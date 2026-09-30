@@ -219,7 +219,7 @@ test('the credit on a recipe card follows the owner setting', async ({ page }, t
 	const openCard = async () => {
 		await page.getByRole('button', { name: 'Pass on' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
-		await expect(sheet.getByRole('img', { name: /^Recipe card:/ })).toBeVisible({
+		await expect(sheet.getByRole('img', { name: /^Recipe image:/ })).toBeVisible({
 			timeout: 20_000
 		});
 	};

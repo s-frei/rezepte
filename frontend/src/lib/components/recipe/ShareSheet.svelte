@@ -142,6 +142,11 @@
 	<BottomSheet bind:open closeLabel={m.share_sheet_close()}>
 		<Dialog.Title class="px-5 text-center {label}">{m.share_sheet_title()}</Dialog.Title>
 		{@render card('h-[340px]')}
+		{#if !canShareFiles()}
+			<!-- No share sheet for files (plain http is not a secure context):
+			     the phone's own long-press menu on the preview still shares it. -->
+			<p class="px-5 pb-3 text-center text-caption text-text-muted">{m.share_hold_hint()}</p>
+		{/if}
 		<div class="relative border-t-2 border-dashed border-handle" aria-hidden="true">
 			<Scissors
 				class="absolute -top-2.5 left-5 size-5 -rotate-90 bg-background px-0.5 text-text-muted"

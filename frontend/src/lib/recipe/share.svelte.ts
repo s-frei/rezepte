@@ -62,10 +62,51 @@ export class ShareLink {
 	}
 }
 
-/** Puts `text` on the clipboard and confirms it with `message`. */
+/**
+ * Copies through a selected, hidden field - the one way left where the
+ * clipboard API is missing: plain http on a home network is not a secure
+ * context, and browsers leave `navigator.clipboard` out there. The field
+ * goes into an open dialog when there is one, whose focus trap would
+ * otherwise pull the selection away.
+ */
+function copyThroughField(text: string): boolean {
+	const field = document.createElement('textarea');
+	field.value = text;
+	field.readOnly = true;
+	field.style.position = 'fixed';
+	field.style.opacity = '0';
+	(document.activeElement?.closest('[role="dialog"]') ?? document.body).append(field);
+	field.focus();
+	field.setSelectionRange(0, text.length);
+	try {
+		return document.execCommand('copy');
+	} catch {
+		return false;
+	} finally {
+		field.remove();
+	}
+}
+
+/**
+ * Puts `text` on the clipboard and confirms it with `message`. Where no way
+ * of copying works, the toast shows the text itself, so it can still be
+ * selected by hand rather than lost without a word.
+ */
 export async function copyText(text: string, message: string): Promise<void> {
-	await navigator.clipboard.writeText(text);
-	toast.success(message);
+	try {
+		if (navigator.clipboard) {
+			await navigator.clipboard.writeText(text);
+			toast.success(message);
+			return;
+		}
+	} catch {
+		// Refused (permission, unfocused page): try the field below.
+	}
+	if (copyThroughField(text)) {
+		toast.success(message);
+		return;
+	}
+	toast(m.copy_unavailable(), { description: text });
 }
 
 export function copyLink(url: string): Promise<void> {

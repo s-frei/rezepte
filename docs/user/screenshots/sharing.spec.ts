@@ -91,6 +91,6 @@ test('recipe-card', async ({ page }, testInfo) => {
 		await page.getByRole('button', { name: 'Pass on' }).click();
 	}
 	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
-	await expect(sheet.getByRole('img', { name: /^Recipe card:/ })).toBeVisible({ timeout: 20_000 });
+	await expect(sheet.getByRole('img', { name: /^Recipe image:/ })).toBeVisible({ timeout: 20_000 });
 	await shot(page, 'recipe-card');
 });

@@ -19,7 +19,7 @@ import {
 
 // The browsers under test may or may not offer a share sheet for files, and
 // a headless one cannot show it. Each test pins the behavior it needs:
-// `noShareSheet` takes file sharing away, so "Card" falls back to a download.
+// `noShareSheet` takes file sharing away, so "Image" falls back to a download.
 async function noShareSheet(page: Page) {
 	await page.addInitScript(() => {
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: undefined });
@@ -37,7 +37,7 @@ async function openPassOn(page: Page, testInfo: TestInfo): Promise<Locator> {
 		await page.getByRole('button', { name: 'Pass on' }).click();
 	}
 	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
-	await expect(sheet.getByRole('img', { name: /^Recipe card:/ })).toBeVisible({ timeout: 20_000 });
+	await expect(sheet.getByRole('img', { name: /^Recipe image:/ })).toBeVisible({ timeout: 20_000 });
 	return sheet;
 }
 
@@ -49,7 +49,7 @@ async function pngSize(download: Download): Promise<{ width: number; height: num
 
 async function saveCard(page: Page, sheet: Locator, testInfo: TestInfo): Promise<Download> {
 	const downloading = page.waitForEvent('download');
-	await sheet.getByRole('button', { name: isPhone(testInfo) ? 'Card' : 'Save image' }).click();
+	await sheet.getByRole('button', { name: isPhone(testInfo) ? 'Image' : 'Save image' }).click();
 	return downloading;
 }
 
@@ -89,7 +89,7 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 });
 
 test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
-	test.skip(!isPhone(testInfo), 'the phone sheet is where "Card" opens the share sheet');
+	test.skip(!isPhone(testInfo), 'the phone sheet is where "Image" opens the share sheet');
 	await page.addInitScript(() => {
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
 		Object.defineProperty(Navigator.prototype, 'share', {
@@ -101,9 +101,10 @@ test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	const sheet = await openPassOn(page, testInfo);
+	await expect(sheet.getByText('Press and hold the image to share it.')).toHaveCount(0);
 	let downloaded = false;
 	page.on('download', () => (downloaded = true));
-	await sheet.getByRole('button', { name: 'Card' }).click();
+	await sheet.getByRole('button', { name: 'Image' }).click();
 	// Longer than the sheet's 320ms send animation and a download's start.
 	await page.waitForTimeout(800);
 	await expect(sheet).toBeVisible();
@@ -112,7 +113,7 @@ test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
 });
 
 test('a second tap while the share sheet is up sends nothing more', async ({ page }, testInfo) => {
-	test.skip(!isPhone(testInfo), 'the phone sheet is where "Card" opens the share sheet');
+	test.skip(!isPhone(testInfo), 'the phone sheet is where "Image" opens the share sheet');
 	// The first share stays open, as the system sheet does; a second call
 	// meanwhile is refused the way browsers refuse it.
 	await page.addInitScript(() => {
@@ -133,7 +134,7 @@ test('a second tap while the share sheet is up sends nothing more', async ({ pag
 	const sheet = await openPassOn(page, testInfo);
 	let downloaded = false;
 	page.on('download', () => (downloaded = true));
-	const card = sheet.getByRole('button', { name: 'Card' });
+	const card = sheet.getByRole('button', { name: 'Image' });
 	await card.click();
 	await card.click({ force: true });
 	await page.waitForTimeout(800);
@@ -161,4 +162,59 @@ test('falls back to the placeholder when the cover does not load', async ({ page
 
 	await openPassOn(page, testInfo);
 	await expect(page.locator('[inert] img[src*="/images/"]')).toHaveCount(0);
+});
+
+// Plain http on a home network is not a secure context: browsers then offer
+// neither the share sheet nor the clipboard API. `insecure` takes both away
+// and records what the fallback copy put on the clipboard.
+async function insecure(page: Page, { copyWorks = true } = {}) {
+	await page.addInitScript((works) => {
+		Object.defineProperty(Navigator.prototype, 'canShare', { value: undefined });
+		Object.defineProperty(Navigator.prototype, 'share', { value: undefined });
+		Object.defineProperty(Navigator.prototype, 'clipboard', { get: () => undefined });
+		Document.prototype.execCommand = function (command: string) {
+			if (command !== 'copy' || !works) return false;
+			const field = document.activeElement as HTMLTextAreaElement | null;
+			(window as unknown as { copied?: string }).copied = field?.value;
+			return true;
+		};
+	}, copyWorks);
+}
+
+test('without https, Link still copies the link', async ({ page }, testInfo) => {
+	test.skip(!isPhone(testInfo), 'the phone sheet has Link');
+	await insecure(page);
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Http ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	await sheet.getByRole('button', { name: 'Link' }).click();
+	await expect(page.getByText('Link copied')).toBeVisible();
+	const copied = await page.evaluate(() => (window as unknown as { copied?: string }).copied);
+	expect(copied).toContain(`/recipes/${recipe.slug}`);
+});
+
+test('without https, the sheet says how to share the image', async ({ page }, testInfo) => {
+	test.skip(!isPhone(testInfo), 'the hint is for phones');
+	await insecure(page);
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Hint ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	await expect(sheet.getByText('Press and hold the image to share it.')).toBeVisible();
+});
+
+test('when nothing can copy, the text is shown instead', async ({ page }, testInfo) => {
+	test.skip(!isPhone(testInfo), 'the phone sheet has Link');
+	await insecure(page, { copyWorks: false });
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Show ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	await sheet.getByRole('button', { name: 'Link' }).click();
+	await expect(page.getByText('Copying is not available here')).toBeVisible();
+	await expect(page.getByText(new RegExp(`/recipes/${recipe.slug}`))).toBeVisible();
 });
