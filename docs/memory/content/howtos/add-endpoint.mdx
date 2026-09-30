@@ -75,7 +75,7 @@ description: huma operations, security, errors
 
 <Callout type="warn" title="Multipart uploads">
 
-  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - copy `limitUpload` from `internal/image/handler.go` into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireAuth`, not from a huma operation.
+  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - put `image.LimitUpload` (`internal/image/handler.go`) into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireAuth`, not from a huma operation.
 
 </Callout>
 

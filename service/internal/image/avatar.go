@@ -16,8 +16,9 @@ import (
 
 const (
 	// avatarSide is the one size an account picture is rendered at: the
-	// person card's 64 CSS px on a 3x screen is 192, and 320 leaves room
-	// without costing the 20 px circles on the overview much.
+	// largest circle, the 96 CSS px profile mark, is 288 px on a 3x screen,
+	// and 320 covers it without costing the 20 px circles on the overview
+	// much.
 	avatarSide    = 320
 	avatarQuality = 85
 )

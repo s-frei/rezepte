@@ -19,7 +19,7 @@ Recipes carry photos: a cover on the card, a gallery on the detail page and a li
 
 | Limit | Enforced by |
 |---|---|
-| upload at most 10 MiB | `limitUpload` in `service/internal/image/handler.go` answers `413` on a declared `Content-Length` above the cap and wraps the body in `http.MaxBytesReader`; `Upload` reads at most the cap plus one byte as a backstop |
+| upload at most 10 MiB | `LimitUpload` in `service/internal/image/handler.go` answers `413` on a declared `Content-Length` above the cap and wraps the body in `http.MaxBytesReader`; `Upload` reads at most the cap plus one byte as a backstop |
 | JPEG, PNG or WebP | huma validates the multipart part's declared content type before the handler runs; `decode` then judges the bytes themselves, and the format it refuses comes back as `415` |
 | 64 to 12000 px per side, at most 60 megapixels | `decode` reads them from `image.DecodeConfig`, so an oversized image is rejected from its header before its pixels are allocated |
 | 20 images per recipe | `Upload` counts once before decoding and again inside the write transaction, which closes the race between two concurrent uploads on the same recipe |
@@ -57,7 +57,7 @@ Baking the orientation into the pixels means every viewer shows the photo uprigh
 
 - Originals are not kept. Re-rendering at a different size means uploading the photo again; the 2400 px variant is what the download link serves.
 - The limits above are compile-time constants in `service/internal/image/image.go` and `service/internal/image/service.go`, not configuration. Changing one is a code change and a redeploy, not an environment variable.
-- `Operation.MaxBodyBytes` does not apply to huma's multipart path: `GetMultipartForm` parses the form without a limit reader, and the code that honors `MaxBodyBytes` only runs for non-multipart bodies. `limitUpload` is the real limit, and `MaxBodyBytes` is declared beside it as documentation of the intended cap. Any further multipart endpoint has to bring its own limit — see [Add an API endpoint](/howtos/add-endpoint).
+- `Operation.MaxBodyBytes` does not apply to huma's multipart path: `GetMultipartForm` parses the form without a limit reader, and the code that honors `MaxBodyBytes` only runs for non-multipart bodies. `LimitUpload` is the real limit, and `MaxBodyBytes` is declared beside it as documentation of the intended cap. Any further multipart endpoint has to bring its own limit — see [Add an API endpoint](/howtos/add-endpoint).
 - The upload response carries exactly one image, and the editor uploads a multi-selection one file after another. That keeps error handling per file, at the cost of no parallelism in the browser.
 - Backups must cover the images directory next to the database. The database alone restores recipes without their photos.
 - The same holds for the `avatars` directory and the accounts' pictures.

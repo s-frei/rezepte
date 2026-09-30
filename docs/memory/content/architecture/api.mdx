@@ -163,13 +163,13 @@ See [Users and authentication](/features/users-and-auth) for who may set a pictu
 
 | Operation | Path | Notes |
 |---|---|---|
-| set-own-avatar | `PUT /auth/me/avatar` | multipart, one part named `file`; JPEG/PNG/WebP, ≤ 10 MiB; optional query `crop=x,y,size` (fractions of the upright image, see [Images](/features/images)); `200` with `{avatarId}`, the new picture - the user is not returned, so a client updates its copy from the id. Any session |
-| delete-own-avatar | `DELETE /auth/me/avatar` | `204`; idempotent. Any session |
-| set-user-avatar | `PUT /users/{id}/avatar` | as `set-own-avatar`, for another account; owner only, `403` `superadmin role required` for everybody else, `404` for an unknown id |
-| delete-user-avatar | `DELETE /users/{id}/avatar` | `204`; owner only, `404` for an unknown id |
+| set-own-avatar | `PUT /auth/me/avatar` | multipart, one part named `file`; JPEG/PNG/WebP, ≤ 10 MiB; optional query `crop=x,y,size` (fractions of the upright image, see [Images](/features/images)); `200` with `{avatarId}`, the new picture - the user is not returned, so a client updates its copy from the id. Session only, any role |
+| delete-own-avatar | `DELETE /auth/me/avatar` | `204`; idempotent. Session only, any role |
+| set-user-avatar | `PUT /users/{id}/avatar` | as `set-own-avatar`, for another account; a session or a token carrying `users:write`, and either way owner only: `403` `superadmin role required` for everybody else, `404` for an unknown id |
+| delete-user-avatar | `DELETE /users/{id}/avatar` | `204`; a session or a token carrying `users:write`, owner only, `404` for an unknown id |
 | serve a picture | `GET /avatars/{userId}/{avatarId}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireAuth`, reachable by a session of any role or a token carrying `users:read`; `Cache-Control: private, max-age=31536000, immutable`; ids are checked against the UUID alphabet and anything that is not an existing file is `404` |
 
-The upload statuses are the image upload's: `413` from `limitUpload`, `415` for a format that is not JPEG, PNG or WebP, and `422` for undecodable bytes, sides outside 64-12000 px, or a `crop` that is malformed, out of range, past the image's edge or under 64 px.
+The upload statuses are the image upload's: `413` from `LimitUpload`, `415` for a format that is not JPEG, PNG or WebP, and `422` for undecodable bytes, sides outside 64-12000 px, or a `crop` that is malformed, out of range, past the image's edge or under 64 px.
 
 `avatarId` is `string | null` on every person-shaped body a 20 px circle or larger draws from: the own user, `/users`, `/people`, and the `createdBy`, `updatedBy` and `tastyBy` people of recipes. The client builds the URL from `id` and `avatarId`; the API carries no paths. `/authors` and a share's creator name people only for 12 to 16 px color dots, so they carry no `avatarId`.
 
@@ -193,7 +193,7 @@ Upload-specific error statuses, on top of the standard ones below:
 | Status | When | Detail |
 |---|---|---|
 | `404` | recipe or image id does not exist | "recipe or image not found" |
-| `413` | declared `Content-Length` above 10 MiB | "upload larger than 10 MiB" - answered by the `limitUpload` middleware before the body is read, since huma's `MaxBodyBytes` is not enforced on multipart bodies (see [Images](/features/images)). A chunked or lying client is instead cut off mid-parse by `http.MaxBytesReader` and surfaces as a `422` on `body` |
+| `413` | declared `Content-Length` above 10 MiB | "upload larger than 10 MiB" - answered by the `LimitUpload` middleware before the body is read, since huma's `MaxBodyBytes` is not enforced on multipart bodies (see [Images](/features/images)). A chunked or lying client is instead cut off mid-parse by `http.MaxBytesReader` and surfaces as a `422` on `body` |
 | `415` | the real image format (sniffed from bytes, not the declared `Content-Type`) is not JPEG, PNG or WebP | "unsupported image format" |
 | `422` | the multipart part is declared with a `Content-Type` outside `image/jpeg,image/png,image/webp` (huma's form validation, before the handler runs), sides outside 64-12000 px, more than 60 megapixels, decode failure, the recipe already has 20 images, or (reorder) `imageIds` does not name every image of the recipe exactly once | "image must be 64-12000 px per side" / "image has more than 60 megapixels" / "recipe has 20 images" / "imageIds must list every image exactly once" |
 
