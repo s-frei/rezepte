@@ -27,9 +27,10 @@ import (
 )
 
 type env struct {
-	h        http.Handler
-	dir      string
-	sam, ada user.User
+	h             http.Handler
+	dir           string
+	tokens        *auth.TokenService
+	sam, ada, max user.User
 }
 
 func setup(t *testing.T) env {
@@ -41,6 +42,10 @@ func setup(t *testing.T) env {
 		t.Fatal(err)
 	}
 	ada, err := users.Create(ctx, user.CreateParams{Username: "ada", Password: "password1", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	member, err := users.Create(ctx, user.CreateParams{Username: "max", Password: "password1", Role: user.RoleUser})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +68,7 @@ func setup(t *testing.T) env {
 	userapi.Register(srv.API(), users, sessions, avatars)
 	srv.Handle("GET /avatars/{userId}/{file}",
 		auth.RequireAuth(sessions, tokens, false, auth.ScopeUsersRead)(avatar.FileHandler(avatars)))
-	return env{h: srv.Handler(), dir: dir, sam: sam, ada: ada}
+	return env{h: srv.Handler(), dir: dir, tokens: tokens, sam: sam, ada: ada, max: member}
 }
 
 func do(h http.Handler, method, path string, body []byte, contentType string, cookie *http.Cookie) *httptest.ResponseRecorder {
@@ -223,7 +228,38 @@ func TestUserAvatarNeedsOwner(t *testing.T) {
 	if rec := do(e.h, http.MethodDelete, "/api/v1/users/"+e.sam.ID+"/avatar", nil, "", ada); rec.Code != http.StatusForbidden {
 		t.Fatalf("admin delete: %d, want 403", rec.Code)
 	}
+	member := login(t, e.h, "max")
+	if rec := upload(t, e, "/api/v1/users/"+e.ada.ID+"/avatar", member); rec.Code != http.StatusForbidden {
+		t.Fatalf("member on admin: %d, want 403", rec.Code)
+	}
 	sam := login(t, e.h, "sam")
+	// The refused uploads wrote nothing: no row names a picture, no file exists.
+	people := do(e.h, http.MethodGet, "/api/v1/people", nil, "", sam)
+	if people.Code != http.StatusOK {
+		t.Fatalf("people: %d %s", people.Code, people.Body.String())
+	}
+	var list struct {
+		Items []struct {
+			ID       string  `json:"id"`
+			AvatarID *string `json:"avatarId"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(people.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range list.Items {
+		if (p.ID == e.sam.ID || p.ID == e.ada.ID) && p.AvatarID != nil {
+			t.Errorf("%s has avatarId %q after a refused upload", p.ID, *p.AvatarID)
+		}
+	}
+	if len(list.Items) == 0 {
+		t.Fatalf("people listed nobody: %s", people.Body.String())
+	}
+	for _, id := range []string{e.sam.ID, e.ada.ID} {
+		if _, err := os.Stat(filepath.Join(e.dir, id)); !os.IsNotExist(err) {
+			t.Errorf("avatar dir for %s after a refused upload: %v", id, err)
+		}
+	}
 	if rec := upload(t, e, "/api/v1/users/"+e.ada.ID+"/avatar", sam); rec.Code != http.StatusOK {
 		t.Fatalf("owner on ada: %d %s", rec.Code, rec.Body.String())
 	}
@@ -255,5 +291,29 @@ func TestDeleteUserRemovesAvatarDir(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(e.dir, e.ada.ID)); !os.IsNotExist(err) {
 		t.Fatalf("avatar dir survived: %v", err)
+	}
+}
+
+func TestFileRouteTakesUsersReadToken(t *testing.T) {
+	e := setup(t)
+	c := login(t, e.h, "ada")
+	id := avatarIDOf(t, upload(t, e, "/api/v1/auth/me/avatar", c))
+	ctx := context.Background()
+	reader, _, err := e.tokens.Create(ctx, e.sam.ID, "reader", []string{auth.ScopeUsersRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipesOnly, _, err := e.tokens.Create(ctx, e.sam.ID, "recipes", []string{auth.ScopeRecipesRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for raw, want := range map[string]int{reader: http.StatusOK, recipesOnly: http.StatusForbidden} {
+		req := httptest.NewRequest(http.MethodGet, "/avatars/"+e.ada.ID+"/"+id+".jpg", nil)
+		req.Header.Set("Authorization", "Bearer "+raw)
+		rec := httptest.NewRecorder()
+		e.h.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Errorf("token %s…: %d, want %d", raw[:8], rec.Code, want)
+		}
 	}
 }
