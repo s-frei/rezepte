@@ -53,11 +53,10 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
 
     ```bash
     sqlite3 /var/lib/rezepte/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
-    rsync -a /var/lib/rezepte/images/ /backups/images/
-    rsync -a /var/lib/rezepte/avatars/ /backups/avatars/
+    rsync -a --exclude 'rezepte.db*' /var/lib/rezepte/ /backups/files/
     ```
 
-    The backup is a single file with everything from the `-wal` folded in. Run it as the account that owns the data directory — `rezepte` in the [systemd unit](/getting-started/binary), UID 65532 for a bind mount used by the container — so any file SQLite creates next to the database belongs to that account, not to root.
+    The database backup is a single file with everything from the `-wal` folded in. `rsync` takes everything else in the data directory — recipe photos, profile photos and whatever Rezepte keeps there in future versions — and leaves out the database files, which `sqlite3` has already copied consistently. Run it as the account that owns the data directory — `rezepte` in the [systemd unit](/getting-started/binary), UID 65532 for a bind mount used by the container — so any file SQLite creates next to the database belongs to that account, not to root.
 
   </Tab>
 </Tabs>
@@ -88,7 +87,7 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
 
     1. Stop Rezepte.
     2. Replace `rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it — they belong to the database you replaced, not to the backup.
-    3. Copy the backed-up `images/` and `avatars/` directories back into place.
+    3. Copy the backed-up files back into the data directory: `rsync -a /backups/files/ /var/lib/rezepte/`.
     4. Give the data directory back to the account Rezepte runs as, for example `chown -R rezepte:rezepte /var/lib/rezepte`.
     5. Start Rezepte again.
 
