@@ -213,6 +213,40 @@ func TestMembersFollowTheSeed(t *testing.T) {
 	}
 }
 
+// Everybody in the demo, the admin included, gets a pantry name in the
+// demo's language that differs from their login name and keeps its initial.
+func TestMembersAndAdminGetPantryNames(t *testing.T) {
+	for locale, want := range map[user.Locale]map[string]string{
+		"de": {"demo": "Dattel Dill", "mila": "Mila Majoran", "jonas": "Jonas Zimt"},
+		"en": {"demo": "Damson Dill", "mila": "Mila Marjoram", "jonas": "Jonas Cinnamon"},
+	} {
+		t.Run(string(locale), func(t *testing.T) {
+			ctx := context.Background()
+			conn := dbtest.Open(t)
+			users := user.NewService(conn, "")
+			if err := users.EnsureSuperadmin(ctx, demo.AdminUser, demo.AdminPassword); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := demo.AddMembers(ctx, conn, locale, quiet); err != nil {
+				t.Fatal(err)
+			}
+			list, err := users.List(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := map[string]string{}
+			for _, u := range list {
+				got[u.Username] = u.DisplayName
+			}
+			for username, name := range want {
+				if got[username] != name {
+					t.Errorf("display name of %s = %q, want %q", username, got[username], name)
+				}
+			}
+		})
+	}
+}
+
 // A member name somebody already took is left to them: that account gets no
 // password, recipes or marks from the demo.
 func TestMembersLeaveATakenNameAlone(t *testing.T) {

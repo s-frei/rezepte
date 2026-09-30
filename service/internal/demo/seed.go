@@ -53,6 +53,24 @@ var photos fs.FS = embedded
 // appended.
 var Members = []string{"mila", "jonas"}
 
+// displayNames names the demo's people after the pantry, per locale, so
+// nobody takes them for real accounts and a login name never reads the same
+// as the name shown beside it. Each keeps its username's initial, which is
+// what the author circles show. A locale without its own set uses English.
+var displayNames = map[user.Locale]map[string]string{
+	"de": {AdminUser: "Dattel Dill", "mila": "Mila Majoran", "jonas": "Jonas Zimt"},
+	"en": {AdminUser: "Damson Dill", "mila": "Mila Marjoram", "jonas": "Jonas Cinnamon"},
+}
+
+// displayName is the name the demo gives username in locale.
+func displayName(locale user.Locale, username string) string {
+	names, ok := displayNames[locale]
+	if !ok {
+		names = displayNames["en"]
+	}
+	return names[username]
+}
+
 // memberMarks lists, per member, the samples (by index, the overview's order
 // from the top) they mark tasty: the top card gets two marks, the rest of
 // the first row one, so the count and the tasty order both have something
@@ -248,7 +266,8 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 }
 
 // AddMembers creates Members in locale's language, before Seed, so the
-// samples in memberRecipes can be theirs. Like the seed it writes nothing to
+// samples in memberRecipes can be theirs, and gives the admin its demo
+// display name. Like the seed it writes nothing to
 // an instance that already holds recipes, since the members belong to the
 // sample data rather than to an instance in use, and a member name somebody
 // already holds is left to them: that account gets no recipes, marks or
@@ -263,13 +282,16 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 		return nil, err
 	}
 	users := user.NewService(conn, "")
+	if err := nameAdmin(ctx, users, locale); err != nil {
+		return nil, err
+	}
 	var members []user.User
 	for _, name := range Members {
 		m, err := users.Create(ctx, user.CreateParams{
 			Username:    name,
 			Password:    name + "1234",
 			Role:        user.RoleUser,
-			DisplayName: strings.ToUpper(name[:1]) + name[1:],
+			DisplayName: displayName(locale, name),
 			Locale:      locale,
 		})
 		if errors.Is(err, user.ErrUsernameTaken) {
@@ -283,6 +305,25 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 	}
 	logger.Info("demo: members added", "users", strings.Join(Members, ", "))
 	return members, nil
+}
+
+// nameAdmin gives AdminUser its demo display name; EnsureSuperadmin created
+// it with the username as its name.
+func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) error {
+	list, err := users.List(ctx)
+	if err != nil {
+		return fmt.Errorf("list users: %w", err)
+	}
+	for _, u := range list {
+		if u.Username != AdminUser {
+			continue
+		}
+		name := displayName(locale, AdminUser)
+		if _, err := users.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &name}); err != nil {
+			return fmt.Errorf("name %s: %w", AdminUser, err)
+		}
+	}
+	return nil
 }
 
 // SeedMembers marks the samples in memberMarks tasty on behalf of the
