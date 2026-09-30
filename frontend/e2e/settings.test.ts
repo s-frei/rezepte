@@ -511,6 +511,22 @@ test('the settings page links to the user guide in a new tab', async ({ page }) 
 	await expect(help).toHaveAttribute('target', '_blank');
 });
 
+test('the settings page says which Rezepte runs and where it comes from', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings');
+	const about = page.getByRole('region', { name: 'About Rezepte' });
+	await expect(about).toContainText(/Version \S+/);
+	await expect(about.getByRole('link', { name: /Source code/ })).toHaveAttribute(
+		'href',
+		'https://github.com/s-frei/rezepte'
+	);
+	await expect(about.getByRole('link', { name: /Changelog/ })).toHaveAttribute(
+		'href',
+		'https://s-frei.github.io/rezepte/changelog/'
+	);
+});
+
 test('a phone reaches the settings pages and sign-out through the contents sheet', async ({
 	page
 }, testInfo) => {

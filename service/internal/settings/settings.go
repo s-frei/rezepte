@@ -54,6 +54,9 @@ type Settings struct {
 	// PublicShareMaxDays is the longest lifetime a public link may have; nil
 	// is no maximum (permanent links allowed).
 	PublicShareMaxDays *int `json:"publicShareMaxDays" enum:"1,7,30,365"`
+	// PublicShareAttribution names Rezepte, with a link to the project, at
+	// the foot of a public share page.
+	PublicShareAttribution bool `json:"publicShareAttribution"`
 }
 
 // Service reads and writes the instance settings.
@@ -79,6 +82,7 @@ func (s *Service) Get(ctx context.Context) (Settings, error) {
 		PublicShares:           row.PublicShares,
 		PublicShareDefaultDays: db.Conv[int](row.PublicShareDefaultDays),
 		PublicShareMaxDays:     db.Conv[int](row.PublicShareMaxDays),
+		PublicShareAttribution: row.PublicShareAttribution,
 	}, nil
 }
 
@@ -130,6 +134,18 @@ func (s *Service) SetPublicShares(ctx context.Context, actor user.User, on bool)
 	}
 	if err := s.q.SetPublicShares(ctx, on); err != nil {
 		return Settings{}, fmt.Errorf("set public shares: %w", err)
+	}
+	return s.Get(ctx)
+}
+
+// SetPublicShareAttribution switches whether a public share page names
+// Rezepte. Only the superadmin may; everybody else gets ErrOwnerRequired.
+func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User, on bool) (Settings, error) {
+	if !actor.Role.IsSuperadmin() {
+		return Settings{}, ErrOwnerRequired
+	}
+	if err := s.q.SetPublicShareAttribution(ctx, on); err != nil {
+		return Settings{}, fmt.Errorf("set public share attribution: %w", err)
 	}
 	return s.Get(ctx)
 }

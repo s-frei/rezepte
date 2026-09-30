@@ -5,6 +5,7 @@
 	import { isSignedOut } from '$lib/api/client';
 	import { session } from '$lib/auth.svelte';
 	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
+	import AboutCard from '$lib/components/settings/AboutCard.svelte';
 	import HelpCard from '$lib/components/settings/HelpCard.svelte';
 	import LanguageControl from '$lib/components/settings/LanguageControl.svelte';
 	import PasswordForm from '$lib/components/settings/PasswordForm.svelte';
@@ -191,4 +192,5 @@
 	</section>
 
 	<HelpCard />
+	<AboutCard />
 </SettingsLayout>

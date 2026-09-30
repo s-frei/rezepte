@@ -57,7 +57,7 @@ func TestPublicRecipeCarriesOnlyTheRecipe(t *testing.T) {
 		t.Fatalf("public recipe: %d %s", rec.Code, rec.Body.String())
 	}
 	checkPublicHeaders(t, "public recipe", rec)
-	want := []string{"coverImageId", "cookMinutes", "description", "images", "ingredientGroups", "prepMinutes", "servings", "sourceName", "sourceUrl", "steps", "tags", "title"}
+	want := []string{"attribution", "coverImageId", "cookMinutes", "description", "images", "ingredientGroups", "prepMinutes", "servings", "sourceName", "sourceUrl", "steps", "tags", "title"}
 	slices.Sort(want)
 	if got := keysOf(t, rec.Body.Bytes()); !slices.Equal(got, want) {
 		t.Errorf("keys = %v, want %v", got, want)
@@ -86,6 +86,31 @@ func TestPublicRecipeCarriesOnlyTheRecipe(t *testing.T) {
 	}
 	if link := rec.Header().Get("Link"); link != "" {
 		t.Errorf("the public recipe links a schema behind a session: %q", link)
+	}
+}
+
+// TestPublicRecipeCarriesAttribution: the page learns from the response
+// whether the owner wants Rezepte named at its foot - on unless switched off.
+func TestPublicRecipeCarriesAttribution(t *testing.T) {
+	s := newStack(t)
+	sh := s.create(t, s.login(t, s.member), s.recipe.ID, `{"days":null}`)
+	attribution := func() bool {
+		t.Helper()
+		rec := s.do(http.MethodGet, "/api/v1/public/shares/"+tokenOf(sh), "", nil)
+		var body struct{ Attribution bool }
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode %s: %v", rec.Body.String(), err)
+		}
+		return body.Attribution
+	}
+	if !attribution() {
+		t.Error("attribution = false by default, want true")
+	}
+	if _, err := s.settings.SetPublicShareAttribution(context.Background(), s.owner, false); err != nil {
+		t.Fatal(err)
+	}
+	if attribution() {
+		t.Error("attribution = true after the owner switched it off")
 	}
 }
 

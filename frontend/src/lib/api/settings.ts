@@ -17,6 +17,8 @@ export type Settings = {
 	publicShareDefaultDays: ShareLifetime;
 	/** The longest lifetime a public link may have; null allows permanent links. */
 	publicShareMaxDays: ShareLifetime;
+	/** Whether a public share page names Rezepte, with a link to the project, at its foot. */
+	publicShareAttribution: boolean;
 };
 
 export function getSettings(): Promise<Settings> {

@@ -1611,6 +1611,9 @@
           "linkPreviews": {
             "type": "boolean"
           },
+          "publicShareAttribution": {
+            "type": "boolean"
+          },
           "publicShareDefaultDays": {
             "enum": [
               1,
@@ -1650,7 +1653,8 @@
           "linkPreviewMinutes",
           "publicShares",
           "publicShareDefaultDays",
-          "publicShareMaxDays"
+          "publicShareMaxDays",
+          "publicShareAttribution"
         ],
         "type": "object"
       },
@@ -1920,6 +1924,10 @@
           },
           "linkPreviews": {
             "description": "Let a recipe link shared from the app show the recipe's title, description and cover in link previews",
+            "type": "boolean"
+          },
+          "publicShareAttribution": {
+            "description": "Name Rezepte, with a link to the project, at the foot of a public share page",
             "type": "boolean"
           },
           "publicShareDefaultDays": {
@@ -2674,6 +2682,10 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "attribution": {
+                      "description": "Whether the page names Rezepte, with a link to the project, at its foot",
+                      "type": "boolean"
+                    },
                     "cookMinutes": {
                       "format": "int64",
                       "type": [
@@ -2753,7 +2765,8 @@
                     "ingredientGroups",
                     "steps",
                     "images",
-                    "coverImageId"
+                    "coverImageId",
+                    "attribution"
                   ],
                   "type": "object"
                 }

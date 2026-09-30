@@ -119,6 +119,11 @@ func TestPublicShareSettingsEndpoint(t *testing.T) {
 		t.Errorf("patch public share settings: %d %s", rec.Code, rec.Body.String())
 	}
 
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareAttribution":false}`, owner)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"publicShareAttribution":false`) {
+		t.Errorf("patch share attribution: %d %s", rec.Code, rec.Body.String())
+	}
+
 	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"publicShareMaxDays":2}`, owner)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("patch with an unknown share lifetime: %d %s", rec.Code, rec.Body.String())

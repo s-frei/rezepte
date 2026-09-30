@@ -64,6 +64,7 @@ type updateSettingsInput struct {
 		PublicShares           *bool       `json:"publicShares,omitempty" required:"false" doc:"Let members turn a recipe into a public, read-only link"`
 		PublicShareDefaultDays nullableDay `json:"publicShareDefaultDays,omitzero" required:"false" enum:"1,7,30,365" doc:"Lifetime preselected when a member creates a public link; omitted leaves it unchanged, null makes it permanent"`
 		PublicShareMaxDays     nullableDay `json:"publicShareMaxDays,omitzero" required:"false" enum:"1,7,30,365" doc:"Longest lifetime a public link may have; omitted leaves it unchanged, null removes the maximum"`
+		PublicShareAttribution *bool       `json:"publicShareAttribution,omitempty" required:"false" doc:"Name Rezepte, with a link to the project, at the foot of a public share page"`
 	}
 }
 
@@ -135,6 +136,11 @@ func update(ctx context.Context, svc *Service, u user.User, in *updateSettingsIn
 	}
 	if in.Body.PublicShares != nil {
 		if _, err := svc.SetPublicShares(ctx, u, *in.Body.PublicShares); err != nil {
+			return Settings{}, err
+		}
+	}
+	if in.Body.PublicShareAttribution != nil {
+		if _, err := svc.SetPublicShareAttribution(ctx, u, *in.Body.PublicShareAttribution); err != nil {
 			return Settings{}, err
 		}
 	}

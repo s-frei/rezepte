@@ -20,6 +20,8 @@ export type PublicRecipe = {
 	steps: Step[];
 	images: PublicImage[];
 	coverImageId: string | null;
+	/** Whether the page names Rezepte at its foot - the owner's setting, since a stranger has no session to read it with. */
+	attribution: boolean;
 };
 
 /**
@@ -31,7 +33,7 @@ export type PublicRecipe = {
  * dropped connection, an offline stranger, a malformed body - so the page
  * always gets to render its own "not available" state and never falls
  * through to SvelteKit's generic error page, which would drop this route's
- * header and footer along with it.
+ * header along with it.
  */
 export async function getPublicRecipe(token: string): Promise<PublicRecipe | null> {
 	try {

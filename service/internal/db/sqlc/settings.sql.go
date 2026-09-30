@@ -11,7 +11,8 @@ import (
 
 const getInstanceSettings = `-- name: GetInstanceSettings :one
 SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
-       public_shares, public_share_default_days, public_share_max_days
+       public_shares, public_share_default_days, public_share_max_days,
+       public_share_attribution
 FROM instance_settings WHERE id = 1
 `
 
@@ -22,6 +23,7 @@ type GetInstanceSettingsRow struct {
 	PublicShares           bool
 	PublicShareDefaultDays *int64
 	PublicShareMaxDays     *int64
+	PublicShareAttribution bool
 }
 
 // Lists its columns so the link preview key never rides along.
@@ -35,6 +37,7 @@ func (q *Queries) GetInstanceSettings(ctx context.Context) (GetInstanceSettingsR
 		&i.PublicShares,
 		&i.PublicShareDefaultDays,
 		&i.PublicShareMaxDays,
+		&i.PublicShareAttribution,
 	)
 	return i, err
 }
@@ -65,6 +68,15 @@ UPDATE instance_settings SET link_previews = ? WHERE id = 1
 
 func (q *Queries) SetLinkPreviews(ctx context.Context, linkPreviews bool) error {
 	_, err := q.db.ExecContext(ctx, setLinkPreviews, linkPreviews)
+	return err
+}
+
+const setPublicShareAttribution = `-- name: SetPublicShareAttribution :exec
+UPDATE instance_settings SET public_share_attribution = ? WHERE id = 1
+`
+
+func (q *Queries) SetPublicShareAttribution(ctx context.Context, publicShareAttribution bool) error {
+	_, err := q.db.ExecContext(ctx, setPublicShareAttribution, publicShareAttribution)
 	return err
 }
 

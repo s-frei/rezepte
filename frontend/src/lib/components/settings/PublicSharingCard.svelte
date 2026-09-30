@@ -19,7 +19,7 @@
 	const isOwner = $derived(session.user?.role === 'superadmin');
 	let current = $state<Pick<
 		Settings,
-		'publicShares' | 'publicShareDefaultDays' | 'publicShareMaxDays'
+		'publicShares' | 'publicShareDefaultDays' | 'publicShareMaxDays' | 'publicShareAttribution'
 	> | null>(null);
 
 	// The maximum offers all five lifetimes; the default is capped at
@@ -70,7 +70,8 @@
 			current = {
 				publicShares: s.publicShares,
 				publicShareDefaultDays: s.publicShareDefaultDays,
-				publicShareMaxDays: s.publicShareMaxDays
+				publicShareMaxDays: s.publicShareMaxDays,
+				publicShareAttribution: s.publicShareAttribution
 			};
 		} catch {
 			current = null;
@@ -92,7 +93,8 @@
 			current = {
 				publicShares: s.publicShares,
 				publicShareDefaultDays: s.publicShareDefaultDays,
-				publicShareMaxDays: s.publicShareMaxDays
+				publicShareMaxDays: s.publicShareMaxDays,
+				publicShareAttribution: s.publicShareAttribution
 			};
 			toast.success(m.settings_public_sharing_saved());
 		} catch {
@@ -147,6 +149,19 @@
 							class="w-full bg-surface-elevated"
 						/>
 					</div>
+				</div>
+				<div class="mt-5 flex items-start justify-between gap-4 border-t border-border pt-5">
+					<div class="min-w-0">
+						<p class="text-body font-semibold">{m.settings_public_sharing_attribution()}</p>
+						<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
+							{m.settings_public_sharing_attribution_hint()}
+						</p>
+					</div>
+					<Switch
+						checked={current.publicShareAttribution}
+						label={m.settings_public_sharing_attribution()}
+						onchange={(on) => save({ publicShareAttribution: on })}
+					/>
 				</div>
 			{/if}
 		{:else if ownerName}

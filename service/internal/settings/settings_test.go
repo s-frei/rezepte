@@ -35,6 +35,26 @@ func TestDefaultsToOpen(t *testing.T) {
 	if got.PublicShareMaxDays != nil {
 		t.Errorf("PublicShareMaxDays = %v on a fresh instance, want nil", got.PublicShareMaxDays)
 	}
+	if !got.PublicShareAttribution {
+		t.Error("PublicShareAttribution = false on a fresh instance, want true")
+	}
+}
+
+func TestOnlyTheOwnerSetsShareAttribution(t *testing.T) {
+	ctx := context.Background()
+	svc := settings.NewService(dbtest.Open(t))
+	admin := user.User{ID: "a", Role: user.RoleAdmin}
+	if _, err := svc.SetPublicShareAttribution(ctx, admin, false); !errors.Is(err, settings.ErrOwnerRequired) {
+		t.Errorf("admin switch: err = %v, want ErrOwnerRequired", err)
+	}
+	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
+	got, err := svc.SetPublicShareAttribution(ctx, owner, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PublicShareAttribution {
+		t.Error("PublicShareAttribution = true after switching it off")
+	}
 }
 
 func TestOnlyTheOwnerSetsLinkPreviews(t *testing.T) {

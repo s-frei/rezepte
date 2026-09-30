@@ -8,6 +8,7 @@ import {
 	openRecipeMenu,
 	type PublicShare,
 	setCanSharePublicly,
+	setPublicShareAttribution,
 	setPublicShares,
 	tinyPng,
 	uniqueToken,
@@ -55,7 +56,16 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 			await expect(stranger.getByRole('link', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'More actions' })).toHaveCount(0);
-			await expect(stranger.getByText('Shared via Rezepte')).toBeVisible();
+			const footer = stranger.getByRole('contentinfo');
+			await expect(footer).toContainText('A cookbook like this one?');
+			await expect(footer.getByRole('link', { name: /Get Rezepte/ })).toHaveAttribute(
+				'href',
+				'https://s-frei.github.io/rezepte/'
+			);
+			await expect(footer.getByRole('link', { name: /Source/ })).toHaveAttribute(
+				'href',
+				'https://github.com/s-frei/rezepte'
+			);
 		} finally {
 			await strangerContext.close();
 		}
@@ -83,7 +93,9 @@ test('a signed-in member sees the same public page', async ({ page }, testInfo) 
 		// user menu button are both gone.
 		await expect(page.getByRole('navigation')).toHaveCount(0);
 		await expect(page.getByRole('button', { name: 'Account menu' })).toHaveCount(0);
-		await expect(page.getByText('Shared via Rezepte')).toBeVisible();
+		await expect(
+			page.getByRole('contentinfo').getByRole('link', { name: /Get Rezepte/ })
+		).toBeVisible();
 	} finally {
 		await setPublicShares(page, false);
 	}
@@ -114,7 +126,7 @@ test('a recipe without photos, description or times', async ({ page }, testInfo)
 		await expect(page.getByRole('img', { name: title })).toHaveCount(0);
 		await expect(page.getByText('Prep time')).toHaveCount(0);
 		await expect(page.getByText('Cook time')).toHaveCount(0);
-		await expect(page.getByText('Source')).toHaveCount(0);
+		await expect(page.getByRole('main').getByText('Source')).toHaveCount(0);
 	} finally {
 		await setPublicShares(page, false);
 	}
@@ -156,17 +168,49 @@ test('a stranger sees where the recipe comes from', async ({ page, browser }, te
 test('an unknown token', async ({ page }) => {
 	await page.goto(`/s/${uniqueToken()}`);
 	await expect(page.getByText('This link is no longer available.')).toBeVisible();
+	// Nothing was shared, so there is nothing to credit.
+	await expect(page.getByRole('contentinfo')).toHaveCount(0);
+});
+
+test('the owner stops public pages from naming Rezepte', async ({ page, browser }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Quiet ${uniqueToken()}` });
+
+	try {
+		await setPublicShares(page, true);
+		const share = await createPublicShare(page, recipe.id);
+
+		await page.goto('/settings/users');
+		const mention = page.getByRole('switch', { name: 'Mention Rezepte on public pages' });
+		await expect(mention).toBeChecked();
+		await mention.click();
+		await expect(mention).not.toBeChecked();
+
+		const strangerContext = await browser.newContext();
+		try {
+			const stranger = await strangerContext.newPage();
+			await stranger.goto(share.path);
+			await expect(stranger.getByRole('heading', { level: 1, name: recipe.title })).toBeVisible();
+			await expect(stranger.getByRole('contentinfo')).toHaveCount(0);
+		} finally {
+			await strangerContext.close();
+		}
+	} finally {
+		await setPublicShareAttribution(page, true);
+		await setPublicShares(page, false);
+	}
 });
 
 // getPublicRecipe bypasses api() and must never let a network failure or a
 // malformed body propagate into SvelteKit's generic error page: that would
-// drop this route's own header and footer along with the friendly message.
+// drop this route's own header along with the friendly message.
 test('a public link that fails to load', async ({ page }) => {
 	await page.route('**/api/v1/public/shares/**', (route) => route.abort());
 	await page.goto(`/s/${uniqueToken()}`);
 	await expect(page.getByRole('img', { name: 'Rezepte' })).toBeVisible();
 	await expect(page.getByText('This link is no longer available.')).toBeVisible();
-	await expect(page.getByText('Shared via Rezepte')).toBeVisible();
 });
 
 test('a public link that answers with a malformed body', async ({ page }) => {
@@ -176,7 +220,6 @@ test('a public link that answers with a malformed body', async ({ page }) => {
 	await page.goto(`/s/${uniqueToken()}`);
 	await expect(page.getByRole('img', { name: 'Rezepte' })).toBeVisible();
 	await expect(page.getByText('This link is no longer available.')).toBeVisible();
-	await expect(page.getByText('Shared via Rezepte')).toBeVisible();
 });
 
 test('a member creates, copies and revokes a public link', async ({ page }, testInfo) => {

@@ -1,11 +1,12 @@
 <script lang="ts">
 	import compact from '$brand/lockups/rezepte-lockup-compact.svg?raw';
+	import mark from '$brand/logo/onion-l1.svg?raw';
 	import stacked from '$brand/lockups/rezepte-lockup-stacked.svg?raw';
 
 	// Inlined rather than an <img>, so the ink and sprout groups take the
 	// --color-logo-* tokens and follow the app's own theme switch, which a
 	// -dark file picked by prefers-color-scheme could not.
-	const sources = { compact, stacked };
+	const sources = { compact, stacked, mark };
 
 	let {
 		variant,

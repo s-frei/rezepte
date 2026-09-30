@@ -64,7 +64,7 @@ test('public-page', async ({ page, browser }, testInfo) => {
 		const strangerPage = await stranger.newPage();
 		await prepare(strangerPage, testInfo);
 		await strangerPage.goto(items[0].path);
-		await expect(strangerPage.getByText('Shared via Rezepte')).toBeVisible();
+		await expect(strangerPage.getByRole('contentinfo').getByRole('link', { name: /Get Rezepte/ })).toBeVisible();
 		await shot(strangerPage, 'public-page');
 	} finally {
 		await stranger.close();

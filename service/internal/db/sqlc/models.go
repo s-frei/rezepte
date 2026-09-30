@@ -59,6 +59,7 @@ type InstanceSetting struct {
 	PublicShares           bool
 	PublicShareDefaultDays *int64
 	PublicShareMaxDays     *int64
+	PublicShareAttribution bool
 }
 
 type Recipe struct {

@@ -51,7 +51,8 @@ type PublicImage struct {
 
 // PublicRecipe is what a public link shows: the recipe's content and nothing
 // about the household it lives in - no ids, people, permissions, favorites or
-// timestamps. It is its own type, built field by field, never recipe.Recipe:
+// timestamps - plus whether the owner wants Rezepte named at the page's foot,
+// since the page has no session to read the settings with. It is its own type, built field by field, never recipe.Recipe:
 // a field added there must not reach a stranger by accident.
 type PublicRecipe struct {
 	Title            string                   `json:"title"`
@@ -66,6 +67,7 @@ type PublicRecipe struct {
 	Steps            []recipe.Step            `json:"steps" nullable:"false"`
 	Images           []PublicImage            `json:"images" nullable:"false"`
 	CoverImageID     *string                  `json:"coverImageId" nullable:"true"`
+	Attribution      bool                     `json:"attribution" doc:"Whether the page names Rezepte, with a link to the project, at its foot"`
 }
 
 // toPublic copies the recipe's content into a PublicRecipe.
@@ -177,7 +179,13 @@ func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &publicOutput{Body: toPublic(r)}, nil
+		st, err := svc.settings.Get(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get settings: %w", err)
+		}
+		body := toPublic(r)
+		body.Attribution = st.PublicShareAttribution
+		return &publicOutput{Body: body}, nil
 	})
 }
 

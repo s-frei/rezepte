@@ -1,5 +1,7 @@
 <script lang="ts">
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import { publicImageUrl } from '$lib/api/public';
+	import { PROJECT_URL, SOURCE_URL } from '$lib/docs';
 	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
 	import Lockup from '$lib/components/brand/Lockup.svelte';
 	import RecipeView from '$lib/components/recipe/RecipeView.svelte';
@@ -53,9 +55,51 @@
 		{/if}
 	</main>
 
-	<footer class="mt-10 border-t border-border pt-6 text-caption text-text-muted">
-		{m.public_share_footer()}
-	</footer>
+	<!-- An invitation for the stranger reading: where this cookbook comes from
+	     and how to have one. Links off the SPA, so `resolve()` does not apply;
+	     `noreferrer` on top of the page's own no-referrer policy, since the
+	     token is in this page's address. -->
+	{#if data.recipe?.attribution}
+		<!-- eslint-disable svelte/no-navigation-without-resolve -->
+		<!-- A hairline and room above set the bar apart from the recipe. On a
+		     phone it is a centered stack - mark, title, sentence, a full-width
+		     button and the source link under it - so no edge is left for the
+		     links to line up with. From `sm` up it is a single row. -->
+		<footer class="mt-14 border-t border-border pt-8">
+			<div
+				class="flex flex-col items-center gap-3 rounded-lg bg-surface px-5 py-5.5 text-center sm:flex-row sm:gap-3.5 sm:px-4.5 sm:py-3.5 sm:text-left"
+			>
+				<Lockup variant="mark" class="size-9 shrink-0 sm:size-7" />
+				<p class="max-w-[36ch] text-body-sm sm:max-w-none sm:flex-1">
+					<span class="mb-1 block font-display sm:mb-0 sm:inline"
+						>{m.public_share_footer_title()}</span
+					>
+					<span class="text-text-muted">{m.public_share_footer()}</span>
+				</p>
+				<div
+					class="mt-1 flex w-full flex-col items-center gap-3 sm:mt-0 sm:w-auto sm:flex-row sm:gap-4"
+				>
+					<a
+						href={PROJECT_URL}
+						rel="noreferrer noopener external"
+						class="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-pill bg-primary px-3 text-body-sm font-semibold text-primary-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] sm:h-8 sm:w-auto sm:text-caption"
+					>
+						{m.public_share_get()}
+						<ArrowUpRight aria-hidden="true" class="size-3.5" />
+					</a>
+					<a
+						href={SOURCE_URL}
+						rel="noreferrer noopener external"
+						class="inline-flex items-center gap-1 text-caption text-text-muted underline decoration-border underline-offset-4 transition hover:text-text hover:decoration-primary"
+					>
+						{m.public_share_source()}
+						<ArrowUpRight aria-hidden="true" class="size-3.5" />
+					</a>
+				</div>
+			</div>
+		</footer>
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
+	{/if}
 </div>
 
 {#if recipe}
