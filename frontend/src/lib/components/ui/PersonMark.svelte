@@ -2,7 +2,7 @@
 	import { avatarUrl } from '$lib/user/avatar';
 	import { userColorClasses } from '$lib/user/color';
 
-	type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'card';
+	type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'card' | 'profile';
 
 	let {
 		person,
@@ -27,7 +27,8 @@
 		md: 'size-8',
 		lg: 'size-9',
 		xl: 'size-14 text-heading',
-		card: 'size-16 text-heading'
+		card: 'size-16 text-heading',
+		profile: 'size-24 text-display-sm'
 	};
 
 	const initial = $derived(person.displayName.charAt(0).toUpperCase());
@@ -63,12 +64,13 @@
 	-->
 	{#if showImage}
 		<!-- Decorative: the name is always beside the mark or in its trigger's label. -->
+		<!-- Absolute: the circle's bottom padding (the letter's centering) would stop an in-flow image short. -->
 		<img
 			{src}
 			alt=""
 			loading="lazy"
 			decoding="async"
-			class="size-full object-cover"
+			class="absolute inset-0 size-full object-cover"
 			onerror={() => (failed = person.avatarId ?? null)}
 		/>
 	{:else}

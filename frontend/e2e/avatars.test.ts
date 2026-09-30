@@ -106,3 +106,21 @@ test('opens the author card from a recipe card and filters by author', async ({ 
 	await link.click();
 	await expect(page).toHaveURL(/\?author=admin/);
 });
+
+test('a picture fills its whole circle', async ({ page }) => {
+	const name = `fill${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await login(page, name);
+	const avatarId = await setOwnAvatarViaApi(page, tinyPng([30, 140, 90]));
+
+	await page.goto('/settings');
+	const img = page.locator(`img[src$="/${avatarId}.jpg"]:visible`).first();
+	await expect(img).toBeVisible();
+	const pic = await img.boundingBox();
+	const circle = await img.locator('..').boundingBox();
+	expect(pic && circle).toBeTruthy();
+	expect(Math.abs(pic!.width - circle!.width)).toBeLessThan(0.5);
+	expect(Math.abs(pic!.height - circle!.height)).toBeLessThan(0.5);
+	expect(Math.abs(pic!.y + pic!.height - (circle!.y + circle!.height))).toBeLessThan(0.5);
+});
