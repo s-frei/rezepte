@@ -447,7 +447,7 @@ test('a member renames themselves and picks a color, and their cards follow', as
 	// trip is read off the profile card's own avatar instead: it follows the
 	// session, which only changes once the server has answered.
 	await page.getByRole('radio', { name: 'Sage' }).click();
-	const avatar = page.locator('section[aria-labelledby="settings-profile"] span.size-14');
+	const avatar = page.locator('section[aria-labelledby="settings-profile"] span.size-24');
 	await expect(avatar).toHaveClass(/bg-user-sage/);
 
 	// The recipe was written before the rename, and its card carries the name

@@ -120,22 +120,26 @@
 		<!-- The avatar is the one place on this page where the chosen color is
 		     shown at size, and it is the same circle the recipe cards paint, so
 		     a pick can be judged here instead of on the overview. -->
-		<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-			{#if session.user}
-				<AvatarControl
-					person={session.user}
-					upload={setOwnAvatar}
-					remove={removeOwnAvatar}
-					onchange={(avatarId) => {
-						if (session.user) session.user = { ...session.user, avatarId };
-					}}
-				/>
-			{/if}
-			<div>
-				<p class="text-body-lg font-semibold">{session.user?.displayName}</p>
-				<p class="text-caption text-text-muted">{roleLabel(session.user?.role)}</p>
-			</div>
-		</div>
+		{#if session.user}
+			<AvatarControl
+				person={session.user}
+				upload={setOwnAvatar}
+				remove={removeOwnAvatar}
+				onchange={(avatarId) => {
+					if (session.user) session.user = { ...session.user, avatarId };
+				}}
+			>
+				<div>
+					<p class="font-display text-heading font-medium">{session.user.displayName}</p>
+					<p class="text-caption text-text-muted">
+						{m.nav_user_menu_signed_in({
+							role: roleLabel(session.user.role),
+							username: session.user.username
+						})}
+					</p>
+				</div>
+			</AvatarControl>
+		{/if}
 
 		<!--
 			The order of this card is the avatar's doing. The avatar above is the

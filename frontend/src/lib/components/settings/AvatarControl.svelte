@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -11,13 +12,16 @@
 		person,
 		upload,
 		remove,
-		onchange
+		onchange,
+		children
 	}: {
 		person: { id: string; displayName: string; color: string; avatarId: string | null };
 		/** Sends the file and crop; resolves to the new avatar id. */
 		upload: (file: File, crop: Crop) => Promise<{ avatarId: string }>;
 		remove: () => Promise<void>;
 		onchange: (avatarId: string | null) => void;
+		/** Name and role, set between the picture and its buttons. */
+		children?: Snippet;
 	} = $props();
 
 	let input = $state<HTMLInputElement>();
@@ -71,9 +75,10 @@
 	}
 </script>
 
-<div class="flex items-center gap-4">
-	<PersonMark {person} size="xl" />
-	<div class="flex flex-wrap gap-2">
+<div class="flex flex-col items-center gap-3 text-center">
+	<PersonMark {person} size="profile" />
+	{@render children?.()}
+	<div class="flex flex-wrap justify-center gap-2">
 		<Button
 			variant="secondary"
 			class="whitespace-nowrap"
