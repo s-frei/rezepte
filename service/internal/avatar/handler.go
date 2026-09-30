@@ -37,13 +37,15 @@ type userInput struct {
 	ID string `path:"id"`
 }
 
-// Result is the body of an upload: the id of the new picture.
-type Result struct {
+// avatarResult is the body of an upload: the id of the new picture. huma
+// names the schema after the type, as AvatarResult, which says what it is
+// in the API document where a bare Result would not.
+type avatarResult struct {
 	AvatarID string `json:"avatarId" doc:"The new picture, served at /avatars/{userId}/{avatarId}.jpg"`
 }
 
 type uploadOutput struct {
-	Body Result
+	Body avatarResult
 }
 
 type noContent struct{}
@@ -63,7 +65,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, avatarErr(err)
 		}
-		return &uploadOutput{Body: Result{AvatarID: id}}, nil
+		return &uploadOutput{Body: avatarResult{AvatarID: id}}, nil
 	}
 
 	huma.Register(api, huma.Operation{
