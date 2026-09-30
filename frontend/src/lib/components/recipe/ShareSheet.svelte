@@ -60,6 +60,8 @@
 	let preview = $state<string | null>(null);
 	let failed = $state(false);
 	let lifting = $state(false);
+	// A share sheet is up: a second tap would only be refused by the browser.
+	let sending = $state(false);
 
 	// Attached to the off-screen host, which mounts with the sheet and goes
 	// with it: one drawing per opening, dropped on closing.
@@ -89,8 +91,9 @@
 	}
 
 	async function sendCard() {
-		if (!blob) return;
-		const result = await shareImage(blob, fileName, recipe.title);
+		if (!blob || sending) return;
+		sending = true;
+		const result = await shareImage(blob, fileName, recipe.title).finally(() => (sending = false));
 		if (result === 'aborted') return;
 		lifting = true;
 		setTimeout(() => (open = false), prefersReducedMotion.current ? 0 : 320);
@@ -153,7 +156,7 @@
 				variant="primary"
 				size="lg"
 				class="flex-1 shadow-cta"
-				disabled={!blob}
+				disabled={!blob || sending}
 				onclick={sendCard}
 			>
 				<ImageIcon class="size-4" aria-hidden="true" />
@@ -195,7 +198,12 @@
 						{m.share_save_image()}
 					</Button>
 					{#if canShareFiles()}
-						<Button variant="secondary" class="justify-start!" disabled={!blob} onclick={sendCard}>
+						<Button
+							variant="secondary"
+							class="justify-start!"
+							disabled={!blob || sending}
+							onclick={sendCard}
+						>
 							<Share class="size-4" aria-hidden="true" />
 							{m.share_share()}
 						</Button>

@@ -127,8 +127,10 @@ export async function copyImage(blob: Blob): Promise<void> {
  * The phone's share sheet with the picture where it takes files, a
  * download elsewhere. `navigator.share` is the first thing awaited, so the
  * tap's user activation is still there for Safari; should Safari refuse
- * anyway (`NotAllowedError`), the picture is saved instead of lost. A
- * cancelled sheet (`AbortError`) does nothing.
+ * anyway (`NotAllowedError`), the picture is saved instead of lost. Any
+ * other failure - a cancelled sheet (`AbortError`), a second call while one
+ * is open (`InvalidStateError`) - does nothing: the person is looking at a
+ * share sheet already, and a download on top would be a surprise.
  */
 export async function shareImage(
 	blob: Blob,
@@ -141,7 +143,7 @@ export async function shareImage(
 			await navigator.share({ files: [file], title });
 			return 'shared';
 		} catch (e) {
-			if (e instanceof DOMException && e.name === 'AbortError') {
+			if (!(e instanceof DOMException && e.name === 'NotAllowedError')) {
 				return 'aborted';
 			}
 		}

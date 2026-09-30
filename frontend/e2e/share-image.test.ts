@@ -104,8 +104,41 @@ test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
 	let downloaded = false;
 	page.on('download', () => (downloaded = true));
 	await sheet.getByRole('button', { name: 'Card' }).click();
+	// Longer than the sheet's 320ms send animation and a download's start.
+	await page.waitForTimeout(800);
 	await expect(sheet).toBeVisible();
+	await expect(page.getByText('Image saved')).toHaveCount(0);
 	expect(downloaded).toBe(false);
+});
+
+test('a second tap while the share sheet is up sends nothing more', async ({ page }, testInfo) => {
+	test.skip(!isPhone(testInfo), 'the phone sheet is where "Card" opens the share sheet');
+	// The first share stays open, as the system sheet does; a second call
+	// meanwhile is refused the way browsers refuse it.
+	await page.addInitScript(() => {
+		let pending = false;
+		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
+		Object.defineProperty(Navigator.prototype, 'share', {
+			value: () => {
+				if (pending) return Promise.reject(new DOMException('busy', 'InvalidStateError'));
+				pending = true;
+				return new Promise(() => {});
+			}
+		});
+	});
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Twice ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	let downloaded = false;
+	page.on('download', () => (downloaded = true));
+	const card = sheet.getByRole('button', { name: 'Card' });
+	await card.click();
+	await card.click({ force: true });
+	await page.waitForTimeout(800);
+	expect(downloaded).toBe(false);
+	await expect(sheet).toBeVisible();
 });
 
 test('the menu offers passing on too', async ({ page }) => {
