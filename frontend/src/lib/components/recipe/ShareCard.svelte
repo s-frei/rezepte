@@ -44,7 +44,7 @@
 	{:else}
 		<PlaceholderTile id={recipe.id} title={recipe.title} size="detail" class="h-[290px] w-full" />
 	{/if}
-	<div class="px-6 pt-6">
+	<div class="px-6 pt-6 pb-14">
 		<h1 class="font-display text-display-md font-medium wrap-break-word hyphens-auto">
 			{recipe.title}
 		</h1>
@@ -113,7 +113,7 @@
 	{#if attribution}
 		<!-- The ingredient list's perforation, so the credit reads as a stub
 		     torn off the card rather than part of the recipe. -->
-		<footer class="relative mt-8 flex items-center justify-between gap-4 px-6 pt-[22px] pb-[26px]">
+		<footer class="relative flex items-center justify-between gap-4 px-6 pt-[22px] pb-[26px]">
 			<span
 				class="absolute inset-x-[18px] top-0 h-1 bg-[radial-gradient(circle,var(--color-handle)_1.6px,transparent_2px)] bg-[length:9px_4px] bg-repeat-x"
 				aria-hidden="true"
@@ -124,7 +124,5 @@
 				<span class="font-semibold text-primary">{source}</span>
 			</p>
 		</footer>
-	{:else}
-		<div class="h-8"></div>
 	{/if}
 </div>
