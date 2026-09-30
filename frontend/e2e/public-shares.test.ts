@@ -190,7 +190,7 @@ test('the owner stops public pages from naming Rezepte', async ({ page, browser 
 		const share = await createPublicShare(page, recipe.id);
 
 		await page.goto('/settings/users');
-		const mention = page.getByRole('switch', { name: 'Mention Rezepte on public pages' });
+		const mention = page.getByRole('switch', { name: 'Name Rezepte when sharing' });
 		await expect(mention).toBeChecked();
 		await mention.click();
 		await expect(mention).not.toBeChecked();
@@ -207,6 +207,38 @@ test('the owner stops public pages from naming Rezepte', async ({ page, browser 
 	} finally {
 		await setPublicShareAttribution(page, true);
 		await setPublicShares(page, false);
+	}
+});
+
+// The same switch names Rezepte at the foot of a recipe card, and the owner
+// finds it whether public links are on or not (see share-image.test.ts).
+test('the credit on a recipe card follows the owner setting', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'the setting is instance-wide');
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Credit ${uniqueToken()}` });
+	const openCard = async () => {
+		await page.getByRole('button', { name: 'Pass on' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		await expect(sheet.getByRole('img', { name: /^Recipe card:/ })).toBeVisible({
+			timeout: 20_000
+		});
+	};
+
+	try {
+		await page.goto('/settings/users');
+		await expect(page.getByRole('switch', { name: 'Name Rezepte when sharing' })).toBeVisible();
+
+		await setPublicShareAttribution(page, false);
+		await page.goto(`/recipes/${recipe.slug}`);
+		await openCard();
+		await expect(page.locator('[inert] footer')).toHaveCount(0);
+
+		await setPublicShareAttribution(page, true);
+		await page.reload();
+		await openCard();
+		await expect(page.locator('[inert] footer')).toHaveCount(1);
+	} finally {
+		await setPublicShareAttribution(page, true);
 	}
 });
 

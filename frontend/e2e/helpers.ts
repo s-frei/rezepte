@@ -364,7 +364,7 @@ export async function setLinkPreviews(
  * off again. `null` for either lifetime means no maximum / permanent by
  * default, matching the settings API.
  */
-/** Switches the owner's "Mention Rezepte on public pages" setting. */
+/** Switches the owner's "Name Rezepte when sharing" setting. */
 export async function setPublicShareAttribution(page: Page, on: boolean): Promise<void> {
 	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {

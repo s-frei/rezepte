@@ -150,20 +150,20 @@
 						/>
 					</div>
 				</div>
-				<div class="mt-5 flex items-start justify-between gap-4 border-t border-border pt-5">
-					<div class="min-w-0">
-						<p class="text-body font-semibold">{m.settings_public_sharing_attribution()}</p>
-						<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
-							{m.settings_public_sharing_attribution_hint()}
-						</p>
-					</div>
-					<Switch
-						checked={current.publicShareAttribution}
-						label={m.settings_public_sharing_attribution()}
-						onchange={(on) => save({ publicShareAttribution: on })}
-					/>
-				</div>
 			{/if}
+			<div class="mt-5 flex items-start justify-between gap-4 border-t border-border pt-5">
+				<div class="min-w-0">
+					<p class="text-body font-semibold">{m.settings_public_sharing_attribution()}</p>
+					<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
+						{m.settings_public_sharing_attribution_hint()}
+					</p>
+				</div>
+				<Switch
+					checked={current.publicShareAttribution}
+					label={m.settings_public_sharing_attribution()}
+					onchange={(on) => save({ publicShareAttribution: on })}
+				/>
+			</div>
 		{:else if ownerName}
 			<!-- Waits for the members list: without it the sentence has no one to name. -->
 			<p class="max-w-[60ch] text-body-sm text-text-muted">

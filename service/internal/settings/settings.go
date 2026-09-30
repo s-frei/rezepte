@@ -55,7 +55,8 @@ type Settings struct {
 	// is no maximum (permanent links allowed).
 	PublicShareMaxDays *int `json:"publicShareMaxDays" enum:"1,7,30,365"`
 	// PublicShareAttribution names Rezepte, with a link to the project, at
-	// the foot of a public share page.
+	// the foot of a public share page and of a recipe card passed on as a
+	// picture.
 	PublicShareAttribution bool `json:"publicShareAttribution"`
 }
 
@@ -138,8 +139,8 @@ func (s *Service) SetPublicShares(ctx context.Context, actor user.User, on bool)
 	return s.Get(ctx)
 }
 
-// SetPublicShareAttribution switches whether a public share page names
-// Rezepte. Only the superadmin may; everybody else gets ErrOwnerRequired.
+// SetPublicShareAttribution switches whether public share pages and
+// recipe cards name Rezepte. Only the superadmin may; everybody else gets ErrOwnerRequired.
 func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User, on bool) (Settings, error) {
 	if !actor.Role.IsSuperadmin() {
 		return Settings{}, ErrOwnerRequired
