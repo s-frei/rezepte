@@ -577,3 +577,24 @@ test('the add-account dialog fits a short phone screen and scrolls', async ({ pa
 	await submit.scrollIntoViewIfNeeded();
 	await expect(submit).toBeInViewport();
 });
+
+test('the account menu switches the theme and stays open', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'the account menu is the desktop top bar; a phone has the You sheet');
+	await login(page);
+	await expect(page).toHaveURL('/');
+
+	await page.getByRole('button', { name: 'Account menu' }).click();
+	const menu = page.getByRole('menu');
+	const theme = menu.getByRole('group', { name: 'Appearance' });
+	await expect(theme.getByRole('menuitemradio', { name: 'System' })).toHaveAttribute(
+		'aria-checked',
+		'true'
+	);
+
+	await theme.getByRole('menuitemradio', { name: 'Dark' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+	await expect(menu).toBeVisible();
+
+	await theme.getByRole('menuitemradio', { name: 'System' }).click();
+	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+});

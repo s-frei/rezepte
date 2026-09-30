@@ -21,6 +21,7 @@
 	"nav_you": "Du",
 	"nav_expand": "Navigation anzeigen",
 	"nav_you_signed_in": "{role}, angemeldet als {username}",
+	"nav_user_menu_signed_in": "{role} · {username}",
 	"nav_contents_title": "Inhalt",
 	"nav_contents_open": "{current}, Inhalt öffnen",
 	"nav_contents_close": "Inhalt schließen",
@@ -529,6 +530,8 @@
 	"public_share_get": "Rezepte ansehen",
 	"public_share_source": "Quellcode",
 	"public_share_unavailable": "Dieser Link ist nicht mehr verfügbar.",
+	"public_share_theme_dark": "Zum dunklen Farbschema wechseln",
+	"public_share_theme_light": "Zum hellen Farbschema wechseln",
 
 	"public_share_menu_create": "Öffentlich teilen…",
 	"public_share_menu_manage": "Öffentlicher Link…",

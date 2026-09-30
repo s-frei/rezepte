@@ -167,3 +167,18 @@ test('the bar keeps keyboard focus when it changes shape', async ({ page }) => {
 	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeFocused();
 	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();
 });
+
+test('You switches the theme without leaving the sheet', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+
+	await bottomNav(page).getByRole('button', { name: 'You' }).click();
+	const sheet = page.getByRole('dialog', { name: 'admin' });
+	const theme = sheet.getByRole('radiogroup', { name: 'Color scheme' });
+	await theme.getByRole('radio', { name: 'Dark' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+	await expect(sheet).toBeVisible();
+
+	await theme.getByRole('radio', { name: 'System' }).click();
+	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+});

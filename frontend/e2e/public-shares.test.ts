@@ -66,6 +66,13 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 				'href',
 				'https://github.com/s-frei/rezepte'
 			);
+
+			// A fresh context reports a light device; the button flips what is
+			// on screen, and back.
+			await stranger.getByRole('button', { name: 'Switch to the dark theme' }).click();
+			await expect(stranger.locator('html')).toHaveAttribute('data-theme', 'dark');
+			await stranger.getByRole('button', { name: 'Switch to the light theme' }).click();
+			await expect(stranger.locator('html')).toHaveAttribute('data-theme', 'light');
 		} finally {
 			await strangerContext.close();
 		}

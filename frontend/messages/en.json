@@ -21,6 +21,7 @@
 	"nav_you": "You",
 	"nav_expand": "Show navigation",
 	"nav_you_signed_in": "{role}, signed in as {username}",
+	"nav_user_menu_signed_in": "{role} · {username}",
 	"nav_contents_title": "Contents",
 	"nav_contents_open": "{current}, open contents",
 	"nav_contents_close": "Close contents",
@@ -529,6 +530,8 @@
 	"public_share_get": "Get Rezepte",
 	"public_share_source": "Source",
 	"public_share_unavailable": "This link is no longer available.",
+	"public_share_theme_dark": "Switch to the dark theme",
+	"public_share_theme_light": "Switch to the light theme",
 
 	"public_share_menu_create": "Share publicly…",
 	"public_share_menu_manage": "Public link…",

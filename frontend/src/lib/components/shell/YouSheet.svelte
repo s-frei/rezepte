@@ -8,6 +8,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { session } from '$lib/auth.svelte';
+	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
@@ -84,6 +85,13 @@
 						{entry.label}
 					</a>
 				{/each}
+				<!-- On a surface card like the role in PersonSheet: the control's
+				     track is `bg-background`, the sheet's own color. The card sets
+				     itself apart; the rule is kept for Sign out. -->
+				<div class="mx-3 my-2 rounded-xl bg-surface p-4">
+					<p class="mb-2 text-caption text-text-muted">{m.settings_theme_title()}</p>
+					<ThemeControl hint={false} />
+				</div>
 				<div class="mx-3 my-2 h-px bg-border" aria-hidden="true"></div>
 				<button
 					type="button"

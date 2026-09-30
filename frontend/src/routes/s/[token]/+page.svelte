@@ -1,12 +1,17 @@
 <script lang="ts">
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { publicImageUrl } from '$lib/api/public';
 	import { PROJECT_URL, SOURCE_URL } from '$lib/docs';
 	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
 	import Lockup from '$lib/components/brand/Lockup.svelte';
 	import RecipeView from '$lib/components/recipe/RecipeView.svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { setTheme, theme } from '$lib/theme.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -29,6 +34,13 @@
 		return publicImageUrl(data.token, imageId, variant);
 	}
 
+	// A stranger gets two states, not the app's three: the button flips what
+	// is on screen, and "system" is only where a first visit starts. The
+	// choice lands in the same storage as the app's, so an owner opening
+	// their own link keeps it.
+	const systemDark = new MediaQuery('(prefers-color-scheme: dark)');
+	const dark = $derived(theme.value === 'dark' || (theme.value === 'system' && systemDark.current));
+
 	let lightboxOpen = $state(false);
 	let lightboxIndex = $state(0);
 
@@ -43,8 +55,18 @@
 </svelte:head>
 
 <div class="mx-auto flex min-h-dvh max-w-[1280px] flex-col px-5 py-8 md:px-8 md:py-10">
-	<header class="mb-8">
+	<header class="mb-8 flex items-center justify-between gap-4">
 		<Lockup variant="compact" label={m.app_name()} class="h-7" />
+		<IconButton
+			label={dark ? m.public_share_theme_light() : m.public_share_theme_dark()}
+			onclick={() => setTheme(dark ? 'light' : 'dark')}
+		>
+			{#if dark}
+				<Sun aria-hidden="true" class="size-5" />
+			{:else}
+				<Moon aria-hidden="true" class="size-5" />
+			{/if}
+		</IconButton>
 	</header>
 
 	<main class="flex-1">
