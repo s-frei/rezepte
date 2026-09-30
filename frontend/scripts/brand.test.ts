@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { horizontal, manifest, parseWordmark, stacked } from './brand-export';
+import { horizontal, manifest, parseWordmark } from './brand-export';
 import { BOOK, EDGE, GROUND, INK } from './brand-palette';
 
 // brand:check never reads the mascot master: it sits in Git LFS, which CI
@@ -30,9 +30,9 @@ test('the favicon book is a flat vector in its own palette', async () => {
 	expect(svg).not.toMatch(/<(image|text|style|script|foreignObject)\b|transform=|\sstyle=/);
 });
 
-const expected = ['rezepte-lockup-horizontal.svg', 'rezepte-lockup-stacked.svg'];
+const expected = ['rezepte-lockup-horizontal.svg'];
 
-test('the lockups are the horizontal and the stacked one', () => {
+test('the only lockup is the horizontal one', () => {
 	const found = readdirSync(lockups).filter(
 		(f) => f.endsWith('.svg') && f !== 'rezepte-wordmark.svg'
 	);
@@ -56,7 +56,7 @@ for (const file of expected) {
 test('the layouts keep the wordmark inside the box', async () => {
 	const word = parseWordmark(await text(new URL('rezepte-wordmark.svg', lockups)));
 	const mascot = { href: 'data:image/webp;base64,', aspect: 1 };
-	for (const svg of [horizontal(mascot, word), stacked(mascot, word)]) {
+	for (const svg of [horizontal(mascot, word)]) {
 		const [, width, height] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!.map(Number);
 		for (const m of svg.matchAll(
 			/<svg x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g
@@ -116,6 +116,16 @@ test.each([
 	expect([img.info.width, img.info.height]).toEqual([size, size]);
 	expect(hexAt(img, 0, 0)).toBe(GROUND);
 	expect(hexAt(img, size - 1, size - 1)).toBe(GROUND);
+});
+
+test('the login backdrop is the kitchen scene at 2560px', async () => {
+	const { width, height, format } = await sharp(
+		Buffer.from(await Bun.file(new URL('rezepte-kitchen.webp', lockups)).arrayBuffer())
+	).metadata();
+	expect(format).toBe('webp');
+	expect(width).toBe(2560);
+	// The scene's 21:9, which the login's crop positions rely on.
+	expect(Math.round((width! / height!) * 100)).toBe(236);
 });
 
 test('favicon.ico is an icon file with a 32px image', async () => {

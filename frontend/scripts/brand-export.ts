@@ -61,20 +61,6 @@ export function horizontal(m: Mascot, word: Art): string {
 	);
 }
 
-/** Mascot above the wordmark: the login screen. */
-export function stacked(m: Mascot, word: Art): string {
-	const w = 300;
-	const wordWidth = (51 * word.width) / word.height;
-	const height = 30 + 186 + 18 + 51 + 30;
-	return svg(
-		w,
-		height,
-		box(w, height, 30) +
-			image(m, (w - 186 * m.aspect) / 2, 30, 186) +
-			place(word, (w - wordWidth) / 2, 234, 51)
-	);
-}
-
 // The social preview: the mascot large on the left, the wordmark beside it,
 // centered as a group on 1280x640.
 const SOCIAL = { width: 1280, height: 640, mascot: 540, word: 125, gap: 48 };
@@ -105,15 +91,22 @@ export function manifest(): string {
 	return `${JSON.stringify(body, null, '\t')}\n`;
 }
 
-async function readMascot(): Promise<Buffer> {
-	const file = Bun.file(new URL('mascot/rezepte-mascot.png', brand));
+async function readLfs(path: string): Promise<Buffer> {
+	const file = Bun.file(new URL(path, brand));
 	const head = await file.slice(0, 40).text();
 	if (head.startsWith('version https://git-lfs')) {
 		throw new Error(
-			'assets/brand/mascot is a Git LFS pointer; run `git lfs pull --include="assets/brand/mascot/**"`'
+			`assets/brand/${path} is a Git LFS pointer; run \`git lfs pull --include="assets/brand/**"\``
 		);
 	}
 	return Buffer.from(await file.arrayBuffer());
+}
+
+// The login screen's backdrop: the kitchen scene, wide enough to cover a
+// 1280px window on a 2x screen.
+async function kitchen(): Promise<Buffer> {
+	const master = await readLfs('scenes/kitchen.jpg');
+	return sharp(master).resize({ width: 2560 }).webp({ quality: 78, effort: 6 }).toBuffer();
 }
 
 async function webp(master: Buffer, height: number): Promise<Buffer> {
@@ -183,7 +176,7 @@ async function faviconIco(book: string) {
 }
 
 async function main() {
-	const master = await readMascot();
+	const master = await readLfs('mascot/rezepte-mascot.png');
 	const { width = 1, height = 1 } = await sharp(master).metadata();
 	const aspect = width / height;
 	const wordmark = await Bun.file(new URL('rezepte-wordmark.svg', lockups)).text();
@@ -193,11 +186,8 @@ async function main() {
 		new URL('rezepte-lockup-horizontal.svg', lockups),
 		horizontal(await embedded(master, aspect, 240), word)
 	);
-	await Bun.write(
-		new URL('rezepte-lockup-stacked.svg', lockups),
-		stacked(await embedded(master, aspect, 400), word)
-	);
 	await Bun.write(new URL('rezepte-mascot.webp', lockups), await webp(master, 144));
+	await Bun.write(new URL('rezepte-kitchen.webp', lockups), await kitchen());
 
 	const book = await Bun.file(new URL('icon/rezepte-book.svg', brand)).text();
 	await Bun.write(new URL('favicon.svg', statics), book);

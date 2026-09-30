@@ -8,13 +8,15 @@ async function loaded(img: Locator): Promise<boolean> {
 	);
 }
 
-test('the login page shows the stacked lockup, named Rezepte', async ({ page }) => {
+test('the login page shows the wordmark, named Rezepte, over the kitchen scene', async ({
+	page
+}) => {
 	await page.context().clearCookies();
 	await page.goto('/login');
-	const logo = page.getByRole('img', { name: 'Rezepte' });
-	await expect(logo).toBeVisible();
-	await expect(logo).toHaveAttribute('src', /rezepte-lockup-stacked/);
-	expect(await loaded(logo)).toBe(true);
+	await expect(page.getByRole('img', { name: 'Rezepte' })).toBeVisible();
+	const scene = page.locator('main > img');
+	await expect(scene).toHaveAttribute('src', /rezepte-kitchen/);
+	expect(await loaded(scene)).toBe(true);
 });
 
 test('the top bar links home with the horizontal lockup', async ({ page }, testInfo) => {

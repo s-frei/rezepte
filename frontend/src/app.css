@@ -69,6 +69,12 @@
 	--color-lightbox: #120e0b;
 	--color-lightbox-foreground: #ffffff;
 	--color-overlay: rgb(43 33 24 / 0.4);
+	/* Text set on a painting (the login's kitchen scene) sits on the
+	   painting's cream, not on the page, so like the lightbox pair these are
+	   theme-independent and not redefined in the dark blocks. scene-ink is
+	   the wordmark's own ink. */
+	--color-scene-ink: #7c3d0a;
+	--color-scene-muted: #756554;
 
 	--radius-sm: 10px;
 	--radius-md: 12px;
