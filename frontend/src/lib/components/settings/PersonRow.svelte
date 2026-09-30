@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { DropdownMenu } from 'bits-ui';
+	import { DropdownMenu, Popover } from 'bits-ui';
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
@@ -12,6 +12,7 @@
 	import { isAdminRole } from '$lib/roles';
 	import { manageButtonId, personRowId } from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
+	import PersonCard from '$lib/components/ui/PersonCard.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let {
@@ -105,7 +106,27 @@
 	id={personRowId(person.id)}
 	class="relative isolate flex min-h-14 items-center gap-3 py-2 md:border-b md:border-dashed md:border-border md:py-3 md:last:border-b-0"
 >
-	<PersonMark {person} size="lg" class="pointer-events-none md:pointer-events-auto" />
+	<!-- Phones: taps pass through to the row, which opens the sheet that
+	     carries the card. From md up the circle is a button that opens it. -->
+	<Popover.Root>
+		<Popover.Trigger
+			aria-label={m.person_card_open({ name: person.displayName })}
+			class="pointer-events-none shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:pointer-events-auto"
+		>
+			<PersonMark {person} size="lg" />
+		</Popover.Trigger>
+		<Popover.Portal>
+			<Popover.Content
+				side="bottom"
+				sideOffset={6}
+				align="start"
+				collisionPadding={12}
+				class="z-50 max-w-80 rounded-2xl bg-surface p-4 text-text shadow-dialog"
+			>
+				<PersonCard {person} />
+			</Popover.Content>
+		</Popover.Portal>
+	</Popover.Root>
 	<div class="pointer-events-none min-w-0 flex-1 md:pointer-events-auto">
 		<p class="flex items-baseline gap-2">
 			<span class="truncate text-body font-medium">{person.displayName}</span>

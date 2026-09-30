@@ -54,3 +54,11 @@ test('no-results', async ({ page }, testInfo) => {
 	await expect(page.getByRole('heading', { name: 'Nothing found' })).toBeVisible();
 	await shot(page, 'no-results');
 });
+
+test('person-card', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(12);
+	await page.getByRole('button', { name: /Added by/ }).first().click();
+	await expect(page.getByRole('link', { name: /Recipes by/ })).toBeVisible();
+	await shot(page, 'person-card');
+});

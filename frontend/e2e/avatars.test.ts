@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { createUser, login, setOwnAvatarViaApi, tinyPng, uniqueToken } from './helpers';
+import {
+	createRecipe,
+	createUser,
+	loadFixture,
+	login,
+	search,
+	setOwnAvatarViaApi,
+	tinyPng,
+	uniqueToken
+} from './helpers';
 
 test('shows the picture in the profile and falls back when it fails', async ({ page }) => {
 	const name = `pic${uniqueToken()}`.toLowerCase();
@@ -82,4 +91,18 @@ test("the owner sets another account's picture", async ({ page, isMobile }) => {
 		.getByRole('button', { name: 'Save' })
 		.click();
 	await expect(page.getByText('Photo saved')).toBeVisible();
+});
+
+test('opens the author card from a recipe card and filters by author', async ({ page }) => {
+	const token = uniqueToken();
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Card ${token}` });
+	await page.goto('/');
+	await search(page, token);
+	const card = page.getByRole('article', { name: recipe.title });
+	await card.getByRole('button', { name: /Added by/ }).click();
+	const link = page.getByRole('link', { name: /Recipes by/ });
+	await expect(link).toBeVisible();
+	await link.click();
+	await expect(page).toHaveURL(/\?author=admin/);
 });

@@ -277,6 +277,10 @@
 	"card_author": "Added by {user}",
 	"card_editor": "Last edited by {user}",
 	"card_author_and_editor": "Added by {user}, last edited by {editor}",
+	"person_card_recipes": "{count} recipes",
+	"person_card_recipes_one": "1 recipe",
+	"person_card_recipes_by": "Recipes by {name}",
+	"person_card_open": "About {name}",
 
 	"cook_back": "Back to the recipe",
 	"cook_step_counter": "Step {number} of {count}",

@@ -2,7 +2,6 @@
 	import KeyRound from '@lucide/svelte/icons/key-round';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import { Dialog } from 'bits-ui';
 	import { tick } from 'svelte';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
@@ -12,7 +11,7 @@
 	import { roleLabel } from '$lib/roles';
 	import { focusManageButton } from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import PersonCard from '$lib/components/ui/PersonCard.svelte';
 
 	let {
 		open = $bindable(false),
@@ -124,17 +123,7 @@
 -->
 <BottomSheet bind:open closeLabel={m.common_close()} onCloseAutoFocus={returnFocus}>
 	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-		<div class="flex items-center gap-4">
-			<PersonMark {person} size="xl" />
-			<div class="min-w-0">
-				<Dialog.Title class="truncate font-display text-heading font-medium">
-					{person.displayName}
-				</Dialog.Title>
-				<p class="truncate text-caption text-text-muted">
-					{m.users_login_name({ username: person.username })}
-				</p>
-			</div>
-		</div>
+		<PersonCard {person} asTitle />
 
 		<!-- A surface panel, as on the settings cards: the segmented
 				control's track is the background color and vanishes on a

@@ -2,6 +2,7 @@
 	import { Popover } from 'bits-ui';
 	import { m } from '$lib/paraglide/messages';
 	import type { Person } from '$lib/api/recipes';
+	import PersonCard from '$lib/components/ui/PersonCard.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let { people }: { people: Person[] } = $props();
@@ -43,10 +44,14 @@
 				sideOffset={6}
 				align="start"
 				collisionPadding={12}
-				class="z-50 max-w-72 rounded-2xl bg-inverse px-3.5 py-2.5 text-caption text-inverse-foreground shadow-dialog"
+				class="z-50 max-w-72 rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
 			>
 				<p class="text-inverse-muted">{m.recipe_tasty_by()}</p>
-				<p class="mt-1">{names}</p>
+				<ul class="mt-2 space-y-3">
+					{#each people as person (person.id)}
+						<li><PersonCard {person} compact /></li>
+					{/each}
+				</ul>
 			</Popover.Content>
 		</Popover.Portal>
 	</Popover.Root>

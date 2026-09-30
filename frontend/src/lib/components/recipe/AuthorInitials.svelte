@@ -3,6 +3,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { Person } from '$lib/api/recipes';
 	import { authorLabel } from '$lib/recipe/authorship';
+	import PersonCard from '$lib/components/ui/PersonCard.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
 	let {
@@ -40,7 +41,6 @@
 		openOnHover
 		openDelay={300}
 		aria-label={label}
-		tabindex={-1}
 		class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
 		{#each people as person, index (person.id)}
@@ -77,12 +77,15 @@
 			sideOffset={6}
 			align="start"
 			collisionPadding={12}
-			class="z-50 w-[var(--bits-floating-anchor-width)] rounded-2xl bg-inverse px-3.5 py-2.5 text-caption text-inverse-foreground shadow-dialog"
+			class="z-50 w-[var(--bits-floating-anchor-width)] rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
 		>
-			<p>{m.card_author({ user: createdBy.displayName })}</p>
-			{#if edited}
-				<p class="mt-1 text-inverse-muted">{m.card_editor({ user: updatedBy.displayName })}</p>
-			{/if}
+			<div class="space-y-3">
+				<PersonCard person={createdBy} compact />
+				{#if edited}
+					<p class="text-inverse-muted">{m.card_editor({ user: updatedBy.displayName })}</p>
+					<PersonCard person={updatedBy} compact />
+				{/if}
+			</div>
 		</Popover.Content>
 	</Popover.Portal>
 </Popover.Root>
