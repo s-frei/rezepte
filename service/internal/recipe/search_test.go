@@ -10,6 +10,8 @@ import (
 	"golang.org/x/text/collate"
 	"golang.org/x/text/language"
 
+	"github.com/s-frei/rezepte/service/internal/db"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 )
 
@@ -706,5 +708,40 @@ func TestAuthorFilterNarrowsToWhoWroteIt(t *testing.T) {
 	}
 	if nobody.Total != 0 {
 		t.Fatalf("unknown author = %d, want 0", nobody.Total)
+	}
+}
+
+func TestListCardsCarryImageStats(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	fx := loadFixtures(t)
+	withPhotos, err := svc.Create(ctx, uid, fx[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	without, err := svc.Create(ctx, uid, fx[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := sqlc.New(testConns[t])
+	for i, size := range []int64{1000, 2500} {
+		id := fmt.Sprintf("img-%d", i)
+		if _, err := q.InsertImage(ctx, sqlc.InsertImageParams{
+			ID: id, RecipeID: withPhotos.ID, Filename: id + ".jpg",
+			Width: 100, Height: 100, SizeBytes: size, Position: int64(i), CreatedAt: db.FormatTime(time.Now()),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page, err := svc.List(ctx, recipe.ListParams{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][2]int64{}
+	for _, c := range page.Items {
+		got[c.ID] = [2]int64{int64(c.ImageCount), c.ImageBytes}
+	}
+	if got[withPhotos.ID] != [2]int64{2, 3500} || got[without.ID] != [2]int64{0, 0} {
+		t.Fatalf("image stats = %v", got)
 	}
 }

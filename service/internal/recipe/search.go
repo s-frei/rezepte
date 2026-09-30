@@ -212,6 +212,14 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	if err != nil {
 		return nil, err
 	}
+	statRows, err := s.q.ImageStatsForRecipes(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("image stats for recipes: %w", err)
+	}
+	stats := make(map[string]sqlc.ImageStatsForRecipesRow, len(statRows))
+	for _, st := range statRows {
+		stats[st.RecipeID] = st
+	}
 
 	for _, r := range rows {
 		card, err := toCard(r, tagsByRecipe[r.ID], favorites[r.ID],
@@ -221,6 +229,8 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		}
 		card.TastyCount = tastyCounts[r.ID]
 		card.Tasty = tasty[r.ID]
+		card.ImageCount = int(stats[r.ID].ImageCount)
+		card.ImageBytes = stats[r.ID].ImageBytes
 		items = append(items, card)
 	}
 	return items, nil

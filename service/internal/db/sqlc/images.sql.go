@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"strings"
 )
 
 const countImagesByRecipe = `-- name: CountImagesByRecipe :one
@@ -60,6 +61,58 @@ func (q *Queries) GetImage(ctx context.Context, arg GetImageParams) (Image, erro
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const imageStatsForRecipes = `-- name: ImageStatsForRecipes :many
+SELECT recipe_id,
+       CAST(COUNT(*) AS INTEGER) AS image_count,
+       CAST(COALESCE(SUM(size_bytes), 0) AS INTEGER) AS image_bytes
+FROM images
+WHERE recipe_id IN (/*SLICE:recipe_ids*/?)
+GROUP BY recipe_id
+`
+
+type ImageStatsForRecipesRow struct {
+	RecipeID   string
+	ImageCount int64
+	ImageBytes int64
+}
+
+// How many photos each recipe of a page has and the bytes of all three
+// variants on disk, batched like ListTagNamesForRecipes. An export carries
+// only the largest, so the export page's size estimate runs high; covered
+// by images_recipe_idx.
+func (q *Queries) ImageStatsForRecipes(ctx context.Context, recipeIds []string) ([]ImageStatsForRecipesRow, error) {
+	query := imageStatsForRecipes
+	var queryParams []interface{}
+	if len(recipeIds) > 0 {
+		for _, v := range recipeIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:recipe_ids*/?", strings.Repeat(",?", len(recipeIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:recipe_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ImageStatsForRecipesRow{}
+	for rows.Next() {
+		var i ImageStatsForRecipesRow
+		if err := rows.Scan(&i.RecipeID, &i.ImageCount, &i.ImageBytes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertImage = `-- name: InsertImage :one

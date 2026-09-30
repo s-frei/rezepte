@@ -36,6 +36,9 @@ export type RecipeCard = {
 	tastyCount: number;
 	/** Whether the signed-in user is one of them. */
 	tasty: boolean;
+	/** Photos on the recipe and the bytes their largest variants take. */
+	imageCount: number;
+	imageBytes: number;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;

@@ -28,3 +28,15 @@ WHERE id = ?;
 
 -- name: TouchRecipe :exec
 UPDATE recipes SET updated_by = ?, updated_at = ? WHERE id = ?;
+
+-- How many photos each recipe of a page has and the bytes of all three
+-- variants on disk, batched like ListTagNamesForRecipes. An export carries
+-- only the largest, so the export page's size estimate runs high; covered
+-- by images_recipe_idx.
+-- name: ImageStatsForRecipes :many
+SELECT recipe_id,
+       CAST(COUNT(*) AS INTEGER) AS image_count,
+       CAST(COALESCE(SUM(size_bytes), 0) AS INTEGER) AS image_bytes
+FROM images
+WHERE recipe_id IN (sqlc.slice(recipe_ids))
+GROUP BY recipe_id;

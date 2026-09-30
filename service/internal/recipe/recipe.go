@@ -135,6 +135,11 @@ type Card struct {
 	// whether the caller is one of them.
 	TastyCount int  `json:"tastyCount"`
 	Tasty      bool `json:"tasty"`
+	// ImageCount and ImageBytes are how many photos the recipe has and the
+	// bytes of all three variants on disk; an export carries only the
+	// largest, so the size estimate runs high.
+	ImageCount int   `json:"imageCount"`
+	ImageBytes int64 `json:"imageBytes"`
 	// Who wrote the recipe and who last changed it, in the same shape as on
 	// Recipe. The card shows them as initials.
 	CreatedBy Person `json:"createdBy"`
