@@ -49,7 +49,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
 |---|---|---|
 | login | `POST /auth/login` | body `{username, password}`; sets cookie; returns the user |
 | logout | `POST /auth/logout` | 204, clears the cookie |
-| me | `GET /auth/me` | `{id, username, displayName, role, color, locale}` |
+| me | `GET /auth/me` | `{id, username, displayName, role, color, avatarId, locale}` |
 | change-own-password | `PATCH /auth/me` | body `{currentPassword, password}`; 204; wrong `currentPassword` → `422` at `body.currentPassword`; ends every other session of the caller (see [Users and authentication](/features/users-and-auth)) |
 | update-own-profile | `PATCH /auth/me/profile` | body `{displayName?, color?, locale?}`, at least one of them (`422` `nothing to change` otherwise); returns the user and, with it, a fresh `PARAGLIDE_LOCALE` cookie. Its own path rather than `PATCH /auth/me`, which is the password change and demands the current password - a rename has nothing to do with it. Every role may use it, on its own row only; an empty `displayName` falls back to the login name, a name over 64 runes is `422` at `body.displayName`, and a color or locale outside its `enum` is huma's own `422` before the handler runs |
 | list-color-usage | `GET /auth/me/colors` | `{items: [{color, count}]}`, every palette color in palette order, zeros included. Counts, never names: the picker only has to mark a color as taken. It sits under `/auth/me` because it describes what the caller may choose for themselves |
@@ -70,7 +70,7 @@ Every operation below requires an admin session; no API token can reach `/api/v1
 
 | Operation | Path | Notes |
 |---|---|---|
-| list-people | `GET /people` | `{items: [{id, username, displayName, color, role}]}`, ordered by username; every account, for any session or a token carrying `users:read`. No `locale`, no `createdAt` - those stay with the admin operations below. `401` without a caller. Why it is separate from `/users`: [Users and authentication](/features/users-and-auth) |
+| list-people | `GET /people` | `{items: [{id, username, displayName, color, avatarId, role}]}`, ordered by username; every account, for any session or a token carrying `users:read`. No `locale`, no `createdAt` - those stay with the admin operations below. `401` without a caller. Why it is separate from `/users`: [Users and authentication](/features/users-and-auth) |
 
 ## Users (admin only)
 
@@ -122,7 +122,7 @@ Every field of `PATCH /users/{id}` is optional and at least one is required (`42
 
 Every parameter above combines with AND when more than one is set.
 
-`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response so a card names and colors its author without a second request, and because a token scoped to `recipes:read` cannot read `/people` (see [Recipes and search](/features/recipes)).
+`Recipe` and `Card` both carry `createdBy` and `updatedBy` as a person each, `{id, username, displayName, color, avatarId}`: the author and the last editor, joined from `users` on every read rather than copied onto the recipe, so a rename or a recolor reaches every card at once. Everywhere the API means a login name the key says `username` - the author facet, a token's `ownerUsername` - and `displayName` is only ever the name a person chose to be shown by. They are on the response so a card names and colors its author without a second request, and because a token scoped to `recipes:read` cannot read `/people` (see [Recipes and search](/features/recipes)).
 
 Whose favorites either favorite operation touches, and whose star a listed card reports, comes from the session alone - no path, query or body parameter names a user (see [Favorites](/features/favorites)). `Card.favorite` is filled on every list; `Recipe.favorite` by get, get by slug, create and update. The tasty pair works the same way; `tastyCount` on both and `tastyBy` (people) on `Recipe` are the same for every reader, `tasty` is the caller's own mark - see [Tasty](/features/tasty).
 
@@ -156,6 +156,22 @@ Public, revocable recipe links a member creates and manages; see [Public shares]
 Every session-only operation above (the first five) is unreachable by an API token: `auth.Middleware`'s bearer branch answers a token carrying `Authorization: Bearer` with `403` `API tokens cannot use this operation` before it ever checks the token's validity, which is a different status than the `401` a request with no credential gets on the same route.
 
 The public routes, and the `/s/{token}` app shell, all answer with `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` and `Cache-Control: private, no-cache`.
+
+## Profile pictures
+
+See [Users and authentication](/features/users-and-auth) for who may set a picture and in which order a replace runs, and [Images](/features/images) for the crop.
+
+| Operation | Path | Notes |
+|---|---|---|
+| set-own-avatar | `PUT /auth/me/avatar` | multipart, one part named `file`; JPEG/PNG/WebP, ≤ 10 MiB; optional query `crop=x,y,size` (fractions of the upright image, see [Images](/features/images)); `200` with `{avatarId}`, the new picture - the user is not returned, so a client updates its copy from the id. Any session |
+| delete-own-avatar | `DELETE /auth/me/avatar` | `204`; idempotent. Any session |
+| set-user-avatar | `PUT /users/{id}/avatar` | as `set-own-avatar`, for another account; owner only, `403` `superadmin role required` for everybody else, `404` for an unknown id |
+| delete-user-avatar | `DELETE /users/{id}/avatar` | `204`; owner only, `404` for an unknown id |
+| serve a picture | `GET /avatars/{userId}/{avatarId}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireAuth`, reachable by a session of any role or a token carrying `users:read`; `Cache-Control: private, max-age=31536000, immutable`; ids are checked against the UUID alphabet and anything that is not an existing file is `404` |
+
+The upload statuses are the image upload's: `413` from `limitUpload`, `415` for a format that is not JPEG, PNG or WebP, and `422` for undecodable bytes, sides outside 64-12000 px, or a `crop` that is malformed, out of range, past the image's edge or under 64 px.
+
+`avatarId` is `string | null` on every person-shaped body a 20 px circle or larger draws from: the own user, `/users`, `/people`, and the `createdBy`, `updatedBy` and `tastyBy` people of recipes. The client builds the URL from `id` and `avatarId`; the API carries no paths. `/authors` and a share's creator name people only for 12 to 16 px color dots, so they carry no `avatarId`.
 
 ## Images
 

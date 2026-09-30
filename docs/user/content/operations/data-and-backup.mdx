@@ -17,10 +17,15 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
         <File name="<imageId>_thumb.jpg" />
       </Folder>
     </Folder>
+    <Folder name="avatars" defaultOpen>
+      <Folder name="<userId>" defaultOpen>
+        <File name="<avatarId>.jpg" />
+      </Folder>
+    </Folder>
   </Folder>
 </Files>
 
-`rezepte.db` is the SQLite database: recipes with their ingredients, steps, tags and photo records, accounts and sessions, API tokens, favorites and tasty marks, public links, and the household settings — editing rights, public sharing, link previews and the key that signs link previews. While Rezepte runs, SQLite keeps its most recent writes in `rezepte.db-wal` (with `rezepte.db-shm` as its index) before folding them into `rezepte.db`, so the three files are one database: copy them together or not at all. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (960 px).
+`rezepte.db` is the SQLite database: recipes with their ingredients, steps, tags and photo records, accounts and sessions, API tokens, favorites and tasty marks, public links, and the household settings — editing rights, public sharing, link previews and the key that signs link previews. While Rezepte runs, SQLite keeps its most recent writes in `rezepte.db-wal` (with `rezepte.db-shm` as its index) before folding them into `rezepte.db`, so the three files are one database: copy them together or not at all. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (960 px). The profile photos of the accounts are one small square JPEG each, in `avatars/` beside `images/`; the database only records which file is whose, so a backup without `avatars/` restores every account with its initial instead of its photo.
 
 ## Backing up
 
@@ -37,7 +42,7 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
     docker compose start rezepte
     ```
 
-    Run it next to your `docker-compose.yaml`; the archive lands in `backups/`. `--volumes-from` finds the volume through the container, which also works while it is stopped, so you never need the volume's full name, and the same commands work for a bind mount. The archive holds the database with any `-wal` and `-shm` files beside it, and every photo.
+    Run it next to your `docker-compose.yaml`; the archive lands in `backups/`. `--volumes-from` finds the volume through the container, which also works while it is stopped, so you never need the volume's full name, and the same commands work for a bind mount. The archive holds the database with any `-wal` and `-shm` files beside it, and every photo, profile photos included.
 
     Started with `docker run --name rezepte` instead of compose? Use `docker stop rezepte` and `docker start rezepte`, and `--volumes-from rezepte`.
 
@@ -49,6 +54,7 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
     ```bash
     sqlite3 /var/lib/rezepte/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
     rsync -a /var/lib/rezepte/images/ /backups/images/
+    rsync -a /var/lib/rezepte/avatars/ /backups/avatars/
     ```
 
     The backup is a single file with everything from the `-wal` folded in. Run it as the account that owns the data directory — `rezepte` in the [systemd unit](/getting-started/binary), UID 65532 for a bind mount used by the container — so any file SQLite creates next to the database belongs to that account, not to root.
@@ -82,7 +88,7 @@ Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/da
 
     1. Stop Rezepte.
     2. Replace `rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it — they belong to the database you replaced, not to the backup.
-    3. Copy the backed-up `images/` directory back into place.
+    3. Copy the backed-up `images/` and `avatars/` directories back into place.
     4. Give the data directory back to the account Rezepte runs as, for example `chown -R rezepte:rezepte /var/lib/rezepte`.
     5. Start Rezepte again.
 
