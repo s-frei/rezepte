@@ -266,6 +266,7 @@
 	"detail_link_copied": "Link copied",
 	"share_image_saved": "Image saved",
 	"share_image_copied": "Image copied",
+	"share_card_footer": "Host Rezepte yourself",
 	"detail_share": "Share",
 	"detail_delete_confirm_title": "Delete recipe?",
 	"detail_delete_confirm_text": "Really delete \"{title}\"?",
