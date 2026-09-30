@@ -1,15 +1,11 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { login } from './helpers';
 
-// The lockups are inlined and colored by the --color-logo-* tokens, so they
-// follow the app's own theme switch, not only the system scheme.
-const ink = { light: 'rgb(124, 61, 10)', dark: 'rgb(240, 195, 145)' };
-
-async function inkOf(page: Page, scope: string): Promise<string> {
-	return page
-		.locator(`${scope} .ink`)
-		.first()
-		.evaluate((el) => getComputedStyle(el).fill);
+// A broken image still has a box, so each check also asks whether it decoded.
+async function loaded(img: Locator): Promise<boolean> {
+	return img.evaluate(
+		(el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0
+	);
 }
 
 test('the login page shows the stacked lockup, named Rezepte', async ({ page }) => {
@@ -17,23 +13,18 @@ test('the login page shows the stacked lockup, named Rezepte', async ({ page }) 
 	await page.goto('/login');
 	const logo = page.getByRole('img', { name: 'Rezepte' });
 	await expect(logo).toBeVisible();
-	await expect(logo.locator('.wordmark')).toHaveCount(1);
-	expect(await inkOf(page, '[role="img"][aria-label="Rezepte"]')).toBe(ink.light);
+	await expect(logo).toHaveAttribute('src', /rezepte-lockup-stacked/);
+	expect(await loaded(logo)).toBe(true);
 });
 
-test('the lockup takes the dark ink in the dark theme', async ({ page }) => {
-	await page.context().clearCookies();
-	await page.addInitScript(() => window.localStorage.setItem('rezepte-theme', 'dark'));
-	await page.goto('/login');
-	await expect(page.getByRole('img', { name: 'Rezepte' })).toBeVisible();
-	expect(await inkOf(page, '[role="img"][aria-label="Rezepte"]')).toBe(ink.dark);
-});
-
-test('the top bar links home with the compact lockup', async ({ page }, testInfo) => {
+test('the top bar links home with the horizontal lockup', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'the top bar is desktop-only');
 	await login(page);
 	const home = page.getByRole('banner').getByRole('link', { name: 'Rezepte', exact: true });
 	await expect(home).toBeVisible();
-	await expect(home.locator('.wordmark')).toHaveCount(1);
-	await expect(home.locator('.sprout')).toHaveCount(1);
+	const logo = home.locator('img');
+	await expect(logo).toHaveAttribute('src', /rezepte-lockup-horizontal/);
+	// The link names the logo, so the picture itself stays silent.
+	await expect(logo).toHaveAttribute('alt', '');
+	expect(await loaded(logo)).toBe(true);
 });

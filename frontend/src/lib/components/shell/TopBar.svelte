@@ -14,7 +14,7 @@
 <header class="mx-auto hidden h-16 max-w-[1280px] items-center justify-between px-8 md:flex">
 	<div class="flex items-center gap-4">
 		<a href={resolve('/')} aria-label={m.app_name()} class="flex items-center">
-			<Lockup variant="compact" class="h-8" />
+			<Lockup variant="horizontal" class="h-10" />
 		</a>
 		{#if shell.breadcrumb}
 			<span class="text-body-sm text-text-muted">{shell.breadcrumb}</span>

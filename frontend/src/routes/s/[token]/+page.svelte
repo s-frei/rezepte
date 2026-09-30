@@ -56,7 +56,7 @@
 
 <div class="mx-auto flex min-h-dvh max-w-[1280px] flex-col px-5 py-8 md:px-8 md:py-10">
 	<header class="mb-8 flex items-center justify-between gap-4">
-		<Lockup variant="compact" label={m.app_name()} class="h-7" />
+		<Lockup variant="horizontal" label={m.app_name()} class="h-9" />
 		<IconButton
 			label={dark ? m.public_share_theme_light() : m.public_share_theme_dark()}
 			onclick={() => setTheme(dark ? 'light' : 'dark')}
@@ -91,7 +91,7 @@
 			<div
 				class="flex flex-col items-center gap-3 rounded-lg bg-surface px-5 py-5.5 text-center sm:flex-row sm:gap-3.5 sm:px-4.5 sm:py-3.5 sm:text-left"
 			>
-				<Lockup variant="mark" class="size-9 shrink-0 sm:size-7" />
+				<Lockup variant="mark" class="h-9 shrink-0 sm:h-7" />
 				<p class="max-w-[36ch] text-body-sm sm:max-w-none sm:flex-1">
 					<span class="mb-1 block font-display sm:mb-0 sm:inline"
 						>{m.public_share_footer_title()}</span

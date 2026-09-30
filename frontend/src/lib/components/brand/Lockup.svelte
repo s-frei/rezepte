@@ -1,12 +1,12 @@
 <script lang="ts">
-	import compact from '$brand/lockups/rezepte-lockup-compact.svg?raw';
-	import mark from '$brand/logo/onion-l1.svg?raw';
-	import stacked from '$brand/lockups/rezepte-lockup-stacked.svg?raw';
+	import horizontal from '$brand/lockups/rezepte-lockup-horizontal.svg?url';
+	import mark from '$brand/lockups/rezepte-mascot.webp?url';
+	import stacked from '$brand/lockups/rezepte-lockup-stacked.svg?url';
 
-	// Inlined rather than an <img>, so the ink and sprout groups take the
-	// --color-logo-* tokens and follow the app's own theme switch, which a
-	// -dark file picked by prefers-color-scheme could not.
-	const sources = { compact, stacked, mark };
+	// Images rather than inline SVG: the lockups carry their own cream box and
+	// the painted mascot, so they look the same in both themes and nothing in
+	// them follows a token.
+	const sources = { horizontal, stacked, mark };
 
 	let {
 		variant,
@@ -20,26 +20,4 @@
 	} = $props();
 </script>
 
-<span
-	class="lockup block {className}"
-	role={label ? 'img' : undefined}
-	aria-label={label}
-	aria-hidden={label ? undefined : 'true'}
->
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -- a build-time asset from assets/brand, never user input -->
-	{@html sources[variant]}
-</span>
-
-<style>
-	.lockup :global(svg) {
-		display: block;
-		height: 100%;
-		width: auto;
-	}
-	.lockup :global(.ink) {
-		fill: var(--color-logo-ink);
-	}
-	.lockup :global(.sprout) {
-		fill: var(--color-logo-sprout);
-	}
-</style>
+<img src={sources[variant]} alt={label ?? ''} class="block w-auto {className}" />

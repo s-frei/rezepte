@@ -1,3 +1,6 @@
 # Demo photo and avatar originals, exactly as generated; the build embeds smaller copies.
 assets/demo-photos/**/*.jpg filter=lfs diff=lfs merge=lfs -text
 assets/demo-avatars/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+# The mascot's originals, exactly as generated and cut out; brand:export derives everything the sites load.
+assets/brand/mascot/*.jpg filter=lfs diff=lfs merge=lfs -text
+assets/brand/mascot/*.png filter=lfs diff=lfs merge=lfs -text

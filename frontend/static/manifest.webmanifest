@@ -2,8 +2,8 @@
 	"name": "Rezepte",
 	"short_name": "Rezepte",
 	"display": "browser",
-	"theme_color": "#f4ede2",
-	"background_color": "#f4ede2",
+	"theme_color": "#f9e5cd",
+	"background_color": "#f9e5cd",
 	"icons": [
 		{
 			"src": "/icon-192.png",

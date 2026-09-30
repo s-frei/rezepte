@@ -11,7 +11,7 @@ test.each(COPIES)('%s is an exact copy of %s', (target, source) => {
 	expect(readFileSync(new URL(target, docs))).toEqual(readFileSync(new URL(source, root)));
 });
 
-test('the navigation and the docs home show the lockups', () => {
-	expect(readFileSync(new URL('lib/layout.shared.tsx', docs), 'utf8')).toContain('<Lockup variant="compact"');
-	expect(readFileSync(new URL('content/index.mdx', docs), 'utf8')).toContain('<Lockup variant="horizontal"');
+test('the navigation shows the lockup and the docs home the banner', () => {
+	expect(readFileSync(new URL('lib/layout.shared.tsx', docs), 'utf8')).toContain('<Lockup variant="horizontal"');
+	expect(readFileSync(new URL('content/index.mdx', docs), 'utf8')).toContain('<Lockup variant="banner"');
 });

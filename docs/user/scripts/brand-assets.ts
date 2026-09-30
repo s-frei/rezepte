@@ -7,10 +7,9 @@ import { copyFile, mkdir } from 'node:fs/promises';
 
 // [target in docs/user, source from the repository root]
 export const COPIES: [string, string][] = [
-	['public/brand/rezepte-lockup-compact.svg', 'assets/brand/lockups/rezepte-lockup-compact.svg'],
-	['public/brand/rezepte-lockup-compact-dark.svg', 'assets/brand/lockups/rezepte-lockup-compact-dark.svg'],
 	['public/brand/rezepte-lockup-horizontal.svg', 'assets/brand/lockups/rezepte-lockup-horizontal.svg'],
-	['public/brand/rezepte-lockup-horizontal-dark.svg', 'assets/brand/lockups/rezepte-lockup-horizontal-dark.svg'],
+	// The home page's header, as in the README.
+	['public/brand/rezepte-banner.svg', 'assets/brand/lockups/rezepte-banner.svg'],
 	// The tab icon, through Next's app/icon convention.
 	['app/icon.svg', 'frontend/static/favicon.svg'],
 	// The link preview. Not app/opengraph-image: Next prefixes the base path

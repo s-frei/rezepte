@@ -17,7 +17,7 @@ export const SITE_TITLE = 'Rezepte — Self-hosted recipe manager for your house
 // to spread these in, or it silently loses og:type, og:site_name and og:locale.
 // The link preview, public/og.png (a copy of assets/brand/social-preview.png).
 export const OG_IMAGES = [
-	{ url: './og.png', width: 1280, height: 640, alt: 'The Rezepte logo, a brush-painted onion above the name Rezepte' }
+	{ url: './og.png', width: 1280, height: 640, alt: 'The Rezepte mascot, a waving cookbook holding a wooden spoon, beside the name Rezepte' }
 ];
 
 export const OG_SHARED = { type: 'website', siteName: 'Rezepte', locale: 'en_US', images: OG_IMAGES } as const;

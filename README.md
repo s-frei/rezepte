@@ -1,11 +1,6 @@
 <div align="center">
 
-<h1>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockups/rezepte-lockup-horizontal-dark.svg">
-    <img alt="Rezepte" src="assets/brand/lockups/rezepte-lockup-horizontal.svg" height="72">
-  </picture>
-</h1>
+<img alt="Rezepte" src="assets/brand/lockups/rezepte-banner.svg" width="640">
 
 **The recipe manager I wanted for my own kitchen.** Self-hosted, one binary, no cloud account.
 

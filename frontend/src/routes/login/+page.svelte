@@ -47,7 +47,7 @@
 <svelte:head><title>{m.login_title()} · {m.app_name()}</title></svelte:head>
 
 <main class="flex min-h-screen flex-col items-center justify-center gap-6 p-5">
-	<Lockup variant="stacked" label={m.app_name()} class="h-[120px]" />
+	<Lockup variant="stacked" label={m.app_name()} class="h-52" />
 	<p class="text-body text-text-muted">{m.login_welcome()}</p>
 	<form
 		onsubmit={submit}
