@@ -59,9 +59,8 @@ func WithAPIMiddleware(mw func(api huma.API) func(huma.Context, func(huma.Contex
 // Security is empty. Guarding them therefore has to happen here, in front
 // of the mux, rather than in the operation chain. mw is an ordinary
 // net/http middleware - auth.RequireAuthOrLogin, which redirects a
-// browser to the login form and answers everything else with a 401. The
-// image routes take auth.RequireAuth instead, which always denies with
-// a 401; see docs/memory/content/features/users-and-auth.mdx.
+// browser to the login form and answers everything else with a 401; see
+// docs/memory/content/features/users-and-auth.mdx.
 func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
 	return func(s *Server) {
 		s.specGuard = mw
@@ -201,6 +200,23 @@ func WriteProblem(w http.ResponseWriter, status int, detail string) {
 		Status: status,
 		Detail: detail,
 	})
+}
+
+// publicError is huma's ErrorModel under a type of its own. huma's schema
+// link transformer recognizes a response body by its Go type, and a bare
+// ErrorModel would get a "$schema" key and a Link header pointing at a
+// schema route that needs a session.
+type publicError struct{ huma.ErrorModel }
+
+// PublicNotFound is the 404 of an operation anyone may call without a
+// session: the problem+json body huma gives, minus the schema link a
+// stranger could not follow.
+func PublicNotFound(detail string) error {
+	return &publicError{huma.ErrorModel{
+		Title:  http.StatusText(http.StatusNotFound),
+		Status: http.StatusNotFound,
+		Detail: detail,
+	}}
 }
 
 // API exposes the huma API so feature packages can register operations.

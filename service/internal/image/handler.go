@@ -72,9 +72,8 @@ type coverInput struct {
 type coverOutput struct{}
 
 // Register installs the image operations onto api: upload (multipart),
-// delete, reorder and set-cover. Every operation requires a session or a
-// scoped API token (Security: auth.Protected(...)); the file route is not a
-// huma operation, see FileHandler.
+// delete, reorder, set-cover and the file route. Every operation requires a
+// session or a scoped API token (Security: auth.Protected(...)).
 func Register(api huma.API, svc *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "upload-image",
@@ -163,6 +162,7 @@ func Register(api huma.API, svc *Service) {
 		}
 		return &coverOutput{}, nil
 	})
+	registerFile(api, svc)
 }
 
 // imageErr maps the service's domain errors to their HTTP status; anything

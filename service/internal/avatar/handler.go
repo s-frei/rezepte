@@ -27,6 +27,11 @@ type ownUploadInput struct {
 	RawBody huma.MultipartFormFiles[uploadForm]
 }
 
+type fileInput struct {
+	UserID string `path:"userId"`
+	File   string `path:"file" doc:"The picture's avatarId followed by .jpg"`
+}
+
 type userUploadInput struct {
 	ID      string `path:"id"`
 	Crop    string `query:"crop" doc:"The square to keep, as x,y,size; see the operation description"`
@@ -50,10 +55,10 @@ type uploadOutput struct {
 
 type noContent struct{}
 
-// Register installs the four picture operations: an account's own, which
-// any session may use, and another account's, which only the owner may,
-// the same rule user.CanEditProfile applies to the rest of a profile. The
-// file route is not a huma operation, see FileHandler.
+// Register installs the picture operations: changing an account's own, which
+// any session may use, and another account's, which only the owner may, the
+// same rule user.CanEditProfile applies to the rest of a profile; and
+// reading any account's picture file.
 func Register(api huma.API, svc *Service) {
 	upload := func(ctx context.Context, userID, crop string, file io.ReadCloser) (*uploadOutput, error) {
 		defer file.Close()
@@ -143,6 +148,27 @@ func Register(api huma.API, svc *Service) {
 		}
 		return &noContent{}, nil
 	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-avatar-file",
+		Method:      http.MethodGet,
+		Path:        "/avatars/{userId}/{file}",
+		Summary:     "Read an account's picture",
+		Tags:        []string{"users"},
+		Security:    auth.Protected(auth.ScopeUsersRead),
+		Errors:      []int{403, 404},
+		Responses:   image.JPEGResponses,
+	}, func(_ context.Context, in *fileInput) (*huma.StreamResponse, error) {
+		id, ok := strings.CutSuffix(in.File, ".jpg")
+		if !ok {
+			return nil, huma.Error404NotFound("picture not found")
+		}
+		f, err := svc.Open(in.UserID, id)
+		if err != nil {
+			return nil, huma.Error404NotFound("picture not found")
+		}
+		return image.JPEG(f, immutableCache), nil
+	})
 }
 
 // requireOwner is user.CanEditProfile at the edge: only the instance owner
@@ -175,23 +201,3 @@ func avatarErr(err error) error {
 // never changes. "private" keeps shared caches out; the route is behind a
 // session.
 const immutableCache = "private, max-age=31536000, immutable"
-
-// FileHandler serves GET /avatars/{userId}/{file}, file being
-// "<avatar id>.jpg". Register it wrapped in auth.RequireAuth with
-// auth.ScopeUsersRead. Anything but an existing picture is a 404.
-func FileHandler(svc *Service) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, ok := strings.CutSuffix(r.PathValue("file"), ".jpg")
-		if !ok {
-			http.NotFound(w, r)
-			return
-		}
-		f, err := svc.Open(r.PathValue("userId"), id)
-		if err == nil {
-			err = image.ServeJPEG(w, r, f, immutableCache)
-		}
-		if err != nil {
-			http.NotFound(w, r)
-		}
-	})
-}

@@ -39,6 +39,18 @@ func Protected(scopes ...string) []map[string][]string {
 	return []map[string][]string{{sessionScheme: {}}, {tokenScheme: scopes}}
 }
 
+// TokenOnly marks an operation only an API token carrying every listed scope
+// may reach, such as the MCP endpoint. A session cookie is not accepted: a
+// page on another site can make a logged-in browser send one, but it cannot
+// make it send an Authorization header. It panics without a scope, for the
+// reason Protected does.
+func TokenOnly(scopes ...string) []map[string][]string {
+	if len(scopes) == 0 {
+		panic("auth.TokenOnly: at least one scope is required")
+	}
+	return []map[string][]string{{tokenScheme: scopes}}
+}
+
 // SecuritySchemes describes both authenticators for the OpenAPI document.
 // It is installed through httpserver.WithSecuritySchemes so the scheme names
 // stay in this package and httpserver keeps knowing nothing about auth.
@@ -67,6 +79,14 @@ func tokenScopes(op *huma.Operation) ([]string, bool) {
 		}
 	}
 	return nil, false
+}
+
+// sessionAllowed reports whether a session cookie may reach op.
+func sessionAllowed(op *huma.Operation) bool {
+	return slices.ContainsFunc(op.Security, func(requirement map[string][]string) bool {
+		_, ok := requirement[sessionScheme]
+		return ok
+	})
 }
 
 // bearerToken extracts a token from an Authorization header value.
@@ -101,9 +121,9 @@ func UserFrom(ctx context.Context) (user.User, bool) {
 type scopesKey struct{}
 
 // ScopesFrom returns the scopes of the API token that authenticated ctx's
-// request, or nil when it was not authenticated by a token. Only
-// RequireToken stores them; routes that also accept a session never need
-// them, since a session is not scope-limited.
+// request, or nil when it was not authenticated by a token. Operations that
+// also accept a session never need them, since a session is not
+// scope-limited.
 func ScopesFrom(ctx context.Context) []string {
 	s, _ := ctx.Value(scopesKey{}).([]string)
 	return s
@@ -113,7 +133,9 @@ func ScopesFrom(ctx context.Context) []string {
 //
 // A request carrying an Authorization: Bearer header is decided by the token
 // branch alone - there is no fallback to the cookie, so a stale browser
-// session cannot silently rescue a revoked token.
+// session cannot silently rescue a revoked token. An operation marked
+// TokenOnly refuses a request without one. Every 401 of the token branch
+// carries WWW-Authenticate: Bearer per RFC 6750.
 //
 // On a sliding renewal of a cookie session (Authenticate reports Renewed) it
 // re-issues the session cookie with the fresh expiry, so the browser's copy
@@ -138,6 +160,7 @@ func Middleware(sessions *Service, tokens *TokenService, secureCookies bool) fun
 				}
 				v, err := tokens.Authenticate(ctx.Context(), raw)
 				if err != nil {
+					ctx.SetHeader("WWW-Authenticate", "Bearer")
 					_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, bearerAuthFailureMessage(err))
 					return
 				}
@@ -146,7 +169,13 @@ func Middleware(sessions *Service, tokens *TokenService, secureCookies bool) fun
 						"api token is missing scope "+strings.Join(missing, ", "))
 					return
 				}
-				next(huma.WithValue(ctx, userKey{}, v.User))
+				ctx = huma.WithValue(ctx, userKey{}, v.User)
+				next(huma.WithValue(ctx, scopesKey{}, v.Scopes))
+				return
+			}
+			if !sessionAllowed(ctx.Operation()) {
+				ctx.SetHeader("WWW-Authenticate", "Bearer")
+				_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "api token required")
 				return
 			}
 			cookie, err := huma.ReadCookie(ctx, CookieName)

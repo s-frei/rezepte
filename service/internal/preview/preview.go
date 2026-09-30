@@ -140,29 +140,6 @@ func (s *Service) forSlug(ctx context.Context, slug, token string) (*httpserver.
 	return p, nil
 }
 
-// CoverHandler serves GET /link-preview/{recipeId}/{imageId}: the thumb of a
-// recipe's cover, to a request carrying a valid token while link previews
-// are on - without a session, since the crawler asking has none. Anything else is a 404, the
-// same answer as for a recipe that does not exist, so the route tells a
-// stranger nothing. Only the cover is served, never another photo.
-func (s *Service) CoverHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		recipeID, imageID := r.PathValue("recipeId"), r.PathValue("imageId")
-		if !s.showsCover(r.Context(), recipeID, imageID, r.URL.Query().Get(shareParam)) {
-			http.NotFound(w, r)
-			return
-		}
-		f, err := s.images.Open(recipeID, imageID, "thumb")
-		if err == nil {
-			// A crawler fetches it once; nobody else should keep it around.
-			err = image.ServeJPEG(w, r, f, "private, max-age=3600")
-		}
-		if err != nil {
-			http.NotFound(w, r)
-		}
-	})
-}
-
 func (s *Service) showsCover(ctx context.Context, recipeID, imageID, token string) bool {
 	st, err := s.settings.Get(ctx)
 	if err != nil {

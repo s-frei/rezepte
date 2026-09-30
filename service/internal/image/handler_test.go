@@ -25,7 +25,7 @@ import (
 )
 
 // newHandler mirrors internal/recipe/handler_test.go's stack and adds the
-// image operations plus the /images/ file route exactly as main.go wires them.
+// image operations exactly as main.go wires them.
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
 	conn := dbtest.Open(t)
@@ -43,8 +43,6 @@ func newHandler(t *testing.T) http.Handler {
 	recipe.Register(srv.API(), recipe.NewService(conn, dir))
 	images := image.NewService(conn, dir)
 	image.Register(srv.API(), images)
-	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
-		auth.RequireAuth(sessions, tokens, false, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	return srv.Handler()
 }
 

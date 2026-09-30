@@ -243,8 +243,8 @@ func (s *TokenService) Delete(ctx context.Context, id string) error {
 }
 
 // bearerAuthFailureMessage turns a TokenService.Authenticate error into what
-// a bearer request is told. Both bearer paths - Middleware and requireAuth -
-// call this so a session cookie pasted as a bearer token gets the same
+// a bearer request is told. Both bearer paths - Middleware and
+// RequireAuthOrLogin - call this so a session cookie pasted as a bearer token gets the same
 // comprehensible message wherever it lands, instead of a bare 401.
 func bearerAuthFailureMessage(err error) string {
 	if errors.Is(err, ErrNotAPIToken) {

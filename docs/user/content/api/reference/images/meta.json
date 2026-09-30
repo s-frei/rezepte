@@ -6,6 +6,7 @@
     "set-cover",
     "upload-image",
     "reorder-images",
-    "delete-image"
+    "delete-image",
+    "get-image-file"
   ]
 }

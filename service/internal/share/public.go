@@ -25,21 +25,9 @@ import (
 // stranger holding a token learns nothing about why.
 const notAvailable = "not available"
 
-// notAvailableError is huma's ErrorModel under a type of its own. huma's
-// schema link transformer recognizes a response body by its Go type, and a
-// bare ErrorModel would get a "$schema" key and a Link header pointing at a
-// schema route that needs a session - for the same reason get-public-recipe
-// gives its 200 body inline. Its own type keeps the 404 identical to the one
-// writeNotAvailable sends for a photo.
-type notAvailableError struct{ huma.ErrorModel }
-
-func errNotAvailable() error {
-	return &notAvailableError{huma.ErrorModel{
-		Title:  http.StatusText(http.StatusNotFound),
-		Status: http.StatusNotFound,
-		Detail: notAvailable,
-	}}
-}
+// errNotAvailable is every public route's 404, so no answer tells a
+// stranger which case they hit.
+func errNotAvailable() error { return httpserver.PublicNotFound(notAvailable) }
 
 // PublicImage is a photo of a publicly shared recipe. Its files are served at
 // /public-images/{token}/{id}/{thumb|detail|original}.jpg.
@@ -108,6 +96,12 @@ type publicInput struct {
 	Token string `path:"token" doc:"The token of the public link, the last segment of /s/{token}"`
 }
 
+type publicImageInput struct {
+	Token   string `path:"token" doc:"The token of the public link, the last segment of /s/{token}"`
+	ImageID string `path:"imageId"`
+	File    string `path:"file" doc:"thumb.jpg, detail.jpg or original.jpg"`
+}
+
 type publicOutput struct {
 	Body PublicRecipe
 }
@@ -139,7 +133,7 @@ func ShellHeaders(r *http.Request, h http.Header) {
 // RegisterPublic installs get-public-recipe, the recipe behind a public link.
 // It declares no Security, so auth.Middleware lets it through without a
 // session; the token is the whole authorization.
-func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service) {
+func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service, images *image.Service) {
 	// The body schema is given inline rather than as a $ref: huma's schema
 	// link transformer adds a "$schema" field and a Link header to every
 	// response whose schema is a $ref, which would put a key into the public
@@ -157,13 +151,7 @@ func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service) {
 		Responses: map[string]*huma.Response{
 			"200": {Content: map[string]*huma.MediaType{"application/json": {Schema: body}}},
 		},
-		// A middleware rather than output headers, so the 404 carries them too.
-		Middlewares: huma.Middlewares{func(ctx huma.Context, next func(huma.Context)) {
-			for _, kv := range publicHeaders {
-				ctx.SetHeader(kv[0], kv[1])
-			}
-			next(ctx)
-		}},
+		Middlewares: huma.Middlewares{withPublicHeaders},
 	}, func(ctx context.Context, in *publicInput) (*publicOutput, error) {
 		recipeID, ok, err := svc.Resolve(ctx, in.Token)
 		if err != nil {
@@ -187,29 +175,38 @@ func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service) {
 		body.Attribution = st.PublicShareAttribution
 		return &publicOutput{Body: body}, nil
 	})
-}
 
-// ImageHandler serves GET /public-images/{token}/{imageId}/{file}, where file
-// is thumb.jpg, detail.jpg or original.jpg: a photo of the recipe a public
-// link shows, while the link serves - without a session, since the stranger
-// asking has none. A photo of another recipe, one removed from the recipe,
-// an unknown variant and a link that serves nothing are the same 404.
-func (s *Service) ImageHandler(images *image.Service) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		setPublicHeaders(w.Header())
-		f, err := s.openPublicImage(r.Context(), images, r.PathValue("token"), r.PathValue("imageId"), r.PathValue("file"))
+	huma.Register(api, huma.Operation{
+		OperationID: "get-public-image-file",
+		Method:      http.MethodGet,
+		Path:        "/public-images/{token}/{imageId}/{file}",
+		Summary:     "Read a photo of the recipe behind a public link",
+		Description: "No session needed, like get-public-recipe. A photo of another recipe, one removed from the recipe, an unknown size and a link that serves nothing answer 404 alike.",
+		Tags:        []string{"public"},
+		Errors:      []int{404},
+		Responses:   image.JPEGResponses,
+		Middlewares: huma.Middlewares{withPublicHeaders},
+	}, func(ctx context.Context, in *publicImageInput) (*huma.StreamResponse, error) {
+		f, err := svc.openPublicImage(ctx, images, in.Token, in.ImageID, in.File)
 		if err != nil {
 			if !errors.Is(err, errNotServed) {
-				s.logger.Warn("public image", "err", err)
+				svc.logger.Warn("public image", "err", err)
 			}
-			writeNotAvailable(w)
-			return
+			return nil, errNotAvailable()
 		}
 		// Cache-Control is publicHeaders' own.
-		if err := image.ServeJPEG(w, r, f, ""); err != nil {
-			writeNotAvailable(w)
-		}
+		return image.JPEG(f, ""), nil
 	})
+}
+
+// withPublicHeaders sets publicHeaders on every answer of a public
+// operation. A middleware rather than output headers, so the 404 carries
+// them too.
+func withPublicHeaders(ctx huma.Context, next func(huma.Context)) {
+	for _, kv := range publicHeaders {
+		ctx.SetHeader(kv[0], kv[1])
+	}
+	next(ctx)
 }
 
 // errNotServed is openPublicImage's answer for every request the link does
@@ -244,12 +241,6 @@ func (s *Service) openPublicImage(ctx context.Context, images *image.Service, to
 		return nil, err
 	}
 	return f, nil
-}
-
-// writeNotAvailable answers with the problem+json 404 get-public-recipe
-// gives, so every public route fails the same way.
-func writeNotAvailable(w http.ResponseWriter) {
-	httpserver.WriteProblem(w, http.StatusNotFound, notAvailable)
 }
 
 // ForRequest returns the link preview for the public share page /s/{token},

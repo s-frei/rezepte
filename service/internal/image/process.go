@@ -133,7 +133,7 @@ func variantPath(dir, recipeID, imageID, suffix string) string {
 // written so far (temp or final) are removed and the error returned.
 //
 // Directory and files are owner-only (0700/0600): this process is the sole
-// reader, it serves the bytes itself through FileHandler rather than
+// reader, it serves the bytes itself through get-image-file rather than
 // handing the path to a web server, and the container runs as a single
 // nonroot user.
 func writeVariants(recipeDir, id string, src stdimage.Image) (written, error) {

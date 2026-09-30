@@ -186,15 +186,11 @@ func run() error {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
-	mcpHandler, err := mcpserver.Handler(recipes, srv.API(), version)
-	if err != nil {
+	if err := mcpserver.Register(srv.API(), recipes, version); err != nil {
 		return fmt.Errorf("mcp: %w", err)
 	}
-	srv.Handle("/mcp", auth.RequireToken(tokens, auth.ScopeRecipesRead)(mcpHandler))
 	image.Register(srv.API(), images)
 	avatar.Register(srv.API(), avatars)
-	srv.Handle("GET /avatars/{userId}/{file}",
-		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeUsersRead)(avatar.FileHandler(avatars)))
 	// Leftovers of a killed process are only wasted disk, so a failed sweep
 	// is worth a warning, not a refusal to start.
 	if err := transfer.SweepTemp(cfg.DataDir); err != nil {
@@ -202,17 +198,9 @@ func run() error {
 	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance)
-	srv.Handle("GET /images/{recipeId}/{imageId}/{file}",
-		auth.RequireAuth(sessions, tokens, cfg.SecureCookies, auth.ScopeRecipesRead)(image.FileHandler(images)))
 	preview.Register(srv.API(), previews)
-	// Without a session on purpose: the crawler building a link preview has
-	// none. The handler decides from the household setting and share token.
-	srv.Handle("GET /link-preview/{recipeId}/{imageId}", previews.CoverHandler())
 	share.Register(srv.API(), shares)
-	// Without a session on purpose, like the cover route: whoever holds a
-	// public link has none. The token alone decides, per request.
-	share.RegisterPublic(srv.API(), shares, recipes)
-	srv.Handle("GET /public-images/{token}/{imageId}/{file}", shares.ImageHandler(images))
+	share.RegisterPublic(srv.API(), shares, recipes, images)
 	userapi.Register(srv.API(), users, sessions, avatars)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)

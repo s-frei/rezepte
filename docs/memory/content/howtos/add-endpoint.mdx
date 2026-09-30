@@ -75,7 +75,7 @@ description: huma operations, security, errors
 
 <Callout type="warn" title="Multipart uploads">
 
-  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - put `image.LimitUpload` (`internal/image/handler.go`) into the operation's `Middlewares`. Serve binary responses from a plain mux route via `httpserver.Server.Handle` + `auth.RequireAuth`, not from a huma operation.
+  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - put `image.LimitUpload` (`internal/image/handler.go`) into the operation's `Middlewares`. Serve a binary response from the operation too, as a `*huma.StreamResponse` - see below.
 
 </Callout>
 
@@ -95,4 +95,4 @@ description: huma operations, security, errors
 
 ## Non-JSON responses
 
-A huma operation always frames its response as JSON - for a byte stream (an image, a download) register a plain `net/http` handler on the mux instead, via `srv.Handle(pattern, handler)`. Go 1.22's `http.ServeMux` prefers the more specific pattern over the SPA's `/` catch-all regardless of registration order, so this can happen any time after `httpserver.New`. It bypasses huma entirely, so add `Security` equivalents by hand (wrap the handler in `auth.RequireAuth(sessions, tokens, cfg.SecureCookies, scopes...)`, naming whichever scopes an API token needs to reach it) and set response headers such as `Cache-Control` yourself. See `internal/image/file.go`'s `FileHandler` and its registration in `cmd/rezepte/main.go`, and [Images](/features/images) for why the image routes are built this way.
+A huma operation frames its response as JSON unless it returns a `*huma.StreamResponse`, which is how a byte stream (an image, a download) stays an operation and so stays in the document: its `Body` gets the `huma.Context`, and `humago.Unwrap(ctx)` yields the `*http.Request` and `http.ResponseWriter` for `http.ServeContent` or a foreign handler. Return a `huma.Error…` before the stream for a failure, since the stream itself can no longer change the status. A stream has no schema, so declare the `200` in `Responses` by hand; for a JPEG, return `image.JPEG(f, cacheControl)` and use `image.JPEGResponses` (`internal/image/file.go`). Security, tags and path parameters work as for any operation, even for a path outside `/api/v1`. Never register an API route with `srv.Handle`: the document would not know it ([HTTP API](/architecture/api)).

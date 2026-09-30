@@ -1,8 +1,10 @@
 {
   "title": "Public",
-  "description": "What a public link shows to anyone, without signing in.",
+  "description": "What anyone may read without signing in: the recipe and photos behind a public link, and the cover a link preview shows.",
   "pages": [
     "index",
-    "get-public-recipe"
+    "get-public-recipe",
+    "get-link-preview-cover",
+    "get-public-image-file"
   ]
 }

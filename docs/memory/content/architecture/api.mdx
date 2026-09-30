@@ -40,7 +40,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public: `POST /api/v1/auth/login`, `GET /healthz`, `GET /api/v1/public/shares/{token}` (see [Public shares](/features/public-shares)). `GET /images/…` is not one of them, even though it lives outside `/api/v1` - it is a plain mux route wrapped in `auth.RequireAuth`, so viewing a photo still requires a session or a token carrying `recipes:read`. `GET /public-images/…` and `GET /link-preview/…` are the opposite kind of exception: plain mux routes outside `/api/v1`, deliberately without authentication, since the stranger or the crawler behind either has no session to carry. `POST /mcp` is the same kind of exception as `/images`, the other way: a plain mux route outside `/api/v1`, wrapped in `auth.RequireToken` instead of `auth.RequireAuth`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
+    Operations without `Security` are public: `POST /api/v1/auth/login`, `GET /healthz`, `GET /api/v1/public/shares/{token}`, `GET /public-images/…` (see [Public shares](/features/public-shares)) and `GET /link-preview/…` (see [Link previews](/features/link-previews)) - the last two outside `/api/v1` and deliberately without authentication, since the stranger or the crawler behind either has no session to carry. Living outside `/api/v1` says nothing about security: `GET /images/…` and `GET /avatars/…` declare `auth.Protected` like any other operation, and `/mcp` declares `auth.TokenOnly`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
 
   </Tab>
 </Tabs>
@@ -162,7 +162,7 @@ Public, revocable recipe links a member creates and manages; see [Public shares]
 | revoke-share | `DELETE /shares/{id}` | session only; own share, or any as admin; `204`; `404` otherwise |
 | revoke-all-shares | `DELETE /shares` | session only; every link in the household, whoever created it; `204`; `403` `admin role required` for a non-admin |
 | get-public-recipe | `GET /public/shares/{token}` | no security - reachable without a session or a token; the `PublicRecipe` DTO, never `Recipe`; every invalid token (unknown, revoked, paused, limited or expired) is the same `404` `"not available"` |
-| serve a public image | `GET /public-images/{token}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation, no security; only a photo still belonging to the share's recipe while the share serves; `404` otherwise |
+| get-public-image-file | `GET /public-images/{token}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, no security; only a photo still belonging to the share's recipe while the share serves; the same `404` `"not available"` otherwise |
 
 Every session-only operation above (the first five) is unreachable by an API token: `auth.Middleware`'s bearer branch answers a token carrying `Authorization: Bearer` with `403` `API tokens cannot use this operation` before it ever checks the token's validity, which is a different status than the `401` a request with no credential gets on the same route.
 
@@ -178,7 +178,7 @@ See [Users and authentication](/features/users-and-auth) for who may set a pictu
 | delete-own-avatar | `DELETE /auth/me/avatar` | `204`; idempotent. Session only, any role |
 | set-user-avatar | `PUT /users/{id}/avatar` | as `set-own-avatar`, for another account; a session or a token carrying `users:write`, and either way owner only: `403` `superadmin role required` for everybody else, `404` for an unknown id |
 | delete-user-avatar | `DELETE /users/{id}/avatar` | `204`; a session or a token carrying `users:write`, owner only, `404` for an unknown id |
-| serve a picture | `GET /avatars/{userId}/{avatarId}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireAuth`, reachable by a session of any role or a token carrying `users:read`; `Cache-Control: private, max-age=31536000, immutable`; ids are checked against the UUID alphabet and anything that is not an existing file is `404` |
+| get-avatar-file | `GET /avatars/{userId}/{avatarId}.jpg` | not under `/api/v1`; a session of any role or a token carrying `users:read`; `Cache-Control: private, max-age=31536000, immutable`; ids are checked against the UUID alphabet and anything that is not an existing file is `404` |
 
 The upload statuses are the image upload's: `413` from `LimitUpload`, `415` for a format that is not JPEG, PNG or WebP, and `422` for undecodable bytes, sides outside 64-12000 px, or a `crop` that is malformed, out of range, past the image's edge or under 64 px.
 
@@ -194,8 +194,8 @@ See [Images](/features/images) for why each upload becomes three server-rendered
 | delete | `DELETE /recipes/{id}/images/{imageId}` | `204`; if the cover was deleted, the next image by position is promoted, or the cover is cleared |
 | reorder | `PUT /recipes/{id}/images/order` | body `{imageIds}` - every image id of the recipe, in the new order; response `OrderResult` (`{items: [...]}`), the images in their new order |
 | set cover | `PUT /recipes/{id}/cover` | body `{imageId}`; `204`; `404` unless the image belongs to the recipe |
-| serve a variant | `GET /images/{recipeId}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`, not a huma operation - a plain mux route behind `auth.RequireAuth`, reachable by a session of any role or a token carrying `recipes:read`; `Content-Type: image/jpeg`, `Cache-Control: private, max-age=31536000, immutable`; `404` for anything else (unknown recipe/image/variant, wrong extension) |
-| serve a link preview cover | `GET /link-preview/{recipeId}/{imageId}` | not under `/api/v1`, and deliberately without authentication: the crawler building a chat preview has no session. Serves the `thumb` of the recipe's current cover only, while `linkPreviews` is on and with a valid `?share=` token; `Cache-Control: private, max-age=3600`; `404` for anything else, the same answer as for an unknown recipe (see [Link previews](/features/link-previews)) |
+| get-image-file | `GET /images/{recipeId}/{imageId}/{thumb\|detail\|original}.jpg` | not under `/api/v1`; a session of any role or a token carrying `recipes:read`; `Content-Type: image/jpeg`, `Cache-Control: private, max-age=31536000, immutable`; `404` for anything else (unknown recipe/image/variant, wrong extension) |
+| get-link-preview-cover | `GET /link-preview/{recipeId}/{imageId}` | not under `/api/v1`, and deliberately without authentication: the crawler building a chat preview has no session. Serves the `thumb` of the recipe's current cover only, while `linkPreviews` is on and with a valid `?share=` token; `Cache-Control: private, max-age=3600`; `404` for anything else, the same answer as for an unknown recipe (see [Link previews](/features/link-previews)) |
 
 Every image write - upload, delete, reorder and set cover - answers `403` `recipe edit locked` when the caller may not edit the recipe ([Editing rights](/features/editing-rights)).
 
@@ -231,7 +231,9 @@ Routing is `net/http.ServeMux` with method patterns (`GET /api/v1/recipes/{id}`)
 
 huma sits on top of that mux through the `humago` adapter, configured once in `service/internal/httpserver/api.go`, and it is there because it replaces work rather than wrapping it: handlers are typed `func(ctx, *Input) (*Output, error)`, the input validation comes from struct tags, the OpenAPI 3.1 document and the Scalar page are generated from the registered operations, and errors are rendered as RFC 9457 problem documents. The [public REST API](/roadmap) and the [MCP server](/features/mcp) both start from that document, so every operation is described the moment it exists instead of being documented afterwards. Adding a dependency at all follows [Go conventions](/conventions/go).
 
-The typed shape is also a layering rule. The input and output structs *are* the contract, so they live in the feature package beside the service that fills them (`service/internal/recipe/handler.go`) rather than in a shared transport package, and feature code inside an operation never touches `http.ResponseWriter`. Anything that has to write bytes itself leaves the operation set and becomes a plain mux route instead - which is exactly what the image files are (`service/internal/image/file.go`).
+The typed shape is also a layering rule. The input and output structs *are* the contract, so they live in the feature package beside the service that fills them (`service/internal/recipe/handler.go`) rather than in a shared transport package.
+
+**Every route a client, a crawler or an agent calls is a huma operation**, so the document lists all of them and cannot drift from the mux. That includes the ones that write bytes: an operation answering a file returns a `*huma.StreamResponse` whose body reaches the `http.ResponseWriter` through `humago.Unwrap` - `image.JPEG` (`service/internal/image/file.go`) for the four JPEG routes, the export's zip, `/mcp` handing the request to the SDK's handler - and declares its `200` by hand in `Responses`, since a stream has no schema to infer (`image.JPEGResponses`). Only two kinds of route stay on the mux: the SPA shell and its assets, which are not API, and the contract routes huma hangs there itself. A public operation's `404` is `httpserver.PublicNotFound`, huma's problem body without the `$schema` link a stranger could not follow.
 
 ## Rejected
 

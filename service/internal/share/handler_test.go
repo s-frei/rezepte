@@ -93,8 +93,7 @@ func newStack(t *testing.T) *stack {
 		httpserver.WithShellHeaders(share.ShellHeaders))
 	auth.Register(srv.API(), sessions, false)
 	share.Register(srv.API(), s.shares)
-	share.RegisterPublic(srv.API(), s.shares, s.recipes)
-	srv.Handle("GET /public-images/{token}/{imageId}/{file}", s.shares.ImageHandler(s.images))
+	share.RegisterPublic(srv.API(), s.shares, s.recipes, s.images)
 	s.h = srv.Handler()
 	return s
 }

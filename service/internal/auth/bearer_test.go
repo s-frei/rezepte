@@ -104,8 +104,8 @@ func TestUnknownBearerTokenIsUnauthorized(t *testing.T) {
 
 // TestBearerValueWithoutPrefixGetsAComprehensibleMessage covers a session
 // cookie pasted as a bearer token by mistake: it must be told apart from a
-// merely unknown token. TestRequireAuthValueWithoutPrefixGetsAComprehensibleMessage
-// asserts the same message for the other bearer path (requireAuth).
+// merely unknown token. TestRequireAuthOrLoginValueWithoutPrefixGetsAComprehensibleMessage
+// asserts the same message for the other bearer path.
 func TestBearerValueWithoutPrefixGetsAComprehensibleMessage(t *testing.T) {
 	h, _ := newBearerStack(t)
 	rec := bearerReq(h, http.MethodGet, "/api/v1/users", "not-a-token-at-all")

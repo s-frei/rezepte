@@ -17,6 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/preview"
@@ -145,7 +148,7 @@ func (e env) previewFor(target string) bool {
 
 func (e env) cover(target string) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
-	mux.Handle("GET /link-preview/{recipeId}/{imageId}", e.previews.CoverHandler())
+	preview.Register(humago.New(mux, huma.DefaultConfig("test", "0")), e.previews)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, target, nil))
 	return rec

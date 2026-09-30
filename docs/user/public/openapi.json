@@ -5806,6 +5806,435 @@
           "users"
         ]
       }
+    },
+    "/avatars/{userId}/{file}": {
+      "get": {
+        "operationId": "get-avatar-file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The picture's avatarId followed by .jpg",
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "description": "The picture's avatarId followed by .jpg",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The JPEG, with Range and conditional-request support"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "users:read"
+            ]
+          }
+        ],
+        "summary": "Read an account's picture",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/images/{recipeId}/{imageId}/{file}": {
+      "get": {
+        "operationId": "get-image-file",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "thumb.jpg, detail.jpg or original.jpg; anything else is a 404",
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "description": "thumb.jpg, detail.jpg or original.jpg; anything else is a 404",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The JPEG, with Range and conditional-request support"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "Read an image in one of its rendered sizes",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/link-preview/{recipeId}/{imageId}": {
+      "get": {
+        "description": "No session needed: the crawler building a link preview has none. Answers the thumb of the recipe's cover while link previews are on and the token from create-share-link is valid. A photo that is not the cover, an invalid token and a recipe that does not exist answer 404 alike.",
+        "operationId": "get-link-preview-cover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipeId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The token of the address create-share-link returned",
+            "explode": false,
+            "in": "query",
+            "name": "share",
+            "schema": {
+              "description": "The token of the address create-share-link returned",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The JPEG, with Range and conditional-request support"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Read the cover a link preview shows",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/mcp": {
+      "post": {
+        "description": "The endpoint an MCP client such as an AI agent connects to: stateless Streamable HTTP, one JSON-RPC message per request, answered as JSON. The tools describe themselves over tools/list; the token's scopes decide which ones it lists. See https://modelcontextprotocol.io/specification.",
+        "operationId": "mcp",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The JSON-RPC response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "Talk to Rezepte over the Model Context Protocol",
+        "tags": [
+          "mcp"
+        ]
+      }
+    },
+    "/public-images/{token}/{imageId}/{file}": {
+      "get": {
+        "description": "No session needed, like get-public-recipe. A photo of another recipe, one removed from the recipe, an unknown size and a link that serves nothing answer 404 alike.",
+        "operationId": "get-public-image-file",
+        "parameters": [
+          {
+            "description": "The token of the public link, the last segment of /s/{token}",
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "description": "The token of the public link, the last segment of /s/{token}",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "thumb.jpg, detail.jpg or original.jpg",
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "description": "thumb.jpg, detail.jpg or original.jpg",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The JPEG, with Range and conditional-request support"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Read a photo of the recipe behind a public link",
+        "tags": [
+          "public"
+        ]
+      }
     }
   },
   "tags": [
@@ -5834,7 +6263,7 @@
       "name": "shares"
     },
     {
-      "description": "What a public link shows to anyone, without signing in.",
+      "description": "What anyone may read without signing in: the recipe and photos behind a public link, and the cover a link preview shows.",
       "name": "public"
     },
     {
@@ -5842,12 +6271,17 @@
       "name": "settings"
     },
     {
-      "description": "Managing the accounts of an instance. Administrators only.",
+      "description": "Managing the accounts of an instance, which is for administrators, and reading any account's picture.",
       "name": "users"
     },
     {
       "description": "Managing the API tokens a program authenticates with.",
       "name": "tokens"
+    },
+    {
+      "description": "The Model Context Protocol endpoint an AI agent connects to. API tokens only.",
+      "name": "mcp",
+      "x-displayName": "MCP"
     }
   ]
 }

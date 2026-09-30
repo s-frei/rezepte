@@ -7,7 +7,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/danielgtaylor/huma/v2/humatest"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
@@ -33,17 +34,18 @@ func newEnv(t *testing.T) env {
 	users := user.NewService(conn, "")
 	tokens := auth.NewTokenService(conn, users)
 	svc := recipe.NewService(conn, "")
-	_, api := humatest.New(t)
+	mux := http.NewServeMux()
+	api := humago.New(mux, huma.DefaultConfig("test", "0"))
+	api.UseMiddleware(auth.Middleware(auth.NewService(conn, users), tokens, false)(api))
 	recipe.Register(api, svc)
 	owner, err := users.Create(t.Context(), user.CreateParams{Username: "cook", Password: "secret123", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := Handler(svc, api, "test")
-	if err != nil {
+	if err := Register(api, svc, "test"); err != nil {
 		t.Fatal(err)
 	}
-	ts := httptest.NewServer(auth.RequireToken(tokens, auth.ScopeRecipesRead)(h))
+	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	create, err := recipeSchema(api, false)
 	if err != nil {
@@ -58,7 +60,7 @@ func newEnv(t *testing.T) env {
 		t.Fatal(err)
 	}
 	base := caller{svc: svc, create: create, update: update, search: search}
-	return env{svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL, base: base}
+	return env{svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", base: base}
 }
 
 // member creates a plain user, whose editing rights are narrower than the
@@ -73,7 +75,7 @@ func (e env) member(t *testing.T, name string) user.User {
 }
 
 // connectAs registers the tools scopes cover for u on a server of its own
-// and connects to it in memory. It skips RequireToken, which authenticates
+// and connects to it in memory. It skips auth.Middleware, which authenticates
 // only an admin's token, so a test can check what the tools do for a user
 // no token acts as today: they hand that user to the editing rights rather
 // than rely on the token gate to have ruled them out.

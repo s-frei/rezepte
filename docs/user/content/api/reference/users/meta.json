@@ -1,6 +1,6 @@
 {
   "title": "Users",
-  "description": "Managing the accounts of an instance. Administrators only.",
+  "description": "Managing the accounts of an instance, which is for administrators, and reading any account's picture.",
   "pages": [
     "index",
     "list-people",
@@ -9,6 +9,7 @@
     "update-user",
     "delete-user",
     "delete-user-avatar",
-    "set-user-avatar"
+    "set-user-avatar",
+    "get-avatar-file"
   ]
 }

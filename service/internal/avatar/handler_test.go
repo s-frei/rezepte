@@ -66,8 +66,6 @@ func setup(t *testing.T) env {
 	avatars := avatar.NewService(conn, dir, imagesvc.NewService(conn, filepath.Join(t.TempDir(), "images")))
 	avatar.Register(srv.API(), avatars)
 	userapi.Register(srv.API(), users, sessions, avatars)
-	srv.Handle("GET /avatars/{userId}/{file}",
-		auth.RequireAuth(sessions, tokens, false, auth.ScopeUsersRead)(avatar.FileHandler(avatars)))
 	return env{h: srv.Handler(), dir: dir, tokens: tokens, sam: sam, ada: ada, max: member}
 }
 

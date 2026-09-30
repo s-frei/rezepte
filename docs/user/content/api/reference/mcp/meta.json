@@ -1,0 +1,8 @@
+{
+  "title": "MCP",
+  "description": "The Model Context Protocol endpoint an AI agent connects to. API tokens only.",
+  "pages": [
+    "index",
+    "mcp"
+  ]
+}
