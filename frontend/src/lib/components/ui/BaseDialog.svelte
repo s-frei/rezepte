@@ -9,6 +9,7 @@
 	let {
 		open = $bindable(false),
 		dismissible = true,
+		wide = false,
 		children
 	}: {
 		open?: boolean;
@@ -18,6 +19,8 @@
 		 * this: the secret is shown once, and a stray Escape would lose it.
 		 */
 		dismissible?: boolean;
+		/** 720px instead of 440px: the pass-on dialog sets its card beside its actions. */
+		wide?: boolean;
 		children: Snippet;
 	} = $props();
 </script>
@@ -50,7 +53,9 @@
 					     `vh` so the cap follows the browser bar and the keyboard. -->
 					<div
 						{...props}
-						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[440px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 shadow-dialog md:p-7"
+						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
+							? 'max-w-[720px]'
+							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 shadow-dialog md:p-7"
 						transition:scale={{ duration: 200, start: 0.95 }}
 					>
 						{@render children()}
