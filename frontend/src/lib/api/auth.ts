@@ -1,4 +1,6 @@
 import type { Locale } from '$lib/paraglide/runtime';
+import { avatarBody, cropQuery } from '$lib/user/avatar';
+import type { Crop } from '$lib/user/crop';
 import type { UserColor } from '$lib/user/color';
 import { api } from './client';
 
@@ -19,10 +21,25 @@ export type User = {
 	locale: Locale;
 	/** Whether an admin lets this person create public, no-login recipe links. */
 	canSharePublicly: boolean;
+	/** The current picture, null without one; see avatarUrl. */
+	avatarId: string | null;
 };
 
 /** One palette color and how many accounts hold it. */
 export type ColorUsage = { color: UserColor; count: number };
+
+/** Sets the own picture; the server crops `crop` out of `file`. */
+export function setOwnAvatar(file: File, crop: Crop): Promise<{ avatarId: string }> {
+	return api<{ avatarId: string }>(`/auth/me/avatar${cropQuery(crop)}`, {
+		method: 'PUT',
+		body: avatarBody(file)
+	});
+}
+
+/** Removes the own picture; the circle falls back to color and initial. */
+export function removeOwnAvatar(): Promise<void> {
+	return api<void>('/auth/me/avatar', { method: 'DELETE' });
+}
 
 export function login(username: string, password: string): Promise<User> {
 	return api<User>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });

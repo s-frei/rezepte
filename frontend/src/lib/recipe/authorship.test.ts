@@ -2,8 +2,20 @@ import { describe, expect, it } from 'vitest';
 import type { Person } from '$lib/api/recipes';
 import { authorLabel, hasBeenEdited } from './authorship';
 
-const admin: Person = { id: 'u1', username: 'admin', displayName: 'admin', color: 'amber' };
-const mara: Person = { id: 'u2', username: 'mara', displayName: 'mara', color: 'teal' };
+const admin: Person = {
+	id: 'u1',
+	username: 'admin',
+	displayName: 'admin',
+	color: 'amber',
+	avatarId: null
+};
+const mara: Person = {
+	id: 'u2',
+	username: 'mara',
+	displayName: 'mara',
+	color: 'teal',
+	avatarId: null
+};
 
 const untouched = {
 	createdBy: admin,

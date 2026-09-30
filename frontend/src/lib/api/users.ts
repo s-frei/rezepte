@@ -1,5 +1,7 @@
 import type { UserColor } from '$lib/user/color';
 import type { Locale, User } from './auth';
+import { avatarBody, cropQuery } from '$lib/user/avatar';
+import type { Crop } from '$lib/user/crop';
 import { api } from './client';
 
 export type UserAccount = User & { createdAt: string };
@@ -13,7 +15,10 @@ export type UserRole = User['role'];
  * `UserAccount` is what the admin-only operations return. Named after the
  * service's `PersonEntry` so it cannot be mistaken for that roleless `Person`.
  */
-export type PersonEntry = Pick<User, 'id' | 'username' | 'displayName' | 'color' | 'role'>;
+export type PersonEntry = Pick<
+	User,
+	'id' | 'username' | 'displayName' | 'color' | 'role' | 'avatarId'
+>;
 
 /** Every account, ordered by username; readable by any signed-in account. */
 export async function listPeople(): Promise<PersonEntry[]> {
@@ -62,4 +67,17 @@ export function updateUser(
 
 export function deleteUser(id: string): Promise<void> {
 	return api<void>(`/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/** Sets another account's picture; the owner alone may. */
+export function setUserAvatar(id: string, file: File, crop: Crop): Promise<{ avatarId: string }> {
+	return api<{ avatarId: string }>(`/users/${encodeURIComponent(id)}/avatar${cropQuery(crop)}`, {
+		method: 'PUT',
+		body: avatarBody(file)
+	});
+}
+
+/** Removes another account's picture; the owner alone may. */
+export function removeUserAvatar(id: string): Promise<void> {
+	return api<void>(`/users/${encodeURIComponent(id)}/avatar`, { method: 'DELETE' });
 }

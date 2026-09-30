@@ -57,7 +57,13 @@
 		tastyBy = active
 			? [
 					...tastyBy,
-					{ id: me.id, username: me.username, displayName: me.displayName, color: me.color }
+					{
+						id: me.id,
+						username: me.username,
+						displayName: me.displayName,
+						color: me.color,
+						avatarId: me.avatarId
+					}
 				]
 			: tastyBy.filter((person) => person.id !== me.id);
 	}

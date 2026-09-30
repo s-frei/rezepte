@@ -3,7 +3,7 @@ import type { PersonEntry, UserRole } from '$lib/api/users';
 import { compareUsernames, groupPeople } from './people-groups';
 
 function person(username: string, role: UserRole = 'user', displayName = username): PersonEntry {
-	return { id: username, username, displayName, role, color: 'amber' };
+	return { id: username, username, displayName, role, color: 'amber', avatarId: null };
 }
 
 /** Each group as `role: username, username`, the shape a reader scans. */

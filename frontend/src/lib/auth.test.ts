@@ -27,6 +27,7 @@ function userWith(locale: 'en' | 'de'): User {
 		role: 'user',
 		color: 'amber',
 		locale,
+		avatarId: null,
 		canSharePublicly: true
 	};
 }

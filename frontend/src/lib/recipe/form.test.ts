@@ -242,7 +242,13 @@ describe('fromRecipe', () => {
 	});
 
 	it('accepts a full Recipe, not just a RecipeInput', () => {
-		const sam: Person = { id: 'u1', username: 'sam', displayName: 'Sam', color: 'amber' };
+		const sam: Person = {
+			id: 'u1',
+			username: 'sam',
+			displayName: 'Sam',
+			color: 'amber',
+			avatarId: null
+		};
 		const recipe: Recipe = {
 			...baseInput(),
 			id: 'r1',

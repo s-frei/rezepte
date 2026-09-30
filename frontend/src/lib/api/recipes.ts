@@ -18,6 +18,8 @@ export type Person = {
 	displayName: string;
 	/** The palette token of the person, for the author circle. */
 	color: UserColor;
+	/** The current picture, null without one; see avatarUrl. */
+	avatarId: string | null;
 };
 
 export type RecipeCard = {

@@ -11,7 +11,13 @@ vi.mock('$lib/paraglide/runtime', () => ({
 
 const base = {
 	locked: true,
-	createdBy: { id: 'a', username: 'anna', displayName: 'Anna', color: 'amber' as const }
+	createdBy: {
+		id: 'a',
+		username: 'anna',
+		displayName: 'Anna',
+		color: 'amber' as const,
+		avatarId: null
+	}
 };
 
 describe('lockNotice', () => {
