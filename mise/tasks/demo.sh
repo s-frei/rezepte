@@ -29,7 +29,7 @@ if [ -n "${REZEPTE_OIDC_ISSUER:-}" ]; then
 	OIDC_ENV=()
 else
 	rzp_oidc_env "$PORT"
-	[ "${#OIDC_ENV[@]}" -gt 0 ] && echo "demo: signing in through Dex is on - anna@example.org / anna1234"
+	[ "${#OIDC_ENV[@]}" -gt 0 ] && echo "demo: signing in through Dex is on - sign in as demo@, mila@ or jonas@example.com, password <name>1234"
 fi
 # "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
 # bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an

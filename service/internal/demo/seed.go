@@ -274,7 +274,7 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 // AddMembers creates Members, plus Invited, in locale's language, before
 // Seed, so the samples in memberRecipes can be theirs, and gives the admin
 // its demo display name. Every member gets an unverified sample email
-// (name@example.org), profile data a real account would fill in eventually;
+// (name@example.com), profile data a real account would fill in eventually;
 // Invited gets no password, so it signs in only through a setup link or an
 // identity provider - SeedMembers issues that link. Like the seed it writes
 // nothing to an instance that already holds recipes, since the members
@@ -310,7 +310,7 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 		if err != nil {
 			return fmt.Errorf("create member %s: %w", name, err)
 		}
-		addr := name + "@example.org"
+		addr := name + "@example.com"
 		if m, err = users.SetProfile(ctx, m.ID, user.ProfileUpdate{Email: &addr}); err != nil {
 			return fmt.Errorf("set email for %s: %w", name, err)
 		}
@@ -348,14 +348,16 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 	return nil
 }
 
-// SeedMembers issues Invited's open setup link, marks the samples in
+// SeedMembers issues Invited's open setup link, links demoIdentityMember
+// (jonas) to an identity at issuer when it is non-empty (an operator running
+// the demo without OIDC configured passes ""), marks the samples in
 // memberMarks tasty on behalf of the members Seed was given, and creates the
 // public links in adminShares and memberShares - the admin's as the user
 // named owner, who must be the instance owner, since only the owner
 // switches sharing on, which creating a link needs. It is switched off
 // again once the links exist, so they start out paused. After a skipped
 // seed it writes nothing.
-func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) error {
+func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer string) error {
 	if sum.Skipped {
 		return nil
 	}
@@ -376,6 +378,17 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner string) e
 		// so the link keeps its first expiry.
 		if _, err := auth.NewService(conn, users).IssueSetupLink(ctx, admin, m.ID); err != nil {
 			return fmt.Errorf("issue setup link for %s: %w", m.Username, err)
+		}
+	}
+	if issuer != "" {
+		for _, m := range sum.Members {
+			if m.Username != demoIdentityMember {
+				continue
+			}
+			sub := dexSubject(m.Username, dexConnector)
+			if err := users.LinkIdentity(ctx, m.ID, issuer, sub); err != nil {
+				return fmt.Errorf("link %s's demo identity: %w", m.Username, err)
+			}
 		}
 	}
 	sharing := admin.Role.IsSuperadmin()

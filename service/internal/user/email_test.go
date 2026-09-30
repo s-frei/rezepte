@@ -11,11 +11,11 @@ func TestParseEmail(t *testing.T) {
 		in, want string
 		err      error
 	}{
-		{"anna@example.org", "anna@example.org", nil},
-		{"  anna@example.org  ", "anna@example.org", nil},
+		{"anna@example.com", "anna@example.com", nil},
+		{"  anna@example.com  ", "anna@example.com", nil},
 		{"", "", nil},
 		{"   ", "", nil},
-		{"Anna <anna@example.org>", "", ErrInvalidEmail},
+		{"Anna <anna@example.com>", "", ErrInvalidEmail},
 		{"not-an-address", "", ErrInvalidEmail},
 		{strings.Repeat("a", 250) + "@x.org", "", ErrInvalidEmail},
 	}

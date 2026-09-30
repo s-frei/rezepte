@@ -3,8 +3,8 @@
 # Do not edit .oidc/dex.yaml directly, it is gitignored and regenerated on
 # every oidc:up.
 #
-# The bcrypt hashes below are anna1234 and ben1234 (the repository's
-# development-credential rule), generated once with a throwaway
+# The bcrypt hashes below are demo1234, mila1234, jonas1234 and gast1234 (the
+# repository's development-credential rule), generated once with a throwaway
 # `go run` of golang.org/x/crypto/bcrypt and written in as literals, so
 # starting Dex needs no hashing step at runtime.
 issuer: http://localhost:${RZP_DEX_PORT}/dex
@@ -25,11 +25,19 @@ staticClients:
       - http://localhost:${RZP_E2E_PORT}/api/v1/auth/oidc/callback
       - http://localhost:${RZP_SCREENSHOTS_PORT}/api/v1/auth/oidc/callback
 staticPasswords:
-  - email: anna@example.org
-    hash: "$2a$10$h6ZC361CxuY.PGpDYwX3IeoWGsVLPcAwTSdywwjarsbEe.urrMqMy"
-    username: anna
-    userID: anna
-  - email: ben@example.org
-    hash: "$2a$10$8Efkh8Jl8hSl2XQCgdPL8eAqC/iON4NqGyUN/ZwrtExyxswCr69ke"
-    username: ben
-    userID: ben
+  - email: demo@example.com
+    hash: "$2a$10$nwamNIe4EGqycOA76LA81OkT20FIv1M2HK48H7z/FKAlBtP35NU5G"
+    username: demo
+    userID: demo
+  - email: mila@example.com
+    hash: "$2a$10$Ptem3YtWQHqy/8wfuNPtsOjihxRWN9dQdWYEfrgpFXKLKJTPA0BMG"
+    username: mila
+    userID: mila
+  - email: jonas@example.com
+    hash: "$2a$10$6ntVm.ke3mFfHeLEVl1io.oJQC5ugxUeV2T.lHYe.U277gGWfjYva"
+    username: jonas
+    userID: jonas
+  - email: gast@example.com
+    hash: "$2a$10$R4ypjJTQ1aRayPycGbI.nubEpWqLW1GT1hr0UPd52wJFK34VmQKCu"
+    username: gast
+    userID: gast

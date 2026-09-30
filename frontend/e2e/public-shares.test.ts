@@ -761,8 +761,12 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 
 	// The owner reaches every row but their own, admins included.
 	await page.goto('/settings/users');
-	await expect(rowOf(page, otherAdmin).getByRole('button', { name: 'More actions' })).toBeVisible();
-	await expect(rowOf(page, member).getByRole('button', { name: 'More actions' })).toBeVisible();
+	await expect(
+		rowOf(page, otherAdmin).getByRole('button', { name: `More actions for ${otherAdmin}` })
+	).toBeVisible();
+	await expect(
+		rowOf(page, member).getByRole('button', { name: `More actions for ${member}` })
+	).toBeVisible();
 
 	// An admin reaches plain members only - not another admin, not themselves.
 	const adminContext = await browser.newContext();
@@ -772,14 +776,14 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 		await expect(adminPage).toHaveURL('/');
 		await adminPage.goto('/settings/users');
 		await expect(
-			rowOf(adminPage, member).getByRole('button', { name: 'More actions' })
+			rowOf(adminPage, member).getByRole('button', { name: `More actions for ${member}` })
 		).toBeVisible();
 		await expect(
-			rowOf(adminPage, otherAdmin).getByRole('button', { name: 'More actions' })
+			rowOf(adminPage, otherAdmin).getByRole('button', { name: `More actions for ${otherAdmin}` })
 		).toHaveCount(0);
-		await expect(rowOf(adminPage, admin).getByRole('button', { name: 'More actions' })).toHaveCount(
-			0
-		);
+		await expect(
+			rowOf(adminPage, admin).getByRole('button', { name: `More actions for ${admin}` })
+		).toHaveCount(0);
 	} finally {
 		await adminContext.close();
 	}
@@ -818,7 +822,7 @@ test("withdrawing sharing pauses a member's links", async ({ page, browser }, te
 			.getByRole('list', { name: 'Members' })
 			.getByRole('listitem')
 			.filter({ hasText: username });
-		await row.getByRole('button', { name: 'More actions' }).click();
+		await row.getByRole('button', { name: `More actions for ${username}` }).click();
 		await page.getByRole('menuitemcheckbox', { name: 'May share publicly' }).click();
 		await expect(page.getByText(`${username} can no longer share publicly`)).toBeVisible();
 
@@ -834,7 +838,7 @@ test("withdrawing sharing pauses a member's links", async ({ page, browser }, te
 		await expect(page.getByText('This link is no longer available.')).toBeVisible();
 
 		await page.goto('/settings/users');
-		await row.getByRole('button', { name: 'More actions' }).click();
+		await row.getByRole('button', { name: `More actions for ${username}` }).click();
 		await page.getByRole('menuitemcheckbox', { name: 'May share publicly' }).click();
 		await expect(page.getByText(`${username} can now share publicly`)).toBeVisible();
 

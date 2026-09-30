@@ -89,18 +89,27 @@ type setupTokenBody struct {
 
 type inspectSetupInput struct{ Body setupTokenBody }
 
+// InvitedAccount is inspect-setup-link's response body: who a setup link
+// belongs to, before it is used to set a password. A named type rather than
+// an inline struct, so the OpenAPI document names this schema for what it is
+// instead of a generated "InspectSetupOutputBody".
+type InvitedAccount struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+}
+
 type inspectSetupOutput struct {
-	Body struct {
-		Username    string `json:"username"`
-		DisplayName string `json:"displayName"`
-	}
+	Body InvitedAccount
+}
+
+// SetupRedemption is redeem-setup-link's request body.
+type SetupRedemption struct {
+	Token    string `json:"token" minLength:"1" maxLength:"128"`
+	Password string `json:"password" minLength:"8" maxLength:"128"`
 }
 
 type redeemSetupInput struct {
-	Body struct {
-		Token    string `json:"token" minLength:"1" maxLength:"128"`
-		Password string `json:"password" minLength:"8" maxLength:"128"`
-	}
+	Body SetupRedemption
 }
 
 type redeemSetupOutput struct {

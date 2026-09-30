@@ -77,6 +77,14 @@
 					? m.users_not_set_up()
 					: null
 	);
+	// Its own line, not folded into setupStatus above: an account can carry
+	// both at once, and it reads as more prominent (text-text, not
+	// text-text-muted) than the setup-link line below it.
+	const identityStatus = $derived(
+		permissions.manageAccount && hasIdentity && provider
+			? m.users_identity_status({ name: provider })
+			: null
+	);
 
 	// Writable derived: follows the list, so a successful change shows the new
 	// role, and snaps back on its own when the API refuses one.
@@ -158,19 +166,30 @@
 <BottomSheet bind:open closeLabel={m.common_close()} onCloseAutoFocus={returnFocus}>
 	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 		<PersonCard {person} asTitle />
-		{#if setupStatus}
-			<p class="mt-2 flex flex-wrap items-center gap-x-2 text-micro text-text-muted">
-				<span>{setupStatus}</span>
-				{#if setupLinkExpiresAt}
-					<button
-						type="button"
-						onclick={() => onrevokelink(person)}
-						class="font-semibold text-text underline decoration-dotted underline-offset-2"
-					>
-						{m.users_setup_link_revoke()}
-					</button>
+		{#if identityStatus || setupStatus}
+			<div class="mt-3 space-y-0.5">
+				{#if identityStatus}
+					<p class="flex items-center gap-1 text-micro text-text">
+						<KeyRound class="size-3 shrink-0" aria-hidden="true" />
+						<span class="truncate">{identityStatus}</span>
+					</p>
 				{/if}
-			</p>
+				{#if setupStatus}
+					<p class="flex flex-wrap items-center gap-x-2 text-micro text-text-muted">
+						<span>{setupStatus}</span>
+						{#if setupLinkExpiresAt}
+							<button
+								type="button"
+								aria-label={m.users_setup_link_revoke_aria({ username: person.username })}
+								onclick={() => onrevokelink(person)}
+								class="font-semibold text-text underline decoration-dotted underline-offset-2"
+							>
+								{m.users_setup_link_revoke()}
+							</button>
+						{/if}
+					</p>
+				{/if}
+			</div>
 		{/if}
 
 		<!-- A surface panel, as on the settings cards: the segmented

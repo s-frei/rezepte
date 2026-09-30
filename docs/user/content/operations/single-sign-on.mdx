@@ -22,24 +22,47 @@ Register Rezepte at your provider as a web application with this redirect URI:
 https://<your Rezepte address>/api/v1/auth/oidc/callback
 ```
 
-Then set these variables (see [Configuration](/getting-started/configuration)):
+Then set these variables (see [Configuration](/getting-started/configuration)), as plain environment variables or in `docker-compose.yaml`'s `environment:` (see [Docker](/getting-started/docker)):
 
-```bash
-REZEPTE_PUBLIC_URL=https://rezepte.example.org
-REZEPTE_OIDC_ISSUER=https://accounts.google.com
-REZEPTE_OIDC_CLIENT_ID=<client ID>
-REZEPTE_OIDC_CLIENT_SECRET=<client secret>
-REZEPTE_OIDC_NAME=Google
-```
+<Tabs items={['Environment variables', 'docker-compose.yaml']}>
+  <Tab value="Environment variables">
+
+    ```bash
+    REZEPTE_PUBLIC_URL=https://rezepte.example.org
+    REZEPTE_OIDC_ISSUER=https://accounts.google.com
+    REZEPTE_OIDC_CLIENT_ID=<client ID>
+    REZEPTE_OIDC_CLIENT_SECRET=<client secret>
+    REZEPTE_OIDC_NAME=Google
+    ```
+
+  </Tab>
+  <Tab value="docker-compose.yaml">
+
+    ```yaml title="docker-compose.yaml"
+    services:
+      rezepte:
+        environment:
+          REZEPTE_ADMIN_PASSWORD: change-me-now
+          REZEPTE_PUBLIC_URL: https://rezepte.example.org
+          REZEPTE_OIDC_ISSUER: https://accounts.google.com
+          REZEPTE_OIDC_CLIENT_ID: <client ID>
+          REZEPTE_OIDC_CLIENT_SECRET: <client secret>
+          REZEPTE_OIDC_NAME: Google
+    ```
+
+  </Tab>
+</Tabs>
 
 `REZEPTE_PUBLIC_URL` is the address people open Rezepte at, exactly as in the browser, without a path. Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
 
 <Tabs items={['Google', 'Authelia']}>
   <Tab value="Google">
 
-    1. Open the [Google Cloud Console](https://console.cloud.google.com/), pick or create a project, and go to "APIs & Services" → "OAuth consent screen". Choose "External", fill in the app name and your email address, and save. The scopes Rezepte asks for (`openid` and `email`) need no review.
-    2. The consent screen may stay in "Testing": add the Google accounts of your household under "Test users". Only they can then sign in with Google at all.
-    3. Under "Credentials", create an "OAuth client ID" of type "Web application" and add `https://<your Rezepte address>/api/v1/auth/oidc/callback` as an authorized redirect URI.
+    Google keeps these settings in the Google Auth Platform of the Google Cloud Console. Pick or create a project in the bar at the top first; the links below then open the right page of it.
+
+    1. On the [overview](https://console.cloud.google.com/auth/overview), start the setup: the app name (for example "Rezepte") and your email address.
+    2. Under [Audience](https://console.cloud.google.com/auth/audience), choose "External" and press "Publish app". Rezepte asks only for `openid` and `email`, which Google does not review, so publishing needs no verification. A published app lets any Google account reach Rezepte's sign-in, and that is safe: only an account somebody connected gets in (see above). Leaving the app in "Testing" works too, but then only the Google accounts you list as test users can sign in with Google at all.
+    3. Under [Clients](https://console.cloud.google.com/auth/clients), create a client of type "Web application" and add `https://<your Rezepte address>/api/v1/auth/oidc/callback` as an authorized redirect URI.
     4. Copy the client ID and secret into `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_OIDC_CLIENT_SECRET`, set `REZEPTE_OIDC_ISSUER=https://accounts.google.com` and `REZEPTE_OIDC_NAME=Google`, and restart Rezepte.
 
   </Tab>

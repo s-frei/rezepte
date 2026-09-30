@@ -587,11 +587,11 @@ func TestPasswordlessAccountLoginIs401(t *testing.T) {
 func TestProfileTakesAndClearsAnEmail(t *testing.T) {
 	h := newHandler(t)
 	c := login(t, h)
-	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"sam@example.org"}`, c)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"email":"sam@example.org"`) {
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"sam@example.com"}`, c)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"email":"sam@example.com"`) {
 		t.Fatalf("set: %d %s", rec.Code, rec.Body.String())
 	}
-	rec = do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"Sam <sam@example.org>"}`, c)
+	rec = do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"Sam <sam@example.com>"}`, c)
 	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.email") {
 		t.Fatalf("invalid: %d %s", rec.Code, rec.Body.String())
 	}

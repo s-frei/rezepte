@@ -39,6 +39,24 @@ async function controlsFor(page: Page, isMobile: boolean, username: string): Pro
 	return sheet;
 }
 
+/**
+ * Where reset password, setup link and delete live now: on a phone they are
+ * plain buttons in the sheet `controlsFor` already returned. On a wide
+ * screen they are in the row's "..." menu, which this opens; its content
+ * portals onto the page rather than into the row, so callers look for
+ * `menuitem`s on the returned `page` there, not inside `controls`.
+ */
+async function actionMenu(
+	page: Page,
+	isMobile: boolean,
+	controls: Locator,
+	username: string
+): Promise<Locator | Page> {
+	if (isMobile) return controls;
+	await controls.getByRole('button', { name: `More actions for ${username}` }).click();
+	return page;
+}
+
 test('a member changes the own password and logs in with it', async ({ page }) => {
 	const username = `pw${uniqueToken()}`;
 	await login(page);
@@ -207,7 +225,8 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page, is
 	// The visible words are part of every name, so what a voice-control
 	// user reads is what they can say.
 	controls = await controlsFor(page, isMobile, username);
-	await controls.getByRole('button', { name: 'Reset password' }).click();
+	let menu = await actionMenu(page, isMobile, controls, username);
+	await menu.getByRole(isMobile ? 'button' : 'menuitem', { name: 'Reset password' }).click();
 	const reset = page.getByRole('dialog', { name: `Reset ${username}'s password` });
 	await reset.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
 	await reset.getByLabel('Repeat the new password').fill(devPasswordNext(username));
@@ -216,8 +235,11 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page, is
 	if (isMobile) await expect(manage).toBeFocused();
 
 	controls = await controlsFor(page, isMobile, username);
-	await controls
-		.getByRole('button', { name: isMobile ? 'Delete account' : `Delete ${username}` })
+	menu = await actionMenu(page, isMobile, controls, username);
+	await menu
+		.getByRole(isMobile ? 'button' : 'menuitem', {
+			name: isMobile ? 'Delete account' : `Delete ${username}`
+		})
 		.click();
 	await page
 		.getByRole('dialog', { name: 'Delete account?' })
@@ -236,7 +258,8 @@ test('a reset password has to be typed the same twice', async ({ page, isMobile 
 	await page.goto('/settings/users');
 
 	const controls = await controlsFor(page, isMobile, username);
-	await controls.getByRole('button', { name: 'Reset password' }).click();
+	const menu = await actionMenu(page, isMobile, controls, username);
+	await menu.getByRole(isMobile ? 'button' : 'menuitem', { name: 'Reset password' }).click();
 	const dialog = page.getByRole('dialog', { name: `Reset ${username}'s password` });
 	const repeat = dialog.getByLabel('Repeat the new password');
 
@@ -298,7 +321,8 @@ test('every field that sets a password says how long it has to be', async ({ pag
 	await expect(add).toBeHidden();
 
 	const controls = await controlsFor(page, isMobile, username);
-	await controls.getByRole('button', { name: 'Reset password' }).click();
+	const menu = await actionMenu(page, isMobile, controls, username);
+	await menu.getByRole(isMobile ? 'button' : 'menuitem', { name: 'Reset password' }).click();
 	await expect(
 		page
 			.getByRole('dialog', { name: `Reset ${username}'s password` })
@@ -391,8 +415,11 @@ test('a plain admin manages a member but cannot change their role', async ({ pag
 	const controls = await controlsFor(page, isMobile, member);
 	await expect(controls.getByRole('button', { name: `${member}'s role` })).toHaveCount(0);
 	await expect(controls.getByRole('radiogroup')).toHaveCount(0);
+	const menu = await actionMenu(page, isMobile, controls, member);
 	await expect(
-		controls.getByRole('button', { name: isMobile ? 'Delete account' : `Delete ${member}` })
+		menu.getByRole(isMobile ? 'button' : 'menuitem', {
+			name: isMobile ? 'Delete account' : `Delete ${member}`
+		})
 	).toBeVisible();
 });
 
@@ -487,10 +514,13 @@ test('an admin cannot rename a member, the owner can', async ({ page, isMobile }
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	const asAdmin = await controlsFor(page, isMobile, member);
-	await expect(
-		asAdmin.getByRole('button', { name: isMobile ? 'Delete account' : `Delete ${member}` })
-	).toBeVisible();
 	await expect(asAdmin.getByRole('button', { name: 'Edit profile' })).toHaveCount(0);
+	const menu = await actionMenu(page, isMobile, asAdmin, member);
+	await expect(
+		menu.getByRole(isMobile ? 'button' : 'menuitem', {
+			name: isMobile ? 'Delete account' : `Delete ${member}`
+		})
+	).toBeVisible();
 
 	// The `admin` the e2e task seeds is the instance owner, and renaming
 	// somebody else is theirs alone.

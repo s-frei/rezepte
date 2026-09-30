@@ -3,9 +3,9 @@ import { createUser, login, signOut, uniqueToken } from './helpers';
 
 // Exercises sign-in through the test OIDC provider (mise run oidc:up, see
 // docs/memory/content/howtos/test-oidc.mdx). Every test below shares the two
-// Dex accounts this file's beforeEach and afterEach manage, so it runs
-// serially and on the desktop project only - an identity links to one
-// Rezepte account at a time, and running twice at once would race.
+// Dex accounts (mila and gast) this file's beforeEach and afterEach manage,
+// so it runs serially and on the desktop project only - an identity links to
+// one Rezepte account at a time, and running twice at once would race.
 test.describe.configure({ mode: 'serial' });
 
 test.beforeEach(async ({ request }, testInfo) => {
@@ -45,17 +45,17 @@ test('connect Dex in the profile, then sign in with it', async ({ page }, testIn
 	await login(page, name);
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Continue with Dex' }).click();
-	await dexLogin(page, 'anna@example.org', 'anna1234');
+	await dexLogin(page, 'mila@example.com', 'mila1234');
 	// The toast says "Connected to Dex" too; the card's line is the lasting one.
 	await expect(page.getByText(/^Connected to Dex since/)).toBeVisible();
 
 	await signOut(page, testInfo);
 	await page.getByRole('button', { name: 'Continue with Dex' }).click();
 	// Dex keeps no login session of its own, so it asks again.
-	await dexLogin(page, 'anna@example.org', 'anna1234');
+	await dexLogin(page, 'mila@example.com', 'mila1234');
 	await expect(page).toHaveURL('/');
 
-	// The Rezepte account (signed in as anna at Dex) keeps its password, so
+	// The Rezepte account (signed in as mila at Dex) keeps its password, so
 	// the service allows this.
 	await unlinkDex(page);
 });
@@ -63,13 +63,13 @@ test('connect Dex in the profile, then sign in with it', async ({ page }, testIn
 test('an unconnected Dex account is told how to connect', async ({ page }) => {
 	await page.goto('/login');
 	await page.getByRole('button', { name: 'Continue with Dex' }).click();
-	await dexLogin(page, 'ben@example.org', 'ben1234');
+	await dexLogin(page, 'gast@example.com', 'gast1234');
 	await expect(page.getByText(/not connected to Rezepte yet/)).toBeVisible();
 });
 
 // The account-creation steps are copied from setup-links.test.ts on purpose
 // (spec files do not import each other); keep the labels in sync with it.
-// Deleting the invited account in afterEach also frees ben's identity again,
+// Deleting the invited account in afterEach also frees gast's identity again,
 // through ON DELETE CASCADE.
 let inviteeUsername: string | null = null;
 
@@ -101,7 +101,7 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	const invited = await context.newPage();
 	await invited.goto(url);
 	await invited.getByRole('button', { name: 'Continue with Dex' }).click();
-	await dexLogin(invited, 'ben@example.org', 'ben1234');
+	await dexLogin(invited, 'gast@example.com', 'gast1234');
 	await expect(invited).toHaveURL('/');
 	const me = await (await invited.request.get('/api/v1/auth/me')).json();
 	expect(me.username).toBe(name);
@@ -109,9 +109,13 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	await context.close();
 
 	// The admin disconnects the new account's identity; without a password
-	// it is not set up any more.
+	// it is not set up any more. This file runs on desktop only, so
+	// "Disconnect" is always in the row's "..." menu, not the phone's sheet.
 	await page.reload();
-	await page.getByRole('button', { name: `Disconnect Dex from ${name}` }).click();
+	const row = page.getByRole('listitem').filter({ hasText: name });
+	await row.getByRole('button', { name: `More actions for ${name}` }).click();
+	await page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` }).click();
 	await expect(page.getByText(`Dex disconnected from ${name}`)).toBeVisible();
-	await expect(page.getByRole('button', { name: `Disconnect Dex from ${name}` })).toHaveCount(0);
+	await row.getByRole('button', { name: `More actions for ${name}` }).click();
+	await expect(page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` })).toHaveCount(0);
 });

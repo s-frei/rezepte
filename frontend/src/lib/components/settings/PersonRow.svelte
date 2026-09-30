@@ -1,17 +1,23 @@
 <script lang="ts">
 	import { DropdownMenu, Popover } from 'bits-ui';
+	import { tick } from 'svelte';
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import KeyRound from '@lucide/svelte/icons/key-round';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import { resolve } from '$app/paths';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
-	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { formatDate } from '$lib/recipe/format';
 	import { isAdminRole } from '$lib/roles';
-	import { manageButtonId, personRowId } from '$lib/settings/person-focus';
+	import {
+		focusMenuTrigger,
+		manageButtonId,
+		menuTriggerId,
+		personRowId
+	} from '$lib/settings/person-focus';
 	import { rowPermissions } from '$lib/settings/row-permissions';
 	import PersonCard from '$lib/components/ui/PersonCard.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
@@ -91,10 +97,27 @@
 					? m.users_not_set_up()
 					: null
 	);
+	// Its own line, not folded into setupStatus above: an account can carry
+	// both at once (an open link on top of an already-connected identity), and
+	// it reads as more prominent (text-text, not text-text-muted) than the
+	// setup-link line - a standing fact about the account, not a transient one.
+	const identityStatus = $derived(
+		permissions.manageAccount && hasIdentity && provider
+			? m.users_identity_status({ name: provider })
+			: null
+	);
 	const canUnlink = $derived(permissions.manageAccount && hasIdentity && provider !== undefined);
 	const hasActions = $derived(
 		permissions.changeRole || permissions.manageAccount || permissions.editProfile || showShareMenu
 	);
+	// The wide screen's "..." trigger: everything about the account (reset,
+	// setup link, revoke, disconnect, share, delete) lives in its menu now, so
+	// it shows whenever that menu would hold at least one of them.
+	const hasMenu = $derived(permissions.manageAccount || showShareMenu);
+	const menuItemClass =
+		'flex h-10 items-center rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background';
+	const destructiveMenuItemClass =
+		'flex h-10 items-center rounded-sm px-3 text-body-sm text-destructive outline-none data-highlighted:bg-destructive-soft';
 
 	const roleOptions = [
 		{ value: 'admin', label: m.users_role_admin() },
@@ -118,6 +141,19 @@
 		} catch {
 			role = person.role;
 		}
+	}
+
+	let menuOpen = $state(false);
+
+	// Mirrors PersonSheet's `hand()`: closes the menu and moves focus to its
+	// trigger by id before the action runs, so a dialog the action opens
+	// (reset, setup link, delete) has a stable element to give focus back to
+	// when it closes - not one still mid-way through the menu's own close.
+	async function act(action: (person: PersonEntry) => void) {
+		menuOpen = false;
+		await tick();
+		focusMenuTrigger(person.id);
+		action(person);
 	}
 </script>
 
@@ -169,35 +205,16 @@
 			{/if}
 		</p>
 		<p class="truncate text-micro text-text-muted">{person.username}</p>
-		{#if setupStatus}
-			<p class="pointer-events-auto flex flex-wrap items-center gap-x-2 text-micro text-text-muted">
-				<span>{setupStatus}</span>
-				{#if setupLinkExpiresAt}
-					<button
-						type="button"
-						aria-label={m.users_setup_link_revoke_aria({ username: person.username })}
-						onclick={() => onrevokelink(person)}
-						class="font-semibold text-text underline decoration-dotted underline-offset-2 hover:text-primary"
-					>
-						{m.users_setup_link_revoke()}
-					</button>
-				{/if}
+		{#if identityStatus}
+			<p class="flex items-center gap-1 text-micro text-text">
+				<KeyRound class="size-3 shrink-0" aria-hidden="true" />
+				<span class="truncate">{identityStatus}</span>
 			</p>
 		{/if}
-		{#if canUnlink}
-			<p class="pointer-events-auto text-micro">
-				<button
-					type="button"
-					aria-label={m.users_identity_unlink_aria({
-						name: provider ?? '',
-						username: person.username
-					})}
-					onclick={() => onunlink(person)}
-					class="font-semibold text-text underline decoration-dotted underline-offset-2 hover:text-primary"
-				>
-					{m.users_identity_unlink({ name: provider ?? '' })}
-				</button>
-			</p>
+		{#if setupStatus}
+			<!-- Text only on every screen: "Revoke link" and "Disconnect …" are
+			     the "..." menu's on a wide screen and the sheet's on a phone. -->
+			<p class="text-micro text-text-muted">{setupStatus}</p>
 		{/if}
 	</div>
 
@@ -230,13 +247,16 @@
 				<Pencil class="size-4" aria-hidden="true" />
 			</button>
 		{/if}
-		<!-- Whether this person may create public links: neither "manage the
-		     account" nor "rename it", so a menu of its own beside the pencil,
-		     with the one checkbox. -->
-		{#if showShareMenu}
-			<DropdownMenu.Root>
+		<!-- Everything else about the account - reset, setup link, revoke,
+		     disconnect, share and delete - lives behind one "..." trigger:
+		     alone each is reached rarely, and side by side they were wider
+		     than the card. What's touched often (role, pencil) stays outside
+		     it, above. -->
+		{#if hasMenu}
+			<DropdownMenu.Root bind:open={menuOpen}>
 				<DropdownMenu.Trigger
-					aria-label={m.users_share_menu()}
+					id={menuTriggerId(person.id)}
+					aria-label={m.users_row_menu_aria({ username: person.username })}
 					title={m.users_share_menu()}
 					class="inline-flex size-8 items-center justify-center rounded-full text-text-muted transition hover:bg-background hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
@@ -249,47 +269,73 @@
 						align="end"
 						class="w-56 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 					>
-						<DropdownMenu.CheckboxItem
-							bind:checked={sharing}
-							onCheckedChange={toggleSharing}
-							class="flex h-10 items-center justify-between gap-2 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
-						>
-							{#snippet children({ checked })}
-								<span>{m.users_share_toggle()}</span>
-								{#if checked}
-									<Check class="size-4 shrink-0 text-primary" aria-hidden="true" />
-								{/if}
-							{/snippet}
-						</DropdownMenu.CheckboxItem>
+						{#if permissions.manageAccount}
+							<DropdownMenu.Item
+								aria-label={m.users_reset_password_aria({ username: person.username })}
+								onSelect={() => act(onreset)}
+								class={menuItemClass}
+							>
+								{m.users_reset_password()}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item
+								aria-label={m.users_setup_link_action_aria({ username: person.username })}
+								onSelect={() => act(onsetuplink)}
+								class={menuItemClass}
+							>
+								{m.users_setup_link_action()}
+							</DropdownMenu.Item>
+							{#if setupLinkExpiresAt}
+								<DropdownMenu.Item
+									aria-label={m.users_setup_link_revoke_aria({ username: person.username })}
+									onSelect={() => act(onrevokelink)}
+									class={menuItemClass}
+								>
+									{m.users_setup_link_revoke()}
+								</DropdownMenu.Item>
+							{/if}
+							{#if canUnlink}
+								<DropdownMenu.Item
+									aria-label={m.users_identity_unlink_aria({
+										name: provider ?? '',
+										username: person.username
+									})}
+									onSelect={() => act(onunlink)}
+									class={menuItemClass}
+								>
+									{m.users_identity_unlink({ name: provider ?? '' })}
+								</DropdownMenu.Item>
+							{/if}
+						{/if}
+						{#if showShareMenu}
+							{#if permissions.manageAccount}
+								<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-border" />
+							{/if}
+							<DropdownMenu.CheckboxItem
+								bind:checked={sharing}
+								onCheckedChange={toggleSharing}
+								class="flex h-10 items-center justify-between gap-2 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
+							>
+								{#snippet children({ checked })}
+									<span>{m.users_share_toggle()}</span>
+									{#if checked}
+										<Check class="size-4 shrink-0 text-primary" aria-hidden="true" />
+									{/if}
+								{/snippet}
+							</DropdownMenu.CheckboxItem>
+						{/if}
+						{#if permissions.manageAccount}
+							<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-border" />
+							<DropdownMenu.Item
+								aria-label={m.users_delete_aria({ username: person.username })}
+								onSelect={() => act(ondelete)}
+								class={destructiveMenuItemClass}
+							>
+								{m.users_delete_account()}
+							</DropdownMenu.Item>
+						{/if}
 					</DropdownMenu.Content>
 				</DropdownMenu.Portal>
 			</DropdownMenu.Root>
-		{/if}
-		{#if permissions.manageAccount}
-			<Button
-				variant="secondary"
-				class="h-8 px-3 text-caption whitespace-nowrap"
-				label={m.users_reset_password_aria({ username: person.username })}
-				onclick={() => onreset(person)}
-			>
-				{m.users_reset_password()}
-			</Button>
-			<Button
-				variant="secondary"
-				class="h-8 px-3 text-caption whitespace-nowrap"
-				label={m.users_setup_link_action_aria({ username: person.username })}
-				onclick={() => onsetuplink(person)}
-			>
-				{m.users_setup_link_action()}
-			</Button>
-			<button
-				type="button"
-				aria-label={m.users_delete_aria({ username: person.username })}
-				onclick={() => ondelete(person)}
-				class="inline-flex h-8 items-center rounded-pill px-3 text-caption font-semibold whitespace-nowrap text-destructive transition hover:bg-destructive-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-			>
-				{m.common_delete()}
-			</button>
 		{:else if isSelf}
 			<!-- Before the owner's hint, because on the own row the useful
 			     sentence is where to go, not what cannot be done here. -->

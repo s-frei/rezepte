@@ -286,7 +286,7 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 		return err
 	}
 	if demoDefaults {
-		if err := demo.SeedMembers(ctx, conn, sum, cfg.AdminUser); err != nil {
+		if err := demo.SeedMembers(ctx, conn, sum, cfg.AdminUser, cfg.OIDCIssuer); err != nil {
 			return err
 		}
 		avatars := avatar.NewService(conn, filepath.Join(cfg.DataDir, "avatars"), image.NewService(conn, imageDir))

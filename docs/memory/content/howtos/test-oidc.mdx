@@ -14,13 +14,13 @@ mise run oidc:up
 `mise/tasks/oidc/up.sh` renders `mise/oidc/dex.yaml.tmpl` into `.oidc/dex.yaml` (gitignored, regenerated every run) with this worktree's ports substituted in, then starts `docker-compose.test.yaml`. It prints the configuration Rezepte needs:
 
 ```
-oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - anna@example.org / anna1234
+oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - Dex: sign in as demo@, mila@ or jonas@example.com, password <name>1234
   REZEPTE_PUBLIC_URL=http://localhost:$RZP_BACKEND_PORT REZEPTE_OIDC_ISSUER=http://localhost:$RZP_DEX_PORT/dex REZEPTE_OIDC_CLIENT_ID=rezepte REZEPTE_OIDC_CLIENT_SECRET=rezepte-test-secret REZEPTE_OIDC_NAME=Dex
 ```
 
 Export that line, or start `mise run dev` with it, to sign in against Dex by hand. `mise run oidc:down` stops it.
 
-Two accounts are seeded, passwords by the [development-credential](/conventions/dev-credentials) rule: `anna@example.org` / `anna1234` and `ben@example.org` / `ben1234`. Their Dex subjects are fixed (`userID: anna`, `userID: ben`), so a re-rendered config never changes who they are.
+Four accounts are seeded, passwords by the [development-credential](/conventions/dev-credentials) rule, one per demo household member plus one nobody connects: `demo@example.com` / `demo1234`, `mila@example.com` / `mila1234` and `jonas@example.com` / `jonas1234` name-for-name the accounts [demo mode](/features/demo-mode) seeds, so linking one against the matching demo account is the obvious thing to try by hand; `gast@example.com` / `gast1234` is a Dex identity with no demo account behind it, for the not-connected and setup-link cases. Their Dex subjects are fixed (`userID: demo`, `userID: mila`, `userID: jonas`, `userID: gast`), so a re-rendered config never changes who they are. Linking is manual for demo and mila - sign in as them at Dex from the demo account's profile. jonas is the exception: whenever OIDC is configured, the seed pre-links his demo account to the identity Dex issues for `userID: jonas` on its local connector, so `jonas@example.com` / `jonas1234` signs in right away with nothing connected by hand first.
 
 ## Automatic pickup
 

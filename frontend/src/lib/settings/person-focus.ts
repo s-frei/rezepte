@@ -28,3 +28,13 @@ export function focusRoleControl(id: string): void {
 		?.querySelector<HTMLElement>('[data-role-control] button')
 		?.focus();
 }
+
+/** The `id` of the "more actions" menu trigger in this person's row. */
+export function menuTriggerId(id: string): string {
+	return `person-${id}-menu`;
+}
+
+/** Focuses the "more actions" menu trigger in this person's row, if it is on the page. */
+export function focusMenuTrigger(id: string): void {
+	document.getElementById(menuTriggerId(id))?.focus();
+}

@@ -13,17 +13,29 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
+// ProviderInfo is get-oidc's response body: whether this instance offers
+// sign-in through an identity provider, and the provider's name for the
+// button. A named type rather than an inline struct, so the OpenAPI
+// document names this schema for what it is instead of a generated
+// "ConfigOutputBody". Not called Config: the package already has one, the
+// server-side settings this type is derived from.
+type ProviderInfo struct {
+	Enabled bool   `json:"enabled" doc:"Whether this instance offers sign-in through an identity provider"`
+	Name    string `json:"name,omitempty" doc:"The provider's name for the button; absent when disabled"`
+}
+
 type configOutput struct {
-	Body struct {
-		Enabled bool   `json:"enabled" doc:"Whether this instance offers sign-in through an identity provider"`
-		Name    string `json:"name,omitempty" doc:"The provider's name for the button; absent when disabled"`
-	}
+	Body ProviderInfo
+}
+
+// LinkedIdentity is get-own-identity's response body: when the current
+// account was connected to the identity provider.
+type LinkedIdentity struct {
+	LinkedAt time.Time `json:"linkedAt" doc:"When the account was connected to the provider"`
 }
 
 type identityOutput struct {
-	Body struct {
-		LinkedAt time.Time `json:"linkedAt" doc:"When the account was connected to the provider"`
-	}
+	Body LinkedIdentity
 }
 
 // Register installs get-oidc, the two steps of the flow, the own-identity

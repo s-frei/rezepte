@@ -25,5 +25,5 @@ if [ "$ready" != true ]; then
 	echo "oidc:up: Dex did not answer on http://localhost:$RZP_DEX_PORT/dex within about 10s; see docker compose -f docker-compose.test.yaml logs" >&2
 	exit 1
 fi
-echo "oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - anna@example.org / anna1234"
+echo "oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - Dex: sign in as demo@, mila@ or jonas@example.com, password <name>1234"
 echo "  REZEPTE_PUBLIC_URL=http://localhost:$RZP_BACKEND_PORT REZEPTE_OIDC_ISSUER=http://localhost:$RZP_DEX_PORT/dex REZEPTE_OIDC_CLIENT_ID=rezepte REZEPTE_OIDC_CLIENT_SECRET=rezepte-test-secret REZEPTE_OIDC_NAME=Dex"

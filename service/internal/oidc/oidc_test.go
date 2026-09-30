@@ -261,13 +261,13 @@ func TestLoginDropsForeignNext(t *testing.T) {
 func TestLinkFromProfile(t *testing.T) {
 	e := newEnv(t)
 	session := e.passwordLogin(t)
-	rec := e.run(t, "link", nil, session, idClaims{Subject: "sub-sam", Email: "sam@example.org", EmailVerified: true})
+	rec := e.run(t, "link", nil, session, idClaims{Subject: "sub-sam", Email: "sam@example.com", EmailVerified: true})
 	wantRedirect(t, rec, "/settings?oidc=linked")
 	if got := e.owner(t, "sub-sam"); got != "sam" {
 		t.Fatalf("identity belongs to %q, want sam", got)
 	}
 	sam, _ := e.users.ByID(context.Background(), e.sam.ID)
-	if sam.Email != "sam@example.org" || !sam.EmailVerified {
+	if sam.Email != "sam@example.com" || !sam.EmailVerified {
 		t.Fatalf("email %q verified=%v", sam.Email, sam.EmailVerified)
 	}
 }
@@ -337,7 +337,7 @@ func TestSetupViaProvider(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec := e.run(t, "setup", url.Values{"setup": {link.Token}}, nil, idClaims{Subject: "sub-anna", Email: "anna@example.org"})
+	rec := e.run(t, "setup", url.Values{"setup": {link.Token}}, nil, idClaims{Subject: "sub-anna", Email: "anna@example.com"})
 	wantRedirect(t, rec, "/")
 	if got := e.me(t, cookieNamed(rec, auth.CookieName)); got != "anna" {
 		t.Fatalf("signed in as %q, want anna", got)
@@ -352,7 +352,7 @@ func TestSetupViaProvider(t *testing.T) {
 		t.Fatalf("anna's earlier session survived: %v", err)
 	}
 	anna, _ := e.users.ByID(ctx, e.anna.ID)
-	if anna.Email != "anna@example.org" || anna.EmailVerified {
+	if anna.Email != "anna@example.com" || anna.EmailVerified {
 		t.Fatalf("email %q verified=%v", anna.Email, anna.EmailVerified)
 	}
 }
@@ -490,10 +490,10 @@ func TestCallbackProviderError(t *testing.T) {
 
 func TestUnverifiedEmailIsStoredUnverified(t *testing.T) {
 	e := newEnv(t)
-	rec := e.run(t, "link", nil, e.passwordLogin(t), idClaims{Subject: "sub-sam", Email: "sam@example.org"})
+	rec := e.run(t, "link", nil, e.passwordLogin(t), idClaims{Subject: "sub-sam", Email: "sam@example.com"})
 	wantRedirect(t, rec, "/settings?oidc=linked")
 	sam, _ := e.users.ByID(context.Background(), e.sam.ID)
-	if sam.Email != "sam@example.org" || sam.EmailVerified {
+	if sam.Email != "sam@example.com" || sam.EmailVerified {
 		t.Fatalf("email %q verified=%v", sam.Email, sam.EmailVerified)
 	}
 }

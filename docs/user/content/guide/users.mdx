@@ -40,11 +40,11 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     ### Open the list
 
-    Go to "Settings" → "People". Everyone is listed under their role — "Owner" first, then "Admins", then "Members", with the number of people beside the last two — and by name within each group. Each person shows their display name and, under it, the login name.
+    Go to "Settings" → "People". Everyone is listed under their role — "Owner" first, then "Admins", then "Members", with the number of people beside the last two — and by name within each group. Each person shows their display name and, under it, the login name; someone signed in through [single sign-on](/operations/single-sign-on) also shows which provider, and someone with an open setup link shows when it expires.
 
     Everyone's circle shows their photo, or their initial in their color if they have none. On a wide screen, click a person's circle to open their person card: name, login name, role and a link to the recipes they wrote. On a phone, the card is at the top of the sheet a row opens, so an admin sees it for every person they may act on; the owner's row and, for a Member, every row but their own open no sheet, and there the card is not shown.
 
-    On a wide screen the actions you may take sit at the end of each row. On a phone, tap a person to open a sheet with their actions; rows with a small arrow are the ones that open something, and your own row takes you to your profile.
+    On a wide screen the role select and the pencil (where there is one) sit at the end of each row, and a "..." menu next to them holds everything else you may do with that account. On a phone, tap a person to open a sheet with their actions; rows with a small arrow are the ones that open something, and your own row takes you to your profile.
 
   </Step>
   <Step>
@@ -88,37 +88,37 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     ### Allow or withdraw public sharing
 
-    On a wide screen the "More actions" menu in a person's row (next to the pencil, where there is one) carries "May share publicly" as a checkbox; on a phone it is a switch in the sheet that opens when you tap the person. It follows the same rule as resetting a password: any admin can switch it for a member, only the owner for an admin, and nobody for the owner. Turning it off pauses that person's existing public links until it is turned back on, and hides "Share publicly…" on their recipe pages meanwhile. It has nothing to do with whether public links are allowed for the household at all - that is the owner's own **Public sharing** switch, below the list of people. See [Public links](/guide/sharing#public-links).
+    On a wide screen the "..." menu in a person's row carries "May share publicly" as a checkbox, among the other actions below; on a phone it is a switch in the sheet that opens when you tap the person. It follows the same rule as resetting a password: any admin can switch it for a member, only the owner for an admin, and nobody for the owner. Turning it off pauses that person's existing public links until it is turned back on, and hides "Share publicly…" on their recipe pages meanwhile. It has nothing to do with whether public links are allowed for the household at all - that is the owner's own **Public sharing** switch, below the list of people. See [Public links](/guide/sharing#public-links).
 
   </Step>
   <Step>
 
     ### Reset a password
 
-    "Reset password" sets a new password for that member and signs them out on every device. Type the new password twice; the reset only goes through when both match. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
+    Open the "..." menu in a member's row — their sheet on a phone — for "Reset password", which sets a new password for that member and signs them out on every device. Type the new password twice; the reset only goes through when both match. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
 
-    "Setup link", next to it, is the alternative that keeps you from ever knowing their password: it works exactly like the one offered when creating an account, and signs them out everywhere too once they use it.
+    "Setup link", in the same menu, is the alternative that keeps you from ever knowing their password: it works exactly like the one offered when creating an account, and signs them out everywhere too once they use it.
 
   </Step>
   <Step>
 
     ### Revoking a link
 
-    While a setup link is unused, the person's row reads "Setup link open until" the date it stops working — a week after it was issued. "Revoke link" right there ends it at once, no confirmation needed, since sending a fresh one is the same "Setup link" action again. Before anyone has been sent a link at all, the row reads "Not set up yet" instead - unless the person already signs in through [single sign-on](/operations/single-sign-on).
+    While a setup link is unused, the person's row reads "Setup link open until" the date it stops working — a week after it was issued. "Revoke link" ends it at once, no confirmation needed, since sending a fresh one is the same "Setup link" action again — on a wide screen in the "..." menu with the other actions, on a phone in the person's sheet, beside the same line. Before anyone has been sent a link at all, the row reads "Not set up yet" instead - unless the person already signs in through [single sign-on](/operations/single-sign-on).
 
   </Step>
   <Step>
 
     ### Disconnect single sign-on
 
-    When your Rezepte uses [single sign-on](/operations/single-sign-on) and a person has connected their account to it, their row carries "Disconnect" and the provider's name under their login name, and in their sheet on a phone. It follows the same rule as resetting a password, needs no confirmation, and signs the person out on every device. It works even when they have no password: their row then reads "Not set up yet", and a "Setup link" is how they get back in, with a password or by connecting the provider again.
+    When your Rezepte uses [single sign-on](/operations/single-sign-on) and a person has connected their account to it, their row reads "Signs in with" the provider's name, and "Disconnect" and the provider's name are among their actions — in the "..." menu on a wide screen, in their sheet on a phone. It follows the same rule as resetting a password, needs no confirmation, and signs the person out on every device. It works even when they have no password: their row then loses that line and reads "Not set up yet" instead, and a "Setup link" is how they get back in, with a password or by connecting the provider again.
 
   </Step>
   <Step>
 
     ### Delete an account
 
-    "Delete" in their row — "Delete account" in their sheet on a phone — asks "Delete account?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
+    "Delete account", at the end of the "..." menu — the last action in their sheet on a phone — asks "Delete account?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
 
   </Step>
 </Steps>

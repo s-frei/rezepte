@@ -150,7 +150,7 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 
@@ -180,6 +180,57 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 	}
 }
 
+// With an issuer, jonas is pre-linked to the identity the test Dex issues
+// for him (subject checked against a live Dex, see
+// TestDexSubjectMatchesLiveDex), so the demo shows "Signs in with …" and
+// signs him in through Dex without anyone connecting an account first.
+// Without an issuer, OIDC is off and nothing is linked. Calling SeedMembers
+// a second time must not error either way, the same idempotence LinkIdentity
+// itself gives a repeated link.
+func TestSeedMembersLinksJonasToAnIdentityWhenOIDCIsConfigured(t *testing.T) {
+	const issuer = "http://localhost:5656/dex"
+	const jonasSubject = "CgVqb25hcxIFbG9jYWw" // dexSubject("jonas", "local")
+
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
+		t.Fatalf("SeedMembers without an issuer: %v", err)
+	}
+	if _, err := users.ByIdentity(ctx, issuer, jonasSubject); !errors.Is(err, user.ErrNotFound) {
+		t.Fatalf("ByIdentity without OIDC configured: err = %v, want ErrNotFound", err)
+	}
+
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", issuer); err != nil {
+		t.Fatalf("SeedMembers with an issuer: %v", err)
+	}
+	jonas, err := users.ByIdentity(ctx, issuer, jonasSubject)
+	if err != nil {
+		t.Fatalf("ByIdentity after linking: %v", err)
+	}
+	if jonas.Username != "jonas" {
+		t.Fatalf("identity resolved to %q, want jonas", jonas.Username)
+	}
+
+	// A second run over the same identity is the no-op LinkIdentity itself
+	// promises, not an error.
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", issuer); err != nil {
+		t.Fatalf("second SeedMembers with an issuer: %v", err)
+	}
+}
+
 // An instance that already holds recipes gets no members, and neither marks
 // nor links: they belong to the sample data, not to an instance in use.
 func TestMembersFollowTheSeed(t *testing.T) {
@@ -199,7 +250,7 @@ func TestMembersFollowTheSeed(t *testing.T) {
 	if len(members) != 0 {
 		t.Fatalf("members on a seeded instance = %v, want none", members)
 	}
-	if err := demo.SeedMembers(ctx, conn, demo.Summary{Skipped: true}, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, demo.Summary{Skipped: true}, "demo", ""); err != nil {
 		t.Fatalf("SeedMembers after a skipped seed: %v", err)
 	}
 	if list, _ := users.List(ctx); len(list) != 1 {
@@ -269,7 +320,7 @@ func TestMembersLeaveATakenNameAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
 		t.Fatalf("SeedMembers with a taken name: %v", err)
 	}
 	if _, err := users.Authenticate(ctx, taken.Username, "their-own-pw"); err != nil {
@@ -303,7 +354,7 @@ func TestMembersWriteSomeSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -371,7 +422,7 @@ func TestSeedMembersShareSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 
@@ -426,7 +477,7 @@ func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 
@@ -436,8 +487,8 @@ func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 			invited = m
 			continue
 		}
-		if m.Email != m.Username+"@example.org" || m.EmailVerified {
-			t.Fatalf("%s: email %q verified %v; want an unverified %s@example.org", m.Username, m.Email, m.EmailVerified, m.Username)
+		if m.Email != m.Username+"@example.com" || m.EmailVerified {
+			t.Fatalf("%s: email %q verified %v; want an unverified %s@example.com", m.Username, m.Email, m.EmailVerified, m.Username)
 		}
 	}
 	if invited.ID == "" {
@@ -478,7 +529,7 @@ func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := demo.SeedMembers(ctx, conn, sum, "demo"); err != nil {
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
 		t.Fatalf("SeedMembers: %v", err)
 	}
 	var n int
