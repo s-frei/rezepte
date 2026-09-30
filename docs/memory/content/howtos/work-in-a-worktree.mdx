@@ -57,6 +57,28 @@ description: One worktree per feature, one port offset per worktree
   </Step>
   <Step>
 
+    ### Hand the maintainer a demo
+
+    Once a feature is done, or has reached a solid state worth trying, start a demo instance from the worktree and hand over its address before asking whether to merge:
+
+    ```bash
+    mise run demo
+    ```
+
+    Run it in the background, wait for `/healthz`, and give the URL from `mise run ports` (the demo line) together with the login `demo` / `demo1234` ([Demo mode](/features/demo-mode)). Green tests are not the hand-over: the maintainer clicks through the change on real data before it lands.
+
+    Set the instance up so the change can be tried at once, not after a round of clicking to reach it:
+
+    - **Data every demo should show belongs in the seed, not in the hand-over.** A feature that needs examples - recipes in some state, marks, links, tokens - gets them from the demo seed as part of the feature ([Demo mode](/features/demo-mode)), so every demo, screenshot run and later hand-over has them too. The hand-over only adds what the seed deliberately leaves out: a household switch the demo starts with off, like every instance does (public sharing, link previews, locked recipes), turned on with `PATCH /api/v1/settings`.
+    - **Drive it through the HTTP API**, logged in with the same credentials the maintainer gets ([HTTP API](/architecture/api)): switch settings, create or look up the objects the change acts on (a public link, a token, a recipe in the state that shows the change), and read them back once to confirm the setup took - a public link that answers, a setting that reads back on.
+    - **Pick the viewpoint the change is about.** When it shows one person's doing to another - a tasty mark, a lock, a member without a right - hand over the member's login too (`mila` / `mila1234`, `jonas` / `jonas1234`), or the public URL to open in a private window when it is what a stranger sees.
+    - **Hand over direct links** to every page that shows the change, the account for each, and what to try; not only the root URL.
+
+    A restarted demo starts fresh, so the setup is redone after every restart, including the ones that pick up a fix.
+
+  </Step>
+  <Step>
+
     ### Tidy the history, then merge
 
     Before the branch lands, give its history the shape you want to read later: one commit per finished change, no fixup trail. See [Commits](/conventions/commits). Squash while the branch is still yours - after the merge it is final.
