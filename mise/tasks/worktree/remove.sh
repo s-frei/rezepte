@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #MISE description="Remove a worktree made by worktree:new, and its branch once merged"
 #USAGE arg "<name>" help="Directory name under .claude/worktrees/"
+#USAGE flag "--close" help="Inside Herdr, close the worktree's workspace and its panes without asking"
 # The counterpart to worktree:new. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.
 set -euo pipefail
 
-NAME="$1"
+NAME="$usage_name"
 # Same anchor as worktree:new: the main checkout, wherever this runs from.
 ROOT="$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")"
 DIR="$ROOT/.claude/worktrees/$NAME"
@@ -40,15 +41,18 @@ if [ -n "$BRANCH" ]; then
 fi
 
 # Closing a workspace takes its panes with it, so it is only ever done on an
-# explicit yes - and last, in case this runs from one of those panes.
+# explicit yes - --close, or y at the prompt - and last, in case this runs
+# from one of those panes.
 if [ -n "$WORKSPACE" ]; then
 	answer=""
-	if [ -t 0 ]; then
+	if [ "${usage_close:-}" = true ]; then
+		answer=y
+	elif [ -t 0 ]; then
 		read -r -p "worktree:remove: close Herdr workspace $WORKSPACE ($NAME) and its panes? [y/N] " answer
 	fi
 	if [ "$answer" = y ] || [ "$answer" = Y ]; then
 		herdr workspace close "$WORKSPACE" >/dev/null
 	else
-		echo "worktree:remove: Herdr workspace $WORKSPACE ($NAME) stays open; close it with: herdr workspace close $WORKSPACE"
+		echo "worktree:remove: Herdr workspace $WORKSPACE ($NAME) stays open; close it with: herdr workspace close $WORKSPACE (or pass --close next time)"
 	fi
 fi

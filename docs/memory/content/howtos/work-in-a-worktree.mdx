@@ -96,7 +96,7 @@ description: One worktree per feature, one port offset per worktree
 
     Removes the worktree with `git worktree remove`, then the whole directory, then the branch - but only once it is merged into `develop`; an unmerged branch is kept and named. It never passes `--force`: a worktree holding changes or untracked files you created makes git refuse and list them, and the decision stays yours. `mise.local.toml` is gitignored, so it never blocks the removal.
 
-    Inside Herdr, it asks before closing the worktree's Herdr workspace, because closing it takes its panes with it. Run without a terminal - by an agent - it never closes the workspace and prints the `herdr workspace close` command instead.
+    Inside Herdr, it asks before closing the worktree's Herdr workspace, because closing it takes its panes with it. Run without a terminal - by an agent, or through a `!` command in Claude Code - it cannot ask, so it leaves the workspace open and prints the `herdr workspace close` command instead. `--close` is the explicit yes that works everywhere. An agent passes it only when the maintainer asked for the workspace to go.
 
     There is no separate offset registry to update. The live worktrees *are* the register - `worktree:new` finds a free offset by reading `mise.local.toml` out of each one still on disk, so removing the worktree frees its offset immediately, and nothing can go stale.
 
