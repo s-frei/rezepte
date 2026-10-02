@@ -19,6 +19,14 @@ export const source = loader({
 	plugins: [openapiPlugin()]
 });
 
+// The loader's URLs are root-relative ("/guide"), which a browser resolves
+// under the /rezepte base path but an assistant reading /llms.txt does not:
+// it lands on s-frei.github.io/guide. Everything the llms routes serve goes
+// through this, so a Markdown link always names the full address.
+export function absoluteLinks(markdown: string): string {
+	return markdown.replaceAll('](/', `](${SITE_URL}`);
+}
+
 export const docsLlms = llms(source, {
 	renderPage: async (page) => {
 		// fumadocs-openapi renders through a React component, so a generated
@@ -28,7 +36,7 @@ export const docsLlms = llms(source, {
 		// what a reader of these routes actually wants.
 		if (page.url.startsWith(API_REFERENCE_PREFIX)) {
 			return [
-				`# ${page.data.title} (${page.url})`,
+				`# ${page.data.title} (${SITE_URL}${page.url.slice(1)})`,
 				'',
 				`The endpoints of this page are defined in the OpenAPI document: ${SITE_URL}openapi.json`,
 				''
@@ -40,6 +48,7 @@ export const docsLlms = llms(source, {
 		// The audience is a badge in the page chrome, which the Markdown view has
 		// none of; a line keeps it.
 		const audience = page.data.audience ? `> **${ROLE_LABEL[page.data.audience]}.**\n\n` : '';
-		return `# ${page.data.title} (${page.url})\n\n${audience}${upgrade}${await page.data.getText('processed')}`;
+		const text = `${audience}${upgrade}${await page.data.getText('processed')}`;
+		return `# ${page.data.title} (${SITE_URL}${page.url.slice(1)})\n\n${absoluteLinks(text)}`;
 	}
 });

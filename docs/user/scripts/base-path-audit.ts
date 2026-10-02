@@ -51,6 +51,14 @@ for (const file of walk('out')) {
 		failed = true;
 	}
 }
+// The llms routes serve Markdown, not HTML, and an assistant reading them does
+// not know the base path: a root-relative link there must not exist at all.
+for (const file of ['out/llms.txt', 'out/llms-full.txt']) {
+	for (const m of readFileSync(file, 'utf8').matchAll(/\]\((\/[^)]*)\)/g)) {
+		console.error(`${file}: root-relative link "${m[1]}"; lib/source.ts absoluteLinks should have made it absolute`);
+		failed = true;
+	}
+}
 if (checked === 0) throw new Error('no src/href attributes found under out/ - did the build run first?');
 if (failed) process.exit(1);
 console.log(`base-path audit: ${checked} root-relative src/href attributes all carry "${BASE_PATH}"`);
