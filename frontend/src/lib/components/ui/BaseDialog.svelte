@@ -19,7 +19,10 @@
 		 * this: the secret is shown once, and a stray Escape would lose it.
 		 */
 		dismissible?: boolean;
-		/** 720px instead of 440px: the pass-on dialog sets its card beside its actions. */
+		/**
+		 * 720px instead of 440px: the pass-on dialog sets its card beside its
+		 * actions, the add-account form its two columns side by side.
+		 */
 		wide?: boolean;
 		children: Snippet;
 	} = $props();

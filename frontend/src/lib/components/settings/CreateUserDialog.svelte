@@ -139,118 +139,157 @@
 	}
 </script>
 
-<BaseDialog bind:open>
+{#snippet section(title: string)}
+	<!-- The people list's group heading (italic display face in primary),
+	     run out to the column's edge by the contents sheet's dotted leader,
+	     so each heading visibly owns its column. -->
+	<div class="flex items-baseline gap-3">
+		<h3 class="font-display text-body-lg font-medium text-primary italic">{title}</h3>
+		<span aria-hidden="true" class="min-w-6 flex-1 border-b-2 border-dotted border-border"></span>
+	</div>
+{/snippet}
+
+<!-- Wide, in two columns from md: stacked, its eleven fields outgrow a
+     720px-high laptop screen and scroll in a box with room to spare on
+     both sides. Who the person is on the left - the same fields Edit
+     profile has - and what they may do and how they get in on the right,
+     where the password fields grow when that mode is picked. On a phone
+     the two stack in that order. -->
+<BaseDialog bind:open wide>
 	<Dialog.Title class="font-display text-heading font-medium">
 		{m.users_create_title()}
 	</Dialog.Title>
 	<Dialog.Description class="sr-only">{m.users_create_description()}</Dialog.Description>
 	<form onsubmit={submit} class="mt-5 space-y-4">
-		<Input
-			id="new-user-name"
-			label={m.login_username()}
-			autocomplete="off"
-			required
-			bind:value={username}
-			oninput={() => (errors = withoutErrors(errors, ['username']))}
-			error={errors.username ?? null}
-		/>
-		<!-- Optional: an empty one means the API keeps the login name, which is
-		     exactly what a household of first names wants. -->
-		<Input
-			id="new-user-display-name"
-			label={m.users_field_display_name()}
-			autocomplete="off"
-			maxlength={64}
-			counter={64}
-			bind:value={displayName}
-		/>
-		<RadioGroup.Root
-			bind:value={mode}
-			aria-label={m.users_create_title()}
-			class="grid grid-cols-2 gap-3"
-		>
-			{#each [{ value: 'link' as const, label: m.users_create_mode_link() }, { value: 'password' as const, label: m.users_create_mode_password() }] as option (option.value)}
-				<RadioGroup.Item
-					value={option.value}
-					class="flex items-center gap-2 rounded-md border border-border bg-surface-elevated px-4 py-3 text-left text-body-sm font-semibold transition data-[state=checked]:border-[1.5px] data-[state=checked]:border-primary data-[state=checked]:bg-accent"
-				>
-					{#snippet children({ checked })}
-						<span
-							aria-hidden="true"
-							class="size-4 shrink-0 rounded-full border {checked
-								? 'border-[5px] border-primary bg-surface'
-								: 'border-border bg-surface-elevated'}"
-						></span>
-						{option.label}
-					{/snippet}
-				</RadioGroup.Item>
-			{/each}
-		</RadioGroup.Root>
-		{#if mode === 'password'}
-			<div class="space-y-1.5">
+		<div class="grid gap-x-6 gap-y-8 md:grid-cols-2">
+			<div class="space-y-4">
+				{@render section(m.users_create_section_person())}
 				<Input
-					id="new-user-password"
-					label={m.login_password()}
-					type="password"
-					autocomplete="new-password"
+					id="new-user-name"
+					label={m.login_username()}
+					autocomplete="off"
 					required
-					bind:value={password}
-					oninput={() => (errors = withoutErrors(errors, ['password', 'repeat']))}
-					error={errors.password ?? null}
-					hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
+					bind:value={username}
+					oninput={() => (errors = withoutErrors(errors, ['username']))}
+					error={errors.username ?? null}
 				/>
-				<PasswordStrength {password} userInputs={[username, displayName]} />
+				<!-- Optional: an empty one means the API keeps the login name, which is
+				     exactly what a household of first names wants. -->
+				<Input
+					id="new-user-display-name"
+					label={m.users_field_display_name()}
+					autocomplete="off"
+					maxlength={64}
+					counter={64}
+					bind:value={displayName}
+				/>
+				<ColorPicker bind:value={color} {usage} label={m.users_field_color()} />
+				<div>
+					<span class="block text-caption font-semibold">{m.users_field_language()}</span>
+					<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.users_field_language_hint()}</p>
+					<Select
+						bind:value={locale}
+						options={localeOptions}
+						label={m.users_field_language()}
+						class="w-full bg-surface-elevated"
+					>
+						{#snippet icon()}
+							<Languages class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+						{/snippet}
+					</Select>
+				</div>
 			</div>
-			<Input
-				id="new-user-password-repeat"
-				label={m.settings_password_repeat()}
-				type="password"
-				autocomplete="new-password"
-				required
-				bind:value={repeat}
-				oninput={() => (errors = withoutErrors(errors, ['repeat']))}
-				error={errors.repeat ?? null}
-			/>
-		{/if}
-		<RadioGroup.Root
-			bind:value={role}
-			aria-label={m.users_field_role()}
-			class="grid grid-cols-2 gap-3"
-		>
-			{#each roles as option (option.value)}
-				<RadioGroup.Item
-					value={option.value}
-					class="flex items-start gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3 text-left transition data-[state=checked]:border-[1.5px] data-[state=checked]:border-primary data-[state=checked]:bg-accent"
-				>
-					{#snippet children({ checked })}
-						<span
-							aria-hidden="true"
-							class="mt-0.5 size-4 shrink-0 rounded-full border {checked
-								? 'border-[5px] border-primary bg-surface'
-								: 'border-border bg-surface-elevated'}"
-						></span>
-						<span class="flex flex-col">
-							<span class="text-body-sm font-semibold">{option.label}</span>
-							<span class="text-micro text-text-muted">{option.hint}</span>
-						</span>
-					{/snippet}
-				</RadioGroup.Item>
-			{/each}
-		</RadioGroup.Root>
-		<ColorPicker bind:value={color} {usage} label={m.users_field_color()} />
-		<div>
-			<span class="block text-caption font-semibold">{m.users_field_language()}</span>
-			<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.users_field_language_hint()}</p>
-			<Select
-				bind:value={locale}
-				options={localeOptions}
-				label={m.users_field_language()}
-				class="w-full bg-surface-elevated"
-			>
-				{#snippet icon()}
-					<Languages class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-				{/snippet}
-			</Select>
+			<div class="space-y-4">
+				{@render section(m.users_create_section_access())}
+				<div>
+					<span id="new-user-role-label" class="mb-3 block text-caption font-semibold">
+						{m.users_field_role()}
+					</span>
+					<RadioGroup.Root
+						bind:value={role}
+						aria-labelledby="new-user-role-label"
+						class="grid grid-cols-1 overflow-hidden rounded-md border border-border"
+					>
+						{#each roles as option (option.value)}
+							<RadioGroup.Item
+								value={option.value}
+								class="flex items-start gap-3 border-border bg-surface-elevated px-4 py-3 text-left transition not-first:border-t data-[state=checked]:bg-accent"
+							>
+								{#snippet children({ checked })}
+									<span
+										aria-hidden="true"
+										class="mt-0.5 size-4 shrink-0 rounded-full border {checked
+											? 'border-[5px] border-primary bg-surface'
+											: 'border-border bg-surface-elevated'}"
+									></span>
+									<span class="flex flex-col">
+										<span class="text-body-sm font-semibold">{option.label}</span>
+										<span class="text-micro text-text-muted">{option.hint}</span>
+									</span>
+								{/snippet}
+							</RadioGroup.Item>
+						{/each}
+					</RadioGroup.Root>
+				</div>
+				<div>
+					<span id="new-user-sign-in-label" class="block text-caption font-semibold">
+						{m.users_field_sign_in()}
+					</span>
+					<p class="mt-1.5 mb-3 text-micro text-text-muted">
+						{mode === 'link'
+							? m.users_create_mode_link_hint()
+							: m.users_create_mode_password_hint()}
+					</p>
+					<RadioGroup.Root
+						bind:value={mode}
+						aria-labelledby="new-user-sign-in-label"
+						class="grid grid-cols-1 overflow-hidden rounded-md border border-border"
+					>
+						{#each [{ value: 'link' as const, label: m.users_create_mode_link() }, { value: 'password' as const, label: m.users_create_mode_password() }] as option (option.value)}
+							<RadioGroup.Item
+								value={option.value}
+								class="flex items-center gap-2 border-border bg-surface-elevated px-4 py-3 text-left text-body-sm font-semibold transition not-first:border-t data-[state=checked]:bg-accent"
+							>
+								{#snippet children({ checked })}
+									<span
+										aria-hidden="true"
+										class="size-4 shrink-0 rounded-full border {checked
+											? 'border-[5px] border-primary bg-surface'
+											: 'border-border bg-surface-elevated'}"
+									></span>
+									{option.label}
+								{/snippet}
+							</RadioGroup.Item>
+						{/each}
+					</RadioGroup.Root>
+				</div>
+				{#if mode === 'password'}
+					<div class="space-y-1.5">
+						<Input
+							id="new-user-password"
+							label={m.login_password()}
+							type="password"
+							autocomplete="new-password"
+							required
+							bind:value={password}
+							oninput={() => (errors = withoutErrors(errors, ['password', 'repeat']))}
+							error={errors.password ?? null}
+							hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
+						/>
+						<PasswordStrength {password} userInputs={[username, displayName]} />
+					</div>
+					<Input
+						id="new-user-password-repeat"
+						label={m.settings_password_repeat()}
+						type="password"
+						autocomplete="new-password"
+						required
+						bind:value={repeat}
+						oninput={() => (errors = withoutErrors(errors, ['repeat']))}
+						error={errors.repeat ?? null}
+					/>
+				{/if}
+			</div>
 		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
