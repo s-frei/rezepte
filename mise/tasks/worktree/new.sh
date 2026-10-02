@@ -2,6 +2,7 @@
 #MISE description="Create a worktree off develop with its own port offset"
 #USAGE arg "[name]" help="Directory name under .claude/worktrees/, and the branch feat/<name> unless a branch is given; omit it inside a worktree made some other way to give that one an offset"
 #USAGE arg "[branch]" help="Branch to create instead of feat/<name>; release:start passes release/vX.Y.Z"
+#USAGE flag "--move" help="Inside Herdr, move the calling pane into the new worktree's workspace instead of leaving it where it is"
 # Creates a worktree for feature work and gives it its own port offset, so
 # two agents can run their stacks at once. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.
@@ -10,7 +11,8 @@
 # it creates nothing and only gives that worktree its offset.
 set -euo pipefail
 
-NAME="${1:-}"
+# mise parses the arguments against the #USAGE spec above, flags anywhere.
+NAME="${usage_name:-}"
 if [ -z "$NAME" ]; then
 	HERE="$(git rev-parse --show-toplevel)"
 	# A linked worktree's git dir differs from the common one; in the main
@@ -36,7 +38,7 @@ ROOT="$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")"
 if [ -n "$NAME" ]; then
 	DIR="$ROOT/.claude/worktrees/$NAME"
 	# Feature work gets feat/<name>; release:start passes release/vX.Y.Z.
-	BRANCH="${2:-feat/$NAME}"
+	BRANCH="${usage_branch:-feat/$NAME}"
 
 	# IntelliJ writes .idea/ back into a worktree it had open after that
 	# worktree is removed; a directory holding nothing else is that residue.
@@ -127,6 +129,16 @@ echo "worktree:new: $DIR on $(git -C "$DIR" branch --show-current)"
 # Herdr is optional: without it (or outside a Herdr pane) this is skipped, and
 # a Herdr failure never fails the worktree that already exists.
 if [ -n "$NAME" ] && [ "${HERDR_ENV:-}" = 1 ] && command -v herdr >/dev/null 2>&1; then
-	herdr worktree open --cwd "$ROOT" --path "$DIR" --label "$NAME" --no-focus >/dev/null ||
+	if opened="$(herdr worktree open --cwd "$ROOT" --path "$DIR" --label "$NAME" --no-focus)"; then
+		# --move: the calling pane - usually the agent that ran this - takes the
+		# place of the fresh shell Herdr opened there, and focus follows it.
+		if [ "${usage_move:-}" = true ] && [ -n "${HERDR_PANE_ID:-}" ]; then
+			read -r tab shell < <(echo "$opened" | bun -e 'const p = (await Bun.stdin.json()).result.root_pane; console.log(p.tab_id, p.pane_id)')
+			herdr pane move "$HERDR_PANE_ID" --tab "$tab" --split right --focus >/dev/null &&
+				herdr pane close "$shell" >/dev/null ||
+				echo "worktree:new: could not move this pane into $NAME's Herdr workspace" >&2
+		fi
+	else
 		echo "worktree:new: could not open $DIR in Herdr; the worktree is ready anyway" >&2
+	fi
 fi

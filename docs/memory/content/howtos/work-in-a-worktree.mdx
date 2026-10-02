@@ -20,7 +20,7 @@ description: One worktree per feature, one port offset per worktree
 
     Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml`, under `[vars]`, and printed along with the rest of the port map. `cd` into the new directory and work there.
 
-    Run from inside a Herdr pane (`HERDR_ENV=1`), it also opens the worktree as a Herdr workspace labeled `<name>`, linked to the repository's own, without moving focus. Without Herdr this step is skipped, and a Herdr failure only warns, because the worktree is already there.
+    Run from inside a Herdr pane (`HERDR_ENV=1`), it also opens the worktree as a Herdr workspace labeled `<name>`, linked to the repository's own, without moving focus. With `--move`, the pane that ran the task - usually the agent asked to open the worktree - moves into that workspace in place of the fresh shell, and focus follows it; the agent still has to `cd` into the worktree itself. Without Herdr this step is skipped, and a Herdr failure only warns, because the worktree is already there.
 
     An optional second argument names the branch; without it the branch is `feat/<name>`. `release:start` uses it for `release/vX.Y.Z` (see [Release](/howtos/release)).
 
