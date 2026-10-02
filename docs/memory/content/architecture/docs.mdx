@@ -59,7 +59,7 @@ Every address the app links to outside itself is a constant in `frontend/src/lib
 
 One repository setting no workflow can perform: in Settings → Pages, Source must be **GitHub Actions**. Until it is set by hand, `deploy-pages` fails with "Get Pages site failed", and no API call inside the job can set it.
 
-**The home page is titled for search, not by its heading.** "Rezepte" is an everyday German word that recipe sites rank for, so a result titled with the name alone is never found. `SITE_TITLE` in `docs/user/lib/shared.ts` carries the words people search with — self-hosted, recipe manager, household — and the home page takes it whole (`{ absolute: … }`), because the `%s — Rezepte` template every other page uses would turn its heading into "Rezepte — Rezepte". The visible heading stays the bare name. The site-wide description is the home page's own, read from `content/index.mdx`, so the meta description and the subtitle under the heading are one sentence with one owner.
+**The home page is titled for search, not by its heading.** "Rezepte" is an everyday German word that recipe sites rank for, so a result titled with the name alone is never found. `SITE_TITLE` in `docs/user/lib/shared.ts` carries the words people search with — self-hosted, recipe manager — and the home page takes it whole (`{ absolute: … }`), because the `%s — Rezepte` template every other page uses would turn its heading into "Rezepte — Rezepte". The visible heading stays the bare name. The site-wide description is the home page's own, read from `content/index.mdx`, so the meta description and the subtitle under the heading are one sentence with one owner.
 
 ## Why it is this way
 

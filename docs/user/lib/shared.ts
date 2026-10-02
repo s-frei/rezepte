@@ -10,7 +10,7 @@ export const SITE_URL = 'https://s-frei.github.io/rezepte/';
 // word that recipe sites rank for, so the name alone finds nothing; the words
 // people actually search with have to be in the title. Other pages keep the
 // short `%s — Rezepte` template.
-export const SITE_TITLE = 'Rezepte — Self-hosted recipe manager for your household';
+export const SITE_TITLE = 'Rezepte — Self-hosted recipe manager for the people you cook with';
 
 // Next merges metadata shallowly: a page-level `openGraph` REPLACES the root
 // layout's rather than extending it. Every page that sets its own og:title has
