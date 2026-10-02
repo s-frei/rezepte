@@ -1,4 +1,4 @@
-// Rounds the overview screenshots for the README. GitHub strips CSS from a
+// Rounds the overview and phone cook-mode screenshots for the README. GitHub strips CSS from a
 // README, so the corners and the border the docs site draws around every
 // <Screenshot> (rounded-xl, 1px fd-border) are baked into the picture here.
 // Runs after `mise run //docs/user:screenshots`, and on its own as
@@ -38,15 +38,20 @@ export async function rounded(png: ArrayBuffer | Buffer, scheme: keyof typeof BO
 		.toBuffer();
 }
 
+// The screenshots the README shows, as named in public/screenshots.
+export const README_SHOTS = ['overview-desktop', 'cook-mode-mobile'] as const;
+
 // node:fs rather than Bun.file: Next type-checks every script in this
 // package, and its tsconfig carries no Bun types.
 async function main() {
 	const target = new URL('../../../assets/readme/', import.meta.url);
 	await mkdir(target, { recursive: true });
-	for (const scheme of ['light', 'dark'] as const) {
-		const name = `overview-desktop-${scheme}.png`;
-		const source = await readFile(new URL(`../public/screenshots/${name}`, import.meta.url));
-		await writeFile(new URL(name, target), await rounded(source, scheme));
+	for (const shot of README_SHOTS) {
+		for (const scheme of ['light', 'dark'] as const) {
+			const name = `${shot}-${scheme}.png`;
+			const source = await readFile(new URL(`../public/screenshots/${name}`, import.meta.url));
+			await writeFile(new URL(name, target), await rounded(source, scheme));
+		}
 	}
 }
 

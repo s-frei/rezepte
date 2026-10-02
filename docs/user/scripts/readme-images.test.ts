@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import sharp from 'sharp';
-import { BORDER, rounded } from './readme-images';
+import { BORDER, README_SHOTS, rounded } from './readme-images';
 
 async function pixel(png: Buffer, x: number, y: number): Promise<number[]> {
 	const { data, info } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -32,12 +32,16 @@ test('keeps the picture inside and draws the border in the theme color', async (
 
 const readme = await Bun.file(new URL('../../../README.md', import.meta.url)).text();
 
-test('the README shows the rounded overview in both schemes', async () => {
-	for (const scheme of ['light', 'dark']) {
-		const name = `assets/readme/overview-desktop-${scheme}.png`;
-		expect(readme).toContain(name);
-		const committed = await sharp(await Bun.file(new URL(`../../../${name}`, import.meta.url)).arrayBuffer()).metadata();
-		expect(committed.hasAlpha).toBe(true);
-		expect([committed.width, committed.height]).toEqual([1440, 900]);
+test('the README shows every rounded screenshot in both schemes', async () => {
+	for (const shot of README_SHOTS) {
+		for (const scheme of ['light', 'dark']) {
+			const name = `${shot}-${scheme}.png`;
+			expect(readme).toContain(`assets/readme/${name}`);
+			const path = (dir: string) => new URL(`../../../${dir}/${name}`, import.meta.url);
+			const committed = await sharp(await Bun.file(path('assets/readme')).arrayBuffer()).metadata();
+			const source = await sharp(await Bun.file(path('docs/user/public/screenshots')).arrayBuffer()).metadata();
+			expect(committed.hasAlpha).toBe(true);
+			expect([committed.width, committed.height]).toEqual([source.width, source.height]);
+		}
 	}
 });
