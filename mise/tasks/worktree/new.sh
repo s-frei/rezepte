@@ -1,16 +1,29 @@
 #!/usr/bin/env bash
 #MISE description="Create a worktree off develop with its own port offset"
-#USAGE arg "<name>" help="Directory name under .claude/worktrees/, and the branch feat/<name> unless a branch is given"
+#USAGE arg "[name]" help="Directory name under .claude/worktrees/, and the branch feat/<name> unless a branch is given; omit it inside a worktree made some other way to give that one an offset"
 #USAGE arg "[branch]" help="Branch to create instead of feat/<name>; release:start passes release/vX.Y.Z"
 # Creates a worktree for feature work and gives it its own port offset, so
 # two agents can run their stacks at once. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.
+#
+# Without a name, run inside a linked worktree that some other tool created,
+# it creates nothing and only gives that worktree its offset.
 set -euo pipefail
 
 NAME="${1:-}"
 if [ -z "$NAME" ]; then
-	echo "worktree:new: usage: mise run worktree:new <name> [branch]" >&2
-	exit 1
+	HERE="$(git rev-parse --show-toplevel)"
+	# A linked worktree's git dir differs from the common one; in the main
+	# checkout they match, and the main checkout keeps offset 0.
+	if [ "$(cd "$(git rev-parse --git-dir)" && pwd -P)" = "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)" ]; then
+		echo "worktree:new: usage: mise run worktree:new <name> [branch]" >&2
+		echo "worktree:new: (without a name, run it inside a linked worktree to give it an offset)" >&2
+		exit 1
+	fi
+	if [ -f "$HERE/mise.local.toml" ]; then
+		echo "worktree:new: $HERE/mise.local.toml already exists" >&2
+		exit 1
+	fi
 fi
 
 # `git rev-parse --show-toplevel` would return the *current* worktree when run
@@ -20,17 +33,21 @@ fi
 # main checkout's .git, no matter where the task runs, so anchor ROOT to its
 # parent instead.
 ROOT="$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")"
-DIR="$ROOT/.claude/worktrees/$NAME"
-# Feature work gets feat/<name>; release:start passes release/vX.Y.Z.
-BRANCH="${2:-feat/$NAME}"
+if [ -n "$NAME" ]; then
+	DIR="$ROOT/.claude/worktrees/$NAME"
+	# Feature work gets feat/<name>; release:start passes release/vX.Y.Z.
+	BRANCH="${2:-feat/$NAME}"
 
-if [ -e "$DIR" ]; then
-	echo "worktree:new: $DIR already exists" >&2
-	exit 1
-fi
-if git -C "$ROOT" show-ref --verify --quiet "refs/heads/$BRANCH"; then
-	echo "worktree:new: branch $BRANCH already exists" >&2
-	exit 1
+	if [ -e "$DIR" ]; then
+		echo "worktree:new: $DIR already exists" >&2
+		exit 1
+	fi
+	if git -C "$ROOT" show-ref --verify --quiet "refs/heads/$BRANCH"; then
+		echo "worktree:new: branch $BRANCH already exists" >&2
+		exit 1
+	fi
+else
+	DIR="$HERE"
 fi
 
 # Serialize the scan-add-write sequence below: two `worktree:new` runs started
@@ -73,7 +90,9 @@ if [ -z "$OFFSET" ]; then
 	exit 1
 fi
 
-git -C "$ROOT" worktree add "$DIR" -b "$BRANCH" develop
+if [ -n "$NAME" ]; then
+	git -C "$ROOT" worktree add "$DIR" -b "$BRANCH" develop
+fi
 
 cat > "$DIR/mise.local.toml" <<EOF
 # This worktree's port offset. Every RZP_*_PORT in the root mise.toml derives
@@ -96,5 +115,5 @@ EOF
 # up front so that first `cd` into the worktree is clean.
 mise trust --quiet "$DIR" >/dev/null 2>&1 || true
 
-echo "worktree:new: $DIR on $BRANCH"
+echo "worktree:new: $DIR on $(git -C "$DIR" branch --show-current)"
 (cd "$DIR" && mise run ports)
