@@ -117,3 +117,11 @@ mise trust --quiet "$DIR" >/dev/null 2>&1 || true
 
 echo "worktree:new: $DIR on $(git -C "$DIR" branch --show-current)"
 (cd "$DIR" && mise run ports)
+
+# Inside Herdr, open the new worktree as a workspace next to the repo's own.
+# Herdr is optional: without it (or outside a Herdr pane) this is skipped, and
+# a Herdr failure never fails the worktree that already exists.
+if [ -n "$NAME" ] && [ "${HERDR_ENV:-}" = 1 ] && command -v herdr >/dev/null 2>&1; then
+	herdr worktree open --cwd "$ROOT" --path "$DIR" --label "$NAME" --no-focus >/dev/null ||
+		echo "worktree:new: could not open $DIR in Herdr; the worktree is ready anyway" >&2
+fi
