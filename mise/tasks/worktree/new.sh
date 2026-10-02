@@ -38,6 +38,11 @@ if [ -n "$NAME" ]; then
 	# Feature work gets feat/<name>; release:start passes release/vX.Y.Z.
 	BRANCH="${2:-feat/$NAME}"
 
+	# IntelliJ writes .idea/ back into a worktree it had open after that
+	# worktree is removed; a directory holding nothing else is that residue.
+	if [ -d "$DIR/.idea" ] && [ -z "$(ls -A "$DIR" | grep -vx .idea)" ]; then
+		rm -rf "$DIR"
+	fi
 	if [ -e "$DIR" ]; then
 		echo "worktree:new: $DIR already exists" >&2
 		exit 1
@@ -86,7 +91,7 @@ for c in 1 2 3 4 5 6 7 8 9; do
 done
 if [ -z "$OFFSET" ]; then
 	echo "worktree:new: all nine offsets are in use:$holders" >&2
-	echo "worktree:new: remove a worktree with 'git worktree remove <path>' first" >&2
+	echo "worktree:new: remove one with 'mise run worktree:remove <name>' first" >&2
 	exit 1
 fi
 

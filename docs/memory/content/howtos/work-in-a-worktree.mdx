@@ -91,13 +91,16 @@ description: One worktree per feature, one port offset per worktree
     ### Clean up when the feature is done
 
     ```bash
-    git worktree remove .claude/worktrees/<name>
-    git branch -d feat/<name>
+    mise run worktree:remove <name>
     ```
 
-    There is no separate offset registry to update. The live worktrees *are* the register - `worktree:new` finds a free offset by reading `mise.local.toml` out of each one still on disk, so removing the worktree frees its offset immediately, and nothing can go stale. `git worktree remove` succeeds here because `mise.local.toml` is gitignored; if the worktree also holds other untracked files you created yourself, it refuses and names `--force` in its own error.
+    Removes the worktree with `git worktree remove`, then the whole directory, then the branch - but only once it is merged into `develop`; an unmerged branch is kept and named. It never passes `--force`: a worktree holding changes or untracked files you created makes git refuse and list them, and the decision stays yours. `mise.local.toml` is gitignored, so it never blocks the removal.
 
-    `git branch -d` only refuses if the branch is not merged **into the branch you are currently standing on** - after merging `feat/<name>` into `develop`, `-d` still refuses it from anywhere else. If it refuses, confirm the branch really is merged with `git merge-base --is-ancestor feat/<name> develop` and then use `-D`.
+    Inside Herdr, it asks before closing the worktree's Herdr workspace, because closing it takes its panes with it. Run without a terminal - by an agent - it never closes the workspace and prints the `herdr workspace close` command instead.
+
+    There is no separate offset registry to update. The live worktrees *are* the register - `worktree:new` finds a free offset by reading `mise.local.toml` out of each one still on disk, so removing the worktree frees its offset immediately, and nothing can go stale.
+
+    IntelliJ writes `.idea/` back into a worktree it still had open after the worktree is gone. `worktree:new` treats a directory holding nothing but `.idea/` as that residue and clears it, so the name can be reused.
 
   </Step>
   <Step>
