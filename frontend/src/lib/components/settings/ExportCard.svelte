@@ -143,7 +143,7 @@
 		     #import link lands on it) however long the collection grows. -->
 		<ul
 			aria-labelledby="transfer-export"
-			class="max-h-[60vh] scrollbar-themed overflow-y-auto overscroll-contain pr-3 md:pr-2"
+			class="max-h-[60vh] [scrollbar-gutter:stable] overflow-y-auto overscroll-contain pr-3 md:pr-2"
 		>
 			{#each shown as r (r.id)}
 				<TransferRow

@@ -208,7 +208,9 @@
 						? m.settings_transfer_received_one({ file: fileName })
 						: m.settings_transfer_received({ file: fileName, count: rows.length })}
 				</p>
-				<ul class="max-h-[60vh] scrollbar-themed overflow-y-auto overscroll-contain pr-3 md:pr-2">
+				<ul
+					class="max-h-[60vh] [scrollbar-gutter:stable] overflow-y-auto overscroll-contain pr-3 md:pr-2"
+				>
 					{#each rows as r (r.folder)}
 						{@const st = status[r.folder] ?? { kind: 'idle' }}
 						{@const twin = twinOf(r.title)}

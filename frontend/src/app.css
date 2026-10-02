@@ -295,14 +295,22 @@
 }
 
 /*
- * A scroll box inside a page - the export list - wears a thin thumb in the
- * handle color on no track, instead of the platform's gray bar, and keeps
- * its gutter reserved so the rows do not shift when it appears.
+ * Every scroll box - the page, a dialog, a sheet, a dropdown - wears a thin
+ * thumb in the handle color on no track, instead of the platform's gray bar.
+ * Set once here rather than per component, so a new scroll box cannot forget
+ * it. `scrollbar-color` inherits, so :root carries it; `scrollbar-width` does
+ * not, so it goes on every element. In the base layer, because unlayered CSS
+ * would beat the utilities and a component could no longer opt out the way
+ * the image gallery does with `[scrollbar-width:none]`.
  */
-@utility scrollbar-themed {
-	scrollbar-width: thin;
-	scrollbar-color: var(--color-handle) transparent;
-	scrollbar-gutter: stable;
+@layer base {
+	:root {
+		scrollbar-color: var(--color-handle) transparent;
+	}
+
+	* {
+		scrollbar-width: thin;
+	}
 }
 
 /*
