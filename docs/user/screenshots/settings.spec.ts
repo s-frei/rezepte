@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { prepare, shot } from './helpers';
+import { isMobile, prepare, shot } from './helpers';
 
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
@@ -221,4 +221,28 @@ test('settings-recipe-editing', async ({ page }, testInfo) => {
 	// covers the card.
 	await toggle.evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'center' }));
 	await shot(page, 'settings-recipe-editing');
+});
+
+// Mila has an address, so "Send by mail" opens prefilled. The row action is
+// in the "..." menu on a wide screen and in the person's sheet on a phone.
+test('setup-link-send', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/users');
+	try {
+		await configureMail(page);
+		await page.reload();
+		if (isMobile(testInfo)) {
+			await page.getByRole('button', { name: /^Manage .*\(mila\)$/ }).click();
+			await page.getByRole('button', { name: 'Setup link', exact: true }).click();
+		} else {
+			await page.getByRole('button', { name: 'More actions for mila' }).click();
+			await page.getByRole('menuitem', { name: 'Setup link for mila' }).click();
+		}
+		const dialog = page.getByRole('dialog', { name: /^Setup link for/ });
+		await expect(dialog).toBeVisible();
+		await expect(dialog.getByLabel(/^Email/)).not.toHaveValue('');
+		await shot(page, 'setup-link-send');
+	} finally {
+		await turnMailOff(page);
+	}
 });
