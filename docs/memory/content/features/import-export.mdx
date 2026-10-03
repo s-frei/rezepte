@@ -15,7 +15,7 @@ An admin can export a selection of recipes with their photos as one zip and impo
 
 **Import.** `POST /import` with the zip as the body. The `spoolBody` operation middleware streams the body into a temp file (`archive/zip` needs to seek), refusing more than 1 GiB; huma never reads the body, because the operation has no `Body` field and the request schema is a binary string. Then two phases:
 
-1. `check` validates the whole zip and writes nothing: entry names (a folder per recipe, only `recipe.json` and `.jpg`; macOS clutter such as `__MACOSX/` and dot files is skipped), sizes measured on the bytes actually inflated, `format` and `version`, the recipe against the schema huma registered for `recipe.Input` (`InputValidator`), `recipe.ResolveRefs` for ingredient references, and each photo's header.
+1. `check` validates the whole zip and writes nothing: entry names (a folder per recipe, only `recipe.json` and `.jpg`; macOS clutter such as `__MACOSX/` and dot files is skipped), sizes measured on the bytes actually inflated, `format` and `version`, the recipe against the schema huma registered for `recipe.Input` (`InputValidator`), `recipe.ResolveRefs` for ingredient references and step times, and each photo's header.
 2. `Import` creates the recipes in zip order with `recipe.Service.Create`, uploads each photo through `image.Service.Upload` and moves the cover with `SetCover`. Any failure deletes every recipe this call created, using `context.WithoutCancel` so a gone client cannot stop the rollback.
 
 Errors are located by zip path in the `location` of the `422`: `a/recipe.json: body.title` for a schema error, `a/recipe.json: body.steps[0]...` for a bad reference, `a/2.jpg` for a photo.

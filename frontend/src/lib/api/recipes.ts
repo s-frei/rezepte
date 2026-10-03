@@ -68,7 +68,8 @@ export type IngredientGroup = {
  */
 export type IngredientRef = { word: string; groupName: string | null; ingredientName: string };
 
-export type Step = { text: string; references: IngredientRef[] };
+export type StepTime = { phrase: string; seconds: number; maxSeconds?: number };
+export type Step = { text: string; references: IngredientRef[]; times: StepTime[] };
 
 /** Who besides the author and admins may edit; `default` follows the household setting. */
 export type EditPolicy = 'default' | 'open' | 'locked';
@@ -307,7 +308,7 @@ export function emptyInput(): RecipeInput {
 		ingredientGroups: [
 			{ name: null, ingredients: [{ quantity: null, unit: null, name: '', note: null }] }
 		],
-		steps: [{ text: '', references: [] }],
+		steps: [{ text: '', references: [], times: [] }],
 		editPolicy: 'default'
 	};
 }

@@ -1,17 +1,19 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { tick, untrack, type Snippet } from 'svelte';
 	import { Editor } from '@tiptap/core';
 	import { Plugin, PluginKey } from '@tiptap/pm/state';
 	import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 	import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 	import Suggestion, { exitSuggestion, type SuggestionProps } from '@tiptap/suggestion';
+	import { Popover, RadioGroup } from 'bits-ui';
+	import Timer from '@lucide/svelte/icons/timer';
+	import type { StepTime } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import { presentReferences, type FormGroup, type FormRef, type FormStep } from '$lib/recipe/form';
-	import { isWordChar } from '$lib/recipe/references';
+	import { firstWordMatch, isWordChar } from '$lib/recipe/references';
 	import { referenceExtension, stepExtensions, stepText, textToDoc } from '$lib/recipe/step-doc';
 	import {
 		addReference,
-		firstWordMatch,
 		fitsWordLimit,
 		isResolved,
 		matchEntries,
@@ -22,6 +24,16 @@
 		wordAtCaret,
 		type PickerEntry
 	} from '$lib/recipe/step-references';
+	import {
+		addTime,
+		caretTimePhrases,
+		isMarked,
+		overlapsAny,
+		pendingTimes,
+		presentTimes,
+		removeTime
+	} from '$lib/recipe/step-times';
+	import { MAX_PHRASE_LENGTH, formatDuration, manualTime, type TimeUnit } from '$lib/recipe/times';
 	import StepLinks from './StepLinks.svelte';
 
 	let {
@@ -33,7 +45,7 @@
 		error,
 		ondismiss
 	}: {
-		/** The step being edited; its `text` and `references` are written in place. */
+		/** The step being edited; its `text`, `references` and `times` are written in place. */
 		step: FormStep;
 		/** Position in the list, for the field's label. Changes when steps are reordered. */
 		index: number;
@@ -42,7 +54,7 @@
 		groups: FormGroup[];
 		/** Every ingredient the picker may offer, for the whole recipe. */
 		entries: PickerEntry[];
-		/** Words of this step whose proposal the author has turned down. */
+		/** Words and time phrases of this step whose proposal the author has turned down. */
 		dismissed: string[];
 		/** The server's message for this step, if it rejected it. */
 		error?: string;
@@ -91,6 +103,10 @@
 	 */
 	const CARD_WIDTH = 256;
 	const CARD_HEIGHT = 132;
+	/** The looks of a card's buttons. */
+	const MUTED_PRIMARY = 'text-text-muted hover:text-primary';
+	const MUTED_DESTRUCTIVE = 'text-text-muted hover:text-destructive';
+	const SOLID = 'bg-primary text-primary-foreground hover:opacity-90';
 
 	/** Gap between the caret and the popup, and between the popup and the window. */
 	const PICKER_GAP = 4;
@@ -150,7 +166,24 @@
 	let caret = $state<number | null>(null);
 	let cardAt = $state<{ left: number; top: number | null; bottom: number | null } | null>(null);
 
+	const TIME_UNITS: { value: TimeUnit; label: () => string }[] = [
+		{ value: 'seconds', label: m.editor_time_unit_seconds },
+		{ value: 'minutes', label: m.editor_time_unit_minutes },
+		{ value: 'hours', label: m.editor_time_unit_hours }
+	];
+	/** The phrase "Mark as time" is marking while its popover is open, and the unit chosen for it. */
+	let timePhrase = $state<string | null>(null);
+	let timeUnit = $state<TimeUnit>('minutes');
+	/** Where the popover hangs: the caret where the selection started. */
+	let timeAnchor = $state<{ getBoundingClientRect: () => DOMRect } | null>(null);
+	let timeBox = $state<HTMLElement | null>(null);
+	/** Set when a press outside closed the popover: focus goes where that press put it. */
+	let timeClosedOutside = false;
+
 	const pending = $derived(pendingFor(step, groups, dismissed));
+	/** Stored times whose phrase is in the text, the same rule `shown` follows for links. */
+	const shownTimes = $derived(presentTimes(step.times, step.text));
+	const pendingTimesList = $derived(pendingTimes(step, dismissed));
 
 	/**
 	 * The links whose word stands in the text right now. A link whose word was
@@ -159,23 +192,27 @@
 	 */
 	const shown = $derived(presentReferences(step.references, step.text));
 
-	/** Links and proposals in the order their words appear, which is how the list reads them. */
-	function byPosition(refs: FormRef[]): FormRef[] {
-		const at = (ref: FormRef) => firstWordMatch(step.text, ref.word)?.from ?? 0;
-		return [...refs].sort((a, b) => at(a) - at(b));
+	/** Links, times and proposals in the order their words appear, which is how the list reads them. */
+	function byPosition<T>(items: T[], word: (item: T) => string): T[] {
+		const at = (item: T) => firstWordMatch(step.text, word(item))?.from ?? 0;
+		return [...items].sort((a, b) => at(a) - at(b));
 	}
 
 	/**
 	 * The marked word the caret stands in, which is what the card at the word
-	 * is about. Nothing while a picker is open: that popup is the one the
-	 * author is working in, and two at the same caret would cover each other.
+	 * is about. Nothing while a picker or the time popover is open: that popup
+	 * is the one the author is working in, and two at the same caret would
+	 * cover each other.
 	 */
 	const cardWord = $derived(
-		picker !== null || caret === null
+		picker !== null || timePhrase !== null || caret === null
 			? null
 			: wordAtCaret(
 					step.text,
-					[...shown, ...pending].map((ref) => ref.word),
+					[
+						...[...shown, ...pending].map((ref) => ref.word),
+						...caretTimePhrases(shownTimes, pendingTimesList)
+					],
 					caret
 				)
 	);
@@ -183,6 +220,11 @@
 	const cardProposal = $derived(
 		cardLink === null ? (pending.find((ref) => ref.word === cardWord) ?? null) : null
 	);
+	/** The time or time proposal at the caret, and whether it is stored. */
+	const cardAnyTime = $derived(
+		[...shownTimes, ...pendingTimesList].find((time) => time.phrase === cardWord) ?? null
+	);
+	const cardTime = $derived(cardAnyTime !== null && shownTimes.includes(cardAnyTime));
 
 	/** The class a confirmed reference's word is underlined with. */
 	function confirmedClass(ref: FormRef): string {
@@ -201,12 +243,14 @@
 	const decoratedWords = $derived(
 		JSON.stringify([
 			...shown.map((ref) => `${confirmedClass(ref)}:${ref.word}`),
-			...pending.map((ref) => `ref-suggestion:${ref.word}`)
+			...pending.map((ref) => `ref-suggestion:${ref.word}`),
+			...shownTimes.map((time) => `time-link:${time.phrase}`),
+			...pendingTimesList.map((time) => `time-proposal:${time.phrase}`)
 		])
 	);
 
 	/**
-	 * Marks the referenced and the proposed words.
+	 * Marks the referenced and the proposed words, and the stored and proposed times.
 	 *
 	 * Decorations are ProseMirror's way of styling a document WITHOUT changing
 	 * it: nothing here writes into the doc, so opening a recipe leaves the
@@ -226,11 +270,12 @@
 				word: ref.word,
 				cls: confirmedClass(ref)
 			}));
-			for (const ref of pending) {
-				if (!marked.some((entry) => entry.word === ref.word)) {
-					marked.push({ word: ref.word, cls: 'ref-suggestion' });
-				}
-			}
+			const add = (word: string, cls: string) => {
+				if (!marked.some((entry) => entry.word === word)) marked.push({ word, cls });
+			};
+			for (const ref of pending) add(ref.word, 'ref-suggestion');
+			for (const time of shownTimes) add(time.phrase, 'time-link');
+			for (const time of pendingTimesList) add(time.phrase, 'time-proposal');
 			return marked;
 		});
 		const seen: string[] = [];
@@ -311,6 +356,17 @@
 	}
 
 	/** The caret's rectangle, the same shape the `@` flow's `clientRect` hands over. */
+	/**
+	 * From the selection's start down to the bottom of its last line, so a
+	 * popover hung below it never covers a phrase that wrapped onto a second line.
+	 */
+	function selectionRect(view: EditorView, from: number, to: number): DOMRect | null {
+		const start = caretRect(view, from);
+		const end = caretRect(view, to);
+		if (!start || !end) return start;
+		return new DOMRect(start.left, start.top, 0, Math.max(start.bottom, end.bottom) - start.top);
+	}
+
 	function caretRect(view: EditorView, pos: number): DOMRect | null {
 		if (pos > view.state.doc.content.size) return null;
 		const at = view.coordsAtPos(pos);
@@ -344,11 +400,64 @@
 			notice = m.editor_reference_too_long();
 			return;
 		}
+		if (
+			overlapsAny(
+				step.text,
+				word,
+				[...shownTimes, ...pendingTimesList].map((time) => time.phrase)
+			)
+		) {
+			notice = m.editor_reference_in_time();
+			return;
+		}
 		openManualFor(word, () => caretRect(view, from));
+	}
+
+	/**
+	 * "Mark as time", for a duration the detector does not know: the selection
+	 * grows to whole words the way "Link word"'s does, and only one holding a
+	 * number opens the popover. The number is read from the phrase; the unit
+	 * is the author's choice, so a phrase like "10 Min" in a language the
+	 * catalogs lack still gets the right length.
+	 */
+	function openTimeMark() {
+		const view = editor?.view;
+		if (!view) return;
+		const { from, to } = view.state.selection;
+		const phrase = wordAt(step.text, plainOffset(view, from), plainOffset(view, to));
+		if (phrase !== null && [...phrase].length > MAX_PHRASE_LENGTH) {
+			notice = m.editor_time_too_long();
+			return;
+		}
+		// A number out of range for minutes may fit another unit: the
+		// popover's disabled "Set" says so, not this refusal.
+		if (phrase === null || firstWordMatch(step.text, phrase) === null || !/\p{N}/u.test(phrase)) {
+			notice = m.editor_time_no_number();
+			return;
+		}
+		if (isMarked(step, phrase)) {
+			notice = m.editor_time_already_marked();
+			return;
+		}
+		// One popup at a time: the time popover takes the picker's place.
+		if (picker?.word === null) exitSuggestion(view, PICKER_KEY);
+		picker = null;
+		notice = '';
+		timePhrase = phrase;
+		timeUnit = 'minutes';
+		timeClosedOutside = false;
+		timeAnchor = { getBoundingClientRect: () => selectionRect(view, from, to) ?? new DOMRect() };
+	}
+
+	function setTime() {
+		const time = timePhrase === null ? null : manualTime(timePhrase, timeUnit);
+		if (time !== null) step.times = addTime(step.times, time, step.text);
+		timePhrase = null;
 	}
 
 	/** Opens the manual picker for `word`, at `rect`; the card's "Change" comes in here. */
 	function openManualFor(word: string, rect: () => DOMRect | null) {
+		timePhrase = null;
 		notice = '';
 		manualQuery = '';
 		picker = {
@@ -535,7 +644,11 @@
 					step.text = stepText(changed);
 					trackCaret(changed);
 				},
-				onSelectionUpdate: ({ editor: changed }) => trackCaret(changed),
+				onSelectionUpdate: ({ editor: changed }) => {
+					trackCaret(changed);
+					// A refusal answers the selection it was about; a new one starts clean.
+					notice = '';
+				},
 				onFocus: ({ editor: changed }) => trackCaret(changed),
 				onBlur: () => (caret = null)
 			});
@@ -742,6 +855,16 @@
 		step.references = removeReference(step.references, word);
 		ondismiss(word);
 	}
+
+	function acceptTime(time: StepTime) {
+		step.times = addTime(step.times, time, step.text);
+	}
+
+	/** Removes a time and turns its proposal down, for the same reason `unlink` does. */
+	function unmarkTime(phrase: string) {
+		step.times = removeTime(step.times, phrase);
+		ondismiss(phrase);
+	}
 </script>
 
 <!--
@@ -760,15 +883,29 @@
 
 	<StepLinks
 		stepId={step.id}
-		links={byPosition(shown)}
-		pending={byPosition(pending)}
+		links={byPosition(shown, (ref) => ref.word)}
+		pending={byPosition(pending, (ref) => ref.word)}
+		times={byPosition(shownTimes, (time) => time.phrase)}
+		pendingTimes={byPosition(pendingTimesList, (time) => time.phrase)}
 		{entries}
 		{editing}
 		onlinkword={openManual}
+		onmarktime={openTimeMark}
 		onunlink={unlink}
 		onaccept={accept}
 		ondismiss={dismiss}
+		onaccepttime={acceptTime}
+		onremovetime={unmarkTime}
 	/>
+
+	<!--
+		Why "Link word" or "Mark as time" did nothing, for everyone who can see
+		it. The status line below says the same to a screen reader, so this
+		copy is hidden from it rather than read twice.
+	-->
+	{#if editing && notice}
+		<p aria-hidden="true" class="mt-1 text-caption text-text-muted">{notice}</p>
+	{/if}
 
 	<!--
 		The picker's open state, and what a click on the link button found. It
@@ -778,26 +915,45 @@
 	<p role="status" class="sr-only">{notice || pickerStatus}</p>
 </div>
 
+{#snippet cardButton(label: string, onclick: () => void, look: string)}
+	<button
+		type="button"
+		tabindex={-1}
+		onmousedown={(event) => event.preventDefault()}
+		{onclick}
+		class="rounded-pill px-3 py-1.5 text-caption font-medium transition {look}"
+	>
+		{label}
+	</button>
+{/snippet}
+
+<!--
+	A card at a marked word or time: what it stands for, and what can be done
+	about it. It never takes focus - its buttons answer to `mousedown` with
+	the default prevented, so the caret stays in the word and typing goes on
+	where it was. That is also why it is not the way the keyboard gets there:
+	the list under the step holds the same actions in the tab order.
+-->
+{#snippet cardFrame(
+	at: { left: number; top: number | null; bottom: number | null },
+	label: string,
+	border: string,
+	body: Snippet
+)}
+	<div
+		role="group"
+		aria-label={label}
+		class="fixed z-40 w-64 rounded-md border bg-surface-elevated p-3 shadow-card {border}"
+		style="left: {at.left}px; {at.top === null ? `bottom: ${at.bottom}px` : `top: ${at.top}px`}"
+	>
+		{@render body()}
+	</div>
+{/snippet}
+
 {#if cardAt !== null && (cardLink ?? cardProposal)}
 	{@const ref = (cardLink ?? cardProposal) as FormRef}
 	{@const view = refView(ref, entries)}
-	<!--
-		The card at a marked word: what it points at, and what can be done
-		about it. It never takes focus - its buttons answer to `mousedown` with
-		the default prevented, so the caret stays in the word and typing goes on
-		where it was. That is also why it is not the way the keyboard gets
-		there: the list under the step holds the same actions in the tab order.
-	-->
-	<div
-		role="group"
-		aria-label={m.editor_reference_card({ word: ref.word })}
-		class="fixed z-40 w-64 rounded-md border bg-surface-elevated p-3 shadow-card {cardLink
-			? 'border-border'
-			: 'border-dashed border-primary'}"
-		style="left: {cardAt.left}px; {cardAt.top === null
-			? `bottom: ${cardAt.bottom}px`
-			: `top: ${cardAt.top}px`}"
-	>
+	{#snippet refCard()}
 		<p class="flex items-baseline justify-between gap-3 text-body-sm">
 			<span
 				class="font-medium {!view.resolved
@@ -818,47 +974,146 @@
 		{/if}
 		<div class="mt-2.5 flex justify-end gap-1">
 			{#if cardLink}
-				<button
-					type="button"
-					tabindex={-1}
-					onmousedown={(event) => event.preventDefault()}
-					onclick={() => changeLink(ref.word)}
-					class="rounded-pill px-3 py-1.5 text-caption font-medium text-text-muted transition hover:text-primary"
-				>
-					{m.editor_reference_change()}
-				</button>
-				<button
-					type="button"
-					tabindex={-1}
-					onmousedown={(event) => event.preventDefault()}
-					onclick={() => unlink(ref.word)}
-					class="rounded-pill px-3 py-1.5 text-caption font-medium text-text-muted transition hover:text-destructive"
-				>
-					{m.editor_reference_remove_action()}
-				</button>
+				{@render cardButton(m.editor_reference_change(), () => changeLink(ref.word), MUTED_PRIMARY)}
+				{@render cardButton(
+					m.editor_reference_remove_action(),
+					() => unlink(ref.word),
+					MUTED_DESTRUCTIVE
+				)}
 			{:else}
-				<button
-					type="button"
-					tabindex={-1}
-					onmousedown={(event) => event.preventDefault()}
-					onclick={() => dismiss(ref.word)}
-					class="rounded-pill px-3 py-1.5 text-caption font-medium text-text-muted transition hover:text-destructive"
-				>
-					{m.editor_reference_dismiss_action()}
-				</button>
-				<button
-					type="button"
-					tabindex={-1}
-					onmousedown={(event) => event.preventDefault()}
-					onclick={() => accept(ref)}
-					class="rounded-pill bg-primary px-3 py-1.5 text-caption font-medium text-primary-foreground transition hover:opacity-90"
-				>
-					{m.editor_reference_accept_action()}
-				</button>
+				{@render cardButton(
+					m.editor_reference_dismiss_action(),
+					() => dismiss(ref.word),
+					MUTED_DESTRUCTIVE
+				)}
+				{@render cardButton(m.editor_reference_accept_action(), () => accept(ref), SOLID)}
 			{/if}
 		</div>
-	</div>
+	{/snippet}
+	{@render cardFrame(
+		cardAt,
+		m.editor_reference_card({ word: ref.word }),
+		cardLink ? 'border-border' : 'border-dashed border-primary',
+		refCard
+	)}
+{:else if cardAt !== null && cardAnyTime !== null}
+	{@const time = cardAnyTime}
+	<!-- A time's card has no "Change": a wrong time is removed and marked again. -->
+	{#snippet timeCard()}
+		<p class="flex items-center gap-1.5 text-body-sm font-medium text-time-foreground tabular-nums">
+			<Timer class="size-3.5 shrink-0" aria-hidden="true" />
+			{formatDuration(time)}
+		</p>
+		<div class="mt-2.5 flex justify-end gap-1">
+			{#if cardTime}
+				{@render cardButton(
+					m.editor_reference_remove_action(),
+					() => unmarkTime(time.phrase),
+					MUTED_DESTRUCTIVE
+				)}
+			{:else}
+				{@render cardButton(
+					m.editor_reference_dismiss_action(),
+					() => dismiss(time.phrase),
+					MUTED_DESTRUCTIVE
+				)}
+				{@render cardButton(m.editor_reference_accept_action(), () => acceptTime(time), SOLID)}
+			{/if}
+		</div>
+	{/snippet}
+	{@render cardFrame(
+		cardAt,
+		m.editor_time_card({ phrase: time.phrase }),
+		cardTime ? 'border-border' : 'border-dashed border-time-foreground',
+		timeCard
+	)}
 {/if}
+
+<!--
+	"Mark as time": the phrase, the unit, and the length the two make. Focus
+	starts on the checked unit and goes back to the step when it closes,
+	unless a press or Tab outside closed it and took focus elsewhere. It
+	stays in place rather than in a portal and does not trap focus, so Tab
+	walks on to the page after the step, as from the manual picker.
+-->
+<Popover.Root
+	bind:open={
+		() => timePhrase !== null,
+		(open) => {
+			if (!open) timePhrase = null;
+		}
+	}
+>
+	<Popover.Content
+		bind:ref={timeBox}
+		role="dialog"
+		customAnchor={timeAnchor}
+		side="bottom"
+		align="start"
+		sideOffset={PICKER_GAP}
+		collisionPadding={PICKER_MARGIN}
+		aria-label={timePhrase === null ? undefined : m.editor_time_card({ phrase: timePhrase })}
+		onOpenAutoFocus={(event) => {
+			event.preventDefault();
+			timeBox?.querySelector<HTMLElement>('[data-state="checked"]')?.focus();
+		}}
+		trapFocus={false}
+		strategy="fixed"
+		onInteractOutside={() => (timeClosedOutside = true)}
+		onFocusOutside={() => {
+			timeClosedOutside = true;
+			timePhrase = null;
+		}}
+		onCloseAutoFocus={(event) => {
+			event.preventDefault();
+			// Bits UI also reports a close when a reopen replaces the last
+			// focus scope; the popover is open then, and focus stays in it.
+			if (!timeClosedOutside && timePhrase === null) editor?.commands.focus();
+		}}
+		class="z-50 w-72 rounded-md border border-border bg-surface-elevated p-3 shadow-card"
+	>
+		{#if timePhrase !== null}
+			{@const preview = manualTime(timePhrase, timeUnit)}
+			<p class="mb-2 text-caption text-text-muted">
+				{m.editor_time_card({ phrase: timePhrase })}
+			</p>
+			<RadioGroup.Root
+				value={timeUnit}
+				onValueChange={(value) => (timeUnit = value as TimeUnit)}
+				orientation="horizontal"
+				aria-label={m.editor_time_unit()}
+				class="flex rounded-pill bg-background p-1"
+			>
+				{#each TIME_UNITS as unit (unit.value)}
+					<RadioGroup.Item
+						value={unit.value}
+						class="h-8 min-w-0 flex-1 truncate rounded-pill px-2 text-caption font-semibold text-text-muted transition hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=checked]:bg-surface data-[state=checked]:text-text data-[state=checked]:shadow-card"
+					>
+						{unit.label()}
+					</RadioGroup.Item>
+				{/each}
+			</RadioGroup.Root>
+			<div class="mt-2.5 flex items-center justify-between gap-3">
+				<span
+					class="flex items-center gap-1.5 text-body-sm font-medium text-time-foreground tabular-nums"
+				>
+					{#if preview}
+						<Timer class="size-3.5 shrink-0" aria-hidden="true" />
+						{formatDuration(preview)}
+					{/if}
+				</span>
+				<button
+					type="button"
+					disabled={preview === null}
+					onclick={setTime}
+					class="rounded-pill bg-primary px-3 py-1.5 text-caption font-medium text-primary-foreground transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+				>
+					{m.editor_time_set()}
+				</button>
+			</div>
+		{/if}
+	</Popover.Content>
+</Popover.Root>
 
 {#if picker}
 	<!--

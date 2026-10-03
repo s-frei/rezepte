@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { FormGroup, FormRef, FormStep } from './form';
+import { firstWordMatch } from './references';
 import {
 	acceptAll,
 	addReference,
 	countPending,
 	entryLabel,
-	firstWordMatch,
 	fitsWordLimit,
 	isResolved,
 	matchEntries,
@@ -34,7 +34,7 @@ function group(name: string, ...rows: [string, string, string][]): FormGroup {
 }
 
 function step(text: string, references: FormRef[] = []): FormStep {
-	return { id: 's1', text, references };
+	return { id: 's1', text, references, times: [] };
 }
 
 /** A reference anchored to the row `group()` gave that id. */
@@ -263,18 +263,32 @@ describe('countPending', () => {
 	it('adds up the open proposals of every step, minus the dismissed ones', () => {
 		const groups = [group('', ['100', 'g', 'Zucker'], ['200', 'g', 'Mehl'])];
 		const steps: FormStep[] = [
-			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [] },
-			{ id: 'b', text: 'Mehl sieben.', references: [] }
+			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [] },
+			{ id: 'b', text: 'Mehl sieben.', references: [], times: [] }
 		];
 		expect(countPending(steps, groups)).toBe(3);
 		expect(countPending(steps, groups, { b: ['Mehl'] })).toBe(2);
 	});
 });
 
+describe('times among the proposals', () => {
+	const groups = [group('', ['100', 'g', 'Zwiebel'])];
+	it('countPending counts a time beside a link', () => {
+		expect(countPending([step('Zwiebel 10 Minuten dünsten.')], groups)).toBe(2);
+	});
+	it('acceptAll stores the time', () => {
+		const steps = [step('Zwiebel 10 Minuten dünsten.')];
+		acceptAll(steps, groups);
+		expect(steps[0].times).toEqual([{ phrase: '10 Minuten', seconds: 600 }]);
+	});
+});
+
 describe('acceptAll', () => {
 	it('confirms every open proposal and leaves the dismissed ones alone', () => {
 		const groups = [group('', ['100', 'g', 'Zucker'], ['200', 'g', 'Mehl'])];
-		const steps: FormStep[] = [{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [] }];
+		const steps: FormStep[] = [
+			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [] }
+		];
 		acceptAll(steps, groups, { a: ['Mehl'] });
 		expect(steps[0].references).toEqual([ref('Zucker', '-0', null, 'Zucker')]);
 	});

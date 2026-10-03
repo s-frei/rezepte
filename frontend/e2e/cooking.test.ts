@@ -27,9 +27,9 @@ function scalingRecipe(title: string): RecipeInput {
 			}
 		],
 		steps: [
-			{ text: 'Mix the flour and salt.', references: [] },
-			{ text: 'Add the water.', references: [] },
-			{ text: 'Knead and leave to rest.', references: [] }
+			{ text: 'Mix the flour and salt.', references: [], times: [] },
+			{ text: 'Add the water.', references: [], times: [] },
+			{ text: 'Knead and leave to rest.', references: [], times: [] }
 		]
 	};
 }
@@ -315,7 +315,7 @@ test('keeps the start of a long step readable at the largest size', async ({ pag
 	const long = `${opening}, ${'then stir the sauce slowly while it thickens, '.repeat(8)}and serve.`;
 	const recipe = await createRecipe(page, {
 		...scalingRecipe(`Long ${uniqueToken()}`),
-		steps: [{ text: long, references: [] }]
+		steps: [{ text: long, references: [], times: [] }]
 	});
 
 	await page.goto(`/recipes/${recipe.slug}/cook`);

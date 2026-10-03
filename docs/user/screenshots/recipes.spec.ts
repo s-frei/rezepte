@@ -116,3 +116,13 @@ test('import-draft', async ({ page }, testInfo) => {
 	}
 	await shot(page, 'import-draft');
 });
+
+test('editor-times', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/recipes/new');
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	await step.fill('Bake for 25 to 30 minutes until golden.');
+	await expect(page.getByText('Saving accepts 1 suggestion')).toBeVisible();
+	await step.scrollIntoViewIfNeeded();
+	await shot(page, 'editor-times');
+});

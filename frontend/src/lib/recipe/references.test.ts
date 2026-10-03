@@ -21,7 +21,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Saft mit Zucker aufkochen.',
-				references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }]
+				references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }],
+				times: []
 			},
 			groups,
 			4,
@@ -38,7 +39,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Zucker zugeben.',
-				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }]
+				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }],
+				times: []
 			},
 			groups,
 			8,
@@ -51,7 +53,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Mehl zugeben.',
-				references: [{ word: 'Mehl', groupName: 'Grütze', ingredientName: 'Mehl' }]
+				references: [{ word: 'Mehl', groupName: 'Grütze', ingredientName: 'Mehl' }],
+				times: []
 			},
 			groups,
 			4,
@@ -67,7 +70,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'In Öl anbraten.',
-				references: [{ word: 'Öl', groupName: null, ingredientName: 'Öl' }]
+				references: [{ word: 'Öl', groupName: null, ingredientName: 'Öl' }],
+				times: []
 			},
 			withOil,
 			4,
@@ -87,7 +91,8 @@ describe('segmentStep', () => {
 				references: [
 					{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' },
 					{ word: 'Beeren', groupName: 'Grütze', ingredientName: 'Beeren' }
-				]
+				],
+				times: []
 			},
 			groups,
 			4,
@@ -108,7 +113,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Ölsardinen in der Pfanne braten.',
-				references: [{ word: 'Öl', groupName: null, ingredientName: 'Öl' }]
+				references: [{ word: 'Öl', groupName: null, ingredientName: 'Öl' }],
+				times: []
 			},
 			withOil,
 			4,
@@ -124,7 +130,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Mehl mit Mehl bestäuben.',
-				references: [{ word: 'Mehl', groupName: null, ingredientName: 'Mehl' }]
+				references: [{ word: 'Mehl', groupName: null, ingredientName: 'Mehl' }],
+				times: []
 			},
 			flour,
 			4,
@@ -140,7 +147,8 @@ describe('segmentStep', () => {
 				references: [
 					{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' },
 					{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }
-				]
+				],
+				times: []
 			},
 			groups,
 			4,
@@ -164,7 +172,8 @@ describe('segmentStep', () => {
 				references: [
 					{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Marzipan' },
 					{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }
-				]
+				],
+				times: []
 			},
 			groups,
 			4,
@@ -181,7 +190,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Brühe erhitzen.',
-				references: [{ word: 'Brühe', groupName: 'Suppe', ingredientName: 'Brühe' }]
+				references: [{ word: 'Brühe', groupName: 'Suppe', ingredientName: 'Brühe' }],
+				times: []
 			},
 			ambiguous,
 			4,
@@ -197,7 +207,8 @@ describe('segmentStep', () => {
 		const out = segmentStep(
 			{
 				text: 'Salz dazugeben.',
-				references: [{ word: 'Salz', groupName: null, ingredientName: 'Salz' }]
+				references: [{ word: 'Salz', groupName: null, ingredientName: 'Salz' }],
+				times: []
 			},
 			saltless,
 			4,
@@ -364,5 +375,38 @@ describe('suggestReferences', () => {
 			}
 		];
 		expect(suggestReferences('Schnitzel klopfen.', schnitzel)).toEqual([]);
+	});
+});
+
+describe('segmentStep times', () => {
+	it('marks stored times, first occurrence only', () => {
+		const step = {
+			text: 'Etwa 90 Minuten schmoren, nach 90 Minuten prüfen.',
+			references: [],
+			times: [{ phrase: '90 Minuten', seconds: 5400 }]
+		};
+		expect(segmentStep(step, [], 2, 2)).toEqual([
+			{ text: 'Etwa ' },
+			{ text: '90 Minuten', time: true },
+			{ text: ' schmoren, nach 90 Minuten prüfen.' }
+		]);
+	});
+
+	it('keeps a sentence-final dot after a time', () => {
+		const step = {
+			text: 'Ca. 10 Min. backen.',
+			references: [],
+			times: [{ phrase: '10 Min.', seconds: 600 }]
+		};
+		expect(segmentStep(step, [], 2, 2).map((s) => s.text)).toEqual(['Ca. ', '10 Min.', ' backen.']);
+	});
+
+	it('skips a time whose phrase is gone', () => {
+		const step = {
+			text: 'Schmoren.',
+			references: [],
+			times: [{ phrase: '90 Minuten', seconds: 5400 }]
+		};
+		expect(segmentStep(step, [], 2, 2)).toEqual([{ text: 'Schmoren.' }]);
 	});
 });

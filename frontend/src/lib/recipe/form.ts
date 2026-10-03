@@ -5,11 +5,13 @@ import {
 	type EditPolicy,
 	type IngredientGroup,
 	type IngredientRef,
-	type RecipeInput
+	type RecipeInput,
+	type StepTime
 } from '$lib/api/recipes';
 import { m } from '$lib/paraglide/messages';
 import { getLocale } from '$lib/paraglide/runtime';
 import { wordPattern } from './references';
+import { presentTimes } from './step-times';
 
 /**
  * The editor's form model: the same shape as `RecipeInput`, but every field
@@ -62,6 +64,7 @@ export type FormStep = {
 	id: string;
 	text: string;
 	references: FormRef[];
+	times: StepTime[];
 };
 
 export type RecipeForm = {
@@ -127,7 +130,7 @@ export function newGroup(): FormGroup {
 
 /** A blank step. */
 export function newStep(): FormStep {
-	return { id: newId(), text: '', references: [] };
+	return { id: newId(), text: '', references: [], times: [] };
 }
 
 /** True when a string is empty or only whitespace. */
@@ -240,7 +243,10 @@ export function fromRecipe(recipe: RecipeInput): RecipeForm {
 			ingredientId: rowFor(groups, ref),
 			groupName: ref.groupName,
 			ingredientName: ref.ingredientName
-		}))
+		})),
+		// Copied, not shared: an imported draft arrives as reactive state,
+		// which `structuredClone` in the editor cannot clone.
+		times: step.times.map((time) => ({ ...time }))
 	}));
 
 	return {
@@ -417,7 +423,8 @@ export function toInput(form: RecipeForm): RecipeInput {
 				text: step.text.trim(),
 				references: presentReferences(step.references, step.text).flatMap(
 					(ref) => refToInput(form.ingredientGroups, ref) ?? []
-				)
+				),
+				times: presentTimes(step.times, step.text)
 			})),
 		editPolicy: form.editPolicy
 	};

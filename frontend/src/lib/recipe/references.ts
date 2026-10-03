@@ -1,8 +1,8 @@
 import type { IngredientGroup, IngredientRef, Step } from '$lib/api/recipes';
 import { formatQuantityFor } from './scale';
 
-/** One piece of a step's text. `quantity` is present on a resolved reference. */
-export type Segment = { text: string; quantity?: string };
+/** One piece of a step's text. `quantity` is present on a resolved reference, `time` on a stored step time. */
+export type Segment = { text: string; quantity?: string; time?: boolean };
 
 /**
  * Unicode letters and digits, shared by every place in this file that needs
@@ -24,6 +24,12 @@ const WORD_CHAR_CLASS = '\\p{L}\\p{N}';
 export function wordPattern(word: string): RegExp {
 	const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	return new RegExp(`(?<![${WORD_CHAR_CLASS}])${escaped}(?![${WORD_CHAR_CLASS}])`, 'u');
+}
+
+/** The word's first occurrence in `text`, or null. */
+export function firstWordMatch(text: string, word: string): { from: number; to: number } | null {
+	const match = wordPattern(word).exec(text);
+	return match === null ? null : { from: match.index, to: match.index + match[0].length };
 }
 
 /**
@@ -73,7 +79,7 @@ export function segmentStep(
 	servings: number,
 	baseServings: number
 ): Segment[] {
-	type Hit = { start: number; end: number; quantity: string };
+	type Hit = { start: number; end: number; quantity?: string; time?: true };
 	const hits: Hit[] = [];
 	const seenWords = new Set<string>();
 	for (const ref of step.references) {
@@ -90,6 +96,11 @@ export function segmentStep(
 		const quantity = [amount, found.unit ?? ''].join(' ').trim();
 		hits.push({ start: match.index, end: match.index + match[0].length, quantity });
 	}
+	// Stored times are marked like references: first occurrence only, earlier start wins.
+	for (const { phrase } of step.times) {
+		const match = wordPattern(phrase).exec(step.text);
+		if (match) hits.push({ start: match.index, end: match.index + match[0].length, time: true });
+	}
 	hits.sort((a, b) => a.start - b.start);
 
 	const out: Segment[] = [];
@@ -97,7 +108,8 @@ export function segmentStep(
 	for (const hit of hits) {
 		if (hit.start < cursor) continue; // overlapping hits: first one wins
 		if (hit.start > cursor) out.push({ text: step.text.slice(cursor, hit.start) });
-		out.push({ text: step.text.slice(hit.start, hit.end), quantity: hit.quantity });
+		const text = step.text.slice(hit.start, hit.end);
+		out.push(hit.time ? { text, time: true } : { text, quantity: hit.quantity });
 		cursor = hit.end;
 	}
 	if (cursor < step.text.length) out.push({ text: step.text.slice(cursor) });

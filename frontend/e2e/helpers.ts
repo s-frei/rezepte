@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import type { Editor } from '@tiptap/core';
 // Type-only, so the relative hop into `src` is erased at runtime and the e2e
 // suite still speaks the same contract as the app.
 import type { Image, Recipe, RecipeInput } from '../src/lib/api/recipes';
@@ -474,4 +475,34 @@ export async function setOwnAvatarViaApi(page: Page, png: Buffer): Promise<strin
 	});
 	expect(response.ok(), `PUT /api/v1/auth/me/avatar failed: ${response.status()}`).toBeTruthy();
 	return ((await response.json()) as { avatarId: string }).avatarId;
+}
+
+/**
+ * Selects `word` in a step field, or puts the caret in front of it.
+ *
+ * The selection goes through the editor, not through the DOM selection: the
+ * editor reads a DOM selection only on the `selectionchange` event that follows
+ * it, and a key pressed before that event is handled at the old selection -
+ * where the click landed. Under a loaded full run that window is wide enough to
+ * hit. The word's text node is searched for, because a linked word sits in its
+ * own decoration span.
+ */
+export async function selectInStep(step: Locator, word: string, what: 'word' | 'caret') {
+	// A tap on a field that already has focus moves the caret to where it
+	// landed, and on a phone that can arrive after the selection set below.
+	if (!(await step.evaluate((field) => field.contains(document.activeElement)))) await step.click();
+	await step.evaluate(
+		(field, [wanted, what]) => {
+			const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+			let text: Node | null = walker.nextNode();
+			while (text && !text.textContent?.includes(wanted)) text = walker.nextNode();
+			const at = text?.textContent?.indexOf(wanted) ?? -1;
+			if (!text || at < 0) throw new Error(`"${wanted}" is not in the step`);
+			const { editor } = field as HTMLElement & { editor: Editor };
+			const from = editor.view.posAtDOM(text, at);
+			const to = what === 'word' ? from + wanted.length : from;
+			editor.chain().focus().setTextSelection({ from, to }).run();
+		},
+		[word, what] as const
+	);
 }

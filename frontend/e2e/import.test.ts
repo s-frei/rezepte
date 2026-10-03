@@ -38,7 +38,7 @@ const linkedSoup: RecipeDraft = {
 		ingredientGroups: [
 			{ name: null, ingredients: [{ quantity: 1, unit: 'l', name: 'broth', note: null }] }
 		],
-		steps: [{ text: 'Boil.', references: [] }]
+		steps: [{ text: 'Boil.', references: [], times: [] }]
 	},
 	review: [],
 	suggestedTags: ['Soup', 'Quick'],

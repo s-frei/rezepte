@@ -60,6 +60,10 @@ description: Tokens, type scale, components and interaction rules of the “Warm
   </Tab>
 </Tabs>
 
+## Time color
+
+One more token, `--color-time-foreground` (light `#2f6260`, dark `#9fd0cd`), defined in both themes. It marks a duration in a step's text, solid when stored and dotted when suggested (`.time-link`, `.time-proposal` in `frontend/src/app.css`). The values equal `user-teal` on purpose and stay a separate token: `user-teal` belongs to people and may be retuned without touching times. See [Step times](/features/step-times).
+
 ## User colors
 
 A second, closed palette on top of the tokens above: one pair per color, `--color-user-<name>` and `--color-user-<name>-foreground`, redefined in the dark block like everything else. It is what marks a person - the author circles on a card, the avatar on the profile page and in the people list, the dot on an "Added by" chip, and the swatches of the picker.

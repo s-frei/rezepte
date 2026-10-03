@@ -42,6 +42,9 @@
 	--color-tint-1: #f0dfc4;
 	--color-tint-2: #e6e3cf;
 	--color-tint-3: #efd9cf;
+	/* A step's durations, on the page, in cook mode and in the editor. Not a
+	   palette color: it belongs to no person. */
+	--color-time-foreground: #2f6260;
 	/* One pair per palette color. A foreground of its own rather than a
 	   shared one: the author circle is a 12px semibold capital, so it needs
 	   4.5:1 against its own background, and no single foreground holds that
@@ -176,6 +179,7 @@
 	--color-tint-1: #3f2f1e;
 	--color-tint-2: #33301f;
 	--color-tint-3: #3d2a22;
+	--color-time-foreground: #9fd0cd;
 	--color-user-amber: #3f2f1e;
 	--color-user-amber-foreground: #f0c391;
 	--color-user-clay: #43291f;
@@ -227,6 +231,7 @@
 		--color-tint-1: #3f2f1e;
 		--color-tint-2: #33301f;
 		--color-tint-3: #3d2a22;
+		--color-time-foreground: #9fd0cd;
 		--color-user-amber: #3f2f1e;
 		--color-user-amber-foreground: #f0c391;
 		--color-user-clay: #43291f;
@@ -426,6 +431,18 @@ button:not(:disabled),
 
 .ref-suggestion {
 	border-bottom: 2px dotted var(--color-primary);
+}
+
+/*
+ * A step's durations, drawn the same two ways in their own color: a stored
+ * time solid, a proposal dotted.
+ */
+.time-link {
+	border-bottom: 2px solid var(--color-time-foreground);
+}
+
+.time-proposal {
+	border-bottom: 2px dotted var(--color-time-foreground);
 }
 
 /*

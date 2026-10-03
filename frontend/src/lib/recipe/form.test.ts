@@ -56,8 +56,8 @@ function baseInput(overrides: Partial<RecipeInput> = {}): RecipeInput {
 			}
 		],
 		steps: [
-			{ text: 'Mehl mischen.', references: [] },
-			{ text: 'Backen.', references: [] }
+			{ text: 'Mehl mischen.', references: [], times: [] },
+			{ text: 'Backen.', references: [], times: [] }
 		],
 		editPolicy: 'default',
 		...overrides
@@ -70,7 +70,8 @@ function linkedInput(): RecipeInput {
 		steps: [
 			{
 				text: 'Mehl mischen.',
-				references: [{ word: 'Mehl', groupName: 'Teig', ingredientName: 'Mehl' }]
+				references: [{ word: 'Mehl', groupName: 'Teig', ingredientName: 'Mehl' }],
+				times: []
 			}
 		]
 	});
@@ -92,7 +93,8 @@ function ambiguousInput(): RecipeInput {
 		steps: [
 			{
 				text: 'Zucker unterrühren.',
-				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }]
+				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }],
+				times: []
 			}
 		]
 	});
@@ -378,10 +380,10 @@ describe('toInput', () => {
 	it('drops empty steps', () => {
 		const form = validForm();
 		form.steps.push(newStep());
-		form.steps.push({ id: 'x', text: '   ', references: [] });
+		form.steps.push({ id: 'x', text: '   ', references: [], times: [] });
 		expect(toInput(form).steps).toEqual([
-			{ text: 'Mehl mischen.', references: [] },
-			{ text: 'Backen.', references: [] }
+			{ text: 'Mehl mischen.', references: [], times: [] },
+			{ text: 'Backen.', references: [], times: [] }
 		]);
 	});
 
@@ -431,7 +433,8 @@ describe('toInput with renamed ingredients', () => {
 				steps: [
 					{
 						text: 'Mehl mischen.',
-						references: [{ word: 'Mehl', groupName: null, ingredientName: 'Mehl' }]
+						references: [{ word: 'Mehl', groupName: null, ingredientName: 'Mehl' }],
+						times: []
 					}
 				]
 			})
@@ -464,7 +467,8 @@ describe('toInput with renamed ingredients', () => {
 			steps: [
 				{
 					text: 'Zucker aufkochen.',
-					references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }]
+					references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }],
+					times: []
 				}
 			]
 		});
@@ -481,6 +485,22 @@ describe('toInput with renamed ingredients', () => {
  * link onto a quantity the author never chose - and a wrong quantity at the
  * stove is the single outcome this whole feature exists to rule out.
  */
+describe('step times in the form', () => {
+	const times = [{ phrase: '90 Minuten', seconds: 5400 }];
+	const withTimes = () =>
+		baseInput({ steps: [{ text: 'Etwa 90 Minuten schmoren.', references: [], times }] });
+
+	it('round-trips an untouched recipe', () => {
+		expect(toInput(fromRecipe(withTimes())).steps[0].times).toEqual(times);
+	});
+
+	it('drops a time whose phrase is no longer in the text', () => {
+		const form = fromRecipe(withTimes());
+		form.steps[0].text = 'Etwa 95 Minuten schmoren.';
+		expect(toInput(form).steps[0].times).toEqual([]);
+	});
+});
+
 describe('presentReferences', () => {
 	const refs = [{ word: 'Mehl', ingredientId: 'r1', groupName: 'Teig', ingredientName: 'Mehl' }];
 
@@ -589,7 +609,8 @@ describe('a reference whose row is deleted while the recipe is open', () => {
 			steps: [
 				{
 					text: 'Zucker aufkochen.',
-					references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }]
+					references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }],
+					times: []
 				}
 			]
 		});

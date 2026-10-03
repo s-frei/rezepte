@@ -1,7 +1,8 @@
 import type { IngredientGroup } from '$lib/api/recipes';
 import { blankToNull, parseNumber, type FormGroup, type FormRef, type FormStep } from './form';
-import { isWordChar, suggestReferences, wordPattern } from './references';
+import { firstWordMatch, isWordChar, suggestReferences } from './references';
 import { formatQuantity } from './format';
+import { addTime, pendingTimes } from './step-times';
 
 /**
  * The logic behind the step editor's ingredient links, kept out of
@@ -284,20 +285,23 @@ export function pendingFor(
 	return out;
 }
 
-/** How many proposals are open across the whole recipe. */
+/** How many proposals, ingredient links and times, are open across the whole recipe. */
 export function countPending(
 	steps: FormStep[],
 	groups: FormGroup[],
 	dismissed: DismissedWords = {}
 ): number {
 	return steps.reduce(
-		(total, step) => total + pendingFor(step, groups, dismissed[step.id] ?? []).length,
+		(total, step) =>
+			total +
+			pendingFor(step, groups, dismissed[step.id] ?? []).length +
+			pendingTimes(step, dismissed[step.id] ?? []).length,
 		0
 	);
 }
 
 /**
- * Confirms every open proposal, in place. The save button says it will do
+ * Confirms every open proposal, links and times, in place. The save button says it will do
  * this, and "Accept now" does it on demand; both go through here so the
  * two can never disagree.
  */
@@ -309,6 +313,9 @@ export function acceptAll(
 	for (const step of steps) {
 		for (const ref of pendingFor(step, groups, dismissed[step.id] ?? [])) {
 			step.references = addReference(step.references, ref);
+		}
+		for (const time of pendingTimes(step, dismissed[step.id] ?? [])) {
+			step.times = addTime(step.times, time, step.text);
 		}
 	}
 }
@@ -369,10 +376,4 @@ export const MAX_WORD_LENGTH = 120;
 /** Whether `word` is short enough for the API to take as a reference. */
 export function fitsWordLimit(word: string): boolean {
 	return [...word].length <= MAX_WORD_LENGTH;
-}
-
-/** The word's first occurrence in `text`, or null. */
-export function firstWordMatch(text: string, word: string): { from: number; to: number } | null {
-	const match = wordPattern(word).exec(text);
-	return match === null ? null : { from: match.index, to: match.index + match[0].length };
 }

@@ -1,5 +1,4 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import type { Editor } from '@tiptap/core';
 import {
 	createRecipe,
 	createUser,
@@ -8,6 +7,7 @@ import {
 	openNewRecipe,
 	openRecipeMenu,
 	search,
+	selectInStep,
 	signOut,
 	uniqueToken
 } from './helpers';
@@ -997,7 +997,7 @@ test('accepts the matcher’s ingredient links and leaves the text as written', 
 	const recipe = await createRecipe(page, {
 		...REFERENCE_RECIPE,
 		title: `Grütze ${token}`,
-		steps: [{ text: REFERENCE_STEP, references: [] }]
+		steps: [{ text: REFERENCE_STEP, references: [], times: [] }]
 	});
 
 	await page.goto(`/recipes/${recipe.slug}/edit`);
@@ -1047,7 +1047,7 @@ test('links the right one of two same-named ingredients with the @ picker', asyn
 	const recipe = await createRecipe(page, {
 		...REFERENCE_RECIPE,
 		title: `Soße ${token}`,
-		steps: [{ text: 'Alles verrühren.', references: [] }]
+		steps: [{ text: 'Alles verrühren.', references: [], times: [] }]
 	});
 
 	await page.goto(`/recipes/${recipe.slug}/edit`);
@@ -1088,7 +1088,7 @@ test('keeps a picked name apart from the word the @ was typed before', async ({ 
 	const recipe = await createRecipe(page, {
 		...REFERENCE_RECIPE,
 		title: `Soße ${token}`,
-		steps: [{ text: 'Zum Schluss Sahne.', references: [] }]
+		steps: [{ text: 'Zum Schluss Sahne.', references: [], times: [] }]
 	});
 
 	await page.goto(`/recipes/${recipe.slug}/edit`);
@@ -1114,34 +1114,6 @@ function selectWord(step: Locator, word: string) {
 	return selectInStep(step, word, 'word');
 }
 
-/**
- * Selects `word` in a step field, or puts the caret in front of it.
- *
- * The selection goes through the editor, not through the DOM selection: the
- * editor reads a DOM selection only on the `selectionchange` event that follows
- * it, and a key pressed before that event is handled at the old selection -
- * where the click landed. Under a loaded full run that window is wide enough to
- * hit. The word's text node is searched for, because a linked word sits in its
- * own decoration span.
- */
-async function selectInStep(step: Locator, word: string, what: 'word' | 'caret') {
-	await step.click();
-	await step.evaluate(
-		(field, [wanted, what]) => {
-			const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
-			let text: Node | null = walker.nextNode();
-			while (text && !text.textContent?.includes(wanted)) text = walker.nextNode();
-			const at = text?.textContent?.indexOf(wanted) ?? -1;
-			if (!text || at < 0) throw new Error(`"${wanted}" is not in the step`);
-			const { editor } = field as HTMLElement & { editor: Editor };
-			const from = editor.view.posAtDOM(text, at);
-			const to = what === 'word' ? from + wanted.length : from;
-			editor.chain().focus().setTextSelection({ from, to }).run();
-		},
-		[word, what] as const
-	);
-}
-
 test('shows a link in a card at its word, and folds the list away', async ({ page }) => {
 	const token = uniqueToken();
 	const recipe = await createRecipe(page, {
@@ -1150,7 +1122,8 @@ test('shows a link in a card at its word, and folds the list away', async ({ pag
 		steps: [
 			{
 				text: 'Den Saft aufkochen.',
-				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }],
+				times: []
 			}
 		]
 	});
@@ -1187,7 +1160,7 @@ test('takes a proposal from the card at its word', async ({ page }) => {
 	const recipe = await createRecipe(page, {
 		...REFERENCE_RECIPE,
 		title: `Vorschlag ${token}`,
-		steps: [{ text: 'Den Saft aufkochen.', references: [] }]
+		steps: [{ text: 'Den Saft aufkochen.', references: [], times: [] }]
 	});
 
 	await page.goto(`/recipes/${recipe.slug}/edit`);
@@ -1213,7 +1186,8 @@ test('brings a link back when the edit that removed its word is undone', async (
 		steps: [
 			{
 				text: 'Den Saft aufkochen.',
-				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }],
+				times: []
 			}
 		]
 	});
@@ -1250,7 +1224,8 @@ test('saves a step whose linked word was deleted, without the link', async ({ pa
 		steps: [
 			{
 				text: 'Den Saft aufkochen.',
-				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }],
+				times: []
 			}
 		]
 	});
@@ -1276,7 +1251,8 @@ test('shows a link as broken once its ingredient is deleted', async ({ page }) =
 		steps: [
 			{
 				text: 'Saft aufkochen.',
-				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }],
+				times: []
 			}
 		]
 	});
@@ -1333,7 +1309,8 @@ test('keeps the links when the unnamed group is finally given a name', async ({ 
 		steps: [
 			{
 				text: 'Saft aufkochen.',
-				references: [{ word: 'Saft', groupName: null, ingredientName: 'Saft' }]
+				references: [{ word: 'Saft', groupName: null, ingredientName: 'Saft' }],
+				times: []
 			}
 		]
 	});
@@ -1379,7 +1356,7 @@ test('links a word whose text differs from the ingredient’s name', async ({ pa
 		// sentence says "Flüssigkeit" and the list says "Saft". No matcher
 		// bridges that, and `@` cannot either - it inserts the ingredient's
 		// own name. Only a word the author selects can.
-		steps: [{ text: 'Langsam aufkochen: die Flüssigkeit.', references: [] }]
+		steps: [{ text: 'Langsam aufkochen: die Flüssigkeit.', references: [], times: [] }]
 	});
 
 	await page.goto(`/recipes/${recipe.slug}/edit`);
@@ -1427,11 +1404,13 @@ test('keeps both step editors and their links after a drag', async ({ page }) =>
 		steps: [
 			{
 				text: 'Saft aufkochen.',
-				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }]
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }],
+				times: []
 			},
 			{
 				text: 'Zucker einrühren.',
-				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }]
+				references: [{ word: 'Zucker', groupName: 'Vanillesoße', ingredientName: 'Zucker' }],
+				times: []
 			}
 		]
 	});
@@ -1555,7 +1534,7 @@ test('the contents sheet jumps to a section and the running head keeps it', asyn
 				ingredients: fixture.ingredientGroups[0].ingredients.slice(0, 1)
 			}
 		],
-		steps: fixture.steps.slice(0, 1).map((step) => ({ ...step, references: [] })),
+		steps: fixture.steps.slice(0, 1).map((step) => ({ ...step, references: [], times: [] })),
 		editPolicy: 'open'
 	});
 	await page.goto(`/recipes/${recipe.slug}/edit`);
