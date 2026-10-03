@@ -12,7 +12,7 @@ sed -e "s/\${RZP_DEX_PORT}/$RZP_DEX_PORT/g" \
 # Not `up -d --wait`: the Dex image declares no HEALTHCHECK, so --wait would
 # only confirm the container is running, not that Dex is answering yet - poll
 # discovery instead, the same document oidc.Login's own discover() reads.
-docker compose -f docker-compose.test.yaml up -d
+docker compose -f docker-compose.test.yaml up -d dex
 ready=false
 for _ in $(seq 1 100); do
 	if curl -fsS "http://localhost:$RZP_DEX_PORT/dex/.well-known/openid-configuration" >/dev/null 2>&1; then

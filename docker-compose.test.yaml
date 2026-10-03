@@ -1,7 +1,8 @@
-# Test-only identity provider for OIDC login; never part of a deployment.
-# Started by `mise run oidc:up`, which renders the config for this worktree's
-# ports. Rezepte itself runs on the host, so "localhost" means the same thing
-# to the browser and to the service.
+# Test-only services; never part of a deployment. Dex is the OIDC provider
+# (`mise run oidc:up`, which renders its config for this worktree's ports),
+# Mailpit the SMTP server that catches every mail (`mise run mail:up`).
+# Rezepte itself runs on the host, so "localhost" means the same thing to the
+# browser and to the service.
 name: rezepte-test-${RZP_DEX_PORT:-5556}
 services:
   dex:
@@ -11,3 +12,11 @@ services:
       - "${RZP_DEX_PORT:-5556}:5556"
     volumes:
       - ./.oidc/dex.yaml:/etc/dex/config.yaml:ro
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - "${RZP_MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${RZP_MAILPIT_UI_PORT:-8025}:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"

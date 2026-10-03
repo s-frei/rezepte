@@ -104,3 +104,9 @@ rzp_oidc_env() {
 			REZEPTE_OIDC_NAME=Dex)
 	fi
 }
+
+# rzp_mailpit_up: succeeds when this worktree's Mailpit answers.
+rzp_mailpit_up() {
+	[ -n "${RZP_MAILPIT_UI_PORT:-}" ] &&
+		curl -fsS "http://localhost:$RZP_MAILPIT_UI_PORT/api/v1/info" >/dev/null 2>&1
+}

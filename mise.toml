@@ -40,6 +40,8 @@ RZP_DOCS_USER_PORT   = "{{ 4001 + (vars.REZEPTE_PORT_OFFSET | default(value='0')
 # The test OIDC provider (mise run oidc:up), Docker rather than the binary -
 # see docs/memory/content/howtos/test-oidc.mdx.
 RZP_DEX_PORT         = "{{ 5556 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_MAILPIT_SMTP_PORT = "{{ 1025 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_MAILPIT_UI_PORT   = "{{ 8025 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 
 [tasks.setup]
 description = "Install all dependencies"
