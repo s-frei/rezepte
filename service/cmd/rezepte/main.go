@@ -29,6 +29,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/recipeimport"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
@@ -204,6 +205,7 @@ func run() error {
 	oidc.Register(srv.API(), login)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
+	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	if err := mcpserver.Register(srv.API(), recipes, version); err != nil {
 		return fmt.Errorf("mcp: %w", err)
 	}

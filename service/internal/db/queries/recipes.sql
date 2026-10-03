@@ -158,3 +158,10 @@ FROM recipes r
 JOIN users c ON c.id = r.created_by
 JOIN users u ON u.id = r.updated_by
 WHERE r.id = ?;
+
+-- name: ListRecipesBySourcePrefix :many
+-- Candidates for the import's duplicate check: recipes whose source starts
+-- with a site's scheme and host. Go normalizes and compares exactly.
+SELECT id, slug, title, source_url, created_by FROM recipes
+WHERE source_url LIKE sqlc.arg(prefix) || '%'
+ORDER BY created_at DESC;

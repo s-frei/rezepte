@@ -1,0 +1,24 @@
+{
+  "Found": true,
+  "Page": {
+    "Title": "Broken Brot",
+    "Description": "",
+    "Servings": 0,
+    "PrepMinutes": null,
+    "CookMinutes": null,
+    "Ingredients": [
+      "500 g Mehl",
+      "1 TL Salz"
+    ],
+    "Steps": [
+      "Teig kneten.",
+      "Backen."
+    ],
+    "Keywords": null,
+    "Authors": null,
+    "PhotoURL": "",
+    "SourceURL": "https://example.com/recipe",
+    "SourceName": "",
+    "Language": "de"
+  }
+}

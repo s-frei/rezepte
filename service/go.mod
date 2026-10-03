@@ -10,6 +10,7 @@ require (
 	github.com/pressly/goose/v3 v3.28.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.46.0
+	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/text v0.42.0
 	modernc.org/sqlite v1.59.0

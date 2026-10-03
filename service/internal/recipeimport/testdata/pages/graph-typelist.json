@@ -1,0 +1,25 @@
+{
+  "Found": true,
+  "Page": {
+    "Title": "Graph Soup",
+    "Description": "",
+    "Servings": 4,
+    "PrepMinutes": null,
+    "CookMinutes": 45,
+    "Ingredients": [
+      "1 l Brühe"
+    ],
+    "Steps": [
+      "Aufkochen."
+    ],
+    "Keywords": [
+      "Suppe",
+      "schnell"
+    ],
+    "Authors": null,
+    "PhotoURL": "https://example.com/img/soup.jpg",
+    "SourceURL": "https://example.com/graph-soup",
+    "SourceName": "Example Kitchen",
+    "Language": ""
+  }
+}

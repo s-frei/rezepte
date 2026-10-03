@@ -1,0 +1,50 @@
+{
+  "Found": true,
+  "Page": {
+    "Title": "Japanisch-koreanischer Gurkensalat",
+    "Description": "Test description.",
+    "Servings": 2,
+    "PrepMinutes": 15,
+    "CookMinutes": null,
+    "Ingredients": [
+      "1 große Gurke(n)",
+      "1 EL, gehäuft Salz (zum Entwässern der Gurke)",
+      "2 Zehe/n Knoblauch",
+      "1 Stange/n Frühlingszwiebel(n)",
+      "1 EL Sojasauce",
+      "2 EL Reisessig",
+      "1 EL Zucker",
+      "1 TL Chiliflocken (koreanische (Gochugaru))",
+      "1 EL Sesam",
+      "1 TL Sesamöl"
+    ],
+    "Steps": [
+      "Step one.",
+      "Step two.",
+      "Step three.",
+      "Step four."
+    ],
+    "Keywords": [
+      "Asien",
+      "Salat",
+      "Vorspeise",
+      "kalt",
+      "Vegetarisch",
+      "Beilage",
+      "Schnell",
+      "einfach",
+      "Vegan",
+      "Japan",
+      "Korea",
+      "Gemüse",
+      "Japanisch"
+    ],
+    "Authors": [
+      "Test Author"
+    ],
+    "PhotoURL": "https://img.chefkoch-cdn.de/rezepte/3068291459349124/bilder/1565977/crop-960x540/japanisch-koreanischer-gurkensalat.jpg",
+    "SourceURL": "https://www.chefkoch.de/rezepte/3068291459349124/Japanisch-koreanischer-Gurkensalat.html",
+    "SourceName": "Chefkoch",
+    "Language": "de"
+  }
+}

@@ -22,6 +22,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/settings"
+	"github.com/s-frei/rezepte/service/internal/sign"
 )
 
 // ErrNotFound is returned for a recipe that does not exist.
@@ -39,7 +40,7 @@ type Service struct {
 	q        *sqlc.Queries
 	settings *settings.Service
 	images   *image.Service
-	signer   *Signer
+	signer   *sign.Signer
 	logger   *slog.Logger
 }
 
@@ -51,7 +52,7 @@ func NewService(ctx context.Context, conn *sql.DB, st *settings.Service, images 
 	if err != nil {
 		return nil, fmt.Errorf("link previews: %w", err)
 	}
-	return &Service{q: sqlc.New(conn), settings: st, images: images, signer: NewSigner(key), logger: logger}, nil
+	return &Service{q: sqlc.New(conn), settings: st, images: images, signer: sign.New(key, "rezepte link preview"), logger: logger}, nil
 }
 
 // Link is the address to share a recipe by.

@@ -770,6 +770,120 @@
         ],
         "type": "object"
       },
+      "DraftInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/DraftInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "text": {
+            "description": "A recipe copied as plain text; give this or url",
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "url": {
+            "description": "Address of a recipe page; give this or text",
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DraftOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/DraftOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "duplicate": {
+            "description": "A recipe already imported from this page; null when there is none",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SourceMatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "photo": {
+            "description": "Null when the page has no photo",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PhotoRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/Input",
+            "description": "Valid for POST /api/v1/recipes once a title is set"
+          },
+          "review": {
+            "description": "Ingredients the parser was unsure about, by index into recipe.ingredientGroups",
+            "items": {
+              "$ref": "#/components/schemas/DraftReview"
+            },
+            "type": "array"
+          },
+          "suggestedTags": {
+            "description": "Keywords that are not tags in this collection yet",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "truncated": {
+            "description": "Something was cut to the recipe limits",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recipe",
+          "review",
+          "suggestedTags",
+          "photo",
+          "duplicate",
+          "truncated"
+        ],
+        "type": "object"
+      },
+      "DraftReview": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "ingredient": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "line": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "ingredient",
+          "line"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -1635,6 +1749,19 @@
         ],
         "type": "object"
       },
+      "PhotoRef": {
+        "additionalProperties": false,
+        "properties": {
+          "href": {
+            "description": "Fetch within two minutes; answers the photo or 404",
+            "type": "string"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "type": "object"
+      },
       "ProviderInfo": {
         "additionalProperties": false,
         "properties": {
@@ -2281,6 +2408,30 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "SourceMatch": {
+        "additionalProperties": false,
+        "properties": {
+          "createdBy": {
+            "$ref": "#/components/schemas/Person"
+          },
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "createdBy"
         ],
         "type": "object"
       },
@@ -4143,6 +4294,204 @@
         "summary": "Read the recipe behind a public link",
         "tags": [
           "public"
+        ]
+      }
+    },
+    "/api/v1/recipe-drafts": {
+      "post": {
+        "operationId": "create-recipe-draft",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "Read a recipe page or pasted text into an unsaved draft",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/api/v1/recipe-drafts/photo": {
+      "get": {
+        "operationId": "get-recipe-draft-photo",
+        "parameters": [
+          {
+            "explode": false,
+            "in": "query",
+            "name": "src",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The photo as the source served it"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "The photo a draft found, while its token lasts",
+        "tags": [
+          "recipes"
         ]
       }
     },

@@ -1,0 +1,46 @@
+{
+  "Found": true,
+  "Page": {
+    "Title": "Chocolate Chip Cookies",
+    "Description": "Test description.",
+    "Servings": 18,
+    "PrepMinutes": null,
+    "CookMinutes": 45,
+    "Ingredients": [
+      "2 cups minus 2 tablespoons cake flour (8 ½ ounces)",
+      "1 ⅔ cups bread flour (8 ½ ounces)",
+      "1 ¼ teaspoons baking soda",
+      "1 ½ teaspoons baking powder",
+      "1 ½ teaspoons coarse sea salt, plus more for sprinkling",
+      "1 ¼ cups unsalted butter (2 ½ sticks)",
+      "1 ¼ cups light brown sugar (10 ounces)",
+      "1 cup plus 2 tablespoons granulated sugar (8 ounces)",
+      "2 large eggs",
+      "2 teaspoons natural vanilla extract",
+      "1 ¼ pounds bittersweet chocolate disks or fèves, at least 60 percent cacao content (see note)"
+    ],
+    "Steps": [
+      "Step one.",
+      "Step two.",
+      "Step three.",
+      "Step four."
+    ],
+    "Keywords": [
+      "Bittersweet Chocolate",
+      "Bread Flour",
+      "Cake Flour",
+      "Freezer Friendly",
+      "Plan-Ahead",
+      "Thanksgiving",
+      "Chocolate Chip Cookie",
+      "Dessert"
+    ],
+    "Authors": [
+      "Test Author"
+    ],
+    "PhotoURL": "https://static01.nyt.com/images/2022/02/12/dining/JT-Chocolate-Chip-Cookies/JT-Chocolate-Chip-Cookies-mediumSquareAt3X.jpg",
+    "SourceURL": "https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies",
+    "SourceName": "NYT Cooking",
+    "Language": "en"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "Found": true,
+  "Page": {
+    "Title": "Pancakes",
+    "Description": "Test description.",
+    "Servings": 4,
+    "PrepMinutes": 5,
+    "CookMinutes": 10,
+    "Ingredients": [
+      "400 g Mehl (wer mag, kann Vollkornmehl verwenden)",
+      "3 große Ei(er), Größe L",
+      "1 Prise(n) Salz",
+      "750 ml Milch (fettarme)",
+      "30 ml Mineralwasser mit Kohlensäure",
+      "Butter (zum Backen)"
+    ],
+    "Steps": [
+      "Step one.",
+      "Step two.",
+      "Step three.",
+      "Step four.",
+      "Step five.",
+      "Step six."
+    ],
+    "Keywords": [
+      "Backen",
+      "Schnell",
+      "einfach",
+      "Kinder",
+      "Mehlspeisen",
+      "Deutsch"
+    ],
+    "Authors": [
+      "Test Author"
+    ],
+    "PhotoURL": "https://img.chefkoch-cdn.de/rezepte/1208161226570428/bilder/1626735/crop-960x540/der-perfekte-pfannkuchen-gelingt-einfach-immer.jpg",
+    "SourceURL": "https://www.chefkoch.de/rezepte/1208161226570428/Der-perfekte-Pfannkuchen-gelingt-einfach-immer.html",
+    "SourceName": "Chefkoch",
+    "Language": "de"
+  }
+}

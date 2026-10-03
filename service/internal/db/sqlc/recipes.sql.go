@@ -527,6 +527,51 @@ func (q *Queries) ListIngredientsByRecipe(ctx context.Context, recipeID string) 
 	return items, nil
 }
 
+const listRecipesBySourcePrefix = `-- name: ListRecipesBySourcePrefix :many
+SELECT id, slug, title, source_url, created_by FROM recipes
+WHERE source_url LIKE ?1 || '%'
+ORDER BY created_at DESC
+`
+
+type ListRecipesBySourcePrefixRow struct {
+	ID        string
+	Slug      string
+	Title     string
+	SourceUrl *string
+	CreatedBy string
+}
+
+// Candidates for the import's duplicate check: recipes whose source starts
+// with a site's scheme and host. Go normalizes and compares exactly.
+func (q *Queries) ListRecipesBySourcePrefix(ctx context.Context, prefix *string) ([]ListRecipesBySourcePrefixRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecipesBySourcePrefix, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecipesBySourcePrefixRow{}
+	for rows.Next() {
+		var i ListRecipesBySourcePrefixRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.SourceUrl,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listStepReferencesByRecipe = `-- name: ListStepReferencesByRecipe :many
 SELECT sr.step_id, sr.word, g.name AS group_name, i.name AS ingredient_name
 FROM step_references sr

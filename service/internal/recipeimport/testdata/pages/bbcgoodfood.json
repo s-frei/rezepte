@@ -1,0 +1,53 @@
+{
+  "Found": true,
+  "Page": {
+    "Title": "Pancakes",
+    "Description": "Test description.",
+    "Servings": 12,
+    "PrepMinutes": 10,
+    "CookMinutes": 20,
+    "Ingredients": [
+      "100g plain flour",
+      "2 large eggs",
+      "300ml milk",
+      "1 tbsp sunflower or vegetable oil plus a little extra for frying",
+      "lemon wedges to serve (optional)",
+      "caster sugar to serve (optional)"
+    ],
+    "Steps": [
+      "Step one.",
+      "Step two.",
+      "Step three.",
+      "Step four.",
+      "Step five."
+    ],
+    "Keywords": [
+      "Cook school",
+      "Test Author",
+      "Crepe",
+      "Crêpes",
+      "easy pancakes",
+      "Flip",
+      "Flipping",
+      "healthy pancakes",
+      "How to make pancakes",
+      "Make ahead",
+      "Pancake day",
+      "Pancake filling",
+      "Shrove Tuesday",
+      "Skills",
+      "thin pancakes",
+      "Breakfast",
+      "Brunch",
+      "Main course",
+      "British"
+    ],
+    "Authors": [
+      "Test Author"
+    ],
+    "PhotoURL": "https://images.immediate.co.uk/production/volatile/sites/30/2020/08/recipe-image-legacy-id-1273477_8-ad36e3b.jpg?resize=440,400",
+    "SourceURL": "https://www.bbcgoodfood.com/recipes/easy-pancakes",
+    "SourceName": "Good Food",
+    "Language": "en"
+  }
+}
