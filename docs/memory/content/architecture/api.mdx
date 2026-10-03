@@ -87,15 +87,17 @@ Rank decides the rest, and it shows up as two status codes on every operation th
 
 | Operation | Path | Notes |
 |---|---|---|
-| list | `GET /users` | `{items: [{id, username, displayName, role, color, locale, createdAt}]}`, ordered by username |
-| create | `POST /users` | `201`, body `{username, password, role, displayName?, color?, locale?}`; `409` `username already taken`; `403` `superadmin role required` when an admin who is not the owner asks for `role: "admin"`. An omitted or empty `displayName` becomes the trimmed username and an omitted `color` becomes the least-used color of the palette, both decided by `user.Create` (see [Users and authentication](/features/users-and-auth)); an omitted `locale` becomes `REZEPTE_LOCALE` (see [Languages](/features/languages)) |
+| list | `GET /users` | `{items: [{id, username, displayName, role, color, locale, email, emailVerified, createdAt, ...}]}`, ordered by username |
+| create | `POST /users` | `201`, body `{username, password, role, displayName?, color?, locale?, email?}`; `409` `username already taken`; `403` `superadmin role required` when an admin who is not the owner asks for `role: "admin"`. With no `password`, mail on and an `email`, the response's `setupLink` also carries `mailedTo` (the address the send went to or failed for) and, when it failed, `mailError: "send_failed"` ([Email](/features/email)). An omitted or empty `displayName` becomes the trimmed username and an omitted `color` becomes the least-used color of the palette, both decided by `user.Create` (see [Users and authentication](/features/users-and-auth)); an omitted `locale` becomes `REZEPTE_LOCALE` (see [Languages](/features/languages)) |
 | update role | `PATCH /users/{id}` | body `{role}`; `404`; `403` `superadmin role required`; `409` `the superadmin cannot be modified` |
+| update email | `PATCH /users/{id}` | body `{email}`, `""` clears it; the reset's rank rule (`403` / `409` as above), not the owner-only profile rule; any change clears `emailVerified`; session only, a token gets `422` at `body.email`; `422` for an address `ParseEmail` refuses |
 | update profile | `PATCH /users/{id}` | body `{displayName?, color?}`; `404`; `403` `superadmin role required` for every caller but the instance owner, whoever the target is - renaming somebody is not administration, so it does not follow the rank rule the rest of this table does. The check runs before any write, so a body that mixes a rename with a password reset changes neither |
 | reset password | `PATCH /users/{id}` | body `{password}`; `404`; `403` / `409` as above; ends every session of that user. No caller can use it on their own row: an admin's own row is an admin target and the owner's row is refused for everyone, so self-service is the profile page's `PATCH /auth/me` |
 | unlink identity | `DELETE /users/{id}/identity` | session only (a token gets `403`), registered by `oidc.Register`; `204`, ending every session of that user; the reset's rank rule (`403` / `409` as above); allowed without a password; `404` when the user has no identity or OIDC is off (see [OIDC](/features/oidc)) |
+| issue setup link | `POST /users/{id}/setup-link` | session only; `201`, body optional `{mail?}`; replaces any open link; the reset's rank rule; with mail on and an address on the account it mails the link unless `mail` is `false`, and the response carries `mailedTo` and, for a failed send, `mailError: "send_failed"` beside the link, never an error status |
 | delete | `DELETE /users/{id}` | `204`; `409` `cannot delete yourself` or `the superadmin cannot be modified`; `403` `superadmin role required`; `404`; reassigns the recipes the user created to the acting admin instead of deleting or orphaning them |
 
-Every field of `PATCH /users/{id}` is optional and at least one is required (`422` `nothing to change` otherwise). One request may carry several of them; they are applied role first, then profile, then password.
+Every field of `PATCH /users/{id}` is optional and at least one is required (`422` `nothing to change` otherwise). One request may carry several of them; they are applied in the order role, public-sharing switch, email, profile, password.
 
 ## Transfer (admin only)
 
@@ -155,8 +157,19 @@ The household-wide settings, one row for the instance (see [Editing rights](/fea
 
 | Operation | Path | Notes |
 |---|---|---|
-| get-settings | `GET /settings` | `{recipesLockedByDefault, linkPreviews, linkPreviewMinutes, publicShares, publicShareDefaultDays, publicShareMaxDays}`; the link preview signing key is never part of it; any session, or a token carrying `recipes:read` |
+| get-settings | `GET /settings` | `{mailEnabled, recipesLockedByDefault, linkPreviews, linkPreviewMinutes, publicShares, publicShareDefaultDays, publicShareMaxDays}`; the link preview signing key is never part of it; any session, or a token carrying `recipes:read`; `mailEnabled` says whether mail can be sent right now, so every role may read it, and switches the Add account dialog ([Email](/features/email)) |
 | update-settings | `PATCH /settings` | body with any of `recipesLockedByDefault`, `linkPreviews`, `linkPreviewMinutes` (`15`, `60`, `1440`, else `422`), `publicShares`, `publicShareDefaultDays` and `publicShareMaxDays` (each `1`, `7`, `30`, `365` or `null` for permanent, else `422`); a field left out stays as it is - `publicShareDefaultDays`/`publicShareMaxDays` tell an absent key apart from an explicit `null`, so a lifetime can be set back to permanent; lowering the maximum below the stored default lowers the default with it; returns the settings; session only, no token reaches it; `403` `superadmin role required` for anyone but the owner |
+
+## Mail settings (owner only)
+
+The SMTP configuration behind [Email](/features/email). Every operation is session only and `403` `superadmin role required` for anyone but the owner, and none is part of `get-settings`, which a token can read.
+
+| Operation | Path | Notes |
+|---|---|---|
+| get-mail-settings | `GET /settings/mail` | `{source, host, port, security, username, passwordSet, from, fromName, publicUrlMissing}`; `source` is `env`, `settings` or `none`; with `none` the rest are the stored defaults (port 587, `starttls`, sender name Rezepte); the password is never returned |
+| update-mail-settings | `PUT /settings/mail` | body `{host, port, security, username, from, fromName, password?}`; an absent `password` keeps the stored one, but only for the stored host and username (`422` "enter the password for a different server" otherwise); no connection is made; `409` when `source` is `env`; `422` for a bad address, port or security, or for a username with `none` on a host that is not loopback |
+| delete-mail-settings | `DELETE /settings/mail` | clears the stored configuration, password included; `409` when `source` is `env` |
+| send-test-mail | `POST /settings/mail/test` | body `{to, config?}`; with `config` it tests those unsaved values (a missing password falls back to the stored one under the same host-and-username rule as a save), refused with `409` when `source` is `env`; `204`, or `502` with the server's reply as detail; `422` for a bad `to` |
 
 ## Public shares
 

@@ -18,9 +18,10 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 | `mise run docs` | both documentation sites |
 | `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |
 | `mise run demo` | builds, starts `rezepte --demo` on the demo port and keeps it up; with `-- <cmd>` it runs that command against it instead |
-| `mise run oidc:up` / `oidc:down` | starts or stops Dex, the test identity provider `mise run e2e` and `mise run demo` sign in against when it is running ([Test OIDC sign-in](/howtos/test-oidc)) |
+| `mise run oidc:up` / `oidc:down` | starts or stops only Dex, the test identity provider `mise run e2e` and `mise run demo` sign in against when it is running ([Test OIDC sign-in](/howtos/test-oidc)) |
+| `mise run mail:up` / `mail:down` | starts or stops only Mailpit, the test mail server `mise run e2e` and `mise run demo` send into when it is running; its SMTP and inbox ports come from the worktree's offset and `mise run ports` lists them ([Email](/features/email)) |
 
-Docker is the one tool in this list not in `[tools]`: nothing else here needs it, so a contributor who never runs `oidc:up` and never touches `docker-compose*.yaml` does not have to install it, and `frontend/e2e/oidc.test.ts` skips itself rather than failing when Dex is not running.
+Docker is the one tool in this list not in `[tools]`: nothing else here needs it, so a contributor who never runs `oidc:up` or `mail:up` and never touches `docker-compose*.yaml` does not have to install it, and `frontend/e2e/oidc.test.ts` and `frontend/e2e/mail.test.ts` skip themselves rather than failing when Dex or Mailpit is not running.
 
 `//frontend:brand:export` regenerates the lockups, the favicon, the touch and manifest icons, the manifest and the social preview from the logo sources in `assets/brand/`, and `//frontend:brand:check`, which `//frontend:check` depends on, holds the committed outputs to their shape ([Design system](/architecture/design-system#logo)). `//docs/user:brand-assets` copies the lockups, the favicon and the social preview into the docs site, which cannot import them from outside its package. `//docs/user:readme-images` rounds the overview and phone cook-mode screenshots into `assets/readme/` for the README, `//docs/user:hero-images` paints the mascot scenes with the current screenshots on their screens into `docs/user/public/heroes/`, and `//docs/user:screenshots` runs both after every regeneration.
 

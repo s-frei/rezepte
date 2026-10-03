@@ -121,6 +121,9 @@ Three assertions catch most layout bugs:
 
 For stacking bugs (something hidden behind a fixed bar), `document.elementFromPoint(x, y)` names the element that actually paints there, and `getComputedStyle` gives you `zIndex`, `position` and `backdropFilter` of both sides.
 
+## Mail
+A change that sends mail is verified against Mailpit, not against a mocked sender. `mise run mail:up` starts it; `mise run e2e` then hands the suite its address, `frontend/e2e/mail.test.ts` reads the delivered messages through `frontend/e2e/mailpit.ts`, and the inbox is a browser tab at the URL `mail:up` prints, where the HTML part and the plain-text part can be looked at side by side. The demo configures it itself ([Demo mode](/features/demo-mode)). Without Mailpit the mail specs skip, so a green run without it proves nothing about mail.
+
 ## Running a probe
 
 `mise run demo -- <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images), runs the command against it and stops it afterwards - the fastest way to a realistic page:
