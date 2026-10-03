@@ -215,3 +215,79 @@ func TestRedeemSetupLinkOverHTTP(t *testing.T) {
 		t.Fatalf("used link: %d", rec.Code)
 	}
 }
+
+func ptr[T any](v T) *T { return &v }
+
+func TestConsumeVerifiesOnlyMatchingAddress(t *testing.T) {
+	for name, tc := range map[string]struct {
+		sentTo, emailNow string
+		want             bool
+	}{
+		"mailed to current address": {"lena@example.org", "lena@example.org", true},
+		"address changed since":     {"lena@example.org", "lena@other.org", false},
+		"not mailed":                {"", "lena@example.org", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			f := newSetupFixture(t)
+			lena, err := f.users.Create(ctx, user.CreateParams{Username: "lena", Role: user.RoleUser})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.users.SetProfile(ctx, lena.ID, user.ProfileUpdate{Email: ptr("lena@example.org")}); err != nil {
+				t.Fatal(err)
+			}
+			link, err := f.sessions.IssueSetupLink(ctx, f.owner, lena.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.sentTo != "" {
+				if err := f.sessions.MarkSetupLinkSent(ctx, link.Token, tc.sentTo); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := f.users.SetProfile(ctx, lena.ID, user.ProfileUpdate{Email: ptr(tc.emailNow)}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.sessions.RedeemWithPassword(ctx, link.Token, "a-long-password"); err != nil {
+				t.Fatal(err)
+			}
+			got, _ := f.users.ByID(ctx, lena.ID)
+			if got.EmailVerified != tc.want {
+				t.Fatalf("EmailVerified = %v, want %v", got.EmailVerified, tc.want)
+			}
+		})
+	}
+}
+
+func TestConsumeByHashVerifies(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	lena, _ := f.users.Create(ctx, user.CreateParams{Username: "lena", Role: user.RoleUser})
+	_, _ = f.users.SetProfile(ctx, lena.ID, user.ProfileUpdate{Email: ptr("lena@example.org")})
+	link, _ := f.sessions.IssueSetupLink(ctx, f.owner, lena.ID)
+	_ = f.sessions.MarkSetupLinkSent(ctx, link.Token, "lena@example.org")
+	if _, err := f.sessions.ConsumeSetupLinkByHash(ctx, auth.SetupLinkHash(link.Token)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := f.users.ByID(ctx, lena.ID); !got.EmailVerified {
+		t.Fatal("OIDC setup path did not verify the mailed address")
+	}
+}
+
+func TestMarkSentIsKeyedByLinkNotAccount(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	lena, _ := f.users.Create(ctx, user.CreateParams{Username: "lena", Role: user.RoleUser, Email: "lena@example.org"})
+	l1, _ := f.sessions.IssueSetupLink(ctx, f.owner, lena.ID)
+	l2, _ := f.sessions.IssueSetupLink(ctx, f.owner, lena.ID) // replaces l1 while its mail is "in flight"
+	if err := f.sessions.MarkSetupLinkSent(ctx, l1.Token, "lena@example.org"); err != nil {
+		t.Fatalf("marking a replaced link must be a no-op: %v", err)
+	}
+	if _, err := f.sessions.RedeemWithPassword(ctx, l2.Token, "a-long-password"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := f.users.ByID(ctx, lena.ID); got.EmailVerified {
+		t.Fatal("a never-mailed link verified the address")
+	}
+}

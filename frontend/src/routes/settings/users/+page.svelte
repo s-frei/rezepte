@@ -5,6 +5,7 @@
 	import { listColorUsage, type ColorUsage } from '$lib/api/auth';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import { getOidc } from '$lib/api/oidc';
+	import { getSettings } from '$lib/api/settings';
 	import {
 		deleteUser,
 		issueSetupLink,
@@ -15,6 +16,7 @@
 		updateUser,
 		type PersonEntry,
 		type SetupLinkInfo,
+		type UserAccount,
 		type UserRole
 	} from '$lib/api/users';
 	import { session } from '$lib/auth.svelte';
@@ -23,6 +25,7 @@
 	import PublicSharingCard from '$lib/components/settings/PublicSharingCard.svelte';
 	import RecipeEditingCard from '$lib/components/settings/RecipeEditingCard.svelte';
 	import ResetPasswordDialog from '$lib/components/settings/ResetPasswordDialog.svelte';
+	import SendSetupLinkDialog from '$lib/components/settings/SendSetupLinkDialog.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	import SetupLinkDialog from '$lib/components/settings/SetupLinkDialog.svelte';
 	import PeopleList from '$lib/components/settings/PeopleList.svelte';
@@ -31,6 +34,7 @@
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { isAdminRole, roleLabel } from '$lib/roles';
+	import { focusManageButton, focusMenuTrigger } from '$lib/settings/person-focus';
 
 	let users = $state<PersonEntry[]>([]);
 	let usage = $state<ColorUsage[]>([]);
@@ -58,6 +62,14 @@
 	let setupLinkOpen = $state(false);
 	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
 	let setupLinkName = $state('');
+	// Each account's address, by id - admin business like `sharing`. The send
+	// step prefills from it, and a changed address is written back first.
+	let emails = $state<Record<string, string>>({});
+	// Whether Rezepte sends mail: Add account then mails the link, and a
+	// row's "Setup link" asks where to first.
+	let mailEnabled = $state(false);
+	let sendOpen = $state(false);
+	let sendTarget = $state<PersonEntry | null>(null);
 
 	// Every account reads this page; only an admin gets the controls, the
 	// pickers that need the color counts, and the household's editing card.
@@ -89,6 +101,7 @@
 			]);
 			users = list;
 			sharing = Object.fromEntries(accounts.map((a) => [a.id, a.canSharePublicly]));
+			emails = Object.fromEntries(accounts.map((a) => [a.id, a.email]));
 			setup = Object.fromEntries(
 				accounts.map((a) => [
 					a.id,
@@ -115,8 +128,18 @@
 			getOidc()
 				.then((info) => (provider = info.enabled ? info.name : undefined))
 				.catch(() => {});
+			void loadMailEnabled();
 		}
 	});
+
+	// Advisory like the provider: unknown means the dialogs work as without mail.
+	async function loadMailEnabled() {
+		try {
+			mailEnabled = (await getSettings()).mailEnabled;
+		} catch {
+			mailEnabled = false;
+		}
+	}
 
 	function replace(updated: PersonEntry) {
 		users = users.map((u) => (u.id === updated.id ? updated : u));
@@ -127,8 +150,9 @@
 		void loadUsage();
 	}
 
-	function userCreated(user: PersonEntry, setupLink: SetupLinkInfo | null) {
+	function userCreated(user: UserAccount, setupLink: SetupLinkInfo | null) {
 		users = [...users, user];
+		emails = { ...emails, [user.id]: user.email };
 		void loadUsage();
 		// Recorded either way: a password-mode create has one already
 		// (hasPassword true, no open link), and without this the new row
@@ -146,29 +170,77 @@
 
 	// Issuing replaces any open link, the same act as a password reset, so it
 	// needs no confirmation - the dialog that follows is confirmation enough.
+	// With mail on, a step first asks where the link goes.
 	async function askSetupLink(user: PersonEntry) {
-		try {
-			const link = await issueSetupLink(user.id);
-			setup = {
-				...setup,
-				[user.id]: {
-					hasPassword: setup[user.id]?.hasPassword ?? false,
-					hasIdentity: setup[user.id]?.hasIdentity,
-					setupLinkExpiresAt: link.expiresAt
-				}
-			};
-			setupLinkInfo = link;
-			setupLinkName = user.displayName;
-			setupLinkOpen = true;
-		} catch (error) {
-			if (error instanceof ApiError && error.status === 409) {
-				toast.error(m.users_owner_protected());
-			} else if (error instanceof ApiError && error.status === 403) {
-				toast.error(m.users_rank_required());
-			} else if (!isSignedOut(error)) {
-				toast.error(m.users_update_error());
-			}
+		if (mailEnabled) {
+			sendTarget = user;
+			sendOpen = true;
+			return;
 		}
+		await issueAndShow(user, { mail: false }).catch(() => {});
+	}
+
+	function linkError(error: unknown) {
+		if (error instanceof ApiError && error.status === 409) {
+			toast.error(m.users_owner_protected());
+		} else if (error instanceof ApiError && error.status === 403) {
+			toast.error(m.users_rank_required());
+		} else if (!isSignedOut(error)) {
+			toast.error(m.users_update_error());
+		}
+	}
+
+	// Toasts a failure and rethrows it, so the send step knows to close.
+	async function issueAndShow(user: PersonEntry, opts: { mail: boolean }) {
+		let link: SetupLinkInfo;
+		try {
+			link = await issueSetupLink(user.id, opts);
+		} catch (error) {
+			linkError(error);
+			throw error;
+		}
+		setup = {
+			...setup,
+			[user.id]: {
+				hasPassword: setup[user.id]?.hasPassword ?? false,
+				hasIdentity: setup[user.id]?.hasIdentity,
+				setupLinkExpiresAt: link.expiresAt
+			}
+		};
+		setupLinkInfo = link;
+		setupLinkName = user.displayName;
+		// The result records whatever has focus as where to return it, so the
+		// step closes first and focus goes back to the row's trigger - the
+		// step's own Send button is gone by the time the result closes. Only
+		// one of the two triggers is shown at a time (menu from md, row button
+		// on phones); focusing the hidden one does nothing.
+		if (sendOpen) {
+			sendOpen = false;
+			await tick();
+			focusManageButton(user.id);
+			focusMenuTrigger(user.id);
+		}
+		setupLinkOpen = true;
+	}
+
+	async function sendTo(address: string) {
+		const user = sendTarget;
+		if (!user) return;
+		if (address !== (emails[user.id] ?? '')) {
+			try {
+				await updateUser(user.id, { email: address });
+			} catch (error) {
+				// A refused address is shown under the step's field instead.
+				const badAddress =
+					error instanceof ApiError &&
+					error.status === 422 &&
+					error.errors.some((e) => e.location === 'body.email');
+				if (!badAddress) linkError(error);
+				throw error;
+			}
+			emails = { ...emails, [user.id]: address };
+		}
+		await issueAndShow(user, { mail: true });
 	}
 
 	// No confirmation: a revoked link is replaced in one click, and issuing a
@@ -365,7 +437,7 @@
 {#if isAdmin}
 	<!-- The new account is appended, not sorted in: PeopleList owns the display
 	     order and drops the row into its group. -->
-	<CreateUserDialog bind:open={createOpen} {usage} oncreated={userCreated} />
+	<CreateUserDialog bind:open={createOpen} {usage} {mailEnabled} oncreated={userCreated} />
 	<!-- Stays mounted and keeps its target after closing so the close transition
 	     can play; `askReset` replaces the target on the next open. -->
 	<ResetPasswordDialog bind:open={resetOpen} user={resetTarget} />
@@ -373,6 +445,14 @@
 	     password), or from a row's "Setup link" action. Stays mounted like
 	     the dialogs above. -->
 	<SetupLinkDialog bind:open={setupLinkOpen} link={setupLinkInfo} displayName={setupLinkName} />
+	<!-- The row action's first step while mail is on. -->
+	<SendSetupLinkDialog
+		bind:open={sendOpen}
+		displayName={sendTarget?.displayName ?? ''}
+		email={sendTarget ? (emails[sendTarget.id] ?? '') : ''}
+		onsend={sendTo}
+		onshowonly={() => (sendTarget ? issueAndShow(sendTarget, { mail: false }) : Promise.resolve())}
+	/>
 	<ConfirmDialog
 		bind:open={deleteOpen}
 		title={m.users_delete_confirm_title()}

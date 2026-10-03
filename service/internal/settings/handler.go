@@ -14,8 +14,15 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
+// Response is Settings plus whether mail is on, which the settings
+// service does not own (package mail does).
+type Response struct {
+	Settings
+	MailEnabled bool `json:"mailEnabled" doc:"Whether Rezepte can send mail, which switches the Add account dialog"`
+}
+
 type settingsOutput struct {
-	Body Settings
+	Body Response
 }
 
 // nullableDay is a PATCH field for a lifetime in days that tells apart three
@@ -70,7 +77,7 @@ type updateSettingsInput struct {
 
 // Register installs get-settings (any session or a recipes:read token) and
 // update-settings (the owner's session only).
-func Register(api huma.API, svc *Service) {
+func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-settings",
 		Method:      http.MethodGet,
@@ -83,7 +90,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &settingsOutput{Body: s}, nil
+		return &settingsOutput{Body: Response{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -109,7 +116,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &settingsOutput{Body: s}, nil
+		return &settingsOutput{Body: Response{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
 	})
 }
 

@@ -22,10 +22,13 @@
 	let {
 		open = $bindable(false),
 		usage,
+		mailEnabled = false,
 		oncreated
 	}: {
 		open?: boolean;
 		usage: ColorUsage[];
+		/** Whether Rezepte sends mail: the setup link then goes to the address given. */
+		mailEnabled?: boolean;
 		oncreated: (user: UserAccount, setupLink: SetupLinkInfo | null) => void;
 	} = $props();
 
@@ -36,6 +39,9 @@
 	let mode = $state<'link' | 'password'>('link');
 	let username = $state('');
 	let displayName = $state('');
+	// Profile, not sign-in: it sits with the person in either mode, and is
+	// where the setup link goes once mail is on.
+	let email = $state('');
 	let password = $state('');
 	// Typed twice, like the reset and the own change: the admin hands this
 	// password on, and a typo nobody saw would lock the new member out.
@@ -51,7 +57,9 @@
 	// Held as a plain string because that is what the select binds; narrowed
 	// back to Locale on submit, where the API type demands it.
 	let locale = $state<string>(getLocale());
-	let errors = $state<{ username?: string; password?: string; repeat?: string }>({});
+	let errors = $state<{ username?: string; email?: string; password?: string; repeat?: string }>(
+		{}
+	);
 	let saving = $state(false);
 
 	const localeOptions = languageOptions();
@@ -77,6 +85,7 @@
 			mode = 'link';
 			username = '';
 			displayName = '';
+			email = '';
 			password = '';
 			repeat = '';
 			role = 'user';
@@ -112,7 +121,8 @@
 				password: mode === 'password' ? password : undefined,
 				role: role as UserRole,
 				color,
-				locale: locale as Locale
+				locale: locale as Locale,
+				email: email.trim() || undefined
 			});
 			toast.success(m.users_created({ username: created.username }));
 			open = false;
@@ -123,6 +133,9 @@
 			} else if (error instanceof ApiError && error.status === 422) {
 				if (error.errors.some((e) => e.location === 'body.username')) {
 					errors.username = m.users_validation_username();
+				}
+				if (error.errors.some((e) => e.location === 'body.email')) {
+					errors.email = m.settings_profile_email_invalid();
 				}
 				const password = passwordErrorsFromApi(error.errors).next;
 				if (password) {
@@ -182,6 +195,17 @@
 					maxlength={64}
 					counter={64}
 					bind:value={displayName}
+				/>
+				<Input
+					id="new-user-email"
+					type="email"
+					label="{m.users_field_email()} · {m.users_field_optional()}"
+					hint={m.users_field_email_hint()}
+					autocomplete="off"
+					maxlength={254}
+					bind:value={email}
+					oninput={() => (errors = withoutErrors(errors, ['email']))}
+					error={errors.email ?? null}
 				/>
 				<ColorPicker bind:value={color} {usage} label={m.users_field_color()} />
 				<div>
@@ -293,7 +317,11 @@
 		</div>
 		<div class="flex justify-end gap-3 pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={saving}>{m.users_create_submit()}</Button>
+			<Button type="submit" disabled={saving}>
+				{mode === 'link' && mailEnabled && email.trim()
+					? m.users_create_submit_and_send()
+					: m.users_create_submit()}
+			</Button>
 		</div>
 	</form>
 </BaseDialog>

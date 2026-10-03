@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -29,6 +30,10 @@ type Config struct {
 	OIDCClientID     string // REZEPTE_OIDC_CLIENT_ID
 	OIDCClientSecret string // REZEPTE_OIDC_CLIENT_SECRET, optional
 	OIDCName         string // REZEPTE_OIDC_NAME, default "single sign-on"
+
+	// SMTP is the mail server the environment pins; its zero value means
+	// the owner configures mail in the UI instead (see package mail).
+	SMTP mail.Config
 }
 
 // OIDCEnabled reports whether sign-in through an OpenID Connect provider is
@@ -95,6 +100,27 @@ func load(getenv func(string) string) (Config, error) {
 	if (cfg.OIDCIssuer != "" || cfg.OIDCClientID != "") &&
 		(cfg.OIDCIssuer == "" || cfg.OIDCClientID == "" || cfg.PublicURL == "") {
 		return Config{}, fmt.Errorf("REZEPTE_OIDC_ISSUER, REZEPTE_OIDC_CLIENT_ID and REZEPTE_PUBLIC_URL must be set together")
+	}
+	if host := getenv("REZEPTE_SMTP_HOST"); host != "" {
+		port, err := strconv.Atoi(get("REZEPTE_SMTP_PORT", "587"))
+		if err != nil {
+			return Config{}, fmt.Errorf("REZEPTE_SMTP_PORT must be a number, got %q", getenv("REZEPTE_SMTP_PORT"))
+		}
+		security, err := mail.ParseSecurity(get("REZEPTE_SMTP_SECURITY", "starttls"))
+		if err != nil {
+			return Config{}, fmt.Errorf("REZEPTE_SMTP_SECURITY: %w", err)
+		}
+		cfg.SMTP = mail.Config{
+			Host: host, Port: port, Security: security,
+			Username: getenv("REZEPTE_SMTP_USERNAME"), Password: getenv("REZEPTE_SMTP_PASSWORD"),
+			From: getenv("REZEPTE_SMTP_FROM"), FromName: get("REZEPTE_SMTP_FROM_NAME", "Rezepte"),
+		}
+		if err := cfg.SMTP.Validate(); err != nil {
+			return Config{}, fmt.Errorf("REZEPTE_SMTP_*: %w", err)
+		}
+		if cfg.PublicURL == "" {
+			return Config{}, fmt.Errorf("REZEPTE_SMTP_HOST needs REZEPTE_PUBLIC_URL: a mailed link must be absolute")
+		}
 	}
 	return cfg, nil
 }

@@ -1,27 +1,31 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import Copy from '@lucide/svelte/icons/copy';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Mail from '@lucide/svelte/icons/mail';
 	import { toast } from 'svelte-sonner';
 	import { setupLinkUrl, type SetupLinkInfo } from '$lib/api/users';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import { formatDate } from '$lib/recipe/format';
 
 	let {
 		open = $bindable(false),
 		link,
 		displayName
-	}: { open?: boolean; link: SetupLinkInfo | null; displayName: string } = $props();
+	}: {
+		open?: boolean;
+		link: SetupLinkInfo | null;
+		displayName: string;
+	} = $props();
+
+	// mailedTo names the address on a failed send too; mailError tells them apart.
+	const sent = $derived(!!link?.mailedTo && !link.mailError);
 
 	const url = $derived(link ? setupLinkUrl(link) : '');
-	const expiry = $derived(
-		link
-			? new Intl.DateTimeFormat(getLocale(), { dateStyle: 'medium' }).format(
-					new Date(link.expiresAt)
-				)
-			: ''
-	);
+	// The people row's formatter, so the date reads the same in both places.
+	const expiry = $derived(link ? formatDate(link.expiresAt) : '');
 
 	// navigator.clipboard is absent on plain http (a LAN instance with no
 	// TLS) and writeText can also reject (permission denied); either way the
@@ -45,10 +49,42 @@
 	<Dialog.Title class="font-display text-heading font-medium">
 		{m.setup_link_dialog_title({ name: displayName })}
 	</Dialog.Title>
-	<Dialog.Description class="mt-2 text-body text-text-muted">
-		{m.setup_link_dialog_hint()}
-	</Dialog.Description>
-	<div class="mt-5 flex items-start gap-2 rounded-md bg-surface-elevated p-3">
+	<!-- Mailed, the link below is only the fallback, so the success block
+	     takes the hint's place and names the expiry itself. -->
+	{#if sent}
+		<div
+			role="status"
+			class="mt-4 flex items-start gap-3 rounded-lg bg-success-soft px-4 py-3.5 text-success-foreground"
+		>
+			<CircleCheck aria-hidden="true" class="mt-0.5 size-5 shrink-0" />
+			<div class="min-w-0">
+				<Dialog.Description class="text-body font-semibold break-words">
+					{m.setup_link_sent({ address: link?.mailedTo ?? '' })}
+				</Dialog.Description>
+				<p class="text-caption">{m.setup_link_sent_detail({ date: expiry })}</p>
+			</div>
+		</div>
+		<p class="mt-4 text-caption text-text-muted">{m.setup_link_sent_fallback()}</p>
+	{:else if link?.mailError}
+		<!-- The failure block says to pass the link on; the hint would say it twice. -->
+		<div
+			role="alert"
+			class="mt-4 flex items-start gap-3 rounded-lg bg-destructive-soft px-4 py-3.5 text-destructive"
+		>
+			<Mail aria-hidden="true" class="mt-0.5 size-5 shrink-0" />
+			<div class="min-w-0">
+				<Dialog.Description class="text-body font-semibold break-words">
+					{m.setup_link_send_failed({ address: link.mailedTo ?? '' })}
+				</Dialog.Description>
+				<p class="text-caption">{m.setup_link_send_failed_detail()}</p>
+			</div>
+		</div>
+	{:else}
+		<Dialog.Description class="mt-2 text-body text-text-muted">
+			{m.setup_link_dialog_hint()}
+		</Dialog.Description>
+	{/if}
+	<div class="{sent ? 'mt-2' : 'mt-5'} flex items-start gap-2 rounded-md bg-surface-elevated p-3">
 		<!-- A textarea, not a single-line input: the URL is longer than the
 		     dialog is wide, and wrapping it beats a field that scrolls its
 		     content out of view - the same reason TokenRevealDialog's token
@@ -66,7 +102,9 @@
 			{m.tokens_reveal_copy()}
 		</Button>
 	</div>
-	<p class="mt-3 text-caption text-text-muted">
-		{m.setup_link_dialog_expiry({ date: expiry })}
-	</p>
+	{#if !sent}
+		<p class="mt-3 text-caption text-text-muted">
+			{m.setup_link_dialog_expiry({ date: expiry })}
+		</p>
+	{/if}
 </BaseDialog>

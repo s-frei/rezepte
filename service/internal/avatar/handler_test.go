@@ -65,7 +65,7 @@ func setup(t *testing.T) env {
 	dir := filepath.Join(t.TempDir(), "avatars")
 	avatars := avatar.NewService(conn, dir, imagesvc.NewService(conn, filepath.Join(t.TempDir(), "images")))
 	avatar.Register(srv.API(), avatars)
-	userapi.Register(srv.API(), users, sessions, avatars, "")
+	userapi.Register(srv.API(), users, sessions, avatars, "", nil)
 	return env{h: srv.Handler(), dir: dir, tokens: tokens, sam: sam, ada: ada, max: member}
 }
 

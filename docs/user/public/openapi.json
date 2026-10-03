@@ -318,6 +318,59 @@
         ],
         "type": "object"
       },
+      "ConfigBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ConfigBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "fromName": {
+            "type": "string"
+          },
+          "host": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "description": "Omitted keeps the stored password",
+            "type": "string"
+          },
+          "port": {
+            "format": "int64",
+            "maximum": 65535,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "security": {
+            "enum": [
+              "starttls",
+              "tls",
+              "none"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "security",
+          "from"
+        ],
+        "type": "object"
+      },
       "CoverInput": {
         "additionalProperties": false,
         "properties": {
@@ -369,6 +422,11 @@
           "displayName": {
             "description": "Empty falls back to the login name",
             "maxLength": 64,
+            "type": "string"
+          },
+          "email": {
+            "description": "Where the setup link is mailed, when mail is configured; stored unverified",
+            "maxLength": 254,
             "type": "string"
           },
           "locale": {
@@ -625,6 +683,14 @@
             "description": "Name shown wherever the UI names this person",
             "type": "string"
           },
+          "email": {
+            "description": "Profile address; where setup links are mailed. Empty means none",
+            "type": "string"
+          },
+          "emailVerified": {
+            "description": "True once a provider vouched for it or the person redeemed a link mailed to it",
+            "type": "boolean"
+          },
           "hasIdentity": {
             "description": "Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users",
             "type": "boolean"
@@ -678,6 +744,8 @@
           "createdAt",
           "avatarId",
           "hasPassword",
+          "email",
+          "emailVerified",
           "hasIdentity"
         ],
         "type": "object"
@@ -1169,6 +1237,25 @@
           "username",
           "displayName"
         ],
+        "type": "object"
+      },
+      "IssueSetupLinkInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/IssueSetupLinkInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "mail": {
+            "description": "false issues the link without mailing it",
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "Link": {
@@ -1883,13 +1970,13 @@
         ],
         "type": "object"
       },
-      "Settings": {
+      "Response": {
         "additionalProperties": false,
         "properties": {
           "$schema": {
             "description": "A URL to the JSON Schema for this object.",
             "examples": [
-              "https://example.com/api/v1/schemas/Settings.json"
+              "https://example.com/api/v1/schemas/Response.json"
             ],
             "format": "uri",
             "readOnly": true,
@@ -1905,6 +1992,10 @@
             "type": "integer"
           },
           "linkPreviews": {
+            "type": "boolean"
+          },
+          "mailEnabled": {
+            "description": "Whether Rezepte can send mail, which switches the Add account dialog",
             "type": "boolean"
           },
           "publicShareAttribution": {
@@ -1944,6 +2035,7 @@
           }
         },
         "required": [
+          "mailEnabled",
           "recipesLockedByDefault",
           "linkPreviews",
           "linkPreviewMinutes",
@@ -1951,6 +2043,72 @@
           "publicShareDefaultDays",
           "publicShareMaxDays",
           "publicShareAttribution"
+        ],
+        "type": "object"
+      },
+      "SettingsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/SettingsBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "fromName": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "passwordSet": {
+            "type": "boolean"
+          },
+          "port": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "publicUrlMissing": {
+            "description": "REZEPTE_PUBLIC_URL is unset, so no mail can carry a link",
+            "type": "boolean"
+          },
+          "security": {
+            "enum": [
+              "starttls",
+              "tls",
+              "none"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "description": "env: REZEPTE_SMTP_* pin it and the UI is read-only; settings: configured here; none: no mail",
+            "enum": [
+              "env",
+              "settings",
+              "none"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "host",
+          "port",
+          "security",
+          "username",
+          "passwordSet",
+          "from",
+          "fromName",
+          "publicUrlMissing"
         ],
         "type": "object"
       },
@@ -1968,6 +2126,17 @@
           },
           "expiresAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "mailError": {
+            "description": "Set when mailing to mailedTo failed; the link is still valid and shown",
+            "enum": [
+              "send_failed"
+            ],
+            "type": "string"
+          },
+          "mailedTo": {
+            "description": "The address the link was mailed to, or that mailing it failed for; absent when no mail was tried",
             "type": "string"
           },
           "path": {
@@ -2183,6 +2352,32 @@
         ],
         "type": "object"
       },
+      "TestInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/TestInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/components/schemas/ConfigBody",
+            "description": "Unsaved values to test instead of the stored configuration"
+          },
+          "to": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "type": "object"
+      },
       "UpdateInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2216,6 +2411,11 @@
           "displayName": {
             "description": "Owner only",
             "maxLength": 64,
+            "type": "string"
+          },
+          "email": {
+            "description": "Same rank rule as a password reset; clears the verified mark; session only",
+            "maxLength": 254,
             "type": "string"
           },
           "password": {
@@ -2395,6 +2595,14 @@
             "description": "Name shown wherever the UI names this person",
             "type": "string"
           },
+          "email": {
+            "description": "Profile address; where setup links are mailed. Empty means none",
+            "type": "string"
+          },
+          "emailVerified": {
+            "description": "True once a provider vouched for it or the person redeemed a link mailed to it",
+            "type": "boolean"
+          },
           "hasIdentity": {
             "description": "Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users",
             "type": "boolean"
@@ -2445,6 +2653,8 @@
           "createdAt",
           "avatarId",
           "hasPassword",
+          "email",
+          "emailVerified",
           "hasIdentity"
         ],
         "type": "object"
@@ -5243,7 +5453,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Settings"
+                  "$ref": "#/components/schemas/Response"
                 }
               }
             },
@@ -5292,7 +5502,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Settings"
+                  "$ref": "#/components/schemas/Response"
                 }
               }
             },
@@ -5335,6 +5545,293 @@
           }
         ],
         "summary": "Change the household settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/mail": {
+      "delete": {
+        "operationId": "delete-mail-settings",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Turn mail off",
+        "tags": [
+          "settings"
+        ]
+      },
+      "get": {
+        "operationId": "get-mail-settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get the mail configuration",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "update-mail-settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Configure mail",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/mail/test": {
+      "post": {
+        "description": "With config, tests those unsaved values (a missing password uses the stored one, for the stored host and username only); without, the configuration in force. A refusal by the SMTP server answers 502 with the server's reply.",
+        "operationId": "send-test-mail",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Send a test mail",
         "tags": [
           "settings"
         ]
@@ -6669,6 +7166,15 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueSetupLinkInputBody"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {

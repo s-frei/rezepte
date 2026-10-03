@@ -14,8 +14,17 @@ export type UserAccount = User & {
 
 export type UserRole = User['role'];
 
-/** A freshly issued setup link, shown once. */
-export type SetupLinkInfo = { path: string; expiresAt: string };
+/**
+ * A freshly issued setup link, shown once. `mailedTo` names the address a
+ * mail was tried for; `mailError` says that send failed - the link is valid
+ * either way.
+ */
+export type SetupLinkInfo = {
+	path: string;
+	expiresAt: string;
+	mailedTo?: string;
+	mailError?: 'send_failed';
+};
 
 /** The full URL a setup link's `path` resolves to, on this instance. */
 export function setupLinkUrl(info: SetupLinkInfo): string {
@@ -58,13 +67,18 @@ export function createUser(input: {
 	color?: UserColor;
 	/** Omitted means the instance default (`REZEPTE_LOCALE`). */
 	locale?: Locale;
+	/** Where the setup link is mailed when mail is on; stored on the account either way. */
+	email?: string;
 }): Promise<UserAccount & { setupLink?: SetupLinkInfo }> {
 	return api('/users', { method: 'POST', body: JSON.stringify(input) });
 }
 
-/** Issues a one-time setup link for id, replacing any open one. Session-only, like a password reset. */
-export function issueSetupLink(id: string): Promise<SetupLinkInfo> {
-	return api<SetupLinkInfo>(`/users/${encodeURIComponent(id)}/setup-link`, { method: 'POST' });
+/** Issues a one-time setup link for id, replacing any open one, and mails it when mail is on and id has an address, unless `mail` is false. Session-only, like a password reset. */
+export function issueSetupLink(id: string, opts: { mail?: boolean } = {}): Promise<SetupLinkInfo> {
+	return api<SetupLinkInfo>(`/users/${encodeURIComponent(id)}/setup-link`, {
+		method: 'POST',
+		body: JSON.stringify(opts)
+	});
 }
 
 /** Revokes id's open setup link, if there is one. Not an error when none is open. */
@@ -94,6 +108,8 @@ export function updateUser(
 		displayName?: string;
 		color?: UserColor;
 		canSharePublicly?: boolean;
+		/** Same rank rule as a reset; session only. */
+		email?: string;
 	}
 ): Promise<UserAccount> {
 	return api<UserAccount>(`/users/${encodeURIComponent(id)}`, {

@@ -9,6 +9,18 @@ import (
 	"context"
 )
 
+const clearMailSettings = `-- name: ClearMailSettings :exec
+UPDATE instance_settings
+SET smtp_host = '', smtp_port = 587, smtp_security = 'starttls',
+    smtp_username = '', smtp_password = '', smtp_from = '', smtp_from_name = 'Rezepte'
+WHERE id = 1
+`
+
+func (q *Queries) ClearMailSettings(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, clearMailSettings)
+	return err
+}
+
 const getInstanceSettings = `-- name: GetInstanceSettings :one
 SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
        public_shares, public_share_default_days, public_share_max_days,
@@ -53,6 +65,37 @@ func (q *Queries) GetLinkPreviewKey(ctx context.Context) ([]byte, error) {
 	return link_preview_key, err
 }
 
+const getMailSettings = `-- name: GetMailSettings :one
+SELECT smtp_host, smtp_port, smtp_security, smtp_username, smtp_password,
+       smtp_from, smtp_from_name
+FROM instance_settings WHERE id = 1
+`
+
+type GetMailSettingsRow struct {
+	SmtpHost     string
+	SmtpPort     int64
+	SmtpSecurity string
+	SmtpUsername string
+	SmtpPassword string
+	SmtpFrom     string
+	SmtpFromName string
+}
+
+func (q *Queries) GetMailSettings(ctx context.Context) (GetMailSettingsRow, error) {
+	row := q.db.QueryRowContext(ctx, getMailSettings)
+	var i GetMailSettingsRow
+	err := row.Scan(
+		&i.SmtpHost,
+		&i.SmtpPort,
+		&i.SmtpSecurity,
+		&i.SmtpUsername,
+		&i.SmtpPassword,
+		&i.SmtpFrom,
+		&i.SmtpFromName,
+	)
+	return i, err
+}
+
 const setLinkPreviewMinutes = `-- name: SetLinkPreviewMinutes :exec
 UPDATE instance_settings SET link_preview_minutes = ? WHERE id = 1
 `
@@ -68,6 +111,36 @@ UPDATE instance_settings SET link_previews = ? WHERE id = 1
 
 func (q *Queries) SetLinkPreviews(ctx context.Context, linkPreviews bool) error {
 	_, err := q.db.ExecContext(ctx, setLinkPreviews, linkPreviews)
+	return err
+}
+
+const setMailSettings = `-- name: SetMailSettings :exec
+UPDATE instance_settings
+SET smtp_host = ?, smtp_port = ?, smtp_security = ?, smtp_username = ?,
+    smtp_password = ?, smtp_from = ?, smtp_from_name = ?
+WHERE id = 1
+`
+
+type SetMailSettingsParams struct {
+	SmtpHost     string
+	SmtpPort     int64
+	SmtpSecurity string
+	SmtpUsername string
+	SmtpPassword string
+	SmtpFrom     string
+	SmtpFromName string
+}
+
+func (q *Queries) SetMailSettings(ctx context.Context, arg SetMailSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, setMailSettings,
+		arg.SmtpHost,
+		arg.SmtpPort,
+		arg.SmtpSecurity,
+		arg.SmtpUsername,
+		arg.SmtpPassword,
+		arg.SmtpFrom,
+		arg.SmtpFromName,
+	)
 	return err
 }
 

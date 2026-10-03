@@ -854,3 +854,56 @@ func TestSuperadminNeedsAPassword(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestCreateStoresEmailUnverified(t *testing.T) {
+	svc := user.NewService(dbtest.Open(t), "")
+	u, err := svc.Create(context.Background(), user.CreateParams{Username: "lena", Role: user.RoleUser, Email: " lena@example.org "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Email != "lena@example.org" || u.EmailVerified {
+		t.Fatalf("got %q verified=%v", u.Email, u.EmailVerified)
+	}
+	if _, err := svc.Create(context.Background(), user.CreateParams{Username: "bad", Role: user.RoleUser, Email: "nope"}); !errors.Is(err, user.ErrInvalidEmail) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestSetEmailRankAndVerified(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	mk := func(n string, r user.Role) user.User {
+		u, err := svc.Create(ctx, user.CreateParams{Username: n, Password: "secret123", Role: r})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return u
+	}
+	owner, adm, adm2, member := mk("owner", user.RoleSuperadmin), mk("adm", user.RoleAdmin), mk("adm2", user.RoleAdmin), mk("mem", user.RoleUser)
+	if _, err := svc.SetEmail(ctx, adm, owner.ID, "x@example.org"); !errors.Is(err, user.ErrSuperadminProtected) {
+		t.Fatalf("admin->owner: %v", err)
+	}
+	if _, err := svc.SetEmail(ctx, adm, adm2.ID, "x@example.org"); !errors.Is(err, user.ErrSuperadminRequired) {
+		t.Fatalf("admin->admin: %v", err)
+	}
+	if got, _ := svc.ByID(ctx, owner.ID); got.Email != "" {
+		t.Fatal("refused write landed")
+	}
+	if err := svc.SetEmailIfEmpty(ctx, member.ID, "mem@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	u, err := svc.SetEmail(ctx, adm, member.ID, "mem@example.org")
+	if err != nil || !u.EmailVerified {
+		t.Fatalf("same address keeps the mark: %+v %v", u, err)
+	}
+	u, err = svc.SetEmail(ctx, adm, member.ID, "other@example.org")
+	if err != nil || u.EmailVerified || u.Email != "other@example.org" {
+		t.Fatalf("changed address: %+v %v", u, err)
+	}
+	if _, err := svc.SetEmail(ctx, owner, adm.ID, "a@example.org"); err != nil {
+		t.Fatalf("owner->admin: %v", err)
+	}
+	if _, err := svc.SetEmail(ctx, adm, member.ID, "bad"); !errors.Is(err, user.ErrInvalidEmail) {
+		t.Fatalf("invalid: %v", err)
+	}
+}

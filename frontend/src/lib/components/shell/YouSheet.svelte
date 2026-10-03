@@ -3,6 +3,7 @@
 	import Code from '@lucide/svelte/icons/code';
 	import Globe from '@lucide/svelte/icons/globe';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import Mail from '@lucide/svelte/icons/mail';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import UsersRound from '@lucide/svelte/icons/users-round';
 	import { Dialog } from 'bits-ui';
@@ -26,8 +27,8 @@
 
 	const user = $derived(session.user);
 
-	// The settings pages in the order `SettingsLayout` lists them, the
-	// admin-only import and export last.
+	// The settings pages in the order `SettingsLayout` lists them: the
+	// owner's email, then the admin-only import and export last.
 	const pages = $derived([
 		{ id: 'profile', href: resolve('/settings'), label: m.settings_nav_profile(), icon: UserRound },
 		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api(), icon: Code },
@@ -43,6 +44,9 @@
 			label: m.settings_nav_users(),
 			icon: UsersRound
 		},
+		...(user?.role === 'superadmin'
+			? [{ id: 'mail', href: resolve('/settings/mail'), label: m.settings_nav_mail(), icon: Mail }]
+			: []),
 		...(isAdminRole(user?.role)
 			? [
 					{

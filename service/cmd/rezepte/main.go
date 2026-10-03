@@ -23,6 +23,8 @@ import (
 	"github.com/s-frei/rezepte/service/internal/demo"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/mail"
+	"github.com/s-frei/rezepte/service/internal/mailapi"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/preview"
@@ -169,6 +171,13 @@ func run() error {
 	images := image.NewService(conn, imageDir)
 	avatars := avatar.NewService(conn, filepath.Join(cfg.DataDir, "avatars"), images)
 	instance := settings.NewService(conn)
+	mailer := mail.NewService(conn, cfg.SMTP, cfg.PublicURL, logger)
+	// Only a log line: mail is resolved again on every send.
+	if _, mailSource, err := mailer.Effective(ctx); err != nil {
+		logger.Warn("mail", "err", err)
+	} else {
+		logger.Info("mail", "source", mailSource)
+	}
 	previews, err := preview.NewService(ctx, conn, instance, images, logger)
 	if err != nil {
 		return err
@@ -206,11 +215,12 @@ func run() error {
 		logger.Warn("transfer temp files", "err", err)
 	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
-	settings.Register(srv.API(), instance)
+	settings.Register(srv.API(), instance, mailer.Enabled)
+	mailapi.Register(srv.API(), mailer)
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
-	userapi.Register(srv.API(), users, sessions, avatars, cfg.OIDCIssuer)
+	userapi.Register(srv.API(), users, sessions, avatars, cfg.OIDCIssuer, mailer)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
 }

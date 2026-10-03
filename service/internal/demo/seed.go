@@ -273,10 +273,12 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 
 // AddMembers creates Members, plus Invited, in locale's language, before
 // Seed, so the samples in memberRecipes can be theirs, and gives the admin
-// its demo display name. Every member gets an unverified sample email
-// (name@example.com), profile data a real account would fill in eventually;
-// Invited gets no password, so it signs in only through a setup link or an
-// identity provider - SeedMembers issues that link. Like the seed it writes
+// its demo display name. The admin and every member get an unverified
+// sample email (name@example.com), profile data a real account would fill
+// in eventually - the admin's prefills the test mail. Invited gets neither
+// an email nor a password, so it signs in only through a setup link or an
+// identity provider - SeedMembers issues that link, and sending it asks for
+// the address. Like the seed it writes
 // nothing to an instance that already holds recipes, since the members
 // belong to the sample data rather than to an instance in use, and a name
 // somebody already holds is left to them: that account gets no recipes,
@@ -310,9 +312,11 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 		if err != nil {
 			return fmt.Errorf("create member %s: %w", name, err)
 		}
-		addr := name + "@example.com"
-		if m, err = users.SetProfile(ctx, m.ID, user.ProfileUpdate{Email: &addr}); err != nil {
-			return fmt.Errorf("set email for %s: %w", name, err)
+		if name != Invited {
+			addr := name + "@example.com"
+			if m, err = users.SetProfile(ctx, m.ID, user.ProfileUpdate{Email: &addr}); err != nil {
+				return fmt.Errorf("set email for %s: %w", name, err)
+			}
 		}
 		members = append(members, m)
 		return nil
@@ -329,8 +333,8 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 	return members, nil
 }
 
-// nameAdmin gives AdminUser its demo display name; EnsureSuperadmin created
-// it with the username as its name.
+// nameAdmin gives AdminUser its demo display name and sample email;
+// EnsureSuperadmin created it with the username as its name.
 func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) error {
 	list, err := users.List(ctx)
 	if err != nil {
@@ -341,7 +345,8 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 			continue
 		}
 		name := displayName(locale, AdminUser)
-		if _, err := users.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &name}); err != nil {
+		addr := AdminUser + "@example.com"
+		if _, err := users.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &name, Email: &addr}); err != nil {
 			return fmt.Errorf("name %s: %w", AdminUser, err)
 		}
 	}

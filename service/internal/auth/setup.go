@@ -25,6 +25,9 @@ var ErrNoSetupLink = errors.New("setup link not found or expired")
 type SetupLink struct {
 	Token     string
 	ExpiresAt time.Time
+	// Target is the account the link was issued for, as read under the rank
+	// check, so a caller needs no second lookup.
+	Target user.User
 }
 
 // SetupPath is the SPA path a setup link opens. The token sits in the
@@ -48,11 +51,11 @@ func (s *Service) IssueSetupLink(ctx context.Context, actor user.User, userID st
 	expires := now.Add(SetupLinkTTL)
 	if err := s.q.ReplaceSetupLink(ctx, sqlc.ReplaceSetupLinkParams{
 		ID: hashToken(token), UserID: userID, CreatedBy: actor.ID,
-		ExpiresAt: db.FormatTime(expires), CreatedAt: db.FormatTime(now),
+		ExpiresAt: db.FormatTime(expires), CreatedAt: db.FormatTime(now), SentTo: "",
 	}); err != nil {
 		return SetupLink{}, fmt.Errorf("store setup link for %s: %w", userID, err)
 	}
-	return SetupLink{Token: token, ExpiresAt: expires}, nil
+	return SetupLink{Token: token, ExpiresAt: expires, Target: target}, nil
 }
 
 // SetupLinkHash is the digest a setup link is stored and looked up under.
@@ -82,21 +85,28 @@ func (s *Service) PeekSetupLinkByHash(ctx context.Context, hash string) (user.Us
 // ConsumeSetupLink uses the link up and returns its account. Of two callers
 // with the same token, exactly one gets the id.
 func (s *Service) ConsumeSetupLink(ctx context.Context, token string) (string, error) {
-	return s.consumeWith(ctx, s.q, hashToken(token))
+	return s.ConsumeSetupLinkByHash(ctx, hashToken(token))
 }
 
 // ConsumeSetupLinkByHash is ConsumeSetupLink for a link known by
 // SetupLinkHash.
 func (s *Service) ConsumeSetupLinkByHash(ctx context.Context, hash string) (string, error) {
-	return s.consumeWith(ctx, s.q, hash)
+	var id string
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		var err error
+		id, err = s.consumeWith(ctx, q, hash)
+		return err
+	})
+	return id, err
 }
 
 // consumeWith runs the delete-returning consume of the link stored under
-// hash against q - s.q outside a transaction, or a transaction's own
-// *sqlc.Queries - and maps sql.ErrNoRows to ErrNoSetupLink. The one place
-// both consumes and RedeemWithPassword's transactional consume do this.
+// hash against q and maps sql.ErrNoRows to ErrNoSetupLink. A link that was
+// mailed verifies the account's address - only while that is still the
+// address it went to - in the same transaction, so whoever proved they read
+// that mailbox is the one the mark is for.
 func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, hash string) (string, error) {
-	id, err := q.ConsumeSetupLink(ctx, sqlc.ConsumeSetupLinkParams{
+	row, err := q.ConsumeSetupLink(ctx, sqlc.ConsumeSetupLinkParams{
 		ID: hash, ExpiresAt: db.FormatTime(s.now()),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -105,7 +115,26 @@ func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, hash string)
 	if err != nil {
 		return "", fmt.Errorf("consume setup link: %w", err)
 	}
-	return id, nil
+	if row.SentTo != "" {
+		if err := q.VerifyEmailIfMatches(ctx, sqlc.VerifyEmailIfMatchesParams{
+			UpdatedAt: db.FormatTime(s.now()), ID: row.UserID, Email: row.SentTo,
+		}); err != nil {
+			return "", fmt.Errorf("verify email of %s: %w", row.UserID, err)
+		}
+	}
+	return row.UserID, nil
+}
+
+// MarkSetupLinkSent records that the link under token was mailed to to, so
+// redeeming it verifies that address. Called only after the mail went out.
+// It is keyed by the link, not the account: if a newer link replaced this one
+// while the mail was being sent, the newer link was never mailed and stays
+// unmarked (this call then matches nothing).
+func (s *Service) MarkSetupLinkSent(ctx context.Context, token, to string) error {
+	if err := s.q.MarkSetupLinkSent(ctx, sqlc.MarkSetupLinkSentParams{SentTo: to, ID: hashToken(token)}); err != nil {
+		return fmt.Errorf("mark setup link sent: %w", err)
+	}
+	return nil
 }
 
 // RedeemWithPassword sets the account's password through its setup link,

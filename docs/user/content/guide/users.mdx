@@ -19,8 +19,10 @@ Admins are not all equal here. Every admin looks after the members; admins thems
 | Change your own display name, color and photo | ✓ | ✓ | ✓ |
 | See everyone who has an account, and their role | ✓ | ✓ | ✓ |
 | Add a member, reset a member's password, delete a member | – | ✓ | ✓ |
+| Set a member's email address, send a member a setup link by mail | – | ✓ | ✓ |
 | Disconnect a member's single sign-on | – | ✓ | ✓ |
 | Add an **admin**, reset an admin's password, delete an admin | – | – | ✓ |
+| Set an **admin's** email address, send an admin a setup link by mail | – | – | ✓ |
 | Disconnect an **admin's** single sign-on | – | – | ✓ |
 | Hand out the "Admin" role or take it back | – | – | ✓ |
 | Change **someone else's** display name, color or photo | – | – | ✓ |
@@ -57,7 +59,9 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     "Send a setup link" is the default and the way most accounts should start: it creates the account with no password at all and hands you a one-time link, which you send the person yourself however you normally would — chat, email, in person. You never see or choose their password.
 
-    <Screenshot name="setup-link-dialog" caption="The setup link for a freshly created account" />
+    <Screenshot name="setup-link-dialog" caption="After creating an account with an email address: where the link went, and the link as a fallback" />
+
+    "Email" is optional. Give it and, when your Rezepte can send mail (see [Mail](/guide/mail)), the button reads "Create and send link": the account is created and the link goes to that address in an invitation. The result window then says "Sent to …" with the date the link stops working, and keeps the link below it in case the mail does not arrive. Without mail set up, or if sending fails, you get the link as before and pass it on yourself - the account exists either way. The address is saved on the account, unconfirmed until the person opens the mailed link, which counts as proof that it is theirs.
 
     "Set a password now" is for when you are setting the account up together and can hand it over on the spot: type a password twice (8–128 characters), rated as you type against the username and display name you entered.
 
@@ -97,7 +101,7 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
     Open the "..." menu in a member's row — their sheet on a phone — for "Reset password", which sets a new password for that member and signs them out on every device. Type the new password twice; the reset only goes through when both match. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
 
-    "Setup link", in the same menu, is the alternative that keeps you from ever knowing their password: it works exactly like the one offered when creating an account, and signs them out everywhere too once they use it.
+    "Setup link", in the same menu, is the alternative that keeps you from ever knowing their password: it works exactly like the one offered when creating an account, and signs them out everywhere too once they use it. When your Rezepte can send mail, it first asks how the link gets there, the same kind of choice as "Add account" offers. "Send by mail" is picked, with the address on the account filled in; one you change becomes the account's new address, and "Send link" mails it. "Pass it on myself" drops the address, and "Show link" gives you the link to pass on yourself. Either way a new link replaces the open one.
 
   </Step>
   <Step>

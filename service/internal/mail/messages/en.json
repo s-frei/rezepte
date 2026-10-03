@@ -1,0 +1,11 @@
+{
+	"mail_fallback_link": "Button not working? Open this link:",
+	"mail_invite_body": "{inviter} created an account for you on Rezepte, your shared recipe collection. Set a password and start cooking.",
+	"mail_invite_button": "Set up account",
+	"mail_invite_greeting": "Hi {name},",
+	"mail_invite_ignore": "Don't know {inviter}? Just ignore this mail.",
+	"mail_invite_subject": "{inviter} invited you to Rezepte",
+	"mail_invite_validity": "The link is valid for 7 days and works once.",
+	"mail_test_body": "This is a test from Rezepte. If you are reading it, mail works.",
+	"mail_test_subject": "Rezepte can send mail"
+}

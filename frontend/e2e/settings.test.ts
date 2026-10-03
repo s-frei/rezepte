@@ -585,6 +585,7 @@ test('a phone reaches the settings pages and sign-out through the contents sheet
 		'API',
 		'Shared links',
 		'People',
+		'Email',
 		'Import & export'
 	]);
 	await expect(sheet.getByRole('link', { name: 'Profile' })).toHaveAttribute(

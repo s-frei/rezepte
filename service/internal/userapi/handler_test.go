@@ -3,6 +3,8 @@ package userapi_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +18,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 )
@@ -43,6 +46,34 @@ func newHandlerWithEnv(t *testing.T, environment map[string]string) http.Handler
 // test that needs state the API cannot create, such as a linked identity.
 func newStack(t *testing.T, environment map[string]string) (http.Handler, *user.Service) {
 	t.Helper()
+	return newStackWithMailer(t, environment, &fakeMailer{})
+}
+
+// fakeMailer stands in for mail.Service: it records what would be sent and
+// can be told to fail, so no SMTP server is needed.
+type fakeMailer struct {
+	enabled bool
+	fail    bool
+	err     error // returned as is when set
+	sent    []mail.Invite
+}
+
+func (f *fakeMailer) SendInvite(_ context.Context, in mail.Invite) error {
+	if !f.enabled {
+		return mail.ErrDisabled
+	}
+	if f.err != nil {
+		return f.err
+	}
+	if f.fail {
+		return fmt.Errorf("%w: 535 nope", mail.ErrSend)
+	}
+	f.sent = append(f.sent, in)
+	return nil
+}
+
+func newStackWithMailer(t *testing.T, environment map[string]string, mailer userapi.Mailer) (http.Handler, *user.Service) {
+	t.Helper()
 	cfg, err := config.LoadFrom(environment)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
@@ -62,7 +93,7 @@ func newStack(t *testing.T, environment map[string]string) (http.Handler, *user.
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), cfg.OIDCIssuer)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), cfg.OIDCIssuer, mailer)
 	return srv.Handler(), users
 }
 
@@ -101,7 +132,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), "")
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), "", &fakeMailer{})
 	raw, _, err := tokens.Create(context.Background(), samID, "t", scopes, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -887,5 +918,139 @@ func TestListUsersReportsLinkedIdentities(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func createMember(t *testing.T, h http.Handler, c *http.Cookie, name, email string) string {
+	t.Helper()
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"`+name+`","role":"user","email":"`+email+`"}`, c)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create %s = %d %s", name, rec.Code, rec.Body)
+	}
+	var out userapi.CreatedUserAccount
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	return out.ID
+}
+
+func TestCreateUserMailsLink(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, "POST", "/api/v1/users", `{"username":"lena","role":"user","email":"lena@example.org"}`, c)
+	if rec.Code != 201 || !strings.Contains(rec.Body.String(), `"mailedTo":"lena@example.org"`) {
+		t.Fatalf("create = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.sent) != 1 || !strings.HasPrefix(m.sent[0].Path, "/welcome#") || m.sent[0].Inviter == "" {
+		t.Fatalf("sent = %+v", m.sent)
+	}
+}
+
+func TestCreateUserMailFailureKeepsAccount(t *testing.T) {
+	m := &fakeMailer{enabled: true, fail: true}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, "POST", "/api/v1/users", `{"username":"lena","role":"user","email":"lena@example.org"}`, c)
+	body := rec.Body.String()
+	// mailedTo names the address the failed send was for.
+	if rec.Code != 201 || !strings.Contains(body, `"mailError":"send_failed"`) || !strings.Contains(body, `"mailedTo":"lena@example.org"`) ||
+		!strings.Contains(body, `"setupLink"`) || strings.Contains(body, "535") {
+		t.Fatalf("create = %d %s", rec.Code, body)
+	}
+}
+
+func TestCreateUserInternalMailErrorReportsNothing(t *testing.T) {
+	m := &fakeMailer{enabled: true, err: errors.New("render: boom")}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, "POST", "/api/v1/users", `{"username":"lena","role":"user","email":"lena@example.org"}`, c)
+	if rec.Code != 201 || strings.Contains(rec.Body.String(), "mailedTo") || strings.Contains(rec.Body.String(), "mailError") {
+		t.Fatalf("create = %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestCreateUserNoMailWhenDisabled(t *testing.T) {
+	m := &fakeMailer{enabled: false}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, "POST", "/api/v1/users", `{"username":"lena","role":"user","email":"lena@example.org"}`, c)
+	if rec.Code != 201 || strings.Contains(rec.Body.String(), "mailedTo") || strings.Contains(rec.Body.String(), "mailError") || len(m.sent) != 0 {
+		t.Fatalf("create = %d %s sent=%d", rec.Code, rec.Body, len(m.sent))
+	}
+	if !strings.Contains(rec.Body.String(), `"email":"lena@example.org"`) {
+		t.Fatal("address not stored")
+	}
+}
+
+func TestIssueSetupLinkMailFalse(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	id := createMember(t, h, c, "lena", "lena@example.org")
+	m.sent = nil
+	rec := doReq(h, "POST", "/api/v1/users/"+id+"/setup-link", `{"mail":false}`, c)
+	if rec.Code != 201 || len(m.sent) != 0 {
+		t.Fatalf("issue = %d sent=%d", rec.Code, len(m.sent))
+	}
+	rec = doReq(h, "POST", "/api/v1/users/"+id+"/setup-link", ``, c)
+	if rec.Code != 201 || len(m.sent) != 1 || !strings.Contains(rec.Body.String(), `"mailedTo"`) {
+		t.Fatalf("issue default = %d sent=%d %s", rec.Code, len(m.sent), rec.Body)
+	}
+}
+
+func TestUpdateUserEmailRankRule(t *testing.T) {
+	h := newHandler(t)
+	ids := map[string]string{}
+	owner := loginAs(t, h, "owner", "pw")
+	for _, u := range listUsers(t, h, owner) {
+		ids[u.Username] = u.ID
+	}
+	for _, tc := range []struct {
+		caller, target string
+		want           int
+	}{
+		{"sam", "kim", 200},
+		{"sam", "sam", 403},
+		{"sam", "owner", 409},
+		{"owner", "sam", 200},
+		{"owner", "owner", 409},
+		{"owner", "kim", 200},
+		{"kim", "kim", 403},
+	} {
+		rec := doReq(h, "PATCH", "/api/v1/users/"+ids[tc.target], `{"email":"x@example.org"}`, loginAs(t, h, tc.caller, "pw"))
+		if rec.Code != tc.want {
+			t.Errorf("%s -> %s = %d, want %d: %s", tc.caller, tc.target, rec.Code, tc.want, rec.Body)
+		}
+	}
+	if got := userNamed(t, h, owner, "owner"); got.Email != "" {
+		t.Errorf("refused PATCH left owner address %q", got.Email)
+	}
+}
+
+func TestUpdateUserEmailClearsVerified(t *testing.T) {
+	h, users := newStack(t, map[string]string{})
+	c := loginAs(t, h, "sam", "pw")
+	kim := idOf(t, listUsers(t, h, c), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	if got := userNamed(t, h, c, "kim"); !got.EmailVerified {
+		t.Fatalf("precondition: %+v", got)
+	}
+	if rec := doReq(h, "PATCH", "/api/v1/users/"+kim, `{"email":"other@example.org"}`, c); rec.Code != 200 {
+		t.Fatalf("patch = %d %s", rec.Code, rec.Body)
+	}
+	got := userNamed(t, h, c, "kim")
+	if got.EmailVerified || got.Email != "other@example.org" {
+		t.Fatalf("after change: %+v", got)
+	}
+}
+
+func TestUpdateUserEmailIsSessionOnly(t *testing.T) {
+	env := newTokenEnv(t, []string{"users:write"})
+	rec := env.do("PATCH", "/api/v1/users/anything", `{"email":"x@example.org"}`)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("token PATCH email = %d %s", rec.Code, rec.Body)
 	}
 }

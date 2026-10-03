@@ -4,6 +4,10 @@
   "pages": [
     "index",
     "get-settings",
-    "update-settings"
+    "update-settings",
+    "get-mail-settings",
+    "delete-mail-settings",
+    "update-mail-settings",
+    "send-test-mail"
   ]
 }

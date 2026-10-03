@@ -21,16 +21,17 @@ Every person circle opens a small person card: their photo, display name, login 
 
 On desktop, the top bar carries "New recipe" and the "Account menu" (your initial, top right) with links to "Settings" and "Sign out". Admins also see an "Import" button next to it, which opens [Import and export](/guide/import-export). On a recipe, in the editor and in Settings, the top bar names the page next to the app's name, and the two buttons make way for what that page needs: a recipe's own "Edit", "Cook mode" and "More actions", or nothing at all in the editor and in Settings, which keep their actions on the page.
 
-On a phone, the same actions move into a small bar at the bottom right: a book for "Recipes" (the overview), a magnifying glass for "Search", which opens the command palette, and a person, "You", a sheet showing who is signed in with "Profile", "API", "Shared links", "People" (and, for admins, "Import & export") and "Sign out". The round "+" at the bottom left opens the editor for a new recipe. While you scroll down to read, the bar shrinks to just the current icon; scroll back up or tap it to bring it back. The editor and Settings have a one-line head at the top instead of a sidebar: it names the section you are in, and tapping it opens "Contents", a sheet listing every section to jump to.
+On a phone, the same actions move into a small bar at the bottom right: a book for "Recipes" (the overview), a magnifying glass for "Search", which opens the command palette, and a person, "You", a sheet showing who is signed in with "Profile", "API", "Shared links", "People" (and, for the owner, "Email"; for admins, "Import & export") and "Sign out". The round "+" at the bottom left opens the editor for a new recipe. While you scroll down to read, the bar shrinks to just the current icon; scroll back up or tap it to bring it back. The editor and Settings have a one-line head at the top instead of a sidebar: it names the section you are in, and tapping it opens "Contents", a sheet listing every section to jump to.
 
 ## Settings
 
-"Settings" has four pages, and a fifth for admins, listed in its sidebar (or its "Contents" sheet on a phone):
+"Settings" has four pages, one more for the owner and one more for admins, listed in its sidebar (or its "Contents" sheet on a phone):
 
 - **Profile** — your display name, color and language, the theme, your password and a link to this guide. See [Settings](/guide/settings).
 - **API** — the address of this instance's API and its documentation, and the address an [AI assistant](/api/mcp) connects to; admins also issue [API tokens](/api/tokens) here.
 - **Shared links** — the [public links](/guide/sharing#public-links) you have created, to copy or revoke; admins see everyone's.
 - **People** — everyone who has an account and their role; admins also manage the accounts here, and the owner sets the household's [editing rights](/guide/editing-rights), public links and [link previews](/guide/sharing#the-household-setting). See [People](/guide/users).
+- **Email**<Audience role="owner" /> — the mail server Rezepte sends setup links through. See [Mail](/guide/mail).
 - **Import & export**<Audience role="admin" /> — pass recipes with their photos to another Rezepte. See [Import and export](/guide/import-export).
 
 "Sign out" sits at the foot of the same list, set apart from the pages.

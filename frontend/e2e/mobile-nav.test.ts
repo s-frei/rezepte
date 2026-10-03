@@ -42,6 +42,7 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 		'API',
 		'Shared links',
 		'People',
+		'Email',
 		'Import & export'
 	]);
 

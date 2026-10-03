@@ -30,3 +30,20 @@ UPDATE instance_settings SET public_share_attribution = ? WHERE id = 1;
 UPDATE instance_settings
 SET public_share_default_days = ?, public_share_max_days = ?
 WHERE id = 1;
+
+-- name: GetMailSettings :one
+SELECT smtp_host, smtp_port, smtp_security, smtp_username, smtp_password,
+       smtp_from, smtp_from_name
+FROM instance_settings WHERE id = 1;
+
+-- name: SetMailSettings :exec
+UPDATE instance_settings
+SET smtp_host = ?, smtp_port = ?, smtp_security = ?, smtp_username = ?,
+    smtp_password = ?, smtp_from = ?, smtp_from_name = ?
+WHERE id = 1;
+
+-- name: ClearMailSettings :exec
+UPDATE instance_settings
+SET smtp_host = '', smtp_port = 587, smtp_security = 'starttls',
+    smtp_username = '', smtp_password = '', smtp_from = '', smtp_from_name = 'Rezepte'
+WHERE id = 1;

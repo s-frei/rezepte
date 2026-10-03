@@ -1,6 +1,7 @@
 package httpserver_test
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -76,11 +77,11 @@ func newFullApp(t *testing.T) fullApp {
 	}
 	image.Register(srv.API(), images)
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, dataDir, transfer.InputValidator(srv.API())))
-	settings.Register(srv.API(), instance)
+	settings.Register(srv.API(), instance, func(context.Context) bool { return false })
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), "")
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), "", nil)
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
 }

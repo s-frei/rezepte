@@ -2,7 +2,10 @@ package config
 
 import (
 	"log/slog"
+	"maps"
 	"testing"
+
+	"github.com/s-frei/rezepte/service/internal/mail"
 )
 
 func TestLoadFromDefaults(t *testing.T) {
@@ -193,5 +196,57 @@ func TestLoadFromOIDC(t *testing.T) {
 		if cfg, err := LoadFrom(tc.env); err == nil {
 			t.Errorf("%s: accepted %+v", tc.name, cfg)
 		}
+	}
+}
+
+func TestLoadFromSMTP(t *testing.T) {
+	cfg, err := LoadFrom(map[string]string{
+		"REZEPTE_PUBLIC_URL":    "https://rezepte.example.org",
+		"REZEPTE_SMTP_HOST":     "smtp.example.org",
+		"REZEPTE_SMTP_USERNAME": "rezepte",
+		"REZEPTE_SMTP_PASSWORD": "secret",
+		"REZEPTE_SMTP_FROM":     "rezepte@example.org",
+	})
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	want := mail.Config{Host: "smtp.example.org", Port: 587, Security: mail.SecuritySTARTTLS,
+		Username: "rezepte", Password: "secret", From: "rezepte@example.org", FromName: "Rezepte"}
+	if cfg.SMTP != want {
+		t.Fatalf("SMTP = %+v, want %+v", cfg.SMTP, want)
+	}
+	if !cfg.SMTP.Configured() {
+		t.Fatal("SMTP not configured")
+	}
+}
+
+func TestLoadFromSMTPUnsetIsZero(t *testing.T) {
+	cfg, err := LoadFrom(map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SMTP != (mail.Config{}) {
+		t.Fatalf("SMTP = %+v, want zero", cfg.SMTP)
+	}
+}
+
+func TestLoadFromSMTPRejects(t *testing.T) {
+	base := map[string]string{"REZEPTE_PUBLIC_URL": "https://r.example.org", "REZEPTE_SMTP_HOST": "smtp.example.org", "REZEPTE_SMTP_FROM": "r@example.org"}
+	for name, change := range map[string]map[string]string{
+		"no from":           {"REZEPTE_SMTP_FROM": ""},
+		"bad from":          {"REZEPTE_SMTP_FROM": "Rezepte <r@example.org>"},
+		"bad security":      {"REZEPTE_SMTP_SECURITY": "ssl"},
+		"bad port":          {"REZEPTE_SMTP_PORT": "0"},
+		"port not a number": {"REZEPTE_SMTP_PORT": "abc"},
+		"port too high":     {"REZEPTE_SMTP_PORT": "70000"},
+		"no public url":     {"REZEPTE_PUBLIC_URL": ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			env := maps.Clone(base)
+			maps.Copy(env, change)
+			if _, err := LoadFrom(env); err == nil {
+				t.Fatal("LoadFrom accepted it")
+			}
+		})
 	}
 }

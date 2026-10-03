@@ -1,0 +1,11 @@
+{
+	"mail_fallback_link": "Geht der Knopf nicht? Öffne diesen Link:",
+	"mail_invite_body": "{inviter} hat dir ein Konto bei Rezepte angelegt, eurer gemeinsamen Rezeptsammlung. Leg ein Passwort fest, dann kannst du loskochen.",
+	"mail_invite_button": "Konto einrichten",
+	"mail_invite_greeting": "Hallo {name},",
+	"mail_invite_ignore": "Kennst du {inviter} nicht? Dann ignoriere diese Mail einfach.",
+	"mail_invite_subject": "{inviter} hat dich zu Rezepte eingeladen",
+	"mail_invite_validity": "Der Link ist 7 Tage gültig und funktioniert einmal.",
+	"mail_test_body": "Das ist ein Test von Rezepte. Wenn du ihn liest, funktioniert der Versand.",
+	"mail_test_subject": "Rezepte kann Mails senden"
+}

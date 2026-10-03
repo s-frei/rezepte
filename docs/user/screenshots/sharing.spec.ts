@@ -78,9 +78,11 @@ test('public-sharing-card', async ({ page }) => {
 		page.getByRole('switch', { name: 'Members may share recipes publicly' })
 	).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Maximum lifetime' })).toBeVisible();
-	// The card sits at the bottom; there the phone's bottom navigation does
-	// not cover it.
-	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	// Centered, so neither the phone's sticky header nor its bottom navigation
+	// covers the card.
+	await page
+		.getByRole('heading', { name: 'Public sharing' })
+		.evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'center' }));
 	await shot(page, 'public-sharing-card');
 });
 

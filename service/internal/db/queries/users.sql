@@ -1,7 +1,7 @@
 -- name: CreateUser :one
 INSERT INTO users (
-    id, username, display_name, password_hash, role, color, locale, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    id, username, display_name, password_hash, role, color, locale, email, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: GetUserByID :one
@@ -71,3 +71,9 @@ UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING *;
 
 -- name: SetUserAvatar :execrows
 UPDATE users SET avatar_id = ?, updated_at = ? WHERE id = ?;
+
+-- Verifies the address only while it is still the one the link was mailed
+-- to; a change in between leaves it unverified.
+-- name: VerifyEmailIfMatches :exec
+UPDATE users SET email_verified = 1, updated_at = ?
+WHERE id = ? AND email = ? AND email != '';

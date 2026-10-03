@@ -56,8 +56,8 @@ func (q *Queries) CountUsersByColor(ctx context.Context) ([]CountUsersByColorRow
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    id, username, display_name, password_hash, role, color, locale, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    id, username, display_name, password_hash, role, color, locale, email, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified
 `
 
@@ -69,6 +69,7 @@ type CreateUserParams struct {
 	Role         string
 	Color        string
 	Locale       string
+	Email        string
 	CreatedAt    string
 	UpdatedAt    string
 }
@@ -82,6 +83,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Role,
 		arg.Color,
 		arg.Locale,
+		arg.Email,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -440,4 +442,22 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.EmailVerified,
 	)
 	return i, err
+}
+
+const verifyEmailIfMatches = `-- name: VerifyEmailIfMatches :exec
+UPDATE users SET email_verified = 1, updated_at = ?
+WHERE id = ? AND email = ? AND email != ''
+`
+
+type VerifyEmailIfMatchesParams struct {
+	UpdatedAt string
+	ID        string
+	Email     string
+}
+
+// Verifies the address only while it is still the one the link was mailed
+// to; a change in between leaves it unverified.
+func (q *Queries) VerifyEmailIfMatches(ctx context.Context, arg VerifyEmailIfMatchesParams) error {
+	_, err := q.db.ExecContext(ctx, verifyEmailIfMatches, arg.UpdatedAt, arg.ID, arg.Email)
+	return err
 }

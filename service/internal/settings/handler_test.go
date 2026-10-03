@@ -32,7 +32,7 @@ func newHandler(t *testing.T) http.Handler {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	settings.Register(srv.API(), settings.NewService(conn))
+	settings.Register(srv.API(), settings.NewService(conn), func(context.Context) bool { return false })
 	return srv.Handler()
 }
 
@@ -68,7 +68,7 @@ func TestSettingsEndpoints(t *testing.T) {
 	h := newHandler(t)
 
 	rec := do(h, http.MethodGet, "/api/v1/settings", "", login(t, h, "mia"))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"recipesLockedByDefault":false`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"recipesLockedByDefault":false`) || !strings.Contains(rec.Body.String(), `"mailEnabled":false`) {
 		t.Errorf("get as member: %d %s", rec.Code, rec.Body.String())
 	}
 

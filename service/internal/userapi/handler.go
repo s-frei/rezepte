@@ -7,6 +7,7 @@ package userapi
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/avatar"
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -31,6 +33,8 @@ type UserAccount struct {
 	AvatarID           *string    `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 	HasPassword        bool       `json:"hasPassword" doc:"False until the person sets one through a setup link or their profile"`
 	SetupLinkExpiresAt *time.Time `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
+	Email              string     `json:"email" doc:"Profile address; where setup links are mailed. Empty means none"`
+	EmailVerified      bool       `json:"emailVerified" doc:"True once a provider vouched for it or the person redeemed a link mailed to it"`
 	HasIdentity        bool       `json:"hasIdentity" doc:"Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users"`
 }
 
@@ -38,6 +42,8 @@ type UserAccount struct {
 type setupLinkBody struct {
 	Path      string    `json:"path" doc:"Append to the instance's origin"`
 	ExpiresAt time.Time `json:"expiresAt"`
+	MailedTo  string    `json:"mailedTo,omitempty" doc:"The address the link was mailed to, or that mailing it failed for; absent when no mail was tried"`
+	MailError string    `json:"mailError,omitempty" enum:"send_failed" doc:"Set when mailing to mailedTo failed; the link is still valid and shown"`
 }
 
 // UserAccountList is the response body of list-users.
@@ -79,6 +85,7 @@ type createInput struct {
 		DisplayName *string      `json:"displayName,omitempty" maxLength:"64" doc:"Empty falls back to the login name"`
 		Color       *string      `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Omitted picks the least-used color"`
 		Locale      *user.Locale `json:"locale,omitempty" doc:"Interface language; defaults to REZEPTE_LOCALE"`
+		Email       *string      `json:"email,omitempty" maxLength:"254" doc:"Where the setup link is mailed, when mail is configured; stored unverified"`
 	}
 }
 
@@ -103,6 +110,13 @@ type setupLinkInput struct {
 	ID string `path:"id"`
 }
 
+type issueSetupLinkInput struct {
+	ID   string `path:"id"`
+	Body *struct {
+		Mail *bool `json:"mail,omitempty" doc:"false issues the link without mailing it"`
+	}
+}
+
 type setupLinkOutput struct {
 	Body setupLinkBody
 }
@@ -120,7 +134,8 @@ type updateInput struct {
 		// governs public sharing for the whole instance) and for the
 		// caller's own row (one admin cannot re-grant a right another admin
 		// just withdrew from them).
-		CanSharePublicly *bool `json:"canSharePublicly,omitempty" doc:"Allow or withdraw creating public links; withdrawing pauses the person's existing links. Same rank rule as a password reset: only the owner reaches an admin, and nobody the owner."`
+		Email            *string `json:"email,omitempty" maxLength:"254" doc:"Same rank rule as a password reset; clears the verified mark; session only"`
+		CanSharePublicly *bool   `json:"canSharePublicly,omitempty" doc:"Allow or withdraw creating public links; withdrawing pauses the person's existing links. Same rank rule as a password reset: only the owner reaches an admin, and nobody the owner."`
 	}
 }
 
@@ -172,6 +187,47 @@ func toResponse(u user.User) UserAccount {
 		CreatedAt:        u.CreatedAt,
 		AvatarID:         u.AvatarID,
 		HasPassword:      u.HasPassword,
+		Email:            u.Email,
+		EmailVerified:    u.EmailVerified,
+	}
+}
+
+// Mailer is what user management needs from package mail.
+type Mailer interface {
+	SendInvite(context.Context, mail.Invite) error
+}
+
+// mailLink mails link to target when target has an address and mail is on,
+// and records where it went: mailedTo names the address whenever a send was
+// tried, mailError marks a failed one. A failure is never an error here:
+// the account and the link exist either way. A nil mailer is mail off, for
+// tests that do not care.
+func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor, target user.User, link auth.SetupLink, body *setupLinkBody) {
+	if mailer == nil || target.Email == "" {
+		return
+	}
+	err := mailer.SendInvite(ctx, mail.Invite{
+		To: target.Email, Name: target.DisplayName, Inviter: actor.DisplayName,
+		Path: auth.SetupPath(link.Token), Locale: target.Locale,
+	})
+	if errors.Is(err, mail.ErrDisabled) {
+		return
+	}
+	if err != nil && !errors.Is(err, mail.ErrSend) {
+		// Not a delivery failure (settings lookup, rendering): nothing was sent.
+		slog.WarnContext(ctx, "mail invite failed", "user", target.ID, "err", err)
+		return
+	}
+	body.MailedTo = target.Email
+	if err != nil {
+		body.MailError = "send_failed"
+		return
+	}
+	// The mail went out, so it is reported even when the mark fails; the
+	// only cost is that redeeming the link does not verify the address.
+	// No handler gets a logger injected; slog's default is main's logger.
+	if err := sessions.MarkSetupLinkSent(ctx, link.Token, target.Email); err != nil {
+		slog.WarnContext(ctx, "mark setup link sent failed", "user", target.ID, "err", err)
 	}
 }
 
@@ -180,7 +236,7 @@ func toResponse(u user.User) UserAccount {
 // removes a deleted account's pictures. issuer is the configured OIDC issuer,
 // empty when OIDC is off: list-users reports hasIdentity only for an identity
 // there, the one sign-in and disconnect use.
-func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer string) {
+func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer string, mailer Mailer) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-people",
 		Method:      http.MethodGet,
@@ -303,6 +359,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if in.Body.Locale != nil {
 			params.Locale = *in.Body.Locale
 		}
+		if in.Body.Email != nil {
+			params.Email = *in.Body.Email
+		}
 		u, err := users.Create(ctx, params)
 		if errors.Is(err, user.ErrUsernameTaken) {
 			return nil, huma.Error409Conflict("username already taken")
@@ -329,7 +388,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			if err != nil {
 				return nil, err
 			}
-			out.Body.SetupLink = &setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
+			body := setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
+			mailLink(ctx, mailer, sessions, actor, u, link, &body)
+			out.Body.SetupLink = &body
 			out.Body.SetupLinkExpiresAt = &link.ExpiresAt
 		}
 		return out, nil
@@ -345,7 +406,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{401, 403, 404, 409},
-	}, func(ctx context.Context, in *setupLinkInput) (*setupLinkOutput, error) {
+	}, func(ctx context.Context, in *issueSetupLinkInput) (*setupLinkOutput, error) {
 		actor, err := requireAdmin(ctx)
 		if err != nil {
 			return nil, err
@@ -360,7 +421,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
-		return &setupLinkOutput{Body: setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}}, nil
+		body := setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
+		if in.Body == nil || in.Body.Mail == nil || *in.Body.Mail {
+			mailLink(ctx, mailer, sessions, actor, link.Target, link, &body)
+		}
+		return &setupLinkOutput{Body: body}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -404,8 +469,15 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			return nil, err
 		}
 		hasProfile := in.Body.DisplayName != nil || in.Body.Color != nil
-		if in.Body.Password == nil && in.Body.Role == nil && !hasProfile && in.Body.CanSharePublicly == nil {
+		if in.Body.Password == nil && in.Body.Role == nil && !hasProfile && in.Body.CanSharePublicly == nil && in.Body.Email == nil {
 			return nil, huma.Error422UnprocessableEntity("nothing to change")
+		}
+		// An address is where part 2 sends password resets, so like the reset
+		// it is session-only. Checked first, before anything is written.
+		if in.Body.Email != nil && auth.ViaToken(ctx) {
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: "body.email", Message: "an address can only be set from a signed-in session",
+			})
 		}
 		// Renaming somebody is not administration, so it is the owner's alone -
 		// a different rule from guardTarget, which still decides the role
@@ -443,6 +515,21 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if in.Body.CanSharePublicly != nil {
 			u, err = users.SetCanSharePublicly(ctx, actor, in.ID, *in.Body.CanSharePublicly)
 			if mapped := rankError(err); mapped != nil {
+				return nil, mapped
+			}
+			if errors.Is(err, user.ErrNotFound) {
+				return nil, huma.Error404NotFound("user not found")
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+		if in.Body.Email != nil {
+			u, err = users.SetEmail(ctx, actor, in.ID, *in.Body.Email)
+			if mapped := rankError(err); mapped != nil {
+				return nil, mapped
+			}
+			if mapped := auth.ProfileError(err); mapped != nil {
 				return nil, mapped
 			}
 			if errors.Is(err, user.ErrNotFound) {

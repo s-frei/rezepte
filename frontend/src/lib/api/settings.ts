@@ -19,6 +19,8 @@ export type Settings = {
 	publicShareMaxDays: ShareLifetime;
 	/** Whether a public share page and a shared recipe card name Rezepte, with a link to the project, at their foot. */
 	publicShareAttribution: boolean;
+	/** Whether Rezepte can send mail; switches the Add account dialog. */
+	mailEnabled: boolean;
 };
 
 export function getSettings(): Promise<Settings> {

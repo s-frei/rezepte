@@ -10,7 +10,7 @@ import (
 )
 
 const consumeSetupLink = `-- name: ConsumeSetupLink :one
-DELETE FROM setup_links WHERE id = ? AND expires_at > ? RETURNING user_id
+DELETE FROM setup_links WHERE id = ? AND expires_at > ? RETURNING user_id, sent_to
 `
 
 type ConsumeSetupLinkParams struct {
@@ -18,13 +18,18 @@ type ConsumeSetupLinkParams struct {
 	ExpiresAt string
 }
 
+type ConsumeSetupLinkRow struct {
+	UserID string
+	SentTo string
+}
+
 // Delete-returning makes redemption atomic: of two requests with the same
 // token, exactly one gets the row.
-func (q *Queries) ConsumeSetupLink(ctx context.Context, arg ConsumeSetupLinkParams) (string, error) {
+func (q *Queries) ConsumeSetupLink(ctx context.Context, arg ConsumeSetupLinkParams) (ConsumeSetupLinkRow, error) {
 	row := q.db.QueryRowContext(ctx, consumeSetupLink, arg.ID, arg.ExpiresAt)
-	var user_id string
-	err := row.Scan(&user_id)
-	return user_id, err
+	var i ConsumeSetupLinkRow
+	err := row.Scan(&i.UserID, &i.SentTo)
+	return i, err
 }
 
 const deleteExpiredSetupLinks = `-- name: DeleteExpiredSetupLinks :exec
@@ -46,7 +51,7 @@ func (q *Queries) DeleteSetupLinkOfUser(ctx context.Context, userID string) erro
 }
 
 const getOpenSetupLink = `-- name: GetOpenSetupLink :one
-SELECT id, user_id, created_by, expires_at, created_at FROM setup_links WHERE id = ? AND expires_at > ?
+SELECT id, user_id, created_by, expires_at, created_at, sent_to FROM setup_links WHERE id = ? AND expires_at > ?
 `
 
 type GetOpenSetupLinkParams struct {
@@ -63,6 +68,7 @@ func (q *Queries) GetOpenSetupLink(ctx context.Context, arg GetOpenSetupLinkPara
 		&i.CreatedBy,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+		&i.SentTo,
 	)
 	return i, err
 }
@@ -99,12 +105,27 @@ func (q *Queries) ListOpenSetupLinks(ctx context.Context, expiresAt string) ([]L
 	return items, nil
 }
 
+const markSetupLinkSent = `-- name: MarkSetupLinkSent :exec
+UPDATE setup_links SET sent_to = ? WHERE id = ?
+`
+
+type MarkSetupLinkSentParams struct {
+	SentTo string
+	ID     string
+}
+
+func (q *Queries) MarkSetupLinkSent(ctx context.Context, arg MarkSetupLinkSentParams) error {
+	_, err := q.db.ExecContext(ctx, markSetupLinkSent, arg.SentTo, arg.ID)
+	return err
+}
+
 const replaceSetupLink = `-- name: ReplaceSetupLink :exec
-INSERT INTO setup_links (id, user_id, created_by, expires_at, created_at)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO setup_links (id, user_id, created_by, expires_at, created_at, sent_to)
+VALUES (?, ?, ?, ?, ?, ?)
 ON CONFLICT (user_id) DO UPDATE SET
     id = excluded.id, created_by = excluded.created_by,
-    expires_at = excluded.expires_at, created_at = excluded.created_at
+    expires_at = excluded.expires_at, created_at = excluded.created_at,
+    sent_to = excluded.sent_to
 `
 
 type ReplaceSetupLinkParams struct {
@@ -113,6 +134,7 @@ type ReplaceSetupLinkParams struct {
 	CreatedBy string
 	ExpiresAt string
 	CreatedAt string
+	SentTo    string
 }
 
 func (q *Queries) ReplaceSetupLink(ctx context.Context, arg ReplaceSetupLinkParams) error {
@@ -122,6 +144,7 @@ func (q *Queries) ReplaceSetupLink(ctx context.Context, arg ReplaceSetupLinkPara
 		arg.CreatedBy,
 		arg.ExpiresAt,
 		arg.CreatedAt,
+		arg.SentTo,
 	)
 	return err
 }

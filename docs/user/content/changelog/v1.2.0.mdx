@@ -1,0 +1,30 @@
+---
+title: "v1.2.0 — Setup links by mail"
+description: "Rezepte sends invitations through your mail server, so an admin enters an email address and the person gets their setup link in their inbox."
+date: 2026-10-02
+---
+
+Rezepte 1.2.0 changes nothing you have to adapt: [back up your data directory](/operations/data-and-backup), pull the new image and start it, as [Updates](/operations/updates) describes. Mail is off until you set it up.
+
+## Invite by mail
+
+Connect Rezepte to the SMTP server of your mail provider - in the app under **Settings → Email**, a page only the owner has, or with the new `REZEPTE_SMTP_*` variables - and "Add account" gets an optional email field. Fill it in and the setup link goes to that address as an invitation; the window shows where it went and keeps the link as a fallback. The row action "Setup link" can send a fresh link the same way. The owner can send a test mail to see that the server accepts it. See [Mail](/guide/mail).
+
+<Screenshot name="mail-card" caption="The Email card, with mail on" />
+
+When the person opens the link from that mailbox, their address counts as confirmed. If sending fails, the account and its link are still there to pass on by hand.
+
+## API
+
+- `GET`, `PUT` and `DELETE /api/v1/settings/mail` and `POST /api/v1/settings/mail/test` read, save, clear and try the mail server; owner and session only. The password is never returned, only `passwordSet`.
+- `GET /api/v1/settings` carries `mailEnabled`.
+- `POST /api/v1/users` accepts an optional `email`; `POST /api/v1/users/{id}/setup-link` accepts `{"mail": false}` to skip sending. The setup link in either answer carries `mailedTo`, the address a mail was tried for, and `mailError` when that send failed.
+- `PATCH /api/v1/users/{id}` accepts `email` from a signed-in session, under the same rule as a password reset.
+- `GET /api/v1/users` carries `email` and `emailVerified`.
+
+The [API reference](/api/reference) lists every endpoint.
+
+## Also in this release
+
+- **New:** Admins can set a member's email address, and the owner anyone's.
+- **New:** Settings → People opens its dialogs with focus back on the row's menu afterwards.

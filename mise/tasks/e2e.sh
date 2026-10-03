@@ -20,6 +20,13 @@ rzp_make_data_dir
 # OIDC specs need the test provider; with Dex up (mise run oidc:up) the
 # instance is configured for it, without it frontend/e2e/oidc.test.ts skips.
 rzp_oidc_env "$PORT"
+# Mail specs need Mailpit (mise run mail:up); without it frontend/e2e/mail.test.ts skips.
+MAIL_ENV=()
+PW_MAIL_ENV=()
+if rzp_mailpit_up; then
+	MAIL_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$PORT")
+	PW_MAIL_ENV=(MAILPIT_URL="http://localhost:$RZP_MAILPIT_UI_PORT" MAILPIT_SMTP_PORT="$RZP_MAILPIT_SMTP_PORT")
+fi
 # "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
 # bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an
 # unbound variable under `set -u`. The `+` form expands to nothing at all
@@ -41,9 +48,10 @@ env -u REZEPTE_ADMIN_USER \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_ADMIN_PASSWORD=admin1234 \
 	REZEPTE_LOCALE=en \
 	"${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" \
+	"${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" \
 	service/bin/rezepte &
 PID=$!
 trap 'rzp_stop "$PID"' EXIT
 rzp_wait_healthz e2e "$PORT" "$PID" 5
 
-cd frontend && E2E_BASE_URL="http://localhost:$PORT" bun run test:e2e "$@"
+cd frontend && env "${PW_MAIL_ENV[@]+"${PW_MAIL_ENV[@]}"}" E2E_BASE_URL="http://localhost:$PORT" bun run test:e2e "$@"

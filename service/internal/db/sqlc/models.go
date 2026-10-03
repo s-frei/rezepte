@@ -60,6 +60,13 @@ type InstanceSetting struct {
 	PublicShareDefaultDays *int64
 	PublicShareMaxDays     *int64
 	PublicShareAttribution bool
+	SmtpHost               string
+	SmtpPort               int64
+	SmtpSecurity           string
+	SmtpUsername           string
+	SmtpPassword           string
+	SmtpFrom               string
+	SmtpFromName           string
 }
 
 type Recipe struct {
@@ -105,6 +112,7 @@ type SetupLink struct {
 	CreatedBy string
 	ExpiresAt string
 	CreatedAt string
+	SentTo    string
 }
 
 type Share struct {

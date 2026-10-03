@@ -12,7 +12,8 @@
 	let {
 		active,
 		children
-	}: { active: 'profile' | 'shares' | 'users' | 'api' | 'transfer'; children: Snippet } = $props();
+	}: { active: 'profile' | 'shares' | 'users' | 'mail' | 'api' | 'transfer'; children: Snippet } =
+		$props();
 
 	// Same top-bar contract as the editor: breadcrumb instead of the default
 	// action buttons, reset when leaving.
@@ -28,12 +29,16 @@
 	// The pages of the settings area, in the order both navs list them. Every
 	// account has the first four: Shared links is everyone's own list of public
 	// links, and the people page is a list to read for everyone and the place
-	// admins manage accounts. Import and export is for admins only.
+	// admins manage accounts. Email is the owner's alone, import and export
+	// is for admins.
 	const pages = $derived([
 		{ id: 'profile', href: resolve('/settings'), label: m.settings_nav_profile() },
 		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api() },
 		{ id: 'shares', href: resolve('/settings/shares'), label: m.settings_nav_shares() },
 		{ id: 'users', href: resolve('/settings/users'), label: m.settings_nav_users() },
+		...(session.user?.role === 'superadmin'
+			? [{ id: 'mail', href: resolve('/settings/mail'), label: m.settings_nav_mail() }]
+			: []),
 		...(isAdminRole(session.user?.role)
 			? [{ id: 'transfer', href: resolve('/settings/transfer'), label: m.settings_nav_transfer() }]
 			: [])

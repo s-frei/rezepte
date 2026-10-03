@@ -31,6 +31,14 @@ else
 	rzp_oidc_env "$PORT"
 	[ "${#OIDC_ENV[@]}" -gt 0 ] && echo "demo: signing in through Dex is on - sign in as demo@, mila@ or jonas@example.com, password <name>1234"
 fi
+# With Mailpit up (mise run mail:up) the demo sends mail into it. Configured
+# through the API after start, into the database - never REZEPTE_SMTP_*,
+# which would lock the mail card the demo is there to click through.
+MAIL_ENV=()
+if [ "${RZP_DEMO_MAIL:-on}" != off ] && rzp_mailpit_up; then
+	DEMO_MAIL=1
+	[ -z "${REZEPTE_PUBLIC_URL:-}" ] && MAIL_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$PORT")
+fi
 # "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
 # bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an
 # unbound variable under `set -u`. The `+` form expands to nothing at all
@@ -48,13 +56,36 @@ env -u REZEPTE_ADMIN_USER -u REZEPTE_ADMIN_PASSWORD \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_LOG_LEVEL=warn \
 	REZEPTE_LOCALE="${RZP_DEMO_LOCALE:-${REZEPTE_LOCALE:-en}}" \
 	"${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" \
+	"${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" \
 	service/bin/rezepte --demo &
 PID=$!
-trap 'rzp_stop "$PID"' EXIT
+trap 'rzp_stop "$PID"; rm -f "${jar:-}"' EXIT
 # Seeding twelve recipes and nine placeholder images takes a moment, and the
 # server answers only once it is done - hence 30s rather than the 5s an empty
 # instance needs.
 rzp_wait_healthz demo "$PORT" "$PID" 30
+
+# Best-effort: a failed step leaves a demo without mail, never no demo. The
+# cookie jar goes with the EXIT trap.
+demo_mail() {
+	local base="http://localhost:$PORT" current
+	curl -fsS -c "$jar" -H "Origin: $base" -H 'Content-Type: application/json' \
+		-d '{"username":"demo","password":"demo1234"}' "$base/api/v1/auth/login" >/dev/null || return 1
+	current="$(curl -fsS -b "$jar" "$base/api/v1/settings/mail")" || return 1
+	# Already set up (a kept data dir): leave it as it is.
+	case "$current" in *'"source":"none"'*) ;; *) return 0 ;; esac
+	curl -fsS -b "$jar" -X PUT -H "Origin: $base" -H 'Content-Type: application/json' \
+		-d "{\"host\":\"localhost\",\"port\":$RZP_MAILPIT_SMTP_PORT,\"security\":\"none\",\"from\":\"rezepte@example.com\",\"fromName\":\"Rezepte\"}" \
+		"$base/api/v1/settings/mail" >/dev/null
+}
+if [ "${DEMO_MAIL:-}" = 1 ]; then
+	jar="$(mktemp)"
+	if demo_mail; then
+		echo "demo: mail goes to Mailpit - inbox http://localhost:$RZP_MAILPIT_UI_PORT"
+	else
+		echo "demo: mail not configured" >&2
+	fi
+fi
 
 if [ "$#" -gt 0 ]; then
 	# mise runs a root file task from the repository root, but a wrapped command

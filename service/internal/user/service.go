@@ -111,6 +111,8 @@ type CreateParams struct {
 	DisplayName string
 	Color       Color
 	Locale      Locale
+	// Email is the profile address, stored unverified. Empty means none.
+	Email string
 }
 
 // Create stores a new user with a hashed password. username is trimmed of
@@ -140,6 +142,10 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 	} else if _, err := ParseLocale(string(locale)); err != nil {
 		return User{}, err
 	}
+	email, err := ParseEmail(p.Email)
+	if err != nil {
+		return User{}, err
+	}
 	// An empty password is an account without one: it signs in through a
 	// setup link or an identity provider. The owner is the instance's way
 	// back in and always has one.
@@ -161,6 +167,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (User, error) {
 		Role:         string(p.Role),
 		Color:        string(color),
 		Locale:       string(locale),
+		Email:        email,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	})
@@ -302,18 +309,9 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 				return err
 			}
 		}
-		email, verified := row.Email, row.EmailVerified
-		if p.Email != nil {
-			parsed, err := ParseEmail(*p.Email)
-			if err != nil {
-				return err
-			}
-			// A typed address is unverified, even when it is the same one
-			// the provider vouched for with different spelling: only an
-			// unchanged value keeps the mark.
-			if parsed != row.Email {
-				email, verified = parsed, false
-			}
+		email, verified, err := nextEmail(row, p.Email)
+		if err != nil {
+			return err
 		}
 		updated, err := q.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
 			DisplayName:   displayName,
@@ -326,6 +324,55 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 		})
 		if err != nil {
 			return fmt.Errorf("update profile of %s: %w", id, err)
+		}
+		out, err = fromRow(updated)
+		return err
+	})
+	return out, err
+}
+
+// nextEmail is the address and verified mark a row ends up with when typed is
+// written to it. A typed address is unverified, even when it is the same one
+// the provider vouched for with different spelling: only an unchanged value
+// keeps the mark.
+func nextEmail(row sqlc.User, typed *string) (string, bool, error) {
+	if typed == nil {
+		return row.Email, row.EmailVerified, nil
+	}
+	parsed, err := ParseEmail(*typed)
+	if err != nil {
+		return "", false, err
+	}
+	if parsed != row.Email {
+		return parsed, false, nil
+	}
+	return row.Email, row.EmailVerified, nil
+}
+
+// SetEmail writes another account's address, clearing the verified mark when
+// it changes. It follows guardTarget like a password reset, checked inside
+// the transaction that writes, so the rank read and the write cannot be
+// separated by a role change.
+func (s *Service) SetEmail(ctx context.Context, actor User, id, email string) (User, error) {
+	var out User
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := getForUpdate(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+			return err
+		}
+		addr, verified, err := nextEmail(row, &email)
+		if err != nil {
+			return err
+		}
+		updated, err := q.UpdateUserProfile(ctx, sqlc.UpdateUserProfileParams{
+			DisplayName: row.DisplayName, Color: row.Color, Locale: row.Locale,
+			Email: addr, EmailVerified: verified, UpdatedAt: db.FormatTime(s.now()), ID: id,
+		})
+		if err != nil {
+			return fmt.Errorf("set email of %s: %w", id, err)
 		}
 		out, err = fromRow(updated)
 		return err

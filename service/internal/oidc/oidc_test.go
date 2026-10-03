@@ -78,7 +78,7 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 	if cfg != nil {
 		issuer = cfg.Issuer
 	}
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer, nil)
 	var login *oidc.Login
 	if cfg != nil {
 		login = oidc.New(*cfg, sessions, users, false)

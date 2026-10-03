@@ -1,0 +1,57 @@
+---
+title: Mail
+description: Let Rezepte send setup links by mail; the owner sets up the mail server and sends a test
+---
+
+import { Audience } from '@/components/audience';
+
+Rezepte can mail the setup link to the people you invite, so you do not have to pass it on yourself. It needs an SMTP server to send through - the one your mail provider lists under "SMTP" or "set up a mail program" - and `REZEPTE_PUBLIC_URL` set, so the link in the mail points back to your Rezepte (see [Configuration](/getting-started/configuration)). Until mail is set up everything works as before: you get the link and pass it on.
+
+## Set up mail<Audience role="owner" />
+
+The owner finds the **Email** card on its own page, **Settings → Email**, which nobody else sees. It is a letterhead: who mail comes from, which server it goes through and how it signs in, with a stamp saying whether Rezepte is sending.
+
+<Screenshot name="mail-card" caption="The Email card once mail is on" />
+
+<Steps>
+  <Step>
+
+    ### Open the setup
+
+    Click "Set up mail" - or "Edit" when it is already set up. The window has three parts.
+
+    <Screenshot name="mail-dialog" caption="Setting up mail" />
+
+  </Step>
+  <Step>
+
+    ### Fill in the parts
+
+    **Sender**: the address mail comes from and the name people see in their inbox; a line under the name shows how it will look. **Sign-in**: the username and password of your mail provider; leave both empty for a server that needs none. A saved password stays when you leave the field empty, but only for the same server and username; change either and type the password again. **Server**: its address and port, and the encryption. STARTTLS usually goes with port 587 and TLS with 465; "None" is only for a server in your own network.
+
+  </Step>
+  <Step>
+
+    ### Send a test mail
+
+    Above "Save", the window has a "Send a test mail to" field with your own address filled in. "Send with these values" tries the values as they are, before you save them, and tells you right under the field what the server answered. Fix what it complains about, then "Save". Saving does not connect to the server; the test does.
+
+  </Step>
+</Steps>
+
+On the card, the same field sits under the letterhead, filled in with your own address; change it to test another inbox. "Send" (or Enter) shows the result right under it: "Test mail sent to …", or the server's own reply when it refuses. This is also where to look when an invitation did not arrive, since only the owner sees what went wrong.
+
+"Turn off" asks first, then clears the settings, and the stored password with them: a saved password can only be removed this way. When the server is set with `REZEPTE_SMTP_*` variables, the stamp reads "Set by the server", the settings cannot be changed here, and only the test works.
+
+## What a person receives
+
+An invitation from the admin's name: "Hi Lena, Mila created an account for you on Rezepte", a button "Set up account" and the link spelled out beneath it, for mail programs that hide buttons. It is in the language of the invited account, works once and is valid for 7 days. Opening it greets the person, lets them choose a password and signs them in - and that confirms their address, as long as it is still the one the mail went to.
+
+<Screenshot name="setup-link-dialog" caption="The admin sees where the link went" />
+
+## When a mail does not arrive
+
+- The window after "Create and send link" or "Send link" says "Mail to … could not be sent" when the server refused it. The account and the link exist anyway: copy the link and pass it on yourself.
+- Rezepte waits at most 10 seconds for the server. A wrong port or a server that does not answer shows up as a failed send, not as a stuck window.
+- A mail that was accepted but never shows up is the mail provider's business: look in the spam folder, and check that the sender domain has the SPF and DKIM records the provider documents.
+- Only the owner sees the server's reply, through the test mail. Admins only learn that sending failed.
