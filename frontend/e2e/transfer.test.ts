@@ -4,6 +4,7 @@ import {
 	createUser,
 	loadFixture,
 	login,
+	openImport,
 	signOut,
 	tinyPng,
 	uniqueToken,
@@ -60,7 +61,7 @@ test('the import waits for the recipe list before it takes a file', async ({ pag
 	await expect(page.getByLabel('Choose a file')).toHaveCount(1);
 });
 
-test('a member sees neither the page nor the import button', async ({ page }, testInfo) => {
+test('a member sees neither the page nor the zip import link', async ({ page }, testInfo) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
 	const username = `member${uniqueToken()}`;
@@ -68,7 +69,10 @@ test('a member sees neither the page nor the import button', async ({ page }, te
 	await signOut(page, testInfo);
 	await login(page, username);
 	await expect(page).toHaveURL('/');
-	await expect(page.getByRole('link', { name: 'Import', exact: true })).toHaveCount(0);
+	// The import dialog is for everyone; its zip-file row is for admins.
+	await openImport(page);
+	await expect(page.getByRole('link', { name: 'Import a zip file' })).toHaveCount(0);
+	await page.keyboard.press('Escape');
 	await page.goto('/settings/transfer');
 	await expect(page).toHaveURL('/settings');
 });

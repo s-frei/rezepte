@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import type { ResolvedPathname } from '$app/types';
 	import { Command, Dialog } from 'bits-ui';
+	import Import from '@lucide/svelte/icons/import';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import Settings from '@lucide/svelte/icons/settings';
@@ -10,6 +11,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly, scale } from 'svelte/transition';
 	import { listRecipes, type RecipeCard } from '$lib/api/recipes';
+	import { importDialog } from '$lib/import.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { palette } from '$lib/palette.svelte';
 
@@ -17,12 +19,22 @@
 	let results = $state<RecipeCard[]>([]);
 	let searching = $state(true);
 
-	const actions = [
+	// An action either navigates (`href`) or opens something in place (`run`).
+	type Action = { id: string; label: string; icon: typeof Plus } & (
+		{ href: ResolvedPathname } | { run: () => void }
+	);
+	const actions: Action[] = [
 		{
 			id: 'new',
 			label: m.overview_new_recipe(),
 			icon: Plus,
 			href: resolve('/recipes/new')
+		},
+		{
+			id: 'import',
+			label: m.palette_import(),
+			icon: Import,
+			run: () => (importDialog.open = true)
 		},
 		{
 			id: 'settings',
@@ -138,6 +150,15 @@
 	function go(href: ResolvedPathname) {
 		palette.open = false;
 		void goto(href);
+	}
+
+	function select(action: Action) {
+		if ('href' in action) {
+			go(action.href);
+			return;
+		}
+		palette.open = false;
+		action.run();
 	}
 
 	function paletteIn(node: Element, params: { duration: number }) {
@@ -281,7 +302,7 @@
 												{@const Icon = action.icon}
 												<Command.Item
 													value="action:{action.id}"
-													onSelect={() => go(action.href)}
+													onSelect={() => select(action)}
 													class={item}
 												>
 													<span

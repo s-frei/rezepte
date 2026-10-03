@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Person, Recipe, RecipeInput } from '$lib/api/recipes';
+import { emptyInput, type Person, type Recipe, type RecipeInput } from '$lib/api/recipes';
 import {
 	anchorId,
+	applyReview,
 	applyServerErrors,
 	emptyForm,
 	firstErrorField,
@@ -868,5 +869,32 @@ describe('hasNamedIngredient', () => {
 		form.ingredientGroups.push(newGroup());
 		form.ingredientGroups[1].ingredients[0].name = 'Mehl';
 		expect(hasNamedIngredient(form.ingredientGroups)).toBe(true);
+	});
+});
+
+describe('applyReview', () => {
+	it('marks the reviewed rows with their original line and toInput drops it', () => {
+		const form = fromRecipe({
+			...emptyInput(),
+			title: 'Käsespätzle',
+			ingredientGroups: [
+				{
+					name: null,
+					ingredients: [
+						{ quantity: 400, unit: 'g', name: 'Mehl', note: null },
+						{ quantity: null, unit: null, name: 'Salz und Pfeffer n.B.', note: null }
+					]
+				}
+			]
+		});
+		const marked = applyReview(form, [{ group: 0, ingredient: 1, line: 'Salz und Pfeffer n.B.' }]);
+		expect(marked.ingredientGroups[0].ingredients[1].source).toBe('Salz und Pfeffer n.B.');
+		expect(marked.ingredientGroups[0].ingredients[0].source).toBeUndefined();
+		expect(JSON.stringify(toInput(marked))).not.toContain('"source"');
+	});
+
+	it('ignores indexes that point nowhere', () => {
+		const form = fromRecipe(emptyInput());
+		expect(() => applyReview(form, [{ group: 3, ingredient: 9, line: 'x' }])).not.toThrow();
 	});
 });

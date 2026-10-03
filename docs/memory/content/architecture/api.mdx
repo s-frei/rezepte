@@ -108,6 +108,15 @@ Both operations require the admin role, for a session and for a token alike; a m
 | export-recipes | `POST /export` | body `{recipeIds}` (1-500, unique); `200 application/zip` with `Content-Length` and `Content-Disposition`; `404` unknown id; `403` `admin role required`; token scope `recipes:read` |
 | import-recipes | `POST /import` | body `application/zip` ≤ 1 GiB, not multipart; `201 {created: [{id, slug, title}]}`; `413`; `422` with `location` = path in the zip; `403`; token scope `recipes:write` |
 
+## Recipe drafts
+
+Any session, or a token carrying `recipes:write`. Nothing is stored; [Recipe import](/features/recipe-import) owns the reading, the fetch guard and the photo tokens.
+
+| operation | route | notes |
+|---|---|---|
+| create-recipe-draft | `POST /recipe-drafts` | body `{url}` or `{text}` (≤ 64 KiB), exactly one, else `422` at `body`; `200 {recipe, review, suggestedTags, photo, duplicate, truncated}`, `recipe` being `recipe.Input`, `photo` (`{href}`) and `duplicate` (`{id, slug, title, createdBy}`) `null` when absent; `422` at `body.url` or `body.text` with `message` `no-recipe`, `unreachable` or `no-recipe-in-text` |
+| get-recipe-draft-photo | `GET /recipe-drafts/photo?src=…&token=…` | the photo a draft named, while its 2-minute token lasts; `image/jpeg`, `image/png` or `image/webp` with `Cache-Control: no-store`; `404` for a bad or expired token, a failed fetch or another type |
+
 ## Recipes and tags
 
 | Operation | Path | Notes |

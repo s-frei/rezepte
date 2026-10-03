@@ -24,6 +24,11 @@
 
 	const FLIP_DURATION = 150;
 
+	/** Rows an import asked about that nobody has answered yet. */
+	const toCheck = $derived(
+		groups.flatMap((g) => g.ingredients).filter((r) => r.source !== undefined).length
+	);
+
 	/** Moves the caret into a freshly added row once it is in the DOM. */
 	async function focusRow(id: string) {
 		await tick();
@@ -86,6 +91,13 @@
 </script>
 
 <div class="space-y-6">
+	{#if toCheck > 0}
+		<p class="text-caption text-primary">
+			{toCheck === 1
+				? m.editor_ingredients_to_check_one()
+				: m.editor_ingredients_to_check({ count: toCheck })}
+		</p>
+	{/if}
 	{#each groups as group, groupIndex (group.id)}
 		<div class="space-y-3">
 			<!--

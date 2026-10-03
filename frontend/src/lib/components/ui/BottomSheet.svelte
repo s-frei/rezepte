@@ -11,12 +11,15 @@
 	let {
 		open = $bindable(false),
 		closeLabel,
+		onOpenAutoFocus,
 		onCloseAutoFocus,
 		children
 	}: {
 		open?: boolean;
 		/** Accessible name of the handle, which closes the sheet. */
 		closeLabel: string;
+		/** Forwarded to Bits UI: where focus goes once the sheet has opened. */
+		onOpenAutoFocus?: (event: Event) => void;
 		/** Forwarded to Bits UI: where focus goes once the sheet has closed. */
 		onCloseAutoFocus?: (event: Event) => void;
 		children: Snippet;
@@ -39,7 +42,7 @@
 				{/if}
 			{/snippet}
 		</Dialog.Overlay>
-		<Dialog.Content forceMount preventScroll={false} {onCloseAutoFocus}>
+		<Dialog.Content forceMount preventScroll={false} {onOpenAutoFocus} {onCloseAutoFocus}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
 					<div

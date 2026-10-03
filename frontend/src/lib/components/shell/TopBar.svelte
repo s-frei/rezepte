@@ -2,11 +2,10 @@
 	import Import from '@lucide/svelte/icons/import';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { resolve } from '$app/paths';
-	import { session } from '$lib/auth.svelte';
 	import Lockup from '$lib/components/brand/Lockup.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import { importDialog } from '$lib/import.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { isAdminRole } from '$lib/roles';
 	import { shell } from '$lib/shell.svelte';
 	import UserMenu from './UserMenu.svelte';
 </script>
@@ -24,14 +23,12 @@
 		{#if shell.actions}
 			{@render shell.actions()}
 		{:else}
-			<!-- Ghost, not secondary: an admin reaches for it now and then, while
-			     "New recipe" beside it is what the bar is for. -->
-			{#if isAdminRole(session.user?.role)}
-				<Button variant="ghost" href={`${resolve('/settings/transfer')}#import`}>
-					<Import class="size-4" aria-hidden="true" />
-					{m.overview_import()}
-				</Button>
-			{/if}
+			<!-- Ghost, not secondary: importing is reached for now and then,
+			     while "New recipe" beside it is what the bar is for. -->
+			<Button variant="ghost" onclick={() => (importDialog.open = true)}>
+				<Import class="size-4" aria-hidden="true" />
+				{m.overview_import()}
+			</Button>
 			<Button variant="primary" href={resolve('/recipes/new')}>
 				<Plus class="size-4" aria-hidden="true" />
 				{m.overview_new_recipe()}

@@ -1,4 +1,5 @@
 import type { FieldError } from '$lib/api/client';
+import type { DraftReview } from '$lib/api/drafts';
 import {
 	emptyInput,
 	type EditPolicy,
@@ -25,6 +26,8 @@ export type FormIngredient = {
 	unit: string;
 	name: string;
 	note: string;
+	/** The line an import could not split with confidence; editor state only, never saved. */
+	source?: string;
 };
 
 export type FormGroup = {
@@ -627,6 +630,15 @@ export function anchorId(field: string): string {
  * ` dessert ` are the same tag. */
 export function normaliseTag(tag: string): string {
 	return tag.trim().toLowerCase();
+}
+
+/** Marks the rows an import was unsure about, so the editor can ask. */
+export function applyReview(form: RecipeForm, review: DraftReview[]): RecipeForm {
+	for (const { group, ingredient, line } of review) {
+		const row = form.ingredientGroups[group]?.ingredients[ingredient];
+		if (row) row.source = line;
+	}
+	return form;
 }
 
 /** True when the form differs from the snapshot it started out as. */

@@ -27,9 +27,8 @@
 	import { formatDay } from '$lib/recipe/format';
 	import { overviewViewState } from '$lib/recipe/overview-state';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
-	import { session } from '$lib/auth.svelte';
+	import { importDialog } from '$lib/import.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { isAdminRole } from '$lib/roles';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -396,11 +395,9 @@
 					<Plus class="size-4" aria-hidden="true" />
 					{m.overview_new_recipe()}
 				</Button>
-				{#if isAdminRole(session.user?.role)}
-					<Button variant="secondary" href={`${resolve('/settings/transfer')}#import`}>
-						{m.overview_import()}
-					</Button>
-				{/if}
+				<Button variant="secondary" onclick={() => (importDialog.open = true)}>
+					{m.overview_import()}
+				</Button>
 			</EmptyState>
 		{:else if isNoResults}
 			<!-- Only a typed term gets quoted back. Tags, time and favorites

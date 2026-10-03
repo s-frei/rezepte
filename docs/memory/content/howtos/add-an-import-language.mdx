@@ -1,0 +1,101 @@
+---
+title: Add an import language
+description: A language table for the recipe import, so links and pasted text in that language become clean drafts
+---
+
+<Callout type="info">
+
+  This is the import's half of a new language. The interface half - `locales.json` and a message catalog - is [Add a language](/howtos/add-language); do both, the Go suite fails while an app language has no import table.
+
+</Callout>
+
+The [recipe import](/features/recipe-import) reads ingredient lines, headings and descriptions with the words of one language. Those words live in one table per language, `service/internal/recipeimport/lang_<tag>.go`; the parser in `ingredient.go`, `text.go` and `jsonld.go` holds none of its own. A new language is that file, one line to register it, and test rows. No parser change.
+
+## What a table holds
+
+A table is a value of the type `language` in `service/internal/recipeimport/lang.go`, whose doc comments are the contract. Every word list is matched case-insensitively and what the cook wrote is kept as written. A field the language has no use for stays empty. The examples are from `lang_de.go`.
+
+| Field | What it is for | Example |
+|---|---|---|
+| `tag` | The language's code as in `service/internal/i18n/locales.json`. A page declaring `de-DE` or `de_AT` is read with the `de` table. | `"de"` |
+| `units` | Unit words after a quantity, singular and plural, abbreviations with their dot as a separate entry. A word after the quantity is a unit only when it is listed. Metric symbols go into every table that uses them. | `"EL"`, `"TL"`, `"Prise"`, `"Pck."`, `"Zehe"`, `"Zehen"`, `"g"` |
+| `thousandsSeparators` | Marks that group thousands in a quantity, when exactly three digits follow each and the first group does not start with 0. Leave empty where the same mark is the decimal point. | `"."` - "1.000 g Mehl" is 1000 g |
+| `decimalSeparators` | Marks that start the fraction after a thousands group; read only together with `thousandsSeparators`. | `","` - "1.000,5 g" is 1000.5 g |
+| `rangeWords` | Words that join two quantities into a range, besides the dashes every language shares. The lower bound becomes the quantity, the range the note. | `"bis"` - "1 bis 2 Zwiebeln" |
+| `pluralMarkers` | Endings glued to a word to say "one or more", removed wherever they follow a letter and end the word. Written exactly as they appear. | `"(n)"`, `"/n"`, `"(er)"` - "Gurke(n)" is "Gurke", "Zehe/n" the unit "Zehe" |
+| `unitModifiers` | Words that qualify the unit, written right after it with or without a comma; they move to the note. The longest phrase wins over a word it starts with. Leave out words that usually start the name ("klein" in "1 Bund klein geschnittene Petersilie", "gut" in "1 EL gut gekühlte Butter"), and list the phrases they form instead ("gut gehäuft"). A comma after the unit with no known modifier behind it leaves the line whole and flagged. | `"gehäuft"`, `"gut gehäuft"`, `"leicht gestrichen"` - "1 EL, gehäuft Salz" is 1 EL Salz, note "gehäuft" |
+| `vague` | Words and phrases that make an amount uncertain, matched as whole words; the line is flagged for the cook to check. | `"nach Belieben"`, `"etwas"`, `"n.B."` |
+| `ingredientHeadings` | Lines that open the ingredient list in pasted text, the whole line with or without a colon. An entry ending in ` …` also takes any words after it. | `"Zutaten"`, `"Zutaten für …"` |
+| `stepHeadings` | Lines that open the steps in pasted text, matched the same way. | `"Zubereitung"`, `"Anleitung"` |
+| `stepWords` | Words before a step's number in pasted text, dropped with it. A bare `2.` or `2)` is a step number in every language. | `"Schritt"` - "Schritt 2: …" |
+| `promo` | Regular expressions for the advertising sentences sites append to a description; a matching sentence is dropped. Use `(?i)` when case does not matter. | `` `(?i)^Über \d[\d.]* Bewertungen` ``, `` `►` `` |
+
+What every language shares stays in the parser: numbers and fractions, dashes in ranges, a parenthesis right after the quantity as note ("1 (14-ounce) can"), the trailing note in balanced parentheses or after a comma, the author's name at the end of a title, and the safety net that flags a name starting with punctuation, holding a `/` or with unbalanced parentheses.
+
+## How a table is chosen
+
+`detectLanguage` in `lang.go` picks the table:
+
+1. **What the page declares.** `ReadPage` takes the Recipe's `inLanguage`, else a `WebPage` node's `inLanguage`, else `<html lang>`, and uses the table for its primary subtag (`de-DE` → `de`).
+2. **What the lines say.** Without a declaration, or with one no table has, every table scores the lines: one point for each line it recognizes, by a heading, a unit after the quantity, a vague word or a plural marker. Pasted text is always scored, over all its lines; a page over its ingredient lines.
+3. **A tie reads with every table at once** (`anyLanguage`), the union of all their words.
+
+`Page.Language` records the tag that was used (`""` for all at once), and `Build` reads the ingredient lines with it.
+
+## Steps
+
+<Steps>
+  <Step>
+
+    ### Write the table
+    Copy `service/internal/recipeimport/lang_en.go` to `lang_<tag>.go`, rename the variable (`french`) and fill every field from recipes in that language, the big recipe sites first: open a few of their recipes, look at the raw `recipeIngredient` lines and the `description` in the page's JSON-LD, and list what they write. Keep the comments on choices that are not obvious, as `lang_de.go` does for its modifiers.
+
+    `golangci-lint`'s `misspell` checks English spelling and may take a word of your language for a typo (it reads the German unit "Stange" as "Strange"). Mark that line with `//nolint:misspell // <language> <what it is>`, as `lang_de.go` does, rather than ignoring the word for the whole repository.
+
+  </Step>
+  <Step>
+
+    ### Register it
+    Add the variable to `languages` in `service/internal/recipeimport/lang.go`. That is the only line outside the new file.
+
+  </Step>
+  <Step>
+
+    ### Add test rows
+    In `service/internal/recipeimport/lang_test.go`, add a `TestParseLine<Language>` with real lines from those sites and the exact quantity, unit, name, note and `sure` each must give, read with your table through `ParseLineWith(line, LanguageByTag("<tag>"))`; `export_test.go` finds every registered table, so it needs no change. Add rows to `TestDetectLanguage` for the declared tag and for lines only your table recognizes, and to `TestRemovePromo` for a promo sentence.
+
+  </Step>
+  <Step>
+
+    ### Translate the dialog's example
+    The import dialog shows `import_example` from `frontend/messages/<tag>.json`, in the empty field and under "What should the text look like?", as how a pasted recipe should look. Write it in the language with the new table's headings: a title line, an ingredient heading, two or three lines with the amount first, a step heading and one or two numbered steps. `TestEveryAppLanguageExampleImportsCleanly` in `lang_test.go` reads it with your table and fails unless it gives a title, two ingredients that need no check and a step.
+
+  </Step>
+  <Step>
+
+    ### Add a fixture
+    Save one real recipe page from a site in that language to `service/internal/recipeimport/testdata/pages/<site>.html`, trimmed to the head's meta and the `ld+json` block and scrubbed like the others: a `<!-- source: <url> -->` first line, real ingredient lines and structure, free texts and people's names replaced by stand-ins ("Test description.", "Test Author"). Run `mise exec -- go test ./internal/recipeimport/ -run TestReadPageGolden -update` from `service/`, read the new `.json` line by line, and check that `Language` names your tag. Then add a test like `TestChefkochGurkensalatDraft` that runs the fixture through `ReadPage` and `Build` and expects every ingredient exactly and no line to check.
+
+  </Step>
+  <Step>
+
+    ### Run the gate
+    `mise run check`. Then import a few links in the new language in `mise run demo` and look at the ingredients the editor marks "Please check".
+
+  </Step>
+</Steps>
+
+## The guard
+
+`TestEveryAppLanguageHasAnImportTable` in `lang_test.go` reads the app's languages from `service/internal/i18n` (`locales.json`, the same source the interface uses) and fails for any that has no table, naming the file to add and this page. A language can have a table before it is an app language - a household cooks from sites in languages it does not read the interface in - but not the other way round.
+
+## Checklist
+
+- [ ] `lang_<tag>.go` with every field filled or deliberately empty
+- [ ] Registered in `languages` in `lang.go`
+- [ ] `ParseLineWith` rows for real lines, with exact results, none of them a name starting with punctuation
+- [ ] `DetectLanguage` and `RemovePromo` rows
+- [ ] `import_example` in the language's catalog, with the table's headings
+- [ ] One trimmed, scrubbed fixture page and its regenerated golden `.json`, read and confirmed
+- [ ] [Recipe import](/features/recipe-import)'s limits and the user docs' `guide/importing.mdx` name the new language
+- [ ] `mise run check` green

@@ -47,9 +47,10 @@ Open <http://localhost:8060> and log in as **`demo`** / **`demo1234`**.
 - 🍳 **Cooking:** a full-screen [cook mode](https://s-frei.github.io/rezepte/guide/cook-mode/) for the phone at the stove, steps that show the amounts they use, quantities [scaled to your servings](https://s-frei.github.io/rezepte/guide/servings/), and [a shopping list to copy](https://s-frei.github.io/rezepte/guide/servings/#copy-a-shopping-list) with everything you have not ticked off.
 - 📖 **Collection:** [recipes](https://s-frei.github.io/rezepte/guide/recipes/) with ingredient groups, notes, times and their source (a book, a website or a person), [several photos each](https://s-frei.github.io/rezepte/guide/images/), [tags and search](https://s-frei.github.io/rezepte/guide/tags-and-search/) by ingredient, time or author, private favorites, and [tasty marks](https://s-frei.github.io/rezepte/guide/recipes/#tasty) that show who liked what.
 - 👥 **People:** [accounts and roles](https://s-frei.github.io/rezepte/guide/users/) with a one-time setup link instead of a handed-over password, [profile photos](https://s-frei.github.io/rezepte/guide/settings/#profile), [sign-in with Google or your own OIDC provider](https://s-frei.github.io/rezepte/operations/single-sign-on/), and [sharing](https://s-frei.github.io/rezepte/guide/sharing/) as a household link, a public link that expires, or [an image for any messenger](https://s-frei.github.io/rezepte/guide/sharing/#pass-on-as-an-image).
+- 📥 **Import:** [paste a link or the recipe text](https://s-frei.github.io/rezepte/guide/importing/) and get a draft to check, with ingredients split into amounts, units and names, the photo and the source; anything Rezepte was unsure about is marked for you.
 - 🔌 **Your data:** [zip export and import](https://s-frei.github.io/rezepte/guide/import-export/) between instances, an [HTTP API](https://s-frei.github.io/rezepte/api/) with scoped [tokens](https://s-frei.github.io/rezepte/api/tokens/) and an OpenAPI reference, and an [MCP server](https://s-frei.github.io/rezepte/api/mcp/) for AI assistants.
 
-English and German are built in, and every member picks their own. Missing your language? [Adding one](https://s-frei.github.io/rezepte/contributing/add-a-language/) takes two files and no programming.
+English and German are built in, and every member picks their own. Missing your language? [Adding one](https://s-frei.github.io/rezepte/contributing/add-a-language/) takes three files and no programming.
 
 <details>
 <summary><b>What an AI assistant can do through MCP</b></summary>
@@ -78,7 +79,7 @@ They are mature apps, and Rezepte is younger and smaller. Here is what it does w
 - **Invitation only.** Nobody can register on their own, and nobody gets an account just by having one at your sign-in provider.
 - **Little to run.** No database server or runtime to look after, and an Apache 2.0 license.
 
-What it does not do yet: import from a URL or from other apps, plan meals, add up a shopping list across recipes, convert units, show nutrition, or send email. If you need those today, Mealie and Tandoor do them well.
+What it does not do yet: import from other apps, plan meals, add up a shopping list across recipes, convert units, show nutrition, or send email. If you need those today, Mealie and Tandoor do them well.
 
 > [!TIP]
 > None of these are ruled out. The [roadmap](https://s-frei.github.io/rezepte/roadmap/) lists what is being considered, and I am open to anything that helps people cook. If you are missing something, [open an issue](https://github.com/s-frei/rezepte/issues) and tell me what you need.

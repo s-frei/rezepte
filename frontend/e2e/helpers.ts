@@ -191,9 +191,30 @@ export async function createRecipe(page: Page, input: RecipeInput): Promise<Reci
 /** Opens the recipe editor through whichever "new recipe" entry point the viewport shows. */
 export async function openNewRecipe(page: Page) {
 	const topBar = page.getByRole('link', { name: 'New recipe' });
-	const bottomNav = page.getByRole('link', { name: 'New', exact: true });
+	const bottomNav = page.getByRole('button', { name: 'New', exact: true });
 	await topBar.or(bottomNav).first().click();
+	// The phone's "+" opens a sheet with two ways to a new recipe.
+	if (await bottomNav.isVisible()) {
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: /^Write it yourself/ })
+			.click();
+	}
 	await expect(page).toHaveURL(/\/recipes\/new$/);
+}
+
+/** Opens the import dialog (desktop) or sheet (phone) through the viewport's own entry point. */
+export async function openImport(page: Page) {
+	const topBar = page.getByRole('banner').getByRole('button', { name: 'Import', exact: true });
+	const bottomNav = page.getByRole('button', { name: 'New', exact: true });
+	await topBar.or(bottomNav).first().click();
+	if (await bottomNav.isVisible()) {
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: /^Import/ })
+			.click();
+	}
+	await expect(page.getByRole('dialog', { name: 'Import recipe' })).toBeVisible();
 }
 
 /**

@@ -7,6 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { FormRef } from '$lib/recipe/form';
 	import { refLabel, refView, type PickerEntry } from '$lib/recipe/step-references';
+	import { ACTION, ROW } from './link-list';
 
 	/**
 	 * What a step's links amount to, below the step: one quiet line that says
@@ -62,12 +63,6 @@
 			.filter((part) => part !== '')
 			.join(', ')
 	);
-
-	// Whole literals, because Tailwind reads this file as text.
-	const ROW = 'grid grid-cols-[1fr_auto_auto] items-center gap-x-3 py-1 text-body-sm';
-	// No hover color here: each button says what it does with its own.
-	const ACTION =
-		'flex size-8 items-center justify-center rounded-pill text-text-muted transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
 
 {#if broken.length > 0}

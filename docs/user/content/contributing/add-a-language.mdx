@@ -3,7 +3,7 @@ title: Add a language
 description: Translate the interface into another language and contribute it
 ---
 
-Rezepte's interface is available in English and German. Adding another language takes two files and no programming: a line naming the language, and a copy of the English texts translated into it. Your recipes are not affected - Rezepte never translates recipe content.
+Rezepte's interface is available in English and German. Adding another language takes three files and no programming: a line naming the language, a copy of the English texts translated into it, and a list of the words recipes in your language use, so importing a recipe understands them. Your recipes are not affected - Rezepte never translates recipe content.
 
 ## What you need
 
@@ -40,9 +40,16 @@ Rezepte's interface is available in English and German. Adding another language 
     - Keep every key on the left exactly as it is.
     - Keep every placeholder in curly braces, such as `{count}` or `{name}`, exactly as it is. You can move it within the sentence.
     - `editor_unit_options` is not a sentence but the units the recipe editor suggests, separated by commas. Do not translate the English list word for word: write the units a cook in your language actually uses, in their usual abbreviations, as many or as few as fit. German, for example, has `TL`, `EL`, `Bund` and `Zehe` and no `cup`.
+    - `import_example` is an example recipe, not a sentence. Translate it using the headings (the "Ingredients" and "Method" equivalents) that your language's word list in `lang_xx.go` knows: `mise run check` imports it and fails otherwise.
     - Translate every entry. The check in the next step fails on any that are missing, so the interface never shows a half-translated screen.
 
     The language picker names the language by itself, in the reader's language and in its own ("French · Français"), so there is nothing to add for that.
+
+  </Step>
+  <Step>
+
+    ### List the recipe words
+    Copy `service/internal/recipeimport/lang_en.go` to `lang_fr.go` (with your language's code) and replace the English words with your language's: the units cooks write after an amount ("EL", "Prise"), the headings above ingredients and steps ("Zutaten", "Zubereitung"), words like "to taste" that make an amount vague, and the others the comments in `service/internal/recipeimport/lang.go` explain. Then add `french` to the list `languages` in `lang.go`. The check in the next step fails while a language has no such list. If writing the tests for it is new to you, say so in the pull request and a maintainer adds them.
 
   </Step>
   <Step>
@@ -60,7 +67,7 @@ Rezepte's interface is available in English and German. Adding another language 
   <Step>
 
     ### Contribute it
-    Open a pull request with the two files and the updated API reference. A translation can be improved later like any other change.
+    Open a pull request with the three files, the line in `lang.go` and the updated API reference. A translation can be improved later like any other change.
 
   </Step>
 </Steps>

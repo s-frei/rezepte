@@ -1,4 +1,4 @@
 {
 	"title": "Features",
-	"pages": ["index", "recipes", "images", "tags-and-search", "servings", "cook-mode", "users", "mail", "editing-rights", "sharing", "settings", "import-export", "shortcuts"]
+	"pages": ["index", "recipes", "importing", "images", "tags-and-search", "servings", "cook-mode", "users", "mail", "editing-rights", "sharing", "settings", "import-export", "shortcuts"]
 }

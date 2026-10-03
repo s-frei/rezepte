@@ -19,7 +19,7 @@ OIDC login exists ([OIDC](/features/oidc)); what is missing is OAuth 2.1 itself 
 
 ## Import and export
 
-Recipes move between instances as a zip ([Import and export](/features/import-export)). What is left is other sources: schema.org `Recipe` JSON-LD import and importing from a URL, which is the same pipeline behind a fetch (parse the page's `Recipe` JSON-LD, `golang.org/x/net/html` for the fallback HTML walk), reusing the import pipeline of that page. A single JSON-LD or URL import opens as a draft in the editor, with the importing member as its author; recipes already carry a source link and a source name ([Recipes and search](/features/recipes)), so the import fills both from where the recipe came from.
+Recipes move between instances as a zip ([Import and export](/features/import-export)), and a link or pasted text becomes a draft ([Recipe import](/features/recipe-import)). What is left are two more ways in, both opening the same import dialog: a phone share target ("Share → Rezepte"), which needs an installable PWA while `frontend/static/manifest.webmanifest` says `display: browser`, and an import tool for the [MCP server](/features/mcp).
 
 ## Email
 

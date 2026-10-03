@@ -4,13 +4,17 @@
 	import { m } from '$lib/paraglide/messages';
 	import type { FieldErrors, RecipeForm } from '$lib/recipe/form';
 	import TagInput from './TagInput.svelte';
+	import TagSuggestions from './TagSuggestions.svelte';
 
 	let {
 		form = $bindable(),
-		errors = {}
+		errors = {},
+		suggestedTags = $bindable([])
 	}: {
 		form: RecipeForm;
 		errors?: FieldErrors;
+		/** An import's keywords that would be new tags; empty otherwise. */
+		suggestedTags?: string[];
 	} = $props();
 </script>
 
@@ -107,5 +111,8 @@
 		/>
 	</div>
 
-	<TagInput bind:tags={form.tags} error={errors.tags ?? null} />
+	<div>
+		<TagInput bind:tags={form.tags} error={errors.tags ?? null} />
+		<TagSuggestions bind:tags={form.tags} bind:suggestions={suggestedTags} />
+	</div>
 </div>

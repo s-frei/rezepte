@@ -12,9 +12,11 @@
 	import { palette } from '$lib/palette.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { navScroll, startNavScroll } from './nav-scroll';
+	import NewSheet from './NewSheet.svelte';
 	import YouSheet from './YouSheet.svelte';
 
 	let youOpen = $state(false);
+	let newOpen = $state(false);
 	let scroll = $state(startNavScroll(0));
 	const mode = $derived(scroll.mode);
 	let navEl = $state<HTMLElement>();
@@ -41,7 +43,7 @@
 		// `:focus-within` would keep the bar open for the rest of the page.
 		if (
 			next.mode === 'minimized' &&
-			(youOpen || palette.open || navEl?.querySelector(':focus-visible'))
+			(youOpen || newOpen || palette.open || navEl?.querySelector(':focus-visible'))
 		) {
 			scroll = { ...next, mode: 'expanded' };
 			return;
@@ -95,16 +97,19 @@
 	up, reaching an end, a tap or focus brings the whole bar back
 	(`navScroll`). The swap is instant under reduced motion.
 -->
-<a
-	href={resolve('/recipes/new')}
+<button
+	type="button"
 	aria-label={m.nav_new()}
+	aria-haspopup="dialog"
+	aria-expanded={newOpen}
+	onclick={() => (newOpen = true)}
 	class="fixed bottom-3 left-3 z-30 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-card transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none md:hidden {mode ===
 	'expanded'
 		? 'size-13'
 		: 'size-11'}"
 >
 	<Plus class={mode === 'expanded' ? 'size-6' : 'size-5'} aria-hidden="true" />
-</a>
+</button>
 
 <nav
 	bind:this={navEl}
@@ -175,3 +180,4 @@
 </nav>
 
 <YouSheet bind:open={youOpen} />
+<NewSheet bind:open={newOpen} />

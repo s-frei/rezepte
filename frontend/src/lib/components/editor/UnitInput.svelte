@@ -11,7 +11,8 @@
 		value = $bindable(''),
 		id,
 		class: fieldClass = '',
-		onkeydown
+		onkeydown,
+		oninput
 	}: {
 		value?: string;
 		/** Id of the text field; also the prefix for the listbox and its options. */
@@ -20,6 +21,8 @@
 		class?: string;
 		/** The row's own keys (Backspace in an empty row), for whatever the list does not take. */
 		onkeydown?: (event: KeyboardEvent) => void;
+		/** The unit changed, typed or picked from the list. */
+		oninput?: () => void;
 	} = $props();
 
 	let input = $state<HTMLInputElement>();
@@ -55,6 +58,7 @@
 
 	function pick(unit: string) {
 		value = unit;
+		oninput?.();
 		close();
 	}
 
@@ -111,6 +115,7 @@
 			open = true;
 			typed = true;
 			highlighted = -1;
+			oninput?.();
 		}}
 		onfocus={openList}
 		onclick={() => {

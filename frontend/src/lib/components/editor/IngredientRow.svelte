@@ -1,5 +1,6 @@
 <script lang="ts">
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle } from 'svelte-dnd-action';
 	import { m } from '$lib/paraglide/messages';
@@ -32,6 +33,11 @@
 	const fieldClasses =
 		'h-11 w-full min-w-0 rounded-md border border-border bg-surface-elevated px-3 text-body outline-none transition placeholder:text-text-muted focus:border-primary md:h-10 md:text-body-sm';
 	const errorClasses = 'border-[1.5px] border-destructive';
+
+	/** An edit is the member's answer to an import's "please check". */
+	function clearHint() {
+		row.source = undefined;
+	}
 
 	function handleKeydown(event: KeyboardEvent, submitsRow: boolean) {
 		if (event.key === 'Backspace' && empty) {
@@ -68,6 +74,7 @@
 			<input
 				id="ingredient-quantity-{row.id}"
 				bind:value={row.quantity}
+				oninput={clearHint}
 				onkeydown={(event) => handleKeydown(event, false)}
 				type="text"
 				inputmode="decimal"
@@ -82,12 +89,14 @@
 			<UnitInput
 				id="ingredient-unit-{row.id}"
 				bind:value={row.unit}
+				oninput={clearHint}
 				onkeydown={(event) => handleKeydown(event, false)}
 				class={fieldClasses}
 			/>
 			<input
 				id="ingredient-name-{row.id}"
 				bind:value={row.name}
+				oninput={clearHint}
 				onkeydown={(event) => handleKeydown(event, true)}
 				type="text"
 				autocomplete="off"
@@ -103,6 +112,7 @@
 			<input
 				id="ingredient-note-{row.id}"
 				bind:value={row.note}
+				oninput={clearHint}
 				onkeydown={(event) => handleKeydown(event, true)}
 				type="text"
 				autocomplete="off"
@@ -138,6 +148,25 @@
 			class="mt-1 pl-5 text-micro font-medium text-destructive md:pl-7"
 		>
 			{nameError}
+		</p>
+	{/if}
+	{#if row.source !== undefined}
+		<p class="mt-1 flex items-center gap-1.5 pl-5 text-caption text-primary md:pl-7">
+			<TriangleAlert class="size-3.5 shrink-0" aria-hidden="true" />
+			<span class="min-w-0 break-words">
+				<span class="font-medium">{m.editor_ingredient_check()}</span> · {m.editor_ingredient_original(
+					{ line: row.source }
+				)}
+			</span>
+			<button
+				type="button"
+				onclick={clearHint}
+				aria-label={m.editor_ingredient_check_dismiss()}
+				title={m.editor_ingredient_check_dismiss()}
+				class="-my-1.5 ml-auto flex size-8 shrink-0 items-center justify-center rounded-pill text-text-muted transition hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			>
+				<X class="size-3.5" aria-hidden="true" />
+			</button>
 		</p>
 	{/if}
 </div>

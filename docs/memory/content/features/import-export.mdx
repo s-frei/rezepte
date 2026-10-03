@@ -3,7 +3,7 @@ title: Import and export
 description: Recipes and their photos move between instances as a zip, one folder per recipe; admins only
 ---
 
-An admin can export a selection of recipes with their photos as one zip and import such a zip on another instance, from Settings → Import & export. It moves recipes between instances; it is not a backup, which is the database plus the images directory ([Images](/features/images)). `service/internal/transfer` holds the format, the export and the two-phase import; `frontend/src/lib/transfer/zip.ts` and `frontend/src/lib/api/transfer.ts` hold the browser side. [HTTP API](/architecture/api) owns the endpoints and their status codes.
+An admin can export a selection of recipes with their photos as one zip and import such a zip on another instance, from Settings → Import & export. The "Import" buttons elsewhere in the app open the dialog of [Recipe import](/features/recipe-import), whose admin-only row links to the Import card there. It moves recipes between instances; it is not a backup, which is the database plus the images directory ([Images](/features/images)). `service/internal/transfer` holds the format, the export and the two-phase import; `frontend/src/lib/transfer/zip.ts` and `frontend/src/lib/api/transfer.ts` hold the browser side. [HTTP API](/architecture/api) owns the endpoints and their status codes.
 
 ## How it works
 
@@ -45,4 +45,4 @@ Errors are located by zip path in the `location` of the `422`: `a/recipe.json: b
 - Photos are re-encoded once on import, so a photo loses a little more quality with each round trip.
 - Duplicates are detected only by the title hint in the browser; the server creates whatever it is given.
 - A `401` during an import does not send the browser to the login page.
-- Only the format above is read: no JSON-LD and no URL import ([Roadmap](/roadmap)).
+- Only the format above is read; a single recipe from a web page or pasted text comes in through [Recipe import](/features/recipe-import).

@@ -16,6 +16,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import {
 		anchorId,
+		applyReview,
 		applyServerErrors,
 		firstErrorField,
 		fromRecipe,
@@ -27,6 +28,7 @@
 	} from '$lib/recipe/form';
 	import { refusalOr } from '$lib/recipe/access';
 	import { applyDndAriaStrings } from '$lib/recipe/dnd';
+	import { takeDraft, type ImportedDraft } from '$lib/recipe/draft';
 	import { currentSection, isAtBottom, nextBand, stillPinned } from '$lib/recipe/section-spy';
 	import { acceptAll, type DismissedWords } from '$lib/recipe/step-references';
 	import { shell } from '$lib/shell.svelte';
@@ -43,7 +45,8 @@
 		cancelHref,
 		existing,
 		access,
-		save
+		save,
+		imported
 	}: {
 		/** Starting values - `emptyInput()` for a new recipe, the loaded recipe for an edit. */
 		initial: RecipeInput;
@@ -56,20 +59,25 @@
 		access?: { canChangePolicy: boolean; isAuthor: boolean; authorName: string };
 		/** Performs the create or update call; `pendingFiles` is non-empty only for a new recipe with queued images. */
 		save: (input: RecipeInput, pendingFiles: File[]) => Promise<Recipe>;
+		/** Set when the recipe comes from an import: hints, tag suggestions and the queued photo. */
+		imported?: ImportedDraft;
 	} = $props();
 
 	// `fromRecipe` mints fresh ids, so it runs exactly once: `pristine` is the
 	// snapshot the dirty check diffs against, `form` the copy being edited.
 	// Seeding the editor from a later `initial` would throw away what the user
 	// has typed, so that one-time read is marked with `untrack`.
-	const pristine = untrack(() => fromRecipe(initial));
+	const pristine = untrack(() => applyReview(fromRecipe(initial), imported?.draft.review ?? []));
 	let form = $state(structuredClone(pristine));
 	let errors = $state<FieldErrors>({});
 	let saving = $state(false);
 	let discardOpen = $state(false);
 	// Files the images section has queued for a not-yet-created recipe; the
 	// `save` callback uploads them once the recipe exists.
-	let pendingFiles = $state<File[]>([]);
+	let pendingFiles = $state<File[]>(untrack(() => (imported?.photo ? [imported.photo] : [])));
+	// An import's keywords that would be new tags; like `dismissed`, not part of
+	// `form`, since only the accepted ones are saved.
+	let suggestedTags = $state<string[]>(untrack(() => imported?.draft.suggestedTags ?? []));
 	// Proposals the author turned down, keyed by step id. Deliberately not part
 	// of `form`: turning one down changes nothing that is saved, so it must not
 	// make the form dirty, and it has no business surviving the page.
@@ -84,7 +92,10 @@
 	// is handed other strings; this is the only screen that drags anything.
 	applyDndAriaStrings();
 
-	const dirty = $derived(isDirty(form, pristine) || pendingFiles.length > 0);
+	// An unsaved import is worth guarding before any edit.
+	const dirty = $derived(
+		isDirty(form, pristine) || pendingFiles.length > 0 || imported !== undefined
+	);
 
 	const sections = [
 		{ id: 'editor-section-basics', label: m.editor_section_basics() },
@@ -383,6 +394,16 @@
 		discardOpen = true;
 	});
 
+	// The discard dialog closed without "Discard" (which clears `pendingUrl`
+	// first): the navigation is given up, and an import riding on it with it.
+	$effect(() => {
+		if (discardOpen || pendingUrl === null) {
+			return;
+		}
+		pendingUrl = null;
+		takeDraft(); // drops it
+	});
+
 	$effect(() => {
 		if (!dirty) {
 			return;
@@ -475,7 +496,7 @@
 						{m.editor_required_legend()}
 					</p>
 				</div>
-				<BasicsSection bind:form {errors} />
+				<BasicsSection bind:form {errors} bind:suggestedTags />
 			</section>
 
 			<section id="editor-section-images" class={sectionCard}>

@@ -123,7 +123,7 @@ test('the bar shrinks while reading down and comes back on the way up', async ({
 	await expect(expand).toBeVisible();
 	await expect(nav.getByRole('button', { name: 'Search' })).toHaveCount(0);
 	// New stays within reach in both shapes.
-	await expect(page.getByRole('link', { name: 'New', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'New', exact: true })).toBeVisible();
 
 	await page.mouse.wheel(0, -300);
 	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();

@@ -5,6 +5,7 @@
 	import { page } from '$app/state';
 	import AppShell from '$lib/components/shell/AppShell.svelte';
 	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
+	import ImportDialog from '$lib/components/import/ImportDialog.svelte';
 	import { session } from '$lib/auth.svelte';
 	import { palette } from '$lib/palette.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -68,6 +69,7 @@
 			{@render children()}
 		</AppShell>
 		<CommandPalette />
+		<ImportDialog />
 	{/if}
 </div>
 

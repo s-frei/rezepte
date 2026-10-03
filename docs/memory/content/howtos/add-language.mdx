@@ -9,7 +9,7 @@ description: A new interface language, end to end
 
 </Callout>
 
-A language is two files: its code in `service/internal/i18n/locales.json` and its catalog in `frontend/messages/`. Everything else reads that list - see [Languages](/features/languages) for how. The user docs carry the contributor's version of these steps in `docs/user/content/contributing/add-a-language.mdx`; keep the two in step.
+A language is three files: its code in `service/internal/i18n/locales.json`, its catalog in `frontend/messages/`, and its import table in `service/internal/recipeimport/` ([Add an import language](/howtos/add-an-import-language)). Everything else reads that list - see [Languages](/features/languages) for how. The user docs carry the contributor's version of these steps in `docs/user/content/contributing/add-a-language.mdx`; keep the two in step.
 
 <Steps>
   <Step>
@@ -33,6 +33,12 @@ A language is two files: its code in `service/internal/i18n/locales.json` and it
     Copy `frontend/messages/en.json` to `frontend/messages/<locale>.json` and translate every value, keeping every key and every `{param}` placeholder exactly as it stands. The catalogs are peers, not a source and its translations: `mise run check` fails while any of them is missing a key the others have (`frontend/scripts/message-parity.ts`), and while a listed locale has no catalog at all (`service/internal/i18n/i18n_test.go`).
 
     Do not add a key for the language's own name. The picker gets those from `Intl.DisplayNames`.
+
+  </Step>
+  <Step>
+
+    ### Teach the import the language
+    Add `service/internal/recipeimport/lang_<locale>.go`: the units, headings and other words recipes in the language use, so imported recipes come out clean. [Add an import language](/howtos/add-an-import-language) walks through every field, the test rows and the fixture. `TestEveryAppLanguageHasAnImportTable` fails while a listed locale has no table.
 
   </Step>
   <Step>
