@@ -335,3 +335,50 @@ test('keeps the start of a long step readable at the largest size', async ({ pag
 	);
 	expect(box.y).toBeGreaterThanOrEqual(scroller);
 });
+
+test('keeps a linked word and a long time inside a narrow phone at the largest size', async ({
+	page
+}) => {
+	// A word with its quantity attached ("Bratenfond(500 ml)") is one block
+	// Chromium measures without hyphenation. The step must still take the
+	// column's width, not that block's, or it is clipped on both sides.
+	await page.setViewportSize({ width: 360, height: 740 });
+	const recipe = await createRecipe(page, {
+		...scalingRecipe(`Narrow ${uniqueToken()}`),
+		ingredientGroups: [
+			{ name: null, ingredients: [{ quantity: 500, unit: 'ml', name: 'Bratenfond', note: null }] }
+		],
+		steps: [
+			{
+				text: 'Zwischendurch mit Bratenfond übergießen und 20 bis 25 Minuten garziehen lassen.',
+				references: [{ word: 'Bratenfond', groupName: null, ingredientName: 'Bratenfond' }],
+				times: [{ phrase: '20 bis 25 Minuten', seconds: 1200, maxSeconds: 1500 }]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/cook`);
+	await page.getByRole('button', { name: 'Type size' }).click();
+	await page.getByRole('radio', { name: 'Double Pica' }).click();
+	await page.keyboard.press('Escape');
+
+	const step = page.locator('section p');
+	await expect(step).toContainText('(500 ml)');
+	const [stepWidth, contentWidth, columnWidth] = await step.evaluate((node) => [
+		node.getBoundingClientRect().width,
+		node.scrollWidth,
+		node.parentElement!.clientWidth
+	]);
+	expect(stepWidth).toBeLessThanOrEqual(columnWidth);
+	expect(contentWidth).toBeLessThanOrEqual(columnWidth);
+	// The time is wider than the line here, so it wraps inside its own box.
+	const [timeLeft, timeRight, columnLeft, columnRight] = await page
+		.locator('[data-time]')
+		.evaluate((node) => {
+			const column = node.closest('section')!.getBoundingClientRect();
+			const box = node.getBoundingClientRect();
+			return [box.left, box.right, column.left, column.right];
+		});
+	expect(timeLeft).toBeGreaterThanOrEqual(columnLeft);
+	expect(timeRight).toBeLessThanOrEqual(columnRight);
+});

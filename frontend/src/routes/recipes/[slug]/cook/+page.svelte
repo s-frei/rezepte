@@ -214,9 +214,10 @@
 						     breaks at the largest size instead of being clipped, while
 						     "potatoes" never turns into "pota-toes" on a line that had
 						     room. Browsers without `hyphenate-limit-chars` hyphenate
-						     every word instead. -->
+						     every word instead. `w-full`: shrunk to its text, Chromium
+						     sizes the step to "word(quantity)" unhyphenated and clips it. -->
 						<p
-							class="mt-4 max-w-[640px] font-display {TYPE_SIZE_CLASSES[
+							class="mt-4 w-full max-w-[640px] font-display {TYPE_SIZE_CLASSES[
 								typeSize
 							]} leading-[1.3] font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4]"
 						>
