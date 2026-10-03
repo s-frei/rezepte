@@ -2452,10 +2452,50 @@
             "maxLength": 2000,
             "minLength": 1,
             "type": "string"
+          },
+          "times": {
+            "items": {
+              "$ref": "#/components/schemas/StepTime"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
           "text"
+        ],
+        "type": "object"
+      },
+      "StepTime": {
+        "additionalProperties": false,
+        "properties": {
+          "maxSeconds": {
+            "description": "The upper end of a range in seconds, absent for a single duration",
+            "format": "int64",
+            "maximum": 604800,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "phrase": {
+            "description": "The duration as it stands in the step's text, e.g. \"90 Minuten\"",
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "seconds": {
+            "description": "The duration in seconds; for a range, its lower end",
+            "format": "int64",
+            "maximum": 604800,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "phrase",
+          "seconds"
         ],
         "type": "object"
       },

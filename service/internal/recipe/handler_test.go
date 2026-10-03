@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -354,6 +355,92 @@ func TestCreateAcceptsAReferenceAsLongAsAnIngredientName(t *testing.T) {
 	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateAcceptsAStepWithoutTimes(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	var body map[string]any
+	if err := json.Unmarshal([]byte(mustMarshal(t, loadFixtures(t)[0])), &body); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range body["steps"].([]any) {
+		delete(s.(map[string]any), "times")
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", string(raw), cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestCreateRejectsATimeNotInTheText(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0]
+	fx.Steps[0].Text = "Alles verrühren."
+	fx.Steps[0].References = []recipe.IngredientRef{}
+	fx.Steps[0].Times = []recipe.StepTime{{Phrase: "90 Minuten", Seconds: 5400}}
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var problem problemErrors
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if len(problem.Errors) == 0 || problem.Errors[0].Location != "body.steps[0].times[0].phrase" {
+		t.Fatalf("errors = %+v", problem.Errors)
+	}
+}
+
+// TestCreateRejectsTimesOverTheSchemaLimits pins the huma tags on StepTime.Phrase
+// (maxLength 60), StepTime.Seconds and MaxSeconds (1..604800) and Step.Times
+// (maxItems 20): validateTimes does not repeat them.
+func TestCreateRejectsTimesOverTheSchemaLimits(t *testing.T) {
+	longPhrase := "1" + strings.Repeat("ä", 60) // 61 characters
+	var many []recipe.StepTime
+	var text []string
+	for i := 1; i <= 21; i++ {
+		phrase := fmt.Sprintf("%d Minuten", i)
+		text = append(text, phrase)
+		many = append(many, recipe.StepTime{Phrase: phrase, Seconds: i * 60})
+	}
+	cases := map[string]struct {
+		text     string
+		times    []recipe.StepTime
+		location string
+	}{
+		"phrase over 60 characters": {longPhrase + " backen.", []recipe.StepTime{{Phrase: longPhrase, Seconds: 60}}, "body.steps[0].times[0].phrase"},
+		"more than 20 times":        {strings.Join(text, ", ") + ".", many, "body.steps[0].times"},
+		"zero seconds":              {"2 Minuten backen.", []recipe.StepTime{{Phrase: "2 Minuten", Seconds: 0}}, "body.steps[0].times[0].seconds"},
+		"seconds over a week":       {"2 Minuten backen.", []recipe.StepTime{{Phrase: "2 Minuten", Seconds: 604801}}, "body.steps[0].times[0].seconds"},
+		"maxSeconds over a week":    {"2 Minuten backen.", []recipe.StepTime{{Phrase: "2 Minuten", Seconds: 60, MaxSeconds: new(604801)}}, "body.steps[0].times[0].maxSeconds"},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newRecipeHandler(t)
+			cookie := loginCookie(t, h)
+			fx := loadFixtures(t)[0]
+			fx.Steps[0].Text = c.text
+			fx.Steps[0].References = []recipe.IngredientRef{}
+			fx.Steps[0].Times = c.times
+			rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+			if rec.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			var problem problemErrors
+			if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+				t.Fatal(err)
+			}
+			if len(problem.Errors) == 0 || problem.Errors[0].Location != c.location {
+				t.Fatalf("errors = %+v, want location %s", problem.Errors, c.location)
+			}
+		})
 	}
 }
 

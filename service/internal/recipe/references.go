@@ -29,11 +29,13 @@ type IngredientRef struct {
 type Step struct {
 	Text       string          `json:"text" minLength:"1" maxLength:"2000"`
 	References []IngredientRef `json:"references" maxItems:"30" required:"false"`
+	Times      []StepTime      `json:"times" maxItems:"20" required:"false"`
 }
 
 // RefError says which reference could not be resolved and why. The handler turns
 // it into a 422 whose location names the exact JSON path.
 type RefError struct {
+	List  string // "references" or "times"
 	Step  int
 	Ref   int
 	Field string
@@ -41,12 +43,12 @@ type RefError struct {
 }
 
 func (e *RefError) Error() string {
-	return fmt.Sprintf("steps[%d].references[%d].%s: %s", e.Step, e.Ref, e.Field, e.Msg)
+	return fmt.Sprintf("steps[%d].%s[%d].%s: %s", e.Step, e.List, e.Ref, e.Field, e.Msg)
 }
 
 // Location is the RFC 9457 pointer huma expects.
 func (e *RefError) Location() string {
-	return fmt.Sprintf("body.steps[%d].references[%d].%s", e.Step, e.Ref, e.Field)
+	return fmt.Sprintf("body.steps[%d].%s[%d].%s", e.Step, e.List, e.Ref, e.Field)
 }
 
 // refTarget is where a reference landed, as positions within the submitted
@@ -56,8 +58,8 @@ type refTarget struct {
 	Ingredient int
 }
 
-// ResolveRefs checks that every step reference resolves, as Create does
-// before it writes; the import checks a whole file before creating anything.
+// ResolveRefs checks that every step reference resolves and every step time
+// is valid, as Create does before it writes; the import checks a whole file before creating anything.
 // The error is a *RefError.
 func ResolveRefs(groups []IngredientGroup, steps []Step) error {
 	_, err := resolveRefs(groups, steps)
@@ -77,26 +79,29 @@ func resolveRefs(groups []IngredientGroup, steps []Step) (map[[2]int]refTarget, 
 		for ri, ref := range step.References {
 			word := strings.TrimSpace(ref.Word)
 			if word == "" {
-				return nil, &RefError{Step: si, Ref: ri, Field: "word", Msg: "must not be empty"}
+				return nil, &RefError{List: "references", Step: si, Ref: ri, Field: "word", Msg: "must not be empty"}
 			}
 			if _, dup := seen[word]; dup {
-				return nil, &RefError{Step: si, Ref: ri, Field: "word", Msg: fmt.Sprintf("%q is referenced twice in this step", word)}
+				return nil, &RefError{List: "references", Step: si, Ref: ri, Field: "word", Msg: fmt.Sprintf("%q is referenced twice in this step", word)}
 			}
 			seen[word] = struct{}{}
 			if !containsWord(step.Text, word) {
-				return nil, &RefError{Step: si, Ref: ri, Field: "word", Msg: fmt.Sprintf("%q does not occur in the step's text", word)}
+				return nil, &RefError{List: "references", Step: si, Ref: ri, Field: "word", Msg: fmt.Sprintf("%q does not occur in the step's text", word)}
 			}
 
 			gi, err := findGroup(groups, ref.GroupName)
 			if err != nil {
-				return nil, &RefError{Step: si, Ref: ri, Field: "groupName", Msg: err.Error()}
+				return nil, &RefError{List: "references", Step: si, Ref: ri, Field: "groupName", Msg: err.Error()}
 			}
 			ii, err := findIngredient(groups[gi], strings.TrimSpace(ref.IngredientName))
 			if err != nil {
-				return nil, &RefError{Step: si, Ref: ri, Field: "ingredientName", Msg: err.Error()}
+				return nil, &RefError{List: "references", Step: si, Ref: ri, Field: "ingredientName", Msg: err.Error()}
 			}
 			out[[2]int{si, ri}] = refTarget{Group: gi, Ingredient: ii}
 		}
+	}
+	if err := validateTimes(steps); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -153,17 +158,10 @@ func findIngredient(group IngredientGroup, name string) (int, error) {
 //
 // Go's regexp \b is ASCII-only, which would break on "Öl" and "Äpfel" - not an
 // edge case in a German recipe book - so the boundaries are checked against
-// unicode.IsLetter and IsDigit instead.
-//
-// Known divergence from the frontend, recorded rather than removed:
-// unicode.IsDigit is \p{Nd} (decimal digits), while wordPattern in
-// frontend/src/lib/recipe/references.ts uses \p{N}, which also covers "½" and
-// "Ⅷ". The two therefore disagree about a word boundary next to one of those,
-// and only about that. It cannot produce a wrong quantity in either direction:
-// here a disagreement rejects the reference with a 422, and there it leaves the
-// word unannotated - both are "no reference", which is the only failure mode
-// this feature allows. Aligning them would mean changing what one side accepts,
-// for characters no recipe in the corpus contains.
+// unicode.IsLetter and IsNumber instead. IsNumber is \p{N}, the class
+// wordPattern in frontend/src/lib/recipe/references.ts draws its boundaries
+// with, so both sides agree next to "½" too: a time "1" in "1½ Stunden" is
+// refused here because the frontend could never draw it.
 func containsWord(text, word string) bool {
 	if word == "" {
 		return false
@@ -187,7 +185,7 @@ func alnumBefore(s string, i int) bool {
 		return false
 	}
 	r, _ := utf8.DecodeLastRuneInString(s[:i])
-	return unicode.IsLetter(r) || unicode.IsDigit(r)
+	return unicode.IsLetter(r) || unicode.IsNumber(r)
 }
 
 func alnumAt(s string, i int) bool {
@@ -195,5 +193,5 @@ func alnumAt(s string, i int) bool {
 		return false
 	}
 	r, _ := utf8.DecodeRuneInString(s[i:])
-	return unicode.IsLetter(r) || unicode.IsDigit(r)
+	return unicode.IsLetter(r) || unicode.IsNumber(r)
 }

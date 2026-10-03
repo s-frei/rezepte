@@ -147,7 +147,7 @@ func (e env) seedAs(t *testing.T, author user.User, policy recipe.Policy, title 
 	r, err := e.svc.Create(context.Background(), author.ID, recipe.Input{
 		Title: title, Servings: 2, Tags: tags, EditPolicy: policy,
 		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Leek"}}}},
-		Steps:            []recipe.Step{{Text: "Cook the leek.", References: []recipe.IngredientRef{}}},
+		Steps:            []recipe.Step{{Text: "Cook the leek.", References: []recipe.IngredientRef{}, Times: []recipe.StepTime{}}},
 	})
 	if err != nil {
 		t.Fatal(err)

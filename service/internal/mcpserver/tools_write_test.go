@@ -47,7 +47,7 @@ func TestCreateRecipe(t *testing.T) {
 	rec := validRecipe()
 	rec["steps"] = []any{map[string]any{"text": "Wash the leek.", "references": []any{
 		map[string]any{"word": "leek", "groupName": nil, "ingredientName": "Leek"},
-	}}}
+	}, "times": []any{}}}
 	got := structured[struct {
 		ID        string `json:"id"`
 		CreatedBy struct {
@@ -82,7 +82,7 @@ func TestCreateRecipeReportsReferencePath(t *testing.T) {
 	rec := validRecipe()
 	rec["steps"] = []any{map[string]any{"text": "Cook.", "references": []any{
 		map[string]any{"word": "leek", "groupName": nil, "ingredientName": "Leek"},
-	}}}
+	}, "times": []any{}}}
 	res := call(t, cs, "create_recipe", map[string]any{"recipe": rec})
 	if !res.IsError || !strings.Contains(text(res), "steps[0].references[0].word") {
 		t.Fatalf("got %q", text(res))

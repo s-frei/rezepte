@@ -72,6 +72,9 @@ func TestImportRoundTrip(t *testing.T) {
 	if len(got.Steps) != 1 || len(got.Steps[0].References) != 1 {
 		t.Fatalf("steps = %+v", got.Steps)
 	}
+	if ts := got.Steps[0].Times; len(ts) != 1 || ts[0].Seconds != 1200 || ts[0].MaxSeconds == nil || *ts[0].MaxSeconds != 1500 {
+		t.Fatalf("times = %+v", ts)
+	}
 }
 
 func TestImportOfAnExistingTitleGetsANewSlug(t *testing.T) {

@@ -437,7 +437,7 @@ func TestMCPSpeaksTheProtocol(t *testing.T) {
 		"ingredientGroups": []any{map[string]any{"name": nil, "ingredients": []any{
 			map[string]any{"quantity": 1, "unit": nil, "name": "Leek", "note": nil},
 		}}},
-		"steps": []any{map[string]any{"text": "Cook the leek.", "references": []any{}}},
+		"steps": []any{map[string]any{"text": "Cook the leek.", "references": []any{}, "times": []any{}}},
 	}}})
 	if err != nil {
 		t.Fatal(err)

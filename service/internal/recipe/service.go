@@ -423,6 +423,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list step references: %w", err)
 	}
+	timeRows, err := s.q.ListStepTimesByRecipe(ctx, row.ID)
+	if err != nil {
+		return Recipe{}, fmt.Errorf("list step times: %w", err)
+	}
 	tagNames, err := s.q.ListTagNamesByRecipe(ctx, row.ID)
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list tags: %w", err)
@@ -473,6 +477,14 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			IngredientName: r.IngredientName,
 		})
 	}
+	timesByStep := make(map[string][]StepTime, len(steps))
+	for _, r := range timeRows {
+		timesByStep[r.StepID] = append(timesByStep[r.StepID], StepTime{
+			Phrase:     r.Phrase,
+			Seconds:    int(r.Seconds),
+			MaxSeconds: db.Conv[int](r.MaxSeconds),
+		})
+	}
 	outSteps := make([]Step, len(steps))
 	for i, st := range steps {
 		refs := refsByStep[st.ID]
@@ -480,7 +492,12 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			// Never nil: a null here would break a GET -> PUT round-trip.
 			refs = []IngredientRef{}
 		}
-		outSteps[i] = Step{Text: st.Text, References: refs}
+		times := timesByStep[st.ID]
+		if times == nil {
+			// Never nil, for the same round-trip reason as the references.
+			times = []StepTime{}
+		}
+		outSteps[i] = Step{Text: st.Text, References: refs, Times: times}
 	}
 
 	// Never nil, like the steps' references: "nobody yet" is an empty list.
@@ -600,6 +617,17 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 				Position:     int64(ri),
 			}); err != nil {
 				return fmt.Errorf("insert step reference: %w", err)
+			}
+		}
+		for ti, tm := range step.Times {
+			if err := q.InsertStepTime(ctx, sqlc.InsertStepTimeParams{
+				StepID:     stepID,
+				Phrase:     strings.TrimSpace(tm.Phrase),
+				Seconds:    int64(tm.Seconds),
+				MaxSeconds: db.Conv[int64](tm.MaxSeconds),
+				Position:   int64(ti),
+			}); err != nil {
+				return fmt.Errorf("insert step time: %w", err)
 			}
 		}
 	}

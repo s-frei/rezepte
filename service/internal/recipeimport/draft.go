@@ -62,7 +62,7 @@ func Build(p Page, known []string) Draft {
 	}
 	in.IngredientGroups = []recipe.IngredientGroup{group}
 	for _, s := range p.Steps {
-		in.Steps = append(in.Steps, recipe.Step{Text: s, References: []recipe.IngredientRef{}})
+		in.Steps = append(in.Steps, recipe.Step{Text: s, References: []recipe.IngredientRef{}, Times: []recipe.StepTime{}})
 	}
 	spelling := make(map[string]string, len(known))
 	for _, k := range known {

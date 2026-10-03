@@ -138,6 +138,14 @@ type StepReference struct {
 	Position     int64
 }
 
+type StepTime struct {
+	StepID     string
+	Phrase     string
+	Seconds    int64
+	MaxSeconds *int64
+	Position   int64
+}
+
 type Tag struct {
 	ID   string
 	Name string

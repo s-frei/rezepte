@@ -712,3 +712,40 @@ func TestUpdateDroppingAReferencedIngredientStillLoads(t *testing.T) {
 		t.Fatalf("references = %+v, want a single Tomate reference (Gurke's row must not survive)", got.Steps[0].References)
 	}
 }
+
+func TestCreateAndLoadRoundTripsTimes(t *testing.T) {
+	ctx := context.Background()
+	svc, userID := setup(t)
+	in := recipe.Input{
+		Title: "Teig", Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Mehl"}}}},
+		Steps: []recipe.Step{
+			{Text: "15 Minuten", Times: []recipe.StepTime{{Phrase: "15 Minuten", Seconds: 900}}},
+			{Text: "Den Teig 20–25 Minuten ruhen lassen, dann 1 Stunde kühlen.", Times: []recipe.StepTime{
+				{Phrase: "20–25 Minuten", Seconds: 1200, MaxSeconds: new(1500)},
+				{Phrase: "1 Stunde", Seconds: 3600},
+			}},
+			{Text: "Servieren."},
+		},
+	}
+	r, err := svc.Create(ctx, userID, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.ByID(ctx, r.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(got.Steps[1].Times); n != 2 {
+		t.Fatalf("step 1 times = %d, want 2", n)
+	}
+	if tm := got.Steps[1].Times[0]; tm.Phrase != "20–25 Minuten" || tm.Seconds != 1200 || tm.MaxSeconds == nil || *tm.MaxSeconds != 1500 {
+		t.Errorf("step 1 time 0 = %+v", tm)
+	}
+	if tm := got.Steps[1].Times[1]; tm.MaxSeconds != nil {
+		t.Errorf("single duration came back with maxSeconds %d", *tm.MaxSeconds)
+	}
+	if got.Steps[2].Times == nil {
+		t.Error("times is nil, want an empty list")
+	}
+}

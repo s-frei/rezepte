@@ -78,7 +78,8 @@ func sampleInput(title string) recipe.Input {
 			Ingredients: []recipe.Ingredient{{Name: "Mehl"}, {Name: "Äpfel"}},
 		}},
 		Steps: []recipe.Step{{
-			Text:       "Äpfel schälen.",
+			Text:       "Äpfel schälen, dann 20–25 Minuten backen.",
+			Times:      []recipe.StepTime{{Phrase: "20–25 Minuten", Seconds: 1200, MaxSeconds: new(1500)}},
 			References: []recipe.IngredientRef{{Word: "Äpfel", GroupName: &group, IngredientName: "Äpfel"}},
 		}},
 	}

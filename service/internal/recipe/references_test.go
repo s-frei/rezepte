@@ -2,6 +2,7 @@ package recipe
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -57,6 +58,9 @@ func TestResolveRefsRejectsWordNotInText(t *testing.T) {
 	var refErr *RefError
 	if !errors.As(err, &refErr) || refErr.Field != "word" {
 		t.Fatalf("got %v, want a RefError on word", err)
+	}
+	if refErr.List != "references" || !strings.HasPrefix(refErr.Location(), "body.steps[0].references[0].") {
+		t.Errorf("List = %q, Location = %q", refErr.List, refErr.Location())
 	}
 }
 
@@ -126,6 +130,7 @@ func TestContainsWordRespectsUnicodeBoundaries(t *testing.T) {
 		{"Zwiebelöl kalt pressen.", "Zwiebel", false},                 // ö abuts the word on the right
 		{"Röstzwiebel darüberstreuen.", "zwiebel", false},             // case-sensitive AND 'st' prefix abuts on the left
 		{"Kartoffelöl für Salzwasser verwenden.", "Kartoffel", false}, // ö abuts on the right, strengthens first discriminator
+		{"1½ Stunden backen.", "1", false},                            // ½ is \p{N}, as in the frontend's wordPattern
 	}
 	for _, c := range cases {
 		if got := containsWord(c.text, c.word); got != c.want {

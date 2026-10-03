@@ -70,6 +70,16 @@ JOIN ingredient_groups g ON g.id = i.group_id
 WHERE s.recipe_id = ?
 ORDER BY s.position, sr.position;
 
+-- name: InsertStepTime :exec
+INSERT INTO step_times (step_id, phrase, seconds, max_seconds, position) VALUES (?, ?, ?, ?, ?);
+
+-- name: ListStepTimesByRecipe :many
+SELECT st.step_id, st.phrase, st.seconds, st.max_seconds
+FROM step_times st
+JOIN steps s ON s.id = st.step_id
+WHERE s.recipe_id = ?
+ORDER BY s.position, st.position;
+
 -- name: ListTagNamesByRecipe :many
 SELECT t.name
 FROM tags t

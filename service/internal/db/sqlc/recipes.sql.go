@@ -318,6 +318,29 @@ func (q *Queries) InsertStepReference(ctx context.Context, arg InsertStepReferen
 	return err
 }
 
+const insertStepTime = `-- name: InsertStepTime :exec
+INSERT INTO step_times (step_id, phrase, seconds, max_seconds, position) VALUES (?, ?, ?, ?, ?)
+`
+
+type InsertStepTimeParams struct {
+	StepID     string
+	Phrase     string
+	Seconds    int64
+	MaxSeconds *int64
+	Position   int64
+}
+
+func (q *Queries) InsertStepTime(ctx context.Context, arg InsertStepTimeParams) error {
+	_, err := q.db.ExecContext(ctx, insertStepTime,
+		arg.StepID,
+		arg.Phrase,
+		arg.Seconds,
+		arg.MaxSeconds,
+		arg.Position,
+	)
+	return err
+}
+
 const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many
 SELECT id, username, display_name, color, avatar_id FROM users WHERE id IN (/*SLICE:ids*/?)
 `
@@ -603,6 +626,49 @@ func (q *Queries) ListStepReferencesByRecipe(ctx context.Context, recipeID strin
 			&i.Word,
 			&i.GroupName,
 			&i.IngredientName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStepTimesByRecipe = `-- name: ListStepTimesByRecipe :many
+SELECT st.step_id, st.phrase, st.seconds, st.max_seconds
+FROM step_times st
+JOIN steps s ON s.id = st.step_id
+WHERE s.recipe_id = ?
+ORDER BY s.position, st.position
+`
+
+type ListStepTimesByRecipeRow struct {
+	StepID     string
+	Phrase     string
+	Seconds    int64
+	MaxSeconds *int64
+}
+
+func (q *Queries) ListStepTimesByRecipe(ctx context.Context, recipeID string) ([]ListStepTimesByRecipeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listStepTimesByRecipe, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListStepTimesByRecipeRow{}
+	for rows.Next() {
+		var i ListStepTimesByRecipeRow
+		if err := rows.Scan(
+			&i.StepID,
+			&i.Phrase,
+			&i.Seconds,
+			&i.MaxSeconds,
 		); err != nil {
 			return nil, err
 		}

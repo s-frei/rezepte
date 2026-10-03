@@ -10,7 +10,7 @@ import (
 )
 
 // recipeDefs are the huma component schemas a recipe document is built from.
-var recipeDefs = []string{"Input", "IngredientGroup", "Ingredient", "Step", "IngredientRef"}
+var recipeDefs = []string{"Input", "IngredientGroup", "Ingredient", "Step", "IngredientRef", "StepTime"}
 
 // recipeSchema is create_recipe's input schema, {"recipe": Input}, and with
 // withID update_recipe's, {"id", "recipe": Input}.
@@ -25,7 +25,7 @@ func recipeSchema(api huma.API, withID bool) (*jsonschema.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	requireReferences(defs)
+	requireStepLists(defs)
 	delete(prop(defs, "Input"), "$schema")
 
 	props := map[string]any{
@@ -79,15 +79,18 @@ func componentDefs(api huma.API) (map[string]any, error) {
 	return defs, nil
 }
 
-// requireReferences makes every step state its references. REST leaves the
-// field optional, so a client that drops it silently deletes every
-// ingredient link in the recipe; a model rewriting a step is exactly such a
-// client, so over MCP it has to send them, or an explicit [].
-func requireReferences(defs map[string]any) {
+// requireStepLists makes every step state its references and times. REST
+// leaves the fields optional, so a client that drops one silently deletes
+// every ingredient link or step time in the recipe; a model rewriting a step
+// is exactly such a client, so over MCP it has to send them, or an explicit [].
+func requireStepLists(defs map[string]any) {
 	step := defs["Step"].(map[string]any)
 	req, _ := step["required"].([]any)
-	step["required"] = append(req, "references")
-	prop(defs, "Step")["references"].(map[string]any)["type"] = "array"
+	for _, f := range []string{"references", "times"} {
+		req = append(req, f)
+		prop(defs, "Step")[f].(map[string]any)["type"] = "array"
+	}
+	step["required"] = req
 }
 
 func prop(defs map[string]any, name string) map[string]any {

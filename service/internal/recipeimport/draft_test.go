@@ -113,3 +113,15 @@ func TestBuildDroppingSuggestionsIsNotTruncation(t *testing.T) {
 		t.Fatalf("suggested = %d, truncated = %v", len(d.SuggestedTags), d.Truncated)
 	}
 }
+
+func TestBuildSendsEmptyStepLists(t *testing.T) {
+	// The editor reads both lists of every step; a null would break it.
+	d := recipeimport.Build(recipeimport.Page{Title: "x", Steps: []string{"20 Minuten kochen."}}, nil)
+	raw, err := json.Marshal(d.Recipe.Steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `[{"text":"20 Minuten kochen.","references":[],"times":[]}]`; string(raw) != want {
+		t.Errorf("steps = %s, want %s", raw, want)
+	}
+}
