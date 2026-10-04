@@ -158,6 +158,7 @@
 	/** What the manual picker's query field holds, and the field itself. */
 	let manualQuery = $state('');
 	let queryField = $state<HTMLInputElement | null>(null);
+	let pickerBox = $state<HTMLElement | null>(null);
 	/** Said in the live region when there was no word to link. */
 	let notice = $state('');
 	/** Whether focus is anywhere in this step; the link button is offered only then. */
@@ -524,6 +525,19 @@
 			event.preventDefault();
 			open.active = (open.active - 1 + count) % count;
 		}
+	}
+
+	/**
+	 * A press outside the `@` popup closes it, as the manual picker closes on
+	 * blur. A press in the step itself is Tiptap's: the caret staying in the
+	 * `@query` keeps the list, leaving it ends the suggestion there.
+	 */
+	function closePickerOutside(event: PointerEvent) {
+		const view = editor?.view;
+		if (picker?.word !== null || !view) return;
+		const target = event.target as Node;
+		if (pickerBox?.contains(target) || view.dom.contains(target)) return;
+		exitSuggestion(view, PICKER_KEY);
 	}
 
 	/**
@@ -1115,6 +1129,8 @@
 	</Popover.Content>
 </Popover.Root>
 
+<svelte:document onpointerdown={closePickerOutside} />
+
 {#if picker}
 	<!--
 		The rows never take focus: in the `@` flow the caret stays in the step
@@ -1126,6 +1142,7 @@
 		Enter, so the keyboard never reaches them anyway.
 	-->
 	<div
+		bind:this={pickerBox}
 		class="fixed z-50 w-72 rounded-md border border-border bg-surface-elevated shadow-card"
 		style="left: {pickerAt.left}px; {pickerAt.top === null
 			? `bottom: ${pickerAt.bottom}px`

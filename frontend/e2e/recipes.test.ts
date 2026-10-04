@@ -1109,6 +1109,33 @@ test('keeps a picked name apart from the word the @ was typed before', async ({ 
 	await expect(page.getByText('(100 g)', { exact: true })).toBeVisible();
 });
 
+test('closes the @ picker on a press outside it, and a fresh @ opens it again', async ({
+	page
+}) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Soße ${token}`,
+		steps: [{ text: 'Alles verrühren.', references: [], times: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	await step.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' @Zuck');
+	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
+	await expect(picker).toBeVisible();
+
+	await page.getByRole('textbox', { name: 'Title' }).click();
+	await expect(picker).toHaveCount(0);
+
+	await step.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' @Sa');
+	await expect(picker.getByRole('option')).toHaveCount(1);
+});
+
 /** Selects `word` in a step field. */
 function selectWord(step: Locator, word: string) {
 	return selectInStep(step, word, 'word');
