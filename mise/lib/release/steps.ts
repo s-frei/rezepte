@@ -22,7 +22,7 @@ export function finishSteps(r: { root: string; here: string; branch: string; ver
 		// checking it out and refuses anything but a fast-forward.
 		{ args: ['merge', '--ff-only', '--quiet', r.branch], cwd: r.root },
 		{ args: ['fetch', '.', 'develop:main'], cwd: r.root },
-		{ args: ['tag', '-a', r.version, '-m', r.description, 'main'], cwd: r.root },
+		{ args: ['tag', '-s', r.version, '-m', r.description, 'main'], cwd: r.root },
 		{ args: ['worktree', 'remove', r.here], cwd: r.root },
 		{ args: ['branch', '-d', r.branch], cwd: r.root }
 	];

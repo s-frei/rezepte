@@ -29,7 +29,7 @@ describe('finishSteps', () => {
 		expect(steps.map((s) => s.args)).toEqual([
 			['merge', '--ff-only', '--quiet', 'release/v2.0.0'],
 			['fetch', '.', 'develop:main'],
-			['tag', '-a', 'v2.0.0', '-m', 'The old API is gone.', 'main'],
+			['tag', '-s', 'v2.0.0', '-m', 'The old API is gone.', 'main'],
 			['worktree', 'remove', '/repo/.claude/worktrees/release-v2.0.0'],
 			['branch', '-d', 'release/v2.0.0']
 		]);
@@ -37,12 +37,12 @@ describe('finishSteps', () => {
 	});
 
 	test('prints as a git command a person could run', () => {
-		expect(formatStep(steps[2])).toBe("git tag -a v2.0.0 -m 'The old API is gone.' main");
+		expect(formatStep(steps[2])).toBe("git tag -s v2.0.0 -m 'The old API is gone.' main");
 		expect(formatStep(steps[0])).toBe('git merge --ff-only --quiet release/v2.0.0');
 	});
 
 	test('quotes what a shell would otherwise expand', () => {
 		const [, , tag] = finishSteps({ root: '/r', here: '/r/w', branch: 'release/v1.0.0', version: 'v1.0.0', description: "It's $HOME `x`" });
-		expect(formatStep(tag)).toBe(`git tag -a v1.0.0 -m 'It'\\''s $HOME \`x\`' main`);
+		expect(formatStep(tag)).toBe(`git tag -s v1.0.0 -m 'It'\\''s $HOME \`x\`' main`);
 	});
 });
