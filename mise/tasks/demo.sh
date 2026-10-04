@@ -31,13 +31,15 @@ else
 	rzp_oidc_env "$PORT"
 	[ "${#OIDC_ENV[@]}" -gt 0 ] && echo "demo: signing in through Dex is on - sign in as demo@, mila@ or jonas@example.com, password <name>1234"
 fi
+# The public URL is set even without Mailpit: the mail card stays usable, so
+# a server can be entered by hand and an unreachable one shows its error.
 # With Mailpit up (mise run mail:up) the demo sends mail into it. Configured
 # through the API after start, into the database - never REZEPTE_SMTP_*,
 # which would lock the mail card the demo is there to click through.
 MAIL_ENV=()
+[ -z "${REZEPTE_PUBLIC_URL:-}" ] && MAIL_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$PORT")
 if [ "${RZP_DEMO_MAIL:-on}" != off ] && rzp_mailpit_up; then
 	DEMO_MAIL=1
-	[ -z "${REZEPTE_PUBLIC_URL:-}" ] && MAIL_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$PORT")
 fi
 # "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
 # bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an
