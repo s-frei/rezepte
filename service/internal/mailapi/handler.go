@@ -18,9 +18,9 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// SettingsBody is the mail configuration as the owner sees it; the password
+// MailSettings is the mail configuration as the owner sees it; the password
 // never leaves the service, only whether one is set.
-type SettingsBody struct {
+type MailSettings struct {
 	Source           mail.Source `json:"source" enum:"env,settings,none" doc:"env: REZEPTE_SMTP_* pin it and the UI is read-only; settings: configured here; none: no mail"`
 	Host             string      `json:"host"`
 	Port             int         `json:"port"`
@@ -32,8 +32,8 @@ type SettingsBody struct {
 	PublicURLMissing bool        `json:"publicUrlMissing" doc:"REZEPTE_PUBLIC_URL is unset, so no mail can carry a link"`
 }
 
-// ConfigBody is a configuration as the edit dialog sends it.
-type ConfigBody struct {
+// MailConfig is a configuration as the edit dialog sends it.
+type MailConfig struct {
 	Host     string  `json:"host" minLength:"1"`
 	Port     int     `json:"port" minimum:"1" maximum:"65535"`
 	Security string  `json:"security" enum:"starttls,tls,none"`
@@ -43,7 +43,7 @@ type ConfigBody struct {
 	FromName string  `json:"fromName,omitempty"`
 }
 
-func (b ConfigBody) config() (mail.Config, bool) {
+func (b MailConfig) config() (mail.Config, bool) {
 	c := mail.Config{Host: b.Host, Port: b.Port, Security: mail.Security(b.Security), Username: b.Username, From: b.From, FromName: b.FromName}
 	if b.Password != nil {
 		c.Password = *b.Password
@@ -51,12 +51,12 @@ func (b ConfigBody) config() (mail.Config, bool) {
 	return c, b.Password == nil
 }
 
-type settingsOutput struct{ Body SettingsBody }
-type putInput struct{ Body ConfigBody }
+type settingsOutput struct{ Body MailSettings }
+type putInput struct{ Body MailConfig }
 type testInput struct {
 	Body struct {
 		To     string      `json:"to" minLength:"1"`
-		Config *ConfigBody `json:"config,omitempty" doc:"Unsaved values to test instead of the stored configuration"`
+		Config *MailConfig `json:"config,omitempty" doc:"Unsaved values to test instead of the stored configuration"`
 	}
 }
 
@@ -98,12 +98,12 @@ func mapErr(err error) error {
 	return err
 }
 
-func body(ctx context.Context, s *mail.Service) (SettingsBody, error) {
+func body(ctx context.Context, s *mail.Service) (MailSettings, error) {
 	c, src, err := s.Effective(ctx)
 	if err != nil {
-		return SettingsBody{}, err
+		return MailSettings{}, err
 	}
-	return SettingsBody{Source: src, Host: c.Host, Port: c.Port, Security: string(c.Security),
+	return MailSettings{Source: src, Host: c.Host, Port: c.Port, Security: string(c.Security),
 		Username: c.Username, PasswordSet: c.Password != "", From: c.From, FromName: c.FromName,
 		PublicURLMissing: s.PublicURL() == ""}, nil
 }

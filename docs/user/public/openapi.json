@@ -437,59 +437,6 @@
         ],
         "type": "object"
       },
-      "ConfigBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/v1/schemas/ConfigBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "from": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "fromName": {
-            "type": "string"
-          },
-          "host": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "password": {
-            "description": "Omitted keeps the stored password",
-            "type": "string"
-          },
-          "port": {
-            "format": "int64",
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "security": {
-            "enum": [
-              "starttls",
-              "tls",
-              "none"
-            ],
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "host",
-          "port",
-          "security",
-          "from"
-        ],
-        "type": "object"
-      },
       "ConfirmInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1667,6 +1614,125 @@
         ],
         "type": "object"
       },
+      "MailConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/MailConfig.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "fromName": {
+            "type": "string"
+          },
+          "host": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "password": {
+            "description": "Omitted keeps the stored password",
+            "type": "string"
+          },
+          "port": {
+            "format": "int64",
+            "maximum": 65535,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "security": {
+            "enum": [
+              "starttls",
+              "tls",
+              "none"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "security",
+          "from"
+        ],
+        "type": "object"
+      },
+      "MailSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/MailSettings.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "fromName": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "passwordSet": {
+            "type": "boolean"
+          },
+          "port": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "publicUrlMissing": {
+            "description": "REZEPTE_PUBLIC_URL is unset, so no mail can carry a link",
+            "type": "boolean"
+          },
+          "security": {
+            "enum": [
+              "starttls",
+              "tls",
+              "none"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "description": "env: REZEPTE_SMTP_* pin it and the UI is read-only; settings: configured here; none: no mail",
+            "enum": [
+              "env",
+              "settings",
+              "none"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "host",
+          "port",
+          "security",
+          "username",
+          "passwordSet",
+          "from",
+          "fromName",
+          "publicUrlMissing"
+        ],
+        "type": "object"
+      },
       "MarkSeenInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2355,13 +2421,13 @@
         ],
         "type": "object"
       },
-      "Response": {
+      "Settings": {
         "additionalProperties": false,
         "properties": {
           "$schema": {
             "description": "A URL to the JSON Schema for this object.",
             "examples": [
-              "https://example.com/api/v1/schemas/Response.json"
+              "https://example.com/api/v1/schemas/Settings.json"
             ],
             "format": "uri",
             "readOnly": true,
@@ -2428,72 +2494,6 @@
           "publicShareDefaultDays",
           "publicShareMaxDays",
           "publicShareAttribution"
-        ],
-        "type": "object"
-      },
-      "SettingsBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/v1/schemas/SettingsBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "from": {
-            "type": "string"
-          },
-          "fromName": {
-            "type": "string"
-          },
-          "host": {
-            "type": "string"
-          },
-          "passwordSet": {
-            "type": "boolean"
-          },
-          "port": {
-            "format": "int64",
-            "type": "integer"
-          },
-          "publicUrlMissing": {
-            "description": "REZEPTE_PUBLIC_URL is unset, so no mail can carry a link",
-            "type": "boolean"
-          },
-          "security": {
-            "enum": [
-              "starttls",
-              "tls",
-              "none"
-            ],
-            "type": "string"
-          },
-          "source": {
-            "description": "env: REZEPTE_SMTP_* pin it and the UI is read-only; settings: configured here; none: no mail",
-            "enum": [
-              "env",
-              "settings",
-              "none"
-            ],
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "source",
-          "host",
-          "port",
-          "security",
-          "username",
-          "passwordSet",
-          "from",
-          "fromName",
-          "publicUrlMissing"
         ],
         "type": "object"
       },
@@ -2814,7 +2814,7 @@
             "type": "string"
           },
           "config": {
-            "$ref": "#/components/schemas/ConfigBody",
+            "$ref": "#/components/schemas/MailConfig",
             "description": "Unsaved values to test instead of the stored configuration"
           },
           "to": {
@@ -6720,7 +6720,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "$ref": "#/components/schemas/Settings"
                 }
               }
             },
@@ -6769,7 +6769,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Response"
+                  "$ref": "#/components/schemas/Settings"
                 }
               }
             },
@@ -6882,7 +6882,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsBody"
+                  "$ref": "#/components/schemas/MailSettings"
                 }
               }
             },
@@ -6935,7 +6935,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConfigBody"
+                "$ref": "#/components/schemas/MailConfig"
               }
             }
           },
@@ -6946,7 +6946,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SettingsBody"
+                  "$ref": "#/components/schemas/MailSettings"
                 }
               }
             },

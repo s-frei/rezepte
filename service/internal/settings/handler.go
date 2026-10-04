@@ -14,15 +14,17 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// Response is Settings plus whether mail is on, which the settings
-// service does not own (package mail does).
-type Response struct {
+// settings is Settings plus whether mail is on, which the settings service
+// does not own (package mail does). huma names a schema after its Go type
+// with the first letter raised, so this lowercase name keeps the API
+// schema called Settings.
+type settings struct {
 	Settings
 	MailEnabled bool `json:"mailEnabled" doc:"Whether Rezepte can send mail, which switches the Add account dialog"`
 }
 
 type settingsOutput struct {
-	Body Response
+	Body settings
 }
 
 // nullableDay is a PATCH field for a lifetime in days that tells apart three
@@ -90,7 +92,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		if err != nil {
 			return nil, err
 		}
-		return &settingsOutput{Body: Response{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
+		return &settingsOutput{Body: settings{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -116,7 +118,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		if err != nil {
 			return nil, err
 		}
-		return &settingsOutput{Body: Response{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
+		return &settingsOutput{Body: settings{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
 	})
 }
 
