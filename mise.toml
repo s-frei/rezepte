@@ -80,7 +80,7 @@ echo "docker:build: tagged rezepte:local, version $VERSION"
 '''
 
 [tasks."docker:compose:check"]
-description = "Validate that docker-compose.yaml parses"
+description = "Validate that the compose files parse"
 # docker-compose.yaml is handed to users and rendered into two documentation
 # pages, so nothing here runs it - this is the only thing that checks it is
 # still valid, which is why `check` depends on it.

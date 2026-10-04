@@ -3,7 +3,7 @@ title: Add a language
 description: Translate the interface into another language and contribute it
 ---
 
-Rezepte's interface is available in English and German. Adding another language takes three files and no programming: a line naming the language, a copy of the English texts translated into it, and a list of the words recipes in your language use, so importing a recipe understands them. Your recipes are not affected - Rezepte never translates recipe content.
+Rezepte's interface is available in English and German. Adding another language takes no programming and four files: you name the language in one line, translate a copy of the English texts, list the words recipes in your language use so importing a recipe understands them, and register that list in one more line. Two commands generate the rest. Your recipes are not affected — Rezepte never translates recipe content.
 
 ## What you need
 
@@ -16,7 +16,7 @@ Rezepte's interface is available in English and German. Adding another language 
   <Step>
 
     ### Name the language
-    Add its [language code](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) to `locales` in `service/internal/i18n/locales.json` - for French, `fr`:
+    Add its [language code](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) to `locales` in `service/internal/i18n/locales.json` — for French, `fr`:
 
     ```json
     {
@@ -40,8 +40,11 @@ Rezepte's interface is available in English and German. Adding another language 
     - Keep every key on the left exactly as it is.
     - Keep every placeholder in curly braces, such as `{count}` or `{name}`, exactly as it is. You can move it within the sentence.
     - `editor_unit_options` is not a sentence but the units the recipe editor suggests, separated by commas. Do not translate the English list word for word: write the units a cook in your language actually uses, in their usual abbreviations, as many or as few as fit. German, for example, has `TL`, `EL`, `Bund` and `Zehe` and no `cup`.
+    - `time_units_seconds`, `time_units_minutes` and `time_units_hours` are not sentences but the words for seconds, minutes and hours, separated by `|`, and `time_words_range` and `time_words_and` are the words in "10 to 15 minutes" and "1 hour and 20 minutes". The recipe editor uses them to spot the times in a step. Write every spelling and abbreviation a recipe in your language uses, with full words first: German has `Minuten|Minute|Min.|Min`.
     - `import_example` is an example recipe, not a sentence. Translate it using the headings (the "Ingredients" and "Method" equivalents) that your language's word list in `lang_xx.go` knows: `mise run check` imports it and fails otherwise.
     - Translate every entry. The check in the next step fails on any that are missing, so the interface never shows a half-translated screen.
+
+    The mails Rezepte sends take their texts from the same file — the keys starting with `mail_` — so translating them translates the mails too.
 
     The language picker names the language by itself, in the reader's language and in its own ("French · Français"), so there is nothing to add for that.
 
@@ -56,18 +59,19 @@ Rezepte's interface is available in English and German. Adding another language 
 
     ### Check and look at it
     ```bash
+    mise run //service:generate
     mise run check
     mise run //docs/user:openapi
     RZP_DEMO_LOCALE=fr mise run demo
     ```
 
-    `mise run check` finds missing texts and placeholders. The second command updates the API reference, which lists the languages the API accepts. The third starts a demo instance at the address it prints; log in as `demo` / `demo1234` and the interface is in your language. The demo recipes stay English unless your language has sample recipes of its own, which is optional; those get simple placeholder images instead of photos.
+    The first command copies the mail texts of your file to `service/internal/mail/messages/fr.json`, where the service reads them; without it `mise run check` fails, naming your language's embedded copy as stale. `mise run check` finds missing texts and placeholders. The third command updates the API reference, which lists the languages the API accepts. The fourth starts a demo instance at the address it prints; log in as `demo` / `demo1234` and the interface is in your language. The demo recipes stay English unless your language has sample recipes of its own, which is optional; those get simple placeholder images instead of photos.
 
   </Step>
   <Step>
 
     ### Contribute it
-    Open a pull request with the three files, the line in `lang.go` and the updated API reference. A translation can be improved later like any other change.
+    Open a pull request with the two new files (`fr.json` and `lang_fr.go`), the lines in `locales.json` and `lang.go`, the generated `service/internal/mail/messages/fr.json` and the updated API reference. A translation can be improved later like any other change.
 
   </Step>
 </Steps>

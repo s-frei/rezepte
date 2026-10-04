@@ -9,9 +9,9 @@ import { Audience } from '@/components/audience';
 
 ## Profile
 
-The card at the top of the page is how Rezepte shows you to the household. It opens with your circle - your photo if you added one, otherwise your initial in your color - above your display name and your role.
+The card at the top of the page is how Rezepte shows you to the household. It opens with your circle — your photo if you added one, otherwise your initial in your color — above your display name and your role.
 
-"Add photo" (or "Change photo" once you have one) opens a file picker for a JPEG, PNG or WebP of up to 10 MB. The photo then appears in a round frame to place: drag it to move, use the slider, a pinch or the mouse wheel to zoom in to four times, or use the arrow keys to move and plus and minus to zoom. Confirm, and the round section you framed becomes your photo, here and wherever Rezepte shows you - on the recipes you added, in the list of people and in your person card (see [Tour of the app](/guide#person-cards)). The photo is cut from the file you chose, so to frame it differently, choose the file again. A photo, or a framed section, smaller than about 64 pixels is refused with a message. "Remove photo" takes it off and puts your initial back.
+"Add photo" (or "Change photo" once you have one) opens a file picker for a JPEG, PNG or WebP of up to 10 MiB. The photo then appears in a round frame to place: drag it to move, use the slider, a pinch or the mouse wheel to zoom in to four times, or use the arrow keys to move and plus and minus to zoom. Confirm, and the round section you framed becomes your photo, here and wherever Rezepte shows you — on the recipes you added, in the list of people and in your person card (see [Tour of the app](/guide#person-cards)). The photo is cut from the file you chose, so to frame it differently, choose the file again. A photo, or a framed section, smaller than about 64 pixels is refused with a message. "Remove photo" takes it off and puts your initial back.
 
 <Screenshot name="avatar-crop" caption="Framing a photo: the round window shows what the circles will show" />
 
@@ -33,7 +33,7 @@ If a photo is missing or cannot be loaded, Rezepte shows your initial in your co
 
 <Screenshot name="settings-signin" caption="The Sign-in card, before the account is connected" />
 
-This card is there only when your instance offers sign-in through an identity provider such as Google (see [Single sign-on](/operations/single-sign-on)). "Continue with …" takes you to the provider and back; from then on the same button on the login page signs you in without a password. Once connected, the card says since when, and "Disconnect" undoes it and signs you out on your other devices - but only while your account also has a password, because without one you could no longer sign in at all. Set a password below first.
+This card is there only when your instance offers sign-in through an identity provider such as Google (see [Single sign-on](/operations/single-sign-on)). "Continue with …" takes you to the provider and back; from then on the same button on the login page signs you in without a password. Once connected, the card says since when, and "Disconnect" undoes it and signs you out on your other devices — but only while your account also has a password, because without one you could no longer sign in at all. Set a password below first.
 
 ## Change password
 
@@ -44,13 +44,14 @@ While you type the new password, a bar below it rates it from "very weak" to "st
 ## Appearance
 
 Choose "System", "Light" or "Dark". The same choice sits in the account menu behind your initial at the top right, and on a phone in the "You" sheet, so you do not need to open the settings for it. Unlike your language, the theme is stored in this browser only — it does not follow you to another device or browser.
+
 ## Help
 
 The "Help & guide" card opens this guide in a new tab. It is the way here from inside the app whenever something is unclear.
 
 ## About Rezepte
 
-The last card on the page says which version of Rezepte your instance runs, and links to its source code and to the [Changelog](/changelog) - handy when you ask for help or wonder what an update brought.
+The last card on the page says which version of Rezepte your instance runs, and links to its source code and to the [Changelog](/changelog) — handy when you ask for help or wonder what an update brought.
 
 ## API
 
@@ -58,18 +59,18 @@ The last card on the page says which version of Rezepte your instance runs, and 
 
 Every signed-in member has this tab. Its "Access for programs" card reads like a cookbook page with two recipes, each with its ingredients and its steps:
 
-- **For AI assistants** - the MCP address an assistant such as Claude Code connects to, and an API token. Step one points to the "API tokens" card where you create the token (or, if you are not an admin, says who can issue one); "Setup guide" opens [Connect an AI assistant](/api/mcp).
-- **For your own scripts** - the base URL of this instance's API, and either a token or your username and password: a script may also sign in the way the app does. "Interactive docs" opens the try-it-out documentation, "openapi.json" the raw document - both work straight from the browser with your session, no token needed. See [API](/api) for what you can do with it.
+- **For AI assistants** — the MCP address an assistant such as Claude Code connects to, and an API token. Step one points to the "API tokens" card where you create the token (or, if you are not an admin, says who can issue one); "Setup guide" opens [Connect an AI assistant](/api/mcp).
+- **For your own scripts** — the base URL of this instance's API, and either a token or your username and password: a script may also sign in the way the app does. "Interactive docs" opens the try-it-out documentation, "openapi.json" the raw document — both work straight from the browser with your session, no token needed. See [API](/api) for what you can do with it.
 
-Both addresses have a "Copy" button. Admins find the "API tokens" card below, with "Create token" and their own tokens - or, with "Everyone in the household" switched on, every admin's. Once they hold a valid token, step one is marked done. [API tokens](/api/tokens) covers it.
+Both addresses have a "Copy" button. Admins find the "API tokens" card below, with "Create token" and their own tokens — or, with "Everyone in the household" switched on, every admin's. Once they hold a valid token, step one is marked done. [API tokens](/api/tokens) covers it.
 
 ## Shared links
 
-Every signed-in member has a "Shared links" tab: the public links you have created, across every recipe, with their status and Copy and Revoke for each - see [Public links](/guide/sharing#public-links). You can narrow the list by status. Admins can also switch to everyone's links there, narrow them to one person, and revoke them all.
+Every signed-in member has a "Shared links" tab: the public links you have created, across every recipe, with their status and Copy and Revoke for each — see [Public links](/guide/sharing#public-links). You can narrow the list by status. Admins can also switch to everyone's links there, narrow them to one person, and revoke them all.
 
 ## Email<Audience role="owner" />
 
-The owner has an "Email" tab, between "People" and "Import & export", for the mail server Rezepte sends setup links through — see [Mail](/guide/mail).
+The owner has an "Email" tab, between "People" and "Import & export", for the mail server Rezepte sends its mail through: setup links, links for a new password and address confirmations — see [Mail](/guide/mail).
 
 ## Import and export<Audience role="admin" />
 

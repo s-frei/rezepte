@@ -29,8 +29,8 @@ description: End-to-end tests and screenshots, no browser extensions
     With `mise run dev` running (frontend on `:9060` by default - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree)):
     ```bash
     cd frontend
-    mise exec -- bunx playwright screenshot --viewport-size=360,780 http://localhost:9060/login /tmp/login-mobile.png
-    mise exec -- bunx playwright screenshot --viewport-size=1440,900 http://localhost:9060/ /tmp/home-desktop.png
+    mise exec -- bunx playwright screenshot --viewport-size=360,780 http://localhost:9060/login "$TMPDIR/login-mobile.png"
+    mise exec -- bunx playwright screenshot --viewport-size=1440,900 http://localhost:9060/ "$TMPDIR/home-desktop.png"
     ```
     Then open the PNG (agents: read the image file) and compare against the design system.
 
@@ -129,7 +129,7 @@ A change that sends mail is verified against Mailpit, not against a mocked sende
 `mise run demo -- <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images), runs the command against it and stops it afterwards - the fastest way to a realistic page:
 
 ```bash
-mise run demo -- bun run /tmp/probe.ts
+mise run demo -- bun run "$TMPDIR/probe.ts"
 ```
 
 Without a command, `mise run demo` keeps that instance up until Ctrl-C, which is what you want when you are clicking through it yourself rather than driving it. Both forms build the binary first through the task's `depends`, and `REZEPTE_DATA_DIR=<dir> mise run demo` keeps its recipes across restarts instead of seeding a throwaway directory.

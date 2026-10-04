@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Rezepte is at an early stage. Security fixes go into the next release; only the latest release is supported, so update before you report.
+Security fixes go into the next release, and only the latest release is supported, so update before you report.
 
 ## Reporting a vulnerability
 

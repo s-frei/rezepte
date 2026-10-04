@@ -28,7 +28,7 @@ Only admins can issue tokens, under **Settings → API**.
 5. Choose **Create**.
 
 The token is now shown **once**. Copy it, then choose **I have saved it** to
-close the dialog - it cannot be recovered afterwards. If you lose it, revoke it
+close the dialog — it cannot be recovered afterwards. If you lose it, revoke it
 and create a new one.
 
 ## Using a token
@@ -49,17 +49,23 @@ are out of reach whatever scopes it carries:
 
 - managing API tokens, so a token can never list, issue or revoke one
 - anything about its own account: reading it (`GET /api/v1/auth/me`),
-  changing its password, display name or color, or looking up which colors
-  are taken
+  changing its password, display name, color, photo or email address, or
+  looking up which colors are taken
 - signing out, or any other session mechanics
-- changing the household's recipe editing setting (`PATCH /api/v1/settings`);
-  reading it works with **Recipes: Read**
+- changing the household settings (`PATCH /api/v1/settings`): editing
+  rights, public links and link previews; reading them works with
+  **Recipes: Read**
+- issuing or revoking a setup link for an account
+  (`/api/v1/users/{id}/setup-link`)
+- public links (`/api/v1/shares`, `/api/v1/recipes/{id}/public-share`):
+  listing, creating or revoking them
+- the mail settings and the test mail (`/api/v1/settings/mail`)
 - anything at all, once the admin who issued it loses the admin role or is
   deleted
 
 One consequence worth knowing before you automate account cleanup: deleting a
 member does not delete their recipes, it transfers them to the account that
-performed the deletion - which for a token means the admin who issued it.
+performed the deletion — which for a token means the admin who issued it.
 
 It also inherits that admin's rank, which is what decides how far
 **Accounts: Write** reaches. Issued by an ordinary admin, a token
@@ -75,15 +81,15 @@ from a setting anyone could forget.
 Recipe [editing rights](/guide/editing-rights) never narrow a working token
 either: admins may edit and delete every recipe, locked or not, and so may
 their tokens with **Recipes: Write**. That lasts only as long as the
-account behind the token is an admin - a token always acts with its
+account behind the token is an admin — a token always acts with its
 issuer's current role, and stops working once that role is gone. Only the owner can change the
 household's editing setting, and only in the browser.
 
 ## Revoking a token<Audience role="admin" />
 
-Choose **Revoke** on its tag. The token stops working immediately.
+Choose **Revoke** on its tag. Rezepte asks first ("Revoke token?"); once you confirm, the token stops working immediately. This cannot be undone.
 
-Expired tokens stay in the list, marked as such, until you revoke them - so you
+Expired tokens stay in the list, marked as such, until you revoke them — so you
 can always see why an integration stopped.
 
 Each token hangs in the list like a key tag. The bar under its name shows how

@@ -27,9 +27,15 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
     - `internal/config` – env to struct
     - `internal/httpserver` – mux, huma, middleware, SPA handler, lifecycle
     - `internal/web` – embedded `dist/`
-    - one package per domain (`auth`, `user`, `recipe`, `image`, `settings`) with `handler → service → sqlc` layering
+    - `internal/db` – opens SQLite, applies the goose migrations; `queries/` and the generated `sqlc/` live under it (see [Data model](/architecture/data-model))
+    - one package per domain (`auth`, `user`, `recipe`, `image`, `avatar`, `settings`, `share`) with `handler → service → sqlc` layering
     - `internal/userapi`, `internal/tokenapi` – the admin-only user and token operations, plus the people list every account reads; handlers only, in packages of their own because they need `auth` and `auth` already imports `user`
     - `internal/mail`, `internal/mailapi` – the SMTP sender, its templates and settings, and the owner-only HTTP surface for them; `userapi` reaches the sender through a small interface (see [Email](/features/email))
+    - `internal/oidc` – sign-in through one OpenID Connect provider, ending in an ordinary session (see [OIDC](/features/oidc))
+    - `internal/recipeimport` – turns a recipe page or pasted text into a draft recipe (see [Recipe import](/features/recipe-import))
+    - `internal/transfer` – export and import of recipes between instances as a zip (see [Import and export](/features/import-export))
+    - `internal/preview` – what a crawler sees for a recipe link shared from the app (see [Link previews](/features/link-previews))
+    - `internal/sign` – short, stateless HMAC tokens with an expiry, used by `preview` and `recipeimport`
     - `internal/mcpserver` – the MCP endpoint at `/mcp`, its tools calling the same services as the HTTP handlers (see [MCP server](/features/mcp))
     - `internal/i18n` – the set of interface languages, read from `locales.json` (see [Languages](/features/languages))
     - `internal/demo` – seeds the sample recipes with their embedded photos through those services for `--demo`, with generated placeholders only for a sample set that has no photos (see [Demo mode](/features/demo-mode))
@@ -40,7 +46,7 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
 
     - `src/lib/api` – fetch wrapper and per-resource functions
     - `src/lib/components/ui` – styled wrappers around Bits UI
-    - `src/lib/components/recipe`, `editor`, `cook`, `nav`, `settings`, `shell` – feature components
+    - `src/lib/components/recipe`, `editor`, `cook`, `import`, `nav`, `settings`, `shell`, `auth` – feature components; `brand` holds the wordmark lockup, `icons` the animated Lucide icons (see [Design system](/architecture/design-system))
     - `src/lib/recipe` – pure recipe logic (query state, form mapping, quantity formatting, servings scaling) and its rune stores
     - `src/routes` – file-based routes, `+layout.ts` sets `ssr = false`
     - `messages/en.json`, `de.json` – UI copy, one catalog per language

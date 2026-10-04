@@ -1,11 +1,11 @@
 ---
 title: Mail
-description: Let Rezepte send setup links by mail; the owner sets up the mail server and sends a test
+description: Let Rezepte mail setup links, links for a new password and address confirmations; the owner sets up the mail server and sends a test
 ---
 
 import { Audience } from '@/components/audience';
 
-Rezepte can mail the setup link to the people you invite, so you do not have to pass it on yourself. It needs an SMTP server to send through - the one your mail provider lists under "SMTP" or "set up a mail program" - and `REZEPTE_PUBLIC_URL` set, so the link in the mail points back to your Rezepte (see [Configuration](/getting-started/configuration)). Until mail is set up everything works as before: you get the link and pass it on.
+Rezepte can mail the setup link to the people you invite, so you do not have to pass it on yourself. With mail set up it also sends a link for a new password to anyone who forgot theirs (or a sign-in hint to someone who signs in with an identity provider), and a link to confirm an email address. It needs an SMTP server to send through — the one your mail provider lists under "SMTP" or "set up a mail program" — and `REZEPTE_PUBLIC_URL` set, so the link in the mail points back to your Rezepte (see [Configuration](/getting-started/configuration)). Without mail, you get every setup link on screen and pass it on yourself, the login page offers no **Forgot password?**, and email addresses stay unconfirmed.
 
 ## Set up mail<Audience role="owner" />
 
@@ -18,7 +18,7 @@ The owner finds the **Email** card on its own page, **Settings → Email**, whic
 
     ### Open the setup
 
-    Click "Set up mail" - or "Edit" when it is already set up. The window has three parts.
+    Click "Set up mail" — or "Edit" when it is already set up. The window has three parts.
 
     <Screenshot name="mail-dialog" caption="Setting up mail" />
 
@@ -45,15 +45,15 @@ On the card, the same field sits under the letterhead, filled in with your own a
 
 ## What a person receives
 
-An invitation from the admin's name: "Hi Lena, Mila created an account for you on Rezepte", a button "Set up account" and the link spelled out beneath it, for mail programs that hide buttons. It is in the language of the invited account, works once and is valid for 7 days. Opening it greets the person, lets them choose a password and signs them in - and that confirms their address, as long as it is still the one the mail went to.
+An invitation from the admin's name: "Hi Lena, Mila created an account for you on Rezepte", a button "Set up account" and the link spelled out beneath it, for mail programs that hide buttons. It is in the language of the invited account, works once and is valid for 7 days. Opening it greets the person, lets them choose a password and signs them in — and that confirms their address, as long as it is still the one the mail went to.
 
 <Screenshot name="setup-link-dialog" caption="The admin sees where the link went" />
 
 Three more mails go out on their own:
 
-- **A link for a new password**, when someone asks for one on the login page. It names the account, is valid for 1 hour and works once.
+- **A link for a new password**, when someone asks for one on the login page. It names the account, is valid for 1 hour and works once. The button "Set a new password" opens a page titled "A new password for …", where the person types the new password twice and "Save password" signs them in.
 - **A sign-in hint**, instead, for an account that has no password because it signs in with an identity provider: it names the provider and says to ask an admin for a setup link if access to it is lost.
-- **A confirmation**, when an address is entered or changed in a profile or by an admin (who is named in it). It names the account too, so accounts sharing an address can tell their mails apart. It is valid for 7 days, confirms the address and never signs anyone in.
+- **A confirmation**, when an address is entered or changed in a profile or by an admin (who is named in it). It names the account too, so accounts sharing an address can tell their mails apart. It is valid for 7 days. The link opens a page that confirms the address right away and says "Address confirmed"; it never signs anyone in.
 
 ## When a mail does not arrive
 

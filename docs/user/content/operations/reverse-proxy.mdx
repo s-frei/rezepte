@@ -39,7 +39,7 @@ sequenceDiagram
     }
     ```
 
-    `client_max_body_size` matches Rezepte's own limit of 10 MB per photo upload. nginx's default is 1 MB, which turns away most photos from a phone camera with `413 Request Entity Too Large` before they reach Rezepte.
+    `client_max_body_size` matches Rezepte's own limit of 10 MiB per photo upload. nginx's default is 1 MB, which turns away most photos from a phone camera with `413 Request Entity Too Large` before they reach Rezepte.
 
   </Tab>
 </Tabs>

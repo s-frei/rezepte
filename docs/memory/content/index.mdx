@@ -13,7 +13,7 @@ description: How to use this documentation when working on Rezepte
 
 ## What Rezepte is
 
-A self-hosted recipe manager for a household: a Go service serving a bundled SvelteKit SPA, SQLite for storage, sessions for login. The UI is English or German, per account; everything in the repository is American English ([Language](/conventions/language)).
+A self-hosted recipe manager for the people you cook with: a Go service serving a bundled SvelteKit SPA, SQLite for storage, sessions for login. The UI is English or German, per account; everything in the repository is American English ([Language](/conventions/language)).
 
 ## What belongs here
 
@@ -89,59 +89,12 @@ This memory describes **the repository, not the machine and not the day**.
 
 ## Repository map
 
-<Files>
-  <Folder name="service" defaultOpen>
-    <Folder name="cmd/rezepte"><File name="main.go" /></Folder>
-    <Folder name="cmd/demo-photos"><File name="main.go" /></Folder>
-    <Folder name="internal">
-      <Folder name="auth" />
-      <Folder name="config" />
-      <Folder name="db" />
-      <Folder name="httpserver" />
-      <Folder name="web" />
-      <Folder name="demo" />
-      <Folder name="recipe" />
-      <Folder name="image" />
-      <Folder name="avatar" />
-      <Folder name="user" />
-      <Folder name="userapi" />
-      <Folder name="tokenapi" />
-      <Folder name="mcpserver" />
-      <Folder name="settings" />
-      <Folder name="i18n" />
-    </Folder>
-  </Folder>
-  <Folder name="frontend" defaultOpen>
-    <Folder name="src/lib"><Folder name="api" /></Folder>
-    <Folder name="src/routes" />
-    <Folder name="messages"><File name="en.json" /><File name="de.json" /></Folder>
-  </Folder>
-  <Folder name="docs" defaultOpen>
-    <Folder name="memory">
-      <Folder name="content" />
-      <Folder name="scripts" />
-    </Folder>
-    <Folder name="user">
-      <Folder name="content" />
-      <Folder name="screenshots" />
-      <Folder name="scripts" />
-      <Folder name="public" />
-    </Folder>
-  </Folder>
-  <Folder name="assets">
-    <Folder name="demo-photos" />
-    <Folder name="demo-avatars" />
-  </Folder>
-  <Folder name="mise">
-    <Folder name="tasks" />
-    <Folder name="lib" />
-  </Folder>
-  <File name="mise.toml" />
-  <File name="AGENTS.md" />
-  <File name="CLAUDE.md" />
-  <File name="CONTRIBUTING.md" />
-  <File name="SECURITY.md" />
-</Files>
+Each folder is described where it is owned, so the list below names the page rather than repeating it:
+
+- `service/`, `frontend/`, `docs/` – [Architecture overview](/architecture/overview), one line per package
+- `mise/` and `mise.toml` – [Toolchain](/architecture/toolchain)
+- `assets/` – the logo sources in [Design system](/architecture/design-system#logo), the README images in [Toolchain](/architecture/toolchain), the demo photos and pictures in [Demo mode](/features/demo-mode)
+- `.github/` – [Releases](/architecture/releases) and [GitHub Actions](/conventions/github-actions)
 
 `AGENTS.md` carries the hard rules every agent follows, and `CLAUDE.md` is a symlink to it, so Claude Code and every tool that looks for `AGENTS.md` read the same file. Edit `AGENTS.md`; never replace the symlink with a copy.
 

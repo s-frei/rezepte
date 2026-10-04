@@ -43,7 +43,7 @@ A recipe on Default follows the switch live: nothing is copied onto the row when
 
 **The switch is the owner's.** `settings.Service.SetRecipesLockedByDefault` refuses anyone but `Role.IsSuperadmin` with `ErrOwnerRequired`. `PATCH /api/v1/settings` takes `auth.SessionSecurity` only and answers a non-owner `403` `superadmin role required`, the wording `userapi` uses; `GET /api/v1/settings` takes any session or a token carrying `recipes:read`. `frontend/src/lib/components/settings/RecipeEditingCard.svelte` sits below the people table: a `Switch` that applies on flip for the owner, a sentence naming the owner for every other admin, and a link to the user guide's page.
 
-**Deleting a user keeps the policies.** `ReassignRecipes` moves `created_by` and `updated_by` to the acting admin and does not touch `edit_policy`, so a locked recipe stays locked - now to its new author.
+**Deleting a user keeps the policies.** `ReassignRecipes` moves `created_by` and `updated_by` to the acting admin and does not touch `edit_policy`, so a locked recipe stays locked to its new author.
 
 ## Why it is this way
 
@@ -53,7 +53,7 @@ Delete stays with the author and admins even on an open recipe. Opening a recipe
 
 The rule is decided once on the server and shipped as `can*` flags, so the SPA and any API client read the same answer and the frontend has no copy of the tables above to drift.
 
-An update without `editPolicy` keeps the stored one because the field is newer than the clients that write recipes. A script written against the earlier contract would otherwise reset every recipe it saves to Default, and a member's script saving an open recipe would trip `CanChangePolicy` on a change it never asked for.
+An update without `editPolicy` keeps the stored one because a client may not know the field. A script that omits it would otherwise reset every recipe it saves to Default, and a member's script saving an open recipe would trip `CanChangePolicy` on a change it never asked for.
 
 The switch sits on the People page because it is a household setting and that page is where admins administer the household; `/settings` is the personal page. Members see the list without the card, and admins see the card with a sentence rather than a disabled switch, because a value you can only read is a fact, not a field. The lock line sits in the colophon, where authorship already lives, and only for locked recipes: the lock is about editing, and browsing or cooking should not notice it - no badge on cards, no icon beside the title, no banner, and no tooltip, since phones have none.
 

@@ -55,7 +55,7 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
     <Screenshot name="editor-times" caption="A duration suggested in a step" />
 
-    To mark one the app missed, or one in another language, select it and click "Mark as time", then choose seconds, minutes or hours. A selection without a number, one that is too long, or one that is already marked is not taken; a line under the buttons says why. Recipes you saved earlier get times the next time you save them in the editor.
+    To mark one the app missed, or one in another language, select it and click "Mark as time", choose "Seconds", "Minutes" or "Hours" — the window shows the duration it will mark — and click "Set". A selection without a number, one that is too long, or one that is already marked is not taken; a line under the buttons says why. Recipes you saved earlier get times the next time you save them in the editor.
 
   </Step>
   <Step>
@@ -84,6 +84,8 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
 <Screenshot name="recipe-detail" caption="A recipe's detail page" />
 
+The page arranges itself by the width of your screen. From 840 px wide, the ingredients sit beside the method; on a narrower screen they come first and the method follows below. On a tablet between 600 and 840 px, an ingredient list of six rows or more (group names counted) splits into two columns, so the card does not leave half its width empty.
+
 Servings and times show as pills at the top. Ingredients list with checkboxes for checking items off while shopping or cooking; the steps follow under "Method". The "Shopping list" stub at the end of the ingredients copies everything you have not checked off, and "copy" beside the "Ingredients" heading copies the whole list (see [Copy a shopping list](/guide/servings#copy-a-shopping-list)). A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode).
 
 "Edit" opens the editor. The "More actions" menu (`…`) holds "Edit" as well, "Copy link", which copies the recipe's address to share, "Share publicly…", which makes a link for someone without an account, and "Delete", which deletes the recipe after confirming. "Share publicly…" appears while the owner allows public links and you may create them; once you have a link for the recipe, the item reads "Public link…" instead (see [Sharing recipes](/guide/sharing)). On a phone, a share button next to the menu opens the phone's share sheet with the recipe's link; where the browser has no share sheet, it copies the link instead. Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you (see [Editing rights](/guide/editing-rights)).
@@ -92,7 +94,7 @@ Behind the tab beside "Method", the [comments](/guide/comments) hold what the ho
 
 At the foot of the page, a line says who added the recipe and when ("Added by … on …"), a second one who last changed it ("Last edited by … on …") once somebody has, and — on a locked recipe — who can edit it.
 
-On the overview, each card carries the same information in small: one circle with the photo of whoever added the recipe - or their initial in their color, if they have no photo - and a second one when somebody else edited it last. Click the circles, or tap them on a phone, to open a person card for each (see [Tour of the app](/guide#person-cards)).
+On the overview, each card carries the same information in small: one circle with the photo of whoever added the recipe — or their initial in their color, if they have no photo — and a second one when somebody else edited it last. Click the circles, or tap them on a phone, to open a person card for each (see [Tour of the app](/guide#person-cards)).
 
 ## Favorites
 
@@ -116,7 +118,8 @@ You mark a recipe on its page, next to the star, and on a wider screen also with
     - Link: an `http://` or `https://` address, up to 500 characters
     - Tags: up to 20, each up to 40 characters
     - Ingredient groups: 1–20, each with up to 100 ingredients
-    - Steps: up to 50, each up to 2000 characters, each with up to 30 linked ingredients
+    - Steps: up to 50, each up to 2000 characters, each with up to 30 linked ingredients and up to 20 times
+    - A marked time: up to 60 characters of text, and at most one week
   </Accordion>
   <Accordion title="What is a slug?">
     Every recipe gets a URL-friendly slug derived from its title — German umlauts and ß are transliterated (ä→ae, ö→oe, ü→ue, ß→ss) and remaining diacritics and punctuation are stripped. If another recipe already has the same slug, a number is appended (`-2`, `-3`, …).
