@@ -161,74 +161,74 @@ checksum = "sha256:a3911b5e0e1b1053f25ed0675f4c1c6aad1e2bfcf253df2b9be4caabd2edd
 url = "https://dl.google.com/go/go1.27.1.windows-amd64.zip"
 
 [[tools.golangci-lint]]
-version = "2.13.2"
+version = "2.14.0"
 backend = "aqua:golangci/golangci-lint"
-specifiers = ["2.13.2"]
+specifiers = ["2.14.0"]
 
 [tools.golangci-lint."platforms.linux-arm64"]
-checksum = "sha256:a2a4e0065aa41be71f7c5ac90f271b61751331e5d04314e62afe4027855f0893"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995442"
+checksum = "sha256:ee7ec5f3453d15ddf106fae5a4d6c71737712348a979d1fe9cd52ec7ea299bae"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813674"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.linux-arm64-musl"]
-checksum = "sha256:a2a4e0065aa41be71f7c5ac90f271b61751331e5d04314e62afe4027855f0893"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995442"
+checksum = "sha256:ee7ec5f3453d15ddf106fae5a4d6c71737712348a979d1fe9cd52ec7ea299bae"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813674"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.linux-x64"]
-checksum = "sha256:2277d43b98ec0054280f2ac26b53268bae97682444678a59a657dd565da021d6"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995333"
+checksum = "sha256:ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813815"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.linux-x64-baseline"]
-checksum = "sha256:2277d43b98ec0054280f2ac26b53268bae97682444678a59a657dd565da021d6"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995333"
+checksum = "sha256:ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813815"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.linux-x64-musl"]
-checksum = "sha256:2277d43b98ec0054280f2ac26b53268bae97682444678a59a657dd565da021d6"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995333"
+checksum = "sha256:ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813815"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:2277d43b98ec0054280f2ac26b53268bae97682444678a59a657dd565da021d6"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995333"
+checksum = "sha256:ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813815"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.macos-arm64"]
-checksum = "sha256:f4bf83f0b64f055c42b28fc9a38861839f69c096e61c788e72dfaae412011789"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995398"
+checksum = "sha256:5ef5f36a7147e91dc58ef9ef4d11bb7bad5ead0c76eb6c01327a73c641d1dcc3"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813591"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.macos-x64"]
-checksum = "sha256:8a13aaf9cbbb1dee52824e862cf0d0720e5bb97c1f4260d1e51623a09492b57b"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-darwin-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995222"
+checksum = "sha256:a5667c1c3536be1740133213e1e822bfb8f0d98ea12903174d6d5f635e4ed68d"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-darwin-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813755"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.macos-x64-baseline"]
-checksum = "sha256:8a13aaf9cbbb1dee52824e862cf0d0720e5bb97c1f4260d1e51623a09492b57b"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-darwin-amd64.tar.gz"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995222"
+checksum = "sha256:a5667c1c3536be1740133213e1e822bfb8f0d98ea12903174d6d5f635e4ed68d"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-darwin-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813755"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.windows-x64"]
-checksum = "sha256:4735fdc8e84a0cfb7a15a1c364a650942f88215e0d36c674ebc4024f7b554524"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-windows-amd64.zip"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995335"
+checksum = "sha256:b15f903d1649283a2ab6e8d2f0c317eaf1f9f6b3763950e7e8b7e72a43dd724f"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-amd64.zip"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813793"
 provenance = "github-attestations"
 
 [tools.golangci-lint."platforms.windows-x64-baseline"]
-checksum = "sha256:4735fdc8e84a0cfb7a15a1c364a650942f88215e0d36c674ebc4024f7b554524"
-url = "https://github.com/golangci/golangci-lint/releases/download/v2.13.2/golangci-lint-2.13.2-windows-amd64.zip"
-url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/532995335"
+checksum = "sha256:b15f903d1649283a2ab6e8d2f0c317eaf1f9f6b3763950e7e8b7e72a43dd724f"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-amd64.zip"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813793"
 provenance = "github-attestations"
 
 [[tools.sqlc]]
@@ -271,61 +271,61 @@ url = "https://downloads.sqlc.dev/sqlc_1.31.1_windows_amd64.tar.gz"
 url = "https://downloads.sqlc.dev/sqlc_1.31.1_windows_amd64.tar.gz"
 
 [[tools.watchexec]]
-version = "2.7.3"
+version = "2.7.4"
 backend = "aqua:watchexec/watchexec"
-specifiers = ["2.7.3"]
+specifiers = ["2.7.4"]
 
 [tools.watchexec."platforms.linux-arm64"]
-checksum = "sha256:02b3e2beddf96fef5fb2b88849902e3cf9e96da87968bdfb7a488700d64142cc"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-aarch64-unknown-linux-gnu.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495662"
+checksum = "sha256:b649cf89bda51ba060abb9e9765ea585823ee94b9bf2e2ad86081323a13a81c4"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-aarch64-unknown-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904467"
 
 [tools.watchexec."platforms.linux-arm64-musl"]
-checksum = "sha256:80bd9acfc25e4035624d99585b2f920add5ecbdc0c732c4e42fa1451b63d80a5"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-aarch64-unknown-linux-musl.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495670"
+checksum = "sha256:8596e3082e7116d4438f71f3e8eb1ad25d39dc4fe8560d2b1240af86e0c56df8"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-aarch64-unknown-linux-musl.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904476"
 
 [tools.watchexec."platforms.linux-x64"]
-checksum = "sha256:8ace3a1d2e752d189f28b6766311d58f155ab977fae66aba60b111ec8aec2f64"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-unknown-linux-gnu.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495660"
+checksum = "sha256:6d7e89e8815ac1b4eafb9497ed0a8ada986117fbba460b2f9282e0e160f776dd"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-unknown-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904460"
 
 [tools.watchexec."platforms.linux-x64-baseline"]
-checksum = "sha256:8ace3a1d2e752d189f28b6766311d58f155ab977fae66aba60b111ec8aec2f64"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-unknown-linux-gnu.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495660"
+checksum = "sha256:6d7e89e8815ac1b4eafb9497ed0a8ada986117fbba460b2f9282e0e160f776dd"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-unknown-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904460"
 
 [tools.watchexec."platforms.linux-x64-musl"]
-checksum = "sha256:b5bcd00ae3ebb53f7ea5d499fdf98bda14711589a7ecc0619e1847586beaa24d"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-unknown-linux-musl.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495691"
+checksum = "sha256:00a4be01add74acfaa37978081b331d60f4691f7e39b2028e5301242d61a464b"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-unknown-linux-musl.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904457"
 
 [tools.watchexec."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:b5bcd00ae3ebb53f7ea5d499fdf98bda14711589a7ecc0619e1847586beaa24d"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-unknown-linux-musl.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495691"
+checksum = "sha256:00a4be01add74acfaa37978081b331d60f4691f7e39b2028e5301242d61a464b"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-unknown-linux-musl.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904457"
 
 [tools.watchexec."platforms.macos-arm64"]
-checksum = "sha256:bb2a3acc02de5c64f87779fc0226274d47d79026c6df969c8c1034a110b2efad"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-aarch64-apple-darwin.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495664"
+checksum = "sha256:1e5052fe1f0690cd04d13d59f2d6bb0b090985d88c7406acadacd1198f58706e"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-aarch64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904470"
 
 [tools.watchexec."platforms.macos-x64"]
-checksum = "sha256:ddca28bbd6b219a14ffec4893d56dad2e29cfc8b3e47f49e275706c9af20b4c2"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-apple-darwin.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495778"
+checksum = "sha256:e3016a20879510ea3a585e75d73a5aff8be0648d9e88d71439d515e63da13255"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904462"
 
 [tools.watchexec."platforms.macos-x64-baseline"]
-checksum = "sha256:ddca28bbd6b219a14ffec4893d56dad2e29cfc8b3e47f49e275706c9af20b4c2"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-apple-darwin.tar.xz"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495778"
+checksum = "sha256:e3016a20879510ea3a585e75d73a5aff8be0648d9e88d71439d515e63da13255"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904462"
 
 [tools.watchexec."platforms.windows-x64"]
-checksum = "sha256:c20d195ffe0a9f90bc3067db2cc0d991c33aaf1591b20531f4aa8999a20bce67"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495696"
+checksum = "sha256:4f380d9785661d05d188e2c36c221678d2614e9dd8c7d8397e72660596498a6d"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904498"
 
 [tools.watchexec."platforms.windows-x64-baseline"]
-checksum = "sha256:c20d195ffe0a9f90bc3067db2cc0d991c33aaf1591b20531f4aa8999a20bce67"
-url = "https://github.com/watchexec/watchexec/releases/download/v2.7.3/watchexec-2.7.3-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/565495696"
+checksum = "sha256:4f380d9785661d05d188e2c36c221678d2614e9dd8c7d8397e72660596498a6d"
+url = "https://github.com/watchexec/watchexec/releases/download/v2.7.4/watchexec-2.7.4-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/watchexec/watchexec/releases/assets/605904498"
