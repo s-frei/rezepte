@@ -1,5 +1,7 @@
 <script lang="ts">
 	import KeyRound from '@lucide/svelte/icons/key-round';
+	import MailCheck from '@lucide/svelte/icons/mail-check';
+	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import Link from '@lucide/svelte/icons/link';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -26,6 +28,8 @@
 		hasIdentity,
 		provider,
 		setupLinkExpiresAt,
+		email,
+		emailVerified,
 		onrole,
 		onshare,
 		onedit,
@@ -51,6 +55,10 @@
 		provider?: string;
 		/** Admin-only; set while this person has an open setup link. */
 		setupLinkExpiresAt?: string;
+		/** Admin-only: the account's address; undefined where the viewer cannot see it. */
+		email?: string;
+		/** Admin-only: whether that address is confirmed. */
+		emailVerified?: boolean;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the switch then snaps back. */
@@ -166,8 +174,22 @@
 <BottomSheet bind:open closeLabel={m.common_close()} onCloseAutoFocus={returnFocus}>
 	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 		<PersonCard {person} asTitle />
-		{#if identityStatus || setupStatus}
+		{#if identityStatus || setupStatus || email}
 			<div class="mt-3 space-y-0.5">
+				{#if email}
+					<p class="flex items-center gap-1 text-micro text-text-muted">
+						{#if emailVerified}
+							<MailCheck class="size-3 shrink-0 text-success-foreground" aria-hidden="true" />
+						{:else}
+							<MailQuestionMark class="size-3 shrink-0" aria-hidden="true" />
+						{/if}
+						<span class="min-w-0 break-all">
+							{emailVerified
+								? m.users_email_line_confirmed({ address: email })
+								: m.users_email_line_unconfirmed({ address: email })}
+						</span>
+					</p>
+				{/if}
 				{#if identityStatus}
 					<p class="flex items-center gap-1 text-micro text-text">
 						<KeyRound class="size-3 shrink-0" aria-hidden="true" />
@@ -219,7 +241,7 @@
 		</div>
 
 		<div class="-mx-3 mt-5 border-t border-border pt-2">
-			{#if permissions.editProfile}
+			{#if permissions.editProfile || permissions.manageAccount}
 				<button type="button" class={row} onclick={() => hand(onedit)}>
 					<Pencil class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
 					{m.users_edit_profile()}

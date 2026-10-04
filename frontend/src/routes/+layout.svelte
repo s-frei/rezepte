@@ -6,18 +6,17 @@
 	import AppShell from '$lib/components/shell/AppShell.svelte';
 	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
 	import ImportDialog from '$lib/components/import/ImportDialog.svelte';
-	import { session } from '$lib/auth.svelte';
+	import { authPages, session } from '$lib/auth.svelte';
 	import { palette } from '$lib/palette.svelte';
 	import { getLocale } from '$lib/paraglide/runtime';
 
 	let { children }: { children: Snippet } = $props();
 
-	// /welcome is a setup link's landing page, reachable with no session at
-	// all (see routes/+layout.ts) and bare for the same reason /login is:
-	// its own full-page form, not a page inside the household's nav.
-	const isLoginRoute = $derived(
-		page.url.pathname.startsWith('/login') || page.url.pathname.startsWith('/welcome')
-	);
+	// /login, /welcome (a setup or reset link's landing page), /forgot-password
+	// and /confirm-email are reachable with no session at all (see
+	// routes/+layout.ts) and render bare: each is its own full-page card, not
+	// a page inside the household's nav.
+	const isLoginRoute = $derived(authPages.some((p) => page.url.pathname.startsWith(p)));
 	// Full-screen routes render without the app shell: no top bar, no bottom
 	// nav, no command palette and no Cmd+K. Matched on the route id rather
 	// than the pathname so the check is exact and independent of the slug.

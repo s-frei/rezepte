@@ -30,3 +30,20 @@ func TestMessagesMatchFrontend(t *testing.T) {
 		}
 	}
 }
+
+// The generated copy holds the template keys and nothing else: UI keys about
+// mail are settings_mail_*, so the mail_ prefix never pulls UI copy in.
+func TestCatalogHoldsOnlyMailKeys(t *testing.T) {
+	for locale, keys := range catalogs {
+		for k := range keys {
+			if !strings.HasPrefix(k, "mail_") {
+				t.Errorf("%s: %q is not a mail key", locale, k)
+			}
+		}
+		for _, k := range []string{"mail_reset_subject", "mail_hint_body", "mail_hint_provider_fallback", "mail_confirm_body_admin"} {
+			if keys[k] == "" {
+				t.Errorf("%s: %q missing", locale, k)
+			}
+		}
+	}
+}

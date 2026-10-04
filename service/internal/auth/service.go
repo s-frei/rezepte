@@ -47,18 +47,33 @@ type Session struct {
 	User      user.User
 }
 
-// Service manages sessions.
+const (
+	// resetMailEvery and confirmMailEvery space out mails one account can
+	// trigger: a forgotten-password request, and "Send again".
+	resetMailEvery   = 5 * time.Minute
+	confirmMailEvery = time.Minute
+)
+
+// Service manages sessions, setup links and address confirmations.
 type Service struct {
-	conn     *sql.DB
-	q        *sqlc.Queries
-	users    *user.Service
-	throttle *throttle
-	now      func() time.Time
+	conn            *sql.DB
+	q               *sqlc.Queries
+	users           *user.Service
+	throttle        *throttle
+	resetCooldown   *cooldown
+	confirmCooldown *cooldown
+	mailer          Mailer
+	provider        Provider
+	now             func() time.Time
 }
 
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB, users *user.Service) *Service {
-	return &Service{conn: conn, q: sqlc.New(conn), users: users, throttle: newThrottle(throttleCapacity), now: time.Now}
+	return &Service{
+		conn: conn, q: sqlc.New(conn), users: users, throttle: newThrottle(throttleCapacity),
+		resetCooldown: newCooldown(resetMailEvery), confirmCooldown: newCooldown(confirmMailEvery),
+		now: time.Now,
+	}
 }
 
 // SetClock overrides the time source. Intended for tests.
@@ -174,7 +189,8 @@ func (s *Service) DeleteUserSessionsExcept(ctx context.Context, userID, keepToke
 	return nil
 }
 
-// DeleteExpired removes sessions and setup links past their expiry.
+// DeleteExpired removes sessions, setup links and address confirmations past
+// their expiry.
 func (s *Service) DeleteExpired(ctx context.Context) error {
 	if err := s.q.DeleteExpiredSessions(ctx, db.FormatTime(s.now())); err != nil {
 		return fmt.Errorf("delete expired sessions: %w", err)
@@ -182,13 +198,17 @@ func (s *Service) DeleteExpired(ctx context.Context) error {
 	if err := s.q.DeleteExpiredSetupLinks(ctx, db.FormatTime(s.now())); err != nil {
 		return fmt.Errorf("delete expired setup links: %w", err)
 	}
+	if err := s.q.DeleteExpiredEmailConfirmations(ctx, db.FormatTime(s.now())); err != nil {
+		return fmt.Errorf("delete expired confirmations: %w", err)
+	}
 	return nil
 }
 
 // SweepLoop calls DeleteExpired every d until ctx is canceled, logging
 // failures instead of returning them so a transient DB error never takes
 // the sweep down permanently. The same tick drops login throttle entries
-// nobody has tried for a day. Intended to run in its own goroutine.
+// nobody has tried for a day, and the mail cooldowns' finished periods.
+// Intended to run in its own goroutine.
 func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.Logger) {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
@@ -198,6 +218,8 @@ func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.L
 			return
 		case <-ticker.C:
 			s.throttle.sweep(s.now())
+			s.resetCooldown.sweep(s.now())
+			s.confirmCooldown.sweep(s.now())
 			if err := s.DeleteExpired(ctx); err != nil {
 				logger.Warn("sweep expired sessions", "err", err)
 			}

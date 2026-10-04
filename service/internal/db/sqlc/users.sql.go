@@ -253,6 +253,52 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const listUsersByVerifiedEmail = `-- name: ListUsersByVerifiedEmail :many
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified FROM users
+WHERE lower(email) = lower(?1) AND email_verified = 1 AND email != ''
+ORDER BY username
+`
+
+// Who a forgotten-password request by address reaches. lower() folds ASCII
+// only, the same rule COLLATE NOCASE applies to usernames; addresses carry
+// no UNIQUE, so it can be several accounts.
+func (q *Queries) ListUsersByVerifiedEmail(ctx context.Context, address string) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsersByVerifiedEmail, address)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.DisplayName,
+			&i.PasswordHash,
+			&i.Role,
+			&i.Color,
+			&i.Locale,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CanSharePublicly,
+			&i.AvatarID,
+			&i.Email,
+			&i.EmailVerified,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const reassignRecipes = `-- name: ReassignRecipes :exec
 UPDATE recipes
 SET created_by = CASE WHEN created_by = ?1 THEN ?2 ELSE created_by END,
@@ -469,7 +515,7 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 	return i, err
 }
 
-const verifyEmailIfMatches = `-- name: VerifyEmailIfMatches :exec
+const verifyEmailIfMatches = `-- name: VerifyEmailIfMatches :execrows
 UPDATE users SET email_verified = 1, updated_at = ?
 WHERE id = ? AND email = ? AND email != ''
 `
@@ -482,7 +528,10 @@ type VerifyEmailIfMatchesParams struct {
 
 // Verifies the address only while it is still the one the link was mailed
 // to; a change in between leaves it unverified.
-func (q *Queries) VerifyEmailIfMatches(ctx context.Context, arg VerifyEmailIfMatchesParams) error {
-	_, err := q.db.ExecContext(ctx, verifyEmailIfMatches, arg.UpdatedAt, arg.ID, arg.Email)
-	return err
+func (q *Queries) VerifyEmailIfMatches(ctx context.Context, arg VerifyEmailIfMatchesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, verifyEmailIfMatches, arg.UpdatedAt, arg.ID, arg.Email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

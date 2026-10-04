@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { inspectSetupLink, redeemSetupLink } from '$lib/api/auth';
+	import { getPasswordReset, inspectSetupLink, redeemSetupLink } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
 	import { getOidc, type OidcInfo } from '$lib/api/oidc';
 	import AuthScene from '$lib/components/auth/AuthScene.svelte';
@@ -31,12 +31,15 @@
 	// it into its form; it still never reaches the address bar again.
 	let token = $state('');
 	let oidc = $state<OidcInfo | null>(null);
+	let resetAvailable = $state(false);
 	// Set when a provider sign-in came back here. The service redirects
 	// without the fragment, so the token is gone and the person has to open
 	// the link again.
 	const oidcReturn = $derived(page.url.searchParams.get('oidc'));
 	let username = $state('');
 	let displayName = $state('');
+	let purpose = $state<'setup' | 'reset'>('setup');
+	const reset = $derived(purpose === 'reset');
 	let loading = $state(true);
 	let invalid = $state(false);
 	// A non-404 inspect failure (offline, 503, ...): the token is still good,
@@ -50,7 +53,9 @@
 	// Never "Welcome,  · Rezepte" with nobody's name in it - the tab title
 	// falls back to the plain app name until an invite has actually loaded.
 	const pageTitle = $derived(
-		ready ? `${m.welcome_title({ name: displayName })} · ${m.app_name()}` : m.app_name()
+		ready
+			? `${reset ? m.welcome_reset_title({ name: displayName }) : m.welcome_title({ name: displayName })} · ${m.app_name()}`
+			: m.app_name()
 	);
 
 	let password = $state('');
@@ -67,6 +72,7 @@
 			const info = await inspectSetupLink(token);
 			username = info.username;
 			displayName = info.displayName;
+			purpose = info.purpose;
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 404) {
 				// Unknown, used or expired - one message for all three, so
@@ -87,6 +93,10 @@
 		// The button is an extra, so a failed lookup simply leaves it out.
 		const info = getOidc().catch(() => null);
 		void info.then((i) => (oidc = i));
+		getPasswordReset().then(
+			(r) => (resetAvailable = r.available),
+			() => {}
+		);
 		if (!token) {
 			// Coming back from the provider: wait for its name, so the page
 			// does not flash "this link no longer works" first.
@@ -133,7 +143,15 @@
 
 <!-- Every state shares the login's scene and card; only the form states
      carry the line under the wordmark. -->
-<AuthScene lead={ready ? (oidc?.enabled ? m.welcome_lead_choose() : m.welcome_lead()) : ''}>
+<AuthScene
+	lead={ready
+		? reset
+			? m.welcome_reset_lead()
+			: oidc?.enabled
+				? m.welcome_lead_choose()
+				: m.welcome_lead()
+		: ''}
+>
 	{#if !loading}
 		{#if !token && oidc?.enabled && (oidcReturn === 'failed' || oidcReturn === 'taken')}
 			<div class="space-y-2 text-center lg:text-left">
@@ -147,15 +165,36 @@
 		{:else if invalid}
 			<div class="space-y-2 text-center lg:text-left">
 				<h1 class="font-display text-heading font-medium">{m.welcome_invalid()}</h1>
-				<p class="text-body text-text-muted">{m.welcome_invalid_hint()}</p>
+				<p class="text-body text-text-muted">
+					{#if resetAvailable}
+						{m.welcome_invalid_hint_reset_before()}<a
+							href={resolve('/forgot-password')}
+							class="font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+							>{m.welcome_invalid_hint_reset_link()}</a
+						>{m.welcome_invalid_hint_reset_after()}
+					{:else}
+						{m.welcome_invalid_hint()}
+					{/if}
+				</p>
 			</div>
+			<a
+				href={resolve('/login')}
+				class="self-center text-caption font-semibold text-text-muted underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			>
+				{m.forgot_back()}
+			</a>
 		{:else if loadError}
 			<p class="text-center text-body text-text-muted lg:text-left">{m.login_error_generic()}</p>
 			<Button variant="secondary" onclick={loadInvite}>{m.common_retry()}</Button>
 		{:else}
 			<h1 class="font-display text-heading font-medium">
-				{m.welcome_title({ name: displayName })}
+				{reset
+					? m.welcome_reset_title({ name: displayName })
+					: m.welcome_title({ name: displayName })}
 			</h1>
+			{#if reset}
+				<p class="text-body text-text-muted">{m.welcome_reset_text()}</p>
+			{/if}
 			{#if session.user && session.user.username !== username}
 				<!-- Another account is signed in on this browser: the link is
 				     still usable, but finishing it signs that account out here. -->
@@ -163,7 +202,9 @@
 					{m.welcome_signed_in_as({ name: session.user.displayName, invited: displayName })}
 				</p>
 			{/if}
-			{#if oidc?.enabled}
+			<!-- A reset link only sets a password; the service refuses it in the
+			     provider flow anyway. -->
+			{#if oidc?.enabled && !reset}
 				<ProviderButton intent="setup" name={oidc.name} setup={token} />
 				<div class="flex items-center gap-3 text-caption text-text-muted">
 					<span class="h-px flex-1 bg-border"></span>
@@ -210,7 +251,7 @@
 					<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
 				{/if}
 				<Button type="submit" size="lg" class="w-full" disabled={submitting}>
-					{m.welcome_submit()}
+					{reset ? m.welcome_reset_submit() : m.welcome_submit()}
 				</Button>
 			</form>
 		{/if}

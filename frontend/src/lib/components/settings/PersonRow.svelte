@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { DropdownMenu, Popover } from 'bits-ui';
+	import { DropdownMenu, Popover, Tooltip } from 'bits-ui';
 	import { tick } from 'svelte';
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import KeyRound from '@lucide/svelte/icons/key-round';
+	import MailCheck from '@lucide/svelte/icons/mail-check';
+	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import { resolve } from '$app/paths';
 	import type { PersonEntry, UserRole } from '$lib/api/users';
@@ -31,6 +33,8 @@
 		hasIdentity,
 		provider,
 		setupLinkExpiresAt,
+		email,
+		emailVerified,
 		onrole,
 		onshare,
 		onmanage,
@@ -56,6 +60,10 @@
 		provider?: string;
 		/** Admin-only; set while this person has an open setup link. */
 		setupLinkExpiresAt?: string;
+		/** Admin-only: the account's address; undefined where the viewer cannot see it. */
+		email?: string;
+		/** Admin-only: whether that address is confirmed. */
+		emailVerified?: boolean;
 		/** Rejects when the API refused; the select then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the menu item then snaps back. */
@@ -143,6 +151,10 @@
 		}
 	}
 
+	const emailLabel = $derived(
+		emailVerified ? m.users_email_confirmed() : m.users_email_unconfirmed()
+	);
+
 	let menuOpen = $state(false);
 
 	// Mirrors PersonSheet's `hand()`: closes the menu and moves focus to its
@@ -204,7 +216,49 @@
 				<span class="shrink-0 text-micro text-text-muted">{m.users_you()}</span>
 			{/if}
 		</p>
-		<p class="truncate text-micro text-text-muted">{person.username}</p>
+		<!-- The address's state in one symbol after the login name: what a
+		     forgotten-password mail can reach. None without an address. The
+		     owner's row carries it too. From md up the symbol is a focusable
+		     tooltip trigger, so a keyboard reaches the words as well; on a
+		     phone the whole row is one tap target, so the symbol stays inert
+		     there and the sheet writes the state out. -->
+		<p class="flex min-w-0 items-center gap-1 text-micro text-text-muted">
+			<span class="truncate">{person.username}</span>
+			{#if email}
+				<Tooltip.Provider delayDuration={200}>
+					<Tooltip.Root>
+						<!-- Named by its label alone: the tooltip says the same words,
+						     and as the trigger's description too a screen reader would
+						     read them twice. -->
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<button
+									{...props}
+									aria-describedby={undefined}
+									aria-label={emailLabel}
+									class="hidden shrink-0 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:inline-flex"
+								>
+									{@render mailSymbol()}
+								</button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Portal>
+							<Tooltip.Content
+								side="right"
+								sideOffset={6}
+								class="z-50 rounded-md bg-inverse px-2.5 py-1.5 text-micro text-inverse-foreground shadow-dialog"
+							>
+								{emailLabel}
+							</Tooltip.Content>
+						</Tooltip.Portal>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+				<span class="inline-flex shrink-0 md:hidden">
+					{@render mailSymbol()}
+					<span class="sr-only">{emailLabel}</span>
+				</span>
+			{/if}
+		</p>
 		{#if identityStatus}
 			<p class="flex items-center gap-1 text-micro text-text">
 				<KeyRound class="size-3 shrink-0" aria-hidden="true" />
@@ -236,7 +290,7 @@
 				/>
 			</span>
 		{/if}
-		{#if permissions.editProfile}
+		{#if permissions.editProfile || permissions.manageAccount}
 			<button
 				type="button"
 				aria-label={m.users_edit_profile()}
@@ -371,3 +425,11 @@
 		/>
 	{/if}
 </li>
+
+{#snippet mailSymbol()}
+	{#if emailVerified}
+		<MailCheck class="size-3 text-success-foreground" aria-hidden="true" />
+	{:else}
+		<MailQuestionMark class="size-3 text-text-muted" aria-hidden="true" />
+	{/if}
+{/snippet}

@@ -477,7 +477,7 @@ func TestSeedMembersShareSamples(t *testing.T) {
 // TestAddMembersInvitesOneWithoutAPassword: the demo's extra member has no
 // password, no email and an open setup link, so the people list shows an
 // account someone can still claim; the admin and the other members each get
-// an unverified sample email.
+// a confirmed sample email.
 func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
@@ -504,8 +504,8 @@ func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 			invited = m
 			continue
 		}
-		if m.Email != m.Username+"@example.com" || m.EmailVerified {
-			t.Fatalf("%s: email %q verified %v; want an unverified %s@example.com", m.Username, m.Email, m.EmailVerified, m.Username)
+		if m.Email != m.Username+"@example.com" || !m.EmailVerified {
+			t.Fatalf("%s: email %q verified %v; want a confirmed %s@example.com", m.Username, m.Email, m.EmailVerified, m.Username)
 		}
 	}
 	if invited.ID == "" {
@@ -525,8 +525,8 @@ func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if owner.Email != "demo@example.com" || owner.EmailVerified {
-		t.Fatalf("admin: email %q verified %v; want an unverified demo@example.com", owner.Email, owner.EmailVerified)
+	if owner.Email != "demo@example.com" || !owner.EmailVerified {
+		t.Fatalf("admin: email %q verified %v; want a confirmed demo@example.com", owner.Email, owner.EmailVerified)
 	}
 
 	// Issuing the same user's link a second time stays a no-op rather than

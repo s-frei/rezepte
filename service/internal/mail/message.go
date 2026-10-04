@@ -29,7 +29,7 @@ var templateFiles embed.FS
 var (
 	catalogs   = loadCatalogs()
 	layoutHTML = htmltemplate.Must(htmltemplate.ParseFS(templateFiles, "templates/layout.html.tmpl"))
-	inviteText = texttemplate.Must(texttemplate.ParseFS(templateFiles, "templates/invite.txt.tmpl"))
+	linkText   = texttemplate.Must(texttemplate.ParseFS(templateFiles, "templates/link.txt.tmpl"))
 	testText   = texttemplate.Must(texttemplate.ParseFS(templateFiles, "templates/test.txt.tmpl"))
 )
 
@@ -108,7 +108,82 @@ func BuildInvite(cfg Config, in Invite, publicURL string, now time.Time) (Envelo
 		URL:       publicURL + in.Path,
 		PublicURL: publicURL,
 	}
-	return build(cfg, in.To, p, inviteText, now)
+	return build(cfg, in.To, p, linkText, now)
+}
+
+// Reset is a password reset link mailed to an account's confirmed address.
+type Reset struct {
+	To, Username, Path string
+	Locale             user.Locale
+}
+
+// BuildReset renders the forgotten-password mail.
+func BuildReset(cfg Config, in Reset, publicURL string, now time.Time) (Envelope, error) {
+	return build(cfg, in.To, page{
+		Lang:      string(in.Locale),
+		Subject:   text(in.Locale, "mail_reset_subject", nil),
+		Body:      text(in.Locale, "mail_reset_body", map[string]string{"username": in.Username}),
+		Button:    text(in.Locale, "mail_reset_button", nil),
+		Validity:  text(in.Locale, "mail_reset_validity", nil),
+		Fallback:  text(in.Locale, "mail_fallback_link", nil),
+		Footer:    text(in.Locale, "mail_reset_ignore", nil),
+		URL:       publicURL + in.Path,
+		PublicURL: publicURL,
+	}, linkText, now)
+}
+
+// Hint answers a forgotten-password request from an account that signs in
+// only through an identity provider: it has no password to reset.
+type Hint struct {
+	To, Provider string
+	Locale       user.Locale
+}
+
+// BuildHint renders the sign-in hint; its button opens the login page.
+func BuildHint(cfg Config, in Hint, publicURL string, now time.Time) (Envelope, error) {
+	provider := in.Provider
+	if provider == "" {
+		provider = text(in.Locale, "mail_hint_provider_fallback", nil)
+	}
+	who := map[string]string{"provider": provider}
+	return build(cfg, in.To, page{
+		Lang:      string(in.Locale),
+		Subject:   text(in.Locale, "mail_hint_subject", nil),
+		Body:      text(in.Locale, "mail_hint_body", who),
+		Button:    text(in.Locale, "mail_hint_button", nil),
+		Fallback:  text(in.Locale, "mail_fallback_link", nil),
+		Footer:    text(in.Locale, "mail_hint_footer", who),
+		URL:       publicURL + "/login",
+		PublicURL: publicURL,
+	}, linkText, now)
+}
+
+// Confirm asks whoever reads To to confirm it for the account Username, so
+// two accounts sharing an address can tell their mails apart. Admin names
+// who entered the address; empty when the account holder did.
+type Confirm struct {
+	To, Username, Admin, Path string
+	Locale                    user.Locale
+}
+
+// BuildConfirm renders the address confirmation mail.
+func BuildConfirm(cfg Config, in Confirm, publicURL string, now time.Time) (Envelope, error) {
+	vars := map[string]string{"username": in.Username, "admin": in.Admin}
+	body := text(in.Locale, "mail_confirm_body", vars)
+	if in.Admin != "" {
+		body = text(in.Locale, "mail_confirm_body_admin", vars)
+	}
+	return build(cfg, in.To, page{
+		Lang:      string(in.Locale),
+		Subject:   text(in.Locale, "mail_confirm_subject", nil),
+		Body:      body,
+		Button:    text(in.Locale, "mail_confirm_button", nil),
+		Validity:  text(in.Locale, "mail_confirm_validity", nil),
+		Fallback:  text(in.Locale, "mail_fallback_link", nil),
+		Footer:    text(in.Locale, "mail_confirm_ignore", nil),
+		URL:       publicURL + in.Path,
+		PublicURL: publicURL,
+	}, linkText, now)
 }
 
 // BuildTest renders the owner's test mail.

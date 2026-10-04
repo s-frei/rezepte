@@ -907,3 +907,101 @@ func TestSetEmailRankAndVerified(t *testing.T) {
 		t.Fatalf("invalid: %v", err)
 	}
 }
+
+func TestByUsernameTrimsAndFoldsCase(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	mila, err := svc.Create(ctx, user.CreateParams{Username: "mila", Password: "pw", Role: user.RoleUser})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.ByUsername(ctx, "  MILA ")
+	if err != nil || got.ID != mila.ID {
+		t.Fatalf("ByUsername = %+v, %v", got, err)
+	}
+	if _, err := svc.ByUsername(ctx, "nobody"); !errors.Is(err, user.ErrNotFound) {
+		t.Fatalf("unknown: err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestListByVerifiedEmailOnlyConfirmed(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	mk := func(name, addr string, confirm bool) {
+		u, err := svc.Create(ctx, user.CreateParams{Username: name, Password: "pw", Role: user.RoleUser, Email: addr})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if confirm {
+			if ok, err := svc.MarkEmailVerified(ctx, u.ID, addr); err != nil || !ok {
+				t.Fatalf("MarkEmailVerified(%s) = %v, %v", name, ok, err)
+			}
+		}
+	}
+	mk("kim", "shared@example.org", true)
+	mk("jonas", "shared@example.org", true)
+	mk("lea", "shared@example.org", false)
+	got, err := svc.ListByVerifiedEmail(ctx, " Shared@Example.ORG ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Username != "jonas" || got[1].Username != "kim" {
+		t.Fatalf("got %+v, want jonas and kim", got)
+	}
+}
+
+func TestMarkEmailVerifiedOnlyMatchingAddress(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	u, err := svc.Create(ctx, user.CreateParams{Username: "lea", Password: "pw", Role: user.RoleUser, Email: "lea@example.org"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := svc.MarkEmailVerified(ctx, u.ID, "old@example.org"); err != nil || ok {
+		t.Fatalf("other address: ok=%v err=%v, want false", ok, err)
+	}
+	if got, _ := svc.ByID(ctx, u.ID); got.EmailVerified {
+		t.Fatal("verified an address that is not the account's")
+	}
+}
+
+// A typed login is not an account's data: a failed lookup must not quote it,
+// or a forgotten-password request would write it into the log.
+// Authenticate's errors reach the log as a 500 the same way.
+func TestByUsernameErrorDoesNotQuoteTheLogin(t *testing.T) {
+	conn := dbtest.Open(t)
+	svc := user.NewService(conn, "")
+	_ = conn.Close()
+	_, err := svc.ByUsername(context.Background(), "secret-login")
+	if err == nil || errors.Is(err, user.ErrNotFound) || strings.Contains(err.Error(), "secret-login") {
+		t.Fatalf("ByUsername err = %v", err)
+	}
+	_, err = svc.Authenticate(context.Background(), "secret-login", "pw")
+	if err == nil || errors.Is(err, user.ErrInvalidCredentials) || strings.Contains(err.Error(), "secret-login") {
+		t.Fatalf("Authenticate err = %v", err)
+	}
+}
+
+// Other letters are the same mailbox: the confirmed mark and the stored
+// spelling stay, whichever way the address is written.
+func TestCaseOnlyAddressChangeKeepsTheMark(t *testing.T) {
+	ctx := context.Background()
+	svc := user.NewService(dbtest.Open(t), "")
+	owner, _ := svc.Create(ctx, user.CreateParams{Username: "owner", Password: "pw", Role: user.RoleSuperadmin})
+	u, err := svc.Create(ctx, user.CreateParams{Username: "mila", Password: "pw", Role: user.RoleUser, Email: "mila@example.org"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.MarkEmailVerified(ctx, u.ID, "mila@example.org"); err != nil {
+		t.Fatal(err)
+	}
+	upper := "Mila@Example.org"
+	got, err := svc.SetProfile(ctx, u.ID, user.ProfileUpdate{Email: &upper})
+	if err != nil || !got.EmailVerified || got.Email != "mila@example.org" {
+		t.Fatalf("SetProfile = %+v, %v", got, err)
+	}
+	got, err = svc.SetEmail(ctx, owner, u.ID, "MILA@example.org")
+	if err != nil || !got.EmailVerified || got.Email != "mila@example.org" {
+		t.Fatalf("SetEmail = %+v, %v", got, err)
+	}
+}

@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
@@ -15,6 +16,7 @@ import (
 )
 
 type setupFixture struct {
+	conn     *sql.DB
 	users    *user.Service
 	sessions *auth.Service
 	owner    user.User
@@ -35,7 +37,7 @@ func newSetupFixture(t *testing.T) setupFixture {
 		return u
 	}
 	return setupFixture{
-		users: users, sessions: auth.NewService(conn, users),
+		conn: conn, users: users, sessions: auth.NewService(conn, users),
 		owner: mk("owner", user.RoleSuperadmin, "pw"), admin: mk("sam", user.RoleAdmin, "pw"),
 		member: mk("anna", user.RoleUser, ""),
 	}
@@ -171,9 +173,16 @@ func TestOpenSetupLinksListsOnlyOpenOnes(t *testing.T) {
 	now := time.Now()
 	f.sessions.SetClock(func() time.Time { return now })
 	link, _ := f.sessions.IssueSetupLink(ctx, f.admin, f.member.ID)
+	// A reset the admin asked for themselves is no setup link to show.
+	if _, err := f.sessions.IssueResetLink(ctx, f.admin.ID); err != nil {
+		t.Fatal(err)
+	}
 	open, err := f.sessions.OpenSetupLinks(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, ok := open[f.admin.ID]; ok {
+		t.Fatal("reset link listed as a setup link")
 	}
 	// Compared to the second: db.FormatTime may drop sub-second precision.
 	if got, ok := open[f.member.ID]; !ok || got.Unix() != link.ExpiresAt.Unix() {
@@ -289,5 +298,98 @@ func TestMarkSentIsKeyedByLinkNotAccount(t *testing.T) {
 	}
 	if got, _ := f.users.ByID(ctx, lena.ID); got.EmailVerified {
 		t.Fatal("a never-mailed link verified the address")
+	}
+}
+
+func TestResetLinkIsOneHourAndPeeksAsReset(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	now := time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
+	f.sessions.SetClock(func() time.Time { return now })
+	link, err := f.sessions.IssueResetLink(ctx, f.admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !link.ExpiresAt.Equal(now.Add(auth.ResetLinkTTL)) {
+		t.Fatalf("expires %v, want an hour from now", link.ExpiresAt)
+	}
+	open, err := f.sessions.PeekSetupLink(ctx, link.Token)
+	if err != nil || open.Purpose != auth.PurposeReset || open.User.ID != f.admin.ID {
+		t.Fatalf("peek = %+v, %v", open, err)
+	}
+	f.sessions.SetClock(func() time.Time { return now.Add(auth.ResetLinkTTL + time.Second) })
+	if _, err := f.sessions.PeekSetupLink(ctx, link.Token); !errors.Is(err, auth.ErrNoSetupLink) {
+		t.Fatalf("after an hour: err = %v", err)
+	}
+}
+
+func TestResetLinkLeavesOpenSetupLink(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	setup, _ := f.sessions.IssueSetupLink(ctx, f.owner, f.admin.ID)
+	if _, err := f.sessions.IssueResetLink(ctx, f.admin.ID); err == nil {
+		t.Fatal("a reset link replaced an open setup link")
+	}
+	if _, err := f.sessions.PeekSetupLink(ctx, setup.Token); err != nil {
+		t.Fatalf("the admin's link no longer opens: %v", err)
+	}
+}
+
+func TestResetLinkRefusedForOwner(t *testing.T) {
+	f := newSetupFixture(t)
+	if _, err := f.sessions.IssueResetLink(context.Background(), f.owner.ID); !errors.Is(err, user.ErrSuperadminProtected) {
+		t.Fatalf("err = %v, want ErrSuperadminProtected", err)
+	}
+}
+
+// The OIDC flow peeks by hash; a reset link must never get that far.
+func TestResetLinkRefusedByOIDCPeek(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	reset, _ := f.sessions.IssueResetLink(ctx, f.admin.ID)
+	if _, err := f.sessions.PeekSetupLinkByHash(ctx, auth.SetupLinkHash(reset.Token)); !errors.Is(err, auth.ErrNoSetupLink) {
+		t.Fatalf("OIDC peek of a reset link: err = %v", err)
+	}
+	setup, _ := f.sessions.IssueSetupLink(ctx, f.admin, f.member.ID)
+	if u, err := f.sessions.PeekSetupLinkByHash(ctx, auth.SetupLinkHash(setup.Token)); err != nil || u.ID != f.member.ID {
+		t.Fatalf("OIDC peek of a setup link: %+v, %v", u, err)
+	}
+}
+
+func TestRedeemResetLinkEndsEverySession(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	old, err := f.sessions.StartSession(ctx, f.admin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reset, _ := f.sessions.IssueResetLink(ctx, f.admin.ID)
+	if _, err := f.sessions.RedeemWithPassword(ctx, reset.Token, "sam-new-pass"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.sessions.Authenticate(ctx, old.Token); !errors.Is(err, auth.ErrNoSession) {
+		t.Fatalf("old session: err = %v, want ErrNoSession", err)
+	}
+	if _, err := f.users.Authenticate(ctx, "sam", "sam-new-pass"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetupLinkReplacesOpenResetLink(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	if _, err := f.sessions.IssueResetLink(ctx, f.admin.ID); err != nil {
+		t.Fatal(err)
+	}
+	setup, err := f.sessions.IssueSetupLink(ctx, f.owner, f.admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	open, err := f.sessions.PeekSetupLink(ctx, setup.Token)
+	if err != nil || open.Purpose != auth.PurposeSetup {
+		t.Fatalf("peek = %+v, %v", open, err)
+	}
+	if u, err := f.sessions.PeekSetupLinkByHash(ctx, auth.SetupLinkHash(setup.Token)); err != nil || u.ID != f.admin.ID {
+		t.Fatalf("peek by hash = %+v, %v", u, err)
 	}
 }

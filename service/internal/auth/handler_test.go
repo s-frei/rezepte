@@ -610,3 +610,16 @@ func TestMeCarriesCanSharePublicly(t *testing.T) {
 		t.Errorf("me: status %d, body %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestInspectSetupLinkReturnsPurpose(t *testing.T) {
+	h, sessions, users := newHandlerWithSessions(t)
+	sam, _ := users.ByUsername(context.Background(), "sam")
+	link, err := sessions.IssueResetLink(context.Background(), sam.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := do(h, http.MethodPost, "/api/v1/auth/setup/inspect", `{"token":"`+link.Token+`"}`, nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"purpose":"reset"`) {
+		t.Fatalf("inspect = %d %s", rec.Code, rec.Body)
+	}
+}

@@ -25,10 +25,15 @@ export type User = {
 	avatarId: string | null;
 	/** The account's email address; empty when none. Never used to sign in. */
 	email: string;
-	/** Whether an identity provider vouched for the address. */
+	/** Whether the address is confirmed, by its confirmation mail or by an identity provider. */
 	emailVerified: boolean;
 	/** False for an account that signs in only through a setup link or an identity provider. */
 	hasPassword: boolean;
+	/**
+	 * Whether a confirmation mail went to the current, unconfirmed address and
+	 * its link is still open. Only the own-account responses carry it.
+	 */
+	emailConfirmationPending?: boolean;
 };
 
 /** One palette color and how many accounts hold it. */
@@ -112,14 +117,20 @@ export function changePassword(
 	});
 }
 
-/** Changes the own display name, color and/or locale. Its own path, because PATCH /auth/me is the password change. */
+/**
+ * Changes the own display name, color and/or locale. Its own path, because PATCH /auth/me is the password change.
+ * `emailConfirmationPending` tells whether a changed address's confirmation mail went out.
+ */
 export function updateOwnProfile(patch: {
 	displayName?: string;
 	color?: UserColor;
 	locale?: Locale;
 	email?: string;
 }): Promise<User> {
-	return api<User>('/auth/me/profile', { method: 'PATCH', body: JSON.stringify(patch) });
+	return api<User>('/auth/me/profile', {
+		method: 'PATCH',
+		body: JSON.stringify(patch)
+	});
 }
 
 /**
@@ -135,10 +146,11 @@ export async function listColorUsage(): Promise<ColorUsage[]> {
  * Looks up the account a setup link belongs to, without using it - what
  * `/welcome` greets the invited person with before they have typed anything.
  * Throws a 404 `ApiError` when the token is unknown, used or expired.
+ * `reset` is a forgotten-password link: it only sets a password.
  */
 export function inspectSetupLink(
 	token: string
-): Promise<{ username: string; displayName: string }> {
+): Promise<{ username: string; displayName: string; purpose: 'setup' | 'reset' }> {
 	return api('/auth/setup/inspect', { method: 'POST', body: JSON.stringify({ token }) });
 }
 
@@ -148,4 +160,24 @@ export function redeemSetupLink(token: string, password: string): Promise<User> 
 		method: 'POST',
 		body: JSON.stringify({ token, password })
 	});
+}
+
+/** Whether a forgotten password can be reset by mail here. Public, like getOidc. */
+export function getPasswordReset(): Promise<{ available: boolean }> {
+	return api<{ available: boolean }>('/auth/password');
+}
+
+/** Asks for a reset mail. Resolves the same whether or not an account matches. */
+export function forgotPassword(login: string): Promise<void> {
+	return api<void>('/auth/password/forgot', { method: 'POST', body: JSON.stringify({ login }) });
+}
+
+/** Confirms the address a confirmation mail went to; 404 when the link no longer works. Never signs in. */
+export function confirmEmail(token: string): Promise<{ address: string }> {
+	return api('/auth/email/confirm', { method: 'POST', body: JSON.stringify({ token }) });
+}
+
+/** Mails a fresh confirmation link for the own address; 429 within a minute of the last. */
+export function resendConfirmation(): Promise<void> {
+	return api<void>('/auth/me/email/confirmation', { method: 'POST' });
 }

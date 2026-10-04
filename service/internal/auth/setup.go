@@ -14,12 +14,13 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// SetupLinkTTL is how long a setup link stays usable.
-const SetupLinkTTL = 7 * 24 * time.Hour
-
 // ErrNoSetupLink means the token is unknown, used or expired. One error for
 // all three, so a probe learns nothing.
 var ErrNoSetupLink = errors.New("setup link not found or expired")
+
+// errSetupLinkOpen means a reset was refused because an admin's setup link is
+// open: that link already lets the person in.
+var errSetupLinkOpen = errors.New("an open setup link stands")
 
 // SetupLink is a freshly issued link. Token is shown once and never stored.
 type SetupLink struct {
@@ -34,6 +35,35 @@ type SetupLink struct {
 // fragment, so it never reaches a server or proxy log or a Referer header.
 func SetupPath(token string) string { return "/welcome#" + token }
 
+// SetupLinkTTL is how long a setup link stays usable.
+const SetupLinkTTL = 7 * 24 * time.Hour
+
+// ResetLinkTTL is how long a mailed password reset link stays usable: it
+// lies in an inbox that may not be the person's alone.
+const ResetLinkTTL = time.Hour
+
+// Purpose says what a setup link may do. A reset link only sets a password.
+type Purpose string
+
+// The values of Purpose, as stored in setup_links.purpose.
+const (
+	PurposeSetup Purpose = "setup"
+	PurposeReset Purpose = "reset"
+)
+
+// OpenLink is an open setup link as PeekSetupLink reports it.
+type OpenLink struct {
+	User    user.User
+	Purpose Purpose
+}
+
+// newToken is a fresh 256-bit token in URL-safe base64.
+func newToken() string {
+	raw := make([]byte, 32)
+	_, _ = rand.Read(raw) // never fails since Go 1.24
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
 // IssueSetupLink replaces any open link of userID with a new one. It is the
 // same act as a password reset and follows the same rank rule.
 func (s *Service) IssueSetupLink(ctx context.Context, actor user.User, userID string) (SetupLink, error) {
@@ -44,16 +74,40 @@ func (s *Service) IssueSetupLink(ctx context.Context, actor user.User, userID st
 	if err := user.CanManage(actor.Role, target.Role); err != nil {
 		return SetupLink{}, err
 	}
-	raw := make([]byte, 32)
-	_, _ = rand.Read(raw)
-	token := base64.RawURLEncoding.EncodeToString(raw)
+	return s.issueLink(ctx, target, actor.ID, PurposeSetup, SetupLinkTTL)
+}
+
+// IssueResetLink replaces an older reset link of userID, or an expired one,
+// with a new reset link; an open setup link stays (errSetupLinkOpen). Nobody
+// acts: the person asked for it without a session, and ForgotPassword checked
+// they may have one, so the account itself is recorded as its creator. The
+// owner is refused here too, not only by the caller.
+func (s *Service) IssueResetLink(ctx context.Context, userID string) (SetupLink, error) {
+	target, err := s.users.ByID(ctx, userID)
+	if err != nil {
+		return SetupLink{}, err
+	}
+	if target.Role.IsSuperadmin() {
+		return SetupLink{}, user.ErrSuperadminProtected
+	}
+	return s.issueLink(ctx, target, target.ID, PurposeReset, ResetLinkTTL)
+}
+
+func (s *Service) issueLink(ctx context.Context, target user.User, createdBy string, purpose Purpose, ttl time.Duration) (SetupLink, error) {
+	token := newToken()
 	now := s.now()
-	expires := now.Add(SetupLinkTTL)
-	if err := s.q.ReplaceSetupLink(ctx, sqlc.ReplaceSetupLinkParams{
-		ID: hashToken(token), UserID: userID, CreatedBy: actor.ID,
+	expires := now.Add(ttl)
+	params := sqlc.ReplaceSetupLinkParams{
+		ID: hashToken(token), UserID: target.ID, CreatedBy: createdBy,
 		ExpiresAt: db.FormatTime(expires), CreatedAt: db.FormatTime(now), SentTo: "",
-	}); err != nil {
-		return SetupLink{}, fmt.Errorf("store setup link for %s: %w", userID, err)
+		Purpose: string(purpose),
+	}
+	n, err := s.q.ReplaceSetupLink(ctx, params)
+	if err != nil {
+		return SetupLink{}, fmt.Errorf("store setup link for %s: %w", target.ID, err)
+	}
+	if n == 0 {
+		return SetupLink{}, errSetupLinkOpen
 	}
 	return SetupLink{Token: token, ExpiresAt: expires, Target: target}, nil
 }
@@ -63,23 +117,41 @@ func (s *Service) IssueSetupLink(ctx context.Context, actor user.User, userID st
 // keeps this instead of the token.
 func SetupLinkHash(token string) string { return hashToken(token) }
 
-// PeekSetupLink returns the account an open link belongs to, without using it.
-func (s *Service) PeekSetupLink(ctx context.Context, token string) (user.User, error) {
-	return s.PeekSetupLinkByHash(ctx, hashToken(token))
+// PeekSetupLink returns the account an open link belongs to and what the
+// link may do, without using it.
+func (s *Service) PeekSetupLink(ctx context.Context, token string) (OpenLink, error) {
+	return s.peek(ctx, hashToken(token))
 }
 
-// PeekSetupLinkByHash is PeekSetupLink for a link known by SetupLinkHash.
+// PeekSetupLinkByHash is the OIDC flow's peek, for a link known by
+// SetupLinkHash. A reset link answers ErrNoSetupLink: it sets a password and
+// nothing else, so a reset can never attach an identity.
 func (s *Service) PeekSetupLinkByHash(ctx context.Context, hash string) (user.User, error) {
+	l, err := s.peek(ctx, hash)
+	if err != nil {
+		return user.User{}, err
+	}
+	if l.Purpose != PurposeSetup {
+		return user.User{}, ErrNoSetupLink
+	}
+	return l.User, nil
+}
+
+func (s *Service) peek(ctx context.Context, hash string) (OpenLink, error) {
 	row, err := s.q.GetOpenSetupLink(ctx, sqlc.GetOpenSetupLinkParams{
 		ID: hash, ExpiresAt: db.FormatTime(s.now()),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return user.User{}, ErrNoSetupLink
+		return OpenLink{}, ErrNoSetupLink
 	}
 	if err != nil {
-		return user.User{}, fmt.Errorf("get setup link: %w", err)
+		return OpenLink{}, fmt.Errorf("get setup link: %w", err)
 	}
-	return s.users.ByID(ctx, row.UserID)
+	u, err := s.users.ByID(ctx, row.UserID)
+	if err != nil {
+		return OpenLink{}, err
+	}
+	return OpenLink{User: u, Purpose: Purpose(row.Purpose)}, nil
 }
 
 // ConsumeSetupLink uses the link up and returns its account. Of two callers
@@ -116,7 +188,7 @@ func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, hash string)
 		return "", fmt.Errorf("consume setup link: %w", err)
 	}
 	if row.SentTo != "" {
-		if err := q.VerifyEmailIfMatches(ctx, sqlc.VerifyEmailIfMatchesParams{
+		if _, err := q.VerifyEmailIfMatches(ctx, sqlc.VerifyEmailIfMatchesParams{
 			UpdatedAt: db.FormatTime(s.now()), ID: row.UserID, Email: row.SentTo,
 		}); err != nil {
 			return "", fmt.Errorf("verify email of %s: %w", row.UserID, err)
@@ -140,7 +212,7 @@ func (s *Service) MarkSetupLinkSent(ctx context.Context, token, to string) error
 // RedeemWithPassword sets the account's password through its setup link,
 // ends every session it had and opens a new one. The hash is computed before
 // the link is used, so a full argon2 queue (user.ErrBusy) leaves the link
-// open for a retry.
+// open for a retry. A reset link redeems the same way.
 func (s *Service) RedeemWithPassword(ctx context.Context, token, password string) (Session, error) {
 	if _, err := s.PeekSetupLink(ctx, token); err != nil {
 		return Session{}, err
@@ -192,8 +264,9 @@ func (s *Service) RevokeSetupLink(ctx context.Context, actor user.User, userID s
 	return nil
 }
 
-// OpenSetupLinks maps every account with an open link to the link's expiry,
-// for the admin's people list.
+// OpenSetupLinks maps every account with an open setup link to the link's
+// expiry, for the admin's people list. Reset links are left out: a member
+// asking for one is not an open invitation.
 func (s *Service) OpenSetupLinks(ctx context.Context) (map[string]time.Time, error) {
 	rows, err := s.q.ListOpenSetupLinks(ctx, db.FormatTime(s.now()))
 	if err != nil {

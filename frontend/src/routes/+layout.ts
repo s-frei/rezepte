@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { ApiError } from '$lib/api/client';
 import { me } from '$lib/api/auth';
-import { adoptAccountLocale, session } from '$lib/auth.svelte';
+import { adoptAccountLocale, authPages, session } from '$lib/auth.svelte';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false;
@@ -25,7 +25,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		return { user: session.user };
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 401) {
-			if (url.pathname === '/login' || url.pathname === '/welcome') return { user: null };
+			if (authPages.includes(url.pathname)) return { user: null };
 			redirect(302, `/login?next=${encodeURIComponent(url.pathname + url.search)}`);
 		}
 		throw e;

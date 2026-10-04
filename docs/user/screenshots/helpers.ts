@@ -91,3 +91,28 @@ export async function ensureUser(
     );
   }
 }
+
+// Mail is configured through the API, on the placeholder server a real
+// instance would have: the screenshot instance has none of its own
+// (RZP_DEMO_MAIL=off), and the card is the same whether or not it works.
+export async function configureMail(page: Page) {
+  const response = await page.request.put("/api/v1/settings/mail", {
+    headers: { Origin: new URL(page.url()).origin },
+    data: {
+      host: "smtp.example.org",
+      port: 587,
+      security: "starttls",
+      username: "rezepte@example.org",
+      password: "x",
+      from: "rezepte@example.org",
+      fromName: "Rezepte"
+    }
+  });
+  expect(response.ok()).toBe(true);
+}
+
+export async function turnMailOff(page: Page) {
+  await page.request.delete("/api/v1/settings/mail", {
+    headers: { Origin: new URL(page.url()).origin }
+  });
+}

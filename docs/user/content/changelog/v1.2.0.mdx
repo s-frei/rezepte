@@ -1,6 +1,6 @@
 ---
-title: "v1.2.0 — Setup links by mail"
-description: "Rezepte sends invitations through your mail server, so an admin enters an email address and the person gets their setup link in their inbox."
+title: "v1.2.0 — Mail: invitations and forgotten passwords"
+description: "Rezepte sends invitations through your mail server, so an admin enters an email address and the person gets their setup link in their inbox, and a member who forgot their password resets it from the login page."
 date: 2026-10-02
 ---
 
@@ -14,6 +14,16 @@ Connect Rezepte to the SMTP server of your mail provider - in the app under **Se
 
 When the person opens the link from that mailbox, their address counts as confirmed. If sending fails, the account and its link are still there to pass on by hand.
 
+## Forgot password
+
+With mail set up, the login page shows **Forgot password?**. Enter a username or an email address and Rezepte mails a link for a new password to the confirmed address; it is valid for one hour and works once, and setting the password signs the account out everywhere else. Changing the account's address or password closes a link still open. While an admin's setup link for the account is open, **Forgot password?** sends nothing: that link is the way in. The page answers the same whether or not an account exists, and a second request within five minutes mails nothing. Only confirmed addresses count, and the owner cannot be reset by mail. An account that signs in only through an identity provider gets a hint saying so instead. See [First login](/getting-started/first-login#forgot-your-password).
+
+<Screenshot name="forgot-password" caption="Asking for a link for a new password" />
+
+## Confirmed addresses
+
+An address entered in a profile, or set by an admin, is confirmed through a mail with a link that is valid for 7 days; opening it confirms the address and signs nobody in. The mail names the account, so accounts sharing an address can tell their mails apart. The profile says **Not confirmed yet** with **Send again** until then, and **Confirmed** after; **Send again** works once a minute, counted from the save. In Settings → People a small envelope after each login name shows whose address is confirmed, so a forgotten-password mail can reach it. An address your identity provider vouched for, or one opened from a mailed setup link, counts as confirmed, and the addresses in the demo are confirmed too.
+
 ## API
 
 - `GET`, `PUT` and `DELETE /api/v1/settings/mail` and `POST /api/v1/settings/mail/test` read, save, clear and try the mail server; owner and session only. The password is never returned, only `passwordSet`.
@@ -21,10 +31,13 @@ When the person opens the link from that mailbox, their address counts as confir
 - `POST /api/v1/users` accepts an optional `email`; `POST /api/v1/users/{id}/setup-link` accepts `{"mail": false}` to skip sending. The setup link in either answer carries `mailedTo`, the address a mail was tried for, and `mailError` when that send failed.
 - `PATCH /api/v1/users/{id}` accepts `email` from a signed-in session, under the same rule as a password reset.
 - `GET /api/v1/users` carries `email` and `emailVerified`.
+- `POST /api/v1/auth/password/forgot` always answers `204`; `GET /api/v1/auth/password` says whether the login page offers it.
+- `POST /api/v1/auth/email/confirm` answers `200` with the confirmed `address`; `POST /api/v1/auth/me/email/confirmation` sends the confirmation again, at most once a minute and not within a minute of saving a new address (`429` with `Retry-After`).
+- `/auth/me` and `PATCH /api/v1/auth/me/profile` carry `emailConfirmationPending`: whether a confirmation link mailed to the address is still open, so after a changed address it is `false` when that mail could not be sent or was held back by the one-a-minute limit.
 
 The [API reference](/api/reference) lists every endpoint.
 
 ## Also in this release
 
-- **New:** Admins can set a member's email address, and the owner anyone's.
+- **New:** Admins can set a member's email address in the edit dialog (the pencil in their row), and the owner anyone's.
 - **New:** Settings → People opens its dialogs with focus back on the row's menu afterwards.

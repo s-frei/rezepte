@@ -205,11 +205,38 @@ func (s *Service) SendTest(ctx context.Context, actor user.User, to string, over
 }
 
 // SendInvite mails a setup link; in.Path is appended to REZEPTE_PUBLIC_URL.
-// ErrDisabled means mail is off and nothing was tried. A failure is returned
-// and logged with the recipient's domain and, for a server refusal, its
-// reply code only: the error text can quote the address, and the link is
-// never logged.
 func (s *Service) SendInvite(ctx context.Context, in Invite) error {
+	return s.deliver(ctx, in.To, "setup link", func(cfg Config) (Envelope, error) {
+		return BuildInvite(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendReset mails a password reset link.
+func (s *Service) SendReset(ctx context.Context, in Reset) error {
+	return s.deliver(ctx, in.To, "password reset", func(cfg Config) (Envelope, error) {
+		return BuildReset(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendHint mails the sign-in hint for an account without a password.
+func (s *Service) SendHint(ctx context.Context, in Hint) error {
+	return s.deliver(ctx, in.To, "sign-in hint", func(cfg Config) (Envelope, error) {
+		return BuildHint(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendConfirm mails an address confirmation link.
+func (s *Service) SendConfirm(ctx context.Context, in Confirm) error {
+	return s.deliver(ctx, in.To, "address confirmation", func(cfg Config) (Envelope, error) {
+		return BuildConfirm(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// deliver renders a mail with build and sends it to to. ErrDisabled means
+// mail is off and nothing was tried. A failure is returned and logged with
+// the recipient's domain and, for a server refusal, its reply code only: the
+// error text can quote the address, and a link is never logged.
+func (s *Service) deliver(ctx context.Context, to, what string, build func(Config) (Envelope, error)) error {
 	cfg, src, err := s.Effective(ctx)
 	if err != nil {
 		return err
@@ -217,7 +244,7 @@ func (s *Service) SendInvite(ctx context.Context, in Invite) error {
 	if src == SourceNone || s.publicURL == "" {
 		return ErrDisabled
 	}
-	env, err := BuildInvite(cfg, in, s.publicURL, s.now())
+	env, err := build(cfg)
 	if err != nil {
 		return err
 	}
@@ -227,7 +254,7 @@ func (s *Service) SendInvite(ctx context.Context, in Invite) error {
 		if errors.As(err, &reply) {
 			reason = reply.Code
 		}
-		s.logger.Warn("mail: setup link not sent", "domain", in.To[strings.LastIndex(in.To, "@")+1:], "reason", reason)
+		s.logger.Warn("mail: "+what+" not sent", "domain", to[strings.LastIndex(to, "@")+1:], "reason", reason)
 		return err
 	}
 	return nil

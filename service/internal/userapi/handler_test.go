@@ -52,10 +52,23 @@ func newStack(t *testing.T, environment map[string]string) (http.Handler, *user.
 // fakeMailer stands in for mail.Service: it records what would be sent and
 // can be told to fail, so no SMTP server is needed.
 type fakeMailer struct {
-	enabled bool
-	fail    bool
-	err     error // returned as is when set
-	sent    []mail.Invite
+	enabled  bool
+	fail     bool
+	err      error // returned as is when set
+	sent     []mail.Invite
+	confirms []mail.Confirm
+}
+
+func (f *fakeMailer) Enabled(context.Context) bool                { return f.enabled }
+func (f *fakeMailer) SendReset(context.Context, mail.Reset) error { return nil }
+func (f *fakeMailer) SendHint(context.Context, mail.Hint) error   { return nil }
+
+func (f *fakeMailer) SendConfirm(_ context.Context, in mail.Confirm) error {
+	if !f.enabled {
+		return mail.ErrDisabled
+	}
+	f.confirms = append(f.confirms, in)
+	return nil
 }
 
 func (f *fakeMailer) SendInvite(_ context.Context, in mail.Invite) error {
@@ -72,7 +85,7 @@ func (f *fakeMailer) SendInvite(_ context.Context, in mail.Invite) error {
 	return nil
 }
 
-func newStackWithMailer(t *testing.T, environment map[string]string, mailer userapi.Mailer) (http.Handler, *user.Service) {
+func newStackWithMailer(t *testing.T, environment map[string]string, mailer *fakeMailer) (http.Handler, *user.Service) {
 	t.Helper()
 	cfg, err := config.LoadFrom(environment)
 	if err != nil {
@@ -89,6 +102,7 @@ func newStackWithMailer(t *testing.T, environment map[string]string, mailer user
 		}
 	}
 	sessions := auth.NewService(conn, users)
+	sessions.SetMail(mailer, auth.Provider{})
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
@@ -1052,5 +1066,104 @@ func TestUpdateUserEmailIsSessionOnly(t *testing.T) {
 	rec := env.do("PATCH", "/api/v1/users/anything", `{"email":"x@example.org"}`)
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("token PATCH email = %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestAdminChangingAnAddressMailsConfirmation(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	rec := doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@example.org"}`, c)
+	if rec.Code != 200 {
+		t.Fatalf("patch = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.confirms) != 1 || m.confirms[0].To != "kim@example.org" || m.confirms[0].Admin != "sam" || !strings.HasPrefix(m.confirms[0].Path, "/confirm-email#") {
+		t.Fatalf("confirms = %+v", m.confirms)
+	}
+	// The same address again changes nothing and mails nothing.
+	doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@example.org"}`, c)
+	if len(m.confirms) != 1 {
+		t.Fatalf("unchanged address mailed again: %+v", m.confirms)
+	}
+}
+
+func TestCreateWithPasswordMailsConfirmation(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, "POST", "/api/v1/users", `{"username":"lena","password":"lena1234","role":"user","email":"lena@example.org"}`, c)
+	if rec.Code != 201 || len(m.confirms) != 1 || m.confirms[0].To != "lena@example.org" || len(m.sent) != 0 {
+		t.Fatalf("create = %d, confirms %+v, invites %+v", rec.Code, m.confirms, m.sent)
+	}
+}
+
+func TestCreateWithSetupLinkMailsNoConfirmation(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, _ := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	doReq(h, "POST", "/api/v1/users", `{"username":"lena","role":"user","email":"lena@example.org"}`, c)
+	if len(m.sent) != 1 || len(m.confirms) != 0 {
+		t.Fatalf("invites %+v, confirms %+v; want the invite only", m.sent, m.confirms)
+	}
+}
+
+func TestIssueSetupLinkWithEmailSetsAddress(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	rec := doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", `{"mail":true,"email":"kim@new.org"}`, c)
+	if rec.Code != 201 || !strings.Contains(rec.Body.String(), `"mailedTo":"kim@new.org"`) {
+		t.Fatalf("issue = %d %s", rec.Code, rec.Body)
+	}
+	if got, _ := users.ByID(context.Background(), kim.ID); got.Email != "kim@new.org" || got.EmailVerified {
+		t.Fatalf("account email %q verified %v", got.Email, got.EmailVerified)
+	}
+	if len(m.confirms) != 0 {
+		t.Fatalf("a mailed setup link also sent a confirmation: %+v", m.confirms)
+	}
+	if rec := doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", `{"email":"not an address"}`, c); rec.Code != 422 || !strings.Contains(rec.Body.String(), "body.email") {
+		t.Fatalf("bad address = %d %s", rec.Code, rec.Body)
+	}
+	owner, _ := users.ByUsername(context.Background(), "owner")
+	if rec := doReq(h, "POST", "/api/v1/users/"+owner.ID+"/setup-link", `{"email":"o@new.org"}`, c); rec.Code != 409 {
+		t.Fatalf("owner = %d", rec.Code)
+	}
+}
+
+func TestRefusedUpdateMailsNoConfirmation(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "owner", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	rec := doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@example.org","displayName":"k\u0001m"}`, c)
+	if rec.Code != 422 {
+		t.Fatalf("patch = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.confirms) != 0 {
+		t.Fatalf("a refused change mailed a confirmation: %+v", m.confirms)
+	}
+	if got, _ := users.ByID(context.Background(), kim.ID); got.Email != "" {
+		t.Fatalf("a refused change saved the address %q", got.Email)
+	}
+}
+
+func TestUnmailedSetupLinkWithEmailMailsConfirmation(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	rec := doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", `{"mail":false,"email":"kim@new.org"}`, c)
+	if rec.Code != 201 || len(m.sent) != 0 {
+		t.Fatalf("issue = %d %s, invites %+v", rec.Code, rec.Body, m.sent)
+	}
+	if len(m.confirms) != 1 || m.confirms[0].To != "kim@new.org" || m.confirms[0].Admin != "sam" {
+		t.Fatalf("confirms = %+v", m.confirms)
+	}
+	// The same address again is no change and mails nothing.
+	doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", `{"mail":false,"email":"kim@new.org"}`, c)
+	if len(m.confirms) != 1 {
+		t.Fatalf("unchanged address mailed again: %+v", m.confirms)
 	}
 }

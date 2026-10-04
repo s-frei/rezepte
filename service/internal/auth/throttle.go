@@ -147,3 +147,46 @@ func lockFor(count int) time.Duration {
 	}
 	return lock
 }
+
+// cooldown lets one act per key through every period: a reset mail per
+// account per 5 minutes, a resent confirmation per minute. Keys are account
+// ids that resolved to a real account, so the map holds at most one entry
+// per account; sweep drops the entries whose period has ended.
+type cooldown struct {
+	mu     sync.Mutex
+	period time.Duration
+	last   map[string]time.Time
+}
+
+func newCooldown(period time.Duration) *cooldown {
+	return &cooldown{period: period, last: make(map[string]time.Time)}
+}
+
+// allow reports whether key may act at now, or how long it still waits. An
+// allowed call starts a new period.
+func (c *cooldown) allow(key string, now time.Time) (time.Duration, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if wait := c.last[key].Add(c.period).Sub(now); wait > 0 {
+		return wait, false
+	}
+	c.last[key] = now
+	return 0, true
+}
+
+// forget ends key's period, so its next call is allowed at once.
+func (c *cooldown) forget(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.last, key)
+}
+
+func (c *cooldown) sweep(now time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for key, at := range c.last {
+		if now.Sub(at) >= c.period {
+			delete(c.last, key)
+		}
+	}
+}

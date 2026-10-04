@@ -3,6 +3,7 @@
   "description": "Signing in, signing out and reading the current session.",
   "pages": [
     "index",
+    "confirm-email",
     "login",
     "logout",
     "me",
@@ -10,12 +11,15 @@
     "delete-own-avatar",
     "set-own-avatar",
     "list-color-usage",
+    "resend-email-confirmation",
     "get-own-identity",
     "unlink-own-identity",
     "update-own-profile",
     "get-oidc",
     "finish-oidc",
     "start-oidc",
+    "password-reset-config",
+    "forgot-password",
     "inspect-setup-link",
     "redeem-setup-link"
   ]

@@ -1,6 +1,6 @@
 import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
-import { isMobile, prepare, shot } from './helpers';
+import { expect, test } from '@playwright/test';
+import { configureMail, isMobile, prepare, shot, turnMailOff } from './helpers';
 
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
@@ -169,31 +169,6 @@ test('setup-link-dialog', async ({ page }, testInfo) => {
 	});
 });
 
-// Mail is configured through the API, on the placeholder server a real
-// instance would have: the screenshot instance has none of its own
-// (RZP_DEMO_MAIL=off), and the card is the same whether or not it works.
-async function configureMail(page: Page) {
-	const response = await page.request.put('/api/v1/settings/mail', {
-		headers: { Origin: new URL(page.url()).origin },
-		data: {
-			host: 'smtp.example.org',
-			port: 587,
-			security: 'starttls',
-			username: 'rezepte@example.org',
-			password: 'x',
-			from: 'rezepte@example.org',
-			fromName: 'Rezepte'
-		}
-	});
-	expect(response.ok()).toBe(true);
-}
-
-async function turnMailOff(page: Page) {
-	await page.request.delete('/api/v1/settings/mail', {
-		headers: { Origin: new URL(page.url()).origin }
-	});
-}
-
 test('mail-card', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/mail');
@@ -257,6 +232,36 @@ test('setup-link-send', async ({ page }, testInfo) => {
 		await expect(dialog.getByLabel(/^Email/)).not.toHaveValue('');
 		await shot(page, 'setup-link-send');
 	} finally {
+		await turnMailOff(page);
+	}
+});
+
+// The demo admin's address is confirmed; the picture shows one waiting for
+// its link, so the profile's /auth/me is answered with the mark taken off and
+// a confirmation open.
+test('profile-email-unconfirmed', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings');
+	await configureMail(page);
+	try {
+		await page.route('**/api/v1/auth/me', async (route) => {
+			const response = await route.fetch();
+			await route.fulfill({
+				response,
+				json: {
+					...(await response.json()),
+					emailVerified: false,
+					emailConfirmationPending: true
+				}
+			});
+		});
+		await page.reload();
+		const line = page.getByText(/^Not confirmed yet\. Confirmation mail sent to/);
+		await expect(line).toBeVisible();
+		await line.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+		await shot(page, 'profile-email-unconfirmed');
+	} finally {
+		await page.unroute('**/api/v1/auth/me');
 		await turnMailOff(page);
 	}
 });

@@ -5,7 +5,11 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			// The name typed on /login, carried to /forgot-password without
+			// putting it in the URL.
+			login?: string;
+		}
 		// interface Platform {}
 	}
 }

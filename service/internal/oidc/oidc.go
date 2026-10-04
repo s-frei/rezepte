@@ -148,6 +148,7 @@ func (l *Login) start(w http.ResponseWriter, r *http.Request) {
 		}
 		f.UserID = v.User.ID
 	case intentSetup:
+		// PeekSetupLinkByHash refuses a reset link, so this flow only ever finishes a setup link.
 		f.Setup = auth.SetupLinkHash(r.PostFormValue("setup"))
 		if _, err := l.sessions.PeekSetupLinkByHash(ctx, f.Setup); err != nil {
 			l.fail(w, r, intentSetup, "setup link not open", err)
@@ -305,6 +306,8 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 	redirect(w, r, "/settings?oidc=linked")
 }
 
+// PeekSetupLinkByHash refuses a reset link, so this flow only ever finishes a
+// setup link.
 func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc.IDToken, cl claims) {
 	ctx := r.Context()
 	u, err := l.sessions.PeekSetupLinkByHash(ctx, f.Setup)

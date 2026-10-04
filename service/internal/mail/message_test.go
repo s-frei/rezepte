@@ -118,3 +118,80 @@ func TestTestMessage(t *testing.T) {
 		t.Errorf("plain = %q", p["text/plain"])
 	}
 }
+
+func TestResetMessage(t *testing.T) {
+	env, err := BuildReset(cfg, Reset{To: "mila@example.org", Username: "mila", Path: "/welcome#tok", Locale: "en"}, "https://r.example.org", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, p := parts(t, env)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "A new password for Rezepte" {
+		t.Errorf("Subject = %q", got)
+	}
+	for _, want := range []string{"mila", "https://r.example.org/welcome#tok", "valid for 1 hour", "Wasn't you?"} {
+		if !strings.Contains(p["text/plain"], want) {
+			t.Errorf("plain lacks %q: %q", want, p["text/plain"])
+		}
+	}
+	if !strings.Contains(p["text/html"], "Set a new password") {
+		t.Error("html lacks the button")
+	}
+}
+
+func TestResetMessageGerman(t *testing.T) {
+	env, _ := BuildReset(cfg, Reset{To: "a@b.c", Username: "mila", Path: "/welcome#t", Locale: "de"}, "https://r.example.org", time.Now())
+	msg, p := parts(t, env)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Ein neues Passwort für Rezepte" {
+		t.Errorf("Subject = %q", got)
+	}
+	if strings.Contains(strings.SplitN(string(env.Data), "\r\n\r\n", 2)[0], "für") {
+		t.Error("subject is not RFC 2047 encoded")
+	}
+	if !strings.Contains(p["text/plain"], "1 Stunde gültig") {
+		t.Errorf("plain = %q", p["text/plain"])
+	}
+}
+
+func TestHintMessage(t *testing.T) {
+	env, err := BuildHint(cfg, Hint{To: "ida@example.org", Provider: "Dex", Locale: "en"}, "https://r.example.org", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, p := parts(t, env)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Signing in to Rezepte" {
+		t.Errorf("Subject = %q", got)
+	}
+	if !strings.Contains(p["text/plain"], "with Dex; you have no password") || !strings.Contains(p["text/plain"], "https://r.example.org/login") {
+		t.Errorf("plain = %q", p["text/plain"])
+	}
+	if strings.Contains(p["text/plain"], "valid") {
+		t.Errorf("a hint has no validity line: %q", p["text/plain"])
+	}
+}
+
+func TestHintMessageWithoutProviderName(t *testing.T) {
+	env, _ := BuildHint(cfg, Hint{To: "a@b.c", Locale: "en"}, "https://r.example.org", time.Now())
+	_, p := parts(t, env)
+	if !strings.Contains(p["text/plain"], "with your sign-in provider;") {
+		t.Errorf("plain = %q", p["text/plain"])
+	}
+}
+
+func TestConfirmMessage(t *testing.T) {
+	own, _ := BuildConfirm(cfg, Confirm{To: "a@b.c", Username: "mila", Path: "/confirm-email#t", Locale: "en"}, "https://r.example.org", time.Now())
+	msg, p := parts(t, own)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Confirm your address for Rezepte" {
+		t.Errorf("Subject = %q", got)
+	}
+	if !strings.Contains(p["text/plain"], "https://r.example.org/confirm-email#t") || !strings.Contains(p["text/plain"], "your account mila so") || strings.Contains(p["text/plain"], "entered this address") {
+		t.Errorf("own: plain = %q", p["text/plain"])
+	}
+	byAdmin, _ := BuildConfirm(cfg, Confirm{To: "a@b.c", Username: "mila", Admin: "Jürgen <b>", Path: "/confirm-email#t", Locale: "de"}, "https://r.example.org", time.Now())
+	_, p = parts(t, byAdmin)
+	if !strings.Contains(p["text/plain"], "Jürgen <b> hat diese Adresse für dein Konto mila eingetragen.") {
+		t.Errorf("admin: plain = %q", p["text/plain"])
+	}
+	if strings.Contains(p["text/html"], "Jürgen <b>") {
+		t.Error("admin name is not HTML-escaped")
+	}
+}

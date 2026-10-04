@@ -49,6 +49,12 @@ An invitation from the admin's name: "Hi Lena, Mila created an account for you o
 
 <Screenshot name="setup-link-dialog" caption="The admin sees where the link went" />
 
+Three more mails go out on their own:
+
+- **A link for a new password**, when someone asks for one on the login page. It names the account, is valid for 1 hour and works once.
+- **A sign-in hint**, instead, for an account that has no password because it signs in with an identity provider: it names the provider and says to ask an admin for a setup link if access to it is lost.
+- **A confirmation**, when an address is entered or changed in a profile or by an admin (who is named in it). It names the account too, so accounts sharing an address can tell their mails apart. It is valid for 7 days, confirms the address and never signs anyone in.
+
 ## When a mail does not arrive
 
 - The window after "Create and send link" or "Send link" says "Mail to … could not be sent" when the server refused it. The account and the link exist anyway: copy the link and pass it on yourself.

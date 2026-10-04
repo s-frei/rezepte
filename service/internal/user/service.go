@@ -54,8 +54,9 @@ type User struct {
 	CanSharePublicly bool
 	// AvatarID names the current picture under <data>/avatars/<ID>/; nil when there is none.
 	AvatarID *string
-	// Email is profile data, never an identity; EmailVerified is true only
-	// when an identity provider vouched for it.
+	// Email is profile data, never an identity. EmailVerified is true once an
+	// identity provider vouched for it or the person proved they read it (a
+	// confirmation link, or a setup link mailed there).
 	Email         string
 	EmailVerified bool
 	// HasPassword is false for an account set up through a setup link or an
@@ -218,6 +219,50 @@ func (s *Service) ByID(ctx context.Context, id string) (User, error) {
 	return fromRow(row)
 }
 
+// ByUsername loads a user by login name, trimmed like Authenticate trims it
+// and matched without regard to ASCII case like the username column.
+func (s *Service) ByUsername(ctx context.Context, username string) (User, error) {
+	row, err := s.q.GetUserByUsername(ctx, strings.TrimSpace(username))
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("get user by username: %w", err)
+	}
+	return fromRow(row)
+}
+
+// ListByVerifiedEmail returns every account whose confirmed address is
+// address, ignoring ASCII case, ordered by username.
+func (s *Service) ListByVerifiedEmail(ctx context.Context, address string) ([]User, error) {
+	rows, err := s.q.ListUsersByVerifiedEmail(ctx, strings.TrimSpace(address))
+	if err != nil {
+		return nil, fmt.Errorf("list users by email: %w", err)
+	}
+	users := make([]User, 0, len(rows))
+	for _, row := range rows {
+		u, err := fromRow(row)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// MarkEmailVerified confirms id's address, but only while it is still
+// address, and reports whether it was. The demo seed uses it; a confirmation
+// link runs the same query inside its own transaction (auth.Service.Confirm).
+func (s *Service) MarkEmailVerified(ctx context.Context, id, address string) (bool, error) {
+	n, err := s.q.VerifyEmailIfMatches(ctx, sqlc.VerifyEmailIfMatchesParams{
+		UpdatedAt: db.FormatTime(s.now()), ID: id, Email: address,
+	})
+	if err != nil {
+		return false, fmt.Errorf("verify email of %s: %w", id, err)
+	}
+	return n > 0, nil
+}
+
 // List returns every user ordered by username.
 func (s *Service) List(ctx context.Context) ([]User, error) {
 	rows, err := s.q.ListUsers(ctx)
@@ -271,6 +316,34 @@ type ProfileUpdate struct {
 	Color       *Color
 	Locale      *Locale
 	Email       *string
+}
+
+// Validate checks every given field the way SetProfile and SetEmail would,
+// without writing, so a caller combining several writes can refuse a bad
+// value before the first one lands.
+func (p ProfileUpdate) Validate() error {
+	if p.DisplayName != nil {
+		// A name that trims to nothing falls back to the username, which is valid.
+		if _, err := normalizeDisplayName(*p.DisplayName, ""); err != nil {
+			return err
+		}
+	}
+	if p.Color != nil {
+		if _, err := ParseColor(string(*p.Color)); err != nil {
+			return err
+		}
+	}
+	if p.Locale != nil {
+		if _, err := ParseLocale(string(*p.Locale)); err != nil {
+			return err
+		}
+	}
+	if p.Email != nil {
+		if _, err := ParseEmail(*p.Email); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SetProfile writes a user's display name, color and locale. It takes no actor and
@@ -332,9 +405,9 @@ func (s *Service) SetProfile(ctx context.Context, id string, p ProfileUpdate) (U
 }
 
 // nextEmail is the address and verified mark a row ends up with when typed is
-// written to it. A typed address is unverified, even when it is the same one
-// the provider vouched for with different spelling: only an unchanged value
-// keeps the mark.
+// written to it. A new address is unverified; the same one in other letters
+// is the same mailbox and keeps both the stored spelling and the mark, so it
+// changes nothing and mails nothing.
 func nextEmail(row sqlc.User, typed *string) (string, bool, error) {
 	if typed == nil {
 		return row.Email, row.EmailVerified, nil
@@ -343,7 +416,7 @@ func nextEmail(row sqlc.User, typed *string) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	if parsed != row.Email {
+	if !strings.EqualFold(parsed, row.Email) {
 		return parsed, false, nil
 	}
 	return row.Email, row.EmailVerified, nil
@@ -580,24 +653,24 @@ func (s *Service) Authenticate(ctx context.Context, username, password string) (
 		// A full queue is reported like it is for a real user, or it
 		// would tell which names exist.
 		if _, err := VerifyPassword(ctx, dummyHash(), password); err != nil {
-			return User{}, fmt.Errorf("verify password for %q: %w", username, err)
+			return User{}, fmt.Errorf("verify password: %w", err)
 		}
 		return User{}, ErrInvalidCredentials
 	}
 	if err != nil {
-		return User{}, fmt.Errorf("get user %q: %w", username, err)
+		return User{}, fmt.Errorf("get user by username: %w", err)
 	}
 	if row.PasswordHash == "" {
 		// Charged like a wrong password, so timing does not tell which
 		// accounts have none.
 		if _, err := VerifyPassword(ctx, dummyHash(), password); err != nil {
-			return User{}, fmt.Errorf("verify password for %q: %w", username, err)
+			return User{}, fmt.Errorf("verify password: %w", err)
 		}
 		return User{}, ErrInvalidCredentials
 	}
 	ok, err := VerifyPassword(ctx, row.PasswordHash, password)
 	if err != nil {
-		return User{}, fmt.Errorf("verify password for %q: %w", username, err)
+		return User{}, fmt.Errorf("verify password: %w", err)
 	}
 	if !ok {
 		return User{}, ErrInvalidCredentials

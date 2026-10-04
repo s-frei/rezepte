@@ -38,7 +38,7 @@ The account created on the first start owns the instance. It cannot be deleted, 
 
 ## Mail
 
-Rezepte can mail setup links to the people you invite. Set `REZEPTE_SMTP_HOST` and `REZEPTE_SMTP_FROM` (and the username and password your mail provider gave you) and mail is on; Rezepte refuses to start when `REZEPTE_SMTP_HOST` is set without `REZEPTE_SMTP_FROM` or `REZEPTE_PUBLIC_URL`, or with a security other than `starttls`, `tls` or `none`. With `starttls` Rezepte never falls back to an unencrypted connection: a server that does not offer it is an error.
+Rezepte can mail setup links to the people you invite. Forgot password and address confirmation need mail; without it the login page shows no **Forgot password?** link. Set `REZEPTE_SMTP_HOST` and `REZEPTE_SMTP_FROM` (and the username and password your mail provider gave you) and mail is on; Rezepte refuses to start when `REZEPTE_SMTP_HOST` is set without `REZEPTE_SMTP_FROM` or `REZEPTE_PUBLIC_URL`, or with a security other than `starttls`, `tls` or `none`. With `starttls` Rezepte never falls back to an unencrypted connection: a server that does not offer it is an error.
 
 While `REZEPTE_SMTP_HOST` is set, the **Email** card in Settings shows these values and cannot change them; change the variables and restart instead. Leave it unset and the owner sets mail up in the app instead, as [Mail](/guide/mail) describes. For mail to reach inboxes rather than spam folders, publish the SPF and DKIM records your provider documents for the domain of the sender address.
 

@@ -177,3 +177,17 @@ func TestSendTestOverrideUsesStoredPassword(t *testing.T) {
 		t.Fatalf("AUTH = %q, want the stored password p in %q", got, want)
 	}
 }
+
+func TestNewMailsDisabledWithoutConfig(t *testing.T) {
+	s := newSvc(t, Config{}, "https://r.example.org")
+	ctx := context.Background()
+	if err := s.SendReset(ctx, Reset{To: "a@b.c", Username: "a", Path: "/welcome#t"}); !errors.Is(err, ErrDisabled) {
+		t.Errorf("SendReset: %v", err)
+	}
+	if err := s.SendHint(ctx, Hint{To: "a@b.c"}); !errors.Is(err, ErrDisabled) {
+		t.Errorf("SendHint: %v", err)
+	}
+	if err := s.SendConfirm(ctx, Confirm{To: "a@b.c", Path: "/confirm-email#t"}); !errors.Is(err, ErrDisabled) {
+		t.Errorf("SendConfirm: %v", err)
+	}
+}

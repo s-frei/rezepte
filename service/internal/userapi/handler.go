@@ -113,7 +113,8 @@ type setupLinkInput struct {
 type issueSetupLinkInput struct {
 	ID   string `path:"id"`
 	Body *struct {
-		Mail *bool `json:"mail,omitempty" doc:"false issues the link without mailing it"`
+		Mail  *bool   `json:"mail,omitempty" doc:"false issues the link without mailing it"`
+		Email *string `json:"email,omitempty" maxLength:"254" doc:"Sets the person's address first - the rank rule of a password reset; a changed address is unconfirmed - and the link is mailed there, whose redemption confirms it. With mail false a changed address gets a confirmation mail instead"`
 	}
 }
 
@@ -134,7 +135,7 @@ type updateInput struct {
 		// governs public sharing for the whole instance) and for the
 		// caller's own row (one admin cannot re-grant a right another admin
 		// just withdrew from them).
-		Email            *string `json:"email,omitempty" maxLength:"254" doc:"Same rank rule as a password reset; clears the verified mark; session only"`
+		Email            *string `json:"email,omitempty" maxLength:"254" doc:"Same rank rule as a password reset; clears the confirmed mark when it changes and mails a confirmation; session only"`
 		CanSharePublicly *bool   `json:"canSharePublicly,omitempty" doc:"Allow or withdraw creating public links; withdrawing pauses the person's existing links. Same rank rule as a password reset: only the owner reaches an admin, and nobody the owner."`
 	}
 }
@@ -229,6 +230,16 @@ func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor,
 	if err := sessions.MarkSetupLinkSent(ctx, link.Token, target.Email); err != nil {
 		slog.WarnContext(ctx, "mark setup link sent failed", "user", target.ID, "err", err)
 	}
+}
+
+// confirmAddress mails a confirmation when actor's write turned before into
+// an after with a new address, naming actor unless they changed their own.
+func confirmAddress(ctx context.Context, sessions *auth.Service, actor, before, after user.User) {
+	by := actor.DisplayName
+	if actor.ID == after.ID {
+		by = ""
+	}
+	sessions.ConfirmChangedAddress(ctx, before, after, by)
 }
 
 // Register installs list, create, update and delete for users, which require
@@ -383,6 +394,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		}
 		out := &createOutput{}
 		out.Body.UserAccount = toResponse(u)
+		// With a password nothing mails a link, so the address is confirmed
+		// by its own mail; a mailed setup link confirms it when redeemed.
+		if in.Body.Password != "" {
+			sessions.ConfirmChangedAddress(ctx, user.User{}, u, actor.DisplayName)
+		}
 		if in.Body.Password == "" {
 			link, err := sessions.IssueSetupLink(ctx, actor, u.ID)
 			if err != nil {
@@ -405,11 +421,34 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		Tags:          []string{"users"},
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusCreated,
-		Errors:        []int{401, 403, 404, 409},
+		Errors:        []int{401, 403, 404, 409, 422},
 	}, func(ctx context.Context, in *issueSetupLinkInput) (*setupLinkOutput, error) {
 		actor, err := requireAdmin(ctx)
 		if err != nil {
 			return nil, err
+		}
+		var before, after user.User
+		if in.Body != nil && in.Body.Email != nil {
+			before, err = users.ByID(ctx, in.ID)
+			if errors.Is(err, user.ErrNotFound) {
+				return nil, huma.Error404NotFound("user not found")
+			}
+			if err != nil {
+				return nil, err
+			}
+			after, err = users.SetEmail(ctx, actor, in.ID, *in.Body.Email)
+			if mapped := rankError(err); mapped != nil {
+				return nil, mapped
+			}
+			if mapped := auth.ProfileError(err); mapped != nil {
+				return nil, mapped
+			}
+			if errors.Is(err, user.ErrNotFound) {
+				return nil, huma.Error404NotFound("user not found")
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 		link, err := sessions.IssueSetupLink(ctx, actor, in.ID)
 		if mapped := rankError(err); mapped != nil {
@@ -424,6 +463,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		body := setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
 		if in.Body == nil || in.Body.Mail == nil || *in.Body.Mail {
 			mailLink(ctx, mailer, sessions, actor, link.Target, link, &body)
+		} else {
+			// No link went to a new address, so nothing else would confirm it.
+			confirmAddress(ctx, sessions, actor, before, after)
 		}
 		return &setupLinkOutput{Body: body}, nil
 	})
@@ -493,6 +535,16 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, err
 			}
 		}
+		// Every value is checked before the first write, so a refused field
+		// leaves nothing half-written.
+		update := user.ProfileUpdate{DisplayName: in.Body.DisplayName, Email: in.Body.Email}
+		if in.Body.Color != nil {
+			c := user.Color(*in.Body.Color)
+			update.Color = &c
+		}
+		if mapped := auth.ProfileError(update.Validate()); mapped != nil {
+			return nil, mapped
+		}
 		var u user.User
 		if in.Body.Role != nil {
 			u, err = users.SetRole(ctx, actor, in.ID, user.Role(*in.Body.Role))
@@ -508,10 +560,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
-		// Before the profile, so a refused change leaves nothing
-		// half-written. It follows guardTarget like the role change above and
-		// the password reset below, so none of the three can land while
-		// another is refused.
+		// It follows guardTarget like the role change above, the address and
+		// the password reset below, so none of them can land while another is
+		// refused.
 		if in.Body.CanSharePublicly != nil {
 			u, err = users.SetCanSharePublicly(ctx, actor, in.ID, *in.Body.CanSharePublicly)
 			if mapped := rankError(err); mapped != nil {
@@ -524,6 +575,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, err
 			}
 		}
+		before := u
 		if in.Body.Email != nil {
 			u, err = users.SetEmail(ctx, actor, in.ID, *in.Body.Email)
 			if mapped := rankError(err); mapped != nil {
@@ -540,12 +592,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			}
 		}
 		if hasProfile {
-			update := user.ProfileUpdate{DisplayName: in.Body.DisplayName}
-			if in.Body.Color != nil {
-				c := user.Color(*in.Body.Color)
-				update.Color = &c
-			}
-			u, err = users.SetProfile(ctx, in.ID, update)
+			u, err = users.SetProfile(ctx, in.ID, user.ProfileUpdate{DisplayName: update.DisplayName, Color: update.Color})
 			if mapped := auth.ProfileError(err); mapped != nil {
 				return nil, mapped
 			}
@@ -569,6 +616,8 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, err
 			}
 		}
+		// Only once the whole change went through: a refused PATCH mails nothing.
+		confirmAddress(ctx, sessions, actor, before, u)
 		return &userOutput{Body: toResponse(u)}, nil
 	})
 	auth.DeclareRetryAfter(api, http.MethodPatch, "/api/v1/users/{id}", http.StatusServiceUnavailable)

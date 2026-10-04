@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import { Dialog, RadioGroup } from 'bits-ui';
 	import { ApiError } from '$lib/api/client';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
@@ -13,12 +14,15 @@
 		open = $bindable(false),
 		displayName,
 		email,
+		emailVerified,
 		onsend,
 		onshowonly
 	}: {
 		open?: boolean;
 		displayName: string;
 		email: string;
+		/** Whether `email` is confirmed; the step says so when it is not. */
+		emailVerified: boolean;
 		onsend: (address: string) => Promise<void>;
 		onshowonly: () => Promise<void>;
 	} = $props();
@@ -96,6 +100,12 @@
 						oninput={() => (error = null)}
 						{error}
 					/>
+					{#if email && !emailVerified && address.trim() === email}
+						<p class="mt-1.5 flex items-center gap-1 text-micro text-text-muted">
+							<MailQuestionMark class="size-3.5 shrink-0" aria-hidden="true" />
+							{m.setup_link_send_unconfirmed()}
+						</p>
+					{/if}
 				</div>
 			{/if}
 			{@render option('self', m.setup_link_choice_self())}

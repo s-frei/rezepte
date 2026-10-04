@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { ColorUsage } from '$lib/api/auth';
-	import type { PersonEntry, UserRole } from '$lib/api/users';
+	import type { PersonEntry, UserAccount, UserRole } from '$lib/api/users';
 	import { m } from '$lib/paraglide/messages';
 	import { groupPeople } from '$lib/settings/people-groups';
+	import { rowPermissions } from '$lib/settings/row-permissions';
 	import { focusRoleControl } from '$lib/settings/person-focus';
 	import EditProfileDialog from './EditProfileDialog.svelte';
 	import PersonRow from './PersonRow.svelte';
@@ -17,6 +18,7 @@
 		sharing = {},
 		setup = {},
 		provider,
+		mailEnabled = false,
 		onrole,
 		onshare,
 		onreset,
@@ -34,14 +36,22 @@
 		/** Who may share publicly, by id - loaded for admins only, so a
 		 * member's view has no entries and no share controls. */
 		sharing?: Record<string, boolean>;
-		/** hasPassword, hasIdentity and the open setup link's expiry, by id - loaded for
+		/** hasPassword, hasIdentity, the open setup link's expiry and the address with its state, by id - loaded for
 		 * admins only, like `sharing`. */
 		setup?: Record<
 			string,
-			{ hasPassword: boolean; hasIdentity?: boolean; setupLinkExpiresAt?: string }
+			{
+				hasPassword: boolean;
+				hasIdentity?: boolean;
+				setupLinkExpiresAt?: string;
+				email?: string;
+				emailVerified?: boolean;
+			}
 		>;
 		/** The identity provider's name; undefined while this instance has none. */
 		provider?: string;
+		/** Whether a changed address gets a confirmation mail. */
+		mailEnabled?: boolean;
 		/** Rejects when the API refused; the control then snaps back. */
 		onrole: (person: PersonEntry, role: UserRole) => Promise<void>;
 		/** Rejects when the API refused; the control then snaps back. */
@@ -55,7 +65,7 @@
 		onunlink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
 		/** The account as the profile dialog saved it. */
-		onprofile: (person: PersonEntry) => void;
+		onprofile: (person: PersonEntry | UserAccount) => void;
 	} = $props();
 
 	const uid = $props.id();
@@ -82,6 +92,9 @@
 	let editOpen = $state(false);
 	let editId = $state<string | null>(null);
 	const editPerson = $derived(people.find((p) => p.id === editId));
+	const editPermissions = $derived(
+		editPerson && rowPermissions(actorRole, editPerson, editPerson.id === meId)
+	);
 
 	// The component mounts with the id, and opens a tick later: mounted
 	// already open, its first slide-in would not play.
@@ -138,6 +151,8 @@
 					hasIdentity={setup[person.id]?.hasIdentity}
 					{provider}
 					setupLinkExpiresAt={setup[person.id]?.setupLinkExpiresAt}
+					email={setup[person.id]?.email}
+					emailVerified={setup[person.id]?.emailVerified}
 					onrole={changeRole}
 					{onshare}
 					onmanage={manage}
@@ -164,6 +179,8 @@
 		hasIdentity={setup[sheetPerson.id]?.hasIdentity}
 		{provider}
 		setupLinkExpiresAt={setup[sheetPerson.id]?.setupLinkExpiresAt}
+		email={setup[sheetPerson.id]?.email}
+		emailVerified={setup[sheetPerson.id]?.emailVerified}
 		onrole={changeRole}
 		{onshare}
 		onedit={edit}
@@ -174,6 +191,16 @@
 		{ondelete}
 	/>
 {/if}
-{#if editPerson}
-	<EditProfileDialog bind:open={editOpen} user={editPerson} {usage} onsaved={onprofile} />
+{#if editPerson && editPermissions}
+	<EditProfileDialog
+		bind:open={editOpen}
+		user={editPerson}
+		{usage}
+		editProfile={editPermissions.editProfile}
+		manageAccount={editPermissions.manageAccount}
+		email={setup[editPerson.id]?.email}
+		emailVerified={setup[editPerson.id]?.emailVerified}
+		{mailEnabled}
+		onsaved={onprofile}
+	/>
 {/if}

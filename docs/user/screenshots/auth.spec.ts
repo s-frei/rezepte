@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { prepare, shot } from './helpers';
+import { configureMail, prepare, shot, turnMailOff } from './helpers';
 
 test('login', async ({ page }, testInfo) => {
 	await prepare(page, testInfo);
@@ -42,4 +42,34 @@ test('first-login', async ({ page }, testInfo) => {
 	await page.goto('/');
 	await page.getByText('No recipes yet').waitFor();
 	await shot(page, 'first-login');
+});
+
+// The link shows only while mail is configured; the screenshot instance has
+// none, so it is set up for this shot and the session dropped, since the
+// login page is what a signed-out person sees.
+test('login-forgot-link', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await configureMail(page);
+	const session = (await page.context().cookies()).filter((c) => c.name === 'rezepte_session');
+	try {
+		await page.context().clearCookies({ name: 'rezepte_session' });
+		await page.goto('/login');
+		await expect(page.getByRole('link', { name: 'Forgot password?' })).toBeVisible();
+		await shot(page, 'login-forgot-link');
+	} finally {
+		await page.context().addCookies(session);
+		await turnMailOff(page);
+	}
+});
+
+// Stubbed as on, since mail is instance-wide; the name comes from the login
+// page the way a person carries it over.
+test('forgot-password', async ({ page }, testInfo) => {
+	await prepare(page, testInfo);
+	await page.route('**/api/v1/auth/password', (route) => route.fulfill({ json: { available: true } }));
+	await page.goto('/login');
+	await page.getByLabel('Username').fill('mila');
+	await page.getByRole('link', { name: 'Forgot password?' }).click();
+	await expect(page.getByLabel('Username or email')).toHaveValue('mila');
+	await shot(page, 'forgot-password');
 });

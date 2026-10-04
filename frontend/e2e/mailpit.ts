@@ -35,9 +35,14 @@ export async function mailCountTo(request: APIRequestContext, address: string) {
 	return ((await res.json()) as Found).messages.length;
 }
 
+/** The link to path (with its #token) in a mail's plain-text part. */
+export function linkIn(text: string, path: string): string {
+	const match = text.match(new RegExp(`https?://\\S+${path}#\\S+`));
+	if (!match) throw new Error(`no ${path} link in: ${text}`);
+	return match[0];
+}
+
 /** The setup link in a mail's plain-text part. */
 export function setupLinkIn(text: string): string {
-	const match = text.match(/https?:\/\/\S+\/welcome#\S+/);
-	if (!match) throw new Error(`no setup link in: ${text}`);
-	return match[0];
+	return linkIn(text, '/welcome');
 }

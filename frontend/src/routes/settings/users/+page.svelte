@@ -42,10 +42,20 @@
 	// admin's business, not everyone's - so an admin reads it from the
 	// account list alongside; a member's view has no entries at all.
 	let sharing = $state<Record<string, boolean>>({});
-	// hasPassword, hasIdentity and the open setup link's expiry, by id - an admin's
-	// business like `sharing`, and left out of a member's view the same way.
+	// hasPassword, hasIdentity, the open setup link's expiry and the address
+	// with its state, by id - an admin's business like `sharing`, and left out
+	// of a member's view the same way.
 	let setup = $state<
-		Record<string, { hasPassword: boolean; hasIdentity?: boolean; setupLinkExpiresAt?: string }>
+		Record<
+			string,
+			{
+				hasPassword: boolean;
+				hasIdentity?: boolean;
+				setupLinkExpiresAt?: string;
+				email?: string;
+				emailVerified?: boolean;
+			}
+		>
 	>({});
 	// The provider's name while this instance has one: the rows offer to
 	// disconnect it only then.
@@ -62,9 +72,6 @@
 	let setupLinkOpen = $state(false);
 	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
 	let setupLinkName = $state('');
-	// Each account's address, by id - admin business like `sharing`. The send
-	// step prefills from it, and a changed address is written back first.
-	let emails = $state<Record<string, string>>({});
 	// Whether Rezepte sends mail: Add account then mails the link, and a
 	// row's "Setup link" asks where to first.
 	let mailEnabled = $state(false);
@@ -101,14 +108,15 @@
 			]);
 			users = list;
 			sharing = Object.fromEntries(accounts.map((a) => [a.id, a.canSharePublicly]));
-			emails = Object.fromEntries(accounts.map((a) => [a.id, a.email]));
 			setup = Object.fromEntries(
 				accounts.map((a) => [
 					a.id,
 					{
 						hasPassword: a.hasPassword,
 						hasIdentity: a.hasIdentity,
-						setupLinkExpiresAt: a.setupLinkExpiresAt
+						setupLinkExpiresAt: a.setupLinkExpiresAt,
+						email: a.email,
+						emailVerified: a.emailVerified
 					}
 				])
 			);
@@ -145,21 +153,39 @@
 		users = users.map((u) => (u.id === updated.id ? updated : u));
 	}
 
-	function profileSaved(updated: PersonEntry) {
+	// A PATCH answer carries the address, and a changed one is unconfirmed:
+	// the row's symbol follows at once.
+	function profileSaved(updated: PersonEntry | UserAccount) {
 		replace(updated);
+		if ('email' in updated) {
+			const before = setup[updated.id];
+			setup = {
+				...setup,
+				[updated.id]: {
+					...before,
+					hasPassword: before?.hasPassword ?? false,
+					email: updated.email,
+					emailVerified: updated.emailVerified
+				}
+			};
+		}
 		void loadUsage();
 	}
 
 	function userCreated(user: UserAccount, setupLink: SetupLinkInfo | null) {
 		users = [...users, user];
-		emails = { ...emails, [user.id]: user.email };
 		void loadUsage();
 		// Recorded either way: a password-mode create has one already
 		// (hasPassword true, no open link), and without this the new row
 		// reads "Not set up yet" until the next reload.
 		setup = {
 			...setup,
-			[user.id]: { hasPassword: !setupLink, setupLinkExpiresAt: setupLink?.expiresAt }
+			[user.id]: {
+				hasPassword: !setupLink,
+				setupLinkExpiresAt: setupLink?.expiresAt,
+				email: user.email,
+				emailVerified: user.emailVerified
+			}
 		};
 		if (setupLink) {
 			setupLinkInfo = setupLink;
@@ -190,21 +216,34 @@
 		}
 	}
 
-	// Toasts a failure and rethrows it, so the send step knows to close.
-	async function issueAndShow(user: PersonEntry, opts: { mail: boolean }) {
+	const isBadAddress = (error: unknown) =>
+		error instanceof ApiError &&
+		error.status === 422 &&
+		error.errors.some((e) => e.location === 'body.email');
+
+	// Toasts a failure and rethrows it, so the send step knows to close. A
+	// refused address is the step's to show under its field instead.
+	async function issueAndShow(user: PersonEntry, opts: { mail: boolean; email?: string }) {
 		let link: SetupLinkInfo;
 		try {
 			link = await issueSetupLink(user.id, opts);
 		} catch (error) {
-			linkError(error);
+			if (!isBadAddress(error)) linkError(error);
 			throw error;
 		}
+		const before = setup[user.id];
 		setup = {
 			...setup,
 			[user.id]: {
-				hasPassword: setup[user.id]?.hasPassword ?? false,
-				hasIdentity: setup[user.id]?.hasIdentity,
-				setupLinkExpiresAt: link.expiresAt
+				...before,
+				hasPassword: before?.hasPassword ?? false,
+				setupLinkExpiresAt: link.expiresAt,
+				// A changed address is unconfirmed until the link is redeemed;
+				// the service keeps a spelling that differs only in case.
+				...(opts.email !== undefined &&
+				opts.email.toLowerCase() !== (before?.email ?? '').toLowerCase()
+					? { email: opts.email, emailVerified: false }
+					: {})
 			}
 		};
 		setupLinkInfo = link;
@@ -223,24 +262,11 @@
 		setupLinkOpen = true;
 	}
 
+	// One call: the address is set and the link mailed there together.
 	async function sendTo(address: string) {
 		const user = sendTarget;
 		if (!user) return;
-		if (address !== (emails[user.id] ?? '')) {
-			try {
-				await updateUser(user.id, { email: address });
-			} catch (error) {
-				// A refused address is shown under the step's field instead.
-				const badAddress =
-					error instanceof ApiError &&
-					error.status === 422 &&
-					error.errors.some((e) => e.location === 'body.email');
-				if (!badAddress) linkError(error);
-				throw error;
-			}
-			emails = { ...emails, [user.id]: address };
-		}
-		await issueAndShow(user, { mail: true });
+		await issueAndShow(user, { mail: true, email: address });
 	}
 
 	// No confirmation: a revoked link is replaced in one click, and issuing a
@@ -416,6 +442,7 @@
 				{sharing}
 				{setup}
 				{provider}
+				{mailEnabled}
 				onrole={changeRole}
 				onshare={toggleShare}
 				onreset={askReset}
@@ -449,7 +476,8 @@
 	<SendSetupLinkDialog
 		bind:open={sendOpen}
 		displayName={sendTarget?.displayName ?? ''}
-		email={sendTarget ? (emails[sendTarget.id] ?? '') : ''}
+		email={sendTarget ? (setup[sendTarget.id]?.email ?? '') : ''}
+		emailVerified={sendTarget ? (setup[sendTarget.id]?.emailVerified ?? false) : false}
 		onsend={sendTo}
 		onshowonly={() => (sendTarget ? issueAndShow(sendTarget, { mail: false }) : Promise.resolve())}
 	/>

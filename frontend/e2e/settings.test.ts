@@ -567,7 +567,10 @@ test('a member renames themselves and picks a color, and their cards follow', as
 	await expect(circle).toHaveText('S');
 });
 
-test('an admin cannot rename a member, the owner can', async ({ page, isMobile }) => {
+test("an admin changes a member's address but not their name, the owner can", async ({
+	page,
+	isMobile
+}) => {
 	const token = uniqueToken();
 	const member = `ren${token}`;
 	const admin = `adm${token}`;
@@ -577,15 +580,33 @@ test('an admin cannot rename a member, the owner can', async ({ page, isMobile }
 	await createUser(page, { username: member, role: 'user' });
 	await createUser(page, { username: admin, role: 'admin' });
 
-	// Managing a member is administration; renaming them is not, so an admin
-	// who is not the owner never gets the action. The refusal underneath it
-	// has no path through the UI and is covered by the Go handler test.
+	// Managing a member is administration and takes in their address;
+	// renaming them is not, so an admin who is not the owner gets the dialog
+	// with the address alone. The refusal underneath it has no path through
+	// the UI and is covered by the Go handler test.
 	await page.context().clearCookies();
 	await login(page, admin);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
-	const asAdmin = await controlsFor(page, isMobile, member);
-	await expect(asAdmin.getByRole('button', { name: 'Edit profile' })).toHaveCount(0);
+	let asAdmin = await controlsFor(page, isMobile, member);
+	await asAdmin.getByRole('button', { name: 'Edit profile' }).click();
+	const emailDialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
+	await expect(emailDialog.getByLabel('Display name')).toHaveCount(0);
+	await emailDialog.getByLabel('Email').fill(`${member}@example.com`);
+	await emailDialog.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText('Profile saved')).toBeVisible();
+	await expect(emailDialog).toBeHidden();
+	// The new address is unconfirmed at once, without a reload: the row's
+	// symbol on a wide screen, its spoken words on a phone, where the sheet
+	// closed when the dialog opened.
+	if (isMobile) {
+		await expect(personRow(page, member)).toContainText('Address not confirmed yet');
+		asAdmin = await controlsFor(page, isMobile, member);
+	} else {
+		await expect(
+			personRow(page, member).getByRole('button', { name: 'Address not confirmed yet' })
+		).toBeVisible();
+	}
 	const menu = await actionMenu(page, isMobile, asAdmin, member);
 	await expect(
 		menu.getByRole(isMobile ? 'button' : 'menuitem', {

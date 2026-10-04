@@ -39,6 +39,14 @@ description: Change the owner password and add the rest of the household
   </Step>
 </Steps>
 
+## Forgot your password?
+
+When the owner has set up mail, the login page shows **Forgot password?** next to the password field. Enter your username or your email address and Rezepte mails a link for a new password to your confirmed address; it is valid for one hour and works once, and setting the new password signs you out everywhere else. The page always answers the same, so nobody can find out which accounts exist. It works only for an address you confirmed (see [Settings → Profile](/guide/settings#profile)); if you sign in with an identity provider and have no password, the mail tells you so. While a setup link an admin gave you is still open, no mail goes out: use that link instead. The owner cannot reset by mail - see [Configuration](/getting-started/configuration#--reset-superadmin-password) for `--reset-superadmin-password`.
+
+<Screenshot name="login-forgot-link" caption="The login page with mail set up" />
+
+<Screenshot name="forgot-password" caption="Asking for a link for a new password" />
+
 <Screenshot name="first-login" caption="The overview right after the first login, before anyone has added a recipe" />
 
 <Callout type="warn" title="There is no handover">

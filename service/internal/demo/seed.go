@@ -369,16 +369,16 @@ func findOwner(ctx context.Context, users *user.Service, username string) (user.
 
 // AddMembers creates Members, plus Invited, in locale's language, before
 // Seed, so the samples in memberRecipes can be theirs, and gives the admin
-// its demo display name. The admin and every member get an unverified
-// sample email (name@example.com), profile data a real account would fill
-// in eventually - the admin's prefills the test mail. Invited gets neither
-// an email nor a password, so it signs in only through a setup link or an
-// identity provider - SeedMembers issues that link, and sending it asks for
-// the address. Like the seed it writes
-// nothing to an instance that already holds recipes, since the members
-// belong to the sample data rather than to an instance in use, and a name
-// somebody already holds is left to them: that account gets no recipes,
-// marks, links or email from the demo.
+// its demo display name. The admin and every member get a confirmed sample
+// email (name@example.com), so forgot password works in the demo; changing
+// it in the profile shows the unconfirmed state, and Mailpit catches the
+// confirmation mail. The admin's prefills the test mail. Invited gets
+// neither an email nor a password, so it signs in only through a setup link
+// or an identity provider - SeedMembers issues that link, and sending it
+// asks for the address. Like the seed it writes nothing to an instance that
+// already holds recipes, since the members belong to the sample data rather
+// than to an instance in use, and a name somebody already holds is left to
+// them: that account gets no recipes, marks, links or email from the demo.
 //
 // The members' passwords are public, so only a demo that runs on the
 // published demo credentials may call it; an operator who set their own
@@ -413,6 +413,12 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 			if m, err = users.SetProfile(ctx, m.ID, user.ProfileUpdate{Email: &addr}); err != nil {
 				return fmt.Errorf("set email for %s: %w", name, err)
 			}
+			if _, err := users.MarkEmailVerified(ctx, m.ID, addr); err != nil {
+				return fmt.Errorf("confirm email for %s: %w", name, err)
+			}
+			if m, err = users.ByID(ctx, m.ID); err != nil {
+				return fmt.Errorf("reload %s: %w", name, err)
+			}
 		}
 		members = append(members, m)
 		return nil
@@ -442,8 +448,12 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 		}
 		name := displayName(locale, AdminUser)
 		addr := AdminUser + "@example.com"
-		if _, err := users.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &name, Email: &addr}); err != nil {
+		named, err := users.SetProfile(ctx, u.ID, user.ProfileUpdate{DisplayName: &name, Email: &addr})
+		if err != nil {
 			return fmt.Errorf("name %s: %w", AdminUser, err)
+		}
+		if _, err := users.MarkEmailVerified(ctx, named.ID, addr); err != nil {
+			return fmt.Errorf("confirm %s's email: %w", AdminUser, err)
 		}
 	}
 	return nil

@@ -180,6 +180,11 @@ func run() error {
 	avatars := avatar.NewService(conn, filepath.Join(cfg.DataDir, "avatars"), images)
 	instance := settings.NewService(conn)
 	mailer := mail.NewService(conn, cfg.SMTP, cfg.PublicURL, logger)
+	var provider auth.Provider
+	if cfg.OIDCEnabled() {
+		provider = auth.Provider{Issuer: cfg.OIDCIssuer, Name: cfg.OIDCName}
+	}
+	sessions.SetMail(mailer, provider)
 	// Only a log line: mail is resolved again on every send.
 	if _, mailSource, err := mailer.Effective(ctx); err != nil {
 		logger.Warn("mail", "err", err)

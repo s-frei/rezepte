@@ -160,3 +160,23 @@ func TestThrottleSweepDropsIdleNames(t *testing.T) {
 		t.Fatalf("entries = %d after sweep, want 1", len(th.entries))
 	}
 }
+
+func TestCooldown(t *testing.T) {
+	c := newCooldown(5 * time.Minute)
+	if _, ok := c.allow("a", t0); !ok {
+		t.Fatal("first call refused")
+	}
+	if wait, ok := c.allow("a", t0.Add(time.Minute)); ok || wait != 4*time.Minute {
+		t.Fatalf("within the period: wait=%v ok=%v", wait, ok)
+	}
+	if _, ok := c.allow("b", t0.Add(time.Minute)); !ok {
+		t.Fatal("another key refused")
+	}
+	if _, ok := c.allow("a", t0.Add(5*time.Minute)); !ok {
+		t.Fatal("refused once the period ended")
+	}
+	c.sweep(t0.Add(11 * time.Minute))
+	if len(c.last) != 0 {
+		t.Fatalf("sweep kept %d keys", len(c.last))
+	}
+}

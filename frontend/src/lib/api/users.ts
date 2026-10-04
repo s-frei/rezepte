@@ -73,8 +73,14 @@ export function createUser(input: {
 	return api('/users', { method: 'POST', body: JSON.stringify(input) });
 }
 
-/** Issues a one-time setup link for id, replacing any open one, and mails it when mail is on and id has an address, unless `mail` is false. Session-only, like a password reset. */
-export function issueSetupLink(id: string, opts: { mail?: boolean } = {}): Promise<SetupLinkInfo> {
+/**
+ * Issues a one-time setup link for id, replacing any open one, and mails it when mail is on and id has an address, unless `mail` is false. Session-only, like a password reset.
+ * `email` sets the address first (same rank rule) and the link goes there; it sends no confirmation mail, redeeming the link confirms it.
+ */
+export function issueSetupLink(
+	id: string,
+	opts: { mail?: boolean; email?: string } = {}
+): Promise<SetupLinkInfo> {
 	return api<SetupLinkInfo>(`/users/${encodeURIComponent(id)}/setup-link`, {
 		method: 'POST',
 		body: JSON.stringify(opts)

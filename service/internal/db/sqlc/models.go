@@ -16,6 +16,14 @@ type ApiToken struct {
 	CreatedAt   string
 }
 
+type EmailConfirmation struct {
+	ID        string
+	UserID    string
+	Address   string
+	ExpiresAt string
+	CreatedAt string
+}
+
 type Favorite struct {
 	UserID    string
 	RecipeID  string
@@ -128,6 +136,7 @@ type SetupLink struct {
 	ExpiresAt string
 	CreatedAt string
 	SentTo    string
+	Purpose   string
 }
 
 type Share struct {

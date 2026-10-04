@@ -3,12 +3,14 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -25,8 +27,11 @@ type UserResponse struct {
 	CanSharePublicly bool    `json:"canSharePublicly" doc:"Whether an admin lets this person create public links"`
 	AvatarID         *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 	Email            string  `json:"email" doc:"The account's email address; empty when none. Never used to sign in."`
-	EmailVerified    bool    `json:"emailVerified" doc:"Whether an identity provider vouched for the address"`
+	EmailVerified    bool    `json:"emailVerified" doc:"Whether the address is confirmed: an identity provider vouched for it, or the person opened a link mailed to it"`
 	HasPassword      bool    `json:"hasPassword" doc:"False for an account that signs in only through a setup link or an identity provider"`
+	// EmailConfirmationPending is read from the open confirmation links, not
+	// the users row, so toResponse leaves it false and respond fills it.
+	EmailConfirmationPending bool `json:"emailConfirmationPending" doc:"Whether a confirmation mail went to the current, unconfirmed address and its link is still open"`
 }
 
 type loginInput struct {
@@ -77,6 +82,36 @@ type updateProfileOutput struct {
 	Body      UserResponse
 }
 
+type forgotInput struct {
+	Body struct {
+		Login string `json:"login" minLength:"1" maxLength:"254" doc:"A username, or an email address (contains @)"`
+	}
+}
+
+// PasswordResetInfo is password-reset-config's response body.
+type PasswordResetInfo struct {
+	Available bool `json:"available" doc:"Whether a forgotten password can be reset by mail here, which needs mail to be configured"`
+}
+
+type passwordResetOutput struct{ Body PasswordResetInfo }
+
+type confirmInput struct {
+	Body struct {
+		Token string `json:"token" minLength:"1" maxLength:"128"`
+	}
+}
+
+// ConfirmedAddress is confirm-email's response body.
+type ConfirmedAddress struct {
+	Address string `json:"address" doc:"The address that is now confirmed"`
+}
+
+type confirmOutput struct{ Body ConfirmedAddress }
+
+// forgotTimeout bounds the background work one forgotten-password request
+// starts: lookups, the link, and every mail's 10 s SMTP deadline.
+const forgotTimeout = 15 * time.Second
+
 type colorUsageOutput struct {
 	Body struct {
 		Items []user.ColorCount `json:"items" doc:"Every palette color and how many accounts hold it, in palette order"`
@@ -96,6 +131,7 @@ type inspectSetupInput struct{ Body setupTokenBody }
 type InvitedAccount struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"displayName"`
+	Purpose     string `json:"purpose" enum:"setup,reset" doc:"setup: set a password or connect a provider; reset: a forgotten-password link, which only sets a password"`
 }
 
 type inspectSetupOutput struct {
@@ -156,7 +192,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
 				LocaleCookie(sess.User.Locale, secureCookies),
 			},
-			Body: toResponse(sess.User),
+			Body: respond(ctx, svc, sess.User),
 		}, nil
 	})
 	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/login", http.StatusTooManyRequests, http.StatusServiceUnavailable)
@@ -194,7 +230,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		return &meOutput{Body: toResponse(u)}, nil
+		return &meOutput{Body: respond(ctx, svc, u)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -263,9 +299,13 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
+		// After the write committed: a mail that fails changes nothing saved.
+		svc.ConfirmChangedAddress(ctx, u, updated, "")
+		// After the send, which opens or drops the link: pending says whether
+		// the mail went out.
 		return &updateProfileOutput{
 			SetCookie: []http.Cookie{LocaleCookie(updated.Locale, secureCookies)},
-			Body:      toResponse(updated),
+			Body:      respond(ctx, svc, updated),
 		}, nil
 	})
 
@@ -299,7 +339,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Tags:        []string{"auth"},
 		Errors:      []int{404},
 	}, func(ctx context.Context, in *inspectSetupInput) (*inspectSetupOutput, error) {
-		u, err := svc.PeekSetupLink(ctx, in.Body.Token)
+		l, err := svc.PeekSetupLink(ctx, in.Body.Token)
 		if errors.Is(err, ErrNoSetupLink) {
 			return nil, huma.Error404NotFound("setup link not found or expired")
 		}
@@ -307,8 +347,9 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			return nil, err
 		}
 		out := &inspectSetupOutput{}
-		out.Body.Username = u.Username
-		out.Body.DisplayName = u.DisplayName
+		out.Body.Username = l.User.Username
+		out.Body.DisplayName = l.User.DisplayName
+		out.Body.Purpose = string(l.Purpose)
 		return out, nil
 	})
 
@@ -335,10 +376,98 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
 				LocaleCookie(sess.User.Locale, secureCookies),
 			},
-			Body: toResponse(sess.User),
+			Body: respond(ctx, svc, sess.User),
 		}, nil
 	})
 	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/setup/password", http.StatusServiceUnavailable)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "password-reset-config",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/auth/password",
+		Summary:     "Tell whether a forgotten password can be reset by mail",
+		Description: "Public, like GET /api/v1/auth/oidc: the login page asks before anyone is signed in.",
+		Tags:        []string{"auth"},
+	}, func(ctx context.Context, _ *struct{}) (*passwordResetOutput, error) {
+		return &passwordResetOutput{Body: PasswordResetInfo{Available: svc.mailOn(ctx)}}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "forgot-password",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/auth/password/forgot",
+		Summary:       "Mail a password reset link",
+		Description:   "Public. Always 204, whether or not an account matches, and the mail goes out in the background, so neither the answer nor its timing tells whether an account exists. A login with @ is an address and reaches every account whose confirmed address it is; otherwise it is a username with a confirmed address. An account without a password that signs in through the identity provider gets a hint instead. The owner is never reset by mail; at most one mail per account per 5 minutes.",
+		Tags:          []string{"auth"},
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{422},
+	}, func(ctx context.Context, in *forgotInput) (*struct{}, error) {
+		login := in.Body.Login
+		go func() {
+			ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), forgotTimeout)
+			defer cancel()
+			// No request is left to fail: a panic here would end the process.
+			defer func() {
+				if r := recover(); r != nil {
+					slog.ErrorContext(ctx, "forgot password panicked", "panic", r)
+				}
+			}()
+			svc.ForgotPassword(ctx, login)
+		}()
+		return nil, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "confirm-email",
+		Method:      http.MethodPost,
+		Path:        "/api/v1/auth/email/confirm",
+		Summary:     "Confirm an address through the link mailed to it",
+		Description: "Public. Confirms only while the address is still the account's; never signs in.",
+		Tags:        []string{"auth"},
+		Errors:      []int{404},
+	}, func(ctx context.Context, in *confirmInput) (*confirmOutput, error) {
+		addr, err := svc.Confirm(ctx, in.Body.Token)
+		if errors.Is(err, ErrNoConfirmation) {
+			return nil, huma.Error404NotFound("this link no longer works")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &confirmOutput{Body: ConfirmedAddress{Address: addr}}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "resend-email-confirmation",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/auth/me/email/confirmation",
+		Summary:       "Mail a new confirmation link for the current user's address",
+		Description:   "At most once a minute; the minute starts before the send, so a failed send also waits a minute. 409 when there is no address, it is confirmed, or mail is not configured.",
+		Tags:          []string{"auth"},
+		Security:      SessionSecurity,
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{401, 409, 429, 502},
+	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
+		u, ok := UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		err := svc.ResendConfirmation(ctx, u)
+		var throttled *ThrottledError
+		switch {
+		case errors.Is(err, ErrNothingToConfirm):
+			return nil, huma.Error409Conflict("no unconfirmed address")
+		case errors.Is(err, mail.ErrDisabled):
+			return nil, huma.Error409Conflict("mail is not configured")
+		case errors.As(err, &throttled):
+			return nil, tooManyRequests("a confirmation mail was sent a moment ago", throttled.RetryAfter)
+		case errors.Is(err, mail.ErrSend):
+			return nil, huma.Error502BadGateway("the confirmation mail could not be sent")
+		case err != nil:
+			return nil, err
+		}
+		return nil, nil
+	})
+	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/me/email/confirmation", http.StatusTooManyRequests)
 }
 
 // DeclareRetryAfter adds the Retry-After header, in whole seconds, to the
@@ -409,12 +538,17 @@ func ProfileError(err error) error {
 	return nil
 }
 
-// throttledError is the 429 for a locked username. Retry-After is rounded up
-// to whole seconds, so a client that waits exactly that long is let through.
+// throttledError is the 429 for a locked username.
 func throttledError(e *ThrottledError) error {
-	seconds := int64((e.RetryAfter + time.Second - 1) / time.Second)
+	return tooManyRequests("too many failed login attempts, try again later", e.RetryAfter)
+}
+
+// tooManyRequests is a 429 whose Retry-After is wait rounded up to whole
+// seconds, so a client that waits exactly that long is let through.
+func tooManyRequests(msg string, wait time.Duration) error {
+	seconds := int64((wait + time.Second - 1) / time.Second)
 	return huma.ErrorWithHeaders(
-		huma.Error429TooManyRequests("too many failed login attempts, try again later"),
+		huma.Error429TooManyRequests(msg),
 		http.Header{"Retry-After": {strconv.FormatInt(seconds, 10)}},
 	)
 }
@@ -478,6 +612,19 @@ func LocaleCookie(l user.Locale, secure bool) http.Cookie {
 // whichever account last logged out - which matters on a shared machine.
 func expiredLocaleCookie(secure bool) http.Cookie {
 	return expired(LocaleCookie("", secure))
+}
+
+// respond is toResponse plus whether a confirmation link is open for the
+// address. A failed lookup only leaves it false: the profile then offers to
+// send one rather than claiming it was sent.
+func respond(ctx context.Context, svc *Service, u user.User) UserResponse {
+	r := toResponse(u)
+	pending, err := svc.ConfirmationPending(ctx, u)
+	if err != nil {
+		slog.WarnContext(ctx, "confirmation lookup failed", "user", u.ID, "err", err)
+	}
+	r.EmailConfirmationPending = pending
+	return r
 }
 
 func toResponse(u user.User) UserResponse {

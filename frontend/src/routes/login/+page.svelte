@@ -5,7 +5,7 @@
 	import { page } from '$app/state';
 	import type { Pathname } from '$app/types';
 	import { Button, Label } from 'bits-ui';
-	import { isAppPath, login, safeNext } from '$lib/api/auth';
+	import { getPasswordReset, isAppPath, login, safeNext } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
 	import { getOidc, type OidcInfo } from '$lib/api/oidc';
 	import { session } from '$lib/auth.svelte';
@@ -18,6 +18,24 @@
 	let error = $state<string | null>(null);
 	let submitting = $state(false);
 	let oidc = $state<OidcInfo | null>(null);
+	let resetAvailable = $state(false);
+	// Carries the typed name along in navigation state, so the next page
+	// starts filled in without the name landing in the URL, the history or
+	// a server log. A modified click (new tab) opens the page empty.
+	function openForgot(event: MouseEvent) {
+		const name = username.trim();
+		if (
+			!name ||
+			event.button !== 0 ||
+			event.metaKey ||
+			event.ctrlKey ||
+			event.shiftKey ||
+			event.altKey
+		)
+			return;
+		event.preventDefault();
+		void goto(resolve('/forgot-password'), { state: { login: name } });
+	}
 
 	// Where a provider sign-in came back to this page, and why.
 	const oidcNotice = $derived.by(() => {
@@ -31,8 +49,11 @@
 		return null;
 	});
 
-	// The button is an extra, so a failed lookup simply leaves it out.
 	onMount(async () => {
+		// Both are extras, so a failed lookup simply leaves them out.
+		void getPasswordReset()
+			.then((info) => (resetAvailable = info.available))
+			.catch(() => {});
 		try {
 			oidc = await getOidc();
 		} catch {
@@ -75,7 +96,7 @@
      button is a form of its own (a real POST the browser follows to the
      provider), and forms cannot nest. -->
 <AuthScene lead={m.login_welcome()}>
-	<form onsubmit={submit} class="flex flex-col gap-5">
+	<form onsubmit={submit} class="grid gap-5">
 		<h1 class="sr-only font-display text-heading font-medium lg:not-sr-only">
 			{m.login_title()}
 		</h1>
@@ -103,7 +124,7 @@
 			/>
 		</div>
 
-		<div class="space-y-1.5">
+		<div class="col-start-1 row-start-2 space-y-1.5 self-baseline lg:row-start-3">
 			<Label.Root for="password" class="text-caption font-semibold">{m.login_password()}</Label.Root
 			>
 			<input
@@ -129,6 +150,20 @@
 		>
 			{submitting ? m.login_submitting() : m.login_submit()}
 		</Button.Root>
+
+		<!-- Last in the DOM so Tab runs username, password, submit, link; the
+		     grid cell of the password row and baseline alignment put it on that
+		     label's line. Both are pinned to row 2 where the title is
+		     screen-reader only, 3 where it shows. -->
+		{#if resetAvailable}
+			<a
+				href={resolve('/forgot-password')}
+				onclick={openForgot}
+				class="col-start-1 row-start-2 self-baseline justify-self-end text-caption font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:row-start-3"
+			>
+				{m.login_forgot()}
+			</a>
+		{/if}
 	</form>
 
 	{#if oidc?.enabled}

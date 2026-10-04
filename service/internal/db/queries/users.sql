@@ -88,6 +88,14 @@ UPDATE users SET avatar_id = ?, updated_at = ? WHERE id = ?;
 
 -- Verifies the address only while it is still the one the link was mailed
 -- to; a change in between leaves it unverified.
--- name: VerifyEmailIfMatches :exec
+-- name: VerifyEmailIfMatches :execrows
 UPDATE users SET email_verified = 1, updated_at = ?
 WHERE id = ? AND email = ? AND email != '';
+
+-- Who a forgotten-password request by address reaches. lower() folds ASCII
+-- only, the same rule COLLATE NOCASE applies to usernames; addresses carry
+-- no UNIQUE, so it can be several accounts.
+-- name: ListUsersByVerifiedEmail :many
+SELECT * FROM users
+WHERE lower(email) = lower(sqlc.arg(address)) AND email_verified = 1 AND email != ''
+ORDER BY username;
