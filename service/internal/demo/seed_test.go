@@ -76,6 +76,20 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 		}
 	}
 
+	// The photos are part of writing a sample, not an edit of it: a sample
+	// whose uploads ended in a later second than its create would carry a
+	// "Last edited" line in some seeds and not in others.
+	for _, id := range sum.RecipeIDs {
+		r, err := recipes.ByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !r.UpdatedAt.Equal(r.CreatedAt) || r.UpdatedBy.ID != r.CreatedBy.ID {
+			t.Errorf("%s: updated %v by %s, want its creation, %v by %s",
+				r.Slug, r.UpdatedAt, r.UpdatedBy.ID, r.CreatedAt, r.CreatedBy.ID)
+		}
+	}
+
 	page, err := recipes.List(ctx, recipe.ListParams{Page: 1, Limit: 1})
 	if err != nil {
 		t.Fatal(err)

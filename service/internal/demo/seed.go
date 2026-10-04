@@ -211,19 +211,20 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 				}
 				sum.Images++
 			}
-			continue
+		} else if i < imagedRecipes {
+			data, err := Placeholder(i, r.Title)
+			if err != nil {
+				return sum, err
+			}
+			if _, err := images.Upload(ctx, r.ID, a, bytes.NewReader(data)); err != nil {
+				return sum, fmt.Errorf("upload placeholder for %q: %w", r.Title, err)
+			}
+			sum.Images++
 		}
-		if i >= imagedRecipes {
-			continue
-		}
-		data, err := Placeholder(i, r.Title)
-		if err != nil {
+		// The uploads moved updated_at; the photos are not an edit.
+		if err := recipes.ResetEdit(ctx, r.ID); err != nil {
 			return sum, err
 		}
-		if _, err := images.Upload(ctx, r.ID, a, bytes.NewReader(data)); err != nil {
-			return sum, fmt.Errorf("upload placeholder for %q: %w", r.Title, err)
-		}
-		sum.Images++
 	}
 	logger.Info("demo: sample data seeded", "recipes", sum.Recipes, "images", sum.Images)
 	return sum, nil

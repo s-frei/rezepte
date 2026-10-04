@@ -12,6 +12,9 @@ SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?
 WHERE id = ?
 RETURNING *;
 
+-- name: ResetRecipeEdit :exec
+UPDATE recipes SET updated_by = created_by, updated_at = created_at WHERE id = ?;
+
 -- name: DeleteRecipe :execrows
 DELETE FROM recipes WHERE id = ?;
 
