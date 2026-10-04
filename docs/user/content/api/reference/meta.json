@@ -3,6 +3,7 @@
     "index",
     "auth",
     "recipes",
+    "comments",
     "tags",
     "images",
     "transfer",

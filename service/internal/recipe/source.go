@@ -62,16 +62,15 @@ func (s *Service) FindBySource(ctx context.Context, urls []string) (*SourceMatch
 			if r.SourceUrl == nil || !want[NormalizeSource(*r.SourceUrl)] {
 				continue
 			}
-			authors, err := s.q.ListAuthorsForIDs(ctx, []string{r.CreatedBy})
+			people, err := s.peopleByID(ctx, []string{r.CreatedBy})
 			if err != nil {
 				return nil, fmt.Errorf("load author of %s: %w", r.ID, err)
 			}
-			if len(authors) == 0 {
+			a, ok := people[r.CreatedBy]
+			if !ok {
 				return nil, fmt.Errorf("load author of %s: not found", r.ID)
 			}
-			a := authors[0]
-			return &SourceMatch{ID: r.ID, Slug: r.Slug, Title: r.Title,
-				CreatedBy: Person{ID: a.ID, Username: a.Username, DisplayName: a.DisplayName, Color: a.Color, AvatarID: a.AvatarID}}, nil
+			return &SourceMatch{ID: r.ID, Slug: r.Slug, Title: r.Title, CreatedBy: a}, nil
 		}
 	}
 	return nil, nil

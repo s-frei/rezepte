@@ -9,7 +9,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
-	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 // shareList is the response body of list-shares (the schema ShareList).
@@ -108,17 +107,6 @@ type revokeShareInput struct {
 
 type noContent struct{}
 
-// currentUser is the session's user, as the auth middleware loaded it from
-// the database for this very request - so a withdrawn right or a changed
-// role shows in the next request's answer, not only after signing in again.
-func currentUser(ctx context.Context) (user.User, error) {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return user.User{}, huma.Error401Unauthorized("authentication required")
-	}
-	return u, nil
-}
-
 // Register installs the five operations members manage their public links
 // with. All of them are session-only: an API token cannot hand out public
 // links to the household's recipes, nor list or revoke them.
@@ -154,7 +142,7 @@ func Register(api huma.API, svc *Service) {
 			},
 		},
 	}, func(ctx context.Context, in *createShareInput) (*shareOutput, error) {
-		u, err := currentUser(ctx)
+		u, err := auth.CurrentUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +185,7 @@ func Register(api huma.API, svc *Service) {
 		Security:    auth.SessionSecurity,
 		Errors:      []int{401},
 	}, func(ctx context.Context, in *myShareInput) (*myShareOutput, error) {
-		u, err := currentUser(ctx)
+		u, err := auth.CurrentUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +210,7 @@ func Register(api huma.API, svc *Service) {
 		Security:    auth.SessionSecurity,
 		Errors:      []int{401, 403},
 	}, func(ctx context.Context, in *listSharesInput) (*listOutput, error) {
-		u, err := currentUser(ctx)
+		u, err := auth.CurrentUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +235,7 @@ func Register(api huma.API, svc *Service) {
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 404},
 	}, func(ctx context.Context, in *revokeShareInput) (*noContent, error) {
-		u, err := currentUser(ctx)
+		u, err := auth.CurrentUser(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -272,7 +260,7 @@ func Register(api huma.API, svc *Service) {
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 403},
 	}, func(ctx context.Context, _ *struct{}) (*noContent, error) {
-		u, err := currentUser(ctx)
+		u, err := auth.CurrentUser(ctx)
 		if err != nil {
 			return nil, err
 		}

@@ -34,6 +34,9 @@ func NewService(conn *sql.DB, imageDir string) *Service {
 	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now, imageDir: imageDir}
 }
 
+// SetClock overrides the time source. Intended for tests and the demo seed.
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
+
 // Create stores a new recipe as createdBy, assigning it a slug derived from
 // the title (numbered on collision), and indexes it for search.
 func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recipe, error) {

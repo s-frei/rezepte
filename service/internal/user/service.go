@@ -429,8 +429,8 @@ func (s *Service) SetCanSharePublicly(ctx context.Context, actor User, id string
 // the actor outranks too little to touch. Recipes the user created or last
 // edited move to actor.ID (created_by and updated_by are both NOT NULL and
 // have no ON DELETE clause), after actor's own tasty marks on the recipes
-// they are about to author are dropped; sessions go with the row through ON
-// DELETE CASCADE.
+// they are about to author are dropped and every entry already on them is
+// marked seen for actor; sessions go with the row through ON DELETE CASCADE.
 func (s *Service) Delete(ctx context.Context, actor User, id string) error {
 	if actor.ID == id {
 		return ErrSelfDelete
@@ -445,6 +445,9 @@ func (s *Service) Delete(ctx context.Context, actor User, id string) error {
 		}
 		if err := q.DeleteTastyOfNewOwner(ctx, sqlc.DeleteTastyOfNewOwnerParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
 			return fmt.Errorf("drop tasty marks on recipes of %s: %w", id, err)
+		}
+		if err := q.SeeCommentsOfNewOwner(ctx, sqlc.SeeCommentsOfNewOwnerParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
+			return fmt.Errorf("mark comments seen on recipes of %s: %w", id, err)
 		}
 		if err := q.ReassignRecipes(ctx, sqlc.ReassignRecipesParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
 			return fmt.Errorf("reassign recipes of %s: %w", id, err)

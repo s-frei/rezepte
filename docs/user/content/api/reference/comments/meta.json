@@ -1,0 +1,12 @@
+{
+  "title": "Comments",
+  "description": "Household members' comments on a recipe.",
+  "pages": [
+    "index",
+    "list-comments",
+    "edit-comment",
+    "delete-comment",
+    "add-comment",
+    "mark-comments-seen"
+  ]
+}

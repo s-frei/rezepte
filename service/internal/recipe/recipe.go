@@ -135,6 +135,9 @@ type Card struct {
 	// whether the caller is one of them.
 	TastyCount int  `json:"tastyCount"`
 	Tasty      bool `json:"tasty"`
+	// NewComments is whether the recipe has comments the caller has not
+	// seen and should: they wrote the recipe or a comment on it.
+	NewComments bool `json:"newComments"`
 	// ImageCount and ImageBytes are how many photos the recipe has and the
 	// bytes of all three variants on disk; an export carries only the
 	// largest, so the size estimate runs high.

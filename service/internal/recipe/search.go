@@ -178,31 +178,25 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	// by a handful of people, so the set of ids is far smaller than the set
 	// of rows.
 	userIDs := make([]string, 0, 2*len(rows))
-	seen := make(map[string]bool, 2*len(rows))
 	for _, r := range rows {
-		for _, id := range [2]string{r.CreatedBy, r.UpdatedBy} {
-			if !seen[id] {
-				seen[id] = true
-				userIDs = append(userIDs, id)
-			}
-		}
+		userIDs = append(userIDs, r.CreatedBy, r.UpdatedBy)
 	}
-	authorRows, err := s.q.ListAuthorsForIDs(ctx, userIDs)
+	authors, err := s.peopleByID(ctx, userIDs)
 	if err != nil {
-		return nil, fmt.Errorf("list authors for recipes: %w", err)
-	}
-	authors := make(map[string]Person, len(authorRows))
-	for _, a := range authorRows {
-		authors[a.ID] = Person{ID: a.ID, Username: a.Username, DisplayName: a.DisplayName, Color: a.Color, AvatarID: a.AvatarID}
+		return nil, err
 	}
 
 	favorites := make(map[string]bool)
 	tasty := make(map[string]bool)
+	newComments := make(map[string]bool)
 	if userID != "" {
 		if favorites, err = s.favoritesOf(ctx, userID, ids); err != nil {
 			return nil, err
 		}
 		if tasty, err = s.tastyOf(ctx, userID, ids); err != nil {
+			return nil, err
+		}
+		if newComments, err = s.newCommentsFor(ctx, userID, ids); err != nil {
 			return nil, err
 		}
 	}
@@ -229,6 +223,7 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		}
 		card.TastyCount = tastyCounts[r.ID]
 		card.Tasty = tasty[r.ID]
+		card.NewComments = newComments[r.ID]
 		card.ImageCount = int(stats[r.ID].ImageCount)
 		card.ImageBytes = stats[r.ID].ImageBytes
 		items = append(items, card)

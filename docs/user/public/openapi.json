@@ -197,6 +197,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "newComments": {
+            "type": "boolean"
+          },
           "slug": {
             "type": "string"
           },
@@ -245,6 +248,7 @@
           "favorite",
           "tastyCount",
           "tasty",
+          "newComments",
           "imageCount",
           "imageBytes",
           "createdBy",
@@ -325,6 +329,111 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "Comment": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/Comment.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Person",
+            "description": "Who wrote the comment; absent once their account was removed"
+          },
+          "body": {
+            "type": "string"
+          },
+          "canDelete": {
+            "type": "boolean"
+          },
+          "canEdit": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "editedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "new": {
+            "description": "Written by somebody else after the viewer last opened the recipe's comments; only ever true for the recipe's author and members with a comment on it",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "createdAt",
+          "editedAt",
+          "new",
+          "canEdit",
+          "canDelete"
+        ],
+        "type": "object"
+      },
+      "CommentBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/CommentBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "description": "Plain text, 1 to 2000 characters after trimming",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "type": "object"
+      },
+      "CommentList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/CommentList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "comments": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "comments"
         ],
         "type": "object"
       },
@@ -1472,6 +1581,30 @@
         "required": [
           "username",
           "password"
+        ],
+        "type": "object"
+      },
+      "MarkSeenInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/MarkSeenInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "upTo": {
+            "description": "The highest comment id the page showed; the watermark is raised to it, never past the recipe's newest comment",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "upTo"
         ],
         "type": "object"
       },
@@ -3987,6 +4120,247 @@
         ]
       }
     },
+    "/api/v1/comments": {
+      "get": {
+        "description": "new marks comments by somebody else since the caller last opened the recipe's comments, for the recipe's author and members with a comment on it. Listing does not mark anything seen.",
+        "operationId": "list-comments",
+        "parameters": [
+          {
+            "description": "The recipe whose comments to list",
+            "explode": false,
+            "in": "query",
+            "name": "recipeId",
+            "required": true,
+            "schema": {
+              "description": "The recipe whose comments to list",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "List a recipe's comments, oldest first",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/comments/{commentId}": {
+      "delete": {
+        "description": "The person who wrote it, or an admin.",
+        "operationId": "delete-comment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "commentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "Delete a comment",
+        "tags": [
+          "comments"
+        ]
+      },
+      "patch": {
+        "operationId": "edit-comment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "commentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "Change the text of one's own comment",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
     "/api/v1/export": {
       "post": {
         "operationId": "export-recipes",
@@ -5062,6 +5436,163 @@
         "summary": "Update a recipe",
         "tags": [
           "recipes"
+        ]
+      }
+    },
+    "/api/v1/recipes/{id}/comments": {
+      "post": {
+        "description": "Any member may write on any recipe, locked ones included. The comment is the caller's.",
+        "operationId": "add-comment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comment"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "Write a comment on a recipe",
+        "tags": [
+          "comments"
+        ]
+      }
+    },
+    "/api/v1/recipes/{id}/comments/seen": {
+      "put": {
+        "description": "The recipe page calls this when the reader first opens its comments tab, with the highest comment id it loaded. Comments above it stay new. The editor, cook mode and MCP reads do not call it. It needs only recipes:read on purpose: it moves the caller's own unread marker and changes nothing anybody else sees, so a read-only client that shows comments can clear them.",
+        "operationId": "mark-comments-seen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkSeenInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "Mark a recipe's comments as seen by the caller",
+        "tags": [
+          "comments"
         ]
       }
     },
@@ -8105,6 +8636,10 @@
     {
       "description": "Creating, reading, updating and deleting recipes, and searching them.",
       "name": "recipes"
+    },
+    {
+      "description": "Household members' comments on a recipe.",
+      "name": "comments"
     },
     {
       "description": "The tags recipes are filed under.",

@@ -380,6 +380,8 @@ func Register(api huma.API, svc *Service) {
 		}
 		return &authorListOutput{Body: AuthorList{Items: authors}}, nil
 	})
+
+	registerComments(api, svc)
 }
 
 // fillCaller runs FillCaller for the caller, derived strictly from ctx

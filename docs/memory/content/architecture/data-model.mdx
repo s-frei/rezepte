@@ -23,6 +23,10 @@ erDiagram
   recipes ||--o{ favorites : starred
   users ||--o{ tasty : marks
   recipes ||--o{ tasty : "marked tasty"
+  recipes ||--o{ recipe_comments : "comments on"
+  users |o--o{ recipe_comments : writes
+  users ||--o{ recipe_comment_reads : "has seen"
+  recipes ||--o{ recipe_comment_reads : "seen on"
   users ||--o{ shares : creates
   recipes ||--o{ shares : "shared by"
   users {
@@ -166,6 +170,19 @@ erDiagram
     text recipe_id PK "also FK to recipes.id"
     text created_at "orders tastyBy"
   }
+  recipe_comments {
+    integer id PK "AUTOINCREMENT, the watermark"
+    text recipe_id FK
+    text author_id FK "nullable, SET NULL: former member"
+    text body
+    text created_at
+    text edited_at "nullable"
+  }
+  recipe_comment_reads {
+    text user_id PK "also FK to users.id"
+    text recipe_id PK "also FK to recipes.id"
+    integer last_seen "highest recipe_comments.id seen"
+  }
   images {
     text id PK
     text recipe_id FK
@@ -180,12 +197,13 @@ erDiagram
 
 ## Conventions
 
-- IDs: UUIDv7 strings (`uuid.NewV7().String()` from the standard `uuid` package), sortable by creation time.
+- IDs: UUIDv7 strings (`uuid.NewV7().String()` from the standard `uuid` package), sortable by creation time. `recipe_comments.id` is the one exception, below.
 - Timestamps: RFC 3339 UTC strings via `db.FormatTime` / `db.ParseTime`, with **second** resolution (`time.RFC3339`, no fractional part). Because two writes in the same second get the same `updated_at`, the recipe list and search queries (`queries/recipes.sql`) break ties with `id DESC`: UUIDv7 ids sort lexicographically by creation time, so the newest row still sorts first. Without that tiebreaker, two recipes saved in the same second come back oldest first. If a fractional part is ever added to `FormatTime`, it must be fixed-width - `time.RFC3339Nano` trims trailing zeros, and a shortened fraction no longer sorts lexicographically the same as the full value.
 - The connection DSN in `service/internal/db/db.go` sets the pragmas: `journal_mode(WAL)`, `busy_timeout(5000)`, `synchronous(NORMAL)`, `foreign_keys(ON)`, `recursive_triggers(ON)` and `_txlock=immediate`. The recursive triggers are not for a trigger that writes - there is none - but because SQLite fires a `BEFORE DELETE` trigger for the delete half of a `REPLACE` only when that pragma is on.
-- Foreign keys are enforced; deletes cascade. The one exception is `recipes.cover_image_id`, a plain nullable `TEXT` with no `REFERENCES` constraint: it points at `images.id` but carries no FK because the image service keeps it consistent itself (set on first upload, moved on delete of the cover) - a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
+- Foreign keys are enforced; deletes cascade. `recipe_comments.author_id` is `ON DELETE SET NULL` instead, so an entry outlives its author. `recipes.cover_image_id` is a plain nullable `TEXT` with no `REFERENCES` constraint at all: it points at `images.id` but carries no FK because the image service keeps it consistent itself (set on first upload, moved on delete of the cover) - a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
 - `favorites` is keyed by `(user_id, recipe_id)` and both foreign keys cascade, so a star never outlives the user or the recipe it belongs to. The primary key already serves lookups by user; `favorites_recipe_idx` on `recipe_id` serves the reverse direction, which the per-page card lookup uses. See [Favorites](/features/favorites).
 - `tasty` has the same key, cascades and reverse index (`tasty_recipe_idx`); the index also serves the correlated count behind `sort=tasty`. Unlike a favorite, a row's `created_at` is read: it orders the people a recipe names as having marked it. See [Tasty](/features/tasty).
+- `recipe_comments` holds the recipe comments: `id` is `INTEGER PRIMARY KEY AUTOINCREMENT`, because it doubles as the watermark and must never be handed out twice - without `AUTOINCREMENT` SQLite reuses a deleted newest row's id. `recipe_comments_recipe_idx` on `(recipe_id, id)` serves a recipe's list and the card batch, `recipe_comments_author_idx` the "has a comment here" check. `author_id` is `SET NULL`, the schema's only one: deleting a member leaves their comments as a former member's rather than giving them to the admin who inherits their recipes. `recipe_comment_reads` keeps one `last_seen` per (user, recipe), both keys cascading; a comment is new when its `id` is above it. See [Recipe comments](/features/recipe-comments).
 - Usernames are unique case-insensitively (`COLLATE NOCASE`).
 - `users.role` holds `superadmin`, `admin` or `user`, and a `CHECK` admits nothing else. `users_superadmin_idx` is unique and partial on `role = 'superadmin'`, so "at most one instance owner" is a property of the database rather than of the code writing to it. Two triggers carry the other half of that guarantee: `users_superadmin_undeletable` aborts a `DELETE` of the owner's row, `users_superadmin_role_locked` aborts an `UPDATE OF role` on it. They are the net underneath [Users and authentication](/features/users-and-auth), which owns the refusals a person sees, with their errors and status codes; on every connection the service opens they hold as well for a raw query and for a code path that forgets to ask. They catch an `INSERT OR REPLACE` over the owner's row only because that DSN sets `recursive_triggers(ON)` - the pragma is per connection, so a `sqlite3` CLI session against the file, which defaults to off, can still `REPLACE` past a `BEFORE DELETE` trigger.
 - `users.display_name`, `users.color` and `users.locale` are all `NOT NULL`, and none of them carries a `CHECK` while `role` beside them does. `role` is a closed set the database itself has to hold: its values back `users_superadmin_idx` and the two triggers below, so a row outside the set would quietly make all three meaningless. `locale` has no such reader, and its set lives in `service/internal/i18n/locales.json`; a `CHECK` would be a second copy, and adding a language would then take a migration (see [Languages](/features/languages)). Nothing in the schema reads `display_name`, `color` or `locale`, and their rules live in Go instead - `normalizeDisplayName`, `ParseColor` and `ParseLocale` in `service/internal/user/profile.go`, over the palette `user.Colors` owns. A `CHECK (color IN (…))` would be a second copy of that palette, and adding a ninth color would then mean a migration as well as an edit. `NOT NULL` is the half the database does keep for both, and it is what lets every reader print a name without a fallback of its own: `user.Create` is the single writer of a user row and substitutes the username when no display name is given. Neither column is unique - `username` is the only thing that identifies an account (see [Users and authentication](/features/users-and-auth)).

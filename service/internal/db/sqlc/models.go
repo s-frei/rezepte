@@ -87,6 +87,21 @@ type Recipe struct {
 	SourceName   *string
 }
 
+type RecipeComment struct {
+	ID        int64
+	RecipeID  string
+	AuthorID  *string
+	Body      string
+	CreatedAt string
+	EditedAt  *string
+}
+
+type RecipeCommentRead struct {
+	UserID   string
+	RecipeID string
+	LastSeen int64
+}
+
 type RecipeTag struct {
 	RecipeID string
 	TagID    string

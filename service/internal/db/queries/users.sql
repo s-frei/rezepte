@@ -36,6 +36,20 @@ DELETE FROM tasty
 WHERE user_id = sqlc.arg(new_owner)
   AND recipe_id IN (SELECT id FROM recipes WHERE created_by = sqlc.arg(old_owner));
 
+-- The acting admin becomes the author of every recipe the deleted user
+-- wrote, and an author follows the entries on their recipes: without this,
+-- every entry already on those recipes would show as new to the admin. Their
+-- watermark rises to each recipe's newest entry and never lowers. The WHERE
+-- before GROUP BY keeps SQLite's upsert parser from reading ON CONFLICT as a
+-- join constraint.
+-- name: SeeCommentsOfNewOwner :exec
+INSERT INTO recipe_comment_reads (user_id, recipe_id, last_seen)
+SELECT sqlc.arg(new_owner), c.recipe_id, MAX(c.id)
+FROM recipe_comments c
+WHERE c.recipe_id IN (SELECT id FROM recipes WHERE created_by = sqlc.arg(old_owner))
+GROUP BY c.recipe_id
+ON CONFLICT (user_id, recipe_id) DO UPDATE SET last_seen = MAX(last_seen, excluded.last_seen);
+
 -- recipes.created_by and recipes.updated_by are both NOT NULL without ON
 -- DELETE, so every mention of a user has to move before their row can go -
 -- a recipe somebody else wrote but this user last edited names them in

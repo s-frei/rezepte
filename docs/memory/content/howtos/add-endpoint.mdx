@@ -50,7 +50,7 @@ description: huma operations, security, errors
     ```
     Scopes are a closed set declared in `service/internal/auth/token.go`; `auth.Protected` must be given one already in that list, since no token can ever satisfy a scope outside it.
 
-    Get the current user with `auth.UserFrom(ctx)`.
+    Get the current user with `auth.CurrentUser(ctx)`, which is already the `401` when there is none (`auth.UserFrom(ctx)` gives the bare `ok`).
 
   </Step>
   <Step>

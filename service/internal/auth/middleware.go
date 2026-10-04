@@ -118,6 +118,18 @@ func UserFrom(ctx context.Context) (user.User, bool) {
 	return u, ok
 }
 
+// CurrentUser is the session's user, as the middleware loaded it from the
+// database for this very request - so a withdrawn right or a changed role
+// shows in the next request's answer, not only after signing in again.
+// Without one it is a 401 for huma.
+func CurrentUser(ctx context.Context) (user.User, error) {
+	u, ok := UserFrom(ctx)
+	if !ok {
+		return user.User{}, huma.Error401Unauthorized("authentication required")
+	}
+	return u, nil
+}
+
 type viaTokenKey struct{}
 
 // ViaToken reports whether ctx's request was authenticated by an API token

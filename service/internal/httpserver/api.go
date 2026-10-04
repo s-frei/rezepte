@@ -44,6 +44,7 @@ func isSpecRoute(p string) bool {
 var apiTags = []*huma.Tag{
 	{Name: "auth", Description: "Signing in, signing out and reading the current session."},
 	{Name: "recipes", Description: "Creating, reading, updating and deleting recipes, and searching them."},
+	{Name: "comments", Description: "Household members' comments on a recipe."},
 	{Name: "tags", Description: "The tags recipes are filed under."},
 	{Name: "images", Description: "Uploading recipe images and serving them in their rendered sizes."},
 	{Name: "transfer", Description: "Exporting recipes with their photos as a zip and importing such a file. Administrators only."},

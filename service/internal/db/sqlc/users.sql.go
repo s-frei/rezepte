@@ -274,6 +274,31 @@ func (q *Queries) ReassignRecipes(ctx context.Context, arg ReassignRecipesParams
 	return err
 }
 
+const seeCommentsOfNewOwner = `-- name: SeeCommentsOfNewOwner :exec
+INSERT INTO recipe_comment_reads (user_id, recipe_id, last_seen)
+SELECT ?1, c.recipe_id, MAX(c.id)
+FROM recipe_comments c
+WHERE c.recipe_id IN (SELECT id FROM recipes WHERE created_by = ?2)
+GROUP BY c.recipe_id
+ON CONFLICT (user_id, recipe_id) DO UPDATE SET last_seen = MAX(last_seen, excluded.last_seen)
+`
+
+type SeeCommentsOfNewOwnerParams struct {
+	NewOwner string
+	OldOwner string
+}
+
+// The acting admin becomes the author of every recipe the deleted user
+// wrote, and an author follows the entries on their recipes: without this,
+// every entry already on those recipes would show as new to the admin. Their
+// watermark rises to each recipe's newest entry and never lowers. The WHERE
+// before GROUP BY keeps SQLite's upsert parser from reading ON CONFLICT as a
+// join constraint.
+func (q *Queries) SeeCommentsOfNewOwner(ctx context.Context, arg SeeCommentsOfNewOwnerParams) error {
+	_, err := q.db.ExecContext(ctx, seeCommentsOfNewOwner, arg.NewOwner, arg.OldOwner)
+	return err
+}
+
 const setCanSharePublicly = `-- name: SetCanSharePublicly :one
 UPDATE users SET can_share_publicly = ? WHERE id = ? RETURNING id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified
 `
