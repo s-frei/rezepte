@@ -76,3 +76,25 @@ test('a member sees neither the page nor the zip import link', async ({ page }, 
 	await page.goto('/settings/transfer');
 	await expect(page).toHaveURL('/settings');
 });
+
+test('a recipe that moves to the next page while the list loads is listed once', async ({
+	page
+}) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(0), title: `Moved ${token}` });
+	await createRecipe(page, { ...loadFixture(1), title: `Stays ${token}` });
+	// The list pages through the most recently updated first, so a recipe
+	// somebody saves meanwhile pushes the last row of one page onto the next.
+	// Play that: page 1 holds both, page 2 starts with the first again.
+	const listed = await (await page.request.get(`/api/v1/recipes?q=${token}`)).json();
+	await page.route('**/api/v1/recipes?*', async (route) => {
+		const n = Number(new URL(route.request().url()).searchParams.get('page') ?? 1);
+		const items = n === 1 ? listed.items : n === 2 ? [listed.items[1]] : [];
+		await route.fulfill({ json: { ...listed, items, total: 3 } });
+	});
+	await page.goto('/settings/transfer');
+	await expect(page.getByRole('checkbox', { name: `Moved ${token}` })).toHaveCount(1);
+	await expect(page.getByLabel('Choose a file')).toHaveCount(1);
+});

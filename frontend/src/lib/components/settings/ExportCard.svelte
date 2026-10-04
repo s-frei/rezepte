@@ -38,12 +38,15 @@
 		loading = true;
 		loadFailed = false;
 		try {
-			const all: RecipeCard[] = [];
+			// By id: a recipe saved while the pages load pushes the last row of
+			// one page onto the next, and a row twice breaks the keyed list.
+			const byId: Record<string, RecipeCard> = {};
 			for (let page = 1; ; page++) {
 				const res = await listRecipes({ page, limit: 100 });
-				all.push(...res.items);
-				if (all.length >= res.total || res.items.length === 0) break;
+				for (const r of res.items) byId[r.id] = r;
+				if (Object.keys(byId).length >= res.total || res.items.length === 0) break;
 			}
+			const all = Object.values(byId);
 			// Every row gets its key before it renders: binding a checkbox to an
 			// undefined entry would trip the prop's fallback.
 			ticked = Object.fromEntries(all.map((r) => [r.id, ticked[r.id] ?? false]));
