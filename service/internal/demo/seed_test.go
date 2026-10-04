@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
@@ -563,5 +564,57 @@ func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatalf("shares = %d, want none", n)
+	}
+}
+
+// The admin holds three API tokens from the first start, so the API page's
+// key tags show a running, an open-ended and an expired lifetime rather than
+// the empty list - each in the demo's language.
+func TestSeedMembersIssuesTheAdminsTokens(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin, Locale: "de"}); err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
+		t.Fatalf("SeedMembers: %v", err)
+	}
+
+	tokens, err := auth.NewTokenService(conn, users).List(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tokens) != 3 {
+		t.Fatalf("tokens = %d, want 3", len(tokens))
+	}
+	var expired, open, used int
+	for _, tok := range tokens {
+		if tok.OwnerUsername != "demo" {
+			t.Errorf("%s issued by %s, want demo", tok.Name, tok.OwnerUsername)
+		}
+		switch {
+		case tok.ExpiresAt == nil:
+			open++
+		case tok.ExpiresAt.Before(time.Now()):
+			expired++
+		}
+		if tok.LastUsedAt != nil {
+			used++
+		}
+	}
+	if expired != 1 || open != 1 || used != 2 {
+		t.Fatalf("expired %d, open %d, used %d; want 1, 1, 2", expired, open, used)
+	}
+	if tokens[0].Name != "Claude Code am Laptop" && tokens[1].Name != "Claude Code am Laptop" && tokens[2].Name != "Claude Code am Laptop" {
+		t.Fatalf("no German token name in %+v", tokens)
 	}
 }

@@ -69,7 +69,7 @@ Every operation below requires an admin session; no API token can reach `/api/v1
 
 | Operation | Path | Notes |
 |---|---|---|
-| list | `GET /tokens` | instance-wide: every token in the table, including one whose owner has since been demoted, with owner |
+| list | `GET /tokens` | instance-wide: every token in the table, including one whose owner has since been demoted, with its owner as `ownerId`, `ownerUsername`, `ownerDisplayName` and `ownerColor` |
 | create | `POST /tokens` | `201`, body `{name, scopes, expiresInDays}`; response carries the raw token once, never again; `422` on an unknown scope or an empty `scopes` |
 | revoke | `DELETE /tokens/{id}` | `204`; `404` for an unknown id |
 

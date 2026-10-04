@@ -500,8 +500,9 @@ test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
 			const list = memberPage.getByRole('list', { name: 'Shared links' });
 			const row = list.getByRole('listitem').filter({ hasText: title });
 			await expect(row).toBeVisible();
-			await expect(row.getByText('Active')).toBeVisible();
-			await expect(row.getByRole('button', { name: 'Copy' })).toBeVisible();
+			// An active link carries no stamp; only a paused or limited one does.
+			await expect(row).toContainText('Active');
+			await expect(row.getByRole('button', { name: 'Copy link' })).toBeVisible();
 
 			await row.getByRole('button', { name: 'Revoke' }).click();
 			await memberPage
@@ -550,7 +551,7 @@ test("admins see everyone's links and revoke all", async ({ page, browser }, tes
 		const list = page.getByRole('list', { name: 'Shared links' });
 		const row = list.getByRole('listitem').filter({ hasText: title });
 		await expect(row).toBeVisible();
-		await expect(row.getByText(`By ${username}`)).toBeVisible();
+		await expect(row).toContainText(username);
 
 		await page.getByRole('button', { name: 'Revoke all' }).click();
 		await page
@@ -731,7 +732,7 @@ test('a member whose right is withdrawn sees why their link is paused', async ({
 					.getByRole('list', { name: 'Shared links' })
 					.getByRole('listitem')
 					.filter({ hasText: title })
-					.getByText('Paused')
+					.getByText('This person may no longer share publicly.')
 			).toBeVisible();
 		} finally {
 			await memberContext.close();
@@ -832,7 +833,7 @@ test("withdrawing sharing pauses a member's links", async ({ page, browser }, te
 			.getByRole('list', { name: 'Shared links' })
 			.getByRole('listitem')
 			.filter({ hasText: title });
-		await expect(shareRow.getByText('Paused')).toBeVisible();
+		await expect(shareRow.getByText('This person may no longer share publicly.')).toBeVisible();
 
 		await page.goto(`/s/${shareToken}`);
 		await expect(page.getByText('This link is no longer available.')).toBeVisible();

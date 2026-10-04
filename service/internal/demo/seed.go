@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/image"
@@ -126,6 +127,36 @@ var (
 		"jonas": {{2, 7}, {5, 30}},
 	}
 )
+
+// sampleToken is one API token the demo issues to its admin: what it may
+// do, when it was issued and expires (days relative to the seed, an expiry
+// of 0 meaning none) and when it was last used (0 for never).
+type sampleToken struct {
+	names                       map[user.Locale]string
+	scopes                      []string
+	issued, expires, lastUsedAt int
+}
+
+// Demo API tokens: one running and recently used, one without an expiry,
+// one expired - the three shapes the API page's key tags draw, so the list
+// shows its lifetime bars and its stamp instead of the empty placeholder.
+var sampleTokens = []sampleToken{
+	{
+		names:  map[user.Locale]string{"en": "Claude Code on the laptop", "de": "Claude Code am Laptop"},
+		scopes: []string{"recipes:read", "recipes:write"},
+		issued: -45, expires: 45, lastUsedAt: -1,
+	},
+	{
+		names:  map[user.Locale]string{"en": "Shopping list shortcut", "de": "Einkaufsliste-Kurzbefehl"},
+		scopes: []string{"recipes:read"},
+		issued: -120, lastUsedAt: -10,
+	},
+	{
+		names:  map[user.Locale]string{"en": "Backup script", "de": "Backup-Skript"},
+		scopes: []string{"recipes:read", "recipes:write", "recipes:delete", "users:read"},
+		issued: -100, expires: -70,
+	},
+}
 
 // ErrNoUsers is returned when no user exists to own the sample recipes.
 var ErrNoUsers = errors.New("demo: no user to own the sample recipes")
@@ -361,8 +392,8 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 // public links in adminShares and memberShares - the admin's as the user
 // named owner, who must be the instance owner, since only the owner
 // switches sharing on, which creating a link needs. It is switched off
-// again once the links exist, so they start out paused. After a skipped
-// seed it writes nothing.
+// again once the links exist, so they start out paused. Last it issues
+// that admin the sampleTokens. After a skipped seed it writes nothing.
 func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer string) error {
 	if sum.Skipped {
 		return nil
@@ -428,6 +459,37 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 	if sharing {
 		if _, err := instance.SetPublicShares(ctx, admin, false); err != nil {
 			return fmt.Errorf("turn public sharing off: %w", err)
+		}
+	}
+	return issueSampleTokens(ctx, auth.NewTokenService(conn, users), admin, time.Now())
+}
+
+// issueSampleTokens issues sampleTokens to admin, each with its clock set to
+// when it was issued and, if it was used, authenticated once at that time so
+// the token service records the use itself.
+func issueSampleTokens(ctx context.Context, tokens *auth.TokenService, admin user.User, now time.Time) error {
+	day := func(offset int) time.Time { return now.AddDate(0, 0, offset) }
+	defer tokens.SetClock(time.Now)
+	for _, sample := range sampleTokens {
+		name, ok := sample.names[admin.Locale]
+		if !ok {
+			name = sample.names["en"]
+		}
+		var expires *time.Time
+		if sample.expires != 0 {
+			at := day(sample.expires)
+			expires = &at
+		}
+		tokens.SetClock(func() time.Time { return day(sample.issued) })
+		raw, _, err := tokens.Create(ctx, admin.ID, name, sample.scopes, expires)
+		if err != nil {
+			return fmt.Errorf("issue demo token %q: %w", name, err)
+		}
+		if sample.lastUsedAt != 0 {
+			tokens.SetClock(func() time.Time { return day(sample.lastUsedAt) })
+			if _, err := tokens.Authenticate(ctx, raw); err != nil {
+				return fmt.Errorf("use demo token %q: %w", name, err)
+			}
 		}
 	}
 	return nil

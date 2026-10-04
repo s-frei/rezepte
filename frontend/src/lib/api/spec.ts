@@ -1,9 +1,9 @@
-import { summarizeSpec, type ApiSummary, type SpecDocument } from '$lib/settings/api-summary';
+import { countOperations, type SpecDocument } from '$lib/settings/api-summary';
 import { api } from './client';
 
-/** The OpenAPI document the instance serves, reduced to its two figures. */
-export async function fetchApiSummary(): Promise<ApiSummary> {
-	return summarizeSpec(await api<SpecDocument>('/openapi.json'));
+/** The number of operations in the OpenAPI document the instance serves. */
+export async function fetchOperationCount(): Promise<number> {
+	return countOperations(await api<SpecDocument>('/openapi.json'));
 }
 
 /**

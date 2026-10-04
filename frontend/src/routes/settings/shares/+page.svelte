@@ -225,10 +225,7 @@
 		     creator there is nothing to pick between. -->
 		{#if isAdmin && everyone && !loading && creators.length > 1}
 			<section aria-labelledby="settings-shares-person" class="mb-4 space-y-2">
-				<h3
-					id="settings-shares-person"
-					class="text-caption font-semibold text-text-muted uppercase"
-				>
+				<h3 id="settings-shares-person" class="text-caption font-semibold text-text-muted">
 					{m.settings_shares_person_heading()}
 				</h3>
 				<div class="flex flex-wrap gap-2">
@@ -254,10 +251,7 @@
 		     narrow. -->
 		{#if !loading && statuses.length > 1}
 			<section aria-labelledby="settings-shares-status" class="mb-4 space-y-2">
-				<h3
-					id="settings-shares-status"
-					class="text-caption font-semibold text-text-muted uppercase"
-				>
+				<h3 id="settings-shares-status" class="text-caption font-semibold text-text-muted">
 					{m.settings_shares_status_heading()}
 				</h3>
 				<div class="flex flex-wrap gap-2">
@@ -287,9 +281,15 @@
 		{:else if visible.length === 0}
 			<p class="py-6 text-body-sm text-text-muted">{m.settings_shares_no_match()}</p>
 		{:else}
-			<ul aria-label={m.settings_nav_shares()}>
+			<ul aria-label={m.settings_nav_shares()} class="grid grid-cols-[minmax(0,1fr)] gap-3.5">
 				{#each visible as share (share.id)}
-					<ShareRow {share} showCreator={isAdmin && everyone} onrevoke={revoke} />
+					<ShareRow
+						{share}
+						showCreator={isAdmin && everyone}
+						ownColor={session.user?.color}
+						sharingOff={sharingOn === false}
+						onrevoke={revoke}
+					/>
 				{/each}
 			</ul>
 		{/if}

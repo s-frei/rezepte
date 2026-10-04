@@ -12,7 +12,8 @@ Only admins can issue tokens, under **Settings → API**.
 
 ## Creating a token<Audience role="admin" />
 
-1. Open **Settings → API** and choose **Create token**.
+1. Open **Settings → API** and choose **Create token** on the "API tokens"
+   card.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
    That name is how you tell tokens apart later.
 3. Choose what it may do. **Recipes** and **Accounts** are set separately,
@@ -80,9 +81,18 @@ household's editing setting, and only in the browser.
 
 ## Revoking a token<Audience role="admin" />
 
-Choose **Revoke** on its row. The token stops working immediately.
+Choose **Revoke** on its tag. The token stops working immediately.
 
 Expired tokens stay in the list, marked as such, until you revoke them - so you
-can always see why an integration stopped. The list shows who issued each token ("Issued by") and the first characters
-of each token, which is how you match a row to the entry in a program's
-configuration. "Last used" is accurate to the hour.
+can always see why an integration stopped.
+
+Each token hangs in the list like a key tag. The bar under its name shows how
+much of its lifetime has passed: the mark is today, the dot is when it was last
+used, and an expired token is stamped "Expired". The plaques below show what it
+may do for each area, as dots from none to the highest step. Next to the name
+you find the first characters of the token, which is how you match a tag to the
+entry in a program's configuration. "Last used" is accurate to the hour.
+
+The list shows your own tokens. Switch on "Everyone in the household" to see
+every admin's tokens, each marked with who issued it, and pick a person to show
+only theirs.

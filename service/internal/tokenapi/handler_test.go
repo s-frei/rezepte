@@ -188,3 +188,34 @@ func TestUnknownScopeIsRejected(t *testing.T) {
 		t.Fatalf("status %d, want 422: %s", rec.Code, rec.Body.String())
 	}
 }
+
+// The token list names its issuer the way the rest of the UI names a person -
+// display name and palette color - so the household filter can show the same
+// chip it shows for shared links.
+func TestTokensCarryTheIssuersDisplayNameAndColor(t *testing.T) {
+	h := newHandler(t)
+	admin := loginAs(t, h, "sam", "pw")
+
+	rec := doReq(h, http.MethodPost, "/api/v1/tokens", `{"name":"mcp","scopes":["recipes:read"]}`, admin)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	var created tokenapi.CreatedAPIToken
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	// A new account's display name is its login name, and the first account
+	// gets the first palette color.
+	if created.OwnerDisplayName != "sam" || created.OwnerColor != "amber" {
+		t.Fatalf("created owner = %q/%q, want sam/amber", created.OwnerDisplayName, created.OwnerColor)
+	}
+
+	rec = doReq(h, http.MethodGet, "/api/v1/tokens", "", admin)
+	var list tokenapi.APITokenList
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Items) != 1 || list.Items[0].OwnerDisplayName != "sam" || list.Items[0].OwnerColor != "amber" {
+		t.Fatalf("list = %+v", list.Items)
+	}
+}

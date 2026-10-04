@@ -26,6 +26,14 @@
             "description": "Label the admin gave it",
             "type": "string"
           },
+          "ownerColor": {
+            "description": "Palette color of that user, as everywhere the UI names a person",
+            "type": "string"
+          },
+          "ownerDisplayName": {
+            "description": "Display name of that user",
+            "type": "string"
+          },
           "ownerId": {
             "description": "User the token acts as",
             "type": "string"
@@ -56,6 +64,8 @@
           "scopes",
           "ownerId",
           "ownerUsername",
+          "ownerDisplayName",
+          "ownerColor",
           "createdAt"
         ],
         "type": "object"
@@ -598,6 +608,14 @@
             "description": "Label the admin gave it",
             "type": "string"
           },
+          "ownerColor": {
+            "description": "Palette color of that user, as everywhere the UI names a person",
+            "type": "string"
+          },
+          "ownerDisplayName": {
+            "description": "Display name of that user",
+            "type": "string"
+          },
           "ownerId": {
             "description": "User the token acts as",
             "type": "string"
@@ -633,6 +651,8 @@
           "scopes",
           "ownerId",
           "ownerUsername",
+          "ownerDisplayName",
+          "ownerColor",
           "createdAt"
         ],
         "type": "object"

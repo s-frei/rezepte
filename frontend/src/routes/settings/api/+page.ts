@@ -6,9 +6,10 @@ import type { PageLoad } from './$types';
  * page points at. Only token management is admin-only, and the page gates
  * that section on this flag rather than repeating the role check in markup.
  * `parent()` waits for the root layout's load, which has resolved the
- * session by then.
+ * session by then. `userId` lets the token list name an issuer only when it
+ * is somebody else.
  */
 export const load: PageLoad = async ({ parent }) => {
 	const { user } = await parent();
-	return { isAdmin: isAdminRole(user?.role) };
+	return { isAdmin: isAdminRole(user?.role), userId: user?.id };
 };

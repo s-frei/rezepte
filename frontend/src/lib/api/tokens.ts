@@ -15,6 +15,9 @@ export type ApiToken = {
 	scopes: TokenScope[];
 	ownerId: string;
 	ownerUsername: string;
+	/** How the UI names the issuer everywhere else: display name and palette color. */
+	ownerDisplayName: string;
+	ownerColor: string;
 	createdAt: string;
 	/** Absent when the token never expires. */
 	expiresAt?: string;

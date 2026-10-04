@@ -74,16 +74,20 @@ test('settings-signin', async ({ page }, testInfo) => {
 test('api', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/api');
-	// The figures arrive from two fetches after the page renders; waiting for
-	// one of them keeps the picture from catching the skeleton.
-	await expect(page.getByRole('term').filter({ hasText: 'Endpoints' })).toBeVisible();
+	// The endpoint count and the token state arrive from fetches after the
+	// page renders; waiting for both keeps the picture from catching either
+	// half-loaded.
+	await expect(page.getByText(/^\d+ endpoints/)).toBeVisible();
+	// The demo issues its admin three tokens; the list is drawn once their
+	// tags are there.
+	await expect(page.getByRole('list', { name: 'API tokens' }).getByRole('listitem').first()).toBeVisible();
 	await shot(page, 'api');
 });
 
 test('token-mcp', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/api');
-	await page.getByRole('button', { name: 'Create token' }).first().click();
+	await page.getByRole('button', { name: 'Create token' }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByLabel('Name').fill('MCP on the laptop');
 	await dialog
@@ -94,6 +98,16 @@ test('token-mcp', async ({ page }, testInfo) => {
 	const reveal = page.getByRole('dialog');
 	await expect(reveal.getByRole('tab', { name: 'Claude Code' })).toBeVisible();
 	await shot(page, 'token-mcp');
+	// The projects share one instance and run one after another, so the
+	// token this picture creates goes again, or the next project's `api`
+	// picture would show one tag more. The demo's own tokens stay.
+	const origin = new URL(page.url()).origin;
+	const list = (await (await page.request.get('/api/v1/tokens')).json()) as {
+		items: { id: string; name: string }[];
+	};
+	for (const token of list.items.filter((t) => t.name === 'MCP on the laptop')) {
+		await page.request.delete(`/api/v1/tokens/${token.id}`, { headers: { Origin: origin } });
+	}
 });
 
 test('users', async ({ page }, testInfo) => {

@@ -33,6 +33,26 @@ export const USER_COLOR_CLASSES: Record<UserColor, string> = {
 	slate: 'bg-user-slate text-user-slate-foreground'
 };
 
+/**
+ * The person's color as a left edge in its strong tone - an API token's tag
+ * carries its issuer this way. Written out for the same reason as above.
+ */
+const USER_COLOR_EDGES: Record<UserColor, string> = {
+	amber: 'border-l-user-amber-foreground',
+	clay: 'border-l-user-clay-foreground',
+	rose: 'border-l-user-rose-foreground',
+	plum: 'border-l-user-plum-foreground',
+	sage: 'border-l-user-sage-foreground',
+	olive: 'border-l-user-olive-foreground',
+	teal: 'border-l-user-teal-foreground',
+	slate: 'border-l-user-slate-foreground'
+};
+
+/** The edge class for a color from the API; neutral for an unknown one. */
+export function userColorEdge(color: string | null | undefined): string {
+	return isUserColor(color) ? USER_COLOR_EDGES[color] : 'border-l-border';
+}
+
 /** Neutral, for a color this build does not know. */
 const NEUTRAL = 'bg-accent text-accent-foreground';
 
