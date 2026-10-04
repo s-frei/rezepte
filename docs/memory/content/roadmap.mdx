@@ -23,7 +23,7 @@ Recipes move between instances as a zip ([Import and export](/features/import-ex
 
 ## Email
 
-Rezepte sends setup links by mail through an SMTP server the owner configures ([Email](/features/email)). Two parts remain. A forgotten password has no way back except an admin's reset: mail would let a person ask for a reset link themselves. A typed address is never confirmed by mail (only an identity provider, or redeeming a link mailed to that address, sets `email_verified`): a confirmation mail would do it, also afterwards, when someone enters or changes an address. Notifications would then ride on the same sender.
+Rezepte sends setup links, password resets and address confirmations by mail through an SMTP server the owner configures ([Email](/features/email)). Only notifications remain: they would ride on the same sender, as the setup, reset and confirmation mails do.
 
 ## Shopping list
 
