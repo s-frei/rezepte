@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
+	addDiaryEntry,
 	createPublicShare,
 	createRecipe,
 	createUser,
@@ -29,6 +30,7 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 	const title = `Public ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	await uploadImage(page, recipe.id, tinyPng());
+	await addDiaryEntry(page, recipe.id, 'Only for the household.');
 
 	try {
 		await setPublicShares(page, true);
@@ -53,6 +55,9 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 				.toBeGreaterThan(0);
 
 			await expect(stranger.getByText(recipe.createdBy.displayName)).toHaveCount(0);
+			// The comments stay in the household.
+			await expect(stranger.getByRole('tab', { name: /^Comments/ })).toHaveCount(0);
+			await expect(stranger.getByText('Only for the household.')).toHaveCount(0);
 			await expect(stranger.getByRole('link', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'More actions' })).toHaveCount(0);

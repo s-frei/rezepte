@@ -143,20 +143,22 @@ export function formatDate(iso: string): string {
 const dayFormats = new Map<string, Intl.DateTimeFormat>();
 
 /**
- * A day without a year in the active locale, with its weekday by default
+ * A day in the active locale, with its weekday by default
  * (`Sunday, September 27`, `Sonntag, 27. September`) or without it
  * (`September 27`, `27. September`) - the date the overview's running head
- * prints for today, short where a phone has no room for the weekday.
+ * prints for today, short where a phone has no room for the weekday - and
+ * with the year only when asked (`Wednesday, December 24, 2025`).
  */
-export function formatDay(date: Date, { weekday = true } = {}): string {
+export function formatDay(date: Date, { weekday = true, year = false } = {}): string {
 	const locale = getLocale();
-	const key = `${locale}:${weekday}`;
+	const key = `${locale}:${weekday}:${year}`;
 	let format = dayFormats.get(key);
 	if (!format) {
 		format = new Intl.DateTimeFormat(locale, {
 			weekday: weekday ? 'long' : undefined,
 			day: 'numeric',
-			month: 'long'
+			month: 'long',
+			year: year ? 'numeric' : undefined
 		});
 		dayFormats.set(key, format);
 	}

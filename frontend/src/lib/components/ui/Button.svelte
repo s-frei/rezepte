@@ -4,7 +4,7 @@
 	import { Button as BitsButton } from 'bits-ui';
 
 	type Variant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'destructive';
-	type Size = 'md' | 'lg';
+	type Size = 'sm' | 'md' | 'lg';
 
 	let {
 		variant = 'primary',
@@ -41,9 +41,11 @@
 		destructive: 'bg-destructive text-destructive-foreground'
 	};
 
-	// `md` is 40px everywhere; `lg` is 48px, bumped to 56px on small screens
-	// for mobile primary CTAs.
+	// `sm` is 36px, for a button inside a field's box.
+	// `md` is 40px everywhere.
+	// `lg` is 48px, bumped to 56px on small screens for mobile primary CTAs.
 	const sizeClasses: Record<Size, string> = {
+		sm: 'h-9 px-4 text-body-sm',
 		md: 'h-10 px-5 text-body-sm',
 		lg: 'h-12 max-sm:h-14 px-6 text-body'
 	};

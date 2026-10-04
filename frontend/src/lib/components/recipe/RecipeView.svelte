@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { Tabs } from 'bits-ui';
 	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import ImageGallery from './ImageGallery.svelte';
@@ -23,7 +24,11 @@
 		byline,
 		kicker,
 		belowMeta,
-		footer
+		footer,
+		diary,
+		diaryCount = 0,
+		diaryNew = false,
+		ondiaryopen
 	}: {
 		recipe: RecipeContent;
 		/** Forwarded to `ImageGallery`; defaults there to the signed-in `imageUrl` route. */
@@ -47,7 +52,21 @@
 		belowMeta?: Snippet;
 		/** Rendered after the ingredients/steps - the detail page puts `RecipeColophon` here. */
 		footer?: Snippet;
+		/** The second tab of the steps column - the detail page puts the
+		 * comments here. Without it the column keeps its plain heading:
+		 * the public share page and the share image never pass it, the comments
+		 * stay inside the household. */
+		diary?: Snippet;
+		/** The diary's entries, counted on its tab. */
+		diaryCount?: number;
+		/** Some entry is new for the reader: a dot on the diary tab. */
+		diaryNew?: boolean;
+		/** Called whenever the diary tab is chosen. */
+		ondiaryopen?: () => void;
 	} = $props();
+
+	const tabClass =
+		'-mb-px inline-flex items-baseline gap-[7px] border-b-2 border-transparent pb-2.5 font-display text-card font-medium whitespace-nowrap text-text-muted transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=active]:border-text data-[state=active]:text-text md:text-heading';
 
 	// One store per recipe: `$derived` re-creates it when `recipe` changes (a
 	// caller reusing this component for another recipe), reading that
@@ -169,7 +188,12 @@
 	</div>
 </div>
 
-<div class="mt-8 grid gap-8 md:mt-10 md:grid-cols-[400px_1fr] md:gap-10">
+<!-- Side by side from 840px, so the method keeps at least 420px for its text and
+     tabs; stacked, the ingredients span the width and IngredientList sets them in
+     two columns from 600px. -->
+<div
+	class="mt-8 grid gap-8 min-[840px]:grid-cols-[minmax(300px,400px)_minmax(420px,1fr)] md:mt-10 md:gap-10"
+>
 	<section>
 		<!-- A contents-sheet leader ties the copy action to the heading of the list it copies. -->
 		<div class="mb-4 flex items-baseline gap-3">
@@ -203,16 +227,57 @@
 			servings={servings.value}
 			baseServings={servings.base}
 			copyable
+			columns
 		/>
 	</section>
 	<section>
-		<h2 class="mb-5 font-display text-heading font-medium">{m.recipe_steps()}</h2>
-		<StepList
-			steps={recipe.steps}
-			groups={recipe.ingredientGroups}
-			servings={servings.value}
-			baseServings={servings.base}
-		/>
+		{#snippet steps()}
+			<StepList
+				steps={recipe.steps}
+				groups={recipe.ingredientGroups}
+				servings={servings.value}
+				baseServings={servings.base}
+			/>
+		{/snippet}
+		{#if diary}
+			<!-- The comments wait behind the method's heading, out of the reading
+			     flow. Both panels stay mounted, so a half-written comment survives
+			     a look at the steps; each recipe opens on its steps. -->
+			<!-- The tabs stand in for the method's heading. -->
+			<h2 class="sr-only">{m.recipe_steps()}</h2>
+			{#key recipe.id}
+				<Tabs.Root value="steps" onValueChange={(value) => value === 'diary' && ondiaryopen?.()}>
+					<Tabs.List class="mb-5.5 flex items-end gap-5 border-b border-border md:gap-7.5">
+						<Tabs.Trigger value="steps" class={tabClass}>{m.recipe_steps()}</Tabs.Trigger>
+						<Tabs.Trigger value="diary" class={tabClass}>
+							{m.diary_title()}
+							{#if diaryCount > 0}
+								<span aria-hidden="true" class="text-card-sm font-normal text-primary italic"
+									>{diaryCount}</span
+								>
+							{/if}
+							<span class="sr-only"
+								>{diaryCount === 0
+									? m.diary_count_none()
+									: diaryCount === 1
+										? m.diary_count_one()
+										: m.diary_count({ count: diaryCount })}</span
+							>
+							{#if diaryNew}
+								<span class="size-[7px] rounded-full bg-primary" aria-hidden="true"></span>
+								<span class="sr-only">{m.diary_new()}</span>
+							{/if}
+						</Tabs.Trigger>
+					</Tabs.List>
+					<!-- Paper gets the method, whichever tab is open. -->
+					<Tabs.Content value="steps" class="print:block">{@render steps()}</Tabs.Content>
+					<Tabs.Content value="diary" class="print:hidden">{@render diary()}</Tabs.Content>
+				</Tabs.Root>
+			{/key}
+		{:else}
+			<h2 class="mb-5 font-display text-heading font-medium">{m.recipe_steps()}</h2>
+			{@render steps()}
+		{/if}
 	</section>
 </div>
 

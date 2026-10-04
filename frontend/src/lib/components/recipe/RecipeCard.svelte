@@ -116,7 +116,12 @@
 			<!-- `relative` lifts the initials out of the link's `::after`, so a
 			     tap reaches their popover instead of opening the recipe. -->
 			<div class="relative">
-				<AuthorInitials createdBy={recipe.createdBy} updatedBy={recipe.updatedBy} anchor={cardEl} />
+				<AuthorInitials
+					createdBy={recipe.createdBy}
+					updatedBy={recipe.updatedBy}
+					anchor={cardEl}
+					fresh={recipe.newComments}
+				/>
 			</div>
 		</div>
 	</div>

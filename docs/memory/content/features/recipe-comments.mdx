@@ -1,0 +1,57 @@
+---
+title: Recipe comments
+description: Per-recipe household conversation behind a tab beside the method, an id watermark per reader for the unread dot, comments that outlive their author
+---
+
+Behind a tab beside the method of every recipe, the household writes down what it learned cooking it: "Capers only at the very end, or they go mushy." Every member reads and writes on every recipe, locked ones included, since a comment is not an edit of the recipe. The UI calls the tab "Comments" ("Kommentare") and one item a "comment" ("Kommentar"), as do the API and the tables; the frontend's component and message names keep `diary` (`KitchenDiary.svelte`, `diary_*`). The rules live as methods on `recipe.Service` in `service/internal/recipe/comment.go`, beside [tasty](/features/tasty) and [favorites](/features/favorites); the operations in `comment_handler.go`. [Data model](/architecture/data-model) owns the tables, [HTTP API](/architecture/api) the routes.
+
+## How it works
+
+**Two tables: the comments and one watermark per reader.** `recipe_comments` (`service/internal/db/migrations/0014_recipe_comments.sql`) holds one flat list per recipe, read oldest first by `id`: no replies, no threads. `body` is plain text, `edited_at` is set by an edit and never cleared. `recipe_comment_reads` holds one row per (user, recipe), `last_seen`, the highest comment id that person has seen on that recipe. A comment is new for a reader who follows the recipe (below) when somebody else wrote it and its `id` is above their `last_seen` (or there is no row).
+
+**A body is 1 to 2000 runes of visible plain text.** `NormalizeCommentBody` runs for the API and MCP alike. It refuses control characters other than newline and tab and Unicode format characters (`Cf`: zero-width space, BOM, soft hyphen, bidi overrides), except the zero-width joiner and non-joiner that emoji sequences and some scripts need; those two alone are not content, so a body needs one other non-space rune; plain text leaves nothing to render or sanitize, and a refusal is a `422` with a sentence a person can read.
+
+**Edits stay with their author.** Only the person who wrote a comment edits it, admins included, so nobody's words are changed under their name; the author or any admin deletes one. An edit keeps the id, so it never makes a comment new again. `Comment.canEdit` and `canDelete` carry this per viewer, and `canEdit` is also how the UI knows a comment is the reader's own. The `Comment` schema has no `recipeId`: every route that returns one is reached through its recipe, so the caller already knows it.
+
+**Writing leaves the watermark alone.** `AddComment` only inserts the comment; an own comment is never new because `new` and the dot skip the reader's own `author_id`. A comment somebody else wrote while the reader was typing stays new until a page has shown it. `requireRecipe` runs inside the insert's transaction (`_txlock=immediate`), so a recipe deleted meanwhile is a `404`, not a foreign-key `500`.
+
+**Who gets the dot.** A card's `newComments` is true for a reader who is the recipe's `created_by` or has a comment of their own on it, when some comment by somebody else is above their watermark. `Comments` gives `new` to the same people only: anyone else never sees a comment flagged, so a member opening a recipe for the first time does not find every comment marked new. Participation is "has a comment here", so deleting one's only comment ends it. When an admin removes a member, `user.Service.Delete` hands the member's recipes to the admin and, in the same transaction, raises the admin's watermark on each of them to its newest comment id (`SeeCommentsOfNewOwner`, never lowering one), so the comments from before the handover do not all turn up as new; a comment written afterwards does. `toCards` (`search.go`) asks `newCommentsFor` once per page, beside the favorite and tasty batches: one query, `ListRecipesWithNewComments`, over `json_each` of the page's ids. `AuthorInitials.svelte` draws an 8 px `primary` dot ringed in `surface` on the circles, and its accessible name gains `card_new_entries` ("…, new comments"). No count, no text: the card has no room on a 320 px phone.
+
+**Only opening the comments tab clears it.** `PUT /recipes/{id}/comments/seen` (`MarkCommentsSeen`) takes `{upTo}`, the highest comment id the page loaded, and raises the reader's watermark to it, capped at the recipe's newest comment id so a stale or forged value cannot pre-mark comments not written yet; `upTo` 0 or a recipe without comments write nothing. It needs only `recipes:read`, on purpose: it moves the caller's own watermark and changes nothing anybody else sees, so a read-only token that shows comments can clear them. The detail page calls it the first time the reader opens the comments tab in a visit (`openDiary`, through `RecipeView`'s `ondiaryopen`), with the largest id the load returned (0 for none), so a comment written between the load and the call stays new; the tab's dot goes with that call. Opening the recipe page alone does not clear anything, since it opens on the method: a visit that never opens the tab leaves the dot on the card. `Comments`, the list, never marks: `new` on each comment reflects the state before this visit, so the dots beside the comments stay for the visit that cleared them.
+
+**The frontend.** The detail route's `load` fetches `list-comments` beside the recipe and fails soft to `null`, which hides the comments rather than the recipe. `RecipeView` takes an optional `diary` snippet, and only `routes/recipes/[slug]/+page.svelte` passes it; with it, the steps heading becomes the Bits UI tabs "Method | Comments" ("Zubereitung | Kommentare"), opening on the method every time. `RecipeView` stacks the ingredients above the method below 840 px and sets them side by side from there (ingredients 300-400 px, method at least 420 px), so the method column and its tabs never shrink to a narrow second column; stacked, the ingredients span the full width (two columns from 600 px, see [Cooking](/features/cooking)); both labels fit side by side at 320 px in either language, so the tab has no short form. Both panels stay mounted, so a half-written comment survives a look at the steps, and the comments tab carries the count and the new dot. `KitchenDiary.svelte` groups comments by day (`$lib/recipe/diary.ts`) and holds the composer, whose button is "Send" ("Senden"); `DiaryEntry.svelte` is one bubble, which "Edit" swaps for a prefilled field in place. In `DiaryField.svelte` Enter writes with a fine pointer and breaks the line on a touch-first device, which has no Shift+Enter; Cmd/Ctrl+Enter writes everywhere and an IME's Enter never does, and the hint line naming the keys shows only for a fine pointer.
+
+**MCP reads and writes, as the token owner.** `list_comments` (`recipes:read`) and `add_comment` (`recipes:write`) in `service/internal/mcpserver/tools_comments.go` take a recipe `id` or `slug`; the list names a former member "former member" and does not mark anything seen. There are no edit or delete tools. See [MCP](/features/mcp).
+
+**The demo has a conversation going.** `memberComments` in `service/internal/demo/seed.go` puts comments by Mila and Jonas on samples 0 and 3 (the demo person's own, unseen), a question by the demo person and Jonas's answer on sample 1, and a talk between Mila and Jonas on sample 2 the demo person is not part of - so samples 0, 1 and 3 carry the dot and 2 does not (`TestSeedMembersWriteTheKitchenDiary`). `seedComments`, the end of `SeedMembers`, writes them in the admin's language through the queries `AddComment` uses, in the table's order, oldest first, so ids follow time, dated back over the last week from the demo's clock ([Demo mode](/features/demo-mode)) so the separators show a weekday, "Yesterday" and "Today". `Seed` stamps the samples `sampleAge` (a week) before that clock, so no comment is older than its recipe. It also raises each writer's watermark to their own comment, as if they had the page open while writing (`AddComment` itself leaves it alone), so a member signing in finds only the comments after their own new.
+
+## Why it is this way
+
+**An id watermark, not a timestamp.** Timestamps are RFC 3339 at second precision ([Data model](/architecture/data-model)); a comment written in the second somebody opens the page would be filed as seen. Comparing ids has no such second.
+
+**`AUTOINCREMENT`, unlike every other table's UUID.** The id doubles as the watermark, so it must only grow. Without `AUTOINCREMENT` SQLite hands a deleted newest row's id to the next insert, and that comment would count as already seen. Comment ids are not secret inside the household.
+
+**`ON DELETE SET NULL` for the author, the schema's only one.** A comment is a statement of a person. Recipes of a deleted member move to the acting admin; comments must not be put in the admin's mouth, so they stay and read "Former member". A missing author is an absent `author` key in the API, not `null`: huma cannot mark a `$ref` nullable.
+
+**Seen is its own call.** `GET /recipes/{id}` serves the editor, cook mode and MCP as well as the recipe page; marking there would clear the dot for a page that never showed the comments.
+
+**The list is `GET /comments?recipeId=`.** A `GET` with three segments under `/recipes/{id}/…` collides with `GET /recipes/by-slug/{slug}` in `ServeMux`, the collision described in [Public shares](/features/public-shares). Writing and marking seen are `POST` and `PUT`, which do not collide, and stay under the recipe.
+
+**Comments never leave the household.** The public share page (`/s/[token]`) renders `RecipeView` without the snippet, `ShareCard` never had one, `share.PublicRecipe` has no comments, and the zip export and import carry none. A remark about a recipe is said to the household, not to whoever receives a link or an image.
+
+## Rejected
+
+- **A `comment` package behind an interface.** One implementation, and the rules need the recipe rows `recipe.Service` already reads; tasty and favorites live there for the same reason.
+- **A read row per comment.** Nothing asks which comment somebody has read, only whether anything is newer.
+- **Marking seen inside the recipe GET.** See above; the editor, cook mode and MCP share it.
+- **The comments under the last step.** In the reading flow it pushes the method and the colophon apart; behind a tab it is one tap away and out of the way while cooking.
+- **A drawer or sheet opened from a chip by the title.** It hides the recipe while the comments are read and adds a second place to look on phones.
+- **A "new comments" filter on the list.** The dot is enough at a household's scale.
+- **A count or the writers' faces on the card.** They broke cards at 320 px and fought the tags for the line; one dot on the author's circles says "go look".
+
+## Limits
+
+- No notifications: the dot is the whole signal.
+- No replies, mentions, reactions, markup, images or edit history; an edit only says "edited".
+- A deleted recipe takes its comments and everyone's watermark on it with it (`ON DELETE CASCADE`).
+- Comments are not in the zip export, so moving instances loses them.

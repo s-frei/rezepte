@@ -2,12 +2,32 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { isMobile, prepare, shot } from './helpers';
 
 const DETAIL = '/recipes/shepherd-s-pie';
+/** Room above the comments tabs in its shot: the 64px sticky header plus air. */
+const TAB_GAP = 110;
 
 test('recipe-detail', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(DETAIL);
 	await expect(page.getByRole('heading', { level: 1, name: "Shepherd's Pie" })).toBeVisible();
 	await shot(page, 'recipe-detail');
+});
+
+test('comments', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto(DETAIL);
+	// The demo seeds two comments on Shepherd's Pie, by Mila and Jonas, both
+	// new for the demo person, a week and a day before the frozen clock.
+	// The comments wait behind their tab in the method column.
+	const tab = page.getByRole('tab', { name: /^Comments/ });
+	await tab.click();
+	const comments = page.getByRole('tabpanel', { name: /^Comments/ });
+	await expect(comments.getByText('Yesterday')).toBeVisible();
+	// The tabs a little below the top, clear of the sticky header.
+	await tab.evaluate(
+		(el, gap) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - gap),
+		TAB_GAP
+	);
+	await shot(page, 'comments');
 });
 
 test('lightbox', async ({ page }, testInfo) => {

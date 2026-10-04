@@ -449,6 +449,19 @@ export async function createPublicShare(
 	return (await response.json()) as PublicShare;
 }
 
+/** Writes a comment on a recipe through the API, as the signed-in person. */
+export async function addDiaryEntry(page: Page, recipeId: string, body: string): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.post(`/api/v1/recipes/${recipeId}/comments`, {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { body }
+	});
+	expect(
+		response.status(),
+		`POST /api/v1/recipes/${recipeId}/comments: ${await response.text()}`
+	).toBe(201);
+}
+
 /**
  * Allows or withdraws a person's right to create public links, through the
  * API as the signed-in admin. Withdrawing pauses their existing links -

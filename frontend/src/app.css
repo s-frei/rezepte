@@ -306,6 +306,23 @@
 }
 
 /*
+ * Ruled paper, for the comments' bubbles and its composer: a hairline
+ * every 26px - the entry text's line height - offset so the writing sits on
+ * the lines. The border color, thinned, so it reads on the elevated surface
+ * and on a member's own color alike.
+ */
+@utility diary-paper {
+	background-image: repeating-linear-gradient(
+		to bottom,
+		transparent 0,
+		transparent 25px,
+		color-mix(in oklab, var(--color-border) 70%, transparent) 25px,
+		color-mix(in oklab, var(--color-border) 70%, transparent) 26px
+	);
+	background-position: 0 6px;
+}
+
+/*
  * Every scroll box - the page, a dialog, a sheet, a dropdown - wears a thin
  * thumb in the handle color on no track, instead of the platform's gray bar.
  * Set once here rather than per component, so a new scroll box cannot forget

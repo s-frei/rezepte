@@ -42,6 +42,8 @@ export type RecipeCard = {
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;
+	/** Unseen diary entries the member should notice: they wrote the recipe or an entry on it. */
+	newComments: boolean;
 };
 
 export type Image = { id: string; width: number; height: number; position: number };

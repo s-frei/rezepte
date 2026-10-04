@@ -11,7 +11,8 @@
 	let {
 		createdBy,
 		updatedBy,
-		anchor = null
+		anchor = null,
+		fresh = false
 	}: {
 		createdBy: Person;
 		updatedBy: Person;
@@ -19,6 +20,8 @@
 		 * full width and sits under it, rather than the two small circles
 		 * that trigger it. */
 		anchor?: HTMLElement | null;
+		/** Unseen diary entries: a dot on the circles, and the label says so. */
+		fresh?: boolean;
 	} = $props();
 
 	// One circle per person involved, the author first. A recipe its own
@@ -28,7 +31,11 @@
 	const sameAuthor = $derived(createdBy.id === updatedBy.id);
 	const people = $derived(sameAuthor ? [createdBy] : [createdBy, updatedBy]);
 	const edited = $derived(!sameAuthor);
-	const label = $derived(authorLabel(createdBy, updatedBy));
+	const label = $derived(
+		fresh
+			? m.card_new_entries({ label: authorLabel(createdBy, updatedBy) })
+			: authorLabel(createdBy, updatedBy)
+	);
 	let open = $state(false);
 	// Below `md` the people open in a bottom sheet instead: under a card in a
 	// two-column grid the panel was 153px wide, cut the name and the role off
@@ -51,10 +58,18 @@
 	</div>
 {/snippet}
 
+<!-- The new-entries dot is positioned on the trigger, which is `relative`,
+	so the circles stay its first children with no wrapper around them. -->
 {#snippet circles()}
 	{#each people as person, index (person.id)}
 		<PersonMark {person} size="xs" class="ring-2 ring-surface {index > 0 ? '-ml-1.5' : ''}" />
 	{/each}
+	{#if fresh}
+		<span
+			aria-hidden="true"
+			class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary ring-2 ring-surface"
+		></span>
+	{/if}
 {/snippet}
 
 <!--
@@ -69,7 +84,7 @@
 		type="button"
 		aria-label={label}
 		onclick={() => (open = true)}
-		class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+		class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
 		{@render circles()}
 	</button>
@@ -85,7 +100,7 @@
 			openOnHover
 			openDelay={300}
 			aria-label={label}
-			class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
 			{@render circles()}
 		</Popover.Trigger>

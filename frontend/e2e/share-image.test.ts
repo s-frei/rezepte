@@ -8,6 +8,7 @@ import {
 	type TestInfo
 } from '@playwright/test';
 import {
+	addDiaryEntry,
 	createRecipe,
 	loadFixture,
 	login,
@@ -74,6 +75,7 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 	await noShareSheet(page);
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Plain ${uniqueToken()}` });
+	await addDiaryEntry(page, recipe.id, 'Only for the household.');
 	const chosen = recipe.servings + 1;
 	// The stepper persists its choice per recipe; the card reads it on opening.
 	await page.addInitScript(
@@ -86,6 +88,9 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 	const card = page.locator('[data-testid="share-card"]');
 	await expect(card.getByText(`${chosen} servings`)).toHaveCount(1);
 	await expect(card.locator('img[src*="/images/"]')).toHaveCount(0);
+	// The comments stay in the household.
+	await expect(card.getByRole('tab', { name: /^Comments/ })).toHaveCount(0);
+	await expect(card.getByText('Only for the household.')).toHaveCount(0);
 });
 
 test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {

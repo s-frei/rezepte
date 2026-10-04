@@ -11,12 +11,14 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
+	import { markCommentsSeen } from '$lib/api/comments';
 	import { deleteRecipe } from '$lib/api/recipes';
 	import type { PublicShare } from '$lib/api/shares';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
+	import KitchenDiary from '$lib/components/recipe/KitchenDiary.svelte';
 	import FavoriteStar from '$lib/components/recipe/FavoriteStar.svelte';
 	import PublicShareDialog from '$lib/components/recipe/PublicShareDialog.svelte';
 	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
@@ -86,6 +88,21 @@
 		Boolean(settings?.publicShares) && Boolean(session.user?.canSharePublicly)
 	);
 	const showShareMenuItem = $derived(canCreateShare || share !== null);
+
+	// The recipe's comments, here rather than in `KitchenDiary` so the
+	// tab can count them. Writable deriveds: a new load reseeds both.
+	let diaryEntries = $derived(data.comments ?? []);
+	// Opening the tab marks what was loaded as seen, once a visit: an entry
+	// written since the load stays new. The entries keep their New flags for
+	// this visit; only the tab's dot goes.
+	let diarySeen = $derived(data.comments === null);
+
+	function openDiary() {
+		if (diarySeen) return;
+		diarySeen = true;
+		const newest = data.comments?.at(-1)?.id;
+		if (newest) markCommentsSeen(recipe.id, newest).catch(() => {});
+	}
 
 	let deleteOpen = $state(false);
 	let lightboxOpen = $state(false);
@@ -326,8 +343,20 @@
 		</DropdownMenu.Root>
 	</div>
 
+	<!-- Without the entries (their load failed) the steps keep a plain heading. -->
+	{#snippet diary()}
+		<!-- RecipeView keys the tabs, and so this, on the recipe. -->
+		<KitchenDiary recipeId={recipe.id} bind:entries={diaryEntries} />
+	{/snippet}
 	<article class="pt-6 md:pt-10">
-		<RecipeView {recipe} onopenimage={openLightbox}>
+		<RecipeView
+			{recipe}
+			onopenimage={openLightbox}
+			diaryCount={diaryEntries.length}
+			diaryNew={!diarySeen && diaryEntries.some((e) => e.new)}
+			diary={data.comments ? diary : undefined}
+			ondiaryopen={openDiary}
+		>
 			{#snippet byline()}
 				<!-- Star and heart sit under the title, outside any link, and this
 				     is where a phone sets both: its cards leave the photo to the
