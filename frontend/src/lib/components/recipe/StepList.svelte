@@ -24,7 +24,9 @@
 			>
 				{index + 1}
 			</span>
-			<p class="pt-1 text-[16px] leading-[1.6] text-text">
+			<!-- A step reads in one sweep: the measure stops near 68 characters
+			     however wide the method column grows. -->
+			<p class="max-w-[68ch] pt-1 text-[16px] leading-[1.6] text-text">
 				<StepText {step} {groups} {servings} {baseServings} />
 			</p>
 		</li>

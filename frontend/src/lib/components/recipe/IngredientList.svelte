@@ -5,6 +5,7 @@
 	import { ingredientKey } from '$lib/recipe/checked';
 	import { isChecked, toggle } from '$lib/recipe/checked.svelte';
 	import { formatFactor, formatServings } from '$lib/recipe/format';
+	import { MIN_ROWS, splitColumns, type ColumnPart } from '$lib/recipe/ingredient-columns';
 	import { shoppingList } from '$lib/recipe/ingredient-text';
 	import { formatQuantityFor } from '$lib/recipe/scale';
 	import { copyText } from '$lib/recipe/share.svelte';
@@ -16,7 +17,8 @@
 		groups,
 		servings,
 		baseServings,
-		copyable = false
+		copyable = false,
+		columns: split = false
 	}: {
 		recipeId: string;
 		groups: IngredientGroup[];
@@ -26,11 +28,23 @@
 		baseServings: number;
 		/** Ends the card in a tear-off shopping list. */
 		copyable?: boolean;
+		/** Two columns on a tablet, where the stacked recipe spans the page. */
+		columns?: boolean;
 	} = $props();
 
 	const uid = $props.id();
 	let slipIcon = $state<CopyIcon>();
 	const scaled = $derived(servings !== baseServings);
+	const columns = $derived(splitColumns(groups, split ? MIN_ROWS : Infinity));
+	const twoUp = $derived(columns[1].length > 0);
+	// A divider under every row but a group's last; a group broken across the
+	// columns keeps it under the left column's last row only while they stack.
+	const rowRule = (part: ColumnPart, index: number) =>
+		index === groups[part.group].ingredients.length - 1
+			? ''
+			: index === part.to - 1
+				? 'border-b min-[600px]:max-[840px]:border-b-0'
+				: 'border-b';
 	const checkedAt = (g: number, i: number) => isChecked(ingredientKey(recipeId, g, i));
 	const total = $derived(groups.reduce((sum, group) => sum + group.ingredients.length, 0));
 	const open = $derived(
@@ -43,58 +57,87 @@
 
 <div class="rounded-2xl bg-surface px-6 pt-[22px] pb-2.5">
 	{#if scaled}
-		<p class="mb-3 text-caption font-medium text-text-muted">
+		<!-- A group heading starts its column without a top margin, so the hint keeps the gap. -->
+		<p class="text-caption font-medium text-text-muted {groups[0]?.name ? 'mb-5' : 'mb-3'}">
 			{m.servings_scaled_hint({
 				servings: formatServings(servings),
 				factor: formatFactor(baseServings, servings)
 			})}
 		</p>
 	{/if}
-	{#each groups as group, groupIndex (groupIndex)}
-		{#if group.name}
-			<h3 class="mt-5 mb-2 font-display text-[16px] font-medium text-primary italic first:mt-0">
-				{group.name}
-			</h3>
-		{/if}
-		<ul>
-			{#each group.ingredients as ingredient, ingredientIndex (ingredientIndex)}
-				{@const key = ingredientKey(recipeId, groupIndex, ingredientIndex)}
-				{@const rowChecked = isChecked(key)}
-				<li
-					class="grid min-h-11 grid-cols-[22px_70px_1fr] items-center gap-2 border-b border-dashed border-border py-2 last:border-b-0 md:min-h-10"
+	{#snippet column(parts: ColumnPart[], right: boolean)}
+		{#each parts as part (part.group)}
+			{@const group = groups[part.group]}
+			{@const groupIndex = part.group}
+			{#if part.heading}
+				<h3
+					class="mt-5 mb-2 font-display text-[16px] font-medium text-primary italic {right
+						? 'min-[600px]:max-[840px]:first:mt-0'
+						: 'first:mt-0'}"
 				>
-					<Checkbox.Root
-						checked={rowChecked}
-						onCheckedChange={() => toggle(key)}
-						aria-label={ingredient.name}
-						class="flex size-5 items-center justify-center rounded-full border-[1.5px] border-handle transition data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+					{group.name}
+				</h3>
+			{/if}
+			<ul>
+				{#each group.ingredients.slice(part.from, part.to) as ingredient, i (i)}
+					{@const ingredientIndex = part.from + i}
+					{@const key = ingredientKey(recipeId, groupIndex, ingredientIndex)}
+					{@const rowChecked = isChecked(key)}
+					<li
+						class="grid min-h-11 grid-cols-[22px_70px_1fr] items-center gap-2 border-dashed border-border py-2 md:min-h-10 {rowRule(
+							part,
+							ingredientIndex
+						)}"
 					>
-						{#snippet children({ checked: isRowChecked })}
-							{#if isRowChecked}
-								<Check class="size-3 text-primary-foreground" aria-hidden="true" />
-							{/if}
-						{/snippet}
-					</Checkbox.Root>
-					<span
-						class="text-body-sm font-semibold tabular-nums {rowChecked
-							? 'text-text-muted line-through'
-							: 'text-text'}"
-					>
-						{formatQuantityFor(ingredient.quantity, baseServings, servings)}
-						{ingredient.unit ?? ''}
-					</span>
-					<span>
-						<span class="text-body {rowChecked ? 'text-text-muted line-through' : 'text-text'}">
-							{ingredient.name}
+						<Checkbox.Root
+							checked={rowChecked}
+							onCheckedChange={() => toggle(key)}
+							aria-label={ingredient.name}
+							class="flex size-5 items-center justify-center rounded-full border-[1.5px] border-handle transition data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+						>
+							{#snippet children({ checked: isRowChecked })}
+								{#if isRowChecked}
+									<Check class="size-3 text-primary-foreground" aria-hidden="true" />
+								{/if}
+							{/snippet}
+						</Checkbox.Root>
+						<span
+							class="text-body-sm font-semibold tabular-nums {rowChecked
+								? 'text-text-muted line-through'
+								: 'text-text'}"
+						>
+							{formatQuantityFor(ingredient.quantity, baseServings, servings)}
+							{ingredient.unit ?? ''}
 						</span>
-						{#if ingredient.note}
-							<span class="ml-1 text-caption text-text-muted">({ingredient.note})</span>
-						{/if}
-					</span>
-				</li>
-			{/each}
-		</ul>
-	{/each}
+						<span>
+							<span class="text-body {rowChecked ? 'text-text-muted line-through' : 'text-text'}">
+								{ingredient.name}
+							</span>
+							{#if ingredient.note}
+								<span class="ml-1 text-caption text-text-muted">({ingredient.note})</span>
+							{/if}
+						</span>
+					</li>
+				{/each}
+			</ul>
+		{/each}
+	{/snippet}
+	<!-- Two columns only on a tablet, where the stacked list spans the full card;
+	     the split lives in splitColumns, so a column never ends on a stray divider. -->
+	<div
+		class="grid {twoUp
+			? 'min-[600px]:max-[840px]:grid-cols-2 min-[600px]:max-[840px]:gap-x-5'
+			: ''}"
+	>
+		<div class="min-w-0">{@render column(columns[0], false)}</div>
+		{#if twoUp}
+			<div
+				class="min-w-0 border-dashed border-border min-[600px]:max-[840px]:border-l min-[600px]:max-[840px]:pl-5"
+			>
+				{@render column(columns[1], true)}
+			</div>
+		{/if}
+	</div>
 	{#if copyable}
 		<!-- One sheet with the list: the notches are page-colored circles centered on the tear line, so card and stub each lose half. -->
 		<div class="relative -mx-6 mt-2.5 -mb-2.5">
