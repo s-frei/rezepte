@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Heart from '@lucide/svelte/icons/heart';
+	import HeartIcon from '$lib/components/icons/HeartIcon.svelte';
 	import { toast } from 'svelte-sonner';
 	import { setTasty } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
@@ -27,6 +28,7 @@
 	} = $props();
 
 	let busy = $state(false);
+	let heart = $state<HeartIcon>();
 	// `$props.id()` only runs as its own top-level declaration.
 	const uid = $props.id();
 	const countId = `${uid}-count`;
@@ -51,6 +53,9 @@
 		const previous = active;
 		active = !active;
 		count += active ? 1 : -1;
+		if (active) {
+			heart?.play();
+		}
 		busy = true;
 		try {
 			await setTasty(id, active);
@@ -107,7 +112,7 @@
 		title={countLabel}
 		class="inline-flex items-center rounded-pill bg-surface font-semibold text-text shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {pill}"
 	>
-		<Heart class={active ? 'fill-primary text-primary' : 'text-text-muted'} aria-hidden="true" />
+		<HeartIcon bind:this={heart} class={active ? 'fill-primary text-primary' : 'text-text-muted'} />
 		{#if count > 0}
 			<span aria-hidden="true">{count}</span>
 		{/if}

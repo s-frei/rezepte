@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
-	import Copy from '@lucide/svelte/icons/copy';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import { toast } from 'svelte-sonner';
 	import { MCP_GUIDE_URL } from '$lib/docs';
 	import { m } from '$lib/paraglide/messages';
@@ -13,7 +13,10 @@
 	async function copyUrl() {
 		await navigator.clipboard.writeText(url);
 		toast.success(m.mcp_url_copied());
+		copyIcon?.play();
 	}
+
+	let copyIcon = $state<CopyIcon>();
 </script>
 
 <section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-mcp">
@@ -29,7 +32,7 @@
 			onclick={() => void copyUrl()}
 			class="inline-flex size-9 shrink-0 items-center justify-center rounded-pill text-text-muted transition hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
-			<Copy aria-hidden="true" class="size-4" />
+			<CopyIcon bind:this={copyIcon} class="size-4" />
 		</button>
 	</div>
 	<!-- Served by the Go binary, not the SPA router, so this is a plain anchor

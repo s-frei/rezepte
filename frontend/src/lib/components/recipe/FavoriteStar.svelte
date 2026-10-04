@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Star from '@lucide/svelte/icons/star';
+	import StarIcon from '$lib/components/icons/StarIcon.svelte';
 	import { toast } from 'svelte-sonner';
 	import { setFavorite } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
@@ -13,6 +13,7 @@
 	} = $props();
 
 	let busy = $state(false);
+	let star = $state<StarIcon>();
 
 	// Optimistic with rollback: the star must feel instant, and a failed
 	// request must not leave a lie on screen. `preventDefault`/`stopPropagation`
@@ -26,6 +27,9 @@
 		}
 		const previous = active;
 		active = !active;
+		if (active) {
+			star?.play();
+		}
 		busy = true;
 		try {
 			await setFavorite(id, active);
@@ -49,8 +53,8 @@
 	aria-label={m.recipe_favorite()}
 	class="inline-flex size-11 items-center justify-center rounded-pill bg-surface shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
 >
-	<Star
+	<StarIcon
+		bind:this={star}
 		class="size-5 {active ? 'fill-primary text-primary' : 'text-text-muted'}"
-		aria-hidden="true"
 	/>
 </button>

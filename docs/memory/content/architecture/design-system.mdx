@@ -159,6 +159,12 @@ The palette is written in three places, and adding or renaming a color means edi
 
 search, plus, minus, link, download, settings, log-out, chevron-left/right/down, x, more-horizontal, share-2, pencil, chef-hat (cooking mode), trash-2, grip-vertical, image-plus, upload, check, clock, flame, sun, moon, monitor, user, key-round, alert-circle, arrow-left/right, zoom-in, globe (public shares).
 
+### Icons that answer
+
+Five icons move, each as its own component in `frontend/src/lib/components/icons/` with Lucide's paths and plain CSS: `HeartIcon` beats twice when a tap marks a recipe tasty, `StarIcon` turns a fifth and springs back when it becomes a favorite, `CopyIcon` slides its sheets together and draws a check once a copy has landed (back after 1.6s), `SendIcon` flies out at the top right and back in from the bottom left when a test mail goes out, and `CircleCheckIcon` draws itself when a success message appears. Every other icon stays still Lucide.
+
+Motion here is an answer to an action, never decoration: the caller plays an icon through its `play()` export (`bind:this`) at the moment the thing happened, so nothing moves on hover, on page load or when a mark is taken back. `CopyIcon` is played only when the copy succeeded, which is why `copyText` resolves to whether the text reached the clipboard. `CircleCheckIcon` needs no call because the message it sits in mounts on success; a message that stays mounted keys the icon on its result to draw it again. Under `prefers-reduced-motion` the state still changes - the heart fills, the check is there - it just does not travel. The icons are `aria-hidden` like the Lucide ones around them; the button carries the name.
+
 ## Logo
 
 The logo is a mascot: a well-used hardcover cookbook that waves with one hand and holds a wooden spoon in the other, a sage-green ribbon bookmark swooshing out of its pages, painted in vintage-cookbook gouache. Its face is friendly with a hint of mischief - one brow a touch higher, a lopsided grin - and grown-up rather than cute: no blush, no sparkle in the eyes. It says what Rezepte is, the household's cookbook, and it belongs to the same family as the demo accounts' ingredient creatures without being one of them: the people are the ingredients, the book is what holds them.
@@ -319,4 +325,6 @@ The user docs wear this palette because end users meet the docs before they meet
 - **A face on the favicon.** At 16 px it is two dark pixels; the book with its ribbon reads better.
 - **A sage or amber box, or a dark box in the dark theme.** Cream is the painting's own ground, so the box and the picture are one surface; a second color would frame the picture instead of holding it.
 - **A drawn mark with a face**, such as a brush-painted onion with a sprout. It reads as clip art, and a face drawn in a few strokes looks either startled or smug.
+- **The `@jis3r/icons` package (movingicons.dev) for animated icons.** It covers only part of the set in use, wraps every icon in a `<div role="img" aria-label>` that a screen reader announces inside an already labelled button (and that is invalid inside a `<button>`), starts on hover of the icon alone rather than the control, and ignores reduced motion. The five components that move are short enough to own.
+- **Animating icons on hover.** On a phone there is no hover, and on a desktop every pass of the pointer sets an icon twitching without anything having happened.
 - **Inline SVG recolored by tokens.** A painting cannot follow a token, and the box makes a dark variant unnecessary.

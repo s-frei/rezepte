@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
-	import Copy from '@lucide/svelte/icons/copy';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import { toast } from 'svelte-sonner';
 	import { fetchApiSummary, fetchVersion } from '$lib/api/spec';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
@@ -41,7 +41,10 @@
 	async function copyBaseUrl() {
 		await navigator.clipboard.writeText(baseUrl);
 		toast.success(m.api_base_url_copied());
+		copyIcon?.play();
 	}
+
+	let copyIcon = $state<CopyIcon>();
 </script>
 
 <section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-api">
@@ -62,7 +65,7 @@
 			onclick={() => void copyBaseUrl()}
 			class="inline-flex size-9 shrink-0 items-center justify-center rounded-pill text-text-muted transition hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
-			<Copy aria-hidden="true" class="size-4" />
+			<CopyIcon bind:this={copyIcon} class="size-4" />
 		</button>
 	</div>
 

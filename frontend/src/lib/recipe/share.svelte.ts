@@ -90,26 +90,28 @@ function copyThroughField(text: string): boolean {
 /**
  * Puts `text` on the clipboard and confirms it with `message`. Where no way
  * of copying works, the toast shows the text itself, so it can still be
- * selected by hand rather than lost without a word.
+ * selected by hand rather than lost without a word. Resolves to whether the
+ * text landed on the clipboard.
  */
-export async function copyText(text: string, message: string): Promise<void> {
+export async function copyText(text: string, message: string): Promise<boolean> {
 	try {
 		if (navigator.clipboard) {
 			await navigator.clipboard.writeText(text);
 			toast.success(message);
-			return;
+			return true;
 		}
 	} catch {
 		// Refused (permission, unfocused page): try the field below.
 	}
 	if (copyThroughField(text)) {
 		toast.success(message);
-		return;
+		return true;
 	}
 	toast(m.copy_unavailable(), { description: text });
+	return false;
 }
 
-export function copyLink(url: string): Promise<void> {
+export function copyLink(url: string): Promise<boolean> {
 	return copyText(url, m.detail_link_copied());
 }
 

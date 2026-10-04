@@ -3,8 +3,8 @@
 </script>
 
 <script lang="ts">
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import Send from '@lucide/svelte/icons/send';
+	import CircleCheckIcon from '$lib/components/icons/CircleCheckIcon.svelte';
+	import SendIcon from '$lib/components/icons/SendIcon.svelte';
 	import { ApiError, isSignedOut } from '$lib/api/client';
 	import { sendTestMail, type MailConfigInput } from '$lib/api/mail';
 	import { session } from '$lib/auth.svelte';
@@ -24,6 +24,7 @@
 
 	let to = $state(session.user?.email ?? '');
 	let sending = $state(false);
+	let sendIcon = $state<SendIcon>();
 	const ready = $derived(!sending && to.trim() !== '');
 
 	async function send() {
@@ -31,6 +32,7 @@
 		const override = config?.();
 		if (override === null) return;
 		sending = true;
+		sendIcon?.play();
 		try {
 			await sendTestMail(to.trim(), override);
 			result = { ok: true, to: to.trim() };
@@ -66,7 +68,7 @@
 			/>
 		</div>
 		<Button variant="secondary" class="h-11" disabled={!ready} onclick={() => void send()}>
-			<Send class="size-4" aria-hidden="true" />
+			<SendIcon bind:this={sendIcon} class="size-4" />
 			{config ? m.settings_mail_test_send_unsaved() : m.settings_mail_test_send()}
 		</Button>
 	</div>
@@ -78,7 +80,10 @@
 				: 'bg-destructive-soft text-destructive'}"
 		>
 			{#if result.ok}
-				<CircleCheck aria-hidden="true" class="mt-0.5 size-4 shrink-0" />
+				<!-- Keyed, so a second test that succeeds draws its check again. -->
+				{#key result}
+					<CircleCheckIcon class="mt-0.5 size-4 shrink-0" />
+				{/key}
 				{config
 					? m.settings_mail_test_sent_unsaved({ to: result.to })
 					: m.settings_mail_test_sent({ to: result.to })}

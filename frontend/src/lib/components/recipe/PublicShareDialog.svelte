@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import Copy from '@lucide/svelte/icons/copy';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '$lib/api/client';
@@ -111,6 +111,8 @@
 			toast.error(m.public_share_revoke_error());
 		}
 	}
+
+	let copyIcon = $state<CopyIcon>();
 </script>
 
 <BaseDialog bind:open>
@@ -136,8 +138,13 @@
 			{/if}
 		</div>
 		<div class="mt-3 flex flex-wrap gap-2">
-			<Button variant="secondary" onclick={() => copyLink(linkUrl)}>
-				<Copy class="size-4" aria-hidden="true" />
+			<Button
+				variant="secondary"
+				onclick={async () => {
+					if (await copyLink(linkUrl)) copyIcon?.play();
+				}}
+			>
+				<CopyIcon bind:this={copyIcon} class="size-4" />
 				{m.public_share_copy()}
 			</Button>
 			{#if canShareSheet}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import Copy from '@lucide/svelte/icons/copy';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
+	import CircleCheckIcon from '$lib/components/icons/CircleCheckIcon.svelte';
 	import Mail from '@lucide/svelte/icons/mail';
 	import { toast } from 'svelte-sonner';
 	import { setupLinkUrl, type SetupLinkInfo } from '$lib/api/users';
@@ -35,10 +35,13 @@
 			if (!navigator.clipboard) throw new Error('clipboard API unavailable');
 			await navigator.clipboard.writeText(url);
 			toast.success(m.setup_link_copied());
+			copyIcon?.play();
 		} catch {
 			toast.error(m.setup_link_copy_error());
 		}
 	}
+
+	let copyIcon = $state<CopyIcon>();
 </script>
 
 <!-- Follows TokenRevealDialog's shape: a title, a hint, a read-only value
@@ -56,7 +59,7 @@
 			role="status"
 			class="mt-4 flex items-start gap-3 rounded-lg bg-success-soft px-4 py-3.5 text-success-foreground"
 		>
-			<CircleCheck aria-hidden="true" class="mt-0.5 size-5 shrink-0" />
+			<CircleCheckIcon class="mt-0.5 size-5 shrink-0" />
 			<div class="min-w-0">
 				<Dialog.Description class="text-body font-semibold break-words">
 					{m.setup_link_sent({ address: link?.mailedTo ?? '' })}
@@ -98,7 +101,7 @@
 			class="[field-sizing:content] min-w-0 flex-1 resize-none bg-transparent font-mono text-body-sm break-all outline-none"
 			onclick={(event) => event.currentTarget.select()}></textarea>
 		<Button variant="ghost" onclick={() => void copy()}>
-			<Copy aria-hidden="true" class="size-4" />
+			<CopyIcon bind:this={copyIcon} class="size-4" />
 			{m.tokens_reveal_copy()}
 		</Button>
 	</div>

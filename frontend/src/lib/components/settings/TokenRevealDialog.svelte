@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog, Tabs } from 'bits-ui';
-	import Copy from '@lucide/svelte/icons/copy';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import { toast } from 'svelte-sonner';
 	import type { TokenScope } from '$lib/api/tokens';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
@@ -23,12 +23,18 @@
 	async function copy() {
 		await navigator.clipboard.writeText(token);
 		toast.success(m.tokens_reveal_copied());
+		tokenIcon?.play();
 	}
 
-	async function copySnippet(value: string) {
+	async function copySnippet(value: string, icon: CopyIcon | undefined) {
 		await navigator.clipboard.writeText(value);
 		toast.success(m.tokens_mcp_copied());
+		icon?.play();
 	}
+
+	let tokenIcon = $state<CopyIcon>();
+	let claudeIcon = $state<CopyIcon>();
+	let jsonIcon = $state<CopyIcon>();
 </script>
 
 <!-- dismissible={false}: the secret is shown once, so only the explicit
@@ -43,7 +49,7 @@
 	<div class="mt-5 flex items-center gap-2 rounded-md bg-surface-elevated p-3">
 		<code class="min-w-0 flex-1 font-mono text-body-sm break-all">{token}</code>
 		<Button variant="ghost" onclick={() => void copy()}>
-			<Copy aria-hidden="true" class="size-4" />
+			<CopyIcon bind:this={tokenIcon} class="size-4" />
 			{m.tokens_reveal_copy()}
 		</Button>
 	</div>
@@ -73,8 +79,8 @@
 				>
 					<pre
 						class="min-w-0 flex-1 overflow-x-auto font-mono text-caption break-all whitespace-pre-wrap">{claudeSnippet}</pre>
-					<Button variant="ghost" onclick={() => void copySnippet(claudeSnippet)}>
-						<Copy aria-hidden="true" class="size-4" />
+					<Button variant="ghost" onclick={() => void copySnippet(claudeSnippet, claudeIcon)}>
+						<CopyIcon bind:this={claudeIcon} class="size-4" />
 						{m.tokens_reveal_copy()}
 					</Button>
 				</Tabs.Content>
@@ -84,8 +90,8 @@
 				>
 					<pre
 						class="min-w-0 flex-1 overflow-x-auto font-mono text-caption break-all whitespace-pre-wrap">{jsonSnippetText}</pre>
-					<Button variant="ghost" onclick={() => void copySnippet(jsonSnippetText)}>
-						<Copy aria-hidden="true" class="size-4" />
+					<Button variant="ghost" onclick={() => void copySnippet(jsonSnippetText, jsonIcon)}>
+						<CopyIcon bind:this={jsonIcon} class="size-4" />
 						{m.tokens_reveal_copy()}
 					</Button>
 				</Tabs.Content>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import Copy from '@lucide/svelte/icons/copy';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import type { PublicShare } from '$lib/api/shares';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -30,6 +30,8 @@
 	async function revoke() {
 		await onrevoke(share);
 	}
+
+	let copyIcon = $state<CopyIcon>();
 </script>
 
 <li
@@ -73,9 +75,11 @@
 		<Button
 			variant="secondary"
 			class="h-11 px-3 text-caption whitespace-nowrap md:h-8"
-			onclick={() => copyLink(url)}
+			onclick={async () => {
+				if (await copyLink(url)) copyIcon?.play();
+			}}
 		>
-			<Copy class="size-4" aria-hidden="true" />
+			<CopyIcon bind:this={copyIcon} class="size-4" />
 			{m.public_share_copy()}
 		</Button>
 		<button

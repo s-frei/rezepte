@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { Checkbox } from 'bits-ui';
 	import Check from '@lucide/svelte/icons/check';
-	import Copy from '@lucide/svelte/icons/copy';
 	import type { IngredientGroup } from '$lib/api/recipes';
 	import { ingredientKey } from '$lib/recipe/checked';
 	import { isChecked, toggle } from '$lib/recipe/checked.svelte';
@@ -9,6 +8,7 @@
 	import { shoppingList } from '$lib/recipe/ingredient-text';
 	import { formatQuantityFor } from '$lib/recipe/scale';
 	import { copyText } from '$lib/recipe/share.svelte';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -29,6 +29,7 @@
 	} = $props();
 
 	const uid = $props.id();
+	let slipIcon = $state<CopyIcon>();
 	const scaled = $derived(servings !== baseServings);
 	const checkedAt = (g: number, i: number) => isChecked(ingredientKey(recipeId, g, i));
 	const total = $derived(groups.reduce((sum, group) => sum + group.ingredients.length, 0));
@@ -114,11 +115,16 @@
 				disabled={open === 0}
 				aria-label={m.ingredients_slip_copy()}
 				aria-describedby="{uid}-slip"
-				onclick={() =>
-					copyText(
-						shoppingList(groups, baseServings, servings, checkedAt),
-						m.ingredients_slip_copied()
-					)}
+				onclick={async () => {
+					if (
+						await copyText(
+							shoppingList(groups, baseServings, servings, checkedAt),
+							m.ingredients_slip_copied()
+						)
+					) {
+						slipIcon?.play();
+					}
+				}}
 				class="flex w-full items-center gap-4 rounded-b-2xl px-6 pt-4 pb-5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
 			>
 				<span class="min-w-0 flex-1">
@@ -135,7 +141,7 @@
 					<span
 						class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition active:scale-[.96]"
 					>
-						<Copy class="size-[18px]" aria-hidden="true" />
+						<CopyIcon bind:this={slipIcon} class="size-[18px]" />
 					</span>
 				{/if}
 			</button>

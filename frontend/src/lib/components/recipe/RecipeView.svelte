@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import Copy from '@lucide/svelte/icons/copy';
 	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import ImageGallery from './ImageGallery.svelte';
@@ -13,6 +12,7 @@
 	import { fullList } from '$lib/recipe/ingredient-text';
 	import { createServings } from '$lib/recipe/servings.svelte';
 	import { copyText } from '$lib/recipe/share.svelte';
+	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -54,6 +54,7 @@
 	// recipe's stored choice. Mutations go through `servings.set()`, not this
 	// binding.
 	const servings = $derived(createServings(recipe.id, recipe.servings));
+	let copyIcon = $state<CopyIcon>();
 </script>
 
 <div class="mb-6 h-[260px] overflow-hidden rounded-3xl bg-surface p-3 md:hidden">
@@ -180,14 +181,19 @@
 			<button
 				type="button"
 				aria-label={m.ingredients_copy_all()}
-				onclick={() =>
-					copyText(
-						fullList(recipe.ingredientGroups, servings.base, servings.value),
-						m.ingredients_copied()
-					)}
+				onclick={async () => {
+					if (
+						await copyText(
+							fullList(recipe.ingredientGroups, servings.base, servings.value),
+							m.ingredients_copied()
+						)
+					) {
+						copyIcon?.play();
+					}
+				}}
 				class="inline-flex items-center gap-1.5 font-display text-[16px] font-medium text-primary italic underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
-				<Copy class="size-[15px]" aria-hidden="true" />
+				<CopyIcon bind:this={copyIcon} class="size-[15px]" />
 				{m.ingredients_copy()}
 			</button>
 		</div>
