@@ -152,6 +152,8 @@ func toolError(ctx context.Context, err error) error {
 		return errors.New("only the recipe's author or an admin may delete it")
 	case errors.Is(err, recipe.ErrOwnRecipe):
 		return errors.New("you wrote this recipe: a tasty mark is for somebody else's recipe")
+	case errors.Is(err, recipe.ErrInvalidComment):
+		return recipe.ErrInvalidComment
 	case errors.As(err, &ref):
 		return errors.New(ref.Error())
 	default:

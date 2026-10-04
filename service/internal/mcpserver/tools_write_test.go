@@ -30,9 +30,9 @@ func TestToolListsPerScope(t *testing.T) {
 		scopes []string
 		want   int
 	}{
-		{[]string{auth.ScopeRecipesRead}, 3},
-		{[]string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, 9},
-		{full, 10},
+		{[]string{auth.ScopeRecipesRead}, 4},
+		{[]string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, 11},
+		{full, 12},
 	}
 	for _, tc := range cases {
 		if got := toolNames(t, e.connect(t, tc.scopes...)); len(got) != tc.want {
@@ -217,8 +217,8 @@ func TestToolsAreClosedWorld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 10 {
-		t.Fatalf("%d tools, want 10", len(res.Tools))
+	if len(res.Tools) != 12 {
+		t.Fatalf("%d tools, want 12", len(res.Tools))
 	}
 	for _, tl := range res.Tools {
 		if a := tl.Annotations; a == nil || a.OpenWorldHint == nil || *a.OpenWorldHint {

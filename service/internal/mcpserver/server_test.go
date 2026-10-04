@@ -43,7 +43,7 @@ func TestReadTokenListsReadTools(t *testing.T) {
 	e := newEnv(t)
 	got := toolNames(t, e.connect(t, auth.ScopeRecipesRead))
 	slices.Sort(got)
-	want := []string{"get_recipe", "list_tags", "search_recipes"}
+	want := []string{"get_recipe", "list_comments", "list_tags", "search_recipes"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("tools = %v, want %v", got, want)
 	}

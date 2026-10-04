@@ -87,7 +87,7 @@ func TestOlderProtocolHandshake(t *testing.T) {
 				names = append(names, tl.Name)
 			}
 			slices.Sort(names)
-			if want := []string{"get_recipe", "list_tags", "search_recipes"}; !slices.Equal(names, want) {
+			if want := []string{"get_recipe", "list_comments", "list_tags", "search_recipes"}; !slices.Equal(names, want) {
 				t.Fatalf("tools = %v, want %v", names, want)
 			}
 

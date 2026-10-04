@@ -427,8 +427,8 @@ func TestMCPSpeaksTheProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tools.Tools) != 10 {
-		t.Fatalf("%d tools, want 10", len(tools.Tools))
+	if len(tools.Tools) != 12 {
+		t.Fatalf("%d tools, want 12", len(tools.Tools))
 	}
 
 	res, err := cs.CallTool(t.Context(), &mcp.CallToolParams{Name: "create_recipe", Arguments: map[string]any{"recipe": map[string]any{
