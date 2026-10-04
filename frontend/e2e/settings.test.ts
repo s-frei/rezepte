@@ -457,6 +457,77 @@ test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ pag
 	await expect(dialog).toHaveCount(0);
 });
 
+test('the palette stays open while the overview finishes loading', async ({ page }) => {
+	const token = uniqueToken();
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const fixture = loadFixture(3);
+	fixture.title = `Slow list ${token}`;
+	await createRecipe(page, fixture);
+
+	// The overview's list answers only after the palette is open; the
+	// palette's own search (`limit=8`) goes through.
+	let release = () => {};
+	const released = new Promise<void>((resolve) => (release = resolve));
+	let arrived = () => {};
+	const held = new Promise<void>((resolve) => (arrived = resolve));
+	await page.route(
+		(url) => url.pathname === '/api/v1/recipes' && !url.searchParams.has('limit'),
+		async (route) => {
+			arrived();
+			await released;
+			await route.continue();
+		}
+	);
+	await page.goto('/');
+	await held;
+	await page.keyboard.press('Control+k');
+	const dialog = page.getByRole('dialog', { name: 'Command palette' });
+	await expect(dialog).toBeVisible();
+
+	const listed = page.waitForResponse(
+		(response) =>
+			new URL(response.url()).pathname === '/api/v1/recipes' &&
+			!new URL(response.url()).searchParams.has('limit')
+	);
+	release();
+	await listed;
+	await dialog.getByRole('combobox').fill(token);
+	await expect(dialog.getByRole('option', { name: fixture.title })).toBeVisible();
+});
+
+test('the palette stays open when a search it interrupted lands', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	// The search's list answers only after the palette is open, and its URL
+	// differs from the one the palette opened over.
+	let release = () => {};
+	const released = new Promise<void>((resolve) => (release = resolve));
+	let arrived = () => {};
+	const held = new Promise<void>((resolve) => (arrived = resolve));
+	await page.route(
+		(url) => url.pathname === '/api/v1/recipes' && url.searchParams.get('q') === 'soup',
+		async (route) => {
+			arrived();
+			await released;
+			await route.continue();
+		}
+	);
+	await page.getByRole('textbox', { name: 'Search recipes' }).fill('soup');
+	await page.keyboard.press('Enter');
+	await held;
+	await page.keyboard.press('Control+k');
+	const dialog = page.getByRole('dialog', { name: 'Command palette' });
+	await expect(dialog).toBeVisible();
+
+	release();
+	await expect(page).toHaveURL(/q=soup/);
+	// Still there to type into once the navigation has settled.
+	await page.waitForLoadState('networkidle');
+	await dialog.getByRole('combobox').fill('settings');
+	await expect(dialog.getByRole('option').first()).toBeVisible();
+});
+
 test('a member renames themselves and picks a color, and their cards follow', async ({ page }) => {
 	const token = uniqueToken();
 	const username = `col${token}`;

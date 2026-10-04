@@ -85,7 +85,10 @@
 		}
 	});
 
-	afterNavigate(() => {
+	afterNavigate(({ from, to, type }) => {
+		// A page rewriting its own query (the overview's filters, once its
+		// list arrives) has not been left; anything else closes it.
+		if (type === 'goto' && from?.url.pathname === to?.url.pathname) return;
 		palette.open = false;
 	});
 
