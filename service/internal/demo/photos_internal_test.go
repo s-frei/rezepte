@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 
@@ -73,7 +74,7 @@ func TestSeedFallsBackToPlaceholders(t *testing.T) {
 	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, "de", slog.New(slog.DiscardHandler))
+	sum, err := Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, "de", time.Now(), slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}

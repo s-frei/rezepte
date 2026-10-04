@@ -270,18 +270,6 @@ func (s *Service) FillAccess(ctx context.Context, actor user.User, r *Recipe) er
 	return nil
 }
 
-// ResetEdit makes the recipe id read as unedited again: its editor and edit
-// time become its author and creation time. The demo seed calls it once a
-// sample's photos are attached - they belong to writing the sample, and
-// whether their upload ended in a later second than the create would
-// otherwise decide whether the sample shows a "Last edited" line.
-func (s *Service) ResetEdit(ctx context.Context, id string) error {
-	if err := s.q.ResetRecipeEdit(ctx, id); err != nil {
-		return fmt.Errorf("reset edit of recipe %s: %w", id, err)
-	}
-	return nil
-}
-
 // ByID loads a recipe by id. It returns ErrNotFound when no such recipe
 // exists.
 func (s *Service) ByID(ctx context.Context, id string) (Recipe, error) {

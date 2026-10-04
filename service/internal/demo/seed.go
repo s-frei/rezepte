@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/db"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
@@ -97,6 +99,62 @@ var memberRecipes = map[string][]int{
 	"mila":  {2, 10},
 }
 
+// sampleComment is one demo comment on a recipe. author is a
+// username (AdminUser for the demo person); ago places it in the past so the
+// diary shows "today", "yesterday" and a weekday. Sample 0's two are timed
+// for the user docs' frozen 10:30: a weekday and yesterday, both at dinner.
+type sampleComment struct {
+	index  int
+	author string
+	ago    time.Duration
+	text   map[user.Locale]string
+}
+
+// memberComments are the demo's diary entries. Samples 0 and 3 are the
+// admin's own recipes with entries the admin has not seen; on sample 1
+// (Jonas's) the admin asked and Jonas answered, so the admin sees the dot as
+// a participant; sample 2 (Mila's) is a conversation the admin is not part
+// of and shows no dot for them. They are listed oldest first, the order
+// seedComments writes them in, so ids follow time.
+var memberComments = []sampleComment{
+	{0, "mila", 6*24*time.Hour + 14*time.Hour + 50*time.Minute, map[user.Locale]string{
+		"de": "Hab es mit Kartoffeln vom Markt gemacht, die mehligen sind hier wirklich besser.",
+		"en": "Made it with floury potatoes from the market, they really are better here.",
+	}},
+	{1, AdminUser, 4*24*time.Hour + 2*time.Hour, map[user.Locale]string{
+		"de": "Geht das auch ohne Rotwein?",
+		"en": "Does this work without the black pudding?",
+	}},
+	{1, "jonas", 3*24*time.Hour + 20*time.Hour, map[user.Locale]string{
+		"de": "Ja, mit kräftiger Brühe und einem Schuss Essig. Schmeckt anders, aber gut.",
+		"en": "Yes, add an extra sausage and some mushrooms. Different, but good.",
+	}},
+	{2, "jonas", 3 * 24 * time.Hour, map[user.Locale]string{
+		"de": "Die Soße ist mir zu dünn geworden, wie lange lässt du sie einkochen?",
+		"en": "My sauce came out too thin, how long do you reduce it?",
+	}},
+	{3, "jonas", 2*24*time.Hour + 5*time.Hour, map[user.Locale]string{
+		"de": "Doppelte Menge gemacht, nach einem Abend war nichts mehr da.",
+		"en": "Made a double batch, nothing was left after one evening.",
+	}},
+	{2, "mila", 2*24*time.Hour + 4*time.Hour, map[user.Locale]string{
+		"de": "Gut zehn Minuten, bis sie am Löffel hängen bleibt.",
+		"en": "A good ten minutes, until it coats the spoon.",
+	}},
+	{0, "jonas", 14*time.Hour + 45*time.Minute, map[user.Locale]string{
+		"de": "Ich habe die Kapern erst zum Schluss in die Soße gegeben, das gibt den letzten Pfiff.",
+		"en": "Ours needed 10 more minutes in the oven, otherwise the crust stays pale.",
+	}},
+	{3, "mila", 2 * time.Hour, map[user.Locale]string{
+		"de": "Beim nächsten Mal nehme ich etwas weniger Käse, die Röstzwiebeln bringen schon genug Würze mit.",
+		"en": "Next time I'll go lighter on the salt, the malt vinegar adds enough already.",
+	}},
+}
+
+// sampleAge is how long before Summary.Now the samples were written: older
+// than the oldest entry in memberComments, so no entry predates its recipe.
+const sampleAge = 7 * 24 * time.Hour
+
 // lockedSample is the one of Mila's samples she locked, so the lock line
 // shows under a recipe and the editor offers the policy another member
 // cannot change.
@@ -173,6 +231,9 @@ type Summary struct {
 	Members []user.User
 	// Skipped is true when the recipes table was not empty; nothing was written.
 	Skipped bool
+	// Now is the instant the samples were stamped at; SeedMembers dates the
+	// diary entries and the admin's API tokens from it.
+	Now time.Time
 }
 
 // Seed creates the sample recipes in locale's language, owned by the user
@@ -183,7 +244,10 @@ type Summary struct {
 // a sample without photos stays without an image. A set with no photos at
 // all gets a placeholder for each of its first imagedRecipes samples. It is
 // idempotent: a database that already holds recipes is left untouched.
-func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []user.User, locale user.Locale, logger *slog.Logger) (Summary, error) {
+// The samples are stamped sampleAge before now, a minute apart, so the
+// overview's order and the dates a recipe page prints follow now rather than
+// the seeding run.
+func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []user.User, locale user.Locale, now time.Time, logger *slog.Logger) (Summary, error) {
 	recipes := recipe.NewService(conn, imageDir)
 	n, err := recipes.Count(ctx)
 	if err != nil {
@@ -224,11 +288,15 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 		samples[lockedSample].EditPolicy = recipe.PolicyLocked
 	}
 	images := image.NewService(conn, imageDir)
-	sum := Summary{RecipeIDs: make([]string, len(samples)), Members: members}
+	sum := Summary{RecipeIDs: make([]string, len(samples)), Members: members, Now: now}
 	// The overview sorts by updated_at desc: seeding back to front puts the
 	// first sample on top.
 	for i := len(samples) - 1; i >= 0; i-- {
 		a := authors[i]
+		stamp := now.Add(-sampleAge - time.Duration(i)*time.Minute)
+		clock := func() time.Time { return stamp }
+		recipes.SetClock(clock)
+		images.SetClock(clock)
 		r, err := recipes.Create(ctx, a.ID, samples[i])
 		if err != nil {
 			return sum, fmt.Errorf("create sample %q: %w", samples[i].Title, err)
@@ -251,10 +319,6 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 				return sum, fmt.Errorf("upload placeholder for %q: %w", r.Title, err)
 			}
 			sum.Images++
-		}
-		// The uploads moved updated_at; the photos are not an edit.
-		if err := recipes.ResetEdit(ctx, r.ID); err != nil {
-			return sum, err
 		}
 	}
 	logger.Info("demo: sample data seeded", "recipes", sum.Recipes, "images", sum.Images)
@@ -392,8 +456,10 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 // public links in adminShares and memberShares - the admin's as the user
 // named owner, who must be the instance owner, since only the owner
 // switches sharing on, which creating a link needs. It is switched off
-// again once the links exist, so they start out paused. Last it issues
-// that admin the sampleTokens. After a skipped seed it writes nothing.
+// again once the links exist, so they start out paused. The diary entries
+// in memberComments are dated back from sum.Now. Last it issues that admin
+// the sampleTokens, dated from sum.Now too. After a skipped seed it writes
+// nothing.
 func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer string) error {
 	if sum.Skipped {
 		return nil
@@ -456,12 +522,15 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 			}
 		}
 	}
+	if err := seedComments(ctx, conn, sum, admin); err != nil {
+		return err
+	}
 	if sharing {
 		if _, err := instance.SetPublicShares(ctx, admin, false); err != nil {
 			return fmt.Errorf("turn public sharing off: %w", err)
 		}
 	}
-	return issueSampleTokens(ctx, auth.NewTokenService(conn, users), admin, time.Now())
+	return issueSampleTokens(ctx, auth.NewTokenService(conn, users), admin, sum.Now)
 }
 
 // issueSampleTokens issues sampleTokens to admin, each with its clock set to
@@ -504,6 +573,45 @@ func shareSamples(ctx context.Context, shares *share.Service, actor user.User, s
 		days := l.days
 		if _, err := shares.Create(ctx, actor, sum.RecipeIDs[l.index], &days); err != nil {
 			return fmt.Errorf("share sample %d as %s: %w", l.index, actor.Username, err)
+		}
+	}
+	return nil
+}
+
+// seedComments writes memberComments in the admin's locale, oldest first so
+// ids follow time, and raises the author's watermark after each entry as if
+// they had the recipe page open while writing, so a member signing in finds
+// only the entries after their own new.
+func seedComments(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) error {
+	ids := map[string]string{admin.Username: admin.ID}
+	for _, m := range sum.Members {
+		ids[m.Username] = m.ID
+	}
+	q := sqlc.New(conn)
+	for _, c := range memberComments {
+		author := c.author
+		if author == AdminUser {
+			author = admin.Username
+		}
+		authorID, ok := ids[author]
+		if !ok || c.index >= len(sum.RecipeIDs) {
+			continue
+		}
+		text, ok := c.text[admin.Locale]
+		if !ok {
+			text = c.text["en"]
+		}
+		recipeID := sum.RecipeIDs[c.index]
+		id, err := q.InsertComment(ctx, sqlc.InsertCommentParams{
+			RecipeID: recipeID, AuthorID: &authorID, Body: text, CreatedAt: db.FormatTime(sum.Now.Add(-c.ago)),
+		})
+		if err != nil {
+			return fmt.Errorf("seed comment on sample %d: %w", c.index, err)
+		}
+		if err := q.RaiseCommentWatermark(ctx, sqlc.RaiseCommentWatermarkParams{
+			UserID: authorID, RecipeID: recipeID, LastSeen: id,
+		}); err != nil {
+			return fmt.Errorf("seed comment watermark: %w", err)
 		}
 	}
 	return nil

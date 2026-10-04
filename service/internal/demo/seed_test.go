@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,7 +45,7 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
 
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", nil, locale, quiet)
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", nil, locale, time.Now(), quiet)
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
@@ -107,10 +108,10 @@ func TestSeedIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); err != nil {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", time.Now(), quiet); err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet) // "de": Count below expects the German fixture count
+	sum, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", time.Now(), quiet) // "de": Count below expects the German fixture count
 	if err != nil {
 		t.Fatalf("second Seed: %v", err)
 	}
@@ -126,14 +127,14 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	imageDir := filepath.Join(t.TempDir(), "images")
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); !errors.Is(err, demo.ErrNoUsers) {
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", time.Now(), quiet); !errors.Is(err, demo.ErrNoUsers) {
 		t.Fatalf("Seed without users: err = %v, want ErrNoUsers", err)
 	}
 	sam, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "sam", Password: "sam-password", Role: user.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", quiet); err != nil { // "de": the slug below is the German fixture's
+	if _, err := demo.Seed(ctx, conn, imageDir, "demo", nil, "de", time.Now(), quiet); err != nil { // "de": the slug below is the German fixture's
 		t.Fatalf("Seed with fallback owner: %v", err)
 	}
 	r, err := recipe.NewService(conn, "").BySlug(ctx, "flammkuchen")
@@ -160,7 +161,7 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +217,7 @@ func TestSeedMembersLinksJonasToAnIdentityWhenOIDCIsConfigured(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +256,7 @@ func TestMembersFollowTheSeed(t *testing.T) {
 	if _, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, "de", quiet); err != nil {
+	if _, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, "de", time.Now(), quiet); err != nil {
 		t.Fatal(err)
 	}
 	members, err := demo.AddMembers(ctx, conn, "de", quiet)
@@ -331,7 +332,7 @@ func TestMembersLeaveATakenNameAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -365,7 +366,7 @@ func TestMembersWriteSomeSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +434,7 @@ func TestSeedMembersShareSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -489,7 +490,7 @@ func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -551,7 +552,7 @@ func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "en", time.Now(), quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -567,9 +568,84 @@ func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 	}
 }
 
+// TestSeedMembersWriteTheKitchenDiary: the admin has unseen entries on their
+// own samples 0 and 3 and on Jonas's sample 1 (where they asked and he
+// answered), none on Mila's sample 2, and the entries are in the locale and
+// dated back from the reference time.
+func TestSeedMembersWriteTheKitchenDiary(t *testing.T) {
+	const locale user.Locale = "de"
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	admin, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin, Locale: locale})
+	if err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, locale, quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The screenshot task's frozen clock: samples and entries are dated from it.
+	ref := time.Date(2026, 9, 17, 10, 30, 0, 0, time.UTC)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, locale, ref, quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
+		t.Fatal(err)
+	}
+	recipes := recipe.NewService(conn, "")
+	cards, err := recipes.List(ctx, recipe.ListParams{UserID: admin.ID, Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dot := map[string]bool{}
+	for _, c := range cards.Items {
+		dot[c.ID] = c.NewComments
+	}
+	for i, want := range map[int]bool{0: true, 1: true, 2: false, 3: true} {
+		if got := dot[sum.RecipeIDs[i]]; got != want {
+			t.Errorf("sample %d: NewComments = %v, want %v", i, got, want)
+		}
+	}
+	first, err := recipes.ByID(ctx, sum.RecipeIDs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stamp := ref.Add(-7 * 24 * time.Hour); !first.CreatedAt.Equal(stamp) || !first.UpdatedAt.Equal(stamp) {
+		t.Errorf("sample 0 stamped %v / %v, want a week before the reference, %v", first.CreatedAt, first.UpdatedAt, stamp)
+	}
+	for i, id := range sum.RecipeIDs {
+		r, err := recipes.ByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		list, err := recipes.Comments(ctx, admin, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range list {
+			if c.CreatedAt.Before(r.CreatedAt) {
+				t.Errorf("sample %d: entry at %v predates the recipe, %v", i, c.CreatedAt, r.CreatedAt)
+			}
+		}
+	}
+	entries, err := recipes.Comments(ctx, admin, sum.RecipeIDs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) < 2 || !strings.Contains(entries[0].Body, "Kartoffeln") {
+		t.Fatalf("entries on sample 0 = %+v", entries)
+	}
+	if got, want := entries[len(entries)-1].CreatedAt, ref.Add(-14*time.Hour-45*time.Minute); !got.Equal(want) {
+		t.Errorf("newest entry on sample 0 at %v, want %v (14h45m before the reference)", got, want)
+	}
+}
+
 // The admin holds three API tokens from the first start, so the API page's
 // key tags show a running, an open-ended and an expired lifetime rather than
-// the empty list - each in the demo's language.
+// the empty list - each in the demo's language and dated from the reference
+// time.
 func TestSeedMembersIssuesTheAdminsTokens(t *testing.T) {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
@@ -578,10 +654,12 @@ func TestSeedMembersIssuesTheAdminsTokens(t *testing.T) {
 		t.Fatal(err)
 	}
 	members, err := demo.AddMembers(ctx, conn, "de", quiet)
+	// Dated from the reference time, as the screenshot run's are, not from now.
+	ref := time.Date(2026, 9, 17, 10, 30, 0, 0, time.UTC)
 	if err != nil {
 		t.Fatal(err)
 	}
-	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", quiet)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", ref, quiet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,7 +682,7 @@ func TestSeedMembersIssuesTheAdminsTokens(t *testing.T) {
 		switch {
 		case tok.ExpiresAt == nil:
 			open++
-		case tok.ExpiresAt.Before(time.Now()):
+		case tok.ExpiresAt.Before(ref):
 			expired++
 		}
 		if tok.LastUsedAt != nil {

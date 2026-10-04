@@ -2,7 +2,10 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 
 import { DEMO_USER } from "../scripts/demo-user";
 
-export const FIXED_TIME = new Date("2026-09-17T10:30:00");
+// RZP_DEMO_NOW in ../mise.toml: the demo dates its samples, comments and
+// tokens from the same instant, so the days it shows hold in every run. With
+// an offset, so the instant does not depend on the machine's time zone.
+export const FIXED_TIME = new Date("2026-09-17T10:30:00+02:00");
 
 /** True for the Pixel 7 projects. */
 export function isMobile(testInfo: TestInfo): boolean {
@@ -10,10 +13,10 @@ export function isMobile(testInfo: TestInfo): boolean {
 }
 
 /**
- * Fixes the clock, stores the theme matching the project's color scheme
- * (the app reads `rezepte-theme` before first paint and sets `data-theme` on
- * <html>, see frontend/src/app.html) and optionally logs in as the demo
- * admin.
+ * Fixes the clock, keeps the comments unseen, stores the theme
+ * matching the project's color scheme (the app reads `rezepte-theme` before
+ * first paint and sets `data-theme` on <html>, see frontend/src/app.html)
+ * and optionally logs in as the demo admin.
  */
 export async function prepare(
   page: Page,
@@ -22,6 +25,13 @@ export async function prepare(
 ): Promise<void> {
   const theme = testInfo.project.name.endsWith("-dark") ? "dark" : "light";
   await page.clock.setFixedTime(FIXED_TIME);
+  // Opening a recipe marks its comments seen, which takes the dot off
+  // its card. The specs share one demo instance and run in a fixed order, so
+  // a detail shot would decide whether a later overview shot has its dots;
+  // answering the call here keeps every picture as the demo seeds it.
+  await page.route("**/api/v1/recipes/*/comments/seen", (route) =>
+    route.fulfill({ status: 204 }),
+  );
   await page.addInitScript(
     (t) => window.localStorage.setItem("rezepte-theme", t),
     theme,

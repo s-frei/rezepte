@@ -52,6 +52,9 @@ func NewService(conn *sql.DB, dir string) *Service {
 	}
 }
 
+// SetClock overrides the time source. Intended for tests and the demo seed.
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
+
 // Upload decodes the image in r, writes its variants and records it as the
 // last image of recipeID. When the recipe has no cover yet, the new image
 // becomes its cover. actor is recorded as the recipe's editor, since the

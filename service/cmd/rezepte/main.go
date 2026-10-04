@@ -95,6 +95,7 @@ func healthcheck(addr string) error {
 
 func run() error {
 	demoMode := flag.Bool("demo", false, "fill an empty instance with sample recipes and, without REZEPTE_ADMIN_PASSWORD, a demo admin")
+	demoNow := flag.String("demo-now", "", "with -demo, date the samples, their comments and the demo tokens from this RFC 3339 instant instead of now (for reproducible screenshots)")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	probeHealth := flag.Bool("healthcheck", false, "probe this instance's own /healthz and exit non-zero if it does not answer")
 	resetOwner := flag.Bool("reset-superadmin-password", false,
@@ -158,7 +159,13 @@ func run() error {
 	}
 	imageDir := filepath.Join(cfg.DataDir, "images")
 	if *demoMode {
-		if err := seedDemo(ctx, conn, imageDir, cfg, demoDefaults, logger); err != nil {
+		now := time.Now()
+		if *demoNow != "" {
+			if now, err = time.Parse(time.RFC3339, *demoNow); err != nil {
+				return fmt.Errorf("-demo-now: %w", err)
+			}
+		}
+		if err := seedDemo(ctx, conn, imageDir, cfg, demoDefaults, now, logger); err != nil {
 			return err
 		}
 	}
@@ -279,7 +286,8 @@ func resetError(err error, dataDir string) error {
 // know how to log in. demoDefaults
 // tells whether cfg.AdminUser/AdminPassword were replaced with the
 // well-known demo credentials, or came from the operator's configuration.
-func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, logger *slog.Logger) error {
+// now is what the sample comments are dated back from.
+func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, now time.Time, logger *slog.Logger) error {
 	locale := user.Locale(cfg.Locale)
 	password := "from REZEPTE_ADMIN_PASSWORD" //nolint:gosec // G101: log label, not a credential
 	var members []user.User
@@ -293,7 +301,7 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 			return err
 		}
 	}
-	sum, err := demo.Seed(ctx, conn, imageDir, cfg.AdminUser, members, locale, logger)
+	sum, err := demo.Seed(ctx, conn, imageDir, cfg.AdminUser, members, locale, now, logger)
 	if err != nil {
 		return err
 	}

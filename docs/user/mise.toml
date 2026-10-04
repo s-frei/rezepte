@@ -42,7 +42,10 @@ run = [
 # name: the login button and the profile's Sign-in card need only the
 # configuration (discovery runs on the first press), so every shot shows the
 # neutral "Continue with single sign-on" whether or not a provider runs.
-env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_OIDC_ISSUER = "http://localhost:1/unused", REZEPTE_OIDC_CLIENT_ID = "screenshots", REZEPTE_OIDC_NAME = "" }
+# RZP_DEMO_NOW is FIXED_TIME in screenshots/helpers.ts: the demo dates its
+# samples, their comments and its tokens from the instant the browser clock
+# is frozen at.
+env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_NOW = "2026-09-17T10:30:00+02:00", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_OIDC_ISSUER = "http://localhost:1/unused", REZEPTE_OIDC_CLIENT_ID = "screenshots", REZEPTE_OIDC_NAME = "" }
 
 [tasks."brand-assets"]
 description = "Copy the logo, favicon and social preview into the docs site (public/brand, app/)"
@@ -64,4 +67,4 @@ run = "bun run screenshots:audit"
 description = "Report screenshot drift against rezepte --demo (local only)"
 usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files or --grep to check only some screenshots"'
 run = "mise run //:demo -- bunx playwright test{% for a in usage.args %} {{ a | quote }}{% endfor %}"
-env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_OIDC_ISSUER = "http://localhost:1/unused", REZEPTE_OIDC_CLIENT_ID = "screenshots", REZEPTE_OIDC_NAME = "" } # see tasks.screenshots
+env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_NOW = "2026-09-17T10:30:00+02:00", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_OIDC_ISSUER = "http://localhost:1/unused", REZEPTE_OIDC_CLIENT_ID = "screenshots", REZEPTE_OIDC_NAME = "" } # see tasks.screenshots

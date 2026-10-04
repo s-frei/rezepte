@@ -54,12 +54,17 @@ fi
 # language (the screenshot tasks need English) cannot set REZEPTE_LOCALE
 # itself, because this task's own config env - a developer's mise.local.toml
 # included - is applied again on the way in and would override it.
+#
+# RZP_DEMO_NOW, an RFC 3339 instant, dates the samples, their comments and the
+# demo tokens from
+# it instead of from now: the screenshot tasks set it to the browser's frozen
+# clock, so "Today" and "Yesterday" fall on the same comments every run.
 env -u REZEPTE_ADMIN_USER -u REZEPTE_ADMIN_PASSWORD \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_LOG_LEVEL=warn \
 	REZEPTE_LOCALE="${RZP_DEMO_LOCALE:-${REZEPTE_LOCALE:-en}}" \
 	"${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" \
 	"${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" \
-	service/bin/rezepte --demo &
+	service/bin/rezepte --demo ${RZP_DEMO_NOW:+--demo-now="$RZP_DEMO_NOW"} &
 PID=$!
 trap 'rzp_stop "$PID"; rm -f "${jar:-}"' EXIT
 # Seeding twelve recipes and nine placeholder images takes a moment, and the

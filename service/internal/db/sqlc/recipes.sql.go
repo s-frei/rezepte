@@ -912,15 +912,6 @@ func (q *Queries) ListTastyUsers(ctx context.Context, recipeID string) ([]ListTa
 	return items, nil
 }
 
-const resetRecipeEdit = `-- name: ResetRecipeEdit :exec
-UPDATE recipes SET updated_by = created_by, updated_at = created_at WHERE id = ?
-`
-
-func (q *Queries) ResetRecipeEdit(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, resetRecipeEdit, id)
-	return err
-}
-
 const setFavorite = `-- name: SetFavorite :exec
 INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?)
 `
