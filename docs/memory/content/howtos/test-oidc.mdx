@@ -41,4 +41,4 @@ Dex proves the protocol, not every provider's quirks. Before a release, sign in 
 
 A container rather than a fake HTTP server in Go: `service/internal/oidc` already depends on `go-oidc` doing real discovery and JWKS verification against whatever `REZEPTE_OIDC_ISSUER` names, and a hand-rolled stand-in would test that package against a shape no real provider has. Dex speaks the protocol for real, for the cost of a container most contributors already have.
 
-Static passwords with fixed subjects, not a database migration or an admin API call: the two accounts exist the moment the container is up, and a subject that never changes means a test asserting on `(iss, sub)` never has to look one up first.
+Static passwords with fixed subjects, not a database migration or an admin API call: the four accounts exist the moment the container is up, and a subject that never changes means a test asserting on `(iss, sub)` never has to look one up first.

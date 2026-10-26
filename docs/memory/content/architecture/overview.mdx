@@ -64,18 +64,7 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
 
 ## Configuration
 
-<TypeTable
-  type={{
-    REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060' },
-    REZEPTE_DATA_DIR: { description: 'Directory with rezepte.db and images/', type: 'string', default: './data' },
-    REZEPTE_ADMIN_USER: { description: 'Instance owner username (first start only)', type: 'string', default: 'admin' },
-    REZEPTE_ADMIN_PASSWORD: { description: 'Instance owner password (first start, and --reset-superadmin-password)', type: 'string' },
-    REZEPTE_LOG_LEVEL: { description: 'debug, info, warn, error', type: 'string', default: 'info' },
-    REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
-    REZEPTE_LOCALE: { description: 'Interface language of a new account, and the demo sample set', type: 'string', default: 'en' },
-    REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie', type: 'boolean', default: 'false' },
-  }}
-/>
+Every setting is an environment variable read once at startup by `service/internal/config`. The user docs' configuration page (`docs/user/content/getting-started/configuration.mdx`) lists all of them for the people hosting Rezepte and owns the list; `config.go` owns the defaults. The development defaults the tasks set (`REZEPTE_ADDR` from the port offset, the bootstrapped admin password) are in [Run the app locally](/howtos/run-dev).
 
 ## Why it is this way
 

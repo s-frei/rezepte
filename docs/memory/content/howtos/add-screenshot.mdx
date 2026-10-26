@@ -7,7 +7,7 @@ description: A new <Screenshot> name, its spec and its four PNGs
   <Step>
 
     ### Add a test to the matching spec
-    Pick the `docs/user/screenshots/*.spec.ts` file for the area of the app (`auth`, `overview`, `recipes`, `cooking`, `settings`) and add a `test('<name>', …)` using the shared helpers:
+    Pick the `docs/user/screenshots/*.spec.ts` file for the area of the app (`auth`, `overview`, `recipes`, `cooking`, `settings`, `sharing`) and add a `test('<name>', …)` using the shared helpers:
 
     ```ts
     import { prepare, shot } from './helpers';
@@ -38,7 +38,7 @@ description: A new <Screenshot> name, its spec and its four PNGs
     ```bash
     mise run //docs/user:screenshots:audit
     ```
-    Fails if the name has no matching `test()` or an invalid character; warns about missing or unused PNGs. Where a Chromium starts, follow with `mise run //docs/user:screenshots` to render the four PNGs the name now needs (`<name>-desktop-light.png`, `<name>-desktop-dark.png`, `<name>-mobile-light.png`, `<name>-mobile-dark.png`) into `docs/user/public/screenshots/`. Where it does not, `<Screenshot>` shows a placeholder frame until someone with a working browser runs it - see [Documentation sites](/architecture/docs).
+    Fails if the name has no matching `test()` or an invalid character; warns about missing or unused PNGs. Where a Chromium starts, follow with `mise run //docs/user:screenshots -- --grep <name>` to render the four PNGs the name now needs (`<name>-desktop-light.png`, `<name>-desktop-dark.png`, `<name>-mobile-light.png`, `<name>-mobile-dark.png`) into `docs/user/public/screenshots/`. Where it does not, `<Screenshot>` shows a placeholder frame until someone with a working browser runs it - see [Documentation sites](/architecture/docs).
 
   </Step>
 </Steps>

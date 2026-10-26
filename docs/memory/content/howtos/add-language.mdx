@@ -9,7 +9,7 @@ description: A new interface language, end to end
 
 </Callout>
 
-A language is three files: its code in `service/internal/i18n/locales.json`, its catalog in `frontend/messages/`, and its import table in `service/internal/recipeimport/` ([Add an import language](/howtos/add-an-import-language)). Everything else reads that list - see [Languages](/features/languages) for how. The user docs carry the contributor's version of these steps in `docs/user/content/contributing/add-a-language.mdx`; keep the two in step.
+A language is three files: its code in `service/internal/i18n/locales.json`, its catalog in `frontend/messages/`, and its import table in `service/internal/recipeimport/` ([Add an import language](/howtos/add-an-import-language)), plus the mail copy `mise run //service:generate` derives from the catalog. Everything else reads that list - see [Languages](/features/languages) for how. The user docs carry the contributor's version of these steps in `docs/user/content/contributing/add-a-language.mdx`; keep the two in step.
 
 <Steps>
   <Step>
@@ -33,6 +33,12 @@ A language is three files: its code in `service/internal/i18n/locales.json`, its
     Copy `frontend/messages/en.json` to `frontend/messages/<locale>.json` and translate every value, keeping every key and every `{param}` placeholder exactly as it stands. The catalogs are peers, not a source and its translations: `mise run check` fails while any of them is missing a key the others have (`frontend/scripts/message-parity.ts`), and while a listed locale has no catalog at all (`service/internal/i18n/i18n_test.go`).
 
     Do not add a key for the language's own name. The picker gets those from `Intl.DisplayNames`.
+
+  </Step>
+  <Step>
+
+    ### Copy the mail strings
+    Run `mise run //service:generate`: it copies the new catalog's `mail_*` keys into `service/internal/mail/messages/<code>.json`, which the Go service embeds for its mail, and `TestMessagesMatchFrontend` fails until that file exists ([Email](/features/email)). Commit it with the catalog.
 
   </Step>
   <Step>

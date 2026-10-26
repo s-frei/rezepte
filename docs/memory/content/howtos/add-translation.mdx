@@ -28,13 +28,15 @@ description: Paraglide message keys
   <Step>
 
     ### Regenerate
-    Nothing to run by hand: the Vite plugin (`paraglideVitePlugin`, configured in `frontend/vite.config.ts`) regenerates `src/lib/paraglide/*` whenever the dev server starts or the app builds. If a brand-new key doesn't type-check yet, restart the dev server.
+    For the frontend, nothing to run by hand: the Vite plugin (`paraglideVitePlugin`, configured in `frontend/vite.config.ts`) regenerates `src/lib/paraglide/*` whenever the dev server starts or the app builds. If a brand-new key doesn't type-check yet, restart the dev server.
+
+    A `mail_*` key is also mail copy the Go service embeds: run `mise run //service:generate`, which copies every catalog's `mail_*` keys into `service/internal/mail/messages/`, and commit the result - `TestMessagesMatchFrontend` fails on drift ([Email](/features/email)).
 
   </Step>
 </Steps>
 
 <Callout type="info">
 
-  Adding a whole language rather than a key is [Add a language](/howtos/add-language): one line in `service/internal/i18n/locales.json` and a catalog; its own sample recipes are optional.
+  Adding a whole language rather than a key is [Add a language](/howtos/add-language): its code in `service/internal/i18n/locales.json`, a catalog and an import table; its own sample recipes are optional.
 
 </Callout>

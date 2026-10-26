@@ -7,13 +7,13 @@ description: Token classes, Bits UI wrapping, svelte-autofixer
   <Step>
 
     ### Place it
-    A generic, reusable primitive (button, input, dialog, chip, ...) goes in `src/lib/components/ui`. A feature-specific component goes next to the feature it belongs to: `src/lib/components/recipe`, `editor`, `cook`, `nav`, `settings` or `shell`.
+    A generic, reusable primitive (button, input, dialog, chip, ...) goes in `src/lib/components/ui`. A feature-specific component goes next to the feature it belongs to: `src/lib/components/recipe`, `editor`, `cook`, `import`, `nav`, `settings`, `auth` or `shell`; `brand` holds the logo and wordmark, `icons` the icon components that are not plain Lucide imports.
 
   </Step>
   <Step>
 
     ### Wrap a Bits UI primitive when one exists
-    Import the Bits UI part(s) and give the wrapper the same shape as `Button.svelte` or `ConfirmDialog.svelte`: typed `Variant`/`Size` unions for visual variants, props destructured inline in `$props()`, and the caller's `class` appended last in the class string so it can override. For an animated Bits UI part (`Dialog.Overlay`, `Dialog.Content`), use `forceMount` with a `child` snippet that gates the actual markup on `isOpen`, as `ConfirmDialog` and `UserMenu`'s sheet variant do - Bits UI's own unmount does not run svelte transitions.
+    Import the Bits UI part(s) and give the wrapper the same shape as `Button.svelte`: typed `Variant`/`Size` unions for visual variants, props destructured inline in `$props()`, and the caller's `class` appended last in the class string so it can override. A new dialog or sheet wraps `ui/BaseDialog.svelte` or `ui/BottomSheet.svelte` (as `ConfirmDialog` does) rather than Bits UI's `Dialog` directly: they hold the one place where `Dialog.Overlay` and `Dialog.Content` use `forceMount` with a `child` snippet that gates the markup on `isOpen`, because Bits UI's own unmount does not run svelte transitions.
 
   </Step>
   <Step>
@@ -42,8 +42,3 @@ description: Token classes, Bits UI wrapping, svelte-autofixer
 
 </Callout>
 
-<Callout type="info">
-
-  When a change is split across tasks, a control whose target isn't built yet still gets its final button/link placed in the layout - `disabled`, with a "Coming soon" `title` from a `common_coming_soon` message (add it to both catalogs while a control needs it, remove it with the last use) - rather than being left out until the target ships. That keeps the layout stable across the tasks that fill it in.
-
-</Callout>

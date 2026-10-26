@@ -15,7 +15,7 @@ description = "Lint, screenshot audit, README image, hero image, logo copy and O
 run = ["bun run lint", "bun run screenshots:audit", "bun test scripts/readme-images.test.ts scripts/hero-images.test.ts scripts/brand-assets.test.ts scripts/openapi-version.test.ts", "bun run build", "bun run base-path:audit"]
 
 [tasks.openapi]
-description = "Fetch openapi.json from rezepte --demo and regenerate content/api/reference.mdx"
+description = "Fetch openapi.json from rezepte --demo and regenerate content/api/reference/"
 # //:demo brings the binary through its own depends, waits for /healthz and
 # stops the instance afterwards.
 run = ["mise run //:demo -- bun run openapi:fetch", "bun run openapi:generate"]

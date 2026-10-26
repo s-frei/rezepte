@@ -18,7 +18,7 @@ description: One worktree per feature, one port offset per worktree
     mise run worktree:new <name>
     ```
 
-    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml`, under `[vars]`, and printed along with the rest of the port map. `cd` into the new directory and work there.
+    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml`, under `[vars]`, and printed along with the rest of the port map. `cd` into the new directory and run `mise run setup` there before anything else: a fresh worktree has no `node_modules`, and `worktree:new` does not install them.
 
     Run from inside a Herdr pane (`HERDR_ENV=1`), it also opens the worktree as a Herdr workspace labeled `<name>`, linked to the repository's own, without moving focus. With `--move`, the pane that ran the task - usually the agent asked to open the worktree - moves into that workspace in place of the fresh shell, and focus follows it; the agent still has to `cd` into the worktree itself. Without Herdr this step is skipped, and a Herdr failure only warns, because the worktree is already there.
 
@@ -35,17 +35,7 @@ description: One worktree per feature, one port offset per worktree
 
     Prints this worktree's offset and every port derived from it. Run it whenever you need a number for a browser tab, a `curl`, or another tool that needs one spelled out.
 
-    | Service | Port at offset 0 |
-    |---|---|
-    | Go API (`RZP_BACKEND_PORT`) | 8060 |
-    | Vite dev server (`RZP_FRONTEND_PORT`) | 9060 |
-    | Demo instance (`RZP_DEMO_PORT`) | 8070 |
-    | E2E instance (`RZP_E2E_PORT`) | 8050 |
-    | Docs screenshot and OpenAPI instance (`RZP_SCREENSHOTS_PORT`) | 8080 |
-    | Docs memory (`RZP_DOCS_MEMORY_PORT`) | 4000 |
-    | Docs user (`RZP_DOCS_USER_PORT`) | 4001 |
-
-    A worktree at offset *n* adds `n * 100` to each. The main checkout is always offset 0 and keeps exactly these numbers.
+    A worktree at offset *n* adds `n * 100` to each port; the main checkout is always offset 0. The task is the only list of ports - a page that needs a number names the `RZP_*_PORT` variable and the offset-0 default, never a table of its own.
 
     Every instance a task starts for itself has a port of its own, so `mise run e2e` and `mise run //docs/user:screenshots` run while `mise run dev` and `mise run demo` stay up.
 
@@ -114,4 +104,4 @@ description: One worktree per feature, one port offset per worktree
 
 ## If you use the native `git worktree` tool directly
 
-`mise run worktree:new` is the supported path because it names `develop` explicitly as the base branch and assigns the offset for you. The harness's own worktree tool defaults to `origin/main` (the release branch, far behind `develop`) unless `.claude/settings.json` sets `worktree.baseRef` to `head` - and even then, `head` is only correct when you happen to be standing on `develop` already. If you create a worktree any other way, check the base yourself, then run `mise run worktree:new` without a name from inside it: it creates nothing and only writes that worktree's `mise.local.toml` with the lowest free offset. It refuses in the main checkout, which keeps offset 0, and in a worktree that already has a `mise.local.toml`.
+`mise run worktree:new` is the supported path because it names `develop` explicitly as the base branch and assigns the offset for you. The harness's own worktree tool would default to `origin/main` (the release branch, far behind `develop`); `.claude/settings.json` sets `worktree.baseRef` to `head`, which is only correct when you happen to be standing on `develop` already. If you create a worktree any other way, check the base yourself, then run `mise run worktree:new` without a name from inside it: it creates nothing and only writes that worktree's `mise.local.toml` with the lowest free offset. It refuses in the main checkout, which keeps offset 0, and in a worktree that already has a `mise.local.toml`.

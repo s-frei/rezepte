@@ -157,7 +157,7 @@ The palette is written in three places, and adding or renaming a color means edi
 
 ## Icons (Lucide)
 
-search, plus, minus, link, download, settings, log-out, chevron-left/right/down, x, more-horizontal, share-2, pencil, chef-hat (cooking mode), trash-2, grip-vertical, image-plus, upload, check, clock, flame, sun, moon, monitor, user, key-round, alert-circle, arrow-left/right, zoom-in, globe (public shares).
+Every icon is a per-icon import from `@lucide/svelte/icons/<name>`; the imports are the list of icons in use (`grep -rho '@lucide/svelte/icons/[a-z0-9-]*' frontend/src | sort -u`). Before adding one, reuse the icon that already stands for the same action elsewhere - `ellipsis` for a row's menu, `circle-alert` for an error, `chef-hat` for cooking mode. A Lucide icon that has to animate is redrawn as a component in `src/lib/components/icons/` (see below).
 
 ### Icons that answer
 
