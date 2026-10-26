@@ -19,7 +19,7 @@ description: Page, +page.ts load, guard, messages
   <Step>
 
     ### Auth guard
-    Every route is already guarded by the root `+layout.ts`: without a session it calls SvelteKit's `redirect()` to `/login?next=<path>`. Do not add a per-route guard. A page that must open without a session (sign-in, password reset, email confirmation) goes into `authPages` in `src/lib/auth.svelte.ts`; public shares under `/s/` are exempted in the layout itself, before it asks for a session.
+    Every route is already guarded by the root `+layout.ts`: without a session it calls SvelteKit's `redirect()` to `/login?next=<path>`. Do not add a per-route guard. A page that must open without a session (sign-in, password reset, email confirmation) goes into `authPages` in `src/lib/auth.svelte.ts`, which does two things: the root `+layout.ts` lets that exact path through without a session, and `+layout.svelte` renders every path that starts with it bare, without the app shell, for signed-in members too; public shares under `/s/` are exempted in the layout itself, before it asks for a session.
     A route whose own `load` can't find its resource throws `error(404, m.not_found())` (see `loadRecipeBySlug` in `src/lib/recipe/load.ts`) - a 404 is not a redirect.
     An admin-only page adds a `+page.ts` whose `load` does `const { user } = await parent();` and `redirect(302, '/settings')`s when `!isAdminRole(user?.role)`; the API still enforces the role.
 

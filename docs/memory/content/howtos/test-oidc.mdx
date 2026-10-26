@@ -20,7 +20,13 @@ oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - Dex: sign in as demo@, mila
 
 Export that line, or start `mise run dev` with it, to sign in against Dex by hand. `mise run oidc:down` stops it. Both tasks touch only Dex, never Mailpit ([Email](/features/email)).
 
-Four accounts are seeded, passwords by the [development-credential](/conventions/dev-credentials) rule, one per demo household member plus one nobody connects: `demo@example.com` / `demo1234`, `mila@example.com` / `mila1234` and `jonas@example.com` / `jonas1234` name-for-name the accounts [demo mode](/features/demo-mode) seeds, so linking one against the matching demo account is the obvious thing to try by hand; `gast@example.com` / `gast1234` is a Dex identity with no demo account behind it, for the not-connected and setup-link cases. Their Dex subjects are fixed (`userID: demo`, `userID: mila`, `userID: jonas`, `userID: gast`), so a re-rendered config never changes who they are. Linking is manual for demo and mila - sign in as them at Dex from the demo account's profile. jonas is the exception: whenever OIDC is configured, the seed pre-links his demo account to the identity Dex issues for `userID: jonas` on its local connector, so `jonas@example.com` / `jonas1234` signs in right away with nothing connected by hand first. The e2e suite splits the accounts so its two Dex files never race for one identity: `frontend/e2e/oidc.test.ts` (desktop project) signs in as mila and gast, `frontend/e2e/oidc-mobile.test.ts` (mobile project) as jonas; the e2e instance is not a demo, so nothing is pre-linked there.
+Four accounts are seeded, passwords by the [development-credential](/conventions/dev-credentials) rule:
+
+- `demo@example.com` / `demo1234`, `mila@example.com` / `mila1234` and `jonas@example.com` / `jonas1234` match, name for name, the accounts [demo mode](/features/demo-mode) seeds, so linking one to the matching demo account is the obvious thing to try by hand.
+- `gast@example.com` / `gast1234` has no demo account behind it, for the not-connected and setup-link cases.
+- Their Dex subjects are fixed (`userID: demo`, `mila`, `jonas`, `gast`), so a re-rendered config never changes who they are.
+- In the demo, demo and mila connect by hand: sign in at Dex from the demo account's profile. jonas is pre-linked by the seed whenever OIDC is configured, so `jonas@example.com` / `jonas1234` signs in right away ([Demo mode](/features/demo-mode) owns how).
+- The e2e suite splits the accounts so its two Dex files never race for one identity: `frontend/e2e/oidc.test.ts` (desktop project) signs in as mila and gast, `frontend/e2e/oidc-mobile.test.ts` (mobile project) as jonas. The e2e instance is not a demo, so nothing is pre-linked there.
 
 ## Automatic pickup
 
@@ -31,7 +37,7 @@ mise run oidc:up && mise run e2e     # OIDC specs run
 mise run oidc:down && mise run e2e   # OIDC specs skip, the rest is unaffected
 ```
 
-`mise run demo` leaves a caller's own `REZEPTE_OIDC_ISSUER` alone - the user-docs screenshot tasks configure OIDC against an address nothing answers, on purpose, so every screenshot shows the same neutral button whether or not Dex happens to be running.
+With Dex up, `mise run demo` prints which Dex user goes with which demo account. It leaves a caller's own `REZEPTE_OIDC_ISSUER` alone: the user-docs screenshot tasks configure OIDC against an address nothing answers, on purpose, so every screenshot shows the same neutral button whether or not Dex happens to be running. That placeholder still counts as configured, so jonas's pre-linked "Signs in with …" line shows in the pictures too, but nothing behind it answers.
 
 ## Once a release
 

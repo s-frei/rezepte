@@ -5,12 +5,12 @@
 //
 // Deliberately narrow. It cannot tell whether a sentence is true, only whether
 // the things it names still exist, so it catches renames and deletions and
-// nothing else. Prose drift is the writing rules' job (see content/index.mdx),
+// nothing else. Prose drift is the writing rules' job (see content/howtos/update-the-memory.mdx),
 // not this script's.
 //
 // Ports are deliberately NOT checked. Every port in the memory is either a
 // command example carrying a `mise run ports` pointer or, in the writing rules
-// on content/index.mdx, a rejected one named as the reason it is rejected. A
+// on content/howtos/update-the-memory.mdx, a rejected one named as the reason it is rejected. A
 // check would need more exemptions than it has findings.
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
@@ -142,8 +142,8 @@ for (const file of files) {
 		.forEach((line, i) => {
 			const at = `${rel}:${i + 1}`;
 
-			// content/index.mdx states the writing rules by quoting what they forbid.
-			const statesTheRule = rel.endsWith('content/index.mdx');
+			// The writing rules state what they forbid by quoting it.
+			const statesTheRule = rel.endsWith('content/howtos/update-the-memory.mdx');
 
 			for (const rx of MACHINE_INTERNALS) {
 				if (rx.test(line) && !statesTheRule) {
@@ -217,7 +217,7 @@ for (const route of routes) {
 if (problems.length > 0) {
 	console.error(`memory-audit: ${problems.length} problem(s)\n`);
 	for (const p of problems) console.error(`  ${p}`);
-	console.error(`\nSee docs/memory/content/index.mdx for what belongs in the memory.`);
+	console.error(`\nSee docs/memory/content/howtos/update-the-memory.mdx for what belongs in the memory.`);
 	process.exit(1);
 }
 

@@ -23,7 +23,9 @@ description: What to edit and regenerate when a UI or API change lands
     mise run //docs/user:screenshots -- --grep <names>   # the tests that show the changed page
     mise run //docs/user:screenshots                     # all of them
     ```
-    Rewrites the matching PNGs under `docs/user/public/screenshots/` against a `rezepte --demo` of its own on `:8080` (`RZP_SCREENSHOTS_PORT`; offset 0, `mise run ports` for this worktree's number), which runs beside `mise run demo`. If Chromium does not start on your machine, leave the existing PNGs untouched and say so in the commit message - see [Documentation sites](/architecture/docs). `mise run //docs/user:screenshots:check` reports drift (compares without updating) when you want to know whether the committed PNGs are stale without regenerating them. A green check does not prove them current: it passes anything under `maxDiffPixelRatio` (1%), and a word added beside a heading on a 1440x900 page stays below that. After a UI change, regenerate every screenshot that shows the changed page rather than trusting the check. The task then repaints the README images (`assets/readme/`) and the hero scenes (`docs/user/public/heroes/`) from the new PNGs, so those can change in the same run.
+    To find the names, grep the specs for the route: `grep -n "/settings/users" docs/user/screenshots/*.spec.ts` gives the tests that open it. `--grep` is a Playwright pattern and matches part of a name, so `login` also catches `first-login`.
+
+    The task rewrites the matching PNGs under `docs/user/public/screenshots/` against a `rezepte --demo` of its own on `:8080` (`RZP_SCREENSHOTS_PORT`; offset 0, `mise run ports` for this worktree's number), which runs beside `mise run demo`. If Chromium does not start on your machine, leave the existing PNGs untouched and say so in the commit message - see [Documentation sites](/architecture/docs). `mise run //docs/user:screenshots:check` reports drift (compares without updating) when you want to know whether the committed PNGs are stale without regenerating them. A green check does not prove them current: it passes anything under `maxDiffPixelRatio` (1%), and a word added beside a heading on a 1440x900 page stays below that. After a UI change, regenerate every screenshot that shows the changed page rather than trusting the check. The task then repaints the README images (`assets/readme/`) and the hero scenes (`docs/user/public/heroes/`) from the new PNGs, so those can change in the same run.
 
   </Step>
   <Step>
@@ -38,7 +40,7 @@ description: What to edit and regenerate when a UI or API change lands
   <Step>
 
     ### Review changed PNGs
-    Read the changed files under `docs/user/public/screenshots/`, `docs/user/public/heroes/` and `assets/readme/` with the Read tool (agents: this is how you check a screenshot - never a browser extension, see [Verify UI with Playwright](/howtos/verify-ui)) and compare against the design system before committing.
+    Read the changed files under `docs/user/public/screenshots/`, `docs/user/public/heroes/` and `assets/readme/` with the Read tool (agents: this is how you check a screenshot - never a browser extension, see [Verify UI with Playwright](/howtos/verify-ui)) and compare against the design system before committing. The screenshot suite retries a test once (the reason is in `docs/user/playwright.config.ts`) and loses one more often while another worktree's e2e runs, so a PNG can change for no reason of yours - read each diff rather than committing the batch.
 
   </Step>
   <Step>

@@ -18,7 +18,7 @@ description: One worktree per feature, one port offset per worktree
     mise run worktree:new <name>
     ```
 
-    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml`, under `[vars]`, and printed along with the rest of the port map. `cd` into the new directory and run `mise run setup` there before anything else: a fresh worktree has no `node_modules`, and `worktree:new` does not install them.
+    Creates `.claude/worktrees/<name>`, branched off `develop` as `feat/<name>`, and assigns it the lowest port offset not already in use by another live worktree (1-9). The offset is written to that worktree's `mise.local.toml`, under `[vars]`, and printed along with the rest of the port map. `cd` into the new directory and run `mise run setup` there before anything else: a fresh worktree has no `node_modules`, and `worktree:new` does not install them. Its first `mise run check` reuses the main checkout's Go test results but lints and builds the frontend and docs cold ([Testing](/conventions/testing)).
 
     Run from inside a Herdr pane (`HERDR_ENV=1`), it also opens the worktree as a Herdr workspace labeled `<name>`, linked to the repository's own, without moving focus. With `--move`, the pane that ran the task - usually the agent asked to open the worktree - moves into that workspace in place of the fresh shell, and focus follows it; the agent still has to `cd` into the worktree itself. Without Herdr this step is skipped, and a Herdr failure only warns, because the worktree is already there.
 

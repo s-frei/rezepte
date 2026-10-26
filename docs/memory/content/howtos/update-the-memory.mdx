@@ -5,6 +5,24 @@ description: Which page owns which fact, and how to change it
 
 The memory holds one page per thing that exists. Updating it is therefore not writing a new entry: it is finding the page that owns the fact and rewriting the sentence that is now wrong.
 
+## What belongs here
+
+This memory describes **the repository, not the machine and not the day**.
+
+**Write the present.** Every page says what is true now. When something changes, rewrite the sentence - do not append a correction, do not leave the old claim standing beside the new one, and do not add a date. Git holds what the page said before, and a page that reads as a changelog has stopped being memory. There is one document per thing that exists, never one per event, so the number of pages follows the size of the system rather than the age of the project. Reasoning moves with its subject: why a thing is shaped the way it is, and which alternatives were weighed and refused, live on that thing's page under `## Why it is this way` and `## Rejected`.
+
+**Write the constraint, not the event.** "macOS binds port 5000 system-wide to the AirPlay receiver, which answers every request with 403" is durable: it explains the choice and stops anyone picking 5000 again. "We moved off 5000 on 2026-09-18" is the same fact with a shelf life, and git already records it. So: no dates, no "originally", no "used to", no "for now", no "Phase 2", no "no longer, since", no "not built yet". If a sentence only makes sense to someone who knows what the repository looked like before, rewrite it as the constraint that outlived it. Where a concrete incident is what makes a rule credible, keep it to one sentence and lead with the rule.
+
+**One fact, one owner.** A value written in two places will rot in one of them. Ports, paths, task names and commands are named where they belong and linked from everywhere else - for ports that means `mise run ports`, never a copied number or table. A list a source file already holds - routes, icons, color values, environment variables - is pointed at, not copied.
+
+**Never record one machine's setup.** No absolute paths, usernames, hostnames, or "on the development machine" quirks: this repository is meant to be readable by anyone, on any machine, and it may become public. A workaround that is true only of one laptop belongs in that developer's own notes. Ports named here are the project's own defaults (offset 0), not a fact about anyone's setup.
+
+**Write down what the next agent would rediscover.** A trap you hit, the way a change finally got tested, a gate that passed when it should have failed: if the next agent would have to find it again, it goes into the page that owns it, in the commit that taught it. An agent's private memory is invisible to every other agent and to every other developer; keep only what is about one person and how they like to work there.
+
+**Write for an agent that greps.** Nobody reads the memory end to end. Lead each paragraph with its rule, keep one idea per paragraph, and leave out what the code already shows - the pixel sizes and class lists of a component, the fields of a generated schema.
+
+## How to change it
+
 <Steps>
   <Step>
 
@@ -16,20 +34,6 @@ The memory holds one page per thing that exists. Updating it is therefore not wr
     **What earns a page under `features/`.** A capability earns one when it carries facts no component file states: a contract with the service - an endpoint, a table, files on disk - a rule that has to hold across several places such as the scaling arithmetic, a storage key or an upload limit, or an alternative a competent agent would still propose and that was refused for a reason. Those are what the four sections further down are fillable with.
 
     A capability whose facts are exhausted by how it looks and how its component is written already has an owner: a row or a bullet in [Design system](/architecture/design-system) for the first, a rule in [Svelte conventions](/conventions/svelte) for the second. The command palette, theme switching, the recipe editor and the tag filter are owned that way, and giving one of them a page would split its facts rather than collect them. So ask what a reader who has to change the thing must know that the code does not already say, and write it where that answer already lives.
-
-  </Step>
-  <Step>
-
-    ### Rewrite, do not append
-    Change the sentence that is now wrong. Do not annotate it, do not leave the old claim standing beside the new one, and do not add a date. Git holds what the page said before, and a page that reads as a changelog has stopped being memory.
-
-  </Step>
-  <Step>
-
-    ### Write the constraint, not the event
-    [What belongs here](/) states the rule and pairs one fact written both ways: the constraint names what is true of the system and why a choice stands, and it still reads correctly to someone who never saw the repository before; the same fact written as something that happened has a shelf life, and git already records it.
-
-    So that pairing is the test: write the sentence that is still true for the next reader, not the one that only makes sense to someone who knows what the repository looked like before.
 
   </Step>
   <Step>

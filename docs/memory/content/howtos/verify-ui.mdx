@@ -21,7 +21,7 @@ description: End-to-end tests and screenshots, no browser extensions
 
     The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
-    Add a test per user-facing flow you touch. Log in with the `login` helper from `frontend/e2e/helpers.ts`. It retries a sign-in the login throttle refused on the right password: the throttle counts an attempt when it begins, so the workers of one run signing `admin` in together lock the name until the first of them succeeds, and a spec that hits "Too many failed attempts" with correct credentials is that race, never a lock worth testing.
+    Add a test per user-facing flow you touch, in the `frontend/e2e/<area>.test.ts` file for its area. A change that sends mail runs the suite with `mise run mail:up` first ([Mail](#mail)). Log in with the `login` helper from `frontend/e2e/helpers.ts`. It retries a sign-in the login throttle refused on the right password: the throttle counts an attempt when it begins, so the workers of one run signing `admin` in together lock the name until the first of them succeeds, and a spec that hits "Too many failed attempts" with correct credentials is that race, never a lock worth testing.
 
   </Tab>
   <Tab value="Screenshots">
@@ -130,7 +130,12 @@ Three assertions catch most layout bugs:
 For stacking bugs (something hidden behind a fixed bar), `document.elementFromPoint(x, y)` names the element that actually paints there, and `getComputedStyle` gives you `zIndex`, `position` and `backdropFilter` of both sides.
 
 ## Mail
-A change that sends mail is verified against Mailpit, not against a mocked sender. `mise run mail:up` starts it; `mise run e2e` then hands the suite its address, `frontend/e2e/mail.test.ts` reads the delivered messages through `frontend/e2e/mailpit.ts`, and the inbox is a browser tab at the URL `mail:up` prints, where the HTML part and the plain-text part can be looked at side by side. The demo configures it itself ([Demo mode](/features/demo-mode)). Without Mailpit the mail specs skip, so a green run without it proves nothing about mail.
+A change that sends mail is verified against Mailpit, not against a mocked sender. `docker-compose.test.yaml` runs a pinned Mailpit that accepts any login; `mise run mail:up` and `mail:down` start and stop only it, and its SMTP and inbox ports follow the worktree's offset ([Toolchain](/architecture/toolchain)). The inbox is a browser tab at the URL `mail:up` prints, where the HTML part and the plain-text part can be looked at side by side.
+
+- **e2e:** `mise run e2e` hands the suite `MAILPIT_URL` and `MAILPIT_SMTP_PORT`; `frontend/e2e/mail.test.ts` configures mail through the UI, reads the delivered messages through `frontend/e2e/mailpit.ts`, and skips without Mailpit, the way the OIDC specs skip without Dex. A green run without Mailpit proves nothing about mail.
+- **Demo:** when `rzp_mailpit_up` (`mise/lib/instance.sh`) finds Mailpit and `RZP_DEMO_MAIL` is not `off`, `mise/tasks/demo.sh` signs in as the demo owner after the health check and `PUT`s Mailpit to `/api/v1/settings/mail` (security `none`, from `rezepte@example.com`), only while the instance's mail source is still `none`, and prints the inbox URL; a setup link mailed to `noah`, the demo's invited member, lands there. It is best-effort: a failed call prints "demo: mail not configured" and the demo runs without mail. It never sets `REZEPTE_SMTP_*`, because the environment would lock the mail card the demo exists to click through ([Email](/features/email)).
+- **Public URL:** `demo.sh` sets `REZEPTE_PUBLIC_URL` to the demo's own URL unless the caller did, with or without Mailpit, since a mailed link has to be absolute; without Mailpit the card stays open to a server entered by hand, and an unreachable one shows its error.
+- **Screenshots:** the screenshot and OpenAPI tasks set `RZP_DEMO_MAIL=off`, so the pictures show the unconfigured card whether or not Mailpit runs; the specs that need a configured one configure it themselves.
 
 ## Running a probe
 

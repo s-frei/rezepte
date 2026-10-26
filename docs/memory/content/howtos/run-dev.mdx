@@ -18,7 +18,7 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run dev
     ```
-    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api`, `/images` and `/avatars` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
+    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api`, `/images`, `/avatars` and `/healthz` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
 
     Log in as `admin` / `admin1234` at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree); the task prints the pair as it starts. `REZEPTE_ADMIN_PASSWORD` has no default in the binary - an empty `users` table without it is `ErrAdminPasswordRequired` and the service refuses to start, see [Users and auth](/features/users-and-auth) - so `//service:dev` defaults it to the username with `1234` appended, like every bootstrapped account here ([Development credentials](/conventions/dev-credentials)); a value set in the environment still wins. That password creates the instance owner on the very first start and is read again only by `rezepte --reset-superadmin-password`.
 
@@ -65,7 +65,6 @@ description: Dev servers, builds and the check gate
 
 <Callout type="warn">
 
-  - A stale process holding the port is what makes an e2e run look broken rather than blocked: the binary cannot bind, the other app answers `/healthz`, and every test that logs in fails with "That username or password is wrong." while the rest pass. The task pre-checks the port and says so; `mise run ports` gives this worktree's numbers.
-  - The screenshot suite is flaky by nature - `docs/user/playwright.config.ts` retries once because a run tends to lose a single, different test to a 30s timeout, and running it alongside another worktree's e2e makes that more likely. Read the diff before committing regenerated PNGs. The placeholder frames [Documentation sites](/architecture/docs) describes are for environments without a working Chromium, such as CI.
+  - An e2e run where every test that logs in fails with "That username or password is wrong." means a stale process on the port, not your change - see the trap under [Running a probe](/howtos/verify-ui#running-a-probe).
 
 </Callout>
