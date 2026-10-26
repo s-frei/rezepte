@@ -71,6 +71,24 @@ test('settings-signin', async ({ page }, testInfo) => {
 	await shot(page, 'settings-signin');
 });
 
+// The owner's page for the provider. The demo's stub provider listens on a
+// random port and the redirect URI follows the worktree's port, so both would
+// change between runs: their text is swapped for stable addresses before the
+// shot (docs/memory/content/howtos/test-oidc.mdx).
+test('sign-in-card', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/sign-in');
+	const card = page.getByRole('region', { name: 'Sign-in' });
+	await expect(card.getByText('On', { exact: true })).toBeVisible();
+	await card.locator('span.text-caption').filter({ hasText: /^http:\/\/127\.0\.0\.1:\d+/ }).evaluate((el) => {
+		el.textContent = 'https://auth.example.org';
+	});
+	await card.locator('code').evaluate((el) => {
+		el.textContent = 'https://rezepte.example.org/api/v1/auth/oidc/callback';
+	});
+	await shot(page, 'sign-in-card');
+});
+
 test('api', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/api');

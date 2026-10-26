@@ -3,6 +3,8 @@ title: Single sign-on
 description: Let people sign in with Google or your own identity provider instead of a password
 ---
 
+import { Audience } from '@/components/audience';
+
 Rezepte can offer one OpenID Connect provider next to its own passwords: Google, or one you run yourself such as Authelia, Authentik, Pocket ID, Keycloak or Dex. The login page then shows "Continue with …" under the password form.
 
 ## What it does and what it does not
@@ -12,7 +14,7 @@ Rezepte can offer one OpenID Connect provider next to its own passwords: Google,
 - **One provider per instance.** GitHub, Facebook and other providers that are not OpenID Connect do not work.
 - **Roles stay in Rezepte.** The provider says who somebody is; what they may do is still decided under "People".
 - **Signing out of Rezepte ends the Rezepte session only**, and signing out at the provider does not sign anybody out of Rezepte.
-- **If the provider is down, passwords keep working.** Rezepte starts without contacting it.
+- **If the provider is down, passwords keep working.** Rezepte starts without contacting it; only saving the settings asks the provider, to check the address.
 
 ## Configure it
 
@@ -22,7 +24,19 @@ Register Rezepte at your provider as a web application with this redirect URI:
 https://<your Rezepte address>/api/v1/auth/oidc/callback
 ```
 
-Then set these variables (see [Configuration](/getting-started/configuration)), as plain environment variables or in `docker-compose.yaml`'s `environment:` (see [Docker](/getting-started/docker)):
+You can then tell Rezepte about the provider in two ways. `REZEPTE_PUBLIC_URL` must be set either way: it is the address people open Rezepte at, exactly as in the browser, without a path, and Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider (see [Configuration](/getting-started/configuration)). With an `https://` address, the short-lived cookie that carries a sign-in to the provider and back is only ever sent over HTTPS, whatever `REZEPTE_SECURE_COOKIES` says.
+
+### In Rezepte<Audience role="owner" />
+
+The owner opens **Settings → Sign-in**. The card shows the redirect URI with a "Copy" button, so you can paste it at the provider. "Set up sign-in" asks for the provider's **Issuer URL**, the **Client ID**, the **Client secret** if the provider issued one (leave it empty for a public client), and the **Button name** such as "Google", which the login button then says: "Continue with Google". On "Save", Rezepte checks that an OpenID provider answers at the issuer address, and says so under the field when none does. The change applies at once, without a restart.
+
+<Screenshot name="sign-in-card" caption="The Sign-in card once a provider is set up" />
+
+A saved secret stays when you leave the field empty, but only for the same issuer and client ID; for another provider, type its secret again. "Edit" changes the settings, and "Turn off" removes them, with the secret. Switching or turning off asks first when people are connected: they can no longer sign in with the provider afterwards, and anyone without a password needs a setup link. Their connections stay saved and apply again if you set the same provider up again.
+
+### With environment variables
+
+Set these variables instead, as plain environment variables or in `docker-compose.yaml`'s `environment:` (see [Docker](/getting-started/docker)):
 
 <Tabs items={['Environment variables', 'docker-compose.yaml']}>
   <Tab value="Environment variables">
@@ -53,7 +67,7 @@ Then set these variables (see [Configuration](/getting-started/configuration)), 
   </Tab>
 </Tabs>
 
-`REZEPTE_PUBLIC_URL` is the address people open Rezepte at, exactly as in the browser, without a path. Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider. With an `https://` address, the short-lived cookie that carries a sign-in to the provider and back is only ever sent over HTTPS, whatever `REZEPTE_SECURE_COOKIES` says. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
+The variables win over anything saved in Rezepte and lock the card: it then reads "Set by the server" and cannot be changed there. Change the variables and restart Rezepte instead. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
 
 <Tabs items={['Google', 'Authelia']}>
   <Tab value="Google">
@@ -63,7 +77,7 @@ Then set these variables (see [Configuration](/getting-started/configuration)), 
     1. On the [overview](https://console.cloud.google.com/auth/overview), start the setup: the app name (for example "Rezepte") and your email address.
     2. Under [Audience](https://console.cloud.google.com/auth/audience), choose "External" and press "Publish app". Rezepte asks only for `openid` and `email`, which Google does not review, so publishing needs no verification. A published app lets any Google account reach Rezepte's sign-in, and that is safe: only an account somebody connected gets in (see above). Leaving the app in "Testing" works too, but then only the Google accounts you list as test users can sign in with Google at all.
     3. Under [Clients](https://console.cloud.google.com/auth/clients), create a client of type "Web application" and add `https://<your Rezepte address>/api/v1/auth/oidc/callback` as an authorized redirect URI.
-    4. Copy the client ID and secret into `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_OIDC_CLIENT_SECRET`, set `REZEPTE_OIDC_ISSUER=https://accounts.google.com` and `REZEPTE_OIDC_NAME=Google`, and restart Rezepte.
+    4. Copy the client ID and secret into Settings → Sign-in, with `https://accounts.google.com` as the issuer and "Google" as the button name. With environment variables, set `REZEPTE_OIDC_CLIENT_ID`, `REZEPTE_OIDC_CLIENT_SECRET`, `REZEPTE_OIDC_ISSUER=https://accounts.google.com` and `REZEPTE_OIDC_NAME=Google` and restart Rezepte.
 
   </Tab>
   <Tab value="Authelia">
@@ -86,7 +100,7 @@ Then set these variables (see [Configuration](/getting-started/configuration)), 
       token_endpoint_auth_method: client_secret_basic
     ```
 
-    Then set `REZEPTE_OIDC_ISSUER` to your Authelia address (for example `https://auth.example.org`), `REZEPTE_OIDC_CLIENT_ID=rezepte`, the plain secret in `REZEPTE_OIDC_CLIENT_SECRET`, and `REZEPTE_OIDC_NAME=Authelia`.
+    Then enter your Authelia address (for example `https://auth.example.org`) as the issuer, `rezepte` as the client ID, the plain secret and "Authelia" as the button name in Settings → Sign-in, or set `REZEPTE_OIDC_ISSUER`, `REZEPTE_OIDC_CLIENT_ID=rezepte`, `REZEPTE_OIDC_CLIENT_SECRET` and `REZEPTE_OIDC_NAME=Authelia`.
 
   </Tab>
 </Tabs>

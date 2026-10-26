@@ -33,7 +33,7 @@ If a photo is missing or cannot be loaded, Rezepte shows your initial in your co
 
 <Screenshot name="settings-signin" caption="The Sign-in card, before the account is connected" />
 
-This card is there only when your instance offers sign-in through an identity provider such as Google (see [Single sign-on](/operations/single-sign-on)). "Continue with …" takes you to the provider and back; from then on the same button on the login page signs you in without a password. Once connected, the card says since when, and "Disconnect" undoes it and signs you out on your other devices — but only while your account also has a password, because without one you could no longer sign in at all. Set a password below first.
+This card is there only when your instance offers sign-in through an identity provider such as Google (the owner sets that up under Sign-in below, see [Single sign-on](/operations/single-sign-on)). "Continue with …" takes you to the provider and back; from then on the same button on the login page signs you in without a password. Once connected, the card says since when, and "Disconnect" undoes it and signs you out on your other devices — but only while your account also has a password, because without one you could no longer sign in at all. Set a password below first.
 
 ## Change password
 
@@ -71,6 +71,12 @@ Every signed-in member has a "Shared links" tab: the public links you have creat
 ## Email<Audience role="owner" />
 
 The owner has an "Email" tab under "Household", between "People" and "Import & export", for the mail server Rezepte sends its mail through: setup links, links for a new password and address confirmations — see [Mail](/guide/mail).
+
+## Sign-in page<Audience role="owner" />
+
+The owner has a "Sign-in" tab, next to "Email", for the identity provider people may sign in with instead of a password: Google, or one you run yourself. The card shows the provider and the client, whether sign-in is on, and the redirect URI to register at the provider. "Set up sign-in" and "Edit" open the window for the issuer address, client ID, secret and button name; "Turn off" removes them. When the settings come from environment variables, the stamp reads "Set by the server" and nothing can be changed here. [Single sign-on](/operations/single-sign-on) walks through it.
+
+<Screenshot name="sign-in-card" caption="The Sign-in tab, as the owner sees it" />
 
 ## Import and export<Audience role="admin" />
 
