@@ -11,6 +11,7 @@ description: What to test and how, per package
     - Handler tests build the real server - `httpserver.New` with `auth.Middleware`, the package's `Register` and a `dbtest.Open(t)` database - and drive `srv.Handler()` with `net/http/httptest` requests, so every request passes the same middleware, origin check and validation as in production. Not `humatest`, which would skip the middleware.
     - Test names describe behavior: `TestCreateRecipeRejectsEmptyTitle`.
     - A test that costs seconds calls `t.Parallel()`, as the `demo.Seed` tests in `service/internal/demo/` do: every seed renders all embedded photos, and run one after another they made that package the longest step of `check`. A test that swaps package-level state, such as `photos` in that package, stays serial; Go finishes the serial tests before it starts the parallel ones.
+    - `//service:test` runs `go test -trimpath`: without it the checkout's directory is part of the test cache key, and a new worktree reruns every package instead of reusing the main checkout's results.
 
   </Tab>
   <Tab value="Frontend">

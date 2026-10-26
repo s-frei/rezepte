@@ -22,8 +22,11 @@ watchexec --restart --exts go --ignore 'internal/web/dist/**' -- go run ./cmd/re
 
 [tasks.test]
 description = "Run Go tests"
-usage = 'arg "[args]..." var=#true help="Appended to go test ./...: -run TestName, -v, -count=1 or other test flags"'
-run = "go test ./...{% for a in usage.args %} {{ a | quote }}{% endfor %}"
+# -trimpath keeps the checkout's directory out of the test cache key, so a
+# new worktree reuses the results the main checkout already has instead of
+# rerunning every package.
+usage = 'arg "[args]..." var=#true help="Appended to go test -trimpath ./...: -run TestName, -v, -count=1 or other test flags"'
+run = "go test -trimpath ./...{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 
 [tasks.lint]
 description = "Run golangci-lint"
