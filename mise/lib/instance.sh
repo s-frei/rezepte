@@ -87,22 +87,42 @@ rzp_stop() {
 	return 0
 }
 
-# rzp_oidc_env <public-port>
+# rzp_dex_issuer: this worktree's Dex issuer (mise run oidc:up).
+rzp_dex_issuer() { echo "http://localhost:$RZP_DEX_PORT/dex"; }
+
+# rzp_dex_up: succeeds when Dex answers discovery - the same document saving
+# a provider in the settings reads, not just the port accepting a connection,
+# which a container still starting would too.
+rzp_dex_up() {
+	[ -n "${RZP_DEX_PORT:-}" ] &&
+		curl -fsS "$(rzp_dex_issuer)/.well-known/openid-configuration" >/dev/null 2>&1
+}
+
+# rzp_oidc_configure <port> <jar> [<issuer> <client-id> <secret> <name>]
 #
-# Sets OIDC_ENV (an array, empty when Dex is not running) to the
-# REZEPTE_PUBLIC_URL/REZEPTE_OIDC_* pairs `mise run oidc:up` prints, so
-# //:e2e and //:demo can try OIDC without a developer wiring the four
-# variables by hand. Detected by discovery answering, the same document
-# oidc.Login's own discover() reads - not just the port accepting a
-# connection, which a container still starting would too.
-rzp_oidc_env() {
-	OIDC_ENV=()
-	if curl -fsS "http://localhost:$RZP_DEX_PORT/dex/.well-known/openid-configuration" >/dev/null 2>&1; then
-		OIDC_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$1"
-			REZEPTE_OIDC_ISSUER="http://localhost:$RZP_DEX_PORT/dex"
-			REZEPTE_OIDC_CLIENT_ID=rezepte REZEPTE_OIDC_CLIENT_SECRET=rezepte-test-secret
-			REZEPTE_OIDC_NAME=Dex)
-	fi
+# Saves a sign-in provider through PUT /api/v1/settings/sign-in, as the owner
+# does in Settings, with the session in the cookie jar <jar>; without the last
+# four arguments, Dex with the client `mise run oidc:up` registers. An empty
+# <secret> sends none. Never REZEPTE_OIDC_*: the environment would lock the
+# Sign-in card. A provider already configured (a kept data dir) is left as it
+# is. Fails when a call does.
+rzp_oidc_configure() {
+	local base="http://localhost:$1" jar="$2"
+	local issuer="${3:-$(rzp_dex_issuer)}" client="${4:-rezepte}" secret="${5-rezepte-test-secret}" name="${6-Dex}"
+	local current body
+	current="$(curl -fsS -b "$jar" "$base/api/v1/settings/sign-in")" || return 1
+	case "$current" in *'"source":"none"'*) ;; *) return 0 ;; esac
+	body="{\"issuer\":\"$issuer\",\"clientId\":\"$client\",\"name\":\"$name\"${secret:+,\"clientSecret\":\"$secret\"}}"
+	curl -fsS -b "$jar" -X PUT -H "Origin: $base" -H 'Content-Type: application/json' \
+		-d "$body" "$base/api/v1/settings/sign-in" >/dev/null
+}
+
+# rzp_login <port> <jar> <username> <password>: signs in, keeping the session
+# in the cookie jar <jar>.
+rzp_login() {
+	local base="http://localhost:$1"
+	curl -fsS -c "$2" -H "Origin: $base" -H 'Content-Type: application/json' \
+		-d "{\"username\":\"$3\",\"password\":\"$4\"}" "$base/api/v1/auth/login" >/dev/null
 }
 
 # rzp_mailpit_up: succeeds when this worktree's Mailpit answers.

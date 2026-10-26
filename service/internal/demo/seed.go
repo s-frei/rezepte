@@ -460,8 +460,9 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 }
 
 // SeedMembers issues Invited's open setup link, links demoIdentityMember
-// (jonas) to an identity at issuer when it is non-empty (an operator running
-// the demo without OIDC configured passes ""), marks the samples in
+// (jonas) to an identity at issuer when it is non-empty (the binary's
+// -demo-oidc-issuer flag, which mise/tasks/demo.sh sets for Dex or the
+// screenshots' stub provider; "" otherwise), marks the samples in
 // memberMarks tasty on behalf of the members Seed was given, and creates the
 // public links in adminShares and memberShares - the admin's as the user
 // named owner, who must be the instance owner, since only the owner

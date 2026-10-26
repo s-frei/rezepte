@@ -17,20 +17,20 @@ RZP_PORT_HINT="stop that process, or run with REZEPTE_E2E_PORT=<other>"
 rzp_require_binary e2e
 rzp_require_free_port e2e "$PORT"
 rzp_make_data_dir
-# OIDC specs need the test provider; with Dex up (mise run oidc:up) the
-# instance is configured for it, without it frontend/e2e/oidc.test.ts skips.
-rzp_oidc_env "$PORT"
 # Mail specs need Mailpit (mise run mail:up); without it frontend/e2e/mail.test.ts skips.
-MAIL_ENV=()
 PW_MAIL_ENV=()
 if rzp_mailpit_up; then
-	MAIL_ENV=(REZEPTE_PUBLIC_URL="http://localhost:$PORT")
 	PW_MAIL_ENV=(MAILPIT_URL="http://localhost:$RZP_MAILPIT_UI_PORT" MAILPIT_SMTP_PORT="$RZP_MAILPIT_SMTP_PORT")
 fi
-# "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
-# bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an
-# unbound variable under `set -u`. The `+` form expands to nothing at all
-# when the array is empty instead of touching it.
+# "${PW_MAIL_ENV[@]+"${PW_MAIL_ENV[@]}"}" below, not a bare
+# "${PW_MAIL_ENV[@]}": on bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty
+# array expands to an unbound variable under `set -u`. The `+` form expands
+# to nothing at all when the array is empty instead of touching it.
+#
+# REZEPTE_PUBLIC_URL is always set: mail and sign-in through a provider both
+# need it, and neither is configured through the environment - mail.test.ts
+# saves Mailpit in the settings, and with Dex up this script saves Dex there
+# below, so the Sign-in card stays editable.
 # -u clears REZEPTE_ADMIN_USER so a developer who exports it still gets the
 # `admin` that frontend/e2e/helpers.ts logs in as. The password follows the
 # repository's rule for bootstrapped users, username + 1234
@@ -46,12 +46,21 @@ fi
 # into the suite and flip the language after the first login.
 env -u REZEPTE_ADMIN_USER \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_ADMIN_PASSWORD=admin1234 \
-	REZEPTE_LOCALE=en \
-	"${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" \
-	"${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" \
+	REZEPTE_LOCALE=en REZEPTE_PUBLIC_URL="http://localhost:$PORT" \
 	service/bin/rezepte &
 PID=$!
-trap 'rzp_stop "$PID"' EXIT
+trap 'rzp_stop "$PID"; rm -f "${jar:-}"' EXIT
 rzp_wait_healthz e2e "$PORT" "$PID" 5
+
+# OIDC specs need the test provider; with Dex up (mise run oidc:up) the owner
+# saves it as the instance's provider, without it frontend/e2e/oidc*.test.ts
+# skip. A failure here fails the run rather than skipping them unnoticed.
+if rzp_dex_up; then
+	jar="$(mktemp)"
+	if ! rzp_login "$PORT" "$jar" admin admin1234 || ! rzp_oidc_configure "$PORT" "$jar"; then
+		echo "e2e: Dex answers, but saving it as the sign-in provider failed" >&2
+		exit 1
+	fi
+fi
 
 cd frontend && env "${PW_MAIL_ENV[@]+"${PW_MAIL_ENV[@]}"}" E2E_BASE_URL="http://localhost:$PORT" bun run test:e2e "$@"

@@ -95,6 +95,7 @@ func healthcheck(addr string) error {
 
 func run() error {
 	demoMode := flag.Bool("demo", false, "fill an empty instance with sample recipes and, without REZEPTE_ADMIN_PASSWORD, a demo admin")
+	demoOIDCIssuer := flag.String("demo-oidc-issuer", "", "with -demo, link the demo member jonas to his Dex identity at this issuer; the provider itself is configured through the settings API")
 	demoNow := flag.String("demo-now", "", "with -demo, date the samples, their comments and the demo tokens from this RFC 3339 instant instead of now (for reproducible screenshots)")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	probeHealth := flag.Bool("healthcheck", false, "probe this instance's own /healthz and exit non-zero if it does not answer")
@@ -165,7 +166,7 @@ func run() error {
 				return fmt.Errorf("-demo-now: %w", err)
 			}
 		}
-		if err := seedDemo(ctx, conn, imageDir, cfg, demoDefaults, now, logger); err != nil {
+		if err := seedDemo(ctx, conn, imageDir, cfg, demoDefaults, *demoOIDCIssuer, now, logger); err != nil {
 			return err
 		}
 	}
@@ -291,8 +292,9 @@ func resetError(err error, dataDir string) error {
 // know how to log in. demoDefaults
 // tells whether cfg.AdminUser/AdminPassword were replaced with the
 // well-known demo credentials, or came from the operator's configuration.
+// oidcIssuer is the issuer jonas's identity is linked at, empty for none.
 // now is what the sample comments are dated back from.
-func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, now time.Time, logger *slog.Logger) error {
+func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Config, demoDefaults bool, oidcIssuer string, now time.Time, logger *slog.Logger) error {
 	locale := user.Locale(cfg.Locale)
 	password := "from REZEPTE_ADMIN_PASSWORD" //nolint:gosec // G101: log label, not a credential
 	var members []user.User
@@ -311,7 +313,7 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 		return err
 	}
 	if demoDefaults {
-		if err := demo.SeedMembers(ctx, conn, sum, cfg.AdminUser, cfg.OIDCIssuer); err != nil {
+		if err := demo.SeedMembers(ctx, conn, sum, cfg.AdminUser, oidcIssuer); err != nil {
 			return err
 		}
 		avatars := avatar.NewService(conn, filepath.Join(cfg.DataDir, "avatars"), image.NewService(conn, imageDir))

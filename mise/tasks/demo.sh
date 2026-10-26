@@ -22,17 +22,40 @@ PORT="${RZP_DEMO_INSTANCE_PORT:-$RZP_DEMO_PORT}"
 rzp_require_binary demo
 rzp_require_free_port demo "$PORT"
 rzp_make_data_dir
-# With the test provider up (mise run oidc:up) the demo signs in through it
-# too. A caller that configures OIDC itself - the screenshot task, which needs
-# the same picture whether Dex runs or not - is left alone.
-if [ -n "${REZEPTE_OIDC_ISSUER:-}" ]; then
-	OIDC_ENV=()
-else
-	rzp_oidc_env "$PORT"
-	[ "${#OIDC_ENV[@]}" -gt 0 ] && echo "demo: signing in through Dex is on - sign in as demo@, mila@ or jonas@example.com, password <name>1234"
-fi
-# The public URL is set even without Mailpit: the mail card stays usable, so
-# a server can be entered by hand and an unreachable one shows its error.
+trap 'rzp_stop "${PID:-}"; [ -n "${STUB_PID:-}" ] && kill "$STUB_PID" 2>/dev/null; rm -f "${jar:-}" "${stub_out:-}"' EXIT
+# Sign-in through a provider, by RZP_DEMO_OIDC:
+# - dex (the default): Dex, when it answers (mise run oidc:up);
+# - stub: mise/lib/stub-issuer.ts, a provider that only answers discovery, so
+#   the screenshots show the same configured state whether Dex runs or not;
+# - off: none.
+# Either provider is saved through the settings API after start, like mail
+# below, never REZEPTE_OIDC_*, which would lock the Sign-in card; jonas is
+# linked to his identity there by --demo-oidc-issuer.
+OIDC_ISSUER=""
+case "${RZP_DEMO_OIDC:-dex}" in
+dex) rzp_dex_up && OIDC_ISSUER="$(rzp_dex_issuer)" ;;
+stub)
+	stub_out="$(mktemp)"
+	bun mise/lib/stub-issuer.ts >"$stub_out" &
+	STUB_PID=$!
+	for _ in $(seq 1 50); do
+		[ -s "$stub_out" ] && break
+		sleep 0.1
+	done
+	OIDC_ISSUER="$(head -n 1 "$stub_out")"
+	[ -n "$OIDC_ISSUER" ] || {
+		echo "demo: the stub provider did not start" >&2
+		exit 1
+	}
+	;;
+off) ;;
+*)
+	echo "demo: RZP_DEMO_OIDC is dex, stub or off, not $RZP_DEMO_OIDC" >&2
+	exit 1
+	;;
+esac
+# The public URL is set even without Mailpit or a provider: the mail and
+# sign-in cards stay usable, so a server or provider can be entered by hand.
 # With Mailpit up (mise run mail:up) the demo sends mail into it. Configured
 # through the API after start, into the database - never REZEPTE_SMTP_*,
 # which would lock the mail card the demo is there to click through.
@@ -41,7 +64,7 @@ MAIL_ENV=()
 if [ "${RZP_DEMO_MAIL:-on}" != off ] && rzp_mailpit_up; then
 	DEMO_MAIL=1
 fi
-# "${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" below, not a bare "${OIDC_ENV[@]}": on
+# "${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" below, not a bare "${MAIL_ENV[@]}": on
 # bash < 4.4 (macOS ships 3.2 as /bin/bash) an empty array expands to an
 # unbound variable under `set -u`. The `+` form expands to nothing at all
 # when the array is empty instead of touching it.
@@ -62,22 +85,23 @@ fi
 env -u REZEPTE_ADMIN_USER -u REZEPTE_ADMIN_PASSWORD \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_LOG_LEVEL=warn \
 	REZEPTE_LOCALE="${RZP_DEMO_LOCALE:-${REZEPTE_LOCALE:-en}}" \
-	"${OIDC_ENV[@]+"${OIDC_ENV[@]}"}" \
 	"${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" \
-	service/bin/rezepte --demo ${RZP_DEMO_NOW:+--demo-now="$RZP_DEMO_NOW"} &
+	service/bin/rezepte --demo ${RZP_DEMO_NOW:+--demo-now="$RZP_DEMO_NOW"} \
+	${OIDC_ISSUER:+--demo-oidc-issuer="$OIDC_ISSUER"} &
 PID=$!
-trap 'rzp_stop "$PID"; rm -f "${jar:-}"' EXIT
 # Seeding twelve recipes and nine placeholder images takes a moment, and the
 # server answers only once it is done - hence 30s rather than the 5s an empty
 # instance needs.
 rzp_wait_healthz demo "$PORT" "$PID" 30
 
-# Best-effort: a failed step leaves a demo without mail, never no demo. The
-# cookie jar goes with the EXIT trap.
+# Best-effort: a failed step leaves a demo without mail or sign-in through a
+# provider, never no demo. The cookie jar goes with the EXIT trap.
+if [ "${DEMO_MAIL:-}" = 1 ] || [ -n "$OIDC_ISSUER" ]; then
+	jar="$(mktemp)"
+	rzp_login "$PORT" "$jar" demo demo1234 || echo "demo: could not sign in to configure mail and sign-in" >&2
+fi
 demo_mail() {
 	local base="http://localhost:$PORT" current
-	curl -fsS -c "$jar" -H "Origin: $base" -H 'Content-Type: application/json' \
-		-d '{"username":"demo","password":"demo1234"}' "$base/api/v1/auth/login" >/dev/null || return 1
 	current="$(curl -fsS -b "$jar" "$base/api/v1/settings/mail")" || return 1
 	# Already set up (a kept data dir): leave it as it is.
 	case "$current" in *'"source":"none"'*) ;; *) return 0 ;; esac
@@ -86,11 +110,21 @@ demo_mail() {
 		"$base/api/v1/settings/mail" >/dev/null
 }
 if [ "${DEMO_MAIL:-}" = 1 ]; then
-	jar="$(mktemp)"
 	if demo_mail; then
 		echo "demo: mail goes to Mailpit - inbox http://localhost:$RZP_MAILPIT_UI_PORT"
 	else
 		echo "demo: mail not configured" >&2
+	fi
+fi
+if [ "${RZP_DEMO_OIDC:-dex}" = stub ] && [ -n "$OIDC_ISSUER" ]; then
+	# An empty name: the button reads "Continue with single sign-on".
+	rzp_oidc_configure "$PORT" "$jar" "$OIDC_ISSUER" screenshots "" "" ||
+		echo "demo: sign-in provider not configured" >&2
+elif [ -n "$OIDC_ISSUER" ]; then
+	if rzp_oidc_configure "$PORT" "$jar"; then
+		echo "demo: signing in through Dex is on - sign in as demo@, mila@ or jonas@example.com, password <name>1234"
+	else
+		echo "demo: sign-in provider not configured" >&2
 	fi
 fi
 
