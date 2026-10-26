@@ -44,6 +44,8 @@ filters must use `username` instead.
   - Title at most 70 characters, imperative mood, no trailing period.
   - Body only when the title cannot explain the why - or when the commit is breaking, which always needs the `Breaking:` line.
   - No `Co-Authored-By` or tool trailers.
+  - Every commit is signed: the repository's ruleset rejects unsigned commits on every branch. When signing does not answer, leave the work staged, carry on, and commit once it does - never `--no-gpg-sign` or `-c commit.gpgsign=false`.
+  - Every commit has a human author. A cloud session commits as its agent; before such a branch lands, `git log --format=%ae develop..<branch>` shows it, and `git rebase develop --exec 'git commit --amend --no-edit --reset-author'` fixes it while the branch is still unmerged.
   - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 
 </Callout>

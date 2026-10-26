@@ -3,7 +3,7 @@ title: Write release notes
 description: Turning a release:start draft into the changelog page people upgrade by
 ---
 
-The release notes are the page `release:start` drafts at `docs/user/content/changelog/<version>.mdx`, on the release branch in its worktree. An agent usually writes them, and the maintainer reads the result before `release:finish`. The draft holds the commit subjects as raw material; this page is how that material becomes notes. What the page is and how it is rendered is in [Releases](/architecture/releases).
+The release notes are the page `release:start` drafts at `docs/user/content/changelog/<version>.mdx`, on the release branch in its worktree. Write them only after `release:start`, never ahead of it: the task writes that page unconditionally, so a page prepared earlier is overwritten, and then stops because `meta.json` already lists the version. An agent usually writes them, and the maintainer reads the result before `release:finish`. The draft holds the commit subjects as raw material; this page is how that material becomes notes. What the page is and how it is rendered is in [Releases](/architecture/releases).
 
 ## Who reads them
 
@@ -78,4 +78,4 @@ A recipe's `author` and `editor` are people now - objects with `username`, `name
 - `mise run release:finish --dry-run` in the release worktree: it refuses a page with leftovers, missing fields or no `upgrade` despite breaking commits, and exits 0 once the page is ready.
 - Look at the rendered page: `mise run //docs/user:dev`, then a Playwright screenshot of `/changelog/<version>/` in light and dark (see [Verify UI with Playwright](/howtos/verify-ui)). The "Before you upgrade" callout sits at the top of the body.
 - `mise run release:notes <version>` prints the GitHub release body built from the frontmatter; read it once as someone who only sees that.
-- Commit on the release branch: `docs(changelog): write the vX.Y.Z release notes`. Then the maintainer reads the page and runs `release:finish` - see [Release](/howtos/release).
+- Commit on the release branch as [Release](/howtos/release) describes, with the stamped `openapi.json` and the Roadmap update. Then the maintainer reads the page and runs `release:finish`.

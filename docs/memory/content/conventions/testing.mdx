@@ -12,6 +12,7 @@ description: What to test and how, per package
     - Test names describe behavior: `TestCreateRecipeRejectsEmptyTitle`.
     - A test that costs seconds calls `t.Parallel()`, as the `demo.Seed` tests in `service/internal/demo/` do: every seed renders all embedded photos, and run one after another they made that package the longest step of `check`. A test that swaps package-level state, such as `photos` in that package, stays serial; Go finishes the serial tests before it starts the parallel ones.
     - `//service:test` runs `go test -trimpath`: without it the checkout's directory is part of the test cache key, and a new worktree reruns every package instead of reusing the main checkout's results.
+    - `mise run check` runs the module without `-race`. Run `go test -race` on the packages with real concurrency you touched - `internal/oidc`, `internal/auth`, `internal/user`, `internal/userapi` - never on `./...`: argon2 and the demo's image rendering crawl under the race detector and turn minutes into a quarter of an hour.
 
   </Tab>
   <Tab value="Frontend">
@@ -24,7 +25,7 @@ description: What to test and how, per package
   </Tab>
 </Tabs>
 
-`mise run check` runs every package gate. CI runs the same command, and more besides, so a green `check` locally is not the whole of the CI job ([Toolchain](/architecture/toolchain)).
+`mise run check` runs every package gate. CI runs the same gates, each on a runner of its own ([GitHub Actions](/conventions/github-actions)), and more besides, so a green `check` locally is not the whole of the CI job ([Toolchain](/architecture/toolchain)).
 
 <Callout type="warn" title="UI changes and the user docs">
 

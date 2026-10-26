@@ -67,6 +67,14 @@ The Chromium build is installed by `mise run setup` (`bunx playwright install ch
 
 A layout that only ever gets checked at 390px hides real bugs: a content-sized `inline-flex` row of 297px fits there with 5px to spare, so every screenshot looks right, and pushes out of its card at 360px. Sweep the widths whenever a row of controls looks tight.
 
+## Look at it in German, with long content
+
+English is the short language. German labels run longer, and a row that fits in English can squeeze a column next to it down to nothing while e2e, the English screenshots and a review all pass. So every UI change is also looked at in German before it is called done: `RZP_DEMO_LOCALE=de mise run demo` starts the demo with German accounts and sample recipes ([Demo mode](/features/demo-mode)).
+
+Check it at 360px, with the longest realistic value of whatever the change adds - a long title, a long time phrase, a long name - and in cook mode at its largest type size. When a row runs out of room, that is a design question to raise, not something to squeeze until it fits.
+
+Layout variants are compared on the real page too: inject each one into the running demo with `page.evaluate` in a [probe](#running-a-probe) and screenshot it at 1280px, 360px and 320px. A mockup built by hand misses the app's own type and spacing, and with them the phone breakage the comparison is for.
+
 ## A test that has never run is not a test
 
 Run a suite the moment you write it. A test that has never executed is not evidence of anything - it asserts against the UI its author imagined, and the first real run is where you find out. When a locator and the app disagree, establish which of the two is wrong before "fixing" either; a green suite bought by loosening a locator tests nothing.
