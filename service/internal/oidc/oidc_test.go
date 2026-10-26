@@ -38,6 +38,7 @@ type env struct {
 	users     *user.Service
 	sessions  *auth.Service
 	tokens    *auth.TokenService
+	settings  *oidc.Settings
 	sam, anna user.User
 }
 
@@ -52,8 +53,9 @@ func newEnv(t *testing.T) *env {
 	return e
 }
 
-// newServer builds the server; a nil cfg leaves OIDC off, as cmd/rezepte does
-// without REZEPTE_OIDC_ISSUER.
+// newServer builds the server; cfg is what REZEPTE_OIDC_* would pin, and nil
+// leaves the environment unset, so OIDC is off until the settings say
+// otherwise.
 func newServer(t *testing.T, cfg *oidc.Config) *env {
 	t.Helper()
 	ctx := context.Background()
@@ -74,17 +76,27 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
-	issuer := ""
+	envCfg := oidc.Config{PublicURL: publicURL}
 	if cfg != nil {
-		issuer = cfg.Issuer
+		envCfg = *cfg
 	}
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer, nil)
-	var login *oidc.Login
-	if cfg != nil {
-		login = oidc.New(*cfg, sessions, users, false)
+	settings := oidc.NewSettings(conn, envCfg)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())),
+		func(ctx context.Context) string { return settings.Provider(ctx).Issuer }, nil)
+	oidc.Register(srv.API(), oidc.New(settings, sessions, users, false))
+	return &env{h: srv.Handler(), users: users, sessions: sessions, tokens: tokens, settings: settings, sam: sam, anna: anna}
+}
+
+// configure stores idp as the instance's provider, the way the owner does in
+// Settings, and makes it the provider the test talks to.
+func (e *env) configure(t *testing.T, idp *fakeIdP) {
+	t.Helper()
+	secret := "secret"
+	c := oidc.Config{Issuer: idp.URL, ClientID: idp.clientID, Name: "Test IdP"}
+	if err := e.settings.Save(context.Background(), user.User{Role: user.RoleSuperadmin}, c, &secret); err != nil {
+		t.Fatal(err)
 	}
-	oidc.Register(srv.API(), login)
-	return &env{h: srv.Handler(), users: users, sessions: sessions, tokens: tokens, sam: sam, anna: anna}
+	e.idp = idp
 }
 
 func send(h http.Handler, req *http.Request, cookies ...*http.Cookie) *httptest.ResponseRecorder {
@@ -768,4 +780,89 @@ func TestStartRejectsCrossOrigin(t *testing.T) {
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status %d, want 403", rec.Code)
 	}
+}
+
+func (e *env) offered(t *testing.T) bool {
+	t.Helper()
+	rec := api(e.h, http.MethodGet, "/api/v1/auth/oidc", "")
+	var body struct{ Enabled bool }
+	if rec.Code != http.StatusOK || json.Unmarshal(rec.Body.Bytes(), &body) != nil {
+		t.Fatalf("get-oidc: %d %s", rec.Code, rec.Body.String())
+	}
+	return body.Enabled
+}
+
+// TestConfigChangeTakesEffect: a provider saved in the settings is offered
+// and signs in on the next request, with no new Login and no restart.
+func TestConfigChangeTakesEffect(t *testing.T) {
+	e := newServer(t, nil)
+	if e.offered(t) {
+		t.Fatal("offered before anything was configured")
+	}
+	e.configure(t, newFakeIdP(t))
+	if !e.offered(t) {
+		t.Fatal("not offered after saving a provider")
+	}
+	e.link(t, e.anna, "sub-anna")
+	wantRedirect(t, e.run(t, "login", nil, nil, idClaims{Subject: "sub-anna"}), "/")
+	if err := e.settings.Clear(context.Background(), user.User{Role: user.RoleSuperadmin}); err != nil {
+		t.Fatal(err)
+	}
+	if e.offered(t) {
+		t.Fatal("still offered after turning off")
+	}
+	if rec := start(e.h, url.Values{"intent": {"login"}}, publicURL); rec.Code != http.StatusNotFound {
+		t.Fatalf("start after turning off: %d", rec.Code)
+	}
+}
+
+// TestCallbackRefusesFlowFromOtherIssuer: a flow started before the owner
+// switched providers fails at the callback, even with a valid code from the
+// provider it started at, and writes nothing.
+func TestCallbackRefusesFlowFromOtherIssuer(t *testing.T) {
+	e := newServer(t, nil)
+	first, second := newFakeIdP(t), newFakeIdP(t)
+	// second honors codes first handed out, so the code exchange would
+	// succeed: only the issuer check stops the flow.
+	second.codes = first.codes
+	e.configure(t, first)
+	session := e.passwordLogin(t)
+	authorize, fc := flow(t, e.h, "link", nil, session)
+	state, code := first.approve(t, authorize, idClaims{Subject: "sub-sam"})
+	e.configure(t, second)
+	wantRedirect(t, callback(t, e.h, state, code, fc, session), "/settings?oidc=failed")
+	for _, idp := range []*fakeIdP{first, second} {
+		if linked, err := e.users.LinkedUserIDs(context.Background(), idp.URL); err != nil || len(linked) != 0 {
+			t.Fatalf("linked at %s: %v %v", idp.URL, linked, err)
+		}
+	}
+
+	// anna is linked at first; a login flow started at second does not sign
+	// her in once first is back.
+	if err := e.users.LinkIdentity(context.Background(), e.anna.ID, first.URL, "sub-anna"); err != nil {
+		t.Fatal(err)
+	}
+	authorize, fc = flow(t, e.h, "login", nil, nil)
+	state, code = second.approve(t, authorize, idClaims{Subject: "sub-anna"})
+	e.configure(t, first)
+	rec := callback(t, e.h, state, code, fc)
+	wantFailed(t, rec)
+	wantRedirect(t, rec, "/login?oidc=failed")
+}
+
+// TestProviderRediscoveredAfterSwitch: after a switch the flow goes to the
+// new provider, not to the one discovered before.
+func TestProviderRediscoveredAfterSwitch(t *testing.T) {
+	e := newServer(t, nil)
+	e.configure(t, newFakeIdP(t))
+	e.link(t, e.anna, "sub-anna")
+	wantRedirect(t, e.run(t, "login", nil, nil, idClaims{Subject: "sub-anna"}), "/")
+	second := newFakeIdP(t)
+	e.configure(t, second)
+	authorize, _ := flow(t, e.h, "login", nil, nil)
+	if !strings.HasPrefix(authorize, second.URL+"/") {
+		t.Fatalf("authorize at %s, want the new provider %s", authorize, second.URL)
+	}
+	e.link(t, e.anna, "sub-anna-2")
+	wantRedirect(t, e.run(t, "login", nil, nil, idClaims{Subject: "sub-anna-2"}), "/")
 }

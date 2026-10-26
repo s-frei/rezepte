@@ -63,7 +63,7 @@ type Service struct {
 	resetCooldown   *cooldown
 	confirmCooldown *cooldown
 	mailer          Mailer
-	provider        Provider
+	provider        func(context.Context) Provider
 	now             func() time.Time
 }
 

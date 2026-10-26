@@ -18,7 +18,7 @@ import (
 )
 
 func TestFlowCookieSeal(t *testing.T) {
-	l := New(Config{}, nil, nil, false)
+	l := New(NewSettings(nil, Config{}), nil, nil, false)
 	f := flow{State: "s", Intent: intentLink, UserID: "u1", Expires: time.Now().Add(time.Minute)}
 
 	if got, ok := l.open(l.seal(f)); !ok || got.UserID != "u1" || got.State != "s" {
@@ -35,7 +35,7 @@ func TestFlowCookieSeal(t *testing.T) {
 	}
 
 	// Another process's key (a restart) does not open it.
-	if _, ok := New(Config{}, nil, nil, false).open(sealed); ok {
+	if _, ok := New(NewSettings(nil, Config{}), nil, nil, false).open(sealed); ok {
 		t.Fatal("opened with another key")
 	}
 
@@ -81,7 +81,7 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	const issuer = "https://accounts.google.com"
-	l := New(Config{Issuer: issuer}, sessions, users, false)
+	l := New(NewSettings(conn, Config{PublicURL: "http://localhost:8060", Issuer: issuer}), sessions, users, false)
 	l.logger = slog.New(slog.DiscardHandler)
 	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
@@ -101,7 +101,7 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := httptest.NewRecorder()
-	l.setup(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentSetup, Setup: auth.SetupLinkHash(link.Token)}, token("sub-anna"), claims{})
+	l.setup(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentSetup, Issuer: issuer, Setup: auth.SetupLinkHash(link.Token)}, token("sub-anna"), claims{})
 	if location(rec) != "/" {
 		t.Fatalf("setup ended at %q", location(rec))
 	}
@@ -113,7 +113,7 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.AddCookie(&http.Cookie{Name: auth.CookieName, Value: sess.Token})
 	rec = httptest.NewRecorder()
-	l.link(rec, req, flow{Intent: intentLink, UserID: sam.ID}, token("sub-sam"), claims{})
+	l.link(rec, req, flow{Intent: intentLink, Issuer: issuer, UserID: sam.ID}, token("sub-sam"), claims{})
 	if location(rec) != "/settings?oidc=linked" {
 		t.Fatalf("link ended at %q", location(rec))
 	}
@@ -125,7 +125,7 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 	}
 
 	rec = httptest.NewRecorder()
-	l.login(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentLogin}, token("sub-anna"))
+	l.login(rec, httptest.NewRequest(http.MethodGet, "/", nil), flow{Intent: intentLogin, Issuer: issuer}, token("sub-anna"))
 	if location(rec) != "/" {
 		t.Fatalf("login ended at %q", location(rec))
 	}
@@ -144,7 +144,7 @@ func TestFlowCookieSecure(t *testing.T) {
 		{"http://localhost:8060", false, false},
 		{"http://localhost:8060", true, true},
 	} {
-		l := New(Config{PublicURL: tc.publicURL}, nil, nil, tc.secure)
+		l := New(NewSettings(nil, Config{PublicURL: tc.publicURL}), nil, nil, tc.secure)
 		for _, c := range []http.Cookie{l.flowCookie("v", 60), l.flowCookie("", -1)} {
 			if c.Secure != tc.want {
 				t.Errorf("%s, secure cookies %v: Secure = %v, want %v", tc.publicURL, tc.secure, c.Secure, tc.want)

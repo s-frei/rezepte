@@ -87,6 +87,13 @@ func (f *fakeMailer) SendInvite(_ context.Context, in mail.Invite) error {
 
 func newStackWithMailer(t *testing.T, environment map[string]string, mailer *fakeMailer) (http.Handler, *user.Service) {
 	t.Helper()
+	return newStackWithIssuer(t, environment, mailer, nil)
+}
+
+// newStackWithIssuer is newStackWithMailer with the effective OIDC issuer
+// asked of issuer on every request.
+func newStackWithIssuer(t *testing.T, environment map[string]string, mailer *fakeMailer, issuer func(context.Context) string) (http.Handler, *user.Service) {
+	t.Helper()
 	cfg, err := config.LoadFrom(environment)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
@@ -102,12 +109,12 @@ func newStackWithMailer(t *testing.T, environment map[string]string, mailer *fak
 		}
 	}
 	sessions := auth.NewService(conn, users)
-	sessions.SetMail(mailer, auth.Provider{})
+	sessions.SetMail(mailer, nil)
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), cfg.OIDCIssuer, mailer)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer, mailer)
 	return srv.Handler(), users
 }
 
@@ -146,7 +153,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), "", &fakeMailer{})
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), nil, &fakeMailer{})
 	raw, _, err := tokens.Create(context.Background(), samID, "t", scopes, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -899,39 +906,36 @@ func TestRefusedPatchWritesNothing(t *testing.T) {
 	}
 }
 
-// TestListUsersReportsLinkedIdentities: hasIdentity means an identity at the
-// configured issuer - the one sign-in and disconnect use. One left behind at
-// an earlier provider does not count, and nothing counts with OIDC off.
-func TestListUsersReportsLinkedIdentities(t *testing.T) {
-	oidcEnv := map[string]string{
-		"REZEPTE_OIDC_ISSUER": "https://id.example", "REZEPTE_OIDC_CLIENT_ID": "rezepte",
-		"REZEPTE_PUBLIC_URL": "http://localhost:8060",
+// TestHasIdentityFollowsEffectiveIssuer: hasIdentity means an identity at
+// the issuer in force on this request - the one sign-in and disconnect use.
+// One left behind at an earlier provider does not count, and nothing counts
+// with OIDC off.
+func TestHasIdentityFollowsEffectiveIssuer(t *testing.T) {
+	current := ""
+	h, users := newStackWithIssuer(t, map[string]string{}, &fakeMailer{}, func(context.Context) string { return current })
+	cookie := loginAs(t, h, "sam", "pw")
+	list := listUsers(t, h, cookie)
+	ctx := context.Background()
+	if err := users.LinkIdentity(ctx, idOf(t, list, "kim"), "https://id.example", "sub-kim"); err != nil {
+		t.Fatal(err)
+	}
+	if err := users.LinkIdentity(ctx, idOf(t, list, "owner"), "https://old.example", "sub-owner"); err != nil {
+		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		name        string
-		environment map[string]string
-		want        map[string]bool
+		issuer string
+		want   map[string]bool
 	}{
-		{"configured issuer", oidcEnv, map[string]bool{"kim": true}},
-		{"OIDC off", map[string]string{}, map[string]bool{}},
+		{"https://id.example", map[string]bool{"kim": true}},
+		{"https://old.example", map[string]bool{"owner": true}},
+		{"", map[string]bool{}},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			h, users := newStack(t, tc.environment)
-			cookie := loginAs(t, h, "sam", "pw")
-			list := listUsers(t, h, cookie)
-			ctx := context.Background()
-			if err := users.LinkIdentity(ctx, idOf(t, list, "kim"), "https://id.example", "sub-kim"); err != nil {
-				t.Fatal(err)
+		current = tc.issuer
+		for _, u := range listUsers(t, h, cookie) {
+			if u.HasIdentity != tc.want[u.Username] {
+				t.Errorf("issuer %q: %s hasIdentity = %v", tc.issuer, u.Username, u.HasIdentity)
 			}
-			if err := users.LinkIdentity(ctx, idOf(t, list, "owner"), "https://old.example", "sub-owner"); err != nil {
-				t.Fatal(err)
-			}
-			for _, u := range listUsers(t, h, cookie) {
-				if u.HasIdentity != tc.want[u.Username] {
-					t.Errorf("%s: hasIdentity = %v", u.Username, u.HasIdentity)
-				}
-			}
-		})
+		}
 	}
 }
 

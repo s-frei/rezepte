@@ -39,9 +39,9 @@ type identityOutput struct {
 }
 
 // Register installs get-oidc, the two steps of the flow, the own-identity
-// operations and an admin's unlink-user-identity. A nil l (OIDC not
-// configured) registers the same operations answering enabled:false and 404,
-// so the OpenAPI document does not depend on configuration.
+// operations and an admin's unlink-user-identity. Each asks l for the
+// provider in force; while there is none they answer enabled:false and 404,
+// and the OpenAPI document never depends on configuration.
 func Register(api huma.API, l *Login) {
 	huma.Register(api, huma.Operation{
 		OperationID: "get-oidc",
@@ -50,10 +50,10 @@ func Register(api huma.API, l *Login) {
 		Summary:     "Tell whether sign-in through an identity provider is offered",
 		Description: "Public: the login page asks before anyone is signed in. The flow itself runs through POST /api/v1/auth/oidc/start, a form post the browser follows to the provider.",
 		Tags:        []string{"auth"},
-	}, func(context.Context, *struct{}) (*configOutput, error) {
+	}, func(ctx context.Context, _ *struct{}) (*configOutput, error) {
 		out := &configOutput{}
-		if l != nil {
-			out.Body.Enabled, out.Body.Name = true, l.cfg.Name
+		if cfg, ok := l.config(ctx); ok {
+			out.Body.Enabled, out.Body.Name = true, cfg.Name
 		}
 		return out, nil
 	})
@@ -71,10 +71,11 @@ func Register(api huma.API, l *Login) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if l == nil {
+		cfg, ok := l.config(ctx)
+		if !ok {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
-		at, err := l.users.IdentityLinkedAt(ctx, u.ID, l.cfg.Issuer)
+		at, err := l.users.IdentityLinkedAt(ctx, u.ID, cfg.Issuer)
 		if errors.Is(err, user.ErrNotFound) {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
@@ -101,10 +102,11 @@ func Register(api huma.API, l *Login) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		if l == nil {
+		cfg, ok := l.config(ctx)
+		if !ok {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
-		err := l.users.UnlinkIdentity(ctx, u.ID, l.cfg.Issuer)
+		err := l.users.UnlinkIdentity(ctx, u.ID, cfg.Issuer)
 		switch {
 		case errors.Is(err, user.ErrLastCredential):
 			return nil, huma.Error409Conflict("set a password before disconnecting")
@@ -138,10 +140,11 @@ func Register(api huma.API, l *Login) {
 		if !actor.Role.IsAdmin() {
 			return nil, huma.Error403Forbidden("admin role required")
 		}
-		if l == nil {
+		cfg, ok := l.config(ctx)
+		if !ok {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
-		err := l.users.RemoveIdentity(ctx, actor, in.ID, l.cfg.Issuer)
+		err := l.users.RemoveIdentity(ctx, actor, in.ID, cfg.Issuer)
 		switch {
 		case errors.Is(err, user.ErrSuperadminProtected):
 			return nil, huma.Error409Conflict("the superadmin cannot be modified")
@@ -160,14 +163,15 @@ func Register(api huma.API, l *Login) {
 
 	// Both steps answer a browser navigation with a 303, never JSON, so they
 	// stream: the handler writes the redirect and its cookies itself.
-	step := func(serve func(*Login, http.ResponseWriter, *http.Request)) func(context.Context, *struct{}) (*huma.StreamResponse, error) {
-		return func(context.Context, *struct{}) (*huma.StreamResponse, error) {
-			if l == nil {
+	step := func(serve func(*Login, Config, http.ResponseWriter, *http.Request)) func(context.Context, *struct{}) (*huma.StreamResponse, error) {
+		return func(ctx context.Context, _ *struct{}) (*huma.StreamResponse, error) {
+			cfg, ok := l.config(ctx)
+			if !ok {
 				return nil, huma.Error404NotFound("sign-in through an identity provider is not configured")
 			}
 			return &huma.StreamResponse{Body: func(ctx huma.Context) {
 				r, w := humago.Unwrap(ctx)
-				serve(l, w, r)
+				serve(l, cfg, w, r)
 			}}, nil
 		}
 	}

@@ -11,6 +11,7 @@ import (
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 
+	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -120,9 +121,16 @@ func (s *Settings) stored(ctx context.Context) (Config, error) {
 }
 
 // Enabled reports whether sign-in through the provider is offered right now.
-func (s *Settings) Enabled(ctx context.Context) bool {
+func (s *Settings) Enabled(ctx context.Context) bool { return s.Provider(ctx).Issuer != "" }
+
+// Provider names the provider in force, zero while sign-in is not offered:
+// what the sign-in hint and hasIdentity follow.
+func (s *Settings) Provider(ctx context.Context) auth.Provider {
 	c, src, err := s.Effective(ctx)
-	return err == nil && src != SourceNone && c.PublicURL != ""
+	if err != nil || src == SourceNone || c.PublicURL == "" {
+		return auth.Provider{}
+	}
+	return auth.Provider{Issuer: c.Issuer, Name: c.Name}
 }
 
 func (s *Settings) guardWrite(actor user.User) error {

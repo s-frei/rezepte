@@ -180,16 +180,21 @@ func run() error {
 	avatars := avatar.NewService(conn, filepath.Join(cfg.DataDir, "avatars"), images)
 	instance := settings.NewService(conn)
 	mailer := mail.NewService(conn, cfg.SMTP, cfg.PublicURL, logger)
-	var provider auth.Provider
-	if cfg.OIDCEnabled() {
-		provider = auth.Provider{Issuer: cfg.OIDCIssuer, Name: cfg.OIDCName}
-	}
-	sessions.SetMail(mailer, provider)
-	// Only a log line: mail is resolved again on every send.
+	oidcSettings := oidc.NewSettings(conn, oidc.Config{
+		PublicURL: cfg.PublicURL, Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,
+		ClientSecret: cfg.OIDCClientSecret, Name: cfg.OIDCName,
+	})
+	sessions.SetMail(mailer, oidcSettings.Provider)
+	// Only log lines: both are resolved again on every request.
 	if _, mailSource, err := mailer.Effective(ctx); err != nil {
 		logger.Warn("mail", "err", err)
 	} else {
 		logger.Info("mail", "source", mailSource)
+	}
+	if _, src, err := oidcSettings.Effective(ctx); err != nil {
+		logger.Warn("oidc", "err", err)
+	} else {
+		logger.Info("oidc", "source", src)
 	}
 	previews, err := preview.NewService(ctx, conn, instance, images, logger)
 	if err != nil {
@@ -207,14 +212,7 @@ func run() error {
 		httpserver.WithShellHeaders(share.ShellHeaders),
 		httpserver.WithVersion(version))
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
-	var login *oidc.Login
-	if cfg.OIDCEnabled() {
-		login = oidc.New(oidc.Config{
-			PublicURL: cfg.PublicURL, Issuer: cfg.OIDCIssuer, ClientID: cfg.OIDCClientID,
-			ClientSecret: cfg.OIDCClientSecret, Name: cfg.OIDCName,
-		}, sessions, users, cfg.SecureCookies)
-	}
-	oidc.Register(srv.API(), login)
+	oidc.Register(srv.API(), oidc.New(oidcSettings, sessions, users, cfg.SecureCookies))
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
@@ -234,7 +232,8 @@ func run() error {
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
-	userapi.Register(srv.API(), users, sessions, avatars, cfg.OIDCIssuer, mailer)
+	userapi.Register(srv.API(), users, sessions, avatars,
+		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Run(ctx)
 }

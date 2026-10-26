@@ -63,6 +63,7 @@ type recoveryFixture struct {
 	mailer   *fakeMailer
 	clock    time.Time
 	byName   map[string]user.User
+	provider auth.Provider // the provider in force, asked on every request
 }
 
 // newRecoveryFixture: owner, jonas and kim (passwords, all three confirmed on
@@ -74,10 +75,11 @@ func newRecoveryFixture(t *testing.T) *recoveryFixture {
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	f := &recoveryFixture{users: user.NewService(conn, ""), mailer: newFakeMailer(),
-		clock: time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC), byName: map[string]user.User{}}
+		clock: time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC), byName: map[string]user.User{},
+		provider: auth.Provider{Issuer: issuer, Name: "Dex"}}
 	f.sessions = auth.NewService(conn, f.users)
 	f.sessions.SetClock(func() time.Time { return f.clock })
-	f.sessions.SetMail(f.mailer, auth.Provider{Issuer: issuer, Name: "Dex"})
+	f.sessions.SetMail(f.mailer, func(context.Context) auth.Provider { return f.provider })
 	mk := func(name string, role user.Role, pw, addr string, confirm bool) {
 		u, err := f.users.Create(ctx, user.CreateParams{Username: name, Password: pw, Role: role, Email: addr})
 		if err != nil {
@@ -153,6 +155,28 @@ func TestForgotWithoutPasswordGetsProviderHint(t *testing.T) {
 	}
 	if h, ok := sent[0].(mail.Hint); !ok || h.To != "ida@example.org" || h.Provider != "Dex" {
 		t.Fatalf("mail = %+v", sent[0])
+	}
+}
+
+// TestHintFollowsEffectiveProvider: the hint names the provider in force when
+// the request comes in, and goes out only for an identity there.
+func TestHintFollowsEffectiveProvider(t *testing.T) {
+	f := newRecoveryFixture(t)
+	for _, tc := range []struct {
+		provider auth.Provider
+		want     string // the hint's provider name; empty for no mail
+	}{
+		{auth.Provider{}, ""},
+		{auth.Provider{Issuer: "https://other.example.org", Name: "Other"}, ""},
+		{auth.Provider{Issuer: issuer, Name: "Renamed"}, "Renamed"},
+	} {
+		f.provider = tc.provider
+		f.clock = f.clock.Add(time.Hour) // past the per-account throttle
+		f.sessions.ForgotPassword(context.Background(), "ida")
+		sent := f.mailer.drain()
+		if tc.want == "" && len(sent) != 0 || tc.want != "" && (len(sent) != 1 || sent[0].(mail.Hint).Provider != tc.want) {
+			t.Errorf("provider %+v: sent %+v, want hint %q", tc.provider, sent, tc.want)
+		}
 	}
 }
 
@@ -285,7 +309,7 @@ func mailHandler(t *testing.T) (http.Handler, *fakeMailer) {
 	m := newFakeMailer()
 	m.clock = time.Now()
 	sessions.SetClock(func() time.Time { return m.clock })
-	sessions.SetMail(m, auth.Provider{})
+	sessions.SetMail(m, nil)
 	ctx := context.Background()
 	sam, _ := users.ByUsername(ctx, "sam")
 	addr := "sam@example.org"
@@ -326,7 +350,7 @@ func TestPasswordResetConfig(t *testing.T) {
 	if rec := do(h, http.MethodGet, "/api/v1/auth/password", "", nil); !strings.Contains(rec.Body.String(), `"available":false`) {
 		t.Fatalf("without mail: %d %s", rec.Code, rec.Body)
 	}
-	sessions.SetMail(newFakeMailer(), auth.Provider{})
+	sessions.SetMail(newFakeMailer(), nil)
 	if rec := do(h, http.MethodGet, "/api/v1/auth/password", "", nil); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"available":true`) {
 		t.Fatalf("with mail: %d %s", rec.Code, rec.Body)
 	}
@@ -607,7 +631,7 @@ func TestFailedSendDropsOnlyItsOwnConfirmation(t *testing.T) {
 		if _, err := f.sessions.IssueConfirmation(ctx, lea.ID, lea.Email); err != nil {
 			t.Error(err)
 		}
-	}}, auth.Provider{})
+	}}, nil)
 	if err := f.sessions.ResendConfirmation(ctx, lea); !errors.Is(err, mail.ErrSend) {
 		t.Fatalf("resend: %v", err)
 	}
@@ -627,7 +651,7 @@ func (p panicMailer) SendReset(_ context.Context, m mail.Reset) error {
 func TestForgotPasswordSurvivesAPanic(t *testing.T) {
 	h, sessions, users := newHandlerWithSessions(t)
 	m := newFakeMailer()
-	sessions.SetMail(panicMailer{m}, auth.Provider{})
+	sessions.SetMail(panicMailer{m}, nil)
 	ctx := context.Background()
 	sam, _ := users.ByUsername(ctx, "sam")
 	addr := "sam@example.org"

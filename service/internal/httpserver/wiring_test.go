@@ -81,7 +81,7 @@ func newFullApp(t *testing.T) fullApp {
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), "", nil)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), nil, nil)
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
 }

@@ -244,10 +244,11 @@ func confirmAddress(ctx context.Context, sessions *auth.Service, actor, before, 
 
 // Register installs list, create, update and delete for users, which require
 // an admin, and list-people, which any signed-in account may read. avatars
-// removes a deleted account's pictures. issuer is the configured OIDC issuer,
-// empty when OIDC is off: list-users reports hasIdentity only for an identity
-// there, the one sign-in and disconnect use.
-func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer string, mailer Mailer) {
+// removes a deleted account's pictures. issuer answers the OIDC issuer in
+// force for a request, empty when OIDC is off (a nil issuer: always off):
+// list-users reports hasIdentity only for an identity there, the one sign-in
+// and disconnect use.
+func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer func(context.Context) string, mailer Mailer) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-people",
 		Method:      http.MethodGet,
@@ -300,9 +301,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			return nil, err
 		}
 		linked := map[string]bool{}
-		if issuer != "" {
-			if linked, err = users.LinkedUserIDs(ctx, issuer); err != nil {
-				return nil, err
+		if issuer != nil {
+			if iss := issuer(ctx); iss != "" {
+				if linked, err = users.LinkedUserIDs(ctx, iss); err != nil {
+					return nil, err
+				}
 			}
 		}
 		items := make([]UserAccount, 0, len(list))

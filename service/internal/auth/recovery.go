@@ -30,8 +30,11 @@ var ErrNothingToConfirm = errors.New("no unconfirmed address")
 
 // SetMail lets the service mail password resets and confirmations through
 // m. Without it - every test that does not care, and the reset CLI - both
-// are off.
-func (s *Service) SetMail(m Mailer, p Provider) { s.mailer, s.provider = m, p }
+// are off. provider names the identity provider in force, asked on every
+// request; nil means none.
+func (s *Service) SetMail(m Mailer, provider func(context.Context) Provider) {
+	s.mailer, s.provider = m, provider
+}
 
 func (s *Service) mailOn(ctx context.Context) bool { return s.mailer != nil && s.mailer.Enabled(ctx) }
 
@@ -103,15 +106,19 @@ func (s *Service) mailRecovery(ctx context.Context, u user.User) error {
 		}
 		return s.mailer.SendReset(ctx, mail.Reset{To: u.Email, Username: u.Username, Path: SetupPath(link.Token), Locale: u.Locale})
 	}
-	if s.provider.Issuer == "" {
+	var p Provider
+	if s.provider != nil {
+		p = s.provider(ctx)
+	}
+	if p.Issuer == "" {
 		return nil
 	}
-	if _, err := s.users.IdentityLinkedAt(ctx, u.ID, s.provider.Issuer); errors.Is(err, user.ErrNotFound) {
+	if _, err := s.users.IdentityLinkedAt(ctx, u.ID, p.Issuer); errors.Is(err, user.ErrNotFound) {
 		return nil
 	} else if err != nil {
 		return err
 	}
-	return s.mailer.SendHint(ctx, mail.Hint{To: u.Email, Provider: s.provider.Name, Locale: u.Locale})
+	return s.mailer.SendHint(ctx, mail.Hint{To: u.Email, Provider: p.Name, Locale: u.Locale})
 }
 
 // ConfirmChangedAddress mails a confirmation when a write turned before into

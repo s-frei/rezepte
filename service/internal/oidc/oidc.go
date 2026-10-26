@@ -35,9 +35,10 @@ type Config struct {
 	PublicURL, Issuer, ClientID, ClientSecret, Name string
 }
 
-// Login runs the authorization code flow against the configured provider.
+// Login runs the authorization code flow against the provider in force,
+// which it asks settings for on every request.
 type Login struct {
-	cfg       Config
+	settings  *Settings
 	sessions  *auth.Service
 	users     *user.Service
 	secure    bool
@@ -45,8 +46,9 @@ type Login struct {
 	client    *http.Client
 	logger    *slog.Logger
 
-	mu       sync.Mutex
-	provider *gooidc.Provider // discovered lazily; nil until the first success
+	mu             sync.Mutex
+	provider       *gooidc.Provider // discovered lazily; nil until the first success
+	providerIssuer string           // the issuer provider was discovered at
 }
 
 const (
@@ -66,24 +68,40 @@ const (
 // flow is what the browser carries from start to callback.
 type flow struct {
 	State, Nonce, Verifier, Intent, Next string
-	UserID                               string `json:",omitempty"` // intent link: who started it
+	// Issuer is the provider the flow started at; the callback refuses it
+	// once another one is in force.
+	Issuer string
+	UserID string `json:",omitempty"` // intent link: who started it
 	// Setup is the setup link's hash (auth.SetupLinkHash), enough to peek
 	// and consume the link at the end; the raw token never enters the cookie.
 	Setup   string `json:",omitempty"`
 	Expires time.Time
 }
 
-// New returns a Login for cfg. It does not contact the provider: discovery
-// runs on the first start, so an unreachable provider never stops Rezepte
-// from starting, and password login keeps working without it.
-func New(cfg Config, sessions *auth.Service, users *user.Service, secureCookies bool) *Login {
+// New returns a Login for the provider settings resolve, also while there is
+// none, so one can be configured later without a restart. It does not
+// contact the provider: discovery runs on the first start, so an unreachable
+// provider never stops Rezepte from starting, and password login keeps
+// working without it.
+func New(settings *Settings, sessions *auth.Service, users *user.Service, secureCookies bool) *Login {
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
 	return &Login{
-		cfg: cfg, sessions: sessions, users: users, secure: secureCookies, cookieKey: key,
+		settings: settings, sessions: sessions, users: users, secure: secureCookies, cookieKey: key,
 		client: &http.Client{Timeout: 10 * time.Second},
 		logger: slog.Default(),
 	}
+}
+
+// config returns the provider in force and whether sign-in through it is
+// offered.
+func (l *Login) config(ctx context.Context) (Config, bool) {
+	c, src, err := l.settings.Effective(ctx)
+	if err != nil {
+		l.logger.Warn("oidc settings", "err", err)
+		return Config{}, false
+	}
+	return c, src != SourceNone && c.PublicURL != ""
 }
 
 // ctx carries the timeout client go-oidc and oauth2 read from the context.
@@ -91,30 +109,31 @@ func (l *Login) ctx(r *http.Request) context.Context {
 	return gooidc.ClientContext(r.Context(), l.client)
 }
 
-// discover returns the cached provider or runs discovery. A failure is not
-// cached, so the next request tries again.
-func (l *Login) discover(ctx context.Context) (*gooidc.Provider, error) {
+// discover returns the provider cached for issuer or runs discovery; another
+// issuer than the cached one discovers anew. A failure is not cached, so the
+// next request tries again.
+func (l *Login) discover(ctx context.Context, issuer string) (*gooidc.Provider, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.provider != nil {
+	if l.provider != nil && l.providerIssuer == issuer {
 		return l.provider, nil
 	}
 	// The provider keeps the client from this context for its key set, but
 	// not the request's cancellation.
-	p, err := gooidc.NewProvider(ctx, l.cfg.Issuer)
+	p, err := gooidc.NewProvider(ctx, issuer)
 	if err != nil {
-		return nil, fmt.Errorf("discover %s: %w", l.cfg.Issuer, err)
+		return nil, fmt.Errorf("discover %s: %w", issuer, err)
 	}
-	l.provider = p
+	l.provider, l.providerIssuer = p, issuer
 	return p, nil
 }
 
-func (l *Login) oauth(p *gooidc.Provider) *oauth2.Config {
+func oauth(cfg Config, p *gooidc.Provider) *oauth2.Config {
 	return &oauth2.Config{
-		ClientID:     l.cfg.ClientID,
-		ClientSecret: l.cfg.ClientSecret,
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
 		Endpoint:     p.Endpoint(),
-		RedirectURL:  l.cfg.PublicURL + "/api/v1/auth/oidc/callback",
+		RedirectURL:  cfg.PublicURL + "/api/v1/auth/oidc/callback",
 		Scopes:       []string{gooidc.ScopeOpenID, "email"},
 	}
 }
@@ -130,9 +149,9 @@ func page(intent string) string {
 	return "/login"
 }
 
-func (l *Login) start(w http.ResponseWriter, r *http.Request) {
+func (l *Login) start(cfg Config, w http.ResponseWriter, r *http.Request) {
 	ctx := l.ctx(r)
-	f := flow{Intent: r.PostFormValue("intent"), Next: r.PostFormValue("next")}
+	f := flow{Intent: r.PostFormValue("intent"), Next: r.PostFormValue("next"), Issuer: cfg.Issuer}
 	switch f.Intent {
 	case intentLogin:
 	case intentLink:
@@ -158,14 +177,14 @@ func (l *Login) start(w http.ResponseWriter, r *http.Request) {
 		l.fail(w, r, intentLogin, "unknown intent", nil)
 		return
 	}
-	p, err := l.discover(ctx)
+	p, err := l.discover(ctx, cfg.Issuer)
 	if err != nil {
 		l.fail(w, r, f.Intent, "provider unavailable", err)
 		return
 	}
 	f.State, f.Nonce, f.Verifier = rand.Text(), rand.Text(), oauth2.GenerateVerifier()
 	f.Expires = time.Now().Add(flowTTL)
-	authURL := l.oauth(p).AuthCodeURL(f.State, oauth2.S256ChallengeOption(f.Verifier), gooidc.Nonce(f.Nonce))
+	authURL := oauth(cfg, p).AuthCodeURL(f.State, oauth2.S256ChallengeOption(f.Verifier), gooidc.Nonce(f.Nonce))
 	c := l.flowCookie(l.seal(f), int(flowTTL.Seconds()))
 	http.SetCookie(w, &c)
 	redirect(w, r, authURL)
@@ -196,7 +215,7 @@ func (v *verified) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (l *Login) callback(w http.ResponseWriter, r *http.Request) {
+func (l *Login) callback(cfg Config, w http.ResponseWriter, r *http.Request) {
 	// Whatever happens next, this flow is over: its cookie goes first.
 	gone := l.flowCookie("", -1)
 	http.SetCookie(w, &gone)
@@ -221,18 +240,23 @@ func (l *Login) callback(w http.ResponseWriter, r *http.Request) {
 		l.fail(w, r, f.Intent, "state mismatch", nil)
 		return
 	}
-	p, err := l.discover(ctx)
+	// The owner switched providers since this flow started.
+	if f.Issuer != cfg.Issuer {
+		l.fail(w, r, f.Intent, "issuer changed", nil)
+		return
+	}
+	p, err := l.discover(ctx, cfg.Issuer)
 	if err != nil {
 		l.fail(w, r, f.Intent, "provider unavailable", err)
 		return
 	}
-	tok, err := l.oauth(p).Exchange(ctx, q.Get("code"), oauth2.VerifierOption(f.Verifier))
+	tok, err := oauth(cfg, p).Exchange(ctx, q.Get("code"), oauth2.VerifierOption(f.Verifier))
 	if err != nil {
 		l.fail(w, r, f.Intent, "code exchange failed", err)
 		return
 	}
 	raw, _ := tok.Extra("id_token").(string)
-	idt, err := p.Verifier(&gooidc.Config{ClientID: l.cfg.ClientID}).Verify(ctx, raw)
+	idt, err := p.Verifier(&gooidc.Config{ClientID: cfg.ClientID}).Verify(ctx, raw)
 	if err != nil {
 		l.fail(w, r, f.Intent, "ID token rejected", err)
 		return
@@ -261,7 +285,7 @@ func (l *Login) callback(w http.ResponseWriter, r *http.Request) {
 
 func (l *Login) login(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc.IDToken) {
 	ctx := r.Context()
-	u, err := l.users.ByIdentity(ctx, l.cfg.Issuer, idt.Subject)
+	u, err := l.users.ByIdentity(ctx, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrNotFound) {
 		l.logger.Info("oidc login with an unlinked identity")
 		redirect(w, r, "/login?oidc=unlinked")
@@ -290,7 +314,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 		l.fail(w, r, f.Intent, "session changed during the flow", nil)
 		return
 	}
-	err = l.users.LinkIdentity(ctx, f.UserID, l.cfg.Issuer, idt.Subject)
+	err = l.users.LinkIdentity(ctx, f.UserID, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
 		l.logger.Info("oidc link refused: identity taken", "user", f.UserID)
 		redirect(w, r, "/settings?oidc=taken")
@@ -315,7 +339,7 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 		l.fail(w, r, f.Intent, "setup link no longer open", err)
 		return
 	}
-	err = l.users.LinkIdentity(ctx, u.ID, l.cfg.Issuer, idt.Subject)
+	err = l.users.LinkIdentity(ctx, u.ID, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
 		l.logger.Info("oidc setup refused: identity taken", "user", u.ID)
 		redirect(w, r, "/welcome?oidc=taken")
@@ -377,7 +401,7 @@ func (l *Login) flowCookie(value string, maxAge int) http.Cookie {
 		HttpOnly: true,
 		// An https public URL means the browser reaches Rezepte over TLS,
 		// whatever REZEPTE_SECURE_COOKIES says.
-		Secure: l.secure || strings.HasPrefix(l.cfg.PublicURL, "https://"),
+		Secure: l.secure || strings.HasPrefix(l.settings.env.PublicURL, "https://"),
 		// Lax, not Strict: the callback is a top-level GET navigation coming
 		// from the provider's site, which Lax lets the cookie ride along.
 		SameSite: http.SameSiteLaxMode,
