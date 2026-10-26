@@ -58,3 +58,31 @@ test('a wrong issuer shows a field error and saves nothing', async ({ page }) =>
 		configured(before)
 	);
 });
+
+test('a stored provider stays visible and can be turned off without a public URL', async ({
+	page
+}) => {
+	await login(page);
+	await page.route('**/api/v1/settings/sign-in', async (route) => {
+		if (route.request().method() !== 'GET') return route.continue();
+		await route.fulfill({
+			json: {
+				source: 'settings',
+				issuer: 'https://id.example.org',
+				clientId: 'rezepte',
+				secretSet: true,
+				name: 'Stored IdP',
+				redirectUri: '',
+				publicUrlMissing: true,
+				connected: 0,
+				connectedWithoutPassword: 0
+			}
+		});
+	});
+	await page.goto('/settings/sign-in');
+	const card = page.getByRole('region', { name: 'Sign-in' });
+	await expect(card.getByText('Stored IdP')).toBeVisible();
+	await expect(card.getByText('rezepte', { exact: true })).toBeVisible();
+	await expect(card.getByRole('button', { name: 'Turn off' })).toBeVisible();
+	await expect(card.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+});

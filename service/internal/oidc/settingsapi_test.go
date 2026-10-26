@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -178,5 +180,22 @@ func TestGetCounts(t *testing.T) {
 	}
 	if got := getSignIn(t, e, owner); got["connected"] != float64(2) || got["connectedWithoutPassword"] != float64(1) {
 		t.Fatalf("counts: %v", got)
+	}
+}
+
+func TestSignInRefusesAPITokens(t *testing.T) {
+	e := newServer(t, nil)
+	raw, _, err := e.tokens.Create(context.Background(), e.sam.ID, "reader", []string{auth.ScopeRecipesRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, method := range []string{http.MethodGet, http.MethodPut, http.MethodDelete} {
+		req := httptest.NewRequest(method, signInPath, strings.NewReader(signInBody("https://id.example", "")))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", publicURL)
+		req.Header.Set("Authorization", "Bearer "+raw)
+		if rec := send(e.h, req); rec.Code != http.StatusForbidden {
+			t.Errorf("%s with a token: %d, want 403: %s", method, rec.Code, rec.Body.String())
+		}
 	}
 }

@@ -36,11 +36,6 @@ type Config struct {
 	SMTP mail.Config
 }
 
-// OIDCEnabled reports whether sign-in through an OpenID Connect provider is
-// configured. load has already made sure the client id and public URL are
-// set whenever the issuer is.
-func (c Config) OIDCEnabled() bool { return c.OIDCIssuer != "" }
-
 // Load reads the configuration from the process environment.
 func Load() (Config, error) {
 	return load(os.Getenv)

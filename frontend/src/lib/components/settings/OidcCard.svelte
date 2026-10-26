@@ -74,11 +74,17 @@
 		<p class="text-body-sm text-text-muted">{m.settings_sign_in_load_error()}</p>
 	{:else if !current}
 		<Skeleton class="mt-6 h-32 rounded-lg" />
-	{:else if current.publicUrlMissing}
+	{:else if current.publicUrlMissing && current.source === 'none'}
 		<p class="max-w-[60ch] text-body-sm text-text-muted">
 			{m.settings_sign_in_public_url_missing()}
 		</p>
 	{:else}
+		{#if current.publicUrlMissing}
+			<!-- A stored provider outlives the public URL; it stays visible and can be turned off. -->
+			<p class="mb-4 max-w-[60ch] text-body-sm text-text-muted">
+				{m.settings_sign_in_public_url_missing()}
+			</p>
+		{/if}
 		<Letterhead
 			{lines}
 			{blank}
@@ -101,9 +107,11 @@
 			</div>
 		{:else}
 			<div class="mt-4 flex flex-wrap items-center justify-between gap-3">
-				<Button variant="secondary" onclick={() => (editOpen = true)}
-					>{m.settings_sign_in_edit()}</Button
-				>
+				{#if !current.publicUrlMissing}
+					<Button variant="secondary" onclick={() => (editOpen = true)}
+						>{m.settings_sign_in_edit()}</Button
+					>
+				{/if}
 				<!-- Nobody connected, nobody to warn: it turns off at once. -->
 				<Button
 					variant="ghost"
@@ -114,24 +122,26 @@
 		{/if}
 		<!-- In every state: the address is registered at the provider before
 		     there is anything to fill in here. -->
-		<div class="mt-5 border-t border-border pt-5">
-			<p class="text-caption font-semibold">{m.settings_sign_in_redirect_label()}</p>
-			<div class="mt-2 flex flex-wrap items-center gap-2.5">
-				<code
-					class="min-w-0 flex-1 basis-60 rounded-md border border-border bg-background px-4 py-2.5 font-mono text-body-sm wrap-anywhere"
-					>{#each urlSegments(current.redirectUri) as segment, i (i)}{segment}<wbr />{/each}</code
-				>
-				<Button
-					variant="secondary"
-					label={m.settings_sign_in_redirect_copy()}
-					onclick={() => void copy(current!.redirectUri)}
-				>
-					<CopyIcon bind:this={copyIcon} class="size-4" />
-					{m.access_copy()}
-				</Button>
+		{#if !current.publicUrlMissing}
+			<div class="mt-5 border-t border-border pt-5">
+				<p class="text-caption font-semibold">{m.settings_sign_in_redirect_label()}</p>
+				<div class="mt-2 flex flex-wrap items-center gap-2.5">
+					<code
+						class="min-w-0 flex-1 basis-60 rounded-md border border-border bg-background px-4 py-2.5 font-mono text-body-sm wrap-anywhere"
+						>{#each urlSegments(current.redirectUri) as segment, i (i)}{segment}<wbr />{/each}</code
+					>
+					<Button
+						variant="secondary"
+						label={m.settings_sign_in_redirect_copy()}
+						onclick={() => void copy(current!.redirectUri)}
+					>
+						<CopyIcon bind:this={copyIcon} class="size-4" />
+						{m.access_copy()}
+					</Button>
+				</div>
+				<p class="mt-2 text-micro text-text-muted">{m.settings_sign_in_redirect_hint()}</p>
 			</div>
-			<p class="mt-2 text-micro text-text-muted">{m.settings_sign_in_redirect_hint()}</p>
-		</div>
+		{/if}
 	{/if}
 </section>
 

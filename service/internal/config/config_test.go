@@ -174,13 +174,13 @@ func TestLoadFromOIDC(t *testing.T) {
 		"REZEPTE_PUBLIC_URL":     "https://rezepte.example/",
 	}
 	cfg, err := LoadFrom(all)
-	if err != nil || !cfg.OIDCEnabled() {
+	if err != nil || cfg.OIDCIssuer == "" {
 		t.Fatalf("all three set: %+v, %v", cfg, err)
 	}
 	if cfg.PublicURL != "https://rezepte.example" || cfg.OIDCName != "single sign-on" {
 		t.Errorf("PublicURL = %q, OIDCName = %q", cfg.PublicURL, cfg.OIDCName)
 	}
-	if off, _ := LoadFrom(map[string]string{}); off.OIDCEnabled() {
+	if off, _ := LoadFrom(map[string]string{}); off.OIDCIssuer != "" {
 		t.Error("enabled without configuration")
 	}
 	for _, tc := range []struct {

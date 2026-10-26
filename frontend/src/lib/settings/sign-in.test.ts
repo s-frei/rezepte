@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SignInSettings } from '$lib/api/oidc';
-import { connectedWarning } from './sign-in';
+import { connectedWarning, secretRequired } from './sign-in';
 
 const base: SignInSettings = {
 	source: 'settings',
@@ -26,4 +26,20 @@ describe('connectedWarning', () => {
 		).toBe(
 			'3 accounts are connected to Authentik and can no longer sign in with it afterwards. 1 of them has no password and needs a setup link. The connections stay saved and apply again once Authentik is set up again.'
 		));
+});
+
+describe('secretRequired', () => {
+	const same = { issuer: base.issuer, clientId: base.clientId, secret: '', removeSecret: false };
+	it('is not needed while issuer and client stay', () =>
+		expect(secretRequired(base, same)).toBe(false));
+	it('is needed once the issuer or client ID changes', () => {
+		expect(secretRequired(base, { ...same, issuer: 'https://other.example' })).toBe(true);
+		expect(secretRequired(base, { ...same, clientId: 'other' })).toBe(true);
+	});
+	it('is met by a typed secret, a removal or no stored secret', () => {
+		const other = { ...same, clientId: 'other' };
+		expect(secretRequired(base, { ...other, secret: 'x' })).toBe(false);
+		expect(secretRequired(base, { ...other, removeSecret: true })).toBe(false);
+		expect(secretRequired({ ...base, secretSet: false }, other)).toBe(false);
+	});
 });

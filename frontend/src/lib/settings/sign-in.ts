@@ -29,3 +29,20 @@ export function connectedWarning(s: SignInSettings): string {
 		.filter(Boolean)
 		.join(' ');
 }
+
+/**
+ * Whether the server will refuse the save for a missing secret: the stored
+ * secret belongs to the stored issuer and client, so a different one needs
+ * a secret typed again (or the stored one removed) first.
+ */
+export function secretRequired(
+	s: SignInSettings,
+	next: { issuer: string; clientId: string; secret: string; removeSecret: boolean }
+): boolean {
+	return (
+		s.secretSet &&
+		!next.secret &&
+		!next.removeSecret &&
+		(next.issuer !== s.issuer || next.clientId !== s.clientId)
+	);
+}

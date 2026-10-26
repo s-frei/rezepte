@@ -8,7 +8,7 @@
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { connectedWarning, providerName } from '$lib/settings/sign-in';
+	import { connectedWarning, providerName, secretRequired } from '$lib/settings/sign-in';
 
 	let {
 		open = $bindable(false),
@@ -58,6 +58,18 @@
 		issuerError = issuer.trim() ? null : m.settings_sign_in_field_required();
 		clientIdError = clientId.trim() ? null : m.settings_sign_in_field_required();
 		if (issuerError || clientIdError) return;
+		// The server would refuse this; say so before the switch warning.
+		if (
+			secretRequired(current, {
+				issuer: issuer.trim(),
+				clientId: clientId.trim(),
+				secret,
+				removeSecret
+			})
+		) {
+			secretError = m.settings_sign_in_field_secret_required();
+			return;
+		}
 		// Another issuer leaves the connected accounts behind; say so first.
 		const switching = current.source === 'settings' && issuer.trim() !== current.issuer;
 		if (switching && current.connected > 0) switchOpen = true;

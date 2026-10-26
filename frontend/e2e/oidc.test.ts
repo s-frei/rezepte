@@ -180,20 +180,25 @@ test('switching the provider warns with the number of connected accounts', async
 
 test('changing only the name saves without a warning', async ({ page }) => {
 	await login(page);
+	// The stored name must stay "Dex": the other workers assert it. The PUT is
+	// answered here, so the rename is only checked on its way out.
+	let sent: Record<string, unknown> | undefined;
+	await page.route('**/api/v1/settings/sign-in', async (route) => {
+		if (route.request().method() !== 'PUT') return route.continue();
+		sent = route.request().postDataJSON();
+		const current = await (await page.request.get('/api/v1/settings/sign-in')).json();
+		await route.fulfill({ json: { ...current, name: sent!.name } });
+	});
 	await page.goto('/settings/sign-in');
 	const card = page.getByRole('region', { name: 'Sign-in' });
-	const rename = async (to: string) => {
-		await card.getByRole('button', { name: 'Edit' }).click();
-		const dialog = page.getByRole('dialog', { name: 'Set up sign-in' });
-		await dialog.getByLabel('Button name').fill(to);
-		await expect(dialog).toContainText(`On the sign-in page: Continue with ${to}`);
-		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(dialog).toBeHidden();
-		await expect(card.locator('dd').first()).toContainText(to);
-	};
-	await rename('Dex at home');
+	await card.getByRole('button', { name: 'Edit' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Set up sign-in' });
+	await dialog.getByLabel('Button name').fill('Dex at home');
+	await expect(dialog).toContainText('On the sign-in page: Continue with Dex at home');
+	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(dialog).toBeHidden();
+	expect(sent?.name).toBe('Dex at home');
 	await expect(page.getByRole('dialog', { name: 'Switch provider?' })).toHaveCount(0);
-	await rename('Dex');
 });
 
 test('the redirect URI can be copied', async ({ page, context }) => {
