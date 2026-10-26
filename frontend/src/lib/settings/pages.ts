@@ -1,6 +1,7 @@
 import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
 import Code from '@lucide/svelte/icons/code';
 import Globe from '@lucide/svelte/icons/globe';
+import KeyRound from '@lucide/svelte/icons/key-round';
 import Mail from '@lucide/svelte/icons/mail';
 import UserRound from '@lucide/svelte/icons/user-round';
 import UsersRound from '@lucide/svelte/icons/users-round';
@@ -11,7 +12,8 @@ import type { UserRole } from '$lib/api/users';
 import { m } from '$lib/paraglide/messages';
 import { isAdminRole } from '$lib/roles';
 
-export type SettingsPageId = 'profile' | 'shares' | 'api' | 'users' | 'mail' | 'transfer';
+export type SettingsPageId =
+	'profile' | 'shares' | 'api' | 'users' | 'mail' | 'sign-in' | 'transfer';
 
 export type SettingsPage = {
 	id: SettingsPageId;
@@ -27,7 +29,7 @@ export type SettingsPage = {
  * "For you" is the account's own, with API last as the page a kitchen needs
  * least; "Household" is what concerns everyone on the instance: the people
  * list, a list to read for everyone and where admins manage accounts, then
- * email (the owner's alone) and import and export (admins).
+ * email and sign-in (the owner's alone) and import and export (admins).
  */
 export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 	const personal = m.settings_group_personal();
@@ -69,6 +71,13 @@ export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 			group: household
 		},
 		{
+			id: 'sign-in',
+			href: resolve('/settings/sign-in'),
+			label: m.settings_nav_sign_in(),
+			icon: KeyRound,
+			group: household
+		},
+		{
 			id: 'transfer',
 			href: resolve('/settings/transfer'),
 			label: m.settings_nav_transfer(),
@@ -78,6 +87,7 @@ export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 	];
 	return pages.filter(
 		(page) =>
-			(page.id !== 'mail' || role === 'superadmin') && (page.id !== 'transfer' || isAdminRole(role))
+			((page.id !== 'mail' && page.id !== 'sign-in') || role === 'superadmin') &&
+			(page.id !== 'transfer' || isAdminRole(role))
 	);
 }

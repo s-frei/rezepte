@@ -125,3 +125,72 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	await more.click();
 	await expect(page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` })).toHaveCount(0);
 });
+
+// The Sign-in page against Dex, which the e2e task saved as the provider.
+// Nothing below confirms a switch or turns sign-in off: every other spec
+// shares this instance and its provider.
+
+test('switching the provider warns with the number of connected accounts', async ({ page }) => {
+	const name = `dexswitch${uniqueToken()}`;
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await page.context().clearCookies({ name: 'rezepte_session' });
+	await login(page, name);
+	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Continue with Dex' }).click();
+	await dexLogin(page, 'mila@example.com', 'mila1234');
+	await expect(page.getByText(/^Connected to Dex since/)).toBeVisible();
+	try {
+		const owner = await page.context().browser()!.newContext();
+		const admin = await owner.newPage();
+		await login(admin);
+		await admin.goto('/settings/sign-in');
+		const before = await (await admin.request.get('/api/v1/settings/sign-in')).json();
+		await admin
+			.getByRole('region', { name: 'Sign-in' })
+			.getByRole('button', { name: 'Edit' })
+			.click();
+		const dialog = admin.getByRole('dialog', { name: 'Set up sign-in' });
+		await dialog.getByLabel('Issuer URL').fill('http://localhost:1/another');
+		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+		const confirm = admin.getByRole('dialog', { name: 'Switch provider?' });
+		await expect(confirm).toContainText('1 account is connected to Dex');
+		await confirm.getByRole('button', { name: 'Cancel' }).click();
+		await expect(confirm).toBeHidden();
+		expect(await (await admin.request.get('/api/v1/settings/sign-in')).json()).toEqual(before);
+		await owner.close();
+	} finally {
+		await unlinkDex(page);
+	}
+});
+
+test('changing only the name saves without a warning', async ({ page }) => {
+	await login(page);
+	await page.goto('/settings/sign-in');
+	const card = page.getByRole('region', { name: 'Sign-in' });
+	const rename = async (to: string) => {
+		await card.getByRole('button', { name: 'Edit' }).click();
+		const dialog = page.getByRole('dialog', { name: 'Set up sign-in' });
+		await dialog.getByLabel('Button name').fill(to);
+		await expect(dialog).toContainText(`On the sign-in page: Continue with ${to}`);
+		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(dialog).toBeHidden();
+		await expect(card.locator('dd').first()).toContainText(to);
+	};
+	await rename('Dex at home');
+	await expect(page.getByRole('dialog', { name: 'Switch provider?' })).toHaveCount(0);
+	await rename('Dex');
+});
+
+test('the redirect URI can be copied', async ({ page, context }) => {
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await login(page);
+	await page.goto('/settings/sign-in');
+	await page
+		.getByRole('region', { name: 'Sign-in' })
+		.getByRole('button', { name: 'Copy the redirect URI' })
+		.click();
+	await expect(page.getByText('Redirect URI copied')).toBeVisible();
+	const copied = await page.evaluate(() => navigator.clipboard.readText());
+	expect(copied).toBe(new URL('/api/v1/auth/oidc/callback', page.url()).href);
+});

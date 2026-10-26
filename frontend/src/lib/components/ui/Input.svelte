@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { Label } from 'bits-ui';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import RequiredMark, { requiredState } from './RequiredMark.svelte';
@@ -11,6 +12,7 @@
 		prefix,
 		suffix,
 		counter,
+		aside,
 		required = false,
 		value = $bindable(''),
 		class: className = '',
@@ -33,6 +35,8 @@
 		 * value approaches it. Pass the same number as `maxlength`.
 		 */
 		counter?: number;
+		/** Small text or links at the end of the label's line ("set · remove"). */
+		aside?: Snippet;
 		/**
 		 * Marks the field as one the form cannot be saved without: a star on
 		 * the label and a stroke in the margin while it is empty. Deliberately
@@ -90,6 +94,9 @@
 		<Label.Root for={id}>{label}</Label.Root>
 		{#if required}
 			<RequiredMark state={status} />
+		{/if}
+		{#if aside}
+			<span class="ml-auto font-normal text-text-muted">{@render aside()}</span>
 		{/if}
 	</div>
 	<!-- Wraps only the field, so an absolutely positioned suffix lines up

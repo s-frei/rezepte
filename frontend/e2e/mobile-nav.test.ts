@@ -43,12 +43,14 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 		'API',
 		'People',
 		'Email',
+		'Sign-in',
 		'Import & export'
 	]);
 	// The household's pages stand apart from the account's own.
 	await expect(sheet.getByRole('group', { name: 'Household' }).getByRole('link')).toHaveText([
 		'People',
 		'Email',
+		'Sign-in',
 		'Import & export'
 	]);
 

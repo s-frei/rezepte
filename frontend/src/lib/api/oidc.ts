@@ -22,3 +22,42 @@ export async function getOwnIdentity(): Promise<{ linkedAt: string } | null> {
 export function unlinkOwnIdentity(): Promise<void> {
 	return api<void>('/auth/me/identity', { method: 'DELETE' });
 }
+
+/** The sign-in provider as the owner sees it; the client secret itself never comes back. */
+export type SignInSettings = {
+	/** env: REZEPTE_OIDC_* pin it, read-only here; settings: configured here; none: off. */
+	source: 'env' | 'settings' | 'none';
+	issuer: string;
+	clientId: string;
+	secretSet: boolean;
+	/** Empty means the button says "single sign-on". */
+	name: string;
+	/** Empty while publicUrlMissing. */
+	redirectUri: string;
+	publicUrlMissing: boolean;
+	/** Accounts connected at the issuer in force, and of those the ones without a password. */
+	connected: number;
+	connectedWithoutPassword: number;
+};
+
+/** What the edit dialog sends; an omitted clientSecret keeps the stored one, "" removes it. */
+export type SignInConfig = {
+	issuer: string;
+	clientId: string;
+	clientSecret?: string;
+	name: string;
+};
+
+export function getSignInSettings(): Promise<SignInSettings> {
+	return api<SignInSettings>('/settings/sign-in');
+}
+
+/** 422 with a field error on body.issuer when no provider answers there; nothing is stored then. */
+export function saveSignInSettings(config: SignInConfig): Promise<SignInSettings> {
+	return api<SignInSettings>('/settings/sign-in', { method: 'PUT', body: JSON.stringify(config) });
+}
+
+/** Turns sign-in through a provider off; connected identities stay. */
+export function clearSignInSettings(): Promise<void> {
+	return api<void>('/settings/sign-in', { method: 'DELETE' });
+}
