@@ -106,6 +106,8 @@ erDiagram
     text smtp_security "starttls, tls or none"
     text smtp_password "plain text, never in an API"
     text smtp_from_name "Rezepte by default"
+    text oidc_issuer "empty means sign-in is not configured here"
+    text oidc_client_secret "plain text, never in an API"
   }
   ingredient_groups {
     text id PK
@@ -218,6 +220,7 @@ erDiagram
   - `link_previews` (off by default), `link_preview_minutes` (15, 60 or 1440 under a `CHECK`, 15 by default) and `link_preview_key` to [Link previews](/features/link-previews). The key is 32 random bytes the migration writes with `randomblob`, since SQLite refuses a non-constant default in `ADD COLUMN`; `GetInstanceSettings` names its columns so the key never rides along.
   - `public_shares`, `public_share_default_days`, `public_share_max_days` and `public_share_attribution` to [Public shares](/features/public-shares). The rule that the default may never exceed the maximum is a `CHECK` on `public_share_max_days` alone, since SQLite's `ALTER TABLE` cannot add a table-level constraint and a column constraint may only name a column that already exists by the time it is added.
   - The seven `smtp_*` columns to [Email](/features/email): the mail configuration the owner saves in the UI, `smtp_host = ''` meaning not configured here, the password stored as plain text like `link_preview_key`, and `GetMailSettings` the one query that reads them.
+  - The four `oidc_*` columns to [OIDC](/features/oidc): the provider the owner saves in the UI, `oidc_issuer = ''` meaning not configured here, the client secret plain text like `smtp_password`, and `GetOIDCSettings` the one query that reads them.
 - `shares.token` is a plain `UNIQUE TEXT`, not a hash: unlike a session id or an API token, this credential is a link a member sends to someone else and has to be able to read again to copy it a second time. `UNIQUE (recipe_id, created_by)` caps a person at one live link per recipe; both foreign keys cascade. `shares_created_by_idx` serves the member's own list; there is no index on `token` beyond the `UNIQUE` constraint's own, which is what a public request resolves against. See [Public shares](/features/public-shares) for the validity rule.
 
 ## Why it is this way

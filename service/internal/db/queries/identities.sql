@@ -13,3 +13,10 @@ DELETE FROM user_identities WHERE user_id = ? AND issuer = ?;
 
 -- name: ListLinkedUserIDs :many
 SELECT user_id FROM user_identities WHERE issuer = ?;
+
+-- name: CountIdentities :one
+-- Accounts connected at issuer, and how many of them have no password.
+SELECT count(*) AS total,
+       count(CASE WHEN u.password_hash = '' THEN 1 END) AS without_password
+FROM user_identities i JOIN users u ON u.id = i.user_id
+WHERE i.issuer = ?;

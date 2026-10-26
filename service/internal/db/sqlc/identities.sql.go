@@ -9,6 +9,26 @@ import (
 	"context"
 )
 
+const countIdentities = `-- name: CountIdentities :one
+SELECT count(*) AS total,
+       count(CASE WHEN u.password_hash = '' THEN 1 END) AS without_password
+FROM user_identities i JOIN users u ON u.id = i.user_id
+WHERE i.issuer = ?
+`
+
+type CountIdentitiesRow struct {
+	Total           int64
+	WithoutPassword int64
+}
+
+// Accounts connected at issuer, and how many of them have no password.
+func (q *Queries) CountIdentities(ctx context.Context, issuer string) (CountIdentitiesRow, error) {
+	row := q.db.QueryRowContext(ctx, countIdentities, issuer)
+	var i CountIdentitiesRow
+	err := row.Scan(&i.Total, &i.WithoutPassword)
+	return i, err
+}
+
 const deleteIdentityOfUser = `-- name: DeleteIdentityOfUser :execrows
 DELETE FROM user_identities WHERE user_id = ? AND issuer = ?
 `

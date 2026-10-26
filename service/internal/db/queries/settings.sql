@@ -47,3 +47,17 @@ UPDATE instance_settings
 SET smtp_host = '', smtp_port = 587, smtp_security = 'starttls',
     smtp_username = '', smtp_password = '', smtp_from = '', smtp_from_name = 'Rezepte'
 WHERE id = 1;
+
+-- name: GetOIDCSettings :one
+SELECT oidc_issuer, oidc_client_id, oidc_client_secret, oidc_name
+FROM instance_settings WHERE id = 1;
+
+-- name: SetOIDCSettings :exec
+UPDATE instance_settings
+SET oidc_issuer = ?, oidc_client_id = ?, oidc_client_secret = ?, oidc_name = ?
+WHERE id = 1;
+
+-- name: ClearOIDCSettings :exec
+UPDATE instance_settings
+SET oidc_issuer = '', oidc_client_id = '', oidc_client_secret = '', oidc_name = ''
+WHERE id = 1;

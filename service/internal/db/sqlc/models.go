@@ -75,6 +75,10 @@ type InstanceSetting struct {
 	SmtpPassword           string
 	SmtpFrom               string
 	SmtpFromName           string
+	OidcIssuer             string
+	OidcClientID           string
+	OidcClientSecret       string
+	OidcName               string
 }
 
 type Recipe struct {

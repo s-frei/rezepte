@@ -21,6 +21,17 @@ func (q *Queries) ClearMailSettings(ctx context.Context) error {
 	return err
 }
 
+const clearOIDCSettings = `-- name: ClearOIDCSettings :exec
+UPDATE instance_settings
+SET oidc_issuer = '', oidc_client_id = '', oidc_client_secret = '', oidc_name = ''
+WHERE id = 1
+`
+
+func (q *Queries) ClearOIDCSettings(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, clearOIDCSettings)
+	return err
+}
+
 const getInstanceSettings = `-- name: GetInstanceSettings :one
 SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
        public_shares, public_share_default_days, public_share_max_days,
@@ -96,6 +107,30 @@ func (q *Queries) GetMailSettings(ctx context.Context) (GetMailSettingsRow, erro
 	return i, err
 }
 
+const getOIDCSettings = `-- name: GetOIDCSettings :one
+SELECT oidc_issuer, oidc_client_id, oidc_client_secret, oidc_name
+FROM instance_settings WHERE id = 1
+`
+
+type GetOIDCSettingsRow struct {
+	OidcIssuer       string
+	OidcClientID     string
+	OidcClientSecret string
+	OidcName         string
+}
+
+func (q *Queries) GetOIDCSettings(ctx context.Context) (GetOIDCSettingsRow, error) {
+	row := q.db.QueryRowContext(ctx, getOIDCSettings)
+	var i GetOIDCSettingsRow
+	err := row.Scan(
+		&i.OidcIssuer,
+		&i.OidcClientID,
+		&i.OidcClientSecret,
+		&i.OidcName,
+	)
+	return i, err
+}
+
 const setLinkPreviewMinutes = `-- name: SetLinkPreviewMinutes :exec
 UPDATE instance_settings SET link_preview_minutes = ? WHERE id = 1
 `
@@ -140,6 +175,29 @@ func (q *Queries) SetMailSettings(ctx context.Context, arg SetMailSettingsParams
 		arg.SmtpPassword,
 		arg.SmtpFrom,
 		arg.SmtpFromName,
+	)
+	return err
+}
+
+const setOIDCSettings = `-- name: SetOIDCSettings :exec
+UPDATE instance_settings
+SET oidc_issuer = ?, oidc_client_id = ?, oidc_client_secret = ?, oidc_name = ?
+WHERE id = 1
+`
+
+type SetOIDCSettingsParams struct {
+	OidcIssuer       string
+	OidcClientID     string
+	OidcClientSecret string
+	OidcName         string
+}
+
+func (q *Queries) SetOIDCSettings(ctx context.Context, arg SetOIDCSettingsParams) error {
+	_, err := q.db.ExecContext(ctx, setOIDCSettings,
+		arg.OidcIssuer,
+		arg.OidcClientID,
+		arg.OidcClientSecret,
+		arg.OidcName,
 	)
 	return err
 }
