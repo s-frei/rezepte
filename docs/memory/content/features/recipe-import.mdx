@@ -76,6 +76,7 @@ Admins also see a row linking to the zip import at `/settings/transfer#import`.
 
 - Pages that render their recipe with JavaScript and ship no JSON-LD, and pages behind bot protection or a paywall, work only through pasted text.
 - One photo per import; nutrition, ratings, videos and the source's author are ignored.
+- Pasted text fills no servings and no times - a "4 Portionen" line stays in the description - and every import lands in one ingredient group, so a line like "Für den Teig:" becomes an ingredient.
 - Duplicates are found by source URL only, not by title.
 - A reload of `/recipes/new` loses an imported draft.
 - The import has tables for German and English, the app's two languages. A recipe in another language reads with both at once: its units are not recognized and stay in the name ("2 cuillères à soupe de farine" is 2 × "cuillères à soupe de farine", not flagged), and only lines the safety net catches are marked to check.

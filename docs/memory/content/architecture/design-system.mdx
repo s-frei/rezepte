@@ -295,6 +295,8 @@ The logo is a painted mascot rather than a drawn mark because a drawn mark with 
 
 Both faces are self-hosted through Fontsource and imported from CSS (`frontend/src/app.css`), never fetched from a font service at runtime. A self-hosted app should not tell a third party who is reading which recipe, and a kitchen tablet on a LAN with no internet has to render the same as one online.
 
+New UI takes its idea from the cookbook - a running head, a contents page, a credit line - and has to hold twice the entries it starts with. An element lifted from another part of the app into a new place fits only the case it was built for and breaks with the next entry.
+
 Tokens are the only source of color, radius, shadow and font, which is what makes a palette change a single edit and a dark mode possible at all. A color written straight into a component is a color nothing can theme and nothing can find.
 
 The user docs wear this palette because end users meet the docs before they meet the app: a gray manual wrapped around cream screenshots reads as two products. `docs/memory/` stays neutral for the mirror-image reason - the look is what tells a reader at a glance which of the two sites is open. The contrast deltas are not drift: the same token carries body-sized reading text in the docs and only meta lines and chips in the app, and text people actually read has AA as a floor.
@@ -314,4 +316,6 @@ The user docs wear this palette because end users meet the docs before they meet
 - **A drawn mark with a face**, such as a brush-painted onion with a sprout. It reads as clip art, and a face drawn in a few strokes looks either startled or smug.
 - **The `@jis3r/icons` package (movingicons.dev) for animated icons.** It covers only part of the set in use, wraps every icon in a `<div role="img" aria-label>` that a screen reader announces inside an already labelled button (and that is invalid inside a `<button>`), starts on hover of the icon alone rather than the control, and ignores reduced motion. The five components that move are short enough to own.
 - **Animating icons on hover.** On a phone there is no hover, and on a desktop every pass of the pointer sets an icon twitching without anything having happened.
+- **The bottom nav's pill for the editor's sections on a phone.** It reads as a part borrowed from elsewhere and has no room for one more section; the running head and the contents sheet hold any number.
+- **Book-culture words as visible copy**, such as "Ex libris" on the login. They mean nothing to most cooks; the login's words stay plain, and the wordmark always shows.
 - **Inline SVG recolored by tokens.** A painting cannot follow a token, and the box makes a dark variant unnecessary.
