@@ -157,8 +157,15 @@ test('switching the provider warns with the number of connected accounts', async
 			.click();
 		const dialog = admin.getByRole('dialog', { name: 'Set up sign-in' });
 		await dialog.getByLabel('Issuer URL').fill('http://localhost:1/another');
-		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+		const save = dialog.getByRole('button', { name: 'Save', exact: true });
 		const confirm = admin.getByRole('dialog', { name: 'Switch provider?' });
+		// Dex's stored secret never goes to another issuer: the dialog asks for
+		// one before it warns about anything.
+		await save.click();
+		await expect(dialog.getByLabel('Client secret')).toHaveAttribute('aria-invalid', 'true');
+		await expect(confirm).toBeHidden();
+		await dialog.getByLabel('Client secret').fill('another-secret');
+		await save.click();
 		// The count as the server has it: oidc-mobile.test.ts may link an
 		// account of its own at the same time, so it is at least mila.
 		expect(before.connected).toBeGreaterThanOrEqual(1);

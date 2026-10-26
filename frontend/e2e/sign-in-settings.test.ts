@@ -50,6 +50,9 @@ test('a wrong issuer shows a field error and saves nothing', async ({ page }) =>
 	const dialog = page.getByRole('dialog', { name: 'Set up sign-in' });
 	await dialog.getByLabel('Issuer URL').fill('http://localhost:1/nothing');
 	await dialog.getByLabel('Client ID').fill('rezepte');
+	// With Dex up a secret is stored, and it never goes to another issuer: a
+	// fresh one lets the save reach the server's discovery.
+	await dialog.getByLabel('Client secret').fill('another-secret');
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(dialog.getByText('No OpenID provider answers at this address.')).toBeVisible();
 	await expect(dialog.getByLabel('Issuer URL')).toHaveAttribute('aria-invalid', 'true');
