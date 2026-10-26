@@ -10,6 +10,7 @@ description: What to test and how, per package
     - Database tests run against a real migrated database, never a mock or a hand-built schema: take one from `dbtest.Open(t)` in `service/internal/db/dbtest/`. [Data model](/architecture/data-model) owns what it opens.
     - Handler tests build the real server - `httpserver.New` with `auth.Middleware`, the package's `Register` and a `dbtest.Open(t)` database - and drive `srv.Handler()` with `net/http/httptest` requests, so every request passes the same middleware, origin check and validation as in production. Not `humatest`, which would skip the middleware.
     - Test names describe behavior: `TestCreateRecipeRejectsEmptyTitle`.
+    - A test that costs seconds calls `t.Parallel()`, as the `demo.Seed` tests in `service/internal/demo/` do: every seed renders all embedded photos, and run one after another they made that package the longest step of `check`. A test that swaps package-level state, such as `photos` in that package, stays serial; Go finishes the serial tests before it starts the parallel ones.
 
   </Tab>
   <Tab value="Frontend">
@@ -17,7 +18,7 @@ description: What to test and how, per package
     - Vitest for pure logic (`src/lib/**/*.test.ts`): API client, scaling, formatting.
     - Playwright end-to-end tests in `frontend/e2e/` against the built binary (`mise run e2e`), desktop and mobile projects. One test per user-facing flow.
     - Users a test bootstraps take their password from their username, through `devPassword` in `frontend/e2e/helpers.ts` ([Development credentials](/conventions/dev-credentials)); Go unit tests keep their own fixture passwords.
-    - `svelte-check` and ESLint are part of the gate; no component tests. `svelte-check` type-checks the Playwright specs and `playwright.config.ts` too: the kit's `typescript.config` hook in `frontend/vite.config.ts` adds them to the generated tsconfig's `include`.
+    - `svelte-check` and ESLint are part of the gate; no component tests. `bun run lint` keeps Prettier's and ESLint's caches in the frontend's node_modules, so a repeated local lint takes a second instead of ESLint's twenty (its typed `projectService` setup is what `svelte/no-navigation-without-resolve` needs). A cached result can miss a type change in another file; CI starts without a cache, so it catches that. `svelte-check` type-checks the Playwright specs and `playwright.config.ts` too: the kit's `typescript.config` hook in `frontend/vite.config.ts` adds them to the generated tsconfig's `include`.
 
   </Tab>
 </Tabs>

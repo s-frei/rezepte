@@ -8,7 +8,7 @@
 		"build": "vite build",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"lint": "prettier --check . && eslint .",
+		"lint": "prettier --check --cache . && eslint --cache --cache-strategy content --cache-location node_modules/.cache/eslint/ .",
 		"format": "prettier --write .",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
