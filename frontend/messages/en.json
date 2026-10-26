@@ -70,6 +70,8 @@
 	"settings_nav_profile": "Profile",
 	"settings_nav_shares": "Shared links",
 	"settings_nav_users": "People",
+	"settings_group_personal": "For you",
+	"settings_group_household": "Household",
 	"settings_profile_name_label": "Display name",
 	"settings_profile_save": "Save profile",
 	"settings_profile_name_invalid": "At most 64 characters",

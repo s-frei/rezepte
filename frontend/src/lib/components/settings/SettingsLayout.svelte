@@ -1,19 +1,17 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { resolve } from '$app/paths';
+	import LogOut from '@lucide/svelte/icons/log-out';
 	import ContentsSheet from '$lib/components/nav/ContentsSheet.svelte';
+	import { byGroup } from '$lib/components/nav/contents';
+	import GroupHeading from '$lib/components/nav/GroupHeading.svelte';
 	import RunningHead from '$lib/components/nav/RunningHead.svelte';
 	import { session } from '$lib/auth.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import { isAdminRole } from '$lib/roles';
+	import { settingsPages, type SettingsPageId } from '$lib/settings/pages';
 	import { shell } from '$lib/shell.svelte';
 	import { signOut } from '$lib/sign-out';
 
-	let {
-		active,
-		children
-	}: { active: 'profile' | 'shares' | 'users' | 'mail' | 'api' | 'transfer'; children: Snippet } =
-		$props();
+	let { active, children }: { active: SettingsPageId; children: Snippet } = $props();
 
 	// Same top-bar contract as the editor: breadcrumb instead of the default
 	// action buttons, reset when leaving.
@@ -26,23 +24,7 @@
 		};
 	});
 
-	// The pages of the settings area, in the order both navs list them. Every
-	// account has the first four: Shared links is everyone's own list of public
-	// links, and the people page is a list to read for everyone and the place
-	// admins manage accounts. Email is the owner's alone, import and export
-	// is for admins.
-	const pages = $derived([
-		{ id: 'profile', href: resolve('/settings'), label: m.settings_nav_profile() },
-		{ id: 'api', href: resolve('/settings/api'), label: m.settings_nav_api() },
-		{ id: 'shares', href: resolve('/settings/shares'), label: m.settings_nav_shares() },
-		{ id: 'users', href: resolve('/settings/users'), label: m.settings_nav_users() },
-		...(session.user?.role === 'superadmin'
-			? [{ id: 'mail', href: resolve('/settings/mail'), label: m.settings_nav_mail() }]
-			: []),
-		...(isAdminRole(session.user?.role)
-			? [{ id: 'transfer', href: resolve('/settings/transfer'), label: m.settings_nav_transfer() }]
-			: [])
-	]);
+	const pages = $derived(settingsPages(session.user?.role));
 
 	let contentsOpen = $state(false);
 	// Signing out is not a page, so on a phone it is an action at the foot of
@@ -52,6 +34,7 @@
 			id: 'sign-out',
 			label: m.logout(),
 			tone: 'destructive' as const,
+			icon: LogOut,
 			onselect: () => void signOut()
 		}
 	];
@@ -78,23 +61,35 @@
 			aria-label={m.settings_sections_label()}
 			class="sticky top-6 hidden flex-col gap-1.5 text-body-sm font-medium md:flex"
 		>
-			{#each pages as item (item.id)}
-				<a
-					href={item.href}
-					aria-current={active === item.id ? 'page' : undefined}
-					class="rounded-pill px-3.5 py-2 text-left transition {active === item.id
-						? 'bg-surface font-semibold text-text'
-						: 'text-text-muted hover:text-text'}"
-				>
-					{item.label}
-				</a>
+			{#each byGroup(pages) as run, i (run.label)}
+				<div role="group" aria-label={run.label} class="flex flex-col gap-1.5">
+					<GroupHeading label={run.label} first={i === 0} class="px-3.5" />
+					{#each run.entries as item (item.id)}
+						{@const Icon = item.icon}
+						{@const current = active === item.id}
+						<!-- The bottom nav's current pill: one way to say "you are here"
+						     across the app. The other icons stay muted, as in the
+						     avatar menu. -->
+						<a
+							href={item.href}
+							aria-current={current ? 'page' : undefined}
+							class="flex items-center gap-2.5 rounded-pill px-3.5 py-2 text-left transition {current
+								? 'bg-accent font-semibold text-accent-foreground'
+								: 'text-text-muted hover:text-text'}"
+						>
+							<Icon class="size-4 shrink-0 {current ? '' : 'text-text-muted'}" aria-hidden="true" />
+							{item.label}
+						</a>
+					{/each}
+				</div>
 			{/each}
 			<div class="mx-3.5 my-1 h-px bg-border" aria-hidden="true"></div>
 			<button
 				type="button"
 				onclick={() => void signOut()}
-				class="rounded-pill px-3.5 py-2 text-left text-destructive transition hover:bg-surface"
+				class="flex items-center gap-2.5 rounded-pill px-3.5 py-2 text-left text-destructive transition hover:bg-surface"
 			>
+				<LogOut class="size-4 shrink-0" aria-hidden="true" />
 				{m.logout()}
 			</button>
 		</nav>

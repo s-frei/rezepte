@@ -19,7 +19,7 @@
 		/**
 		 * How far the reader is through the current entry, 0 to 1. Set, it
 		 * draws the hairline of one segment per entry under the name; unset
-		 * (pages rather than a scroll), there is no hairline.
+		 * (pages rather than a scroll), the head is a field instead.
 		 */
 		progress?: number;
 		/** Whether the contents sheet this head opens is open. */
@@ -36,6 +36,10 @@
 		)
 	);
 	const label = $derived(entries[index]?.label ?? '');
+	const Icon = $derived(entries[index]?.icon);
+	// Pages rather than a scroll (settings): the head is a select-like field,
+	// so it reads as a control to change the page and not as a second title.
+	const field = $derived(progress === undefined);
 	const duration = $derived(prefersReducedMotion.current ? 0 : 160);
 
 	/** Fill of segment `i`: whole before the current one, partial on it, none after. */
@@ -55,30 +59,47 @@
 	and the contents sheet it opens takes you anywhere else. It stays one line
 	however many entries there are, which is what lets it carry any number of
 	them. Full-bleed so what scrolls under it is covered edge to edge; the
-	name swapping is its only motion.
+	name swapping is its only motion. Over a scroll (the editor) it is the
+	name over a hairline of reading progress; over pages (settings) the name
+	alone looked like a heading, so it is a field - surface, border, the
+	page's icon, the chevron at the far end - that separates by itself.
 -->
-<div class="sticky z-30 -mx-5 bg-background/90 backdrop-blur md:hidden {className}">
+<div
+	class="sticky z-30 -mx-5 bg-background/90 backdrop-blur md:hidden {field
+		? 'px-5 pt-1 pb-2.5'
+		: ''} {className}"
+>
 	<button
 		type="button"
 		onclick={onopen}
 		aria-haspopup="dialog"
 		aria-expanded={expanded}
 		aria-label={m.nav_contents_open({ current: label })}
-		class="flex h-12 w-full items-center gap-1.5 px-5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+		class="flex w-full items-center text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {field
+			? 'h-12 gap-2.5 rounded-xl border border-border bg-surface px-3.5'
+			: 'h-12 gap-1.5 px-5'}"
 	>
+		{#if field && Icon}
+			<Icon class="size-4.5 shrink-0 text-text-muted" aria-hidden="true" />
+		{/if}
 		<!-- One grid cell for the outgoing and the incoming name, so the two
 		     cross-fade in place instead of stacking. -->
 		<span class="grid min-w-0">
 			{#key label}
 				<span
-					class="col-start-1 row-start-1 truncate font-display text-card font-medium"
+					class="col-start-1 row-start-1 truncate font-display font-medium {field
+						? 'text-body-lg'
+						: 'text-card'}"
 					transition:fade={{ duration }}
 				>
 					{label}
 				</span>
 			{/key}
 		</span>
-		<ChevronDown class="size-4 shrink-0 translate-y-px text-text-muted" aria-hidden="true" />
+		<ChevronDown
+			class="size-4 shrink-0 translate-y-px text-text-muted {field ? 'ml-auto' : ''}"
+			aria-hidden="true"
+		/>
 	</button>
 	{#if progress !== undefined}
 		<!-- The name already says where the reader is; this only shows it. -->
@@ -89,7 +110,5 @@
 				</span>
 			{/each}
 		</div>
-	{:else}
-		<div aria-hidden="true" class="mx-5 h-px bg-border"></div>
 	{/if}
 </div>

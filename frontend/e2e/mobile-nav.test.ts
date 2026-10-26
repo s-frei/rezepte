@@ -39,8 +39,14 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 	await expect(sheet.getByText('Owner, signed in as admin')).toBeVisible();
 	await expect(sheet.getByRole('link')).toHaveText([
 		'Profile',
-		'API',
 		'Shared links',
+		'API',
+		'People',
+		'Email',
+		'Import & export'
+	]);
+	// The household's pages stand apart from the account's own.
+	await expect(sheet.getByRole('group', { name: 'Household' }).getByRole('link')).toHaveText([
 		'People',
 		'Email',
 		'Import & export'

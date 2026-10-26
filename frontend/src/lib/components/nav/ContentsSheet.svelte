@@ -2,7 +2,8 @@
 	import { Dialog } from 'bits-ui';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { ContentsAction, ContentsEntry } from './contents';
+	import { byGroup, type ContentsAction, type ContentsEntry } from './contents';
+	import GroupHeading from './GroupHeading.svelte';
 
 	let {
 		open = $bindable(false),
@@ -37,68 +38,83 @@
 	line, its name in the display serif, a dotted leader, and on the right
 	what a book would print as the page number - here a count, a title or a
 	setting. The one element of the phone's navigation allowed to be
-	memorable; the running head that opens it stays quiet.
+	memorable; the running head that opens it stays quiet. Entries that carry
+	a `group` are set in parts, each under a `GroupHeading`.
 -->
 <BottomSheet bind:open closeLabel={m.nav_contents_close()}>
 	<Dialog.Title class="px-5 pb-2 font-display text-heading-lg font-medium italic">
 		{m.nav_contents_title()}
 	</Dialog.Title>
 	<div class="min-h-0 flex-1 overflow-y-auto px-2 pb-8">
-		<ol>
-			{#each entries as entry (entry.id)}
-				{@const isCurrent = entry.id === current}
-				<li>
-					{#snippet content()}
-						<span
-							class="shrink-0 font-display text-body-lg {isCurrent
-								? 'font-semibold text-primary'
-								: 'font-medium text-text'}"
-						>
-							{entry.label}
-						</span>
-						{#if entry.summary !== undefined}
-							<span
-								aria-hidden="true"
-								class="min-w-6 flex-1 border-b-2 border-dotted {isCurrent
-									? 'border-primary/40'
-									: 'border-handle'}"
-							></span>
-							<span
-								class="max-w-[60%] min-w-0 truncate text-body-sm tabular-nums {entry.placeholder
-									? 'text-text-muted italic'
-									: isCurrent
-										? 'font-semibold text-primary'
+		{#each byGroup(entries) as run, i (run.label ?? i)}
+			{#if run.label}
+				<GroupHeading label={run.label} first={i === 0} class="px-3" />
+			{/if}
+			<ol aria-label={run.label}>
+				{#each run.entries as entry (entry.id)}
+					{@const isCurrent = entry.id === current}
+					<li>
+						{#snippet content()}
+							{#if entry.icon}
+								{@const Icon = entry.icon}
+								<Icon
+									class="mr-1 size-5 shrink-0 self-center {isCurrent
+										? 'text-accent-foreground'
 										: 'text-text-muted'}"
+									aria-hidden="true"
+								/>
+							{/if}
+							<span
+								class="shrink-0 font-display text-body-lg {isCurrent
+									? 'font-semibold text-accent-foreground'
+									: 'font-medium text-text'}"
 							>
-								{entry.summary}
+								{entry.label}
 							</span>
+							{#if entry.summary !== undefined}
+								<span
+									aria-hidden="true"
+									class="min-w-6 flex-1 border-b-2 border-dotted {isCurrent
+										? 'border-accent-foreground/40'
+										: 'border-handle'}"
+								></span>
+								<span
+									class="max-w-[60%] min-w-0 truncate text-body-sm tabular-nums {entry.placeholder
+										? 'text-text-muted italic'
+										: isCurrent
+											? 'font-semibold text-accent-foreground'
+											: 'text-text-muted'}"
+								>
+									{entry.summary}
+								</span>
+							{/if}
+						{/snippet}
+						{#if entry.href !== undefined}
+							<!-- `href` is a `ResolvedPathname`: the caller resolved it. -->
+							<!-- eslint-disable svelte/no-navigation-without-resolve -->
+							<a
+								href={entry.href}
+								aria-current={isCurrent ? 'page' : undefined}
+								onclick={() => pick(entry)}
+								class="{row} {isCurrent ? 'bg-accent' : 'hover:bg-surface'}"
+							>
+								{@render content()}
+							</a>
+							<!-- eslint-enable svelte/no-navigation-without-resolve -->
+						{:else}
+							<button
+								type="button"
+								aria-current={isCurrent ? 'true' : undefined}
+								onclick={() => pick(entry)}
+								class="{row} {isCurrent ? 'bg-accent' : 'hover:bg-surface'}"
+							>
+								{@render content()}
+							</button>
 						{/if}
-					{/snippet}
-					{#if entry.href !== undefined}
-						<!-- `href` is a `ResolvedPathname`: the caller resolved it. -->
-						<!-- eslint-disable svelte/no-navigation-without-resolve -->
-						<a
-							href={entry.href}
-							aria-current={isCurrent ? 'page' : undefined}
-							onclick={() => pick(entry)}
-							class="{row} {isCurrent ? 'bg-surface' : 'hover:bg-surface'}"
-						>
-							{@render content()}
-						</a>
-						<!-- eslint-enable svelte/no-navigation-without-resolve -->
-					{:else}
-						<button
-							type="button"
-							aria-current={isCurrent ? 'true' : undefined}
-							onclick={() => pick(entry)}
-							class="{row} {isCurrent ? 'bg-surface' : 'hover:bg-surface'}"
-						>
-							{@render content()}
-						</button>
-					{/if}
-				</li>
-			{/each}
-		</ol>
+					</li>
+				{/each}
+			</ol>
+		{/each}
 		{#if actions.length > 0}
 			<div class="mx-3 my-2 h-px bg-border" aria-hidden="true"></div>
 			{#each actions as action (action.id)}
@@ -112,6 +128,10 @@
 						? 'text-destructive'
 						: 'text-text'} text-body"
 				>
+					{#if action.icon}
+						{@const Icon = action.icon}
+						<Icon class="mr-1 size-5 shrink-0 self-center" aria-hidden="true" />
+					{/if}
 					{action.label}
 				</button>
 			{/each}
