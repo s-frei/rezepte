@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { RecipeInput } from '../src/lib/api/recipes';
 import { createRecipe, login, uniqueToken } from './helpers';
 
@@ -34,6 +34,15 @@ function scalingRecipe(title: string): RecipeInput {
 	};
 }
 
+/** An ingredient's row; its number and its unit are separate cells of the list's grid. */
+function ingredient(scope: Page | Locator, name: string) {
+	// `has` resolves against each row, so the checkbox locator starts at the page.
+	const page = 'page' in scope ? scope.page() : scope;
+	return scope
+		.getByRole('listitem')
+		.filter({ has: page.getByRole('checkbox', { name, exact: true }) });
+}
+
 /**
  * Follows whichever cook-mode entry point the viewport shows (top bar link or
  * sticky CTA). Both are in the DOM on every project - the top bar is only
@@ -58,7 +67,7 @@ test('scales quantities with the servings stepper and keeps the choice', async (
 
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByText('4 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('200 g', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Flour')).toHaveText(/^\s*200\s*g\s*Flour\s*$/);
 	await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0);
 
 	const more = page.getByRole('button', { name: 'More servings' });
@@ -66,25 +75,25 @@ test('scales quantities with the servings stepper and keeps the choice', async (
 		await more.click();
 	}
 	await expect(page.getByText('8 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('400 g', { exact: true })).toBeVisible();
-	await expect(page.getByText('2 pinch', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Flour')).toHaveText(/^\s*400\s*g\s*Flour\s*$/);
+	await expect(ingredient(page, 'Salt')).toHaveText(/^\s*2\s*pinch\s*Salt\s*$/);
 	await expect(page.getByText('For 8 servings · ×2')).toBeVisible();
 
 	// The choice lives in localStorage under the recipe id, so a reload keeps it.
 	await page.reload();
 	await expect(page.getByText('8 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('400 g', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Flour')).toHaveText(/^\s*400\s*g\s*Flour\s*$/);
 
 	await page.getByRole('button', { name: 'Reset' }).click();
 	await expect(page.getByText('4 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('200 g', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Flour')).toHaveText(/^\s*200\s*g\s*Flour\s*$/);
 	await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0);
 
 	// "Reset" removes the stored choice, it does not store the baseline:
 	// after a reload the page is back to the recipe's own servings.
 	await page.reload();
 	await expect(page.getByText('4 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('200 g', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Flour')).toHaveText(/^\s*200\s*g\s*Flour\s*$/);
 	await expect(page.getByRole('button', { name: 'Reset' })).toHaveCount(0);
 });
 
@@ -136,8 +145,8 @@ test('rounds scaled quantities to kitchen fractions', async ({ page }) => {
 	// German comma.
 	await page.getByRole('button', { name: 'Fewer servings' }).click();
 	await expect(page.getByText('3 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('¾ tbsp', { exact: true })).toBeVisible();
-	await expect(page.getByText('113 ml', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Oil')).toHaveText(/^\s*¾\s*tbsp\s*Oil\s*$/);
+	await expect(ingredient(page, 'Milk')).toHaveText(/^\s*113\s*ml\s*Milk\s*$/);
 	await expect(page.getByText('For 3 servings · ×0.75')).toBeVisible();
 });
 
@@ -203,11 +212,11 @@ test('toggles the ingredient sheet and shares the servings with the recipe page'
 	const sheet = page.getByRole('dialog', { name: 'Ingredients' });
 	await expect(sheet).toBeVisible();
 	await expect(sheet.getByText('Flour')).toBeVisible();
-	await expect(sheet.getByText('200 g', { exact: true })).toBeVisible();
+	await expect(ingredient(sheet, 'Flour')).toHaveText(/^\s*200\s*g\s*Flour\s*$/);
 
 	await sheet.getByRole('button', { name: 'More servings' }).click();
 	await expect(sheet.getByText('5 servings', { exact: true })).toBeVisible();
-	await expect(sheet.getByText('250 g', { exact: true })).toBeVisible();
+	await expect(ingredient(sheet, 'Flour')).toHaveText(/^\s*250\s*g\s*Flour\s*$/);
 
 	// Ticks are the same session state the detail page uses.
 	await sheet.getByRole('checkbox', { name: 'Salt' }).click();
@@ -235,7 +244,7 @@ test('toggles the ingredient sheet and shares the servings with the recipe page'
 
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByText('5 servings', { exact: true })).toBeVisible();
-	await expect(page.getByText('250 g', { exact: true })).toBeVisible();
+	await expect(ingredient(page, 'Flour')).toHaveText(/^\s*250\s*g\s*Flour\s*$/);
 	await expect(page.getByRole('checkbox', { name: 'Salt' })).toBeChecked();
 });
 
@@ -381,4 +390,79 @@ test('keeps a linked word and a long time inside a narrow phone at the largest s
 		});
 	expect(timeLeft).toBeGreaterThanOrEqual(columnLeft);
 	expect(timeRight).toBeLessThanOrEqual(columnRight);
+});
+
+test('keeps long units and wide numbers inside the ingredient list on a narrow phone', async ({
+	page
+}) => {
+	// The number has a column as wide as the widest number; the unit leads the
+	// name and wraps with it, and a German compound hyphenates rather than
+	// running past the card.
+	await page.setViewportSize({ width: 320, height: 740 });
+	const recipe = await createRecipe(page, {
+		...scalingRecipe(`Units ${uniqueToken()}`),
+		ingredientGroups: [
+			{
+				name: 'Klopse',
+				ingredients: [
+					{ quantity: 1, unit: 'Messerspitze', name: 'Muskatnuss', note: 'frisch gerieben' },
+					{
+						quantity: 1250,
+						unit: 'g',
+						name: 'gemischtes Hackfleisch vom Rind und Schwein',
+						note: null
+					},
+					{ quantity: null, unit: 'Prise', name: 'Salz', note: null }
+				]
+			},
+			{
+				name: 'Sauce',
+				ingredients: [
+					{ quantity: 2, unit: 'Messerspitzen', name: 'Zitronenabrieb', note: null },
+					{ quantity: 500, unit: 'g', name: 'Rinderhackfleischbällchen', note: null }
+				]
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect(ingredient(page, 'Muskatnuss')).toHaveText(
+		/^\s*1\s*Messerspitze\s*Muskatnuss\s*\(frisch gerieben\)\s*$/
+	);
+	const rows = await page
+		.getByRole('listitem')
+		.filter({ has: page.getByRole('checkbox') })
+		.evaluateAll((items) =>
+			items.map((li) => {
+				const box = li.children[0].getBoundingClientRect();
+				// Text extents, not cell boxes: a cell keeps a clean box while its
+				// text spills out of it, into the name or past the card.
+				const extent = (node: Element) => {
+					const range = document.createRange();
+					range.selectNodeContents(node);
+					return range.getBoundingClientRect();
+				};
+				const number = extent(li.children[1]);
+				const text = extent(li.children[2]);
+				const firstLine = li.children[2].firstElementChild!.getClientRects()[0];
+				const card = li.closest('ul')!.getBoundingClientRect();
+				return {
+					// A row without a number ("Prise Salz") has no edge to line up.
+					numberRight: li.children[1].textContent!.trim() ? Math.round(number.right) : null,
+					clear: number.right <= text.left,
+					inside: text.right <= card.right + 0.5,
+					// The checkbox sits on the first line, not mid-row.
+					boxOnFirstLine:
+						Math.abs(box.top + box.height / 2 - (firstLine.top + firstLine.height / 2)) <= 2
+				};
+			})
+		);
+	expect(rows).toHaveLength(5);
+	expect(new Set(rows.map((row) => row.numberRight).filter((right) => right !== null)).size).toBe(
+		1
+	);
+	for (const row of rows) {
+		expect(row).toMatchObject({ clear: true, inside: true, boxOnFirstLine: true });
+	}
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });

@@ -37,6 +37,13 @@
 	const scaled = $derived(servings !== baseServings);
 	const columns = $derived(splitColumns(groups, split ? MIN_ROWS : Infinity));
 	const twoUp = $derived(columns[1].length > 0);
+	const columnGrid = $derived(
+		`col-span-full grid grid-cols-subgrid content-start ${
+			twoUp
+				? 'min-[600px]:max-[840px]:col-span-1 min-[600px]:max-[840px]:grid-cols-[22px_max-content_minmax(0,1fr)] min-[600px]:max-[840px]:gap-x-2'
+				: ''
+		}`
+	);
 	// A divider under every row but a group's last; a group broken across the
 	// columns keeps it under the left column's last row only while they stack.
 	const rowRule = (part: ColumnPart, index: number) =>
@@ -71,29 +78,33 @@
 			{@const groupIndex = part.group}
 			{#if part.heading}
 				<h3
-					class="mt-5 mb-2 font-display text-[16px] font-medium text-primary italic {right
+					class="col-span-full mt-5 mb-2 font-display text-[16px] font-medium text-primary italic {right
 						? 'min-[600px]:max-[840px]:first:mt-0'
 						: 'first:mt-0'}"
 				>
 					{group.name}
 				</h3>
 			{/if}
-			<ul>
+			<ul class="col-span-full grid grid-cols-subgrid">
 				{#each group.ingredients.slice(part.from, part.to) as ingredient, i (i)}
 					{@const ingredientIndex = part.from + i}
 					{@const key = ingredientKey(recipeId, groupIndex, ingredientIndex)}
 					{@const rowChecked = isChecked(key)}
+					{@const amountInk = rowChecked ? 'text-text-muted line-through' : 'text-primary'}
+					<!-- The number gets the shared column; the unit leads the name, so a
+					     long unit wraps with the text instead of widening every row. -->
 					<li
-						class="grid min-h-11 grid-cols-[22px_70px_1fr] items-center gap-2 border-dashed border-border py-2 md:min-h-10 {rowRule(
+						class="col-span-full grid min-h-11 grid-cols-subgrid content-center items-baseline border-dashed border-border py-2 md:min-h-10 {rowRule(
 							part,
 							ingredientIndex
 						)}"
 					>
+						<!-- On the first line, beside the amount, however far the name wraps. -->
 						<Checkbox.Root
 							checked={rowChecked}
 							onCheckedChange={() => toggle(key)}
 							aria-label={ingredient.name}
-							class="flex size-5 items-center justify-center rounded-full border-[1.5px] border-handle transition data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+							class="mt-[calc((1lh_-_20px)/2)] flex size-5 items-center justify-center self-start rounded-full border-[1.5px] border-handle text-body transition data-[state=checked]:border-primary data-[state=checked]:bg-primary"
 						>
 							{#snippet children({ checked: isRowChecked })}
 								{#if isRowChecked}
@@ -101,20 +112,21 @@
 								{/if}
 							{/snippet}
 						</Checkbox.Root>
-						<span
-							class="text-body-sm font-semibold tabular-nums {rowChecked
-								? 'text-text-muted line-through'
-								: 'text-text'}"
-						>
+						<span class="text-right text-body font-semibold tabular-nums {amountInk}">
 							{formatQuantityFor(ingredient.quantity, baseServings, servings)}
-							{ingredient.unit ?? ''}
 						</span>
-						<span>
-							<span class="text-body {rowChecked ? 'text-text-muted line-through' : 'text-text'}">
+						<!-- German compounds ("Rinderhackfleischbällchen") outrun a 320px row, so
+						     they hyphenate; the limit keeps "Muskatnuss" whole on the next line. -->
+						<span class="text-body break-words hyphens-auto [hyphenate-limit-chars:12_6_6]">
+							<!-- One struck run, so the space between unit and name is struck too. -->
+							<span class={rowChecked ? 'text-text-muted line-through' : 'text-text'}>
+								{#if ingredient.unit}
+									<span class="font-semibold {amountInk}">{ingredient.unit}</span>
+								{/if}
 								{ingredient.name}
 							</span>
 							{#if ingredient.note}
-								<span class="ml-1 text-caption text-text-muted">({ingredient.note})</span>
+								<span class="text-caption text-text-muted">({ingredient.note})</span>
 							{/if}
 						</span>
 					</li>
@@ -123,16 +135,18 @@
 		{/each}
 	{/snippet}
 	<!-- Two columns only on a tablet, where the stacked list spans the full card;
-	     the split lives in splitColumns, so a column never ends on a stray divider. -->
+	     the split lives in splitColumns, so a column never ends on a stray divider.
+	     Stacked, both columns share this grid, so every number ends on one edge;
+	     side by side, each column lines up its own. -->
 	<div
-		class="grid {twoUp
+		class="grid grid-cols-[22px_max-content_minmax(0,1fr)] content-start gap-x-2 {twoUp
 			? 'min-[600px]:max-[840px]:grid-cols-2 min-[600px]:max-[840px]:gap-x-5'
 			: ''}"
 	>
-		<div class="min-w-0">{@render column(columns[0], false)}</div>
+		<div class="{columnGrid} min-w-0">{@render column(columns[0], false)}</div>
 		{#if twoUp}
 			<div
-				class="min-w-0 border-dashed border-border min-[600px]:max-[840px]:border-l min-[600px]:max-[840px]:pl-5"
+				class="{columnGrid} min-w-0 border-dashed border-border min-[600px]:max-[840px]:border-l min-[600px]:max-[840px]:pl-5"
 			>
 				{@render column(columns[1], true)}
 			</div>
