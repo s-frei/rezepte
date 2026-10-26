@@ -44,7 +44,7 @@ filters must use `username` instead.
   - Title at most 70 characters, imperative mood, no trailing period.
   - Body only when the title cannot explain the why - or when the commit is breaking, which always needs the `Breaking:` line.
   - No `Co-Authored-By` or tool trailers.
-  - Never commit `docs/superpowers/`.
+  - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 
 </Callout>
 
@@ -95,8 +95,11 @@ its final shape. Until the branch is merged, rewriting it is free and
 expected:
 
 ```bash
-git rebase -i develop        # on feat/<name>, before merging
+git commit --fixup=<sha>                                  # while working: mark a fix for an earlier commit
+GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash develop  # before merging: fold the fixups, no editor needed
 ```
+
+An agent cannot drive an interactive editor, so it tidies through `--fixup` and `--autosquash`; a person can run `git rebase -i develop` and reorder by hand.
 
 Squash the fixups, fold regenerated artifacts into the commits that caused
 them, and leave each remaining commit with a title that still makes sense in a
@@ -118,5 +121,5 @@ year. Merge only once the branch reads the way you want `develop` to read.
 
 - All development happens on `develop`. Features, fixes and docs land there as ordinary commits.
 - `main` holds releases only. A release is a fast-forward from `develop` into `main`, done by `mise run release:finish` and tagged with a version (see [Release](/howtos/release)); `main` never gets its own merge commits or direct commits.
-- Feature branches are optional and short-lived; they branch from and merge back into `develop`.
+- Feature work happens on a short-lived `feat/<name>` branch in its own worktree ([Work in a worktree](/howtos/work-in-a-worktree)); it branches from and merges back into `develop`.
 - Agents never merge to `main`, push, tag or open pull requests on their own. Releases are triggered by the maintainer.

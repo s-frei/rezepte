@@ -3,7 +3,7 @@ title: Step times
 description: A duration in a step's text, authored in the editor, stored as seconds, highlighted on the detail page and in cook mode
 ---
 
-A duration in a preparation step - "90 Minuten", "20-25 minutes", "1 Std. 30 Min." - can be marked. The detail page and cook mode then show it with a clock glyph and a dotted underline, so a cook sees where a step waits, and the stored seconds are what a later cook-mode timer will run on. `service/internal/recipe/times.go` owns validation and storage; `frontend/src/lib/recipe/times.ts` and `step-times.ts` own detection and the editor's bookkeeping.
+A duration in a preparation step - "90 Minuten", "20-25 minutes", "1 Std. 30 Min." - can be marked. The detail page and cook mode then show it with a clock glyph and a dotted underline, so a cook sees where a step waits, and the stored seconds are what a cook-mode timer would run on. `service/internal/recipe/times.go` owns validation and storage; `frontend/src/lib/recipe/times.ts` and `step-times.ts` own detection and the editor's bookkeeping.
 
 ## How it works
 
@@ -47,4 +47,4 @@ The author can always refuse: dismiss a proposal, remove a stored time from the 
 - A phrase is marked at most once per step, and the first occurrence is the one that is drawn.
 - "Mark as time" reads only the first number of a word range or compound: "20 bis 25 Minuten" becomes 20 minutes, "1 Std. 30 Min." becomes 1 of the chosen unit. The popover's preview shows the result before it is set.
 - There is no day unit: a duration in days ("3 Tage marinieren") is not a time, and "Mark as time" offers at most hours.
-- The timer is not built yet; `seconds` and `maxSeconds` are stored for it.
+- There is no timer; `seconds` and `maxSeconds` are stored so one can run on them.

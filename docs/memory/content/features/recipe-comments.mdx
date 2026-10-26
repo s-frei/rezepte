@@ -37,7 +37,7 @@ Behind a tab beside the method of every recipe, the household writes down what i
 
 **The list is `GET /comments?recipeId=`.** A `GET` with three segments under `/recipes/{id}/…` collides with `GET /recipes/by-slug/{slug}` in `ServeMux`, the collision described in [Public shares](/features/public-shares). Writing and marking seen are `POST` and `PUT`, which do not collide, and stay under the recipe.
 
-**Comments never leave the household.** The public share page (`/s/[token]`) renders `RecipeView` without the snippet, `ShareCard` never had one, `share.PublicRecipe` has no comments, and the zip export and import carry none. A remark about a recipe is said to the household, not to whoever receives a link or an image.
+**Comments never leave the household.** The public share page (`/s/[token]`) renders `RecipeView` without the snippet, `ShareCard` has none, `share.PublicRecipe` has no comments, and the zip export and import carry none. A remark about a recipe is said to the household, not to whoever receives a link or an image.
 
 ## Rejected
 

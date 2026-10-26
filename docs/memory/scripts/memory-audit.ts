@@ -1,7 +1,7 @@
 // Fails the build when the agent memory claims something the repository does
 // not support. It checks the two kinds of claim that rot silently - a task or
-// a path that was renamed or deleted - plus the one kind that must never be
-// written at all.
+// a path that was renamed, deleted or never committed - plus the one kind that
+// must never be written at all, and a how-to the index does not list.
 //
 // Deliberately narrow. It cannot tell whether a sentence is true, only whether
 // the things it names still exist, so it catches renames and deletions and
@@ -30,7 +30,7 @@ const MACHINE_INTERNALS = [
 	/\bon (this|my) (machine|Mac|laptop)\b/i,
 	/\/Users\/[a-z]/i,
 	/\bDocker Desktop\b/,
-	/\bscreen is locked\b/i
+	/\bscreen is locked\b|\blocked screen\b/i
 ];
 
 /**
@@ -51,7 +51,9 @@ const EVENT_FRAMING = [
 	/\bwas tried\b/i,
 	/\bgrew up\b/i,
 	/\bphase [0-9]/i,
-	/\b20[0-9]{2}-[01][0-9]-[0-9]{2}\b/
+	/\b20[0-9]{2}-[01][0-9]-[0-9]{2}\b/,
+	/\b(since|until|as of) (early |mid-|late )?20[0-9]{2}\b/i,
+	/\bnot (built|implemented|wired) yet\b/i
 ];
 
 /** Paths that are not expected to resolve, and why. */
@@ -119,6 +121,17 @@ const tasks = new Set(
 
 const routes = memoryRoutes();
 
+// A path the memory names has to reach the next checkout, not only this one:
+// a file that exists here but is gitignored or local-only would pass an
+// existsSync and still be a dead end for everyone else. Untracked files count,
+// so a page and the file it names can be written before the first `git add`.
+const inGit = new Set<string>();
+for (const f of execSync('git ls-files --cached --others --exclude-standard', { cwd: ROOT, encoding: 'utf8' }).split('\n')) {
+	const parts = f.split('/');
+	for (let i = 1; i <= parts.length; i++) inGit.add(parts.slice(0, i).join('/'));
+}
+const isInGit = (p: string) => p.includes('*') || p.includes('{') ? existsSync(path.join(ROOT, p)) : inGit.has(p.replace(/\/$/, ''));
+
 const problems: string[] = [];
 
 for (const file of files) {
@@ -163,8 +176,8 @@ for (const file of files) {
 				/`((?:service|frontend|docs|scripts|mise|\.github)\/[A-Za-z0-9_./*{}-]+|mise\.toml|CLAUDE\.md)`/g
 			)) {
 				const p = m[1];
-				if (!pathIsExempt(p) && !existsSync(path.join(ROOT, p))) {
-					problems.push(`${at}: path does not exist: ${p}`);
+				if (!pathIsExempt(p) && !isInGit(p)) {
+					problems.push(`${at}: path is not in git: ${p}`);
 				}
 			}
 
@@ -189,6 +202,15 @@ for (const file of files) {
 			}
 			cursor = at;
 		}
+	}
+}
+
+// The how-to index is the only list of how-tos an agent reads; a page missing
+// from it is a page nobody finds.
+const howtoIndex = readFileSync(path.join(ROOT, 'docs/memory/content/howtos/index.mdx'), 'utf8');
+for (const route of routes) {
+	if (route.startsWith('/howtos/') && !howtoIndex.includes(`href="${route}"`)) {
+		problems.push(`docs/memory/content/howtos/index.mdx: no <Card> for ${route}`);
 	}
 }
 
