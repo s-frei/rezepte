@@ -155,7 +155,7 @@ export const MAX_IMAGES = 20;
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /**
- * Largest upload the API accepts (10 MiB, `maxUploadBytes` in the service).
+ * Largest upload the API accepts (10 MiB, `MaxUploadBytes` in the service).
  * Checked before the request so an oversized pick is refused right away
  * instead of after a pointless upload.
  */

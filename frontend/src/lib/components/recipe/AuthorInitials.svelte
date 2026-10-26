@@ -111,7 +111,7 @@
 			is the anchor's measured width), which reads as belonging to that
 			card rather than pointing at two small circles inside it.
 
-			`inverse`, the same pair toasts and the bottom nav use: it is the
+			`inverse`, the same pair toasts use: it is the
 			palette's "something laid over the page" role, and it inverts with
 			the theme by itself. The dropdowns' `surface` cannot do that job
 			here - it is the card's own color, so in dark mode the panel

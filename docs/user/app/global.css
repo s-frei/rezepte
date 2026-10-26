@@ -79,11 +79,11 @@
   --color-fd-secondary-foreground: #2b2118;
   --color-fd-border: #e3d7c3;
 
-  /* Docs-only: the app uses #7d6d5c and #b45309 for these. There they carry
+  /* Docs-only: the app uses #756554 and #b45309 for these. There they carry
      meta lines and chips; here `fd-muted-foreground` is the most-used token
      in the whole UI (sidebar, TOC, page descriptions) and `fd-primary` marks
      active navigation, so both need to clear WCAG AA as body text. The app's
-     values land at 4.29:1 and 4.32:1 on this background; these reach 5.15:1
+     values land at 4.82:1 and 4.32:1 on this background; these reach 5.15:1
      and 5.51:1 without visibly changing the hue. */
   --color-fd-muted-foreground: #6f6152;
   --color-fd-primary: #9a4707;
@@ -145,8 +145,8 @@
      declaration (confirmed against the built CSS), not a live var(--shadow-*)
      reference, so a runtime .dark override of --shadow-sm/md/lg/2xl has no
      effect. The warm shadows from the @theme block above therefore apply in
-     both themes here, unlike in the app, where dark mode drops shadow-card
-     and shadow-cover and keeps only shadow-dialog (frontend/src/app.css). */
+     both themes here, as they do in the app, whose dark-mode `none`
+     declarations meet the same limit (frontend/src/app.css). */
 }
 
 /*

@@ -86,9 +86,9 @@
 			     color than any other setting.
 
 			     `bg-surface-elevated`, not `bg-surface`: the panel around it
-			     is `bg-surface` already, and in dark mode `shadow-card` is
-			     `none`, so a `surface` thumb there had nothing left to set it
-			     apart and read as a hole punched through the track.
+			     is `bg-surface` already, so in dark mode a `surface` thumb had
+			     nothing to set it apart and read as a hole punched through
+			     the track.
 
 			     Centered with `top-1/2 -mt-3` (half of `size-6`), because Bits
 			     UI positions this element with an inline `left` and an inline
