@@ -32,7 +32,8 @@
 					{
 						key: m.settings_mail_line_sender(),
 						main: current.fromName || current.from,
-						sub: current.fromName ? current.from : ''
+						sub: current.fromName ? current.from : '',
+						address: true
 					},
 					{
 						key: m.settings_mail_line_via(),
@@ -45,7 +46,8 @@
 					{
 						key: m.settings_mail_line_signin(),
 						main: current.username || '—',
-						sub: current.passwordSet ? m.settings_mail_line_password_set() : ''
+						sub: current.passwordSet ? m.settings_mail_line_password_set() : '',
+						address: true
 					}
 				]
 			: [

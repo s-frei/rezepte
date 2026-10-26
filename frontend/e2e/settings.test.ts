@@ -771,4 +771,27 @@ test('mail card stacks left-aligned on a 320px phone', async ({ page }) => {
 		}))
 	);
 	expect(measured).toEqual(measured.map(() => ({ align: 'left', fits: true })));
+
+	// The address wraps where it reads well, before "@" or ".", never inside
+	// a label: every line after the first starts with one of the two.
+	const lineStarts = await values.first().evaluate((dd) => {
+		const starts: string[] = [];
+		const walker = document.createTreeWalker(dd, NodeFilter.SHOW_TEXT);
+		let top: number | null = null;
+		for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+			const text = node.textContent ?? '';
+			for (let i = 0; i < text.length; i++) {
+				const range = document.createRange();
+				range.setStart(node, i);
+				range.setEnd(node, i + 1);
+				const rect = range.getBoundingClientRect();
+				if (!rect.height || !text[i].trim()) continue;
+				if (top !== null && rect.top > top + 2) starts.push(text[i]);
+				top = rect.top;
+			}
+		}
+		return starts;
+	});
+	expect(lineStarts.length).toBeGreaterThan(0);
+	expect(lineStarts.every((c) => c === '@' || c === '.')).toBe(true);
 });

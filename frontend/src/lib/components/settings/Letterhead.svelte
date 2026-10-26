@@ -1,5 +1,12 @@
 <script lang="ts" module>
-	export type LetterheadLine = { key: string; main: string; sub?: string; url?: boolean };
+	/** `url` breaks only after a path slash, `address` only before "@" or ".". */
+	export type LetterheadLine = {
+		key: string;
+		main: string;
+		sub?: string;
+		url?: boolean;
+		address?: boolean;
+	};
 
 	/**
 	 * A URL cut after every path slash, so a `<wbr>` between the pieces lets
@@ -10,6 +17,11 @@
 		const segments = url.slice(scheme.length).split(/(?<=\/)/);
 		segments[0] = scheme + segments[0];
 		return segments;
+	}
+
+	/** A mail address or host cut before every "@" and ".", for the same `<wbr>` treatment. */
+	export function addressSegments(address: string): string[] {
+		return address.split(/(?=[@.])/);
 	}
 </script>
 
@@ -37,9 +49,10 @@
 	}
 </script>
 
-{#snippet text(value: string, url: boolean | undefined)}
-	{#if url}
-		{#each urlSegments(value) as segment, i (i)}{segment}<wbr />{/each}
+{#snippet text(value: string, line: LetterheadLine)}
+	{#if line.url || line.address}
+		{#each (line.url ? urlSegments : addressSegments)(value) as segment, i (i)}{segment}<wbr
+			/>{/each}
 	{:else}
 		{value}
 	{/if}
@@ -62,7 +75,8 @@
 		{/if}
 	</span>
 	<dl {@attach fitRows} class="group">
-		{#each lines as { key, main, sub, url } (key)}
+		{#each lines as line (line.key)}
+			{@const { key, main, sub } = line}
 			<div class="flex items-baseline gap-x-2.5 py-1 group-data-stacked:flex-wrap">
 				<dt
 					class="shrink-0 font-display text-body-lg whitespace-nowrap italic {blank
@@ -80,9 +94,9 @@
 						? 'text-text-muted'
 						: ''}"
 				>
-					<span class="block">{@render text(main, url)}</span>
+					<span class="block">{@render text(main, line)}</span>
 					{#if sub}
-						<span class="block text-caption text-text-muted">{@render text(sub, url)}</span>
+						<span class="block text-caption text-text-muted">{@render text(sub, line)}</span>
 					{/if}
 				</dd>
 			</div>

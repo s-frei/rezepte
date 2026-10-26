@@ -17,6 +17,11 @@ test.beforeEach(async ({ request }, testInfo) => {
 	test.skip(!(await res.json()).enabled, 'Dex is not running (mise run oidc:up)');
 });
 
+/** The stored configuration, without the connection counts other specs change in parallel. */
+function configured({ source, issuer, clientId, secretSet, name }: Record<string, unknown>) {
+	return { source, issuer, clientId, secretSet, name };
+}
+
 async function dexLogin(page: Page, email: string, password: string) {
 	await page.getByLabel(/email/i).fill(email);
 	await page.getByLabel(/password/i).fill(password);
@@ -154,10 +159,19 @@ test('switching the provider warns with the number of connected accounts', async
 		await dialog.getByLabel('Issuer URL').fill('http://localhost:1/another');
 		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 		const confirm = admin.getByRole('dialog', { name: 'Switch provider?' });
-		await expect(confirm).toContainText('1 account is connected to Dex');
+		// The count as the server has it: oidc-mobile.test.ts may link an
+		// account of its own at the same time, so it is at least mila.
+		expect(before.connected).toBeGreaterThanOrEqual(1);
+		await expect(confirm).toContainText(
+			before.connected === 1
+				? '1 account is connected to Dex'
+				: `${before.connected} accounts are connected to Dex`
+		);
 		await confirm.getByRole('button', { name: 'Cancel' }).click();
 		await expect(confirm).toBeHidden();
-		expect(await (await admin.request.get('/api/v1/settings/sign-in')).json()).toEqual(before);
+		expect(configured(await (await admin.request.get('/api/v1/settings/sign-in')).json())).toEqual(
+			configured(before)
+		);
 		await owner.close();
 	} finally {
 		await unlinkDex(page);

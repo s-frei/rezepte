@@ -6,6 +6,11 @@ import { createUser, login, uniqueToken } from './helpers';
 // off. Nothing here saves; the flows that need a provider that answers live
 // in oidc.test.ts.
 
+/** The stored configuration, without the connection counts oidc*.test.ts change in parallel. */
+function configured({ source, issuer, clientId, secretSet, name }: Record<string, unknown>) {
+	return { source, issuer, clientId, secretSet, name };
+}
+
 test('owner sees the sign-in page; an admin is sent to settings', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -49,5 +54,7 @@ test('a wrong issuer shows a field error and saves nothing', async ({ page }) =>
 	await expect(dialog.getByText('No OpenID provider answers at this address.')).toBeVisible();
 	await expect(dialog.getByLabel('Issuer URL')).toHaveAttribute('aria-invalid', 'true');
 
-	expect(await (await page.request.get('/api/v1/settings/sign-in')).json()).toEqual(before);
+	expect(configured(await (await page.request.get('/api/v1/settings/sign-in')).json())).toEqual(
+		configured(before)
+	);
 });
