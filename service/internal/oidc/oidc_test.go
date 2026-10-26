@@ -84,6 +84,7 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())),
 		func(ctx context.Context) string { return settings.Provider(ctx).Issuer }, nil)
 	oidc.Register(srv.API(), oidc.New(settings, sessions, users, false))
+	oidc.RegisterSettings(srv.API(), settings)
 	return &env{h: srv.Handler(), users: users, sessions: sessions, tokens: tokens, settings: settings, sam: sam, anna: anna}
 }
 

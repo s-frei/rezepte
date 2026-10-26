@@ -229,6 +229,7 @@ func run() error {
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance, mailer.Enabled)
 	mailapi.Register(srv.API(), mailer)
+	oidc.RegisterSettings(srv.API(), oidcSettings)
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)

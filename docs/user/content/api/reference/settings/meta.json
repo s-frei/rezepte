@@ -8,6 +8,9 @@
     "get-mail-settings",
     "delete-mail-settings",
     "update-mail-settings",
-    "send-test-mail"
+    "send-test-mail",
+    "get-sign-in-settings",
+    "delete-sign-in-settings",
+    "update-sign-in-settings"
   ]
 }
