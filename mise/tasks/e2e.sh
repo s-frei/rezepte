@@ -30,7 +30,9 @@ fi
 # REZEPTE_PUBLIC_URL is always set: mail and sign-in through a provider both
 # need it, and neither is configured through the environment - mail.test.ts
 # saves Mailpit in the settings, and with Dex up this script saves Dex there
-# below, so the Sign-in card stays editable.
+# below, so the Sign-in card stays editable. -u drops REZEPTE_OIDC_* a
+# developer exported (the line `mise run oidc:up` prints): they would lock the
+# card, and the save below would quietly leave the locked provider in force.
 # -u clears REZEPTE_ADMIN_USER so a developer who exports it still gets the
 # `admin` that frontend/e2e/helpers.ts logs in as. The password follows the
 # repository's rule for bootstrapped users, username + 1234
@@ -45,6 +47,7 @@ fi
 # developer's own REZEPTE_LOCALE (a German `mise run demo`, say) cannot leak
 # into the suite and flip the language after the first login.
 env -u REZEPTE_ADMIN_USER \
+	-u REZEPTE_OIDC_ISSUER -u REZEPTE_OIDC_CLIENT_ID -u REZEPTE_OIDC_CLIENT_SECRET -u REZEPTE_OIDC_NAME \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_ADMIN_PASSWORD=admin1234 \
 	REZEPTE_LOCALE=en REZEPTE_PUBLIC_URL="http://localhost:$PORT" \
 	service/bin/rezepte &

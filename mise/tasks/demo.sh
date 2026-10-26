@@ -71,7 +71,8 @@ fi
 # -u clears REZEPTE_ADMIN_USER and REZEPTE_ADMIN_PASSWORD from the environment
 # so a developer who has them exported still gets the demo/demo1234 credentials
 # the screenshot specs and the OpenAPI fetch log in with, instead of whatever
-# they last used.
+# they last used. It clears REZEPTE_OIDC_* too: an exported provider would
+# lock the Sign-in card and override the one saved below.
 #
 # RZP_DEMO_LOCALE, when set, beats REZEPTE_LOCALE: a caller that needs one
 # language (the screenshot tasks need English) cannot set REZEPTE_LOCALE
@@ -83,6 +84,7 @@ fi
 # it instead of from now: the screenshot tasks set it to the browser's frozen
 # clock, so "Today" and "Yesterday" fall on the same comments every run.
 env -u REZEPTE_ADMIN_USER -u REZEPTE_ADMIN_PASSWORD \
+	-u REZEPTE_OIDC_ISSUER -u REZEPTE_OIDC_CLIENT_ID -u REZEPTE_OIDC_CLIENT_SECRET -u REZEPTE_OIDC_NAME \
 	REZEPTE_ADDR=":$PORT" REZEPTE_DATA_DIR="$RZP_DATA_DIR" REZEPTE_LOG_LEVEL=warn \
 	REZEPTE_LOCALE="${RZP_DEMO_LOCALE:-${REZEPTE_LOCALE:-en}}" \
 	"${MAIL_ENV[@]+"${MAIL_ENV[@]}"}" \

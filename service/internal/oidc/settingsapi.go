@@ -63,6 +63,8 @@ func mapSettingsErr(err error) error {
 		// reads the log; the owner gets the field error.
 		slog.Info("oidc discovery failed", "err", err)
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body.issuer", Message: "no OpenID provider answers at this address"})
+	case errors.Is(err, ErrSecretRequired):
+		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body.clientSecret", Message: "enter the secret for a different provider"})
 	case errors.Is(err, ErrInvalidConfig):
 		return huma.Error422UnprocessableEntity(err.Error())
 	}

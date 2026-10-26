@@ -124,7 +124,12 @@ func TestPutSecretRequiredForOtherProvider(t *testing.T) {
 	if rec := api(e.h, http.MethodPut, signInPath, signInBody(first.URL, "s3"), owner); rec.Code != http.StatusOK {
 		t.Fatalf("put: %d %s", rec.Code, rec.Body.String())
 	}
-	if rec := api(e.h, http.MethodPut, signInPath, signInBody(newFakeIdP(t).URL, ""), owner); rec.Code != http.StatusUnprocessableEntity {
+	rec := api(e.h, http.MethodPut, signInPath, signInBody(newFakeIdP(t).URL, ""), owner)
+	var body struct {
+		Errors []struct{ Location string }
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if rec.Code != http.StatusUnprocessableEntity || len(body.Errors) != 1 || body.Errors[0].Location != "body.clientSecret" {
 		t.Fatalf("put another provider without secret: %d %s", rec.Code, rec.Body.String())
 	}
 	// The same provider keeps it; an empty secret removes it.

@@ -18,7 +18,7 @@ oidc:up: issuer http://localhost:$RZP_DEX_PORT/dex - Dex: sign in as demo@, mila
   REZEPTE_PUBLIC_URL=http://localhost:$RZP_BACKEND_PORT REZEPTE_OIDC_ISSUER=http://localhost:$RZP_DEX_PORT/dex REZEPTE_OIDC_CLIENT_ID=rezepte REZEPTE_OIDC_CLIENT_SECRET=rezepte-test-secret REZEPTE_OIDC_NAME=Dex
 ```
 
-Export that line, or start `mise run dev` with it, to sign in against Dex by hand with the Sign-in card locked to the environment; or save the same issuer, client ID and secret in Settings → Sign-in to keep the card editable. `mise run oidc:down` stops it. Both tasks touch only Dex, never Mailpit ([Email](/features/email)).
+Start `mise run dev` with that line to sign in against Dex by hand with the Sign-in card locked to the environment, or save the same issuer, client ID and secret in Settings → Sign-in to keep the card editable. `mise run e2e` and `mise run demo` need neither: they clear any exported `REZEPTE_OIDC_*` and save Dex themselves (below). `mise run oidc:down` stops it. Both tasks touch only Dex, never Mailpit ([Email](/features/email)).
 
 Four accounts are seeded, passwords by the [development-credential](/conventions/dev-credentials) rule:
 
