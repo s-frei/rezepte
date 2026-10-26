@@ -31,6 +31,15 @@ export function connectedWarning(s: SignInSettings): string {
 }
 
 /**
+ * What turning off costs: the stored provider and its secret, which cannot
+ * be read back, and for connected accounts what connectedWarning says.
+ */
+export function turnOffWarning(s: SignInSettings): string {
+	const removes = m.settings_sign_in_turn_off_text();
+	return s.connected > 0 ? `${removes} ${connectedWarning(s)}` : removes;
+}
+
+/**
  * Whether the server will refuse the save for a missing secret: the stored
  * secret belongs to the stored issuer and client, so a different one needs
  * a secret typed again (or the stored one removed) first.

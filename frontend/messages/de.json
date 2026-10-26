@@ -970,6 +970,7 @@
 	"settings_sign_in_switch_title": "Anbieter wechseln?",
 	"settings_sign_in_switch_confirm": "Wechseln",
 	"settings_sign_in_turn_off_title": "Anmeldung über {name} ausschalten?",
+	"settings_sign_in_turn_off_text": "Rezepte entfernt den Anbieter, die Client-ID und das Secret.",
 	"settings_sign_in_connected": "{count} Konten sind mit {name} verbunden und können sich danach nicht mehr darüber anmelden.",
 	"settings_sign_in_connected_one": "1 Konto ist mit {name} verbunden und kann sich danach nicht mehr darüber anmelden.",
 	"settings_sign_in_without_password": "{count} davon haben kein Passwort und brauchen einen Einrichtungslink.",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SignInSettings } from '$lib/api/oidc';
-import { connectedWarning, secretRequired } from './sign-in';
+import { connectedWarning, secretRequired, turnOffWarning } from './sign-in';
 
 const base: SignInSettings = {
 	source: 'settings',
@@ -25,6 +25,18 @@ describe('connectedWarning', () => {
 			connectedWarning({ ...base, name: 'Authentik', connected: 3, connectedWithoutPassword: 1 })
 		).toBe(
 			'3 accounts are connected to Authentik and can no longer sign in with it afterwards. 1 of them has no password and needs a setup link. The connections stay saved and apply again once Authentik is set up again.'
+		));
+});
+
+describe('turnOffWarning', () => {
+	it('says what goes, even with nobody connected', () =>
+		expect(turnOffWarning(base)).toBe(
+			'Rezepte removes the provider, the client ID and the secret.'
+		));
+
+	it('adds the connected accounts when there are any', () =>
+		expect(turnOffWarning({ ...base, name: 'Dex', connected: 1 })).toBe(
+			'Rezepte removes the provider, the client ID and the secret. 1 account is connected to Dex and can no longer sign in with it afterwards. The connections stay saved and apply again once Dex is set up again.'
 		));
 });
 

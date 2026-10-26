@@ -88,4 +88,12 @@ test('a stored provider stays visible and can be turned off without a public URL
 	await expect(card.getByText('rezepte', { exact: true })).toBeVisible();
 	await expect(card.getByRole('button', { name: 'Turn off' })).toBeVisible();
 	await expect(card.getByRole('button', { name: 'Edit' })).toHaveCount(0);
+
+	// Nobody connected, and it still asks: the secret cannot be read back.
+	await card.getByRole('button', { name: 'Turn off' }).click();
+	const confirm = page.getByRole('dialog', { name: 'Turn off sign-in through Stored IdP?' });
+	await expect(confirm).toContainText('removes the provider, the client ID and the secret');
+	// Cancel only: the instance is shared with the other specs.
+	await confirm.getByRole('button', { name: 'Cancel' }).click();
+	await expect(confirm).toBeHidden();
 });

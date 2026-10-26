@@ -970,6 +970,7 @@
 	"settings_sign_in_switch_title": "Switch provider?",
 	"settings_sign_in_switch_confirm": "Switch",
 	"settings_sign_in_turn_off_title": "Turn off sign-in through {name}?",
+	"settings_sign_in_turn_off_text": "Rezepte removes the provider, the client ID and the secret.",
 	"settings_sign_in_connected": "{count} accounts are connected to {name} and can no longer sign in with it afterwards.",
 	"settings_sign_in_connected_one": "1 account is connected to {name} and can no longer sign in with it afterwards.",
 	"settings_sign_in_without_password": "{count} of them have no password and need a setup link.",

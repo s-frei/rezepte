@@ -65,7 +65,12 @@
 
 {#if loaded}
 	{#if linkedAt}
-		<p class="text-body">{m.settings_signin_linked({ name, date: formatDate(linkedAt) })}</p>
+		<!-- The provider's name in bold: the sentence is translated whole, then
+		     split where the name goes, so each language keeps its own order. -->
+		{@const [before, after] = m
+			.settings_signin_linked({ name: '\u0000', date: formatDate(linkedAt) })
+			.split('\u0000')}
+		<p class="text-body">{before}<strong class="font-semibold">{name}</strong>{after}</p>
 		<div class="mt-4 space-y-2">
 			<Button variant="secondary" disabled={busy || !hasPassword} onclick={disconnect}>
 				{m.settings_signin_disconnect()}

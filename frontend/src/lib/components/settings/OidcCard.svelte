@@ -9,7 +9,7 @@
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { copyText } from '$lib/recipe/share.svelte';
-	import { connectedWarning, providerName } from '$lib/settings/sign-in';
+	import { providerName, turnOffWarning } from '$lib/settings/sign-in';
 	import Letterhead, { urlSegments, type LetterheadLine } from './Letterhead.svelte';
 	import OidcSettingsDialog from './OidcSettingsDialog.svelte';
 
@@ -112,10 +112,8 @@
 						>{m.settings_sign_in_edit()}</Button
 					>
 				{/if}
-				<!-- Nobody connected, nobody to warn: it turns off at once. -->
-				<Button
-					variant="ghost"
-					onclick={() => (current!.connected > 0 ? (turnOffOpen = true) : void turnOff())}
+				<!-- Always asks: the stored secret cannot be read back. -->
+				<Button variant="ghost" onclick={() => (turnOffOpen = true)}
 					>{m.settings_sign_in_turn_off()}</Button
 				>
 			</div>
@@ -150,7 +148,7 @@
 	<ConfirmDialog
 		bind:open={turnOffOpen}
 		title={m.settings_sign_in_turn_off_title({ name: providerName(current) })}
-		text={connectedWarning(current)}
+		text={turnOffWarning(current)}
 		confirmLabel={m.settings_sign_in_turn_off()}
 		destructive
 		onconfirm={() => void turnOff()}
