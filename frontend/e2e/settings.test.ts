@@ -736,3 +736,38 @@ test('the account menu switches the theme and stays open', async ({ page, isMobi
 	await theme.getByRole('menuitemradio', { name: 'System' }).click();
 	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
 });
+
+test('mail card stacks left-aligned on a 320px phone', async ({ page }) => {
+	// A configured card with a sender too long for one line, answered here
+	// rather than saved: mail is instance-wide, and mail.test.ts owns it.
+	await page.route('**/api/v1/settings/mail', (route) =>
+		route.request().method() === 'GET'
+			? route.fulfill({
+					json: {
+						source: 'settings',
+						host: 'mail.example.org',
+						port: 587,
+						security: 'starttls',
+						username: 'rezepte',
+						passwordSet: true,
+						from: 'notifications.for.the.family.kitchen@rezepte.example.org',
+						fromName: '',
+						publicUrlMissing: false
+					}
+				})
+			: route.continue()
+	);
+	await page.setViewportSize({ width: 320, height: 700 });
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/mail');
+	const values = page.getByRole('region', { name: 'Email' }).locator('dd');
+	await expect(values).toHaveCount(3);
+	const measured = await values.evaluateAll((dds) =>
+		dds.map((dd) => ({
+			align: getComputedStyle(dd).textAlign,
+			fits: dd.scrollWidth <= dd.clientWidth
+		}))
+	);
+	expect(measured).toEqual(measured.map(() => ({ align: 'left', fits: true })));
+});
