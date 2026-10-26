@@ -21,6 +21,7 @@ import (
 var quiet = slog.New(slog.DiscardHandler)
 
 func TestSeedUploadsEmbeddedPhotos(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		locale   user.Locale
 		first    string   // the overview's first title
@@ -32,6 +33,7 @@ func TestSeedUploadsEmbeddedPhotos(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(string(c.locale), func(t *testing.T) {
+			t.Parallel()
 			seedPhotos(t, c.locale, c.first, c.withSet, c.withNone)
 		})
 	}
@@ -102,6 +104,7 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 }
 
 func TestSeedIsIdempotent(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
@@ -124,6 +127,7 @@ func TestSeedIsIdempotent(t *testing.T) {
 }
 
 func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -151,6 +155,7 @@ func TestSeedNeedsAUserAndFallsBackToTheFirst(t *testing.T) {
 // with the development-credential password, and the first sample, the
 // overview's top card, carries two marks.
 func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -204,6 +209,7 @@ func TestSeedMembersMarkTheSamplesTasty(t *testing.T) {
 // a second time must not error either way, the same idempotence LinkIdentity
 // itself gives a repeated link.
 func TestSeedMembersLinksJonasToAnIdentityWhenOIDCIsConfigured(t *testing.T) {
+	t.Parallel()
 	const issuer = "http://localhost:5656/dex"
 	const jonasSubject = "CgVqb25hcxIFbG9jYWw" // dexSubject("jonas", "local")
 
@@ -250,6 +256,7 @@ func TestSeedMembersLinksJonasToAnIdentityWhenOIDCIsConfigured(t *testing.T) {
 // An instance that already holds recipes gets no members, and neither marks
 // nor links: they belong to the sample data, not to an instance in use.
 func TestMembersFollowTheSeed(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -284,11 +291,13 @@ func TestMembersFollowTheSeed(t *testing.T) {
 // Everybody in the demo, the admin included, gets a pantry name in the
 // demo's language that differs from their login name and keeps its initial.
 func TestMembersAndAdminGetPantryNames(t *testing.T) {
+	t.Parallel()
 	for locale, want := range map[user.Locale]map[string]string{
 		"de": {"demo": "Dattel Dill", "mila": "Mila Majoran", "jonas": "Jonas Zimt"},
 		"en": {"demo": "Damson Dill", "mila": "Mila Marjoram", "jonas": "Jonas Cinnamon"},
 	} {
 		t.Run(string(locale), func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			conn := dbtest.Open(t)
 			users := user.NewService(conn, "")
@@ -318,6 +327,7 @@ func TestMembersAndAdminGetPantryNames(t *testing.T) {
 // A member name somebody already took is left to them: that account gets no
 // password, recipes or marks from the demo.
 func TestMembersLeaveATakenNameAlone(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -357,6 +367,7 @@ func TestMembersLeaveATakenNameAlone(t *testing.T) {
 // of them one they mark tasty, and Mila locked one of hers; the first sample
 // stays the admin's.
 func TestMembersWriteSomeSamples(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleSuperadmin}); err != nil {
@@ -424,6 +435,7 @@ func TestMembersWriteSomeSamples(t *testing.T) {
 // sample, which the documentation photographs - and leaves public sharing
 // off, as every instance starts, so the links start out paused.
 func TestSeedMembersShareSamples(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -479,6 +491,7 @@ func TestSeedMembersShareSamples(t *testing.T) {
 // account someone can still claim; the admin and the other members each get
 // a confirmed sample email.
 func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -543,6 +556,7 @@ func TestAddMembersInvitesOneWithoutAPassword(t *testing.T) {
 // TestSeedMembersLeaveSharingOffUnderAnotherAdmin: sharing is the owner's
 // switch, so an admin who is not the owner gets members but no links.
 func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
@@ -573,6 +587,7 @@ func TestSeedMembersLeaveSharingOffUnderAnotherAdmin(t *testing.T) {
 // answered), none on Mila's sample 2, and the entries are in the locale and
 // dated back from the reference time.
 func TestSeedMembersWriteTheKitchenDiary(t *testing.T) {
+	t.Parallel()
 	const locale user.Locale = "de"
 	ctx := context.Background()
 	conn := dbtest.Open(t)
@@ -647,6 +662,7 @@ func TestSeedMembersWriteTheKitchenDiary(t *testing.T) {
 // the empty list - each in the demo's language and dated from the reference
 // time.
 func TestSeedMembersIssuesTheAdminsTokens(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")

@@ -63,7 +63,8 @@ func TestEveryPhotoSetBelongsToASample(t *testing.T) {
 
 // A set whose samples have no photos at all falls back to placeholders for
 // the first imagedRecipes samples, as a language that brings its own sample
-// recipes but no photos does.
+// recipes but no photos does. Never parallel: it swaps the package-level
+// photos, which the parallel seed tests read once it is done.
 func TestSeedFallsBackToPlaceholders(t *testing.T) {
 	saved := photos
 	photos = fstest.MapFS{}
