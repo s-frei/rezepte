@@ -10,6 +10,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { copyText } from '$lib/recipe/share.svelte';
 	import { providerName, turnOffWarning } from '$lib/settings/sign-in';
+	import ConnectedAccounts from './ConnectedAccounts.svelte';
 	import Letterhead, { urlSegments, type LetterheadLine } from './Letterhead.svelte';
 	import OidcSettingsDialog from './OidcSettingsDialog.svelte';
 
@@ -152,5 +153,7 @@
 		confirmLabel={m.settings_sign_in_turn_off()}
 		destructive
 		onconfirm={() => void turnOff()}
-	/>
+	>
+		{#if current.connected > 0}<ConnectedAccounts />{/if}
+	</ConfirmDialog>
 {/if}

@@ -97,3 +97,68 @@ test('a stored provider stays visible and can be turned off without a public URL
 	await confirm.getByRole('button', { name: 'Cancel' }).click();
 	await expect(confirm).toBeHidden();
 });
+
+test('turning off lists the connected accounts behind a summary', async ({ page }) => {
+	await login(page);
+	await page.route('**/api/v1/settings/sign-in', async (route) => {
+		if (route.request().method() !== 'GET') return route.continue();
+		const response = await route.fetch();
+		await route.fulfill({
+			response,
+			json: {
+				...(await response.json()),
+				source: 'settings',
+				name: 'Stored IdP',
+				connected: 4,
+				connectedWithoutPassword: 1
+			}
+		});
+	});
+	// Four made-up accounts, so the box is the same whatever oidc.test.ts links.
+	const account = (username: string, hasPassword: boolean) => ({
+		id: username,
+		username,
+		displayName: `Person ${username}`,
+		color: 'teal',
+		role: 'member',
+		avatarId: null,
+		hasPassword,
+		hasIdentity: true
+	});
+	await page.route('**/api/v1/users', (route) =>
+		route.fulfill({
+			json: {
+				items: [
+					account('ada', true),
+					account('ben', false),
+					account('cleo', true),
+					account('dan', true),
+					{ ...account('eve', true), hasIdentity: false }
+				]
+			}
+		})
+	);
+	await page.goto('/settings/sign-in');
+	await page
+		.getByRole('region', { name: 'Sign-in' })
+		.getByRole('button', { name: 'Turn off' })
+		.click();
+	const confirm = page.getByRole('dialog', { name: 'Turn off sign-in through Stored IdP?' });
+
+	const summary = confirm.getByRole('button', { name: /4 connected accounts/ });
+	await expect(summary).toContainText('1 needs a setup link');
+	// Three faces and a count of the rest.
+	await expect(summary).toContainText('+1');
+	await expect(confirm.getByText('Person ada')).toBeHidden();
+
+	await summary.click();
+	// Who needs a setup link first, then who keeps their password.
+	await expect(confirm.getByRole('listitem')).toHaveCount(4);
+	await expect(confirm.getByRole('list')).toHaveText([
+		/Person ben/,
+		/Person ada.*Person cleo.*Person dan/
+	]);
+	await expect(confirm.getByText('Without a password · 1')).toBeVisible();
+	await expect(confirm.getByText('With a password · 3')).toBeVisible();
+	await confirm.getByRole('button', { name: 'Cancel' }).click();
+});

@@ -9,6 +9,7 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { connectedWarning, providerName, secretRequired } from '$lib/settings/sign-in';
+	import ConnectedAccounts from './ConnectedAccounts.svelte';
 
 	let {
 		open = $bindable(false),
@@ -199,4 +200,6 @@
 	confirmLabel={m.settings_sign_in_switch_confirm()}
 	destructive
 	onconfirm={() => void save()}
-/>
+>
+	<ConnectedAccounts />
+</ConfirmDialog>
