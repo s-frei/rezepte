@@ -25,18 +25,46 @@ export const shell = $state<{ breadcrumb?: string; actions?: Snippet }>({
 	actions: undefined
 });
 
-/**
- * Routes that own the bottom of a phone screen for their own action bar and
- * therefore hide the bottom nav: the detail page (cook mode CTA), and both
- * editors (save bar). They all offer their own way back, so navigation is
- * never lost - see `docs/memory/content/architecture/design-system.mdx`.
- */
-const ROUTES_WITHOUT_BOTTOM_NAV = new Set([
-	'/recipes/[slug]',
-	'/recipes/[slug]/edit',
-	'/recipes/new'
-]);
+/** The places the phone's bottom nav can mark as current. */
+export type NavPlace = 'recipes' | 'you';
 
-export function showsBottomNav(routeId: string | null): boolean {
-	return routeId === null || !ROUTES_WITHOUT_BOTTOM_NAV.has(routeId);
+/**
+ * Every page route and what the phone's bottom nav does on it. The bar shows
+ * exactly when one of its places is current, so a bar with nothing marked
+ * can never appear. `null` routes go without it: the detail page and both
+ * editors own the screen with their own top bar and their own way back
+ * ("one bar per phone screen"), and the bare routes - login, cook mode, a
+ * public share - render no shell at all. `shell.test.ts` fails when a route
+ * is missing here, so a new one has to decide. See
+ * `docs/memory/content/architecture/design-system.mdx`.
+ */
+export const NAV_PLACES: Record<string, NavPlace | null> = {
+	'/': 'recipes',
+	'/settings': 'you',
+	'/settings/api': 'you',
+	'/settings/mail': 'you',
+	'/settings/notifications': 'you',
+	'/settings/shares': 'you',
+	'/settings/sign-in': 'you',
+	'/settings/transfer': 'you',
+	'/settings/users': 'you',
+	'/recipes/new': null,
+	'/recipes/[slug]': null,
+	'/recipes/[slug]/edit': null,
+	'/recipes/[slug]/cook': null,
+	'/s/[token]': null,
+	'/login': null,
+	'/welcome': null,
+	'/forgot-password': null,
+	'/confirm-email': null,
+	'/unsubscribe': null
+};
+
+/**
+ * The bottom nav's current place on a route, or `null` for no bar. A path no
+ * route matches has no id, and the error page owns the screen on any route.
+ */
+export function navPlace(routeId: string | null, hasError: boolean): NavPlace | null {
+	if (hasError || routeId === null) return null;
+	return NAV_PLACES[routeId] ?? null;
 }

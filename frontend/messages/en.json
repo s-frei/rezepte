@@ -1,6 +1,7 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"app_name": "Rezepte",
+	"error_back_to_recipes": "Back to recipes",
 	"not_found": "This page does not exist.",
 	"login_welcome": "Welcome back.",
 	"login_title": "Sign in",
