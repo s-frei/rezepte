@@ -41,7 +41,9 @@ function tone(c: AudioContext, freq: number, at: number): void {
 
 function ring(): void {
 	const c = context();
-	if (c) {
+	// A suspended context's clock stands still, so tones queued now would all
+	// play at once on the first tap. Skip them; the vibration still goes out.
+	if (c?.state === 'running') {
 		try {
 			tone(c, 880, c.currentTime);
 			tone(c, 660, c.currentTime + 0.25);
