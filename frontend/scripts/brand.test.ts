@@ -72,8 +72,13 @@ test('the favicon is the book, and the manifests what the generator writes', asy
 	expect(await text(new URL('favicon.svg', statics))).toBe(
 		await text(new URL('icon/rezepte-book.svg', brand))
 	);
-	expect(await text(new URL('manifest.webmanifest', statics))).toBe(manifest('en'));
-	expect(await text(new URL('manifest.de.webmanifest', statics))).toBe(manifest('de'));
+	const { baseLocale, locales } = JSON.parse(
+		await Bun.file(new URL('../../service/internal/i18n/locales.json', import.meta.url)).text()
+	);
+	for (const locale of locales) {
+		const file = locale === baseLocale ? 'manifest.webmanifest' : `manifest.${locale}.webmanifest`;
+		expect(await text(new URL(file, statics))).toBe(manifest(locale));
+	}
 });
 
 test('manifest makes an installable app', () => {

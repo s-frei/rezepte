@@ -152,7 +152,7 @@
 	function syncUrl() {
 		// A list that answers after the visitor has moved on (an import that
 		// finished first) must not pull them back with its replaceState.
-		if (navigating.to || page.route.id !== '/') return;
+		if (page.route.id !== '/' || (navigating.to && navigating.to.route.id !== '/')) return;
 		const qs = buildListQuery({
 			q,
 			tags,

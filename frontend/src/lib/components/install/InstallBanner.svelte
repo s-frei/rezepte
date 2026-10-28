@@ -7,7 +7,7 @@
 
 	// The same breakpoint as the bottom nav: a desktop never gets the banner,
 	// it has the user menu's row and the settings card.
-	const phone = new MediaQuery('max-width: 767.98px');
+	const phone = new MediaQuery('(max-width: 767.98px) and (pointer: coarse)');
 	const current = $derived(offer());
 </script>
 

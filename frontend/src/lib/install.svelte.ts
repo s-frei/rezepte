@@ -61,12 +61,17 @@ export async function startInstall(): Promise<void> {
 		install.iosSheet = true;
 	} else if (kind === 'prompt' && install.prompt) {
 		const prompt = install.prompt;
-		await prompt.prompt();
-		await prompt.userChoice;
-		// A prompt can be shown only once; Chromium fires a new event if it
-		// offers the install again. Accepting is not installing: only
-		// `appinstalled` hides the hints for good.
-		install.prompt = null;
+		try {
+			await prompt.prompt();
+			await prompt.userChoice;
+		} catch {
+			// A prompt that cannot be shown is spent all the same.
+		} finally {
+			// A prompt can be shown only once; Chromium fires a new event if it
+			// offers the install again. Accepting is not installing: only
+			// `appinstalled` hides the hints for good.
+			install.prompt = null;
+		}
 	}
 }
 
