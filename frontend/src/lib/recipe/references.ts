@@ -1,8 +1,8 @@
-import type { IngredientGroup, IngredientRef, Step } from '$lib/api/recipes';
+import type { IngredientGroup, IngredientRef, Step, StepTime } from '$lib/api/recipes';
 import { formatQuantityFor } from './scale';
 
 /** One piece of a step's text. `quantity` is present on a resolved reference, `time` on a stored step time. */
-export type Segment = { text: string; quantity?: string; time?: boolean };
+export type Segment = { text: string; quantity?: string; time?: StepTime };
 
 /**
  * Unicode letters and digits, shared by every place in this file that needs
@@ -79,7 +79,7 @@ export function segmentStep(
 	servings: number,
 	baseServings: number
 ): Segment[] {
-	type Hit = { start: number; end: number; quantity?: string; time?: true };
+	type Hit = { start: number; end: number; quantity?: string; time?: StepTime };
 	const hits: Hit[] = [];
 	const seenWords = new Set<string>();
 	for (const ref of step.references) {
@@ -97,9 +97,9 @@ export function segmentStep(
 		hits.push({ start: match.index, end: match.index + match[0].length, quantity });
 	}
 	// Stored times are marked like references: first occurrence only, earlier start wins.
-	for (const { phrase } of step.times) {
-		const match = wordPattern(phrase).exec(step.text);
-		if (match) hits.push({ start: match.index, end: match.index + match[0].length, time: true });
+	for (const time of step.times) {
+		const match = wordPattern(time.phrase).exec(step.text);
+		if (match) hits.push({ start: match.index, end: match.index + match[0].length, time });
 	}
 	hits.sort((a, b) => a.start - b.start);
 
@@ -109,7 +109,7 @@ export function segmentStep(
 		if (hit.start < cursor) continue; // overlapping hits: first one wins
 		if (hit.start > cursor) out.push({ text: step.text.slice(cursor, hit.start) });
 		const text = step.text.slice(hit.start, hit.end);
-		out.push(hit.time ? { text, time: true } : { text, quantity: hit.quantity });
+		out.push(hit.time ? { text, time: hit.time } : { text, quantity: hit.quantity });
 		cursor = hit.end;
 	}
 	if (cursor < step.text.length) out.push({ text: step.text.slice(cursor) });

@@ -11,11 +11,17 @@
 	import IngredientSheet from '$lib/components/cook/IngredientSheet.svelte';
 	import TypeSpecimen from '$lib/components/cook/TypeSpecimen.svelte';
 	import StepText from '$lib/components/recipe/StepText.svelte';
+	import TimerBanner from '$lib/components/timer/TimerBanner.svelte';
+	import TimerDock from '$lib/components/timer/TimerDock.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import { createServings } from '$lib/recipe/servings.svelte';
 	import { swipeDirection } from '$lib/recipe/swipe';
 	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '$lib/recipe/type-size';
 	import { ScreenWakeLock } from '$lib/recipe/wake-lock.svelte';
+	import { unlockAudio } from '$lib/recipe/chime';
+	import { timerId, type Timer } from '$lib/recipe/timers';
+	import { timers } from '$lib/recipe/timers.svelte';
+	import type { StepTime } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageProps } from './$types';
 
@@ -65,6 +71,30 @@
 		}
 	}
 
+	// The tap that starts a timer is the gesture browsers want before they
+	// play the alarm. A range runs on its lower bound, never `maxSeconds`.
+	function startTime(time: StepTime) {
+		unlockAudio();
+		timers.start({
+			recipeId: recipe.id,
+			slug: recipe.slug,
+			recipeTitle: recipe.title,
+			step: index,
+			phrase: time.phrase,
+			seconds: time.seconds
+		});
+	}
+
+	const activeTimer = (time: StepTime) => timers.byId(timerId(recipe.id, index, time.phrase));
+
+	function openTimer(t: Timer) {
+		if (t.recipeId === recipe.id) {
+			go(t.step);
+		} else {
+			void goto(resolve(`/recipes/${t.slug}/cook?step=${t.step + 1}`));
+		}
+	}
+
 	function next() {
 		if (isLast) {
 			finish();
@@ -87,6 +117,10 @@
 		// of leaving cook mode, and the arrows must not page steps the cook
 		// cannot see. The open specimen owns the arrows for its radio group.
 		if (sheetOpen || specimenOpen) {
+			return;
+		}
+		// Inside the timer dock the keys belong to its buttons.
+		if (event.target instanceof Element && event.target.closest('[data-timer-dock]')) {
 			return;
 		}
 		switch (event.key) {
@@ -186,6 +220,15 @@
 		{#if count > 0}
 			<div class="shrink-0 px-5 pt-3 md:px-8">
 				<CookProgress {count} current={index} />
+				{#if timers.ringing.length}
+					<div class="mx-auto mt-3 flex max-w-[760px] flex-col gap-2">
+						{#each timers.ringing as t (t.id)}
+							<div in:fly={{ y: -8, duration }}>
+								<TimerBanner timer={t} showRecipe={t.recipeId !== recipe.id} />
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
 			<!-- `role="group"`: a div with pointer handlers needs a role
@@ -226,11 +269,15 @@
 								groups={recipe.ingredientGroups}
 								servings={servings.value}
 								baseServings={servings.base}
+								onstarttime={startTime}
+								{activeTimer}
 							/>
 						</p>
 					</section>
 				{/key}
 			</div>
+
+			<TimerDock recipeId={recipe.id} onopen={openTimer} />
 
 			<footer class="flex shrink-0 items-center justify-center gap-4 px-5 pt-2 pb-3 md:px-8">
 				<button

@@ -387,7 +387,7 @@ describe('segmentStep times', () => {
 		};
 		expect(segmentStep(step, [], 2, 2)).toEqual([
 			{ text: 'Etwa ' },
-			{ text: '90 Minuten', time: true },
+			{ text: '90 Minuten', time: step.times[0] },
 			{ text: ' schmoren, nach 90 Minuten prüfen.' }
 		]);
 	});
