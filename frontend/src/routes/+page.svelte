@@ -30,6 +30,7 @@
 	import { formatDay } from '$lib/recipe/format';
 	import { overviewViewState } from '$lib/recipe/overview-state';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
+	import { applyRememberedSort, readSort, writeSort } from '$lib/recipe/sort-preference';
 	import { importDialog } from '$lib/import.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import type { PageProps } from './$types';
@@ -313,7 +314,13 @@
 		void fetchPage(1, false);
 	}
 
-	function setSort(value: Sort) {
+	// Only the sort control and the phone's sort chip come through here, so
+	// this is where a choice of order is remembered; a link that names one
+	// is applied by `load` and `followUrl` without being stored.
+	function setSort(value: Sort, remember = true) {
+		if (remember) {
+			writeSort(value);
+		}
 		sort = value;
 		pageNum = 1;
 		void fetchPage(1, false);
@@ -365,7 +372,16 @@
 	 * own updates and leaves them alone.
 	 */
 	function followUrl() {
-		const next = parseListQuery(page.url);
+		const parsed = parseListQuery(page.url);
+		// The page's own write first: `syncUrl` leaves the default order out,
+		// so a view in it, even one a `?sort=updated` link asked for, writes a
+		// bare `/` that would otherwise take the remembered order below.
+		if (buildListQuery(parsed) === lastQuery) {
+			return;
+		}
+		// The same remembered order `load` applies, or arriving at a bare `/`
+		// - the shell's "Recipes" link - would read as a change of order.
+		const next = applyRememberedSort(parsed, page.url, readSort());
 		if (buildListQuery(next) !== lastQuery) {
 			q = next.q;
 			tags = next.tags;
@@ -500,9 +516,17 @@
 			{/if}
 			<TagFilter tags={rowOptions} active={tags} ontoggle={toggleTag} />
 		</div>
-		{#if filterCount > 0}
+		{#if filterCount > 0 || sort !== 'updated'}
 			<ActiveFilters
 				{...filterProps}
+				sortLabel={sort === 'updated'
+					? ''
+					: (sortOptions.find((option) => option.value === sort)?.label ?? '')}
+				onsortreset={() => {
+					// An order a link brought along is dropped for this view only;
+					// the reader's own remembered one is let go of.
+					setSort('updated', sort === readSort());
+				}}
 				collapsible
 				class="flex flex-wrap gap-2 md:hidden"
 				focusfallback={focusFilters}

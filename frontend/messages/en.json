@@ -313,7 +313,7 @@
 	"overview_tags_less": "Less",
 	"overview_filter": "Filters",
 	"overview_filter_reset": "Reset all filters",
-	"overview_filters_count": "{count} filters",
+	"overview_active_count": "{count} active",
 	"overview_filter_remove": "Remove filter {name}",
 	"overview_filter_done": "Done",
 	"overview_filter_time": "Time",
@@ -328,6 +328,7 @@
 	"overview_sort_created": "Newest first",
 	"overview_sort_title": "A–Z",
 	"overview_sort_tasty": "Tastiest",
+	"overview_sort_reset": "Back to recently changed",
 
 	"recipe_servings": "Servings",
 	"recipe_ingredients": "Ingredients",

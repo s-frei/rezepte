@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Star from '@lucide/svelte/icons/star';
@@ -19,6 +20,8 @@
 		onmaxminutes,
 		onfavorites,
 		onauthor,
+		sortLabel = '',
+		onsortreset,
 		children,
 		focusfallback,
 		class: className = 'flex flex-wrap gap-2'
@@ -37,6 +40,11 @@
 		onmaxminutes: (value: number) => void;
 		onfavorites: (value: boolean) => void;
 		onauthor: (value: string) => void;
+		/** The order, when it is not the default one - only where the sort
+		 * control is out of sight (the phone, where it lives in the panel). */
+		sortLabel?: string;
+		/** Back to the default order. */
+		onsortreset?: () => void;
 		/** Rendered after the filter chips, before "Less" - the phone's tags. */
 		children?: Snippet;
 		/** Where the keyboard goes when the last control in the row removes
@@ -48,7 +56,7 @@
 		class?: string;
 	} = $props();
 
-	type Chip = { key: string; label: string; remove: () => void };
+	type Chip = { key: string; label: string; remove: () => void; removeLabel?: string };
 
 	const GAP_PX = 8; // gap-2
 
@@ -59,26 +67,36 @@
 	let twin = $state<HTMLDivElement | null>(null);
 
 	const person = $derived(authors.find((entry) => entry.username === author));
-	/** One entry per filter panel section that narrows the grid. */
+	/** One entry per filter panel section that is set, the order first. */
 	const chips = $derived(
-		[
-			maxMinutes > 0 && {
-				key: 'time',
-				label: m.overview_filter_time_upto({ duration: formatMinutes(maxMinutes) }),
-				remove: () => onmaxminutes(0)
-			},
-			favoritesOnly && {
-				key: 'favorites',
-				label: m.overview_filter_favorites_heading(),
-				remove: () => onfavorites(false)
-			},
-			author !== '' && {
-				key: 'author',
-				// A link to someone who has since left still names the username.
-				label: person?.displayName ?? author,
-				remove: () => onauthor('')
-			}
-		].filter((chip): chip is Chip => chip !== false)
+		(
+			[
+				// The order leads: it is not a filter, but on a phone this is the
+				// only place that says why the grid stands the way it does.
+				sortLabel !== '' && {
+					key: 'sort',
+					label: sortLabel,
+					remove: () => onsortreset?.(),
+					removeLabel: m.overview_sort_reset()
+				},
+				maxMinutes > 0 && {
+					key: 'time',
+					label: m.overview_filter_time_upto({ duration: formatMinutes(maxMinutes) }),
+					remove: () => onmaxminutes(0)
+				},
+				favoritesOnly && {
+					key: 'favorites',
+					label: m.overview_filter_favorites_heading(),
+					remove: () => onfavorites(false)
+				},
+				author !== '' && {
+					key: 'author',
+					// A link to someone who has since left still names the username.
+					label: person?.displayName ?? author,
+					remove: () => onauthor('')
+				}
+			] as (Chip | false)[]
+		).filter((chip): chip is Chip => chip !== false)
 	);
 	const crowded = $derived(collapsible && chips.length >= 2 && !fits);
 	// Unfolded by hand, the row stays unfolded only while it stays crowded:
@@ -195,7 +213,9 @@
 </script>
 
 {#snippet icon(key: string)}
-	{#if key === 'time'}
+	{#if key === 'sort'}
+		<ArrowDownWideNarrow class="size-4 shrink-0 text-primary" aria-hidden="true" />
+	{:else if key === 'time'}
 		<Clock class="size-4 shrink-0 text-primary" aria-hidden="true" />
 	{:else if key === 'favorites'}
 		<Star class="size-4 shrink-0 fill-current text-primary" aria-hidden="true" />
@@ -226,7 +246,7 @@
 		<button
 			type="button"
 			onclick={chip.remove}
-			aria-label={m.overview_filter_remove({ name: chip.label })}
+			aria-label={chip.removeLabel ?? m.overview_filter_remove({ name: chip.label })}
 			class="inline-flex h-full shrink-0 items-center rounded-r-pill pr-3 pl-1"
 		>
 			<X class="size-3.5 opacity-70" aria-hidden="true" />
@@ -258,7 +278,7 @@
 					</span>
 				{/each}
 			</span>
-			{m.overview_filters_count({ count: chips.length })}
+			{m.overview_active_count({ count: chips.length })}
 			<span class="sr-only">: {chips.map((chip) => chip.label).join(', ')}</span>
 		</button>
 	{:else}

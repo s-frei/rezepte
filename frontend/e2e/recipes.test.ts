@@ -1819,10 +1819,10 @@ test("folds the panel's filters only when the row runs out of room", async ({ pa
 
 	await page.goto('/?maxMinutes=180');
 	await expect(page.getByRole('button', { name: 'Remove filter up to 3 hr' })).toBeVisible();
-	await expect(page.getByRole('button', { name: /^\d filters/ })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /^\d active/ })).toHaveCount(0);
 
 	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
-	const folded = page.getByRole('button', { name: /^3 filters/ });
+	const folded = page.getByRole('button', { name: /^3 active/ });
 	await expect(folded).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Remove filter Favorites' })).toHaveCount(0);
 
@@ -1847,7 +1847,7 @@ test('keeps the keyboard in the chip row when a filter is removed', async ({ pag
 	// the folded chip.
 	await page.setViewportSize({ width: 360, height: 780 });
 	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
-	const folded = page.getByRole('button', { name: /^3 filters/ });
+	const folded = page.getByRole('button', { name: /^3 active/ });
 	await folded.focus();
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('button', { name: /^up to 1 hr 30/ })).toBeFocused();
@@ -1920,9 +1920,88 @@ test('counts the desktop row under the search text', async ({ page, isMobile }) 
 		new RegExp(`^\\s*${a}\\s*1\\s*$`)
 	);
 
-	await searchField(page).fill('');
-	await searchField(page).press('Enter');
-	await expect(page.getByRole('main').getByRole('button', { name: a, exact: false })).toHaveText(
-		new RegExp(`^\\s*${a}\\s*2\\s*$`)
-	);
+	// The suggestions count without the text, since a pick there clears it.
+	// Checked there rather than on the full row: in the suite's shared
+	// database the unfiltered row folds, and this tag may sit past the fold.
+	await searchField(page).fill(token);
+	await expect(
+		page
+			.getByRole('listbox', { name: 'Suggestions' })
+			.getByRole('option', { name: new RegExp(`^${a}`) })
+	).toHaveText(new RegExp(`${a}\\s*2\\s*$`));
+});
+
+// The order a reader picks is remembered on the device and applied wherever
+// the address names none; picking the default again forgets it.
+test('remembers the chosen order', async ({ page, isMobile }) => {
+	await page.goto('/');
+	if (isMobile) {
+		await page.getByRole('button', { name: 'Filters' }).click();
+	}
+	await page.getByRole('button', { name: 'Sort by' }).click();
+	await page.getByRole('option', { name: 'A–Z' }).click();
+	await expect(page).toHaveURL(/sort=title/);
+
+	await page.goto('/');
+	await expect(page).toHaveURL(/sort=title/);
+
+	if (isMobile) {
+		await page.getByRole('button', { name: 'Back to recently changed' }).click();
+	} else {
+		await page.getByRole('button', { name: 'Sort by' }).click();
+		await page.getByRole('option', { name: 'Recently changed' }).click();
+	}
+	await expect(page).not.toHaveURL(/sort=/);
+	await page.goto('/');
+	await expect(page).not.toHaveURL(/sort=/);
+});
+
+// A link that names an order applies it, but does not make it the reader's.
+test('does not remember an order a link brought', async ({ page }) => {
+	await page.goto('/?sort=tasty');
+	await expect(page).toHaveURL(/sort=tasty/);
+	await page.goto('/');
+	await expect(page).not.toHaveURL(/sort=/);
+});
+
+// A link naming the default order keeps it over a remembered one: the page
+// writes the default back as a bare `/`, which must not read as a new visit.
+test('keeps the default order a link names over a remembered one', async ({ page }) => {
+	await page.goto('/');
+	await page.evaluate(() => localStorage.setItem('rezepte-sort', 'title'));
+	await page.goto('/?sort=updated');
+	await page.waitForLoadState('networkidle');
+	await expect(page).not.toHaveURL(/sort=title/);
+});
+
+// Letting go of a link's order on a phone drops it for this view only; the
+// reader's own remembered order is still there on the next visit.
+test("keeps the remembered order when a link's chip is cleared", async ({ page, isMobile }) => {
+	test.skip(!isMobile, "the chip is the phone's");
+	await page.goto('/');
+	await page.evaluate(() => localStorage.setItem('rezepte-sort', 'title'));
+	await page.goto('/?sort=tasty');
+	await page.getByRole('button', { name: 'Back to recently changed' }).click();
+	await expect(page).not.toHaveURL(/sort=/);
+	await page.goto('/');
+	await expect(page).toHaveURL(/sort=title/);
+});
+
+// On a phone the sort control lives in the panel, so an order other than the
+// default stands as a chip ahead of the filters; desktop shows it beside the
+// search already.
+test('shows a changed order as a chip on phones', async ({ page, isMobile }) => {
+	await page.goto('/?sort=tasty');
+	const chip = page.getByRole('button', { name: 'Tastiest', exact: true });
+	if (!isMobile) {
+		await expect(chip).toHaveCount(0);
+		return;
+	}
+	await expect(chip).toBeVisible();
+	await chip.click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await page.getByRole('button', { name: 'Back to recently changed' }).click();
+	await expect(page).not.toHaveURL(/sort=/);
+	await expect(chip).toHaveCount(0);
 });
