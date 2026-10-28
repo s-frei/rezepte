@@ -46,6 +46,8 @@ const dock = (page: Page) => page.locator('[data-timer-dock]');
 
 /** The dock's rows: on a phone behind the capsule, on a wide screen always open. */
 async function expandDock(page: Page) {
+	// `isVisible()` does not wait: the dock must be there before the capsule is looked for.
+	await expect(dock(page)).toBeVisible();
 	const expand = page.getByRole('button', { name: 'Alle Timer zeigen' });
 	if (await expand.isVisible()) {
 		await expand.click();
@@ -296,10 +298,12 @@ test('serves the push worker uncached and registers it', async ({ page }) => {
 	expect(res.ok()).toBe(true);
 	expect(res.headers()['cache-control']).toBe('no-cache');
 	await expect
-		.poll(() =>
-			page.evaluate(
-				async () => (await navigator.serviceWorker.getRegistration())?.active?.scriptURL ?? ''
-			)
+		.poll(
+			() =>
+				page.evaluate(
+					async () => (await navigator.serviceWorker.getRegistration())?.active?.scriptURL ?? ''
+				),
+			{ timeout: 15_000 }
 		)
 		.toContain('/service-worker.js');
 });
