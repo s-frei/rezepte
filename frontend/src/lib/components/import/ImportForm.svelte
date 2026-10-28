@@ -150,10 +150,12 @@
 	async function importAnyway() {
 		if (!duplicate || reading) return;
 		reading = true;
+		const signal = startRead();
 		try {
-			await open(duplicate, startRead());
+			await open(duplicate, signal);
 		} finally {
-			reading = false;
+			// A share may have started a newer read meanwhile; it owns the flag.
+			if (reads.signal === signal) reading = false;
 		}
 	}
 
