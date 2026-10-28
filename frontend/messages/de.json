@@ -925,6 +925,7 @@
 	"setup_link_show": "Link anzeigen",
 	"setup_link_send": "Link senden",
 	"settings_mail_load_error": "Mail-Einstellungen konnten nicht geladen werden.",
+	"settings_mail_intro": "Über diesen Server verschickt Rezepte Einrichtungslinks, Links für ein neues Passwort und Bestätigungen von E-Mail-Adressen.",
 	"settings_nav_sign_in": "Anmeldung",
 	"settings_sign_in_line_provider": "Anbieter",
 	"settings_sign_in_line_client": "Client",
@@ -984,6 +985,7 @@
 	"settings_sign_in_accounts_group_with": "Mit Passwort · {count}",
 	"settings_sign_in_accounts_hint_with": "Das Passwort funktioniert weiter.",
 	"settings_sign_in_connections_stay": "Die Verbindungen bleiben gespeichert und gelten wieder, sobald {name} wieder eingerichtet ist.",
+	"settings_sign_in_intro": "Lass Benutzer sich über einen Anbieter wie Google, Pocket ID, Authentik oder Keycloak anmelden, per OpenID Connect (Single Sign-on).",
 
 	"import_title": "Rezept importieren",
 	"import_lead": "Füg einen Link zur Rezeptseite oder den Rezepttext ein.",
