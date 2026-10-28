@@ -223,8 +223,8 @@ type UpsertPushSubscriptionParams struct {
 	CreatedAt string
 }
 
-// An endpoint already known moves to this account with its new keys; its
-// alarms stay with the subscription.
+// Renews the keys of an endpoint the account already has. A move from
+// another account deletes the old row first, so its alarms go with it.
 func (q *Queries) UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) error {
 	_, err := q.db.ExecContext(ctx, upsertPushSubscription,
 		arg.ID,

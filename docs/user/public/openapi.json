@@ -97,6 +97,74 @@
         ],
         "type": "object"
       },
+      "AlarmInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/AlarmInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "body": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "A subscription of the current user",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "fireAt": {
+            "description": "When to send, at most 7 days ahead and at most a minute past",
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "url": {
+            "description": "The page a click opens; starts with /recipes/",
+            "maxLength": 300,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "fireAt",
+          "title",
+          "body",
+          "url"
+        ],
+        "type": "object"
+      },
+      "AlarmOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/AlarmOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "The alarm's id, which the push carries as its tag",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "AuthorCount": {
         "additionalProperties": false,
         "properties": {
@@ -1018,6 +1086,28 @@
         ],
         "type": "object"
       },
+      "EndpointInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/EndpointInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "endpoint": {
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -1542,6 +1632,28 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "KeyOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/KeyOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "key": {
+            "description": "The VAPID public key, base64url, to subscribe with as applicationServerKey",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
         "type": "object"
       },
       "Link": {
@@ -2924,6 +3036,41 @@
         "required": [
           "phrase",
           "seconds"
+        ],
+        "type": "object"
+      },
+      "SubscribeInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/SubscribeInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "auth": {
+            "description": "The subscription's auth secret, base64url",
+            "maxLength": 64,
+            "type": "string"
+          },
+          "endpoint": {
+            "description": "The push service URL PushManager.subscribe returned; https on a known push service only",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "p256dh": {
+            "description": "The subscription's p256dh key, base64url",
+            "maxLength": 128,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
         ],
         "type": "object"
       },
@@ -5394,6 +5541,308 @@
         "summary": "Read the recipe behind a public link",
         "tags": [
           "public"
+        ]
+      }
+    },
+    "/api/v1/push/alarms": {
+      "post": {
+        "description": "The push is sent at fireAt to a subscription of the current user, which is 404 otherwise. At most 50 per subscription. Sent once, never retried; one more than an hour late is dropped.",
+        "operationId": "create-push-alarm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlarmInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlarmOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Schedule a push to a device",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/v1/push/alarms/{id}": {
+      "delete": {
+        "description": "One already sent, another user's or never there is no error and changes nothing.",
+        "operationId": "delete-push-alarm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Cancel a scheduled push",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/v1/push/key": {
+      "get": {
+        "operationId": "get-push-key",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Read the key a device subscribes to pushes with",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/v1/push/subscription": {
+      "delete": {
+        "description": "One that is not there is no error.",
+        "operationId": "delete-push-subscription",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndpointInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete a device's push subscription and its alarms",
+        "tags": [
+          "push"
+        ]
+      },
+      "put": {
+        "description": "An endpoint another account had moves to the current user, without that account's alarms. At most 20 per user; an endpoint that is not https on a known push service is 422.",
+        "operationId": "put-push-subscription",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Store a device's push subscription",
+        "tags": [
+          "push"
         ]
       }
     },
@@ -9898,6 +10347,10 @@
     {
       "description": "Exporting recipes with their photos as a zip and importing such a file. Administrators only.",
       "name": "transfer"
+    },
+    {
+      "description": "Notifications a device asked for, such as a finished cook timer.",
+      "name": "push"
     },
     {
       "description": "Public links to recipes: creating, listing and revoking them. Session only.",

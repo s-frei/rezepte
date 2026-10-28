@@ -6,8 +6,8 @@ SELECT vapid_key FROM instance_settings WHERE id = 1;
 -- name: SetVapidKeyIfMissing :exec
 UPDATE instance_settings SET vapid_key = ? WHERE id = 1 AND vapid_key IS NULL;
 
--- An endpoint already known moves to this account with its new keys; its
--- alarms stay with the subscription.
+-- Renews the keys of an endpoint the account already has. A move from
+-- another account deletes the old row first, so its alarms go with it.
 -- name: UpsertPushSubscription :exec
 INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
 VALUES (?, ?, ?, ?, ?, ?)

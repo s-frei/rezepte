@@ -33,6 +33,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/notify"
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/preview"
+	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/recipeimport"
 	"github.com/s-frei/rezepte/service/internal/settings"
@@ -56,6 +57,10 @@ const shareSweepInterval = time.Hour
 // digestShutdownWait bounds how long a shutdown waits for a recipe digest
 // run under way, so a hung SMTP server cannot keep the process alive.
 const digestShutdownWait = 2 * time.Minute
+
+// pushShutdownWait bounds how long a shutdown waits for a push under way;
+// one send times out well before it.
+const pushShutdownWait = 30 * time.Second
 
 // version is the build version, set with -ldflags "-X main.version=...".
 // A plain `go build` leaves it at "dev", which is what a development binary
@@ -226,6 +231,8 @@ func run() error {
 	sessions.SetNotifier(notifications)
 	go shares.SweepLoop(ctx, shareSweepInterval, logger)
 	digestDone := notifications.StartRecipeDigest(ctx)
+	pushes := push.NewService(conn, cfg.PublicURL, &http.Client{})
+	pushDone := pushes.Start(ctx)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
@@ -259,6 +266,7 @@ func run() error {
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
 	notify.Register(srv.API(), notifications)
+	push.Register(srv.API(), pushes)
 	userapi.Register(srv.API(), users, sessions, avatars,
 		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer)
 	tokenapi.Register(srv.API(), tokens)
@@ -268,6 +276,11 @@ func run() error {
 	case <-digestDone:
 	case <-time.After(digestShutdownWait):
 		logger.Warn("recipe digest still running at exit; its remaining mails are lost")
+	}
+	select {
+	case <-pushDone:
+	case <-time.After(pushShutdownWait):
+		logger.Warn("push still sending at exit")
 	}
 	return err
 }

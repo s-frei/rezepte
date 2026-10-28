@@ -21,6 +21,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
 	"github.com/s-frei/rezepte/service/internal/preview"
+	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
@@ -81,6 +82,7 @@ func newFullApp(t *testing.T) fullApp {
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
+	push.Register(srv.API(), push.NewService(conn, "", nil))
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), nil, nil)
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}

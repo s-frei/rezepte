@@ -48,6 +48,7 @@ var apiTags = []*huma.Tag{
 	{Name: "tags", Description: "The tags recipes are filed under."},
 	{Name: "images", Description: "Uploading recipe images and serving them in their rendered sizes."},
 	{Name: "transfer", Description: "Exporting recipes with their photos as a zip and importing such a file. Administrators only."},
+	{Name: "push", Description: "Notifications a device asked for, such as a finished cook timer."},
 	{Name: "shares", Description: "Public links to recipes: creating, listing and revoking them. Session only."},
 	{Name: "public", Description: "What anyone may read without signing in: the recipe and photos behind a public link, the cover a link preview shows, and the unsubscribe link a mail carries."},
 	{Name: "settings", Description: "The household-wide settings. Everyone reads them; only the owner changes them."},
