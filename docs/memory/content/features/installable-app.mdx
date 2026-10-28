@@ -13,7 +13,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 
 **The owner is the role `superadmin`.** `$lib/roles` has no owner helper, so `AppCard` compares `session.user?.role`. A member on plain HTTP sees no card at all, since only the owner can put the instance behind HTTPS; the card links the user guide's reverse-proxy page.
 
-**The banner's dismissal** is `localStorage` key `rezepte-install-banner-dismissed` with the value `'1'`, per browser. Every access is in try/catch and `dismissBanner` sets the in-memory flag first, so the × works with blocked storage. Accepting the browser's dialog does not hide the hints; only `appinstalled` does, because the user can still cancel the OS step.
+**The banner** is a cookbook note: a "Tip" label with a dotted leader that echoes the overview's running head below it, the app icon, a lead sentence and detail, and a full-width Install button. The copy is the same on every platform; on an iPhone the button opens the steps sheet. **Its dismissal** is `localStorage` key `rezepte-install-banner-dismissed` with the value `'1'`, per browser. Every access is in try/catch and `dismissBanner` sets the in-memory flag first, so the × works with blocked storage. Accepting the browser's dialog does not hide the hints; only `appinstalled` does, because the user can still cancel the OS step.
 
 **iOS gets steps, not a button.** Safari fires no `beforeinstallprompt` and has no API to start the install, so `IosInstallSteps` shows the three steps (Share, Add to Home Screen, Add). `isIos` also catches iPadOS, which reports a Mac user agent: a `MacIntel` platform with touch points.
 
@@ -27,6 +27,8 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 - `ImportForm` takes `importDialog.prefill` in an `$effect`, not only on mount, so a share into an already open dialog reads too.
 
 **Testing.** `frontend/e2e/install.test.ts` holds the flows. Chromium never offers an install under automation, so the tests dispatch a synthetic `beforeinstallprompt` on `load`; the user-docs screenshots do the same with `offerInstall` in `docs/user/screenshots/helpers.ts`. Run the file from the repository root, see [Verify UI with Playwright](/howtos/verify-ui).
+
+**Testing on a phone.** Checking install and Share → Rezepte on a real phone needs HTTPS. Put the running demo behind a TLS tunnel such as `tailscale serve --bg <demo port>` (the port is in `mise run ports`) rather than a dev server with a self-signed certificate, which Android and iOS will not install from.
 
 ## Why it is this way
 

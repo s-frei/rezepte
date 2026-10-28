@@ -15,7 +15,7 @@ test('install-banner', async ({ page }, testInfo) => {
 	test.skip(!isMobile(testInfo), 'the install banner is for phones only');
 	await offerInstall(page);
 	await prepare(page, testInfo, { login: true });
-	await expect(page.getByRole('button', { name: /Install Rezepte as an app/ })).toBeVisible();
+	await expect(page.getByText('Rezepte as an app')).toBeVisible();
 	await shot(page, 'install-banner');
 });
 

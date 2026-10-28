@@ -29,7 +29,8 @@ async function offerPrompt(page: Page) {
 const prompted = (page: Page) =>
 	page.evaluate(() => (window as unknown as { __prompted?: boolean }).__prompted === true);
 
-const banner = (page: Page) => page.getByRole('button', { name: /Install Rezepte as an app/ });
+const banner = (page: Page) => page.getByText('Rezepte as an app').first();
+const installButton = (page: Page) => page.getByRole('button', { name: 'Install', exact: true });
 
 test('the banner offers the install on a phone and × hides it for good', async ({
 	page,
@@ -39,7 +40,7 @@ test('the banner offers the install on a phone and × hides it for good', async 
 	await offerPrompt(page);
 	await login(page);
 	await page.goto('/');
-	await banner(page).click();
+	await installButton(page).click();
 	await expect.poll(() => prompted(page)).toBe(true);
 
 	// Accepting the dialog is not installing; only `appinstalled` ends the offer.
@@ -119,7 +120,7 @@ test('iPhone gets the steps', async ({ browser, isMobile }) => {
 	]);
 
 	await page.goto('/');
-	await banner(page).click();
+	await installButton(page).click();
 	const sheet = page.getByRole('dialog', { name: 'Add Rezepte to your home screen' });
 	await expect(sheet.getByRole('listitem')).toHaveCount(3);
 	await context.close();

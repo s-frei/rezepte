@@ -1145,9 +1145,10 @@
 	"app_shortcut_new": "New recipe",
 	"app_shortcut_favorites": "Favorites",
 
-	"install_banner_title": "Install Rezepte as an app",
-	"install_banner_share": "Then you share links straight to Rezepte",
-	"install_banner_ios": "Opens like an app, without the browser bar",
+	"install_banner_label": "Tip",
+	"install_banner_title": "Rezepte as an app",
+	"install_banner_lead": "Always at hand.",
+	"install_banner_detail": "Its own icon, no browser bar",
 	"install_banner_dismiss": "Hide",
 	"install_card_title": "Rezepte as an app",
 	"install_card_caption": "Install it on this device",
