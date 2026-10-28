@@ -3,10 +3,13 @@
 	import { toast } from 'svelte-sonner';
 	import { isSignedOut } from '$lib/api/client';
 	import { clearMailSettings, getMailSettings, type MailSettings } from '$lib/api/mail';
+	import { getSettings, updateSettings } from '$lib/api/settings';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+	import Select from '$lib/components/ui/Select.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import Letterhead, { type LetterheadLine } from './Letterhead.svelte';
 	import MailSettingsDialog from './MailSettingsDialog.svelte';
 	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';
@@ -16,8 +19,14 @@
 	let editOpen = $state(false);
 	let turnOffOpen = $state(false);
 	let result = $state<TestMailResult | null>(null);
+	// The daily new recipes mail's hour; null until read, and when it cannot
+	// be, which hides only its select.
+	let digestHour = $state<number | null>(null);
 
 	onMount(async () => {
+		void getSettings()
+			.then((s) => (digestHour = s.recipeDigestHour))
+			.catch(() => null);
 		try {
 			current = await getMailSettings();
 		} catch (error) {
@@ -25,6 +34,31 @@
 		}
 	});
 
+	// Each hour as the locale writes a time: 17:00, 5:00 PM.
+	const hourOptions = $derived.by(() => {
+		const format = new Intl.DateTimeFormat(getLocale(), { hour: 'numeric', minute: '2-digit' });
+		return Array.from({ length: 24 }, (_, hour) => ({
+			value: String(hour),
+			label: format.format(new Date(2000, 0, 1, hour))
+		}));
+	});
+
+	// Applies on pick; a failed write snaps back to what was saved.
+	async function saveHour(hour: number) {
+		const before = digestHour;
+		digestHour = hour;
+		try {
+			digestHour = (await updateSettings({ recipeDigestHour: hour })).recipeDigestHour;
+			toast.success(m.settings_mail_digest_saved());
+		} catch (error) {
+			digestHour = before;
+			if (!isSignedOut(error)) toast.error(m.settings_mail_save_error());
+		}
+	}
+
+	// A letterhead: the same three lines whether set up or not, so the card
+	// keeps its shape when mail is turned on and only the lines fill in. Each
+	// value is a main part and a smaller line under it.
 	const blank = $derived(!current || current.source === 'none');
 	const lines = $derived<LetterheadLine[]>(
 		current && !blank
@@ -127,6 +161,19 @@
 			{/if}
 			{#if current.source !== 'none'}
 				<div class="mt-5 border-t border-border pt-5"><TestMailRow bind:result /></div>
+				{#if digestHour !== null}
+					<div class="mt-5 border-t border-border pt-5">
+						<p class="mb-1.5 text-caption font-semibold">{m.settings_mail_digest_label()}</p>
+						<Select
+							value={String(digestHour)}
+							options={hourOptions}
+							label={m.settings_mail_digest_label()}
+							onchange={(next) => void saveHour(Number(next))}
+							class="w-36 bg-surface-elevated"
+						/>
+						<p class="mt-1.5 text-caption text-text-muted">{m.settings_mail_digest_hint()}</p>
+					</div>
+				{/if}
 			{/if}
 		{/if}
 	{/if}

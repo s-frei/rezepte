@@ -674,6 +674,7 @@ test('a phone reaches the settings pages and sign-out through the contents sheet
 	const sheet = page.getByRole('dialog', { name: 'Contents' });
 	await expect(sheet.getByRole('link')).toHaveText([
 		'Profile',
+		'Notifications',
 		'Shared links',
 		'API',
 		'People',

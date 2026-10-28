@@ -74,6 +74,7 @@ type updateSettingsInput struct {
 		PublicShareDefaultDays nullableDay `json:"publicShareDefaultDays,omitzero" required:"false" enum:"1,7,30,365" doc:"Lifetime preselected when a member creates a public link; omitted leaves it unchanged, null makes it permanent"`
 		PublicShareMaxDays     nullableDay `json:"publicShareMaxDays,omitzero" required:"false" enum:"1,7,30,365" doc:"Longest lifetime a public link may have; omitted leaves it unchanged, null removes the maximum"`
 		PublicShareAttribution *bool       `json:"publicShareAttribution,omitempty" required:"false" doc:"Name Rezepte, with a link to the project, at the foot of a public share page and of a recipe card"`
+		RecipeDigestHour       *int        `json:"recipeDigestHour,omitempty" required:"false" doc:"Hour, 0 to 23 in the server's time zone, of the daily mail about new recipes"`
 	}
 }
 
@@ -112,7 +113,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		if errors.Is(err, ErrOwnerRequired) {
 			return nil, huma.Error403Forbidden("superadmin role required")
 		}
-		if errors.Is(err, ErrUnknownLifetime) || errors.Is(err, ErrUnknownShareLifetime) {
+		if errors.Is(err, ErrUnknownLifetime) || errors.Is(err, ErrUnknownShareLifetime) || errors.Is(err, ErrUnknownHour) {
 			return nil, huma.Error422UnprocessableEntity(err.Error())
 		}
 		if err != nil {
@@ -150,6 +151,11 @@ func update(ctx context.Context, svc *Service, u user.User, in *updateSettingsIn
 	}
 	if in.Body.PublicShareAttribution != nil {
 		if _, err := svc.SetPublicShareAttribution(ctx, u, *in.Body.PublicShareAttribution); err != nil {
+			return Settings{}, err
+		}
+	}
+	if in.Body.RecipeDigestHour != nil {
+		if _, err := svc.SetRecipeDigestHour(ctx, u, *in.Body.RecipeDigestHour); err != nil {
 			return Settings{}, err
 		}
 	}

@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { DropdownMenu } from 'bits-ui';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
@@ -103,6 +105,13 @@
 		const newest = data.comments?.at(-1)?.id;
 		if (newest) markCommentsSeen(recipe.id, newest).catch(() => {});
 	}
+
+	// A comment mail links to `?tab=comments`: the recipe opens on its
+	// diary, which then counts as opened, once per recipe loaded.
+	const commentsFirst = $derived(page.url.searchParams.get('tab') === 'comments');
+	$effect(() => {
+		if (recipe && commentsFirst) untrack(openDiary);
+	});
 
 	let deleteOpen = $state(false);
 	let lightboxOpen = $state(false);
@@ -356,6 +365,7 @@
 			diaryNew={!diarySeen && diaryEntries.some((e) => e.new)}
 			diary={data.comments ? diary : undefined}
 			ondiaryopen={openDiary}
+			diaryFirst={commentsFirst}
 		>
 			{#snippet byline()}
 				<!-- Star and heart sit under the title, outside any link, and this

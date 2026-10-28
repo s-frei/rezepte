@@ -1,8 +1,9 @@
 -- name: InsertRecipe :one
 INSERT INTO recipes (
     id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
-    source_name, created_by, created_at, updated_by, updated_at, edit_policy
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    source_name, created_by, created_at, updated_by, updated_at, edit_policy,
+    announce_pending
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdateRecipe :one
@@ -175,3 +176,14 @@ WHERE r.id = ?;
 SELECT id, slug, title, source_url, created_by FROM recipes
 WHERE source_url LIKE sqlc.arg(prefix) || '%'
 ORDER BY created_at DESC;
+
+-- name: ListDueAnnouncements :many
+-- Recipes waiting for the daily digest that were created before
+-- created_before, oldest first; a deleted recipe is simply gone.
+SELECT id, slug, title, servings, prep_minutes, cook_minutes, cover_image_id, created_by, created_at
+FROM recipes
+WHERE announce_pending AND created_at < sqlc.arg(created_before)
+ORDER BY created_at;
+
+-- name: ClearAnnouncements :exec
+UPDATE recipes SET announce_pending = FALSE WHERE id IN (sqlc.slice(ids));

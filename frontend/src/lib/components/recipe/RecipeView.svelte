@@ -28,7 +28,8 @@
 		diary,
 		diaryCount = 0,
 		diaryNew = false,
-		ondiaryopen
+		ondiaryopen,
+		diaryFirst = false
 	}: {
 		recipe: RecipeContent;
 		/** Forwarded to `ImageGallery`; defaults there to the signed-in `imageUrl` route. */
@@ -63,6 +64,8 @@
 		diaryNew?: boolean;
 		/** Called whenever the diary tab is chosen. */
 		ondiaryopen?: () => void;
+		/** Open on the diary instead of the steps; `ondiaryopen` is the caller's to call. */
+		diaryFirst?: boolean;
 	} = $props();
 
 	const tabClass =
@@ -242,11 +245,15 @@
 		{#if diary}
 			<!-- The comments wait behind the method's heading, out of the reading
 			     flow. Both panels stay mounted, so a half-written comment survives
-			     a look at the steps; each recipe opens on its steps. -->
+			     a look at the steps; each recipe opens on its steps, or on the
+			     diary when the caller asks. -->
 			<!-- The tabs stand in for the method's heading. -->
 			<h2 class="sr-only">{m.recipe_steps()}</h2>
 			{#key recipe.id}
-				<Tabs.Root value="steps" onValueChange={(value) => value === 'diary' && ondiaryopen?.()}>
+				<Tabs.Root
+					value={diaryFirst ? 'diary' : 'steps'}
+					onValueChange={(value) => value === 'diary' && ondiaryopen?.()}
+				>
 					<Tabs.List class="mb-5.5 flex items-end gap-5 border-b border-border md:gap-7.5">
 						<Tabs.Trigger value="steps" class={tabClass}>{m.recipe_steps()}</Tabs.Trigger>
 						<Tabs.Trigger value="diary" class={tabClass}>

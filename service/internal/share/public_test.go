@@ -310,3 +310,13 @@ func TestLinkPreviewOfAPublicShare(t *testing.T) {
 		t.Errorf("preview of a paused link = %+v, want nil", p)
 	}
 }
+
+// An unsubscribe link carries its signed token in the address, like a share
+// link, so its shell keeps it out of Referer headers and search indexes too.
+func TestUnsubscribeShellCarriesThePublicHeaders(t *testing.T) {
+	s := newStack(t)
+	checkPublicHeaders(t, "shell for /unsubscribe", s.do(http.MethodGet, "/unsubscribe?u=a&k=comment&s=x", "", nil))
+	if rec := s.do(http.MethodGet, "/unsubscribed", "", nil); rec.Header().Get("X-Robots-Tag") != "" {
+		t.Errorf("the shell for /unsubscribed says noindex")
+	}
+}

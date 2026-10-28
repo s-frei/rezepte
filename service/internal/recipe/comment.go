@@ -133,9 +133,10 @@ func (s *Service) Comments(ctx context.Context, viewer user.User, recipeID strin
 	return out, nil
 }
 
-// AddComment stores body as viewer's entry on recipeID. It leaves viewer's
-// watermark alone: only opening the comments clears what is new, so an
-// entry somebody else wrote meanwhile stays new until it was shown.
+// AddComment stores body as viewer's entry on recipeID and, once committed,
+// tells the CommentNotifier. It leaves viewer's watermark alone: only
+// opening the comments clears what is new, so an entry somebody else wrote
+// meanwhile stays new until it was shown.
 func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, body string) (Comment, error) {
 	body, err := NormalizeCommentBody(body)
 	if err != nil {
@@ -158,6 +159,9 @@ func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, bo
 	})
 	if err != nil {
 		return Comment{}, err
+	}
+	if s.notifier != nil {
+		s.notifier.CommentAdded(ctx, recipeID, id)
 	}
 	return s.comment(ctx, viewer, id)
 }

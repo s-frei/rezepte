@@ -31,6 +31,7 @@ func TestCheckOrigin(t *testing.T) {
 		{"mcp malformed origin", http.MethodPost, "/mcp", "://", 403},
 		{"mcp post same origin", http.MethodPost, "/mcp", "http://localhost:8060", 200},
 		{"mcp post without origin", http.MethodPost, "/mcp", "", 200},
+		{"one-click unsubscribe foreign origin", http.MethodPost, "/api/v1/unsubscribe/one-click", "https://mail.example", 200},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

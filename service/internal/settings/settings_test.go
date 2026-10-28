@@ -176,3 +176,34 @@ func TestOnlyTheOwnerSetsTheLock(t *testing.T) {
 		t.Error("Get after the owner's write = false, want true")
 	}
 }
+
+func TestSetRecipeDigestHour(t *testing.T) {
+	ctx := context.Background()
+	svc := settings.NewService(dbtest.Open(t))
+	got, err := svc.Get(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RecipeDigestHour != 17 {
+		t.Errorf("RecipeDigestHour = %d on a fresh instance, want 17", got.RecipeDigestHour)
+	}
+	admin := user.User{ID: "a", Role: user.RoleAdmin}
+	if _, err := svc.SetRecipeDigestHour(ctx, admin, 6); !errors.Is(err, settings.ErrOwnerRequired) {
+		t.Errorf("admin: err = %v, want ErrOwnerRequired", err)
+	}
+	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
+	for _, hour := range []int{24, -1} {
+		if _, err := svc.SetRecipeDigestHour(ctx, owner, hour); !errors.Is(err, settings.ErrUnknownHour) {
+			t.Errorf("hour %d: err = %v, want ErrUnknownHour", hour, err)
+		}
+	}
+	if _, err := svc.SetRecipeDigestHour(ctx, owner, 6); err != nil {
+		t.Fatal(err)
+	}
+	if got, err = svc.Get(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got.RecipeDigestHour != 6 {
+		t.Errorf("RecipeDigestHour = %d after setting 6", got.RecipeDigestHour)
+	}
+}

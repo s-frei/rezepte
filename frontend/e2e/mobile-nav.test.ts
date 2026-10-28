@@ -39,6 +39,7 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 	await expect(sheet.getByText('Owner, signed in as admin')).toBeVisible();
 	await expect(sheet.getByRole('link')).toHaveText([
 		'Profile',
+		'Notifications',
 		'Shared links',
 		'API',
 		'People',

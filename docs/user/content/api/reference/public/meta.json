@@ -1,9 +1,12 @@
 {
   "title": "Public",
-  "description": "What anyone may read without signing in: the recipe and photos behind a public link, and the cover a link preview shows.",
+  "description": "What anyone may read without signing in: the recipe and photos behind a public link, the cover a link preview shows, and the unsubscribe link a mail carries.",
   "pages": [
     "index",
     "get-public-recipe",
+    "get-unsubscribe",
+    "unsubscribe",
+    "unsubscribe-one-click",
     "get-link-preview-cover",
     "get-public-image-file"
   ]

@@ -29,6 +29,9 @@ var ErrNoLinkPreviewKey = errors.New("link preview key missing")
 // ShareLifetimes.
 var ErrUnknownShareLifetime = errors.New("public share lifetime must be 1, 7, 30 or 365 days")
 
+// ErrUnknownHour is returned for a digest hour outside 0 to 23.
+var ErrUnknownHour = errors.New("hour must be 0 to 23")
+
 // PreviewLifetimes are the minutes a link preview may last, shortest first.
 var PreviewLifetimes = []int{15, 60, 1440}
 
@@ -58,6 +61,9 @@ type Settings struct {
 	// the foot of a public share page and of a recipe card passed on as a
 	// picture.
 	PublicShareAttribution bool `json:"publicShareAttribution"`
+	// RecipeDigestHour is the hour, in the server's time zone, the daily
+	// mail about new recipes goes out.
+	RecipeDigestHour int `json:"recipeDigestHour" minimum:"0" maximum:"23"`
 }
 
 // Service reads and writes the instance settings.
@@ -84,6 +90,7 @@ func (s *Service) Get(ctx context.Context) (Settings, error) {
 		PublicShareDefaultDays: db.Conv[int](row.PublicShareDefaultDays),
 		PublicShareMaxDays:     db.Conv[int](row.PublicShareMaxDays),
 		PublicShareAttribution: row.PublicShareAttribution,
+		RecipeDigestHour:       int(row.RecipeDigestHour),
 	}, nil
 }
 
@@ -151,6 +158,22 @@ func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User
 	return s.Get(ctx)
 }
 
+// SetRecipeDigestHour chooses the hour, 0 to 23, of the daily new recipes
+// mail. Only the superadmin may; everybody else gets ErrOwnerRequired, any
+// other hour ErrUnknownHour.
+func (s *Service) SetRecipeDigestHour(ctx context.Context, actor user.User, hour int) (Settings, error) {
+	if !actor.Role.IsSuperadmin() {
+		return Settings{}, ErrOwnerRequired
+	}
+	if hour < 0 || hour > 23 {
+		return Settings{}, ErrUnknownHour
+	}
+	if err := s.q.SetRecipeDigestHour(ctx, int64(hour)); err != nil {
+		return Settings{}, fmt.Errorf("set recipe digest hour: %w", err)
+	}
+	return s.Get(ctx)
+}
+
 // SetShareLifetimes chooses the default and maximum lifetime, in days, a new
 // public share gets; each is nil (permanent) or one of ShareLifetimes. Only
 // the superadmin may; everybody else gets ErrOwnerRequired, any other day
@@ -181,8 +204,9 @@ func (s *Service) SetShareLifetimes(ctx context.Context, actor user.User, defaul
 	return s.Get(ctx)
 }
 
-// LinkPreviewKey returns the 32-byte key link preview tokens are signed
-// with. It never leaves the service: Settings does not carry it.
+// LinkPreviewKey returns the 32-byte instance key link preview tokens and
+// the unsubscribe links in mails are signed with, each under its own
+// sign label. It never leaves the service: Settings does not carry it.
 func (s *Service) LinkPreviewKey(ctx context.Context) ([]byte, error) {
 	key, err := s.q.GetLinkPreviewKey(ctx)
 	if err != nil {

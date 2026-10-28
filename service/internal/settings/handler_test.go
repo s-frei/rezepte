@@ -173,3 +173,25 @@ func TestPublicShareSettingsEndpoint(t *testing.T) {
 		t.Errorf("empty body: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestRecipeDigestHourEndpoint(t *testing.T) {
+	h := newHandler(t)
+	owner := login(t, h, "olga")
+
+	rec := do(h, http.MethodGet, "/api/v1/settings", "", owner)
+	if !strings.Contains(rec.Body.String(), `"recipeDigestHour":17`) {
+		t.Errorf("get default: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"recipeDigestHour":25}`, owner)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("patch hour 25: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"recipeDigestHour":9}`, owner)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"recipeDigestHour":9`) {
+		t.Errorf("patch hour 9: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"recipeDigestHour":9}`, login(t, h, "adam"))
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("patch as admin: %d %s", rec.Code, rec.Body.String())
+	}
+}

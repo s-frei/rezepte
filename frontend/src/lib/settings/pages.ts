@@ -1,4 +1,5 @@
 import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
+import Bell from '@lucide/svelte/icons/bell';
 import Code from '@lucide/svelte/icons/code';
 import Globe from '@lucide/svelte/icons/globe';
 import KeyRound from '@lucide/svelte/icons/key-round';
@@ -13,7 +14,7 @@ import { m } from '$lib/paraglide/messages';
 import { isAdminRole } from '$lib/roles';
 
 export type SettingsPageId =
-	'profile' | 'shares' | 'api' | 'users' | 'mail' | 'sign-in' | 'transfer';
+	'profile' | 'notifications' | 'shares' | 'api' | 'users' | 'mail' | 'sign-in' | 'transfer';
 
 export type SettingsPage = {
 	id: SettingsPageId;
@@ -26,7 +27,8 @@ export type SettingsPage = {
 /**
  * The pages of the settings area for a role, in the order and groups every
  * nav lists them: the settings sidebar, its contents sheet and the You sheet.
- * "For you" is the account's own, with API last as the page a kitchen needs
+ * "For you" is the account's own, notifications right after the profile
+ * that holds their address, with API last as the page a kitchen needs
  * least; "Household" is what concerns everyone on the instance: the people
  * list, a list to read for everyone and where admins manage accounts, then
  * email and sign-in (the owner's alone) and import and export (admins).
@@ -40,6 +42,13 @@ export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 			href: resolve('/settings'),
 			label: m.settings_nav_profile(),
 			icon: UserRound,
+			group: personal
+		},
+		{
+			id: 'notifications',
+			href: resolve('/settings/notifications'),
+			label: m.settings_nav_notifications(),
+			icon: Bell,
 			group: personal
 		},
 		{

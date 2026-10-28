@@ -44,7 +44,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public: login, `GET /healthz`, the setup-link, password-reset, email-confirmation and OIDC entry points under `/api/v1/auth`, `GET /api/v1/public/shares/{token}`, `GET /public-images/…` (see [Public shares](/features/public-shares)) and `GET /link-preview/…` (see [Link previews](/features/link-previews)) - the last two outside `/api/v1` and deliberately without authentication, since the stranger or the crawler behind either has no session to carry. Living outside `/api/v1` says nothing about security: `GET /images/…` and `GET /avatars/…` declare `auth.Protected` like any other operation, and `/mcp` declares `auth.TokenOnly`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
+    Operations without `Security` are public: login, `GET /healthz`, the setup-link, password-reset, email-confirmation and OIDC entry points under `/api/v1/auth`, the three unsubscribe routes under `/api/v1/unsubscribe` (see [Email](/features/email)), `GET /api/v1/public/shares/{token}`, `GET /public-images/…` (see [Public shares](/features/public-shares)) and `GET /link-preview/…` (see [Link previews](/features/link-previews)) - the last two outside `/api/v1` and deliberately without authentication, since the stranger or the crawler behind either has no session to carry. Living outside `/api/v1` says nothing about security: `GET /images/…` and `GET /avatars/…` declare `auth.Protected` like any other operation, and `/mcp` declares `auth.TokenOnly`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
 
   </Tab>
 </Tabs>
@@ -64,7 +64,7 @@ The served document is the list of operations: every route, its security and sco
 | `comments` | [Recipe comments](/features/recipe-comments) |
 | `images` | [Images](/features/images) |
 | `transfer` | [Import and export](/features/import-export) |
-| `shares`, `public` | [Public shares](/features/public-shares), [Link previews](/features/link-previews) |
+| `shares`, `public` | [Public shares](/features/public-shares), [Link previews](/features/link-previews), [Email](/features/email) for unsubscribing |
 | `settings` | [Editing rights](/features/editing-rights), [Public shares](/features/public-shares), [Link previews](/features/link-previews), [Email](/features/email) for the mail settings, [OIDC](/features/oidc) for the sign-in settings |
 | `users` | [Users and authentication](/features/users-and-auth) - the rank matrix, `/people`, profile pictures |
 | `tokens` | [API tokens](/features/api-tokens) |
@@ -115,7 +115,7 @@ The typed shape is also a layering rule. The input and output structs *are* the 
 
 - That includes the ones that write bytes: an operation answering a file returns a `*huma.StreamResponse` whose body reaches the `http.ResponseWriter` through `humago.Unwrap` - `image.JPEG` (`service/internal/image/file.go`) for the four JPEG routes, the export's zip, `/mcp` handing the request to the SDK's handler - and declares its `200` by hand in `Responses`, since a stream has no schema to infer (`image.JPEGResponses`).
 - Only two kinds of route stay on the mux: the SPA shell and its assets, which are not API, and the contract routes huma hangs there itself.
-- A public operation's `404` is `httpserver.PublicNotFound`, huma's problem body without the `$schema` link a stranger could not follow.
+- A public operation's `404` is `httpserver.PublicNotFound`, and any other status `httpserver.PublicError`: huma's problem body without the `$schema` link a stranger could not follow.
 
 ## Rejected
 

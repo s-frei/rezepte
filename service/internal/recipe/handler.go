@@ -187,7 +187,7 @@ func Register(api huma.API, svc *Service) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		r, err := svc.Create(ctx, u.ID, in.Body)
+		r, err := svc.CreateAnnounced(ctx, u.ID, in.Body)
 		var refErr *RefError
 		if errors.As(err, &refErr) {
 			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{

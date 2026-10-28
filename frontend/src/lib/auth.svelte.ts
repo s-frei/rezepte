@@ -5,7 +5,13 @@ import { getLocale, setLocale } from '$lib/paraglide/runtime';
 export const session = $state<{ user: User | null }>({ user: null });
 
 /** Pages reached without a session; they render bare, without the household's nav. */
-export const authPages = ['/login', '/welcome', '/forgot-password', '/confirm-email'];
+export const authPages = [
+	'/login',
+	'/welcome',
+	'/forgot-password',
+	'/confirm-email',
+	'/unsubscribe'
+];
 
 /**
  * Makes the browser render the language the account actually holds.

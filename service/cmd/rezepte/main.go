@@ -16,6 +16,10 @@ import (
 	"syscall"
 	"time"
 
+	// The zone database, so TZ works in the distroless image, which has
+	// none: mails show times in the server's zone.
+	_ "time/tzdata"
+
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
@@ -26,6 +30,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/mailapi"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/notify"
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -47,6 +52,10 @@ const sweepInterval = 24 * time.Hour
 // are deleted. They serve nothing from that moment on; the sweep only
 // removes the rows.
 const shareSweepInterval = time.Hour
+
+// digestShutdownWait bounds how long a shutdown waits for a recipe digest
+// run under way, so a hung SMTP server cannot keep the process alive.
+const digestShutdownWait = 2 * time.Minute
 
 // version is the build version, set with -ldflags "-X main.version=...".
 // A plain `go build` leaves it at "dev", which is what a development binary
@@ -149,7 +158,12 @@ func run() error {
 		}
 		// Every device signed in with the old credential goes: a reset means
 		// it is forgotten or compromised.
-		if err := auth.NewService(conn, users).DeleteUserSessionsExcept(ctx, owner.ID, ""); err != nil {
+		sessions := auth.NewService(conn, users)
+		// Before exit, and before ending sessions can fail: the password is
+		// written, and the notice is the owner's only sign that it happened.
+		sessions.SetMail(mail.NewService(conn, cfg.SMTP, cfg.PublicURL, logger), nil)
+		sessions.PasswordChanged(ctx, owner, mail.OriginCommandLine, "")
+		if err := sessions.DeleteUserSessionsExcept(ctx, owner.ID, ""); err != nil {
 			return err
 		}
 		logger.Info("superadmin password reset", "username", owner.Username)
@@ -202,7 +216,16 @@ func run() error {
 		return err
 	}
 	shares := share.NewService(conn, instance, users)
+	// Link previews and unsubscribe links share the instance key; sign
+	// labels keep one's token from verifying as the other's.
+	signingKey, err := instance.LinkPreviewKey(ctx)
+	if err != nil {
+		return err
+	}
+	notifications := notify.NewService(conn, signingKey, users, avatars, images, mailer, cfg.PublicURL)
+	sessions.SetNotifier(notifications)
 	go shares.SweepLoop(ctx, shareSweepInterval, logger)
+	digestDone := notifications.StartRecipeDigest(ctx)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
@@ -215,6 +238,7 @@ func run() error {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	oidc.Register(srv.API(), oidc.New(oidcSettings, sessions, users, cfg.SecureCookies))
 	recipes := recipe.NewService(conn, imageDir)
+	recipes.SetCommentNotifier(notifications)
 	recipe.Register(srv.API(), recipes)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	if err := mcpserver.Register(srv.API(), recipes, version); err != nil {
@@ -234,10 +258,18 @@ func run() error {
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
+	notify.Register(srv.API(), notifications)
 	userapi.Register(srv.API(), users, sessions, avatars,
 		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer)
 	tokenapi.Register(srv.API(), tokens)
-	return srv.Run(ctx)
+	err = srv.Run(ctx)
+	stop() // a failed listen returns before ctx ends
+	select {
+	case <-digestDone:
+	case <-time.After(digestShutdownWait):
+		logger.Warn("recipe digest still running at exit; its remaining mails are lost")
+	}
+	return err
 }
 
 // useDemoDefaults reports whether the well-known demo credentials stand in

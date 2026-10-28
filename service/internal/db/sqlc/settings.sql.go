@@ -9,6 +9,21 @@ import (
 	"context"
 )
 
+const claimRecipeDigestDay = `-- name: ClaimRecipeDigestDay :execrows
+UPDATE instance_settings SET recipe_digest_last_day = ?1
+WHERE id = 1 AND recipe_digest_last_day != ?1
+`
+
+// Claims the day's digest run: one row changes only for the first caller
+// that day, so a second run (a restart, two ticks) changes none.
+func (q *Queries) ClaimRecipeDigestDay(ctx context.Context, day string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, claimRecipeDigestDay, day)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const clearMailSettings = `-- name: ClearMailSettings :exec
 UPDATE instance_settings
 SET smtp_host = '', smtp_port = 587, smtp_security = 'starttls',
@@ -35,7 +50,7 @@ func (q *Queries) ClearOIDCSettings(ctx context.Context) error {
 const getInstanceSettings = `-- name: GetInstanceSettings :one
 SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
        public_shares, public_share_default_days, public_share_max_days,
-       public_share_attribution
+       public_share_attribution, recipe_digest_hour
 FROM instance_settings WHERE id = 1
 `
 
@@ -47,6 +62,7 @@ type GetInstanceSettingsRow struct {
 	PublicShareDefaultDays *int64
 	PublicShareMaxDays     *int64
 	PublicShareAttribution bool
+	RecipeDigestHour       int64
 }
 
 // Lists its columns so the link preview key never rides along.
@@ -61,6 +77,7 @@ func (q *Queries) GetInstanceSettings(ctx context.Context) (GetInstanceSettingsR
 		&i.PublicShareDefaultDays,
 		&i.PublicShareMaxDays,
 		&i.PublicShareAttribution,
+		&i.RecipeDigestHour,
 	)
 	return i, err
 }
@@ -128,6 +145,22 @@ func (q *Queries) GetOIDCSettings(ctx context.Context) (GetOIDCSettingsRow, erro
 		&i.OidcClientSecret,
 		&i.OidcName,
 	)
+	return i, err
+}
+
+const getRecipeDigestState = `-- name: GetRecipeDigestState :one
+SELECT recipe_digest_hour, recipe_digest_last_day FROM instance_settings WHERE id = 1
+`
+
+type GetRecipeDigestStateRow struct {
+	RecipeDigestHour    int64
+	RecipeDigestLastDay string
+}
+
+func (q *Queries) GetRecipeDigestState(ctx context.Context) (GetRecipeDigestStateRow, error) {
+	row := q.db.QueryRowContext(ctx, getRecipeDigestState)
+	var i GetRecipeDigestStateRow
+	err := row.Scan(&i.RecipeDigestHour, &i.RecipeDigestLastDay)
 	return i, err
 }
 
@@ -217,6 +250,15 @@ UPDATE instance_settings SET public_shares = ? WHERE id = 1
 
 func (q *Queries) SetPublicShares(ctx context.Context, publicShares bool) error {
 	_, err := q.db.ExecContext(ctx, setPublicShares, publicShares)
+	return err
+}
+
+const setRecipeDigestHour = `-- name: SetRecipeDigestHour :exec
+UPDATE instance_settings SET recipe_digest_hour = ? WHERE id = 1
+`
+
+func (q *Queries) SetRecipeDigestHour(ctx context.Context, recipeDigestHour int64) error {
+	_, err := q.db.ExecContext(ctx, setRecipeDigestHour, recipeDigestHour)
 	return err
 }
 

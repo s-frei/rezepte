@@ -21,6 +21,8 @@ export type Settings = {
 	publicShareAttribution: boolean;
 	/** Whether Rezepte can send mail; switches the Add account dialog. */
 	mailEnabled: boolean;
+	/** The hour, 0 to 23 in the server's time zone, of the daily new recipes mail. */
+	recipeDigestHour: number;
 };
 
 export function getSettings(): Promise<Settings> {

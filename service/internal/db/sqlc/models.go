@@ -79,24 +79,32 @@ type InstanceSetting struct {
 	OidcClientID           string
 	OidcClientSecret       string
 	OidcName               string
+	RecipeDigestHour       int64
+	RecipeDigestLastDay    string
+}
+
+type NotificationOptout struct {
+	UserID string
+	Kind   string
 }
 
 type Recipe struct {
-	ID           string
-	Slug         string
-	Title        string
-	Description  string
-	Servings     int64
-	PrepMinutes  *int64
-	CookMinutes  *int64
-	SourceUrl    *string
-	CoverImageID *string
-	CreatedBy    string
-	CreatedAt    string
-	UpdatedBy    string
-	UpdatedAt    string
-	EditPolicy   *string
-	SourceName   *string
+	ID              string
+	Slug            string
+	Title           string
+	Description     string
+	Servings        int64
+	PrepMinutes     *int64
+	CookMinutes     *int64
+	SourceUrl       *string
+	CoverImageID    *string
+	CreatedBy       string
+	CreatedAt       string
+	UpdatedBy       string
+	UpdatedAt       string
+	EditPolicy      *string
+	SourceName      *string
+	AnnouncePending bool
 }
 
 type RecipeComment struct {

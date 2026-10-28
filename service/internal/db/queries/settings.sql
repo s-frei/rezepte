@@ -2,7 +2,7 @@
 -- Lists its columns so the link preview key never rides along.
 SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
        public_shares, public_share_default_days, public_share_max_days,
-       public_share_attribution
+       public_share_attribution, recipe_digest_hour
 FROM instance_settings WHERE id = 1;
 
 -- name: SetRecipesLockedByDefault :exec
@@ -47,6 +47,18 @@ UPDATE instance_settings
 SET smtp_host = '', smtp_port = 587, smtp_security = 'starttls',
     smtp_username = '', smtp_password = '', smtp_from = '', smtp_from_name = 'Rezepte'
 WHERE id = 1;
+
+-- name: SetRecipeDigestHour :exec
+UPDATE instance_settings SET recipe_digest_hour = ? WHERE id = 1;
+
+-- name: GetRecipeDigestState :one
+SELECT recipe_digest_hour, recipe_digest_last_day FROM instance_settings WHERE id = 1;
+
+-- Claims the day's digest run: one row changes only for the first caller
+-- that day, so a second run (a restart, two ticks) changes none.
+-- name: ClaimRecipeDigestDay :execrows
+UPDATE instance_settings SET recipe_digest_last_day = sqlc.arg(day)
+WHERE id = 1 AND recipe_digest_last_day != sqlc.arg(day);
 
 -- name: GetOIDCSettings :one
 SELECT oidc_issuer, oidc_client_id, oidc_client_secret, oidc_name

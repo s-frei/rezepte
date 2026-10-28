@@ -755,3 +755,30 @@ func TestCreateAndLoadRoundTripsTimes(t *testing.T) {
 		t.Error("times is nil, want an empty list")
 	}
 }
+
+func TestCreateAnnouncedFlagsRecipe(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	q := sqlc.New(testConns[t])
+	fx := loadFixtures(t)
+	announced, err := svc.CreateAnnounced(ctx, uid, fx[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	quiet, err := svc.Create(ctx, uid, fx[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		id   string
+		want bool
+	}{{announced.ID, true}, {quiet.ID, false}} {
+		row, err := q.GetRecipe(ctx, c.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.AnnouncePending != c.want {
+			t.Errorf("recipe %s: announce_pending = %v, want %v", row.Title, row.AnnouncePending, c.want)
+		}
+	}
+}

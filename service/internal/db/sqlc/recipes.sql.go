@@ -10,6 +10,25 @@ import (
 	"strings"
 )
 
+const clearAnnouncements = `-- name: ClearAnnouncements :exec
+UPDATE recipes SET announce_pending = FALSE WHERE id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) ClearAnnouncements(ctx context.Context, ids []string) error {
+	query := clearAnnouncements
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
 const deleteFavorite = `-- name: DeleteFavorite :exec
 DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?
 `
@@ -69,7 +88,7 @@ func (q *Queries) DeleteTasty(ctx context.Context, arg DeleteTastyParams) error 
 }
 
 const getRecipe = `-- name: GetRecipe :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name FROM recipes WHERE id = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name, announce_pending FROM recipes WHERE id = ?
 `
 
 func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
@@ -91,6 +110,7 @@ func (q *Queries) GetRecipe(ctx context.Context, id string) (Recipe, error) {
 		&i.UpdatedAt,
 		&i.EditPolicy,
 		&i.SourceName,
+		&i.AnnouncePending,
 	)
 	return i, err
 }
@@ -138,7 +158,7 @@ func (q *Queries) GetRecipeAuthors(ctx context.Context, id string) (GetRecipeAut
 }
 
 const getRecipeBySlug = `-- name: GetRecipeBySlug :one
-SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name FROM recipes WHERE slug = ?
+SELECT id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name, announce_pending FROM recipes WHERE slug = ?
 `
 
 func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, error) {
@@ -160,6 +180,7 @@ func (q *Queries) GetRecipeBySlug(ctx context.Context, slug string) (Recipe, err
 		&i.UpdatedAt,
 		&i.EditPolicy,
 		&i.SourceName,
+		&i.AnnouncePending,
 	)
 	return i, err
 }
@@ -216,26 +237,28 @@ func (q *Queries) InsertIngredientGroup(ctx context.Context, arg InsertIngredien
 const insertRecipe = `-- name: InsertRecipe :one
 INSERT INTO recipes (
     id, slug, title, description, servings, prep_minutes, cook_minutes, source_url,
-    source_name, created_by, created_at, updated_by, updated_at, edit_policy
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name
+    source_name, created_by, created_at, updated_by, updated_at, edit_policy,
+    announce_pending
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name, announce_pending
 `
 
 type InsertRecipeParams struct {
-	ID          string
-	Slug        string
-	Title       string
-	Description string
-	Servings    int64
-	PrepMinutes *int64
-	CookMinutes *int64
-	SourceUrl   *string
-	SourceName  *string
-	CreatedBy   string
-	CreatedAt   string
-	UpdatedBy   string
-	UpdatedAt   string
-	EditPolicy  *string
+	ID              string
+	Slug            string
+	Title           string
+	Description     string
+	Servings        int64
+	PrepMinutes     *int64
+	CookMinutes     *int64
+	SourceUrl       *string
+	SourceName      *string
+	CreatedBy       string
+	CreatedAt       string
+	UpdatedBy       string
+	UpdatedAt       string
+	EditPolicy      *string
+	AnnouncePending bool
 }
 
 func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Recipe, error) {
@@ -254,6 +277,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		arg.UpdatedBy,
 		arg.UpdatedAt,
 		arg.EditPolicy,
+		arg.AnnouncePending,
 	)
 	var i Recipe
 	err := row.Scan(
@@ -272,6 +296,7 @@ func (q *Queries) InsertRecipe(ctx context.Context, arg InsertRecipeParams) (Rec
 		&i.UpdatedAt,
 		&i.EditPolicy,
 		&i.SourceName,
+		&i.AnnouncePending,
 	)
 	return i, err
 }
@@ -429,6 +454,60 @@ func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCo
 			&i.Color,
 			&i.AvatarID,
 			&i.RecipeCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDueAnnouncements = `-- name: ListDueAnnouncements :many
+SELECT id, slug, title, servings, prep_minutes, cook_minutes, cover_image_id, created_by, created_at
+FROM recipes
+WHERE announce_pending AND created_at < ?1
+ORDER BY created_at
+`
+
+type ListDueAnnouncementsRow struct {
+	ID           string
+	Slug         string
+	Title        string
+	Servings     int64
+	PrepMinutes  *int64
+	CookMinutes  *int64
+	CoverImageID *string
+	CreatedBy    string
+	CreatedAt    string
+}
+
+// Recipes waiting for the daily digest that were created before
+// created_before, oldest first; a deleted recipe is simply gone.
+func (q *Queries) ListDueAnnouncements(ctx context.Context, createdBefore string) ([]ListDueAnnouncementsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDueAnnouncements, createdBefore)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDueAnnouncementsRow{}
+	for rows.Next() {
+		var i ListDueAnnouncementsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.Servings,
+			&i.PrepMinutes,
+			&i.CookMinutes,
+			&i.CoverImageID,
+			&i.CreatedBy,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -967,7 +1046,7 @@ UPDATE recipes
 SET title = ?, description = ?, servings = ?, prep_minutes = ?, cook_minutes = ?,
     source_url = ?, source_name = ?, updated_by = ?, updated_at = ?, edit_policy = ?
 WHERE id = ?
-RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name
+RETURNING id, slug, title, description, servings, prep_minutes, cook_minutes, source_url, cover_image_id, created_by, created_at, updated_by, updated_at, edit_policy, source_name, announce_pending
 `
 
 type UpdateRecipeParams struct {
@@ -1015,6 +1094,7 @@ func (q *Queries) UpdateRecipe(ctx context.Context, arg UpdateRecipeParams) (Rec
 		&i.UpdatedAt,
 		&i.EditPolicy,
 		&i.SourceName,
+		&i.AnnouncePending,
 	)
 	return i, err
 }

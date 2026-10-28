@@ -211,10 +211,14 @@ type publicError struct{ huma.ErrorModel }
 // PublicNotFound is the 404 of an operation anyone may call without a
 // session: the problem+json body huma gives, minus the schema link a
 // stranger could not follow.
-func PublicNotFound(detail string) error {
+func PublicNotFound(detail string) error { return PublicError(http.StatusNotFound, detail) }
+
+// PublicError is PublicNotFound for any status, such as the 410 of an
+// unsubscribe link that no longer works.
+func PublicError(status int, detail string) error {
 	return &publicError{huma.ErrorModel{
-		Title:  http.StatusText(http.StatusNotFound),
-		Status: http.StatusNotFound,
+		Title:  http.StatusText(status),
+		Status: status,
 		Detail: detail,
 	}}
 }

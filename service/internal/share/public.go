@@ -122,10 +122,11 @@ func setPublicHeaders(h http.Header) {
 	}
 }
 
-// ShellHeaders is the httpserver.ShellHeaderFunc for the public share page:
-// the app shell for /s/... gets the public headers.
+// ShellHeaders is the httpserver.ShellHeaderFunc for the pages whose address
+// holds a token: the app shell for /s/... and /unsubscribe gets the public
+// headers.
 func ShellHeaders(r *http.Request, h http.Header) {
-	if r.URL.Path == "/s" || strings.HasPrefix(r.URL.Path, "/s/") {
+	if r.URL.Path == "/s" || strings.HasPrefix(r.URL.Path, "/s/") || r.URL.Path == "/unsubscribe" {
 		setPublicHeaders(h)
 	}
 }

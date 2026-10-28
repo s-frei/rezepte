@@ -5,7 +5,16 @@ import {
 	type BrowserContext,
 	type Page
 } from '@playwright/test';
-import { createUser, devPassword, devPasswordNext, login, uniqueToken } from './helpers';
+import {
+	addDiaryEntry,
+	createRecipe,
+	createUser,
+	devPassword,
+	devPasswordNext,
+	loadFixture,
+	login,
+	uniqueToken
+} from './helpers';
 import {
 	latestMailTo,
 	linkIn,
@@ -61,6 +70,42 @@ test('the owner sets up mail and sends a test', async ({ page, request }) => {
 	await card.getByLabel('Send a test mail to').press('Enter');
 	await expect(card.getByRole('status')).toContainText(`Test mail sent to ${to}`);
 	expect((await latestMailTo(request, to)).subject).toBe('Rezepte can send mail');
+});
+
+test('the owner moves the new recipes mail; an admin never sees the mail page', async ({
+	page,
+	browser
+}) => {
+	await login(page);
+	await configure(page, mailpitSmtpPort);
+	const card = page.getByRole('region', { name: 'Email' });
+	const hour = card.getByRole('button', { name: 'Daily new-recipes mail at' });
+	await expect(hour).toContainText('5:00 PM');
+	await hour.click();
+	await page.getByRole('option', { name: '7:00 AM' }).click();
+	await expect(page.getByText('Send time saved')).toBeVisible();
+	await page.reload();
+	await expect(hour).toContainText('7:00 AM');
+	// Back to the default for the tests after this one.
+	await hour.click();
+	await page.getByRole('option', { name: '5:00 PM' }).click();
+	await expect(page.getByText('Send time saved').first()).toBeVisible();
+
+	// Settings that cannot be read hide only the hour, not the card.
+	await page.route('**/api/v1/settings', (route) => route.fulfill({ status: 500 }));
+	await page.reload();
+	await expect(card.getByText('Sending on')).toBeVisible();
+	await expect(card.getByLabel('Send a test mail to')).toBeVisible();
+	await expect(hour).toHaveCount(0);
+	await page.unroute('**/api/v1/settings');
+
+	const name = `digest-${uniqueToken()}`;
+	await createUser(page, { username: name, role: 'admin' });
+	const other = await browser.newPage();
+	await login(other, name);
+	await other.goto('/settings/mail');
+	await expect(other).toHaveURL(/\/settings$/);
+	await other.close();
 });
 
 test('an invited person sets up their account from the mail', async ({
@@ -182,7 +227,7 @@ async function confirmedAccount(page: Page, request: APIRequestContext, prefix: 
 		page.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
 	).toBeVisible();
 	const mail = await latestMailTo(request, address);
-	expect(mail.subject).toBe('Confirm your address for Rezepte');
+	expect(mail.subject).toBe('Confirm your email address for Rezepte');
 	await page.goto(linkIn(mail.text, '/confirm-email'));
 	await expect(page.getByText('Address confirmed', { exact: true })).toBeVisible();
 	return { name, address };
@@ -218,7 +263,7 @@ test("an admin changes a member's address and the new one gets a confirmation", 
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(row.getByRole('button', { name: 'Address not confirmed yet' })).toBeVisible();
 	const mail = await latestMailTo(request, address);
-	expect(mail.subject).toBe('Confirm your address for Rezepte');
+	expect(mail.subject).toBe('Confirm your email address for Rezepte');
 	expect(mail.text).toContain(admin);
 });
 
@@ -486,5 +531,101 @@ test('an account that signs in only with Dex gets a hint', async ({ page, reques
 		if (created?.id) {
 			await page.request.delete(`/api/v1/users/${created.id}`, { headers: { Origin: origin } });
 		}
+	}
+});
+
+/** The URL after label in a mail's plain-text part. */
+function urlAfter(text: string, label: string): string {
+	const match = text.match(new RegExp(`${label}: (https?://\\S+)`));
+	if (!match) throw new Error(`no "${label}" link in: ${text}`);
+	return match[1];
+}
+
+test('a comment mails the cook, who unsubscribes and switches it back on', async ({
+	page,
+	browser,
+	request
+}) => {
+	// The cook confirms an address, then writes a recipe.
+	const { name: cook, address } = await confirmedAccount(page, request, 'cook');
+	const title = `Notified ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(1), title });
+	const guest = `guest${uniqueToken()}`;
+	const switchTo = async (name: string) => {
+		await page.context().clearCookies({ name: 'rezepte_session' });
+		await login(page, name);
+	};
+	await switchTo('admin');
+	await createUser(page, { username: guest, role: 'user' });
+
+	await switchTo(guest);
+	await addDiaryEntry(page, recipe.id, 'Lovely with capers.');
+	const mail = await mailWithSubject(request, address, `${guest} commented on “${title}”`);
+
+	// "View comment" opens the recipe on its comments.
+	await switchTo(cook);
+	await page.goto(urlAfter(mail.text, 'View comment'));
+	await expect(page.getByRole('tab', { name: /^Comments/ })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
+	// The unsubscribe link works without a session; opening it changes nothing.
+	const strangers = await browser.newContext();
+	try {
+		const stranger = await strangers.newPage();
+		await stranger.goto(urlAfter(mail.text, 'No more mails about new comments'));
+		await expect(stranger.getByRole('heading', { name: 'Unsubscribe from mails' })).toBeVisible();
+		await expect(stranger.getByText(cook, { exact: true })).toBeVisible();
+		await stranger.getByRole('button', { name: 'No more mails about new comments' }).click();
+		await expect(stranger.getByRole('heading', { name: 'Unsubscribed' })).toBeVisible();
+		await expect(stranger.getByRole('link', { name: 'Manage all notifications' })).toHaveAttribute(
+			'href',
+			'/settings/notifications'
+		);
+
+		// A second comment mails nothing.
+		const before = await mailCountTo(request, address);
+		await switchTo(guest);
+		await addDiaryEntry(page, recipe.id, 'And with lemon.');
+		await page.waitForTimeout(1000);
+		expect(await mailCountTo(request, address)).toBe(before);
+
+		// The settings page shows it off; Undo on the link's page turns it on.
+		await switchTo(cook);
+		await page.goto('/settings/notifications');
+		const comments = page.getByRole('switch', { name: 'New comments' });
+		await expect(comments).toHaveAttribute('aria-checked', 'false');
+		await expect(page.getByText(address)).toBeVisible();
+		await stranger.getByRole('button', { name: 'Undo' }).click();
+		await expect(stranger.getByRole('heading', { name: 'Unsubscribe from mails' })).toBeVisible();
+		await page.reload();
+		await expect(comments).toHaveAttribute('aria-checked', 'true');
+
+		// The switch saves on flip.
+		await comments.click();
+		await expect(comments).toHaveAttribute('aria-checked', 'false');
+		await page.reload();
+		await expect(comments).toHaveAttribute('aria-checked', 'false');
+		// Opened again while off, the link offers only the group, whose new
+		// recipes mail is still on.
+		await stranger.reload();
+		await expect(
+			stranger.getByRole('button', { name: 'Unsubscribe from all household mails' })
+		).toBeVisible();
+		await expect(stranger.getByRole('button', { name: /No more mails/ })).toHaveCount(0);
+		// With the whole group off, it offers nothing.
+		const recipes = page.getByRole('switch', { name: 'New recipes' });
+		await recipes.click();
+		await expect(recipes).toHaveAttribute('aria-checked', 'false');
+		await stranger.reload();
+		await expect(stranger.getByRole('heading', { name: 'Already unsubscribed' })).toBeVisible();
+		await expect(stranger.getByRole('button', { name: /^Unsubscribe from all/ })).toHaveCount(0);
+		await page.getByRole('switch', { name: 'Household' }).click();
+		await expect(recipes).toHaveAttribute('aria-checked', 'true');
+		await page.reload();
+		await expect(comments).toHaveAttribute('aria-checked', 'true');
+	} finally {
+		await strangers.close();
 	}
 });

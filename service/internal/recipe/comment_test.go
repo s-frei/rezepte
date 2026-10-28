@@ -387,3 +387,28 @@ func TestDeletingARecipeRemovesItsComments(t *testing.T) {
 		}
 	}
 }
+
+type notifierFunc func(ctx context.Context, recipeID string, commentID int64)
+
+func (f notifierFunc) CommentAdded(ctx context.Context, recipeID string, commentID int64) {
+	f(ctx, recipeID, commentID)
+}
+
+func TestAddCommentCallsNotifier(t *testing.T) {
+	ctx := context.Background()
+	svc, adminID := setup(t)
+	jana := member(t, "jana")
+	r := must(svc.Create(ctx, adminID, loadFixtures(t)[0]))(t)
+	var gotRecipe string
+	var gotID int64
+	svc.SetCommentNotifier(notifierFunc(func(_ context.Context, recipeID string, commentID int64) {
+		gotRecipe, gotID = recipeID, commentID
+	}))
+	if _, err := svc.AddComment(ctx, jana, "missing", "hi"); err == nil || gotID != 0 {
+		t.Fatalf("a failed add notified: %v, %d", err, gotID)
+	}
+	c := must(svc.AddComment(ctx, jana, r.ID, "hi"))(t)
+	if gotRecipe != r.ID || gotID != c.ID {
+		t.Fatalf("notified %s/%d, want %s/%d", gotRecipe, gotID, r.ID, c.ID)
+	}
+}

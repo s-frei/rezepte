@@ -14,6 +14,8 @@
     "resend-email-confirmation",
     "get-own-identity",
     "unlink-own-identity",
+    "get-own-notifications",
+    "set-own-notifications",
     "update-own-profile",
     "get-oidc",
     "finish-oidc",

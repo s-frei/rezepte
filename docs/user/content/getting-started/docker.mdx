@@ -20,7 +20,7 @@ The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/
   <Tab value="docker run">
 
     ```bash
-    docker run -d --name rezepte -p 8060:8060 \
+    docker run -d --name rezepte -p 8060:8060 --stop-timeout 150 \
       -e REZEPTE_ADMIN_PASSWORD=change-me-now \
       -v "$PWD/data:/data" \
       ghcr.io/s-frei/rezepte:latest

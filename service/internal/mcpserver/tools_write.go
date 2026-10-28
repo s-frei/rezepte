@@ -47,7 +47,7 @@ func addCreateRecipe(s *mcp.Server, c caller) {
 		InputSchema: c.create,
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, any, error) {
-		r, err := c.svc.Create(ctx, c.user.ID, in.Recipe)
+		r, err := c.svc.CreateAnnounced(ctx, c.user.ID, in.Recipe)
 		if err != nil {
 			return nil, nil, toolError(ctx, fmt.Errorf("create recipe: %w", err))
 		}

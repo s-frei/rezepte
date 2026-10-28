@@ -7,7 +7,7 @@
 # locally built image directly, because a demo overlay would have to replace
 # every key below and would prove nothing about them.
 #
-# Keys are ordered image, restart, volumes, environment, ports: what
+# Keys are ordered image, restart, stop_grace_period, volumes, environment, ports: what
 # runs and how it behaves over time first, then the service from the inside
 # out — the order a reader asks the questions in.
 #
@@ -19,12 +19,17 @@ services:
   rezepte:
     image: ghcr.io/s-frei/rezepte:latest
     restart: unless-stopped
+    # Room to finish a running daily mail on stop: up to 10 s for open
+    # requests plus up to 2 min for the mail, where Docker's default is 10 s.
+    stop_grace_period: 2m30s
     volumes:
       - rezepte-data:/data
     environment:
       # Read on the first start, to create the instance owner, and after that
       # only by --reset-superadmin-password.
       REZEPTE_ADMIN_PASSWORD: change-me-now
+      # The time zone the times in mails are written in; UTC without it.
+      # TZ: Europe/Berlin
     ports:
       - "8060:8060"
 

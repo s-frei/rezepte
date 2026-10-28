@@ -283,3 +283,40 @@ test('profile-email-unconfirmed', async ({ page }, testInfo) => {
 		await turnMailOff(page);
 	}
 });
+
+// The page as it reads with mail on. Mail is instance-wide and other shots
+// switch it, so the settings call is answered with it on rather than set.
+test('notifications', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  await page.route('**/api/v1/settings', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...(await response.json()), mailEnabled: true } });
+  });
+  await page.goto('/settings/notifications');
+  await expect(page.getByRole('switch', { name: 'New comments' })).toBeVisible();
+  await shot(page, 'notifications');
+});
+
+// The page a mail's unsubscribe link opens. The demo mails nothing, so no
+// signed link exists: the read is answered with what one for the demo
+// admin's comment mails would show, the address masked as the server does.
+test('unsubscribe', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  const me = await (await page.request.get('/api/v1/auth/me')).json();
+  await page.route('**/api/v1/unsubscribe?*', (route) =>
+    route.fulfill({
+      json: {
+        username: me.username,
+        email: me.email.replace(/^(.)[^@]*/, '$1…'),
+        kind: 'comment',
+        group: 'household',
+        kindSubscribed: true,
+        groupSubscribed: true,
+        groupKinds: { comment: true }
+      }
+    })
+  );
+  await page.goto('/unsubscribe?u=demo&k=comment&s=signed');
+  await expect(page.getByRole('heading', { name: 'Unsubscribe from mails' })).toBeVisible();
+  await shot(page, 'unsubscribe');
+});

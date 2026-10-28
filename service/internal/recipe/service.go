@@ -25,6 +25,7 @@ type Service struct {
 	q        *sqlc.Queries
 	now      func() time.Time
 	imageDir string // "" disables image directory cleanup on Delete
+	notifier CommentNotifier
 }
 
 // NewService returns a Service backed by conn. imageDir tells Delete where
@@ -34,12 +35,32 @@ func NewService(conn *sql.DB, imageDir string) *Service {
 	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now, imageDir: imageDir}
 }
 
+// CommentNotifier hears of every comment added, after it was committed.
+type CommentNotifier interface {
+	CommentAdded(ctx context.Context, recipeID string, commentID int64)
+}
+
+// SetCommentNotifier hands every added comment to n; nil (the default) is off.
+func (s *Service) SetCommentNotifier(n CommentNotifier) { s.notifier = n }
+
 // SetClock overrides the time source. Intended for tests and the demo seed.
 func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 // Create stores a new recipe as createdBy, assigning it a slug derived from
-// the title (numbered on collision), and indexes it for search.
+// the title (numbered on collision), and indexes it for search. It announces
+// nothing: archive import and the demo seed create through it.
 func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recipe, error) {
+	return s.create(ctx, createdBy, in, false)
+}
+
+// CreateAnnounced is Create for a recipe a person adds through the app, the
+// API or MCP: it also queues the recipe for the daily digest, in the same
+// transaction.
+func (s *Service) CreateAnnounced(ctx context.Context, createdBy string, in Input) (Recipe, error) {
+	return s.create(ctx, createdBy, in, true)
+}
+
+func (s *Service) create(ctx context.Context, createdBy string, in Input, announce bool) (Recipe, error) {
 	tags := NormalizeTags(in.Tags)
 	targets, err := resolveRefs(in.IngredientGroups, in.Steps)
 	if err != nil {
@@ -54,20 +75,21 @@ func (s *Service) Create(ctx context.Context, createdBy string, in Input) (Recip
 		id = uuid.NewV7().String()
 		now := db.FormatTime(s.now())
 		if _, err := q.InsertRecipe(ctx, sqlc.InsertRecipeParams{
-			ID:          id,
-			Slug:        slug,
-			Title:       in.Title,
-			Description: in.Description,
-			Servings:    int64(in.Servings),
-			PrepMinutes: db.Conv[int64](in.PrepMinutes),
-			CookMinutes: db.Conv[int64](in.CookMinutes),
-			SourceUrl:   in.SourceURL,
-			SourceName:  nonEmpty(trimmed(in.SourceName)),
-			CreatedBy:   createdBy,
-			CreatedAt:   now,
-			UpdatedBy:   createdBy,
-			UpdatedAt:   now,
-			EditPolicy:  in.EditPolicy.toDB(),
+			ID:              id,
+			Slug:            slug,
+			Title:           in.Title,
+			Description:     in.Description,
+			Servings:        int64(in.Servings),
+			PrepMinutes:     db.Conv[int64](in.PrepMinutes),
+			CookMinutes:     db.Conv[int64](in.CookMinutes),
+			SourceUrl:       in.SourceURL,
+			SourceName:      nonEmpty(trimmed(in.SourceName)),
+			CreatedBy:       createdBy,
+			CreatedAt:       now,
+			UpdatedBy:       createdBy,
+			UpdatedAt:       now,
+			EditPolicy:      in.EditPolicy.toDB(),
+			AnnouncePending: announce,
 		}); err != nil {
 			return fmt.Errorf("insert recipe: %w", err)
 		}
