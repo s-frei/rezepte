@@ -277,6 +277,16 @@ func TestLoginDropsForeignNext(t *testing.T) {
 	}
 }
 
+// A long text shared while signed out rides in next; the flow cookie would
+// pass the browser's 4 KB limit and be dropped, failing the sign-in.
+func TestLoginDropsOverlongNext(t *testing.T) {
+	e := newEnv(t)
+	e.link(t, e.anna, "sub-anna")
+	next := "/import?text=" + strings.Repeat("a", 3000)
+	rec := e.run(t, "login", url.Values{"next": {next}}, nil, idClaims{Subject: "sub-anna"})
+	wantRedirect(t, rec, "/")
+}
+
 func TestLinkFromProfile(t *testing.T) {
 	e := newEnv(t)
 	session := e.passwordLogin(t)

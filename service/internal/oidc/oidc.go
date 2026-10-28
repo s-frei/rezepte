@@ -56,6 +56,9 @@ const (
 	flowCookie = "rezepte_oidc"
 	flowPath   = "/api/v1/auth/oidc/"
 	flowTTL    = 10 * time.Minute
+	// maxNext keeps the sealed flow well under a browser's 4 KB cookie limit;
+	// a longer next (a long text shared while signed out) falls back to /.
+	maxNext = 1024
 )
 
 // The intents a flow can have: sign in, connect the signed-in account, or
@@ -153,6 +156,9 @@ func page(intent string) string {
 func (l *Login) start(cfg Config, w http.ResponseWriter, r *http.Request) {
 	ctx := l.ctx(r)
 	f := flow{Intent: r.PostFormValue("intent"), Next: r.PostFormValue("next"), Issuer: cfg.Issuer}
+	if len(f.Next) > maxNext {
+		f.Next = "/"
+	}
 	switch f.Intent {
 	case intentLogin:
 	case intentLink:
