@@ -1,0 +1,6 @@
+{{define "content"}}<p style="font-family:Georgia,'Times New Roman',serif;font-size:22px;margin:0 0 20px;">{{t "mail_comment_heading" "title" .Data.Title}}</p>
+  {{template "quote" (dict "avatar" .Data.Avatar "initial" .Data.Initial "bg" .Data.Bg "fg" .Data.Fg "name" .Data.Author "time" (datetime .Data.At) "body" .Data.Body)}}
+  {{template "button" (dict "text" (t "mail_comment_button") "url" .Data.URL)}}
+  {{template "fallback" .Data.URL}}{{end}}
+{{define "footer"}}{{template "note" (t (printf "mail_comment_reason_%s" .Data.Reason))}}
+  {{template "unsubscribe" (dict "links" .Unsubscribe "kind" "mail_unsubscribe_kind_comment" "group" "mail_unsubscribe_group_household")}}{{end}}

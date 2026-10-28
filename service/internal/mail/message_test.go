@@ -13,7 +13,13 @@ import (
 
 var cfg = Config{Host: "h", Port: 25, Security: SecurityNone, From: "rezepte@example.org", FromName: "Rezepte"}
 
-func parts(t *testing.T, env Envelope) (*mail.Message, map[string]string) {
+// picture is an inline part as it travels: its media type and its body
+// still base64-encoded.
+type picture struct{ contentType, raw string }
+
+// parts reads env like a mail client: its body parts by media type and its
+// inline pictures by Content-ID.
+func parts(t *testing.T, env Envelope) (*mail.Message, map[string]string, map[string]picture) {
 	t.Helper()
 	msg, err := mail.ReadMessage(bytes.NewReader(env.Data))
 	if err != nil {
@@ -23,8 +29,16 @@ func parts(t *testing.T, env Envelope) (*mail.Message, map[string]string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := multipart.NewReader(msg.Body, params["boundary"])
-	out := map[string]string{}
+	out, pics := map[string]string{}, map[string]picture{}
+	readParts(t, msg.Body, params["boundary"], out, pics)
+	return msg, out, pics
+}
+
+// readParts reads each part below boundary into out by its media type, or
+// into pics by its Content-ID, walking into nested multiparts.
+func readParts(t *testing.T, body io.Reader, boundary string, out map[string]string, pics map[string]picture) {
+	t.Helper()
+	r := multipart.NewReader(body, boundary)
 	for {
 		p, err := r.NextPart()
 		if err == io.EOF {
@@ -33,11 +47,20 @@ func parts(t *testing.T, env Envelope) (*mail.Message, map[string]string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ct, _, _ := mime.ParseMediaType(p.Header.Get("Content-Type"))
+		ct, ps, _ := mime.ParseMediaType(p.Header.Get("Content-Type"))
+		if strings.HasPrefix(ct, "multipart/") {
+			// multipart/related wraps the alternative part in a mail
+			// with inline pictures.
+			readParts(t, p, ps["boundary"], out, pics)
+			continue
+		}
 		b, _ := io.ReadAll(p) // multipart decodes quoted-printable for us
+		if cid := strings.Trim(p.Header.Get("Content-Id"), "<>"); cid != "" {
+			pics[cid] = picture{ct, string(b)}
+			continue
+		}
 		out[ct] = string(b)
 	}
-	return msg, out
 }
 
 func TestInviteMessage(t *testing.T) {
@@ -46,7 +69,7 @@ func TestInviteMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg, p := parts(t, env)
+	msg, p, _ := parts(t, env)
 	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Samuel invited you to Rezepte" {
 		t.Errorf("Subject = %q", got)
 	}
@@ -68,7 +91,7 @@ func TestInviteMessage(t *testing.T) {
 
 func TestInviteMessageGerman(t *testing.T) {
 	env, _ := BuildInvite(cfg, Invite{To: "a@b.c", Name: "Lena", Inviter: "Samuel", Path: "/welcome#t", Locale: "de"}, "https://r.example.org", time.Now())
-	msg, p := parts(t, env)
+	msg, p, _ := parts(t, env)
 	got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject"))
 	if got != "Samuel hat dich zu Rezepte eingeladen" {
 		t.Errorf("Subject = %q", got)
@@ -84,7 +107,7 @@ func TestInviteMessageEncodesAndEscapes(t *testing.T) {
 	if strings.Contains(strings.SplitN(raw, "\r\n\r\n", 2)[0], "Jürgen") {
 		t.Error("subject is not RFC 2047 encoded")
 	}
-	msg, p := parts(t, env)
+	msg, p, _ := parts(t, env)
 	got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject"))
 	if got != "Jürgen Groß hat dich zu Rezepte eingeladen" {
 		t.Errorf("Subject = %q", got)
@@ -99,7 +122,7 @@ func TestUnknownLocaleFallsBackToEnglish(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg, _ := parts(t, env)
+	msg, _, _ := parts(t, env)
 	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "S invited you to Rezepte" {
 		t.Errorf("Subject = %q", got)
 	}
@@ -113,7 +136,7 @@ func TestTestMessage(t *testing.T) {
 	if env.To != "owner@example.org" {
 		t.Errorf("To = %q", env.To)
 	}
-	_, p := parts(t, env)
+	_, p, _ := parts(t, env)
 	if !strings.Contains(p["text/plain"], "mail works") {
 		t.Errorf("plain = %q", p["text/plain"])
 	}
@@ -124,7 +147,7 @@ func TestResetMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg, p := parts(t, env)
+	msg, p, _ := parts(t, env)
 	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "A new password for Rezepte" {
 		t.Errorf("Subject = %q", got)
 	}
@@ -140,7 +163,7 @@ func TestResetMessage(t *testing.T) {
 
 func TestResetMessageGerman(t *testing.T) {
 	env, _ := BuildReset(cfg, Reset{To: "a@b.c", Username: "mila", Path: "/welcome#t", Locale: "de"}, "https://r.example.org", time.Now())
-	msg, p := parts(t, env)
+	msg, p, _ := parts(t, env)
 	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Ein neues Passwort für Rezepte" {
 		t.Errorf("Subject = %q", got)
 	}
@@ -157,7 +180,7 @@ func TestHintMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg, p := parts(t, env)
+	msg, p, _ := parts(t, env)
 	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Signing in to Rezepte" {
 		t.Errorf("Subject = %q", got)
 	}
@@ -171,7 +194,7 @@ func TestHintMessage(t *testing.T) {
 
 func TestHintMessageWithoutProviderName(t *testing.T) {
 	env, _ := BuildHint(cfg, Hint{To: "a@b.c", Locale: "en"}, "https://r.example.org", time.Now())
-	_, p := parts(t, env)
+	_, p, _ := parts(t, env)
 	if !strings.Contains(p["text/plain"], "with your sign-in provider;") {
 		t.Errorf("plain = %q", p["text/plain"])
 	}
@@ -179,16 +202,16 @@ func TestHintMessageWithoutProviderName(t *testing.T) {
 
 func TestConfirmMessage(t *testing.T) {
 	own, _ := BuildConfirm(cfg, Confirm{To: "a@b.c", Username: "mila", Path: "/confirm-email#t", Locale: "en"}, "https://r.example.org", time.Now())
-	msg, p := parts(t, own)
-	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Confirm your address for Rezepte" {
+	msg, p, _ := parts(t, own)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Confirm your email address for Rezepte" {
 		t.Errorf("Subject = %q", got)
 	}
-	if !strings.Contains(p["text/plain"], "https://r.example.org/confirm-email#t") || !strings.Contains(p["text/plain"], "your account mila so") || strings.Contains(p["text/plain"], "entered this address") {
+	if !strings.Contains(p["text/plain"], "https://r.example.org/confirm-email#t") || !strings.Contains(p["text/plain"], "your account mila so") || strings.Contains(p["text/plain"], "entered this email address") {
 		t.Errorf("own: plain = %q", p["text/plain"])
 	}
 	byAdmin, _ := BuildConfirm(cfg, Confirm{To: "a@b.c", Username: "mila", Admin: "Jürgen <b>", Path: "/confirm-email#t", Locale: "de"}, "https://r.example.org", time.Now())
-	_, p = parts(t, byAdmin)
-	if !strings.Contains(p["text/plain"], "Jürgen <b> hat diese Adresse für dein Konto mila eingetragen.") {
+	_, p, _ = parts(t, byAdmin)
+	if !strings.Contains(p["text/plain"], "Jürgen <b> hat diese E-Mail-Adresse für dein Konto mila eingetragen.") {
 		t.Errorf("admin: plain = %q", p["text/plain"])
 	}
 	if strings.Contains(p["text/html"], "Jürgen <b>") {

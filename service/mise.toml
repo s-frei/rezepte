@@ -71,3 +71,7 @@ CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o bi
 description = "Build the binary with the embedded frontend"
 depends = ["//frontend:build"]
 run = "mise run //service:build:only"
+
+[tasks.mail-preview]
+description = "Render every mail in every language to HTML files and an overview"
+run = "go run ./internal/mail/preview"

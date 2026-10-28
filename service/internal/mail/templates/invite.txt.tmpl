@@ -1,0 +1,11 @@
+{{define "content"}}{{t "mail_invite_greeting" "name" .Data.Name}}
+
+{{t (printf "%s_body" .Data.Prefix) "inviter" .Data.Inviter}}
+
+{{.Data.URL}}
+
+{{t "mail_invite_validity"}}
+
+{{t "mail_invite_ignore" "inviter" .Data.Inviter}}
+
+{{end}}

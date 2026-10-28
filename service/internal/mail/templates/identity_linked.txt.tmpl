@@ -1,0 +1,9 @@
+{{define "content"}}{{t "mail_identity_linked_heading"}}
+
+{{t (printf "mail_identity_linked_body_%s" .Data.Origin) "username" .Data.Username "admin" .Data.Admin "provider" .Data.Provider "at" (datetime .Data.At)}}
+
+{{if .Data.Owner}}{{t "mail_identity_linked_not_you_owner"}}{{else if .Data.Admin}}{{t "mail_identity_linked_not_you_admin" "admin" .Data.Admin}}{{else}}{{t "mail_identity_linked_not_you"}}{{end}}
+
+{{t "mail_security_notice"}}
+
+{{end}}

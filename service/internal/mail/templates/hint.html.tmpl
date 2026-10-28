@@ -1,0 +1,4 @@
+{{define "content"}}<p style="font-size:16px;line-height:1.6;margin:0 0 28px;">{{t "mail_hint_body" "provider" .Data.Provider}}</p>
+  {{template "button" (dict "text" (t "mail_hint_button") "url" .Data.URL)}}
+  {{template "fallback" .Data.URL}}{{end}}
+{{define "footer"}}{{template "note" (t "mail_hint_footer" "provider" .Data.Provider)}}{{end}}

@@ -1,0 +1,9 @@
+{{define "content"}}{{t (printf "%s_heading" .Data.Prefix)}}
+
+{{t .Data.Body "username" .Data.Username "admin" .Data.Admin "address" .Data.Address "at" (datetime .Data.At)}}
+
+{{if .Data.Admin}}{{t "mail_email_changed_not_you_admin" "admin" .Data.Admin}}{{else}}{{t "mail_email_changed_not_you"}}{{end}}
+
+{{t "mail_security_notice"}}
+
+{{end}}

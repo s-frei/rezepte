@@ -232,6 +232,27 @@ func (s *Service) SendConfirm(ctx context.Context, in Confirm) error {
 	})
 }
 
+// SendPasswordChanged mails the notice that a password changed.
+func (s *Service) SendPasswordChanged(ctx context.Context, in PasswordChanged) error {
+	return s.deliver(ctx, in.To, "password notice", func(cfg Config) (Envelope, error) {
+		return BuildPasswordChanged(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendEmailChanged mails the notice that an address changed to the old one.
+func (s *Service) SendEmailChanged(ctx context.Context, in EmailChanged) error {
+	return s.deliver(ctx, in.To, "address notice", func(cfg Config) (Envelope, error) {
+		return BuildEmailChanged(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendIdentityLinked mails the notice that a sign-in identity was linked.
+func (s *Service) SendIdentityLinked(ctx context.Context, in IdentityLinked) error {
+	return s.deliver(ctx, in.To, "sign-in method notice", func(cfg Config) (Envelope, error) {
+		return BuildIdentityLinked(cfg, in, s.publicURL, s.now())
+	})
+}
+
 // deliver renders a mail with build and sends it to to. ErrDisabled means
 // mail is off and nothing was tried. A failure is returned and logged with
 // the recipient's domain and, for a server refusal, its reply code only: the
@@ -258,4 +279,33 @@ func (s *Service) deliver(ctx context.Context, to, what string, build func(Confi
 		return err
 	}
 	return nil
+}
+
+// LogUnsent logs a send's err unless it is nil, ErrDisabled or a refused
+// send, which deliver already logged; with userID, never the address.
+func LogUnsent(ctx context.Context, msg, userID string, err error) {
+	if err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrSend) {
+		slog.WarnContext(ctx, msg, "user", userID, "err", err)
+	}
+}
+
+// SendComment mails a follower of a recipe about a new comment.
+func (s *Service) SendComment(ctx context.Context, in Comment) error {
+	return s.deliver(ctx, in.To, "comment notification", func(cfg Config) (Envelope, error) {
+		return BuildComment(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendRecipeDigest mails one person the new recipes digest.
+func (s *Service) SendRecipeDigest(ctx context.Context, in RecipeDigest) error {
+	return s.deliver(ctx, in.To, "recipe digest", func(cfg Config) (Envelope, error) {
+		return BuildRecipeDigest(cfg, in, s.publicURL, s.now())
+	})
+}
+
+// SendInviteAccepted mails an admin that their invitation was accepted.
+func (s *Service) SendInviteAccepted(ctx context.Context, in InviteAccepted) error {
+	return s.deliver(ctx, in.To, "invitation notification", func(cfg Config) (Envelope, error) {
+		return BuildInviteAccepted(cfg, in, s.publicURL, s.now())
+	})
 }

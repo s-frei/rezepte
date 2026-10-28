@@ -1,0 +1,5 @@
+{{define "content"}}<p style="font-size:16px;line-height:1.6;margin:0 0 28px;">{{t "mail_reset_body" "username" .Data.Username}}</p>
+  {{template "button" (dict "text" (t "mail_reset_button") "url" .Data.URL)}}
+  {{template "validity" (t "mail_reset_validity")}}
+  {{template "fallback" .Data.URL}}{{end}}
+{{define "footer"}}{{template "note" (t "mail_reset_ignore")}}{{end}}

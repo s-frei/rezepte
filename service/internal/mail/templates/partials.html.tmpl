@@ -1,0 +1,29 @@
+{{/* Pieces the mail templates share. Each takes its arguments as dot. */}}
+
+{{/* button: dict "text" "url" */}}
+{{define "button"}}<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td class="btn" style="border-radius:9999px;background:#b45309;">
+    <a href="{{.url}}" style="display:inline-block;padding:14px 28px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:9999px;">{{.text}}</a>
+  </td></tr></table>{{end}}
+
+{{/* validity: the line under the button, as a string */}}
+{{define "validity"}}<p class="muted" style="font-size:13px;line-height:1.55;color:#756554;margin:22px 0 0;">{{.}}</p>{{end}}
+
+{{/* fallback: the raw link for a button that does not work, as a URL */}}
+{{define "fallback"}}<div class="rule" style="border-bottom:2px dotted #e3d7c3;margin:34px 0 18px;"></div>
+  <p class="muted" style="font-size:13px;line-height:1.55;color:#756554;margin:0;">{{t "mail_fallback_link"}}<br><a class="link" href="{{.}}" style="color:#b45309;">{{.}}</a></p>{{end}}
+
+{{/* note: a small line in the footer, as a string */}}
+{{define "note"}}<p class="muted" style="font-size:13px;line-height:1.55;color:#756554;margin:14px 0 0;">{{.}}</p>{{end}}
+
+{{/* circle: dict "avatar" (a cid: URL, or empty for the initial) "initial" "bg" "fg" "size" "font" (px) - a person's picture or initial */}}
+{{define "circle"}}{{if .avatar}}<img src="{{.avatar}}" width="{{.size}}" height="{{.size}}" alt="" style="display:block;width:{{.size}}px;height:{{.size}}px;border-radius:9999px;border:0;">{{else}}<div style="width:{{.size}}px;height:{{.size}}px;border-radius:9999px;background:{{.bg}};color:{{.fg}};font-size:{{.font}}px;font-weight:700;line-height:{{.size}}px;text-align:center;">{{.initial}}</div>{{end}}{{end}}
+
+{{/* quote: dict "avatar" (a cid: URL, or empty for the initial) "initial" "bg" "fg" "name" "time" "body"; body is plain text, line breaks kept; the layout breaks long words */}}
+{{define "quote"}}<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;"><tr>
+    <td valign="top" style="padding:0 12px 0 0;">{{template "circle" (dict "avatar" .avatar "initial" .initial "bg" .bg "fg" .fg "size" 36 "font" 16)}}</td>
+    <td valign="top"><div style="font-size:15px;font-weight:700;">{{.name}} <span class="muted" style="font-size:13px;line-height:1.55;color:#756554;font-weight:400;">{{.time}}</span></div>
+    <div style="font-size:16px;line-height:1.6;white-space:pre-line;margin:4px 0 0;">{{.body}}</div></td>
+  </tr></table>{{end}}
+
+{{/* unsubscribe: dict "links" (an Unsubscribe) "kind" "group" (catalog keys); a link without a URL is left out */}}
+{{define "unsubscribe"}}{{if or .links.KindURL .links.GroupURL}}<p class="muted" style="font-size:13px;line-height:1.55;color:#756554;margin:14px 0 0;">{{if .links.KindURL}}<a class="link" href="{{.links.KindURL}}" style="color:#b45309;">{{t .kind}}</a>{{end}}{{if and .links.KindURL .links.GroupURL}} · {{end}}{{if .links.GroupURL}}<a class="link" href="{{.links.GroupURL}}" style="color:#b45309;">{{t .group}}</a>{{end}}</p>{{end}}{{end}}

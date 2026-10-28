@@ -1,0 +1,126 @@
+{{define "head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.}} · Mail preview</title>
+<script>
+  // Before the first paint, so a stored theme never flashes the other one.
+  try {
+    const t = new URLSearchParams(location.hash.slice(1)).get("theme") ?? localStorage.getItem("theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&family=Literata:ital,opsz,wght@1,7..72,500;1,7..72,600&display=swap">
+<style>{{css}}</style>
+</head>
+{{end}}
+
+{{define "theme"}}<div class="seg" role="group" aria-label="Theme">
+  <button type="button" data-theme-set="">System</button>
+  <button type="button" data-theme-set="light">Light</button>
+  <button type="button" data-theme-set="dark">Dark</button>
+</div>{{end}}
+
+{{define "langs"}}<div class="seg" role="group" aria-label="Language">{{range .}}<button type="button" data-lang-set="{{.}}">{{.}}</button>{{end}}</div>{{end}}
+
+{{define "script"}}<script>{{js}}</script>{{end}}
+
+{{define "optout"}}{{if .OptOut}}<span class="tag" title="The {{.OptOut}} group in the unsubscribe link switches it off">opt-out: {{.OptOut}}</span>{{else}}<span class="tag fixed" title="Nobody can switch it off">no opt-out</span>{{end}}{{end}}
+
+{{define "marks"}}<div class="marks">{{range .Roles}}<span class="role {{.}}">{{.}}</span>{{end}}{{template "optout" .}}</div>{{end}}
+
+{{define "index"}}{{template "head" "Overview"}}
+<body>
+<header class="bar">
+  <a class="brand" href="index.html"><b>Rezepte</b><span>Mail preview</span><small>{{.Count}} mails</small></a>
+  <nav class="jump" aria-label="Kinds of mail">{{range $i, $s := .Sections}}<button type="button" data-jump="kind-{{$i}}">{{$s.Name}} <span class="count" data-count="kind-{{$i}}">{{$s.Count}}</span></button>{{end}}</nav>
+  {{template "langs" .Locales}}
+  {{template "theme"}}
+</header>
+<div class="tools">
+  <label class="search"><span hidden>Find a mail</span>
+    <input id="q" type="search" placeholder="Find a mail or subject" autocomplete="off" aria-label="Find a mail or subject"><kbd aria-hidden="true">/</kbd>
+  </label>
+  <div class="filters any-role" id="roles" role="group" aria-label="Recipients">
+    <span>Sent to</span>
+    <button type="button" class="role owner" data-role="owner" aria-pressed="false">owner</button>
+    <button type="button" class="role admin" data-role="admin" aria-pressed="false">admin</button>
+    <button type="button" class="role member" data-role="member" aria-pressed="false">member</button>
+    <button type="button" class="clear" id="clear" hidden>Show all</button>
+  </div>
+</div>
+<main class="sheet">{{range $i, $s := .Sections}}
+  <section class="kind" id="kind-{{$i}}">
+    <h2>{{.Name}}</h2>
+    <p>{{.Note}}</p>{{range .Groups}}
+    <article class="template" data-roles="{{range .Roles}}{{.}} {{end}}">
+      <div class="about">
+        <h3>{{.Template}}</h3>
+        {{template "marks" .}}
+        <p>{{.Audience}}</p>
+      </div>
+      <div class="strip">{{range .Mails}}
+        <a class="card" href="{{.Slug}}/index.html" data-find="{{.Slug}}{{range .Langs}} {{.Subject}}{{end}}">
+          <div class="thumb"><iframe data-mail="{{.Slug}}/{lang}" loading="lazy" tabindex="-1" aria-hidden="true" title="{{.Slug}}"></iframe></div>
+          <strong>{{.Variant}}</strong>
+          <span class="subject">{{range .Langs}}<span data-lang="{{.Locale}}">{{.Subject}}</span>{{end}}</span>
+        </a>{{end}}
+      </div>
+    </article>{{end}}
+  </section>{{end}}
+  <div class="empty" id="empty" hidden><p>No mail matches.</p><button type="button" class="clear" id="reset">Show all mails</button></div>
+</main>
+{{template "script"}}
+</body>
+</html>
+{{end}}
+
+{{define "mail"}}{{template "head" .Mail.Slug}}
+<body>
+<header class="bar">
+  <a class="brand" href="../index.html"><b>Rezepte</b><span>Mail preview</span><small>All mails</small></a>
+  {{template "langs" .Locales}}
+  {{template "theme"}}
+</header>
+<div class="layout">
+<nav class="mails" aria-label="Mails">{{range .Sections}}
+  <h2>{{.Name}}</h2>{{range .Groups}}
+  <h3>{{.Template}}</h3>{{range .Mails}}
+  <a href="../{{.Slug}}/index.html"{{if eq .Slug $.Current}} aria-current="page"{{end}}>{{.Variant}}</a>{{end}}{{end}}{{end}}
+</nav>
+<main class="mail">
+  <div class="title">
+    <div><p>{{.Mail.Template}}</p><h1>{{.Mail.Variant}}</h1></div>
+    <div class="step">{{with .Mail.Prev}}<a href="../{{.Slug}}/index.html" rel="prev"><kbd aria-hidden="true">←</kbd> {{.Template}} / {{.Variant}}</a>{{end}}{{with .Mail.Next}}<a href="../{{.Slug}}/index.html" rel="next">{{.Template}} / {{.Variant}} <kbd aria-hidden="true">→</kbd></a>{{end}}</div>
+  </div>{{range .Mail.Langs}}
+  <div data-lang="{{.Locale}}">
+    <section class="box">
+      <h2>Headers</h2>
+      <dl>
+        <dt>Recipients</dt><dd>{{template "marks" $.Mail}}{{$.Mail.Audience}}</dd>
+        <dt>Subject</dt><dd>{{.Subject}}</dd>
+        <dt>To</dt><dd>{{.To}}</dd>{{range .Headers}}
+        <dt>{{.Name}}</dt><dd>{{.Value}}</dd>{{end}}
+      </dl>
+    </section>
+    <section class="box">
+      <h2>HTML <a href="{{.Locale}}.html">Open alone</a></h2>
+      <div class="frames">
+        <figure><figcaption>Desktop, 760 px</figcaption><iframe data-mail="{{.Locale}}" width="760" title="{{.Locale}} at desktop width"></iframe></figure>
+        <figure><figcaption>Phone, 360 px</figcaption><iframe data-mail="{{.Locale}}" width="360" title="{{.Locale}} at phone width"></iframe></figure>
+      </div>
+    </section>
+    <section class="box">
+      <h2>Plain text <a href="{{.Locale}}.txt">Open alone</a></h2>
+      <pre>{{.Text}}</pre>
+    </section>
+  </div>{{end}}
+</main>
+</div>
+{{template "script"}}
+</body>
+</html>
+{{end}}

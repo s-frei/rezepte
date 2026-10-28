@@ -1,0 +1,5 @@
+{{define "content"}}<p style="font-size:16px;line-height:1.6;margin:0 0 28px;">{{if .Data.Admin}}{{t "mail_confirm_body_admin" "admin" .Data.Admin "username" .Data.Username}}{{else}}{{t "mail_confirm_body" "username" .Data.Username}}{{end}}</p>
+  {{template "button" (dict "text" (t "mail_confirm_button") "url" .Data.URL)}}
+  {{template "validity" (t "mail_confirm_validity")}}
+  {{template "fallback" .Data.URL}}{{end}}
+{{define "footer"}}{{template "note" (t "mail_confirm_ignore")}}{{end}}

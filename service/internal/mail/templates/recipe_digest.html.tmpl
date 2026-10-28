@@ -1,0 +1,21 @@
+{{define "content"}}<p style="font-family:Georgia,'Times New Roman',serif;font-size:22px;margin:0 0 4px;">{{t "mail_recipe_digest_heading"}}</p>
+  <p class="muted" style="font-size:15px;color:#756554;margin:0 0 24px;">{{.Data.Count}}</p>
+  {{range .Data.Cards}}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card" style="margin:0 0 20px;background:#ffffff;border:1px solid #e3d7c3;border-radius:8px;border-collapse:separate;">
+    {{if .Photo}}<tr><td style="padding:0;"><a href="{{.URL}}"><img src="{{.Photo}}" width="502" alt="{{.Title}}" style="display:block;width:100%;max-width:502px;height:auto;border:0;border-radius:7px 7px 0 0;"></a></td></tr>
+    {{end}}<tr><td style="padding:18px 20px 20px;"><p style="font-family:Georgia,'Times New Roman',serif;font-size:20px;line-height:1.3;margin:0 0 12px;">{{.Title}}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px;"><tr>
+      <td valign="middle" style="padding:0 10px 0 0;">{{template "circle" (dict "avatar" .Avatar "initial" .Initial "bg" .Bg "fg" .Fg "size" 32 "font" 14)}}</td>
+      <td valign="middle" style="font-size:14px;line-height:1.4;"><span style="font-weight:700;">{{.Creator}}</span><br><span class="muted" style="font-size:13px;color:#756554;">{{t "mail_recipe_digest_added" "when" (datetime .CreatedAt)}}</span></td>
+    </tr></table>
+    <p class="muted" style="font-size:14px;color:#756554;margin:0 0 16px;">{{.Facts}}</p>
+    {{template "button" (dict "text" (t "mail_recipe_digest_button") "url" .URL)}}</td></tr>
+  </table>
+  {{end}}{{if .Data.Rows}}<p style="font-size:15px;font-weight:700;margin:28px 0 6px;">{{t "mail_recipe_digest_also_new"}}</p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    {{range .Data.Rows}}<tr><td style="padding:8px 0;font-size:15px;line-height:1.45;"><a class="link" href="{{.URL}}" style="color:#b45309;font-weight:700;text-decoration:none;">{{.Title}}</a> <span class="muted" style="font-size:13px;color:#756554;">· {{.Creator}}</span></td></tr>
+    {{end}}</table>
+  {{end}}{{if .Data.More}}<p class="muted" style="font-size:15px;color:#756554;margin:8px 0 0;"><a class="link" href="{{.Data.AllURL}}" style="color:#b45309;">{{t "mail_recipe_digest_more" "count" .Data.More}}</a></p>
+  {{end}}<div class="rule" style="border-bottom:2px dotted #e3d7c3;margin:28px 0 18px;"></div>
+  <p style="font-size:15px;margin:0;"><a class="link" href="{{.Data.AllURL}}" style="color:#b45309;font-weight:700;">{{t "mail_recipe_digest_all"}}</a></p>{{end}}
+{{define "footer"}}{{template "note" (t "mail_recipe_digest_reason")}}
+  {{template "unsubscribe" (dict "links" .Unsubscribe "kind" "mail_unsubscribe_kind_recipe" "group" "mail_unsubscribe_group_household")}}{{end}}

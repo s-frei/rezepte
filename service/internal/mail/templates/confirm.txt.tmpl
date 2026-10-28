@@ -1,0 +1,9 @@
+{{define "content"}}{{if .Data.Admin}}{{t "mail_confirm_body_admin" "admin" .Data.Admin "username" .Data.Username}}{{else}}{{t "mail_confirm_body" "username" .Data.Username}}{{end}}
+
+{{.Data.URL}}
+
+{{t "mail_confirm_validity"}}
+
+{{t "mail_confirm_ignore"}}
+
+{{end}}

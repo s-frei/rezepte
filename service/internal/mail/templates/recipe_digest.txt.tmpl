@@ -1,0 +1,19 @@
+{{define "content"}}{{t "mail_recipe_digest_heading"}}
+{{.Data.Count}}
+{{range .Data.Cards}}
+{{.Title}}
+{{.Creator}}, {{t "mail_recipe_digest_added" "when" (datetime .CreatedAt)}}
+{{.Facts}}
+{{t "mail_recipe_digest_button"}}: {{.URL}}
+{{end}}{{if .Data.Rows}}
+{{t "mail_recipe_digest_also_new"}}:
+{{range .Data.Rows}}- {{.Title}} · {{.Creator}}: {{.URL}}
+{{end}}{{end}}{{if .Data.More}}{{t "mail_recipe_digest_more" "count" .Data.More}}
+{{end}}
+{{t "mail_recipe_digest_all"}}: {{.Data.AllURL}}
+
+{{t "mail_recipe_digest_reason"}}
+{{with .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_recipe"}}: {{.}}
+{{end}}{{with .Unsubscribe.GroupURL}}{{t "mail_unsubscribe_group_household"}}: {{.}}
+{{end}}
+{{end}}
