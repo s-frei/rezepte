@@ -52,8 +52,9 @@
 				>{paused ? m.timer_paused() : m.timer_ends_at({ time: endsAt })}</span
 			>
 		</span>
-		<span class="block truncate text-caption font-medium text-text-muted">
-			{showRecipe ? `${timer.recipeTitle} · ${name}` : name}
+		<span class="flex text-caption font-medium whitespace-nowrap text-text-muted">
+			<span data-timer-name class="max-w-full shrink-0 truncate">{name}</span>
+			{#if showRecipe}<span class="min-w-0 truncate">&nbsp;· {timer.recipeTitle}</span>{/if}
 		</span>
 	</button>
 	<button

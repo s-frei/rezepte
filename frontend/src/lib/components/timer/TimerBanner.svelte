@@ -18,9 +18,11 @@
 	<Bell class="size-6 shrink-0" aria-hidden="true" />
 	<div class="min-w-0 flex-1 leading-tight">
 		<p class="text-card font-semibold">{m.timer_done()}</p>
-		<p class="truncate text-caption font-medium">
-			{showRecipe ? `${timer.recipeTitle} · ${name}` : name}
-		</p>
+		<p data-timer-name class="truncate text-caption font-medium">{name}</p>
+		<!-- Another recipe's title on a line of its own, so it never cuts the name. -->
+		{#if showRecipe}
+			<p class="truncate text-micro font-medium opacity-90">{timer.recipeTitle}</p>
+		{/if}
 	</div>
 	<button
 		type="button"

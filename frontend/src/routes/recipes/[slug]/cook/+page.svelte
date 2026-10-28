@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, fly } from 'svelte/transition';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -73,6 +73,11 @@
 			index = stepFromUrl();
 		}
 		cameFromDetail = from?.route.id === '/recipes/[slug]';
+		// Read once, then dropped: paging and a reload go on from the step
+		// on screen, not back to the one a timer opened.
+		if (page.url.searchParams.has('step')) {
+			replaceState(resolve('/recipes/[slug]/cook', { slug: recipe.slug }), page.state);
+		}
 	});
 
 	function finish() {

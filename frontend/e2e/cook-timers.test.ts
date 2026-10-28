@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Recipe } from '../src/lib/api/recipes';
 import { createRecipe, createUser, loadFixture, login, signOut, uniqueToken } from './helpers';
 
@@ -183,8 +183,12 @@ test('jump opens the step', async ({ page }) => {
 	// A client-side link navigation stalls on the paused page clock.
 	await page.clock.resume();
 	await indicator(page).getByRole('link').click();
-	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=3`);
 	await expect(page.getByText('Schritt 3 von 6')).toBeVisible();
+	// Read once and dropped, so a reload starts over instead of jumping back.
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook`);
+	await page.getByRole('button', { name: 'Weiter' }).click();
+	await page.reload();
+	await expect(page.getByText('Schritt 1 von 6')).toBeVisible();
 });
 
 test('jump clamps to the last step', async ({ page }) => {
@@ -213,10 +217,28 @@ test('island covers nothing', async ({ page }) => {
 		.toBeGreaterThanOrEqual(island!.y + island!.height);
 });
 
+/** The element shows its whole text: nothing cut off by an ellipsis. */
+async function expectWhole(locator: Locator, text: string) {
+	await expect(locator).toHaveText(text);
+	const [scroll, client] = await locator.evaluate((el) => [el.scrollWidth, el.clientWidth]);
+	expect(scroll).toBeLessThanOrEqual(client);
+}
+
 test('rings outside cook mode and turns off', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
 	await startKlopse(page);
 	await page.clock.runFor(15 * 60_000);
 	await expect(indicator(page)).toContainText('Fertig');
+	// The name, not the recipe title, is what tells two timers apart.
+	await expectWhole(
+		indicator(page).locator('[data-timer-name]'),
+		'Fertig · Schritt 3 · 15 Minuten'
+	);
+	await page.setViewportSize({ width: 320, height: 640 });
+	await expectWhole(
+		indicator(page).locator('[data-timer-name]'),
+		'Fertig · Schritt 3 · 15 Minuten'
+	);
 	await indicator(page).getByRole('button', { name: 'Aus' }).click();
 	await expect(indicator(page)).toHaveCount(0);
 });
@@ -253,4 +275,15 @@ test('a timer survives its recipe losing the step', async ({ page }) => {
 		.getByRole('button', { name: /fertig .* Schritt 3 · 15 Minuten$/ })
 		.click();
 	await expect(page.getByText('Schritt 2 von 2')).toBeVisible();
+});
+
+test("another recipe's banner keeps the timer's name whole", async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	await startKlopse(page);
+	const other = await germanRecipe(page, 1);
+	await cookAt(page, other, 1);
+	await page.clock.runFor(15 * 60_000);
+	const banner = page.getByRole('alert').filter({ hasText: 'Fertig' });
+	await expect(banner).toContainText('Königsberger Klopse');
+	await expectWhole(banner.locator('[data-timer-name]'), 'Schritt 3 · 15 Minuten');
 });

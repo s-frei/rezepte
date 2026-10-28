@@ -22,19 +22,22 @@
 {#if first}
 	<div
 		data-timer-indicator
-		class="fixed top-[calc(10px+env(safe-area-inset-top))] left-1/2 z-40 flex max-w-[calc(100vw-32px)] -translate-x-1/2 items-center rounded-pill shadow-lift md:top-auto md:right-6 md:bottom-6 md:left-auto md:max-w-[480px] md:translate-x-0 {ringing
+		class="fixed top-[calc(10px+env(safe-area-inset-top))] left-1/2 z-40 flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center rounded-pill shadow-lift md:top-auto md:right-6 md:bottom-6 md:left-auto md:max-w-[480px] md:translate-x-0 {ringing
 			? 'bg-primary text-primary-foreground'
 			: 'bg-inverse text-inverse-foreground md:bg-user-teal md:text-time-foreground'}"
 	>
 		<a
 			href={resolve(`/recipes/${first.slug}/cook?step=${first.step + 1}`)}
 			aria-label={`${m.timer_open({ name: `${first.recipeTitle} · ${name}` })} · ${ringing ? m.timer_done() : clock}`}
-			class="flex h-11 min-w-0 items-center gap-2 rounded-pill pr-3.5 pl-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="flex h-11 min-w-0 items-center gap-2 rounded-pill {ringing
+				? 'pr-2'
+				: 'pr-3.5'} pl-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
 			{#if ringing}
-				<Bell class="ml-1.5 size-5 shrink-0" aria-hidden="true" />
-				<span class="truncate text-body-sm font-semibold"
-					>{m.timer_done()} · {first.recipeTitle} · {name}</span
+				<Bell class="ml-1 size-5 shrink-0" aria-hidden="true" />
+				<!-- The recipe is in the link's label; on screen the name must fit. -->
+				<span data-timer-name class="truncate text-caption font-semibold md:text-body-sm"
+					>{m.timer_done()} · {name}</span
 				>
 			{:else}
 				<TimerRing
