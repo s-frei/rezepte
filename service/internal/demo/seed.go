@@ -500,7 +500,7 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 				continue
 			}
 			sub := dexSubject(m.Username, dexConnector)
-			if err := users.LinkIdentity(ctx, m.ID, issuer, sub); err != nil {
+			if _, err := users.LinkIdentity(ctx, m.ID, issuer, sub); err != nil {
 				return fmt.Errorf("link %s's demo identity: %w", m.Username, err)
 			}
 		}

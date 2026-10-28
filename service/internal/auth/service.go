@@ -64,6 +64,7 @@ type Service struct {
 	confirmCooldown *cooldown
 	mailer          Mailer
 	provider        func(context.Context) Provider
+	notifier        Notifier
 	now             func() time.Time
 }
 

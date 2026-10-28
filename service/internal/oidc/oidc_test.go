@@ -22,6 +22,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
@@ -208,7 +209,7 @@ func (e *env) me(t *testing.T, session *http.Cookie) string {
 
 func (e *env) link(t *testing.T, u user.User, subject string) {
 	t.Helper()
-	if err := e.users.LinkIdentity(context.Background(), u.ID, e.idp.URL, subject); err != nil {
+	if _, err := e.users.LinkIdentity(context.Background(), u.ID, e.idp.URL, subject); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -287,6 +288,51 @@ func TestLinkFromProfile(t *testing.T) {
 	sam, _ := e.users.ByID(context.Background(), e.sam.ID)
 	if sam.Email != "sam@example.com" || !sam.EmailVerified {
 		t.Fatalf("email %q verified=%v", sam.Email, sam.EmailVerified)
+	}
+}
+
+// noticeMailer records the sign-in method notices auth sends.
+type noticeMailer struct{ linked []mail.IdentityLinked }
+
+func (*noticeMailer) Enabled(context.Context) bool                                    { return true }
+func (*noticeMailer) SendReset(context.Context, mail.Reset) error                     { return nil }
+func (*noticeMailer) SendHint(context.Context, mail.Hint) error                       { return nil }
+func (*noticeMailer) SendConfirm(context.Context, mail.Confirm) error                 { return nil }
+func (*noticeMailer) SendPasswordChanged(context.Context, mail.PasswordChanged) error { return nil }
+func (*noticeMailer) SendEmailChanged(context.Context, mail.EmailChanged) error       { return nil }
+func (m *noticeMailer) SendIdentityLinked(_ context.Context, in mail.IdentityLinked) error {
+	m.linked = append(m.linked, in)
+	return nil
+}
+
+// Linking in the profile tells the address confirmed before: a stolen
+// session that links its own identity to stay in does not go unnoticed.
+func TestLinkFromProfileNoticesTheHolder(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	m := &noticeMailer{}
+	e.sessions.SetMail(m, func(context.Context) auth.Provider { return auth.Provider{Issuer: e.idp.URL, Name: "Test IdP"} })
+	addr := "sam@example.org"
+	if _, err := e.users.SetProfile(ctx, e.sam.ID, user.ProfileUpdate{Email: &addr}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.users.MarkEmailVerified(ctx, e.sam.ID, addr); err != nil {
+		t.Fatal(err)
+	}
+	session := e.passwordLogin(t)
+	rec := e.run(t, "link", nil, session, idClaims{Subject: "sub-sam", Email: "other@example.com", EmailVerified: true})
+	wantRedirect(t, rec, "/settings?oidc=linked")
+	if len(m.linked) != 1 {
+		t.Fatalf("notices = %+v, want one", m.linked)
+	}
+	if n := m.linked[0]; n.To != addr || n.Username != "sam" || n.Origin != mail.IdentityProfile || n.Admin != "" || n.Provider != "Test IdP" {
+		t.Fatalf("notice = %+v", n)
+	}
+	// Linking the identity the account has already adds nothing.
+	rec = e.run(t, "link", nil, session, idClaims{Subject: "sub-sam", Email: "other@example.com", EmailVerified: true})
+	wantRedirect(t, rec, "/settings?oidc=linked")
+	if len(m.linked) != 1 {
+		t.Fatalf("notices = %+v, want still one", m.linked)
 	}
 }
 
@@ -840,7 +886,7 @@ func TestCallbackRefusesFlowFromOtherIssuer(t *testing.T) {
 
 	// anna is linked at first; a login flow started at second does not sign
 	// her in once first is back.
-	if err := e.users.LinkIdentity(context.Background(), e.anna.ID, first.URL, "sub-anna"); err != nil {
+	if _, err := e.users.LinkIdentity(context.Background(), e.anna.ID, first.URL, "sub-anna"); err != nil {
 		t.Fatal(err)
 	}
 	authorize, fc = flow(t, e.h, "login", nil, nil)

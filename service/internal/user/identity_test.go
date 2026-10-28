@@ -14,19 +14,19 @@ func TestLinkIdentity(t *testing.T) {
 	ctx := context.Background()
 	_, svc, sam, kim := seedTwo(t)
 
-	if err := svc.LinkIdentity(ctx, sam.ID, issuer, "sub-sam"); err != nil {
+	if _, err := svc.LinkIdentity(ctx, sam.ID, issuer, "sub-sam"); err != nil {
 		t.Fatalf("link: %v", err)
 	}
 	if got, err := svc.ByIdentity(ctx, issuer, "sub-sam"); err != nil || got.ID != sam.ID {
 		t.Fatalf("ByIdentity = %+v, %v; want sam", got, err)
 	}
-	if err := svc.LinkIdentity(ctx, sam.ID, issuer, "sub-sam"); err != nil {
+	if _, err := svc.LinkIdentity(ctx, sam.ID, issuer, "sub-sam"); err != nil {
 		t.Fatalf("relinking the same identity: %v, want nil", err)
 	}
-	if err := svc.LinkIdentity(ctx, kim.ID, issuer, "sub-sam"); !errors.Is(err, user.ErrIdentityTaken) {
+	if _, err := svc.LinkIdentity(ctx, kim.ID, issuer, "sub-sam"); !errors.Is(err, user.ErrIdentityTaken) {
 		t.Fatalf("same identity to kim: %v, want ErrIdentityTaken", err)
 	}
-	if err := svc.LinkIdentity(ctx, sam.ID, issuer, "sub-other"); !errors.Is(err, user.ErrIdentityTaken) {
+	if _, err := svc.LinkIdentity(ctx, sam.ID, issuer, "sub-other"); !errors.Is(err, user.ErrIdentityTaken) {
 		t.Fatalf("second identity at one issuer: %v, want ErrIdentityTaken", err)
 	}
 	if _, err := svc.ByIdentity(ctx, "https://other.example", "sub-sam"); !errors.Is(err, user.ErrNotFound) {
@@ -38,7 +38,7 @@ func TestLinkIdentity(t *testing.T) {
 	if _, err := svc.IdentityLinkedAt(ctx, kim.ID, issuer); !errors.Is(err, user.ErrNotFound) {
 		t.Fatalf("IdentityLinkedAt of kim: %v, want ErrNotFound", err)
 	}
-	if err := svc.LinkIdentity(ctx, kim.ID, "https://other.example", "sub-kim"); err != nil {
+	if _, err := svc.LinkIdentity(ctx, kim.ID, "https://other.example", "sub-kim"); err != nil {
 		t.Fatal(err)
 	}
 	linked, err := svc.LinkedUserIDs(ctx, issuer)
@@ -55,7 +55,7 @@ func TestUnlinkIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, u := range []user.User{sam, anna} {
-		if err := svc.LinkIdentity(ctx, u.ID, issuer, "sub-"+u.Username); err != nil {
+		if _, err := svc.LinkIdentity(ctx, u.ID, issuer, "sub-"+u.Username); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -76,7 +76,7 @@ func TestUnlinkIdentity(t *testing.T) {
 func TestDeletedUserTakesTheIdentity(t *testing.T) {
 	ctx := context.Background()
 	_, svc, sam, kim := seedTwo(t)
-	if err := svc.LinkIdentity(ctx, kim.ID, issuer, "sub-kim"); err != nil {
+	if _, err := svc.LinkIdentity(ctx, kim.ID, issuer, "sub-kim"); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.Delete(ctx, sam, kim.ID); err != nil {

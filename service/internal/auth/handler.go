@@ -261,6 +261,8 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
+		// The password is written: the notice goes even if ending sessions fails.
+		svc.PasswordChanged(ctx, u, mail.OriginProfile, "")
 		if err := svc.DeleteUserSessionsExcept(ctx, u.ID, in.Cookie); err != nil {
 			return nil, err
 		}

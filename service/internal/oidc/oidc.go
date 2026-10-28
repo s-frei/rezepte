@@ -24,6 +24,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -314,7 +315,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 		l.fail(w, r, f.Intent, "session changed during the flow", nil)
 		return
 	}
-	err = l.users.LinkIdentity(ctx, f.UserID, f.Issuer, idt.Subject)
+	added, err := l.users.LinkIdentity(ctx, f.UserID, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
 		l.logger.Info("oidc link refused: identity taken", "user", f.UserID)
 		redirect(w, r, "/settings?oidc=taken")
@@ -323,6 +324,13 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 	if err != nil {
 		l.fail(w, r, f.Intent, "link identity", err)
 		return
+	}
+	// To the address confirmed before: one the provider fills in below is
+	// not news to its holder. A stolen session that links its own identity
+	// to stay in is what this notice is for; the identity it already had is
+	// no news.
+	if added {
+		l.sessions.IdentityLinked(ctx, v.User, mail.IdentityProfile, "")
 	}
 	if err := l.users.SetEmailIfEmpty(ctx, f.UserID, cl.Email, bool(cl.EmailVerified)); err != nil {
 		l.logger.Warn("oidc link: store email", "user", f.UserID, "err", err)
@@ -339,7 +347,7 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 		l.fail(w, r, f.Intent, "setup link no longer open", err)
 		return
 	}
-	err = l.users.LinkIdentity(ctx, u.ID, f.Issuer, idt.Subject)
+	added, err := l.users.LinkIdentity(ctx, u.ID, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
 		l.logger.Info("oidc setup refused: identity taken", "user", u.ID)
 		redirect(w, r, "/welcome?oidc=taken")
@@ -349,7 +357,7 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 		l.fail(w, r, f.Intent, "link identity", err)
 		return
 	}
-	if _, err := l.sessions.ConsumeSetupLinkByHash(ctx, f.Setup); err != nil {
+	if _, err := l.sessions.ConsumeSetupLinkByHash(ctx, f.Setup, added); err != nil {
 		l.fail(w, r, f.Intent, "setup link used meanwhile", err)
 		return
 	}

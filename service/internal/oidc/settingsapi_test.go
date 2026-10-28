@@ -175,7 +175,7 @@ func TestGetCounts(t *testing.T) {
 	e.configure(t, newFakeIdP(t))
 	e.link(t, e.sam, "sub-sam")
 	e.link(t, e.anna, "sub-anna")
-	if err := e.users.LinkIdentity(context.Background(), e.create(t, "kim", user.RoleUser).ID, "https://old.example", "sub-kim"); err != nil {
+	if _, err := e.users.LinkIdentity(context.Background(), e.create(t, "kim", user.RoleUser).ID, "https://old.example", "sub-kim"); err != nil {
 		t.Fatal(err)
 	}
 	if got := getSignIn(t, e, owner); got["connected"] != float64(2) || got["connectedWithoutPassword"] != float64(1) {

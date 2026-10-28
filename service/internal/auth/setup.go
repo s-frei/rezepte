@@ -7,10 +7,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -157,44 +159,131 @@ func (s *Service) peek(ctx context.Context, hash string) (OpenLink, error) {
 // ConsumeSetupLink uses the link up and returns its account. Of two callers
 // with the same token, exactly one gets the id.
 func (s *Service) ConsumeSetupLink(ctx context.Context, token string) (string, error) {
-	return s.ConsumeSetupLinkByHash(ctx, hashToken(token))
+	return s.ConsumeSetupLinkByHash(ctx, hashToken(token), false)
 }
 
 // ConsumeSetupLinkByHash is ConsumeSetupLink for a link known by
-// SetupLinkHash.
-func (s *Service) ConsumeSetupLinkByHash(ctx context.Context, hash string) (string, error) {
-	var id string
+// SetupLinkHash. It is the OIDC path: no password is set. linked says the
+// caller just added an identity (user.Service.LinkIdentity reported a new
+// row); only then does an account that could sign in already hear of it.
+func (s *Service) ConsumeSetupLinkByHash(ctx context.Context, hash string, linked bool) (string, error) {
+	var c consumed
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		var err error
-		id, err = s.consumeWith(ctx, q, hash)
+		c, err = s.consumeWith(ctx, q, hash)
 		return err
 	})
-	return id, err
+	if err != nil {
+		return "", err
+	}
+	c.Linked = linked
+	s.afterConsume(ctx, c, false)
+	return c.UserID, nil
+}
+
+// consumed is what a used-up link leaves behind for afterConsume.
+type consumed struct {
+	UserID, CreatedBy string
+	Purpose           Purpose
+	// HadCredential is whether the account could sign in before: a setup
+	// link on such an account replaces a credential, it sets up nobody.
+	// HadPassword is whether that credential was a password.
+	HadCredential, HadPassword bool
+	// Email and EmailVerified are the address before the redeem verified
+	// one: a notice goes there, never to whoever just proved the mailbox the
+	// link went to.
+	Email         string
+	EmailVerified bool
+	// Linked is set by the OIDC path when it added an identity.
+	Linked bool
 }
 
 // consumeWith runs the delete-returning consume of the link stored under
 // hash against q and maps sql.ErrNoRows to ErrNoSetupLink. A link that was
 // mailed verifies the account's address - only while that is still the
 // address it went to - in the same transaction, so whoever proved they read
-// that mailbox is the one the mark is for.
-func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, hash string) (string, error) {
+// that mailbox is the one the mark is for. It reads whether the account had
+// a credential before the link was issued: a password the caller has not
+// written yet, or an identity older than the link (the OIDC setup links its
+// identity before consuming).
+func (s *Service) consumeWith(ctx context.Context, q *sqlc.Queries, hash string) (consumed, error) {
 	row, err := q.ConsumeSetupLink(ctx, sqlc.ConsumeSetupLinkParams{
 		ID: hash, ExpiresAt: db.FormatTime(s.now()),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrNoSetupLink
+		return consumed{}, ErrNoSetupLink
 	}
 	if err != nil {
-		return "", fmt.Errorf("consume setup link: %w", err)
+		return consumed{}, fmt.Errorf("consume setup link: %w", err)
+	}
+	had, err := q.UserHasCredential(ctx, sqlc.UserHasCredentialParams{UserID: row.UserID, Before: row.CreatedAt})
+	if err != nil {
+		return consumed{}, fmt.Errorf("credential of %s: %w", row.UserID, err)
 	}
 	if row.SentTo != "" {
 		if _, err := q.VerifyEmailIfMatches(ctx, sqlc.VerifyEmailIfMatchesParams{
 			UpdatedAt: db.FormatTime(s.now()), ID: row.UserID, Email: row.SentTo,
 		}); err != nil {
-			return "", fmt.Errorf("verify email of %s: %w", row.UserID, err)
+			return consumed{}, fmt.Errorf("verify email of %s: %w", row.UserID, err)
 		}
 	}
-	return row.UserID, nil
+	return consumed{UserID: row.UserID, CreatedBy: row.CreatedBy, Purpose: Purpose(row.Purpose),
+		HadCredential: had.HasCredential, HadPassword: had.HasPassword, Email: had.Email, EmailVerified: had.EmailVerified}, nil
+}
+
+// afterConsume tells whoever should hear of a committed redeem: the holder
+// when a reset link set a new password, or when a setup link on an account
+// that could sign in already set a password or linked a new identity (the
+// OIDC path); the issuing admin when a new person set up. The holder's
+// notice goes to the address confirmed before the redeem.
+func (s *Service) afterConsume(ctx context.Context, c consumed, withPassword bool) {
+	switch {
+	case c.Purpose == PurposeReset && withPassword:
+		s.noticeByID(ctx, c, func(u user.User) { s.PasswordChanged(ctx, u, mail.OriginResetLink, "") })
+	case c.Purpose == PurposeSetup && c.HadCredential && (withPassword || c.Linked):
+		creator, err := s.users.ByID(ctx, c.CreatedBy)
+		if err != nil {
+			slog.WarnContext(ctx, "security notice: issuer lookup failed", "user", c.UserID, "err", err)
+			return
+		}
+		s.noticeByID(ctx, c, func(u user.User) {
+			if withPassword {
+				s.PasswordChanged(ctx, u, mail.OriginSetupLink, creator.DisplayName)
+			} else {
+				s.IdentityLinked(ctx, u, mail.IdentitySetupLink, creator.DisplayName)
+			}
+		})
+	case c.Purpose == PurposeSetup && !c.HadCredential && s.notifier != nil:
+		u, err := s.users.ByID(ctx, c.UserID)
+		if err != nil {
+			slog.WarnContext(ctx, "invite accepted: account lookup failed", "user", c.UserID, "err", err)
+			return
+		}
+		s.notifier.InviteAccepted(ctx, c.CreatedBy, u)
+	}
+}
+
+// CanSignIn is whether the account has a way in now: a password, or an
+// identity at any provider. It is the rule consumeWith applies at a link's
+// creation, so the invitation's copy and the notices on redeeming agree.
+func (s *Service) CanSignIn(ctx context.Context, userID string) (bool, error) {
+	had, err := s.q.UserHasCredential(ctx, sqlc.UserHasCredentialParams{UserID: userID, Before: db.FormatTime(s.now().Add(time.Second))})
+	if err != nil {
+		return false, fmt.Errorf("credential of %s: %w", userID, err)
+	}
+	return had.HasCredential, nil
+}
+
+// noticeByID hands send the redeemed account as it was before the redeem:
+// its address and whether it had a password, read in the consume.
+func (s *Service) noticeByID(ctx context.Context, c consumed, send func(user.User)) {
+	u, err := s.users.ByID(ctx, c.UserID)
+	if err != nil {
+		slog.WarnContext(ctx, "security notice: account lookup failed", "user", c.UserID, "err", err)
+		return
+	}
+	u.Email, u.EmailVerified, u.HasPassword = c.Email, c.EmailVerified, c.HadPassword
+	send(u)
 }
 
 // MarkSetupLinkSent records that the link under token was mailed to to, so
@@ -221,13 +310,13 @@ func (s *Service) RedeemWithPassword(ctx context.Context, token, password string
 	if err != nil {
 		return Session{}, err
 	}
-	var userID string
+	var c consumed
 	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		id, err := s.consumeWith(ctx, q, hashToken(token))
-		if err != nil {
+		var err error
+		if c, err = s.consumeWith(ctx, q, hashToken(token)); err != nil {
 			return err
 		}
-		userID = id
+		id := c.UserID
 		if _, err := q.UpdateUserPasswordHash(ctx, sqlc.UpdateUserPasswordHashParams{
 			PasswordHash: hash, UpdatedAt: db.FormatTime(s.now()), ID: id,
 		}); err != nil {
@@ -241,7 +330,8 @@ func (s *Service) RedeemWithPassword(ctx context.Context, token, password string
 	if err != nil {
 		return Session{}, err
 	}
-	u, err := s.users.ByID(ctx, userID)
+	s.afterConsume(ctx, c, true)
+	u, err := s.users.ByID(ctx, c.UserID)
 	if err != nil {
 		return Session{}, err
 	}

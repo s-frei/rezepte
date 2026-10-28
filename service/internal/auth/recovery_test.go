@@ -41,6 +41,15 @@ func (f *fakeMailer) record(m any) error {
 func (f *fakeMailer) SendReset(_ context.Context, m mail.Reset) error     { return f.record(m) }
 func (f *fakeMailer) SendHint(_ context.Context, m mail.Hint) error       { return f.record(m) }
 func (f *fakeMailer) SendConfirm(_ context.Context, m mail.Confirm) error { return f.record(m) }
+func (f *fakeMailer) SendPasswordChanged(_ context.Context, m mail.PasswordChanged) error {
+	return f.record(m)
+}
+func (f *fakeMailer) SendEmailChanged(_ context.Context, m mail.EmailChanged) error {
+	return f.record(m)
+}
+func (f *fakeMailer) SendIdentityLinked(_ context.Context, m mail.IdentityLinked) error {
+	return f.record(m)
+}
 
 // drain returns every mail sent so far.
 func (f *fakeMailer) drain() []any {
@@ -99,7 +108,7 @@ func newRecoveryFixture(t *testing.T) *recoveryFixture {
 	mk("lea", user.RoleUser, "pw", "lea@example.org", false)
 	mk("ida", user.RoleUser, "", "ida@example.org", true)
 	mk("noah", user.RoleUser, "", "", false)
-	if err := f.users.LinkIdentity(ctx, f.byName["ida"].ID, issuer, "sub-ida"); err != nil {
+	if _, err := f.users.LinkIdentity(ctx, f.byName["ida"].ID, issuer, "sub-ida"); err != nil {
 		t.Fatal(err)
 	}
 	return f
@@ -239,7 +248,7 @@ func TestForgotWithoutPasswordAtOtherIssuerGetsNothing(t *testing.T) {
 	if _, err := f.users.MarkEmailVerified(ctx, u.ID, "eva@example.org"); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.users.LinkIdentity(ctx, u.ID, "https://other.example.org", "sub-eva"); err != nil {
+	if _, err := f.users.LinkIdentity(ctx, u.ID, "https://other.example.org", "sub-eva"); err != nil {
 		t.Fatal(err)
 	}
 	f.sessions.ForgotPassword(ctx, "eva")
@@ -382,7 +391,8 @@ func TestProfileSaveMailsConfirmation(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"emailConfirmationPending":true`) || strings.Contains(rec.Body.String(), "confirmationSent") {
 		t.Fatalf("save = %d %s", rec.Code, rec.Body)
 	}
-	if got := m.drain(); len(got) != 1 || got[0].(mail.Confirm).To != "new@example.org" || got[0].(mail.Confirm).Admin != "" || got[0].(mail.Confirm).Username != "sam" {
+	// The first mail is the notice to the old address.
+	if got := m.drain(); len(got) != 2 || got[1].(mail.Confirm).To != "new@example.org" || got[1].(mail.Confirm).Admin != "" || got[1].(mail.Confirm).Username != "sam" {
 		t.Fatalf("sent %+v", got)
 	}
 	// The save's mail took the minute "Send again" waits for.

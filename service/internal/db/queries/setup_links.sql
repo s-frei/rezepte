@@ -20,7 +20,7 @@ SELECT * FROM setup_links WHERE id = ? AND expires_at > ?;
 -- Delete-returning makes redemption atomic: of two requests with the same
 -- token, exactly one gets the row.
 -- name: ConsumeSetupLink :one
-DELETE FROM setup_links WHERE id = ? AND expires_at > ? RETURNING user_id, sent_to;
+DELETE FROM setup_links WHERE id = ? AND expires_at > ? RETURNING user_id, sent_to, created_by, purpose, created_at;
 
 -- name: DeleteExpiredSetupLinks :exec
 DELETE FROM setup_links WHERE expires_at <= ?;

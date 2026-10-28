@@ -203,7 +203,7 @@ func TestConnectedCounts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := users.LinkIdentity(ctx, u.ID, tc.issuer, "sub-"+tc.name); err != nil {
+		if _, err := users.LinkIdentity(ctx, u.ID, tc.issuer, "sub-"+tc.name); err != nil {
 			t.Fatal(err)
 		}
 	}

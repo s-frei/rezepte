@@ -11,14 +11,26 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// Mailer is what password resets and address confirmations need from
-// package mail; *mail.Service is it.
+// Mailer is what password resets, address confirmations and security
+// notices need from package mail; *mail.Service is it.
 type Mailer interface {
 	Enabled(context.Context) bool
 	SendReset(context.Context, mail.Reset) error
 	SendHint(context.Context, mail.Hint) error
 	SendConfirm(context.Context, mail.Confirm) error
+	SendPasswordChanged(context.Context, mail.PasswordChanged) error
+	SendEmailChanged(context.Context, mail.EmailChanged) error
+	SendIdentityLinked(context.Context, mail.IdentityLinked) error
 }
+
+// Notifier hears of a setup link redeemed by a new person, so it can tell
+// whoever issued it.
+type Notifier interface {
+	InviteAccepted(ctx context.Context, inviterID string, newcomer user.User)
+}
+
+// SetNotifier hands accepted invitations to n; nil (the default) is off.
+func (s *Service) SetNotifier(n Notifier) { s.notifier = n }
 
 // Provider is the identity provider an account without a password signs in
 // with, for the hint a forgotten-password request sends it. Zero while OIDC
@@ -121,14 +133,20 @@ func (s *Service) mailRecovery(ctx context.Context, u user.User) error {
 	return s.mailer.SendHint(ctx, mail.Hint{To: u.Email, Provider: p.Name, Locale: u.Locale})
 }
 
-// ConfirmChangedAddress mails a confirmation when a write turned before into
+// ConfirmChangedAddress calls EmailChanged, then ConfirmNewAddress.
+func (s *Service) ConfirmChangedAddress(ctx context.Context, before, after user.User, by string) {
+	s.EmailChanged(ctx, before, after, by)
+	s.ConfirmNewAddress(ctx, before, after, by)
+}
+
+// ConfirmNewAddress mails a confirmation when a write turned before into
 // an after with a new, unconfirmed address; by names the admin who entered
 // it, empty when the account holder did. The holder's own change shares
 // "Send again"'s minute, so repeated saves cannot mail a stranger without
 // end: inside it nothing is sent. An admin's change is not held back. A
 // failure never undoes the save; ConfirmationPending tells whether a mail
 // went out.
-func (s *Service) ConfirmChangedAddress(ctx context.Context, before, after user.User, by string) {
+func (s *Service) ConfirmNewAddress(ctx context.Context, before, after user.User, by string) {
 	if after.Email == "" || after.Email == before.Email || after.EmailVerified || !s.mailOn(ctx) {
 		return
 	}
@@ -138,9 +156,7 @@ func (s *Service) ConfirmChangedAddress(ctx context.Context, before, after user.
 		}
 	}
 	err := s.sendConfirmation(ctx, after, by)
-	if err != nil && !errors.Is(err, mail.ErrDisabled) && !errors.Is(err, mail.ErrSend) {
-		slog.WarnContext(ctx, "confirmation mail failed", "user", after.ID, "err", err)
-	}
+	mail.LogUnsent(ctx, "confirmation mail failed", after.ID, err)
 }
 
 // ResendConfirmation is the profile's "Send again": at most one per account
@@ -182,4 +198,56 @@ func (s *Service) sendConfirmation(ctx context.Context, u user.User, by string) 
 		}
 	}
 	return err
+}
+
+// PasswordChanged tells u's confirmed address that its password changed
+// through origin; admin is the display name of who did it, for OriginAdmin
+// and OriginSetupLink. u is the account as it was before the change: one
+// without a password hears that a password was set. Without a confirmed
+// address or with mail off it does nothing. Called after the change
+// committed: a failure is only logged.
+func (s *Service) PasswordChanged(ctx context.Context, u user.User, origin mail.PasswordOrigin, admin string) {
+	if u.Email == "" || !u.EmailVerified || !s.mailOn(ctx) {
+		return
+	}
+	err := s.mailer.SendPasswordChanged(ctx, mail.PasswordChanged{
+		To: u.Email, Username: u.Username, Admin: admin, Origin: origin, At: s.now(), Locale: u.Locale,
+		Owner: u.Role.IsSuperadmin(), First: !u.HasPassword,
+	})
+	mail.LogUnsent(ctx, "password notice failed", u.ID, err)
+}
+
+// IdentityLinked tells u's confirmed address that a sign-in identity at
+// the configured provider was linked to it through origin; admin is the
+// display name of who issued the setup link, for IdentitySetupLink. u is the
+// account as it was before the link, so an address the provider filled in
+// just now hears nothing. Without a confirmed address or with mail off it
+// does nothing; a failure is only logged.
+func (s *Service) IdentityLinked(ctx context.Context, u user.User, origin mail.IdentityOrigin, admin string) {
+	if u.Email == "" || !u.EmailVerified || !s.mailOn(ctx) {
+		return
+	}
+	var p Provider
+	if s.provider != nil {
+		p = s.provider(ctx)
+	}
+	err := s.mailer.SendIdentityLinked(ctx, mail.IdentityLinked{
+		To: u.Email, Username: u.Username, Admin: admin, Provider: p.Name, Origin: origin, At: s.now(),
+		Locale: u.Locale, Owner: u.Role.IsSuperadmin(),
+	})
+	mail.LogUnsent(ctx, "sign-in method notice failed", u.ID, err)
+}
+
+// EmailChanged tells before's confirmed address that after changed or
+// removed it, naming by when an admin did; an address never confirmed hears
+// nothing. ConfirmChangedAddress calls it, and so does a write that confirms
+// the new address another way (a setup link mailed there).
+func (s *Service) EmailChanged(ctx context.Context, before, after user.User, by string) {
+	if before.Email == "" || !before.EmailVerified || before.Email == after.Email || !s.mailOn(ctx) {
+		return
+	}
+	err := s.mailer.SendEmailChanged(ctx, mail.EmailChanged{
+		To: before.Email, Username: before.Username, Admin: by, NewAddress: after.Email, At: s.now(), Locale: before.Locale,
+	})
+	mail.LogUnsent(ctx, "address notice failed", before.ID, err)
 }

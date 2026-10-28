@@ -31,28 +31,29 @@ func (s *Service) ByIdentity(ctx context.Context, issuer, subject string) (User,
 	return fromRow(row)
 }
 
-// LinkIdentity links (issuer, subject) to userID. Linking the identity the
-// account already has is a no-op.
-func (s *Service) LinkIdentity(ctx context.Context, userID, issuer, subject string) error {
+// LinkIdentity links (issuer, subject) to userID and reports whether it
+// added a row. Linking the identity the account already has is a no-op
+// (false), so a caller tells the holder only of a link that is new.
+func (s *Service) LinkIdentity(ctx context.Context, userID, issuer, subject string) (bool, error) {
 	u, err := s.ByIdentity(ctx, issuer, subject)
 	switch {
 	case err == nil && u.ID == userID:
-		return nil
+		return false, nil
 	case err == nil:
-		return ErrIdentityTaken
+		return false, ErrIdentityTaken
 	case !errors.Is(err, ErrNotFound):
-		return err
+		return false, err
 	}
 	err = s.q.InsertIdentity(ctx, sqlc.InsertIdentityParams{
 		UserID: userID, Issuer: issuer, Subject: subject, CreatedAt: db.FormatTime(s.now()),
 	})
 	if isUniqueViolation(err) || isPrimaryKeyViolation(err) {
-		return ErrIdentityTaken
+		return false, ErrIdentityTaken
 	}
 	if err != nil {
-		return fmt.Errorf("link identity to %s: %w", userID, err)
+		return false, fmt.Errorf("link identity to %s: %w", userID, err)
 	}
-	return nil
+	return true, nil
 }
 
 // IdentityLinkedAt reports when userID linked its identity at issuer.

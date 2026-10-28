@@ -202,14 +202,15 @@ type Mailer interface {
 // and records where it went: mailedTo names the address whenever a send was
 // tried, mailError marks a failed one. A failure is never an error here:
 // the account and the link exist either way. A nil mailer is mail off, for
-// tests that do not care.
-func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor, target user.User, link auth.SetupLink, body *setupLinkBody) {
+// tests that do not care. existing marks an account that could sign in
+// already, whose mail does not say an account was created.
+func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor, target user.User, link auth.SetupLink, body *setupLinkBody, existing bool) {
 	if mailer == nil || target.Email == "" {
 		return
 	}
 	err := mailer.SendInvite(ctx, mail.Invite{
 		To: target.Email, Name: target.DisplayName, Inviter: actor.DisplayName,
-		Path: auth.SetupPath(link.Token), Locale: target.Locale,
+		Path: auth.SetupPath(link.Token), Locale: target.Locale, Existing: existing,
 	})
 	if errors.Is(err, mail.ErrDisabled) {
 		return
@@ -232,14 +233,30 @@ func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor,
 	}
 }
 
+// canSignIn picks the invitation's copy: an account with a way in already
+// (auth.Service.CanSignIn) gets a setup link, not an account. A failed
+// lookup counts as no, which only picks the copy.
+func canSignIn(ctx context.Context, sessions *auth.Service, u user.User) bool {
+	ok, err := sessions.CanSignIn(ctx, u.ID)
+	if err != nil {
+		slog.WarnContext(ctx, "setup link mail: credential lookup failed", "user", u.ID, "err", err)
+	}
+	return ok
+}
+
 // confirmAddress mails a confirmation when actor's write turned before into
 // an after with a new address, naming actor unless they changed their own.
 func confirmAddress(ctx context.Context, sessions *auth.Service, actor, before, after user.User) {
-	by := actor.DisplayName
-	if actor.ID == after.ID {
-		by = ""
+	sessions.ConfirmChangedAddress(ctx, before, after, adminName(actor, after))
+}
+
+// adminName is who a mail about target names as having changed it: actor's
+// display name, empty when actor is target.
+func adminName(actor, target user.User) string {
+	if actor.ID == target.ID {
+		return ""
 	}
-	sessions.ConfirmChangedAddress(ctx, before, after, by)
+	return actor.DisplayName
 }
 
 // Register installs list, create, update and delete for users, which require
@@ -408,7 +425,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, err
 			}
 			body := setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
-			mailLink(ctx, mailer, sessions, actor, u, link, &body)
+			mailLink(ctx, mailer, sessions, actor, u, link, &body, false)
 			out.Body.SetupLink = &body
 			out.Body.SetupLinkExpiresAt = &link.ExpiresAt
 		}
@@ -452,6 +469,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			if err != nil {
 				return nil, err
 			}
+			// The address is written: the old one hears now, whatever fails
+			// below.
+			sessions.EmailChanged(ctx, before, after, adminName(actor, after))
 		}
 		link, err := sessions.IssueSetupLink(ctx, actor, in.ID)
 		if mapped := rankError(err); mapped != nil {
@@ -465,10 +485,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		}
 		body := setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
 		if in.Body == nil || in.Body.Mail == nil || *in.Body.Mail {
-			mailLink(ctx, mailer, sessions, actor, link.Target, link, &body)
+			// The mailed link confirms the new address.
+			mailLink(ctx, mailer, sessions, actor, link.Target, link, &body, canSignIn(ctx, sessions, link.Target))
 		} else {
 			// No link went to a new address, so nothing else would confirm it.
-			confirmAddress(ctx, sessions, actor, before, after)
+			sessions.ConfirmNewAddress(ctx, before, after, adminName(actor, after))
 		}
 		return &setupLinkOutput{Body: body}, nil
 	})
@@ -593,6 +614,10 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			if err != nil {
 				return nil, err
 			}
+			// The address is written: the old one hears and the new one gets
+			// its confirmation now, so a later step that fails (a full argon2
+			// queue answers 503) cannot leave the change unannounced.
+			confirmAddress(ctx, sessions, actor, before, u)
 		}
 		if hasProfile {
 			u, err = users.SetProfile(ctx, in.ID, user.ProfileUpdate{DisplayName: update.DisplayName, Color: update.Color})
@@ -613,14 +638,17 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				}
 				return nil, err
 			}
+			// The password is written: the notice goes even if ending
+			// sessions fails. It goes to the address confirmed before this
+			// request, since a new one set above is not confirmed yet. guardTarget
+			// refuses every self-target, so the actor is always someone else.
+			sessions.PasswordChanged(ctx, before, mail.OriginAdmin, actor.DisplayName)
 			// A reset means the old credential is compromised or forgotten:
 			// every device logged in with it goes.
 			if err := sessions.DeleteUserSessionsExcept(ctx, in.ID, ""); err != nil {
 				return nil, err
 			}
 		}
-		// Only once the whole change went through: a refused PATCH mails nothing.
-		confirmAddress(ctx, sessions, actor, before, u)
 		return &userOutput{Body: toResponse(u)}, nil
 	})
 	auth.DeclareRetryAfter(api, http.MethodPatch, "/api/v1/users/{id}", http.StatusServiceUnavailable)

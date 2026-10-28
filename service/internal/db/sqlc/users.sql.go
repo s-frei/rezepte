@@ -515,6 +515,44 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 	return i, err
 }
 
+const userHasCredential = `-- name: UserHasCredential :one
+SELECT email, email_verified, CAST(password_hash != '' AS BOOLEAN) AS has_password, CAST((password_hash != '') OR EXISTS (
+    SELECT 1 FROM user_identities
+    WHERE user_identities.user_id = ?1 AND user_identities.created_at < ?2
+) AS BOOLEAN) AS has_credential
+FROM users WHERE id = ?1
+`
+
+type UserHasCredentialParams struct {
+	UserID string
+	Before string
+}
+
+type UserHasCredentialRow struct {
+	Email         string
+	EmailVerified bool
+	HasPassword   bool
+	HasCredential bool
+}
+
+// Whether the account could sign in before a time: a password, or an
+// identity linked before it. A setup link redeemed on such an account
+// replaces a credential rather than setting up a new person; the time is the
+// link's creation, since the OIDC setup links the identity before it
+// consumes the link. It also returns the address as it stood, read before
+// the redeem verifies one, so a notice goes where it was confirmed before.
+func (q *Queries) UserHasCredential(ctx context.Context, arg UserHasCredentialParams) (UserHasCredentialRow, error) {
+	row := q.db.QueryRowContext(ctx, userHasCredential, arg.UserID, arg.Before)
+	var i UserHasCredentialRow
+	err := row.Scan(
+		&i.Email,
+		&i.EmailVerified,
+		&i.HasPassword,
+		&i.HasCredential,
+	)
+	return i, err
+}
+
 const verifyEmailIfMatches = `-- name: VerifyEmailIfMatches :execrows
 UPDATE users SET email_verified = 1, updated_at = ?
 WHERE id = ? AND email = ? AND email != ''

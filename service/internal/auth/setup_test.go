@@ -276,7 +276,7 @@ func TestConsumeByHashVerifies(t *testing.T) {
 	_, _ = f.users.SetProfile(ctx, lena.ID, user.ProfileUpdate{Email: ptr("lena@example.org")})
 	link, _ := f.sessions.IssueSetupLink(ctx, f.owner, lena.ID)
 	_ = f.sessions.MarkSetupLinkSent(ctx, link.Token, "lena@example.org")
-	if _, err := f.sessions.ConsumeSetupLinkByHash(ctx, auth.SetupLinkHash(link.Token)); err != nil {
+	if _, err := f.sessions.ConsumeSetupLinkByHash(ctx, auth.SetupLinkHash(link.Token), true); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := f.users.ByID(ctx, lena.ID); !got.EmailVerified {

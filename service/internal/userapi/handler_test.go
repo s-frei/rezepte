@@ -57,6 +57,9 @@ type fakeMailer struct {
 	err      error // returned as is when set
 	sent     []mail.Invite
 	confirms []mail.Confirm
+	notices  []any // PasswordChanged and EmailChanged
+	// onConfirm runs when a confirmation is sent.
+	onConfirm func()
 }
 
 func (f *fakeMailer) Enabled(context.Context) bool                { return f.enabled }
@@ -68,6 +71,24 @@ func (f *fakeMailer) SendConfirm(_ context.Context, in mail.Confirm) error {
 		return mail.ErrDisabled
 	}
 	f.confirms = append(f.confirms, in)
+	if f.onConfirm != nil {
+		f.onConfirm()
+	}
+	return nil
+}
+
+func (f *fakeMailer) SendPasswordChanged(_ context.Context, in mail.PasswordChanged) error {
+	f.notices = append(f.notices, in)
+	return nil
+}
+
+func (f *fakeMailer) SendEmailChanged(_ context.Context, in mail.EmailChanged) error {
+	f.notices = append(f.notices, in)
+	return nil
+}
+
+func (f *fakeMailer) SendIdentityLinked(_ context.Context, in mail.IdentityLinked) error {
+	f.notices = append(f.notices, in)
 	return nil
 }
 
@@ -615,6 +636,17 @@ func TestTheOwnerRowIsRefusedAsATarget(t *testing.T) {
 	}
 }
 
+// An admin cannot reset their own password here either: the profile's
+// password change is the way, so update-user never mails a self-reset.
+func TestAdminCannotResetOwnPassword(t *testing.T) {
+	h := newHandler(t)
+	admin := loginAs(t, h, "sam", "pw")
+	row := userNamed(t, h, admin, "sam")
+	if rec := doReq(h, http.MethodPatch, "/api/v1/users/"+row.ID, `{"password":"password1"}`, admin); rec.Code != http.StatusForbidden {
+		t.Fatalf("admin resets own password: status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+}
+
 // userNamed finds a seeded user by name through the list endpoint.
 func userNamed(t *testing.T, h http.Handler, cookie *http.Cookie, name string) userapi.UserAccount {
 	t.Helper()
@@ -916,10 +948,10 @@ func TestHasIdentityFollowsEffectiveIssuer(t *testing.T) {
 	cookie := loginAs(t, h, "sam", "pw")
 	list := listUsers(t, h, cookie)
 	ctx := context.Background()
-	if err := users.LinkIdentity(ctx, idOf(t, list, "kim"), "https://id.example", "sub-kim"); err != nil {
+	if _, err := users.LinkIdentity(ctx, idOf(t, list, "kim"), "https://id.example", "sub-kim"); err != nil {
 		t.Fatal(err)
 	}
-	if err := users.LinkIdentity(ctx, idOf(t, list, "owner"), "https://old.example", "sub-owner"); err != nil {
+	if _, err := users.LinkIdentity(ctx, idOf(t, list, "owner"), "https://old.example", "sub-owner"); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
@@ -1169,5 +1201,170 @@ func TestUnmailedSetupLinkWithEmailMailsConfirmation(t *testing.T) {
 	doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", `{"mail":false,"email":"kim@new.org"}`, c)
 	if len(m.confirms) != 1 {
 		t.Fatalf("unchanged address mailed again: %+v", m.confirms)
+	}
+}
+
+func TestAdminPasswordResetMailsHolder(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim.ID, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	if rec := doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"password":"kim-new-pw"}`, c); rec.Code != 200 {
+		t.Fatalf("patch = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.notices) != 1 {
+		t.Fatalf("notices = %+v", m.notices)
+	}
+	pc, ok := m.notices[0].(mail.PasswordChanged)
+	if !ok || pc.To != "kim@example.org" || pc.Origin != mail.OriginAdmin || pc.Admin != "sam" {
+		t.Fatalf("notice = %+v", m.notices[0])
+	}
+}
+
+func TestAddressChangeByAdminNamesAdmin(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim.ID, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	if rec := doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@new.org"}`, c); rec.Code != 200 {
+		t.Fatalf("patch = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.notices) != 1 {
+		t.Fatalf("notices = %+v", m.notices)
+	}
+	ac, ok := m.notices[0].(mail.EmailChanged)
+	if !ok || ac.To != "kim@example.org" || ac.NewAddress != "kim@new.org" || ac.Admin != "sam" {
+		t.Fatalf("notice = %+v", m.notices[0])
+	}
+	if len(m.confirms) != 1 || m.confirms[0].To != "kim@new.org" {
+		t.Fatalf("confirms = %+v", m.confirms)
+	}
+}
+
+func TestMailedSetupLinkToNewAddressNotifiesOldAddress(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim.ID, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	if rec := doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", `{"mail":true,"email":"kim@new.org"}`, c); rec.Code != 201 {
+		t.Fatalf("issue = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.notices) != 1 {
+		t.Fatalf("notices = %+v", m.notices)
+	}
+	ac, ok := m.notices[0].(mail.EmailChanged)
+	if !ok || ac.To != "kim@example.org" || ac.NewAddress != "kim@new.org" || ac.Admin != "sam" {
+		t.Fatalf("notice = %+v", m.notices[0])
+	}
+	if len(m.sent) != 1 || m.sent[0].To != "kim@new.org" {
+		t.Fatalf("invites = %+v", m.sent)
+	}
+}
+
+// The address is committed before the password step. When that step fails
+// (here the request ends; a full argon2 queue answers 503), the old address
+// has heard and the new one has its confirmation all the same.
+func TestAddressNoticesSurviveALaterFailure(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim.ID, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m.onConfirm = cancel // the password step after the address fails
+	req := httptest.NewRequestWithContext(ctx, "PATCH", "/api/v1/users/"+kim.ID, strings.NewReader(`{"email":"kim@new.org","password":"kim-new-pw"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Host = "localhost:8060"
+	req.Header.Set("Origin", "http://localhost:8060")
+	req.AddCookie(c)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code < 400 {
+		t.Fatalf("patch = %d %s, want a failure", rec.Code, rec.Body)
+	}
+	if after, _ := users.ByID(context.Background(), kim.ID); after.Email != "kim@new.org" {
+		t.Fatalf("address = %q, want the new one stored", after.Email)
+	}
+	if len(m.notices) != 1 {
+		t.Fatalf("notices = %+v, want the address notice only", m.notices)
+	}
+	if ac, ok := m.notices[0].(mail.EmailChanged); !ok || ac.To != "kim@example.org" || ac.NewAddress != "kim@new.org" {
+		t.Fatalf("notice = %+v", m.notices[0])
+	}
+	if len(m.confirms) != 1 || m.confirms[0].To != "kim@new.org" {
+		t.Fatalf("confirms = %+v", m.confirms)
+	}
+}
+
+// A setup link to an account that can sign in already is not an invitation
+// to a new account: its mail has the copy for an existing one.
+func TestSetupLinkMailForExistingAccount(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim.ID, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	if rec := doReq(h, "POST", "/api/v1/users/"+kim.ID+"/setup-link", ``, c); rec.Code != 201 {
+		t.Fatalf("issue = %d %s", rec.Code, rec.Body)
+	}
+	// lena is new; then she signs in through a provider - any provider,
+	// even one the instance no longer uses, as redeeming counts it.
+	id := createMember(t, h, c, "lena", "lena@example.org")
+	if _, err := users.LinkIdentity(context.Background(), id, "https://old.example", "sub-lena"); err != nil {
+		t.Fatal(err)
+	}
+	if rec := doReq(h, "POST", "/api/v1/users/"+id+"/setup-link", ``, c); rec.Code != 201 {
+		t.Fatalf("issue = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.sent) != 3 || !m.sent[0].Existing || m.sent[1].Existing || !m.sent[2].Existing {
+		t.Fatalf("invites = %+v, want kim's existing, lena's new then existing", m.sent)
+	}
+}
+
+// A PATCH that changes address and password together still tells the address
+// confirmed before it about the password: the new one is not confirmed yet.
+func TestAddressAndPasswordChangeMailsOldAddressBoth(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if err := users.SetEmailIfEmpty(context.Background(), kim.ID, "kim@example.org", true); err != nil {
+		t.Fatal(err)
+	}
+	if rec := doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@new.org","password":"kim-new-pw"}`, c); rec.Code != 200 {
+		t.Fatalf("patch = %d %s", rec.Code, rec.Body)
+	}
+	var pc *mail.PasswordChanged
+	var ac *mail.EmailChanged
+	for _, n := range m.notices {
+		switch v := n.(type) {
+		case mail.PasswordChanged:
+			pc = &v
+		case mail.EmailChanged:
+			ac = &v
+		}
+	}
+	if len(m.notices) != 2 || pc == nil || ac == nil {
+		t.Fatalf("notices = %+v, want one PasswordChanged and one EmailChanged", m.notices)
+	}
+	if pc.To != "kim@example.org" || pc.Origin != mail.OriginAdmin || pc.Admin != "sam" {
+		t.Fatalf("password notice = %+v", *pc)
+	}
+	if ac.To != "kim@example.org" || ac.NewAddress != "kim@new.org" || ac.Admin != "sam" {
+		t.Fatalf("address notice = %+v", *ac)
 	}
 }

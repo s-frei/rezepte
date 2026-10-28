@@ -10,7 +10,7 @@ import (
 )
 
 const consumeSetupLink = `-- name: ConsumeSetupLink :one
-DELETE FROM setup_links WHERE id = ? AND expires_at > ? RETURNING user_id, sent_to
+DELETE FROM setup_links WHERE id = ? AND expires_at > ? RETURNING user_id, sent_to, created_by, purpose, created_at
 `
 
 type ConsumeSetupLinkParams struct {
@@ -19,8 +19,11 @@ type ConsumeSetupLinkParams struct {
 }
 
 type ConsumeSetupLinkRow struct {
-	UserID string
-	SentTo string
+	UserID    string
+	SentTo    string
+	CreatedBy string
+	Purpose   string
+	CreatedAt string
 }
 
 // Delete-returning makes redemption atomic: of two requests with the same
@@ -28,7 +31,13 @@ type ConsumeSetupLinkRow struct {
 func (q *Queries) ConsumeSetupLink(ctx context.Context, arg ConsumeSetupLinkParams) (ConsumeSetupLinkRow, error) {
 	row := q.db.QueryRowContext(ctx, consumeSetupLink, arg.ID, arg.ExpiresAt)
 	var i ConsumeSetupLinkRow
-	err := row.Scan(&i.UserID, &i.SentTo)
+	err := row.Scan(
+		&i.UserID,
+		&i.SentTo,
+		&i.CreatedBy,
+		&i.Purpose,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 

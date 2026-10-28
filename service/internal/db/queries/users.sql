@@ -99,3 +99,16 @@ WHERE id = ? AND email = ? AND email != '';
 SELECT * FROM users
 WHERE lower(email) = lower(sqlc.arg(address)) AND email_verified = 1 AND email != ''
 ORDER BY username;
+
+-- Whether the account could sign in before a time: a password, or an
+-- identity linked before it. A setup link redeemed on such an account
+-- replaces a credential rather than setting up a new person; the time is the
+-- link's creation, since the OIDC setup links the identity before it
+-- consumes the link. It also returns the address as it stood, read before
+-- the redeem verifies one, so a notice goes where it was confirmed before.
+-- name: UserHasCredential :one
+SELECT email, email_verified, CAST(password_hash != '' AS BOOLEAN) AS has_password, CAST((password_hash != '') OR EXISTS (
+    SELECT 1 FROM user_identities
+    WHERE user_identities.user_id = sqlc.arg(user_id) AND user_identities.created_at < sqlc.arg(before)
+) AS BOOLEAN) AS has_credential
+FROM users WHERE id = sqlc.arg(user_id);
