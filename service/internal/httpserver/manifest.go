@@ -11,10 +11,9 @@ import (
 // (not Accept-Language) decides, like the rest of the server-rendered text.
 func ManifestHandler(fsys fs.FS, locale string) http.Handler {
 	name := "manifest.webmanifest"
-	if localized := "manifest." + locale + ".webmanifest"; locale != "" {
-		if _, err := fs.Stat(fsys, localized); err == nil {
-			name = localized
-		}
+	localized := "manifest." + locale + ".webmanifest"
+	if _, err := fs.Stat(fsys, localized); err == nil {
+		name = localized
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/manifest+json")
