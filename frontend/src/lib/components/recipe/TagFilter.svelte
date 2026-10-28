@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import type { Tag } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
@@ -8,7 +8,8 @@
 	let {
 		tags,
 		active,
-		ontoggle
+		ontoggle,
+		leading
 	}: {
 		/** The tags that still narrow the grid under its other filters, with
 		 * their counts there, plus the chosen ones (see the overview page). */
@@ -16,6 +17,10 @@
 		/** Currently selected tag names. */
 		active: string[];
 		ontoggle: (name: string) => void;
+		/** Opens the row ahead of the first tag - the overview's active
+		 * filters - so an unfolded row wraps under it rather than beside it.
+		 * The folded row leaves it its width. */
+		leading?: Snippet;
 	} = $props();
 
 	const GAP_PX = 8; // gap-2
@@ -31,7 +36,9 @@
 	let row = $state<HTMLDivElement | null>(null);
 	/** Off-screen twin of `row` holding every chip, for width measurement. */
 	let measureRow = $state<HTMLDivElement | null>(null);
-	/** The "+N weitere" button's own width, measured off-screen (see below). */
+	/** What `leading` renders, to take its width off the row's. */
+	let lead = $state<HTMLSpanElement | null>(null);
+	/** The "+N more" button's own width, measured off-screen (see below). */
 	let moreButton = $state<HTMLButtonElement | null>(null);
 	/**
 	 * Names the folded row shows; all of them until `measure()` has run.
@@ -52,6 +59,13 @@
 		row = node;
 		return () => {
 			row = null;
+		};
+	}
+
+	function registerLead(node: HTMLSpanElement) {
+		lead = node;
+		return () => {
+			lead = null;
 		};
 	}
 
@@ -87,7 +101,7 @@
 	// sized and "visible" by computed style, permanently invisible in
 	// practice. Splitting measurement from display removes that trap.
 	//
-	// The "+N weitere" button has the same chicken-and-egg problem on its
+	// The "+N more" button has the same chicken-and-egg problem on its
 	// own: its width can't come from its own in-flow instance, because that
 	// instance only exists once we already know some chips are hidden.
 	// Instead an invisible, out-of-flow copy of the button is always
@@ -105,7 +119,7 @@
 			return;
 		}
 
-		const rowWidth = row.clientWidth;
+		const rowWidth = row.clientWidth - (lead ? lead.offsetWidth + GAP_PX : 0);
 		const totalWidth = chips.reduce(
 			(sum, chip, i) => sum + chip.offsetWidth + (i > 0 ? GAP_PX : 0),
 			0
@@ -183,12 +197,16 @@
 		if (measureRow) {
 			observer.observe(measureRow);
 		}
+		// The leading filters change width as they are set and cleared.
+		if (lead) {
+			observer.observe(lead);
+		}
 		measure();
 		return () => observer.disconnect();
 	});
 </script>
 
-{#if tags.length > 0}
+{#if tags.length > 0 || leading}
 	<!-- Folded, the row is one clipped line (`overflow-hidden`) holding the
 	     chips `measure()` found room for - always in `tags` order, however
 	     they were picked. Unfolded, it wraps instead: the clip has to go, or
@@ -199,6 +217,9 @@
 		{@attach registerRow}
 		class="flex min-w-0 flex-1 items-center gap-2 {expanded ? 'flex-wrap' : 'overflow-hidden'}"
 	>
+		{#if leading}
+			<span {@attach registerLead} class="shrink-0">{@render leading()}</span>
+		{/if}
 		{#each shown as tag (tag.name)}
 			<span class="shrink-0">
 				<TagChip
@@ -232,7 +253,7 @@
 	</div>
 	<!-- Off-screen measuring twin: every chip, laid out exactly like the real
 	     ones (same interactive TagChip variant, same active state) so their
-	     widths match, plus a stand-in "+N weitere" button. `absolute` is
+	     widths match, plus a stand-in "+N more" button. `absolute` is
 	     what takes this second root element out of the parent's flex layout
 	     and out of its scroll extents -- without it this row would compete
 	     for space with `row` above instead of floating free of it; `h-0 w-0

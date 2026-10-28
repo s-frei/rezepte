@@ -2,7 +2,6 @@
 	import { onMount, untrack } from 'svelte';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import Plus from '@lucide/svelte/icons/plus';
-	import X from '@lucide/svelte/icons/x';
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -26,7 +25,6 @@
 	import ResultCount from '$lib/components/recipe/ResultCount.svelte';
 	import SearchBar from '$lib/components/recipe/SearchBar.svelte';
 	import TagFilter from '$lib/components/recipe/TagFilter.svelte';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { formatDay } from '$lib/recipe/format';
 	import { overviewViewState } from '$lib/recipe/overview-state';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
@@ -180,8 +178,9 @@
 	function refreshTags() {
 		const filters = { tags, maxMinutes, favorites: favoritesOnly, author };
 		suggestedTags.load(filters);
-		// The row is desktop's only; a phone would fetch it for nothing.
-		if (q && matchMedia('(min-width: 768px)').matches) {
+		// Fetched on a phone too, where the row is hidden: it shows again,
+		// with these counts, when the window widens.
+		if (q) {
 			rowTags.load({ ...filters, q });
 		} else {
 			rowTags.abort();
@@ -326,12 +325,18 @@
 		void fetchPage(1, false);
 	}
 
+	// Sort is deliberately left alone: it isn't a filter (see the note on
+	// filterCount), so "reset filters" doesn't touch it - someone who wants
+	// the default order back uses the sort control itself, which is where
+	// they set it.
 	function resetFilters() {
-		// Sort is deliberately left alone: it isn't a filter (see the note on
-		// filterCount), so "reset filters" doesn't touch it - someone who
-		// wants the default order back uses the sort control itself, which is
-		// where they set it.
 		q = '';
+		clearFilters();
+	}
+
+	// The phone's folded bar clears what it shows and keeps the search text,
+	// which stands in the field above it.
+	function clearFilters() {
 		tags = [];
 		maxMinutes = 0;
 		favoritesOnly = false;
@@ -507,14 +512,25 @@
 		     has the room to spell everything out ahead of its row of the tags
 		     still on offer. On a phone that row cost a line folded and a
 		     screen unfolded, so tags are found through the search's
-		     suggestions there, only the chosen ones show, and the panel's
-		     chips fold into one once the row runs out of room. -->
-		<div class="hidden md:flex md:items-center md:gap-2">
-			<ActiveFilters {...filterProps} class="contents" focusfallback={focusFilters} />
-			{#if filterCount > tags.length}
-				<span aria-hidden="true" class="mx-1 h-6 w-px shrink-0 bg-border"></span>
-			{/if}
-			<TagFilter tags={rowOptions} active={tags} ontoggle={toggleTag} />
+		     suggestions there, only the chosen ones show, and chips and tags
+		     fold into one bar once the row runs out of room. -->
+		<!-- The panel's filters lie in a faint tray of their own, which sets
+		     them apart from the tags on offer without a rule floating between
+		     the two; as the row's first item, an unfolded row wraps under it. -->
+		{#snippet panelFilters()}
+			<ActiveFilters
+				{...filterProps}
+				class="flex gap-1 rounded-pill bg-text/7 p-0.5"
+				focusfallback={focusFilters}
+			/>
+		{/snippet}
+		<div class="hidden md:flex">
+			<TagFilter
+				tags={rowOptions}
+				active={tags}
+				ontoggle={toggleTag}
+				leading={filterCount > tags.length ? panelFilters : undefined}
+			/>
 		</div>
 		{#if filterCount > 0 || sort !== 'updated'}
 			<ActiveFilters
@@ -527,23 +543,13 @@
 					// the reader's own remembered one is let go of.
 					setSort('updated', sort === readSort());
 				}}
+				{tags}
+				ontagremove={toggleTag}
+				onreset={clearFilters}
 				collapsible
 				class="flex flex-wrap gap-2 md:hidden"
 				focusfallback={focusFilters}
-			>
-				{#each tags as name (name)}
-					<TagChip
-						label={name}
-						active
-						ariaLabel={m.overview_filter_remove({ name })}
-						onclick={() => toggleTag(name)}
-					>
-						{#snippet trailing()}
-							<X class="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
-						{/snippet}
-					</TagChip>
-				{/each}
-			</ActiveFilters>
+			/>
 		{/if}
 	</div>
 

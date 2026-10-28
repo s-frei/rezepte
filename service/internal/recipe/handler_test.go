@@ -531,6 +531,27 @@ func TestTags(t *testing.T) {
 	if got := counts("?favorites=true"); got["fleisch"] != 1 || got["schmoren"] != 0 {
 		t.Fatalf("favorites filter: counts = %+v", got)
 	}
+
+	// The author facet is a whole person on the wire, flattened: the filter's
+	// chips build the picture's URL from id and avatarId, as a card does.
+	rec := doReq(h, http.MethodGet, "/api/v1/authors", "", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("authors status %d: %s", rec.Code, rec.Body.String())
+	}
+	var authors struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &authors); err != nil {
+		t.Fatal(err)
+	}
+	if len(authors.Items) != 1 {
+		t.Fatalf("authors = %+v, want one", authors.Items)
+	}
+	for _, key := range []string{"id", "username", "displayName", "color", "avatarId", "count"} {
+		if _, ok := authors.Items[0][key]; !ok {
+			t.Errorf("author lacks %q: %+v", key, authors.Items[0])
+		}
+	}
 }
 
 func TestSearchAndTagQuery(t *testing.T) {

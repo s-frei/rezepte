@@ -329,7 +329,10 @@ func (s *Service) Authors(ctx context.Context) ([]AuthorCount, error) {
 	}
 	out := make([]AuthorCount, len(rows))
 	for i, r := range rows {
-		out[i] = AuthorCount{Username: r.Username, DisplayName: r.DisplayName, Color: r.Color, Count: int(r.RecipeCount)}
+		out[i] = AuthorCount{
+			Person: Person{ID: r.ID, Username: r.Username, DisplayName: r.DisplayName, Color: r.Color, AvatarID: r.AvatarID},
+			Count:  int(r.RecipeCount),
+		}
 	}
 	return out, nil
 }

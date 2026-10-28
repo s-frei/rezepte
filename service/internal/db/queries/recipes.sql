@@ -102,10 +102,10 @@ SELECT id, username, display_name, color, avatar_id FROM users WHERE id IN (sqlc
 -- "added by" filter. Counting here rather than in Go keeps the list and
 -- its counts one statement, the way ListTagCounts does.
 -- name: ListAuthorsWithCount :many
-SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
+SELECT u.id, u.username, u.display_name, u.color, u.avatar_id, COUNT(r.id) AS recipe_count
 FROM users u
 JOIN recipes r ON r.created_by = u.id
-GROUP BY u.id, u.username, u.display_name, u.color
+GROUP BY u.id, u.username, u.display_name, u.color, u.avatar_id
 ORDER BY recipe_count DESC, u.username;
 
 -- name: SetFavorite :exec

@@ -394,17 +394,19 @@ func (q *Queries) ListAuthorsForIDs(ctx context.Context, ids []string) ([]ListAu
 }
 
 const listAuthorsWithCount = `-- name: ListAuthorsWithCount :many
-SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
+SELECT u.id, u.username, u.display_name, u.color, u.avatar_id, COUNT(r.id) AS recipe_count
 FROM users u
 JOIN recipes r ON r.created_by = u.id
-GROUP BY u.id, u.username, u.display_name, u.color
+GROUP BY u.id, u.username, u.display_name, u.color, u.avatar_id
 ORDER BY recipe_count DESC, u.username
 `
 
 type ListAuthorsWithCountRow struct {
+	ID          string
 	Username    string
 	DisplayName string
 	Color       string
+	AvatarID    *string
 	RecipeCount int64
 }
 
@@ -421,9 +423,11 @@ func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCo
 	for rows.Next() {
 		var i ListAuthorsWithCountRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.Username,
 			&i.DisplayName,
 			&i.Color,
+			&i.AvatarID,
 			&i.RecipeCount,
 		); err != nil {
 			return nil, err

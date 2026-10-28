@@ -313,6 +313,8 @@
 	"overview_tags_less": "Weniger",
 	"overview_filter": "Filter",
 	"overview_filter_reset": "Alle Filter zurücksetzen",
+	"overview_filter_clear_all": "Alle",
+	"overview_filter_clear_all_label": "Filter und Tags löschen",
 	"overview_active_count": "{count} aktiv",
 	"overview_filter_remove": "Filter {name} entfernen",
 	"overview_filter_done": "Fertig",

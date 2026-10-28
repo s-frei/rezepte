@@ -159,8 +159,7 @@
 			case 'Escape':
 				if (listboxOpen) {
 					event.preventDefault();
-					open = false;
-					highlighted = -1;
+					close();
 				}
 				break;
 		}
@@ -221,10 +220,7 @@
 			// click on the field would not fire focus again.
 			open = true;
 		}}
-		onblur={() => {
-			open = false;
-			highlighted = -1;
-		}}
+		onblur={close}
 		onkeydown={handleKeydown}
 		type="text"
 		inputmode="search"

@@ -5,13 +5,13 @@
 	import type { TransitionConfig } from 'svelte/transition';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import Slider from '$lib/components/ui/Slider.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { formatMinutes } from '$lib/recipe/format';
 	import { isSort, type Sort } from '$lib/recipe/query';
 	import type { Author } from '$lib/api/recipes';
-	import { userColorClasses } from '$lib/user/color';
 	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '$lib/recipe/time-filter';
 	import { m } from '$lib/paraglide/messages';
 
@@ -83,7 +83,7 @@
 		onsort: (value: Sort) => void;
 		onreset: () => void;
 		/** Whether the panel is showing; bindable so the active-filter chips
-		 * on the page can open it at the filters they name. */
+		 * on the page can open it. */
 		open?: boolean;
 	} = $props();
 
@@ -109,11 +109,6 @@
 			onsort(value);
 		}
 	}
-
-	// Open state is the panel's own: nothing outside it opens the panel any
-	// more - the tag chip row used to, back when the hidden tags lived in
-	// here - so the trigger and the "Fertig" button are the only two things
-	// that move it.
 
 	// Where the thumb sits, which is not the same thing as the filter that is
 	// running: the label has to follow the drag from the first step, while
@@ -323,10 +318,7 @@
 												onclick={() => onauthor(author === person.username ? '' : person.username)}
 											>
 												{#snippet leading()}
-													<span
-														aria-hidden="true"
-														class="size-3 rounded-full {userColorClasses(person.color)}"
-													></span>
+													<PersonMark {person} size="xs" />
 												{/snippet}
 											</TagChip>
 										{/each}
@@ -370,7 +362,7 @@
 						     as thin as 15dvh (`max-h-[85dvh]`) and signals nothing
 						     tappable, so relying on it alone as the only way out isn't
 						     enough. Filters apply live - nothing here is a pending
-						     change to confirm - so "Fertig" just closes the panel;
+						     change to confirm - so "Done" just closes the panel;
 						     "Reset all filters" only joins it once something is
 						     active. Stacked full-width on phones, inline on desktop,
 						     to keep the longer reset label from wrapping mid-word. -->

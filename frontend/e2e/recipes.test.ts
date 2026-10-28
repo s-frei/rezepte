@@ -1812,8 +1812,8 @@ test("shows the panel's filters as chips", async ({ page }) => {
 	await expect(page.getByRole('dialog')).toBeVisible();
 });
 
-// On a phone the panel's chips fold into one once they and the chosen tags
-// would need a second line - not merely because there are several.
+// On a phone the panel's chips and the chosen tags fold into one bar once
+// they would need a second line - not merely because there are several.
 test("folds the panel's filters only when the row runs out of room", async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 780 });
 
@@ -1821,15 +1821,70 @@ test("folds the panel's filters only when the row runs out of room", async ({ pa
 	await expect(page.getByRole('button', { name: 'Remove filter up to 3 hr' })).toBeVisible();
 	await expect(page.getByRole('button', { name: /^\d active/ })).toHaveCount(0);
 
-	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
-	const folded = page.getByRole('button', { name: /^3 active/ });
+	const tag = uniqueToken();
+	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${tag}`);
+	// The tags fold in with the filters, and the bar counts them too.
+	const folded = page.getByRole('button', { name: /^4 active/ });
 	await expect(folded).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Remove filter Favorites' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: `Remove filter ${tag}` })).toHaveCount(0);
 
 	await folded.click();
 	await expect(page.getByRole('button', { name: 'Remove filter Favorites' })).toBeVisible();
+	await expect(page.getByRole('button', { name: `Remove filter ${tag}` })).toBeVisible();
 	await page.getByRole('button', { name: 'Less', exact: true }).click();
 	await expect(folded).toBeVisible();
+});
+
+// The folded bar's "All" clears the filters and the tags at once - and
+// leaves the order, which is not a filter, and the search text, which the
+// bar does not show.
+test('clears every filter from the folded bar', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	await page.goto(`/?q=zz&maxMinutes=90&author=admin&tags=${uniqueToken()}&sort=title`);
+	// Three filters - the order is not counted as one.
+	await expect(page.getByRole('button', { name: /^3 active/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Clear filters and tags' }).click();
+	await expect(page).not.toHaveURL(/maxMinutes=|author=|tags=/);
+	await expect(page).toHaveURL(/sort=title/);
+	await expect(page).toHaveURL(/q=zz/);
+	await expect(page.getByRole('button', { name: /active/ })).toHaveCount(0);
+});
+
+// Tags alone fold too, once they no longer fit on one line.
+test('folds the chosen tags alone when they run out of room', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	const tags = [0, 1, 2].map((i) => `${uniqueToken()}-long-tag-${i}`);
+	await page.goto(`/?tags=${tags.join(',')}`);
+	await expect(page.getByRole('button', { name: /^3 active/ })).toBeVisible();
+	await expect(page.getByRole('button', { name: `Remove filter ${tags[0]}` })).toHaveCount(0);
+});
+
+// On desktop the panel's filters open the tag row in a tray of their own;
+// unfolded, the tags wrap under it rather than standing in a column beside it.
+test('wraps the unfolded tag row under the filters', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'phones have no row of every tag');
+	await page.setViewportSize({ width: 1024, height: 800 });
+	await page.route(
+		(url) => url.pathname === '/api/v1/tags',
+		(route) =>
+			route.fulfill({
+				json: {
+					items: Array.from({ length: 16 }, (_, i) => ({ name: `wrap-tag-${i}`, count: 9 }))
+				}
+			})
+	);
+	await page.goto('/?maxMinutes=180');
+	await page.getByRole('button', { name: /^\+\d+ more$/ }).click();
+
+	const filter = await page.getByRole('button', { name: /^up to 3 hr/ }).boundingBox();
+	const last = await page.getByRole('button', { name: /^wrap-tag-15/ }).boundingBox();
+	// A later line starts where the filters do, at the row's left edge.
+	const lefts = await page
+		.getByRole('button', { name: /^wrap-tag-/ })
+		.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().left)));
+	expect(last!.y).toBeGreaterThan(filter!.y + filter!.height);
+	expect(Math.min(...lefts)).toBeLessThanOrEqual(Math.round(filter!.x));
 });
 
 // A chip removes itself when used. The keyboard's focus moves on to the
@@ -1847,13 +1902,20 @@ test('keeps the keyboard in the chip row when a filter is removed', async ({ pag
 	// the folded chip.
 	await page.setViewportSize({ width: 360, height: 780 });
 	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
-	const folded = page.getByRole('button', { name: /^3 active/ });
+	const folded = page.getByRole('button', { name: /^4 active/ });
 	await folded.focus();
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('button', { name: /^up to 1 hr 30/ })).toBeFocused();
 	await page.getByRole('button', { name: 'Less', exact: true }).focus();
 	await page.keyboard.press('Enter');
 	await expect(folded).toBeFocused();
+
+	// "All" leaves only the order's chip, and the focus on its label - not on
+	// its ×, which a second Enter would take the order away with.
+	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&sort=title`);
+	await page.getByRole('button', { name: 'Clear filters and tags' }).focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('button', { name: 'A–Z', exact: true })).toBeFocused();
 });
 
 // The search field is a combobox: the arrow keys walk the suggestions while

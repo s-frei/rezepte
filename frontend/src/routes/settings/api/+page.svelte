@@ -22,11 +22,11 @@
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import PersonDot from '$lib/components/ui/PersonDot.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { tokenSupply } from '$lib/settings/token-access';
-	import { userColorClasses } from '$lib/user/color';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -230,10 +230,7 @@
 								onclick={() => pickPerson(issuer.id)}
 							>
 								{#snippet leading()}
-									<span
-										aria-hidden="true"
-										class="size-3 rounded-full {userColorClasses(issuer.color)}"
-									></span>
+									<PersonDot color={issuer.color} />
 								{/snippet}
 							</TagChip>
 						{/each}

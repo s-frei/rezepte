@@ -287,11 +287,12 @@ export async function listTags(
 	init: RequestInit = {}
 ): Promise<Tag[]> {
 	const qs = buildListQuery({
-		q: params.q ?? '',
-		tags: params.tags ?? [],
-		maxMinutes: params.maxMinutes ?? 0,
-		favorites: params.favorites ?? false,
-		author: params.author ?? '',
+		q: '',
+		tags: [],
+		maxMinutes: 0,
+		favorites: false,
+		author: '',
+		...params,
 		sort: 'updated',
 		page: 1
 	});
@@ -299,8 +300,8 @@ export async function listTags(
 	return page.items;
 }
 
-/** `name` is the username the ?author= filter matches; the rest is what the facet shows. */
-export type Author = { username: string; displayName: string; color: UserColor; count: number };
+/** `username` is what the ?author= filter matches; the rest is what the facet shows. */
+export type Author = Person & { count: number };
 
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the

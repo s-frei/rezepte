@@ -502,18 +502,24 @@ func TestCardsCarryTheAuthorsPerson(t *testing.T) {
 		t.Errorf("detail people = %+v / %+v; want %+v for both", detail.CreatedBy, detail.UpdatedBy, want)
 	}
 
+	// The "added by" facet carries the same person, the picture included, so
+	// its chips show who it is the way a card does.
+	picture := "pic1"
+	if _, err := testConns[t].ExecContext(ctx, "UPDATE users SET avatar_id = ? WHERE id = ?", picture, authorID); err != nil {
+		t.Fatal(err)
+	}
+	want.AvatarID = &picture
 	authors, err := svc.Authors(ctx)
 	if err != nil {
 		t.Fatalf("authors: %v", err)
 	}
-	if len(authors) != 1 {
-		t.Fatalf("authors = %+v, want exactly one", authors)
+	if len(authors) != 1 || authors[0].Count != 1 {
+		t.Fatalf("authors = %+v, want exactly one, with one recipe", authors)
 	}
-	if authors[0].Username != "mia" {
-		t.Errorf("Username = %q; want the login name, which the filter matches on", authors[0].Username)
-	}
-	if authors[0].DisplayName != "Sam der Koch" || authors[0].Color != "teal" {
-		t.Errorf("facet = %q / %q; want the display name and teal", authors[0].DisplayName, authors[0].Color)
+	got := authors[0].Person
+	if got.ID != want.ID || got.Username != want.Username || got.DisplayName != want.DisplayName ||
+		got.Color != want.Color || got.AvatarID == nil || *got.AvatarID != picture {
+		t.Errorf("facet person = %+v; want %+v with avatar %q", got, want, picture)
 	}
 }
 

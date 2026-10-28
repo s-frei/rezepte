@@ -157,10 +157,9 @@ type TagCount struct {
 
 // AuthorCount is an author paired with how many recipes they wrote. Username
 // is what the ?author= filter matches and what a filter link therefore has to
-// survive a rename with. DisplayName and Color are what the facet shows.
+// survive a rename with. The rest of Person is what the facet shows: the
+// name, and the picture or the initial on the color, as on a card.
 type AuthorCount struct {
-	Username    string `json:"username"`
-	DisplayName string `json:"displayName"`
-	Color       string `json:"color"`
-	Count       int    `json:"count"`
+	Person
+	Count int `json:"count"`
 }

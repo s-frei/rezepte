@@ -1,13 +1,15 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Star from '@lucide/svelte/icons/star';
+	import TagIcon from '@lucide/svelte/icons/tag';
+	import UserRound from '@lucide/svelte/icons/user-round';
 	import X from '@lucide/svelte/icons/x';
 	import type { Author } from '$lib/api/recipes';
+	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { formatMinutes } from '$lib/recipe/format';
-	import { userColorClasses } from '$lib/user/color';
 	import { m } from '$lib/paraglide/messages';
 
 	let {
@@ -22,7 +24,9 @@
 		onauthor,
 		sortLabel = '',
 		onsortreset,
-		children,
+		tags = [],
+		ontagremove,
+		onreset,
 		focusfallback,
 		class: className = 'flex flex-wrap gap-2'
 	}: {
@@ -32,8 +36,8 @@
 		author: string;
 		/** For the chosen author's display name and color. */
 		authors: Author[];
-		/** Phones: once the row would need a second line, fold two or more
-		 * of these chips into one that unfolds them again. */
+		/** Phones: once the row would need a second line, fold everything in
+		 * it, the tags too, into one bar that unfolds it again. */
 		collapsible?: boolean;
 		/** Opens the filter panel, where each of these is changed. */
 		onopen: () => void;
@@ -45,25 +49,27 @@
 		sortLabel?: string;
 		/** Back to the default order. */
 		onsortreset?: () => void;
-		/** Rendered after the filter chips, before "Less" - the phone's tags. */
-		children?: Snippet;
+		/** The chosen tags, after the panel's chips - the phone's, where no
+		 * tag row shows them. */
+		tags?: string[];
+		ontagremove?: (name: string) => void;
+		/** Clears the filters and the tags at once, as the panel's reset
+		 * does; offered on the folded bar. */
+		onreset?: () => void;
 		/** Where the keyboard goes when the last control in the row removes
 		 * itself, and the row with it - the "Filters" button on the overview,
 		 * not the search field, whose focus would open its suggestions. */
 		focusfallback?: () => void;
-		/** Classes of the row itself; `contents` hands the chips to the
-		 * caller's own row, as on desktop. */
+		/** Classes of the row itself, e.g. desktop's tray. */
 		class?: string;
 	} = $props();
 
 	type Chip = { key: string; label: string; remove: () => void; removeLabel?: string };
 
-	const GAP_PX = 8; // gap-2
-
-	/** Whether every chip, spelled out, fits the row on one line. */
+	/** Whether everything, spelled out, fits the row on one line. */
 	let fits = $state(true);
 	let row = $state<HTMLDivElement | null>(null);
-	/** Off-screen copy of the spelled-out filter chips, for their widths. */
+	/** Off-screen copy of the spelled-out row, for its width. */
 	let twin = $state<HTMLDivElement | null>(null);
 
 	const person = $derived(authors.find((entry) => entry.username === author));
@@ -98,7 +104,10 @@
 			] as (Chip | false)[]
 		).filter((chip): chip is Chip => chip !== false)
 	);
-	const crowded = $derived(collapsible && chips.length >= 2 && !fits);
+	/** The chips that narrow the grid - all but the order, which the bar
+	 * shows with an icon but does not count or list as a filter. */
+	const filters = $derived(chips.filter((chip) => chip.key !== 'sort'));
+	const crowded = $derived(collapsible && chips.length + tags.length >= 2 && !fits);
 	// Unfolded by hand, the row stays unfolded only while it stays crowded:
 	// any change of `crowded` resets it, so the next crowding folds again.
 	// A writable derived - assigning it overrides the value until then.
@@ -116,10 +125,10 @@
 	}
 
 	// Almost every control here removes itself when used: a ×, a tag, the
-	// folded chip as it unfolds, "Less" as it folds. Left alone, the
-	// keyboard's focus would fall back to the page, so after the update it
-	// moves to whatever took the control's place: "Less" hands it to the
-	// folded chip, everything else to the control now at the same position,
+	// folded bar as it unfolds or clears, "Less" as it folds. Left alone,
+	// the keyboard's focus would fall back to the page, so after the update
+	// it moves to whatever took the control's place: "Less" hands it to the
+	// folded bar, everything else to the control now at the same position,
 	// the last one to `focusfallback`. Whenever the control held the focus,
 	// which a screen reader's double tap gives it without `:focus-visible`;
 	// focusing a button after a pointer draws no ring. The fallback only for
@@ -133,6 +142,9 @@
 		const keyboard = button.matches(':focus-visible');
 		const index = controls().indexOf(button);
 		const folding = button.getAttribute('aria-expanded') === 'true';
+		// "All" leaves at most the order's chip; its label, not its ×, which
+		// a second Enter would take the order away with.
+		const clearing = button.hasAttribute('data-clear');
 		// A task, not `tick()`: this listener runs before the control's own
 		// handler, which Svelte delegates to the document root, so at this
 		// point there is no update pending yet for `tick()` to wait for.
@@ -143,7 +155,9 @@
 		const next = controls();
 		const target = folding
 			? next.find((el) => el.getAttribute('aria-expanded') === 'false')
-			: next[Math.min(index, next.length - 1)];
+			: clearing
+				? next[0]
+				: next[Math.min(index, next.length - 1)];
 		if (target) {
 			target.focus();
 		} else if (keyboard) {
@@ -152,8 +166,7 @@
 	}
 
 	// A listener rather than an `onclick` on the row: the row is not a
-	// control, it only watches the clicks of the ones inside it, the tags
-	// the caller puts there included.
+	// control, it only watches the clicks of the ones inside it.
 	function registerRow(node: HTMLDivElement) {
 		row = node;
 		node.addEventListener('click', keepFocus);
@@ -172,27 +185,20 @@
 
 	// Folding is for a row that has run out of room, not for a count: one
 	// tag and a time limit stay spelled out on any phone. Whether they fit
-	// is measured the way TagFilter measures its row - the spelled-out chips
-	// live on in an off-screen twin, because while folded they are not in
-	// the row to be measured, and everything else in the row (the tags,
-	// marked by not being `data-own`) is measured where it stands.
+	// is measured the way TagFilter measures its row - the spelled-out row
+	// lives on in an off-screen twin, because while folded it is not there
+	// to be measured.
 	function measure() {
-		if (!row || !twin || twin.children.length !== chips.length) {
-			return;
+		if (row && twin) {
+			// Fractional widths: whole pixels let a row 0.5px too wide pass.
+			fits = twin.getBoundingClientRect().width <= row.getBoundingClientRect().width;
 		}
-		const others = ([...row.children] as HTMLElement[]).filter(
-			(el) => !el.hasAttribute('data-own')
-		);
-		const widths = [...(twin.children as HTMLCollectionOf<HTMLElement>), ...others].map(
-			(el) => el.offsetWidth
-		);
-		const total = widths.reduce((sum, width) => sum + width, 0) + GAP_PX * (widths.length - 1);
-		fits = total <= row.clientWidth;
 	}
 
 	$effect(() => {
-		// Re-measure when the filters change, not only on resize.
+		// Re-measure when the filters or the tags change, not only on resize.
 		void chips;
+		void tags;
 		if (!collapsible || !row) {
 			return;
 		}
@@ -201,46 +207,41 @@
 		if (twin) {
 			resize.observe(twin);
 		}
-		// A tag chip coming or going changes what has to fit as well.
-		const mutation = new MutationObserver(() => measure());
-		mutation.observe(row, { childList: true });
 		measure();
-		return () => {
-			resize.disconnect();
-			mutation.disconnect();
-		};
+		return () => resize.disconnect();
 	});
 </script>
 
-{#snippet icon(key: string)}
+{#snippet icon(key: string, size: string)}
 	{#if key === 'sort'}
-		<ArrowDownWideNarrow class="size-4 shrink-0 text-primary" aria-hidden="true" />
+		<ArrowDownWideNarrow class="{size} shrink-0 text-primary" aria-hidden="true" />
 	{:else if key === 'time'}
-		<Clock class="size-4 shrink-0 text-primary" aria-hidden="true" />
+		<Clock class="{size} shrink-0 text-primary" aria-hidden="true" />
 	{:else if key === 'favorites'}
-		<Star class="size-4 shrink-0 fill-current text-primary" aria-hidden="true" />
+		<Star class="{size} shrink-0 fill-current text-primary" aria-hidden="true" />
+	{:else if person}
+		<!-- As on a card: the picture, or the initial on the person's color. -->
+		<PersonMark {person} size="xs" />
 	{:else}
-		<span
-			aria-hidden="true"
-			class="size-3 shrink-0 rounded-full ring-1 ring-text-muted/60 {userColorClasses(
-				person?.color
-			)}"
-		></span>
+		<!-- A link to someone who has since left: no picture, no color. -->
+		<UserRound class="{size} shrink-0 text-text-muted" aria-hidden="true" />
 	{/if}
 {/snippet}
 
-{#snippet full(chip: Chip, own: boolean)}
+{#snippet full(chip: Chip)}
 	<span
-		data-own={own ? '' : undefined}
 		class="inline-flex h-9 max-w-full min-w-0 shrink-0 items-center rounded-pill border border-border bg-surface text-body-sm font-medium text-text"
 	>
 		<button
 			type="button"
 			aria-haspopup="dialog"
 			onclick={onopen}
-			class="inline-flex h-full min-w-0 items-center gap-1.5 rounded-l-pill pr-1 pl-3"
+			class="inline-flex h-full min-w-0 items-center gap-1.5 rounded-l-pill pr-1 {chip.key ===
+				'author' && person
+				? 'pl-2'
+				: 'pl-3'}"
 		>
-			{@render icon(chip.key)}
+			{@render icon(chip.key, 'size-4')}
 			<span class="truncate">{chip.label}</span>
 		</button>
 		<button
@@ -254,44 +255,85 @@
 	</span>
 {/snippet}
 
+{#snippet tagChip(name: string)}
+	<TagChip
+		label={name}
+		active
+		ariaLabel={m.overview_filter_remove({ name })}
+		onclick={() => ontagremove?.(name)}
+	>
+		{#snippet trailing()}
+			<X class="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
+		{/snippet}
+	</TagChip>
+{/snippet}
+
 <!-- Light chips, where a tag's is dark: these come from the filter panel,
      and a tap goes back there to change them, while the × drops just this
      one. Two buttons side by side in one pill, since a button cannot hold
      another. -->
 <div {@attach registerRow} class={className}>
 	{#if folded}
-		<!-- Folded, the chips' icons overlap in one pill, like avatars, and say
-		     which kinds of filter are on; the values are one tap away. -->
-		<button
-			type="button"
-			data-own
-			aria-expanded="false"
-			onclick={() => (expanded = true)}
-			class="inline-flex h-9 shrink-0 items-center gap-2 rounded-pill border border-border bg-surface pr-3.5 pl-1.5 text-body-sm font-medium text-text"
+		<!-- Folded, everything goes into one bar across the row: a circle per
+		     kind of filter says which are on, the tags' with how many - the
+		     only kind that can be on more than once - and a tap unfolds them
+		     all. Beside it "All ×" clears them, as the panel's reset does. -->
+		<div
+			class="flex h-9 w-full items-center rounded-pill border border-border bg-surface text-body-sm font-medium text-text"
 		>
-			<span class="flex items-center" aria-hidden="true">
-				{#each chips as chip (chip.key)}
-					<span
-						class="-ml-1.5 grid size-6 place-items-center rounded-full border border-border bg-surface first:ml-0 [&>span]:size-2.5 [&>svg]:size-3"
-					>
-						{@render icon(chip.key)}
-					</span>
-				{/each}
-			</span>
-			{m.overview_active_count({ count: chips.length })}
-			<span class="sr-only">: {chips.map((chip) => chip.label).join(', ')}</span>
-		</button>
+			<button
+				type="button"
+				aria-expanded="false"
+				onclick={() => (expanded = true)}
+				class="flex h-full min-w-0 flex-1 items-center gap-1 rounded-l-pill pr-2 pl-1.5"
+			>
+				<span class="flex items-center gap-1" aria-hidden="true">
+					{#each chips as chip (chip.key)}
+						<span class="grid size-6 place-items-center rounded-full border border-border">
+							{@render icon(chip.key, 'size-3')}
+						</span>
+					{/each}
+					{#if tags.length > 0}
+						<span
+							class="inline-flex h-6 items-center gap-1 rounded-pill border border-border pr-2 pl-1.5 text-caption font-semibold"
+						>
+							<TagIcon class="size-3 shrink-0 text-primary" />
+							{tags.length}
+						</span>
+					{/if}
+				</span>
+				<span class="sr-only">
+					{m.overview_active_count({ count: filters.length + tags.length })}:
+					{[...filters.map((chip) => chip.label), ...tags].join(', ')}
+				</span>
+				<ChevronDown class="ml-auto size-4 shrink-0 opacity-70" aria-hidden="true" />
+			</button>
+			{#if onreset}
+				<span aria-hidden="true" class="my-2 w-px self-stretch bg-border"></span>
+				<button
+					type="button"
+					data-clear
+					onclick={onreset}
+					aria-label={m.overview_filter_clear_all_label()}
+					class="inline-flex h-full shrink-0 items-center gap-1.5 rounded-r-pill pr-3.5 pl-3 text-text-muted"
+				>
+					{m.overview_filter_clear_all()}
+					<X class="size-3.5" aria-hidden="true" />
+				</button>
+			{/if}
+		</div>
 	{:else}
 		{#each chips as chip (chip.key)}
-			{@render full(chip, true)}
+			{@render full(chip)}
+		{/each}
+		{#each tags as name (name)}
+			{@render tagChip(name)}
 		{/each}
 	{/if}
-	{@render children?.()}
 	{#if crowded && expanded}
 		<!-- The same toggle the desktop tag row folds with. -->
 		<button
 			type="button"
-			data-own
 			aria-expanded="true"
 			onclick={() => (expanded = false)}
 			class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-pill border border-border bg-surface px-3.5 text-body-sm font-medium text-text-muted transition hover:text-text"
@@ -303,13 +345,16 @@
 	{#if collapsible}
 		<!-- Off-screen twin, inert and hidden from assistive tech like
 		     TagFilter's (see the note there on why both). -->
-		<div data-own class="absolute h-0 w-0 overflow-hidden" inert aria-hidden="true">
+		<div class="absolute h-0 w-0 overflow-hidden" inert aria-hidden="true">
 			<!-- `w-max`: inside the zero-width box the chips' `max-w-full`
 			     would otherwise cap every one of them at 0px, and the row
 			     would always seem to fit. -->
 			<div {@attach registerTwin} class="flex w-max gap-2">
 				{#each chips as chip (chip.key)}
-					{@render full(chip, false)}
+					{@render full(chip)}
+				{/each}
+				{#each tags as name (name)}
+					{@render tagChip(name)}
 				{/each}
 			</div>
 		</div>

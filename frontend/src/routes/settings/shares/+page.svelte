@@ -22,12 +22,12 @@
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import PersonDot from '$lib/components/ui/PersonDot.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { shareStatusLabel } from '$lib/recipe/share-status';
 	import { isAdminRole } from '$lib/roles';
-	import { userColorClasses } from '$lib/user/color';
 
 	const isAdmin = $derived(isAdminRole(session.user?.role));
 	const isOwner = $derived(session.user?.role === 'superadmin');
@@ -237,10 +237,7 @@
 							onclick={() => pickPerson(creator.id)}
 						>
 							{#snippet leading()}
-								<span
-									aria-hidden="true"
-									class="size-3 rounded-full {userColorClasses(creator.color)}"
-								></span>
+								<PersonDot color={creator.color} />
 							{/snippet}
 						</TagChip>
 					{/each}

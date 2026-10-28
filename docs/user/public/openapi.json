@@ -100,6 +100,13 @@
       "AuthorCount": {
         "additionalProperties": false,
         "properties": {
+          "avatarId": {
+            "description": "The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "color": {
             "type": "string"
           },
@@ -110,15 +117,21 @@
           "displayName": {
             "type": "string"
           },
+          "id": {
+            "type": "string"
+          },
           "username": {
+            "description": "Login name, which ?author= filters by",
             "type": "string"
           }
         },
         "required": [
+          "count",
+          "id",
           "username",
           "displayName",
           "color",
-          "count"
+          "avatarId"
         ],
         "type": "object"
       },
