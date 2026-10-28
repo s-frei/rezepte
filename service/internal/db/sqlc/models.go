@@ -81,11 +81,21 @@ type InstanceSetting struct {
 	OidcName               string
 	RecipeDigestHour       int64
 	RecipeDigestLastDay    string
+	VapidKey               []byte
 }
 
 type NotificationOptout struct {
 	UserID string
 	Kind   string
+}
+
+type PushSubscription struct {
+	ID        string
+	UserID    string
+	Endpoint  string
+	P256dh    []byte
+	Auth      []byte
+	CreatedAt string
 }
 
 type Recipe struct {
@@ -191,6 +201,16 @@ type Tasty struct {
 	UserID    string
 	RecipeID  string
 	CreatedAt string
+}
+
+type TimerAlarm struct {
+	ID             string
+	SubscriptionID string
+	FireAt         string
+	Title          string
+	Body           string
+	Url            string
+	CreatedAt      string
 }
 
 type User struct {

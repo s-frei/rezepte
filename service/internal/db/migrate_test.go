@@ -52,3 +52,48 @@ func TestRecipeCommentsMigrationDownAndUp(t *testing.T) {
 		t.Fatalf("%d comment tables after up, want 2", n)
 	}
 }
+
+// TestPushMigrationDownAndUp rolls 0019 back and applies it again, so its
+// Down section undoes the push tables and the VAPID key column.
+func TestPushMigrationDownAndUp(t *testing.T) {
+	ctx := context.Background()
+	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	fsys, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	objects := func() int {
+		t.Helper()
+		var n int
+		if err := conn.QueryRowContext(ctx, `SELECT
+			(SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('push_subscriptions', 'timer_alarms'))
+			+ (SELECT COUNT(*) FROM pragma_table_info('instance_settings') WHERE name = 'vapid_key')`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+	if n := objects(); n != 3 {
+		t.Fatalf("%d push objects after up, want 3", n)
+	}
+	if _, err := provider.DownTo(ctx, 18); err != nil {
+		t.Fatalf("down to 18: %v", err)
+	}
+	if n := objects(); n != 0 {
+		t.Fatalf("%d push objects left after down", n)
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatalf("up again: %v", err)
+	}
+}
