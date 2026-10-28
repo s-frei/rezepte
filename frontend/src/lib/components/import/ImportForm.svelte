@@ -74,6 +74,7 @@
 			importDialog.prefill = '';
 			duplicate = null;
 			failure = null;
+			fallback = null;
 			raw = shared;
 			reading = false;
 			void read();

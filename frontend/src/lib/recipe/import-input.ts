@@ -29,6 +29,6 @@ export function sharedInput(params: URLSearchParams): string {
 	const url = httpUrl((params.get('url') ?? '').trim());
 	if (url) return url.href;
 	const text = (params.get('text') ?? '').trim();
-	const inText = text.match(/https?:\/\/\S+/)?.[0];
+	const inText = text.match(/https?:\/\/\S+/)?.[0]?.replace(/[.,;:!?)\]}>'"»]+$/, '');
 	return (inText && httpUrl(inText)?.href) || text;
 }

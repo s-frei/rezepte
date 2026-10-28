@@ -27,6 +27,9 @@ describe('sharedInput', () => {
 	it('a link inside text is taken out of it', () => {
 		expect(shared('text=Carbonara https://ex.com/c so good')).toBe('https://ex.com/c');
 	});
+	it('trailing punctuation is not part of a link in text', () => {
+		expect(shared('text=Try this (https://ex.com/c).')).toBe('https://ex.com/c');
+	});
 	it('a url that is not http falls back to the text', () => {
 		expect(shared('url=intent://x&text=https://ex.com/a')).toBe('https://ex.com/a');
 	});
