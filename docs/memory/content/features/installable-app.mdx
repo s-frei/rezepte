@@ -28,7 +28,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 
 **Testing.** `frontend/e2e/install.test.ts` holds the flows. Chromium never offers an install under automation, so the tests dispatch a synthetic `beforeinstallprompt` on `load`; the user-docs screenshots do the same with `offerInstall` in `docs/user/screenshots/helpers.ts`. Run the file from the repository root, see [Verify UI with Playwright](/howtos/verify-ui).
 
-**Testing on a phone.** Checking install and Share → Rezepte on a real phone needs HTTPS. Put the running demo behind a TLS tunnel such as `tailscale serve --bg <demo port>` (the port is in `mise run ports`) rather than a dev server with a self-signed certificate, which Android and iOS will not install from.
+**Testing on a phone.** Checking install and Share → Rezepte on a real phone needs HTTPS. Put the running demo behind a TLS tunnel such as `tailscale serve --bg <demo port>` (the port is in `mise run ports`) rather than a dev server with a self-signed certificate, which Android and iOS will not install from. On Android install from Chrome: Brave makes a home-screen shortcut, not a WebAPK, and Share → Rezepte then never appears, which looks like a broken `share_target` but is not. A WebAPK is listed under Settings → Apps.
 
 ## Why it is this way
 
@@ -48,5 +48,5 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 - On Android only a WebAPK gets the share target, which Chrome mints and Brave, for one, does not: Brave's install is a home-screen shortcut that never shows in the share menu.
 - Shortcut names are in the instance language, not the member's.
 - `launch_handler` is Chromium-only; elsewhere a second share opens a new window.
-- Not checked on a device: Android share, shortcuts and a share into an editor with unsaved changes. An Android device check is pending.
+- Checked on an Android phone: install from Chrome and Share → Rezepte. Not checked on a device: the shortcuts and a share into an editor with unsaved changes (both covered by e2e only).
 - iPhone and OIDC are unverified: whether the SSO redirect returns into the home-screen app is not known, and the user docs promise only that the iPhone app signs in once on its own.
