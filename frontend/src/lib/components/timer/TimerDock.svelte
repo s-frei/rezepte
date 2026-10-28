@@ -79,7 +79,7 @@
 		>
 			<div class="flex items-center justify-between pl-2.5 md:hidden">
 				<p class="text-caption font-semibold text-text-muted">
-					{m.timer_count({ count: list.length })}
+					{list.length === 1 ? m.timer_count_one() : m.timer_count({ count: list.length })}
 				</p>
 				<button
 					type="button"

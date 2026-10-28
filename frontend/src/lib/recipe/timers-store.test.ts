@@ -26,9 +26,15 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 let storage: ReturnType<typeof memoryStorage>;
+let onStorage: (e: { key: string | null; newValue: string | null }) => void;
 
 function install(s: unknown) {
 	vi.stubGlobal('window', {
+		addEventListener: (type: string, fn: typeof onStorage) => {
+			if (type === 'storage') {
+				onStorage = fn;
+			}
+		},
 		get localStorage() {
 			if (s === 'blocked') {
 				throw new Error('blocked');
@@ -52,6 +58,29 @@ afterEach(() => {
 });
 
 describe('Timers', () => {
+	it('follows another tab through the storage event, without writing back', () => {
+		const timers = new Timers();
+		timers.start(soup);
+		const other: Timer = {
+			...soup,
+			phrase: '5 min',
+			id: timerId('r1', 2, '5 min'),
+			state: 'paused',
+			endsAt: null,
+			remainingMs: 300_000
+		};
+		const json = JSON.stringify([other]);
+		onStorage({ key: TIMERS_STORAGE_KEY, newValue: json });
+		expect(timers.list).toEqual([other]);
+		expect(vi.getTimerCount()).toBe(0);
+		expect(storage.getItem(TIMERS_STORAGE_KEY)).not.toBe(json);
+		timers.start(soup);
+		onStorage({ key: null, newValue: null });
+		expect(timers.list).toEqual([]);
+		onStorage({ key: 'other', newValue: json });
+		expect(timers.list).toEqual([]);
+	});
+
 	it('start is idempotent per time', () => {
 		const timers = new Timers();
 		const fn = vi.fn();

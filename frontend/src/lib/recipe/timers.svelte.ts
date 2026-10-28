@@ -53,6 +53,15 @@ export class Timers {
 	constructor() {
 		this.list = settle(readStored(), Date.now());
 		this.sync();
+		if (browser && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+			// Another tab wrote the list (or signed out): take it, do not write it back.
+			window.addEventListener('storage', (e) => {
+				if (e.key === TIMERS_STORAGE_KEY || e.key === null) {
+					this.list = settle(parseTimers(e.newValue), Date.now());
+					this.sync();
+				}
+			});
+		}
 		if (browser && typeof document !== 'undefined') {
 			document.addEventListener('visibilitychange', () => {
 				if (document.visibilityState === 'visible') {

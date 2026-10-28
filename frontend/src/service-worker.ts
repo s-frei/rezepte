@@ -27,7 +27,7 @@ sw.addEventListener('push', (event) => {
 	}
 	event.waitUntil(
 		(async () => {
-			const windows = await sw.clients.matchAll({ type: 'window' });
+			const windows = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
 			const visible = windows.some((c) => c.visibilityState === 'visible');
 			const { closeAtOnce, ...options } = notificationOptions(p, visible);
 			await sw.registration.showNotification(p.title, options);
@@ -48,7 +48,7 @@ sw.addEventListener('notificationclick', (event) => {
 	}
 	event.waitUntil(
 		(async () => {
-			const [client] = await sw.clients.matchAll({ type: 'window' });
+			const [client] = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
 			if (client) {
 				try {
 					await client.focus();

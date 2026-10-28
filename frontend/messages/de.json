@@ -460,6 +460,7 @@
 	"timer_done": "Fertig",
 	"timer_off": "Aus",
 	"timer_more": "+{count}",
+	"timer_count_one": "1 Timer",
 	"timer_count": "{count} Timer",
 	"timer_expand": "Alle Timer zeigen",
 	"timer_collapse": "Timer einklappen",
