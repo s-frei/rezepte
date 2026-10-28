@@ -96,6 +96,10 @@
 	/* Doesn't fit the sm/md/lg/xl/2xl/3xl scale (between lg and xl); named for
 	   its one caller instead, the same way shadow-cta is. */
 	--radius-toast: 16px;
+	/* Half the phone bar's height, so the floating bar is a pill. Not
+	   --radius-pill: a radius only animates smoothly between two real
+	   values, and the bar morphs between this and its docked 3xl top. */
+	--radius-dock: 32px;
 
 	--shadow-card: 0 1px 2px rgb(80 50 20 / 0.06), 0 8px 24px -12px rgb(80 50 20 / 0.18);
 	--shadow-cover: 0 12px 32px -16px rgb(80 50 20 / 0.3);

@@ -52,7 +52,6 @@
 	"nav_new": "Neu",
 	"nav_main": "Hauptmenü",
 	"nav_you": "Du",
-	"nav_expand": "Navigation anzeigen",
 	"nav_you_signed_in": "{role}, angemeldet als {username}",
 	"nav_user_menu_signed_in": "{role} · {username}",
 	"nav_contents_title": "Inhalt",

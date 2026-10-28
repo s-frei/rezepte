@@ -103,23 +103,18 @@ export async function signOut(
 		en: {
 			nav: 'Main',
 			you: 'You',
-			expand: 'Show navigation',
 			accountMenu: 'Account menu',
 			signOut: 'Sign out'
 		},
 		de: {
 			nav: 'Hauptmenü',
 			you: 'Du',
-			expand: 'Navigation anzeigen',
 			accountMenu: 'Kontomenü',
 			signOut: 'Abmelden'
 		}
 	}[locale];
 	if (testInfo.project.name.startsWith('mobile')) {
 		const nav = page.getByRole('navigation', { name: labels.nav });
-		// A page read far enough shows the shrunk bar; bring the rest back.
-		const expand = nav.getByRole('button', { name: labels.expand });
-		if (await expand.isVisible()) await expand.click();
 		await nav.getByRole('button', { name: labels.you, exact: true }).click();
 		await page.getByRole('dialog').getByRole('button', { name: labels.signOut }).click();
 		return;

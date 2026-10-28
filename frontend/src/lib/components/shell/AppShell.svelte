@@ -18,5 +18,5 @@
 	{@render children()}
 </main>
 {#if place}
-	<BottomNav />
+	<BottomNav {place} />
 {/if}

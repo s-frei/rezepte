@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createRecipe, loadFixture, login, uniqueToken } from './helpers';
 
-// The phone's bottom nav: a compact bar with Recipes, Search and You, a
-// separate New button, a "You" sheet, and the command palette as its search.
-// The desktop has none of it - the top bar carries the same ways out.
+// The phone's bottom nav: one bar of icons - Recipes, Search, You - with New
+// at its end, a "You" sheet, and the command palette as its search. It
+// floats at the top of a page and docks while reading. The desktop has none
+// of it - the top bar carries the same ways out.
 test.beforeEach(({ isMobile }) => {
 	test.skip(!isMobile, 'the bottom nav is the phone layout only');
 });
@@ -12,19 +13,125 @@ function bottomNav(page: Page) {
 	return page.getByRole('navigation', { name: 'Main' });
 }
 
-test('the current place carries its name, the others only their icon', async ({ page }) => {
+/** The bar around the nav, which also holds New and carries `data-docked`. */
+function bar(page: Page) {
+	return bottomNav(page).locator('xpath=..');
+}
+
+/** A page of known height, whatever the shared database holds. */
+async function makeTall(page: Page) {
+	await page.evaluate(() => {
+		const spacer = document.createElement('div');
+		spacer.style.height = '4000px';
+		document.querySelector('main')?.append(spacer);
+	});
+}
+
+test('the bar shows icons only and marks the current place', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
 	const nav = bottomNav(page);
-	// The name is printed beside the current icon only - where you are is
-	// spelled out, and the other two keep the bar small.
-	await expect(nav.getByText('Recipes', { exact: true })).toBeVisible();
-	await expect(nav.getByText('Search', { exact: true })).toHaveCount(0);
-	await expect(nav.getByText('You', { exact: true })).toHaveCount(0);
+	// No word in the bar: nothing a longer language could squeeze.
+	await expect(nav).toHaveText('');
+	await expect(nav.getByRole('link', { name: 'Recipes' })).toHaveAttribute('aria-current', 'page');
 
 	await page.goto('/settings');
-	await expect(nav.getByText('You', { exact: true })).toBeVisible();
-	await expect(nav.getByText('Recipes', { exact: true })).toHaveCount(0);
+	// You opens a sheet rather than being the page, so it is current, not the page.
+	await expect(nav.getByRole('button', { name: 'You' })).toHaveAttribute('aria-current', 'true');
+	await expect(nav.getByRole('link', { name: 'Recipes' })).not.toHaveAttribute('aria-current');
+});
+
+test('the bar stays whole while reading', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await makeTall(page);
+	await expect(bar(page)).not.toHaveAttribute('data-docked');
+
+	await page.mouse.wheel(0, 800);
+	await expect(bar(page)).toHaveAttribute('data-docked', '');
+	const nav = bottomNav(page);
+	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeVisible();
+	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();
+	await expect(nav.getByRole('button', { name: 'You' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'New', exact: true })).toBeVisible();
+
+	await page.mouse.wheel(0, -800);
+	await expect(bar(page)).not.toHaveAttribute('data-docked');
+});
+
+test('the pill follows an open sheet and returns', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const nav = bottomNav(page);
+	await nav.getByRole('button', { name: 'Search' }).click();
+	await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+	await expect(nav.getByRole('button', { name: 'Search' })).toHaveAttribute('data-current', '');
+
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0);
+	await expect(nav.getByRole('link', { name: 'Recipes' })).toHaveAttribute('data-current', '');
+	await expect(nav.getByRole('button', { name: 'Search' })).not.toHaveAttribute('data-current');
+});
+
+test('the bar steps aside while a field has focus', async ({ page }) => {
+	await login(page);
+	await page.goto('/settings');
+	const field = page.locator('main input[type=password]').first();
+	// The software keyboard comes up with the field; the bar would cover it.
+	await field.focus();
+	await expect(bottomNav(page)).toBeHidden();
+	await field.blur();
+	await expect(bottomNav(page)).toBeVisible();
+});
+
+test('a page restored below the fold starts docked', async ({ page }) => {
+	await login(page);
+	await page.goto('/settings');
+	// The page has to be long enough to scroll before the scroll can land.
+	await expect(page.locator('main input[type=password]').first()).toBeVisible();
+	await page.evaluate(() => window.scrollTo(0, 900));
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(120);
+	await expect(bar(page)).toHaveAttribute('data-docked', '');
+
+	await bottomNav(page).getByRole('button', { name: 'You' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'People' }).click();
+	await expect(page).toHaveURL('/settings/users');
+	// Every move of the bar on the way back is counted; checking afterwards
+	// would miss a slide that is over within its 300ms.
+	await bar(page).evaluate((el) => {
+		(window as unknown as { slides: number }).slides = 0;
+		el.addEventListener(
+			'transitionstart',
+			() => (window as unknown as { slides: number }).slides++
+		);
+	});
+	await page.goBack();
+	await expect(page).toHaveURL('/settings');
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(120);
+	await expect(bar(page)).toHaveAttribute('data-docked', '');
+	// Docked from the first frame: no slide down from the floating spot.
+	await page.waitForTimeout(400);
+	expect(await page.evaluate(() => (window as unknown as { slides: number }).slides)).toBe(0);
+});
+
+test('Recipes scrolls to the top before it clears filters', async ({ page }) => {
+	const token = uniqueToken();
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createRecipe(page, { ...loadFixture(0), title: `Filter ${token}` });
+	await page.goto(`/?q=${token}`);
+	await makeTall(page);
+	await page.mouse.wheel(0, 800);
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(120);
+
+	const recipes = bottomNav(page).getByRole('link', { name: 'Recipes' });
+	// A tap while reading goes back up and keeps what was searched for.
+	await recipes.click();
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+	await expect(page).toHaveURL(`/?q=${token}`);
+	// At the top, the next tap starts over.
+	await recipes.click();
+	await expect(page).toHaveURL('/');
 });
 
 test('You shows who is signed in and reaches the settings pages', async ({ page }) => {
@@ -115,75 +222,6 @@ test('the palette sheet ends on the keyboard, not above or below it', async ({ p
 		.toBe(Math.round(keyboardTop));
 });
 
-test('the bar shrinks while reading down and comes back on the way up', async ({ page }) => {
-	await login(page);
-	await expect(page).toHaveURL('/');
-	// A page of known height, whatever the shared database holds.
-	await page.evaluate(() => {
-		const spacer = document.createElement('div');
-		spacer.style.height = '4000px';
-		document.querySelector('main')?.append(spacer);
-	});
-	const nav = bottomNav(page);
-	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeVisible();
-
-	await page.mouse.wheel(0, 800);
-	const expand = nav.getByRole('button', { name: 'Show navigation' });
-	await expect(expand).toBeVisible();
-	await expect(nav.getByRole('button', { name: 'Search' })).toHaveCount(0);
-	// New stays within reach in both shapes.
-	await expect(page.getByRole('button', { name: 'New', exact: true })).toBeVisible();
-
-	await page.mouse.wheel(0, -300);
-	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();
-
-	// A tap on the shrunk bar brings it back as well, and reading on shrinks
-	// it again: the focus the tap leaves in the bar is not keyboard focus.
-	await page.mouse.wheel(0, 800);
-	await expand.click();
-	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();
-	await page.mouse.wheel(0, 800);
-	await expect(expand).toBeVisible();
-
-	// The same after a sheet closed by tap hands focus back to its trigger.
-	await page.mouse.wheel(0, -300);
-	await nav.getByRole('button', { name: 'Search' }).click();
-	const palette = page.getByRole('dialog', { name: 'Command palette' });
-	await palette.getByRole('button', { name: 'Close' }).click();
-	await expect(palette).toHaveCount(0);
-	await page.mouse.wheel(0, 800);
-	await expect(expand).toBeVisible();
-});
-
-test('the bar keeps keyboard focus when it changes shape', async ({ page }) => {
-	await login(page);
-	await expect(page).toHaveURL('/');
-	await page.evaluate(() => {
-		const spacer = document.createElement('div');
-		spacer.style.height = '4000px';
-		document.querySelector('main')?.append(spacer);
-	});
-	const nav = bottomNav(page);
-
-	// Shrunk, the one button left says what it does; focusing and pressing it
-	// brings the bar back with focus on the current place, not on the page.
-	// A key press puts the browser in keyboard mode, as Tab would for a real
-	// keyboard user; without it, focus set from a script is not
-	// `:focus-visible`, and the bar rightly shrinks again.
-	await page.mouse.wheel(0, 800);
-	const expand = nav.getByRole('button', { name: 'Show navigation' });
-	await page.keyboard.press('Escape');
-	await expand.focus();
-	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeFocused();
-
-	// While focus is in the bar, reading on does not pull it away. The check
-	// waits for the scroll to land, or it could pass before the bar reacts.
-	await page.mouse.wheel(0, 800);
-	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1500);
-	await expect(nav.getByRole('link', { name: 'Recipes' })).toBeFocused();
-	await expect(nav.getByRole('button', { name: 'Search' })).toBeVisible();
-});
-
 test('You switches the theme without leaving the sheet', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -197,4 +235,15 @@ test('You switches the theme without leaving the sheet', async ({ page }) => {
 
 	await theme.getByRole('radio', { name: 'System' }).click();
 	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+});
+
+test('no bar on a page that does not exist', async ({ page }) => {
+	await login(page);
+	await page.goto('/gibt-es-nicht');
+	// Nothing would be current there, so the bar stays away and the page
+	// offers its own way back.
+	await expect(bottomNav(page)).toHaveCount(0);
+	await page.getByRole('link', { name: 'Back to recipes' }).click();
+	await expect(page).toHaveURL('/');
+	await expect(bottomNav(page)).toBeVisible();
 });
