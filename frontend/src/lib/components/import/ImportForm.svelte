@@ -2,7 +2,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { Dialog } from 'bits-ui';
-	import { onDestroy, onMount, tick } from 'svelte';
+	import { onDestroy, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -65,12 +65,19 @@
 		field?.focus();
 	}
 
-	// A shared link arrives in the field and starts reading at once.
-	onMount(() => {
-		if (!importDialog.prefill) return;
-		raw = importDialog.prefill;
-		importDialog.prefill = '';
-		void read();
+	// A shared link arrives in the field and starts reading at once, whether
+	// the form mounts for it or is already open and reading something else.
+	$effect(() => {
+		const shared = importDialog.prefill;
+		if (!shared) return;
+		untrack(() => {
+			importDialog.prefill = '';
+			duplicate = null;
+			failure = null;
+			raw = shared;
+			reading = false;
+			void read();
+		});
 	});
 
 	async function submit(event: SubmitEvent) {
@@ -114,7 +121,8 @@
 				}
 			}
 		} finally {
-			reading = false;
+			// Not when a newer read (a share into the open dialog) took over.
+			if (reads.signal === signal) reading = false;
 		}
 		await focusField();
 	}

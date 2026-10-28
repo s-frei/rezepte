@@ -324,6 +324,26 @@ async function stubSoup(page: Page) {
 	);
 }
 
+// Chromium has its own launchQueue; the stub keeps the consumer for the test
+// to call, as the OS would for a second share into the open window.
+async function installLaunchQueue(page: Page) {
+	await page.addInitScript(() => {
+		const w = window as unknown as Record<string, unknown>;
+		// Chromium has its own launchQueue; defineProperty beats the read-only one.
+		Object.defineProperty(w, 'launchQueue', {
+			value: { setConsumer: (consumer: unknown) => (w.__launch = consumer) }
+		});
+	});
+}
+
+async function launch(page: Page, path: string) {
+	await page.evaluate(
+		(href) =>
+			(window as unknown as { __launch: (p: unknown) => void }).__launch({ targetURL: href }),
+		new URL(path, page.url()).href
+	);
+}
+
 test('a shared link imports at once', async ({ page }) => {
 	await stubSoup(page);
 	let release = () => {};
@@ -351,6 +371,19 @@ test('a shared link imports at once', async ({ page }) => {
 	await expect(dialog(page)).toHaveCount(0);
 });
 
+test('a share while the import dialog is open imports the shared link', async ({ page }) => {
+	await installLaunchQueue(page);
+	await stubSoup(page);
+	await page.goto('/');
+	await openImport(page);
+	await field(page).fill('half typed');
+	await launch(page, `/import?url=${encodeURIComponent(sharedSoup)}`);
+	await expect(page).toHaveURL('/recipes/new');
+	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+		'Linked soup'
+	);
+});
+
 test('a share while signed out imports after sign-in', async ({ browser }) => {
 	const context = await browser.newContext();
 	const page = await context.newPage();
@@ -369,23 +402,13 @@ test('a share while signed out imports after sign-in', async ({ browser }) => {
 });
 
 test('a share into a dirty editor asks first', async ({ page }) => {
-	await page.addInitScript(() => {
-		const w = window as unknown as Record<string, unknown>;
-		// Chromium has its own launchQueue; defineProperty beats the read-only one.
-		Object.defineProperty(w, 'launchQueue', {
-			value: { setConsumer: (consumer: unknown) => (w.__launch = consumer) }
-		});
-	});
+	await installLaunchQueue(page);
 	await stubSoup(page);
 	await page.goto('/recipes/new');
 	const titleField = page.getByRole('textbox', { name: 'Title', exact: true });
 	const typed = `Typed ${uniqueToken()}`;
 	await titleField.fill(typed);
-	await page.evaluate(
-		(href) =>
-			(window as unknown as { __launch: (p: unknown) => void }).__launch({ targetURL: href }),
-		`${new URL(page.url()).origin}/import?url=${encodeURIComponent(sharedSoup)}`
-	);
+	await launch(page, `/import?url=${encodeURIComponent(sharedSoup)}`);
 	const discard = page.getByRole('dialog', { name: 'Discard changes?' });
 	await discard.getByRole('button', { name: 'Cancel' }).click();
 	await expect(discard).toHaveCount(0);
