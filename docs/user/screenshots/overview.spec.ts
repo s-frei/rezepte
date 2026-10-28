@@ -28,7 +28,10 @@ test('command-palette', async ({ page }, testInfo) => {
 
 test('search', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
+	// Enter searches and closes the tag suggestions, which would otherwise
+	// lie over the grid this picture is about.
 	await page.getByLabel('Search recipes').fill('Leek');
+	await page.getByLabel('Search recipes').press('Enter');
 	// "Leek" only occurs in Leek and Potato Soup (title and ingredient).
 	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(1);
 	await shot(page, 'search');
@@ -48,9 +51,29 @@ test('filters', async ({ page }, testInfo) => {
 	await shot(page, 'filters');
 });
 
+test('tag-suggestions', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(12);
+	// "s" opens the index wide: the tags starting with it first, then the
+	// ones that merely contain it, each with its count.
+	await page.getByLabel('Search recipes').fill('s');
+	await expect(page.getByRole('option', { name: /^sweet/ })).toBeVisible();
+	await shot(page, 'tag-suggestions');
+});
+
+test('active-filters', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	// Bangers and Mash (45 min) and Toad in the Hole (50 min) are the meat
+	// dishes done within the hour.
+	await page.goto('/?tags=meat&maxMinutes=60');
+	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(2);
+	await shot(page, 'active-filters');
+});
+
 test('no-results', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.getByLabel('Search recipes').fill('zzz');
+	await page.getByLabel('Search recipes').press('Enter');
 	await expect(page.getByRole('heading', { name: 'Nothing found' })).toBeVisible();
 	await shot(page, 'no-results');
 });

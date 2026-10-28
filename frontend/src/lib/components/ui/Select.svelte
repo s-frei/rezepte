@@ -38,7 +38,7 @@
 		/**
 		 * Optional mark ahead of the label, for a select whose subject is not
 		 * obvious from the chosen value alone - the overview's sort control
-		 * reads "Zuletzt geändert", which names an order without saying that
+		 * reads "Recently changed", which names an order without saying that
 		 * ordering is what it does. It sits where FilterPanel's trigger keeps
 		 * its funnel, so the two controls read as a pair.
 		 */

@@ -40,3 +40,27 @@ export function tagSuggestions(params: {
 	const exists = known.includes(prefix) || selected.has(prefix);
 	return { matches, create: prefix === '' || exists ? null : prefix };
 }
+
+/**
+ * What the overview's search field offers for the text typed so far: every
+ * tag that contains it, the ones that start with it first. Within each half
+ * the given order is kept, which for `listTags()` is most used first, so a
+ * blank query lists every tag in that order.
+ */
+export function rankTags<T extends { name: string }>(tags: T[], query: string): T[] {
+	const needle = query.trim().toLocaleLowerCase();
+	if (needle === '') {
+		return tags;
+	}
+	const starts: T[] = [];
+	const contains: T[] = [];
+	for (const tag of tags) {
+		const name = tag.name.toLocaleLowerCase();
+		if (name.startsWith(needle)) {
+			starts.push(tag);
+		} else if (name.includes(needle)) {
+			contains.push(tag);
+		}
+	}
+	return [...starts, ...contains];
+}

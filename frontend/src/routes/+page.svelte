@@ -2,6 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import Plus from '@lucide/svelte/icons/plus';
+	import X from '@lucide/svelte/icons/x';
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -18,12 +19,14 @@
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import ActiveFilters from '$lib/components/recipe/ActiveFilters.svelte';
 	import FilterPanel from '$lib/components/recipe/FilterPanel.svelte';
 	import RecipeCard from '$lib/components/recipe/RecipeCard.svelte';
 	import RecipeGrid from '$lib/components/recipe/RecipeGrid.svelte';
 	import ResultCount from '$lib/components/recipe/ResultCount.svelte';
 	import SearchBar from '$lib/components/recipe/SearchBar.svelte';
 	import TagFilter from '$lib/components/recipe/TagFilter.svelte';
+	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { formatDay } from '$lib/recipe/format';
 	import { overviewViewState } from '$lib/recipe/overview-state';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
@@ -45,7 +48,7 @@
 	let author = $state(untrack(() => data.author));
 	let sort = $state<Sort>(untrack(() => data.sort));
 	// The furthest page fetched for the current filters - the initial value
-	// from the URL lets a shared/reloaded link resume where "Mehr laden" left
+	// from the URL lets a shared/reloaded link resume where "Load more" left
 	// off; searching or changing tags resets it back to 1.
 	let pageNum = $state(untrack(() => data.page));
 
@@ -63,7 +66,29 @@
 	let items = $state<RecipeCardData[]>([]);
 	let total = $state(0);
 	let allTags = $state<Tag[]>([]);
+	/**
+	 * The desktop row's tags while a search text is on, counted under it too:
+	 * a pick from the row keeps the text, where a pick from the suggestions
+	 * clears it, so the row's counts have to include it to stay true. `null`
+	 * without a text, and the row then shares `allTags`.
+	 */
+	let textTags = $state<Tag[] | null>(null);
+	// The chosen tags lead, in the order they were picked, like every other
+	// active filter does - on the desktop row and at the top of the
+	// suggestions - so picking one never sends it off somewhere along the
+	// row. A chosen tag stays on offer even when the server no longer counts
+	// it - a filter that empties the grid, a link to a tag since removed - or
+	// nothing on the desktop row would say what is narrowing the grid, and
+	// nothing in the suggestions would let it be dropped.
+	const chosenFirst = (list: Tag[]) => [
+		...tags.map((name) => list.find((tag) => tag.name === name) ?? { name, count: 0 }),
+		...list.filter((tag) => !tags.includes(tag.name))
+	];
+	const tagOptions = $derived(chosenFirst(allTags));
+	const rowOptions = $derived(chosenFirst(textTags ?? allTags));
 	let authors = $state<Author[]>([]);
+
+	let filterOpen = $state(false);
 
 	let loading = $state(false);
 	let loadingMore = $state(false);
@@ -97,18 +122,32 @@
 	const isNoResults = $derived(viewState.isNoResults);
 	const canLoadMore = $derived(viewState.canLoadMore);
 	// Sum of everything narrowing the list: selected tags, an active time
-	// filter and the favorites switch, written as a sum so a later filter
-	// adds its own term here rather than rewriting this into a sum. The
-	// tags are counted even though they are set outside the panel the
-	// badge sits on - the badge answers "how far is the list narrowed",
-	// which is also what "Alle Filter zurücksetzen" inside the panel
-	// clears. Sort is deliberately NOT a term, even though it does have a
+	// filter, the favorites switch and an author, written as a sum so a
+	// later filter adds its own term here. The tags are counted even though
+	// they are set outside the panel - the count answers "how far is the
+	// list narrowed", which is what "Reset all filters" inside the
+	// panel clears. Sort is deliberately NOT a term, even though it has a
 	// section in that panel: sorting returns the same recipes in a
-	// different order, so counting it would be a lie - see the matching
-	// note on FilterPanel's `sort` prop.
+	// different order - see the matching note on FilterPanel's `sort` prop.
 	const filterCount = $derived(
 		tags.length + (maxMinutes > 0 ? 1 : 0) + (favoritesOnly ? 1 : 0) + (author !== '' ? 1 : 0)
 	);
+
+	function focusFilters() {
+		document.getElementById('overview-filters')?.focus();
+	}
+
+	// What both rows of active-filter chips get, the phone's and desktop's.
+	const filterProps = $derived({
+		maxMinutes,
+		favoritesOnly,
+		author,
+		authors,
+		onopen: () => (filterOpen = true),
+		onmaxminutes: setMaxMinutes,
+		onfavorites: setFavoritesOnly,
+		onauthor: setAuthor
+	});
 
 	function syncUrl() {
 		const qs = buildListQuery({
@@ -128,6 +167,70 @@
 		});
 	}
 
+	/**
+	 * The tags are counted under the same filters as the grid, so every tag on
+	 * offer narrows it and none empties it. The suggestions' list leaves the
+	 * search text out - it is typed to find a tag, and a pick clears it - so
+	 * only a change of the other filters refetches it; the desktop row keeps
+	 * the text on a pick and gets a second list counted under it, only while
+	 * there is one. The order is never a filter. A failure leaves the last
+	 * tags standing - they only help to filter.
+	 */
+	function refreshTags() {
+		const filters = { tags, maxMinutes, favorites: favoritesOnly, author };
+		suggestedTags.load(filters);
+		// The row is desktop's only; a phone would fetch it for nothing.
+		if (q && matchMedia('(min-width: 768px)').matches) {
+			rowTags.load({ ...filters, q });
+		} else {
+			rowTags.abort();
+			textTags = null;
+		}
+	}
+
+	/**
+	 * One list of tags kept in step with its filters: a repeat of the filters
+	 * it last fetched for is skipped, a newer fetch aborts the older one, and
+	 * a failure forgets the filters so the next change retries. Each list has
+	 * its own controller - "Load more" aborts the grid's, and must not take
+	 * a tag fetch for the same filters down with it.
+	 */
+	function tagList(onload: (result: Tag[]) => void) {
+		let controller: AbortController | null = null;
+		let fetchedFor: string | null = null;
+		return {
+			load(params: Parameters<typeof listTags>[0] = {}) {
+				const key = JSON.stringify(params);
+				if (key === fetchedFor) {
+					return;
+				}
+				fetchedFor = key;
+				controller?.abort();
+				const current = new AbortController();
+				controller = current;
+				void listTags(params, { signal: current.signal })
+					.then((result) => {
+						// An abort that lands after the response has resolved
+						// does not stop it, so a superseded fetch checks itself.
+						if (current === controller) {
+							onload(result);
+						}
+					})
+					.catch(() => {
+						if (current === controller) {
+							fetchedFor = null;
+						}
+					});
+			},
+			abort() {
+				controller?.abort();
+				fetchedFor = null;
+			}
+		};
+	}
+	const suggestedTags = tagList((result) => (allTags = result));
+	const rowTags = tagList((result) => (textTags = result));
+
 	async function fetchPage(pageToFetch: number, append: boolean) {
 		abortController?.abort();
 		const controller = new AbortController();
@@ -136,6 +239,7 @@
 		if (append) {
 			loadingMore = true;
 		} else {
+			refreshTags();
 			loading = true;
 			clearTimeout(skeletonTimer);
 			skeletonTimer = setTimeout(() => {
@@ -280,19 +384,16 @@
 
 	onMount(() => {
 		void fetchPage(pageNum, false);
-		void listTags()
-			.then((result) => (allTags = result))
-			.catch(() => {
-				// The tag row is a nice-to-have filter; a failure here shouldn't
-				// block the recipe grid itself.
-			});
 		void listAuthors()
 			.then((result) => (authors = result))
 			.catch(() => {
-				// Same as the tags above: without it the panel simply shows no
-				// author section.
+				// Without it the panel simply shows no author section.
 			});
-		return () => abortController?.abort();
+		return () => {
+			abortController?.abort();
+			suggestedTags.abort();
+			rowTags.abort();
+		};
 	});
 </script>
 
@@ -331,10 +432,22 @@
 	</h1>
 
 	<!-- The same dotted leader closes the filters off from the grid. -->
-	<div class="mt-4 space-y-3 border-b-2 border-dotted border-handle pb-4 md:mt-5">
-		<div class="flex items-center gap-3">
-			<SearchBar bind:value={q} onsearch={handleSearch} class="md:max-w-md" />
+	<!-- `gap`, not `space-y`: the phone's chip row stays in the DOM on desktop,
+	     hidden, and as the last child it gave the tag row above a margin. -->
+	<div class="mt-4 flex flex-col gap-3 border-b-2 border-dotted border-handle pb-4 md:mt-5">
+		<!-- `relative` gives the search suggestions their width on phones: the
+		     whole row, as wide as the recipe cards (see SearchBar). -->
+		<div class="relative flex items-center gap-3">
+			<SearchBar
+				bind:value={q}
+				onsearch={handleSearch}
+				tags={tagOptions}
+				active={tags}
+				ontoggle={toggleTag}
+				class="md:max-w-md"
+			/>
 			<FilterPanel
+				bind:open={filterOpen}
 				{maxMinutes}
 				{favoritesOnly}
 				{author}
@@ -373,7 +486,41 @@
 				</Select>
 			</div>
 		</div>
-		<TagFilter tags={allTags} active={tags} ontoggle={toggleTag} />
+		<!-- What narrows the grid stays in view: the filter panel's choices as
+		     light chips, which go back to the panel, then the tags. Desktop
+		     has the room to spell everything out ahead of its row of the tags
+		     still on offer. On a phone that row cost a line folded and a
+		     screen unfolded, so tags are found through the search's
+		     suggestions there, only the chosen ones show, and the panel's
+		     chips fold into one once the row runs out of room. -->
+		<div class="hidden md:flex md:items-center md:gap-2">
+			<ActiveFilters {...filterProps} class="contents" focusfallback={focusFilters} />
+			{#if filterCount > tags.length}
+				<span aria-hidden="true" class="mx-1 h-6 w-px shrink-0 bg-border"></span>
+			{/if}
+			<TagFilter tags={rowOptions} active={tags} ontoggle={toggleTag} />
+		</div>
+		{#if filterCount > 0}
+			<ActiveFilters
+				{...filterProps}
+				collapsible
+				class="flex flex-wrap gap-2 md:hidden"
+				focusfallback={focusFilters}
+			>
+				{#each tags as name (name)}
+					<TagChip
+						label={name}
+						active
+						ariaLabel={m.overview_filter_remove({ name })}
+						onclick={() => toggleTag(name)}
+					>
+						{#snippet trailing()}
+							<X class="size-3.5 shrink-0 opacity-70" aria-hidden="true" />
+						{/snippet}
+					</TagChip>
+				{/each}
+			</ActiveFilters>
+		{/if}
 	</div>
 
 	<div class="mt-7 md:mt-9">
@@ -434,7 +581,7 @@
 			</RecipeGrid>
 			{#if canLoadMore}
 				<div class="mt-8 flex justify-center">
-					<!-- Also disabled while a filter fetch is in flight: "Mehr laden"
+					<!-- Also disabled while a filter fetch is in flight: "Load more"
 					     would abort it and append the new filter's page N+1 to the
 					     items the old filter left behind. -->
 					<Button variant="secondary" onclick={loadMore} disabled={loading || loadingMore}>

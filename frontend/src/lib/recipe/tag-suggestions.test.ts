@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tagSuggestions } from './tag-suggestions';
+import { rankTags, tagSuggestions } from './tag-suggestions';
 
 const known = ['dessert', 'nudeln', 'nudelauflauf', 'schnell'];
 
@@ -68,5 +68,27 @@ describe('tagSuggestions', () => {
 		expect(
 			tagSuggestions({ query: 'des', known: ['Dessert', 'SÜSS'], selected: [' süss '] })
 		).toEqual({ matches: ['dessert'], create: 'des' });
+	});
+});
+
+describe('rankTags', () => {
+	// Most used first, the order listTags() returns.
+	const tags = [
+		{ name: 'fleisch' },
+		{ name: 'schnell' },
+		{ name: 'dessert' },
+		{ name: 'schmoren' }
+	];
+
+	it('keeps every tag in the given order while the query is blank', () => {
+		expect(rankTags(tags, '  ')).toEqual(tags);
+	});
+
+	it('puts tags starting with the query before tags containing it', () => {
+		expect(rankTags(tags, 'SCH').map((tag) => tag.name)).toEqual([
+			'schnell',
+			'schmoren',
+			'fleisch'
+		]);
 	});
 });

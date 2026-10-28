@@ -27,42 +27,6 @@ func (q *Queries) DeleteRecipeTags(ctx context.Context, recipeID string) error {
 	return err
 }
 
-const listTagsWithCount = `-- name: ListTagsWithCount :many
-SELECT t.name, COUNT(rt.recipe_id) AS count
-FROM tags t
-JOIN recipe_tags rt ON rt.tag_id = t.id
-GROUP BY t.id
-ORDER BY count DESC, t.name
-`
-
-type ListTagsWithCountRow struct {
-	Name  string
-	Count int64
-}
-
-func (q *Queries) ListTagsWithCount(ctx context.Context) ([]ListTagsWithCountRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTagsWithCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListTagsWithCountRow{}
-	for rows.Next() {
-		var i ListTagsWithCountRow
-		if err := rows.Scan(&i.Name, &i.Count); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const setRecipeTag = `-- name: SetRecipeTag :exec
 INSERT OR IGNORE INTO recipe_tags (recipe_id, tag_id) VALUES (?, ?)
 `

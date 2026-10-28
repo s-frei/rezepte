@@ -513,7 +513,7 @@ test('the palette stays open when a search it interrupted lands', async ({ page 
 			await route.continue();
 		}
 	);
-	await page.getByRole('textbox', { name: 'Search recipes' }).fill('soup');
+	await page.getByRole('combobox', { name: 'Search recipes' }).fill('soup');
 	await page.keyboard.press('Enter');
 	await held;
 	await page.keyboard.press('Control+k');

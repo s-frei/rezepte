@@ -226,11 +226,22 @@ export function saveButton(page: Page) {
 	return page.getByRole('button', { name: /^Speichern/ });
 }
 
-/** Types into the overview's search field and waits out its 250ms debounce. */
+/** The overview's search field - a combobox, since it suggests tags. */
+export function searchField(page: Page) {
+	return page.getByRole('combobox', { name: 'Search recipes' });
+}
+
+/**
+ * Types into the overview's search field and submits it with Enter, which
+ * searches at once instead of after the debounce and closes the tag
+ * suggestions that would otherwise lie over the grid.
+ */
 export async function search(page: Page, term: string) {
-	const field = page.getByRole('textbox', { name: 'Search recipes' });
+	const field = searchField(page);
 	await field.fill(term);
+	await field.press('Enter');
 	await expect(field).toHaveValue(term);
+	await expect(page.getByRole('listbox', { name: 'Suggestions' })).toHaveCount(0);
 }
 
 /** Opens the detail page's "..." menu - the only entry point both viewports share. */

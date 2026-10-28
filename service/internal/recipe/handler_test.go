@@ -484,29 +484,52 @@ func TestTags(t *testing.T) {
 	cookie := loginCookie(t, h)
 	fx := loadFixtures(t)
 
+	var ids []string
 	for _, i := range []int{0, 1} { // Königsberger Klopse, Rinderrouladen
 		rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx[i]), cookie)
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("create %d status %d: %s", i, rec.Code, rec.Body.String())
 		}
+		var created recipe.Recipe
+		if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, created.ID)
+	}
+	// Only the Klopse is starred, so the favorites filter drops "schmoren".
+	if rec := doReq(h, http.MethodPut, "/api/v1/recipes/"+ids[0]+"/favorite", "", cookie); rec.Code != http.StatusNoContent {
+		t.Fatalf("favorite status %d: %s", rec.Code, rec.Body.String())
 	}
 
-	rec := doReq(h, http.MethodGet, "/api/v1/tags", "", cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("tags status %d: %s", rec.Code, rec.Body.String())
+	counts := func(query string) map[string]int {
+		t.Helper()
+		rec := doReq(h, http.MethodGet, "/api/v1/tags"+query, "", cookie)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("tags%s status %d: %s", query, rec.Code, rec.Body.String())
+		}
+		var out struct {
+			Items []recipe.TagCount `json:"items"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+			t.Fatal(err)
+		}
+		got := make(map[string]int, len(out.Items))
+		for _, tc := range out.Items {
+			got[tc.Name] = tc.Count
+		}
+		return got
 	}
-	var out struct {
-		Items []recipe.TagCount `json:"items"`
+
+	if got := counts(""); got["fleisch"] != 2 || got["klassiker"] != 2 || got["schmoren"] != 1 {
+		t.Fatalf("counts = %+v", got)
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
-		t.Fatal(err)
+	// The filters reach the counts: a comma-separated tag list, and the
+	// favorites of the caller the session names.
+	if got := counts("?tags=klassiker,schmoren"); got["fleisch"] != 1 || got["klassiker"] != 1 {
+		t.Fatalf("tags filter: counts = %+v", got)
 	}
-	counts := make(map[string]int, len(out.Items))
-	for _, tc := range out.Items {
-		counts[tc.Name] = tc.Count
-	}
-	if counts["fleisch"] != 2 || counts["klassiker"] != 2 || counts["schmoren"] != 1 {
-		t.Fatalf("counts = %+v", out.Items)
+	if got := counts("?favorites=true"); got["fleisch"] != 1 || got["schmoren"] != 0 {
+		t.Fatalf("favorites filter: counts = %+v", got)
 	}
 }
 

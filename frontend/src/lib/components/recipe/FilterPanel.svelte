@@ -48,7 +48,8 @@
 		onfavorites,
 		onauthor,
 		onsort,
-		onreset
+		onreset,
+		open = $bindable(false)
 	}: {
 		/** Currently selected maximum total time in minutes, 0 = off -
 		 * scoped to this section, unlike `filterCount`. */
@@ -69,16 +70,21 @@
 		 * match" into "no recipes at all" the way a real filter would. */
 		sort: Sort;
 		/** Total active filters across the whole overview - the tag chips
-		 * outside this panel included, since the badge answers "how far is
-		 * the list narrowed", not "what is behind this button", and
-		 * "Alle Filter zurücksetzen" below clears exactly what it counts.
-		 * The page owns that state, this panel owns none of it. */
+		 * outside this panel included, since "Reset all filters"
+		 * below clears those too and only shows while there is something
+		 * to clear. The page owns that state, this panel owns none of it.
+		 * The trigger carries no count: every active filter already stands
+		 * as a chip under it (ActiveFilters), and a number beside them
+		 * counted something different from the chips. */
 		filterCount: number;
 		onmaxminutes: (value: number) => void;
 		onfavorites: (value: boolean) => void;
 		onauthor: (value: string) => void;
 		onsort: (value: Sort) => void;
 		onreset: () => void;
+		/** Whether the panel is showing; bindable so the active-filter chips
+		 * on the page can open it at the filters they name. */
+		open?: boolean;
 	} = $props();
 
 	const uid = $props.id();
@@ -108,13 +114,12 @@
 	// more - the tag chip row used to, back when the hidden tags lived in
 	// here - so the trigger and the "Fertig" button are the only two things
 	// that move it.
-	let open = $state(false);
 
 	// Where the thumb sits, which is not the same thing as the filter that is
 	// running: the label has to follow the drag from the first step, while
 	// the grid waits for the release (see `Slider`'s `oncommit`). A writable
 	// `$derived` is exactly that shape - the drag assigns to it, and any
-	// change to the bound the page holds ("Alle Filter zurücksetzen", the
+	// change to the bound the page holds ("Reset all filters", the
 	// back button, a shared link) recomputes it and takes the thumb back,
 	// so it never rests somewhere the grid is not.
 	let timeIndex = $derived(timeStopIndex(maxMinutes));
@@ -145,17 +150,11 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Trigger
+		id="overview-filters"
 		class="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border bg-surface px-3.5 text-body-sm font-medium transition hover:brightness-[0.98]"
 	>
 		<Filter class="size-4" aria-hidden="true" />
 		{m.overview_filter()}
-		{#if filterCount > 0}
-			<span
-				class="inline-flex size-5 items-center justify-center rounded-pill bg-inverse text-micro font-semibold text-inverse-foreground"
-			>
-				{filterCount}
-			</span>
-		{/if}
 	</Dialog.Trigger>
 	<Dialog.Portal>
 		<Dialog.Overlay forceMount>
@@ -309,7 +308,7 @@
 						     tappable, so relying on it alone as the only way out isn't
 						     enough. Filters apply live - nothing here is a pending
 						     change to confirm - so "Fertig" just closes the panel;
-						     "Alle Filter zurücksetzen" only joins it once something is
+						     "Reset all filters" only joins it once something is
 						     active. Stacked full-width on phones, inline on desktop,
 						     to keep the longer reset label from wrapping mid-word. -->
 						<div

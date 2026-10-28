@@ -18,8 +18,12 @@
 	plurals this way (see `servings_unit_one` in `format.ts`). "found" (like
 	German "Treffer") reads the same for one result as for many, so the
 	filtered line needs no singular variant.
+
+	A status, so a screen reader hears the new count when a tag or filter
+	changes the grid from elsewhere - picking a suggestion leaves the focus
+	in the search field and says nothing on its own.
 -->
-<p class="text-caption text-text-muted">
+<p role="status" class="text-caption text-text-muted">
 	{#if filtered}
 		{m.overview_result_count_filtered({ count })}
 	{:else if count === 1}

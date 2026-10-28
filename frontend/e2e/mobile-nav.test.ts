@@ -87,7 +87,7 @@ test('Search opens the command palette, which hands a query to the overview', as
 
 	await expect(page).toHaveURL(`/?q=${token}`);
 	await expect(palette).toHaveCount(0);
-	await expect(page.getByRole('textbox', { name: 'Search recipes' })).toHaveValue(token);
+	await expect(page.getByRole('combobox', { name: 'Search recipes' })).toHaveValue(token);
 });
 
 test('the palette sheet ends on the keyboard, not above or below it', async ({ page }) => {

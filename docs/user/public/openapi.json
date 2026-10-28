@@ -7673,7 +7673,71 @@
     },
     "/api/v1/tags": {
       "get": {
+        "description": "Without filters, every tag in use. With them, only the tags the matching recipes carry, counted among those recipes.",
         "operationId": "list-tags",
+        "parameters": [
+          {
+            "description": "Count only recipes matching this full-text search",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Count only recipes matching this full-text search",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Count only recipes carrying all of these tags",
+            "explode": false,
+            "in": "query",
+            "name": "tags",
+            "schema": {
+              "description": "Count only recipes carrying all of these tags",
+              "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Count only recipes whose total time is at most this many minutes",
+            "explode": false,
+            "in": "query",
+            "name": "maxMinutes",
+            "schema": {
+              "description": "Count only recipes whose total time is at most this many minutes",
+              "format": "int64",
+              "maximum": 1440,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Count only the caller's own favorites",
+            "explode": false,
+            "in": "query",
+            "name": "favorites",
+            "schema": {
+              "description": "Count only the caller's own favorites",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Count only recipes written by this username",
+            "explode": false,
+            "in": "query",
+            "name": "author",
+            "schema": {
+              "description": "Count only recipes written by this username",
+              "maxLength": 50,
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {

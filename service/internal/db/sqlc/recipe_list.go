@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// ListRecipes and CountRecipes are hand-written like the statements in
+// ListRecipes, CountRecipes and ListTagCounts are hand-written like the statements in
 // fts.go, for a different reason: which conditions the overview's filter
 // needs, and which ORDER BY, depends on the request. sqlc can only generate
 // a fixed statement, and one that holds every filter as a switchable
@@ -14,7 +14,7 @@ import (
 // each filter is appended only when it is set, and the statement is built
 // from fixed fragments alone: every value travels as a bound parameter.
 
-// RecipeFilter narrows ListRecipes and CountRecipes. Every field at its zero
+// RecipeFilter narrows ListRecipes, CountRecipes and ListTagCounts. Every field at its zero
 // value switches its filter off; the ones that are set combine with AND.
 type RecipeFilter struct {
 	// Match is an FTS5 MATCH expression over recipes_fts.
@@ -155,4 +155,42 @@ func (q *Queries) CountRecipes(ctx context.Context, f RecipeFilter) (int64, erro
 	var n int64
 	err := q.db.QueryRowContext(ctx, "SELECT COUNT(*)\nFROM recipes r"+where, args...).Scan(&n)
 	return n, err
+}
+
+// TagCountRow is a tag name and how many of the recipes a filter matches
+// carry it.
+type TagCountRow struct {
+	Name  string
+	Count int64
+}
+
+// ListTagCounts returns every tag the recipes f matches carry, with how
+// many of them carry it, most used first. With no filter set that is every
+// tag in use. It is here rather than generated for the same reason as
+// ListRecipes: the overview counts its tag suggestions under the filter it
+// shows, so every tag offered narrows the grid without emptying it.
+func (q *Queries) ListTagCounts(ctx context.Context, f RecipeFilter) ([]TagCountRow, error) {
+	where, args := f.where()
+	query := "SELECT t.name, COUNT(*) AS count\nFROM recipes r\nJOIN recipe_tags rt ON rt.recipe_id = r.id\nJOIN tags t ON t.id = rt.tag_id" +
+		where + "\nGROUP BY t.id\nORDER BY count DESC, t.name"
+	rows, err := q.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TagCountRow{}
+	for rows.Next() {
+		var i TagCountRow
+		if err := rows.Scan(&i.Name, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -58,17 +58,10 @@ type Page struct {
 	Total int    `json:"total"`
 }
 
-// List returns a page of recipe cards, most recently updated first,
-// optionally narrowed by full-text search query and/or tags.
-func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
-	limit := p.Limit
-	if limit == 0 {
-		limit = defaultListLimit
-	}
-	limit = min(max(limit, 1), maxListLimit)
-	page := max(p.Page, 1)
-	offset := int64((page - 1) * limit)
-
+// filter turns the narrowing half of p into the one RecipeFilter that List
+// and TagsFor both query with, so the grid and its tag counts can never
+// disagree about what a filter means.
+func (p ListParams) filter() sqlc.RecipeFilter {
 	// Normalized, de-duplicated and capped here, the one place every caller
 	// passes through: the SQL matches on COUNT(DISTINCT t.name) = len(Tags),
 	// so a duplicate tag would silently match nothing.
@@ -87,7 +80,21 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	if p.FavoritesOnly {
 		f.FavoritesOf = p.UserID
 	}
+	return f
+}
 
+// List returns a page of recipe cards, most recently updated first,
+// optionally narrowed by full-text search query and/or tags.
+func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
+	limit := p.Limit
+	if limit == 0 {
+		limit = defaultListLimit
+	}
+	limit = min(max(limit, 1), maxListLimit)
+	page := max(p.Page, 1)
+	offset := int64((page - 1) * limit)
+
+	f := p.filter()
 	rows, err := s.q.ListRecipes(ctx, f, normalizeSort(p.Sort), int64(limit), offset)
 	if err != nil {
 		return Page{}, fmt.Errorf("list recipes: %w", err)

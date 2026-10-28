@@ -277,9 +277,25 @@ export function setCover(recipeId: string, imageId: string): Promise<void> {
 	});
 }
 
-/** Lists all tags currently in use, with how many recipes carry each. */
-export async function listTags(): Promise<Tag[]> {
-	const page = await api<{ items: Tag[] }>('/tags');
+/**
+ * Lists the tags in use, with how many recipes carry each. Given the
+ * overview's filters, only the tags of the recipes they match, counted among
+ * those; the order is not a filter here.
+ */
+export async function listTags(
+	params: Partial<Pick<ListQuery, 'q' | 'tags' | 'maxMinutes' | 'favorites' | 'author'>> = {},
+	init: RequestInit = {}
+): Promise<Tag[]> {
+	const qs = buildListQuery({
+		q: params.q ?? '',
+		tags: params.tags ?? [],
+		maxMinutes: params.maxMinutes ?? 0,
+		favorites: params.favorites ?? false,
+		author: params.author ?? '',
+		sort: 'updated',
+		page: 1
+	});
+	const page = await api<{ items: Tag[] }>(`/tags${qs ? `?${qs}` : ''}`, init);
 	return page.items;
 }
 

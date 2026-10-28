@@ -410,7 +410,7 @@ type ListAuthorsWithCountRow struct {
 
 // Everyone who has written at least one recipe, most recipes first, for the
 // "added by" filter. Counting here rather than in Go keeps the list and
-// its counts one statement, the way ListTagsWithCount does.
+// its counts one statement, the way ListTagCounts does.
 func (q *Queries) ListAuthorsWithCount(ctx context.Context) ([]ListAuthorsWithCountRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAuthorsWithCount)
 	if err != nil {
@@ -949,8 +949,8 @@ SELECT EXISTS(SELECT 1 FROM recipes WHERE slug = ?)
 
 // Hand-written beside the generated code in internal/db/sqlc: GetRecipeRowID,
 // InsertFTS and DeleteFTS (fts.go), because sqlc rejects the "rowid"
-// pseudo-column, and ListRecipes and CountRecipes (recipe_list.go), because
-// their conditions and order depend on the request.
+// pseudo-column, and ListRecipes, CountRecipes and ListTagCounts
+// (recipe_list.go), because their conditions and order depend on the request.
 func (q *Queries) SlugExists(ctx context.Context, slug string) (bool, error) {
 	row := q.db.QueryRowContext(ctx, slugExists, slug)
 	var exists bool

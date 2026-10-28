@@ -550,6 +550,45 @@ func TestTagsWithCounts(t *testing.T) {
 	}
 }
 
+// TestTagsForCountsUnderTheFilter pins what the overview's suggestions rely
+// on: every tag TagsFor offers under a filter, added to that filter, gives
+// exactly the count it was shown with - so no offered tag empties the grid.
+func TestTagsForCountsUnderTheFilter(t *testing.T) {
+	svc := seedAll(t)
+	ctx := context.Background()
+	all, err := svc.Tags(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The second filter adds a search text, as the desktop row's counts do;
+	// the third the author, whom every fixture shares, so it must narrow
+	// nothing the tag has not.
+	for _, base := range []recipe.ListParams{
+		{Tags: []string{"klassiker"}, MaxMinutes: 180},
+		{Query: "rinder", Tags: []string{"klassiker"}},
+		{Tags: []string{"klassiker"}, Author: "sam"},
+	} {
+		tags, err := svc.TagsFor(ctx, base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(tags) == 0 || len(tags) >= len(all) {
+			t.Fatalf("%+v: filtered tags = %d of %d, want a strict subset", base, len(tags), len(all))
+		}
+		for _, tag := range tags {
+			p := base
+			p.Tags = []string{"klassiker", tag.Name}
+			page, err := svc.List(ctx, p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if page.Total != tag.Count {
+				t.Errorf("%+v, %s: shown %d, list finds %d", base, tag.Name, tag.Count, page.Total)
+			}
+		}
+	}
+}
+
 // TestListCombinesFullTextTagsAndTimeFilters pins the one combination none
 // of the other tests exercise: a full-text query, a tag filter, a time
 // filter and a sort together, so every condition sqlc.RecipeFilter appends

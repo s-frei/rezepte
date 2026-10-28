@@ -299,7 +299,15 @@ func (s *Service) BySlug(ctx context.Context, slug string) (Recipe, error) {
 // Tags returns every tag currently used by at least one recipe, together
 // with how many recipes use it, most used first.
 func (s *Service) Tags(ctx context.Context) ([]TagCount, error) {
-	rows, err := s.q.ListTagsWithCount(ctx)
+	return s.TagsFor(ctx, ListParams{})
+}
+
+// TagsFor returns the tags carried by the recipes p's filters match, each
+// with how many of those recipes carry it, most used first. Sort, Page and
+// Limit are ignored. Given the same filters as the grid, every tag it
+// returns narrows that grid and none empties it.
+func (s *Service) TagsFor(ctx context.Context, p ListParams) ([]TagCount, error) {
+	rows, err := s.q.ListTagCounts(ctx, p.filter())
 	if err != nil {
 		return nil, fmt.Errorf("list tags: %w", err)
 	}

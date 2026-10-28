@@ -23,8 +23,8 @@ SELECT * FROM recipes WHERE slug = ?;
 
 -- Hand-written beside the generated code in internal/db/sqlc: GetRecipeRowID,
 -- InsertFTS and DeleteFTS (fts.go), because sqlc rejects the "rowid"
--- pseudo-column, and ListRecipes and CountRecipes (recipe_list.go), because
--- their conditions and order depend on the request.
+-- pseudo-column, and ListRecipes, CountRecipes and ListTagCounts
+-- (recipe_list.go), because their conditions and order depend on the request.
 
 -- name: SlugExists :one
 SELECT EXISTS(SELECT 1 FROM recipes WHERE slug = ?);
@@ -100,7 +100,7 @@ SELECT id, username, display_name, color, avatar_id FROM users WHERE id IN (sqlc
 
 -- Everyone who has written at least one recipe, most recipes first, for the
 -- "added by" filter. Counting here rather than in Go keeps the list and
--- its counts one statement, the way ListTagsWithCount does.
+-- its counts one statement, the way ListTagCounts does.
 -- name: ListAuthorsWithCount :many
 SELECT u.username, u.display_name, u.color, COUNT(r.id) AS recipe_count
 FROM users u

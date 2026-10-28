@@ -10,7 +10,8 @@
 		active,
 		ontoggle
 	}: {
-		/** All tags currently in use, from `listTags()`. */
+		/** The tags that still narrow the grid under its other filters, with
+		 * their counts there, plus the chosen ones (see the overview page). */
 		tags: Tag[];
 		/** Currently selected tag names. */
 		active: string[];
@@ -138,11 +139,10 @@
 		}
 
 		// Active tags first: a filter that is on has to stay visible, or the
-		// row goes quiet about the very thing narrowing the grid below it -
-		// the count on the "Filter" button would say one is set and nothing
-		// on screen would say which. They are taken in order and individually,
-		// so a wide one that does not fit does not take a narrower one after
-		// it down with it.
+		// row goes quiet about the very thing narrowing the grid below it,
+		// and nothing else on screen names a chosen tag on desktop. They are
+		// taken in order and individually, so a wide one that does not fit
+		// does not take a narrower one after it down with it.
 		for (let i = 0; i < tags.length; i += 1) {
 			if (active.includes(tags[i].name)) {
 				take(i);
@@ -161,8 +161,10 @@
 	}
 
 	$effect(() => {
-		// Re-measure when the tag list changes, not only on resize.
-		void tags.length;
+		// Re-measure when the tag list changes, not only on resize. The list
+		// is replaced on every filter change and may hold other names at the
+		// same length, so it is the array that is tracked, not its length.
+		void tags;
 		// And when the selection changes: which chips the folded row keeps
 		// depends on which of them are active. `measure()` reads `active`
 		// itself, but only past the guards above, so the dependency is named

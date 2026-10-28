@@ -7,6 +7,7 @@ import {
 	openNewRecipe,
 	openRecipeMenu,
 	search,
+	searchField,
 	selectInStep,
 	signOut,
 	uniqueToken
@@ -84,7 +85,10 @@ test('creates a recipe through the editor', async ({ page }) => {
 	await page.goto('/');
 	await search(page, token);
 	await expect(cards(page)).toHaveText([title]);
-	await expect(page.getByText(token, { exact: true })).toBeVisible();
+	// On the card itself: the tag row above the grid carries the same name.
+	await expect(
+		page.getByRole('article', { name: title }).getByText(token, { exact: true })
+	).toBeVisible();
 });
 
 test('searches recipes and reaches the no-results state', async ({ page }) => {
@@ -163,7 +167,8 @@ test('names the filters, not an empty quote, when only they narrow the list', as
 	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue('');
 });
 
-test('narrows the grid with a tag chip', async ({ page }) => {
+test('narrows the grid with a tag chip', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'phones have no row of every tag; see the suggestion tests');
 	const token = uniqueToken();
 	const tag = `${token}a`;
 	await createRecipe(page, {
@@ -208,7 +213,8 @@ test('narrows the grid with a tag chip', async ({ page }) => {
 	await expect(cards(page)).toHaveText([`Tagged ${token}`]);
 });
 
-test('narrows the grid with two tag chips at once', async ({ page }) => {
+test('narrows the grid with two tag chips at once', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'phones have no row of every tag; see the suggestion tests');
 	const token = uniqueToken();
 	const a = `${token}a`;
 	const b = `${token}b`;
@@ -242,7 +248,8 @@ test('narrows the grid with two tag chips at once', async ({ page }) => {
 	await expect(cards(page)).toHaveText([`Both ${token}`]);
 });
 
-test('unfolds the chip row to reach a tag past the fold', async ({ page }) => {
+test('unfolds the chip row to reach a tag past the fold', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'phones have no row of every tag; see the suggestion tests');
 	const token = uniqueToken();
 	const tag = `${token}z`;
 	await createRecipe(page, { ...loadFixture(1), title: `Past the fold ${token}`, tags: [tag] });
@@ -380,12 +387,13 @@ test('centers the time slider thumb and stops on its track', async ({ page }) =>
 
 // The folded row reserves room for its own toggle by measuring a stand-in
 // copy off-screen, and the copy has to report the width the real one will
-// take. 360px is where too small a reservation shows: the toggle is the last
-// thing on the line, so whatever the measurement got wrong is clipped off its
-// right edge by the row's `overflow-hidden` - silently, since a clipped
-// element still reports itself visible.
-test('keeps the tag row toggle inside the row at 360px', async ({ page }) => {
-	await page.setViewportSize({ width: 360, height: 780 });
+// take. The narrowest width the row is shown at (md, 768px; phones find tags
+// through the search instead) is where too small a reservation shows: the
+// toggle is the last thing on the line, so whatever the measurement got
+// wrong is clipped off its right edge by the row's `overflow-hidden` -
+// silently, since a clipped element still reports itself visible.
+test('keeps the tag row toggle inside the row at its narrowest', async ({ page }) => {
+	await page.setViewportSize({ width: 768, height: 900 });
 	await page.route(
 		(url) => url.pathname === '/api/v1/tags',
 		(route) =>
@@ -396,7 +404,8 @@ test('keeps the tag row toggle inside the row at 360px', async ({ page }) => {
 						{ name: 'classic', count: 4 },
 						{ name: 'vegetarian', count: 3 },
 						{ name: 'breakfast', count: 2 },
-						{ name: 'for-a-crowd', count: 1 }
+						{ name: 'for-a-crowd', count: 1 },
+						...Array.from({ length: 8 }, (_, i) => ({ name: `weeknight-${i}`, count: 1 }))
 					]
 				}
 			})
@@ -533,11 +542,9 @@ test('sorting alone does not count as an active filter', async ({ page, isMobile
 	await page.getByRole('option', { name: 'A–Z' }).click();
 
 	// Sorting reorders the grid rather than narrowing it, so with no tags
-	// and no time filter active it must not read as an active filter:
-	// no count badge on the trigger (an exact match on "Filters" fails the
-	// moment a badge appends a digit to its accessible name), and no reset
-	// offered inside the panel.
-	await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeVisible();
+	// and no time filter active it must not read as an active filter: no
+	// active-filter chip names it, and no reset is offered inside the panel.
+	await expect(page.getByRole('button', { name: /^Remove filter/ })).toHaveCount(0);
 	if (!isMobile) {
 		await page.getByRole('button', { name: 'Filters', exact: true }).click();
 	}
@@ -934,7 +941,10 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
 	await expect(cards(page)).toHaveCount(2);
 
 	await page.getByRole('button', { name: 'Filters' }).click();
-	await page.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
+	// Inside the panel: once set, the same name also stands on the page as
+	// an active-filter chip.
+	const panel = page.getByRole('dialog');
+	await panel.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
 
 	await expect(page).toHaveURL(new RegExp(`author=${writer}`));
 	await expect(cards(page)).toHaveText([`By kim ${token}`]);
@@ -943,7 +953,7 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
 	await expect(page.getByRole('main').getByLabel(`Added by ${writer}`)).toBeVisible();
 
 	// Tapping the same chip again clears the filter rather than re-applying it.
-	await page.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
+	await panel.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
 	await expect(page).not.toHaveURL(/author=/);
 	await expect(cards(page)).toHaveCount(2);
 });
@@ -1698,4 +1708,221 @@ test('sets the unit list apart from the fields in dark mode', async ({ page }) =
 	const popover = await list.evaluate(style);
 	expect(popover.background).not.toBe(field.background);
 	expect(popover.border).not.toBe(field.border);
+});
+
+// The search field suggests tags while it has focus. Picking one turns it
+// into a filter, clears what was typed to find it and keeps the focus in the
+// field, so the next tag is one more word away - on both layouts, phones
+// having no row of every tag at all.
+test('finds a tag through the search and picks it', async ({ page, isMobile }) => {
+	const token = uniqueToken();
+	const tag = `${token}soup`;
+	await createRecipe(page, { ...loadFixture(1), title: `Tagged ${token}`, tags: [tag] });
+	await createRecipe(page, { ...loadFixture(2), title: `Other ${token}`, tags: [`${token}stew`] });
+
+	await page.goto('/');
+	const field = searchField(page);
+	await field.fill(`${token}s`);
+	const list = page.getByRole('listbox', { name: 'Suggestions' });
+	await expect(list.getByRole('option')).toHaveText([
+		`Search “${token}s” in the text`,
+		/soup.*1$/,
+		/stew.*1$/
+	]);
+
+	await list.getByRole('option', { name: new RegExp(`^${tag}`) }).click();
+	await expect(page).toHaveURL(new RegExp(`tags=${tag}`));
+	await expect(cards(page)).toHaveText([`Tagged ${token}`]);
+	await expect(field).toHaveValue('');
+	await expect(field).toBeFocused();
+	await expect(list).toHaveCount(0);
+	await expect(
+		isMobile
+			? page.getByRole('button', { name: `Remove filter ${tag}` })
+			: page.getByRole('button', { name: new RegExp(`^${tag}`), pressed: true })
+	).toBeVisible();
+});
+
+// Tags narrow with AND, so the suggestions only offer what still has a
+// recipe beside the chosen ones, counted among those recipes.
+test('suggests only tags that still match the chosen ones', async ({ page, isMobile }) => {
+	const token = uniqueToken();
+	const [a, b, c] = [`${token}a`, `${token}b`, `${token}c`];
+	await createRecipe(page, { ...loadFixture(1), title: `Both ${token}`, tags: [a, b] });
+	await createRecipe(page, { ...loadFixture(2), title: `Only A ${token}`, tags: [a] });
+	await createRecipe(page, { ...loadFixture(3), title: `Only C ${token}`, tags: [c] });
+
+	await page.goto(`/?tags=${a}`);
+	await expect(cards(page)).toHaveCount(2);
+	await searchField(page).fill(token);
+	const list = page.getByRole('listbox', { name: 'Suggestions' });
+	await expect(
+		list.getByRole('option', { name: new RegExp(`^${a}`), selected: true })
+	).toBeVisible();
+	await expect(list.getByRole('option', { selected: true })).toHaveCount(1);
+	await expect(list.getByRole('option', { name: new RegExp(`^${b}`) })).toHaveText(/1$/);
+	await expect(list.getByRole('option', { name: new RegExp(`^${c}`) })).toHaveCount(0);
+	// The chosen tag leads, right under the text row - and on desktop the row
+	// of tags too, however it ranks by count.
+	await expect(list.getByRole('option').nth(1)).toHaveAccessibleName(new RegExp(`^${a}`));
+	if (!isMobile) {
+		await page.keyboard.press('Escape');
+		await expect(
+			page.getByRole('main').getByRole('button', { pressed: true }).first()
+		).toHaveAccessibleName(new RegExp(`^${a}`));
+		await expect(
+			page
+				.getByRole('main')
+				.getByRole('button', { pressed: false })
+				.filter({ hasText: token })
+				.first()
+		).toHaveAccessibleName(new RegExp(`^${b}`));
+	}
+});
+
+// The server only counts tags of recipes the filters still match, so a
+// chosen tag that matches nothing - a link to a tag since removed - would
+// drop out of the list it is drawn from. It has to stay on screen, or
+// nothing would say what is emptying the grid, and stay one tap from gone.
+test('keeps a chosen tag on screen when it matches nothing', async ({ page, isMobile }) => {
+	const gone = `${uniqueToken()}gone`;
+	await page.goto(`/?tags=${gone}`);
+	const chip = isMobile
+		? page.getByRole('button', { name: `Remove filter ${gone}` })
+		: page.getByRole('button', { name: gone, pressed: true });
+	await expect(chip).toBeVisible();
+	await chip.click();
+	await expect(page).not.toHaveURL(/tags=/);
+});
+
+// What the filter panel sets stands on the page as light chips: tapping one
+// opens the panel, its × drops just that filter.
+test("shows the panel's filters as chips", async ({ page }) => {
+	// Wide enough that nothing folds, so this checks the chips themselves;
+	// the folding has a test of its own below.
+	await page.setViewportSize({ width: 1024, height: 800 });
+	await page.goto('/?maxMinutes=30&favorites=true');
+
+	await page.getByRole('button', { name: 'Remove filter Favorites' }).click();
+	await expect(page).not.toHaveURL(/favorites=/);
+	await expect(page).toHaveURL(/maxMinutes=30/);
+	await expect(page.getByRole('button', { name: 'Remove filter Favorites' })).toHaveCount(0);
+
+	await page.getByRole('button', { name: /^up to 30/ }).click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+// On a phone the panel's chips fold into one once they and the chosen tags
+// would need a second line - not merely because there are several.
+test("folds the panel's filters only when the row runs out of room", async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+
+	await page.goto('/?maxMinutes=180');
+	await expect(page.getByRole('button', { name: 'Remove filter up to 3 hr' })).toBeVisible();
+	await expect(page.getByRole('button', { name: /^\d filters/ })).toHaveCount(0);
+
+	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
+	const folded = page.getByRole('button', { name: /^3 filters/ });
+	await expect(folded).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Remove filter Favorites' })).toHaveCount(0);
+
+	await folded.click();
+	await expect(page.getByRole('button', { name: 'Remove filter Favorites' })).toBeVisible();
+	await page.getByRole('button', { name: 'Less', exact: true }).click();
+	await expect(folded).toBeVisible();
+});
+
+// A chip removes itself when used. The keyboard's focus moves on to the
+// control now in its place instead of falling back to the page.
+test('keeps the keyboard in the chip row when a filter is removed', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'keyboard focus');
+	await page.goto('/?maxMinutes=30&favorites=true');
+	const remove = page.getByRole('button', { name: 'Remove filter Favorites' });
+	await remove.focus();
+	await page.keyboard.press('Enter');
+	await expect(page).not.toHaveURL(/favorites=/);
+	await expect(page.getByRole('button', { name: /^Remove filter up to 30/ })).toBeFocused();
+
+	// Unfolding hands the focus to the first chip it reveals, folding back to
+	// the folded chip.
+	await page.setViewportSize({ width: 360, height: 780 });
+	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
+	const folded = page.getByRole('button', { name: /^3 filters/ });
+	await folded.focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('button', { name: /^up to 1 hr 30/ })).toBeFocused();
+	await page.getByRole('button', { name: 'Less', exact: true }).focus();
+	await page.keyboard.press('Enter');
+	await expect(folded).toBeFocused();
+});
+
+// The search field is a combobox: the arrow keys walk the suggestions while
+// the focus stays in the field, Enter takes the highlighted tag, and Escape
+// closes the list without touching what was typed.
+test('walks the tag suggestions with the keyboard', async ({ page }) => {
+	const token = uniqueToken();
+	const tag = `${token}kb`;
+	await createRecipe(page, { ...loadFixture(1), title: `Keyed ${token}`, tags: [tag] });
+
+	await page.goto('/');
+	const field = searchField(page);
+	await field.fill(token);
+	const list = page.getByRole('listbox', { name: 'Suggestions' });
+	await expect(list.getByRole('option')).toHaveCount(2);
+
+	await field.press('Escape');
+	await expect(list).toHaveCount(0);
+	await expect(field).toHaveValue(token);
+
+	await field.press('ArrowDown');
+	await field.press('ArrowDown');
+	const option = list.getByRole('option', { name: new RegExp(`^${tag}`) });
+	await expect(field).toHaveAttribute('aria-activedescendant', (await option.getAttribute('id'))!);
+	await field.press('Enter');
+	await expect(page).toHaveURL(new RegExp(`tags=${tag}`));
+	await expect(field).toHaveValue('');
+	await expect(field).toBeFocused();
+});
+
+// The suggestions' tags are counted without the search text, so typing must
+// not refetch them on every keystroke; only a change of the other filters
+// does. (The desktop row's own list follows the text - a separate request.)
+test('does not refetch the suggested tags while typing', async ({ page }) => {
+	const plain: string[] = [];
+	page.on('request', (request) => {
+		const url = new URL(request.url());
+		if (url.pathname === '/api/v1/tags' && !url.searchParams.has('q')) {
+			plain.push(url.search);
+		}
+	});
+	await page.goto('/');
+	await expect.poll(() => plain.length).toBe(1);
+	await search(page, 'some');
+	await search(page, 'something else');
+	expect(plain).toHaveLength(1);
+	await page.goto('/?maxMinutes=30');
+	await expect.poll(() => plain.length).toBe(2);
+});
+
+// A pick from the desktop row keeps the search text, so the row counts its
+// tags under that text too - the suggestions, whose pick clears it, do not.
+test('counts the desktop row under the search text', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'phones have no row of every tag');
+	const token = uniqueToken();
+	const [a, b] = [`${token}a`, `${token}b`];
+	await createRecipe(page, { ...loadFixture(1), title: `${token}one`, tags: [a, b] });
+	await createRecipe(page, { ...loadFixture(2), title: `${token}two`, tags: [a] });
+
+	await page.goto('/');
+	await search(page, `${token}one`);
+	await expect(cards(page)).toHaveText([`${token}one`]);
+	await expect(page.getByRole('main').getByRole('button', { name: a, exact: false })).toHaveText(
+		new RegExp(`^\\s*${a}\\s*1\\s*$`)
+	);
+
+	await searchField(page).fill('');
+	await searchField(page).press('Enter');
+	await expect(page.getByRole('main').getByRole('button', { name: a, exact: false })).toHaveText(
+		new RegExp(`^\\s*${a}\\s*2\\s*$`)
+	);
 });

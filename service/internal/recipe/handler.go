@@ -65,6 +65,18 @@ type TagList struct {
 	Items []TagCount `json:"items"`
 }
 
+// tagListInput narrows the counts the way listInput narrows the list. The
+// overview leaves out q for its search suggestions, since the text there is
+// typed to find a tag and picking one clears it, and passes it for the
+// desktop row of tags, where a pick keeps the text.
+type tagListInput struct {
+	Query         string   `query:"q" maxLength:"100" doc:"Count only recipes matching this full-text search"`
+	Tags          []string `query:"tags" doc:"Count only recipes carrying all of these tags"`
+	MaxMinutes    int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Count only recipes whose total time is at most this many minutes"`
+	FavoritesOnly bool     `query:"favorites" doc:"Count only the caller's own favorites"`
+	Author        string   `query:"author" maxLength:"50" doc:"Count only recipes written by this username"`
+}
+
 type tagListOutput struct {
 	Body TagList
 }
@@ -347,10 +359,19 @@ func Register(api huma.API, svc *Service) {
 		Method:      http.MethodGet,
 		Path:        "/api/v1/tags",
 		Summary:     "List tags with usage counts",
+		Description: "Without filters, every tag in use. With them, only the tags the matching recipes carry, counted among those recipes.",
 		Tags:        []string{"tags"},
 		Security:    auth.Protected(auth.ScopeRecipesRead),
-	}, func(ctx context.Context, _ *struct{}) (*tagListOutput, error) {
-		tags, err := svc.Tags(ctx)
+	}, func(ctx context.Context, in *tagListInput) (*tagListOutput, error) {
+		u, _ := auth.UserFrom(ctx)
+		tags, err := svc.TagsFor(ctx, ListParams{
+			Query:         in.Query,
+			Tags:          in.Tags,
+			MaxMinutes:    in.MaxMinutes,
+			FavoritesOnly: in.FavoritesOnly,
+			Author:        in.Author,
+			UserID:        u.ID,
+		})
 		if err != nil {
 			return nil, err
 		}
