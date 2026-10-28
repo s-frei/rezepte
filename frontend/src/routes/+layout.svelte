@@ -14,6 +14,8 @@
 	import { palette } from '$lib/palette.svelte';
 	import { listenForLaunches } from '$lib/launch';
 	import { getLocale } from '$lib/paraglide/runtime';
+	import { startChime, stopChime, unlockAudio } from '$lib/recipe/chime';
+	import { timers } from '$lib/recipe/timers.svelte';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -44,6 +46,30 @@
 		document.documentElement.lang = getLocale();
 	});
 
+	// The chime rings while any timer rings. A timer that starts ringing after
+	// the chime gave up (or while another still rings) restarts it.
+	let seenRinging = new Set<string>();
+	$effect(() => {
+		const ids = new Set(timers.ringing.map((t) => t.id));
+		const fresh = [...ids].some((id) => !seenRinging.has(id));
+		seenRinging = ids;
+		if (ids.size === 0) {
+			stopChime();
+		} else if (fresh) {
+			stopChime();
+			startChime();
+		}
+	});
+
+	// Browsers play sound only after a gesture: while something rings, the
+	// next tap anywhere unlocks the audio (a timer that rang while the page
+	// was closed has had no gesture yet).
+	function handlePointerdown() {
+		if (timers.ringing.length) {
+			unlockAudio();
+		}
+	}
+
 	onMount(listenForLaunches);
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -62,7 +88,7 @@
 	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onpointerdown={handlePointerdown} />
 
 <!-- `min-h-dvh`, not `min-h-screen`: on mobile browsers `100vh` is taller than
      the visible viewport, so the wrapper would outgrow the `h-dvh` cooking
