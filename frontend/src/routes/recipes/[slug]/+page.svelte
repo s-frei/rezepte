@@ -288,12 +288,15 @@
 	the page padding like every other row. Sharing steps aside in that
 	state - "Link kopieren" is in the menu too - so the row never carries four
 	controls at once. Over the image the bar itself must not swallow taps meant
-	for the gallery, hence `pointer-events-none` on the empty middle.
+	for the gallery, hence `pointer-events-none` on the empty middle. The
+	hairline is there in both states and only changes color: a border that
+	comes and goes animates its width in `currentColor`, a dark line that
+	outlasts the background.
 -->
 	<div
-		class="fixed inset-x-0 top-0 z-40 flex gap-3 transition-all md:hidden {scrolled
-			? 'h-16 items-center border-b border-border bg-background/90 px-5 backdrop-blur'
-			: 'pointer-events-none h-28 items-start px-10 pt-11'}"
+		class="fixed inset-x-0 top-0 z-40 flex gap-3 border-b transition-all md:hidden {scrolled
+			? 'h-16 items-center border-border bg-background/80 px-5 backdrop-blur'
+			: 'pointer-events-none h-28 items-start border-transparent px-10 pt-11'}"
 	>
 		<IconButton
 			label={m.detail_back()}
