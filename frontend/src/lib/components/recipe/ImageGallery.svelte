@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
+	import ScrollFade from '$lib/components/ui/ScrollFade.svelte';
 
 	let {
 		recipeId,
@@ -121,10 +122,12 @@
 		{#if images.length > 1}
 			<!-- `role="group"`: an `aria-label` on a bare `<div>` is ignored by
 			     screen readers, a labeled group is announced. -->
-			<div
+			<ScrollFade
 				role="group"
 				aria-label={m.images_thumbnails()}
-				class="mt-3 flex gap-2 overflow-x-auto py-1"
+				frame="-mx-1 mt-3"
+				fade="from-background"
+				class="flex gap-2 overflow-x-auto p-1"
 			>
 				{#each images as image, i (image.id)}
 					<button
@@ -145,7 +148,7 @@
 						/>
 					</button>
 				{/each}
-			</div>
+			</ScrollFade>
 		{/if}
 	</div>
 {/if}

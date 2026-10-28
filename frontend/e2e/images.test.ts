@@ -106,6 +106,27 @@ test('swipes between the lightbox images', async ({ page, isMobile }) => {
 	await expect(dialog.getByText('1 / 2')).toBeVisible();
 });
 
+test('keeps the first lightbox thumbnail reachable when the strip overflows', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'only a phone is narrow enough for the strip to overflow');
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Strip ${token}` });
+	for (let i = 0; i < 10; i++) {
+		await uploadImage(page, recipe.id, tinyPng([20 * i, 120, 40]));
+	}
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await page.getByRole('button', { name: 'Open photo 1 of 10' }).click();
+	const strip = page.getByRole('dialog').getByRole('group', { name: 'Photo thumbnails' });
+	// A centered row that overflows spills past its left edge, where no
+	// scrolling reaches; the first thumbnail must start inside the strip.
+	const stripBox = await strip.boundingBox();
+	const firstBox = await strip.getByRole('button', { name: 'Photo 1', exact: true }).boundingBox();
+	expect(firstBox!.x).toBeGreaterThanOrEqual(stripBox!.x);
+});
+
 test('uploads, re-covers and removes images in the editor', async ({ page }) => {
 	const token = uniqueToken();
 	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Editor photos ${token}` });

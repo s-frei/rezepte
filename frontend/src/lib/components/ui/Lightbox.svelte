@@ -8,6 +8,7 @@
 	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import { swipeDirection } from '$lib/recipe/swipe';
+	import ScrollFade from './ScrollFade.svelte';
 
 	let {
 		open = $bindable(false),
@@ -160,10 +161,12 @@
 						</div>
 
 						{#if count > 1}
-							<div
+							<ScrollFade
 								role="group"
 								aria-label={m.images_thumbnails()}
-								class="flex h-20 shrink-0 items-center justify-center gap-2 overflow-x-auto px-4"
+								frame="shrink-0"
+								fade="from-lightbox"
+								class="flex h-20 items-center justify-center-safe gap-2 overflow-x-auto px-4"
 							>
 								{#each images as image, i (image.id)}
 									<button
@@ -185,7 +188,7 @@
 										/>
 									</button>
 								{/each}
-							</div>
+							</ScrollFade>
 						{/if}
 					</div>
 				{/if}
