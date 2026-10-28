@@ -54,13 +54,16 @@ func (q *Queries) DeletePushSubscriptionByEndpoint(ctx context.Context, endpoint
 	return err
 }
 
-const deleteTimerAlarm = `-- name: DeleteTimerAlarm :exec
+const deleteTimerAlarm = `-- name: DeleteTimerAlarm :execrows
 DELETE FROM timer_alarms WHERE id = ?
 `
 
-func (q *Queries) DeleteTimerAlarm(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteTimerAlarm, id)
-	return err
+func (q *Queries) DeleteTimerAlarm(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteTimerAlarm, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteTimerAlarmForUser = `-- name: DeleteTimerAlarmForUser :exec

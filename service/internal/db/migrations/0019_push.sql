@@ -27,7 +27,7 @@ CREATE TABLE timer_alarms (
 CREATE INDEX timer_alarms_fire_at_idx ON timer_alarms(fire_at);
 CREATE INDEX timer_alarms_subscription_idx ON timer_alarms(subscription_id);
 
--- The VAPID signing key (PKCS #8), written on first use.
+-- The VAPID signing key (the raw 32-byte P-256 scalar), written on first use.
 ALTER TABLE instance_settings ADD COLUMN vapid_key BLOB;
 
 -- +goose Down

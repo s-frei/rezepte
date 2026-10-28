@@ -126,7 +126,7 @@ erDiagram
     text oidc_client_secret "plain text, never in an API"
     integer recipe_digest_hour "0 to 23, 17 by default"
     text recipe_digest_last_day "local YYYY-MM-DD of the last digest, empty before"
-    blob vapid_key "nullable, PKCS 8, written on first use, never in an API"
+    blob vapid_key "nullable, raw 32-byte P-256 scalar, written on first use, never in an API"
   }
   notification_optouts {
     text user_id PK "also FK to users.id"
@@ -247,7 +247,7 @@ erDiagram
   - `recipe_digest_hour` and `recipe_digest_last_day` to [Notifications](/features/notifications): the owner's hour of the new recipes digest in the server's time zone (`settings.Service.SetRecipeDigestHour`, 0 to 23, `ErrUnknownHour` otherwise) and the local date of the last run. `ClaimRecipeDigestDay` writes the date only when it differs and reports the rows it changed, so of two runs on one day only the first gets a row back.
   - The seven `smtp_*` columns to [Email](/features/email): the mail configuration the owner saves in the UI, `smtp_host = ''` meaning not configured here, the password stored as plain text like `link_preview_key`, and `GetMailSettings` the one query that reads them.
   - The four `oidc_*` columns to [OIDC](/features/oidc): the provider the owner saves in the UI, `oidc_issuer = ''` meaning not configured here, the client secret plain text like `smtp_password`, and `GetOIDCSettings` the one query that reads them.
-  - `vapid_key` to [Cook timers](/features/cook-timers): the VAPID signing key as PKCS #8, `NULL` until the push service first needs it and then generated and stored, so a migration does not have to make a key and an instance that never pushes never has one.
+  - `vapid_key` to [Cook timers](/features/cook-timers): the VAPID signing key as the raw 32-byte P-256 scalar, `NULL` until the push service first needs it and then generated and stored, so a migration does not have to make a key and an instance that never pushes never has one.
 - `push_subscriptions.endpoint` is `UNIQUE`: one device belongs to one account at a time, and subscribing it for another account moves the row and deletes the previous account's `timer_alarms`. `p256dh` and `auth` are the raw bytes the browser handed out, base64url only on the wire. `timer_alarms` cascades with its subscription, which cascades with its user; `fire_at` is an RFC 3339 `TEXT` like every timestamp, indexed for the sender's due query, and `title`, `body` and `url` are the copy the browser built. Nothing stores a timer. See [Cook timers](/features/cook-timers).
 - `shares.token` is a plain `UNIQUE TEXT`, not a hash: unlike a session id or an API token, this credential is a link a member sends to someone else and has to be able to read again to copy it a second time. `UNIQUE (recipe_id, created_by)` caps a person at one live link per recipe; both foreign keys cascade. `shares_created_by_idx` serves the member's own list; there is no index on `token` beyond the `UNIQUE` constraint's own, which is what a public request resolves against. See [Public shares](/features/public-shares) for the validity rule.
 

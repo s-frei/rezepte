@@ -149,17 +149,27 @@ func TestSubscribeRejectsBadKeys(t *testing.T) {
 func TestSubscribeMovesEndpointToNewUser(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
 	r := newReceiver(t)
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(fcm)); err != nil {
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.svc.Subscribe(ctx, f.bob, r.sub(fcm)); err != nil {
+	now := time.Now()
+	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(time.Minute))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.svc.Schedule(ctx, f.alice, alarm(fcm, time.Now().Add(time.Minute))); !errors.Is(err, ErrUnknownSubscription) {
+	if err := f.svc.Subscribe(ctx, f.bob, r.sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(time.Minute))); !errors.Is(err, ErrUnknownSubscription) {
 		t.Fatalf("alice still owns the endpoint: %v", err)
 	}
-	if _, err := f.svc.Schedule(ctx, f.bob, alarm(fcm, time.Now().Add(time.Minute))); err != nil {
+	f.svc.RunDue(ctx, now.Add(2*time.Minute))
+	if len(p.got) != 0 {
+		t.Fatal("alice's alarm was sent to bob's device")
+	}
+	if _, err := f.svc.Schedule(ctx, f.bob, alarm(ep, now.Add(time.Minute))); err != nil {
 		t.Fatalf("bob: %v", err)
 	}
 }
@@ -243,6 +253,7 @@ type pushServer struct {
 	got    []*http.Request
 	bodies [][]byte
 	status int
+	after  func() // runs while a request is being served
 }
 
 func newPushServer(t *testing.T, f fixture, status int) *pushServer {
@@ -253,6 +264,9 @@ func newPushServer(t *testing.T, f fixture, status int) *pushServer {
 		p.mu.Lock()
 		p.got, p.bodies = append(p.got, r), append(p.bodies, b)
 		p.mu.Unlock()
+		if p.after != nil {
+			p.after()
+		}
 		w.WriteHeader(p.status)
 	}))
 	t.Cleanup(p.Close)
@@ -417,5 +431,29 @@ func TestRunDueLogsNoEndpointPath(t *testing.T) {
 	f.svc.RunDue(ctx, now.Add(time.Second))
 	if !strings.Contains(buf.String(), "push failed") || strings.Contains(buf.String(), "secret-path") {
 		t.Fatalf("log: %s", buf.String())
+	}
+}
+
+func TestRunDueSkipsAlarmCancelledMidBatch(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(30*time.Second))); err != nil {
+		t.Fatal(err)
+	}
+	second, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(40*time.Second)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The cook stops the second timer while the first is being sent.
+	p.after = func() { _ = f.svc.Cancel(ctx, f.alice, second) }
+	f.svc.RunDue(ctx, now.Add(time.Minute))
+	if len(p.got) != 1 {
+		t.Fatalf("%d requests, want 1: the cancelled alarm was sent", len(p.got))
 	}
 }

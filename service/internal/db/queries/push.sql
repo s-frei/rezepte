@@ -49,5 +49,5 @@ JOIN push_subscriptions s ON s.id = a.subscription_id
 WHERE a.fire_at <= ?
 ORDER BY a.fire_at;
 
--- name: DeleteTimerAlarm :exec
+-- name: DeleteTimerAlarm :execrows
 DELETE FROM timer_alarms WHERE id = ?;
