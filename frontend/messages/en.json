@@ -1139,5 +1139,9 @@
 	"import_zip_link": "Import a zip file",
 	"import_admin_tag": "Admin",
 	"import_photo_failed": "We couldn't take over the photo.",
-	"import_truncated": "Some parts were too long and were shortened."
+	"import_truncated": "Some parts were too long and were shortened.",
+	"app_description": "A self-hosted recipe manager for the people you cook with",
+	"app_shortcut_import": "Import",
+	"app_shortcut_new": "New recipe",
+	"app_shortcut_favorites": "Favorites"
 }

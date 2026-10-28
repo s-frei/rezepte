@@ -68,21 +68,32 @@ test('the layouts keep the wordmark inside the box', async () => {
 	}
 });
 
-test('the favicon is the book, and the manifest what the generator writes', async () => {
+test('the favicon is the book, and the manifests what the generator writes', async () => {
 	expect(await text(new URL('favicon.svg', statics))).toBe(
 		await text(new URL('icon/rezepte-book.svg', brand))
 	);
-	expect(await text(new URL('manifest.webmanifest', statics))).toBe(manifest());
+	expect(await text(new URL('manifest.webmanifest', statics))).toBe(manifest('en'));
+	expect(await text(new URL('manifest.de.webmanifest', statics))).toBe(manifest('de'));
 });
 
-test('manifest names the app and its icons', () => {
-	const m = JSON.parse(manifest());
+test('manifest makes an installable app', () => {
+	const m = JSON.parse(manifest('en'));
 	expect(m).toMatchObject({
+		id: '/',
 		name: 'Rezepte',
 		short_name: 'Rezepte',
-		display: 'browser',
+		start_url: '/',
+		scope: '/',
+		display: 'standalone',
+		lang: 'en',
 		theme_color: GROUND,
-		background_color: GROUND
+		background_color: GROUND,
+		launch_handler: { client_mode: 'focus-existing' },
+		share_target: {
+			action: '/import',
+			method: 'GET',
+			params: { title: 'title', text: 'text', url: 'url' }
+		}
 	});
 	expect(m.icons.map((i: { src: string }) => i.src)).toEqual([
 		'/icon-192.png',
@@ -90,6 +101,29 @@ test('manifest names the app and its icons', () => {
 		'/icon-maskable-512.png'
 	]);
 	expect(m.icons[2].purpose).toBe('maskable');
+	expect(m.shortcuts.map((s: { url: string }) => s.url)).toEqual([
+		'/import',
+		'/recipes/new',
+		'/?favorites=true'
+	]);
+	expect(m.shortcuts.map((s: { name: string }) => s.name)).toEqual([
+		'Import',
+		'New recipe',
+		'Favorites'
+	]);
+	for (const s of m.shortcuts) {
+		expect(s.icons).toEqual([{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }]);
+	}
+});
+
+test("manifest takes names from the locale's catalog", () => {
+	const m = JSON.parse(manifest('de'));
+	expect(m.lang).toBe('de');
+	expect(m.shortcuts.map((s: { name: string }) => s.name)).toEqual([
+		'Importieren',
+		'Neues Rezept',
+		'Favoriten'
+	]);
 });
 
 async function pixels(url: URL) {

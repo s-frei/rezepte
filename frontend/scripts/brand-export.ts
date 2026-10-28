@@ -9,6 +9,7 @@
 // the figure turns to a smudge at 16px.
 import { generateAssets } from '@vite-pwa/assets-generator/api/generate-assets';
 import { instructions } from '@vite-pwa/assets-generator/api/instructions';
+import { readFileSync } from 'node:fs';
 import sharp from 'sharp';
 import { EDGE, GROUND } from './brand-palette';
 
@@ -75,18 +76,38 @@ function socialLayout(aspect: number, word: Art) {
 	};
 }
 
-export function manifest(): string {
+export function manifest(locale: string): string {
+	const t: Record<string, string> = JSON.parse(
+		readFileSync(new URL(`../messages/${locale}.json`, import.meta.url), 'utf8')
+	);
+	const icon = [{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' }];
 	const body = {
+		id: '/',
 		name: 'Rezepte',
 		short_name: 'Rezepte',
-		display: 'browser',
+		description: t.app_description,
+		lang: locale,
+		start_url: '/',
+		scope: '/',
+		display: 'standalone',
 		theme_color: GROUND,
 		background_color: GROUND,
 		icons: [
 			{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
 			{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
 			{ src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-		]
+		],
+		shortcuts: [
+			{ name: t.app_shortcut_import, url: '/import', icons: icon },
+			{ name: t.app_shortcut_new, url: '/recipes/new', icons: icon },
+			{ name: t.app_shortcut_favorites, url: '/?favorites=true', icons: icon }
+		],
+		share_target: {
+			action: '/import',
+			method: 'GET',
+			params: { title: 'title', text: 'text', url: 'url' }
+		},
+		launch_handler: { client_mode: 'focus-existing' }
 	};
 	return `${JSON.stringify(body, null, '\t')}\n`;
 }
@@ -196,7 +217,13 @@ async function main() {
 	await Bun.write(new URL('icon-192.png', statics), await icon(master, 192, 0.84));
 	await Bun.write(new URL('icon-512.png', statics), await icon(master, 512, 0.84));
 	await Bun.write(new URL('icon-maskable-512.png', statics), await icon(master, 512, 0.66));
-	await Bun.write(new URL('manifest.webmanifest', statics), manifest());
+	const { baseLocale, locales } = JSON.parse(
+		readFileSync(new URL('../../service/internal/i18n/locales.json', import.meta.url), 'utf8')
+	);
+	await Bun.write(new URL('manifest.webmanifest', statics), manifest(baseLocale));
+	for (const locale of locales.filter((l: string) => l !== baseLocale)) {
+		await Bun.write(new URL(`manifest.${locale}.webmanifest`, statics), manifest(locale));
+	}
 
 	const preview = await socialPreview(master, aspect, wordmark, word);
 	await Bun.write(new URL('og.png', statics), preview);

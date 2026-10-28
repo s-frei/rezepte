@@ -24,6 +24,9 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<!-- These mirror --color-background in app.css; app.html cannot read tokens. -->
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4ede2" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1612" />
 		<!--
 			Link preview for a shared URL, in the Open Graph and Twitter Card
 			tags that WhatsApp, Signal, Telegram, iMessage, Slack, Discord,

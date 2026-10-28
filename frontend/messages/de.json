@@ -1139,5 +1139,9 @@
 	"import_zip_link": "Zip-Datei importieren",
 	"import_admin_tag": "Admin",
 	"import_photo_failed": "Das Foto konnten wir nicht übernehmen.",
-	"import_truncated": "Einiges war zu lang und wurde gekürzt."
+	"import_truncated": "Einiges war zu lang und wurde gekürzt.",
+	"app_description": "Eine selbst gehostete Rezeptverwaltung für die Leute, mit denen du kochst",
+	"app_shortcut_import": "Importieren",
+	"app_shortcut_new": "Neues Rezept",
+	"app_shortcut_favorites": "Favoriten"
 }

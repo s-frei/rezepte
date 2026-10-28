@@ -178,6 +178,7 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 	// 401 from /mcp looks there for OAuth metadata, and the SPA's index.html
 	// with a 200 would read as a broken document rather than "none here".
 	mux.Handle("/.well-known/", notFound("no such document"))
+	mux.Handle("GET /manifest.webmanifest", ManifestHandler(static, cfg.Locale))
 	mux.Handle("/", SPAHandler(static, cfg.SecureCookies, s.preview, s.headers))
 	return s
 }
