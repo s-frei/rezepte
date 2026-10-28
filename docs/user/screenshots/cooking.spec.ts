@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { prepare, shot } from './helpers';
+import { FIXED_TIME, isMobile, prepare, shot } from './helpers';
 
 // Servings scaling and cooking mode: a "servings" stepper on the detail
 // page (buttons labeled "Fewer servings" / "More servings", value
@@ -61,4 +61,20 @@ test('cook-mode-type-size', async ({ page }, testInfo) => {
 	await smaller.click();
 	await expect(smaller).toBeChecked();
 	await shot(page, 'cook-mode-type-size');
+});
+
+test('cook-mode-timers', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	// Step 3 waits "15 minutes", step 6 "20 minutes": one timer each.
+	await page.goto(`${DETAIL}/cook?step=3`);
+	await page.getByRole('button', { name: 'Start timer: 15 minutes' }).click();
+	await page.goto(`${DETAIL}/cook?step=6`);
+	await page.getByRole('button', { name: 'Start timer: 20 minutes' }).click();
+	// A few minutes in, so the rings show progress; the clock stays fixed.
+	await page.clock.setFixedTime(new Date(FIXED_TIME.getTime() + 4 * 60_000 + 20_000));
+	await expect(page.locator('[data-timer-dock]')).toContainText('10:40');
+	if (isMobile(testInfo)) {
+		await page.getByRole('button', { name: 'Show all timers' }).click();
+	}
+	await shot(page, 'cook-mode-timers');
 });

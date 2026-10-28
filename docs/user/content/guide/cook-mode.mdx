@@ -24,6 +24,21 @@ description: A full-screen, step-by-step view for cooking at the stove
   </Step>
   <Step>
 
+    ### Run timers
+
+    Tap a marked duration — "20 minutes" — to start a timer for it. Each marked time has its own timer, so tapping one that already runs starts nothing new, and timers of different steps, or of different recipes, run side by side. A duration given as a range — "20 to 25 minutes" — runs on the shorter time; check then and add more if needed.
+
+    Running timers sit above the "Next" button. On a phone they fold into one capsule showing the timer that ends first; tap it to see all of them, each with its remaining time and the clock time it ends. Tap a timer's ring to pause it (the ring shows ⏸ while it runs and ▶ while it is paused) and again to resume it, ✕ to stop it, or its name to go to its step.
+
+    When a timer ends, an orange "Done" banner appears under the progress bar and the phone chimes (and vibrates, where it can) until you tap "Off". After about two minutes the sound stops by itself; the banner stays until you turn it off.
+
+    Timers keep running when you change steps, leave cook mode or reload the page. Outside cook mode the timer that ends first shows at the top of a phone's screen and at the bottom right on a computer; tap it to go back to its step.
+
+    <Screenshot name="cook-mode-timers" caption="Two timers running in cook mode" />
+
+  </Step>
+  <Step>
+
     ### Resize the text
 
     A long step can fill more than a phone screen. The "Aa" button in the header opens a row of five type sizes, from small enough to fit a long step to large enough to read from across the kitchen; tap one and the step is set in it at once. The size holds for every step until you leave cook mode, and the next time you start cooking it is back at the default.
@@ -49,6 +64,9 @@ description: A full-screen, step-by-step view for cooking at the stove
 <Accordions type="single">
   <Accordion title="When the screen does not stay awake">
     Keeping the screen on relies on the browser's Wake Lock API, which requires a secure context. Over plain HTTP on a local network (no TLS) the browser silently does not grant it, so the screen can still turn off — see [Reverse proxy](/operations/reverse-proxy) for adding HTTPS.
+  </Accordion>
+  <Accordion title="Timers stay on this device">
+    A timer lives only in the browser that started it: another phone or computer of your household does not see it. Signing out stops every timer, so the next person to sign in on a shared device starts clean. After a reload, a timer that ended while the page was closed shows as done, but the browser plays its sound only after your first tap on the page.
   </Accordion>
   <Accordion title="Recipes without steps">
     A recipe with no steps shows a short message instead of the step view.

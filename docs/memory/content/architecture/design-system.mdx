@@ -178,6 +178,11 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 - **Step links** (`StepLinks.svelte`, editor) - [Ingredient references](/features/ingredient-references) owns them.
 - **Image thumbnails** (`ImagesSection.svelte`) - the drag, remove and cover overlay is always visible on touch and revealed on hover or focus only under `[@media(hover:hover)]`.
 - **`ServingsStepper`** - the bound buttons stay enabled and announce `aria-disabled`: a truly disabled button drops keyboard focus the moment it is pressed at 1 or 99. Cook mode's step view, progress bar and `IngredientSheet` belong to [Cooking](/features/cooking).
+- **Cook timers** (`frontend/src/lib/components/timer/`) - [Cook timers](/features/cook-timers) owns the behavior; the look in short:
+  - `TimerRing` is the one progress ring: an SVG in `currentColor` with the track at 20% of it, filling clockwise from the top, its dash eased over the second's tick only under `motion-safe`. Where it is a button it carries ⏸ while running and ▶ while paused, so a tap on it is discoverable; inline in a step it replaces the time's clock glyph at 0.82em, with no glyph.
+  - The dock's capsule is `user-teal` with `time-foreground` ink, the times' own teal; its expanded phone panel is `accent` (`rounded-3xl`) with rows on `background` (`rounded-2xl`); the remaining time is `text-card`, tabular.
+  - The alarm banner is `primary` with `primary-foreground` and an "Aus" pill in the inverted pair; it sits under the progress bar, not over the footer.
+  - Outside cook mode the phone island is `inverse` with a `user-teal` ring and `shadow-lift`, fixed at the top center; from `md` it is the dock's capsule at the bottom right. Ringing, both turn `primary`. While the island shows, `--timer-island` (in `frontend/src/app.css`, not a theme token) is its height on phones, and the shell's padding and every fixed top bar move down by it.
 - **Toast** (svelte-sonner, configured in `frontend/src/routes/+layout.svelte`) - `bg-inverse`, `rounded-toast`. Sonner's own styles are unlayered and beat the utilities layer, so its classes carry Tailwind's `!`.
 - **Drag handle** - Lucide `grip-vertical` in `text-handle`.
 

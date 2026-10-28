@@ -1,0 +1,52 @@
+---
+title: Cook timers
+description: One tap on a step's stored time starts a timer; the cook-mode dock, the alarm banner, the island outside cook mode, all held in the browser
+---
+
+A cook who reads "90 Minuten schmoren" in cook mode taps the time and a timer runs. Several can run at once, from one step, several steps or several recipes; they stay visible while the cook pages through the steps, leaves cook mode or reloads, and an ended timer rings until it is turned off. A timer lives only in the browser that started it. It runs on the seconds a [step time](/features/step-times) stores, never on text parsed in cook mode.
+
+## How it works
+
+**The store is one app-wide `$state` class.** `Timers` in `frontend/src/lib/recipe/timers.svelte.ts` holds the list and a `now` that one interval ticks once a second, alive only while a timer runs. It writes the list to `localStorage` (`TIMERS_STORAGE_KEY`) on every change, each access wrapped in `try`/`catch` like the servings key, so blocked storage leaves the timers running in memory for the page view. Remaining time is always `endsAt` against `Date.now()`, so a reload, a background tab or a suspended phone resumes exactly; `settle` turns a running timer whose `endsAt` passed into a ringing one, on load and on every tick. The pure rules (`timerId`, `remainingMs`, `fraction`, `byEnding`, `parseTimers`, `formatClock`, `clampStep`) live in `timers.ts` with unit tests; the store's behavior is tested in `timers-store.test.ts`.
+
+**A timer is recipe + step + phrase.** `timerId` joins the three, and `start` returns the existing timer for an id it already holds, so a second tap - also on a paused or ringing timer - starts nothing. A step with two times gets two timers. The timer stores the recipe's slug and title and the step's number and phrase, and is named from those (`timer_name`, "Schritt 5 · 90 Minuten"); a recipe edited while it runs changes nothing about it.
+
+**In cook mode each stored time is a button.** `StepText` takes `onstarttime` and `activeTimer` only from the cook route: with them a time renders as `<button data-time>` labeled `timer_start`, with the same look as the plain mark and an `::after` that makes its target taller without moving a letter (never wider: a sideways overhang widens the step past its column on a narrow phone), and a time whose timer exists swaps its clock glyph for a `TimerRing`. The detail page passes neither and renders the time as before. `segmentStep` hands each time segment its `StepTime`, so the button starts the stored `seconds` - a range runs on the lower bound, never `maxSeconds`. The tap calls `unlockAudio()` first: it is the gesture browsers want before they play the alarm.
+
+**The dock sits between the step and the footer.** `TimerDock` lists every non-ringing timer by `byEnding`, of every recipe; a row of another recipe prefixes its name with that recipe's title. Below `md` it starts collapsed into one capsule (the first timer's ring, time and step, `+N` for the others) and expands into a panel of rows on `accent`; the state is a plain `$state`, held for the visit, and focus moves to the counterpart button when the pressed one disappears. From `md` the rows are always shown, two side by side. A row's ring is the pause button (⏸ while running, ▶ while paused, labeled `timer_pause` / `timer_resume`); its text opens the timer's step - `go` to the step clamped by `clampStep` for this recipe, the other recipe's cook route with `?step=` otherwise; ✕ stops it. While focus is inside the dock the page's arrow and Escape handler stands down; elsewhere the arrows keep paging.
+
+**An ended timer becomes a banner under the progress bar.** `TimerBanner` (on `primary`, bell, `timer_done`, the name, `timer_off`) renders once per ringing timer, stacked, on every width, and leaves the dock. It carries `role="alert"`, so a screen reader hears the end once. Start, pause and resume reach it through the dock's polite live region, fed by `timers.listen`; the countdown itself is never announced. The chime and vibration belong to the root layout, which rings while `timers.ringing` is not empty and stops after `CHIME_LIMIT_MS`; the banner stays until "Aus".
+
+**Outside cook mode the shell shows the first timer.** `TimerIndicator`, rendered by `AppShell` (so never in cook mode, on the login pages or on a public share), shows the first of `byEnding`: below `md` a dark island at the top center, from `md` the dock's teal capsule fixed at the bottom right. A ringing first timer turns it `primary` with "Fertig", the recipe title and the name, and an "Aus" button. The rest of it links to the timer's cook route with `?step=<n>`. While a timer shows, `AppShell` sets `data-timer-island` on the root, and `--timer-island` in `frontend/src/app.css` moves the shell's padding and every fixed top bar (the detail page's, the editor's `SaveBar`) down by the island's height on phones; a new fixed top bar has to use the same variable. On wide screens the root layout gives the Toaster a larger bottom offset while a timer shows, so toasts stack above the capsule.
+
+**`?step=N` opens cook mode at that step.** The cook route reads the 1-based `step` parameter into its initial index through `clampStep`, so a step removed since the timer started lands on the last step, and a missing or non-numeric value on the first. Jumping from one recipe's cook mode to another's reuses the page component, so `afterNavigate` reads the parameter again for a navigation that stays on the cook route.
+
+**Sign-out clears every timer.** `signOut` in `frontend/src/lib/sign-out.ts` calls `timers.clear()` before the logout request. The storage key carries no user id: a shared kitchen tablet starts clean for the next person, and nobody's timer rings for someone who already left.
+
+**The e2e suite drives a paused page clock.** `frontend/e2e/cook-timers.test.ts` installs `page.clock` before the first navigation, pauses it once signed in and moves it with `runFor`, under `reducedMotion: 'reduce'` so Svelte's transitions do not wait on the paused clock. Two traps: a client-side link navigation stalls while the clock is paused, so the jump test resumes it before the click; and the detail page's top bar eases into its offset (`transition-all`), so its position is polled. It reads German through a German account and the German fixtures, which carry stored times ("15 Minuten" in Königsberger Klopse step 3, "90 Minuten" in Rinderrouladen step 5).
+
+## Why it is this way
+
+- **State in the browser, time from `endsAt`.** A timer is a promise about this kitchen, not household data; nothing on the server needs it, and deriving the remaining time from a timestamp is the only form that survives a sleeping phone.
+- **The dock collapses on phones.** At 320 px and the default type size a panel of rows would take the step's room; one capsule keeps the step readable and still says how much is left on the timer that matters next.
+- **The ring is the pause button, with a glyph.** It is where the eye already is; without ⏸/▶ in its center nobody would guess a ring is tappable.
+- **The banner at the top, under the progress bar.** It is where the cook looks first, it leaves the footer's "Weiter" where the thumb expects it, and the running timers stay in the dock below.
+- **The island moves the page down.** An overlay at the top would cover the overview's running head and the detail page's back button; making room is the only way nothing hides under it.
+
+## Rejected
+
+- **A text countdown in the step instead of a dock.** The step text would reflow every second and a timer would vanish with its step.
+- **A kitchen dial.** Charming, but a dial says "about ten minutes", and the cook wants the exact remaining time at a glance.
+- **The alarm as a card at the bottom or in place of the footer.** Below the step it is out of sight, and replacing "Weiter" puts an off switch where the thumb pages.
+- **A notch hanging from the top edge (outside cook mode).** It reads as system chrome and sits where the phone's own status bar crowds it.
+- **The indicator in the header's center on desktop.** The top bar's middle holds the breadcrumb and page title; a timer there crowds both, and the bottom-right corner is free.
+- **Starting timers outside cook mode, or live rings on the detail page.** The detail page is for reading and planning; one indicator outside cook mode is enough to see what runs.
+- **A per-user storage key.** A timer still ringing for someone who signed out is worse than the next person starting clean.
+
+## Limits
+
+- Timers live per device and per browser; another device of the same household never sees them.
+- A range ("20 bis 25 Minuten") runs on its lower bound, with no choice offered.
+- A timer that ended while the page was closed comes back ringing, but the browser plays no sound before the first tap after a reload; the banner or island shows the end silently before that tap.
+- The chime gives up after `CHIME_LIMIT_MS`; only the banner or island keeps showing the end.
+- The phone island shows only the first-ending timer and a count; the rest are in cook mode's dock.

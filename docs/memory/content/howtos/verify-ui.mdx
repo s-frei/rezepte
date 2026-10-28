@@ -149,7 +149,7 @@ cd frontend
 mise run //:demo -- bun run test-results/probe.ts
 ```
 
-The probe lives in `frontend/test-results/`, which is git-ignored: a script outside `frontend/` cannot import `playwright`, because Bun resolves packages from the script's own directory. The command runs where it was typed, with the instance at `http://localhost:${process.env.RZP_DEMO_PORT}`.
+The probe lives in `frontend/test-results/`, which is git-ignored: a script outside `frontend/` cannot import `playwright`, because Bun resolves packages from the script's own directory. The command runs where it was typed, with the instance at `http://localhost:${process.env.RZP_DEMO_PORT}`. Playwright empties `frontend/test-results/` at the start of every `mise run e2e`, probes and their screenshots included, so keep the probe's source elsewhere and copy it in before a run.
 
 Without a command, `mise run demo` keeps that instance up until Ctrl-C, which is what you want when you are clicking through it yourself rather than driving it. Both forms build the binary first through the task's `depends`, and `REZEPTE_DATA_DIR=<dir> mise run demo` keeps its recipes across restarts instead of seeding a throwaway directory.
 
