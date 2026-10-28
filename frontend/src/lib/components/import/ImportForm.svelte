@@ -65,19 +65,21 @@
 		field?.focus();
 	}
 
-	// A shared link arrives in the field and starts reading at once, whether
-	// the form mounts for it or is already open and reading something else.
+	// A shared link arrives in the field and waits there for the member to
+	// press the button, whether the form mounts for it or is already open,
+	// even mid-read: that read gives way to the new link.
 	$effect(() => {
 		const shared = importDialog.prefill;
 		if (!shared) return;
 		untrack(() => {
 			importDialog.prefill = '';
+			reads.abort();
 			duplicate = null;
 			failure = null;
 			fallback = null;
 			raw = shared;
 			reading = false;
-			void read();
+			void focusField();
 		});
 	});
 

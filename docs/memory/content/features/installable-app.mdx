@@ -24,7 +24,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 **Neighbors that the share needed.**
 
 - The overview's `syncUrl` (`frontend/src/routes/+page.svelte`) returns while another navigation runs or the route is not `/`: a late list answer would otherwise `replaceState` the overview over a navigation away, which is how a share into `/import` lost to a fast draft.
-- `ImportForm` takes `importDialog.prefill` in an `$effect`, not only on mount, so a share into an already open dialog reads too.
+- `ImportForm` takes `importDialog.prefill` in an `$effect`, not only on mount, so a share into an already open dialog gets the link too.
 
 **Testing.** `frontend/e2e/install.test.ts` holds the flows. Chromium never offers an install under automation, so the tests dispatch a synthetic `beforeinstallprompt` on `load`; the user-docs screenshots do the same with `offerInstall` in `docs/user/screenshots/helpers.ts`. Run the file from the repository root, see [Verify UI with Playwright](/howtos/verify-ui).
 
@@ -45,6 +45,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 ## Limits
 
 - There is no share target on iOS: Safari does not support it, so iPhone and iPad paste the link.
+- On Android only a WebAPK gets the share target, which Chrome mints and Brave, for one, does not: Brave's install is a home-screen shortcut that never shows in the share menu.
 - Shortcut names are in the instance language, not the member's.
 - `launch_handler` is Chromium-only; elsewhere a second share opens a new window.
 - Not checked on a device: Android share, shortcuts and a share into an editor with unsaved changes. An Android device check is pending.

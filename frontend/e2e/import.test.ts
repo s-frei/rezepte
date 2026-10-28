@@ -314,7 +314,8 @@ test('the phone "+" offers writing or importing a recipe', async ({ page, isMobi
 	await expect(field(page)).toBeVisible();
 });
 
-// Share → Rezepte opens /import?url=…&text=…, which starts the import at once.
+// Share → Rezepte opens /import?url=…&text=…, which puts the link into the
+// import dialog; reading waits for the member's press.
 // The link import is stubbed for the reason given at the top of the file.
 const sharedSoup = 'https://example.com/soup';
 
@@ -344,23 +345,22 @@ async function launch(page: Page, path: string) {
 	);
 }
 
-test('a shared link imports at once', async ({ page }) => {
-	await stubSoup(page);
-	let release = () => {};
-	const released = new Promise<void>((resolve) => (release = resolve));
-	await page.route('**/api/v1/recipe-drafts', async (route) => {
-		await released;
-		await route.fallback();
+test('a shared link waits in the import dialog until Import', async ({ page }) => {
+	let drafts = 0;
+	await page.route('**/api/v1/recipe-drafts', (route) => {
+		drafts++;
+		return route.fulfill({ json: { ...linkedSoup, duplicate: null } });
 	});
 	await page.goto(`/import?url=${encodeURIComponent(sharedSoup)}`);
-	// Reading, with no click.
-	await expect(dialog(page).getByText('Reading example.com')).toBeVisible();
-	release();
+	await expect(field(page)).toHaveValue(sharedSoup);
+	await expect(page).toHaveURL('/');
+	expect(drafts).toBe(0);
+	await submit(page);
 	await expect(page).toHaveURL('/recipes/new');
 	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
 		'Linked soup'
 	);
-	// The /import entry was replaced: Back does not import again.
+	// The /import entry was replaced: Back does not open the share again.
 	// The imported draft is unsaved, so leaving it asks first.
 	await page.goBack();
 	await page
@@ -371,20 +371,18 @@ test('a shared link imports at once', async ({ page }) => {
 	await expect(dialog(page)).toHaveCount(0);
 });
 
-test('a share while the import dialog is open imports the shared link', async ({ page }) => {
+test('a share while the import dialog is open replaces the field', async ({ page }) => {
 	await installLaunchQueue(page);
 	await stubSoup(page);
 	await page.goto('/');
 	await openImport(page);
 	await field(page).fill('half typed');
 	await launch(page, `/import?url=${encodeURIComponent(sharedSoup)}`);
-	await expect(page).toHaveURL('/recipes/new');
-	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
-		'Linked soup'
-	);
+	await expect(field(page)).toHaveValue(sharedSoup);
+	await expect(page).toHaveURL('/');
 });
 
-test('a share while signed out imports after sign-in', async ({ browser }) => {
+test('a share while signed out waits in the dialog after sign-in', async ({ browser }) => {
 	const context = await browser.newContext();
 	const page = await context.newPage();
 	await stubSoup(page);
@@ -394,10 +392,7 @@ test('a share while signed out imports after sign-in', async ({ browser }) => {
 	await page.getByLabel('Username').fill('admin');
 	await page.getByLabel('Password').fill(devPassword('admin'));
 	await page.getByRole('button', { name: 'Sign in' }).click();
-	await expect(page).toHaveURL('/recipes/new');
-	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
-		'Linked soup'
-	);
+	await expect(field(page)).toHaveValue(sharedSoup);
 	await context.close();
 });
 

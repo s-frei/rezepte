@@ -8,9 +8,8 @@
 
 	// The target of the manifest's share_target and the "Import" shortcut: the
 	// overview takes this entry's place, so Back and a reload do not import
-	// again, and the dialog opens over it only once that has settled - a
-	// reading that finished first would navigate to the editor and be undone
-	// by the redirect.
+	// again, and the dialog opens over it only once that has settled, with the
+	// shared link in its field.
 	onMount(async () => {
 		const shared = sharedInput(page.url.searchParams);
 		await goto(resolve('/'), { replaceState: true });
