@@ -33,7 +33,7 @@
 	when there are none.
 -->
 <div
-	class="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-5 backdrop-blur md:hidden"
+	class="fixed inset-x-0 top-[var(--timer-island,0px)] z-40 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-5 backdrop-blur md:hidden"
 >
 	<Button variant="ghost" disabled={saving} onclick={oncancel}>
 		{m.common_cancel()}

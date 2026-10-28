@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { Recipe } from '../src/lib/api/recipes';
-import { createRecipe, createUser, loadFixture, login, uniqueToken } from './helpers';
+import { createRecipe, createUser, loadFixture, login, signOut, uniqueToken } from './helpers';
 
 // Cook timers, read in German: a German account, and the German sample
 // recipes whose steps carry stored times - Königsberger Klopse step 3
@@ -148,4 +148,109 @@ test('dock and footer leave the step readable at 320 px and the largest type', a
 	expect(text && box && footer).toBeTruthy();
 	expect(text!.y + text!.height).toBeLessThanOrEqual(box!.y);
 	expect(box!.y + box!.height).toBeLessThanOrEqual(footer!.y);
+});
+
+// Outside cook mode: the island (phones) or the capsule (wide screens).
+const indicator = (page: Page) => page.locator('[data-timer-indicator]');
+
+async function startKlopse(page: Page): Promise<Recipe> {
+	const recipe = await germanRecipe(page, 0);
+	await cookAt(page, recipe, 3);
+	await page.getByRole('button', { name: 'Timer starten: 15 Minuten' }).click();
+	await page.getByRole('button', { name: 'Zurück zum Rezept' }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	return recipe;
+}
+
+test('shows on the overview', async ({ page }) => {
+	await startKlopse(page);
+	await page.goto('/');
+	await page.setViewportSize({ width: 360, height: 780 });
+	await expect(indicator(page)).toBeVisible();
+	await expect(indicator(page)).toContainText('15:00');
+	const island = await indicator(page).boundingBox();
+	expect(island!.y).toBeLessThan(40);
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await expect(indicator(page)).toContainText('15:00');
+	const capsule = await indicator(page).boundingBox();
+	expect(capsule!.x + capsule!.width).toBeGreaterThan(1280 - 60);
+	expect(capsule!.y + capsule!.height).toBeGreaterThan(800 - 60);
+});
+
+test('jump opens the step', async ({ page }) => {
+	const recipe = await startKlopse(page);
+	await page.goto('/');
+	// A client-side link navigation stalls on the paused page clock.
+	await page.clock.resume();
+	await indicator(page).getByRole('link').click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=3`);
+	await expect(page.getByText('Schritt 3 von 6')).toBeVisible();
+});
+
+test('jump clamps to the last step', async ({ page }) => {
+	const recipe = await germanRecipe(page, 0);
+	await page.goto(`/recipes/${recipe.slug}/cook?step=99`);
+	await expect(page.getByText('Schritt 6 von 6')).toBeVisible();
+	await page.goto(`/recipes/${recipe.slug}/cook?step=abc`);
+	await expect(page.getByText('Schritt 1 von 6')).toBeVisible();
+});
+
+test('island covers nothing', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	const recipe = await startKlopse(page);
+	await page.goto('/');
+	const island = await indicator(page).boundingBox();
+	const head = await page.locator('main time').first().boundingBox();
+	expect(island && head).toBeTruthy();
+	expect(head!.y).toBeGreaterThanOrEqual(island!.y + island!.height);
+
+	// The detail page's fixed top bar moves down too.
+	await page.goto(`/recipes/${recipe.slug}`);
+	// Polled: the bar's `transition-all` eases it down once the shell set the offset.
+	const back = page.getByRole('button', { name: 'Zurück' }).first();
+	await expect
+		.poll(async () => (await back.boundingBox())!.y)
+		.toBeGreaterThanOrEqual(island!.y + island!.height);
+});
+
+test('rings outside cook mode and turns off', async ({ page }) => {
+	await startKlopse(page);
+	await page.clock.runFor(15 * 60_000);
+	await expect(indicator(page)).toContainText('Fertig');
+	await indicator(page).getByRole('button', { name: 'Aus' }).click();
+	await expect(indicator(page)).toHaveCount(0);
+});
+
+test('sign-out clears timers', async ({ page }, testInfo) => {
+	await startKlopse(page);
+	await page.goto('/');
+	await expect(indicator(page)).toBeVisible();
+	await signOut(page, testInfo, 'de');
+	await expect(page).toHaveURL(/\/login/);
+	await login(page, username);
+	await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
+	await expect(indicator(page)).toHaveCount(0);
+});
+
+test('a timer survives its recipe losing the step', async ({ page }) => {
+	const recipe = await germanRecipe(page, 0);
+	await cookAt(page, recipe, 3);
+	await page.getByRole('button', { name: 'Timer starten: 15 Minuten' }).click();
+
+	// The recipe is cut to two steps while the timer runs.
+	const shorter = { ...loadFixture(0, 'de'), title: recipe.title };
+	shorter.steps = shorter.steps.slice(0, 2);
+	const response = await page.request.put(`/api/v1/recipes/${recipe.id}`, {
+		headers: { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' },
+		data: shorter
+	});
+	expect(response.ok()).toBeTruthy();
+
+	await page.goto(`/recipes/${recipe.slug}/cook`);
+	await expandDock(page);
+	// The timer keeps its stored name; opening it lands on the last step left.
+	await dock(page)
+		.getByRole('button', { name: /fertig .* Schritt 3 · 15 Minuten$/ })
+		.click();
+	await expect(page.getByText('Schritt 2 von 2')).toBeVisible();
 });

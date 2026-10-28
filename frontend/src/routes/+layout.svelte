@@ -112,7 +112,10 @@
 	its specificity - without the `!` every toast rendered white, with a black
 	action button. Only the properties sonner sets carry it.
 -->
+<!-- From `md` a running timer's capsule sits at the bottom right; the toasts
+     stack above it instead of on it. -->
 <Toaster
+	offset={timers.list.length && !bare ? { bottom: '84px', right: '24px' } : undefined}
 	richColors={false}
 	toastOptions={{
 		classes: {

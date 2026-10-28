@@ -4,6 +4,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -19,7 +20,7 @@
 	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '$lib/recipe/type-size';
 	import { ScreenWakeLock } from '$lib/recipe/wake-lock.svelte';
 	import { unlockAudio } from '$lib/recipe/chime';
-	import { timerId, type Timer } from '$lib/recipe/timers';
+	import { clampStep, timerId, type Timer } from '$lib/recipe/timers';
 	import { timers } from '$lib/recipe/timers.svelte';
 	import type { StepTime } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
@@ -33,7 +34,14 @@
 	// without passing anything through the URL.
 	const servings = $derived(createServings(recipe.id, recipe.servings));
 
-	let index = $state(0);
+	// `?step=N` (1-based, from a timer outside cook mode) opens that step,
+	// clamped: the recipe may have lost steps since the timer started.
+	function stepFromUrl(): number {
+		const n = Number.parseInt(page.url.searchParams.get('step') ?? '', 10);
+		return Number.isFinite(n) ? clampStep(n - 1, recipe.steps.length) : 0;
+	}
+
+	let index = $state(stepFromUrl());
 	let sheetOpen = $state(false);
 	// Held for this visit only: every visit to cook mode starts at the
 	// default, and a long step is sized down for the cook it is in.
@@ -60,6 +68,10 @@
 	let cameFromDetail = $state(false);
 
 	afterNavigate(({ from }) => {
+		// A timer of another recipe reuses this page: take its step.
+		if (from?.route.id === '/recipes/[slug]/cook') {
+			index = stepFromUrl();
+		}
 		cameFromDetail = from?.route.id === '/recipes/[slug]';
 	});
 
@@ -89,7 +101,8 @@
 
 	function openTimer(t: Timer) {
 		if (t.recipeId === recipe.id) {
-			go(t.step);
+			// The recipe may have lost steps since the timer started.
+			go(clampStep(t.step, count));
 		} else {
 			void goto(resolve(`/recipes/${t.slug}/cook?step=${t.step + 1}`));
 		}
