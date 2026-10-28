@@ -1,12 +1,34 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { configureMail, isMobile, prepare, shot, turnMailOff } from './helpers';
+import { configureMail, isMobile, offerInstall, prepare, shot, turnMailOff } from './helpers';
 
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings');
 	await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
 	await shot(page, 'settings');
+});
+
+// Headless Chromium never offers an install, so the page is handed a prompt
+// first; the card then lists what the app gives.
+test('settings-app', async ({ page }, testInfo) => {
+	await offerInstall(page);
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings');
+	await expect(page.getByRole('button', { name: 'Install', exact: true })).toBeVisible();
+	// Centered, so neither the phone's sticky header nor its bottom navigation
+	// covers the card.
+	await page
+		.getByRole('heading', { name: 'Rezepte as an app' })
+		.evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'center' }));
+	// The About card below prints the build's version, which changes with every
+	// commit; a fixed one keeps the picture stable.
+	await page
+		.getByText(/^Version /)
+		.evaluate((el) => {
+			el.textContent = 'Version 1.2.0';
+		});
+	await shot(page, 'settings-app');
 });
 
 test('avatar-crop', async ({ page }, testInfo) => {

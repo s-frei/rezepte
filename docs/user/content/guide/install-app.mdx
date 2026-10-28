@@ -1,0 +1,45 @@
+---
+title: Install Rezepte as an app
+description: Put Rezepte on your home screen or desktop, and share links straight into it
+---
+
+Rezepte runs in the browser, but you can also install it. It then has its own icon on the home screen or in the app list and opens in its own window, without the browser bar. Nothing else changes: it is the same Rezepte, with the same account and the same recipes.
+
+## Android and desktop Chrome
+
+On a phone, a banner at the top of the overview offers **Install Rezepte as an app**. Tap it and confirm the browser's dialog. The **×** next to it hides the banner for good on this device.
+
+<Screenshot name="install-banner" mobile caption="The install banner on a phone" />
+
+The banner is only the first offer. These do the same:
+
+- The **Rezepte as an app** card in [Settings](/guide/settings#app), with an **Install** button.
+- **Install app** in the account menu behind your initial on a desktop, and in the "You" sheet on a phone.
+
+<Screenshot name="settings-app" caption="The App card in Settings" />
+
+None of them shows once Rezepte is installed, or when your browser does not offer an install. Chrome and Edge do; Firefox on a computer does not.
+
+## iPhone and iPad
+
+Safari has no install button, so Rezepte shows you the three steps instead, in the banner, in the card and in the "You" sheet:
+
+1. Tap **Share** at the bottom of Safari.
+2. Choose **Add to Home Screen**.
+3. Tap **Add**.
+
+The app on the home screen signs in once on its own, separately from Safari, so sign in again the first time you open it.
+
+## Share to Rezepte
+
+Once Rezepte is installed on Android or in desktop Chrome, it shows up in the system's share menu. Share a recipe page from your browser, or a link from a chat, and choose **Rezepte**: the import dialog opens with the link already read, and you check the draft as with any [import](/guide/importing). If you are signed out, you sign in first and the share carries on after that.
+
+On an iPhone or iPad, Rezepte does not appear in the share menu, so paste the link into the import dialog as usual.
+
+## Shortcuts
+
+Press and hold the app icon (Android), or right-click it (desktop), for three shortcuts: **Import**, **New recipe** and **Favorites**. Their names follow the language your instance is set to, not your own choice in Settings.
+
+## HTTPS is required
+
+Browsers install a web app only from a secure address, so Rezepte offers nothing on plain HTTP, except on `localhost`. If it runs behind a [reverse proxy](/operations/reverse-proxy) with TLS, you are set. The owner sees a card in Settings that says so while the instance is on HTTP; other members see nothing.

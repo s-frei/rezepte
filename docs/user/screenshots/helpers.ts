@@ -116,3 +116,21 @@ export async function turnMailOff(page: Page) {
     headers: { Origin: new URL(page.url()).origin }
   });
 }
+
+/**
+ * Hands the app a `beforeinstallprompt` once the page has loaded, as Chromium
+ * would after its engagement checks (headless never fires one). Add it before
+ * the first `goto`; frontend/e2e/install.test.ts does the same.
+ */
+export async function offerInstall(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    window.addEventListener("load", () => {
+      window.dispatchEvent(
+        Object.assign(new Event("beforeinstallprompt", { cancelable: true }), {
+          prompt: async () => {},
+          userChoice: Promise.resolve({ outcome: "accepted" }),
+        }),
+      );
+    });
+  });
+}

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { prepare, shot } from './helpers';
+import { isMobile, offerInstall, prepare, shot } from './helpers';
 
 test('overview', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
@@ -7,6 +7,16 @@ test('overview', async ({ page }, testInfo) => {
 	// recipes while the list page size is 24, so the whole grid is on screen.
 	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(12);
 	await shot(page, 'overview');
+});
+
+// The banner is for phones only (InstallBanner.svelte), so the desktop
+// projects have nothing to show.
+test('install-banner', async ({ page }, testInfo) => {
+	test.skip(!isMobile(testInfo), 'the install banner is for phones only');
+	await offerInstall(page);
+	await prepare(page, testInfo, { login: true });
+	await expect(page.getByRole('button', { name: /Install Rezepte as an app/ })).toBeVisible();
+	await shot(page, 'install-banner');
 });
 
 test('command-palette', async ({ page }, testInfo) => {
