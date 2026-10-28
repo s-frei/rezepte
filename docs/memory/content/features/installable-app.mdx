@@ -19,7 +19,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 
 **The install prompt is captured in `app.html`.** Chromium can fire `beforeinstallprompt` before SvelteKit has dynamically imported the layout module, and an event nobody listened for is lost. The inline script in `frontend/src/app.html` therefore calls `preventDefault` and stores the event in `window.__installPrompt`; `install.svelte.ts` takes it over once, when it initializes, and listens itself afterwards.
 
-**There is no service worker.** Chromium's installability check (`Page.getInstallabilityErrors` over CDP, in `frontend/e2e/install.test.ts`) passes with only the manifest and the icons, so the app does not cache anything and works only online. Web push, when it comes, needs a service worker and a decision on what it may cache; this page is where that lands.
+**The service worker is for push only.** `frontend/src/service-worker.ts` handles `push` and `notificationclick` for [Cook timers](/features/cook-timers) and nothing else: no `fetch` handler and no cache, so the app still works only online and nothing needs invalidating. It is registered only where push works (a secure context with `PushManager`), not for installing: Chromium's installability check (`Page.getInstallabilityErrors` over CDP, in `frontend/e2e/install.test.ts`) passes with the manifest and the icons alone, so plain `localhost` and a browser without push install as before. `spa.go` serves `/service-worker.js` `no-cache`.
 
 **Neighbors that the share needed.**
 
@@ -38,7 +38,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 
 ## Rejected
 
-- **A service worker only to be installable.** Chromium installs without one, and a worker brings cache invalidation for no user-visible gain.
+- **A service worker only to be installable, or one that caches.** Chromium installs without one, and a cache brings invalidation for no user-visible gain; the worker that exists does push and nothing more.
 - **A manifest per member language.** The manifest is fetched without a session and shared by every member; the instance language is the one value all of them have.
 - **Opening the browser's install dialog from a banner shown in the installed app or on iOS.** Neither can use it; the offer function returns nothing there.
 

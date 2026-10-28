@@ -3,7 +3,7 @@ title: Reverse proxy
 description: Put Rezepte behind Caddy or nginx with TLS
 ---
 
-Rezepte itself only speaks plain HTTP. Terminate TLS at a reverse proxy in front of it and forward everything to its port (8060 by default).
+Rezepte itself only speaks plain HTTP. Terminate TLS at a reverse proxy in front of it and forward everything to its port (8060 by default). Browsers keep several features to secure addresses, so over plain HTTP (other than `localhost`) members get no [installable app](/guide/install-app), no screen that stays on in [cook mode](/guide/cook-mode) and no notification when a timer ends while Rezepte is in the background.
 
 ```mermaid
 sequenceDiagram
