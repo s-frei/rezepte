@@ -6,7 +6,11 @@
 	import AppShell from '$lib/components/shell/AppShell.svelte';
 	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
 	import ImportDialog from '$lib/components/import/ImportDialog.svelte';
+	import IosInstallSheet from '$lib/components/install/IosInstallSheet.svelte';
 	import { authPages, session } from '$lib/auth.svelte';
+	// Imported here, before any page mounts, so the install state takes over
+	// the `beforeinstallprompt` app.html kept and listens for the next one.
+	import '$lib/install.svelte';
 	import { palette } from '$lib/palette.svelte';
 	import { listenForLaunches } from '$lib/launch';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -72,6 +76,7 @@
 		</AppShell>
 		<CommandPalette />
 		<ImportDialog />
+		<IosInstallSheet />
 	{/if}
 </div>
 

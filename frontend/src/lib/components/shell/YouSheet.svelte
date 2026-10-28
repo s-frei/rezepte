@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Download from '@lucide/svelte/icons/download';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import { Dialog } from 'bits-ui';
 	import { afterNavigate } from '$app/navigation';
@@ -7,6 +8,7 @@
 	import { byGroup } from '$lib/components/nav/contents';
 	import GroupHeading from '$lib/components/nav/GroupHeading.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
+	import { offer, startInstall } from '$lib/install.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
 	import { settingsPages } from '$lib/settings/pages';
@@ -62,6 +64,19 @@
 				</div>
 			</div>
 			<div class="-mx-3 pt-2">
+				{#if offer()}
+					<button
+						type="button"
+						onclick={() => {
+							open = false;
+							void startInstall();
+						}}
+						class="{row} text-primary"
+					>
+						<Download class="size-5 shrink-0" aria-hidden="true" />
+						{m.install_menu_row()}
+					</button>
+				{/if}
 				{#each byGroup(pages) as run, i (run.label)}
 					<div role="group" aria-label={run.label}>
 						<GroupHeading label={run.label} first={i === 0} class="px-3" />

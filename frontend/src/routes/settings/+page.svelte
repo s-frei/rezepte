@@ -14,6 +14,7 @@
 	import AvatarControl from '$lib/components/settings/AvatarControl.svelte';
 	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
 	import AboutCard from '$lib/components/settings/AboutCard.svelte';
+	import AppCard from '$lib/components/settings/AppCard.svelte';
 	import HelpCard from '$lib/components/settings/HelpCard.svelte';
 	import LanguageControl from '$lib/components/settings/LanguageControl.svelte';
 	import PasswordForm from '$lib/components/settings/PasswordForm.svelte';
@@ -222,6 +223,7 @@
 		<ThemeControl />
 	</section>
 
+	<AppCard />
 	<HelpCard />
 	<AboutCard />
 </SettingsLayout>

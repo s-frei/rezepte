@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Download from '@lucide/svelte/icons/download';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Settings from '@lucide/svelte/icons/settings';
 	import SunMoon from '@lucide/svelte/icons/sun-moon';
@@ -7,6 +8,7 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { session } from '$lib/auth.svelte';
 	import { themeOptions } from '$lib/components/settings/ThemeControl.svelte';
+	import { offer, startInstall } from '$lib/install.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { roleLabel } from '$lib/roles';
 	import { signOut } from '$lib/sign-out';
@@ -48,6 +50,13 @@
 					</div>
 				</div>
 				<DropdownMenu.Separator class="mx-3 mb-1.5 h-px bg-popover-border" />
+			{/if}
+			<!-- Only while this browser can install; it leaves with the install. -->
+			{#if offer()}
+				<DropdownMenu.Item onSelect={() => void startInstall()} class="{row} text-primary">
+					<Download class="size-4 shrink-0" aria-hidden="true" />
+					{m.install_menu_row()}
+				</DropdownMenu.Item>
 			{/if}
 			<DropdownMenu.Item onSelect={() => void goto(resolve('/settings'))} class="{row} text-text">
 				<Settings class="size-4 shrink-0 text-text-muted" aria-hidden="true" />

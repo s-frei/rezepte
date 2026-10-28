@@ -16,6 +16,13 @@
 					}
 				} catch (_) {}
 			})();
+			// Chromium can fire beforeinstallprompt before SvelteKit has loaded
+			// the app's modules, which arrive by dynamic import; kept here until
+			// src/lib/install.svelte.ts takes it over.
+			addEventListener('beforeinstallprompt', function (event) {
+				event.preventDefault();
+				window.__installPrompt = event;
+			});
 		</script>
 
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
