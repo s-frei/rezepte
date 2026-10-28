@@ -133,6 +133,47 @@
 
 	const PHONE_QUERY = '(max-width: 767.98px)';
 
+	/** Where the body's own scrollbar sits, in the panel; null while it all fits. */
+	let bar = $state<{ top: number; height: number; thumbTop: number; thumbHeight: number } | null>(
+		null
+	);
+
+	// The body draws its own scrollbar, and keeps it in view whenever there is
+	// more to scroll: iOS, and macOS by default, show the system's only while
+	// a finger or wheel moves the list, so a body cut off between two sections
+	// gave no sign that the sort order waited below. A section appearing (the
+	// authors, once they load) changes the height without a resize of the
+	// body itself, hence the mutation observer beside the resize one.
+	function trackScroll(node: HTMLDivElement) {
+		const update = () => {
+			const { scrollTop, scrollHeight, clientHeight, offsetTop } = node;
+			if (scrollHeight <= clientHeight) {
+				bar = null;
+				return;
+			}
+			const height = clientHeight - 8;
+			const thumbHeight = Math.max(24, (height * clientHeight) / scrollHeight);
+			bar = {
+				top: offsetTop + 4,
+				height,
+				thumbHeight,
+				thumbTop: (scrollTop / (scrollHeight - clientHeight)) * (height - thumbHeight)
+			};
+		};
+		const resize = new ResizeObserver(update);
+		resize.observe(node);
+		const mutation = new MutationObserver(update);
+		mutation.observe(node, { childList: true, subtree: true });
+		node.addEventListener('scroll', update, { passive: true });
+		update();
+		return () => {
+			resize.disconnect();
+			mutation.disconnect();
+			node.removeEventListener('scroll', update);
+			bar = null;
+		};
+	}
+
 	/**
 	 * Scales in place as a centered dialog on desktop, slides up as a sheet
 	 * on phones - matching the design system's "Dialog: fade + scale" and
@@ -197,7 +238,14 @@
 						<Dialog.Title class="shrink-0 font-display text-heading font-medium">
 							{m.overview_filter()}
 						</Dialog.Title>
-						<div class="mt-4 min-h-0 flex-1 overflow-y-auto">
+						<!-- Reaches out into the panel's padding and takes it back
+						     inside, so its scrollbar (drawn below, the system's
+						     hidden) runs along the panel's edge rather than against
+						     the switch and the select. -->
+						<div
+							{@attach trackScroll}
+							class="-mx-6 mt-4 min-h-0 flex-1 [scrollbar-width:none] overflow-y-auto px-6 max-md:-mx-5 max-md:px-5 [&::-webkit-scrollbar]:hidden"
+						>
 							<section aria-labelledby={timeHeadingId} class="space-y-2">
 								<h3 id={timeHeadingId} class="text-caption font-semibold text-text-muted uppercase">
 									{m.overview_filter_time()}
@@ -303,6 +351,21 @@
 								/>
 							</section>
 						</div>
+						{#if bar}
+							<div
+								data-scrollbar
+								aria-hidden="true"
+								class="pointer-events-none absolute right-1.5 w-1 rounded-pill bg-text/8"
+								style:top="{bar.top}px"
+								style:height="{bar.height}px"
+							>
+								<div
+									class="absolute inset-x-0 top-0 rounded-pill bg-handle"
+									style:height="{bar.thumbHeight}px"
+									style:transform="translateY({bar.thumbTop}px)"
+								></div>
+							</div>
+						{/if}
 						<!-- Always present: the overlay strip above a phone sheet can be
 						     as thin as 15dvh (`max-h-[85dvh]`) and signals nothing
 						     tappable, so relying on it alone as the only way out isn't

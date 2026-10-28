@@ -2005,3 +2005,37 @@ test('shows a changed order as a chip on phones', async ({ page, isMobile }) => 
 	await expect(page).not.toHaveURL(/sort=/);
 	await expect(chip).toHaveCount(0);
 });
+
+// The filter panel draws its own scrollbar and keeps it in view whenever
+// there is more to scroll: iOS and macOS show the system's only while it moves.
+test('keeps a scrollbar in view while the filter panel scrolls', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'a phone-height sheet');
+	// No author section: the shared database collects people, and the panel's
+	// height must not depend on how many other tests made.
+	await page.route(
+		(url) => url.pathname === '/api/v1/authors',
+		(route) => route.fulfill({ json: { items: [] } })
+	);
+	await page.setViewportSize({ width: 360, height: 900 });
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Filters', exact: true }).click();
+	const bar = page.getByRole('dialog').locator('[data-scrollbar]');
+	// Everything fits: nothing to scroll, no bar.
+	await expect(page.getByRole('dialog')).toBeVisible();
+	await expect(bar).toHaveCount(0);
+
+	await page.setViewportSize({ width: 360, height: 480 });
+	await expect(bar).toBeVisible();
+	// The thumb starts at the top of its track and follows the list down.
+	const offset = () =>
+		bar.evaluate((el) => {
+			const thumb = el.firstElementChild as HTMLElement;
+			return thumb.getBoundingClientRect().top - el.getBoundingClientRect().top;
+		});
+	expect(await offset()).toBe(0);
+	await page
+		.getByRole('dialog')
+		.locator('.overflow-y-auto')
+		.evaluate((el) => (el.scrollTop = el.scrollHeight));
+	await expect.poll(offset).toBeGreaterThan(0);
+});
