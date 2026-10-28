@@ -40,6 +40,8 @@ export type NavPlace = 'recipes' | 'you';
  */
 export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/': 'recipes',
+	// Share → Rezepte lands here and moves on to the overview at once.
+	'/import': 'recipes',
 	'/settings': 'you',
 	'/settings/api': 'you',
 	'/settings/mail': 'you',

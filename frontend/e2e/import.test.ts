@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 // Type-only, like helpers.ts: the stubs below speak the app's own contract.
 import type { RecipeDraft } from '../src/lib/api/drafts';
-import { createRecipe, loadFixture, login, openImport, uniqueToken } from './helpers';
+import { createRecipe, devPassword, loadFixture, login, openImport, uniqueToken } from './helpers';
 
 // Importing a recipe from a link or pasted text into an unsaved draft.
 // Pasted text runs against the real service. A link cannot: the service
@@ -312,4 +312,84 @@ test('the phone "+" offers writing or importing a recipe', async ({ page, isMobi
 	await expect(sheet.getByRole('button', { name: /^Write it yourself/ })).toBeVisible();
 	await sheet.getByRole('button', { name: /^Import/ }).click();
 	await expect(field(page)).toBeVisible();
+});
+
+// Share → Rezepte opens /import?url=…&text=…, which starts the import at once.
+// The link import is stubbed for the reason given at the top of the file.
+const sharedSoup = 'https://example.com/soup';
+
+async function stubSoup(page: Page) {
+	await page.route('**/api/v1/recipe-drafts', (route) =>
+		route.fulfill({ json: { ...linkedSoup, duplicate: null } })
+	);
+}
+
+test('a shared link imports at once', async ({ page }) => {
+	await stubSoup(page);
+	let release = () => {};
+	const released = new Promise<void>((resolve) => (release = resolve));
+	await page.route('**/api/v1/recipe-drafts', async (route) => {
+		await released;
+		await route.fallback();
+	});
+	await page.goto(`/import?url=${encodeURIComponent(sharedSoup)}`);
+	// Reading, with no click.
+	await expect(dialog(page).getByText('Reading example.com')).toBeVisible();
+	release();
+	await expect(page).toHaveURL('/recipes/new');
+	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+		'Linked soup'
+	);
+	// The /import entry was replaced: Back does not import again.
+	// The imported draft is unsaved, so leaving it asks first.
+	await page.goBack();
+	await page
+		.getByRole('dialog', { name: 'Discard changes?' })
+		.getByRole('button', { name: 'Discard' })
+		.click();
+	await expect(page).toHaveURL('/');
+	await expect(dialog(page)).toHaveCount(0);
+});
+
+test('a share while signed out imports after sign-in', async ({ browser }) => {
+	const context = await browser.newContext();
+	const page = await context.newPage();
+	await stubSoup(page);
+	await page.goto(`/import?text=${encodeURIComponent(`Look ${sharedSoup}`)}`);
+	await expect(page).toHaveURL(/\/login/);
+	// Not the login helper: it opens /login itself and would drop `next`.
+	await page.getByLabel('Username').fill('admin');
+	await page.getByLabel('Password').fill(devPassword('admin'));
+	await page.getByRole('button', { name: 'Sign in' }).click();
+	await expect(page).toHaveURL('/recipes/new');
+	await expect(page.getByRole('textbox', { name: 'Title', exact: true })).toHaveValue(
+		'Linked soup'
+	);
+	await context.close();
+});
+
+test('a share into a dirty editor asks first', async ({ page }) => {
+	await page.addInitScript(() => {
+		const w = window as unknown as Record<string, unknown>;
+		// Chromium has its own launchQueue; defineProperty beats the read-only one.
+		Object.defineProperty(w, 'launchQueue', {
+			value: { setConsumer: (consumer: unknown) => (w.__launch = consumer) }
+		});
+	});
+	await stubSoup(page);
+	await page.goto('/recipes/new');
+	const titleField = page.getByRole('textbox', { name: 'Title', exact: true });
+	const typed = `Typed ${uniqueToken()}`;
+	await titleField.fill(typed);
+	await page.evaluate(
+		(href) =>
+			(window as unknown as { __launch: (p: unknown) => void }).__launch({ targetURL: href }),
+		`${new URL(page.url()).origin}/import?url=${encodeURIComponent(sharedSoup)}`
+	);
+	const discard = page.getByRole('dialog', { name: 'Discard changes?' });
+	await discard.getByRole('button', { name: 'Cancel' }).click();
+	await expect(discard).toHaveCount(0);
+	await expect(page).toHaveURL('/recipes/new');
+	await expect(titleField).toHaveValue(typed);
+	await expect(dialog(page)).toHaveCount(0);
 });

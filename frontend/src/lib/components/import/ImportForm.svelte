@@ -2,7 +2,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { Dialog } from 'bits-ui';
-	import { onDestroy, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -65,8 +65,20 @@
 		field?.focus();
 	}
 
+	// A shared link arrives in the field and starts reading at once.
+	onMount(() => {
+		if (!importDialog.prefill) return;
+		raw = importDialog.prefill;
+		importDialog.prefill = '';
+		void read();
+	});
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		await read();
+	}
+
+	async function read() {
 		if (input.kind === 'empty' || reading) return;
 		reading = true;
 		failure = null;

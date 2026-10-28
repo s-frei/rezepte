@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { Toaster } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import AppShell from '$lib/components/shell/AppShell.svelte';
@@ -8,6 +8,7 @@
 	import ImportDialog from '$lib/components/import/ImportDialog.svelte';
 	import { authPages, session } from '$lib/auth.svelte';
 	import { palette } from '$lib/palette.svelte';
+	import { listenForLaunches } from '$lib/launch';
 	import { getLocale } from '$lib/paraglide/runtime';
 
 	let { children }: { children: Snippet } = $props();
@@ -38,6 +39,8 @@
 		void session.user;
 		document.documentElement.lang = getLocale();
 	});
+
+	onMount(listenForLaunches);
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (bare) {

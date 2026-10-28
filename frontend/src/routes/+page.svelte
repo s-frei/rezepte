@@ -5,7 +5,7 @@
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import {
 		listAuthors,
 		listRecipes,
@@ -149,6 +149,9 @@
 	});
 
 	function syncUrl() {
+		// A list that answers after the visitor has moved on (an import that
+		// finished first) must not pull them back with its replaceState.
+		if (navigating.to || page.route.id !== '/') return;
 		const qs = buildListQuery({
 			q,
 			tags,
