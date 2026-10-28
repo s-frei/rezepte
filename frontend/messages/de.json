@@ -559,6 +559,8 @@
 	"editor_step_reorder": "Schritt verschieben",
 	"editor_discard_confirm_text": "Deine Änderungen an diesem Rezept gehen verloren.",
 	"editor_discard_confirm": "Verwerfen",
+	"editor_discard_share_title": "Änderungen verwerfen und Link importieren?",
+	"editor_discard_share_keep": "Weiter bearbeiten",
 	"editor_saved": "Rezept gespeichert",
 	"editor_save_error": "Rezept konnte nicht gespeichert werden.",
 	"editor_forbidden": "Du darfst dieses Rezept nicht mehr bearbeiten.",

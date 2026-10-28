@@ -409,8 +409,8 @@ test('a share into a dirty editor asks first', async ({ page }) => {
 	const typed = `Typed ${uniqueToken()}`;
 	await titleField.fill(typed);
 	await launch(page, `/import?url=${encodeURIComponent(sharedSoup)}`);
-	const discard = page.getByRole('dialog', { name: 'Discard changes?' });
-	await discard.getByRole('button', { name: 'Cancel' }).click();
+	const discard = page.getByRole('dialog', { name: 'Discard changes and import the link?' });
+	await discard.getByRole('button', { name: 'Keep editing' }).click();
 	await expect(discard).toHaveCount(0);
 	await expect(page).toHaveURL('/recipes/new');
 	await expect(titleField).toHaveValue(typed);

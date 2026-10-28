@@ -559,6 +559,8 @@
 	"editor_step_reorder": "Move step",
 	"editor_discard_confirm_text": "Your changes to this recipe will be lost.",
 	"editor_discard_confirm": "Discard",
+	"editor_discard_share_title": "Discard changes and import the link?",
+	"editor_discard_share_keep": "Keep editing",
 	"editor_saved": "Recipe saved",
 	"editor_save_error": "Recipe could not be saved.",
 	"editor_forbidden": "You can no longer edit this recipe.",

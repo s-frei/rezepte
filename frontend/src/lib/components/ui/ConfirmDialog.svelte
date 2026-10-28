@@ -10,6 +10,7 @@
 		title,
 		text,
 		confirmLabel,
+		cancelLabel = m.common_cancel(),
 		destructive = false,
 		onconfirm,
 		children
@@ -18,6 +19,7 @@
 		title: string;
 		text: string;
 		confirmLabel: string;
+		cancelLabel?: string;
 		destructive?: boolean;
 		onconfirm: () => void;
 		/** Shown under the text: what the confirmation is about, in detail. */
@@ -35,7 +37,7 @@
 	<Dialog.Description class="mt-2 text-body text-text-muted">{text}</Dialog.Description>
 	{@render children?.()}
 	<div class="mt-6 flex justify-end gap-3">
-		<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
+		<Button variant="ghost" onclick={() => (open = false)}>{cancelLabel}</Button>
 		<Button variant={destructive ? 'destructive' : 'primary'} onclick={confirm}>
 			{confirmLabel}
 		</Button>

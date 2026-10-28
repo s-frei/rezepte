@@ -72,6 +72,8 @@
 	let errors = $state<FieldErrors>({});
 	let saving = $state(false);
 	let discardOpen = $state(false);
+	// The navigation held back is a Share → Rezepte, so the question names it.
+	let discardForShare = $state(false);
 	// Files the images section has queued for a not-yet-created recipe; the
 	// `save` callback uploads them once the recipe exists.
 	let pendingFiles = $state<File[]>(untrack(() => (imported?.photo ? [imported.photo] : [])));
@@ -391,6 +393,7 @@
 		}
 		navigation.cancel();
 		pendingUrl = navigation.to?.url ?? null;
+		discardForShare = navigation.to?.route.id === '/import';
 		discardOpen = true;
 	});
 
@@ -557,9 +560,10 @@
 
 <ConfirmDialog
 	bind:open={discardOpen}
-	title={m.editor_discard_confirm_title()}
+	title={discardForShare ? m.editor_discard_share_title() : m.editor_discard_confirm_title()}
 	text={m.editor_discard_confirm_text()}
 	confirmLabel={m.editor_discard_confirm()}
+	cancelLabel={discardForShare ? m.editor_discard_share_keep() : undefined}
 	destructive
 	onconfirm={discardChanges}
 />
