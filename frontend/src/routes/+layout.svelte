@@ -11,6 +11,8 @@
 	// Imported here, before any page mounts, so the install state takes over
 	// the `beforeinstallprompt` app.html kept and listens for the next one.
 	import '$lib/install.svelte';
+	// Registers the service worker and arms a push alarm for each running timer.
+	import '$lib/push.svelte';
 	import { palette } from '$lib/palette.svelte';
 	import { listenForLaunches } from '$lib/launch';
 	import { getLocale } from '$lib/paraglide/runtime';

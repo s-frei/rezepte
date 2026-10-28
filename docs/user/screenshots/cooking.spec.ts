@@ -65,6 +65,12 @@ test('cook-mode-type-size', async ({ page }, testInfo) => {
 
 test('cook-mode-timers', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
+	// Headless Chromium reads notifications as denied, which would add the
+	// dock's "only while Rezepte is open" line; the picture shows a device
+	// that allowed them.
+	await page.addInitScript(() =>
+		Object.defineProperty(Notification, 'permission', { get: () => 'granted' })
+	);
 	// Step 3 waits "15 minutes", step 6 "20 minutes": one timer each.
 	await page.goto(`${DETAIL}/cook?step=3`);
 	await page.getByRole('button', { name: 'Start timer: 15 minutes' }).click();

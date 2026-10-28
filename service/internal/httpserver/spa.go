@@ -82,8 +82,12 @@ func SPAHandler(fsys fs.FS, secure bool, preview PreviewFunc, headers ShellHeade
 		}
 		name := strings.TrimPrefix(r.URL.Path, "/")
 		if name != "" && exists(fsys, name) {
-			if strings.HasPrefix(name, "_app/immutable/") {
+			switch {
+			case strings.HasPrefix(name, "_app/immutable/"):
 				w.Header().Set("Cache-Control", immutableCache)
+			case name == "service-worker.js":
+				// Revalidated on every check, so a new worker reaches devices at once.
+				w.Header().Set("Cache-Control", "no-cache")
 			}
 			files.ServeHTTP(w, r)
 			return

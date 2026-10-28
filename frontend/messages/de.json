@@ -464,6 +464,8 @@
 	"timer_expand": "Alle Timer zeigen",
 	"timer_collapse": "Timer einklappen",
 	"timer_open": "Zu {name}",
+	"timer_notify_title": "{recipe} · fertig",
+	"timer_push_unavailable": "Benachrichtigung nur, solange Rezepte offen ist",
 
 	"images_cover_alt": "Titelbild von {title}",
 	"images_open": "Bild {number} von {count} öffnen",

@@ -14,6 +14,7 @@ func testFS() fstest.MapFS {
 		"_app/immutable/chunks/a.js": {Data: []byte("console.log(1)")},
 		"favicon.svg":                {Data: []byte("<svg/>")},
 		"manifest.webmanifest":       {Data: []byte("{}")},
+		"service-worker.js":          {Data: []byte("self")},
 	}
 }
 
@@ -42,6 +43,16 @@ func TestSPAImmutableAssetsAreCached(t *testing.T) {
 	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/_app/immutable/chunks/a.js")
 	if got := rec.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
 		t.Fatalf("Cache-Control = %q", got)
+	}
+}
+
+func TestSPAServiceWorkerIsNotCached(t *testing.T) {
+	rec := get(t, SPAHandler(testFS(), false, nil, nil), "/service-worker.js")
+	if rec.Code != http.StatusOK || rec.Body.String() != "self" {
+		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-cache" {
+		t.Fatalf("Cache-Control = %q, want no-cache", got)
 	}
 }
 

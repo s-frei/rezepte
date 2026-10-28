@@ -9,7 +9,10 @@ import { createRecipe, createUser, loadFixture, login, signOut, uniqueToken } fr
 // countdown moves only when a test says so; reduced motion takes Svelte's
 // transitions (which run on the paused clock too) out of the way.
 
-test.use({ contextOptions: { reducedMotion: 'reduce' } });
+// Notifications are granted, so a headed run opens no prompt on the first
+// start; headless Chromium reads them as denied, so the dock shows
+// `timer_push_unavailable` there.
+test.use({ contextOptions: { reducedMotion: 'reduce' }, permissions: ['notifications'] });
 
 let username = '';
 
@@ -286,4 +289,48 @@ test("another recipe's banner keeps the timer's name whole", async ({ page }) =>
 	const banner = page.getByRole('alert').filter({ hasText: 'Fertig' });
 	await expect(banner).toContainText('Königsberger Klopse');
 	await expectWhole(banner.locator('[data-timer-name]'), 'Schritt 3 · 15 Minuten');
+});
+
+test('serves the push worker uncached and registers it', async ({ page }) => {
+	const res = await page.request.get('/service-worker.js');
+	expect(res.ok()).toBe(true);
+	expect(res.headers()['cache-control']).toBe('no-cache');
+	await expect
+		.poll(() =>
+			page.evaluate(
+				async () => (await navigator.serviceWorker.getRegistration())?.active?.scriptURL ?? ''
+			)
+		)
+		.toContain('/service-worker.js');
+});
+
+test('schedules a push alarm in the cook language', async ({ page }) => {
+	// Playwright's Chromium has no push service: a fake subscription stands
+	// in, and the server's answers are stubbed, since it would refuse the
+	// fake endpoint anyway. Headless Chromium also reports
+	// `Notification.permission` as 'denied' even with the permission granted.
+	await page.addInitScript(() => {
+		Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
+		PushManager.prototype.getSubscription = async () => null;
+		PushManager.prototype.subscribe = async () =>
+			({
+				endpoint: 'https://fcm.googleapis.com/fcm/send/e2e',
+				toJSON: () => ({ keys: { p256dh: 'p', auth: 'a' } })
+			}) as unknown as PushSubscription;
+	});
+	await page.route('**/api/v1/push/subscription', (route) => route.fulfill({ status: 204 }));
+	await page.route('**/api/v1/push/alarms', (route) => route.fulfill({ json: { id: 'e2e' } }));
+	const recipe = await germanRecipe(page, 0);
+	await cookAt(page, recipe, 3);
+	const alarm = page.waitForRequest(
+		(r) => r.url().endsWith('/api/v1/push/alarms') && r.method() === 'POST'
+	);
+	await page.getByRole('button', { name: 'Timer starten: 15 Minuten' }).click();
+	expect((await alarm).postDataJSON()).toMatchObject({
+		endpoint: 'https://fcm.googleapis.com/fcm/send/e2e',
+		title: `${recipe.title} · fertig`,
+		body: 'Schritt 3 · 15 Minuten',
+		url: `/recipes/${recipe.slug}/cook?step=3`
+	});
+	await expect(page.locator('[data-push-unavailable]')).toHaveCount(0);
 });

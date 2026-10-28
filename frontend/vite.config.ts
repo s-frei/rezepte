@@ -24,6 +24,8 @@ export default defineConfig({
 			// the icon masters; $brand is how components import them.
 			alias: { $brand: '../assets/brand' },
 			adapter: adapter({ pages: '../service/internal/web/dist', fallback: 'index.html' }),
+			// Registered by $lib/push.svelte, only where push works.
+			serviceWorker: { register: false },
 			// svelte-check type-checks the Playwright specs and config too.
 			typescript: {
 				config: (config) => {

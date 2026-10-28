@@ -7,6 +7,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { byEnding, formatClock, fraction, remainingMs, type Timer } from '$lib/recipe/timers';
 	import { timers } from '$lib/recipe/timers.svelte';
+	import { pushUnavailable } from '$lib/push.svelte';
 
 	let { recipeId, onopen }: { recipeId: string; onopen: (t: Timer) => void } = $props();
 
@@ -43,7 +44,7 @@
 <p class="sr-only" aria-live="polite">{announcement}</p>
 
 {#if first}
-	<div data-timer-dock class="flex shrink-0 justify-center px-5 pb-2.5 md:px-8">
+	<div data-timer-dock class="flex shrink-0 flex-col items-center gap-1.5 px-5 pb-2.5 md:px-8">
 		{#if !expanded}
 			<button
 				type="button"
@@ -102,5 +103,10 @@
 				</div>
 			{/each}
 		</div>
+		{#if pushUnavailable()}
+			<p data-push-unavailable class="text-center text-caption text-text-muted">
+				{m.timer_push_unavailable()}
+			</p>
+		{/if}
 	</div>
 {/if}
