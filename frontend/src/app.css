@@ -598,6 +598,14 @@
 	animation: none;
 }
 
+/* The phone's bar and the timer player stay above the gliding cards too:
+   their own names give them pictures of their own, but in Safari those
+   lay under the cards' and the cards slid across the bar. */
+::view-transition-group(bottom-nav),
+::view-transition-group(timers) {
+	z-index: 2;
+}
+
 /* The old and the new picture of a card cross over in the first 140ms
    only: crossed over the whole glide, a card whose title rewraps showed
    both versions of it, one over the other, all the way. */
