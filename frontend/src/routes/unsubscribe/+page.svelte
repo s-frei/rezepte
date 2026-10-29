@@ -2,7 +2,7 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { postUnsubscribe, type Kind, type Unsubscribe } from '$lib/api/notifications';
+	import { postUnsubscribe, type Unsubscribe } from '$lib/api/notifications';
 	import AuthScene from '$lib/components/auth/AuthScene.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -11,15 +11,14 @@
 	let { data }: PageProps = $props();
 
 	let info = $derived<Unsubscribe | null>(data.info);
-	// What the last click switched off, so Undo turns back on only that;
+	// What the last click switched off, so Undo turns back on only that (the
+	// kind's mail or the group's mail switch, never the other kinds' choices);
 	// null until then and after Undo.
-	let done = $state<{ scope: 'kind' | 'group'; kinds: Kind[] } | null>(null);
+	let done = $state<{ scope: 'kind' | 'group' } | null>(null);
 	let busy = $state(false);
 
-	// The kinds of the group that are on now.
-	const groupOn = $derived(
-		info ? (Object.keys(info.groupKinds) as Kind[]).filter((k) => info?.groupKinds[k]) : []
-	);
+	// Whether any kind of the group still comes by mail.
+	const groupOn = $derived(info ? Object.values(info.groupKinds).some(Boolean) : false);
 
 	const MARK = '\u0000';
 	const account = $derived(
@@ -29,12 +28,14 @@
 	const kindLabel = {
 		comment: m.unsubscribe_kind_comment,
 		recipe: m.unsubscribe_kind_recipe,
+		tasty: m.unsubscribe_kind_tasty,
 		invite_accepted: m.unsubscribe_kind_invite_accepted
 	};
 	const groupLabel = { household: m.unsubscribe_group_household, admin: m.unsubscribe_group_admin };
 	const doneText = {
 		comment: m.unsubscribe_done_comment,
 		recipe: m.unsubscribe_done_recipe,
+		tasty: m.unsubscribe_done_tasty,
 		invite_accepted: m.unsubscribe_done_invite_accepted,
 		household: m.unsubscribe_done_household,
 		admin: m.unsubscribe_done_admin
@@ -47,22 +48,19 @@
 		const kind = info.kindSubscribed
 			? [{ scope: 'kind' as const, label: kindLabel[info.kind]() }]
 			: [];
-		const group =
-			groupOn.length > 0 ? [{ scope: 'group' as const, label: groupLabel[info.group]() }] : [];
+		const group = groupOn ? [{ scope: 'group' as const, label: groupLabel[info.group]() }] : [];
 		return data.scope === 'group' ? [...group, ...kind] : [...kind, ...group];
 	});
 
 	async function unsubscribe(scope: 'kind' | 'group') {
-		// What is on now, for Undo to turn back on and nothing more.
-		const kinds = scope === 'group' ? groupOn : info ? [info.kind] : [];
-		if (await send({ scope, subscribed: false })) done = { scope, kinds };
+		if (await send({ scope, subscribed: false })) done = { scope };
 	}
 
 	async function undo() {
 		if (done && (await send({ ...done, subscribed: true }))) done = null;
 	}
 
-	async function send(change: { scope: 'kind' | 'group'; subscribed: boolean; kinds?: Kind[] }) {
+	async function send(change: { scope: 'kind' | 'group'; subscribed: boolean }) {
 		busy = true;
 		try {
 			info = await postUnsubscribe({ ...data.link, ...change });

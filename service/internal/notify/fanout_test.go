@@ -247,7 +247,7 @@ func TestCommentRespectsOptOut(t *testing.T) {
 	olga := f.person(t, "olga", user.RoleAdmin, true)
 	mia := f.person(t, "mia", user.RoleUser, true)
 	r := f.recipe(t, olga.ID)
-	if _, err := f.svc.SetPreferences(ctx, olga, map[Kind]bool{KindComment: false}); err != nil {
+	if _, err := f.svc.SetPreferences(ctx, olga, Prefs{Kinds: map[Kind]map[Channel]bool{KindComment: {ChannelMail: false}}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.svc.mailComment(ctx, r.ID, f.comment(t, mia, r.ID)); err != nil {
@@ -295,7 +295,7 @@ func TestInviteAcceptedSkips(t *testing.T) {
 	optedOut := f.person(t, "otto", user.RoleAdmin, true)
 	unverified := f.person(t, "uwe", user.RoleAdmin, false)
 	newcomer := f.person(t, "noah", user.RoleUser, false)
-	if _, err := f.svc.SetPreferences(ctx, optedOut, map[Kind]bool{KindInviteAccepted: false}); err != nil {
+	if _, err := f.svc.SetPreferences(ctx, optedOut, Prefs{Kinds: map[Kind]map[Channel]bool{KindInviteAccepted: {ChannelMail: false}}}); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {

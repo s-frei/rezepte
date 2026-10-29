@@ -9,37 +9,82 @@ import (
 	"context"
 )
 
+const addGroupOptOut = `-- name: AddGroupOptOut :exec
+INSERT INTO notification_group_optouts (user_id, grp, channel) VALUES (?, ?, ?)
+ON CONFLICT DO NOTHING
+`
+
+type AddGroupOptOutParams struct {
+	UserID  string
+	Grp     string
+	Channel string
+}
+
+func (q *Queries) AddGroupOptOut(ctx context.Context, arg AddGroupOptOutParams) error {
+	_, err := q.db.ExecContext(ctx, addGroupOptOut, arg.UserID, arg.Grp, arg.Channel)
+	return err
+}
+
 const addOptOut = `-- name: AddOptOut :exec
-INSERT INTO notification_optouts (user_id, kind) VALUES (?, ?)
+INSERT INTO notification_optouts (user_id, kind, channel) VALUES (?, ?, ?)
 ON CONFLICT DO NOTHING
 `
 
 type AddOptOutParams struct {
-	UserID string
-	Kind   string
+	UserID  string
+	Kind    string
+	Channel string
 }
 
 func (q *Queries) AddOptOut(ctx context.Context, arg AddOptOutParams) error {
-	_, err := q.db.ExecContext(ctx, addOptOut, arg.UserID, arg.Kind)
+	_, err := q.db.ExecContext(ctx, addOptOut, arg.UserID, arg.Kind, arg.Channel)
 	return err
 }
 
+const getMailAlertState = `-- name: GetMailAlertState :one
+SELECT mail_failing_since, mail_alert_last_at FROM instance_settings WHERE id = 1
+`
+
+type GetMailAlertStateRow struct {
+	MailFailingSince string
+	MailAlertLastAt  string
+}
+
+func (q *Queries) GetMailAlertState(ctx context.Context) (GetMailAlertStateRow, error) {
+	row := q.db.QueryRowContext(ctx, getMailAlertState)
+	var i GetMailAlertStateRow
+	err := row.Scan(&i.MailFailingSince, &i.MailAlertLastAt)
+	return i, err
+}
+
 const hasOptOut = `-- name: HasOptOut :one
-SELECT EXISTS (
-    SELECT 1 FROM notification_optouts WHERE user_id = ? AND kind = ?
-)
+SELECT CAST(EXISTS (
+    SELECT 1 FROM notification_optouts o
+    WHERE o.user_id = ?1 AND o.kind = ?2 AND o.channel = ?3
+) OR EXISTS (
+    SELECT 1 FROM notification_group_optouts g
+    WHERE g.user_id = ?1 AND g.grp = ?4 AND g.channel = ?3
+) AS BOOLEAN)
 `
 
 type HasOptOutParams struct {
-	UserID string
-	Kind   string
+	UserID  string
+	Kind    string
+	Channel string
+	Grp     string
 }
 
+// Whether user_id switched kind, or its group grp, off on channel.
 func (q *Queries) HasOptOut(ctx context.Context, arg HasOptOutParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, hasOptOut, arg.UserID, arg.Kind)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
+	row := q.db.QueryRowContext(ctx, hasOptOut,
+		arg.UserID,
+		arg.Kind,
+		arg.Channel,
+		arg.Grp,
+	)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listCommentMailRecipients = `-- name: ListCommentMailRecipients :many
@@ -51,7 +96,9 @@ WHERE u.email != '' AND u.email_verified
   AND (u.id = r.created_by OR EXISTS (
       SELECT 1 FROM recipe_comments c WHERE c.recipe_id = r.id AND c.author_id = u.id))
   AND NOT EXISTS (
-      SELECT 1 FROM notification_optouts o WHERE o.user_id = u.id AND o.kind = 'comment')
+      SELECT 1 FROM notification_optouts o WHERE o.user_id = u.id AND o.kind = 'comment' AND o.channel = 'mail')
+  AND NOT EXISTS (
+      SELECT 1 FROM notification_group_optouts g WHERE g.user_id = u.id AND g.grp = 'household' AND g.channel = 'mail')
 ORDER BY u.username
 `
 
@@ -69,7 +116,8 @@ type ListCommentMailRecipientsRow struct {
 
 // Who a new comment by author_id on recipe_id is mailed to: its followers
 // (the creator and everyone with a comment on it, as for the unread dot)
-// with a confirmed address and the comment mail on, never the author.
+// with a confirmed address and the comment mail and the household mail
+// switch on, never the author.
 func (q *Queries) ListCommentMailRecipients(ctx context.Context, arg ListCommentMailRecipientsParams) ([]ListCommentMailRecipientsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listCommentMailRecipients, arg.RecipeID, arg.AuthorID)
 	if err != nil {
@@ -98,23 +146,60 @@ func (q *Queries) ListCommentMailRecipients(ctx context.Context, arg ListComment
 	return items, nil
 }
 
-const listOptOuts = `-- name: ListOptOuts :many
-SELECT kind FROM notification_optouts WHERE user_id = ? ORDER BY kind
+const listGroupOptOuts = `-- name: ListGroupOptOuts :many
+SELECT grp, channel FROM notification_group_optouts WHERE user_id = ? ORDER BY grp, channel
 `
 
-func (q *Queries) ListOptOuts(ctx context.Context, userID string) ([]string, error) {
+type ListGroupOptOutsRow struct {
+	Grp     string
+	Channel string
+}
+
+func (q *Queries) ListGroupOptOuts(ctx context.Context, userID string) ([]ListGroupOptOutsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listGroupOptOuts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGroupOptOutsRow{}
+	for rows.Next() {
+		var i ListGroupOptOutsRow
+		if err := rows.Scan(&i.Grp, &i.Channel); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOptOuts = `-- name: ListOptOuts :many
+SELECT kind, channel FROM notification_optouts WHERE user_id = ? ORDER BY kind, channel
+`
+
+type ListOptOutsRow struct {
+	Kind    string
+	Channel string
+}
+
+func (q *Queries) ListOptOuts(ctx context.Context, userID string) ([]ListOptOutsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listOptOuts, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []string{}
+	items := []ListOptOutsRow{}
 	for rows.Next() {
-		var kind string
-		if err := rows.Scan(&kind); err != nil {
+		var i ListOptOutsRow
+		if err := rows.Scan(&i.Kind, &i.Channel); err != nil {
 			return nil, err
 		}
-		items = append(items, kind)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -130,7 +215,9 @@ SELECT id, email, locale
 FROM users
 WHERE email != '' AND email_verified
   AND NOT EXISTS (
-      SELECT 1 FROM notification_optouts o WHERE o.user_id = users.id AND o.kind = 'recipe')
+      SELECT 1 FROM notification_optouts o WHERE o.user_id = users.id AND o.kind = 'recipe' AND o.channel = 'mail')
+  AND NOT EXISTS (
+      SELECT 1 FROM notification_group_optouts g WHERE g.user_id = users.id AND g.grp = 'household' AND g.channel = 'mail')
 ORDER BY username
 `
 
@@ -141,7 +228,7 @@ type ListRecipeDigestRecipientsRow struct {
 }
 
 // Who gets the daily new recipes digest: everyone with a confirmed address
-// and the recipe mail on. Whose own recipes to leave out is the caller's.
+// and the recipe mail and the household mail switch on. Whose own recipes to leave out is the caller's.
 func (q *Queries) ListRecipeDigestRecipients(ctx context.Context) ([]ListRecipeDigestRecipientsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listRecipeDigestRecipients)
 	if err != nil {
@@ -165,16 +252,46 @@ func (q *Queries) ListRecipeDigestRecipients(ctx context.Context) ([]ListRecipeD
 	return items, nil
 }
 
+const removeGroupOptOut = `-- name: RemoveGroupOptOut :exec
+DELETE FROM notification_group_optouts WHERE user_id = ? AND grp = ? AND channel = ?
+`
+
+type RemoveGroupOptOutParams struct {
+	UserID  string
+	Grp     string
+	Channel string
+}
+
+func (q *Queries) RemoveGroupOptOut(ctx context.Context, arg RemoveGroupOptOutParams) error {
+	_, err := q.db.ExecContext(ctx, removeGroupOptOut, arg.UserID, arg.Grp, arg.Channel)
+	return err
+}
+
 const removeOptOut = `-- name: RemoveOptOut :exec
-DELETE FROM notification_optouts WHERE user_id = ? AND kind = ?
+DELETE FROM notification_optouts WHERE user_id = ? AND kind = ? AND channel = ?
 `
 
 type RemoveOptOutParams struct {
-	UserID string
-	Kind   string
+	UserID  string
+	Kind    string
+	Channel string
 }
 
 func (q *Queries) RemoveOptOut(ctx context.Context, arg RemoveOptOutParams) error {
-	_, err := q.db.ExecContext(ctx, removeOptOut, arg.UserID, arg.Kind)
+	_, err := q.db.ExecContext(ctx, removeOptOut, arg.UserID, arg.Kind, arg.Channel)
+	return err
+}
+
+const setMailAlertState = `-- name: SetMailAlertState :exec
+UPDATE instance_settings SET mail_failing_since = ?, mail_alert_last_at = ? WHERE id = 1
+`
+
+type SetMailAlertStateParams struct {
+	MailFailingSince string
+	MailAlertLastAt  string
+}
+
+func (q *Queries) SetMailAlertState(ctx context.Context, arg SetMailAlertStateParams) error {
+	_, err := q.db.ExecContext(ctx, setMailAlertState, arg.MailFailingSince, arg.MailAlertLastAt)
 	return err
 }

@@ -143,14 +143,14 @@ func TestDigestSkipsOwnRecipes(t *testing.T) {
 }
 
 func TestDigestRespectsOptOut(t *testing.T) {
-	for _, off := range []map[Kind]bool{
-		{KindRecipe: false},
-		{KindRecipe: false, KindComment: false}, // the whole household group
+	for _, off := range []map[Kind]map[Channel]bool{
+		{KindRecipe: {ChannelMail: false}},
+		{KindRecipe: {ChannelMail: false}, KindComment: {ChannelMail: false}},
 	} {
 		f := newFanout(t)
 		mila, jonas := f.household(t)
 		f.person(t, "uwe", user.RoleUser, false) // no confirmed address
-		if _, err := f.svc.SetPreferences(context.Background(), jonas, off); err != nil {
+		if _, err := f.svc.SetPreferences(context.Background(), jonas, Prefs{Kinds: off}); err != nil {
 			t.Fatal(err)
 		}
 		f.added(t, mila, "Dal", at(0, 10, 0))

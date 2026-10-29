@@ -30,6 +30,7 @@ erDiagram
   users |o--o{ recipe_comments : writes
   users ||--o{ recipe_comment_reads : "has seen"
   users ||--o{ notification_optouts : "switched off"
+  users ||--o{ notification_group_optouts : "switched off"
   recipe_comments ||--o{ comment_images : carries
   recipes ||--o{ comment_images : has
   recipes ||--o{ recipe_comment_reads : "seen on"
@@ -129,10 +130,18 @@ erDiagram
     integer recipe_digest_hour "0 to 23, 17 by default"
     text recipe_digest_last_day "local YYYY-MM-DD of the last digest, empty before"
     blob vapid_key "nullable, raw 32-byte P-256 scalar, written on first use, never in an API"
+    text mail_failing_since "when real sends began failing, empty while mail works"
+    text mail_alert_last_at "last mail-failing push to the owner, empty before"
   }
   notification_optouts {
     text user_id PK "also FK to users.id"
-    text kind PK "comment, recipe or invite_accepted"
+    text kind PK "comment, recipe, tasty, invite_accepted or mail_failing"
+    text channel PK "mail or push"
+  }
+  notification_group_optouts {
+    text user_id PK "also FK to users.id"
+    text grp PK "household or admin"
+    text channel PK "mail or push"
   }
   ingredient_groups {
     text id PK
@@ -244,7 +253,7 @@ erDiagram
 - `favorites` is keyed by `(user_id, recipe_id)` and both foreign keys cascade, so a star never outlives the user or the recipe it belongs to. The primary key serves lookups by user; `favorites_recipe_idx` on `recipe_id` serves the reverse direction, which the per-page card lookup uses. See [Favorites](/features/favorites).
 - `tasty` has the same key, cascades and reverse index (`tasty_recipe_idx`); the index also serves the correlated count behind `sort=tasty`. Unlike a favorite, a row's `created_at` is read: it orders the people a recipe names as having marked it. See [Tasty](/features/tasty).
 - `recipe_comments.id` is `INTEGER PRIMARY KEY AUTOINCREMENT`, because it doubles as the watermark and must never be handed out twice - without `AUTOINCREMENT` SQLite reuses a deleted newest row's id. `recipe_comments_recipe_idx` on `(recipe_id, id)` serves a recipe's list and the card batch, `recipe_comments_author_idx` the "has a comment here" check. `author_id` is `SET NULL`: deleting a member leaves their comments as a former member's rather than giving them to the admin who inherits their recipes. `recipe_comment_reads` keeps one `last_seen` per (user, recipe), both keys cascading; a comment is new when its `id` is above it. See [Recipe comments](/features/recipe-comments).
-- `notification_optouts` holds one row per (user, kind) an account switched off, cascading with the user: every switchable mail is on until a row says otherwise, so a new kind or a new account needs no rows. See [Email](/features/email).
+- `notification_optouts` holds one row per (user, kind, channel) an account switched off, and `notification_group_optouts` one per (user, group, channel) whose master switch is off (`grp`: `group` is an SQL keyword); both cascade with the user, and `channel` is `mail` or `push` under a `CHECK`, while kinds and groups have none, so a new one needs no migration. Every switchable notification is on until a row says otherwise, so a new kind or a new account needs no rows; a group row silences every kind of the group on that channel, later kinds too, and leaves the kind rows alone. See [Notifications](/features/notifications).
 - `recipes.announce_pending` is `NOT NULL DEFAULT FALSE`, so an upgraded instance announces nothing it already had. `recipe.Service.CreateAnnounced` sets it in the create's own insert, and only the HTTP `create-recipe` and MCP `create_recipe` call that; archive import and the demo seed use `Create` and leave it false. `ListDueAnnouncements` reads the pending rows older than a cutoff, oldest first, through the partial index `recipes_announce_pending_idx` on `created_at WHERE announce_pending`, and `ClearAnnouncements` drops the mark. A deleted recipe takes its mark with it. See [Notifications](/features/notifications).
 - `recipes.edit_policy` is `NULL`, `'open'` or `'locked'` (a `CHECK` constraint); `NULL` means "follow the household setting" and is never written as a string. [Editing rights](/features/editing-rights) owns what it decides.
 
@@ -255,6 +264,7 @@ erDiagram
   - `link_previews` (off by default), `link_preview_minutes` (15, 60 or 1440 under a `CHECK`, 15 by default) and `link_preview_key` to [Link previews](/features/link-previews), whose key the unsubscribe links of [Notifications](/features/notifications) sign with too, under their own label. The key is 32 random bytes the migration writes with `randomblob`, since SQLite refuses a non-constant default in `ADD COLUMN`; `GetInstanceSettings` names its columns so the key never rides along.
   - `public_shares`, `public_share_default_days`, `public_share_max_days` and `public_share_attribution` to [Public shares](/features/public-shares). The rule that the default may never exceed the maximum is a `CHECK` on `public_share_max_days` alone, since SQLite's `ALTER TABLE` cannot add a table-level constraint and a column constraint may only name a column that already exists by the time it is added.
   - `recipe_digest_hour` and `recipe_digest_last_day` to [Notifications](/features/notifications): the owner's hour of the new recipes digest in the server's time zone (`settings.Service.SetRecipeDigestHour`, 0 to 23, `ErrUnknownHour` otherwise) and the local date of the last run. `ClaimRecipeDigestDay` writes the date only when it differs and reports the rows it changed, so of two runs on one day only the first gets a row back.
+  - `mail_failing_since` and `mail_alert_last_at` to [Notifications](/features/notifications): the state of the owner's mail-failing push, kept here so a restart does not re-arm it, both `TEXT NOT NULL DEFAULT ''` (empty: mail works, no alert yet). `GetMailAlertState` reads and `SetMailAlertState` writes both; nothing writes them yet.
   - The seven `smtp_*` columns to [Email](/features/email): the mail configuration the owner saves in the UI, `smtp_host = ''` meaning not configured here, the password stored as plain text like `link_preview_key`, and `GetMailSettings` the one query that reads them.
   - The four `oidc_*` columns to [OIDC](/features/oidc): the provider the owner saves in the UI, `oidc_issuer = ''` meaning not configured here, the client secret plain text like `smtp_password`, and `GetOIDCSettings` the one query that reads them.
   - `vapid_key` to [Cook timers](/features/cook-timers): the VAPID signing key as the raw 32-byte P-256 scalar, `NULL` until the push service first needs it and then generated and stored, so a migration does not have to make a key and an instance that never pushes never has one.

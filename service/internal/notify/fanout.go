@@ -164,7 +164,7 @@ func (s *Service) InviteAccepted(ctx context.Context, inviterID string, newcomer
 	if !inviter.Role.IsAdmin() || inviter.Email == "" || !inviter.EmailVerified {
 		return
 	}
-	on, err := s.Wants(ctx, inviter.ID, KindInviteAccepted)
+	on, err := s.Wants(ctx, inviter.ID, KindInviteAccepted, ChannelMail)
 	if err != nil {
 		slog.WarnContext(ctx, "invitation mail: preference lookup failed", "err", err)
 		return

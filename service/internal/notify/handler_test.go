@@ -99,18 +99,34 @@ func (f fixture) login(t *testing.T, username string) *http.Cookie {
 	return nil
 }
 
-func kinds(t *testing.T, rec *httptest.ResponseRecorder) map[string]bool {
+// prefsBody is the wire shape of the preferences, a channel map per kind
+// and per group.
+type prefsBody struct {
+	Kinds  map[string]map[string]bool `json:"kinds"`
+	Groups map[string]map[string]bool `json:"groups"`
+}
+
+func decodePrefs(t *testing.T, rec *httptest.ResponseRecorder) prefsBody {
 	t.Helper()
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
-	var body struct {
-		Kinds map[string]bool `json:"kinds"`
-	}
+	var body prefsBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	return body.Kinds
+	return body
+}
+
+// mailKinds is every kind's own mail choice.
+func mailKinds(p prefsBody) map[string]bool {
+	got := map[string]bool{}
+	for k, chs := range p.Kinds {
+		if on, ok := chs["mail"]; ok {
+			got[k] = on
+		}
+	}
+	return got
 }
 
 const prefsPath = "/api/v1/auth/me/notifications"
@@ -118,8 +134,8 @@ const prefsPath = "/api/v1/auth/me/notifications"
 func TestPreferencesDefaultOn(t *testing.T) {
 	f := newFixture(t)
 	for _, name := range []string{"olga", "adam"} {
-		got := kinds(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, name)))
-		if want := map[string]bool{"comment": true, "recipe": true, "invite_accepted": true}; !maps.Equal(got, want) {
+		got := mailKinds(decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, name))))
+		if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "invite_accepted": true}; !maps.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", name, got, want)
 		}
 	}
@@ -131,16 +147,24 @@ func TestPreferencesDefaultOn(t *testing.T) {
 func TestMemberHasNoAdminKinds(t *testing.T) {
 	f := newFixture(t)
 	mia := f.login(t, "mia")
-	got := kinds(t, f.do(http.MethodGet, prefsPath, "", "", mia))
-	if want := map[string]bool{"comment": true, "recipe": true}; !maps.Equal(got, want) {
+	got := decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", mia))
+	if want := map[string]bool{"comment": true, "recipe": true, "tasty": true}; !maps.Equal(mailKinds(got), want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	for _, body := range []string{`{"kinds":{"invite_accepted":false}}`, `{"kinds":{"nonsense":false}}`} {
+	if _, ok := got.Groups["admin"]; ok {
+		t.Errorf("member has the admin group: %v", got.Groups)
+	}
+	for _, body := range []string{
+		`{"kinds":{"invite_accepted":{"mail":false}}}`,
+		`{"kinds":{"nonsense":{"mail":false}}}`,
+		`{"kinds":{"comment":{"sms":false}}}`,
+		`{"groups":{"admin":{"push":false}}}`,
+	} {
 		if rec := f.do(http.MethodPut, prefsPath, "application/json", body, mia); rec.Code != http.StatusUnprocessableEntity {
 			t.Errorf("put %s: %d %s", body, rec.Code, rec.Body.String())
 		}
 	}
-	if ok, _ := f.svc.Wants(context.Background(), f.users["mia"].ID, notify.KindComment); !ok {
+	if ok, _ := f.svc.Wants(context.Background(), f.users["mia"].ID, notify.KindComment, notify.ChannelMail); !ok {
 		t.Error("refused write changed comment")
 	}
 }
@@ -148,23 +172,47 @@ func TestMemberHasNoAdminKinds(t *testing.T) {
 func TestSetPreferencesRoundTrip(t *testing.T) {
 	f := newFixture(t)
 	adam := f.login(t, "adam")
-	got := kinds(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":false}}`, adam))
-	want := map[string]bool{"comment": false, "recipe": true, "invite_accepted": true}
-	if !maps.Equal(got, want) {
-		t.Errorf("put: %v, want %v", got, want)
+	got := decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":{"mail":false}}}`, adam))
+	want := map[string]bool{"comment": false, "recipe": true, "tasty": true, "invite_accepted": true}
+	if !maps.Equal(mailKinds(got), want) || !got.Kinds["comment"]["push"] {
+		t.Errorf("put: %v, want mail %v", got, want)
 	}
-	if got := kinds(t, f.do(http.MethodGet, prefsPath, "", "", adam)); !maps.Equal(got, want) {
+	if got := mailKinds(decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", adam))); !maps.Equal(got, want) {
 		t.Errorf("get after put: %v, want %v", got, want)
 	}
 	// Writing the same value twice is not an error (the opt-out insert ignores a conflict).
-	kinds(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":false}}`, adam))
-	got = kinds(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":true,"invite_accepted":false}}`, adam))
-	if want := map[string]bool{"comment": true, "recipe": true, "invite_accepted": false}; !maps.Equal(got, want) {
+	decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":{"mail":false}}}`, adam))
+	got = decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":{"mail":true},"invite_accepted":{"mail":false}}}`, adam))
+	if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "invite_accepted": false}; !maps.Equal(mailKinds(got), want) {
 		t.Errorf("second put: %v, want %v", got, want)
 	}
 	// Another account's preferences are its own.
-	if got := kinds(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, "olga"))); !maps.Equal(got, map[string]bool{"comment": true, "recipe": true, "invite_accepted": true}) {
+	if got := mailKinds(decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, "olga")))); !maps.Equal(got, map[string]bool{"comment": true, "recipe": true, "tasty": true, "invite_accepted": true}) {
 		t.Errorf("olga: %v", got)
+	}
+}
+
+func TestPreferencesHandlerShape(t *testing.T) {
+	f := newFixture(t)
+	olga := f.login(t, "olga")
+	on := map[string]bool{"mail": true, "push": true}
+	got := decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", olga))
+	for _, k := range []string{"comment", "recipe", "tasty", "invite_accepted"} {
+		if !maps.Equal(got.Kinds[k], on) {
+			t.Errorf("get %s: %v", k, got.Kinds[k])
+		}
+	}
+	if !maps.Equal(got.Kinds["mail_failing"], map[string]bool{"push": true}) || !maps.Equal(got.Groups["household"], on) || !maps.Equal(got.Groups["admin"], on) {
+		t.Errorf("get: %+v", got)
+	}
+	got = decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"groups":{"household":{"push":false}}}`, olga))
+	if !maps.Equal(got.Groups["household"], map[string]bool{"mail": true, "push": false}) || !maps.Equal(got.Groups["admin"], on) {
+		t.Errorf("put groups: %v", got.Groups)
+	}
+	for _, k := range []string{"comment", "recipe", "tasty"} {
+		if !got.Kinds[k]["push"] {
+			t.Errorf("put changed %s's own push choice: %v", k, got.Kinds[k])
+		}
 	}
 }
 
@@ -243,9 +291,11 @@ func TestUnsubscribeTokenBoundToUserAndKind(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for k, on := range got {
-			if !on {
-				t.Errorf("%s: %s switched off by a refused link", name, k)
+		for k, chs := range got.Kinds {
+			for ch, on := range chs {
+				if !on {
+					t.Errorf("%s: %s/%s switched off by a refused link", name, k, ch)
+				}
 			}
 		}
 	}
@@ -288,7 +338,7 @@ func TestUnsubscribeGetChangesNothing(t *testing.T) {
 	if rec := f.do(http.MethodGet, strings.TrimPrefix(links.OneClickURL, publicURL), "", "", nil); rec.Code == http.StatusOK {
 		t.Errorf("GET one-click: %d", rec.Code)
 	}
-	if ok, err := f.svc.Wants(context.Background(), f.users["mia"].ID, notify.KindComment); err != nil || !ok {
+	if ok, err := f.svc.Wants(context.Background(), f.users["mia"].ID, notify.KindComment, notify.ChannelMail); err != nil || !ok {
 		t.Errorf("wants after GETs: %v %v", ok, err)
 	}
 }
@@ -324,15 +374,20 @@ func TestUnsubscribePostKindGroupAndUndo(t *testing.T) {
 	post := func(q url.Values, scope string, subscribed bool) state {
 		return decodeState(t, f.do(http.MethodPost, "/api/v1/unsubscribe", "application/json", postBody(q, scope, subscribed), nil))
 	}
+	// Whether adam gets k by mail.
 	prefs := func() map[notify.Kind]bool {
-		p, err := f.svc.Preferences(ctx, adam)
-		if err != nil {
-			t.Fatal(err)
+		p := map[notify.Kind]bool{}
+		for _, k := range []notify.Kind{notify.KindComment, notify.KindInviteAccepted} {
+			ok, err := f.svc.Wants(ctx, adam.ID, k, notify.ChannelMail)
+			if err != nil {
+				t.Fatal(err)
+			}
+			p[k] = ok
 		}
 		return p
 	}
 
-	if got := post(invite, "kind", false); got.KindSubscribed || got.GroupSubscribed || got.Group != "admin" {
+	if got := post(invite, "kind", false); got.KindSubscribed || !got.GroupSubscribed || got.Group != "admin" {
 		t.Errorf("kind off: %+v", got)
 	}
 	if p := prefs(); p[notify.KindInviteAccepted] || !p[notify.KindComment] {
@@ -356,29 +411,39 @@ func TestUnsubscribePostKindGroupAndUndo(t *testing.T) {
 	}
 }
 
-// The page undoes a group unsubscribe for the kinds that were on before it,
-// so a kind already off stays off.
-func TestUnsubscribeGroupUndoRestoresOnlyNamedKinds(t *testing.T) {
+// A group link switches the group's mail switch alone: the kinds keep their
+// own choices, the undo removes only the group row, push is never touched.
+func TestUnsubscribeGroupSwitchesMaster(t *testing.T) {
+	ctx := context.Background()
 	f := newFixture(t)
 	adam := f.users["adam"]
 	q := query(t, f.svc.UnsubscribeLinks(adam.ID, notify.KindComment).KindURL)
-	post := func(kinds []string, subscribed bool) *httptest.ResponseRecorder {
-		b, _ := json.Marshal(map[string]any{"u": q.Get("u"), "k": q.Get("k"), "s": q.Get("s"), "scope": "group", "subscribed": subscribed, "kinds": kinds})
-		return f.do(http.MethodPost, "/api/v1/unsubscribe", "application/json", string(b), nil)
+	post := func(scope string, subscribed bool) state {
+		return decodeState(t, f.do(http.MethodPost, "/api/v1/unsubscribe", "application/json", postBody(q, scope, subscribed), nil))
 	}
-	if got := decodeState(t, post(nil, false)); !maps.Equal(got.GroupKinds, map[string]bool{"comment": false, "recipe": false}) {
+	if _, err := f.svc.SetPreferences(ctx, adam, notify.Prefs{Kinds: map[notify.Kind]map[notify.Channel]bool{notify.KindRecipe: off(notify.ChannelMail)}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := post("group", false); got.KindSubscribed || got.GroupSubscribed ||
+		!maps.Equal(got.GroupKinds, map[string]bool{"comment": false, "recipe": false, "tasty": false}) {
 		t.Errorf("group off: %+v", got)
 	}
-	// Nothing of the group was on before: the undo names no kind.
-	if got := decodeState(t, post([]string{}, true)); got.KindSubscribed || !maps.Equal(got.GroupKinds, map[string]bool{"comment": false, "recipe": false}) {
-		t.Errorf("undo of nothing: %+v", got)
+	p, err := f.svc.Preferences(ctx, adam)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := decodeState(t, post([]string{"comment"}, true)); !got.KindSubscribed || got.GroupSubscribed ||
-		!maps.Equal(got.GroupKinds, map[string]bool{"comment": true, "recipe": false}) {
+	if p.Groups[notify.GroupHousehold][notify.ChannelMail] || !p.Groups[notify.GroupHousehold][notify.ChannelPush] ||
+		!p.Kinds[notify.KindComment][notify.ChannelMail] || p.Kinds[notify.KindRecipe][notify.ChannelMail] {
+		t.Errorf("group off wrote more than the group mail row: %+v", p)
+	}
+	for k, chs := range p.Kinds {
+		if on, ok := chs[notify.ChannelPush]; ok && !on {
+			t.Errorf("%s push switched off", k)
+		}
+	}
+	if got := post("group", true); !got.KindSubscribed || !got.GroupSubscribed ||
+		!maps.Equal(got.GroupKinds, map[string]bool{"comment": true, "recipe": false, "tasty": true}) {
 		t.Errorf("undo: %+v", got)
-	}
-	if rec := post([]string{"invite_accepted"}, true); rec.Code != http.StatusUnprocessableEntity {
-		t.Errorf("a kind of another group: %d %s", rec.Code, rec.Body)
 	}
 }
 
@@ -406,8 +471,9 @@ func TestOneClickOptsOutKindOnly(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if p[notify.KindComment] || !p[notify.KindInviteAccepted] {
-				t.Errorf("after one-click: %v", p)
+			if !maps.Equal(p.Kinds[notify.KindComment], map[notify.Channel]bool{notify.ChannelMail: false, notify.ChannelPush: true}) ||
+				!maps.Equal(p.Kinds[notify.KindInviteAccepted], both) || !maps.Equal(p.Groups[notify.GroupHousehold], both) {
+				t.Errorf("after one-click: %+v", p)
 			}
 			// Again is fine: the kind is already off.
 			if rec := f.do(http.MethodPost, path, tc.contentType, tc.body, nil); rec.Code != http.StatusOK {

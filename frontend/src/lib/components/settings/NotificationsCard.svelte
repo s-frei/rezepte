@@ -2,7 +2,13 @@
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { isSignedOut } from '$lib/api/client';
-	import { KIND_GROUP, setNotificationPrefs, type Group, type Kind } from '$lib/api/notifications';
+	import {
+		KIND_GROUP,
+		setNotificationPrefs,
+		type Group,
+		type Kind,
+		type Prefs
+	} from '$lib/api/notifications';
 	import { session } from '$lib/auth.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -11,8 +17,8 @@
 		prefs: loaded,
 		mailEnabled
 	}: {
-		/** The kinds the account may have; null when they could not be read. */
-		prefs: Partial<Record<Kind, boolean>> | null;
+		/** The kinds and groups the account may have; null when they could not be read. */
+		prefs: Prefs | null;
 		mailEnabled: boolean;
 	} = $props();
 
@@ -34,7 +40,8 @@
 			hint: m.settings_notifications_group_admin_hint
 		}
 	};
-	const kindText: Record<Kind, { name: () => string; hint: () => string }> = {
+	// Only the mail channel for now; a kind without text here is not shown.
+	const kindText: Partial<Record<Kind, { name: () => string; hint: () => string }>> = {
 		comment: {
 			name: m.settings_notifications_kind_comment,
 			hint: m.settings_notifications_kind_comment_hint
@@ -54,18 +61,25 @@
 		(['household', 'admin'] as Group[])
 			.map((group) => ({
 				group,
-				kinds: (Object.keys(KIND_GROUP) as Kind[]).filter(
-					(kind) => KIND_GROUP[kind] === group && prefs?.[kind] !== undefined
-				)
+				kinds: (Object.keys(KIND_GROUP) as Kind[]).flatMap((kind) => {
+					const t = kindText[kind];
+					return KIND_GROUP[kind] === group && t && prefs?.kinds[kind]?.mail !== undefined
+						? [{ kind, t }]
+						: [];
+				})
 			}))
 			.filter(({ kinds }) => kinds.length > 0)
 	);
 
 	// Saves on flip; the switches show the server's answer, so a failed write snaps back.
-	async function change(kinds: Kind[], on: boolean) {
+	// A group's switch is its own: its kinds keep their choices.
+	async function change(patch: Prefs) {
+		if (!prefs) return;
 		const before = prefs;
-		const patch = Object.fromEntries(kinds.map((kind) => [kind, on]));
-		prefs = { ...prefs, ...patch };
+		prefs = {
+			kinds: { ...prefs.kinds, ...patch.kinds },
+			groups: { ...prefs.groups, ...patch.groups }
+		};
 		try {
 			prefs = await setNotificationPrefs(patch);
 		} catch (error) {
@@ -118,7 +132,6 @@
 		{:else}
 			<div class="mt-5 space-y-3">
 				{#each groups as { group, kinds } (group)}
-					{@const all = kinds.every((kind) => prefs?.[kind])}
 					<!-- The group's switch heads the card and its kinds sit inset below
 					     it, so it reads as the switch for all of them. -->
 					<div class={blockClass}>
@@ -136,19 +149,19 @@
 								<p class="mt-0.5 text-caption text-text-muted">{groupText[group].hint()}</p>
 							</div>
 							<Switch
-								checked={all}
+								checked={prefs.groups[group]?.mail ?? false}
 								label={groupText[group].name()}
-								onchange={(on) => void change(kinds, on)}
+								onchange={(on) => void change({ kinds: {}, groups: { [group]: { mail: on } } })}
 							/>
 						</div>
 						<div class="mx-3 mb-3 rounded-md border border-border bg-surface">
-							{#each kinds as kind, i (kind)}
+							{#each kinds as { kind, t }, i (kind)}
 								<div class="{rowClass} {i ? 'border-t border-dashed border-border' : ''}">
-									{@render text(kindText[kind].name(), kindText[kind].hint(), false)}
+									{@render text(t.name(), t.hint(), false)}
 									<Switch
-										checked={prefs[kind] ?? false}
-										label={kindText[kind].name()}
-										onchange={(on) => void change([kind], on)}
+										checked={prefs.kinds[kind]?.mail ?? false}
+										label={t.name()}
+										onchange={(on) => void change({ kinds: { [kind]: { mail: on } }, groups: {} })}
 									/>
 								</div>
 							{/each}

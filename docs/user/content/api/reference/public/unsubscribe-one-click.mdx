@@ -2,8 +2,9 @@
 title: '/api/v1/unsubscribe/one-click'
 description: "The address of a mail's List-Unsubscribe header. No session
   needed. The body, List-Unsubscribe=One-Click as urlencoded or multipart form
-  data, is not read: the signed address alone decides. Switches off the link's
-  kind only and answers 200 with no body, or 410 like get-unsubscribe."
+  data, is not read: the signed address alone decides. Switches off the mail of
+  the link's kind only and answers 200 with no body, or 410 like
+  get-unsubscribe."
 full: true
 _openapi:
   preload:
@@ -17,7 +18,7 @@ _openapi:
       - content: "The address of a mail's List-Unsubscribe header. No session needed.
           The body, List-Unsubscribe=One-Click as urlencoded or multipart form
           data, is not read: the signed address alone decides. Switches off the
-          link's kind only and answers 200 with no body, or 410 like
+          mail of the link's kind only and answers 200 with no body, or 410 like
           get-unsubscribe."
 ---
 

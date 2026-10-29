@@ -94,11 +94,20 @@ type InstanceSetting struct {
 	RecipeDigestHour       int64
 	RecipeDigestLastDay    string
 	VapidKey               []byte
+	MailFailingSince       string
+	MailAlertLastAt        string
+}
+
+type NotificationGroupOptout struct {
+	UserID  string
+	Grp     string
+	Channel string
 }
 
 type NotificationOptout struct {
-	UserID string
-	Kind   string
+	UserID  string
+	Kind    string
+	Channel string
 }
 
 type PushSubscription struct {

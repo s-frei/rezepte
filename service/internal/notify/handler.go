@@ -13,16 +13,19 @@ import (
 )
 
 type preferencesBody struct {
-	Kinds map[Kind]bool `json:"kinds" doc:"Every kind the account may have, true when it gets that mail"`
+	Kinds  map[Kind]map[Channel]bool  `json:"kinds" doc:"Every kind the account may have, per channel (mail, push) it may have it on: its own choice, true unless switched off. It goes out only while its group is on as well."`
+	Groups map[Group]map[Channel]bool `json:"groups" doc:"Every group the account has a kind of, per channel: its master switch, which silences every kind of the group on that channel and keeps their own choices"`
 }
 
 type preferencesOutput struct {
 	Body preferencesBody
 }
 
+// setPreferencesInput has the same fields as Prefs, both optional.
 type setPreferencesInput struct {
 	Body struct {
-		Kinds map[Kind]bool `json:"kinds" doc:"The kinds to switch; kinds left out keep their value"`
+		Kinds  map[Kind]map[Channel]bool  `json:"kinds,omitempty" doc:"The kind and channel pairs to switch; pairs left out keep their value"`
+		Groups map[Group]map[Channel]bool `json:"groups,omitempty" doc:"The group and channel pairs to switch; pairs left out keep their value"`
 	}
 }
 
@@ -41,9 +44,8 @@ type unsubscribeInput struct {
 		U          string `json:"u"`
 		K          string `json:"k"`
 		S          string `json:"s"`
-		Scope      string `json:"scope" enum:"kind,group" doc:"kind switches only the link's kind, group every kind of its group the account may have"`
+		Scope      string `json:"scope" enum:"kind,group" doc:"kind switches the mail of the link's kind, group its group's mail switch; the other kinds' choices and push stay as they are"`
 		Subscribed bool   `json:"subscribed" doc:"false unsubscribes, true undoes it"`
-		Kinds      []Kind `json:"kinds,omitempty" doc:"With scope group, only these kinds of the group; omitted is all of them. An undo sends the kinds that were on before."`
 	}
 }
 
@@ -76,7 +78,7 @@ func Register(api huma.API, s *Service) {
 		OperationID: "get-own-notifications",
 		Method:      http.MethodGet,
 		Path:        "/api/v1/auth/me/notifications",
-		Summary:     "Read which notification mails the current user gets",
+		Summary:     "Read which notifications the current user gets by mail and push",
 		Tags:        []string{"auth"},
 		Security:    auth.SessionSecurity,
 		Errors:      []int{401},
@@ -89,15 +91,15 @@ func Register(api huma.API, s *Service) {
 		if err != nil {
 			return nil, err
 		}
-		return &preferencesOutput{Body: preferencesBody{Kinds: prefs}}, nil
+		return &preferencesOutput{Body: preferencesBody(prefs)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
 		OperationID: "set-own-notifications",
 		Method:      http.MethodPut,
 		Path:        "/api/v1/auth/me/notifications",
-		Summary:     "Switch notification mails of the current user",
-		Description: "Security notices are not kinds and cannot be switched off. A kind the account may not have is 422.",
+		Summary:     "Switch notifications of the current user, per channel",
+		Description: "Partial: only the kind and group pairs sent change. Security notices are not kinds and cannot be switched off. A kind, group or channel the account may not have is 422, and then nothing changes.",
 		Tags:        []string{"auth"},
 		Security:    auth.SessionSecurity,
 		Errors:      []int{401, 422},
@@ -106,14 +108,14 @@ func Register(api huma.API, s *Service) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		prefs, err := s.SetPreferences(ctx, u, in.Body.Kinds)
+		prefs, err := s.SetPreferences(ctx, u, Prefs(in.Body))
 		if errors.Is(err, ErrUnknownKind) {
 			return nil, huma.Error422UnprocessableEntity(err.Error())
 		}
 		if err != nil {
 			return nil, err
 		}
-		return &preferencesOutput{Body: preferencesBody{Kinds: prefs}}, nil
+		return &preferencesOutput{Body: preferencesBody(prefs)}, nil
 	})
 
 	// Inline rather than a $ref, as in share.RegisterPublic: a $ref response
@@ -159,11 +161,7 @@ func Register(api huma.API, s *Service) {
 		if err != nil {
 			return nil, gone(err)
 		}
-		err = s.switchByLink(ctx, u, k, in.Body.Scope == "group", in.Body.Kinds, in.Body.Subscribed)
-		if errors.Is(err, ErrUnknownKind) {
-			return nil, huma.Error422UnprocessableEntity("kinds: only kinds of the link's group")
-		}
-		if err != nil {
+		if err := s.switchByLink(ctx, u, k, in.Body.Scope == "group", in.Body.Subscribed); err != nil {
 			return nil, err
 		}
 		st, err := s.state(ctx, u, k)
@@ -180,7 +178,7 @@ func Register(api huma.API, s *Service) {
 		Method:        http.MethodPost,
 		Path:          "/api/v1/unsubscribe/one-click",
 		Summary:       "Unsubscribe from one kind of mail in one click (RFC 8058)",
-		Description:   "The address of a mail's List-Unsubscribe header. No session needed. The body, List-Unsubscribe=One-Click as urlencoded or multipart form data, is not read: the signed address alone decides. Switches off the link's kind only and answers 200 with no body, or 410 like get-unsubscribe.",
+		Description:   "The address of a mail's List-Unsubscribe header. No session needed. The body, List-Unsubscribe=One-Click as urlencoded or multipart form data, is not read: the signed address alone decides. Switches off the mail of the link's kind only and answers 200 with no body, or 410 like get-unsubscribe.",
 		Tags:          []string{"public"},
 		DefaultStatus: http.StatusOK,
 		Errors:        []int{410},
@@ -189,6 +187,6 @@ func Register(api huma.API, s *Service) {
 		if err != nil {
 			return nil, gone(err)
 		}
-		return nil, s.switchByLink(ctx, u, k, false, nil, false)
+		return nil, s.switchByLink(ctx, u, k, false, false)
 	})
 }

@@ -2316,16 +2316,30 @@
             "readOnly": true,
             "type": "string"
           },
+          "groups": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "description": "Every group the account has a kind of, per channel: its master switch, which silences every kind of the group on that channel and keeps their own choices",
+            "type": "object"
+          },
           "kinds": {
             "additionalProperties": {
-              "type": "boolean"
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
             },
-            "description": "Every kind the account may have, true when it gets that mail",
+            "description": "Every kind the account may have, per channel (mail, push) it may have it on: its own choice, true unless switched off. It goes out only while its group is on as well.",
             "type": "object"
           }
         },
         "required": [
-          "kinds"
+          "kinds",
+          "groups"
         ],
         "type": "object"
       },
@@ -2676,17 +2690,27 @@
             "readOnly": true,
             "type": "string"
           },
+          "groups": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "description": "The group and channel pairs to switch; pairs left out keep their value",
+            "type": "object"
+          },
           "kinds": {
             "additionalProperties": {
-              "type": "boolean"
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
             },
-            "description": "The kinds to switch; kinds left out keep their value",
+            "description": "The kind and channel pairs to switch; pairs left out keep their value",
             "type": "object"
           }
         },
-        "required": [
-          "kinds"
-        ],
         "type": "object"
       },
       "Settings": {
@@ -3252,21 +3276,11 @@
           "k": {
             "type": "string"
           },
-          "kinds": {
-            "description": "With scope group, only these kinds of the group; omitted is all of them. An undo sends the kinds that were on before.",
-            "items": {
-              "type": "string"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
           "s": {
             "type": "string"
           },
           "scope": {
-            "description": "kind switches only the link's kind, group every kind of its group the account may have",
+            "description": "kind switches the mail of the link's kind, group its group's mail switch; the other kinds' choices and push stay as they are",
             "enum": [
               "kind",
               "group"
@@ -4514,13 +4528,13 @@
             "session": []
           }
         ],
-        "summary": "Read which notification mails the current user gets",
+        "summary": "Read which notifications the current user gets by mail and push",
         "tags": [
           "auth"
         ]
       },
       "put": {
-        "description": "Security notices are not kinds and cannot be switched off. A kind the account may not have is 422.",
+        "description": "Partial: only the kind and group pairs sent change. Security notices are not kinds and cannot be switched off. A kind, group or channel the account may not have is 422, and then nothing changes.",
         "operationId": "set-own-notifications",
         "requestBody": {
           "content": {
@@ -4579,7 +4593,7 @@
             "session": []
           }
         ],
-        "summary": "Switch notification mails of the current user",
+        "summary": "Switch notifications of the current user, per channel",
         "tags": [
           "auth"
         ]
@@ -9053,22 +9067,24 @@
                       "additionalProperties": {
                         "type": "boolean"
                       },
-                      "description": "Every kind of the group the account may have, true when it gets that mail",
+                      "description": "Every kind of the group the account may have by mail, true when it gets that mail",
                       "type": "object"
                     },
                     "groupSubscribed": {
-                      "description": "Whether every kind of the group the account may have is on",
+                      "description": "Whether the group's mail switch is on",
                       "type": "boolean"
                     },
                     "kind": {
                       "enum": [
                         "comment",
                         "recipe",
+                        "tasty",
                         "invite_accepted"
                       ],
                       "type": "string"
                     },
                     "kindSubscribed": {
+                      "description": "Whether the account gets the link's kind by mail: its own switch and its group's are on",
                       "type": "boolean"
                     },
                     "username": {
@@ -9161,22 +9177,24 @@
                       "additionalProperties": {
                         "type": "boolean"
                       },
-                      "description": "Every kind of the group the account may have, true when it gets that mail",
+                      "description": "Every kind of the group the account may have by mail, true when it gets that mail",
                       "type": "object"
                     },
                     "groupSubscribed": {
-                      "description": "Whether every kind of the group the account may have is on",
+                      "description": "Whether the group's mail switch is on",
                       "type": "boolean"
                     },
                     "kind": {
                       "enum": [
                         "comment",
                         "recipe",
+                        "tasty",
                         "invite_accepted"
                       ],
                       "type": "string"
                     },
                     "kindSubscribed": {
+                      "description": "Whether the account gets the link's kind by mail: its own switch and its group's are on",
                       "type": "boolean"
                     },
                     "username": {
@@ -9237,7 +9255,7 @@
     },
     "/api/v1/unsubscribe/one-click": {
       "post": {
-        "description": "The address of a mail's List-Unsubscribe header. No session needed. The body, List-Unsubscribe=One-Click as urlencoded or multipart form data, is not read: the signed address alone decides. Switches off the link's kind only and answers 200 with no body, or 410 like get-unsubscribe.",
+        "description": "The address of a mail's List-Unsubscribe header. No session needed. The body, List-Unsubscribe=One-Click as urlencoded or multipart form data, is not read: the signed address alone decides. Switches off the mail of the link's kind only and answers 200 with no body, or 410 like get-unsubscribe.",
         "operationId": "unsubscribe-one-click",
         "parameters": [
           {

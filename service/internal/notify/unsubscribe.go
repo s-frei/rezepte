@@ -54,64 +54,49 @@ func (s *Service) resolve(ctx context.Context, userID, kind, token string) (user
 	if err != nil {
 		return user.User{}, "", err
 	}
-	if !slices.Contains(KindsFor(u.Role), k) {
+	if !slices.Contains(KindsFor(u.Role, ChannelMail), k) {
 		return user.User{}, "", errLinkGone
 	}
 	return u, k, nil
 }
 
-// scopeKinds returns the kinds a link for k switches: k alone, or with
-// group every kind of k's group that u may have.
-func scopeKinds(u user.User, k Kind, group bool) []Kind {
-	if !group {
-		return []Kind{k}
-	}
-	allowed := KindsFor(u.Role)
-	return slices.DeleteFunc(slices.Clone(k.Group().Kinds()), func(g Kind) bool { return !slices.Contains(allowed, g) })
-}
-
-// unsubscribeState is what the unsubscribe page shows.
+// unsubscribeState is what the unsubscribe page shows. A link reaches only
+// the mail channel.
 type unsubscribeState struct {
-	Username        string `json:"username"`
-	Email           string `json:"email" doc:"The account's address, masked like the address-changed notice: the link's holder may be an old mailbox"`
-	Kind            Kind   `json:"kind" enum:"comment,recipe,invite_accepted"`
-	Group           Group  `json:"group" enum:"household,admin"`
-	KindSubscribed  bool   `json:"kindSubscribed"`
-	GroupSubscribed bool   `json:"groupSubscribed" doc:"Whether every kind of the group the account may have is on"`
-	// GroupKinds lets the page undo a group unsubscribe for only the kinds
-	// that were on before it.
-	GroupKinds map[Kind]bool `json:"groupKinds" doc:"Every kind of the group the account may have, true when it gets that mail"`
+	Username        string        `json:"username"`
+	Email           string        `json:"email" doc:"The account's address, masked like the address-changed notice: the link's holder may be an old mailbox"`
+	Kind            Kind          `json:"kind" enum:"comment,recipe,tasty,invite_accepted"`
+	Group           Group         `json:"group" enum:"household,admin"`
+	KindSubscribed  bool          `json:"kindSubscribed" doc:"Whether the account gets the link's kind by mail: its own switch and its group's are on"`
+	GroupSubscribed bool          `json:"groupSubscribed" doc:"Whether the group's mail switch is on"`
+	GroupKinds      map[Kind]bool `json:"groupKinds" doc:"Every kind of the group the account may have by mail, true when it gets that mail"`
 }
 
 func (s *Service) state(ctx context.Context, u user.User, k Kind) (unsubscribeState, error) {
-	prefs, err := s.Preferences(ctx, u)
+	p, err := s.Preferences(ctx, u)
 	if err != nil {
 		return unsubscribeState{}, err
 	}
+	g := k.Group()
+	groupOn := p.Groups[g][ChannelMail]
 	// Masked: whoever holds an old link may be the address the account left.
-	st := unsubscribeState{Username: u.Username, Email: mail.MaskAddress(u.Email), Kind: k, Group: k.Group(),
-		KindSubscribed: prefs[k], GroupSubscribed: true, GroupKinds: map[Kind]bool{}}
-	for _, g := range scopeKinds(u, k, true) {
-		st.GroupSubscribed = st.GroupSubscribed && prefs[g]
-		st.GroupKinds[g] = prefs[g]
+	st := unsubscribeState{Username: u.Username, Email: mail.MaskAddress(u.Email), Kind: k, Group: g,
+		KindSubscribed: groupOn && p.Kinds[k][ChannelMail], GroupSubscribed: groupOn, GroupKinds: map[Kind]bool{}}
+	for _, gk := range KindsFor(u.Role, ChannelMail) {
+		if gk.Group() == g {
+			st.GroupKinds[gk] = groupOn && p.Kinds[gk][ChannelMail]
+		}
 	}
 	return st, nil
 }
 
-// switchByLink sets the kinds a link reaches to subscribed; with group and
-// a non-nil only, just those of them (an undo restores what was on).
-func (s *Service) switchByLink(ctx context.Context, u user.User, k Kind, group bool, only []Kind, subscribed bool) error {
-	reach := scopeKinds(u, k, group)
-	set := map[Kind]bool{}
-	for _, g := range reach {
-		if !group || only == nil || slices.Contains(only, g) {
-			set[g] = subscribed
-		}
-	}
-	for _, g := range only {
-		if !slices.Contains(reach, g) {
-			return ErrUnknownKind
-		}
+// switchByLink switches the mail of a link's kind k, or with group its
+// group's mail switch, to subscribed. Push and the other kinds' own
+// choices are never touched, so an undo restores exactly what was before.
+func (s *Service) switchByLink(ctx context.Context, u user.User, k Kind, group, subscribed bool) error {
+	set := Prefs{Kinds: map[Kind]map[Channel]bool{k: {ChannelMail: subscribed}}}
+	if group {
+		set = Prefs{Groups: map[Group]map[Channel]bool{k.Group(): {ChannelMail: subscribed}}}
 	}
 	if _, err := s.SetPreferences(ctx, u, set); err != nil {
 		return fmt.Errorf("unsubscribe link: %w", err)
