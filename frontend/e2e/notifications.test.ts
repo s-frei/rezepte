@@ -42,7 +42,7 @@ test('without an address the page says so and keeps the switches', async ({ page
 	await expect(mail.getByText('No address yet')).toBeVisible();
 	// Greyed, but a preference outlives the missing address.
 	await expect(
-		mail.getByRole('group', { name: 'New comments' }).getByRole('radio', { name: 'Off' })
+		mail.getByRole('radiogroup', { name: 'New comments' }).getByRole('radio', { name: 'Off' })
 	).toBeEnabled();
 	await expect(mail.getByRole('link', { name: 'Add in profile' })).toHaveAttribute(
 		'href',
@@ -84,7 +84,9 @@ test('the notifications page fits a 360px phone', async ({ page }) => {
 	await login(page);
 	await page.goto('/settings/notifications');
 	await expect(
-		page.getByRole('region', { name: 'Push' }).getByRole('group', { name: 'Mail delivery failing' })
+		page
+			.getByRole('region', { name: 'Push' })
+			.getByRole('radiogroup', { name: 'Mail delivery failing' })
 	).toBeVisible();
 	const scroll = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
 	expect(scroll).toBeLessThanOrEqual(0);
@@ -130,7 +132,7 @@ test('a kind is switched per channel', async ({ page }) => {
 	const saved = page.waitForRequest(
 		(r) => r.url().endsWith('/api/v1/auth/me/notifications') && r.method() === 'PUT'
 	);
-	const comments = push.getByRole('group', { name: 'Neue Kommentare' });
+	const comments = push.getByRole('radiogroup', { name: 'Neue Kommentare' });
 	await comments.getByRole('radio', { name: 'Aus' }).click();
 	expect((await saved).postDataJSON()).toEqual({ kinds: { comment: { push: false } }, groups: {} });
 	await expect(comments.getByRole('radio', { name: 'Aus' })).toHaveAttribute(
@@ -149,13 +151,13 @@ test('a kind is switched per channel', async ({ page }) => {
 		'true'
 	);
 	await expect(
-		mail.getByRole('group', { name: 'Neue Kommentare' }).getByRole('radio', { name: 'An' })
+		mail.getByRole('radiogroup', { name: 'Neue Kommentare' }).getByRole('radio', { name: 'An' })
 	).toHaveAttribute('aria-checked', 'true');
 });
 
 test("a group's switch holds its kinds and keeps their choices", async ({ page }) => {
 	const { push } = await germanMember(page);
-	const recipes = push.getByRole('group', { name: 'Neue Rezepte' });
+	const recipes = push.getByRole('radiogroup', { name: 'Neue Rezepte' });
 	await recipes.getByRole('radio', { name: 'Aus' }).click();
 	await expect(recipes.getByRole('radio', { name: 'Aus' })).toHaveAttribute('aria-checked', 'true');
 	const household = push.getByRole('switch', { name: 'Haushalt' });
@@ -163,7 +165,7 @@ test("a group's switch holds its kinds and keeps their choices", async ({ page }
 	await expect(household).toHaveAttribute('aria-checked', 'false');
 	await expect(recipes.getByRole('radio', { name: 'An' })).toBeDisabled();
 	await expect(
-		push.getByRole('group', { name: 'Lecker' }).getByRole('radio', { name: 'Aus' })
+		push.getByRole('radiogroup', { name: 'Lecker' }).getByRole('radio', { name: 'Aus' })
 	).toBeDisabled();
 	await page.reload();
 	await expect(recipes.getByRole('radio', { name: 'An' })).toBeDisabled();
@@ -171,7 +173,7 @@ test("a group's switch holds its kinds and keeps their choices", async ({ page }
 	await expect(recipes.getByRole('radio', { name: 'An' })).toBeEnabled();
 	await expect(recipes.getByRole('radio', { name: 'Aus' })).toHaveAttribute('aria-checked', 'true');
 	await expect(
-		push.getByRole('group', { name: 'Neue Kommentare' }).getByRole('radio', { name: 'An' })
+		push.getByRole('radiogroup', { name: 'Neue Kommentare' }).getByRole('radio', { name: 'An' })
 	).toHaveAttribute('aria-checked', 'true');
 });
 
@@ -233,7 +235,7 @@ test('without push the device box says why, and the switches still work', async 
 	const { push } = await germanMember(page, 'unsupported');
 	await expect(push.getByText(/Auf dem iPhone nur in der App vom Home-Bildschirm/)).toBeVisible();
 	await expect(push.getByRole('button', { name: 'Auf diesem Gerät aktivieren' })).toHaveCount(0);
-	const tasty = push.getByRole('group', { name: 'Lecker' });
+	const tasty = push.getByRole('radiogroup', { name: 'Lecker' });
 	await tasty.getByRole('radio', { name: 'Aus' }).click();
 	await expect(tasty.getByRole('radio', { name: 'Aus' })).toHaveAttribute('aria-checked', 'true');
 });
@@ -252,7 +254,7 @@ test('a late reply does not undo a newer flip', async ({ page }) => {
 		await route.fulfill({ response });
 		if (!first) second();
 	});
-	const comments = push.getByRole('group', { name: 'Neue Kommentare · Push', exact: true });
+	const comments = push.getByRole('radiogroup', { name: 'Neue Kommentare · Push', exact: true });
 	const firstReply = page.waitForResponse(
 		(r) => r.url().endsWith('/api/v1/auth/me/notifications') && r.request().method() === 'PUT'
 	);
@@ -271,10 +273,10 @@ test("a held group's rows stay focusable but do not change", async ({ page }) =>
 	const { mail, push } = await germanMember(page);
 	// Each toggle is named by its kind and its channel.
 	await expect(
-		mail.getByRole('group', { name: 'Neue Rezepte · Per Mail', exact: true })
+		mail.getByRole('radiogroup', { name: 'Neue Rezepte · Per Mail', exact: true })
 	).toBeVisible();
 	await push.getByRole('switch', { name: 'Haushalt · Push', exact: true }).click();
-	const recipes = push.getByRole('group', { name: 'Neue Rezepte · Push', exact: true });
+	const recipes = push.getByRole('radiogroup', { name: 'Neue Rezepte · Push', exact: true });
 	const off = recipes.getByRole('radio', { name: 'Aus' });
 	await expect(off).toHaveAttribute('aria-disabled', 'true');
 	await expect(off).toHaveAttribute('aria-checked', 'false');
@@ -294,7 +296,7 @@ test("a held group's rows stay focusable but do not change", async ({ page }) =>
 	await push.getByRole('switch', { name: 'Haushalt · Push', exact: true }).focus();
 	await page.keyboard.press('Tab');
 	await expect(
-		push.getByRole('group', { name: 'Neue Kommentare · Push', exact: true }).locator(':focus')
+		push.getByRole('radiogroup', { name: 'Neue Kommentare · Push', exact: true }).locator(':focus')
 	).toHaveCount(1);
 });
 

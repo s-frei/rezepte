@@ -24,7 +24,7 @@
 	import { deviceState, enableDevice, sendPushTest } from '$lib/push.svelte';
 	import StatusBox from '$lib/components/settings/StatusBox.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
-	import OnOffToggle from '$lib/components/ui/OnOffToggle.svelte';
+	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -339,14 +339,19 @@
 												: ''}"
 										>
 											{@render text(kindText[kind].name(), kindText[kind].hint(), false)}
-											<OnOffToggle
-												checked={prefs.kinds[kind]?.[channel] ?? true}
+											<!-- Off left and On right, like a switch's track; each side
+											     carries the channel's icon, since a row of switches would
+											     not say which channel it is about. -->
+											<SegmentedControl
+												value={(prefs.kinds[kind]?.[channel] ?? true) ? 'on' : 'off'}
+												options={[
+													{ value: 'off', label: m.settings_notifications_off(), icon: icons.off },
+													{ value: 'on', label: m.settings_notifications_on(), icon: icons.on }
+												]}
 												label={named(kindText[kind].name())}
-												onIcon={icons.on}
-												offIcon={icons.off}
 												disabled={!groupOn}
-												onchange={(on) =>
-													void change({ kinds: { [kind]: { [channel]: on } }, groups: {} })}
+												onchange={(v) =>
+													void change({ kinds: { [kind]: { [channel]: v === 'on' } }, groups: {} })}
 											/>
 										</div>
 									{/each}

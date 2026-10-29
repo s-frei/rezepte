@@ -597,7 +597,7 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 		const byMail = page.getByRole('region', { name: 'By mail' });
 		// The kind's "On" side: checked while the mail arrives.
 		const comments = byMail
-			.getByRole('group', { name: 'New comments' })
+			.getByRole('radiogroup', { name: 'New comments' })
 			.getByRole('radio', { name: 'On' });
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
 		await expect(
@@ -611,7 +611,7 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 
 		// The toggle saves on flip.
 		await byMail
-			.getByRole('group', { name: 'New comments' })
+			.getByRole('radiogroup', { name: 'New comments' })
 			.getByRole('radio', { name: 'Off' })
 			.click();
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
@@ -637,7 +637,7 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 		await expect(household).toHaveAttribute('aria-checked', 'true');
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
 		await expect(
-			byMail.getByRole('group', { name: 'New recipes' }).getByRole('radio', { name: 'On' })
+			byMail.getByRole('radiogroup', { name: 'New recipes' }).getByRole('radio', { name: 'On' })
 		).toHaveAttribute('aria-checked', 'true');
 	} finally {
 		await strangers.close();
@@ -669,7 +669,7 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 	);
 	// Greyed, since nothing arrives yet, but the choice already counts.
 	const off = byMail
-		.getByRole('group', { name: 'New comments' })
+		.getByRole('radiogroup', { name: 'New comments' })
 		.getByRole('radio', { name: 'Off' });
 	await off.click();
 	await expect(off).toHaveAttribute('aria-checked', 'true');
