@@ -189,6 +189,9 @@ func TestNotificationChannelsMigration(t *testing.T) {
 			('c', 'c', 'C', 'x', 'admin', '#000', 'en', 't', 't')`,
 		`INSERT INTO notification_optouts (user_id, kind) VALUES
 			('a', 'comment'), ('a', 'recipe'), ('b', 'comment'), ('c', 'invite_accepted')`,
+		`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES ('sa', 'a', 't', 't')`,
+		`INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at) VALUES ('old', 'a', 'https://x/old', x'00', x'00', 't')`,
+		`INSERT INTO timer_alarms (id, subscription_id, fire_at, title, body, url, created_at) VALUES ('al', 'old', 't', 'T', '', '/recipes/x', 't')`,
 	} {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			t.Fatalf("%s: %v", q, err)
@@ -232,13 +235,52 @@ func TestNotificationChannelsMigration(t *testing.T) {
 		t.Errorf("mail alert state %q, %v", alerts, err)
 	}
 
+	count := func(query string) int {
+		t.Helper()
+		var n int
+		if err := conn.QueryRowContext(ctx, query).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := count(`SELECT (SELECT COUNT(*) FROM push_subscriptions) + (SELECT COUNT(*) FROM timer_alarms)`); n != 0 {
+		t.Errorf("%d subscriptions and alarms without a session kept", n)
+	}
+	for _, q := range []string{
+		`INSERT INTO push_subscriptions (id, user_id, session_id, endpoint, p256dh, auth, created_at) VALUES
+			('p1', 'a', 'sa', 'https://x/1', x'00', x'00', 't')`,
+		`INSERT INTO timer_alarms (id, subscription_id, fire_at, title, body, url, created_at) VALUES ('a1', 'p1', 't', 'T', '', '/recipes/x', 't')`,
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if _, err := conn.ExecContext(ctx, `INSERT INTO push_subscriptions (id, user_id, session_id, endpoint, p256dh, auth, created_at) VALUES
+		('p2', 'a', 'gone', 'https://x/2', x'00', x'00', 't')`); err == nil {
+		t.Error("subscription of an unknown session accepted")
+	}
+
 	if _, err := provider.DownTo(ctx, 20); err != nil {
 		t.Fatalf("down to 20: %v", err)
+	}
+	if n := count(`SELECT (SELECT COUNT(*) FROM push_subscriptions WHERE id = 'p1') + (SELECT COUNT(*) FROM timer_alarms WHERE subscription_id = 'p1')
+		+ (SELECT COUNT(*) FROM pragma_table_info('push_subscriptions') WHERE name = 'session_id')`); n != 2 {
+		t.Errorf("after down: %d of subscription, alarm and no session column", n)
 	}
 	if got := rows(`SELECT user_id, kind, '' FROM notification_optouts ORDER BY 1, 2`); !slices.Equal(got, []string{"a:comment:", "a:recipe:", "b:comment:", "c:invite_accepted:"}) {
 		t.Errorf("rows after down %v", got)
 	}
 	if _, err := provider.Up(ctx); err != nil {
 		t.Fatalf("up again: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `INSERT INTO push_subscriptions (id, user_id, session_id, endpoint, p256dh, auth, created_at) VALUES
+		('p3', 'a', 'sa', 'https://x/3', x'00', x'00', 't')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.ExecContext(ctx, `DELETE FROM sessions WHERE id = 'sa'`); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(`SELECT COUNT(*) FROM push_subscriptions`); n != 0 {
+		t.Errorf("%d subscriptions outlive their session", n)
 	}
 }

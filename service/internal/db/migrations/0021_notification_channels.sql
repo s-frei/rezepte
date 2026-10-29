@@ -10,6 +10,10 @@
 -- instance_settings.mail_failing_since is when real sends began failing for
 -- the instance's mail setup, empty while mail works; mail_alert_last_at is
 -- when the owner was last warned by push, empty before the first.
+-- A push subscription belongs to the session that stored it and ends with
+-- it, so a signed-out or revoked device stops getting a member's
+-- notifications. Rows from before have no session and are dropped, with
+-- their alarms; a device stores its subscription again on its next sign-in.
 -- +goose Up
 CREATE TABLE notification_optouts_new (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -41,7 +45,44 @@ DELETE FROM notification_optouts WHERE kind = 'invite_accepted'
 ALTER TABLE instance_settings ADD COLUMN mail_failing_since TEXT NOT NULL DEFAULT '';
 ALTER TABLE instance_settings ADD COLUMN mail_alert_last_at TEXT NOT NULL DEFAULT '';
 
+-- Emptying the table first takes the alarms with it, so dropping it leaves
+-- timer_alarms nothing that points nowhere; its reference resolves to the
+-- new table by name.
+DELETE FROM push_subscriptions;
+CREATE TABLE push_subscriptions_new (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    endpoint   TEXT NOT NULL UNIQUE,
+    p256dh     BLOB NOT NULL,
+    auth       BLOB NOT NULL,
+    created_at TEXT NOT NULL
+);
+DROP TABLE push_subscriptions;
+ALTER TABLE push_subscriptions_new RENAME TO push_subscriptions;
+CREATE INDEX push_subscriptions_user_idx ON push_subscriptions(user_id);
+CREATE INDEX push_subscriptions_session_idx ON push_subscriptions(session_id);
+
 -- +goose Down
+-- The alarms are kept aside while the table is rebuilt: dropping it
+-- cascades to them.
+CREATE TEMP TABLE timer_alarms_kept AS SELECT * FROM timer_alarms;
+CREATE TABLE push_subscriptions_old (
+    id         TEXT PRIMARY KEY,
+    user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint   TEXT NOT NULL UNIQUE,
+    p256dh     BLOB NOT NULL,
+    auth       BLOB NOT NULL,
+    created_at TEXT NOT NULL
+);
+INSERT INTO push_subscriptions_old (id, user_id, endpoint, p256dh, auth, created_at)
+SELECT id, user_id, endpoint, p256dh, auth, created_at FROM push_subscriptions;
+DROP TABLE push_subscriptions;
+ALTER TABLE push_subscriptions_old RENAME TO push_subscriptions;
+CREATE INDEX push_subscriptions_user_idx ON push_subscriptions(user_id);
+INSERT INTO timer_alarms SELECT * FROM timer_alarms_kept;
+DROP TABLE timer_alarms_kept;
+
 ALTER TABLE instance_settings DROP COLUMN mail_alert_last_at;
 ALTER TABLE instance_settings DROP COLUMN mail_failing_since;
 

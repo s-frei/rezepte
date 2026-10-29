@@ -35,6 +35,7 @@ erDiagram
   recipes ||--o{ comment_images : has
   recipes ||--o{ recipe_comment_reads : "seen on"
   users ||--o{ push_subscriptions : "gets pushes on"
+  sessions ||--o{ push_subscriptions : "stored by"
   push_subscriptions ||--o{ timer_alarms : schedules
   users ||--o{ shares : creates
   recipes ||--o{ shares : "shared by"
@@ -101,6 +102,7 @@ erDiagram
   push_subscriptions {
     text id PK
     text user_id FK
+    text session_id FK "ends with its session"
     text endpoint UK "https on a known push host"
     blob p256dh "the device's public key"
     blob auth "the device's auth secret"
@@ -268,7 +270,7 @@ erDiagram
   - The seven `smtp_*` columns to [Email](/features/email): the mail configuration the owner saves in the UI, `smtp_host = ''` meaning not configured here, the password stored as plain text like `link_preview_key`, and `GetMailSettings` the one query that reads them.
   - The four `oidc_*` columns to [OIDC](/features/oidc): the provider the owner saves in the UI, `oidc_issuer = ''` meaning not configured here, the client secret plain text like `smtp_password`, and `GetOIDCSettings` the one query that reads them.
   - `vapid_key` to [Cook timers](/features/cook-timers): the VAPID signing key as the raw 32-byte P-256 scalar, `NULL` until the push service first needs it and then generated and stored, so a migration does not have to make a key and an instance that never pushes never has one.
-- `push_subscriptions.endpoint` is `UNIQUE`: one device belongs to one account at a time, and subscribing it for another account moves the row and deletes the previous account's `timer_alarms`. `p256dh` and `auth` are the raw bytes the browser handed out, base64url only on the wire. `timer_alarms` cascades with its subscription, which cascades with its user; `fire_at` is an RFC 3339 `TEXT` like every timestamp, indexed for the sender's due query, and `title`, `body` and `url` are the copy the browser built. Nothing stores a timer. See [Cook timers](/features/cook-timers).
+- `push_subscriptions.endpoint` is `UNIQUE`: one device belongs to one account at a time, and subscribing it for another account moves the row and deletes the previous account's `timer_alarms`. `p256dh` and `auth` are the raw bytes the browser handed out, base64url only on the wire. `session_id` is the session that stored the subscription, and the row cascades with it: signing out, a password change, a reset or the expiry sweep ends the device's pushes, and `ListPushSubscriptionsOfUser` also skips a session past `expires_at` that the daily sweep has not reached yet. Storing the endpoint again moves it to the calling session. Migration 0021 deleted the rows from before the column, with their alarms; a device stores its subscription again on its next sign-in. `timer_alarms` cascades with its subscription, which cascades with its user and its session; `fire_at` is an RFC 3339 `TEXT` like every timestamp, indexed for the sender's due query, and `title`, `body` and `url` are the copy the browser built. Nothing stores a timer. See [Cook timers](/features/cook-timers).
 - `shares.token` is a plain `UNIQUE TEXT`, not a hash: unlike a session id or an API token, this credential is a link a member sends to someone else and has to be able to read again to copy it a second time. `UNIQUE (recipe_id, created_by)` caps a person at one live link per recipe; both foreign keys cascade. `shares_created_by_idx` serves the member's own list; there is no index on `token` beyond the `UNIQUE` constraint's own, which is what a public request resolves against. See [Public shares](/features/public-shares) for the validity rule.
 
 ## Why it is this way

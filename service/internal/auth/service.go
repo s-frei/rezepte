@@ -120,6 +120,7 @@ func (s *Service) StartSession(ctx context.Context, u user.User) (Session, error
 // fresh ExpiresAt.
 type Verified struct {
 	User      user.User
+	SessionID string // the sessions row's id, the token's digest
 	ExpiresAt time.Time
 	Renewed   bool
 }
@@ -163,7 +164,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Verified, err
 	if err != nil {
 		return Verified{}, err
 	}
-	return Verified{User: u, ExpiresAt: expires, Renewed: renewed}, nil
+	return Verified{User: u, SessionID: row.ID, ExpiresAt: expires, Renewed: renewed}, nil
 }
 
 // Logout deletes the session. Unknown tokens are not an error.

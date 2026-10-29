@@ -113,6 +113,7 @@ type NotificationOptout struct {
 type PushSubscription struct {
 	ID        string
 	UserID    string
+	SessionID string
 	Endpoint  string
 	P256dh    []byte
 	Auth      []byte

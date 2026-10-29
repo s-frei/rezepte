@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -44,9 +45,17 @@ func newFixture(t *testing.T) fixture {
 			t.Fatal(err)
 		}
 		ids = append(ids, u.ID)
+		if err := sqlc.New(conn).CreateSession(context.Background(), sqlc.CreateSessionParams{
+			ID: sess(u.ID), UserID: u.ID, ExpiresAt: db.FormatTime(time.Now().Add(time.Hour)), CreatedAt: db.FormatTime(time.Now()),
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	return fixture{svc: NewService(conn, "https://rezepte.example", http.DefaultClient), alice: ids[0], bob: ids[1]}
 }
+
+// sess is the id of the session newFixture signs userID in with.
+func sess(userID string) string { return "session-" + userID }
 
 // receiver is a device: its key pair and auth secret.
 type receiver struct {
@@ -117,7 +126,7 @@ func TestSubscribeRejectsForeignEndpoint(t *testing.T) {
 		"https://evil.google.com/fcm/send/x",
 		"/relative",
 	} {
-		if err := f.svc.Subscribe(context.Background(), f.alice, r.sub(ep)); !errors.Is(err, ErrForeignEndpoint) {
+		if err := f.svc.Subscribe(context.Background(), f.alice, sess(f.alice), r.sub(ep)); !errors.Is(err, ErrForeignEndpoint) {
 			t.Errorf("%s: err %v, want ErrForeignEndpoint", ep, err)
 		}
 	}
@@ -128,7 +137,7 @@ func TestSubscribeRejectsForeignEndpoint(t *testing.T) {
 		"https://web.push.apple.com/x",
 		"https://wns2-par02p.notify.windows.com/w/?token=x",
 	} {
-		if err := f.svc.Subscribe(context.Background(), f.alice, r.sub(ep)); err != nil {
+		if err := f.svc.Subscribe(context.Background(), f.alice, sess(f.alice), r.sub(ep)); err != nil {
 			t.Errorf("%s: %v", ep, err)
 		}
 	}
@@ -139,12 +148,12 @@ func TestSubscribeRejectsBadKeys(t *testing.T) {
 	r := newReceiver(t)
 	s := r.sub(fcm)
 	s.P256dh = s.P256dh[:10]
-	if err := f.svc.Subscribe(context.Background(), f.alice, s); !errors.Is(err, ErrInvalid) {
+	if err := f.svc.Subscribe(context.Background(), f.alice, sess(f.alice), s); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("short key: %v", err)
 	}
 	s = r.sub(fcm)
 	s.Auth = []byte{1}
-	if err := f.svc.Subscribe(context.Background(), f.alice, s); !errors.Is(err, ErrInvalid) {
+	if err := f.svc.Subscribe(context.Background(), f.alice, sess(f.alice), s); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("short auth: %v", err)
 	}
 }
@@ -155,14 +164,14 @@ func TestSubscribeMovesEndpointToNewUser(t *testing.T) {
 	p := newPushServer(t, f, http.StatusCreated)
 	r := newReceiver(t)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
 	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(time.Minute))); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.svc.Subscribe(ctx, f.bob, r.sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(time.Minute))); !errors.Is(err, ErrUnknownSubscription) {
@@ -180,7 +189,7 @@ func TestSubscribeMovesEndpointToNewUser(t *testing.T) {
 func TestScheduleNeedsOwnSubscription(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	if err := f.svc.Subscribe(ctx, f.bob, newReceiver(t).sub(fcm)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), newReceiver(t).sub(fcm)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.svc.Schedule(ctx, f.alice, alarm(fcm, time.Now().Add(time.Minute))); !errors.Is(err, ErrUnknownSubscription) {
@@ -191,7 +200,7 @@ func TestScheduleNeedsOwnSubscription(t *testing.T) {
 func TestScheduleValidates(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(fcm)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(fcm)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -219,7 +228,7 @@ func TestCancelMissingIsNoError(t *testing.T) {
 func TestCancelOnlyOwn(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	if err := f.svc.Subscribe(ctx, f.bob, newReceiver(t).sub(fcm)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), newReceiver(t).sub(fcm)); err != nil {
 		t.Fatal(err)
 	}
 	id, err := f.svc.Schedule(ctx, f.bob, alarm(fcm, time.Now().Add(time.Minute)))
@@ -289,7 +298,7 @@ func TestRunDueSends(t *testing.T) {
 	p := newPushServer(t, f, http.StatusCreated)
 	r := newReceiver(t)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -337,7 +346,7 @@ func TestRunDueDropsStale(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -358,7 +367,7 @@ func TestRunDueGoneDeletesSubscription(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusGone)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -379,15 +388,15 @@ func TestLimits(t *testing.T) {
 	ctx := context.Background()
 	r := newReceiver(t)
 	for i := range maxSubscriptions {
-		if err := f.svc.Subscribe(ctx, f.alice, r.sub(fcm+string(rune('a'+i)))); err != nil {
+		if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(fcm+string(rune('a'+i)))); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(fcm+"-one-more")); !errors.Is(err, ErrTooMany) {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(fcm+"-one-more")); !errors.Is(err, ErrTooMany) {
 		t.Fatalf("subscription %d: %v", maxSubscriptions+1, err)
 	}
 	// Renewing a known endpoint is not a new one.
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(fcm+"a")); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(fcm+"a")); err != nil {
 		t.Fatalf("renew: %v", err)
 	}
 	for range maxAlarms {
@@ -424,7 +433,7 @@ func TestRunDueLogsNoEndpointPath(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
 	ep := p.URL + "/push/secret-path"
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -447,7 +456,7 @@ func TestRunDueSkipsAlarmCancelledMidBatch(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -487,7 +496,7 @@ func TestSendToUserAllDevices(t *testing.T) {
 	p := newPushServer(t, f, http.StatusCreated)
 	r1, r2 := newReceiver(t), newReceiver(t)
 	for i, r := range []receiver{r1, r2} {
-		if err := f.svc.Subscribe(ctx, f.alice, r.sub(p.URL+"/push/"+string(rune('1'+i)))); err != nil {
+		if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(p.URL+"/push/"+string(rune('1'+i)))); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -520,7 +529,7 @@ func TestSendToUserDropsGoneKeepsOthers(t *testing.T) {
 	p := newPushServer(t, f, http.StatusCreated)
 	p.byPath = map[string]int{"/push/1": http.StatusGone}
 	for _, path := range []string{"/push/1", "/push/2"} {
-		if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(p.URL+path)); err != nil {
+		if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(p.URL+path)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -542,10 +551,10 @@ func TestSendToUserAfterAccountMove(t *testing.T) {
 	p := newPushServer(t, f, http.StatusCreated)
 	r := newReceiver(t)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.svc.Subscribe(ctx, f.bob, r.sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	f.svc.SendToUser(ctx, f.alice, message())
@@ -563,7 +572,7 @@ func TestSendTestOnlyOwnEndpoint(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.bob, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.svc.SendTest(ctx, f.alice, ep, message()); !errors.Is(err, ErrUnknownSubscription) {
@@ -585,7 +594,7 @@ func TestSendTestGoneIsUnknown(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusGone)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.svc.SendTest(ctx, f.alice, ep, message()); !errors.Is(err, ErrUnknownSubscription) {
@@ -601,7 +610,7 @@ func TestSendTestThrottled(t *testing.T) {
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), newReceiver(t).sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -628,7 +637,7 @@ func TestTimerPayloadHasKind(t *testing.T) {
 	p := newPushServer(t, f, http.StatusCreated)
 	r := newReceiver(t)
 	ep := p.URL + "/push/1"
-	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
+	if err := f.svc.Subscribe(ctx, f.alice, sess(f.alice), r.sub(ep)); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Now()
@@ -648,5 +657,40 @@ func TestTimerPayloadHasKind(t *testing.T) {
 	}
 	if _, ok := payload["collapse"]; ok {
 		t.Fatalf("timer payload carries collapse: %v", payload)
+	}
+}
+
+// TestSendToUserSkipsEndedSessions: a device whose session was deleted (sign
+// out, password change, admin reset) or has expired without being swept
+// yet gets nothing; the member's other devices still do.
+func TestSendToUserSkipsEndedSessions(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	for _, s := range []string{"live", "out", "expired"} {
+		if s != "live" {
+			if err := f.svc.q.CreateSession(ctx, sqlc.CreateSessionParams{
+				ID: s, UserID: f.alice, ExpiresAt: db.FormatTime(time.Now().Add(time.Hour)), CreatedAt: db.FormatTime(time.Now()),
+			}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		sid := s
+		if s == "live" {
+			sid = sess(f.alice)
+		}
+		if err := f.svc.Subscribe(ctx, f.alice, sid, newReceiver(t).sub(p.URL+"/push/"+s)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.svc.q.DeleteSession(ctx, "out"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.q.ExtendSession(ctx, sqlc.ExtendSessionParams{ID: "expired", ExpiresAt: db.FormatTime(time.Now().Add(-time.Second))}); err != nil {
+		t.Fatal(err)
+	}
+	f.svc.SendToUser(ctx, f.alice, message())
+	if got := p.paths(); len(got) != 1 || got[0] != "/push/live" {
+		t.Fatalf("requests to %v, want only the live session's device", got)
 	}
 }

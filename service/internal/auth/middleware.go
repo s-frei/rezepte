@@ -130,6 +130,16 @@ func CurrentUser(ctx context.Context) (user.User, error) {
 	return u, nil
 }
 
+type sessionKey struct{}
+
+// SessionIDFrom returns the id of the session that authenticated ctx's
+// request, for what must end with it, such as a device's push subscription.
+// There is none for an API token.
+func SessionIDFrom(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(sessionKey{}).(string)
+	return id, ok
+}
+
 type viaTokenKey struct{}
 
 // ViaToken reports whether ctx's request was authenticated by an API token
@@ -217,6 +227,7 @@ func Middleware(sessions *Service, tokens *TokenService, secureCookies bool) fun
 				fresh := SessionCookie(cookie.Value, v.ExpiresAt, secureCookies)
 				ctx.AppendHeader("Set-Cookie", fresh.String())
 			}
+			ctx = huma.WithValue(ctx, sessionKey{}, v.SessionID)
 			next(huma.WithValue(ctx, userKey{}, v.User))
 		}
 	}

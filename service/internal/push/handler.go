@@ -105,7 +105,7 @@ func Register(api huma.API, s *Service) {
 		Method:        http.MethodPut,
 		Path:          "/api/v1/push/subscription",
 		Summary:       "Store a device's push subscription",
-		Description:   "An endpoint another account had moves to the current user, without that account's alarms. At most 20 per user; an endpoint that is not https on a known push service is 422.",
+		Description:   "The subscription belongs to the calling session and ends with it: signing out, a password change or a reset stops the device's pushes. An endpoint another account had moves to the current user, without that account's alarms. At most 20 per user; an endpoint that is not https on a known push service is 422.",
 		Tags:          []string{"push"},
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusNoContent,
@@ -115,8 +115,12 @@ func Register(api huma.API, s *Service) {
 		if err != nil {
 			return nil, err
 		}
+		sessionID, ok := auth.SessionIDFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
 		sub := Subscription{Endpoint: in.Body.Endpoint, P256dh: decodeKey(in.Body.P256dh), Auth: decodeKey(in.Body.Auth)}
-		if err := s.Subscribe(ctx, u.ID, sub); err != nil {
+		if err := s.Subscribe(ctx, u.ID, sessionID, sub); err != nil {
 			return nil, problem(err)
 		}
 		return &noContent{}, nil

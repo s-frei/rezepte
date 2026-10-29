@@ -93,9 +93,18 @@ type GetPushSubscriptionForUserParams struct {
 	Endpoint string
 }
 
-func (q *Queries) GetPushSubscriptionForUser(ctx context.Context, arg GetPushSubscriptionForUserParams) (PushSubscription, error) {
+type GetPushSubscriptionForUserRow struct {
+	ID        string
+	UserID    string
+	Endpoint  string
+	P256dh    []byte
+	Auth      []byte
+	CreatedAt string
+}
+
+func (q *Queries) GetPushSubscriptionForUser(ctx context.Context, arg GetPushSubscriptionForUserParams) (GetPushSubscriptionForUserRow, error) {
 	row := q.db.QueryRowContext(ctx, getPushSubscriptionForUser, arg.UserID, arg.Endpoint)
-	var i PushSubscription
+	var i GetPushSubscriptionForUserRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -200,10 +209,16 @@ func (q *Queries) ListDueTimerAlarms(ctx context.Context, fireAt string) ([]List
 }
 
 const listPushSubscriptionsOfUser = `-- name: ListPushSubscriptionsOfUser :many
-SELECT endpoint, p256dh, auth FROM push_subscriptions
-WHERE user_id = ?
-ORDER BY created_at, id
+SELECT p.endpoint, p.p256dh, p.auth FROM push_subscriptions p
+JOIN sessions s ON s.id = p.session_id
+WHERE p.user_id = ?1 AND s.expires_at > ?2
+ORDER BY p.created_at, p.id
 `
+
+type ListPushSubscriptionsOfUserParams struct {
+	UserID string
+	Now    string
+}
 
 type ListPushSubscriptionsOfUserRow struct {
 	Endpoint string
@@ -211,9 +226,10 @@ type ListPushSubscriptionsOfUserRow struct {
 	Auth     []byte
 }
 
-// Oldest first, so the order of sends is stable.
-func (q *Queries) ListPushSubscriptionsOfUser(ctx context.Context, userID string) ([]ListPushSubscriptionsOfUserRow, error) {
-	rows, err := q.db.QueryContext(ctx, listPushSubscriptionsOfUser, userID)
+// Oldest first, so the order of sends is stable. Only devices whose session
+// is still live: an expired one is swept only once a day.
+func (q *Queries) ListPushSubscriptionsOfUser(ctx context.Context, arg ListPushSubscriptionsOfUserParams) ([]ListPushSubscriptionsOfUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPushSubscriptionsOfUser, arg.UserID, arg.Now)
 	if err != nil {
 		return nil, err
 	}
@@ -247,27 +263,31 @@ func (q *Queries) SetVapidKeyIfMissing(ctx context.Context, vapidKey []byte) err
 }
 
 const upsertPushSubscription = `-- name: UpsertPushSubscription :exec
-INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO push_subscriptions (id, user_id, session_id, endpoint, p256dh, auth, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (endpoint) DO UPDATE
-SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth
+SET user_id = excluded.user_id, session_id = excluded.session_id,
+    p256dh = excluded.p256dh, auth = excluded.auth
 `
 
 type UpsertPushSubscriptionParams struct {
 	ID        string
 	UserID    string
+	SessionID string
 	Endpoint  string
 	P256dh    []byte
 	Auth      []byte
 	CreatedAt string
 }
 
-// Renews the keys of an endpoint the account already has. A move from
-// another account deletes the old row first, so its alarms go with it.
+// Renews the keys of an endpoint the account already has and moves it to
+// the session storing it. A move from another account deletes the old row
+// first, so its alarms go with it.
 func (q *Queries) UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) error {
 	_, err := q.db.ExecContext(ctx, upsertPushSubscription,
 		arg.ID,
 		arg.UserID,
+		arg.SessionID,
 		arg.Endpoint,
 		arg.P256dh,
 		arg.Auth,

@@ -5896,7 +5896,7 @@
         ]
       },
       "put": {
-        "description": "An endpoint another account had moves to the current user, without that account's alarms. At most 20 per user; an endpoint that is not https on a known push service is 422.",
+        "description": "The subscription belongs to the calling session and ends with it: signing out, a password change or a reset stops the device's pushes. An endpoint another account had moves to the current user, without that account's alarms. At most 20 per user; an endpoint that is not https on a known push service is 422.",
         "operationId": "put-push-subscription",
         "requestBody": {
           "content": {

@@ -25,15 +25,18 @@ import (
 
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
-	return newHandlerWith(t, nil)
+	h, _, _ := newHandlerWith(t, nil)
+	return h
 }
 
-// newHandlerWith serves the routes with client as the way to push services.
-func newHandlerWith(t *testing.T, client *http.Client) http.Handler {
+// newHandlerWith serves the routes with client as the way to push services,
+// and returns the push service and sam's id with them.
+func newHandlerWith(t *testing.T, client *http.Client) (http.Handler, *push.Service, string) {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
-	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleUser}); err != nil {
+	sam, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleUser})
+	if err != nil {
 		t.Fatal(err)
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
@@ -43,8 +46,9 @@ func newHandlerWith(t *testing.T, client *http.Client) http.Handler {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
-	push.Register(srv.API(), push.NewService(conn, "", client))
-	return srv.Handler()
+	svc := push.NewService(conn, "", client)
+	push.Register(srv.API(), svc)
+	return srv.Handler(), svc, sam.ID
 }
 
 func do(h http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
@@ -148,7 +152,7 @@ func (a *accepted) RoundTrip(*http.Request) (*http.Response, error) {
 
 func TestPushTestRoute(t *testing.T) {
 	pushes := &accepted{}
-	h := newHandlerWith(t, &http.Client{Transport: pushes})
+	h, _, _ := newHandlerWith(t, &http.Client{Transport: pushes})
 	c := login(t, h)
 	const ep = "https://fcm.googleapis.com/fcm/send/abc"
 	body := fmt.Sprintf(`{"endpoint":%q}`, ep)
@@ -167,5 +171,58 @@ func TestPushTestRoute(t *testing.T) {
 	}
 	if pushes.n != 1 {
 		t.Fatalf("%d pushes, want 1", pushes.n)
+	}
+}
+
+// TestSubscriptionEndsWithSession: a device's subscription belongs to the
+// session that stored it. A password change ends the other sessions and
+// their devices' pushes, storing it again moves it to the new session, and
+// signing out ends it.
+func TestSubscriptionEndsWithSession(t *testing.T) {
+	pushes := &accepted{}
+	h, svc, sam := newHandlerWith(t, &http.Client{Transport: pushes})
+	const phone, laptop = "https://fcm.googleapis.com/fcm/send/phone", "https://fcm.googleapis.com/fcm/send/laptop"
+	onPhone, onLaptop := login(t, h), login(t, h)
+	put := func(ep string, c *http.Cookie) {
+		t.Helper()
+		if rec := do(h, http.MethodPut, "/api/v1/push/subscription", subscription(t, ep), c); rec.Code != http.StatusNoContent {
+			t.Fatalf("subscribe %s: %d %s", ep, rec.Code, rec.Body.String())
+		}
+	}
+	sent := func() int {
+		pushes.n = 0
+		svc.SendToUser(context.Background(), sam, push.Message{Kind: "comment", Title: "T", Body: "B", URL: "/", Tag: "t"})
+		return pushes.n
+	}
+	put(phone, onPhone)
+	put(laptop, onLaptop)
+	if n := sent(); n != 2 {
+		t.Fatalf("%d pushes, want both devices", n)
+	}
+
+	// The laptop signs in again and stores its subscription with the new
+	// session; ending the old one leaves it.
+	laptopAgain := login(t, h)
+	put(laptop, laptopAgain)
+	if rec := do(h, http.MethodPost, "/api/v1/auth/logout", "", onLaptop); rec.Code != http.StatusNoContent {
+		t.Fatalf("logout: %d %s", rec.Code, rec.Body.String())
+	}
+	if n := sent(); n != 2 {
+		t.Fatalf("%d pushes after the old laptop session ended, want both devices", n)
+	}
+
+	rec := do(h, http.MethodPatch, "/api/v1/auth/me", `{"currentPassword":"pw","password":"a much longer password"}`, laptopAgain)
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("change password: %d %s", rec.Code, rec.Body.String())
+	}
+	if n := sent(); n != 1 {
+		t.Fatalf("%d pushes after the password change, want the laptop only", n)
+	}
+
+	if rec := do(h, http.MethodPost, "/api/v1/auth/logout", "", laptopAgain); rec.Code != http.StatusNoContent {
+		t.Fatalf("logout: %d %s", rec.Code, rec.Body.String())
+	}
+	if n := sent(); n != 0 {
+		t.Fatalf("%d pushes after signing out, want none", n)
 	}
 }

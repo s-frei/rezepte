@@ -192,9 +192,10 @@ func (s *Service) PublicKey(ctx context.Context) (string, error) {
 	return PublicKey(k), nil
 }
 
-// Subscribe stores sub for userID. An endpoint another account had moves to
-// this one, without that account's alarms.
-func (s *Service) Subscribe(ctx context.Context, userID string, sub Subscription) error {
+// Subscribe stores sub for userID's session sessionID, with which it ends.
+// An endpoint another account had moves to this one, without that account's
+// alarms; one of the same account moves to sessionID.
+func (s *Service) Subscribe(ctx context.Context, userID, sessionID string, sub Subscription) error {
 	if err := s.checkEndpoint(sub.Endpoint); err != nil {
 		return err
 	}
@@ -218,7 +219,7 @@ func (s *Service) Subscribe(ctx context.Context, userID string, sub Subscription
 			return fmt.Errorf("get subscription: %w", err)
 		}
 		err = q.UpsertPushSubscription(ctx, sqlc.UpsertPushSubscriptionParams{
-			ID: uuid.NewV7().String(), UserID: userID, Endpoint: sub.Endpoint,
+			ID: uuid.NewV7().String(), UserID: userID, SessionID: sessionID, Endpoint: sub.Endpoint,
 			P256dh: sub.P256dh, Auth: sub.Auth, CreatedAt: db.FormatTime(time.Now()),
 		})
 		if err != nil {
@@ -345,11 +346,11 @@ func (s *Service) RunDue(ctx context.Context, now time.Time) {
 	}
 }
 
-// SendToUser pushes m to every device of userID, each with its own
-// timeout. A device the push service has forgotten is dropped and the rest
+// SendToUser pushes m to every device of userID with a live session, each
+// with its own timeout. A device the push service has forgotten is dropped and the rest
 // still get it; failures are logged, never retried.
 func (s *Service) SendToUser(ctx context.Context, userID string, m Message) {
-	subs, err := s.q.ListPushSubscriptionsOfUser(ctx, userID)
+	subs, err := s.q.ListPushSubscriptionsOfUser(ctx, sqlc.ListPushSubscriptionsOfUserParams{UserID: userID, Now: db.FormatTime(s.now())})
 	if err != nil {
 		slog.WarnContext(ctx, "list subscriptions", "err", err)
 		return

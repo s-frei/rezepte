@@ -6,13 +6,15 @@ SELECT vapid_key FROM instance_settings WHERE id = 1;
 -- name: SetVapidKeyIfMissing :exec
 UPDATE instance_settings SET vapid_key = ? WHERE id = 1 AND vapid_key IS NULL;
 
--- Renews the keys of an endpoint the account already has. A move from
--- another account deletes the old row first, so its alarms go with it.
+-- Renews the keys of an endpoint the account already has and moves it to
+-- the session storing it. A move from another account deletes the old row
+-- first, so its alarms go with it.
 -- name: UpsertPushSubscription :exec
-INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO push_subscriptions (id, user_id, session_id, endpoint, p256dh, auth, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (endpoint) DO UPDATE
-SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth;
+SET user_id = excluded.user_id, session_id = excluded.session_id,
+    p256dh = excluded.p256dh, auth = excluded.auth;
 
 -- name: DeletePushSubscription :exec
 DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?;
@@ -52,8 +54,10 @@ ORDER BY a.fire_at;
 -- name: DeleteTimerAlarm :execrows
 DELETE FROM timer_alarms WHERE id = ?;
 
--- Oldest first, so the order of sends is stable.
+-- Oldest first, so the order of sends is stable. Only devices whose session
+-- is still live: an expired one is swept only once a day.
 -- name: ListPushSubscriptionsOfUser :many
-SELECT endpoint, p256dh, auth FROM push_subscriptions
-WHERE user_id = ?
-ORDER BY created_at, id;
+SELECT p.endpoint, p.p256dh, p.auth FROM push_subscriptions p
+JOIN sessions s ON s.id = p.session_id
+WHERE p.user_id = sqlc.arg(user_id) AND s.expires_at > sqlc.arg(now)
+ORDER BY p.created_at, p.id;
