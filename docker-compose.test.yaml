@@ -6,14 +6,14 @@
 name: rezepte-test-${RZP_DEX_PORT:-5556}
 services:
   dex:
-    image: ghcr.io/dexidp/dex:v2.45.1
+    image: ghcr.io/dexidp/dex:v2.46.1
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     ports:
       - "${RZP_DEX_PORT:-5556}:5556"
     volumes:
       - ./.oidc/dex.yaml:/etc/dex/config.yaml:ro
   mailpit:
-    image: axllent/mailpit:v1.31
+    image: axllent/mailpit:v1.32
     ports:
       - "${RZP_MAILPIT_SMTP_PORT:-1025}:1025"
       - "${RZP_MAILPIT_UI_PORT:-8025}:8025"
