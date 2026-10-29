@@ -594,16 +594,26 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 		// The settings page shows it off; Undo on the link's page turns it on.
 		await switchTo(cook);
 		await page.goto('/settings/notifications');
-		const comments = page.getByRole('switch', { name: 'New comments' });
+		const byMail = page.getByRole('region', { name: 'By mail' });
+		// The kind's "On" side: checked while the mail arrives.
+		const comments = byMail
+			.getByRole('group', { name: 'New comments' })
+			.getByRole('radio', { name: 'On' });
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
+		await expect(
+			byMail.getByText('Confirmed. This is where Rezepte sends your mail.')
+		).toBeVisible();
 		await expect(page.getByText(address)).toBeVisible();
 		await stranger.getByRole('button', { name: 'Undo' }).click();
 		await expect(stranger.getByRole('heading', { name: 'Unsubscribe from mails' })).toBeVisible();
 		await page.reload();
 		await expect(comments).toHaveAttribute('aria-checked', 'true');
 
-		// The switch saves on flip.
-		await comments.click();
+		// The toggle saves on flip.
+		await byMail
+			.getByRole('group', { name: 'New comments' })
+			.getByRole('radio', { name: 'Off' })
+			.click();
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
 		await page.reload();
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
@@ -615,7 +625,7 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 		).toBeVisible();
 		await expect(stranger.getByRole('button', { name: /No more mails/ })).toHaveCount(0);
 		// With the group's switch off, it offers nothing.
-		const household = page.getByRole('switch', { name: 'Household' });
+		const household = byMail.getByRole('switch', { name: 'Household' });
 		await household.click();
 		await expect(household).toHaveAttribute('aria-checked', 'false');
 		await stranger.reload();
@@ -626,11 +636,41 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 		await page.reload();
 		await expect(household).toHaveAttribute('aria-checked', 'true');
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
-		await expect(page.getByRole('switch', { name: 'New recipes' })).toHaveAttribute(
-			'aria-checked',
-			'true'
-		);
+		await expect(
+			byMail.getByRole('group', { name: 'New recipes' }).getByRole('radio', { name: 'On' })
+		).toHaveAttribute('aria-checked', 'true');
 	} finally {
 		await strangers.close();
 	}
+});
+
+test('an unconfirmed address is named and the mail rows still switch', async ({ page }) => {
+	await login(page);
+	const name = `unconf${uniqueToken()}`;
+	await createUser(page, { username: name, role: 'user' });
+	await page.context().clearCookies({ name: 'rezepte_session' });
+	await login(page, name);
+	const address = `${name}@example.com`;
+	await page.goto('/settings');
+	await page.getByLabel('Email', { exact: true }).fill(address);
+	await page.getByRole('button', { name: 'Save profile' }).click();
+	await expect(
+		page.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
+	).toBeVisible();
+	await page.goto('/settings/notifications');
+	const byMail = page.getByRole('region', { name: 'By mail' });
+	await expect(byMail.getByText(address)).toBeVisible();
+	await expect(
+		byMail.getByText('Not confirmed yet. Rezepte only writes to a confirmed address.')
+	).toBeVisible();
+	await expect(byMail.getByRole('link', { name: 'Confirm in profile' })).toHaveAttribute(
+		'href',
+		'/settings'
+	);
+	// Greyed, since nothing arrives yet, but the choice already counts.
+	const off = byMail
+		.getByRole('group', { name: 'New comments' })
+		.getByRole('radio', { name: 'Off' });
+	await off.click();
+	await expect(off).toHaveAttribute('aria-checked', 'true');
 });

@@ -306,8 +306,9 @@ test('profile-email-unconfirmed', async ({ page }, testInfo) => {
 	}
 });
 
-// The page as it reads with mail on. Mail is instance-wide and other shots
-// switch it, so the settings call is answered with it on rather than set.
+// The page as it reads with mail on: its top, the mail half. Mail is
+// instance-wide and other shots switch it, so the settings call is answered
+// with it on rather than set.
 test('notifications', async ({ page }, testInfo) => {
   await prepare(page, testInfo, { login: true });
   await page.route('**/api/v1/settings', async (route) => {
@@ -315,7 +316,7 @@ test('notifications', async ({ page }, testInfo) => {
     await route.fulfill({ response, json: { ...(await response.json()), mailEnabled: true } });
   });
   await page.goto('/settings/notifications');
-  await expect(page.getByRole('switch', { name: 'New comments' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Change in profile' })).toBeVisible();
   await shot(page, 'notifications');
 });
 
