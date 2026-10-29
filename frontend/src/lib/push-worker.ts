@@ -16,10 +16,15 @@ export type PushPayload = {
 
 const isString = (v: unknown): v is string => typeof v === 'string';
 
-/** A click opens it, so it stays inside the app. */
-const insideApp = (url: string) => url.startsWith('/') && !url.startsWith('//');
+/**
+ * A click opens it, so it is a path on this origin. Resolved, not matched:
+ * browsers read `/\evil.example` as `//evil.example`, another origin.
+ */
+const insideApp = (url: string, origin: string) =>
+	url.startsWith('/') && new URL(url, origin).origin === origin;
 
-export function parsePayload(data: unknown): PushPayload | null {
+/** `origin` is the worker's own, `self.location.origin`. */
+export function parsePayload(origin: string, data: unknown): PushPayload | null {
 	if (typeof data !== 'object' || data === null) {
 		return null;
 	}
@@ -28,7 +33,7 @@ export function parsePayload(data: unknown): PushPayload | null {
 		return null;
 	}
 	const p = { kind, title, body, url, tag } as PushPayload;
-	if (!insideApp(p.url)) {
+	if (!insideApp(p.url, origin)) {
 		return null;
 	}
 	if (collapse !== undefined) {
@@ -118,8 +123,11 @@ export function toastMessage(
 	return { type: 'rezepte-push', title: o.title, body: o.body ?? '', url: p.url, tag: p.tag };
 }
 
-/** The page's side: only the worker's own message, and only a url inside the app. */
-export function parseToastMessage(data: unknown): ToastMessage | null {
+/**
+ * The page's side: only the worker's own message, and only a url inside the
+ * app. `origin` is the page's, `location.origin`.
+ */
+export function parseToastMessage(origin: string, data: unknown): ToastMessage | null {
 	if (typeof data !== 'object' || data === null) {
 		return null;
 	}
@@ -127,7 +135,7 @@ export function parseToastMessage(data: unknown): ToastMessage | null {
 	if (type !== 'rezepte-push' || ![title, body, url, tag].every(isString)) {
 		return null;
 	}
-	if (!insideApp(url as string)) {
+	if (!insideApp(url as string, origin)) {
 		return null;
 	}
 	return { type, title, body, url, tag } as ToastMessage;

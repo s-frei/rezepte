@@ -17,7 +17,7 @@ export function listenForPushToasts(): () => void {
 		return () => {};
 	}
 	const onMessage = (event: MessageEvent) => {
-		const msg = parseToastMessage(event.data);
+		const msg = parseToastMessage(location.origin, event.data);
 		if (!msg) {
 			return;
 		}

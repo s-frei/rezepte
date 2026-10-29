@@ -22,7 +22,7 @@ sw.addEventListener('push', (event) => {
 	} catch {
 		// not JSON: not ours
 	}
-	const p = parsePayload(data);
+	const p = parsePayload(sw.location.origin, data);
 	if (!p) {
 		return;
 	}

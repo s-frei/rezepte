@@ -24,36 +24,44 @@ const comment: PushPayload = {
 	collapse: { title: 'Soup', bodyOne: '1 new comment', bodyMany: '{count} new comments' }
 };
 
+const ORIGIN = 'https://rezepte.example';
+
 const hidden = { anyClientVisible: false, shownCount: 0 };
 
 describe('parsePayload', () => {
 	it('accepts a complete payload', () => {
-		expect(parsePayload(timer)).toEqual(timer);
-		expect(parsePayload(comment)).toEqual(comment);
+		expect(parsePayload(ORIGIN, timer)).toEqual(timer);
+		expect(parsePayload(ORIGIN, comment)).toEqual(comment);
 	});
 
 	it('rejects missing or wrong fields', () => {
-		expect(parsePayload(null)).toBeNull();
-		expect(parsePayload('text')).toBeNull();
+		expect(parsePayload(ORIGIN, null)).toBeNull();
+		expect(parsePayload(ORIGIN, 'text')).toBeNull();
 		for (const key of ['kind', 'title', 'body', 'url', 'tag'] as const) {
 			const rest: Record<string, unknown> = { ...timer };
 			delete rest[key];
-			expect(parsePayload(rest)).toBeNull();
-			expect(parsePayload({ ...timer, [key]: 1 })).toBeNull();
+			expect(parsePayload(ORIGIN, rest)).toBeNull();
+			expect(parsePayload(ORIGIN, { ...timer, [key]: 1 })).toBeNull();
 		}
 	});
 
 	it('rejects a malformed collapse', () => {
-		expect(parsePayload({ ...comment, collapse: 'x' })).toBeNull();
-		expect(parsePayload({ ...comment, collapse: null })).toBeNull();
+		expect(parsePayload(ORIGIN, { ...comment, collapse: 'x' })).toBeNull();
+		expect(parsePayload(ORIGIN, { ...comment, collapse: null })).toBeNull();
 		expect(
-			parsePayload({ ...comment, collapse: { title: 'Soup', bodyOne: '1', bodyMany: 2 } })
+			parsePayload(ORIGIN, { ...comment, collapse: { title: 'Soup', bodyOne: '1', bodyMany: 2 } })
 		).toBeNull();
 	});
 
 	it('rejects a url that leaves the app', () => {
-		expect(parsePayload({ ...timer, url: 'https://evil.example/' })).toBeNull();
-		expect(parsePayload({ ...timer, url: '//evil.example/' })).toBeNull();
+		expect(parsePayload(ORIGIN, { ...timer, url: 'https://evil.example/' })).toBeNull();
+		expect(parsePayload(ORIGIN, { ...timer, url: '//evil.example/' })).toBeNull();
+		// Browsers read a backslash as a slash: this is //evil.example.
+		expect(parsePayload(ORIGIN, { ...timer, url: '/\\evil.example/' })).toBeNull();
+		expect(parsePayload(ORIGIN, { ...timer, url: 'javascript:alert(1)' })).toBeNull();
+		// A path, so it means the same in the worker and on any page.
+		expect(parsePayload(ORIGIN, { ...timer, url: 'recipes/soup' })).toBeNull();
+		expect(parsePayload(ORIGIN, { ...timer, url: `${ORIGIN}/recipes/soup` })).toBeNull();
 	});
 });
 
@@ -95,7 +103,7 @@ describe('notificationOptions', () => {
 			url: '/settings/notifications',
 			tag: 'test'
 		};
-		expect(parsePayload(test)).toEqual(test);
+		expect(parsePayload(ORIGIN, test)).toEqual(test);
 		const o = notificationOptions(test, { ...hidden, anyClientVisible: true });
 		expect(o).toMatchObject({ title: 'Test', silent: false, closeAtOnce: false });
 	});
@@ -130,14 +138,15 @@ describe('parseToastMessage', () => {
 	const msg = { type: 'rezepte-push', title: 'T', body: 'B', url: '/recipes/x', tag: 't' };
 
 	it('accepts what the worker posts', () => {
-		expect(parseToastMessage(msg)).toEqual(msg);
+		expect(parseToastMessage(ORIGIN, msg)).toEqual(msg);
 	});
 
 	it('rejects other messages, missing fields and urls leaving the app', () => {
-		expect(parseToastMessage(null)).toBeNull();
-		expect(parseToastMessage({ ...msg, type: 'other' })).toBeNull();
-		expect(parseToastMessage({ ...msg, body: 1 })).toBeNull();
-		expect(parseToastMessage({ ...msg, url: 'https://evil.example/' })).toBeNull();
-		expect(parseToastMessage({ ...msg, url: '//evil.example/' })).toBeNull();
+		expect(parseToastMessage(ORIGIN, null)).toBeNull();
+		expect(parseToastMessage(ORIGIN, { ...msg, type: 'other' })).toBeNull();
+		expect(parseToastMessage(ORIGIN, { ...msg, body: 1 })).toBeNull();
+		expect(parseToastMessage(ORIGIN, { ...msg, url: 'https://evil.example/' })).toBeNull();
+		expect(parseToastMessage(ORIGIN, { ...msg, url: '//evil.example/' })).toBeNull();
+		expect(parseToastMessage(ORIGIN, { ...msg, url: '/\\evil.example/' })).toBeNull();
 	});
 });
