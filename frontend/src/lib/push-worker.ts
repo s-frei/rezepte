@@ -3,7 +3,8 @@
 /**
  * What the Go service pushes: a timer alarm (`kind: 'timer'`, `tag` is the
  * alarm's id) or a notification. `collapse` folds a second push with the
- * same tag into a count; `bodyMany` carries a literal `{count}`.
+ * same tag into a count; `bodyMany` carries a literal `{count}`. An older
+ * server also sent `collapse.bodyOne`, which is ignored.
  */
 export type PushPayload = {
 	kind: string;
@@ -11,7 +12,7 @@ export type PushPayload = {
 	body: string;
 	url: string;
 	tag: string;
-	collapse?: { title: string; bodyOne: string; bodyMany: string };
+	collapse?: { title: string; bodyMany: string };
 };
 
 const isString = (v: unknown): v is string => typeof v === 'string';
@@ -41,14 +42,10 @@ export function parsePayload(origin: string, data: unknown): PushPayload | null 
 			return null;
 		}
 		const c = collapse as Record<string, unknown>;
-		if (![c.title, c.bodyOne, c.bodyMany].every(isString)) {
+		if (![c.title, c.bodyMany].every(isString)) {
 			return null;
 		}
-		p.collapse = {
-			title: c.title as string,
-			bodyOne: c.bodyOne as string,
-			bodyMany: c.bodyMany as string
-		};
+		p.collapse = { title: c.title as string, bodyMany: c.bodyMany as string };
 	}
 	return p;
 }

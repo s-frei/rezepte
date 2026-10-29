@@ -21,7 +21,7 @@ const comment: PushPayload = {
 	body: 'Lovely!',
 	url: '/recipes/soup?tab=comments',
 	tag: 'comment-r1',
-	collapse: { title: 'Soup', bodyOne: '1 new comment', bodyMany: '{count} new comments' }
+	collapse: { title: 'Soup', bodyMany: '{count} new comments' }
 };
 
 const ORIGIN = 'https://rezepte.example';
@@ -49,8 +49,13 @@ describe('parsePayload', () => {
 		expect(parsePayload(ORIGIN, { ...comment, collapse: 'x' })).toBeNull();
 		expect(parsePayload(ORIGIN, { ...comment, collapse: null })).toBeNull();
 		expect(
-			parsePayload(ORIGIN, { ...comment, collapse: { title: 'Soup', bodyOne: '1', bodyMany: 2 } })
+			parsePayload(ORIGIN, { ...comment, collapse: { title: 'Soup', bodyMany: 2 } })
 		).toBeNull();
+	});
+
+	it('ignores the bodyOne an older server still sends', () => {
+		const old = { ...comment, collapse: { ...comment.collapse, bodyOne: '1 new comment' } };
+		expect(parsePayload(ORIGIN, old)).toEqual(comment);
 	});
 
 	it('rejects a url that leaves the app', () => {
