@@ -108,6 +108,13 @@ describe('notificationOptions', () => {
 		expect(o).toMatchObject({ title: 'Test', silent: false, closeAtOnce: false });
 	});
 
+	it('rings again when a non-timer push replaces one under its tag', () => {
+		const test: PushPayload = { ...timer, kind: 'test', tag: 'test' };
+		expect(notificationOptions(test, { ...hidden, shownCount: 1 }).renotify).toBe(true);
+		expect(notificationOptions(comment, hidden).renotify).toBe(true);
+		expect(notificationOptions(timer, hidden).renotify).toBeUndefined();
+	});
+
 	it('collapses a second comment into a count', () => {
 		const o = notificationOptions(comment, { ...hidden, shownCount: 1 });
 		expect(o.title).toBe('Soup');

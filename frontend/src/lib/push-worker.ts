@@ -63,7 +63,9 @@ export type ShowContext = {
  * A visible window already rings and shows the timer's banner, so a timer's
  * notification there is silent and closed at once: Chromium wants one shown
  * per push. Every other kind shows normally: a page open on it does not
- * refresh, so the push is the only news.
+ * refresh, so the push is the only news. It also `renotify`s, so one that
+ * replaces a notification under its tag (a second test, tomorrow's digest)
+ * rings instead of swapping in silently.
  */
 export function notificationOptions(
 	p: PushPayload,
@@ -83,17 +85,17 @@ export function notificationOptions(
 		};
 	}
 	if (!p.collapse) {
-		return { ...base, data: { url: p.url }, silent: false, closeAtOnce: false };
+		return { ...base, data: { url: p.url }, silent: false, closeAtOnce: false, renotify: true };
 	}
 	const count = ctx.shownCount + 1;
 	return {
 		...base,
 		...(ctx.shownCount >= 1 && {
 			title: p.collapse.title,
-			body: p.collapse.bodyMany.replace('{count}', String(count)),
-			renotify: true
+			body: p.collapse.bodyMany.replace('{count}', String(count))
 		}),
 		data: { url: p.url, count },
+		renotify: true,
 		silent: false,
 		closeAtOnce: false
 	};
