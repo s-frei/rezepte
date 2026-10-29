@@ -512,8 +512,18 @@
  * the image gallery does with `[scrollbar-width:none]`.
  */
 @layer base {
+	/* The scrollbar's room is kept on every page, short or long: a settings
+	   page that scrolls next to one that does not otherwise narrowed the
+	   page by the bar, and the centered layout slid sideways on the switch. */
 	:root {
 		scrollbar-color: var(--color-handle) transparent;
+		scrollbar-gutter: stable;
+	}
+
+	/* A page that owns the whole window (login, cook mode, a public share)
+	   keeps no such room: the login's painting stopped short of the edge. */
+	:root:has([data-bare]) {
+		scrollbar-gutter: auto;
 	}
 
 	* {
@@ -548,6 +558,21 @@
 ::view-transition-group(.card) {
 	animation-duration: 450ms;
 	animation-timing-function: var(--ease-glide);
+}
+
+/* A dialog or menu open over the gliding cards (`glide`, when the
+   transition covers the whole document) stays above them and holds still. */
+::view-transition-group(.layer) {
+	z-index: 1;
+	animation: none;
+}
+
+::view-transition-old(.layer) {
+	display: none;
+}
+
+::view-transition-new(.layer) {
+	animation: none;
 }
 
 /* The old and the new picture of a card cross over in the first 140ms
@@ -637,19 +662,6 @@ html[data-theme-transition]::view-transition-new(root) {
 	to {
 		clip-path: circle(150vmax at var(--theme-x, 100%) var(--theme-y, 0));
 	}
-}
-
-/*
- * Settings to settings: the navigation is the same on both pages, so it
- * stays as it is instead of fading out and in with the page, and its pill
- * glides on the new one (`pill` in SettingsLayout).
- */
-::view-transition-old(settings-nav):not(:only-child) {
-	display: none;
-}
-
-::view-transition-new(settings-nav):not(:only-child) {
-	animation: none;
 }
 
 ::view-transition-group(recipe-cover) {

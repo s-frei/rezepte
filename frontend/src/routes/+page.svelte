@@ -528,6 +528,23 @@
 		const marked = scoped ?? root;
 		marked.dataset.cardTransition = '';
 		named.forEach(name);
+		// Over the whole document the cards' pictures lie above the page, and
+		// so above a dialog or menu still open on it - the phone's filter
+		// panel changes the order and stays open - and glided across it. A
+		// named layer's picture is lifted over theirs (`.layer` in app.css):
+		// the order of the pictures does not follow the document's.
+		// Scoped, the cards stay inside the results and need none of this.
+		const layers = scoped
+			? []
+			: [
+					...document.querySelectorAll<HTMLElement>(
+						'[data-dialog-overlay], [role="dialog"], [role="listbox"], [role="menu"]'
+					)
+				].filter((el) => el.getClientRects().length > 0);
+		layers.forEach((el, i) => {
+			el.style.setProperty('view-transition-name', `layer-${i}`);
+			el.style.setProperty('view-transition-class', 'layer');
+		});
 		const transition = scoped
 			? (scoped as unknown as Pick<Document, 'startViewTransition'>).startViewTransition(update)
 			: document.startViewTransition(update);
@@ -535,6 +552,10 @@
 		gliding = false;
 		delete marked.dataset.cardTransition;
 		named.forEach(unname);
+		layers.forEach((el) => {
+			el.style.removeProperty('view-transition-name');
+			el.style.removeProperty('view-transition-class');
+		});
 	}
 
 	function handleSort(value: string) {

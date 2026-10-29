@@ -19,6 +19,7 @@
 	import { shell } from '$lib/shell.svelte';
 	import { signOut } from '$lib/sign-out';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { beforeNavigate } from '$app/navigation';
 
 	let { active, children }: { active: SettingsPageId; children: Snippet } = $props();
 
@@ -48,17 +49,28 @@
 		}
 	];
 
-	// Glides the pill from the row it sat on to this one, while the page
-	// change fades the rest in; the labels stay where they are. The row is
-	// measured from the top of its navigation, not the window: the new page
-	// mounts while the old one is still in the document above it.
+	// Glides the pill from the row it sat on to this one; the labels stay
+	// where they are. The old row is measured when the navigation starts,
+	// while the old page is still laid out: read as the old page was torn
+	// down, it could already be out of the document, measured 0, and the
+	// pill came in from the top of the list. Rows are measured from the top
+	// of their navigation, since the new page mounts while the old one is
+	// still in the document above it.
+	let currentPill: HTMLElement | undefined;
+
 	function offset(node: HTMLElement) {
 		const nav = node.closest('nav');
 		return node.getBoundingClientRect().top - (nav?.getBoundingClientRect().top ?? 0);
 	}
 
+	beforeNavigate(() => {
+		if (currentPill?.isConnected && currentPill.getClientRects().length > 0) {
+			leftPill = { top: offset(currentPill), at: performance.now() };
+		}
+	});
+
 	function pill(node: HTMLElement) {
-		if (leftPill && performance.now() - leftPill.at < 1000 && !prefersReducedMotion.current) {
+		if (leftPill && performance.now() - leftPill.at < 2000 && !prefersReducedMotion.current) {
 			const easing = getComputedStyle(node).getPropertyValue('--ease-glide').trim() || 'ease';
 			node.animate(
 				[{ transform: `translateY(${leftPill.top - offset(node)}px)` }, { transform: 'none' }],
@@ -66,8 +78,9 @@
 			);
 		}
 		leftPill = null;
+		currentPill = node;
 		return () => {
-			leftPill = { top: offset(node), at: performance.now() };
+			if (currentPill === node) currentPill = undefined;
 		};
 	}
 </script>
@@ -91,7 +104,7 @@
 	<div class="mt-5 md:grid md:grid-cols-[200px_minmax(0,720px)] md:items-start md:gap-14">
 		<nav
 			aria-label={m.settings_sections_label()}
-			class="sticky top-6 isolate hidden flex-col gap-1.5 text-body-sm font-medium [view-transition-name:settings-nav] md:flex"
+			class="sticky top-6 isolate hidden flex-col gap-1.5 text-body-sm font-medium md:flex"
 		>
 			{#each byGroup(pages) as run, i (run.label)}
 				<div role="group" aria-label={run.label} class="flex flex-col gap-1.5">

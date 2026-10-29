@@ -101,7 +101,9 @@
 <!-- `min-h-dvh`, not `min-h-screen`: on mobile browsers `100vh` is taller than
      the visible viewport, so the wrapper would outgrow the `h-dvh` cooking
      page and the document would scroll under a full-screen route. -->
-<div class="min-h-dvh bg-background font-sans text-text">
+<!-- `data-bare`: a page that owns the whole window keeps no room for a
+     scrollbar (app.css), or the login's painting stopped short of the edge. -->
+<div data-bare={bare || undefined} class="min-h-dvh bg-background font-sans text-text">
 	{#if bare}
 		{@render children()}
 	{:else}

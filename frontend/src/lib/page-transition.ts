@@ -75,6 +75,10 @@ export function pageTransition(navigation: OnNavigate): Promise<void> | undefine
 		!from?.route.id ||
 		!to?.route.id ||
 		from.route.id === to.route.id ||
+		// Settings to settings is a tab change: the heading and the navigation
+		// stay, only the card beside them changes, and the whole page fading
+		// through read as a fresh load. The pill glides on its own.
+		(from.route.id.startsWith('/settings') && to.route.id.startsWith('/settings')) ||
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
 		(navigation.type === 'popstate' && window.matchMedia('(pointer: coarse)').matches)
 	) {
