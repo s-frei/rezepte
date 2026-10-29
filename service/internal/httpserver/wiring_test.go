@@ -1,9 +1,13 @@
 package httpserver_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	stdimage "image"
+	"image/png"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -43,7 +47,12 @@ type fullApp struct {
 	users    *user.Service
 	sessions *auth.Service
 	tokens   *auth.TokenService
+	recipes  *recipe.Service
+	links    *image.UploadLinks
 }
+
+// wiringPublicURL is the address fullApp's upload links are built on.
+const wiringPublicURL = "https://rezepte.example"
 
 func newFullApp(t *testing.T) fullApp {
 	t.Helper()
@@ -74,11 +83,12 @@ func newFullApp(t *testing.T) fullApp {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
-	if err := mcpserver.Register(srv.API(), recipes, "test", mcpserver.Photos{Images: images, Links: image.NewUploadLinks("", users), Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
+	links := image.NewUploadLinks(wiringPublicURL, users)
+	if err := mcpserver.Register(srv.API(), recipes, "test", mcpserver.Photos{Images: images, Links: links, Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
 		t.Fatal(err)
 	}
 	image.Register(srv.API(), images)
-	image.RegisterUploadLink(srv.API(), images, image.NewUploadLinks("", users))
+	image.RegisterUploadLink(srv.API(), images, links)
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, dataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance, func(context.Context) bool { return false })
 	preview.Register(srv.API(), previews)
@@ -87,7 +97,7 @@ func newFullApp(t *testing.T) fullApp {
 	push.Register(srv.API(), push.NewService(conn, "", nil))
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), nil, nil)
 	tokenapi.Register(srv.API(), tokens)
-	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens}
+	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens, recipes: recipes, links: links}
 }
 
 // issueToken creates an admin and returns the raw value of an API token of
@@ -523,4 +533,53 @@ func (a fullApp) loginAdmin(t *testing.T) *http.Cookie {
 		t.Fatal(err)
 	}
 	return &http.Cookie{Name: auth.CookieName, Value: s.Token}
+}
+
+// TestUploadLinkReachableWithoutSession pins the upload link route through
+// the whole middleware stack: it declares no Security, and a client such as
+// curl holds neither a session nor an Origin, only the signed link. A
+// default that started demanding authentication would break every link
+// photo_upload_link hands out, and only this test would see it.
+func TestUploadLinkReachableWithoutSession(t *testing.T) {
+	a := newFullApp(t)
+	ctx := t.Context()
+	u, err := a.users.Create(ctx, user.CreateParams{Username: "cook", Password: "secret123", Role: user.RoleAdmin})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := a.recipes.Create(ctx, u.ID, recipe.Input{
+		Title: "Leek soup", Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Leek"}}}},
+		Steps:            []recipe.Step{{Text: "Cook the leek."}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	link, _, err := a.links.Issue(r.ID, u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var photo bytes.Buffer
+	if err := png.Encode(&photo, stdimage.NewNRGBA(stdimage.Rect(0, 0, 96, 72))); err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, err := mw.CreateFormFile("file", "dish.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(photo.Bytes()); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, strings.TrimPrefix(link, wiringPublicURL), &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	a.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
 }

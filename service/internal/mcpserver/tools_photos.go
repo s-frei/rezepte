@@ -3,7 +3,6 @@ package mcpserver
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -53,11 +52,11 @@ func addAddPhoto(s *mcp.Server, c caller) {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in addPhotoIn) (*mcp.CallToolResult, any, error) {
 		got, err := c.photos.Fetch.Get(ctx, in.URL, "image/jpeg,image/png,image/webp", image.MaxUploadBytes)
 		if err != nil {
-			return nil, nil, photoError(ctx, fmt.Errorf("fetch photo: %w", err))
+			return nil, nil, toolError(ctx, fmt.Errorf("fetch photo: %w", err))
 		}
 		img, err := c.photos.Images.Upload(ctx, in.RecipeID, c.user, bytes.NewReader(got.Body))
 		if err != nil {
-			return nil, nil, photoError(ctx, fmt.Errorf("add photo: %w", err))
+			return nil, nil, toolError(ctx, fmt.Errorf("add photo: %w", err))
 		}
 		return nil, img, nil
 	})
@@ -68,7 +67,6 @@ type uploadLinkIn struct {
 }
 
 type uploadLinkOut struct {
-	URL       string    `json:"url" jsonschema:"Where to POST the photo as the multipart field file"`
 	Curl      string    `json:"curl" jsonschema:"The upload command; replace <path> with the photo's path and run it once per photo"`
 	ExpiresAt time.Time `json:"expiresAt" jsonschema:"When the link stops working; ask for a new one after that"`
 }
@@ -83,9 +81,9 @@ func addPhotoUploadLink(s *mcp.Server, c caller) {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in uploadLinkIn) (*mcp.CallToolResult, any, error) {
 		link, expires, err := c.photos.Links.Issue(in.RecipeID, c.user.ID)
 		if err != nil {
-			return nil, nil, photoError(ctx, fmt.Errorf("issue upload link: %w", err))
+			return nil, nil, toolError(ctx, fmt.Errorf("issue upload link: %w", err))
 		}
-		return nil, uploadLinkOut{URL: link, Curl: "curl -F file=@<path> '" + link + "'", ExpiresAt: expires}, nil
+		return nil, uploadLinkOut{Curl: "curl -F file=@<path> '" + link + "'", ExpiresAt: expires}, nil
 	})
 }
 
@@ -102,33 +100,13 @@ func addGetPhoto(s *mcp.Server, c caller) {
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getPhotoIn) (*mcp.CallToolResult, any, error) {
 		f, err := c.photos.Images.Open(in.RecipeID, in.PhotoID, "thumb")
 		if err != nil {
-			return nil, nil, photoError(ctx, fmt.Errorf("open photo: %w", err))
+			return nil, nil, toolError(ctx, fmt.Errorf("open photo: %w", err))
 		}
 		defer f.Close()
 		data, err := io.ReadAll(f)
 		if err != nil {
-			return nil, nil, photoError(ctx, fmt.Errorf("read photo: %w", err))
+			return nil, nil, toolError(ctx, fmt.Errorf("read photo: %w", err))
 		}
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.ImageContent{Data: data, MIMEType: "image/jpeg"}}}, nil, nil
 	})
-}
-
-// photoError is toolError for the photo tools: the image and fetch errors
-// get a message the model can act on, everything else goes to toolError.
-func photoError(ctx context.Context, err error) error {
-	switch {
-	case errors.Is(err, image.ErrNotFound):
-		return errors.New("recipe or photo not found")
-	case errors.Is(err, image.ErrUnsupported), errors.Is(err, image.ErrInvalid):
-		return errors.New("only JPEG, PNG or WebP photos of 64 to 12000 px per side; convert others first, e.g. HEIC with sips -s format jpeg")
-	case errors.Is(err, image.ErrTooLarge):
-		return image.ErrTooLarge
-	case errors.Is(err, image.ErrTooMany):
-		return errors.New("a recipe holds at most 20 photos")
-	case errors.Is(err, recipeimport.ErrUnreachable):
-		return errors.New("could not fetch the photo from that URL")
-	case errors.Is(err, image.ErrNoPublicURL):
-		return errors.New("upload links need REZEPTE_PUBLIC_URL set on the server; use add_photo with a URL instead")
-	}
-	return toolError(ctx, err)
 }

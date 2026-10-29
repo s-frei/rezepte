@@ -17,10 +17,6 @@ Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`.
 
 claude.ai custom connectors need OAuth 2.1, not the static bearer token the [MCP server](/features/mcp) takes (see that page's Limits). Rezepte becomes its own authorization server: authorize and token endpoints, dynamic client registration, PKCE, a consent page, refresh and revocation. Connecting signs in through Rezepte's own login, so an instance without [OIDC](/features/oidc) gets OAuth too; delegating to the owner's identity provider was rejected because it would work only where that provider happens to offer client registration and JWT access tokens with Rezepte as the audience. Rezepte also adds protected-resource metadata and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
 
-## Import and export
-
-Recipes move between instances as a zip ([Import and export](/features/import-export)), and a link or pasted text becomes a draft ([Recipe import](/features/recipe-import)). What is left is an import tool for the [MCP server](/features/mcp); Android's "Share → Rezepte" already opens the same dialog.
-
 ## Shopping list
 
 Several recipes add up on one shopping list. It holds recipe ingredients only. One recipe's list already exists as a clipboard copy, the tear-off stub on the detail page - see [Cooking](/features/cooking).

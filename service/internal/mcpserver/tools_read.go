@@ -10,7 +10,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/recipeimport"
 )
 
 func init() {
@@ -156,6 +158,18 @@ func toolError(ctx context.Context, err error) error {
 		return recipe.ErrInvalidComment
 	case errors.As(err, &ref):
 		return errors.New(ref.Error())
+	case errors.Is(err, image.ErrNotFound):
+		return errors.New("recipe or photo not found")
+	case errors.Is(err, image.ErrUnsupported), errors.Is(err, image.ErrInvalid):
+		return errors.New("only JPEG, PNG or WebP photos of 64 to 12000 px per side; convert others first, e.g. HEIC with sips -s format jpeg")
+	case errors.Is(err, image.ErrTooLarge):
+		return image.ErrTooLarge
+	case errors.Is(err, image.ErrTooMany):
+		return errors.New("a recipe holds at most 20 photos")
+	case errors.Is(err, recipeimport.ErrUnreachable):
+		return errors.New("could not fetch the photo from that URL")
+	case errors.Is(err, image.ErrNoPublicURL):
+		return errors.New("upload links need REZEPTE_PUBLIC_URL set on the server; use add_photo with a URL instead")
 	default:
 		slog.Default().ErrorContext(ctx, "mcp tool failed", "err", err)
 		return errors.New("internal error")

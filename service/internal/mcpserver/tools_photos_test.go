@@ -128,12 +128,9 @@ func TestPhotoUploadLink(t *testing.T) {
 	if !ok {
 		t.Fatalf("structured content = %#v", res.StructuredContent)
 	}
-	url, _ := out["url"].(string)
-	if want := testPublicURL + "/api/v1/recipes/" + r.ID + "/images/link?"; !strings.HasPrefix(url, want) {
-		t.Fatalf("url = %q, want prefix %q", url, want)
-	}
-	if curl, _ := out["curl"].(string); !strings.Contains(curl, "-F file=@") || !strings.Contains(curl, url) {
-		t.Fatalf("curl = %q, want -F file=@ and the url", curl)
+	want := "curl -F file=@<path> '" + testPublicURL + "/api/v1/recipes/" + r.ID + "/images/link?"
+	if curl, _ := out["curl"].(string); !strings.HasPrefix(curl, want) {
+		t.Fatalf("curl = %q, want prefix %q", curl, want)
 	}
 }
 
