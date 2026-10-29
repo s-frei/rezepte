@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { ResolvedPathname } from '$app/types';
 	import { Command, Dialog } from 'bits-ui';
@@ -85,11 +85,20 @@
 		}
 	});
 
+	// Only a palette open as the navigation began is closed by it: one
+	// opened while the page change was still under way (⌘K pressed during
+	// its view transition) was meant for the new page, and closing it there
+	// swallowed the key.
+	let openAtStart = false;
+	beforeNavigate(() => {
+		openAtStart = palette.open;
+	});
+
 	afterNavigate(({ from, to, type }) => {
 		// A page rewriting its own query (the overview's filters, once its
 		// list arrives) has not been left; anything else closes it.
 		if (type === 'goto' && from?.url.pathname === to?.url.pathname) return;
-		palette.open = false;
+		if (openAtStart) palette.open = false;
 	});
 
 	// Below `md` the palette is a sheet: the phone's bottom nav opens it as
