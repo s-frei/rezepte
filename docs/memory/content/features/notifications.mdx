@@ -44,6 +44,7 @@ A comment push goes to `ListCommentRecipients(recipe, author, push)`, never the 
 - **A row per kind and account.** It would need a backfill for every new kind.
 - **A group switch that writes every kind of the group.** Switching it on again would turn on kinds the person had off, and a kind added later would start on for an account that had the group off. The group's own row avoids both.
 - **Unsubscribing on `GET`.** Mail scanners follow links; only a `POST` changes anything.
+- **Skipping a comment push while its recipe page is visible.** The page does not refresh its comments and `?tab=comments` stays in the URL after switching tabs, so the comment was lost silently, and the closed notification took the collapsed count with it.
 
 ## Limits
 
