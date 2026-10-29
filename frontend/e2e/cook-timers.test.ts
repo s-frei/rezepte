@@ -407,6 +407,9 @@ test('sign-out clears timers', async ({ page }, testInfo) => {
 	await expect(indicator(page)).toBeVisible();
 	await signOut(page, testInfo, 'de');
 	await expect(page).toHaveURL(/\/login/);
+	// The sign-in's transition waits on the page's timers; what follows only
+	// asks whether a timer is left, which needs no stopped clock.
+	await page.clock.resume();
 	await login(page, username);
 	await expect(page.getByRole('heading', { name: 'Was kochen wir heute?' })).toBeVisible();
 	await expect(indicator(page)).toHaveCount(0);

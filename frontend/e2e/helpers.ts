@@ -81,6 +81,15 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 				() => 'timeout' as const
 			)
 		]);
+		if (outcome === 'in') {
+			// The address reads the new page while the sign-in still opens the
+			// card into it: the overview mounts, and fetches, only once that
+			// transition has run, so a test listening for requests from here
+			// on would count the sign-in's own. The transition runs on the page's
+			// timers, so a spec that paused its clock resumes it to sign in.
+			await expect(page.locator('html[data-sign-in]')).toHaveCount(0);
+			return;
+		}
 		if (outcome !== 'alert' || !(await alert.textContent())?.startsWith('Too many')) return;
 		await page.waitForTimeout(250 * (attempt + 1));
 	}
