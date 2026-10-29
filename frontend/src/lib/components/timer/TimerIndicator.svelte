@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { backOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, fly } from 'svelte/transition';
@@ -30,10 +30,11 @@
 	let open = $state(false);
 	// On a phone the player is one stack with the nav: as wide as the bar and
 	// just above it, floating (the bar at 95%, lifted) or docked, and moving
-	// with its morph; without a nav, as wide as one would be, on the edge.
+	// with its morph. Without a nav it floats as the bar does at the top of a
+	// page, and never docks: on the edge it read as a bar docked there.
 	const place = $derived(
 		!aboveNav
-			? 'inset-x-2 bottom-[calc(0.5rem+env(safe-area-inset-bottom))]'
+			? 'inset-x-[calc(0.5rem+(100vw-1rem)*0.025)] bottom-[calc(0.75rem+env(safe-area-inset-bottom))]'
 			: bottomNav.docked
 				? 'inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))]'
 				: 'inset-x-[calc(0.5rem+(100vw-1rem)*0.025)] bottom-[calc(0.75rem+0.95*(4rem+env(safe-area-inset-bottom))+env(safe-area-inset-bottom)+0.5rem)]'
@@ -42,6 +43,17 @@
 	// one ends; a page that loads with timers running shows it at once, since
 	// the block is there from the first render.
 	const rise = $derived(prefersReducedMotion.current ? 0 : 250);
+	// Its place springs only with the nav's morph on one page. A page that
+	// brings or drops the nav places it at once: it sprang down to the edge
+	// on every way into a recipe. `settled` catches up a frame after the
+	// nav came or went, so the spring is off for exactly that change.
+	let settled = $state(untrack(() => aboveNav));
+	$effect(() => {
+		const now = aboveNav;
+		const frame = requestAnimationFrame(() => (settled = now));
+		return () => cancelAnimationFrame(frame);
+	});
+	const springs = $derived(aboveNav && settled && !bottomNav.still);
 	let root = $state<HTMLElement>();
 	let toggle = $state<HTMLButtonElement>();
 
@@ -85,9 +97,9 @@
 		bind:this={root}
 		in:fly={{ y: 16, duration: rise, easing: backOut }}
 		out:fade={{ duration: 150 }}
-		class="fixed z-40 flex flex-col-reverse gap-2 transition-[left,right,bottom] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:timers] motion-reduce:transition-none {place} {bottomNav.still
-			? 'transition-none'
-			: ''} md:inset-x-auto md:right-6 md:bottom-6 md:items-end {bottomNav.typing
+		class="fixed z-40 flex flex-col-reverse gap-2 transition-[left,right,bottom] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:timers] motion-reduce:transition-none {place} {springs
+			? ''
+			: 'transition-none'} md:inset-x-auto md:right-6 md:bottom-6 md:items-end {bottomNav.typing
 			? 'max-md:hidden'
 			: ''}"
 	>

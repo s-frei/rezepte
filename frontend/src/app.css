@@ -646,6 +646,13 @@
  * pictures are the same photo cut differently, so they keep their own crop
  * (`object-fit`) and cross over early, as the cards do on a size change.
  */
+/* The timer player fades with the page instead of being carried along: a
+   page with a nav and one without hold it at different heights, and its
+   own picture glided down to the edge on every way into a recipe. */
+html[data-page-transition] [data-timer-indicator] {
+	view-transition-name: none;
+}
+
 html[data-page-transition]::view-transition-old(root) {
 	animation-duration: 80ms;
 	animation-timing-function: ease-out;

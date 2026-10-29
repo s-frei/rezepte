@@ -28,8 +28,11 @@
 	const paused = $derived(timer.state === 'paused');
 	const roundButton =
 		'grid size-11 shrink-0 place-items-center rounded-full transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]';
+	// The label's own padding holds the text off the hover tint's edge,
+	// which ran flush to the clock; a negative margin of the same 4px lets
+	// it reach into the row's padding, so no row grows or shrinks.
 	const openClass =
-		'hover-tint min-w-0 flex-1 self-stretch rounded-xl px-2 text-left leading-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+		'hover-tint min-w-0 flex-1 self-stretch -my-1 rounded-xl px-3 py-1 text-left leading-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
 
 {#snippet label()}
