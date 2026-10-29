@@ -16,6 +16,9 @@ export type PushPayload = {
 
 const isString = (v: unknown): v is string => typeof v === 'string';
 
+/** A click opens it, so it stays inside the app. */
+const insideApp = (url: string) => url.startsWith('/') && !url.startsWith('//');
+
 export function parsePayload(data: unknown): PushPayload | null {
 	if (typeof data !== 'object' || data === null) {
 		return null;
@@ -25,8 +28,7 @@ export function parsePayload(data: unknown): PushPayload | null {
 		return null;
 	}
 	const p = { kind, title, body, url, tag } as PushPayload;
-	// A click opens this; it stays inside the app.
-	if (!p.url.startsWith('/') || p.url.startsWith('//')) {
+	if (!insideApp(p.url)) {
 		return null;
 	}
 	if (collapse !== undefined) {
@@ -90,4 +92,43 @@ export function notificationOptions(
 		silent: false,
 		closeAtOnce: false
 	};
+}
+
+/** What the worker posts to a visible window, which shows it as a toast. */
+export type ToastMessage = {
+	type: 'rezepte-push';
+	title: string;
+	body: string;
+	url: string;
+	tag: string;
+};
+
+/**
+ * The toast beside a notification: the same title and body as shown, so a
+ * collapsed comment says "3 new comments" in both. None for a timer, whose
+ * page rings and shows its own banner.
+ */
+export function toastMessage(
+	p: PushPayload,
+	o: { title: string; body?: string }
+): ToastMessage | null {
+	if (p.kind === 'timer') {
+		return null;
+	}
+	return { type: 'rezepte-push', title: o.title, body: o.body ?? '', url: p.url, tag: p.tag };
+}
+
+/** The page's side: only the worker's own message, and only a url inside the app. */
+export function parseToastMessage(data: unknown): ToastMessage | null {
+	if (typeof data !== 'object' || data === null) {
+		return null;
+	}
+	const { type, title, body, url, tag } = data as Record<string, unknown>;
+	if (type !== 'rezepte-push' || ![title, body, url, tag].every(isString)) {
+		return null;
+	}
+	if (!insideApp(url as string)) {
+		return null;
+	}
+	return { type, title, body, url, tag } as ToastMessage;
 }

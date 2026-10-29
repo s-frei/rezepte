@@ -264,3 +264,37 @@ test("a held group's rows stay focusable but do not change", async ({ page }) =>
 		push.getByRole('group', { name: 'Neue Kommentare · Push', exact: true }).locator(':focus')
 	).toHaveCount(1);
 });
+
+// The worker hands a push to a visible window with postMessage; the test
+// dispatches that message itself, since Playwright's Chromium has no push
+// service to send a real one.
+test('a push in a visible window also shows as a toast that opens its page', async ({ page }) => {
+	await login(page);
+	await page.goto('/settings/notifications');
+	const post = (data: unknown) =>
+		page.evaluate((d) => {
+			navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: d }));
+		}, data);
+	// Not the worker's message, or a url leaving the app: no toast.
+	await post({ type: 'other', title: 'Nope', body: '', url: '/', tag: 'x' });
+	await post({
+		type: 'rezepte-push',
+		title: 'Away',
+		body: '',
+		url: 'https://evil.example/',
+		tag: 'x'
+	});
+	await post({
+		type: 'rezepte-push',
+		title: 'Soup',
+		body: '3 new comments',
+		url: '/recipes/does-not-matter?tab=comments',
+		tag: 'comment:r1'
+	});
+	const toast = page.locator('[data-sonner-toast]');
+	await expect(toast).toHaveCount(1);
+	await expect(toast).toContainText('Soup');
+	await expect(toast).toContainText('3 new comments');
+	await toast.getByRole('button', { name: 'Open' }).click();
+	await expect(page).toHaveURL('/recipes/does-not-matter?tab=comments');
+});

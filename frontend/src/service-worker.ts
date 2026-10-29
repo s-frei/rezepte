@@ -3,9 +3,10 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-// Push only: shows a cook timer's end or a notification and opens its page
-// on a click. No fetch handler and no cache - the app works online, as before.
-import { notificationOptions, parsePayload } from '$lib/push-worker';
+// Push only: shows a cook timer's end or a notification, hands a notification
+// to a visible window as a toast and opens its page on a click. No fetch
+// handler and no cache - the app works online, as before.
+import { notificationOptions, parsePayload, toastMessage } from '$lib/push-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
@@ -40,6 +41,15 @@ sw.addEventListener('push', (event) => {
 			if (o.closeAtOnce) {
 				for (const n of await sw.registration.getNotifications({ tag: p.tag })) {
 					n.close();
+				}
+			}
+			// A visible window shows it as a toast too, with a button to open it.
+			const toast = toastMessage(p, o);
+			if (toast) {
+				for (const c of windows) {
+					if (c.visibilityState === 'visible') {
+						c.postMessage(toast);
+					}
 				}
 			}
 		})()

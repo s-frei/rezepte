@@ -16,6 +16,7 @@
 	import { palette } from '$lib/palette.svelte';
 	import { navPlace } from '$lib/shell.svelte';
 	import { listenForLaunches } from '$lib/launch';
+	import { listenForPushToasts } from '$lib/push-toast';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { startChime, stopChime, unlockAudio } from '$lib/recipe/chime';
 	import { timers } from '$lib/recipe/timers.svelte';
@@ -74,6 +75,7 @@
 	}
 
 	onMount(listenForLaunches);
+	onMount(listenForPushToasts);
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (bare) {

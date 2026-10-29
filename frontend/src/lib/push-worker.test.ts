@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { notificationOptions, parsePayload, type PushPayload } from './push-worker';
+import {
+	notificationOptions,
+	parsePayload,
+	parseToastMessage,
+	toastMessage,
+	type PushPayload
+} from './push-worker';
 
 const timer: PushPayload = {
 	kind: 'timer',
@@ -100,5 +106,38 @@ describe('notificationOptions', () => {
 		expect(o.body).toBe('2 new comments');
 		expect(o.data).toEqual({ url: comment.url, count: 2 });
 		expect(o.renotify).toBe(true);
+	});
+});
+
+describe('toastMessage', () => {
+	it('carries what the notification shows, with its url and tag', () => {
+		const o = notificationOptions(comment, { anyClientVisible: true, shownCount: 2 });
+		expect(toastMessage(comment, o)).toEqual({
+			type: 'rezepte-push',
+			title: 'Soup',
+			body: '3 new comments',
+			url: '/recipes/soup?tab=comments',
+			tag: 'comment-r1'
+		});
+	});
+
+	it('is null for a timer, whose page rings and shows its own banner', () => {
+		expect(toastMessage(timer, notificationOptions(timer, hidden))).toBeNull();
+	});
+});
+
+describe('parseToastMessage', () => {
+	const msg = { type: 'rezepte-push', title: 'T', body: 'B', url: '/recipes/x', tag: 't' };
+
+	it('accepts what the worker posts', () => {
+		expect(parseToastMessage(msg)).toEqual(msg);
+	});
+
+	it('rejects other messages, missing fields and urls leaving the app', () => {
+		expect(parseToastMessage(null)).toBeNull();
+		expect(parseToastMessage({ ...msg, type: 'other' })).toBeNull();
+		expect(parseToastMessage({ ...msg, body: 1 })).toBeNull();
+		expect(parseToastMessage({ ...msg, url: 'https://evil.example/' })).toBeNull();
+		expect(parseToastMessage({ ...msg, url: '//evil.example/' })).toBeNull();
 	});
 });

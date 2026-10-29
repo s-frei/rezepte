@@ -487,6 +487,7 @@
 	"timer_open": "Zu {name}",
 	"timer_notify_title": "{recipe} · fertig",
 	"timer_push_unavailable": "Benachrichtigung nur, solange Rezepte offen ist",
+	"push_toast_open": "Öffnen",
 
 	"images_cover_alt": "Titelbild von {title}",
 	"images_open": "Bild {number} von {count} öffnen",
