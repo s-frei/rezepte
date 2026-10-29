@@ -111,6 +111,7 @@
 	// $lib/page-transition.ts): every card rises then, on the arrival's own
 	// timing (`data-arrival` in app.css).
 	let arrival = $state(false);
+	let riseTimer: ReturnType<typeof setTimeout> | undefined;
 	let showSkeleton = $state(false);
 
 	let abortController: AbortController | null = null;
@@ -307,6 +308,18 @@
 				}
 				arrival = !listed && 'signIn' in document.documentElement.dataset;
 				appendedFrom = arrival ? 0 : append ? items.length : Infinity;
+				// Once they have risen the cards drop the rise again: kept, it
+				// played anew whenever the grid laid them out afresh (a card
+				// size change), and the cards vanished and rose a second time.
+				// The longest rise, a sign-in's eighth card or a "Load more"
+				// batch's ninth, is over within a second.
+				clearTimeout(riseTimer);
+				if (appendedFrom !== Infinity) {
+					riseTimer = setTimeout(() => {
+						appendedFrom = Infinity;
+						arrival = false;
+					}, 1200);
+				}
 				items = append ? [...items, ...fetched] : fetched;
 				total = result.total;
 				pageNum = result.page;
@@ -621,6 +634,7 @@
 			abortController?.abort();
 			suggestedTags.abort();
 			rowTags.abort();
+			clearTimeout(riseTimer);
 		};
 	});
 </script>
