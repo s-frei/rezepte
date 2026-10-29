@@ -320,6 +320,33 @@ test('notifications', async ({ page }, testInfo) => {
   await shot(page, 'notifications');
 });
 
+// The Push half, on a device that allowed notifications and sent a test.
+// Headless Chromium reads notifications as denied and has no push service:
+// the permission and a subscription are stubbed, as in
+// frontend/e2e/notifications.test.ts, and the server's answers with them.
+test('notifications-push', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
+    PushManager.prototype.getSubscription = async () =>
+      ({
+        endpoint: 'https://fcm.googleapis.com/fcm/send/docs',
+        toJSON: () => ({ keys: { p256dh: 'p', auth: 'a' } }),
+      }) as unknown as PushSubscription;
+  });
+  await page.route('**/api/v1/push/subscription', (route) => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/push/test', (route) => route.fulfill({ status: 204 }));
+  await prepare(page, testInfo, { login: true });
+  await page.goto('/settings/notifications');
+  const push = page.getByRole('region', { name: 'Push' });
+  await push.getByRole('button', { name: 'Send test' }).click();
+  await expect(push.getByText('Sent. Nothing arrived?')).toBeVisible();
+  // The heading at the top, clear of the phone's sticky section head.
+  await push.getByRole('heading', { name: 'Push' }).evaluate((el, offset) => {
+    window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - offset);
+  }, isMobile(testInfo) ? 88 : 24);
+  await shot(page, 'notifications-push');
+});
+
 // The page a mail's unsubscribe link opens. The demo mails nothing, so no
 // signed link exists: the read is answered with what one for the demo
 // admin's comment mails would show, the address masked as the server does.

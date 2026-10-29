@@ -32,7 +32,7 @@ description: A full-screen, step-by-step view for cooking at the stove
 
     When a timer ends, an orange "Done" banner appears under the progress bar, its bell swinging, and the phone chimes (and vibrates, where it can) until you tap "Off". After about two minutes the sound stops by itself; the banner stays until you turn it off.
 
-    The first time you start a timer, the browser asks whether Rezepte may show notifications; allow it once, and a timer that ends while Rezepte is in the background or the phone is locked shows a notification that opens its step. While Rezepte is in front of you, the banner and the chime are enough and no notification sounds. If notifications cannot work on this device, a short line under the timers says "Notifications only while Rezepte is open".
+    The first time you start a timer, the browser asks whether Rezepte may show notifications (unless you already enabled [push on this device](/guide/notifications#push-on-this-device)); allow it once, and a timer that ends while Rezepte is in the background or the phone is locked shows a notification that opens its step. While Rezepte is in front of you, the banner and the chime are enough and no notification sounds. If notifications cannot work on this device, a short line under the timers says "Notifications only while Rezepte is open".
 
     Timers keep running when you change steps, leave cook mode or reload the page. Outside cook mode the timer with the least time left shows at the bottom of a phone's screen, above the menu, and at the bottom right on a computer; tap it to see every timer, where you can pause or stop one or tap its name to go back to its step.
 
@@ -75,7 +75,7 @@ description: A full-screen, step-by-step view for cooking at the stove
     A timer lives only in the browser that started it: another phone or computer of your household does not see it. Signing out stops every timer, so the next person to sign in on a shared device starts clean. After a reload, a timer that ended while the page was closed shows as done, but the browser plays its sound only after your first tap on the page.
   </Accordion>
   <Accordion title="When no notification arrives">
-    Notifications need a secure (HTTPS) address; over plain HTTP the timer tells you only while the page is open — see [Reverse proxy](/operations/reverse-proxy). On an iPhone or iPad they work only in the app added to the home screen (iOS 16.4 or later), not in Safari itself; see [Install the app](/guide/install-app). If you declined the browser's question, Rezepte does not ask again: allow notifications for the site in the browser's settings. Signing out stops the notifications for this device along with the timers.
+    Notifications need a secure (HTTPS) address; over plain HTTP the timer tells you only while the page is open — see [Reverse proxy](/operations/reverse-proxy). On an iPhone or iPad they work only in the app added to the home screen (iOS 16.4 or later), not in Safari itself; see [Install the app](/guide/install-app). If you declined the browser's question, Rezepte does not ask again: allow notifications for the site in the browser's settings. Signing out stops the notifications for this device along with the timers. **Send test** under Settings → Notifications shows whether a notification reaches this device at all.
   </Accordion>
   <Accordion title="Recipes without steps">
     A recipe with no steps shows a short message instead of the step view.

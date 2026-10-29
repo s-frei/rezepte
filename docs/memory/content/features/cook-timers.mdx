@@ -40,7 +40,7 @@ A cook who reads "90 Minuten schmoren" in cook mode taps the time and a timer ru
 - **The ring is the pause button, with a glyph.** It is where the eye already is; without ⏸/▶ in its center nobody would guess a ring is tappable.
 - **The banner at the top, under the progress bar.** It is where the cook looks first, it leaves the footer's "Weiter" where the thumb expects it, and the running timers stay in the dock below.
 - **One push path for a hidden page and a locked phone.** A `Notification` from page JS for the background tab would be a second notification beside the push; one path means exactly one per timer.
-- **The copy is built in the browser.** The member's language is known there; the server sends what it was given and needs no message catalog.
+- **A timer's copy is built in the browser.** The member's language and the timer are known there; the server sends an alarm as it was given. A notification's copy is built on the server instead, from the mail catalog, because no page is involved when it is sent ([Notifications](/features/notifications)).
 - **A visible window gets a silent notification, closed at once.** Skipping it is not an option: Chromium shows its own "updated in the background" notice for a push that showed nothing.
 - **Least time left, not soonest end.** The capsule answers "what needs me next"; a paused timer with four minutes left is closer to that than a running one with ten.
 - **The capsule opens a list outside cook mode, it does not jump.** Several timers of several recipes run at once; a capsule that only led to the first left the others out of reach, and pause and stop belong where the timers are seen.
@@ -56,7 +56,7 @@ A cook who reads "90 Minuten schmoren" in cook mode taps the time and a timer ru
 - **A notch hanging from the top edge (outside cook mode).** It reads as system chrome and sits where the phone's own status bar crowds it.
 - **The indicator in the header's center on desktop.** The top bar's middle holds the breadcrumb and page title; a timer there crowds both, and the bottom-right corner is free.
 - **Starting timers outside cook mode, or live rings on the detail page.** The detail page is for reading and planning; one indicator outside cook mode is enough to see what runs.
-- **Asking for notifications on page load or in a settings switch.** A prompt nobody asked for gets denied for good; the first timer start is the moment the cook wants one.
+- **Asking for notifications on page load.** A prompt nobody asked for gets denied for good; it comes only from a tap that wants notifications: the first timer start, or "Enable on this device" in Settings → Notifications.
 - **Caching in the service worker.** The worker exists for push; a cache would bring invalidation for an app that works only online anyway.
 - **Timer state on the server.** Only the alarm is needed for the push; the timers stay a promise about this kitchen.
 - **A per-user storage key.** A timer still ringing for someone who signed out is worse than the next person starting clean.
