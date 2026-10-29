@@ -69,14 +69,25 @@ function decodeKey(key: string): Uint8Array<ArrayBuffer> {
 	return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+function sameKey(a: ArrayBuffer | null | undefined, b: Uint8Array): boolean {
+	if (!a || a.byteLength !== b.length) {
+		return false;
+	}
+	const bytes = new Uint8Array(a);
+	return b.every((v, i) => v === bytes[i]);
+}
+
 async function subscribe(): Promise<string> {
 	const reg = await ready();
-	const sub =
-		(await reg.pushManager.getSubscription()) ??
-		(await reg.pushManager.subscribe({
-			userVisibleOnly: true,
-			applicationServerKey: decodeKey(await getPushKey())
-		}));
+	const key = decodeKey(await getPushKey());
+	let sub = await reg.pushManager.getSubscription();
+	// The browser keeps a subscription across an instance set up again on
+	// this origin, whose new VAPID key the push service would refuse it for.
+	if (sub && !sameKey(sub.options.applicationServerKey, key)) {
+		await sub.unsubscribe();
+		sub = null;
+	}
+	sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
 	const { keys } = sub.toJSON();
 	await putSubscription({
 		endpoint: sub.endpoint,

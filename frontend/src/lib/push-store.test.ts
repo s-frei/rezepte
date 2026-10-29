@@ -27,7 +27,11 @@ type Env = {
 	closed: string[];
 	/** Fires `visibilitychange` with the page visible again. */
 	show: () => void;
+	/** The subscription the browser already had, from `existingKey`. */
+	old?: { unsubscribe: Mock<() => Promise<boolean>> } | null;
 };
+
+const SERVER_KEY = [4, 0, 0];
 
 function okFetch() {
 	return vi.fn(async (url: string, init?: RequestInit) => {
@@ -44,7 +48,11 @@ function okFetch() {
 function install(
 	permission: NotificationPermission,
 	fetchFn: Env['fetch'] = okFetch(),
-	{ supported = true, pathname = '/recipes' } = {}
+	{
+		supported = true,
+		pathname = '/recipes',
+		existingKey
+	}: { supported?: boolean; pathname?: string; existingKey?: number[] | null } = {}
 ): Env {
 	const doc = Object.assign(new EventTarget(), { visibilityState: 'visible', cookie: '' });
 	vi.stubGlobal('document', doc);
@@ -56,12 +64,20 @@ function install(
 		requestPermission: vi.fn(async () => env.permission),
 		subscribe: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => subscription)
 	};
-	let current: unknown = null;
-	const subscription = {
+	const made = (key: number[] | null) => ({
 		endpoint: ENDPOINT,
+		options: { applicationServerKey: key && new Uint8Array(key).buffer },
 		toJSON: () => ({ endpoint: ENDPOINT, keys: { p256dh: 'p', auth: 'a' } }),
-		unsubscribe: vi.fn(async () => true)
-	};
+		unsubscribe: vi.fn(async () => {
+			current = null;
+			return true;
+		})
+	});
+	// The server's key 'BAAA' decodes to these bytes.
+	const subscription = made(SERVER_KEY);
+	const old = existingKey === undefined ? null : made(existingKey);
+	env.old = old;
+	let current: unknown = old;
 	const registration = {
 		pushManager: {
 			getSubscription: vi.fn(async () => current),
@@ -407,6 +423,36 @@ describe('device state', () => {
 		await settle();
 		expect(calls(env, 'PUT', '/api/v1/push/subscription')).toHaveLength(2);
 		expect(push.deviceState()).toBe('enabled');
+	});
+
+	it('renews a subscription the browser kept from another key', async () => {
+		// The instance was set up again on this origin: a new VAPID key.
+		const env = install('granted', okFetch(), { existingKey: [9, 9, 9] });
+		const { push } = await load();
+		await settle();
+		expect(env.old!.unsubscribe).toHaveBeenCalledTimes(1);
+		expect(env.subscribe).toHaveBeenCalledTimes(1);
+		const [opts] = env.subscribe.mock.calls[0] as [{ applicationServerKey: Uint8Array }];
+		expect([...opts.applicationServerKey]).toEqual(SERVER_KEY);
+		expect(calls(env, 'PUT', '/api/v1/push/subscription')).toHaveLength(1);
+		expect(push.deviceState()).toBe('enabled');
+	});
+
+	it('renews a subscription without a key', async () => {
+		const env = install('granted', okFetch(), { existingKey: null });
+		await load();
+		await settle();
+		expect(env.old!.unsubscribe).toHaveBeenCalledTimes(1);
+		expect(env.subscribe).toHaveBeenCalledTimes(1);
+	});
+
+	it("reuses a subscription made with the server's key", async () => {
+		const env = install('granted', okFetch(), { existingKey: SERVER_KEY });
+		await load();
+		await settle();
+		expect(env.old!.unsubscribe).not.toHaveBeenCalled();
+		expect(env.subscribe).not.toHaveBeenCalled();
+		expect(calls(env, 'PUT', '/api/v1/push/subscription')).toHaveLength(1);
 	});
 
 	it('sendPushTest turns the device off when the server forgot it', async () => {
