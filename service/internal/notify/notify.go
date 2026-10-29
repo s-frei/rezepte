@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/db"
@@ -160,6 +162,8 @@ type Service struct {
 	mailer    Mailer
 	pusher    Pusher
 	publicURL string
+	now       func() time.Time
+	alertMu   sync.Mutex // one mail alert decision at a time
 }
 
 // NewService returns a Service backed by conn that signs unsubscribe links
@@ -175,6 +179,7 @@ func NewService(conn *sql.DB, key []byte, users *user.Service, avatars *avatar.S
 		images:    images,
 		mailer:    m,
 		publicURL: publicURL,
+		now:       time.Now,
 	}
 }
 

@@ -45,7 +45,23 @@ type Service struct {
 	publicURL string
 	logger    *slog.Logger
 	now       func() time.Time
+	reporter  DeliveryReporter
 }
+
+// DeliveryReporter hears how real sends go, so the owner can be warned
+// when mail stops getting out. MailFailed gets a setup failure only (see
+// setupError) with its reason; MailWorked follows every accepted send;
+// MailReconfigured follows a Save or Clear. The test send never reports:
+// the owner reads its error on screen.
+type DeliveryReporter interface {
+	MailFailed(ctx context.Context, reason string)
+	MailWorked(ctx context.Context)
+	MailReconfigured(ctx context.Context)
+}
+
+// SetReporter makes s report its sends to r; nil, the default, reports
+// nothing. Call it before serving.
+func (s *Service) SetReporter(r DeliveryReporter) { s.reporter = r }
 
 // NewService returns a Service; env is the configuration REZEPTE_SMTP_* pin
 // (zero when unset), publicURL is REZEPTE_PUBLIC_URL.
@@ -154,6 +170,9 @@ func (s *Service) Save(ctx context.Context, actor user.User, c Config, keepPassw
 	}); err != nil {
 		return fmt.Errorf("set mail settings: %w", err)
 	}
+	if s.reporter != nil {
+		s.reporter.MailReconfigured(ctx)
+	}
 	return nil
 }
 
@@ -164,6 +183,9 @@ func (s *Service) Clear(ctx context.Context, actor user.User) error {
 	}
 	if err := s.q.ClearMailSettings(ctx); err != nil {
 		return fmt.Errorf("clear mail settings: %w", err)
+	}
+	if s.reporter != nil {
+		s.reporter.MailReconfigured(ctx)
 	}
 	return nil
 }
@@ -256,7 +278,8 @@ func (s *Service) SendIdentityLinked(ctx context.Context, in IdentityLinked) err
 // deliver renders a mail with build and sends it to to. ErrDisabled means
 // mail is off and nothing was tried. A failure is returned and logged with
 // the recipient's domain and, for a server refusal, its reply code only: the
-// error text can quote the address, and a link is never logged.
+// error text can quote the address, and a link is never logged. The
+// reporter hears of a setup failure and of every accepted send.
 func (s *Service) deliver(ctx context.Context, to, what string, build func(Config) (Envelope, error)) error {
 	cfg, src, err := s.Effective(ctx)
 	if err != nil {
@@ -276,7 +299,13 @@ func (s *Service) deliver(ctx context.Context, to, what string, build func(Confi
 			reason = reply.Code
 		}
 		s.logger.Warn("mail: "+what+" not sent", "domain", to[strings.LastIndex(to, "@")+1:], "reason", reason)
+		if why := setupFailure(err); why != "" && s.reporter != nil {
+			s.reporter.MailFailed(ctx, why)
+		}
 		return err
+	}
+	if s.reporter != nil {
+		s.reporter.MailWorked(ctx)
 	}
 	return nil
 }

@@ -45,6 +45,29 @@ func Send(ctx context.Context, cfg Config, env Envelope) error {
 	return nil
 }
 
+// setupError is a send that failed on the instance's mail setup, before
+// any recipient was named: Reason is "connect", "tls", "auth" or "sender".
+// A refusal at RCPT TO or later is about one mail, not the setup.
+type setupError struct {
+	Reason string
+	err    error
+}
+
+func (e *setupError) Error() string { return e.err.Error() }
+func (e *setupError) Unwrap() error { return e.err }
+
+func setup(reason string, err error) error { return &setupError{reason, err} }
+
+// setupFailure returns why err is a failure of the mail setup, empty when
+// it is not one.
+func setupFailure(err error) string {
+	var se *setupError
+	if errors.As(err, &se) {
+		return se.Reason
+	}
+	return ""
+}
+
 func send(ctx context.Context, cfg Config, env Envelope) error {
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
@@ -52,7 +75,7 @@ func send(ctx context.Context, cfg Config, env Envelope) error {
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return fmt.Errorf("connect to %s: %w", addr, err)
+		return setup("connect", fmt.Errorf("connect to %s: %w", addr, err))
 	}
 	defer conn.Close()
 	deadline, _ := ctx.Deadline()
@@ -62,34 +85,34 @@ func send(ctx context.Context, cfg Config, env Envelope) error {
 	if cfg.Security == SecurityTLS {
 		tc := tls.Client(conn, tlsConfig(cfg.Host))
 		if err := tc.HandshakeContext(ctx); err != nil {
-			return fmt.Errorf("TLS with %s: %w", addr, err)
+			return setup("tls", fmt.Errorf("TLS with %s: %w", addr, err))
 		}
 		conn = tc
 	}
 	c, err := smtp.NewClient(conn, cfg.Host)
 	if err != nil {
-		return fmt.Errorf("greeting from %s: %w", addr, err)
+		return setup("connect", fmt.Errorf("greeting from %s: %w", addr, err))
 	}
 	defer c.Close()
 	// EHLO names the sender's domain: some servers refuse "localhost".
 	if err := c.Hello(cfg.From[strings.LastIndex(cfg.From, "@")+1:]); err != nil {
-		return fmt.Errorf("EHLO: %w", err)
+		return setup("connect", fmt.Errorf("EHLO: %w", err))
 	}
 	if cfg.Security == SecuritySTARTTLS {
 		if ok, _ := c.Extension("STARTTLS"); !ok {
-			return fmt.Errorf("%s: %w", addr, ErrNoSTARTTLS)
+			return setup("tls", fmt.Errorf("%s: %w", addr, ErrNoSTARTTLS))
 		}
 		if err := c.StartTLS(tlsConfig(cfg.Host)); err != nil {
-			return fmt.Errorf("STARTTLS: %w", err)
+			return setup("tls", fmt.Errorf("STARTTLS: %w", err))
 		}
 	}
 	if cfg.Username != "" {
 		if err := c.Auth(smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)); err != nil {
-			return fmt.Errorf("sign-in: %w", err)
+			return setup("auth", fmt.Errorf("sign-in: %w", err))
 		}
 	}
 	if err := c.Mail(cfg.From); err != nil {
-		return fmt.Errorf("sender: %w", err)
+		return setup("sender", fmt.Errorf("sender: %w", err))
 	}
 	if err := c.Rcpt(env.To); err != nil {
 		return fmt.Errorf("recipient: %w", err)

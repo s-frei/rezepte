@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"log/slog"
+	"net"
+	"net/textproto"
+	"slices"
 	"strings"
 	"testing"
 
@@ -189,5 +192,98 @@ func TestNewMailsDisabledWithoutConfig(t *testing.T) {
 	}
 	if err := s.SendConfirm(ctx, Confirm{To: "a@b.c", Path: "/confirm-email#t"}); !errors.Is(err, ErrDisabled) {
 		t.Errorf("SendConfirm: %v", err)
+	}
+}
+
+// reports records what a Service told its DeliveryReporter.
+type reports struct{ got []string }
+
+func (r *reports) MailFailed(_ context.Context, reason string) {
+	r.got = append(r.got, "failed:"+reason)
+}
+func (r *reports) MailWorked(context.Context)       { r.got = append(r.got, "worked") }
+func (r *reports) MailReconfigured(context.Context) { r.got = append(r.got, "reconfigured") }
+
+// reportingSvc saves a server at host:port without sign-in and reports to
+// the returned recorder from then on.
+func reportingSvc(t *testing.T, host string, port int) (*Service, *reports) {
+	t.Helper()
+	s := newSvc(t, Config{}, "https://r.example.org")
+	if err := s.Save(context.Background(), owner, Config{Host: host, Port: port, Security: SecurityNone, From: "r@example.org"}, false); err != nil {
+		t.Fatal(err)
+	}
+	r := &reports{}
+	s.SetReporter(r)
+	return s, r
+}
+
+func TestDeliverReportsSetupFailureAndSuccess(t *testing.T) {
+	ctx := context.Background()
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+	s, r := reportingSvc(t, "127.0.0.1", port)
+	if err := s.SendHint(ctx, Hint{To: "a@example.org"}); err == nil {
+		t.Fatal("SendHint succeeded without a server")
+	}
+	host, port := startFake(t, &fakeSMTP{})
+	if err := s.Save(ctx, owner, Config{Host: host, Port: port, Security: SecurityNone, From: "r@example.org"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SendHint(ctx, Hint{To: "a@example.org"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Clear(ctx, owner); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"failed:connect", "reconfigured", "worked", "reconfigured"}; !slices.Equal(r.got, want) {
+		t.Fatalf("reported %v, want %v", r.got, want)
+	}
+}
+
+func TestDeliverReportsAuthRefusal(t *testing.T) {
+	f := &fakeSMTP{ext: []string{"STARTTLS", "AUTH PLAIN"}, authReply: "535 5.7.8 authentication failed"}
+	f.tlsConf = testTLS(t)
+	host, port := startFake(t, f)
+	s, r := reportingSvc(t, host, port)
+	if err := s.Save(context.Background(), owner, Config{Host: host, Port: port, Security: SecuritySTARTTLS, Username: "u", Password: "bad", From: "r@example.org"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SendHint(context.Background(), Hint{To: "a@example.org"}); err == nil {
+		t.Fatal("SendHint succeeded with a refused login")
+	}
+	if want := []string{"reconfigured", "failed:auth"}; !slices.Equal(r.got, want) {
+		t.Fatalf("reported %v, want %v", r.got, want)
+	}
+}
+
+func TestSendTestDoesNotReport(t *testing.T) {
+	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+	s, r := reportingSvc(t, "127.0.0.1", port)
+	if err := s.SendTest(context.Background(), owner, "olga@example.org", nil, false); err == nil {
+		t.Fatal("SendTest succeeded without a server")
+	}
+	host, port := startFake(t, &fakeSMTP{})
+	override := Config{Host: host, Port: port, Security: SecurityNone, From: "r@example.org"}
+	if err := s.SendTest(context.Background(), owner, "olga@example.org", &override, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.got) != 0 {
+		t.Fatalf("reported %v, want nothing", r.got)
+	}
+}
+
+func TestRecipientRefusalDoesNotReport(t *testing.T) {
+	host, port := startFake(t, &fakeSMTP{rcptReply: "550 5.1.1 no such user"})
+	s, r := reportingSvc(t, host, port)
+	err := s.SendHint(context.Background(), Hint{To: "gone@example.org"})
+	var reply *textproto.Error
+	if !errors.As(err, &reply) || reply.Code != 550 {
+		t.Fatalf("err = %v, want the 550", err)
+	}
+	if len(r.got) != 0 {
+		t.Fatalf("reported %v, want nothing", r.got)
 	}
 }

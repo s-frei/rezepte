@@ -234,6 +234,7 @@ func run() error {
 	pushes := push.NewService(conn, cfg.PublicURL, &http.Client{})
 	pushDone := pushes.Start(ctx)
 	notifications.SetPusher(pushes)
+	mailer.SetReporter(notifications)
 	digestDone := notifications.StartRecipeDigest(ctx)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),

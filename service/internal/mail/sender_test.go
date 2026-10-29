@@ -21,6 +21,7 @@ type fakeSMTP struct {
 	ln        net.Listener
 	ext       []string
 	authReply string
+	rcptReply string // what RCPT TO answers; 250 when empty
 	tlsConf   *tls.Config
 	hang      bool
 	got       chan string
@@ -84,7 +85,13 @@ func (f *fakeSMTP) serve() {
 		case "AUTH":
 			f.auth <- line
 			_ = tp.PrintfLine("%s", f.authReply)
-		case "MAIL", "RCPT":
+		case "RCPT":
+			if f.rcptReply != "" {
+				_ = tp.PrintfLine("%s", f.rcptReply)
+				continue
+			}
+			_ = tp.PrintfLine("250 ok")
+		case "MAIL":
 			_ = tp.PrintfLine("250 ok")
 		case "DATA":
 			_ = tp.PrintfLine("354 go")
