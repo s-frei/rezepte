@@ -1,13 +1,23 @@
 <script lang="ts">
 	import { Dialog, Popover } from 'bits-ui';
+	import { flip } from 'svelte/animate';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { fade } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import type { Person } from '$lib/api/recipes';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
 	import PersonCard from '$lib/components/ui/PersonCard.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 
-	let { people }: { people: Person[] } = $props();
+	let {
+		people,
+		changed = null
+	}: {
+		people: Person[];
+		/** The person whose circle the reader just added or took away; only it moves. */
+		changed?: string | null;
+	} = $props();
 
 	// A handful of circles says "these people" at a glance; past that they
 	// would only grow into a row of letters nobody reads, so the rest are a
@@ -17,13 +27,25 @@
 	const more = $derived(people.length - circles.length);
 	const names = $derived(people.map((person) => person.displayName).join(', '));
 	let open = $state(false);
+	// The changed circle pops in once the heart has beaten (`animate-pop`,
+	// CSS so it plays when the stack itself is new) or fades out, and the
+	// others make room; a new recipe's stack just appears.
+	const room = $derived(changed && !prefersReducedMotion.current ? 200 : 0);
 	// A bottom sheet below `md`, for the reason AuthorInitials gives.
 	const phone = new MediaQuery('max-width: 767.98px');
 </script>
 
 {#snippet faces()}
 	{#each circles as person, index (person.id)}
-		<PersonMark {person} size="sm" class="ring-2 ring-background {index > 0 ? '-ml-2' : ''}" />
+		<span
+			class="flex {index > 0 ? '-ml-2' : ''} {person.id === changed
+				? 'motion-safe:animate-pop'
+				: ''}"
+			animate:flip={{ duration: room }}
+			out:fade={{ duration: person.id === changed ? 120 : 0 }}
+		>
+			<PersonMark {person} size="sm" class="ring-2 ring-background" />
+		</span>
 	{/each}
 	{#if more > 0}
 		<span aria-hidden="true" class="ml-1.5 text-caption text-text-muted">+{more}</span>

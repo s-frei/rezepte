@@ -26,6 +26,7 @@
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
+	import { rowMotion } from '$lib/settings/row-motion.svelte';
 	import { tokenSupply } from '$lib/settings/token-access';
 	import type { PageData } from './$types';
 
@@ -40,6 +41,7 @@
 	let revealedScopes = $state<TokenScope[]>([]);
 	let revokeOpen = $state(false);
 	let revokeTarget = $state<ApiToken | null>(null);
+	const rows = rowMotion();
 
 	// The list shows the viewer's own tokens unless they switch to everyone's,
 	// and then may narrow it to one issuer - the shared-links page's filter,
@@ -149,22 +151,25 @@
 			expiresAt,
 			lastUsedAt
 		} = token;
-		tokens = [
-			{
-				id,
-				name,
-				prefix,
-				scopes,
-				ownerId,
-				ownerUsername,
-				ownerDisplayName,
-				ownerColor,
-				createdAt,
-				expiresAt,
-				lastUsedAt
-			},
-			...tokens
-		];
+		rows.play(
+			() =>
+				(tokens = [
+					{
+						id,
+						name,
+						prefix,
+						scopes,
+						ownerId,
+						ownerUsername,
+						ownerDisplayName,
+						ownerColor,
+						createdAt,
+						expiresAt,
+						lastUsedAt
+					},
+					...tokens
+				])
+		);
 	}
 
 	function askRevoke(token: ApiToken) {
@@ -179,7 +184,7 @@
 		}
 		try {
 			await deleteToken(target.id);
-			tokens = tokens.filter((t) => t.id !== target.id);
+			rows.play(() => (tokens = tokens.filter((t) => t.id !== target.id)));
 			toast.success(m.tokens_revoked({ name: target.name }));
 		} catch (error) {
 			if (!isSignedOut(error)) {
@@ -252,9 +257,12 @@
 					{m.tokens_empty()}
 				</p>
 			{:else}
-				<ul aria-label={m.tokens_title()} class="grid grid-cols-[minmax(0,1fr)] gap-3.5">
+				<!-- Spaced by the rows' own margin (the list's negative one takes the
+				     last away) instead of a gap: a closing row folds its margin with
+				     it, where a gap stayed until the row was gone and then jumped. -->
+				<ul aria-label={m.tokens_title()} class="-mb-3.5 grid grid-cols-[minmax(0,1fr)] *:mb-3.5">
 					{#each visible as token (token.id)}
-						<TokenRow {token} showIssuer={everyone} onrevoke={askRevoke} />
+						<TokenRow {token} showIssuer={everyone} onrevoke={askRevoke} motion={rows.duration} />
 					{/each}
 				</ul>
 			{/if}

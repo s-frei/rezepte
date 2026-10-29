@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { backOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fade, fly } from 'svelte/transition';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import TimerRow from './TimerRow.svelte';
 	import TimerSummary from './TimerSummary.svelte';
@@ -14,6 +17,9 @@
 	// A ringing timer is the banner's, not the dock's.
 	const list = $derived(byEnding(timers.list, timers.now).filter((t) => t.state !== 'ringing'));
 	const first = $derived(list[0]);
+	// Rises in when the first timer starts; there from the first render when
+	// cook mode opens with timers running.
+	const rise = $derived(prefersReducedMotion.current ? 0 : 250);
 	// Phones only: wide screens always show the rows. Held for this visit.
 	let expanded = $state(false);
 	let capsule = $state<HTMLButtonElement>();
@@ -44,7 +50,12 @@
 <p class="sr-only" aria-live="polite">{announcement}</p>
 
 {#if first}
-	<div data-timer-dock class="flex shrink-0 flex-col items-center gap-1.5 px-5 pb-2.5 md:px-8">
+	<div
+		data-timer-dock
+		in:fly={{ y: 16, duration: rise, easing: backOut }}
+		out:fade={{ duration: 150 }}
+		class="flex shrink-0 flex-col items-center gap-1.5 px-5 pb-2.5 md:px-8"
+	>
 		{#if !expanded}
 			<button
 				type="button"
@@ -68,10 +79,11 @@
 		{/if}
 		<!-- Below `md` the panel on `user-teal`, the capsule's own color, only
 		     while expanded; from `md` the bare rows, two side by side, always -
-		     one alone as wide as the footer under it. -->
+		     one alone as wide as the footer under it. Expanding unfolds it
+		     upward where the capsule was; the always-open rows stay still. -->
 		<div
 			class="{expanded
-				? 'flex'
+				? 'flex max-md:origin-bottom max-md:motion-safe:animate-unfold'
 				: 'hidden'} max-h-[40dvh] w-full max-w-[392px] flex-col gap-2 overflow-y-auto rounded-3xl bg-user-teal px-2 pt-1.5 pb-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
 		>
 			<div class="flex items-center justify-between pl-2.5 md:hidden">

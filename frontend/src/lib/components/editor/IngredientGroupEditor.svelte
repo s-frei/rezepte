@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { flushSync, tick } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -14,6 +14,7 @@
 		type FormIngredient
 	} from '$lib/recipe/form';
 	import IngredientRow from './IngredientRow.svelte';
+	import { collapse, fresh, reveal } from './motion';
 
 	let {
 		groups = $bindable([]),
@@ -38,32 +39,41 @@
 
 	async function addRow(group: FormGroup, index = group.ingredients.length) {
 		const row = newIngredient();
+		fresh.add(row.id);
 		group.ingredients.splice(index, 0, row);
 		await focusRow(row.id);
+		fresh.delete(row.id);
 	}
 
 	/**
-	 * Hands focus to the row that took the removed one's place, since the
-	 * element that had focus (the x button, or the field Backspace was
-	 * pressed in) is gone and focus would otherwise fall to `<body>`. That is
-	 * the row above, or - when the first row went - the one that moved up into
-	 * index 0. When the group was emptied and refilled below, index 0 is the
-	 * fresh blank row.
+	 * Folds the row shut and takes it out. Focus goes first, to the row that
+	 * will take the removed one's place, since the element that had it (the
+	 * x button, or the field Backspace was pressed in) is about to go and
+	 * focus would otherwise fall to `<body>`: the row above, or - when the
+	 * first row goes - the one that moves up into index 0. Handed over before
+	 * the fold, a second Backspace lands in that neighbor instead of the
+	 * closing row. The row is looked up again afterwards, since the list can
+	 * have changed while it closed.
 	 */
-	async function focusRowAfterRemoval(group: FormGroup, removedIndex: number) {
-		const neighbor = group.ingredients[Math.max(0, removedIndex - 1)];
-		await tick();
+	async function dropRow(group: FormGroup, index: number) {
+		const row = group.ingredients[index];
+		const neighbor = group.ingredients[index === 0 ? 1 : index - 1];
 		document.getElementById(`ingredient-name-${neighbor.id}`)?.focus();
+		await collapse(document.getElementById(`ingredient-name-${row.id}`)?.closest('li'));
+		const current = group.ingredients.findIndex((r) => r.id === row.id);
+		if (current !== -1) group.ingredients.splice(current, 1);
 	}
 
 	async function removeRow(group: FormGroup, index: number) {
-		group.ingredients.splice(index, 1);
 		// The API allows a group without rows, but an empty editor group has
 		// nothing to type into, so the last row is replaced rather than dropped.
-		if (group.ingredients.length === 0) {
-			group.ingredients.push(newIngredient());
+		if (group.ingredients.length === 1) {
+			const row = newIngredient();
+			group.ingredients.splice(0, 1, row);
+			await focusRow(row.id);
+			return;
 		}
-		await focusRowAfterRemoval(group, index);
+		await dropRow(group, index);
 	}
 
 	/** Backspace in an empty row deletes it and moves the caret to its neighbor. */
@@ -71,16 +81,29 @@
 		if (group.ingredients.length === 1) {
 			return;
 		}
-		group.ingredients.splice(index, 1);
-		await focusRowAfterRemoval(group, index);
+		await dropRow(group, index);
 	}
 
-	function addGroup() {
-		groups = [...groups, newGroup()];
+	async function addGroup() {
+		const group = newGroup();
+		fresh.add(group.id);
+		groups = [...groups, group];
+		// Measured before the group's reveal starts at height 0, so the scroll
+		// aims at where the whole group will end up: below the fold on a
+		// long list, where the button that added it was.
+		flushSync();
+		document.getElementById(`ingredient-group-${group.id}`)?.scrollIntoView({
+			behavior: prefersReducedMotion.current ? 'auto' : 'smooth',
+			block: 'nearest'
+		});
+		await tick();
+		fresh.delete(group.id);
 	}
 
-	function removeGroup(index: number) {
-		groups = groups.filter((_, position) => position !== index);
+	async function removeGroup(index: number) {
+		const { id } = groups[index];
+		await collapse(document.getElementById(`ingredient-group-${id}`));
+		groups = groups.filter((group) => group.id !== id);
 		if (groups.length === 0) {
 			groups = [newGroup()];
 		}
@@ -100,7 +123,11 @@
 		</p>
 	{/if}
 	{#each groups as group, groupIndex (group.id)}
-		<div class="space-y-3">
+		<div
+			id="ingredient-group-{group.id}"
+			in:reveal={{ fresh: fresh.has(group.id) }}
+			class="space-y-3"
+		>
 			<!--
 				The name field takes the whole line on phones: beside the count and
 				"Entfernen" it was left with ~90px, not enough for its own
@@ -155,7 +182,8 @@
 			>
 				{#each group.ingredients as row, rowIndex (row.id)}
 					<li
-						animate:flip={{ duration: FLIP_DURATION }}
+						animate:flip={{ duration: fresh.size > 0 ? 0 : FLIP_DURATION }}
+						in:reveal={{ fresh: fresh.has(row.id) }}
 						aria-label={row.name.trim() === ''
 							? m.editor_ingredient_row_label({ number: rowIndex + 1 })
 							: row.name}

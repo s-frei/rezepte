@@ -1,6 +1,9 @@
 <script lang="ts">
 	import X from '@lucide/svelte/icons/x';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { slide } from 'svelte/transition';
 	import { dismissBanner, install, offer, startInstall } from '$lib/install.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -8,6 +11,15 @@
 	// it has the user menu's row and the settings card.
 	const phone = new MediaQuery('(max-width: 767.98px) and (pointer: coarse)');
 	const current = $derived(offer());
+
+	// × folds the note away and the overview closes up under it. Only ×
+	// does: an install, or the phone leaving the breakpoint, takes it at once,
+	// and it never arrives with motion - it is there on load or not at all.
+	function collapse(node: Element) {
+		const duration = install.dismissed && !prefersReducedMotion.current ? 240 : 0;
+		const fold = slide(node, { duration, easing: cubicOut });
+		return { ...fold, css: (t: number, u: number) => `${fold.css?.(t, u)}; opacity: ${t}` };
+	}
 </script>
 
 <!--
@@ -19,7 +31,7 @@
 	on every platform; on an iPhone the button opens Safari's steps.
 -->
 {#if current && phone.current && !install.dismissed}
-	<div class="mb-5 rounded-2xl bg-surface px-4 pt-3 pb-4 shadow-card">
+	<div out:collapse class="mb-5 rounded-2xl bg-surface px-4 pt-3 pb-4 shadow-card">
 		<div class="flex items-center gap-2.5">
 			<span class="font-display text-body-sm font-medium text-primary italic">
 				{m.install_banner_label()}

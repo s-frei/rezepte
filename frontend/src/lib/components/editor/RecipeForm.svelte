@@ -534,7 +534,9 @@
 					/>
 				</h2>
 				{#if errors.ingredientGroups}
-					<p class="mb-3 text-micro font-medium text-destructive">{errors.ingredientGroups}</p>
+					<p class="mb-3 text-micro font-medium text-destructive motion-safe:animate-error-in">
+						{errors.ingredientGroups}
+					</p>
 				{/if}
 				<IngredientGroupEditor bind:groups={form.ingredientGroups} {errors} />
 			</section>
@@ -542,7 +544,9 @@
 			<section id="editor-section-steps" class={sectionCard}>
 				<h2 class={sectionTitle}>{m.editor_section_steps()}</h2>
 				{#if errors.steps}
-					<p class="mb-3 text-micro font-medium text-destructive">{errors.steps}</p>
+					<p class="mb-3 text-micro font-medium text-destructive motion-safe:animate-error-in">
+						{errors.steps}
+					</p>
 				{/if}
 				<StepEditor
 					bind:steps={form.steps}

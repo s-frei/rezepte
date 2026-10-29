@@ -95,7 +95,8 @@
 	}
 </script>
 
-<li class="flex items-end gap-2.5 {mine ? 'flex-row-reverse' : ''}">
+<!-- The list item is the diary's, which moves it in and out. -->
+<div class="flex items-end gap-2.5 {mine ? 'flex-row-reverse' : ''}">
 	{#if entry.author}
 		<PersonMark person={entry.author} size="sm" />
 	{:else}
@@ -229,4 +230,4 @@
 			{/if}
 		</div>
 	{/if}
-</li>
+</div>

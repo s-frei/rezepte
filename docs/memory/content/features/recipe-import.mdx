@@ -24,6 +24,8 @@ Every member can turn a recipe on a website, or recipe text copied out of a mail
 
 Admins also see a row linking to the zip import at `/settings/transfer#import`.
 
+**The dialog answers in place.** The failure banner slides in (180ms) where the lead line was, and the duplicate panel and the field swap whole: the incoming side fades in over 180ms and the one it replaces goes at once, so the two never stand in the sheet together. The banner's `role="alert"` is announced when it mounts, and Back still hands the focus to the field. Under reduced motion both appear at once.
+
 **The hand-over.** The dialog redeems the draft's photo link while it still shows "Reading …", puts `{draft, photo, photoFailed}` into `frontend/src/lib/recipe/draft.ts` and navigates to `/recipes/new`, which takes it out once (`takeDraft`) and prefills the editor. A reload of `/recipes/new` finds nothing and shows an empty editor.
 
 - From `/recipes/new` itself it navigates too: the page stays, takes the draft in `afterNavigate` and restarts its editor (`{#key}`).

@@ -137,7 +137,7 @@
 	{#if quantityError}
 		<p
 			id="ingredient-quantity-error-{row.id}"
-			class="mt-1 pl-5 text-micro font-medium text-destructive md:pl-7"
+			class="mt-1 pl-5 text-micro font-medium text-destructive motion-safe:animate-error-in md:pl-7"
 		>
 			{quantityError}
 		</p>
@@ -145,7 +145,7 @@
 	{#if nameError}
 		<p
 			id="ingredient-name-error-{row.id}"
-			class="mt-1 pl-5 text-micro font-medium text-destructive md:pl-7"
+			class="mt-1 pl-5 text-micro font-medium text-destructive motion-safe:animate-error-in md:pl-7"
 		>
 			{nameError}
 		</p>

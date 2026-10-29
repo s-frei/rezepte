@@ -5,6 +5,9 @@
 	import Timer from '@lucide/svelte/icons/timer';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { slide } from 'svelte/transition';
 	import type { StepTime } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import type { FormRef } from '$lib/recipe/form';
@@ -62,6 +65,7 @@
 	} = $props();
 
 	let open = $state(false);
+	const SLIDE_DURATION = $derived(prefersReducedMotion.current ? 0 : 180);
 
 	const broken = $derived(links.filter((ref) => !refView(ref, entries).resolved));
 	const working = $derived(links.filter((ref) => refView(ref, entries).resolved));
@@ -172,6 +176,7 @@
 
 {#if open && listed > 0}
 	<ul
+		transition:slide={{ duration: SLIDE_DURATION, easing: cubicOut }}
 		id="step-links-{stepId}"
 		aria-label={m.editor_reference_links()}
 		class="mb-1 list-none divide-y divide-dashed divide-border border-t border-dashed border-border"

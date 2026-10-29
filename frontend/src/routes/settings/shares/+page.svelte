@@ -28,6 +28,7 @@
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { shareStatusLabel } from '$lib/recipe/share-status';
 	import { isAdminRole } from '$lib/roles';
+	import { rowMotion } from '$lib/settings/row-motion.svelte';
 
 	const isAdmin = $derived(isAdminRole(session.user?.role));
 	const isOwner = $derived(session.user?.role === 'superadmin');
@@ -42,6 +43,7 @@
 	let person = $state(page.url.searchParams.get('user') ?? '');
 	let status = $state(page.url.searchParams.get('status') ?? '');
 	let shares = $state<PublicShare[]>([]);
+	const rows = rowMotion();
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let revokeAllOpen = $state(false);
@@ -151,7 +153,7 @@
 	async function revoke(share: PublicShare) {
 		try {
 			await revokeShare(share.id);
-			shares = shares.filter((s) => s.id !== share.id);
+			rows.play(() => (shares = shares.filter((s) => s.id !== share.id)));
 			toast.success(m.public_share_revoked());
 		} catch {
 			toast.error(m.public_share_revoke_error());
@@ -278,7 +280,13 @@
 		{:else if visible.length === 0}
 			<p class="py-6 text-body-sm text-text-muted">{m.settings_shares_no_match()}</p>
 		{:else}
-			<ul aria-label={m.settings_nav_shares()} class="grid grid-cols-[minmax(0,1fr)] gap-3.5">
+			<!-- Spaced by the rows' own margin (the list's negative one takes the
+			     last away) instead of a gap: a closing row folds its margin with
+			     it, where a gap stayed until the row was gone and then jumped. -->
+			<ul
+				aria-label={m.settings_nav_shares()}
+				class="-mb-3.5 grid grid-cols-[minmax(0,1fr)] *:mb-3.5"
+			>
 				{#each visible as share (share.id)}
 					<ShareRow
 						{share}
@@ -286,6 +294,7 @@
 						ownColor={session.user?.color}
 						sharingOff={sharingOn === false}
 						onrevoke={revoke}
+						motion={rows.duration}
 					/>
 				{/each}
 			</ul>

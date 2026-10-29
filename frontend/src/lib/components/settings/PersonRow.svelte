@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { DropdownMenu, Popover, Tooltip } from 'bits-ui';
 	import { tick } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { slide } from 'svelte/transition';
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
@@ -43,7 +45,9 @@
 		onsetuplink,
 		onrevokelink,
 		onunlink,
-		ondelete
+		ondelete,
+		/** How long the row opens or closes; 0 unless the viewer just added or removed it (`rowMotion`). */
+		motion = 0
 	}: {
 		person: PersonEntry;
 		isSelf: boolean;
@@ -79,6 +83,7 @@
 		/** Disconnects the person's identity-provider account. */
 		onunlink: (person: PersonEntry) => void;
 		ondelete: (person: PersonEntry) => void;
+		motion?: number;
 	} = $props();
 
 	// Writable derived (Svelte >= 5.25): follows `person.role` from the list,
@@ -185,6 +190,7 @@
 	reach past the avatar the way the mockups' rounded rows do.
 -->
 <li
+	transition:slide={{ duration: motion, easing: cubicOut }}
 	id={personRowId(person.id)}
 	class="relative isolate flex min-h-14 items-center gap-3 py-2 md:border-b md:border-dashed md:border-border md:py-3 md:last:border-b-0"
 >

@@ -9,6 +9,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { fade } from 'svelte/transition';
 	import type { Recipe } from '$lib/api/recipes';
 	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
 	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
@@ -112,6 +113,7 @@
 			<img
 				src={preview}
 				alt={m.share_preview_alt({ title: recipe.title })}
+				in:fade={{ duration: 150 }}
 				class="h-max w-[220px] -rotate-[2.5deg] rounded-lg shadow-lift transition duration-300 ease-spring motion-reduce:transition-none {lifting
 					? '-translate-y-24 opacity-0'
 					: ''}"

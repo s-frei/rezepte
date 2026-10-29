@@ -3,6 +3,9 @@
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { Dialog } from 'bits-ui';
 	import { onDestroy, tick, untrack } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fade, slide } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -166,6 +169,8 @@
 		await focusField();
 	}
 
+	const DURATION = $derived(prefersReducedMotion.current ? 0 : 180);
+
 	const chip = 'rounded-pill bg-accent px-2.5 py-0.5 font-semibold text-accent-foreground';
 </script>
 
@@ -178,6 +183,7 @@
 	<Dialog.Title class="font-display text-heading font-medium">{m.import_title()}</Dialog.Title>
 	{#if failure}
 		<p
+			in:slide={{ duration: DURATION, easing: cubicOut }}
 			role="alert"
 			class="mt-3 rounded-md bg-destructive-soft px-3 py-2.5 text-body-sm text-destructive"
 		>
@@ -195,124 +201,131 @@
 		</Dialog.Description>
 	{/if}
 
+	<!-- Each side of the swap fades in as a whole; the one it replaces goes
+	     at once, so the two never stand in the sheet together. -->
 	{#if duplicate?.duplicate}
 		{@const found = duplicate.duplicate}
-		<div class="mt-4 rounded-md bg-accent px-3 py-2.5 text-body-sm text-accent-foreground">
-			<p>
-				{m.import_duplicate()}
-				<strong>{found.title}</strong> · {m.import_duplicate_by({
-					name: found.createdBy.displayName
-				})}
-			</p>
-		</div>
-		<p class="mt-2 flex min-h-6 items-center gap-1.5 text-caption text-text-muted">
-			{#if reading}
-				{@render readingLine()}
-			{/if}
-		</p>
-		<!-- On a phone the buttons stack full width, Import anyway on top. -->
-		<div class="mt-2 flex justify-end gap-2 max-md:flex-col-reverse">
-			<Button
-				variant="ghost"
-				onclick={backToField}
-				disabled={reading}
-				class="max-md:h-12 max-md:w-full md:mr-auto"
-			>
-				{m.import_duplicate_back()}
-			</Button>
-			<Button
-				variant="secondary"
-				href={resolve('/recipes/[slug]', { slug: found.slug })}
-				onclick={ondone}
-				class="max-md:h-12 max-md:w-full"
-			>
-				{m.import_duplicate_view()}
-			</Button>
-			<Button
-				variant="primary"
-				onclick={importAnyway}
-				disabled={reading}
-				class="max-md:h-12 max-md:w-full"
-			>
-				{m.import_duplicate_anyway()}
-			</Button>
-		</div>
-	{:else}
-		<label for="import-field" class="sr-only">{m.import_field_label()}</label>
-		<!-- Dashed like a drop area: a link dragged from the browser lands in it. -->
-		<textarea
-			id="import-field"
-			bind:this={field}
-			bind:value={raw}
-			rows={input.kind === 'text' ? 7 : input.kind === 'link' ? 3 : 10}
-			placeholder={`${m.import_field_placeholder()}\n\n${m.import_example()}`}
-			disabled={reading}
-			class="mt-4 block w-full resize-y rounded-md border-2 border-dashed border-handle bg-surface-elevated px-3.5 py-3 text-body-sm transition outline-none focus:border-primary disabled:opacity-60"
-		></textarea>
-		<div class="mt-2 flex flex-wrap items-center gap-x-3">
-			<p class="flex min-h-6 flex-wrap items-center gap-1.5 text-caption text-text-muted">
+		<div in:fade={{ duration: DURATION }}>
+			<div class="mt-4 rounded-md bg-accent px-3 py-2.5 text-body-sm text-accent-foreground">
+				<p>
+					{m.import_duplicate()}
+					<strong>{found.title}</strong> · {m.import_duplicate_by({
+						name: found.createdBy.displayName
+					})}
+				</p>
+			</div>
+			<p class="mt-2 flex min-h-6 items-center gap-1.5 text-caption text-text-muted">
 				{#if reading}
 					{@render readingLine()}
-				{:else}
-					{#if input.kind === 'link'}
-						<span class={chip}>{m.import_detected_link()}</span>
-						{m.import_detected_link_host({ host: input.host })}
-					{:else if input.kind === 'text'}
-						<span class={chip}>{m.import_detected_text()}</span>
-					{/if}
-					{#if fallback && input.kind !== 'link'}
-						<span class={input.kind === 'empty' ? '' : 'ml-2'}>{m.import_source()}</span>
-						<span class={chip}>{fallback.host}</span>
-					{/if}
 				{/if}
 			</p>
-			<!-- Opens like the editor's suggestion lines. -->
-			{#if isText}
-				<button
-					type="button"
-					aria-expanded={exampleOpen}
-					aria-controls="import-example"
-					onclick={() => (exampleOpen = !exampleOpen)}
-					class="ml-auto {TOGGLE}"
+			<!-- On a phone the buttons stack full width, Import anyway on top. -->
+			<div class="mt-2 flex justify-end gap-2 max-md:flex-col-reverse">
+				<Button
+					variant="ghost"
+					onclick={backToField}
+					disabled={reading}
+					class="max-md:h-12 max-md:w-full md:mr-auto"
 				>
-					{m.import_example_toggle()}
-					<ChevronDown
-						class="size-3.5 transition-transform motion-reduce:transition-none {exampleOpen
-							? 'rotate-180'
-							: ''}"
-						aria-hidden="true"
-					/>
-				</button>
-			{/if}
-		</div>
-		{#if exampleOpen}
-			<div
-				id="import-example"
-				class="mt-1 border-t border-dashed border-border pt-2.5 text-caption text-text-muted"
-			>
-				<p class="mb-1.5 text-label font-bold uppercase">{m.import_example_label()}</p>
-				<p
-					class="rounded-md border border-border bg-surface-elevated px-3 py-2.5 whitespace-pre-line text-text"
+					{m.import_duplicate_back()}
+				</Button>
+				<Button
+					variant="secondary"
+					href={resolve('/recipes/[slug]', { slug: found.slug })}
+					onclick={ondone}
+					class="max-md:h-12 max-md:w-full"
 				>
-					{m.import_example()}
-				</p>
-				<p class="mt-1.5">{m.import_example_note()}</p>
+					{m.import_duplicate_view()}
+				</Button>
+				<Button
+					variant="primary"
+					onclick={importAnyway}
+					disabled={reading}
+					class="max-md:h-12 max-md:w-full"
+				>
+					{m.import_duplicate_anyway()}
+				</Button>
 			</div>
-		{/if}
-		<!-- On a phone the sheet's handle closes it, so Import stands alone
+		</div>
+	{:else}
+		<div in:fade={{ duration: DURATION }}>
+			<label for="import-field" class="sr-only">{m.import_field_label()}</label>
+			<!-- Dashed like a drop area: a link dragged from the browser lands in it. -->
+			<textarea
+				id="import-field"
+				bind:this={field}
+				bind:value={raw}
+				rows={input.kind === 'text' ? 7 : input.kind === 'link' ? 3 : 10}
+				placeholder={`${m.import_field_placeholder()}\n\n${m.import_example()}`}
+				disabled={reading}
+				class="mt-4 block w-full resize-y rounded-md border-2 border-dashed border-handle bg-surface-elevated px-3.5 py-3 text-body-sm transition outline-none focus:border-primary disabled:opacity-60"
+			></textarea>
+			<div class="mt-2 flex flex-wrap items-center gap-x-3">
+				<p class="flex min-h-6 flex-wrap items-center gap-1.5 text-caption text-text-muted">
+					{#if reading}
+						{@render readingLine()}
+					{:else}
+						{#if input.kind === 'link'}
+							<span class={chip}>{m.import_detected_link()}</span>
+							{m.import_detected_link_host({ host: input.host })}
+						{:else if input.kind === 'text'}
+							<span class={chip}>{m.import_detected_text()}</span>
+						{/if}
+						{#if fallback && input.kind !== 'link'}
+							<span class={input.kind === 'empty' ? '' : 'ml-2'}>{m.import_source()}</span>
+							<span class={chip}>{fallback.host}</span>
+						{/if}
+					{/if}
+				</p>
+				<!-- Opens like the editor's suggestion lines. -->
+				{#if isText}
+					<button
+						type="button"
+						aria-expanded={exampleOpen}
+						aria-controls="import-example"
+						onclick={() => (exampleOpen = !exampleOpen)}
+						class="ml-auto {TOGGLE}"
+					>
+						{m.import_example_toggle()}
+						<ChevronDown
+							class="size-3.5 transition-transform motion-reduce:transition-none {exampleOpen
+								? 'rotate-180'
+								: ''}"
+							aria-hidden="true"
+						/>
+					</button>
+				{/if}
+			</div>
+			{#if exampleOpen}
+				<div
+					transition:slide={{ duration: DURATION, easing: cubicOut }}
+					id="import-example"
+					class="mt-1 border-t border-dashed border-border pt-2.5 text-caption text-text-muted"
+				>
+					<p class="mb-1.5 text-label font-bold uppercase">{m.import_example_label()}</p>
+					<p
+						class="rounded-md border border-border bg-surface-elevated px-3 py-2.5 whitespace-pre-line text-text"
+					>
+						{m.import_example()}
+					</p>
+					<p class="mt-1.5">{m.import_example_note()}</p>
+				</div>
+			{/if}
+			<!-- On a phone the sheet's handle closes it, so Import stands alone
 		     and spans the sheet. -->
-		<div class="mt-4 flex justify-end gap-2">
-			<Button variant="ghost" onclick={ondone} class="max-md:hidden">
-				{m.import_cancel()}
-			</Button>
-			<Button
-				variant="primary"
-				type="submit"
-				disabled={input.kind === 'empty' || reading}
-				class="max-md:h-12 max-md:w-full"
-			>
-				{m.import_submit()}
-			</Button>
+			<div class="mt-4 flex justify-end gap-2">
+				<Button variant="ghost" onclick={ondone} class="max-md:hidden">
+					{m.import_cancel()}
+				</Button>
+				<Button
+					variant="primary"
+					type="submit"
+					disabled={input.kind === 'empty' || reading}
+					class="max-md:h-12 max-md:w-full"
+				>
+					{m.import_submit()}
+				</Button>
+			</div>
 		</div>
 	{/if}
 

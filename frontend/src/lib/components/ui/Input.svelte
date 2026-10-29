@@ -171,7 +171,9 @@
 		{/if}
 	</div>
 	{#if error}
-		<p id="{id}-error" class="text-micro font-medium text-destructive">{error}</p>
+		<p id="{id}-error" class="text-micro font-medium text-destructive motion-safe:animate-error-in">
+			{error}
+		</p>
 	{:else if hint}
 		<p id="{id}-hint" class="text-micro text-text-muted">{hint}</p>
 	{/if}

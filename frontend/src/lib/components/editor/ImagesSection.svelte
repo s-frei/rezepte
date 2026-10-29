@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { flip } from 'svelte/animate';
+	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { fade, scale } from 'svelte/transition';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import { toast } from 'svelte-sonner';
@@ -21,6 +24,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { refusalOr } from '$lib/recipe/access';
 	import { newId } from '$lib/recipe/form';
+	import { fresh } from './motion';
 
 	let {
 		recipeId,
@@ -42,11 +46,17 @@
 	/**
 	 * One tile. Stored images carry their server id and thumbnail URL; queued
 	 * or in-flight files carry the File plus an object URL that is revoked
-	 * once the tile leaves the list or the section is destroyed.
+	 * once the tile leaves the list or the section is destroyed. `key` stays
+	 * when an upload lands and `id` turns into the server's, so the tile
+	 * stays the same element: its overlay fades off the photo instead of
+	 * the whole tile being replaced (and its photo blanking while the
+	 * thumbnail loads).
 	 */
-	type Tile = { id: string; url: string; file?: File; uploading: boolean };
+	type Tile = { key: string; id: string; url: string; file?: File; uploading: boolean };
 
 	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
+	const ARRIVE_DURATION = $derived(prefersReducedMotion.current ? 0 : 220);
+	const OVERLAY_DURATION = $derived(prefersReducedMotion.current ? 0 : 200);
 
 	// The props seed the section once: a `$state` initializer runs on the
 	// first render only, so a later prop value never re-seeds and undoes the
@@ -60,12 +70,14 @@
 		// `queued` is declared below, so the check is spelled out here.
 		recipeId === undefined
 			? pending.map((file) => ({
+					key: newId(),
 					id: newId(),
 					url: URL.createObjectURL(file),
 					file,
 					uploading: false
 				}))
 			: initialImages.map((image) => ({
+					key: image.id,
 					id: image.id,
 					url: imageUrl(recipeId as string, image.id, 'thumb'),
 					uploading: false
@@ -109,7 +121,9 @@
 			MAX_IMAGES - tiles.length,
 			m.images_limit_reached({ count: MAX_IMAGES })
 		)) {
-			const tile: Tile = { id: newId(), url: URL.createObjectURL(file), file, uploading: !queued };
+			const id = newId();
+			const tile: Tile = { key: id, id, url: URL.createObjectURL(file), file, uploading: !queued };
+			fresh.add(tile.key);
 			tiles.push(tile);
 			if (!queued) {
 				chain = chain.then(() => upload(tile));
@@ -130,7 +144,12 @@
 				return; // removed while uploading
 			}
 			revoke(tiles[index]);
-			tiles[index] = { id: image.id, url: imageUrl(id, image.id, 'thumb'), uploading: false };
+			tiles[index] = {
+				key: tile.key,
+				id: image.id,
+				url: imageUrl(id, image.id, 'thumb'),
+				uploading: false
+			};
 			if (coverId === null) {
 				coverId = image.id; // the server made the first upload the cover
 			}
@@ -281,9 +300,17 @@
 			aria-label={m.editor_section_images()}
 			class="flex flex-wrap gap-3"
 		>
-			{#each tiles as tile, index (tile.id)}
+			{#each tiles as tile, index (tile.key)}
+				<!-- The intro is `|global`: the first photo creates the whole
+				     list with it, and a local intro does not play for a block
+				     created with its parent. `fresh` keeps a page load still. -->
 				<li
 					animate:flip={{ duration: FLIP_DURATION }}
+					in:scale|global={{
+						start: 0.95,
+						duration: fresh.delete(tile.key) ? ARRIVE_DURATION : 0,
+						easing: cubicOut
+					}}
 					aria-label={m.images_item_label({ number: index + 1 })}
 					class="group relative h-[120px] w-[160px] list-none overflow-hidden rounded-lg bg-skeleton {tile.id ===
 					effectiveCoverId
@@ -294,8 +321,13 @@
 
 					{#if tile.uploading}
 						<div
-							class="absolute inset-0 flex items-center justify-center bg-overlay text-body-sm font-semibold text-inverse-foreground"
+							out:fade={{ duration: OVERLAY_DURATION }}
+							class="absolute inset-0 flex items-center justify-center gap-1.5 bg-overlay text-body-sm font-semibold text-inverse-foreground"
 						>
+							<LoaderCircle
+								class="size-4 animate-spin motion-reduce:animate-none"
+								aria-hidden="true"
+							/>
 							{m.images_uploading()}
 						</div>
 					{:else}

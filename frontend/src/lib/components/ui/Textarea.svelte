@@ -32,6 +32,8 @@
 		class={classes}
 		{...rest}></textarea>
 	{#if error}
-		<p id="{id}-error" class="text-micro font-medium text-destructive">{error}</p>
+		<p id="{id}-error" class="text-micro font-medium text-destructive motion-safe:animate-error-in">
+			{error}
+		</p>
 	{/if}
 </div>

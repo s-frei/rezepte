@@ -2,6 +2,9 @@
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import X from '@lucide/svelte/icons/x';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { slide } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
 	import { MAX_TAGS } from '$lib/recipe/form';
 	import { acceptSuggestion } from '$lib/recipe/tag-suggestions-import';
@@ -21,6 +24,7 @@
 
 	let open = $state(false);
 	const atLimit = $derived(tags.length >= MAX_TAGS);
+	const SLIDE_DURATION = $derived(prefersReducedMotion.current ? 0 : 180);
 
 	function accept(tag: string) {
 		({ tags, suggestions } = acceptSuggestion(tags, suggestions, tag, MAX_TAGS));
@@ -55,6 +59,7 @@
 	{/if}
 	{#if open}
 		<ul
+			transition:slide={{ duration: SLIDE_DURATION, easing: cubicOut }}
 			id="tag-suggestions"
 			aria-label={m.editor_tag_suggestions_list()}
 			class="list-none divide-y divide-dashed divide-border border-t border-dashed border-border"

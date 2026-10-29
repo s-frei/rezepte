@@ -111,6 +111,7 @@
 				<button
 					type="button"
 					onclick={() => servings.reset()}
+					in:fade={{ duration: 150 }}
 					class="text-body-sm font-medium text-primary underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					{m.servings_reset()}

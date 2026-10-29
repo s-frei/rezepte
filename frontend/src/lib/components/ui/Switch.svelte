@@ -22,7 +22,8 @@
 	design system's Switch row. The thumb travels the track's width less its
 	own and less that room on both sides, which is the 12px below - written
 	out rather than derived, because a `translate-x-full` here would move the
-	thumb its own width and stop 2px short of the end.
+	thumb its own width and stop 2px short of the end. The thumb springs a
+	hair past its stop and settles, like a toggle that clicks into place.
 -->
 <BitsSwitch.Root
 	{checked}
@@ -31,6 +32,6 @@
 	class="inline-flex h-4 w-7 shrink-0 items-center rounded-pill bg-border px-0.5 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=checked]:bg-primary"
 >
 	<BitsSwitch.Thumb
-		class="block size-3 rounded-full bg-surface-elevated shadow-card transition-transform data-[state=checked]:translate-x-3 motion-reduce:transition-none"
+		class="block size-3 rounded-full bg-surface-elevated shadow-card transition-transform duration-200 ease-spring data-[state=checked]:translate-x-3 motion-reduce:transition-none"
 	/>
 </BitsSwitch.Root>

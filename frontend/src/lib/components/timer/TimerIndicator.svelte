@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { backOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fade, fly } from 'svelte/transition';
 	import Bell from '@lucide/svelte/icons/bell';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { afterNavigate } from '$app/navigation';
@@ -35,6 +38,10 @@
 				? 'inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))]'
 				: 'inset-x-[calc(0.5rem+(100vw-1rem)*0.025)] bottom-[calc(0.75rem+0.95*(4rem+env(safe-area-inset-bottom))+env(safe-area-inset-bottom)+0.5rem)]'
 	);
+	// The player rises in when the first timer starts and fades when the last
+	// one ends; a page that loads with timers running shows it at once, since
+	// the block is there from the first render.
+	const rise = $derived(prefersReducedMotion.current ? 0 : 250);
 	let root = $state<HTMLElement>();
 	let toggle = $state<HTMLButtonElement>();
 
@@ -65,12 +72,19 @@
      the bottom right. The Toaster's offsets keep toasts clear of both. A
      ringing first timer turns it orange with "Aus" beside it. Only the nav
      shares the bottom with it, so no page chrome has to know it exists.
+     Turning to ringing, the capsule's color crosses over in 300ms and its
+     ink switches halfway, where both inks still read; faded along, the
+     text all but vanished in the middle.
+     The panel unfolds upward out of the capsule; it only toggles `hidden`,
+     so `aria-controls` always finds it.
      Named for view transitions like the nav, so the overview's cards glide
      under it, not over it. -->
 {#if first}
 	<div
 		data-timer-indicator
 		bind:this={root}
+		in:fly={{ y: 16, duration: rise, easing: backOut }}
+		out:fade={{ duration: 150 }}
 		class="fixed z-40 flex flex-col-reverse gap-2 transition-[left,right,bottom] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:timers] motion-reduce:transition-none {place} {bottomNav.still
 			? 'transition-none'
 			: ''} md:inset-x-auto md:right-6 md:bottom-6 md:items-end {bottomNav.typing
@@ -78,7 +92,7 @@
 			: ''}"
 	>
 		<div
-			class="flex items-center rounded-pill shadow-lift md:max-w-[480px] {ringing
+			class="flex items-center rounded-pill shadow-lift [transition:background-color_300ms,color_0s_150ms] md:max-w-[480px] {ringing
 				? 'ringing-halo bg-primary text-primary-foreground'
 				: 'bg-user-teal text-time-foreground'}"
 		>
@@ -91,7 +105,7 @@
 				aria-controls="timer-panel"
 				class="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-pill md:flex-none {ringing
 					? 'pr-2'
-					: 'pr-3'} hover-tint pl-1.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					: 'pr-3'} hover-tint pl-1.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				{#if ringing}
 					<Bell class="ml-1 size-5 shrink-0 bell-swing" aria-hidden="true" />
@@ -138,7 +152,7 @@
 		<div
 			id="timer-panel"
 			class="{open
-				? 'flex'
+				? 'flex origin-bottom motion-safe:animate-unfold'
 				: 'hidden'} max-h-[min(70dvh,560px)] flex-col gap-2 overflow-y-auto overscroll-contain rounded-3xl bg-user-teal p-2 shadow-lift md:w-[400px]"
 		>
 			{#each list as t (t.id)}

@@ -16,6 +16,7 @@
 		type DismissedWords
 	} from '$lib/recipe/step-references';
 	import StepField from './StepField.svelte';
+	import { collapse, fresh, reveal } from './motion';
 
 	let {
 		steps = $bindable([]),
@@ -42,32 +43,43 @@
 
 	async function addStep(index = steps.length) {
 		const step = newStep();
+		fresh.add(step.id);
 		steps.splice(index, 0, step);
 		await tick();
 		document.getElementById(`step-${step.id}`)?.focus();
+		fresh.delete(step.id);
 	}
 
 	/**
 	 * Removing a step destroys the x button that had focus, so focus would
-	 * fall to `<body>`. Hand it to the step that took its place: the one
-	 * above, or - when the first step went - the one that moved up into index
-	 * 0, which is also the fresh blank step when the list was emptied.
+	 * fall to `<body>`. Hand it to the step that takes its place: the one
+	 * above, or - when the first step goes - the one that moves up into index
+	 * 0, which is the fresh blank step when the list was emptied. A step
+	 * among others folds shut first; it is looked up again afterwards, since
+	 * the list can have changed while it closed.
 	 */
 	async function removeStep(index: number) {
-		const [removed] = steps.splice(index, 1);
+		const step = steps[index];
+		if (steps.length > 1) {
+			const neighbor = steps[index === 0 ? 1 : index - 1];
+			document.getElementById(`step-${neighbor.id}`)?.focus();
+			await collapse(document.getElementById(`step-${step.id}`)?.closest('li'));
+		}
+		const current = steps.findIndex((s) => s.id === step.id);
+		if (current === -1) return;
+		steps.splice(current, 1);
 		// The dismissals went with that step, and ids are never reused, so
 		// keeping them would only grow a map nothing reads again.
-		if (removed && removed.id in dismissed) {
+		if (step.id in dismissed) {
 			dismissed = Object.fromEntries(
-				Object.entries(dismissed).filter(([stepId]) => stepId !== removed.id)
+				Object.entries(dismissed).filter(([stepId]) => stepId !== step.id)
 			);
 		}
 		if (steps.length === 0) {
 			steps.push(newStep());
+			await tick();
+			document.getElementById(`step-${steps[0].id}`)?.focus();
 		}
-		const neighbor = steps[Math.max(0, index - 1)];
-		await tick();
-		document.getElementById(`step-${neighbor.id}`)?.focus();
 	}
 
 	function reorder(event: CustomEvent<DndEvent<FormStep>>) {
@@ -146,7 +158,8 @@
 				every second word. From `md:` up they sit beside it again.
 			-->
 			<li
-				animate:flip={{ duration: FLIP_DURATION }}
+				animate:flip={{ duration: fresh.size > 0 ? 0 : FLIP_DURATION }}
+				in:reveal={{ fresh: fresh.has(step.id) }}
 				aria-label={m.editor_step_number({ number: index + 1 })}
 				class="grid list-none grid-cols-[20px_32px_1fr_28px] items-center gap-x-2 gap-y-1.5 md:items-start md:gap-y-2"
 			>
@@ -186,7 +199,7 @@
 				{#if errors[`step:${step.id}`]}
 					<p
 						id="step-error-{step.id}"
-						class="col-span-4 -mt-1 text-micro font-medium text-destructive md:col-span-1 md:col-start-3"
+						class="col-span-4 -mt-1 text-micro font-medium text-destructive motion-safe:animate-error-in md:col-span-1 md:col-start-3"
 					>
 						{errors[`step:${step.id}`]}
 					</p>

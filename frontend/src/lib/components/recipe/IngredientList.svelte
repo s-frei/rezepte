@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { Checkbox } from 'bits-ui';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { backOut } from 'svelte/easing';
+	import { fade, scale } from 'svelte/transition';
 	import Check from '@lucide/svelte/icons/check';
 	import type { IngredientGroup } from '$lib/api/recipes';
 	import { ingredientKey } from '$lib/recipe/checked';
@@ -35,6 +38,10 @@
 	const uid = $props.id();
 	let slipIcon = $state<CopyIcon>();
 	const scaled = $derived(servings !== baseServings);
+	// A check springs in and a recomputed amount answers the stepper with a
+	// brief grow; neither moves under reduced motion. Taking a check back has
+	// no out transition, so it snaps.
+	const grow = $derived(prefersReducedMotion.current ? 0 : 150);
 	const columns = $derived(splitColumns(groups, split ? MIN_ROWS : Infinity));
 	const twoUp = $derived(columns[1].length > 0);
 	const columnGrid = $derived(
@@ -65,7 +72,10 @@
 <div class="rounded-2xl bg-surface px-6 pt-[22px] pb-2.5">
 	{#if scaled}
 		<!-- A group heading starts its column without a top margin, so the hint keeps the gap. -->
-		<p class="text-caption font-medium text-text-muted {groups[0]?.name ? 'mb-5' : 'mb-3'}">
+		<p
+			class="text-caption font-medium text-text-muted {groups[0]?.name ? 'mb-5' : 'mb-3'}"
+			in:fade={{ duration: 150 }}
+		>
 			{m.servings_scaled_hint({
 				servings: formatServings(servings),
 				factor: formatFactor(baseServings, servings)
@@ -90,8 +100,12 @@
 					{@const ingredientIndex = part.from + i}
 					{@const key = ingredientKey(recipeId, groupIndex, ingredientIndex)}
 					{@const rowChecked = isChecked(key)}
-					{@const amountInk = rowChecked ? 'text-text-muted line-through' : 'text-primary'}
-					<!-- The number gets the shared column; the unit leads the name, so a
+					{@const amountInk = rowChecked
+						? 'text-text-muted transition-colors duration-220 ease-glide'
+						: 'text-primary'}
+					{@const amount = formatQuantityFor(ingredient.quantity, baseServings, servings)}
+					<!-- The ink fades to muted with the strike and snaps back without it.
+						 The number gets the shared column; the unit leads the name, so a
 					     long unit wraps with the text instead of widening every row. -->
 					<li
 						class="col-span-full grid min-h-11 grid-cols-subgrid content-center items-baseline border-dashed border-border py-2 md:min-h-10 {rowRule(
@@ -108,18 +122,30 @@
 						>
 							{#snippet children({ checked: isRowChecked })}
 								{#if isRowChecked}
-									<Check class="size-3 text-primary-foreground" aria-hidden="true" />
+									<span class="flex" in:scale={{ start: 0.4, duration: grow, easing: backOut }}>
+										<Check class="size-3 text-primary-foreground" aria-hidden="true" />
+									</span>
 								{/if}
 							{/snippet}
 						</Checkbox.Root>
-						<span class="text-right text-body font-semibold tabular-nums {amountInk}">
-							{formatQuantityFor(ingredient.quantity, baseServings, servings)}
-						</span>
+						<!-- Keyed on the text, so only an amount the servings changed answers;
+							 it starts at 60% ink, as an empty frame would read as a flicker. -->
+						{#key amount}
+							<span
+								class="origin-right text-right text-body font-semibold tabular-nums {amountInk}"
+								in:scale={{ start: 0.9, opacity: 0.6, duration: grow }}
+							>
+								<span class="strike" data-struck={rowChecked || undefined}>{amount}</span>
+							</span>
+						{/key}
 						<!-- German compounds ("Rinderhackfleischbällchen") outrun a 320px row, so
 						     they hyphenate; the limit keeps "Muskatnuss" whole on the next line. -->
 						<span class="text-body break-words hyphens-auto [hyphenate-limit-chars:12_6_6]">
 							<!-- One struck run, so the space between unit and name is struck too. -->
-							<span class={rowChecked ? 'text-text-muted line-through' : 'text-text'}>
+							<span
+								class="strike {rowChecked ? 'text-text-muted' : 'text-text'}"
+								data-struck={rowChecked || undefined}
+							>
 								{#if ingredient.unit}
 									<span class="font-semibold {amountInk}">{ingredient.unit}</span>
 								{/if}

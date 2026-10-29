@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { cubicOut } from 'svelte/easing';
+	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
 	import type { PublicShare } from '$lib/api/shares';
 	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
@@ -22,13 +24,16 @@
 		/** Whether the household switch is off, which is then why a link is paused. */
 		sharingOff = false,
 		/** Rejects (and leaves the row in place) when the API refused. */
-		onrevoke
+		onrevoke,
+		/** How long the row opens or closes; 0 unless the viewer just added or removed it (`rowMotion`). */
+		motion = 0
 	}: {
 		share: PublicShare;
 		showCreator?: boolean;
 		ownColor?: string;
 		sharingOff?: boolean;
 		onrevoke: (share: PublicShare) => Promise<void>;
+		motion?: number;
 	} = $props();
 
 	let revokeOpen = $state(false);
@@ -63,6 +68,7 @@
 	altogether, so there is no stamp for that.
 -->
 <li
+	transition:slide={{ duration: motion, easing: cubicOut }}
 	class="relative grid min-w-0 grid-cols-[minmax(0,1fr)] rounded-l-md rounded-r-2xl border border-l-[6px] border-border bg-surface-elevated py-4 pr-4 pl-8 md:pr-5 md:pl-10 {userColorEdge(
 		share.createdBy?.color ?? ownColor
 	)}"

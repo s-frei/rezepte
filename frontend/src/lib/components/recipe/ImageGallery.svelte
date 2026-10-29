@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import ScrollFade from '$lib/components/ui/ScrollFade.svelte';
+	import { decoded } from '$lib/images/decoded';
 
 	let {
 		recipeId,
@@ -45,6 +48,27 @@
 	// removal does not always produce. Every read goes through this clamp, so
 	// `images[active]` is in range for any non-empty list.
 	const active = $derived(Math.max(0, Math.min(selected, images.length - 1)));
+
+	// The desktop cover follows a picked thumbnail once its picture is
+	// decoded, then fades in over the one before, which stays opaque under it
+	// until it is covered: two pictures fading at once dip to the page color.
+	// svelte-ignore state_referenced_locally
+	let shownId = $state(images[active].id);
+	const shown = $derived(images.find((image) => image.id === shownId) ?? images[active]);
+	const swap = 160;
+	// The outgoing picture's "fade" stays at full opacity until it is removed:
+	// an outro runs from 1 down by the eased progress, held here at none.
+	const opaque = () => 0;
+	$effect(() => {
+		if (layout !== 'desktop') return;
+		const id = images[active].id;
+		if (id === untrack(() => shownId)) return;
+		let stale = false;
+		decoded(src(id, 'detail')).then(() => {
+			if (!stale) shownId = id;
+		});
+		return () => (stale = true);
+	});
 
 	// The scroller is the event's `currentTarget`, so tracking needs no
 	// reference of its own: one snapped page is exactly one `clientWidth`.
@@ -110,14 +134,17 @@
 			onclick={() => onopen(active)}
 			data-cover
 			aria-label={m.images_open({ number: active + 1, count: images.length })}
-			class="block aspect-[4/3] w-full overflow-hidden rounded-3xl shadow-cover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="grid aspect-[4/3] w-full overflow-hidden rounded-3xl shadow-cover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
-			{#key images[active].id}
+			<!-- One grid cell: the incoming picture lies over the outgoing one. -->
+			{#key shown.id}
 				<img
-					src={src(images[active].id, 'detail')}
+					src={src(shown.id, 'detail')}
 					alt={m.images_cover_alt({ title })}
 					decoding="async"
-					class="size-full object-cover"
+					class="col-start-1 row-start-1 size-full object-cover"
+					in:fade={{ duration: swap }}
+					out:fade={{ duration: swap, easing: opaque }}
 				/>
 			{/key}
 		</button>

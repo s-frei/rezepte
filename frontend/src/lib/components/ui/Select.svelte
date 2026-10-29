@@ -116,12 +116,16 @@
 			otherwise as wide as its longest entry. A fixed floor gets both
 			ends wrong - too wide under the people table's compact role chip,
 			too narrow under a form-wide trigger.
+
+			The list opens out of the trigger's side of it (bits-ui's floating
+			origin, which follows a flip above) like a dialog grows in, short
+			enough that a quick pick never waits on it; it closes at once.
 		-->
 		<BitsSelect.Content
 			preventScroll={false}
 			align="start"
 			sideOffset={6}
-			class="z-50 min-w-[var(--bits-floating-anchor-width)] rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog"
+			class="z-50 min-w-[var(--bits-floating-anchor-width)] origin-(--bits-floating-transform-origin) rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog motion-safe:animate-drop motion-reduce:animate-appear"
 		>
 			{#each options as option (option.value)}
 				<BitsSelect.Item

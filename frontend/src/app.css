@@ -127,6 +127,53 @@
 			transform: translateY(32px);
 		}
 	}
+	/* A timer's panel growing up out of its capsule. Not from nothing: in
+	   cook mode the panel takes the capsule's place, and a first frame with
+	   neither read as a flicker. */
+	--animate-unfold: unfold 200ms var(--ease-glide) both;
+
+	@keyframes unfold {
+		from {
+			opacity: 0.4;
+			transform: scaleY(0.9);
+		}
+	}
+	/* A field's error arriving with the save that found it: down into place
+	   from just above, never out again (it goes the instant it is fixed). */
+	--animate-error-in: error-in 160ms var(--ease-glide) both;
+
+	@keyframes error-in {
+		from {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+	}
+	/* Your own face joining the people who found a recipe tasty, once the heart has beaten. */
+	--animate-pop: pop 200ms var(--ease-spring) 240ms backwards;
+
+	@keyframes pop {
+		from {
+			opacity: 0;
+			transform: scale(0.6);
+		}
+	}
+	/* A select's list opening out of its trigger; under reduced motion it
+	   only fades (`animate-appear`). Closing is instant. */
+	--animate-drop: drop 120ms var(--ease-glide) both;
+	--animate-appear: appear 120ms linear both;
+
+	@keyframes drop {
+		from {
+			opacity: 0;
+			scale: 0.96;
+		}
+	}
+
+	@keyframes appear {
+		from {
+			opacity: 0;
+		}
+	}
 
 	--text-label: 11px;
 	--text-label--line-height: 1.2;
@@ -342,6 +389,32 @@
 	@media (hover: hover) {
 		&:hover:not(:disabled) {
 			background-image: linear-gradient(color-mix(in oklab, currentColor 14%, transparent) 0 0);
+		}
+	}
+}
+
+/*
+ * A checked-off ingredient is struck through by a line drawn from the left,
+ * like a pen across a list: a 1px `currentColor` background grows from no
+ * width to the run's, and the ink fades to muted under it. A background,
+ * not `line-through`, because a text decoration cannot grow. `clone` gives
+ * each line of a wrapped name its own stroke. The transition sits on the
+ * struck state only, so taking the check back snaps the line away.
+ */
+@utility strike {
+	background-image: linear-gradient(currentColor, currentColor);
+	background-repeat: no-repeat;
+	background-position: 0 58%;
+	background-size: 0% 1px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+	&[data-struck] {
+		background-size: 100% 1px;
+		transition:
+			background-size 220ms var(--ease-glide),
+			color 220ms var(--ease-glide);
+		@media (prefers-reduced-motion: reduce) {
+			transition: color 220ms var(--ease-glide);
 		}
 	}
 }

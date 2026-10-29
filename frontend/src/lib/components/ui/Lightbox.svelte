@@ -1,13 +1,14 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import { Dialog } from 'bits-ui';
-	import { fade } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Download from '@lucide/svelte/icons/download';
 	import X from '@lucide/svelte/icons/x';
 	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
+	import { decoded } from '$lib/images/decoded';
 	import { m } from '$lib/paraglide/messages';
 	import { swipeDirection } from '$lib/recipe/swipe';
 	import ScrollFade from './ScrollFade.svelte';
@@ -38,10 +39,35 @@
 	const current = $derived(images[index]);
 	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
-	function show(next: number) {
+	// The picture on screen follows `index` once the next one is decoded, and
+	// the two cross over in one grid cell, sliding a little the way the reader
+	// went: 1 forward, -1 back. The first picture of an opening shows at once.
+	let shownId = $state<string | null>(null);
+	let way = $state(1);
+	const shown = $derived(images.find((image) => image.id === shownId) ?? current);
+	const shift = $derived(prefersReducedMotion.current ? 0 : 24);
+	$effect(() => {
+		const id = current?.id;
+		if (!open || !id) {
+			shownId = null;
+			return;
+		}
+		if (untrack(() => shownId) === null) {
+			shownId = id;
+			return;
+		}
+		let stale = false;
+		decoded(src(id, 'original')).then(() => {
+			if (!stale) shownId = id;
+		});
+		return () => (stale = true);
+	});
+
+	function show(next: number, direction = Math.sign(next - index) || 1) {
 		if (count === 0) {
 			return;
 		}
+		way = direction;
 		index = (next + count) % count;
 	}
 
@@ -151,17 +177,21 @@
 									<ChevronLeft class="size-6" aria-hidden="true" />
 								</button>
 							{/if}
-							{#key current.id}
-								<img
-									src={src(current.id, 'original')}
-									alt={m.lightbox_thumbnail({ number: index + 1 })}
-									width={current.width}
-									height={current.height}
-									decoding="async"
-									class="max-h-full max-w-full rounded-2xl object-contain select-none"
-									draggable="false"
-								/>
-							{/key}
+							<div class="grid size-full grid-cols-[100%] grid-rows-[100%] place-items-center">
+								{#key shown.id}
+									<img
+										src={src(shown.id, 'original')}
+										alt={m.lightbox_thumbnail({ number: images.indexOf(shown) + 1 })}
+										width={shown.width}
+										height={shown.height}
+										decoding="async"
+										class="col-start-1 row-start-1 max-h-full max-w-full rounded-2xl object-contain select-none"
+										draggable="false"
+										in:fly={{ x: way * shift, duration: 160 }}
+										out:fly={{ x: -way * shift, duration: 160 }}
+									/>
+								{/key}
+							</div>
 							{#if count > 1}
 								<button
 									type="button"

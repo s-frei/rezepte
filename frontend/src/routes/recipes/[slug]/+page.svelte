@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fade } from 'svelte/transition';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -56,6 +58,14 @@
 	// follows the button without reloading the recipe. From `data`, so
 	// `reloadPhotos` does not reset it.
 	let tastyBy = $derived(data.recipe?.tastyBy ?? []);
+	// Whose circle answers a change in the tasty stack: yours, after your own
+	// tap, never a list that came with the page. Writable like `tastyBy`, so
+	// another recipe starts without one.
+	let changed = $derived.by<string | null>(() => (data.recipe, null));
+	// Your tap that starts the stack brings "Tasty by" in with your circle
+	// (`animate-pop`, after the heart's first beat), not ahead of it, and the
+	// tap that empties it fades both.
+	const joined = $derived(changed && !prefersReducedMotion.current ? 1 : 0);
 	const ownRecipe = $derived(recipe && session.user?.id === recipe.createdBy.id);
 
 	function onTasty(active: boolean) {
@@ -63,6 +73,7 @@
 		if (!me) {
 			return;
 		}
+		changed = me.id;
 		tastyBy = active
 			? [
 					...tastyBy,
@@ -429,9 +440,13 @@
 					/>
 				{/if}
 				{#if tastyBy.length > 0}
-					<div class="ml-1 flex items-center gap-2 text-caption text-text-muted">
+					<div
+						class="ml-1 flex items-center gap-2 text-caption text-text-muted"
+						in:fade={{ delay: 240 * joined, duration: 200 * joined }}
+						out:fade={{ duration: 120 * joined }}
+					>
 						<span>{m.recipe_tasty_by()}</span>
-						<TastyPeople people={tastyBy} />
+						<TastyPeople people={tastyBy} {changed} />
 					</div>
 				{/if}
 			{/snippet}

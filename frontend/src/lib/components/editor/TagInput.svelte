@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Label } from 'bits-ui';
+	import { backOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { scale } from 'svelte/transition';
 	import { listTags } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -25,6 +28,7 @@
 	let highlighted = $state(-1);
 
 	const atLimit = $derived(tags.length >= MAX_TAGS);
+	const CHIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 200);
 	const suggestions = $derived(tagSuggestions({ query, known, selected: tags }));
 
 	/** The rows as rendered: existing tags first, the creation row last. */
@@ -132,8 +136,17 @@
 				? 'border-[1.5px] border-destructive'
 				: 'border-border'}"
 		>
+			<!-- A chip springs in when it is added. No flip when one goes: the
+			     field after the chips reflows at once, and chips sliding after
+			     it ran over its placeholder. The tags the recipe came with are
+			     simply there: a local intro does not play on the first render. -->
 			{#each tags as tag (tag)}
-				<TagChip label={tag} removable onremove={() => remove(tag)} />
+				<span
+					in:scale={{ start: 0.9, duration: CHIP_DURATION, easing: backOut }}
+					class="inline-flex"
+				>
+					<TagChip label={tag} removable onremove={() => remove(tag)} />
+				</span>
 			{/each}
 			{#if atLimit}
 				<span class="px-2 text-caption text-text-muted">
@@ -207,7 +220,9 @@
 		{/if}
 	</div>
 	{#if error}
-		<p id="{id}-error" class="text-micro font-medium text-destructive">{error}</p>
+		<p id="{id}-error" class="text-micro font-medium text-destructive motion-safe:animate-error-in">
+			{error}
+		</p>
 	{:else if !atLimit}
 		<p id="{id}-hint" class="text-micro text-text-muted">{m.editor_tag_hint()}</p>
 	{/if}

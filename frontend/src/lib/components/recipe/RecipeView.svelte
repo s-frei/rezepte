@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { Tabs } from 'bits-ui';
 	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
@@ -158,6 +159,7 @@
 					<button
 						type="button"
 						onclick={() => servings.reset()}
+						in:fade={{ duration: 150 }}
 						class="text-body-sm font-medium text-primary underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 					>
 						{m.servings_reset()}

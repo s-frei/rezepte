@@ -158,6 +158,10 @@ for (const t of [0, 40, 80, 120, 200]) {
 - Look at the first frame and the last: a first frame that already shows the end state, or a last one that is not the resting layout, is a jump the eye sees.
 - Run it twice, with `reducedMotion: 'no-preference'` and `'reduce'` on the context. Under `reduce` the list should come back empty for anything that moves.
 - A hover left over from the click (the card under the pointer) shows up in the list too; read the targets, not just the count.
+- One theme change per page: after a frozen theme circle is finished, its `::view-transition-group(root)` stays behind, `data-theme-transition` is never removed and the `html` takes every later click. To look at a control's own motion without the circle, delete `Document.prototype.startViewTransition` first; `setTheme` then recolors at once.
+- Creating an API token through its dialog crashes Chromium's renderer whenever the playback rate is below 1 (0 and 0.05 both), with or without the new row's motion; make the token through the API and freeze the clock for the revoke instead.
+- A Svelte transition driven by `tick` instead of `css` (the editor's `reveal`) stops when its animation is paused, so a frozen clock shows it stuck at its first frame. Slow the clock instead (`playbackRate: 0.05`) and take screenshots in real time.
+- A request held open with `page.route` (to see "Saving …") is not cancelled by `unrouteAll`: the held save went on to the instance and created the recipe. Keep the `Route` and `abort()` it before unrouting.
 
 ## Running a probe
 

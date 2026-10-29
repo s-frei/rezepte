@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
 	import Check from '@lucide/svelte/icons/check';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
@@ -57,6 +59,26 @@
 	let composer = $state<HTMLTextAreaElement>();
 	// Read out after a send or a delete, which otherwise happen silently.
 	let announcement = $state('');
+	// The entry this visit just sent rises into place; nothing else does, so
+	// the list never moves on load or when a reload brings someone's entry.
+	let sentId = $state<number | null>(null);
+	// A deleted entry fades while its row closes, so the entries after it
+	// and the composer below move up as one. Not `animate:flip`: that lifts
+	// the leaving entry out of the flow, the composer jumped up at once and
+	// the next entry slid down over it. The list's gap closes with the row -
+	// the one above it when it is the last - or it would snap at the end.
+	const leaving = $derived(prefersReducedMotion.current ? 0 : 200);
+	function leave(node: HTMLElement) {
+		const height = node.offsetHeight;
+		const gap = parseFloat(getComputedStyle(node.parentElement!).rowGap) || 0;
+		const side = node.nextElementSibling ? 'margin-bottom' : 'margin-top';
+		return {
+			duration: leaving,
+			easing: cubicOut,
+			css: (t: number) =>
+				`overflow: hidden; opacity: ${t}; height: ${t * height}px; ${side}: ${(t - 1) * gap}px`
+		};
+	}
 
 	const days = $derived(groupByDay(entries, new Date()));
 	const blocked = $derived(busy || !sendable(draft));
@@ -103,6 +125,7 @@
 			progress = null;
 			const added = await addComment(recipeId, sent, ids);
 			if (destroyed) return;
+			sentId = added.id;
 			if (!entries.some((e) => e.id === added.id)) entries = [...entries, added];
 			// Whatever was typed while it went out stays.
 			if (draft === sent) draft = '';
@@ -224,17 +247,28 @@
 			<span class="flex-1 border-b-2 border-dotted border-border" aria-hidden="true"></span>
 		</h3>
 		<ul class="flex flex-col gap-3">
+			<!-- The rise is CSS, not `in:`: the first entry of a day arrives with
+			     its day, and a transition would not play for a new day's list.
+			     A delete that empties a day takes the day with it at once. -->
 			{#each day.entries as entry (entry.id)}
-				<DiaryEntry
-					{entry}
-					{recipeId}
-					onsave={(body, imageIds) => save(entry.id, body, imageIds)}
-					onopenphoto={(index) => openPhoto(entry, index)}
-					ondelete={() => {
-						deleting = entry;
-						confirmOpen = true;
+				<li
+					class={entry.id === sentId ? 'motion-safe:animate-rise' : ''}
+					onanimationend={(event) => {
+						if (event.target === event.currentTarget) sentId = null;
 					}}
-				/>
+					out:leave
+				>
+					<DiaryEntry
+						{entry}
+						{recipeId}
+						onsave={(body, imageIds) => save(entry.id, body, imageIds)}
+						onopenphoto={(index) => openPhoto(entry, index)}
+						ondelete={() => {
+							deleting = entry;
+							confirmOpen = true;
+						}}
+					/>
+				</li>
 			{/each}
 		</ul>
 	{:else}

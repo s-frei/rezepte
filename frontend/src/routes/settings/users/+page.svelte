@@ -34,9 +34,11 @@
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { isAdminRole, roleLabel } from '$lib/roles';
-	import { focusManageButton, focusMenuTrigger } from '$lib/settings/person-focus';
+	import { focusManageButton, focusMenuTrigger, personRowId } from '$lib/settings/person-focus';
+	import { rowMotion } from '$lib/settings/row-motion.svelte';
 
 	let users = $state<PersonEntry[]>([]);
+	const rows = rowMotion();
 	let usage = $state<ColorUsage[]>([]);
 	// Who may share publicly, by id. The people list leaves it out - it is an
 	// admin's business, not everyone's - so an admin reads it from the
@@ -173,7 +175,7 @@
 	}
 
 	function userCreated(user: UserAccount, setupLink: SetupLinkInfo | null) {
-		users = [...users, user];
+		rows.play(() => (users = [...users, user]));
 		void loadUsage();
 		// Recorded either way: a password-mode create has one already
 		// (hasPassword true, no open link), and without this the new row
@@ -371,14 +373,20 @@
 		if (!target) return;
 		try {
 			await deleteUser(target.id);
-			users = users.filter((u) => u.id !== target.id);
+			rows.play(() => (users = users.filter((u) => u.id !== target.id)));
 			void loadUsage();
 			// The dialog hands focus back to the row it was opened from, and that
 			// row is gone now: without a new home focus falls to <body> and a
 			// screen reader starts over at the top. The card's heading is the
-			// nearest place that still stands.
+			// nearest place that still stands. The row is still in the document
+			// while it closes, so focus inside it counts as lost too.
 			await tick();
-			if (!document.activeElement || document.activeElement === document.body) {
+			const active = document.activeElement;
+			if (
+				!active ||
+				active === document.body ||
+				active.closest(`[id="${personRowId(target.id)}"]`)
+			) {
 				document.getElementById('settings-users')?.focus();
 			}
 			toast.success(m.users_deleted({ username: target.username }));
@@ -451,6 +459,7 @@
 				onunlink={askUnlink}
 				ondelete={askDelete}
 				onprofile={profileSaved}
+				motion={rows.duration}
 			/>
 		{/if}
 	</section>

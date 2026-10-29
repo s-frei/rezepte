@@ -81,7 +81,16 @@
 				<DropdownMenu.GroupHeading class="text-body-sm text-text">
 					{m.settings_theme_title()}
 				</DropdownMenu.GroupHeading>
-				<div class="ml-auto flex rounded-pill bg-background p-0.5">
+				<!-- The checked look is one pill under the icons, as in
+				     SegmentedControl; the segments are equal, so it moves by
+				     its own width like the bottom nav's. -->
+				<div class="relative ml-auto flex rounded-pill bg-background p-0.5">
+					<span
+						aria-hidden="true"
+						class="absolute top-0.5 left-0.5 h-6 w-6.5 rounded-pill bg-surface shadow-card transition-transform duration-300 ease-glide motion-reduce:transition-none"
+						style:transform="translateX({themeOptions().findIndex((o) => o.value === theme.value) *
+							100}%)"
+					></span>
 					{#each themeOptions() as option (option.value)}
 						{@const Icon = option.icon}
 						<DropdownMenu.RadioItem
@@ -89,7 +98,7 @@
 							closeOnSelect={false}
 							aria-label={option.label}
 							title={option.label}
-							class="flex h-6 w-6.5 items-center justify-center rounded-pill text-text-muted transition outline-none hover:text-text focus-visible:outline-2 focus-visible:outline-primary data-highlighted:text-text data-[state=checked]:bg-surface data-[state=checked]:text-text data-[state=checked]:shadow-card"
+							class="relative flex h-6 w-6.5 items-center justify-center rounded-pill text-text-muted transition outline-none hover:text-text focus-visible:outline-2 focus-visible:outline-primary data-highlighted:text-text data-[state=checked]:text-text"
 						>
 							<Icon class="size-3.5" aria-hidden="true" />
 						</DropdownMenu.RadioItem>

@@ -26,7 +26,8 @@
 		onrevokelink,
 		onunlink,
 		ondelete,
-		onprofile
+		onprofile,
+		motion = 0
 	}: {
 		people: PersonEntry[];
 		meId: string;
@@ -66,6 +67,9 @@
 		ondelete: (person: PersonEntry) => void;
 		/** The account as the profile dialog saved it. */
 		onprofile: (person: PersonEntry | UserAccount) => void;
+		/** How long an added or deleted row opens or closes (`rowMotion`); a
+		 * role change re-creates the row in its new group at once. */
+		motion?: number;
 	} = $props();
 
 	const uid = $props.id();
@@ -162,6 +166,7 @@
 					{onrevokelink}
 					{onunlink}
 					{ondelete}
+					{motion}
 				/>
 			{/each}
 		</ul>

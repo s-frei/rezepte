@@ -1,4 +1,8 @@
 <script lang="ts">
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import { backOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { scale } from 'svelte/transition';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -15,7 +19,41 @@
 		oncancel: () => void;
 		onsave: () => void;
 	} = $props();
+
+	const DOT_DURATION = $derived(prefersReducedMotion.current ? 0 : 160);
 </script>
+
+<!--
+	The label that shows and, in the same grid cell, the other one as an
+	invisible stand-in, so the button is always as wide as the wider of the
+	two and the swap moves nothing. The stand-in's words are generated
+	content (`data-label`), not text: as text they were part of the
+	button's `textContent`, which read "Save Saving…".
+-->
+{#snippet label()}
+	<span class="grid justify-items-center">
+		{#if saving}
+			<span class="col-start-1 row-start-1 inline-flex items-center gap-1.5">
+				<LoaderCircle class="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+				{m.common_saving()}
+			</span>
+			<span
+				aria-hidden="true"
+				data-label={m.common_save()}
+				class="invisible col-start-1 row-start-1 after:content-[attr(data-label)]"
+			></span>
+		{:else}
+			<span class="col-start-1 row-start-1">{m.common_save()}</span>
+			<span
+				aria-hidden="true"
+				data-label={m.common_saving()}
+				class="invisible col-start-1 row-start-1 inline-flex items-center gap-1.5 after:content-[attr(data-label)]"
+			>
+				<span class="size-4"></span>
+			</span>
+		{/if}
+	</span>
+{/snippet}
 
 <!--
 	Mobile: pinned to the top of the screen, not the bottom. The software
@@ -38,14 +76,20 @@
 	<Button variant="ghost" disabled={saving} onclick={oncancel}>
 		{m.common_cancel()}
 	</Button>
-	{#if dirty}
-		<span class="ml-auto flex items-center">
-			<span aria-hidden="true" class="size-2 rounded-pill bg-primary"></span>
+	<!-- Always there and always the one pushed right, so the dot coming and
+	     going never hands `ml-auto` to Save and moves it. -->
+	<span class="ml-auto flex size-2 items-center">
+		{#if dirty}
+			<span
+				in:scale={{ duration: DOT_DURATION, easing: backOut }}
+				aria-hidden="true"
+				class="size-2 rounded-pill bg-primary"
+			></span>
 			<span class="sr-only">{m.editor_unsaved_changes()}</span>
-		</span>
-	{/if}
-	<Button variant="primary" disabled={saving} onclick={onsave} class={dirty ? '' : 'ml-auto'}>
-		{saving ? m.common_saving() : m.common_save()}
+		{/if}
+	</span>
+	<Button variant="primary" disabled={saving} onclick={onsave}>
+		{@render label()}
 	</Button>
 </div>
 
@@ -71,14 +115,18 @@
 	data-testid="save-actions"
 >
 	<Button variant="primary" disabled={saving} onclick={onsave} class="w-full">
-		{saving ? m.common_saving() : m.common_save()}
+		{@render label()}
 	</Button>
 	<Button variant="ghost" disabled={saving} onclick={oncancel} class="w-full">
 		{m.common_cancel()}
 	</Button>
 	{#if dirty}
 		<span class="mt-1 flex items-center justify-center gap-2 text-caption text-text-muted">
-			<span aria-hidden="true" class="size-2 shrink-0 rounded-pill bg-current"></span>
+			<span
+				in:scale={{ duration: DOT_DURATION, easing: backOut }}
+				aria-hidden="true"
+				class="size-2 shrink-0 rounded-pill bg-current"
+			></span>
 			<span>{m.editor_unsaved_changes()}</span>
 		</span>
 	{/if}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { cubicOut } from 'svelte/easing';
+	import { slide } from 'svelte/transition';
 	import type { ApiToken } from '$lib/api/tokens';
 	import LifetimeBar from '$lib/components/ui/LifetimeBar.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
@@ -11,8 +13,15 @@
 	let {
 		token,
 		showIssuer,
-		onrevoke
-	}: { token: ApiToken; showIssuer: boolean; onrevoke: (token: ApiToken) => void } = $props();
+		onrevoke,
+		/** How long the row opens or closes; 0 unless the viewer just added or removed it (`rowMotion`). */
+		motion = 0
+	}: {
+		token: ApiToken;
+		showIssuer: boolean;
+		onrevoke: (token: ApiToken) => void;
+		motion?: number;
+	} = $props();
 
 	const expired = $derived(isExpired(token));
 
@@ -49,6 +58,7 @@
 	spoken by the hidden line next to the bar.
 -->
 <li
+	transition:slide={{ duration: motion, easing: cubicOut }}
 	class="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-l-md rounded-r-2xl border border-l-[6px] border-border bg-surface-elevated py-4 pr-4 pl-8 md:pr-5 md:pl-10 {userColorEdge(
 		token.ownerColor
 	)}"
