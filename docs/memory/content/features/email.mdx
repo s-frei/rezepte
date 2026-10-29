@@ -76,7 +76,7 @@ Rezepte sends mail through an SMTP server the owner names, in the environment or
 
 ## Limits
 
-- The mails above are all it sends; further notifications are on the [Roadmap](/roadmap).
+- The mails above are all it sends; a further notification is a new kind in [Notifications](/features/notifications) on the same sender.
 - No rate limit per IP: the reset mail and the resend are limited per account, so a stranger can mail an account's owner a reset link once in five minutes, and nothing more.
 - The owner is never reset by mail.
 - No outbox, no retry: a failed send is reported once, and the admin passes the link on or sends it again.

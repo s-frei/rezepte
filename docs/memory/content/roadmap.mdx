@@ -15,15 +15,11 @@ Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`.
 
 ## OAuth for MCP
 
-OIDC login exists ([OIDC](/features/oidc)); what is missing is OAuth 2.1 itself - claude.ai custom connectors need it, not the static bearer token the [MCP server](/features/mcp) takes (see that page's Limits). Rezepte adds protected-resource metadata, a JWT verifier beside the `rzp_` one, and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
+claude.ai custom connectors need OAuth 2.1, not the static bearer token the [MCP server](/features/mcp) takes (see that page's Limits). Rezepte becomes its own authorization server: authorize and token endpoints, dynamic client registration, PKCE, a consent page, refresh and revocation. Connecting signs in through Rezepte's own login, so an instance without [OIDC](/features/oidc) gets OAuth too; delegating to the owner's identity provider was rejected because it would work only where that provider happens to offer client registration and JWT access tokens with Rezepte as the audience. Rezepte also adds protected-resource metadata and a `resource_metadata` parameter on the `401`'s `WWW-Authenticate` header; the MCP handler itself does not change, since it only ever sees a principal with scopes.
 
 ## Import and export
 
 Recipes move between instances as a zip ([Import and export](/features/import-export)), and a link or pasted text becomes a draft ([Recipe import](/features/recipe-import)). What is left is an import tool for the [MCP server](/features/mcp); Android's "Share → Rezepte" already opens the same dialog.
-
-## Email
-
-Rezepte sends setup links, password resets, address confirmations, security notices and three notifications (a new comment, the daily new recipes digest, an accepted invitation) by mail through an SMTP server the owner configures ([Email](/features/email)). What is left is a digest that batches several comments into one mail; further notifications would be new kinds in [Notifications](/features/notifications) on the same sender.
 
 ## Shopping list
 
@@ -32,7 +28,3 @@ Several recipes add up on one shopping list. It holds recipe ingredients only. O
 ## More recipe features
 
 Personal notes, "last cooked", meal plan.
-
-## Tooling
-
-Screenshot generation in CI: `mise run //docs/user:screenshots` needs a Chromium that starts there, and CI has none, so the committed PNGs are regenerated locally. [Documentation sites](/architecture/docs) owns the screenshot pipeline.

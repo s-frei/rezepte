@@ -32,7 +32,7 @@ Rezepte mails three things a person may not want: a new comment on a recipe they
 
 ## Limits
 
-- One mail per comment: three comments in a row are three mails; only new recipes are batched, into the daily digest. A comment digest is on the [Roadmap](/roadmap).
+- One mail per comment: three comments in a row are three mails; only new recipes are batched, into the daily digest.
 - The digest's claim commits before its mails go out: only a crash mid-run, mail switched off mid-run (logged with the number left unsent) or a run outlasting the shutdown wait (logged; also the container runtime's own stop timeout, which kills the process first when shorter; the shipped `docker-compose.yaml` sets `stop_grace_period: 2m30s` and the `docker run` line `--stop-timeout 150` for that) loses that day's remaining digests rather than sending any twice (at most once, never twice; the `ponytail:` mark on `claimRecipeDigest`). One send time for the whole instance, by the hour.
 - Only a confirmed address is mailed.
 - No token or identity mails are kinds: setup links, resets, confirmations and security notices cannot be switched off.
