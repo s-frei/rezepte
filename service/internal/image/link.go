@@ -54,11 +54,32 @@ func (l *UploadLinks) Issue(recipeID, userID string) (string, time.Time, error) 
 	return l.publicURL + "/api/v1/recipes/" + url.PathEscape(recipeID) + "/images/link?" + q.Encode(), expires, nil
 }
 
+// linkForm is uploadForm without the declared-type check: the curl line
+// photo_upload_link hands out lets curl pick the part's type from the file
+// extension, and curl sends application/octet-stream for .webp or a file
+// without one. decode sniffs the bytes either way (415 when not an image).
+type linkForm struct {
+	File huma.FormFile `form:"file" required:"true"`
+}
+
 type linkInput struct {
 	ID      string `path:"id"`
 	User    string `query:"user"`
 	Token   string `query:"token"`
-	RawBody huma.MultipartFormFiles[uploadForm]
+	RawBody huma.MultipartFormFiles[linkForm]
+}
+
+// requireLink refuses a request without a valid link before huma parses
+// the body: the route needs no account, so a stranger must not get it to
+// read megabytes.
+func requireLink(api huma.API, links *UploadLinks) func(ctx huma.Context, next func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		if !links.signer.Verify(linkSubject(ctx.Param("id"), ctx.Query("user")), ctx.Query("token")) {
+			_ = huma.WriteErr(api, ctx, http.StatusForbidden, "upload link invalid or expired")
+			return
+		}
+		next(ctx)
+	}
 }
 
 // RegisterUploadLink installs the upload route the links point at. It
@@ -74,14 +95,11 @@ func RegisterUploadLink(api huma.API, svc *Service, links *UploadLinks) {
 		Hidden:        true,
 		DefaultStatus: http.StatusCreated,
 		MaxBodyBytes:  MaxUploadBytes,
-		Middlewares:   huma.Middlewares{LimitUpload(api)},
+		Middlewares:   huma.Middlewares{requireLink(api, links), LimitUpload(api)},
 		Errors:        []int{403, 404, 413, 415, 422},
 	}, func(ctx context.Context, in *linkInput) (*imageOutput, error) {
 		file := in.RawBody.Data().File
 		defer file.Close()
-		if !links.signer.Verify(linkSubject(in.ID, in.User), in.Token) {
-			return nil, huma.Error403Forbidden("upload link invalid or expired")
-		}
 		u, err := links.users.ByID(ctx, in.User)
 		if errors.Is(err, user.ErrNotFound) {
 			return nil, huma.Error403Forbidden("upload link invalid or expired")

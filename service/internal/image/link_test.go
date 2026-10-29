@@ -178,3 +178,28 @@ func TestIssuedLinkShape(t *testing.T) {
 		t.Fatalf("expires in %v, want about 15 minutes", d)
 	}
 }
+
+// TestUploadLinkAcceptsUntypedPart pins the curl line the MCP tool hands
+// out: curl names no type for .webp or a file without extension and sends
+// application/octet-stream, so the route must sniff the bytes instead.
+func TestUploadLinkAcceptsUntypedPart(t *testing.T) {
+	e := setup(t)
+	h, links := linkStack(t, e)
+	body, ct := multipartBody(t, pngBytes(t, 96, 72), "application/octet-stream")
+	rec := doReq(h, http.MethodPost, strings.TrimPrefix(issue(t, links, e.recipe.ID, e.owner), linkBase), body, ct, nil)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestUploadLinkRefusesBadTokenBeforeBody pins that a stranger without a
+// valid link is refused before the body is parsed: no account is needed to
+// reach this route, so it must not read megabytes for one.
+func TestUploadLinkRefusesBadTokenBeforeBody(t *testing.T) {
+	e := setup(t)
+	h, _ := linkStack(t, e)
+	path := "/api/v1/recipes/" + e.recipe.ID + "/images/link?user=" + e.owner + "&token=nope"
+	if rec := doReq(h, http.MethodPost, path, []byte("not multipart"), "text/plain", nil); rec.Code != http.StatusForbidden {
+		t.Fatalf("status %d, want 403: %s", rec.Code, rec.Body.String())
+	}
+}
