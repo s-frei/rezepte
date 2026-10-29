@@ -98,7 +98,7 @@ type getIn struct {
 func addGetRecipe(s *mcp.Server, c caller) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "get_recipe",
-		Description: "Read one recipe completely: ingredient groups, steps with their ingredient references, tags, authors, whether the token owner starred it and whether they may edit or delete it. Pass exactly one of id or slug.",
+		Description: "Read one recipe completely: ingredient groups, steps with their ingredient references, tags, authors, whether the token owner starred it and whether they may edit or delete it, and its photos (images, in display order, and coverImageId; look at one with get_photo). Pass exactly one of id or slug.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getIn) (*mcp.CallToolResult, any, error) {
 		if (in.ID == "") == (in.Slug == "") {

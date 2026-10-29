@@ -249,10 +249,13 @@ func run() error {
 	recipes.SetCommentNotifier(notifications)
 	recipe.Register(srv.API(), recipes)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
-	if err := mcpserver.Register(srv.API(), recipes, version); err != nil {
+	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
+	photos := mcpserver.Photos{Images: images, Links: uploadLinks, Fetch: recipeimport.NewFetcher(version, recipeimport.PublicOnly)}
+	if err := mcpserver.Register(srv.API(), recipes, version, photos); err != nil {
 		return fmt.Errorf("mcp: %w", err)
 	}
 	image.Register(srv.API(), images)
+	image.RegisterUploadLink(srv.API(), images, uploadLinks)
 	avatar.Register(srv.API(), avatars)
 	// Leftovers of a killed process are only wasted disk, so a failed sweep
 	// is worth a warning, not a refusal to start.

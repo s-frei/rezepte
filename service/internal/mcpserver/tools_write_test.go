@@ -30,9 +30,9 @@ func TestToolListsPerScope(t *testing.T) {
 		scopes []string
 		want   int
 	}{
-		{[]string{auth.ScopeRecipesRead}, 4},
-		{[]string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, 11},
-		{full, 12},
+		{[]string{auth.ScopeRecipesRead}, 5},
+		{[]string{auth.ScopeRecipesRead, auth.ScopeRecipesWrite}, 14},
+		{full, 15},
 	}
 	for _, tc := range cases {
 		if got := toolNames(t, e.connect(t, tc.scopes...)); len(got) != tc.want {
@@ -201,28 +201,30 @@ func TestDeleteIsDestructive(t *testing.T) {
 	if a := byName("delete_recipe"); a == nil || a.DestructiveHint == nil || !*a.DestructiveHint {
 		t.Error("delete_recipe lacks destructiveHint")
 	}
-	for _, name := range []string{"create_recipe", "add_favorite", "remove_favorite", "add_tasty", "remove_tasty"} {
+	for _, name := range []string{"create_recipe", "add_favorite", "remove_favorite", "add_tasty", "remove_tasty", "add_photo", "photo_upload_link"} {
 		if a := byName(name); a == nil || a.DestructiveHint == nil || *a.DestructiveHint {
 			t.Errorf("%s: destructiveHint = %v, want explicit false", name, a)
 		}
 	}
 }
 
-// TestToolsAreClosedWorld pins openWorldHint: false on every tool. Each one
-// works on this instance's own collection only, and the SDK leaves the hint
-// unset, which clients read as true.
+// TestToolsAreClosedWorld pins openWorldHint: false on every tool but
+// add_photo. Each other one works on this instance's own collection only,
+// and the SDK leaves the hint unset, which clients read as true; add_photo
+// downloads from the web and says so.
 func TestToolsAreClosedWorld(t *testing.T) {
 	e := newEnv(t)
 	res, err := e.connect(t, full...).ListTools(t.Context(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Tools) != 12 {
-		t.Fatalf("%d tools, want 12", len(res.Tools))
+	if len(res.Tools) != 15 {
+		t.Fatalf("%d tools, want 15", len(res.Tools))
 	}
 	for _, tl := range res.Tools {
-		if a := tl.Annotations; a == nil || a.OpenWorldHint == nil || *a.OpenWorldHint {
-			t.Errorf("%s: openWorldHint not explicitly false", tl.Name)
+		want := tl.Name == "add_photo"
+		if a := tl.Annotations; a == nil || a.OpenWorldHint == nil || *a.OpenWorldHint != want {
+			t.Errorf("%s: openWorldHint not explicitly %v", tl.Name, want)
 		}
 	}
 }

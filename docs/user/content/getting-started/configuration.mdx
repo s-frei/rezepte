@@ -15,7 +15,7 @@ Rezepte takes its entire configuration from environment variables — there is n
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
     REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
     REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
-    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org — scheme and host only, no path. Required for sign-in through an identity provider and for mail, so a mailed link can point back to Rezepte', type: 'string' },
+    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org — scheme and host only, no path. Required for sign-in through an identity provider, for mail, so a mailed link can point back to Rezepte, and for the photo upload links an AI assistant uses', type: 'string' },
     REZEPTE_OIDC_ISSUER: { description: 'Issuer URL of the OpenID Connect provider people may sign in with; setting it turns that sign-in on and locks Settings → Sign-in to the environment', type: 'string' },
     REZEPTE_OIDC_CLIENT_ID: { description: 'Client ID Rezepte is registered under at the provider', type: 'string' },
     REZEPTE_OIDC_CLIENT_SECRET: { description: 'Client secret, if the provider issued one', type: 'string' },

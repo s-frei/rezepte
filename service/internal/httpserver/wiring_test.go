@@ -23,6 +23,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/recipeimport"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
@@ -73,10 +74,11 @@ func newFullApp(t *testing.T) fullApp {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
-	if err := mcpserver.Register(srv.API(), recipes, "test"); err != nil {
+	if err := mcpserver.Register(srv.API(), recipes, "test", mcpserver.Photos{Images: images, Links: image.NewUploadLinks("", users), Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
 		t.Fatal(err)
 	}
 	image.Register(srv.API(), images)
+	image.RegisterUploadLink(srv.API(), images, image.NewUploadLinks("", users))
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, dataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance, func(context.Context) bool { return false })
 	preview.Register(srv.API(), previews)
@@ -429,8 +431,8 @@ func TestMCPSpeaksTheProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tools.Tools) != 12 {
-		t.Fatalf("%d tools, want 12", len(tools.Tools))
+	if len(tools.Tools) != 15 {
+		t.Fatalf("%d tools, want 15", len(tools.Tools))
 	}
 
 	res, err := cs.CallTool(t.Context(), &mcp.CallToolParams{Name: "create_recipe", Arguments: map[string]any{"recipe": map[string]any{

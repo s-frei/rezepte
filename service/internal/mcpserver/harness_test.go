@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"slices"
 	"testing"
 
@@ -14,7 +15,9 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/recipeimport"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -25,17 +28,37 @@ type env struct {
 	tokens *auth.TokenService
 	owner  user.User
 	url    string
+	photos Photos
 	// base is the caller Handler builds, without a user; connectAs fills
 	// one in.
 	base caller
 }
 
+// testPublicURL is the address upload links are built on in tests.
+const testPublicURL = "https://rezepte.example"
+
+// anyAddr lets the test fetcher reach httptest servers on loopback.
+func anyAddr(netip.Addr) bool { return true }
+
 func newEnv(t *testing.T) env {
+	t.Helper()
+	return newEnvWith(t, testPublicURL, anyAddr)
+}
+
+// newEnvWith is newEnv with the instance's public URL and the fetcher's
+// address check chosen by the test.
+func newEnvWith(t *testing.T, publicURL string, allow func(netip.Addr) bool) env {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
 	tokens := auth.NewTokenService(conn, users)
-	svc := recipe.NewService(conn, "")
+	dir := t.TempDir()
+	svc := recipe.NewService(conn, dir)
+	photos := Photos{
+		Images: image.NewService(conn, dir),
+		Links:  image.NewUploadLinks(publicURL, users),
+		Fetch:  recipeimport.NewFetcher("test", allow),
+	}
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("test", "0"))
 	api.UseMiddleware(auth.Middleware(auth.NewService(conn, users), tokens, false)(api))
@@ -44,7 +67,7 @@ func newEnv(t *testing.T) env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Register(api, svc, "test"); err != nil {
+	if err := Register(api, svc, "test", photos); err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(mux)
@@ -61,8 +84,8 @@ func newEnv(t *testing.T) env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := caller{svc: svc, create: create, update: update, search: search}
-	return env{conn: conn, svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", base: base}
+	base := caller{svc: svc, create: create, update: update, search: search, photos: photos}
+	return env{conn: conn, svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", photos: photos, base: base}
 }
 
 // member creates a plain user, whose editing rights are narrower than the

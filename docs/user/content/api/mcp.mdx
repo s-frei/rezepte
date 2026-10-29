@@ -49,7 +49,7 @@ VS Code's `mcp.json` expects the same entry under a top-level `servers` key inst
 
 ## What the assistant can do
 
-Twelve tools, each reaching as far as the token's scopes allow. The assistant acts as the admin who issued the token, under the same [editing rights](/guide/editing-rights) as in the app:
+Fifteen tools, each reaching as far as the token's scopes allow. The assistant acts as the admin who issued the token, under the same [editing rights](/guide/editing-rights) as in the app:
 
 - **Search** the collection by keyword, tag, time, favorites or author, and sort it by the most tasty marks.
 - **Read** one recipe in full — ingredients, steps, tags, whether you have starred it, and who marked it tasty.
@@ -61,10 +61,15 @@ Twelve tools, each reaching as far as the token's scopes allow. The assistant ac
 - **Mark a recipe tasty**, or take the mark back — never on a recipe the token's admin wrote.
 - **Read a recipe's [comments](/guide/comments)**, and see which ones are new for you — reading it does not clear the dot in the app.
 - **Write a comment** on a recipe, as the token's admin. It cannot edit or delete comments, and photos are not part of it: reading shows only how many photos a comment has.
+- **Add a photo from a link** to a recipe — Rezepte downloads it itself. The first photo a recipe gets becomes its cover.
+- **Upload photos from your computer**, in an assistant that can run commands, such as Claude Code. It asks Rezepte for an upload link that works for 15 minutes and sends each photo there; your token never appears in it. This needs the instance's [public address](/getting-started/configuration) set (`REZEPTE_PUBLIC_URL`).
+- **Look at a recipe's photos**, to check an upload or describe a dish.
 
 ## What it cannot do
 
-- It cannot upload or see photos. Recipe images are not part of MCP.
+- It cannot change the cover, reorder or delete photos — do that in the app.
+- Photos must be JPEG, PNG or WebP; an assistant converts others, such as iPhone HEIC photos, before uploading.
+- It cannot see or add photos on comments.
 - It cannot do anything about members, passwords or anyone else's account.
 - It can never do more than the token's scopes allow — a **Read** token cannot create, edit or delete, and only **Delete** can delete.
 

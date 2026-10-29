@@ -22,7 +22,7 @@ import (
 // components, which is the cheapest way to make the schema build fail.
 func TestHandlerFailsAtBootWithoutRecipeRegister(t *testing.T) {
 	_, api := humatest.New(t)
-	if _, err := Handler(&recipe.Service{}, api, "test"); err == nil || !strings.Contains(err.Error(), "recipe.Register") {
+	if _, err := Handler(&recipe.Service{}, api, "test", Photos{}); err == nil || !strings.Contains(err.Error(), "recipe.Register") {
 		t.Fatalf("err = %v, want a recipe.Register error", err)
 	}
 }
@@ -43,7 +43,7 @@ func TestReadTokenListsReadTools(t *testing.T) {
 	e := newEnv(t)
 	got := toolNames(t, e.connect(t, auth.ScopeRecipesRead))
 	slices.Sort(got)
-	want := []string{"get_recipe", "list_comments", "list_tags", "search_recipes"}
+	want := []string{"get_photo", "get_recipe", "list_comments", "list_tags", "search_recipes"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("tools = %v, want %v", got, want)
 	}

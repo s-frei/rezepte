@@ -27,6 +27,7 @@ type caller struct {
 	create *jsonschema.Schema
 	update *jsonschema.Schema
 	search *jsonschema.Schema
+	photos Photos
 }
 
 // resolveAsAddTool resolves s the way mcp.AddTool does. AddTool resolves a
@@ -62,8 +63,8 @@ var tools []tool
 // answer 405 once authenticated. They are registered hidden all the same,
 // so they are refused like POST instead of falling through to the SPA.
 // api must already have recipe.Register applied.
-func Register(api huma.API, svc *recipe.Service, version string) error {
-	h, err := Handler(svc, api, version)
+func Register(api huma.API, svc *recipe.Service, version string, photos Photos) error {
+	h, err := Handler(svc, api, version, photos)
 	if err != nil {
 		return err
 	}
@@ -102,7 +103,7 @@ func Register(api huma.API, svc *recipe.Service, version string) error {
 // Handler serves MCP over stateless Streamable HTTP; Register mounts it. It
 // reads the caller from auth.UserFrom and the token's scopes from
 // auth.ScopesFrom. api must already have recipe.Register applied.
-func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, error) {
+func Handler(svc *recipe.Service, api huma.API, version string, photos Photos) (http.Handler, error) {
 	create, err := recipeSchema(api, false)
 	if err != nil {
 		return nil, fmt.Errorf("create_recipe schema: %w", err)
@@ -131,7 +132,7 @@ func Handler(svc *recipe.Service, api huma.API, version string) (http.Handler, e
 		}
 		scopes := auth.ScopesFrom(r.Context())
 		s := mcp.NewServer(impl, &mcp.ServerOptions{SchemaCache: cache})
-		c := caller{svc: svc, user: u, create: create, update: update, search: search}
+		c := caller{svc: svc, user: u, create: create, update: update, search: search, photos: photos}
 		for _, t := range tools {
 			if slices.Contains(scopes, t.scope) {
 				t.add(s, c)
