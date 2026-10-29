@@ -1,5 +1,5 @@
 # Stage 1: build the SPA into service/internal/web/dist
-FROM --platform=$BUILDPLATFORM oven/bun:1.4.2 AS frontend
+FROM --platform=$BUILDPLATFORM oven/bun:1.4.4 AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./frontend/
 RUN cd frontend && bun install --frozen-lockfile
@@ -13,7 +13,7 @@ COPY assets/brand/lockups ./assets/brand/lockups
 RUN mkdir -p service/internal/web/dist && cd frontend && bun run build
 
 # Stage 2: build the static Go binary
-FROM --platform=$BUILDPLATFORM golang:1.27.1 AS backend
+FROM --platform=$BUILDPLATFORM golang:1.27.3 AS backend
 WORKDIR /src/service
 COPY service/go.mod service/go.sum ./
 RUN go mod download

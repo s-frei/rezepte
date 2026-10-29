@@ -5,12 +5,12 @@ monorepo_root = true
 config_roots = ["service", "frontend", "docs/memory", "docs/user"]
 
 [tools]
-go = "1.27.1"
-bun = "1.4.2"
-golangci-lint = "2.14.0"
+go = "1.27.3"
+bun = "1.4.4"
+golangci-lint = "2.15.0"
 sqlc = "1.31.1"
-watchexec = "2.7.4"
-git-lfs = "3.8.0"
+watchexec = "2.8.0"
+git-lfs = "3.8.1"
 
 [settings]
 lockfile = true
