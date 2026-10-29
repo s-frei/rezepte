@@ -529,3 +529,28 @@ test('the author adds a comment photo to the recipe photos', async ({
 		await setRecipesLockedByDefault(page, false);
 	}
 });
+
+// A comment notification, its toast and the comment mail all link to
+// ?tab=comments: the page opens there scrolled to the comments, not on the
+// cover with the comments far below the ingredients on a phone.
+test('?tab=comments scrolls to the comments', async ({ page }) => {
+	await login(page);
+	const recipe = await createRecipe(page, loadFixture(0));
+	await page.goto(`/recipes/${recipe.slug}?tab=comments`);
+	await expect(diary(page)).toBeVisible();
+	const tab = diaryTab(page);
+	await expect(tab).toBeInViewport();
+	// The tab sits near the top, under the fixed header, or the page could
+	// not scroll further (a short recipe ends below it).
+	await expect
+		.poll(() =>
+			tab.evaluate((el) => {
+				const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 1;
+				return el.getBoundingClientRect().top < 200 || (atEnd && scrollY > 0);
+			})
+		)
+		.toBe(true);
+	// Without the parameter the page opens at its top.
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+});

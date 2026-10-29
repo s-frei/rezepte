@@ -247,14 +247,18 @@
 			     flow. Both panels stay mounted, so a half-written comment survives
 			     a look at the steps; each recipe opens on its steps, or on the
 			     diary when the caller asks. -->
-			<!-- The tabs stand in for the method's heading. -->
+			<!-- The tabs stand in for the method's heading. `?tab=comments` scrolls
+			     to them (`recipe-diary`), clear of the phone's fixed 64px header. -->
 			<h2 class="sr-only">{m.recipe_steps()}</h2>
 			{#key recipe.id}
 				<Tabs.Root
 					value={diaryFirst ? 'diary' : 'steps'}
 					onValueChange={(value) => value === 'diary' && ondiaryopen?.()}
 				>
-					<Tabs.List class="mb-5.5 flex items-end gap-5 border-b border-border md:gap-7.5">
+					<Tabs.List
+						id="recipe-diary"
+						class="mb-5.5 flex scroll-mt-20 items-end gap-5 border-b border-border md:scroll-mt-8 md:gap-7.5"
+					>
 						<Tabs.Trigger value="steps" class={tabClass}>{m.recipe_steps()}</Tabs.Trigger>
 						<Tabs.Trigger value="diary" class={tabClass}>
 							{m.diary_title()}

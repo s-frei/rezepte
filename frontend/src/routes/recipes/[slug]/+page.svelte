@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { tick, untrack } from 'svelte';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { DropdownMenu } from 'bits-ui';
@@ -115,6 +115,14 @@
 	const commentsFirst = $derived(page.url.searchParams.get('tab') === 'comments');
 	$effect(() => {
 		if (recipe && commentsFirst) untrack(openDiary);
+	});
+	// ...and scrolled to it: on a phone the diary sits below the cover and the
+	// ingredients, so a tapped notification would otherwise land far from the
+	// comment it is about. After the router's own scroll to the top.
+	afterNavigate(async () => {
+		if (!commentsFirst) return;
+		await tick();
+		document.getElementById('recipe-diary')?.scrollIntoView({ block: 'start' });
 	});
 
 	let deleteOpen = $state(false);
