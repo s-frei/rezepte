@@ -51,7 +51,7 @@
 	onclick={toggle}
 	aria-pressed={active}
 	aria-label={m.recipe_favorite()}
-	class="inline-flex size-11 items-center justify-center rounded-pill bg-surface shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
+	class="inline-flex size-11 items-center justify-center rounded-pill bg-surface hover-tint shadow-card transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
 >
 	<StarIcon
 		bind:this={star}

@@ -291,7 +291,7 @@
 	}
 
 	const overlayButton =
-		'rounded-pill bg-surface px-2.5 py-1 text-micro font-semibold text-text shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+		'rounded-pill bg-surface px-2.5 py-1 text-micro font-semibold text-text shadow-card transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
 
 <div class="space-y-4">

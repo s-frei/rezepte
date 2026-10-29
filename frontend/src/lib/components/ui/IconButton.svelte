@@ -28,7 +28,7 @@
 	{disabled}
 	{onclick}
 	aria-label={label}
-	class="inline-flex size-10 items-center justify-center rounded-full border border-border {background} text-text transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 {className}"
+	class="inline-flex size-10 items-center justify-center rounded-full border border-border {background} hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 {className}"
 >
 	{@render children()}
 </BitsButton.Root>

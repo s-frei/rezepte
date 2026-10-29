@@ -133,10 +133,10 @@
 	// buttons, filled instead of outlined, so the title next to it keeps the
 	// width a labeled pill would take. The labeled button stays in the flow.
 	const cookTriggerClass =
-		'inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
+		'inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
 	const menuTriggerClass =
-		'inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
+		'inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
 	// The address "Copy link" and the share button hand out; see
 	// `$lib/recipe/share.svelte.ts`. One per recipe: re-created when the page

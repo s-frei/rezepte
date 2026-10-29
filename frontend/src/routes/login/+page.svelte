@@ -146,7 +146,7 @@
 		<Button.Root
 			type="submit"
 			disabled={submitting}
-			class="h-[50px] w-full rounded-pill bg-primary text-body font-semibold text-primary-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:opacity-50"
+			class="h-[50px] w-full rounded-pill bg-primary hover-tint text-body font-semibold text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:opacity-50"
 		>
 			{submitting ? m.login_submitting() : m.login_submit()}
 		</Button.Root>

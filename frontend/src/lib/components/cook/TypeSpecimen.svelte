@@ -40,7 +40,7 @@
 	     per browser's reading of the font's metrics. -->
 	<Popover.Trigger
 		aria-label={m.cook_type_size()}
-		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background font-display text-text transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
+		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover-tint font-display text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
 	>
 		<span class="inline-flex items-baseline" aria-hidden="true">
 			<span class="text-body-lg font-medium [text-box:trim-both_cap_alphabetic]">A</span><span

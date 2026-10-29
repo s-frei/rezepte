@@ -202,7 +202,7 @@
 	});
 
 	const navButtonClass =
-		'inline-flex h-14 items-center justify-center gap-2 rounded-pill text-body font-semibold transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-40';
+		'inline-flex h-14 items-center justify-center gap-2 rounded-pill text-body font-semibold transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-40';
 </script>
 
 <svelte:head>

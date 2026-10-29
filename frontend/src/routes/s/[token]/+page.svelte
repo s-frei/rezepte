@@ -104,7 +104,7 @@
 					<a
 						href={PROJECT_URL}
 						rel="noreferrer noopener external"
-						class="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-pill bg-primary px-3 text-body-sm font-semibold text-primary-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] sm:h-8 sm:w-auto sm:text-caption"
+						class="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-pill bg-primary hover-tint px-3 text-body-sm font-semibold text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] sm:h-8 sm:w-auto sm:text-caption"
 					>
 						{m.public_share_get()}
 						<ArrowUpRight aria-hidden="true" class="size-3.5" />

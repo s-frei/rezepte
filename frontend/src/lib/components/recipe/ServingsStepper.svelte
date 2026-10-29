@@ -38,7 +38,7 @@
 	}
 
 	const buttonClass =
-		'inline-flex size-8 shrink-0 items-center justify-center rounded-full transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] aria-disabled:opacity-40 aria-disabled:pointer-events-none';
+		'inline-flex size-8 shrink-0 items-center justify-center rounded-full transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] aria-disabled:opacity-40 aria-disabled:pointer-events-none';
 </script>
 
 <div

@@ -110,7 +110,7 @@
 		aria-label={m.recipe_tasty()}
 		aria-describedby={countId}
 		title={countLabel}
-		class="inline-flex items-center rounded-pill bg-surface font-semibold text-text shadow-card transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {pill}"
+		class="inline-flex items-center rounded-pill bg-surface hover-tint font-semibold text-text shadow-card transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {pill}"
 	>
 		<HeartIcon bind:this={heart} class={active ? 'fill-primary text-primary' : 'text-text-muted'} />
 		{#if count > 0}

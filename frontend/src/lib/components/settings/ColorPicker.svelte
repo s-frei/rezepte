@@ -88,7 +88,7 @@
 				value={color}
 				aria-label={COLOR_LABELS[color]()}
 				aria-describedby={taken.has(color) ? `${uid}-taken` : undefined}
-				class="flex size-11 items-center justify-center rounded-full transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=checked]:ring-2 data-[state=checked]:ring-text data-[state=checked]:ring-offset-2 data-[state=checked]:ring-offset-surface {userColorClasses(
+				class="flex size-11 items-center justify-center rounded-full hover-tint transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=checked]:ring-2 data-[state=checked]:ring-text data-[state=checked]:ring-offset-2 data-[state=checked]:ring-offset-surface {userColorClasses(
 					color
 				)}"
 			>

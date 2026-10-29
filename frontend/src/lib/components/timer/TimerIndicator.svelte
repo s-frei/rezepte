@@ -59,7 +59,7 @@
 			<button
 				type="button"
 				onclick={() => timers.stop(first.id)}
-				class="relative mr-1 h-9 shrink-0 rounded-pill bg-primary-foreground px-4 text-body-sm font-semibold text-primary transition after:absolute after:-inset-1 after:content-[''] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground active:scale-[.98]"
+				class="relative mr-1 h-9 shrink-0 rounded-pill bg-primary-foreground hover-tint px-4 text-body-sm font-semibold text-primary transition after:absolute after:-inset-1 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground active:scale-[.98]"
 			>
 				{m.timer_off()}
 			</button>

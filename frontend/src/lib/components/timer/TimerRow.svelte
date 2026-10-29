@@ -27,7 +27,7 @@
 		)
 	);
 	const roundButton =
-		'grid size-11 shrink-0 place-items-center rounded-full transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]';
+		'grid size-11 shrink-0 place-items-center rounded-full transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]';
 </script>
 
 <div class="flex min-w-0 items-center gap-2 rounded-2xl bg-background py-2 pr-2 pl-1.5">

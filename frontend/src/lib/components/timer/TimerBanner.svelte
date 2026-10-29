@@ -27,7 +27,7 @@
 	<button
 		type="button"
 		onclick={() => timers.stop(timer.id)}
-		class="h-11 shrink-0 rounded-pill bg-primary-foreground px-5 text-body font-semibold text-primary transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground active:scale-[.98]"
+		class="h-11 shrink-0 rounded-pill bg-primary-foreground hover-tint px-5 text-body font-semibold text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-foreground active:scale-[.98]"
 	>
 		{m.timer_off()}
 	</button>

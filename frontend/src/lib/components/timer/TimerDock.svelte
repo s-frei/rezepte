@@ -52,7 +52,7 @@
 				onclick={() => setExpanded(true)}
 				aria-label={m.timer_expand()}
 				aria-expanded="false"
-				class="inline-flex h-12 max-w-full items-center gap-2.5 rounded-pill bg-user-teal pr-3.5 pl-2 text-time-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] md:hidden"
+				class="inline-flex h-12 max-w-full items-center gap-2.5 rounded-pill bg-user-teal hover-tint pr-3.5 pl-2 text-time-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] md:hidden"
 			>
 				<TimerRing fraction={fraction(first, timers.now)} class="size-8" />
 				<span data-clock class="text-body-lg font-semibold tabular-nums"

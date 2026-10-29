@@ -51,7 +51,7 @@
 	};
 
 	const classes = $derived(
-		`inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
+		`inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
 	);
 </script>
 

@@ -187,7 +187,7 @@
 <Dialog.Root bind:open>
 	<Dialog.Trigger
 		id="overview-filters"
-		class="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border bg-surface px-3.5 text-body-sm font-medium transition hover:brightness-[0.98]"
+		class="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border bg-surface hover-tint px-3.5 text-body-sm font-medium transition"
 	>
 		<Filter class="size-4" aria-hidden="true" />
 		{m.overview_filter()}

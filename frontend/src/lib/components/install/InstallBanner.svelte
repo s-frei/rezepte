@@ -50,7 +50,7 @@
 		<button
 			type="button"
 			onclick={() => void startInstall()}
-			class="mt-4 inline-flex h-11 w-full items-center justify-center rounded-pill bg-primary text-body-sm font-semibold text-primary-foreground transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
+			class="mt-4 inline-flex h-11 w-full items-center justify-center rounded-pill bg-primary hover-tint text-body-sm font-semibold text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
 		>
 			{m.install_button()}
 		</button>
