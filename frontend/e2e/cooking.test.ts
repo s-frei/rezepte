@@ -374,18 +374,23 @@ test('keeps a linked word and a long time inside a narrow phone at the largest s
 
 	const step = page.locator('section p');
 	await expect(step).toContainText('(500 ml)');
-	const [stepWidth, contentWidth, columnWidth] = await step.evaluate((node) => [
-		node.getBoundingClientRect().width,
-		node.scrollWidth,
-		node.parentElement!.clientWidth
-	]);
+	// The column is the section's content box: its padding is the gutter.
+	const [stepWidth, contentWidth, columnWidth] = await step.evaluate((node) => {
+		const column = node.parentElement!;
+		const style = getComputedStyle(column);
+		return [
+			node.getBoundingClientRect().width,
+			node.scrollWidth,
+			column.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+		];
+	});
 	expect(stepWidth).toBeLessThanOrEqual(columnWidth);
 	expect(contentWidth).toBeLessThanOrEqual(columnWidth);
 	// The time is wider than the line here, so it wraps inside its own box.
 	const [timeLeft, timeRight, columnLeft, columnRight] = await page
 		.locator('[data-time]')
 		.evaluate((node) => {
-			const column = node.closest('section')!.getBoundingClientRect();
+			const column = node.closest('p')!.getBoundingClientRect();
 			const box = node.getBoundingClientRect();
 			return [box.left, box.right, column.left, column.right];
 		});

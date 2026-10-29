@@ -93,6 +93,9 @@
 	   sitting in the sentence. Named for its one caller, the way
 	   --radius-toast is. */
 	--radius-word: 3px;
+	/* The tap target around a time in cook mode: in em, so the chip keeps its
+	   shape at every type size. */
+	--radius-time: 0.32em;
 	/* Doesn't fit the sm/md/lg/xl/2xl/3xl scale (between lg and xl); named for
 	   its one caller instead, the same way shadow-cta is. */
 	--radius-toast: 16px;
@@ -321,6 +324,72 @@
 	@media (hover: hover) {
 		&:hover:not(:disabled) {
 			background-image: linear-gradient(color-mix(in oklab, currentColor 14%, transparent) 0 0);
+		}
+	}
+}
+
+/*
+ * A ringing timer moves until it is turned off: its bell swings in bursts,
+ * like an alarm clock's hammer, and a halo breathes out from its surface on
+ * the same 1.6s beat. The halo is a `::before`, so it never replaces the
+ * element's own shadow; under reduced motion both stand still.
+ */
+@keyframes bell-swing {
+	0%,
+	40%,
+	100% {
+		transform: rotate(0);
+	}
+	5% {
+		transform: rotate(16deg);
+	}
+	10% {
+		transform: rotate(-14deg);
+	}
+	15% {
+		transform: rotate(12deg);
+	}
+	20% {
+		transform: rotate(-10deg);
+	}
+	25% {
+		transform: rotate(6deg);
+	}
+	30% {
+		transform: rotate(-4deg);
+	}
+	35% {
+		transform: rotate(2deg);
+	}
+}
+
+@keyframes ringing-halo {
+	0% {
+		box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+	}
+	70%,
+	100% {
+		box-shadow: 0 0 0 10px transparent;
+	}
+}
+
+@utility bell-swing {
+	transform-origin: 50% 8%;
+	@media (prefers-reduced-motion: no-preference) {
+		animation: bell-swing 1.6s ease-in-out infinite;
+	}
+}
+
+@utility ringing-halo {
+	position: relative;
+	&::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		pointer-events: none;
+		@media (prefers-reduced-motion: no-preference) {
+			animation: ringing-halo 1.6s ease-out infinite;
 		}
 	}
 }

@@ -444,6 +444,8 @@
 	"cook_wake_lock": "Bildschirm bleibt an",
 	"cook_sheet_summary": "Zutaten · {count} Stück",
 	"cook_sheet_close": "Zutaten schließen",
+	"cook_whole_step": "Ganzer Schritt",
+	"cook_whole_step_close": "Ganzen Schritt schließen",
 	"cook_type_size": "Schriftgrad",
 	"cook_type_size_brevier": "Petit",
 	"cook_type_size_bourgeois": "Borgis",

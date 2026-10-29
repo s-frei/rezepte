@@ -444,6 +444,8 @@
 	"cook_wake_lock": "Screen stays on",
 	"cook_sheet_summary": "Ingredients · {count}",
 	"cook_sheet_close": "Close the ingredients",
+	"cook_whole_step": "Whole step",
+	"cook_whole_step_close": "Close the whole step",
 	"cook_type_size": "Type size",
 	"cook_type_size_brevier": "Brevier",
 	"cook_type_size_bourgeois": "Bourgeois",

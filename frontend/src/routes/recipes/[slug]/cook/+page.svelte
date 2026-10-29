@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, fly } from 'svelte/transition';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
@@ -8,6 +8,8 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import Maximize2 from '@lucide/svelte/icons/maximize-2';
+	import X from '@lucide/svelte/icons/x';
 	import CookProgress from '$lib/components/cook/CookProgress.svelte';
 	import IngredientSheet from '$lib/components/cook/IngredientSheet.svelte';
 	import TypeSpecimen from '$lib/components/cook/TypeSpecimen.svelte';
@@ -59,10 +61,80 @@
 	const isLast = $derived(index >= count - 1);
 	const duration = $derived(prefersReducedMotion.current ? 0 : 200);
 
+	// A step taller than its room: the recipe title steps back for it, the
+	// text fades where more of it waits, and "Whole step" opens the reading
+	// view - text, type size and timers only. `longFor` remembers the step
+	// and size that overflowed, so hiding the title (which may make the step
+	// fit) never brings the title back in a loop.
+	let longFor = $state<string | null>(null);
+	const long = $derived(longFor === `${index}:${typeSize}`);
+	let scrolls = $state(false);
+	let atTop = $state(true);
+	let atEnd = $state(false);
+	let reading = $state(false);
+
+	function measure(node: HTMLElement) {
+		const update = () => {
+			// The outgoing step of a page turn is still mounted for its fade.
+			if (!node.isConnected || node.dataset.step !== String(index)) {
+				return;
+			}
+			scrolls = node.scrollHeight > node.clientHeight + 1;
+			if (scrolls) {
+				longFor = `${index}:${typeSize}`;
+			}
+			atTop = node.scrollTop <= 1;
+			atEnd = node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+		};
+		const observer = new ResizeObserver(update);
+		observer.observe(node);
+		for (const child of node.children) {
+			observer.observe(child);
+		}
+		node.addEventListener('scroll', update, { passive: true });
+		return () => {
+			observer.disconnect();
+			node.removeEventListener('scroll', update);
+		};
+	}
+
+	// Fades only where text waits: none at the top before scrolling, none at
+	// the bottom once the end is in view. In place, the bottom fade leaves
+	// room for the "Whole step" button.
+	const mask = $derived.by(() => {
+		if (!scrolls) {
+			return undefined;
+		}
+		const top = atTop ? 'black 0' : 'transparent 0, black 40px';
+		const bottom = atEnd
+			? 'black 100%'
+			: reading
+				? 'black calc(100% - 64px), transparent 100%'
+				: 'black calc(100% - 120px), transparent calc(100% - 44px)';
+		return `linear-gradient(to bottom, ${top}, ${bottom})`;
+	});
+
+	async function openReading() {
+		reading = true;
+		await tick();
+		document.querySelector<HTMLElement>('[data-reading-close] button')?.focus();
+	}
+
+	// "Whole step" comes back only once the step is measured again, after
+	// the next layout, so it takes the focus itself when it mounts.
+	let focusWholeStep = false;
+
+	function closeReading() {
+		focusWholeStep = true;
+		reading = false;
+	}
+
 	function go(next: number) {
 		if (next < 0 || next >= count || next === index) {
 			return;
 		}
+		reading = false;
+		focusWholeStep = false;
 		direction = next > index ? 1 : -1;
 		index = next;
 		showStep(next);
@@ -143,6 +215,14 @@
 		if (sheetOpen || specimenOpen) {
 			return;
 		}
+		// The reading view pages nothing; Escape takes the cook back to the step.
+		if (reading) {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				closeReading();
+			}
+			return;
+		}
 		// Inside the timer dock the keys belong to its buttons.
 		if (event.target instanceof Element && event.target.closest('[data-timer-dock]')) {
 			return;
@@ -169,7 +249,7 @@
 	let swipeStart: number | null = null;
 
 	function onpointerdown(event: PointerEvent) {
-		swipeStart = event.clientX;
+		swipeStart = reading ? null : event.clientX;
 	}
 
 	function onpointerup(event: PointerEvent) {
@@ -225,10 +305,27 @@
 		<header class="flex shrink-0 items-center gap-3 px-5 pt-4 md:px-8">
 			<!-- The header sits on `bg-surface`; the button needs the lighter
 			     `bg-background` to be visible against it. -->
-			<IconButton label={m.cook_back()} onclick={finish} class="bg-background">
-				<ArrowLeft class="size-5" aria-hidden="true" />
-			</IconButton>
-			<p class="flex-1 text-center text-body-sm font-semibold text-text-muted" aria-live="polite">
+			{#if reading}
+				<span class="contents" data-reading-close>
+					<IconButton
+						label={m.cook_whole_step_close()}
+						onclick={closeReading}
+						class="bg-background"
+					>
+						<X class="size-5" aria-hidden="true" />
+					</IconButton>
+				</span>
+			{:else}
+				<IconButton label={m.cook_back()} onclick={finish} class="bg-background">
+					<ArrowLeft class="size-5" aria-hidden="true" />
+				</IconButton>
+			{/if}
+			<p
+				class="flex-1 text-center text-body-sm font-semibold text-text-muted {reading
+					? 'invisible'
+					: ''}"
+				aria-live="polite"
+			>
 				{#if count > 0}
 					{m.cook_step_counter({ number: index + 1, count })}
 				{/if}
@@ -243,7 +340,9 @@
 
 		{#if count > 0}
 			<div class="shrink-0 px-5 pt-3 md:px-8">
-				<CookProgress {count} current={index} />
+				{#if !reading}
+					<CookProgress {count} current={index} />
+				{/if}
 				{#if timers.ringing.length}
 					<div class="mx-auto mt-3 flex max-w-[760px] flex-col gap-2">
 						{#each timers.ringing as t (t.id)}
@@ -261,7 +360,9 @@
 			     slide-in overlap without a layout jump. -->
 			<div
 				role="group"
-				class="grid min-h-0 flex-1 touch-pan-y overflow-hidden px-5 md:px-8"
+				class="relative grid min-h-0 flex-1 touch-pan-y overflow-hidden {long || reading
+					? 'mt-2.5'
+					: ''}"
 				{onpointerdown}
 				{onpointerup}
 				onpointercancel={cancelSwipe}
@@ -269,13 +370,23 @@
 			>
 				{#key index}
 					<!-- `safe center`: a step taller than the view starts at the top
-					     and scrolls, instead of centering its first lines out of reach. -->
+					     and scrolls, instead of centering its first lines out of reach.
+					     The padding is the section's, not the group's, so the
+					     scrollbar sits at the screen edge rather than on the text. -->
 					<section
-						class="flex flex-col items-center justify-center-safe overflow-y-auto py-6 text-center [grid-area:1/1]"
+						data-step={index}
+						class="flex flex-col items-center justify-center-safe overflow-y-auto px-5 py-6 text-center [grid-area:1/1] md:px-8 {scrolls &&
+						!reading
+							? 'pb-16'
+							: ''}"
+						style:mask-image={mask}
 						in:fly={{ x: 40 * direction, duration }}
 						out:fade={{ duration }}
+						{@attach measure}
 					>
-						<h1 class="font-display text-body-lg text-primary italic">{recipe.title}</h1>
+						{#if !long && !reading}
+							<h1 class="mb-4 font-display text-body-lg text-primary italic">{recipe.title}</h1>
+						{/if}
 						<!-- Hyphenation only for words of twelve characters or more, split no
 						     closer than four from either end: a long German compound
 						     breaks at the largest size instead of being clipped, while
@@ -284,7 +395,7 @@
 						     every word instead. `w-full`: shrunk to its text, Chromium
 						     sizes the step to "word(quantity)" unhyphenated and clips it. -->
 						<p
-							class="mt-4 w-full max-w-[640px] font-display {TYPE_SIZE_CLASSES[
+							class="w-full max-w-[640px] font-display {TYPE_SIZE_CLASSES[
 								typeSize
 							]} leading-[1.3] font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4]"
 						>
@@ -299,37 +410,59 @@
 						</p>
 					</section>
 				{/key}
+				{#if scrolls && !reading}
+					<button
+						type="button"
+						data-whole-step
+						onclick={openReading}
+						{@attach (node) => {
+							if (focusWholeStep) {
+								focusWholeStep = false;
+								node.focus();
+							}
+						}}
+						onpointerdown={(event) => event.stopPropagation()}
+						class="absolute bottom-2.5 left-1/2 inline-flex h-10 -translate-x-1/2 items-center gap-2 rounded-pill border border-border bg-background hover-tint px-4 text-body-sm font-semibold text-text shadow-lift transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
+					>
+						<Maximize2 class="size-4" aria-hidden="true" />
+						{m.cook_whole_step()}
+					</button>
+				{/if}
 			</div>
 
 			<TimerDock recipeId={recipe.id} onopen={openTimer} />
 
-			<footer class="flex shrink-0 items-center justify-center gap-4 px-5 pt-2 pb-3 md:px-8">
-				<button
-					type="button"
-					onclick={() => go(index - 1)}
-					disabled={index === 0}
-					aria-label={m.cook_previous()}
-					class="{navButtonClass} size-14 shrink-0 bg-background text-text"
-				>
-					<ChevronLeft class="size-6" aria-hidden="true" />
-				</button>
-				<button
-					type="button"
-					onclick={next}
-					class="{navButtonClass} w-full max-w-[320px] px-8 {isLast
-						? 'bg-primary text-primary-foreground'
-						: 'bg-inverse text-inverse-foreground'}"
-				>
-					{isLast ? m.cook_finish() : m.cook_next()}
-					{#if !isLast}
-						<ArrowRight class="size-5" aria-hidden="true" />
-					{/if}
-				</button>
-			</footer>
+			{#if !reading}
+				<footer class="flex shrink-0 items-center justify-center gap-4 px-5 pt-2 pb-3 md:px-8">
+					<button
+						type="button"
+						onclick={() => go(index - 1)}
+						disabled={index === 0}
+						aria-label={m.cook_previous()}
+						class="{navButtonClass} size-14 shrink-0 bg-background text-text"
+					>
+						<ChevronLeft class="size-6" aria-hidden="true" />
+					</button>
+					<button
+						type="button"
+						onclick={next}
+						class="{navButtonClass} w-full max-w-[320px] px-8 {isLast
+							? 'bg-primary text-primary-foreground'
+							: 'bg-inverse text-inverse-foreground'}"
+					>
+						{isLast ? m.cook_finish() : m.cook_next()}
+						{#if !isLast}
+							<ArrowRight class="size-5" aria-hidden="true" />
+						{/if}
+					</button>
+				</footer>
+			{/if}
 		{:else}
 			<p class="m-auto px-5 text-center text-body text-text-muted">{m.cook_no_steps()}</p>
 		{/if}
 	</div>
 
-	<IngredientSheet bind:open={sheetOpen} {recipe} {servings} wakeLockActive={wakeLock.active} />
+	{#if !reading}
+		<IngredientSheet bind:open={sheetOpen} {recipe} {servings} wakeLockActive={wakeLock.active} />
+	{/if}
 </div>

@@ -29,8 +29,7 @@
 
 	const segments = $derived(segmentStep(step, groups, servings, baseServings));
 
-	const timeClass =
-		'inline-block max-w-full font-semibold hyphens-none text-time-foreground underline decoration-dotted decoration-[0.08em] underline-offset-[0.22em]';
+	const timeClass = 'max-w-full font-semibold hyphens-none text-time-foreground';
 
 	/**
 	 * A time with each number tied to the word after it by a no-break space:
@@ -46,31 +45,56 @@
 	// glancing at the step must not have to piece together, and at cook mode's
 	// size it happened on every longer step. A time is one inline block, so the
 	// clock stays with its number; never hyphenated, as Safari would split "Mi-nuten".
-	// In cook mode the time is a button with the same look; the `::after`
-	// makes its target taller without moving a letter - only taller, since a
-	// sideways overhang would widen the step past its column.
+	// Elsewhere it is underlined as a mark. In cook mode it is a button and
+	// looks like one: a teal chip, the timers' color, ending in a play disc
+	// (the triangle a hole, so the hover tint shows through) until its timer
+	// runs. The chip is a flex row, so its icons are centered on the text by
+	// flex alignment rather than by a baseline offset, which every engine
+	// rounds differently: the text is trimmed by `text-box` to the digits'
+	// cap height and baseline, padded to be at least as tall as the icons so
+	// it sets the row's height, and baseline-aligned, which makes its baseline
+	// the chip's in the sentence. Where the chip is wider than the line, the
+	// row wraps, centered, so the icons stack above and below the text (320 px
+	// at the largest size); the text never breaks inside a word. The stopwatch's body sits below its box's
+	// center, under the knob; lifted by half that, it reads as centered. The `::after` makes its target taller without
+	// moving a letter - only taller, since a sideways overhang would widen the
+	// step past its column.
 	// (Comment kept here, not as an HTML comment above the markup, so it never
 	// ships into the rendered DOM.)
 </script>
 
-{#snippet mark(time: StepTime, text: string)}{@const active =
+{#snippet clock(time: StepTime, iconClass: string)}{@const active =
 		activeTimer?.(time)}{#if active}<TimerRing
 			fraction={fraction(active, timers.now)}
-			class="mr-[0.15em] inline size-[0.82em] align-[-0.08em]"
+			class="mr-[0.15em] size-[0.82em] {iconClass}"
 		/>{:else}<Timer
-			class="mr-[0.15em] inline size-[0.82em] align-[-0.08em]"
+			class="mr-[0.15em] size-[0.82em] -translate-y-[0.035em] {iconClass}"
 			aria-hidden="true"
-		/>{/if}{tieNumbers(text)}{/snippet}
+		/>{/if}{/snippet}
 
 {#each segments as segment, index (index)}{#if segment.time && onstarttime}<button
 			type="button"
 			data-time
 			aria-label={m.timer_start({ phrase: segment.time.phrase })}
 			onclick={() => onstarttime(segment.time!)}
-			class="{timeClass} relative cursor-pointer rounded-word after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-			>{@render mark(segment.time, segment.text)}</button
-		>{:else if segment.time}<span data-time class={timeClass}
-			>{@render mark(segment.time, segment.text)}</span
+			class="{timeClass} relative inline-flex cursor-pointer flex-wrap items-center justify-center rounded-time bg-user-teal hover-tint px-[0.28em] py-[0.12em] after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			>{@render clock(segment.time, 'shrink-0')}<span
+				class="self-baseline py-[0.08em] [text-box:trim-both_cap_alphabetic]"
+				>{tieNumbers(segment.text)}</span
+			>{#if !activeTimer?.(segment.time)}<svg
+					viewBox="0 0 24 24"
+					fill="currentColor"
+					class="ml-[0.26em] size-[0.86em] shrink-0"
+					aria-hidden="true"
+					><path
+						fill-rule="evenodd"
+						d="M12 0a12 12 0 1 0 0 24a12 12 0 1 0 0-24ZM9.5 7v10l8-5Z"
+					/></svg
+				>{/if}</button
+		>{:else if segment.time}<span
+			data-time
+			class="{timeClass} inline-block underline decoration-dotted decoration-[0.08em] underline-offset-[0.22em]"
+			>{@render clock(segment.time, 'inline align-[-0.08em]')}{tieNumbers(segment.text)}</span
 		>{:else}{segment.text}{#if segment.quantity}<span
 				class="ml-[0.2em] font-semibold whitespace-nowrap text-primary">({segment.quantity})</span
 			>{/if}{/if}{/each}

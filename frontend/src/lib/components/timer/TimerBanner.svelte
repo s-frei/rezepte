@@ -13,9 +13,9 @@
      end of the timer for a screen reader; the countdown itself never is. -->
 <div
 	role="alert"
-	class="flex items-center gap-3 rounded-2xl bg-primary py-2 pr-2 pl-3.5 text-primary-foreground"
+	class="ringing-halo flex items-center gap-3 rounded-2xl bg-primary py-2 pr-2 pl-3.5 text-primary-foreground"
 >
-	<Bell class="size-6 shrink-0" aria-hidden="true" />
+	<Bell class="size-6 shrink-0 bell-swing" aria-hidden="true" />
 	<div class="min-w-0 flex-1 leading-tight">
 		<p class="text-card font-semibold">{m.timer_done()}</p>
 		<p data-timer-name class="truncate text-caption font-medium">{name}</p>

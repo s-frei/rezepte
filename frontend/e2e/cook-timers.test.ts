@@ -145,14 +145,59 @@ test('dock and footer leave the step readable at 320 px and the largest type', a
 	await page.getByRole('radio', { name: 'Text', exact: true }).click();
 	await page.keyboard.press('Escape');
 
-	const section = page.locator('section').filter({ hasText: recipe.title });
+	const section = page.locator('[role=group] section');
 	await section.evaluate((el) => el.scrollTo(0, el.scrollHeight));
 	const text = await section.locator('p').boundingBox();
+	const whole = await page.getByRole('button', { name: 'Ganzer Schritt' }).boundingBox();
 	const box = await dock(page).boundingBox();
 	const footer = await page.locator('footer').boundingBox();
-	expect(text && box && footer).toBeTruthy();
-	expect(text!.y + text!.height).toBeLessThanOrEqual(box!.y);
+	expect(text && whole && box && footer).toBeTruthy();
+	// Scrolled to the end, the last line clears the "Ganzer Schritt" button.
+	expect(text!.y + text!.height).toBeLessThanOrEqual(whole!.y);
+	expect(whole!.y + whole!.height).toBeLessThanOrEqual(box!.y);
 	expect(box!.y + box!.height).toBeLessThanOrEqual(footer!.y);
+});
+
+test('a step that fits keeps its title and needs no whole view', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	const recipe = await germanRecipe(page, 0);
+	await cookAt(page, recipe, 3);
+	await expect(page.getByRole('heading', { name: recipe.title })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Ganzer Schritt' })).toHaveCount(0);
+});
+
+test('a long step makes room and opens as a whole', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	const recipe = await germanRecipe(page, 1);
+	await cookAt(page, recipe, 5);
+	await page.getByRole('button', { name: 'Schriftgrad' }).click();
+	await page.getByRole('radio', { name: 'Text', exact: true }).click();
+	await page.keyboard.press('Escape');
+
+	// The title steps back, and the scrollbar sits at the screen edge.
+	await expect(page.getByRole('heading', { name: recipe.title })).toHaveCount(0);
+	const section = (await page.locator('[role=group] section').boundingBox())!;
+	expect(Math.round(section.x + section.width)).toBe(360);
+
+	const whole = page.getByRole('button', { name: 'Ganzer Schritt' });
+	await whole.click();
+	const close = page.getByRole('button', { name: 'Ganzen Schritt schließen' });
+	await expect(close).toBeFocused();
+	// Only the text, the type size and the timers stay.
+	await expect(page.getByRole('button', { name: 'Weiter' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: /^Zutaten/ })).toHaveCount(0);
+	await expect(page.getByRole('progressbar')).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Schriftgrad' })).toBeVisible();
+	await page.getByRole('button', { name: 'Timer starten: 90 Minuten' }).click();
+	await expect(dock(page)).toBeVisible();
+
+	// The reading view pages nothing; Escape returns to the step.
+	await page.keyboard.press('ArrowRight');
+	await expect(page).toHaveURL(/\?step=5$/);
+	await page.keyboard.press('Escape');
+	await expect(whole).toBeFocused();
+	await expect(page.getByRole('button', { name: 'Weiter' })).toBeVisible();
+	await expect(page).toHaveURL(/\?step=5$/);
 });
 
 test('one timer on a wide screen lines up with the footer', async ({ page }) => {

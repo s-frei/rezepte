@@ -83,7 +83,7 @@
 	>
 		<div
 			class="flex items-center rounded-pill shadow-lift md:max-w-[480px] {ringing
-				? 'bg-primary text-primary-foreground'
+				? 'ringing-halo bg-primary text-primary-foreground'
 				: 'bg-user-teal text-time-foreground'}"
 		>
 			<!-- The chevron points where the list unfolds, up, and back once it is open. -->
@@ -98,7 +98,7 @@
 					: 'pr-3'} hover-tint pl-1.5 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				{#if ringing}
-					<Bell class="ml-1 size-5 shrink-0" aria-hidden="true" />
+					<Bell class="ml-1 size-5 shrink-0 bell-swing" aria-hidden="true" />
 					<!-- Two lines, so the name stays whole at 320 px: the recipe
 					     title beside "Fertig" is what gives way. -->
 					<span class="flex min-w-0 flex-col leading-tight">
