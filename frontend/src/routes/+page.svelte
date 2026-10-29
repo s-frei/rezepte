@@ -254,19 +254,33 @@
 		}
 
 		try {
-			const result = await listRecipes(
-				{
-					q: q || undefined,
-					tags,
-					maxMinutes,
-					favorites: favoritesOnly,
-					author: author || undefined,
-					sort,
-					page: pageToFetch
-				},
-				{ signal: controller.signal }
-			);
-			items = append ? [...items, ...result.items] : result.items;
+			const fetchOne = (n: number) =>
+				listRecipes(
+					{
+						q: q || undefined,
+						tags,
+						maxMinutes,
+						favorites: favoritesOnly,
+						author: author || undefined,
+						sort,
+						page: n
+					},
+					{ signal: controller.signal }
+				);
+			// A fresh list for page N - a reload or a shared link after "Load
+			// more" - shows pages 1 to N, as the list looked when the URL was
+			// written, not page N alone. Page 1 first: its total caps N at the
+			// last page there is, so `?page=9999` costs one request, not 9999.
+			const pages = [await fetchOne(append ? pageToFetch : 1)];
+			if (!append) {
+				const last = Math.min(pageToFetch, Math.ceil(pages[0].total / pages[0].limit));
+				pages.push(
+					...(await Promise.all(Array.from({ length: last - 1 }, (_, i) => fetchOne(i + 2))))
+				);
+			}
+			const result = pages[pages.length - 1];
+			const fetched = pages.flatMap((p) => p.items);
+			items = append ? [...items, ...fetched] : fetched;
 			total = result.total;
 			pageNum = result.page;
 			syncUrl();
