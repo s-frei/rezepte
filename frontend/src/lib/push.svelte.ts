@@ -1,20 +1,24 @@
 import { browser, dev } from '$app/environment';
+import { ApiError } from '$lib/api/client';
 import {
 	deleteAlarm,
 	deleteSubscription,
 	getPushKey,
 	postAlarm,
+	postPushTest,
 	putSubscription
 } from '$lib/api/push';
+import { onSignIn, session } from '$lib/auth.svelte';
 import { m } from '$lib/paraglide/messages';
 import { cookPath, type Timer } from '$lib/recipe/timers';
 import { timers } from '$lib/recipe/timers.svelte';
 
 /**
- * Web Push for cook timers: a running timer has an alarm on the server that
- * pushes to this device when it ends, so the cook hears of it with the page
- * hidden or the phone locked. Everything here is best-effort - a failure
- * leaves the in-page timer exactly as it was.
+ * Web Push for cook timers and notifications: a running timer has an alarm on
+ * the server that pushes to this device when it ends, so the cook hears of it
+ * with the page hidden or the phone locked, and a subscribed device gets the
+ * member's notifications. Everything here is best-effort - a failure leaves
+ * the in-page timer exactly as it was.
  */
 export function pushSupported(): boolean {
 	return (
@@ -26,7 +30,24 @@ export function pushSupported(): boolean {
 	);
 }
 
-const state = $state({ permission: pushSupported() ? Notification.permission : 'denied' });
+const state = $state({
+	permission: pushSupported() ? Notification.permission : 'denied',
+	/** A subscription was registered with the server this page view. */
+	subscribed: false
+});
+
+/** What this device does with pushes, for the settings' device box. */
+export type DeviceState = 'enabled' | 'off' | 'blocked' | 'unsupported';
+
+export function deviceState(): DeviceState {
+	if (!pushSupported()) {
+		return 'unsupported';
+	}
+	if (state.permission === 'denied') {
+		return 'blocked';
+	}
+	return state.permission === 'granted' && state.subscribed ? 'enabled' : 'off';
+}
 
 /** True when a timer can only tell the cook while the page is open. */
 export function pushUnavailable(): boolean {
@@ -62,6 +83,7 @@ async function subscribe(): Promise<string> {
 		p256dh: keys?.p256dh ?? '',
 		auth: keys?.auth ?? ''
 	});
+	state.subscribed = true;
 	return sub.endpoint;
 }
 
@@ -73,9 +95,11 @@ function ensureEndpoint(): Promise<string> | null {
 	if (state.permission === 'denied') {
 		return null;
 	}
-	if (endpoint) {
+	if (endpoint && Notification.permission === 'granted') {
 		return endpoint;
 	}
+	// Reset or revoked in the browser since: ask again on this tap.
+	endpoint = null;
 	const asked =
 		Notification.permission === 'default'
 			? Notification.requestPermission()
@@ -89,6 +113,7 @@ function ensureEndpoint(): Promise<string> | null {
 	})).catch((e: unknown) => {
 		// Next tap tries again (a 422 for an unknown push host stays a 422).
 		endpoint = null;
+		state.subscribed = false;
 		throw e;
 	});
 }
@@ -121,10 +146,59 @@ async function disarm(alarmId: string): Promise<void> {
 	}
 }
 
+/** Turns push on for this device. Must be called from the click, like a timer's start. */
+export async function enableDevice(): Promise<void> {
+	await (ensureEndpoint() ?? Promise.reject(new Error('notifications blocked')));
+}
+
+/** Asks the server to push a test here; a 404, a 429 or the network throws. */
+export async function sendPushTest(): Promise<void> {
+	if (!endpoint) {
+		throw new Error('push not enabled on this device');
+	}
+	try {
+		await postPushTest(await endpoint);
+	} catch (e) {
+		// The server has no such subscription (any more): the device is off.
+		if (e instanceof ApiError && e.status === 404) {
+			endpoint = null;
+			state.subscribed = false;
+		}
+		throw e;
+	}
+}
+
 const ignore = () => {};
 
 if (pushSupported()) {
 	ready().catch(ignore);
+	// Allowed before: subscribe afresh, the PUT is idempotent and moves the
+	// endpoint to whoever is signed in now. Only with a session and off a
+	// public share: signed out, the push routes answer 401 and `api()` would
+	// send the visitor to the login page.
+	const resubscribe = () => {
+		if (
+			Notification.permission === 'granted' &&
+			session.user &&
+			!window.location.pathname.startsWith('/s/')
+		) {
+			endpoint = null;
+			ensureEndpoint()?.catch(ignore);
+		}
+	};
+	onSignIn(resubscribe);
+	// Notifications can be revoked and allowed again in the browser or OS
+	// settings at any time; a revoke may drop the browser's subscription.
+	document.addEventListener('visibilitychange', () => {
+		if (document.visibilityState === 'visible') {
+			state.permission = Notification.permission;
+			if (state.permission === 'granted') {
+				resubscribe();
+			} else {
+				state.subscribed = false;
+			}
+		}
+	});
 	timers.listen((event, t) => {
 		if (event === 'start' || event === 'resume') {
 			const pending = ensureEndpoint();
@@ -162,4 +236,5 @@ export async function disablePush(): Promise<void> {
 		// see above
 	}
 	endpoint = null;
+	state.subscribed = false;
 }

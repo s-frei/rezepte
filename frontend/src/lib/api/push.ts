@@ -32,3 +32,8 @@ export async function postAlarm(a: {
 export async function deleteAlarm(id: string): Promise<void> {
 	await api(`/push/alarms/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+/** Pushes a test to this device; a 404 (unknown subscription) or 429 (too soon) throws. */
+export async function postPushTest(endpoint: string): Promise<void> {
+	await api('/push/test', { method: 'POST', body: JSON.stringify({ endpoint }) });
+}

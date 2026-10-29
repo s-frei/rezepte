@@ -1,8 +1,30 @@
 import type { User } from './api/auth';
 import { getLocale, setLocale } from '$lib/paraglide/runtime';
 
-/** Current login state, shared across the app. Mutate `session.user`. */
-export const session = $state<{ user: User | null }>({ user: null });
+let user = $state<User | null>(null);
+const signInListeners: (() => void)[] = [];
+
+/**
+ * Current login state, shared across the app. Assign `session.user`; one
+ * that names a different account than before tells `onSignIn`'s listeners.
+ */
+export const session = {
+	get user(): User | null {
+		return user;
+	},
+	set user(next: User | null) {
+		const changed = next !== null && next.id !== user?.id;
+		user = next;
+		if (changed) {
+			for (const fn of signInListeners) fn();
+		}
+	}
+};
+
+/** Calls fn whenever someone signs in on this page, also as a different account. */
+export function onSignIn(fn: () => void): void {
+	signInListeners.push(fn);
+}
 
 /** Pages reached without a session; they render bare, without the household's nav. */
 export const authPages = [
