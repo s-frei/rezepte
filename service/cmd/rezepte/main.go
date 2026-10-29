@@ -295,6 +295,9 @@ func run() error {
 	tokenapi.Register(srv.API(), tokens)
 	err = srv.Run(ctx)
 	stop() // a failed listen returns before ctx ends
+	// Both waits start now, so a stop takes the longer of the two, not their
+	// sum: the stop timeouts in docker-compose.yaml and the docs count on it.
+	pushDeadline := time.After(pushShutdownWait)
 	select {
 	case <-digestDone:
 	case <-time.After(digestShutdownWait):
@@ -302,7 +305,7 @@ func run() error {
 	}
 	select {
 	case <-pushDone:
-	case <-time.After(pushShutdownWait):
+	case <-pushDeadline:
 		logger.Warn("push still sending at exit")
 	}
 	return err
