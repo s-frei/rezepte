@@ -161,6 +161,9 @@ for (const t of [0, 40, 80, 120, 200]) {
 - One theme change per page: after a frozen theme circle is finished, its `::view-transition-group(root)` stays behind, `data-theme-transition` is never removed and the `html` takes every later click. To look at a control's own motion without the circle, delete `Document.prototype.startViewTransition` first; `setTheme` then recolors at once.
 - Creating an API token through its dialog crashes Chromium's renderer whenever the playback rate is below 1 (0 and 0.05 both), with or without the new row's motion; make the token through the API and freeze the clock for the revoke instead.
 - A Svelte transition driven by `tick` instead of `css` (the editor's `reveal`) stops when its animation is paused, so a frozen clock shows it stuck at its first frame. Slow the clock instead (`playbackRate: 0.05`) and take screenshots in real time.
+- A Svelte `in:` transition with a `delay` runs the delay as an animation of its own and starts the real one only after it, so a frozen clock never shows it (the login's error line): slow the clock for it too.
+- Freeze the clock only once the setup has settled: typing into a form right before the action leaves its focus transitions running (a floating label halfway up), and the frozen first frame shows them as if the action had caused them.
+- A sign-in's frames: `document.getAnimations()` lists the view transition's pseudo-elements and the overview's rising cards together, all held at 0, so one `currentTime` per frame keeps them in step. Each failed attempt counts towards the login throttle, so fail with a fresh unknown name every time.
 - A request held open with `page.route` (to see "Saving …") is not cancelled by `unrouteAll`: the held save went on to the instance and created the recipe. Keep the `Route` and `abort()` it before unrouting.
 
 ## Running a probe

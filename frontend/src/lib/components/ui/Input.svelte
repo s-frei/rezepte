@@ -14,6 +14,7 @@
 		counter,
 		aside,
 		required = false,
+		floating = false,
 		value = $bindable(''),
 		class: className = '',
 		...rest
@@ -44,6 +45,15 @@
 		 * submit with its own bubble instead of the form's error on save.
 		 */
 		required?: boolean;
+		/**
+		 * The sign-in pages' field (AuthScene): the label sits inside it and
+		 * floats up on focus or once it holds a value, and a field marked
+		 * `aria-invalid` (the `error` prop, or the attribute passed straight
+		 * through for one message under several fields) has its outline
+		 * traced in red. Its moves wait for `data-ready` on an ancestor, so
+		 * whatever is focused or filled when the page opens is simply there.
+		 */
+		floating?: boolean;
 		value?: string;
 		class?: string;
 	} & Omit<HTMLInputAttributes, 'id' | 'value' | 'class'> = $props();
@@ -69,7 +79,7 @@
 	let prefixWidth = $state(0);
 
 	const classes = $derived(
-		`h-11 w-full rounded-md border bg-surface-elevated px-4 text-body transition outline-none focus:border-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
+		`${floating ? 'h-14.5 border-border pt-5.5 pb-1.5' : `h-11 transition ${error ? 'border-[1.5px] border-destructive' : 'border-border'}`} w-full rounded-md border bg-surface-elevated px-4 text-body outline-none focus:border-primary ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
 	);
 
 	// Prefix and suffix are part of what the field means ("30" is 30 minutes,
@@ -86,19 +96,24 @@
 	);
 </script>
 
-<div class="space-y-1.5">
+<div class={['space-y-1.5', { floating }]}>
 	<!-- The star stands beside the label, not inside it: the label's text is
 	     what `getByLabel`, password managers and autofill match the field
 	     by, and "Password *" is not the field's name. -->
-	<div class="flex items-baseline gap-1 text-caption font-semibold">
+	{#snippet name()}
 		<Label.Root for={id}>{label}</Label.Root>
 		{#if required}
 			<RequiredMark state={status} />
 		{/if}
-		{#if aside}
-			<span class="ml-auto font-normal text-text-muted">{@render aside()}</span>
-		{/if}
-	</div>
+	{/snippet}
+	{#if !floating}
+		<div class="flex items-baseline gap-1 text-caption font-semibold">
+			{@render name()}
+			{#if aside}
+				<span class="ml-auto font-normal text-text-muted">{@render aside()}</span>
+			{/if}
+		</div>
+	{/if}
 	<!-- Wraps only the field, so an absolutely positioned suffix lines up
 	     with it regardless of the label above or the error below. -->
 	<div class="relative">
@@ -110,8 +125,28 @@
 			aria-describedby={describedBy}
 			class={classes}
 			style:padding-left={prefix ? `calc(${prefixWidth}px + 1.5rem)` : undefined}
+			placeholder={floating ? ' ' : undefined}
 			{...rest}
 		/>
+		{#if floating}
+			<!-- After the field, so its focus and its value can move it. The
+			     label stays the field's real `<label for>`: it is what
+			     `getByLabel`, password managers and autofill go by. -->
+			<span
+				data-float-label
+				class="pointer-events-none absolute top-4.5 left-4.25 flex origin-top-left items-baseline gap-1 text-body text-text-muted"
+			>
+				{@render name()}
+			</span>
+			<!-- The outline drawn from the top-left corner round on an error;
+			     it lies on the field's own border, which turns red as it closes. -->
+			<svg
+				aria-hidden="true"
+				class="pointer-events-none absolute inset-[0.75px] size-[calc(100%-1.5px)] overflow-visible"
+			>
+				<rect width="100%" height="100%" pathLength="100" />
+			</svg>
+		{/if}
 		{#if required}
 			<!--
 				A pencil tick in the margin, the way a cook marks the line still to
@@ -178,3 +213,92 @@
 		<p id="{id}-hint" class="text-micro text-text-muted">{hint}</p>
 	{/if}
 </div>
+
+<style>
+	/* The floating field. A value the browser filled in itself matches no
+	   `:placeholder-shown`, so autofill is asked on its own: one unsupported
+	   pseudo-class in a list would drop the whole rule. */
+	.floating input:focus ~ [data-float-label],
+	.floating input:not(:placeholder-shown) ~ [data-float-label] {
+		translate: 0 -10px;
+		scale: 0.78;
+		font-weight: 600;
+	}
+
+	.floating input:-webkit-autofill ~ [data-float-label] {
+		translate: 0 -10px;
+		scale: 0.78;
+		font-weight: 600;
+	}
+
+	.floating input:focus {
+		box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 14%, transparent);
+	}
+
+	.floating input:focus ~ [data-float-label] {
+		color: var(--color-primary);
+	}
+
+	.floating rect {
+		rx: calc(var(--radius-md) - 0.75px);
+		fill: none;
+		stroke: var(--color-destructive);
+		stroke-width: 1.5px;
+		stroke-dasharray: 100;
+		stroke-dashoffset: 100;
+	}
+
+	/* A wrong field is red all through: the traced outline, then its border,
+	   and refocused its ring and its label too. */
+	.floating:has(input[aria-invalid='true']) rect {
+		stroke-dashoffset: 0;
+	}
+
+	.floating input[aria-invalid='true'] {
+		border-color: var(--color-destructive);
+	}
+
+	.floating input[aria-invalid='true']:focus {
+		box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-destructive) 14%, transparent);
+	}
+
+	.floating input[aria-invalid='true']:focus ~ [data-float-label] {
+		color: var(--color-destructive);
+	}
+
+	/* Only the way in moves (and only once the page is ready): the trace
+	   runs 320ms, the border turns as it closes, and a second wrong field
+	   follows 60ms later. Typing takes the error away at once. */
+	@media (prefers-reduced-motion: no-preference) {
+		:global([data-ready]) .floating [data-float-label] {
+			transition:
+				translate 300ms var(--ease-spring),
+				scale 300ms var(--ease-spring),
+				color 160ms;
+		}
+
+		:global([data-ready]) .floating input {
+			transition:
+				border-color 160ms,
+				box-shadow 220ms var(--ease-glide);
+		}
+
+		:global([data-ready]) .floating:has(input[aria-invalid='true']) rect {
+			transition: stroke-dashoffset 320ms cubic-bezier(0.5, 0, 0.3, 1);
+		}
+
+		:global([data-ready]) .floating input[aria-invalid='true'] {
+			transition:
+				border-color 0ms 320ms,
+				box-shadow 220ms var(--ease-glide);
+		}
+
+		:global([data-ready] .floating) ~ .floating:has(input[aria-invalid='true']) rect {
+			transition-delay: 60ms;
+		}
+
+		:global([data-ready] .floating) ~ .floating input[aria-invalid='true'] {
+			transition-delay: 380ms, 0ms;
+		}
+	}
+</style>

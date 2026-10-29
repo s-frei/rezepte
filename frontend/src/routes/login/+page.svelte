@@ -1,24 +1,42 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { Pathname } from '$app/types';
-	import { Button, Label } from 'bits-ui';
-	import { getPasswordReset, isAppPath, login, safeNext } from '$lib/api/auth';
+	import { isAppPath, login, safeNext } from '$lib/api/auth';
 	import { ApiError } from '$lib/api/client';
-	import { getOidc, type OidcInfo } from '$lib/api/oidc';
+	import type { OidcInfo } from '$lib/api/oidc';
 	import { session } from '$lib/auth.svelte';
 	import AuthScene from '$lib/components/auth/AuthScene.svelte';
 	import ProviderButton from '$lib/components/auth/ProviderButton.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Input from '$lib/components/ui/Input.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
 
 	let username = $state('');
 	let password = $state('');
 	let error = $state<string | null>(null);
+	// Which fields a refused sign-in marked; typing into one clears it, and
+	// the message goes with the last of them.
+	let wrong = $state({ username: false, password: false });
 	let submitting = $state(false);
 	let oidc = $state<OidcInfo | null>(null);
 	let resetAvailable = $state(false);
+	let scene: AuthScene;
+
+	// Usually settled already (the load waits a moment for them), so they
+	// are in place before the first paint.
+	onMount(() => {
+		void data.oidc.then((info) => (oidc = info));
+		void data.resetAvailable.then((available) => (resetAvailable = available));
+	});
+
 	// Carries the typed name along in navigation state, so the next page
 	// starts filled in without the name landing in the URL, the history or
 	// a server log. A modified click (new tab) opens the page empty.
@@ -49,27 +67,25 @@
 		return null;
 	});
 
-	onMount(async () => {
-		// Both are extras, so a failed lookup simply leaves them out.
-		void getPasswordReset()
-			.then((info) => (resetAvailable = info.available))
-			.catch(() => {});
-		try {
-			oidc = await getOidc();
-		} catch {
-			oidc = null;
-		}
-	});
-
 	function loginError(e: unknown): string {
 		if (e instanceof ApiError && e.status === 401) return m.login_failed();
 		if (e instanceof ApiError && e.status === 429) return m.login_throttled();
 		return m.login_error_generic();
 	}
 
+	function clear(field: 'username' | 'password') {
+		if (!wrong[field]) return;
+		wrong[field] = false;
+		if (!wrong.username && !wrong.password) error = null;
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		// The button stays pressable while busy (`aria-busy`), so a second
+		// press or Enter lands here.
+		if (submitting) return;
 		error = null;
+		wrong = { username: false, password: false };
 		submitting = true;
 		try {
 			session.user = await login(username, password);
@@ -84,9 +100,29 @@
 			}
 		} catch (e) {
 			error = loginError(e);
+			const refused = e instanceof ApiError && e.status === 401;
+			wrong = { username: refused, password: refused };
+			scene.shake();
+			if (refused) {
+				document.querySelector<HTMLInputElement>('#password')?.select();
+			}
 		} finally {
 			submitting = false;
 		}
+	}
+
+	// The message opens its line below the fields while the card shakes,
+	// rather than pushing the button down in one step; the negative margin
+	// takes back the form's gap until it is open.
+	function open(node: HTMLElement) {
+		const height = node.offsetHeight;
+		return {
+			delay: prefersReducedMotion.current ? 0 : 160,
+			duration: prefersReducedMotion.current ? 0 : 360,
+			easing: cubicOut,
+			css: (t: number) =>
+				`height: ${t * height}px; margin-bottom: ${(t - 1) * 1.25}rem; opacity: ${t}; translate: 0 ${(t - 1) * 6}px; overflow: hidden;`
+		};
 	}
 </script>
 
@@ -95,71 +131,58 @@
 <!-- The card holds two forms side by side rather than one: the provider
      button is a form of its own (a real POST the browser follows to the
      provider), and forms cannot nest. -->
-<AuthScene lead={m.login_welcome()}>
-	<form onsubmit={submit} class="grid gap-5">
+<AuthScene bind:this={scene} lead={m.login_welcome()}>
+	<form onsubmit={submit} class="flex flex-col gap-5">
 		<h1 class="sr-only font-display text-heading font-medium lg:not-sr-only">
 			{m.login_title()}
 		</h1>
 
-		<div class="space-y-1.5">
-			<Label.Root for="username" class="text-caption font-semibold">{m.login_username()}</Label.Root
-			>
-			<!-- The page has one job, so it starts in its first field. It has to
+		<!-- The page has one job, so it starts in its first field. It has to
 		     be the attribute: SvelteKit moves focus to <body> after every
 		     navigation, the redirect here included, unless an element
 		     carries `autofocus`. -->
-			<!-- svelte-ignore a11y_autofocus -->
-			<input
-				id="username"
-				name="username"
-				type="text"
-				autofocus
-				autocomplete="username"
-				autocapitalize="none"
-				spellcheck="false"
-				required
-				bind:value={username}
-				class="h-[50px] w-full rounded-md border border-border bg-surface-elevated px-4 text-body outline-none focus:border-primary aria-[invalid=true]:border-[1.5px] aria-[invalid=true]:border-destructive"
-				aria-invalid={error !== null}
-			/>
-		</div>
-
-		<div class="col-start-1 row-start-2 space-y-1.5 self-baseline lg:row-start-3">
-			<Label.Root for="password" class="text-caption font-semibold">{m.login_password()}</Label.Root
-			>
-			<input
-				id="password"
-				name="password"
-				type="password"
-				autocomplete="current-password"
-				required
-				bind:value={password}
-				class="h-[50px] w-full rounded-md border border-border bg-surface-elevated px-4 text-body outline-none focus:border-primary aria-[invalid=true]:border-[1.5px] aria-[invalid=true]:border-destructive"
-				aria-invalid={error !== null}
-			/>
-		</div>
+		<Input
+			id="username"
+			name="username"
+			label={m.login_username()}
+			floating
+			autofocus
+			autocomplete="username"
+			autocapitalize="none"
+			spellcheck="false"
+			bind:value={username}
+			oninput={() => clear('username')}
+			aria-invalid={wrong.username || undefined}
+		/>
+		<!-- One message under both fields, so each field only says it is wrong. -->
+		<Input
+			id="password"
+			name="password"
+			type="password"
+			label={m.login_password()}
+			floating
+			autocomplete="current-password"
+			bind:value={password}
+			oninput={() => clear('password')}
+			aria-invalid={wrong.password || undefined}
+		/>
 
 		{#if error}
-			<p role="alert" class="text-caption font-medium text-destructive">{error}</p>
+			<p role="alert" in:open class="text-caption font-semibold text-destructive">
+				{error}
+			</p>
 		{/if}
 
-		<Button.Root
-			type="submit"
-			disabled={submitting}
-			class="h-[50px] w-full rounded-pill bg-primary hover-tint text-body font-semibold text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:opacity-50"
-		>
+		<Button type="submit" size="lg" class="w-full" busy={submitting}>
 			{submitting ? m.login_submitting() : m.login_submit()}
-		</Button.Root>
+		</Button>
 
-		<!-- Last in the DOM so Tab runs username, password, submit, link; the
-		     grid cell of the password row and baseline alignment put it on that
-		     label's line. Both are pinned to row 2 where the title is
-		     screen-reader only, 3 where it shows. -->
+		<!-- Last in the DOM so Tab runs username, password, submit, link. -->
 		{#if resetAvailable}
 			<a
 				href={resolve('/forgot-password')}
 				onclick={openForgot}
-				class="col-start-1 row-start-2 self-baseline justify-self-end text-caption font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:row-start-3"
+				class="self-center text-caption font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				{m.login_forgot()}
 			</a>

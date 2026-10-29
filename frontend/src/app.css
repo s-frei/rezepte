@@ -174,6 +174,29 @@
 			opacity: 0;
 		}
 	}
+	/* A busy button (`busy` on Button): a sheen runs through it while the
+	   request is out, and a line along its foot fills towards the end it
+	   never reaches. */
+	--animate-sheen: sheen 1100ms linear infinite;
+	--animate-progress: progress 3s cubic-bezier(0.1, 0.7, 0.2, 1) both;
+
+	@keyframes sheen {
+		from {
+			background-position: 120% 0;
+		}
+		to {
+			background-position: -120% 0;
+		}
+	}
+
+	@keyframes progress {
+		from {
+			scale: 0 1;
+		}
+		to {
+			scale: 0.92 1;
+		}
+	}
 
 	--text-label: 11px;
 	--text-label--line-height: 1.2;
@@ -674,6 +697,99 @@ html[data-theme-transition]::view-transition-new(root) {
 	height: 100%;
 	object-fit: cover;
 	animation-duration: 200ms;
+}
+
+/*
+ * A sign-in (`signIn` in $lib/page-transition.ts), about 900ms in all: the
+ * login card (`sign-in-card`, the text page below lg) lets go of its
+ * contents, and the app (`sign-in`, the layout's whole tree) opens out of
+ * its place, a sheet clipped to the card (`--sign-in-from`) that grows to
+ * the window and turns from the card's surface to the page's background.
+ * The overview shows on it once the card's contents are gone, and the
+ * kitchen behind recedes. The overview's cards then rise into place
+ * (`data-arrival` below). The card's picture lies above the sheet, or the
+ * sheet's surface would cover it at once; the overview is a live picture,
+ * so its cards' rise plays through it. Under reduced motion only the pages
+ * cross over.
+ */
+html[data-sign-in] [data-app] * {
+	view-transition-name: none !important;
+}
+
+html[data-sign-in]::view-transition {
+	background-color: var(--color-surface);
+}
+
+html[data-sign-in='']::view-transition-old(root) {
+	animation: sign-in-recede 405ms var(--ease-glide) both;
+}
+
+html[data-sign-in='']::view-transition-new(root) {
+	animation: none;
+	opacity: 0;
+}
+
+/* Faded through, as a page change is: crossed over, the login's card lay
+   on the overview's cards. */
+html[data-sign-in='reduced']::view-transition-old(root) {
+	animation-duration: 80ms;
+	animation-timing-function: ease-out;
+}
+
+html[data-sign-in='reduced']::view-transition-new(root) {
+	animation-duration: 160ms;
+	animation-delay: 60ms;
+	animation-timing-function: var(--ease-glide);
+}
+
+::view-transition-group(sign-in-card) {
+	z-index: 1;
+	animation: none;
+}
+
+::view-transition-old(sign-in-card) {
+	animation: sign-in-let-go 144ms ease-out both;
+}
+
+/* Sets off slowly, so the card is seen to start growing from its place. */
+::view-transition-group(sign-in) {
+	animation: sign-in-grow 405ms cubic-bezier(0.6, 0, 0.2, 1) both;
+}
+
+::view-transition-new(sign-in) {
+	animation: appear 200ms 90ms var(--ease-glide) both;
+}
+
+@keyframes sign-in-recede {
+	to {
+		opacity: 0.4;
+		scale: 0.94;
+	}
+}
+
+@keyframes sign-in-let-go {
+	to {
+		opacity: 0;
+		scale: 1.03;
+	}
+}
+
+@keyframes sign-in-grow {
+	from {
+		clip-path: var(--sign-in-from);
+		background-color: var(--color-surface);
+	}
+	to {
+		clip-path: inset(0 round 0);
+		background-color: var(--color-background);
+	}
+}
+
+/* The first eight cards rise one after another as the sheet settles,
+   quicker than a "Load more" batch, so the whole sign-in ends together. */
+[data-arrival] [data-card] {
+	animation-duration: 360ms;
+	animation-delay: calc(270ms + min(var(--rise), 7) * 40ms);
 }
 
 /*

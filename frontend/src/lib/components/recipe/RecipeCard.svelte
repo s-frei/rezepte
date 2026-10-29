@@ -128,7 +128,9 @@
 
 	A card "Load more" brought rises into place from a little below,
 	staggered through its batch (50ms each, the ninth on together), so the
-	new cards read as arriving rather than as the page jumping. Only the
+	new cards read as arriving rather than as the page jumping. The place in
+	the batch is `--rise`, so the overview's arrival after a sign-in
+	(`data-arrival`, app.css) can retime the same rise. Only the
 	`transform` animates: placement is `left`/`top` and the hover tilt uses
 	`translate` and `rotate`, which compose with it. Reduced motion drops it.
 
@@ -144,8 +146,10 @@
 	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
 	null
 		? ''
-		: 'motion-safe:animate-rise'} {photo ? 'bg-surface' : tintFor(recipe.id)}"
-	style:animation-delay={rise === null ? undefined : `${Math.min(rise, 8) * 50}ms`}
+		: '[animation-delay:calc(var(--rise)*50ms)] motion-safe:animate-rise'} {photo
+		? 'bg-surface'
+		: tintFor(recipe.id)}"
+	style:--rise={rise === null ? undefined : Math.min(rise, 8)}
 >
 	{#if photo}
 		<!-- The photo sits inset from the card's edge on three sides; the

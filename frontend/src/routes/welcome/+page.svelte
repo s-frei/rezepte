@@ -112,6 +112,10 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		// Busy, the button still takes a press (`aria-busy`).
+		if (submitting) {
+			return;
+		}
 		submitError = null;
 		errors = validateNewPassword(password, repeat);
 		if (Object.keys(errors).length > 0) {
@@ -230,6 +234,7 @@
 						type="password"
 						autocomplete="new-password"
 						required
+						floating
 						bind:value={password}
 						oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
 						error={errors.next ?? null}
@@ -243,6 +248,7 @@
 					type="password"
 					autocomplete="new-password"
 					required
+					floating
 					bind:value={repeat}
 					oninput={() => (errors = withoutErrors(errors, ['repeat']))}
 					error={errors.repeat ?? null}
@@ -250,7 +256,7 @@
 				{#if submitError}
 					<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
 				{/if}
-				<Button type="submit" size="lg" class="w-full" disabled={submitting}>
+				<Button type="submit" size="lg" class="w-full" busy={submitting}>
 					{reset ? m.welcome_reset_submit() : m.welcome_submit()}
 				</Button>
 			</form>

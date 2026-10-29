@@ -44,6 +44,9 @@ test('the bar shows icons only and marks the current place', async ({ page }) =>
 test('the bar stays whole while reading', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
+	// The address changes before the sign-in's transition swaps the page in,
+	// so the login's <main> is still there for a moment.
+	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
 	await makeTall(page);
 	await expect(bar(page)).not.toHaveAttribute('data-docked');
 

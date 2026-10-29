@@ -71,5 +71,7 @@ test('forgot-password', async ({ page }, testInfo) => {
 	await page.getByLabel('Username').fill('mila');
 	await page.getByRole('link', { name: 'Forgot password?' }).click();
 	await expect(page.getByLabel('Username or email')).toHaveValue('mila');
+	// The click leaves the pointer where the link was, over the send button.
+	await page.mouse.move(0, 0);
 	await shot(page, 'forgot-password');
 });

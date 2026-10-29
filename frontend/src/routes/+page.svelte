@@ -107,6 +107,10 @@
 	// Where the cards "Load more" brought start, so only they rise into
 	// place; a fresh list (a filter, a reload) has none.
 	let appendedFrom = $state(Infinity);
+	// Set for the first list after a sign-in (`signIn` in
+	// $lib/page-transition.ts): every card rises then, on the arrival's own
+	// timing (`data-arrival` in app.css).
+	let arrival = $state(false);
 	let showSkeleton = $state(false);
 
 	let abortController: AbortController | null = null;
@@ -301,7 +305,8 @@
 				if (controller !== abortController) {
 					return;
 				}
-				appendedFrom = append ? items.length : Infinity;
+				arrival = !listed && 'signIn' in document.documentElement.dataset;
+				appendedFrom = arrival ? 0 : append ? items.length : Infinity;
 				items = append ? [...items, ...fetched] : fetched;
 				total = result.total;
 				pageNum = result.page;
@@ -771,7 +776,7 @@
 		{/if}
 	</div>
 
-	<div bind:this={results} class="mt-7 md:mt-9">
+	<div bind:this={results} data-arrival={arrival || undefined} class="mt-7 md:mt-9">
 		{#if showSkeleton}
 			<RecipeGrid>
 				{#each Array.from({ length: 8 }, (_, i) => i) as i (i)}

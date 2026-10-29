@@ -35,6 +35,8 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		// Busy, the button still takes a press (`aria-busy`).
+		if (submitting) return;
 		error = null;
 		submitting = true;
 		try {
@@ -68,11 +70,12 @@
 				autocomplete="username"
 				maxlength={254}
 				required
+				floating
 				bind:value={login}
 				oninput={() => (error = null)}
 				{error}
 			/>
-			<Button type="submit" size="lg" class="w-full" disabled={submitting || !login.trim()}>
+			<Button type="submit" size="lg" class="w-full" disabled={!login.trim()} busy={submitting}>
 				{m.forgot_submit()}
 			</Button>
 		</form>

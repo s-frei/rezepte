@@ -11,6 +11,7 @@
 		size = 'md',
 		type = 'button',
 		disabled = false,
+		busy = false,
 		href,
 		title,
 		label,
@@ -22,6 +23,13 @@
 		size?: Size;
 		type?: 'button' | 'submit' | 'reset';
 		disabled?: boolean;
+		/**
+		 * The request this button sent is still out: it stays at full
+		 * strength (`aria-busy`, not disabled), and a sheen runs through it
+		 * over a line that fills along its foot. Reduced motion shows neither;
+		 * the caller's label says it then. The caller ignores a second press.
+		 */
+		busy?: boolean;
 		/** Renders an `<a>` styled like the button instead of a `<button>`. Pass
 		 * the result of `resolve()` from `$app/paths`, optionally with a `#anchor`. */
 		href?: ResolvedPathname | `${ResolvedPathname}#${string}`;
@@ -50,8 +58,13 @@
 		lg: 'h-12 max-sm:h-14 px-6 text-body'
 	};
 
+	// The sheen and the line take the button's text color, which reads on
+	// the primary fill in both themes.
+	const busyClasses =
+		'relative overflow-hidden motion-safe:after:absolute motion-safe:after:inset-0 motion-safe:after:bg-linear-[105deg] motion-safe:after:from-transparent motion-safe:after:from-30% motion-safe:after:via-current/40 motion-safe:after:to-transparent motion-safe:after:to-70% motion-safe:after:bg-size-[220%_100%] motion-safe:after:animate-sheen motion-safe:before:absolute motion-safe:before:inset-x-0 motion-safe:before:bottom-0 motion-safe:before:h-0.75 motion-safe:before:origin-left motion-safe:before:bg-current/50 motion-safe:before:animate-progress';
+
 	const classes = $derived(
-		`inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
+		`${busy ? busyClasses : ''} inline-flex items-center justify-center gap-2 rounded-pill font-semibold transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
 	);
 </script>
 
@@ -74,6 +87,7 @@
 	<BitsButton.Root
 		{type}
 		{disabled}
+		aria-busy={busy || undefined}
 		{title}
 		aria-label={label}
 		{onclick}
