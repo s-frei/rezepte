@@ -1,6 +1,6 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { session } from '$lib/auth.svelte';
+import { session } from '#lib/auth.svelte.js';
 
 const BASE = '/api/v1';
 const LOGIN_PATH = '/api/v1/auth/login';
@@ -59,7 +59,7 @@ export function isSignedOut(error: unknown): boolean {
 function redirectToLogin(): void {
 	session.user = null;
 	const next = encodeURIComponent(window.location.pathname + window.location.search);
-	void goto(resolve(`/login?next=${next}`));
+	void goto(resolve(`login?next=${next}`));
 }
 
 /** Calls the JSON API. Resolves with the parsed body, or undefined for empty responses. */

@@ -1,8 +1,8 @@
 import { toast } from 'svelte-sonner';
 import { goto } from '$app/navigation';
-import { session } from '$lib/auth.svelte';
-import { parseToastMessage } from '$lib/push-worker';
-import { m } from '$lib/paraglide/messages';
+import { session } from '#lib/auth.svelte.js';
+import { parseToastMessage } from '#lib/push-worker.js';
+import { m } from '#lib/paraglide/messages.js';
 
 // Longer than the default, so there is time to reach the button.
 const duration = 8000;
@@ -41,8 +41,7 @@ export function listenForPushToasts(): () => void {
 				onClick: () => {
 					// A path inside the app, checked by parseToastMessage. The recipe
 					// already open loads again, or its new comment would not show.
-					// eslint-disable-next-line svelte/no-navigation-without-resolve
-					void goto(msg.url, { invalidateAll: true });
+					void goto(msg.url, { refreshAll: true });
 					void closeNotification(msg.tag);
 				}
 			}

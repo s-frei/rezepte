@@ -1,30 +1,30 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
-	import { ApiError } from '$lib/api/client';
+	import { ApiError } from '#lib/api/client.js';
 	import {
 		createPublicShare,
 		revokeShare,
 		type PublicShare,
 		type ShareLifetime,
 		type ShareRefusal
-	} from '$lib/api/shares';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import { formatDate } from '$lib/recipe/format';
+	} from '#lib/api/shares.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import { formatDate } from '#lib/recipe/format.js';
 	import {
 		lifetimeFromKey,
 		lifetimeKey,
 		lifetimeLabel,
 		lifetimeOptions
-	} from '$lib/recipe/lifetimes';
-	import { copyLink, shareLink } from '$lib/recipe/share.svelte';
-	import { shareStatusLabel } from '$lib/recipe/share-status';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/recipe/lifetimes.js';
+	import { copyLink, shareLink } from '#lib/recipe/share.svelte.js';
+	import { shareStatusLabel } from '#lib/recipe/share-status.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		open = $bindable(false),

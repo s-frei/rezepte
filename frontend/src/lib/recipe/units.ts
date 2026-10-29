@@ -4,7 +4,7 @@
  * convenience in the reader's language, not a vocabulary: what is picked is
  * stored as written, and a unit of its own ("Bund", "can") is always fine.
  */
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Splits a catalog's comma-separated unit list. One message per language

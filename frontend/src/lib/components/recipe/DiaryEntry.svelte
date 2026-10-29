@@ -3,15 +3,15 @@
 	import { DropdownMenu } from 'bits-ui';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
-	import { ApiError } from '$lib/api/client';
-	import { commentImageUrl, type Comment } from '$lib/api/comments';
-	import Button from '$lib/components/ui/Button.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import { uploadErrorMessage } from '$lib/images/pick';
-	import { entryTime, sendable } from '$lib/recipe/diary';
-	import { stagePhotos, unstage, type PendingPhoto } from '$lib/recipe/photos';
-	import { userColorClasses } from '$lib/user/color';
-	import { m } from '$lib/paraglide/messages';
+	import { ApiError } from '#lib/api/client.js';
+	import { commentImageUrl, type Comment } from '#lib/api/comments.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import { uploadErrorMessage } from '#lib/images/pick.js';
+	import { entryTime, sendable } from '#lib/recipe/diary.js';
+	import { stagePhotos, unstage, type PendingPhoto } from '#lib/recipe/photos.js';
+	import { userColorClasses } from '#lib/user/color.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import DiaryField from './DiaryField.svelte';
 	import DiaryPhotos from './DiaryPhotos.svelte';
 

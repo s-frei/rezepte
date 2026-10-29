@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { RadioGroup } from 'bits-ui';
 	import Check from '@lucide/svelte/icons/check';
-	import type { ColorUsage } from '$lib/api/auth';
-	import { m } from '$lib/paraglide/messages';
-	import { USER_COLORS, userColorClasses, type UserColor } from '$lib/user/color';
+	import type { ColorUsage } from '#lib/api/auth.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { USER_COLORS, userColorClasses, type UserColor } from '#lib/user/color.js';
 
 	let {
 		value = $bindable(),
@@ -25,7 +25,7 @@
 
 	// Paraglide compiles one function per key, so the color names cannot be
 	// looked up as `m['user_color_' + color]` - the compiler has to see every
-	// call. Written out here rather than in $lib/user/color.ts: that module is
+	// call. Written out here rather than in #lib/user/color.ts: that module is
 	// the class table, and this is the only place a color is ever named.
 	const COLOR_LABELS: Record<UserColor, () => string> = {
 		amber: m.user_color_amber,

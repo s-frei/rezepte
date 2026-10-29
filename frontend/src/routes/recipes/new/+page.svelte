@@ -4,10 +4,10 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
-	import { createRecipe, emptyInput, uploadImage, type RecipeInput } from '$lib/api/recipes';
-	import RecipeForm from '$lib/components/editor/RecipeForm.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { takeDraft, type ImportedDraft } from '$lib/recipe/draft';
+	import { createRecipe, emptyInput, uploadImage, type RecipeInput } from '#lib/api/recipes.js';
+	import RecipeForm from '#lib/components/editor/RecipeForm.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { takeDraft, type ImportedDraft } from '#lib/recipe/draft.js';
 
 	// `?title=` prefills the title and nothing else, for "Als neues Rezept" on
 	// the overview's no-results state: someone searched for a dish, found

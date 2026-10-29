@@ -1,12 +1,12 @@
 <script lang="ts">
 	import Languages from '@lucide/svelte/icons/languages';
 	import { toast } from 'svelte-sonner';
-	import { updateOwnProfile } from '$lib/api/auth';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import Select from '$lib/components/ui/Select.svelte';
-	import { languageOptions } from '$lib/i18n/languages';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { updateOwnProfile } from '#lib/api/auth.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import Select from '#lib/components/ui/Select.svelte';
+	import { languageOptions } from '#lib/i18n/languages.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale, setLocale, type Locale } from '#lib/paraglide/runtime.js';
 
 	let saving = $state(false);
 	// The shown language, not `getLocale()` directly: that is a snapshot read

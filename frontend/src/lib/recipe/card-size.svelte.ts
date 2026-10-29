@@ -1,4 +1,4 @@
-import { load, save } from '$lib/storage';
+import { load, save } from '#lib/storage.js';
 
 /**
  * How big the overview's cards are, remembered per device like the theme

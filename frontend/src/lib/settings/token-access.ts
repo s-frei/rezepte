@@ -1,4 +1,4 @@
-import type { ApiToken, TokenScope } from '$lib/api/tokens';
+import type { ApiToken, TokenScope } from '#lib/api/tokens.js';
 
 export type RecipeAccess = 'none' | 'read' | 'write' | 'delete';
 export type UserAccess = 'none' | 'read' | 'write';

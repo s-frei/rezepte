@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { updateRecipe, type RecipeInput } from '$lib/api/recipes';
-	import { session } from '$lib/auth.svelte';
-	import RecipeForm from '$lib/components/editor/RecipeForm.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { updateRecipe, type RecipeInput } from '#lib/api/recipes.js';
+	import { session } from '#lib/auth.svelte.js';
+	import RecipeForm from '#lib/components/editor/RecipeForm.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

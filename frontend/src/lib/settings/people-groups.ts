@@ -1,6 +1,6 @@
-import type { PersonEntry, UserRole } from '$lib/api/users';
-import { getLocale } from '$lib/paraglide/runtime';
-import { roleRank } from '$lib/roles';
+import type { PersonEntry, UserRole } from '#lib/api/users.js';
+import { getLocale } from '#lib/paraglide/runtime.js';
+import { roleRank } from '#lib/roles.js';
 
 /** One role's share of the people list, the people already in reading order. */
 export type PeopleGroup<T extends PersonEntry> = { role: UserRole; people: T[] };

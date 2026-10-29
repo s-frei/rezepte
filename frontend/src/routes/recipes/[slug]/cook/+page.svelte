@@ -10,22 +10,22 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import Maximize2 from '@lucide/svelte/icons/maximize-2';
 	import X from '@lucide/svelte/icons/x';
-	import CookProgress from '$lib/components/cook/CookProgress.svelte';
-	import IngredientSheet from '$lib/components/cook/IngredientSheet.svelte';
-	import TypeSpecimen from '$lib/components/cook/TypeSpecimen.svelte';
-	import StepText from '$lib/components/recipe/StepText.svelte';
-	import TimerBanner from '$lib/components/timer/TimerBanner.svelte';
-	import TimerDock from '$lib/components/timer/TimerDock.svelte';
-	import IconButton from '$lib/components/ui/IconButton.svelte';
-	import { createServings } from '$lib/recipe/servings.svelte';
-	import { swipeDirection } from '$lib/recipe/swipe';
-	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '$lib/recipe/type-size';
-	import { ScreenWakeLock } from '$lib/recipe/wake-lock.svelte';
-	import { unlockAudio } from '$lib/recipe/chime';
-	import { clampStep, cookPath, timerId, type Timer } from '$lib/recipe/timers';
-	import { timers } from '$lib/recipe/timers.svelte';
-	import type { StepTime } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
+	import CookProgress from '#lib/components/cook/CookProgress.svelte';
+	import IngredientSheet from '#lib/components/cook/IngredientSheet.svelte';
+	import TypeSpecimen from '#lib/components/cook/TypeSpecimen.svelte';
+	import StepText from '#lib/components/recipe/StepText.svelte';
+	import TimerBanner from '#lib/components/timer/TimerBanner.svelte';
+	import TimerDock from '#lib/components/timer/TimerDock.svelte';
+	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import { createServings } from '#lib/recipe/servings.svelte.js';
+	import { swipeDirection } from '#lib/recipe/swipe.js';
+	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '#lib/recipe/type-size.js';
+	import { ScreenWakeLock } from '#lib/recipe/wake-lock.svelte.js';
+	import { unlockAudio } from '#lib/recipe/chime.js';
+	import { clampStep, cookPath, timerId, type Timer } from '#lib/recipe/timers.js';
+	import { timers } from '#lib/recipe/timers.svelte.js';
+	import type { StepTime } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -162,7 +162,7 @@
 		if (cameFromDetail) {
 			history.back();
 		} else {
-			void goto(detailHref, { replaceState: true });
+			void goto(detailHref, { replace: true });
 		}
 	}
 

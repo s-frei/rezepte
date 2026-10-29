@@ -3,23 +3,23 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { getPasswordReset, inspectSetupLink, redeemSetupLink } from '$lib/api/auth';
-	import { ApiError } from '$lib/api/client';
-	import { getOidc, type OidcInfo } from '$lib/api/oidc';
-	import AuthScene from '$lib/components/auth/AuthScene.svelte';
-	import ProviderButton from '$lib/components/auth/ProviderButton.svelte';
-	import { session } from '$lib/auth.svelte';
-	import PasswordStrength from '$lib/components/settings/PasswordStrength.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { withoutErrors } from '$lib/form-errors';
-	import { m } from '$lib/paraglide/messages';
+	import { getPasswordReset, inspectSetupLink, redeemSetupLink } from '#lib/api/auth.js';
+	import { ApiError } from '#lib/api/client.js';
+	import { getOidc, type OidcInfo } from '#lib/api/oidc.js';
+	import AuthScene from '#lib/components/auth/AuthScene.svelte';
+	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
+	import { session } from '#lib/auth.svelte.js';
+	import PasswordStrength from '#lib/components/settings/PasswordStrength.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { withoutErrors } from '#lib/form-errors.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		PASSWORD_MIN,
 		passwordErrorsFromApi,
 		validateNewPassword,
 		type PasswordErrors
-	} from '$lib/settings/password';
+	} from '#lib/settings/password.js';
 
 	// Read once on mount and kept only in memory from then on: the address bar
 	// is stripped of the fragment immediately (below), whether or not the

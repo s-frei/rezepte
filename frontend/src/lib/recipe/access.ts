@@ -1,6 +1,6 @@
-import { ApiError } from '$lib/api/client';
-import type { EditPolicy, Recipe } from '$lib/api/recipes';
-import { m } from '$lib/paraglide/messages';
+import { ApiError } from '#lib/api/client.js';
+import type { EditPolicy, Recipe } from '#lib/api/recipes.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * The colophon line for a locked recipe, or null when it is open. The

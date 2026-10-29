@@ -1,4 +1,4 @@
-import type { RecipeDraft } from '$lib/api/drafts';
+import type { RecipeDraft } from '#lib/api/drafts.js';
 
 /** An import on its way from the dialog to /recipes/new. Not reactive:
  * the editor reads it once, the way RecipeForm reads `initial`. */

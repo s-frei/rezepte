@@ -3,7 +3,7 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import kitchen from '$brand/lockups/rezepte-kitchen.webp?url';
 	import wordmark from '$brand/lockups/rezepte-wordmark.svg?url';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		lead = '',
@@ -54,7 +54,7 @@
 		class="h-[250px] w-full object-cover object-[25%_100%] sm:h-[320px] lg:absolute lg:inset-0 lg:h-full lg:object-[52%_100%]"
 	/>
 	<!-- `data-auth-page` and `data-auth-card`: what grows into the app after a
-	     sign-in (`signIn` in $lib/page-transition.ts), the text page below lg
+	     sign-in (`signIn` in #lib/page-transition.ts), the text page below lg
 	     and the card from lg. -->
 	<div
 		data-auth-page

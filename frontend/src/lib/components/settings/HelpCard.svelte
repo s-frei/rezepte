@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import LifeBuoy from '@lucide/svelte/icons/life-buoy';
-	import { USER_GUIDE_URL } from '$lib/docs';
-	import { m } from '$lib/paraglide/messages';
+	import { USER_GUIDE_URL } from '#lib/docs.js';
+	import { m } from '#lib/paraglide/messages.js';
 </script>
 
 <!--

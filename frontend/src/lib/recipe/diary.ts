@@ -1,6 +1,6 @@
-import type { Comment } from '$lib/api/comments';
-import { m } from '$lib/paraglide/messages';
-import { getLocale } from '$lib/paraglide/runtime';
+import type { Comment } from '#lib/api/comments.js';
+import { m } from '#lib/paraglide/messages.js';
+import { getLocale } from '#lib/paraglide/runtime.js';
 import { formatDay } from './format';
 
 export type DiaryDay = {

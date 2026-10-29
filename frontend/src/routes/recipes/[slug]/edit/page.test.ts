@@ -1,10 +1,10 @@
 import { isRedirect } from '@sveltejs/kit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Recipe } from '$lib/api/recipes';
+import type { Recipe } from '#lib/api/recipes.js';
 import { load } from './+page';
 
 const loadRecipeBySlug = vi.fn();
-vi.mock('$lib/recipe/load', () => ({
+vi.mock('#lib/recipe/load.js', () => ({
 	loadRecipeBySlug: (slug: string) => loadRecipeBySlug(slug)
 }));
 vi.mock('$app/paths', () => ({

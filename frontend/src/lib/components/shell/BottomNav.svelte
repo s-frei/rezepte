@@ -7,9 +7,9 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { palette } from '$lib/palette.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { bottomNav, type NavPlace } from '$lib/shell.svelte';
+	import { palette } from '#lib/palette.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { bottomNav, type NavPlace } from '#lib/shell.svelte.js';
 	import { docked } from './nav-scroll';
 	import NewSheet from './NewSheet.svelte';
 	import YouSheet from './YouSheet.svelte';

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { uploadCommentImage } from '$lib/api/comments';
+import { uploadCommentImage } from '#lib/api/comments.js';
 import { stagePhotos, unstage, type PendingPhoto } from './photos';
 
-vi.mock('$lib/api/comments', () => ({ uploadCommentImage: vi.fn() }));
+vi.mock('#lib/api/comments.js', () => ({ uploadCommentImage: vi.fn() }));
 const upload = vi.mocked(uploadCommentImage);
 
 const staged = (id: string) => ({ id, width: 4, height: 3, inRecipe: false });

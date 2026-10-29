@@ -3,17 +3,17 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import { Dialog } from 'bits-ui';
 	import { afterNavigate } from '$app/navigation';
-	import { session } from '$lib/auth.svelte';
-	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
-	import { byGroup } from '$lib/components/nav/contents';
-	import GroupHeading from '$lib/components/nav/GroupHeading.svelte';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import { offer, startInstall } from '$lib/install.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { roleLabel } from '$lib/roles';
-	import { settingsPages } from '$lib/settings/pages';
-	import { signOut } from '$lib/sign-out';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import { session } from '#lib/auth.svelte.js';
+	import ThemeControl from '#lib/components/settings/ThemeControl.svelte';
+	import { byGroup } from '#lib/components/nav/contents.js';
+	import GroupHeading from '#lib/components/nav/GroupHeading.svelte';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import { offer, startInstall } from '#lib/install.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { roleLabel } from '#lib/roles.js';
+	import { settingsPages } from '#lib/settings/pages.js';
+	import { signOut } from '#lib/sign-out.js';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 

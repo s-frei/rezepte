@@ -2,8 +2,8 @@
 	import type { Snippet } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { Tabs } from 'bits-ui';
-	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
+	import type { ImageVariant, RecipeContent } from '#lib/api/recipes.js';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
 	import ImageGallery from './ImageGallery.svelte';
 	import IngredientList from './IngredientList.svelte';
 	import MetaPills from './MetaPills.svelte';
@@ -11,11 +11,11 @@
 	import SourceCredit from './SourceCredit.svelte';
 	import ServingsStepper from './ServingsStepper.svelte';
 	import StepList from './StepList.svelte';
-	import { fullList } from '$lib/recipe/ingredient-text';
-	import { createServings } from '$lib/recipe/servings.svelte';
-	import { copyText } from '$lib/recipe/share.svelte';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { fullList } from '#lib/recipe/ingredient-text.js';
+	import { createServings } from '#lib/recipe/servings.svelte.js';
+	import { copyText } from '#lib/recipe/share.svelte.js';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		recipe,

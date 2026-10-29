@@ -4,13 +4,13 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { getOwnIdentity, unlinkOwnIdentity } from '$lib/api/oidc';
-	import { session } from '$lib/auth.svelte';
-	import ProviderButton from '$lib/components/auth/ProviderButton.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { getOwnIdentity, unlinkOwnIdentity } from '#lib/api/oidc.js';
+	import { session } from '#lib/auth.svelte.js';
+	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
 
 	let { name }: { name: string } = $props();
 
@@ -29,7 +29,7 @@
 		else if (result === 'taken') toast.error(m.oidc_taken({ name }));
 		else if (result === 'failed') toast.error(m.oidc_failed({ name }));
 		if (result) {
-			void goto(resolve('/settings'), { replaceState: true, keepFocus: true, noScroll: true });
+			void goto(resolve('/settings'), { replace: true, reset: false });
 		}
 		void load();
 	});

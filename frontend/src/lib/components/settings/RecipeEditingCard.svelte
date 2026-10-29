@@ -2,11 +2,11 @@
 	import { onMount } from 'svelte';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import { toast } from 'svelte-sonner';
-	import { getSettings, setRecipesLockedByDefault } from '$lib/api/settings';
-	import { session } from '$lib/auth.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import { USER_GUIDE_URL } from '$lib/docs';
-	import { m } from '$lib/paraglide/messages';
+	import { getSettings, setRecipesLockedByDefault } from '#lib/api/settings.js';
+	import { session } from '#lib/auth.svelte.js';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import { USER_GUIDE_URL } from '#lib/docs.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let { ownerName }: { ownerName: string } = $props();
 

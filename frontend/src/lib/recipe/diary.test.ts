@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Comment } from '$lib/api/comments';
+import type { Comment } from '#lib/api/comments.js';
 
 let locale: 'en' | 'de' = 'de';
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => locale,
 	experimentalStaticLocale: undefined
 }));

@@ -1,5 +1,5 @@
-import type { UserRole } from '$lib/api/users';
-import { isAdminRole } from '$lib/roles';
+import type { UserRole } from '#lib/api/users.js';
+import { isAdminRole } from '#lib/roles.js';
 
 /** What the viewer may do to one row of the people list. */
 export type RowPermissions = {

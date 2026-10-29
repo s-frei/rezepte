@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { DISMISSED_STORAGE_KEY, installOffer, isIos } from './install';
 import { load, save } from './storage';
 

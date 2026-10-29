@@ -2,11 +2,11 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { forgotPassword, getPasswordReset } from '$lib/api/auth';
-	import AuthScene from '$lib/components/auth/AuthScene.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { forgotPassword, getPasswordReset } from '#lib/api/auth.js';
+	import AuthScene from '#lib/components/auth/AuthScene.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// Filled in from /login's navigation state, never from the URL.
 	let login = $state(page.state.login ?? '');

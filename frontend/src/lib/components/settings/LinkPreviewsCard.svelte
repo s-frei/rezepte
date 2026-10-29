@@ -6,11 +6,11 @@
 		updateSettings,
 		type PreviewLifetime,
 		type Settings
-	} from '$lib/api/settings';
-	import { session } from '$lib/auth.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/api/settings.js';
+	import { session } from '#lib/auth.svelte.js';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let { ownerName }: { ownerName: string } = $props();
 

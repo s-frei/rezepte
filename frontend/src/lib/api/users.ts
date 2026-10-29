@@ -1,7 +1,7 @@
-import type { UserColor } from '$lib/user/color';
+import type { UserColor } from '#lib/user/color.js';
 import type { Locale, User } from './auth';
-import { avatarBody, cropQuery } from '$lib/user/avatar';
-import type { Crop } from '$lib/user/crop';
+import { avatarBody, cropQuery } from '#lib/user/avatar.js';
+import type { Crop } from '#lib/user/crop.js';
 import { api } from './client';
 
 export type UserAccount = User & {

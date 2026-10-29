@@ -2,12 +2,12 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { confirmEmail, me } from '$lib/api/auth';
-	import { ApiError } from '$lib/api/client';
-	import { session } from '$lib/auth.svelte';
-	import AuthScene from '$lib/components/auth/AuthScene.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { confirmEmail, me } from '#lib/api/auth.js';
+	import { ApiError } from '#lib/api/client.js';
+	import { session } from '#lib/auth.svelte.js';
+	import AuthScene from '#lib/components/auth/AuthScene.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let phase = $state<'loading' | 'done' | 'invalid' | 'error'>('loading');
 	let address = $state('');

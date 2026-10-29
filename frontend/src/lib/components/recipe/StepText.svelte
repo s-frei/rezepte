@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { IngredientGroup, Step, StepTime } from '$lib/api/recipes';
+	import type { IngredientGroup, Step, StepTime } from '#lib/api/recipes.js';
 	import Timer from '@lucide/svelte/icons/timer';
-	import TimerRing from '$lib/components/timer/TimerRing.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { segmentStep } from '$lib/recipe/references';
-	import { fraction, type Timer as CookTimer } from '$lib/recipe/timers';
-	import { timers } from '$lib/recipe/timers.svelte';
+	import TimerRing from '#lib/components/timer/TimerRing.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { segmentStep } from '#lib/recipe/references.js';
+	import { fraction, type Timer as CookTimer } from '#lib/recipe/timers.js';
+	import { timers } from '#lib/recipe/timers.svelte.js';
 
 	let {
 		step,

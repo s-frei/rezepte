@@ -1,5 +1,5 @@
-import type { FieldError } from '$lib/api/client';
-import { m } from '$lib/paraglide/messages';
+import type { FieldError } from '#lib/api/client.js';
+import { m } from '#lib/paraglide/messages.js';
 
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 128;

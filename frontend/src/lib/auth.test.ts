@@ -5,7 +5,7 @@ import type { User } from './api/auth';
 // cookie is what Paraglide reads it from, so this stands in for the cookie.
 let cookieLocale = 'en';
 
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => cookieLocale,
 	// The real setLocale writes the cookie and then reloads; the write is the
 	// half that matters for the loop argument below.
@@ -14,7 +14,7 @@ vi.mock('$lib/paraglide/runtime', () => ({
 	})
 }));
 
-const { getLocale, setLocale } = await import('$lib/paraglide/runtime');
+const { getLocale, setLocale } = await import('#lib/paraglide/runtime.js');
 // The module is `auth.svelte.ts`; the test file cannot carry the `.svelte`
 // infix, because vitest reserves `*.svelte.test.ts` for a different project.
 const { adoptAccountLocale } = await import('./auth.svelte');

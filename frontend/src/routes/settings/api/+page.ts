@@ -1,4 +1,4 @@
-import { isAdminRole } from '$lib/roles';
+import { isAdminRole } from '#lib/roles.js';
 import type { PageLoad } from './$types';
 
 /**

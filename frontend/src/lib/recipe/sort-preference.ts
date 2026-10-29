@@ -1,4 +1,5 @@
-import { load, save } from '$lib/storage';
+import type { ReadonlyURL } from '$app/state';
+import { load, save } from '#lib/storage.js';
 import { isSort, type ListQuery, type Sort } from './query';
 
 /**
@@ -16,7 +17,7 @@ export const SORT_STORAGE_KEY = 'rezepte-sort';
  */
 export function applyRememberedSort(
 	parsed: ListQuery,
-	url: URL,
+	url: ReadonlyURL,
 	remembered: Sort | null
 ): ListQuery {
 	return url.searchParams.has('sort') || remembered === null

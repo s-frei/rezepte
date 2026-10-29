@@ -4,16 +4,16 @@
 	import { backOut } from 'svelte/easing';
 	import { fade, scale } from 'svelte/transition';
 	import Check from '@lucide/svelte/icons/check';
-	import type { IngredientGroup } from '$lib/api/recipes';
-	import { ingredientKey } from '$lib/recipe/checked';
-	import { isChecked, toggle } from '$lib/recipe/checked.svelte';
-	import { formatFactor, formatServings } from '$lib/recipe/format';
-	import { MIN_ROWS, splitColumns, type ColumnPart } from '$lib/recipe/ingredient-columns';
-	import { shoppingList } from '$lib/recipe/ingredient-text';
-	import { formatQuantityFor } from '$lib/recipe/scale';
-	import { copyText } from '$lib/recipe/share.svelte';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import type { IngredientGroup } from '#lib/api/recipes.js';
+	import { ingredientKey } from '#lib/recipe/checked.js';
+	import { isChecked, toggle } from '#lib/recipe/checked.svelte.js';
+	import { formatFactor, formatServings } from '#lib/recipe/format.js';
+	import { MIN_ROWS, splitColumns, type ColumnPart } from '#lib/recipe/ingredient-columns.js';
+	import { shoppingList } from '#lib/recipe/ingredient-text.js';
+	import { formatQuantityFor } from '#lib/recipe/scale.js';
+	import { copyText } from '#lib/recipe/share.svelte.js';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		recipeId,

@@ -1,7 +1,7 @@
-import type { Locale } from '$lib/paraglide/runtime';
-import { avatarBody, cropQuery } from '$lib/user/avatar';
-import type { Crop } from '$lib/user/crop';
-import type { UserColor } from '$lib/user/color';
+import type { Locale } from '#lib/paraglide/runtime.js';
+import { avatarBody, cropQuery } from '#lib/user/avatar.js';
+import type { Crop } from '#lib/user/crop.js';
+import type { UserColor } from '#lib/user/color.js';
 import { api } from './client';
 
 /**

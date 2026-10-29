@@ -1,8 +1,8 @@
 <script lang="ts">
-	import StarIcon from '$lib/components/icons/StarIcon.svelte';
+	import StarIcon from '#lib/components/icons/StarIcon.svelte';
 	import { toast } from 'svelte-sonner';
-	import { setFavorite } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
+	import { setFavorite } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		id,

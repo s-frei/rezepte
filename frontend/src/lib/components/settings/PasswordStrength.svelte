@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade } from 'svelte/transition';
-	import { m } from '$lib/paraglide/messages';
-	import { estimateStrength, strengthLabel, type Strength } from '$lib/settings/password-strength';
+	import { m } from '#lib/paraglide/messages.js';
+	import {
+		estimateStrength,
+		strengthLabel,
+		type Strength
+	} from '#lib/settings/password-strength.js';
 
 	// Advisory only: nothing here blocks a submit. The API's length rule is
 	// the one rule a password has to pass, and a check that lived only in the

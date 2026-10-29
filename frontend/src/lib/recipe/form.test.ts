@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { emptyInput, type Person, type Recipe, type RecipeInput } from '$lib/api/recipes';
+import { emptyInput, type Person, type Recipe, type RecipeInput } from '#lib/api/recipes.js';
 import {
 	anchorId,
 	applyReview,
@@ -27,7 +27,7 @@ import {
 // quantity-formatting tests further down switch it, the same mock shape as
 // format.test.ts uses.
 let locale: 'en' | 'de' = 'en';
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => locale,
 	experimentalStaticLocale: undefined
 }));

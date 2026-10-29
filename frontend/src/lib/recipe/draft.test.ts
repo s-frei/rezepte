@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import type { RecipeDraft } from '$lib/api/drafts';
+import type { RecipeDraft } from '#lib/api/drafts.js';
 import { putDraft, takeDraft } from './draft';
 
 const imported = () => ({ draft: {} as RecipeDraft, photo: null, photoFailed: true });

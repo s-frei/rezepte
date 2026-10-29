@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import { load, save } from './storage';
 import { applyTheme, applyThemeColor, isTheme, THEME_STORAGE_KEY, type Theme } from './theme';
 

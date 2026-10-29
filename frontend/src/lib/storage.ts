@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 /**
  * Per-device choices in `localStorage`. Reaching for `window.localStorage`

@@ -1,5 +1,5 @@
-import type { Person, Recipe } from '$lib/api/recipes';
-import { m } from '$lib/paraglide/messages';
+import type { Person, Recipe } from '#lib/api/recipes.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Whether a recipe has been edited since it was written, which is what

@@ -1,4 +1,4 @@
-import { getLocale, locales, type Locale } from '$lib/paraglide/runtime';
+import { getLocale, locales, type Locale } from '#lib/paraglide/runtime.js';
 
 /**
  * One entry of the language picker: the language named in the interface's

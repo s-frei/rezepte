@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { Dialog, Popover } from 'bits-ui';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { m } from '$lib/paraglide/messages';
-	import type { Person } from '$lib/api/recipes';
-	import { authorLabel } from '$lib/recipe/authorship';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import PersonCard from '$lib/components/ui/PersonCard.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Person } from '#lib/api/recipes.js';
+	import { authorLabel } from '#lib/recipe/authorship.js';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import PersonCard from '#lib/components/ui/PersonCard.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 
 	let {
 		createdBy,

@@ -1,4 +1,4 @@
-import type { TokenScope } from '$lib/api/tokens';
+import type { TokenScope } from '#lib/api/tokens.js';
 
 /** The MCP endpoint of the instance the browser is talking to. */
 export function mcpUrl(origin: string): string {

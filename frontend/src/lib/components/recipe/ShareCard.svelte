@@ -1,12 +1,12 @@
 <script lang="ts">
 	import Clock from '@lucide/svelte/icons/clock';
 	import Users from '@lucide/svelte/icons/users';
-	import { imageUrl, type RecipeContent } from '$lib/api/recipes';
-	import Lockup from '$lib/components/brand/Lockup.svelte';
-	import { SOURCE_URL } from '$lib/docs';
-	import { formatMinutes, formatServings } from '$lib/recipe/format';
-	import { formatQuantityFor } from '$lib/recipe/scale';
-	import { m } from '$lib/paraglide/messages';
+	import { imageUrl, type RecipeContent } from '#lib/api/recipes.js';
+	import Lockup from '#lib/components/brand/Lockup.svelte';
+	import { SOURCE_URL } from '#lib/docs.js';
+	import { formatMinutes, formatServings } from '#lib/recipe/format.js';
+	import { formatQuantityFor } from '#lib/recipe/scale.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import PlaceholderTile from './PlaceholderTile.svelte';
 	import StepList from './StepList.svelte';
 

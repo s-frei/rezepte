@@ -1,5 +1,5 @@
-import type { SignInSettings } from '$lib/api/oidc';
-import { m } from '$lib/paraglide/messages';
+import type { SignInSettings } from '#lib/api/oidc.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /** The provider's name as the sign-in button shows it. */
 export function providerName(s: SignInSettings): string {

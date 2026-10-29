@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { cubicOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
-	import type { ApiToken } from '$lib/api/tokens';
-	import LifetimeBar from '$lib/components/ui/LifetimeBar.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import Stamp from '$lib/components/ui/Stamp.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
-	import { accessLevels, isExpired } from '$lib/settings/token-access';
-	import { userColorEdge } from '$lib/user/color';
+	import type { ApiToken } from '#lib/api/tokens.js';
+	import LifetimeBar from '#lib/components/ui/LifetimeBar.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import Stamp from '#lib/components/ui/Stamp.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
+	import { accessLevels, isExpired } from '#lib/settings/token-access.js';
+	import { userColorEdge } from '#lib/user/color.js';
 
 	let {
 		token,

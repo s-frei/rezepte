@@ -61,11 +61,9 @@ export function byEnding(list: Timer[], now: number): Timer[] {
 	return [...list].sort((a, b) => remainingMs(a, now) - remainingMs(b, now));
 }
 
-/** Cook mode at the timer's step (`?step` is 1-based). */
-export function cookPath(
-	t: Pick<Timer, 'slug' | 'step'>
-): `/recipes/${string}/cook?step=${number}` {
-	return `/recipes/${t.slug}/cook?step=${t.step + 1}`;
+/** Cook mode at the timer's step (`?step` is 1-based), as a path for `resolve()`. */
+export function cookPath(t: Pick<Timer, 'slug' | 'step'>): `recipes/${string}/cook?step=${number}` {
+	return `recipes/${t.slug}/cook?step=${t.step + 1}`;
 }
 
 function isTimer(v: unknown): v is Timer {

@@ -1,5 +1,5 @@
-import { m } from '$lib/paraglide/messages';
-import type { UserRole } from '$lib/api/users';
+import { m } from '#lib/paraglide/messages.js';
+import type { UserRole } from '#lib/api/users.js';
 
 /**
  * The superadmin is an admin, so a bare comparison against 'admin' excludes

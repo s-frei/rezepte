@@ -3,12 +3,12 @@
 	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { getPasswordReset, me, resendConfirmation, updateOwnProfile } from '$lib/api/auth';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { session } from '$lib/auth.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { getPasswordReset, me, resendConfirmation, updateOwnProfile } from '#lib/api/auth.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { session } from '#lib/auth.svelte.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// Seeded once, not derived: the root layout's `load` puts the session in
 	// place before any page renders, and from then on the field belongs to
@@ -124,7 +124,7 @@
 					toast.error(m.settings_profile_error());
 				}
 			} else if (!isSignedOut(failure)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.settings_profile_error());
 			}
 		} finally {

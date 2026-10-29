@@ -6,15 +6,15 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { DropdownMenu } from 'bits-ui';
-	import { session } from '$lib/auth.svelte';
-	import { themeOptions } from '$lib/components/settings/ThemeControl.svelte';
-	import { offer, startInstall } from '$lib/install.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { roleLabel } from '$lib/roles';
-	import { signOut } from '$lib/sign-out';
-	import { isTheme } from '$lib/theme';
-	import { setTheme, theme } from '$lib/theme.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import { session } from '#lib/auth.svelte.js';
+	import { themeOptions } from '#lib/components/settings/ThemeControl.svelte';
+	import { offer, startInstall } from '#lib/install.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { roleLabel } from '#lib/roles.js';
+	import { signOut } from '#lib/sign-out.js';
+	import { isTheme } from '#lib/theme.js';
+	import { setTheme, theme } from '#lib/theme.svelte.js';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 
 	/** The desktop top bar's avatar menu; a phone reaches the same through the bottom nav's "You". */
 	let { open = $bindable(false) }: { open?: boolean } = $props();

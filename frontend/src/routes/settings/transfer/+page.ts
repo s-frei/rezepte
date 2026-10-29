@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { isAdminRole } from '$lib/roles';
+import { isAdminRole } from '#lib/roles.js';
 import type { PageLoad } from './$types';
 
 // The first page the settings area hides by role: export and import are

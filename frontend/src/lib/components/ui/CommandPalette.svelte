@@ -10,10 +10,10 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade, fly, scale } from 'svelte/transition';
-	import { listRecipes, type RecipeCard } from '$lib/api/recipes';
-	import { importDialog } from '$lib/import.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { palette } from '$lib/palette.svelte';
+	import { listRecipes, type RecipeCard } from '#lib/api/recipes.js';
+	import { importDialog } from '#lib/import.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { palette } from '#lib/palette.svelte.js';
 
 	let query = $state('');
 	let results = $state<RecipeCard[]>([]);
@@ -157,7 +157,7 @@
 
 	// Hands the query to the overview, which has the filters, the tags and
 	// every result rather than eight.
-	const allResultsHref = $derived(resolve(`/?${new URLSearchParams({ q: query.trim() })}`));
+	const allResultsHref = $derived(resolve(`?${new URLSearchParams({ q: query.trim() })}`));
 
 	function go(href: ResolvedPathname) {
 		palette.open = false;

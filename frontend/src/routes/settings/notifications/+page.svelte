@@ -1,7 +1,7 @@
 <script lang="ts">
-	import NotificationsCard from '$lib/components/settings/NotificationsCard.svelte';
-	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import NotificationsCard from '#lib/components/settings/NotificationsCard.svelte';
+	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
@@ -20,18 +21,9 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			// The logo's sources live outside the app (assets/brand), next to
-			// the icon masters; $brand is how components import them.
-			alias: { $brand: '../assets/brand' },
 			adapter: adapter({ pages: '../service/internal/web/dist', fallback: 'index.html' }),
-			// Registered by $lib/push.svelte, only where push works.
-			serviceWorker: { register: false },
-			// svelte-check type-checks the Playwright specs and config too.
-			typescript: {
-				config: (config) => {
-					config.include.push('../e2e/**/*.ts', '../playwright.config.ts');
-				}
-			}
+			// Registered by #lib/push.svelte.ts, only where push works.
+			serviceWorker: { register: false }
 		}),
 
 		paraglideVitePlugin({
@@ -46,6 +38,13 @@ export default defineConfig({
 			strategy: ['cookie', 'preferredLanguage', 'baseLocale']
 		})
 	],
+	resolve: {
+		// The logo's sources live outside the app (assets/brand), next to
+		// the icon masters; $brand is how components import them. Vite's own
+		// alias, not kit's deprecated `alias`: every import is `?url`, which
+		// vite/client already types.
+		alias: { $brand: fileURLToPath(new URL('../assets/brand', import.meta.url)) }
+	},
 	server: {
 		// Listen on all interfaces so the dev server is reachable from other
 		// devices on the local network, not just localhost.

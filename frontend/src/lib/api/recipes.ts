@@ -1,5 +1,5 @@
-import type { UserColor } from '$lib/user/color';
-import { buildListQuery, type ListQuery } from '$lib/recipe/query';
+import type { UserColor } from '#lib/user/color.js';
+import { buildListQuery, type ListQuery } from '#lib/recipe/query.js';
 import { api } from './client';
 
 // Contract types (binding for both the backend and the frontend, see
@@ -309,7 +309,7 @@ export type Author = Person & { count: number };
 /**
  * Everyone who wrote at least one recipe, most recipes first, for the
  * overview's "Added by" filter. A facet of the recipe list; who has an
- * account at all is `listPeople` in `$lib/api/users`.
+ * account at all is `listPeople` in `#lib/api/users`.
  */
 export async function listAuthors(): Promise<Author[]> {
 	const page = await api<{ items: Author[] }>('/authors');

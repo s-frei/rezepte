@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { userColorClasses } from '$lib/user/color';
+	import { userColorClasses } from '#lib/user/color.js';
 
 	let {
 		color

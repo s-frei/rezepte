@@ -2,10 +2,10 @@
 	import { onMount, tick } from 'svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
-	import { listColorUsage, type ColorUsage } from '$lib/api/auth';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { getOidc } from '$lib/api/oidc';
-	import { getSettings } from '$lib/api/settings';
+	import { listColorUsage, type ColorUsage } from '#lib/api/auth.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { getOidc } from '#lib/api/oidc.js';
+	import { getSettings } from '#lib/api/settings.js';
 	import {
 		deleteUser,
 		issueSetupLink,
@@ -18,24 +18,24 @@
 		type SetupLinkInfo,
 		type UserAccount,
 		type UserRole
-	} from '$lib/api/users';
-	import { session } from '$lib/auth.svelte';
-	import CreateUserDialog from '$lib/components/settings/CreateUserDialog.svelte';
-	import LinkPreviewsCard from '$lib/components/settings/LinkPreviewsCard.svelte';
-	import PublicSharingCard from '$lib/components/settings/PublicSharingCard.svelte';
-	import RecipeEditingCard from '$lib/components/settings/RecipeEditingCard.svelte';
-	import ResetPasswordDialog from '$lib/components/settings/ResetPasswordDialog.svelte';
-	import SendSetupLinkDialog from '$lib/components/settings/SendSetupLinkDialog.svelte';
-	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
-	import SetupLinkDialog from '$lib/components/settings/SetupLinkDialog.svelte';
-	import PeopleList from '$lib/components/settings/PeopleList.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { isAdminRole, roleLabel } from '$lib/roles';
-	import { focusManageButton, focusMenuTrigger, personRowId } from '$lib/settings/person-focus';
-	import { rowMotion } from '$lib/settings/row-motion.svelte';
+	} from '#lib/api/users.js';
+	import { session } from '#lib/auth.svelte.js';
+	import CreateUserDialog from '#lib/components/settings/CreateUserDialog.svelte';
+	import LinkPreviewsCard from '#lib/components/settings/LinkPreviewsCard.svelte';
+	import PublicSharingCard from '#lib/components/settings/PublicSharingCard.svelte';
+	import RecipeEditingCard from '#lib/components/settings/RecipeEditingCard.svelte';
+	import ResetPasswordDialog from '#lib/components/settings/ResetPasswordDialog.svelte';
+	import SendSetupLinkDialog from '#lib/components/settings/SendSetupLinkDialog.svelte';
+	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
+	import SetupLinkDialog from '#lib/components/settings/SetupLinkDialog.svelte';
+	import PeopleList from '#lib/components/settings/PeopleList.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { isAdminRole, roleLabel } from '#lib/roles.js';
+	import { focusManageButton, focusMenuTrigger, personRowId } from '#lib/settings/person-focus.js';
+	import { rowMotion } from '#lib/settings/row-motion.svelte.js';
 
 	let users = $state<PersonEntry[]>([]);
 	const rows = rowMotion();

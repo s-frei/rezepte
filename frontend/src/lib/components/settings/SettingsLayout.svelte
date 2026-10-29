@@ -9,15 +9,15 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import LogOut from '@lucide/svelte/icons/log-out';
-	import ContentsSheet from '$lib/components/nav/ContentsSheet.svelte';
-	import { byGroup } from '$lib/components/nav/contents';
-	import GroupHeading from '$lib/components/nav/GroupHeading.svelte';
-	import RunningHead from '$lib/components/nav/RunningHead.svelte';
-	import { session } from '$lib/auth.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { settingsPages, type SettingsPageId } from '$lib/settings/pages';
-	import { shell } from '$lib/shell.svelte';
-	import { signOut } from '$lib/sign-out';
+	import ContentsSheet from '#lib/components/nav/ContentsSheet.svelte';
+	import { byGroup } from '#lib/components/nav/contents.js';
+	import GroupHeading from '#lib/components/nav/GroupHeading.svelte';
+	import RunningHead from '#lib/components/nav/RunningHead.svelte';
+	import { session } from '#lib/auth.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { settingsPages, type SettingsPageId } from '#lib/settings/pages.js';
+	import { shell } from '#lib/shell.svelte.js';
+	import { signOut } from '#lib/sign-out.js';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { beforeNavigate } from '$app/navigation';
 

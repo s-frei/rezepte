@@ -2,7 +2,7 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade } from 'svelte/transition';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { ContentsEntry } from './contents';
 
 	let {

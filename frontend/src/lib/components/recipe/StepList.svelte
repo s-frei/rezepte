@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { IngredientGroup, Step } from '$lib/api/recipes';
+	import type { IngredientGroup, Step } from '#lib/api/recipes.js';
 	import StepText from './StepText.svelte';
 
 	let {

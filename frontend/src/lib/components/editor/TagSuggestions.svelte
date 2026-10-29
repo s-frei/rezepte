@@ -5,9 +5,9 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { slide } from 'svelte/transition';
-	import { m } from '$lib/paraglide/messages';
-	import { MAX_TAGS } from '$lib/recipe/form';
-	import { acceptSuggestion } from '$lib/recipe/tag-suggestions-import';
+	import { m } from '#lib/paraglide/messages.js';
+	import { MAX_TAGS } from '#lib/recipe/form.js';
+	import { acceptSuggestion } from '#lib/recipe/tag-suggestions-import.js';
 	import { ACTION, ROW, TOGGLE } from './link-list';
 
 	/**

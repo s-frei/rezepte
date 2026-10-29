@@ -1,5 +1,5 @@
-import { browser, dev } from '$app/environment';
-import { ApiError } from '$lib/api/client';
+import { browser } from '$app/env';
+import { ApiError } from '#lib/api/client.js';
 import {
 	deleteAlarm,
 	deleteSubscription,
@@ -7,11 +7,11 @@ import {
 	postAlarm,
 	postPushTest,
 	putSubscription
-} from '$lib/api/push';
-import { onSignIn, session } from '$lib/auth.svelte';
-import { m } from '$lib/paraglide/messages';
-import { cookPath, type Timer } from '$lib/recipe/timers';
-import { timers } from '$lib/recipe/timers.svelte';
+} from '#lib/api/push.js';
+import { onSignIn, session } from '#lib/auth.svelte.js';
+import { m } from '#lib/paraglide/messages.js';
+import { cookPath, type Timer } from '#lib/recipe/timers.js';
+import { timers } from '#lib/recipe/timers.svelte.js';
 
 /**
  * Web Push for cook timers and notifications: a running timer has an alarm on
@@ -59,7 +59,7 @@ let endpoint: Promise<string> | null = null;
 
 function ready(): Promise<ServiceWorkerRegistration> {
 	registration ??= navigator.serviceWorker
-		.register('/service-worker.js', { type: dev ? 'module' : 'classic' })
+		.register('/service-worker.js', { type: 'module' })
 		.then(() => navigator.serviceWorker.ready);
 	return registration;
 }
@@ -138,7 +138,7 @@ async function arm(t: Timer, pending: Promise<string>): Promise<void> {
 		fireAt: new Date(t.endsAt).toISOString(),
 		title: m.timer_notify_title({ recipe: t.recipeTitle }),
 		body: m.timer_name({ number: t.step + 1, phrase: t.phrase }),
-		url: cookPath(t)
+		url: `/${cookPath(t)}`
 	});
 	const now = timers.byId(t.id);
 	if (now?.state === 'running' && now.endsAt === t.endsAt) {

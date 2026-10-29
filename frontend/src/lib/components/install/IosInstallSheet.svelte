@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import { install } from '$lib/install.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import { install } from '#lib/install.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import IosInstallSteps from './IosInstallSteps.svelte';
 </script>
 

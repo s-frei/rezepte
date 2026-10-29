@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import Clock from '@lucide/svelte/icons/clock';
-	import { formatMinutes } from '$lib/recipe/format';
-	import { m } from '$lib/paraglide/messages';
+	import { formatMinutes } from '#lib/recipe/format.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		prepMinutes,

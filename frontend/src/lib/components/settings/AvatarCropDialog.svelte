@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Dialog, Slider } from 'bits-ui';
 	import { SvelteMap } from 'svelte/reactivity';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		centered,
 		clampView,
@@ -14,7 +14,7 @@
 		zoomAt,
 		type Crop,
 		type View
-	} from '$lib/user/crop';
+	} from '#lib/user/crop.js';
 
 	let {
 		open = $bindable(false),

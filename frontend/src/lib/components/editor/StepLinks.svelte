@@ -8,12 +8,12 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { slide } from 'svelte/transition';
-	import type { StepTime } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
-	import type { FormRef } from '$lib/recipe/form';
-	import { refLabel, refView, type PickerEntry } from '$lib/recipe/step-references';
+	import type { StepTime } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { FormRef } from '#lib/recipe/form.js';
+	import { refLabel, refView, type PickerEntry } from '#lib/recipe/step-references.js';
 	import { ACTION, ROW } from './link-list';
-	import { formatDuration } from '$lib/recipe/times';
+	import { formatDuration } from '#lib/recipe/times.js';
 
 	/**
 	 * What a step's links and times amount to, below the step: one quiet line that says

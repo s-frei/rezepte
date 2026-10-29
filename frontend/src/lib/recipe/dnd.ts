@@ -1,5 +1,5 @@
 import { setAriaStrings } from 'svelte-dnd-action';
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * svelte-dnd-action speaks to screen readers itself, out of its own built-in

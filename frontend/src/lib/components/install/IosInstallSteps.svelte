@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Share from '@lucide/svelte/icons/share';
 	import SquarePlus from '@lucide/svelte/icons/square-plus';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// Each sentence is translated whole and split where Safari's button goes,
 	// so each language keeps its own word order (as SignInCard does).

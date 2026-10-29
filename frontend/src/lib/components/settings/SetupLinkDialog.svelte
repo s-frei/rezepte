@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
-	import CircleCheckIcon from '$lib/components/icons/CircleCheckIcon.svelte';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
+	import CircleCheckIcon from '#lib/components/icons/CircleCheckIcon.svelte';
 	import Mail from '@lucide/svelte/icons/mail';
 	import { toast } from 'svelte-sonner';
-	import { setupLinkUrl, type SetupLinkInfo } from '$lib/api/users';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
+	import { setupLinkUrl, type SetupLinkInfo } from '#lib/api/users.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
 
 	let {
 		open = $bindable(false),

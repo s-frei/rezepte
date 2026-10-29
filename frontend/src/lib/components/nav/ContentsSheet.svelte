@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import { byGroup, type ContentsAction, type ContentsEntry } from './contents';
 	import GroupHeading from './GroupHeading.svelte';
 

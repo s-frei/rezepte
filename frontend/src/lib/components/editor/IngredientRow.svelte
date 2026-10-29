@@ -3,8 +3,8 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle } from 'svelte-dnd-action';
-	import { m } from '$lib/paraglide/messages';
-	import { isBlank, type FormIngredient } from '$lib/recipe/form';
+	import { m } from '#lib/paraglide/messages.js';
+	import { isBlank, type FormIngredient } from '#lib/recipe/form.js';
 	import UnitInput from './UnitInput.svelte';
 
 	let {

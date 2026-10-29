@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
-	import { lifetime, type Lifespan } from '$lib/settings/token-access';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
+	import { lifetime, type Lifespan } from '#lib/settings/token-access.js';
 
 	// How much of something's life has passed - an API token's, a shared
 	// link's: issued on the left, expiry on the right, "today" as a mark and

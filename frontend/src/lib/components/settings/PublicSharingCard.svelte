@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { getSettings, updateSettings, type Settings } from '$lib/api/settings';
-	import { session } from '$lib/auth.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
+	import { getSettings, updateSettings, type Settings } from '#lib/api/settings.js';
+	import { session } from '#lib/auth.svelte.js';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
 	import {
 		lifetimeFromKey,
 		lifetimeKey,
 		lifetimeLabel,
 		lifetimeOptions
-	} from '$lib/recipe/lifetimes';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/recipe/lifetimes.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let { ownerName }: { ownerName: string } = $props();
 

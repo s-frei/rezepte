@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import { m } from '$lib/paraglide/messages';
-	import { unitOptions, unitSuggestions } from '$lib/recipe/units';
+	import { m } from '#lib/paraglide/messages.js';
+	import { unitOptions, unitSuggestions } from '#lib/recipe/units.js';
 
 	// Free text with a list of suggestions, drawn by the app rather than the
 	// browser: a native datalist cannot be styled, shows nothing over a value

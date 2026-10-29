@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { RecipeCard } from '$lib/api/recipes';
-	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
-	import ExportCard from '$lib/components/settings/ExportCard.svelte';
-	import ImportCard from '$lib/components/settings/ImportCard.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import type { RecipeCard } from '#lib/api/recipes.js';
+	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
+	import ExportCard from '#lib/components/settings/ExportCard.svelte';
+	import ImportCard from '#lib/components/settings/ImportCard.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let recipes = $state<RecipeCard[]>([]);
 	// The import marks titles already here, so it waits for the full list.

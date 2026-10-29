@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { saveSignInSettings, type SignInConfig, type SignInSettings } from '$lib/api/oidc';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { connectedWarning, providerName, secretRequired } from '$lib/settings/sign-in';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { saveSignInSettings, type SignInConfig, type SignInSettings } from '#lib/api/oidc.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { connectedWarning, providerName, secretRequired } from '#lib/settings/sign-in.js';
 	import ConnectedAccounts from './ConnectedAccounts.svelte';
 
 	let {

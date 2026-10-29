@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { toast } from 'svelte-sonner';
-import { ApiError } from '$lib/api/client';
-import { m } from '$lib/paraglide/messages';
+import { ApiError } from '#lib/api/client.js';
+import { m } from '#lib/paraglide/messages.js';
 import { acceptFiles, uploadErrorMessage } from './pick';
 
 vi.mock('svelte-sonner', () => ({ toast: { error: vi.fn() } }));

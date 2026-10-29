@@ -15,27 +15,27 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
-	import { markCommentsSeen } from '$lib/api/comments';
-	import { deleteRecipe, getRecipeBySlug } from '$lib/api/recipes';
-	import type { PublicShare } from '$lib/api/shares';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import IconButton from '$lib/components/ui/IconButton.svelte';
-	import Lightbox from '$lib/components/ui/Lightbox.svelte';
-	import KitchenDiary from '$lib/components/recipe/KitchenDiary.svelte';
-	import FavoriteStar from '$lib/components/recipe/FavoriteStar.svelte';
-	import PublicShareDialog from '$lib/components/recipe/PublicShareDialog.svelte';
-	import RecipeColophon from '$lib/components/recipe/RecipeColophon.svelte';
-	import RecipeView from '$lib/components/recipe/RecipeView.svelte';
-	import ShareSheet from '$lib/components/recipe/ShareSheet.svelte';
-	import TastyButton from '$lib/components/recipe/TastyButton.svelte';
-	import TastyPeople from '$lib/components/recipe/TastyPeople.svelte';
-	import { session } from '$lib/auth.svelte';
-	import { clear as clearChecked } from '$lib/recipe/checked.svelte';
-	import { clearServings } from '$lib/recipe/servings.svelte';
-	import { copyLink, ShareLink } from '$lib/recipe/share.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { shell } from '$lib/shell.svelte';
+	import { markCommentsSeen } from '#lib/api/comments.js';
+	import { deleteRecipe, getRecipeBySlug } from '#lib/api/recipes.js';
+	import type { PublicShare } from '#lib/api/shares.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import Lightbox from '#lib/components/ui/Lightbox.svelte';
+	import KitchenDiary from '#lib/components/recipe/KitchenDiary.svelte';
+	import FavoriteStar from '#lib/components/recipe/FavoriteStar.svelte';
+	import PublicShareDialog from '#lib/components/recipe/PublicShareDialog.svelte';
+	import RecipeColophon from '#lib/components/recipe/RecipeColophon.svelte';
+	import RecipeView from '#lib/components/recipe/RecipeView.svelte';
+	import ShareSheet from '#lib/components/recipe/ShareSheet.svelte';
+	import TastyButton from '#lib/components/recipe/TastyButton.svelte';
+	import TastyPeople from '#lib/components/recipe/TastyPeople.svelte';
+	import { session } from '#lib/auth.svelte.js';
+	import { clear as clearChecked } from '#lib/recipe/checked.svelte.js';
+	import { clearServings } from '#lib/recipe/servings.svelte.js';
+	import { copyLink, ShareLink } from '#lib/recipe/share.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { shell } from '#lib/shell.svelte.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -162,7 +162,7 @@
 		'inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
 	// The address "Copy link" and the share button hand out; see
-	// `$lib/recipe/share.svelte.ts`. One per recipe: re-created when the page
+	// `#lib/recipe/share.svelte.ts`. One per recipe: re-created when the page
 	// is reused for another slug, released when it goes.
 	let shareable: ShareLink | null = null;
 	$effect(() => {
@@ -175,7 +175,7 @@
 		return () => link.destroy();
 	});
 
-	// Not `invalidateAll`: that reloads the comments too, dropping this
+	// Not `refreshAll`: that reloads the comments too, dropping this
 	// visit's New marks. The gallery and the cover are all that changed.
 	async function reloadPhotos() {
 		const id = recipe.id;
@@ -234,7 +234,7 @@
 	}
 
 	// Contributed to the desktop top bar via the `shell` store (see
-	// `$lib/shell.svelte.ts`) instead of a prop, since `+layout.svelte` owns
+	// `#lib/shell.svelte.ts`) instead of a prop, since `+layout.svelte` owns
 	// `AppShell`/`TopBar` and doesn't know about this page's actions.
 	//
 	// `recipe` briefly reads as `undefined` while this page is being torn

@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { updateUser, type PersonEntry } from '$lib/api/users';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { withoutErrors } from '$lib/form-errors';
-	import { m } from '$lib/paraglide/messages';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { updateUser, type PersonEntry } from '#lib/api/users.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { withoutErrors } from '#lib/form-errors.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		PASSWORD_MIN,
 		passwordErrorsFromApi,
 		validateNewPassword,
 		type PasswordErrors
-	} from '$lib/settings/password';
+	} from '#lib/settings/password.js';
 	import PasswordStrength from './PasswordStrength.svelte';
 
 	// Takes a nullable user and stays mounted: wrapping the dialog in an
@@ -57,7 +57,7 @@
 				errors = passwordErrorsFromApi(failure.errors);
 				if (!errors.next) toast.error(failure.detail ?? m.users_update_error());
 			} else if (!isSignedOut(failure)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.users_update_error());
 			}
 		} finally {

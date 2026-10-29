@@ -10,11 +10,11 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { scale } from 'svelte/transition';
-	import type { Author } from '$lib/api/recipes';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import { formatMinutes } from '$lib/recipe/format';
-	import { m } from '$lib/paraglide/messages';
+	import type { Author } from '#lib/api/recipes.js';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
+	import { formatMinutes } from '#lib/recipe/format.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		maxMinutes,

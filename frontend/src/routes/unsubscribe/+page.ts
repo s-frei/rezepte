@@ -1,5 +1,5 @@
-import { ApiError } from '$lib/api/client';
-import { getUnsubscribe, type Unsubscribe } from '$lib/api/notifications';
+import { ApiError } from '#lib/api/client.js';
+import { getUnsubscribe, type Unsubscribe } from '#lib/api/notifications.js';
 import type { PageLoad } from './$types';
 
 /**

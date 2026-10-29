@@ -1,4 +1,4 @@
-import type { IngredientGroup } from '$lib/api/recipes';
+import type { IngredientGroup } from '#lib/api/recipes.js';
 import { blankToNull, parseNumber, type FormGroup, type FormRef, type FormStep } from './form';
 import { firstWordMatch, isWordChar, suggestReferences } from './references';
 import { formatQuantity } from './format';

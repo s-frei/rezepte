@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 import {
 	remainingMs,
 	parseTimers,
@@ -8,7 +8,7 @@ import {
 	type Timer,
 	type TimerStart
 } from './timers';
-import { load, save } from '$lib/storage';
+import { load, save } from '#lib/storage.js';
 
 export type TimerEvent = 'start' | 'pause' | 'resume' | 'stop';
 

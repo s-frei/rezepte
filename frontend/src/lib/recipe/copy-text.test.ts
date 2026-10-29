@@ -3,7 +3,7 @@ import { toast } from 'svelte-sonner';
 import { copyText } from './share.svelte';
 
 vi.mock('svelte-sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
-vi.mock('$lib/paraglide/messages', () => ({ m: { copy_unavailable: () => 'unavailable' } }));
+vi.mock('#lib/paraglide/messages.js', () => ({ m: { copy_unavailable: () => 'unavailable' } }));
 
 // The hidden field fallback, reduced to what copyThroughField touches.
 function stubDocument(copies: boolean) {

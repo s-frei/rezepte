@@ -2,11 +2,11 @@
 	import Import from '@lucide/svelte/icons/import';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { resolve } from '$app/paths';
-	import Lockup from '$lib/components/brand/Lockup.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { importDialog } from '$lib/import.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { shell } from '$lib/shell.svelte';
+	import Lockup from '#lib/components/brand/Lockup.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { importDialog } from '#lib/import.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { shell } from '#lib/shell.svelte.js';
 	import UserMenu from './UserMenu.svelte';
 </script>
 

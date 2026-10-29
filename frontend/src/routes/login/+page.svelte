@@ -5,16 +5,16 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import type { Pathname } from '$app/types';
-	import { isAppPath, login, safeNext } from '$lib/api/auth';
-	import { ApiError } from '$lib/api/client';
-	import type { OidcInfo } from '$lib/api/oidc';
-	import { session } from '$lib/auth.svelte';
-	import AuthScene from '$lib/components/auth/AuthScene.svelte';
-	import ProviderButton from '$lib/components/auth/ProviderButton.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import type { Path } from '$app/types';
+	import { isAppPath, login, safeNext } from '#lib/api/auth.js';
+	import { ApiError } from '#lib/api/client.js';
+	import type { OidcInfo } from '#lib/api/oidc.js';
+	import { session } from '#lib/auth.svelte.js';
+	import AuthScene from '#lib/components/auth/AuthScene.svelte';
+	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -94,7 +94,7 @@
 			// served by the Go binary, so they need a real navigation - goto
 			// would look the path up in the client router and 404.
 			if (isAppPath(next)) {
-				await goto(resolve(next as Pathname));
+				await goto(resolve(next.slice(1) as Path));
 			} else {
 				window.location.assign(next);
 			}

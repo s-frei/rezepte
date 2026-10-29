@@ -1,8 +1,8 @@
 import { toast } from 'svelte-sonner';
-import { ApiError } from '$lib/api/client';
-import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_BYTES } from '$lib/api/recipes';
-import { m } from '$lib/paraglide/messages';
-import { refusalOr } from '$lib/recipe/access';
+import { ApiError } from '#lib/api/client.js';
+import { ACCEPTED_IMAGE_TYPES, MAX_IMAGE_BYTES } from '#lib/api/recipes.js';
+import { m } from '#lib/paraglide/messages.js';
+import { refusalOr } from '#lib/recipe/access.js';
 
 /**
  * Keeps the picked files that may be uploaded and toasts once per reason for

@@ -6,7 +6,7 @@
 	import Check from '@lucide/svelte/icons/check';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import Send from '@lucide/svelte/icons/send';
-	import { ApiError } from '$lib/api/client';
+	import { ApiError } from '#lib/api/client.js';
 	import {
 		addComment,
 		addCommentImageToRecipe,
@@ -15,16 +15,16 @@
 		editComment,
 		listComments,
 		type Comment
-	} from '$lib/api/comments';
-	import { MAX_IMAGES } from '$lib/api/recipes';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Lightbox from '$lib/components/ui/Lightbox.svelte';
-	import { uploadErrorMessage } from '$lib/images/pick';
-	import { refusalOr } from '$lib/recipe/access';
-	import { groupByDay, sendable } from '$lib/recipe/diary';
-	import { revokePreviews, stagePhotos, unstage, type PendingPhoto } from '$lib/recipe/photos';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/api/comments.js';
+	import { MAX_IMAGES } from '#lib/api/recipes.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Lightbox from '#lib/components/ui/Lightbox.svelte';
+	import { uploadErrorMessage } from '#lib/images/pick.js';
+	import { refusalOr } from '#lib/recipe/access.js';
+	import { groupByDay, sendable } from '#lib/recipe/diary.js';
+	import { revokePreviews, stagePhotos, unstage, type PendingPhoto } from '#lib/recipe/photos.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import DiaryEntry from './DiaryEntry.svelte';
 	import DiaryField from './DiaryField.svelte';
 	import DiaryPhotos from './DiaryPhotos.svelte';

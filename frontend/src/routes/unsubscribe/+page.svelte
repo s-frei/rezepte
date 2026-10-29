@@ -2,10 +2,10 @@
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { postUnsubscribe, type Unsubscribe } from '$lib/api/notifications';
-	import AuthScene from '$lib/components/auth/AuthScene.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { postUnsubscribe, type Unsubscribe } from '#lib/api/notifications.js';
+	import AuthScene from '#lib/components/auth/AuthScene.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

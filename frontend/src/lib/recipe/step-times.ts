@@ -1,4 +1,4 @@
-import type { StepTime } from '$lib/api/recipes';
+import type { StepTime } from '#lib/api/recipes.js';
 import type { FormStep } from './form';
 import { firstWordMatch } from './references';
 import { suggestTimes } from './times';

@@ -1,6 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
-import { listAuthors } from '$lib/api/recipes';
-import { listPeople, type UserRole } from '$lib/api/users';
+import { listAuthors } from '#lib/api/recipes.js';
+import { listPeople, type UserRole } from '#lib/api/users.js';
 
 /**
  * What a person card shows beyond the person a recipe already carries: the

@@ -8,10 +8,10 @@ import UserRound from '@lucide/svelte/icons/user-round';
 import UsersRound from '@lucide/svelte/icons/users-round';
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
-import type { IconComponent } from '$lib/components/nav/contents';
-import type { UserRole } from '$lib/api/users';
-import { m } from '$lib/paraglide/messages';
-import { isAdminRole } from '$lib/roles';
+import type { IconComponent } from '#lib/components/nav/contents.js';
+import type { UserRole } from '#lib/api/users.js';
+import { m } from '#lib/paraglide/messages.js';
+import { isAdminRole } from '#lib/roles.js';
 
 export type SettingsPageId =
 	'profile' | 'notifications' | 'shares' | 'api' | 'users' | 'mail' | 'sign-in' | 'transfer';

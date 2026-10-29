@@ -4,20 +4,20 @@
 	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		removeUserAvatar,
 		setUserAvatar,
 		updateUser,
 		type PersonEntry,
 		type UserAccount
-	} from '$lib/api/users';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import type { ColorUsage } from '$lib/api/auth';
-	import type { UserColor } from '$lib/user/color';
+	} from '#lib/api/users.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { ColorUsage } from '#lib/api/auth.js';
+	import type { UserColor } from '#lib/user/color.js';
 	import AvatarControl from './AvatarControl.svelte';
 	import ColorPicker from './ColorPicker.svelte';
 
@@ -105,7 +105,7 @@
 			} else if (error instanceof ApiError && error.status === 403) {
 				toast.error(editProfile ? m.users_profile_forbidden() : m.users_rank_required());
 			} else if (!isSignedOut(error)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.users_profile_error());
 			}
 		} finally {

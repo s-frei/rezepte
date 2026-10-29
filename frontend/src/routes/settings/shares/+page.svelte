@@ -12,23 +12,23 @@
 		type PublicShare,
 		type ShareCreator,
 		type ShareStatus
-	} from '$lib/api/shares';
-	import { getSettings } from '$lib/api/settings';
-	import { isSignedOut } from '$lib/api/client';
-	import { session } from '$lib/auth.svelte';
-	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
-	import ShareRow from '$lib/components/settings/ShareRow.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import PersonDot from '$lib/components/ui/PersonDot.svelte';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
-	import { shareStatusLabel } from '$lib/recipe/share-status';
-	import { isAdminRole } from '$lib/roles';
-	import { rowMotion } from '$lib/settings/row-motion.svelte';
+	} from '#lib/api/shares.js';
+	import { getSettings } from '#lib/api/settings.js';
+	import { isSignedOut } from '#lib/api/client.js';
+	import { session } from '#lib/auth.svelte.js';
+	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
+	import ShareRow from '#lib/components/settings/ShareRow.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import PersonDot from '#lib/components/ui/PersonDot.svelte';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { shareStatusLabel } from '#lib/recipe/share-status.js';
+	import { isAdminRole } from '#lib/roles.js';
+	import { rowMotion } from '#lib/settings/row-motion.svelte.js';
 
 	const isAdmin = $derived(isAdminRole(session.user?.role));
 	const isOwner = $derived(session.user?.role === 'superadmin');
@@ -126,10 +126,9 @@
 		}
 		if (status) params.push(`status=${encodeURIComponent(status)}`);
 		const qs = params.join('&');
-		void goto(resolve(qs ? `/settings/shares?${qs}` : '/settings/shares'), {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+		void goto(resolve(qs ? `settings/shares?${qs}` : '/settings/shares'), {
+			replace: true,
+			reset: false
 		});
 	}
 

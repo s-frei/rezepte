@@ -5,7 +5,7 @@ import { formatQuantityFor, formatScaled, roundScaled, scaleQuantity } from './s
 // which is locale-aware; pin the locale explicitly rather than relying on
 // Paraglide's baseLocale default, so this file states its assumption instead
 // of inheriting it.
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => 'en',
 	experimentalStaticLocale: undefined
 }));

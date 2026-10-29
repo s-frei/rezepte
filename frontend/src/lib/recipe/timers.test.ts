@@ -93,7 +93,7 @@ describe('byEnding', () => {
 
 describe('cookPath', () => {
 	it('points at the 1-based step', () => {
-		expect(cookPath({ slug: 'soup', step: 2 })).toBe('/recipes/soup/cook?step=3');
+		expect(cookPath({ slug: 'soup', step: 2 })).toBe('recipes/soup/cook?step=3');
 	});
 });
 

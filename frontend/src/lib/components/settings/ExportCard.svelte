@@ -2,15 +2,15 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { imageUrl, listRecipes, type RecipeCard } from '$lib/api/recipes';
-	import { exportRecipes, saveBlob } from '$lib/api/transfer';
-	import { isSignedOut } from '$lib/api/client';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import { imageUrl, listRecipes, type RecipeCard } from '#lib/api/recipes.js';
+	import { exportRecipes, saveBlob } from '#lib/api/transfer.js';
+	import { isSignedOut } from '#lib/api/client.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import TransferRow from './TransferRow.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 
 	/** Every recipe here; bindable so the import card can spot titles already here. */
 	let {

@@ -2,14 +2,14 @@
 	import { onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { SvelteMap } from 'svelte/reactivity';
-	import { ApiError } from '$lib/api/client';
-	import type { RecipeCard } from '$lib/api/recipes';
-	import { importZip } from '$lib/api/transfer';
-	import { normalizeTitle, packFolder, readExport, type ImportRow } from '$lib/transfer/zip';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import { ApiError } from '#lib/api/client.js';
+	import type { RecipeCard } from '#lib/api/recipes.js';
+	import { importZip } from '#lib/api/transfer.js';
+	import { normalizeTitle, packFolder, readExport, type ImportRow } from '#lib/transfer/zip.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import TransferRow from './TransferRow.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 
 	/** The recipes already here, to mark a title that would arrive twice. */
 	let {

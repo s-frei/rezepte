@@ -1,6 +1,6 @@
-import { locales } from '$lib/paraglide/runtime';
-import { m } from '$lib/paraglide/messages';
-import type { StepTime } from '$lib/api/recipes';
+import { locales } from '#lib/paraglide/runtime.js';
+import { m } from '#lib/paraglide/messages.js';
+import type { StepTime } from '#lib/api/recipes.js';
 import { formatMinutes } from './format';
 import { wordPattern } from './references';
 

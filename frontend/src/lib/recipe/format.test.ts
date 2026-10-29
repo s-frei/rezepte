@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let locale: 'en' | 'de' = 'en';
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => locale,
 	experimentalStaticLocale: undefined
 }));

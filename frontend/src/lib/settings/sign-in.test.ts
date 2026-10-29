@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SignInSettings } from '$lib/api/oidc';
+import type { SignInSettings } from '#lib/api/oidc.js';
 import { connectedWarning, secretRequired, turnOffWarning } from './sign-in';
 
 const base: SignInSettings = {

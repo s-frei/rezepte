@@ -4,17 +4,17 @@
 	import { fade, fly, scale } from 'svelte/transition';
 	import type { TransitionConfig } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import Slider from '$lib/components/ui/Slider.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import { formatMinutes } from '$lib/recipe/format';
-	import { isSort, type Sort } from '$lib/recipe/query';
-	import type { Author } from '$lib/api/recipes';
-	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '$lib/recipe/time-filter';
-	import { m } from '$lib/paraglide/messages';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
+	import Slider from '#lib/components/ui/Slider.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import { formatMinutes } from '#lib/recipe/format.js';
+	import { isSort, type Sort } from '#lib/recipe/query.js';
+	import type { Author } from '#lib/api/recipes.js';
+	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '#lib/recipe/time-filter.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// The filter dialog itself - centered on desktop, a bottom sheet on
 	// phones. One section per filter kind ("Zeit", "Favoriten" and

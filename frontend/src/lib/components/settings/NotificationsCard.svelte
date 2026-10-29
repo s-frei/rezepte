@@ -11,7 +11,7 @@
 	import Send from '@lucide/svelte/icons/send';
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		KIND_GROUP,
 		setNotificationPrefs,
@@ -19,14 +19,14 @@
 		type Group,
 		type Kind,
 		type Prefs
-	} from '$lib/api/notifications';
-	import { session } from '$lib/auth.svelte';
-	import { deviceState, enableDevice, sendPushTest } from '$lib/push.svelte';
-	import StatusBox from '$lib/components/settings/StatusBox.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/api/notifications.js';
+	import { session } from '#lib/auth.svelte.js';
+	import { deviceState, enableDevice, sendPushTest } from '#lib/push.svelte.js';
+	import StatusBox from '#lib/components/settings/StatusBox.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		prefs: loaded,

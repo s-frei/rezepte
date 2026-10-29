@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { isSignedOut } from '$lib/api/client';
-	import { clearSignInSettings, getSignInSettings, type SignInSettings } from '$lib/api/oidc';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { copyText } from '$lib/recipe/share.svelte';
-	import { providerName, turnOffWarning } from '$lib/settings/sign-in';
+	import { isSignedOut } from '#lib/api/client.js';
+	import { clearSignInSettings, getSignInSettings, type SignInSettings } from '#lib/api/oidc.js';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { copyText } from '#lib/recipe/share.svelte.js';
+	import { providerName, turnOffWarning } from '#lib/settings/sign-in.js';
 	import ConnectedAccounts from './ConnectedAccounts.svelte';
 	import Letterhead, { urlSegments, type LetterheadLine } from './Letterhead.svelte';
 	import OidcSettingsDialog from './OidcSettingsDialog.svelte';

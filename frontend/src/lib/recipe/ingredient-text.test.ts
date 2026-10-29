@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { IngredientGroup } from '$lib/api/recipes';
+import type { IngredientGroup } from '#lib/api/recipes.js';
 import { fullList, shoppingList } from './ingredient-text';
 
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => 'en',
 	experimentalStaticLocale: undefined
 }));

@@ -5,29 +5,29 @@
 	import { page } from '$app/state';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
-	import { isSignedOut } from '$lib/api/client';
+	import { isSignedOut } from '#lib/api/client.js';
 	import {
 		deleteToken,
 		listTokens,
 		type ApiToken,
 		type CreatedApiToken,
 		type TokenScope
-	} from '$lib/api/tokens';
-	import ApiAccessCard from '$lib/components/settings/ApiAccessCard.svelte';
-	import CreateTokenDialog from '$lib/components/settings/CreateTokenDialog.svelte';
-	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
-	import TokenRevealDialog from '$lib/components/settings/TokenRevealDialog.svelte';
-	import TokenRow from '$lib/components/settings/TokenRow.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import PersonDot from '$lib/components/ui/PersonDot.svelte';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
-	import { rowMotion } from '$lib/settings/row-motion.svelte';
-	import { tokenSupply } from '$lib/settings/token-access';
+	} from '#lib/api/tokens.js';
+	import ApiAccessCard from '#lib/components/settings/ApiAccessCard.svelte';
+	import CreateTokenDialog from '#lib/components/settings/CreateTokenDialog.svelte';
+	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
+	import TokenRevealDialog from '#lib/components/settings/TokenRevealDialog.svelte';
+	import TokenRow from '#lib/components/settings/TokenRow.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import PersonDot from '#lib/components/ui/PersonDot.svelte';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { rowMotion } from '#lib/settings/row-motion.svelte.js';
+	import { tokenSupply } from '#lib/settings/token-access.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -79,10 +79,9 @@
 			if (person) params.push(`user=${encodeURIComponent(person)}`);
 		}
 		const qs = params.join('&');
-		void goto(resolve(qs ? `/settings/api?${qs}` : '/settings/api'), {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+		void goto(resolve(qs ? `settings/api?${qs}` : '/settings/api'), {
+			replace: true,
+			reset: false
 		});
 	}
 

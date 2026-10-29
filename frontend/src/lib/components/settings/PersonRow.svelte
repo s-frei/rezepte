@@ -11,20 +11,20 @@
 	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import { resolve } from '$app/paths';
-	import type { PersonEntry, UserRole } from '$lib/api/users';
-	import Select from '$lib/components/ui/Select.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
-	import { isAdminRole } from '$lib/roles';
+	import type { PersonEntry, UserRole } from '#lib/api/users.js';
+	import Select from '#lib/components/ui/Select.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
+	import { isAdminRole } from '#lib/roles.js';
 	import {
 		focusMenuTrigger,
 		manageButtonId,
 		menuTriggerId,
 		personRowId
-	} from '$lib/settings/person-focus';
-	import { rowPermissions } from '$lib/settings/row-permissions';
-	import PersonCard from '$lib/components/ui/PersonCard.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	} from '#lib/settings/person-focus.js';
+	import { rowPermissions } from '#lib/settings/row-permissions.js';
+	import PersonCard from '#lib/components/ui/PersonCard.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 
 	let {
 		person,

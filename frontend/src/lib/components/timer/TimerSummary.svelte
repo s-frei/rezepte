@@ -1,8 +1,8 @@
 <script lang="ts">
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import TimerRing from './TimerRing.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatClock, fraction, remainingMs, type Timer } from '$lib/recipe/timers';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatClock, fraction, remainingMs, type Timer } from '#lib/recipe/timers.js';
 
 	let {
 		timer,

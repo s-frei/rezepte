@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { EditPolicy } from '$lib/api/recipes';
-	import { getSettings } from '$lib/api/settings';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { policyHint } from '$lib/recipe/access';
+	import type { EditPolicy } from '#lib/api/recipes.js';
+	import { getSettings } from '#lib/api/settings.js';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { policyHint } from '#lib/recipe/access.js';
 
 	let {
 		policy = $bindable(),

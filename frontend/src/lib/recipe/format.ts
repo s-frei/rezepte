@@ -1,5 +1,5 @@
-import { getLocale } from '$lib/paraglide/runtime';
-import { m } from '$lib/paraglide/messages';
+import { getLocale } from '#lib/paraglide/runtime.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /** Unicode glyphs for the fractional quantities that come up in recipes. */
 const FRACTION_GLYPHS: Record<string, string> = {

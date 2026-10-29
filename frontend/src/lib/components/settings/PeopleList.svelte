@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import type { ColorUsage } from '$lib/api/auth';
-	import type { PersonEntry, UserAccount, UserRole } from '$lib/api/users';
-	import { m } from '$lib/paraglide/messages';
-	import { groupPeople } from '$lib/settings/people-groups';
-	import { rowPermissions } from '$lib/settings/row-permissions';
-	import { focusRoleControl } from '$lib/settings/person-focus';
+	import type { ColorUsage } from '#lib/api/auth.js';
+	import type { PersonEntry, UserAccount, UserRole } from '#lib/api/users.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { groupPeople } from '#lib/settings/people-groups.js';
+	import { rowPermissions } from '#lib/settings/row-permissions.js';
+	import { focusRoleControl } from '#lib/settings/person-focus.js';
 	import EditProfileDialog from './EditProfileDialog.svelte';
 	import PersonRow from './PersonRow.svelte';
 	import PersonSheet from './PersonSheet.svelte';

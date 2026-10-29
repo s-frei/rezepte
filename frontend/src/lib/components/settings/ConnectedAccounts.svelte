@@ -4,9 +4,9 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import { onMount } from 'svelte';
-	import { listUsers, type UserAccount } from '$lib/api/users';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { listUsers, type UserAccount } from '#lib/api/users.js';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// Who a switch or turning off leaves behind, by face and name. The
 	// warning text says how many; this says who. Loaded on open, so it is

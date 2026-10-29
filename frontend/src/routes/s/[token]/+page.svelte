@@ -3,15 +3,15 @@
 	import Moon from '@lucide/svelte/icons/moon';
 	import Sun from '@lucide/svelte/icons/sun';
 	import { MediaQuery } from 'svelte/reactivity';
-	import { publicImageUrl } from '$lib/api/public';
-	import { PROJECT_URL, SOURCE_URL } from '$lib/docs';
-	import type { ImageVariant, RecipeContent } from '$lib/api/recipes';
-	import Lockup from '$lib/components/brand/Lockup.svelte';
-	import RecipeView from '$lib/components/recipe/RecipeView.svelte';
-	import IconButton from '$lib/components/ui/IconButton.svelte';
-	import Lightbox from '$lib/components/ui/Lightbox.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { setTheme, theme } from '$lib/theme.svelte';
+	import { publicImageUrl } from '#lib/api/public.js';
+	import { PROJECT_URL, SOURCE_URL } from '#lib/docs.js';
+	import type { ImageVariant, RecipeContent } from '#lib/api/recipes.js';
+	import Lockup from '#lib/components/brand/Lockup.svelte';
+	import RecipeView from '#lib/components/recipe/RecipeView.svelte';
+	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import Lightbox from '#lib/components/ui/Lightbox.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { setTheme, theme } from '#lib/theme.svelte.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

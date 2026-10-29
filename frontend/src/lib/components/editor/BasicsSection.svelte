@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Input from '$lib/components/ui/Input.svelte';
-	import Textarea from '$lib/components/ui/Textarea.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import type { FieldErrors, RecipeForm } from '$lib/recipe/form';
+	import Input from '#lib/components/ui/Input.svelte';
+	import Textarea from '#lib/components/ui/Textarea.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { FieldErrors, RecipeForm } from '#lib/recipe/form.js';
 	import TagInput from './TagInput.svelte';
 	import TagSuggestions from './TagSuggestions.svelte';
 

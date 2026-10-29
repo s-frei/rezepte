@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import { ApiError } from '$lib/api/client';
-import { getRecipeBySlug, type Recipe } from '$lib/api/recipes';
-import { m } from '$lib/paraglide/messages';
+import { ApiError } from '#lib/api/client.js';
+import { getRecipeBySlug, type Recipe } from '#lib/api/recipes.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * The `load` body shared by the detail, edit and cook routes: fetch by slug

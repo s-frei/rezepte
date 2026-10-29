@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { changePassword } from '$lib/api/auth';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { session } from '$lib/auth.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { withoutErrors } from '$lib/form-errors';
-	import { m } from '$lib/paraglide/messages';
+	import { changePassword } from '#lib/api/auth.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { session } from '#lib/auth.svelte.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { withoutErrors } from '#lib/form-errors.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		PASSWORD_MIN,
 		passwordErrorsFromApi,
 		validateNewPassword,
 		type PasswordErrors
-	} from '$lib/settings/password';
+	} from '#lib/settings/password.js';
 	import PasswordStrength from './PasswordStrength.svelte';
 
 	let current = $state('');
@@ -51,7 +51,7 @@
 					toast.error(error.detail ?? m.settings_password_error());
 				}
 			} else if (!isSignedOut(error)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.settings_password_error());
 			}
 		} finally {

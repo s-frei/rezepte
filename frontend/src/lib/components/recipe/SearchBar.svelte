@@ -8,10 +8,10 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
-	import type { Tag } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
-	import { palette } from '$lib/palette.svelte';
-	import { rankTags } from '$lib/recipe/tag-suggestions';
+	import type { Tag } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { palette } from '#lib/palette.svelte.js';
+	import { rankTags } from '#lib/recipe/tag-suggestions.js';
 
 	let {
 		value = $bindable(''),

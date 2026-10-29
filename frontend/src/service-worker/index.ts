@@ -1,14 +1,8 @@
-/// <reference types="@sveltejs/kit" />
-/// <reference no-default-lib="true"/>
-/// <reference lib="esnext" />
-/// <reference lib="webworker" />
-
 // Push only: shows a cook timer's end or a notification, hands a notification
 // to a visible window as a toast and opens its page on a click. No fetch
 // handler and no cache - the app works online, as before.
-import { notificationOptions, parsePayload, toastMessage } from '$lib/push-worker';
-
-const sw = self as unknown as ServiceWorkerGlobalScope;
+import { self as sw } from '$app/service-worker';
+import { notificationOptions, parsePayload, toastMessage } from '#lib/push-worker.js';
 
 // A new version takes over at once; there is no cache to keep consistent.
 sw.addEventListener('install', () => void sw.skipWaiting());

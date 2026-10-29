@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TIMERS_STORAGE_KEY, timerId, type Timer, type TimerStart } from './timers';
 
-vi.mock('$app/environment', () => ({ browser: true }));
+vi.mock('$app/env', () => ({ browser: true }));
 
 // The module is `timers.svelte.ts`; the test file cannot carry the `.svelte`
 // infix, because vitest reserves `*.svelte.test.ts` for a different project.

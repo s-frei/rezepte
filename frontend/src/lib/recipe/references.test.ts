@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { segmentStep, suggestReferences } from './references';
-import type { IngredientGroup } from '$lib/api/recipes';
+import type { IngredientGroup } from '#lib/api/recipes.js';
 
 const groups: IngredientGroup[] = [
 	{

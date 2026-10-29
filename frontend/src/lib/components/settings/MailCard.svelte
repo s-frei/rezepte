@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { isSignedOut } from '$lib/api/client';
-	import { clearMailSettings, getMailSettings, type MailSettings } from '$lib/api/mail';
-	import { getSettings, updateSettings } from '$lib/api/settings';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import { isSignedOut } from '#lib/api/client.js';
+	import { clearMailSettings, getMailSettings, type MailSettings } from '#lib/api/mail.js';
+	import { getSettings, updateSettings } from '#lib/api/settings.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 	import Letterhead, { type LetterheadLine } from './Letterhead.svelte';
 	import MailSettingsDialog from './MailSettingsDialog.svelte';
 	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';

@@ -1,5 +1,5 @@
-import { getNotificationPrefs } from '$lib/api/notifications';
-import { getSettings } from '$lib/api/settings';
+import { getNotificationPrefs } from '#lib/api/notifications.js';
+import { getSettings } from '#lib/api/settings.js';
 import type { PageLoad } from './$types';
 
 // Waits for the root layout first: without a session it redirects to the

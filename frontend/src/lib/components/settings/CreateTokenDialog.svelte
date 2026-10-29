@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		createToken,
 		type CreatedApiToken,
 		type TokenExpiry,
 		type TokenScope
-	} from '$lib/api/tokens';
-	import AccessLadder from '$lib/components/ui/AccessLadder.svelte';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import { withoutErrors } from '$lib/form-errors';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/api/tokens.js';
+	import AccessLadder from '#lib/components/ui/AccessLadder.svelte';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import { withoutErrors } from '#lib/form-errors.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		open = $bindable(false),
@@ -112,7 +112,7 @@
 			if (error instanceof ApiError && error.status === 422) {
 				errors.name = error.detail ?? m.tokens_create_error();
 			} else if (!isSignedOut(error)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.tokens_create_error());
 			}
 		} finally {

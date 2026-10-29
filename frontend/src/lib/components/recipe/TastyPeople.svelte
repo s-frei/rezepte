@@ -4,11 +4,11 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
-	import { m } from '$lib/paraglide/messages';
-	import type { Person } from '$lib/api/recipes';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import PersonCard from '$lib/components/ui/PersonCard.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Person } from '#lib/api/recipes.js';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import PersonCard from '#lib/components/ui/PersonCard.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 
 	let {
 		people,

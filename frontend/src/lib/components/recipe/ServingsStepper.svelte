@@ -3,9 +3,9 @@
 	import { scale } from 'svelte/transition';
 	import Minus from '@lucide/svelte/icons/minus';
 	import Plus from '@lucide/svelte/icons/plus';
-	import { servingsUnit } from '$lib/recipe/format';
-	import { SERVINGS_MAX, SERVINGS_MIN } from '$lib/recipe/servings';
-	import { m } from '$lib/paraglide/messages';
+	import { servingsUnit } from '#lib/recipe/format.js';
+	import { SERVINGS_MAX, SERVINGS_MIN } from '#lib/recipe/servings.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		value,

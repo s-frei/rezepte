@@ -9,10 +9,10 @@
 	import TimerBanner from './TimerBanner.svelte';
 	import TimerRow from './TimerRow.svelte';
 	import TimerSummary from './TimerSummary.svelte';
-	import { bottomNav } from '$lib/shell.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { byEnding } from '$lib/recipe/timers';
-	import { timers } from '$lib/recipe/timers.svelte';
+	import { bottomNav } from '#lib/shell.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { byEnding } from '#lib/recipe/timers.js';
+	import { timers } from '#lib/recipe/timers.svelte.js';
 
 	/** A phone's bottom nav is on this page: the player sits above it. */
 	let { aboveNav }: { aboveNav: boolean } = $props();

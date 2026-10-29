@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-import { ApiError } from '$lib/api/client';
-import { me } from '$lib/api/auth';
-import { adoptAccountLocale, authPages, session } from '$lib/auth.svelte';
+import { ApiError } from '#lib/api/client.js';
+import { me } from '#lib/api/auth.js';
+import { adoptAccountLocale, authPages, session } from '#lib/auth.svelte.js';
 import type { LayoutLoad } from './$types';
 
 export const ssr = false;

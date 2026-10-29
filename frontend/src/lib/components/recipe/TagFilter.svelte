@@ -4,9 +4,9 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import type { Tag } from '$lib/api/recipes';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import type { Tag } from '#lib/api/recipes.js';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		tags,

@@ -26,7 +26,6 @@ export function listenForLaunches(): void {
 		if (!params.targetURL || !isFresh(params.targetURL)) return;
 		const target = new URL(params.targetURL);
 		// A path from the same origin, built by the OS from the manifest.
-		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		void goto(target.pathname + target.search);
 	});
 }

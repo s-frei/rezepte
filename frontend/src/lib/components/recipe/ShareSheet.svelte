@@ -10,13 +10,13 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
-	import type { Recipe } from '$lib/api/recipes';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import { formatServings } from '$lib/recipe/format';
-	import { createServings } from '$lib/recipe/servings.svelte';
+	import type { Recipe } from '#lib/api/recipes.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { formatServings } from '#lib/recipe/format.js';
+	import { createServings } from '#lib/recipe/servings.svelte.js';
 	import {
 		canCopyImage,
 		canShareFiles,
@@ -25,9 +25,9 @@
 		downloadImage,
 		shareImage,
 		shareLink
-	} from '$lib/recipe/share.svelte';
-	import { renderShareImage } from '$lib/recipe/share-image';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/recipe/share.svelte.js';
+	import { renderShareImage } from '#lib/recipe/share-image.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import ShareCard from './ShareCard.svelte';
 
 	// Passing a recipe on: as a link, or as the recipe card - a picture of

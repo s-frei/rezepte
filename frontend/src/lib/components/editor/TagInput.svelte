@@ -4,11 +4,11 @@
 	import { backOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { scale } from 'svelte/transition';
-	import { listTags } from '$lib/api/recipes';
-	import TagChip from '$lib/components/ui/TagChip.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { MAX_TAGS, normaliseTag } from '$lib/recipe/form';
-	import { tagSuggestions } from '$lib/recipe/tag-suggestions';
+	import { listTags } from '#lib/api/recipes.js';
+	import TagChip from '#lib/components/ui/TagChip.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { MAX_TAGS, normaliseTag } from '#lib/recipe/form.js';
+	import { tagSuggestions } from '#lib/recipe/tag-suggestions.js';
 
 	let {
 		tags = $bindable([]),

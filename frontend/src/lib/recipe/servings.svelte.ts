@@ -1,4 +1,4 @@
-import { load, save } from '$lib/storage';
+import { load, save } from '#lib/storage.js';
 import { clampServings, parseServings, servingsKey } from './servings';
 
 function writeStored(recipeId: string, value: number | null): void {

@@ -646,7 +646,7 @@
 }
 
 /*
- * A page change (`pageTransition` in $lib/page-transition.ts): the old page
+ * A page change (`pageTransition` in #lib/page-transition.ts): the old page
  * fades out and the new one in after it, so a tap answers at once and the
  * two pages never lie over each other - crossed over, both texts showed
  * through one another for a third of the change. Meanwhile a recipe's photo
@@ -715,7 +715,7 @@ html[data-theme-transition]::view-transition-new(root) {
 }
 
 /*
- * A sign-in (`signIn` in $lib/page-transition.ts), about 900ms in all: the
+ * A sign-in (`signIn` in #lib/page-transition.ts), about 900ms in all: the
  * login card (`sign-in-card`, the text page below lg) lets go of its
  * contents, and the app (`sign-in`, the layout's whole tree) opens out of
  * its place, a sheet clipped to the card (`--sign-in-from`) that grows to

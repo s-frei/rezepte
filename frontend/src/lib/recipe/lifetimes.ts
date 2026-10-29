@@ -1,5 +1,5 @@
-import { m } from '$lib/paraglide/messages';
-import type { ShareLifetime } from '$lib/api/shares';
+import { m } from '#lib/paraglide/messages.js';
+import type { ShareLifetime } from '#lib/api/shares.js';
 
 /** The five lifetimes a public link can have, longest last; `null` is permanent. */
 const ALL: ShareLifetime[] = [1, 7, 30, 365, null];

@@ -1,6 +1,6 @@
 import { toast } from 'svelte-sonner';
-import { createShareLink } from '$lib/api/recipes';
-import { m } from '$lib/paraglide/messages';
+import { createShareLink } from '#lib/api/recipes.js';
+import { m } from '#lib/paraglide/messages.js';
 import { isStale, renewDelay } from './share';
 
 /**

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import type { RecipeInput } from '$lib/api/recipes';
-import { getLocale, overwriteGetLocale } from '$lib/paraglide/runtime';
+import type { RecipeInput } from '#lib/api/recipes.js';
+import { getLocale, overwriteGetLocale } from '#lib/paraglide/runtime.js';
 import de from '../../../../service/internal/recipe/testdata/recipes.de.json';
 import en from '../../../../service/internal/recipe/testdata/recipes.en.json';
 import { catalogUnits, formatDuration, manualTime, suggestTimes, type TimeUnits } from './times';

@@ -3,14 +3,14 @@
 </script>
 
 <script lang="ts">
-	import CircleCheckIcon from '$lib/components/icons/CircleCheckIcon.svelte';
-	import SendIcon from '$lib/components/icons/SendIcon.svelte';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { sendTestMail, type MailConfigInput } from '$lib/api/mail';
-	import { session } from '$lib/auth.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import CircleCheckIcon from '#lib/components/icons/CircleCheckIcon.svelte';
+	import SendIcon from '#lib/components/icons/SendIcon.svelte';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { sendTestMail, type MailConfigInput } from '#lib/api/mail.js';
+	import { session } from '#lib/auth.svelte.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		config,

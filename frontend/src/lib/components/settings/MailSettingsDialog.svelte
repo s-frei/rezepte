@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		saveMailSettings,
 		type MailConfigInput,
 		type MailSecurity,
 		type MailSettings
-	} from '$lib/api/mail';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/api/mail.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';
 
 	let {

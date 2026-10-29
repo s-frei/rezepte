@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { ResolvedPathname } from '$app/types';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
-	import Checkbox from '$lib/components/ui/Checkbox.svelte';
+	import Checkbox from '#lib/components/ui/Checkbox.svelte';
 
 	let {
 		checked = $bindable(false),

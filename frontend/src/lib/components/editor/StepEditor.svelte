@@ -6,15 +6,15 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { newStep, type FieldErrors, type FormGroup, type FormStep } from '$lib/recipe/form';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { newStep, type FieldErrors, type FormGroup, type FormStep } from '#lib/recipe/form.js';
 	import {
 		acceptAll,
 		countPending,
 		pickerEntries,
 		type DismissedWords
-	} from '$lib/recipe/step-references';
+	} from '#lib/recipe/step-references.js';
 	import StepField from './StepField.svelte';
 	import { collapse, fresh, reveal } from './motion';
 

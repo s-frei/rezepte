@@ -1,5 +1,5 @@
-import type { FieldError } from '$lib/api/client';
-import type { DraftReview } from '$lib/api/drafts';
+import type { FieldError } from '#lib/api/client.js';
+import type { DraftReview } from '#lib/api/drafts.js';
 import {
 	emptyInput,
 	type EditPolicy,
@@ -7,9 +7,9 @@ import {
 	type IngredientRef,
 	type RecipeInput,
 	type StepTime
-} from '$lib/api/recipes';
-import { m } from '$lib/paraglide/messages';
-import { getLocale } from '$lib/paraglide/runtime';
+} from '#lib/api/recipes.js';
+import { m } from '#lib/paraglide/messages.js';
+import { getLocale } from '#lib/paraglide/runtime.js';
 import { wordPattern } from './references';
 import { presentTimes } from './step-times';
 

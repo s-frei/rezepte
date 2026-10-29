@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
-import { loadRecipeBySlug } from '$lib/recipe/load';
+import { loadRecipeBySlug } from '#lib/recipe/load.js';
 import type { PageLoad } from './$types';
 
 /**

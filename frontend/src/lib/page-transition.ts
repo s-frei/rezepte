@@ -1,4 +1,4 @@
-import type { OnNavigate } from '@sveltejs/kit';
+import type { OnNavigate } from '$app/navigation';
 
 const OVERVIEW = '/';
 const DETAIL = '/recipes/[slug]';

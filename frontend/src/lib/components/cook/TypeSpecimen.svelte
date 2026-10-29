@@ -2,13 +2,13 @@
 	import { Popover, RadioGroup } from 'bits-ui';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		DEFAULT_TYPE_SIZE,
 		TYPE_SIZE_CLASSES,
 		TYPE_SIZES,
 		type TypeSize
-	} from '$lib/recipe/type-size';
+	} from '#lib/recipe/type-size.js';
 
 	let {
 		value = $bindable(DEFAULT_TYPE_SIZE),

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { cardSize } from '$lib/recipe/card-size.svelte';
-	import { placeCards } from '$lib/recipe/masonry';
+	import { cardSize } from '#lib/recipe/card-size.svelte.js';
+	import { placeCards } from '#lib/recipe/masonry.js';
 
 	// Layout only - the caller decides what goes in each cell (real
 	// `RecipeCard`s or skeleton placeholders while loading), so both share

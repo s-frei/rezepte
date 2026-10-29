@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PersonEntry, UserRole } from '$lib/api/users';
+import type { PersonEntry, UserRole } from '#lib/api/users.js';
 import { compareUsernames, groupPeople } from './people-groups';
 
 function person(username: string, role: UserRole = 'user', displayName = username): PersonEntry {

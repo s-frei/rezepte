@@ -1,5 +1,5 @@
 import type { User } from './api/auth';
-import { getLocale, setLocale } from '$lib/paraglide/runtime';
+import { getLocale, setLocale } from '#lib/paraglide/runtime.js';
 
 let user = $state<User | null>(null);
 const signInListeners: (() => void)[] = [];

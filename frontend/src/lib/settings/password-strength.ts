@@ -1,5 +1,5 @@
 import type { ZxcvbnFactory } from '@zxcvbn-ts/core';
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /** zxcvbn's score: 0 is guessed within seconds, 4 holds out for centuries. */
 export type Strength = 0 | 1 | 2 | 3 | 4;

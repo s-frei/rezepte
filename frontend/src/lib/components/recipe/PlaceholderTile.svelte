@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { initialFor, tintFor } from '$lib/recipe/placeholder';
+	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 
 	let {
 		id,

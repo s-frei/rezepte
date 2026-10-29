@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"prepare": "svelte-kit sync || echo ''",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc --noEmit -p src/service-worker",
 		"lint": "prettier --check --cache . && eslint --cache --cache-strategy content --cache-location node_modules/.cache/eslint/ .",
 		"format": "prettier --write .",
 		"test": "vitest run",
@@ -19,8 +19,8 @@
 		"@eslint/js": "^10.0.1",
 		"@inlang/paraglide-js": "^2.18.2",
 		"@playwright/test": "^1.64.1",
-		"@sveltejs/adapter-static": "^3.0.10",
-		"@sveltejs/kit": "^2.63.0",
+		"@sveltejs/adapter-static": "^4.0.0",
+		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^26",
@@ -32,8 +32,8 @@
 		"prettier-plugin-svelte": "^4.1.0",
 		"prettier-plugin-tailwindcss": "^0.8.0",
 		"sharp": "0.35.5",
-		"svelte": "^5.56.1",
-		"svelte-check": "^4.6.0",
+		"svelte": "^5.57.1",
+		"svelte-check": "^4.7.5",
 		"tailwindcss": "^4.3.0",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.60.1",
@@ -58,5 +58,8 @@
 		"modern-screenshot": "^4.7.0",
 		"svelte-dnd-action": "^0.9.79",
 		"svelte-sonner": "^1.2.1"
+	},
+	"imports": {
+		"#lib/*": "./src/lib/*"
 	}
 }

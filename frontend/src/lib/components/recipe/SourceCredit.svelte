@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ExternalLink from '@lucide/svelte/icons/external-link';
-	import { m } from '$lib/paraglide/messages';
-	import { sourceLabel } from '$lib/recipe/source';
+	import { m } from '#lib/paraglide/messages.js';
+	import { sourceLabel } from '#lib/recipe/source.js';
 
 	let { name, url }: { name: string | null; url: string | null } = $props();
 

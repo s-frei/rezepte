@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { MAX_IMAGE_BYTES } from '$lib/api/recipes';
-	import Button from '$lib/components/ui/Button.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import type { Crop } from '$lib/user/crop';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { MAX_IMAGE_BYTES } from '#lib/api/recipes.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Crop } from '#lib/user/crop.js';
 	import AvatarCropDialog from './AvatarCropDialog.svelte';
 
 	let {

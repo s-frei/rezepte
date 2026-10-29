@@ -2,9 +2,9 @@
 	import type { Snippet } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { bottomNav, navPlace } from '$lib/shell.svelte';
-	import TimerIndicator from '$lib/components/timer/TimerIndicator.svelte';
-	import { timers } from '$lib/recipe/timers.svelte';
+	import { bottomNav, navPlace } from '#lib/shell.svelte.js';
+	import TimerIndicator from '#lib/components/timer/TimerIndicator.svelte';
+	import { timers } from '#lib/recipe/timers.svelte.js';
 	import BottomNav from './BottomNav.svelte';
 	import TopBar from './TopBar.svelte';
 	import { isField } from './typing';

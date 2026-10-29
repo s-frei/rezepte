@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { resolve } from '$app/paths';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { roleLabel } from '$lib/roles';
-	import { personDetails } from '$lib/user/people.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { roleLabel } from '#lib/roles.js';
+	import { personDetails } from '#lib/user/people.svelte.js';
 
 	let {
 		person,

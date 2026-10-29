@@ -7,24 +7,24 @@
 		setOwnAvatar,
 		updateOwnProfile,
 		type ColorUsage
-	} from '$lib/api/auth';
-	import { isSignedOut } from '$lib/api/client';
-	import { getOidc, type OidcInfo } from '$lib/api/oidc';
-	import { session } from '$lib/auth.svelte';
-	import AvatarControl from '$lib/components/settings/AvatarControl.svelte';
-	import ColorPicker from '$lib/components/settings/ColorPicker.svelte';
-	import AboutCard from '$lib/components/settings/AboutCard.svelte';
-	import AppCard from '$lib/components/settings/AppCard.svelte';
-	import HelpCard from '$lib/components/settings/HelpCard.svelte';
-	import LanguageControl from '$lib/components/settings/LanguageControl.svelte';
-	import PasswordForm from '$lib/components/settings/PasswordForm.svelte';
-	import ProfileForm from '$lib/components/settings/ProfileForm.svelte';
-	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
-	import SignInCard from '$lib/components/settings/SignInCard.svelte';
-	import ThemeControl from '$lib/components/settings/ThemeControl.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { roleLabel } from '$lib/roles';
-	import { USER_COLORS, type UserColor } from '$lib/user/color';
+	} from '#lib/api/auth.js';
+	import { isSignedOut } from '#lib/api/client.js';
+	import { getOidc, type OidcInfo } from '#lib/api/oidc.js';
+	import { session } from '#lib/auth.svelte.js';
+	import AvatarControl from '#lib/components/settings/AvatarControl.svelte';
+	import ColorPicker from '#lib/components/settings/ColorPicker.svelte';
+	import AboutCard from '#lib/components/settings/AboutCard.svelte';
+	import AppCard from '#lib/components/settings/AppCard.svelte';
+	import HelpCard from '#lib/components/settings/HelpCard.svelte';
+	import LanguageControl from '#lib/components/settings/LanguageControl.svelte';
+	import PasswordForm from '#lib/components/settings/PasswordForm.svelte';
+	import ProfileForm from '#lib/components/settings/ProfileForm.svelte';
+	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
+	import SignInCard from '#lib/components/settings/SignInCard.svelte';
+	import ThemeControl from '#lib/components/settings/ThemeControl.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { roleLabel } from '#lib/roles.js';
+	import { USER_COLORS, type UserColor } from '#lib/user/color.js';
 
 	const card = 'rounded-2xl bg-surface p-6 md:p-7';
 	const title = 'mb-4 font-display text-heading font-medium';
@@ -108,7 +108,7 @@
 			// color that was never stored.
 			color = session.user?.color ?? color;
 			if (!isSignedOut(failure)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.settings_profile_error());
 			}
 		}

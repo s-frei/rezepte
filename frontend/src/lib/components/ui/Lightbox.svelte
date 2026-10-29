@@ -7,10 +7,10 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Download from '@lucide/svelte/icons/download';
 	import X from '@lucide/svelte/icons/x';
-	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
-	import { decoded } from '$lib/images/decoded';
-	import { m } from '$lib/paraglide/messages';
-	import { swipeDirection } from '$lib/recipe/swipe';
+	import { imageUrl, type Image, type ImageVariant } from '#lib/api/recipes.js';
+	import { decoded } from '#lib/images/decoded.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { swipeDirection } from '#lib/recipe/swipe.js';
 	import ScrollFade from './ScrollFade.svelte';
 
 	let {

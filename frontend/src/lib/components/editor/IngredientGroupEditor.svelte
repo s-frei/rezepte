@@ -4,15 +4,15 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { dragHandleZone, type DndEvent } from 'svelte-dnd-action';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		newGroup,
 		newIngredient,
 		type FieldErrors,
 		type FormGroup,
 		type FormIngredient
-	} from '$lib/recipe/form';
+	} from '#lib/recipe/form.js';
 	import IngredientRow from './IngredientRow.svelte';
 	import { collapse, fresh, reveal } from './motion';
 

@@ -4,8 +4,8 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { slide } from 'svelte/transition';
-	import { dismissBanner, install, offer, startInstall } from '$lib/install.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { dismissBanner, install, offer, startInstall } from '#lib/install.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// The same breakpoint as the bottom nav: a desktop never gets the banner,
 	// it has the user menu's row and the settings card.

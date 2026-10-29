@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
-	import { imageUrl, type Image, type ImageVariant } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
-	import ScrollFade from '$lib/components/ui/ScrollFade.svelte';
-	import { decoded } from '$lib/images/decoded';
+	import { imageUrl, type Image, type ImageVariant } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import ScrollFade from '#lib/components/ui/ScrollFade.svelte';
+	import { decoded } from '#lib/images/decoded.js';
 
 	let {
 		recipeId,

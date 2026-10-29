@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
-	import { fetchVersion } from '$lib/api/spec';
-	import { CHANGELOG_URL, SOURCE_URL } from '$lib/docs';
-	import { m } from '$lib/paraglide/messages';
+	import { fetchVersion } from '#lib/api/spec.js';
+	import { CHANGELOG_URL, SOURCE_URL } from '#lib/docs.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// Decoration on a card that stands without it, like the API card's
 	// version: a failed fetch leaves the line out.

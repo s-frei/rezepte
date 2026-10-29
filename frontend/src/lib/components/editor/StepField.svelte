@@ -7,11 +7,16 @@
 	import Suggestion, { exitSuggestion, type SuggestionProps } from '@tiptap/suggestion';
 	import { Popover, RadioGroup } from 'bits-ui';
 	import Timer from '@lucide/svelte/icons/timer';
-	import type { StepTime } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
-	import { presentReferences, type FormGroup, type FormRef, type FormStep } from '$lib/recipe/form';
-	import { firstWordMatch, isWordChar } from '$lib/recipe/references';
-	import { referenceExtension, stepExtensions, stepText, textToDoc } from '$lib/recipe/step-doc';
+	import type { StepTime } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import {
+		presentReferences,
+		type FormGroup,
+		type FormRef,
+		type FormStep
+	} from '#lib/recipe/form.js';
+	import { firstWordMatch, isWordChar } from '#lib/recipe/references.js';
+	import { referenceExtension, stepExtensions, stepText, textToDoc } from '#lib/recipe/step-doc.js';
 	import {
 		addReference,
 		fitsWordLimit,
@@ -23,7 +28,7 @@
 		wordAt,
 		wordAtCaret,
 		type PickerEntry
-	} from '$lib/recipe/step-references';
+	} from '#lib/recipe/step-references.js';
 	import {
 		addTime,
 		caretTimePhrases,
@@ -32,8 +37,13 @@
 		pendingTimes,
 		presentTimes,
 		removeTime
-	} from '$lib/recipe/step-times';
-	import { MAX_PHRASE_LENGTH, formatDuration, manualTime, type TimeUnit } from '$lib/recipe/times';
+	} from '#lib/recipe/step-times.js';
+	import {
+		MAX_PHRASE_LENGTH,
+		formatDuration,
+		manualTime,
+		type TimeUnit
+	} from '#lib/recipe/times.js';
 	import StepLinks from './StepLinks.svelte';
 
 	let {

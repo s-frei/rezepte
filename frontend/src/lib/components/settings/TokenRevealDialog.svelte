@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { Dialog, Tabs } from 'bits-ui';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import { toast } from 'svelte-sonner';
-	import type { TokenScope } from '$lib/api/tokens';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { claudeCodeSnippet, jsonSnippet, mcpUrl, offersMcp } from '$lib/settings/mcp';
+	import type { TokenScope } from '#lib/api/tokens.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { claudeCodeSnippet, jsonSnippet, mcpUrl, offersMcp } from '#lib/settings/mcp.js';
 
 	let {
 		open = $bindable(false),

@@ -7,16 +7,16 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Unlink from '@lucide/svelte/icons/unlink';
 	import { tick } from 'svelte';
-	import type { PersonEntry, UserRole } from '$lib/api/users';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
-	import { roleLabel } from '$lib/roles';
-	import { focusManageButton } from '$lib/settings/person-focus';
-	import { rowPermissions } from '$lib/settings/row-permissions';
-	import PersonCard from '$lib/components/ui/PersonCard.svelte';
+	import type { PersonEntry, UserRole } from '#lib/api/users.js';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import Switch from '#lib/components/ui/Switch.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
+	import { roleLabel } from '#lib/roles.js';
+	import { focusManageButton } from '#lib/settings/person-focus.js';
+	import { rowPermissions } from '#lib/settings/row-permissions.js';
+	import PersonCard from '#lib/components/ui/PersonCard.svelte';
 
 	let {
 		open = $bindable(false),

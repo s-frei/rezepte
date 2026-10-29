@@ -7,10 +7,10 @@
 	import TimerRow from './TimerRow.svelte';
 	import TimerSummary from './TimerSummary.svelte';
 	import { timerStatus } from './status';
-	import { m } from '$lib/paraglide/messages';
-	import { byEnding, formatClock, remainingMs, type Timer } from '$lib/recipe/timers';
-	import { timers } from '$lib/recipe/timers.svelte';
-	import { pushUnavailable } from '$lib/push.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { byEnding, formatClock, remainingMs, type Timer } from '#lib/recipe/timers.js';
+	import { timers } from '#lib/recipe/timers.svelte.js';
+	import { pushUnavailable } from '#lib/push.svelte.js';
 
 	let { recipeId, onopen }: { recipeId: string; onopen: (t: Timer) => void } = $props();
 

@@ -1,4 +1,4 @@
-import { getPublicRecipe } from '$lib/api/public';
+import { getPublicRecipe } from '#lib/api/public.js';
 import type { PageLoad } from './$types';
 
 /**

@@ -2,18 +2,18 @@
 	import { cubicOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import { resolve } from '$app/paths';
-	import type { PublicShare } from '$lib/api/shares';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import LifetimeBar from '$lib/components/ui/LifetimeBar.svelte';
-	import PersonMark from '$lib/components/ui/PersonMark.svelte';
-	import Stamp from '$lib/components/ui/Stamp.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { formatDate } from '$lib/recipe/format';
-	import { copyLink } from '$lib/recipe/share.svelte';
-	import { shareStatusLabel } from '$lib/recipe/share-status';
-	import { userColorEdge } from '$lib/user/color';
+	import type { PublicShare } from '#lib/api/shares.js';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import LifetimeBar from '#lib/components/ui/LifetimeBar.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import Stamp from '#lib/components/ui/Stamp.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
+	import { copyLink } from '#lib/recipe/share.svelte.js';
+	import { shareStatusLabel } from '#lib/recipe/share-status.js';
+	import { userColorEdge } from '#lib/user/color.js';
 
 	let {
 		share,

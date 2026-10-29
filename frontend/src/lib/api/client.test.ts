@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { goto } from '$app/navigation';
-import { session } from '$lib/auth.svelte';
+import { session } from '#lib/auth.svelte.js';
 import { api, ApiError, isSignedOut } from './client';
 
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+// kit's resolve: a route id starts with '/', a plain path does not.
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`)
+}));
 
 function mockFetch(status: number, body: unknown, contentType = 'application/json') {
 	const fn = vi.fn(

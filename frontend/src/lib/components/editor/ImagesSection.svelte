@@ -19,11 +19,11 @@
 		setCover,
 		uploadImage,
 		type Image
-	} from '$lib/api/recipes';
-	import { acceptFiles, uploadErrorMessage } from '$lib/images/pick';
-	import { m } from '$lib/paraglide/messages';
-	import { refusalOr } from '$lib/recipe/access';
-	import { newId } from '$lib/recipe/form';
+	} from '#lib/api/recipes.js';
+	import { acceptFiles, uploadErrorMessage } from '#lib/images/pick.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { refusalOr } from '#lib/recipe/access.js';
+	import { newId } from '#lib/recipe/form.js';
 	import { fresh } from './motion';
 
 	let {

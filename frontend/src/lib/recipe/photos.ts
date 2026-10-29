@@ -1,4 +1,4 @@
-import { uploadCommentImage, type CommentImage } from '$lib/api/comments';
+import { uploadCommentImage, type CommentImage } from '#lib/api/comments.js';
 
 /**
  * One photo in a comment's composer or editor. A picked file carries `file`

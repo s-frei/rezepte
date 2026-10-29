@@ -1,9 +1,9 @@
 import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
-import { logout } from '$lib/api/auth';
-import { session } from '$lib/auth.svelte';
-import { disablePush } from '$lib/push.svelte';
-import { timers } from '$lib/recipe/timers.svelte';
+import { logout } from '#lib/api/auth.js';
+import { session } from '#lib/auth.svelte.js';
+import { disablePush } from '#lib/push.svelte.js';
+import { timers } from '#lib/recipe/timers.svelte.js';
 
 /**
  * The one sign-out action (user menu and settings nav). The server call is

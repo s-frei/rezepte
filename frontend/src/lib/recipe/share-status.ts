@@ -1,5 +1,5 @@
-import { m } from '$lib/paraglide/messages';
-import type { ShareStatus } from '$lib/api/shares';
+import { m } from '#lib/paraglide/messages.js';
+import type { ShareStatus } from '#lib/api/shares.js';
 
 /**
  * The label for a public link's status, in the active language. The Shared

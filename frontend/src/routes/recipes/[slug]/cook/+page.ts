@@ -1,4 +1,4 @@
-import { loadRecipeBySlug } from '$lib/recipe/load';
+import { loadRecipeBySlug } from '#lib/recipe/load.js';
 import type { PageLoad } from './$types';
 
 /** Cooking mode needs the whole recipe (steps, ingredients, servings), like the detail page. */

@@ -1,3 +1,4 @@
+import type { ReadonlyURL } from '$app/state';
 import { normaliseTag } from './form';
 import { snapMaxMinutes } from './time-filter';
 
@@ -81,7 +82,7 @@ function normalize(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery
  * single comma-separated `tags` param. Everything is normalized, so
  * `?tags=Dessert,+SÜSS+` and `?tags=dessert,süss` parse to the same state.
  */
-export function parseListQuery(url: URL): ListQuery {
+export function parseListQuery(url: ReadonlyURL): ListQuery {
 	return normalize({
 		q: url.searchParams.get('q') ?? '',
 		tags: (url.searchParams.get('tags') ?? '').split(','),

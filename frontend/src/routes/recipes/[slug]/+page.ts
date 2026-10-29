@@ -1,7 +1,7 @@
-import { listComments } from '$lib/api/comments';
-import { getMyPublicShare } from '$lib/api/shares';
-import { getSettings } from '$lib/api/settings';
-import { loadRecipeBySlug } from '$lib/recipe/load';
+import { listComments } from '#lib/api/comments.js';
+import { getMyPublicShare } from '#lib/api/shares.js';
+import { getSettings } from '#lib/api/settings.js';
+import { loadRecipeBySlug } from '#lib/recipe/load.js';
 import type { PageLoad } from './$types';
 
 /**

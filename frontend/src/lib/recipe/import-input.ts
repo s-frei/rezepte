@@ -1,3 +1,5 @@
+import type { ReadonlyURLSearchParams } from '$app/state';
+
 export type ImportInput =
 	{ kind: 'empty' } | { kind: 'link'; url: string; host: string } | { kind: 'text'; text: string };
 
@@ -25,7 +27,7 @@ export function detectInput(raw: string): ImportInput {
 /** What the Web Share Target handed over, as the import field's content:
  * a shared link, else a link inside the text, else the text. The title is
  * only a label and never a recipe. */
-export function sharedInput(params: URLSearchParams): string {
+export function sharedInput(params: ReadonlyURLSearchParams): string {
 	const url = httpUrl((params.get('url') ?? '').trim());
 	if (url) return url.href;
 	const text = (params.get('text') ?? '').trim();

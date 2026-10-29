@@ -1,13 +1,13 @@
 <script lang="ts">
 	import Globe from '@lucide/svelte/icons/globe';
 	import Lock from '@lucide/svelte/icons/lock';
-	import type { Recipe } from '$lib/api/recipes';
-	import type { PublicShare } from '$lib/api/shares';
-	import { session } from '$lib/auth.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { lockNotice } from '$lib/recipe/access';
-	import { hasBeenEdited } from '$lib/recipe/authorship';
-	import { formatDate } from '$lib/recipe/format';
+	import type { Recipe } from '#lib/api/recipes.js';
+	import type { PublicShare } from '#lib/api/shares.js';
+	import { session } from '#lib/auth.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { lockNotice } from '#lib/recipe/access.js';
+	import { hasBeenEdited } from '#lib/recipe/authorship.js';
+	import { formatDate } from '#lib/recipe/format.js';
 
 	let {
 		recipe,

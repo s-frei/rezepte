@@ -4,9 +4,12 @@ import type { TimerStart } from './recipe/timers';
 
 // The module is `push.svelte.ts`; vitest reserves `*.svelte.test.ts` for a
 // different project, as in timers-store.test.ts.
-vi.mock('$app/environment', () => ({ browser: true, dev: false }));
+vi.mock('$app/env', () => ({ browser: true }));
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
-vi.mock('$app/paths', () => ({ resolve: (path: string) => path }));
+// kit's resolve: a route id starts with '/', a plain path does not.
+vi.mock('$app/paths', () => ({
+	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`)
+}));
 
 const soup: TimerStart = {
 	recipeId: 'r1',

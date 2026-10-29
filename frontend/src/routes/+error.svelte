@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { m } from '$lib/paraglide/messages';
+	import { m } from '#lib/paraglide/messages.js';
 </script>
 
 <svelte:head><title>{m.app_name()}</title></svelte:head>
 
-<!-- The error page carries no bottom nav (`navPlace` in `$lib/shell.svelte`),
+<!-- The error page carries no bottom nav (`navPlace` in `#lib/shell.svelte`),
      so it offers its own way back. -->
 <main class="mx-auto max-w-3xl p-8">
 	<h1 class="font-display text-display-lg font-semibold">{m.app_name()}</h1>

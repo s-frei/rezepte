@@ -2,8 +2,8 @@
 	import Monitor from '@lucide/svelte/icons/monitor';
 	import Moon from '@lucide/svelte/icons/moon';
 	import Sun from '@lucide/svelte/icons/sun';
-	import { m } from '$lib/paraglide/messages';
-	import type { Theme } from '$lib/theme';
+	import { m } from '#lib/paraglide/messages.js';
+	import type { Theme } from '#lib/theme.js';
 
 	/** The three choices in their order, shared with the desktop account menu. */
 	export function themeOptions() {
@@ -16,8 +16,8 @@
 </script>
 
 <script lang="ts">
-	import SegmentedControl from '$lib/components/ui/SegmentedControl.svelte';
-	import { setTheme, theme } from '$lib/theme.svelte';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import { setTheme, theme } from '#lib/theme.svelte.js';
 
 	/** The settings card explains "System"; the You sheet has no room for it. */
 	let { hint = true }: { hint?: boolean } = $props();

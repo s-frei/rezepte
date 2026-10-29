@@ -9,20 +9,20 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { isSignedOut } from '$lib/api/client';
+	import { isSignedOut } from '#lib/api/client.js';
 	import {
 		createDraft,
 		draftFailure,
 		fetchDraftPhoto,
 		type DraftFailure,
 		type RecipeDraft
-	} from '$lib/api/drafts';
-	import { TOGGLE } from '$lib/components/editor/link-list';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { importDialog } from '$lib/import.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { putDraft } from '$lib/recipe/draft';
-	import { detectInput } from '$lib/recipe/import-input';
+	} from '#lib/api/drafts.js';
+	import { TOGGLE } from '#lib/components/editor/link-list.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { importDialog } from '#lib/import.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { putDraft } from '#lib/recipe/draft.js';
+	import { detectInput } from '#lib/recipe/import-input.js';
 
 	let { ondone, admin }: { ondone: () => void; admin: boolean } = $props();
 
@@ -117,7 +117,7 @@
 			if (signal.aborted) return;
 			const reason = draftFailure(error);
 			if (!reason) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				if (!isSignedOut(error)) toast.error(m.import_error());
 			} else {
 				failure = reason;

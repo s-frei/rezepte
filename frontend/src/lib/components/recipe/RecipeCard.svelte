@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { imageUrl, type RecipeCard as RecipeCardData } from '$lib/api/recipes';
-	import { session } from '$lib/auth.svelte';
-	import { formatMinutes } from '$lib/recipe/format';
-	import { initialFor, tintFor } from '$lib/recipe/placeholder';
+	import { imageUrl, type RecipeCard as RecipeCardData } from '#lib/api/recipes.js';
+	import { session } from '#lib/auth.svelte.js';
+	import { formatMinutes } from '#lib/recipe/format.js';
+	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 	import AuthorInitials from './AuthorInitials.svelte';
 	import FavoriteStar from './FavoriteStar.svelte';
 	import TastyButton from './TastyButton.svelte';

@@ -1,5 +1,5 @@
-import { getPasswordReset } from '$lib/api/auth';
-import { getOidc } from '$lib/api/oidc';
+import { getPasswordReset } from '#lib/api/auth.js';
+import { getOidc } from '#lib/api/oidc.js';
 import type { PageLoad } from './$types';
 
 // The provider button and the "Forgot password" link are extras, so a

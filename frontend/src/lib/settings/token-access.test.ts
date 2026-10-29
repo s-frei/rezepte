@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ApiToken } from '$lib/api/tokens';
+import type { ApiToken } from '#lib/api/tokens.js';
 import { OPEN_TODAY, accessLevels, isExpired, lifetime, tokenSupply } from './token-access';
 
 function token(expiresAt?: string): ApiToken {

@@ -3,18 +3,18 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import type { Pathname, ResolvedPathname } from '$app/types';
+	import type { Path, ResolvedPathname } from '$app/types';
 	import { toast } from 'svelte-sonner';
-	import { ApiError } from '$lib/api/client';
-	import type { EditPolicy, Image, Recipe, RecipeInput } from '$lib/api/recipes';
-	import { session } from '$lib/auth.svelte';
-	import ContentsSheet from '$lib/components/nav/ContentsSheet.svelte';
-	import RunningHead from '$lib/components/nav/RunningHead.svelte';
-	import type { ContentsEntry } from '$lib/components/nav/contents';
-	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
-	import RequiredMark, { requiredState } from '$lib/components/ui/RequiredMark.svelte';
-	import { withoutErrors } from '$lib/form-errors';
-	import { m } from '$lib/paraglide/messages';
+	import { ApiError } from '#lib/api/client.js';
+	import type { EditPolicy, Image, Recipe, RecipeInput } from '#lib/api/recipes.js';
+	import { session } from '#lib/auth.svelte.js';
+	import ContentsSheet from '#lib/components/nav/ContentsSheet.svelte';
+	import RunningHead from '#lib/components/nav/RunningHead.svelte';
+	import type { ContentsEntry } from '#lib/components/nav/contents.js';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import RequiredMark, { requiredState } from '#lib/components/ui/RequiredMark.svelte';
+	import { withoutErrors } from '#lib/form-errors.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import {
 		anchorId,
 		applyReview,
@@ -26,13 +26,13 @@
 		toInput,
 		validate,
 		type FieldErrors
-	} from '$lib/recipe/form';
-	import { refusalOr } from '$lib/recipe/access';
-	import { applyDndAriaStrings } from '$lib/recipe/dnd';
-	import { takeDraft, type ImportedDraft } from '$lib/recipe/draft';
-	import { currentSection, isAtBottom, nextBand, stillPinned } from '$lib/recipe/section-spy';
-	import { acceptAll, type DismissedWords } from '$lib/recipe/step-references';
-	import { shell } from '$lib/shell.svelte';
+	} from '#lib/recipe/form.js';
+	import { refusalOr } from '#lib/recipe/access.js';
+	import { applyDndAriaStrings } from '#lib/recipe/dnd.js';
+	import { takeDraft, type ImportedDraft } from '#lib/recipe/draft.js';
+	import { currentSection, isAtBottom, nextBand, stillPinned } from '#lib/recipe/section-spy.js';
+	import { acceptAll, type DismissedWords } from '#lib/recipe/step-references.js';
+	import { shell } from '#lib/shell.svelte.js';
 	import BasicsSection from './BasicsSection.svelte';
 	import EditingSection from './EditingSection.svelte';
 	import ImagesSection from './ImagesSection.svelte';
@@ -356,7 +356,7 @@
 				}
 			} else if (!(error instanceof ApiError && error.status === 401)) {
 				// A 401 already sends the browser to the login page (see
-				// `$lib/api/client`), so a toast would only flash on the way out.
+				// `#lib/api/client`), so a toast would only flash on the way out.
 				toast.error(refusalOr(error, m.editor_save_error()));
 			}
 		} finally {
@@ -376,14 +376,14 @@
 		// already an internal path - the cast only says so to `resolve`, the
 		// same way the login page treats its `next` param.
 		const href = target
-			? resolve(`${target.pathname}${target.search}${target.hash}` as Pathname)
+			? resolve(`${target.pathname.slice(1)}${target.search}${target.hash}` as Path)
 			: cancelHref;
 		void goto(href);
 	}
 
 	beforeNavigate((navigation) => {
 		// A 401 anywhere in the app clears `session.user` and then sends the
-		// browser to the login page (see `$lib/api/client`). Holding that
+		// browser to the login page (see `#lib/api/client`). Holding that
 		// navigation back with the discard dialog would strand the user on a
 		// form that cannot be saved any more, so the guard steps aside.
 		if (session.user === null) {

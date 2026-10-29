@@ -3,9 +3,9 @@
 	import { resolve } from '$app/paths';
 	import TimerRing from './TimerRing.svelte';
 	import { timerStatus } from './status';
-	import { m } from '$lib/paraglide/messages';
-	import { cookPath, formatClock, fraction, remainingMs, type Timer } from '$lib/recipe/timers';
-	import { timers } from '$lib/recipe/timers.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { cookPath, formatClock, fraction, remainingMs, type Timer } from '#lib/recipe/timers.js';
+	import { timers } from '#lib/recipe/timers.svelte.js';
 
 	let {
 		timer,

@@ -4,24 +4,24 @@
 	import { Toaster } from 'svelte-sonner';
 	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import AppShell from '$lib/components/shell/AppShell.svelte';
-	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
-	import ImportDialog from '$lib/components/import/ImportDialog.svelte';
-	import IosInstallSheet from '$lib/components/install/IosInstallSheet.svelte';
-	import { authPages, session } from '$lib/auth.svelte';
+	import AppShell from '#lib/components/shell/AppShell.svelte';
+	import CommandPalette from '#lib/components/ui/CommandPalette.svelte';
+	import ImportDialog from '#lib/components/import/ImportDialog.svelte';
+	import IosInstallSheet from '#lib/components/install/IosInstallSheet.svelte';
+	import { authPages, session } from '#lib/auth.svelte.js';
 	// Imported here, before any page mounts, so the install state takes over
 	// the `beforeinstallprompt` app.html kept and listens for the next one.
-	import '$lib/install.svelte';
+	import '#lib/install.svelte.js';
 	// Registers the service worker and arms a push alarm for each running timer.
-	import '$lib/push.svelte';
-	import { palette } from '$lib/palette.svelte';
-	import { navPlace } from '$lib/shell.svelte';
-	import { pageTransition } from '$lib/page-transition';
-	import { listenForLaunches } from '$lib/launch';
-	import { listenForPushToasts } from '$lib/push-toast';
-	import { getLocale } from '$lib/paraglide/runtime';
-	import { startChime, stopChime, unlockAudio } from '$lib/recipe/chime';
-	import { timers } from '$lib/recipe/timers.svelte';
+	import '#lib/push.svelte.js';
+	import { palette } from '#lib/palette.svelte.js';
+	import { navPlace } from '#lib/shell.svelte.js';
+	import { pageTransition } from '#lib/page-transition.js';
+	import { listenForLaunches } from '#lib/launch.js';
+	import { listenForPushToasts } from '#lib/push-toast.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { startChime, stopChime, unlockAudio } from '#lib/recipe/chime.js';
+	import { timers } from '#lib/recipe/timers.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -102,7 +102,7 @@
      the visible viewport, so the wrapper would outgrow the `h-dvh` cooking
      page and the document would scroll under a full-screen route. -->
 <!-- `data-app`: the tree a sign-in opens out of the login card (`signIn` in
-     $lib/page-transition.ts). -->
+     #lib/page-transition.ts). -->
 <!-- `data-bare`: a page that owns the whole window keeps no room for a
      scrollbar (app.css), or the login's painting stopped short of the edge. -->
 <div data-app data-bare={bare || undefined} class="min-h-dvh bg-background font-sans text-text">

@@ -4,13 +4,13 @@
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import Lock from '@lucide/svelte/icons/lock';
 	import Share from '@lucide/svelte/icons/share';
-	import { session } from '$lib/auth.svelte';
-	import IosInstallSteps from '$lib/components/install/IosInstallSteps.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import { USER_GUIDE_URL } from '$lib/docs';
-	import { appCardState } from '$lib/install';
-	import { offer, secure, standalone, startInstall } from '$lib/install.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { session } from '#lib/auth.svelte.js';
+	import IosInstallSteps from '#lib/components/install/IosInstallSteps.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import { USER_GUIDE_URL } from '#lib/docs.js';
+	import { appCardState } from '#lib/install.js';
+	import { offer, secure, standalone, startInstall } from '#lib/install.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	const cardState = $derived(
 		appCardState(offer(), { secure, standalone, owner: session.user?.role === 'superadmin' })

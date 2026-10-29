@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { UserRole } from '$lib/api/users';
+import type { UserRole } from '#lib/api/users.js';
 import { rowPermissions } from './row-permissions';
 
 const none = { changeRole: false, manageAccount: false, editProfile: false, toggleSharing: false };

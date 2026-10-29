@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, fly } from 'svelte/transition';
-	import type { Recipe } from '$lib/api/recipes';
-	import IngredientList from '$lib/components/recipe/IngredientList.svelte';
-	import ServingsStepper from '$lib/components/recipe/ServingsStepper.svelte';
-	import type { Servings } from '$lib/recipe/servings.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import type { Recipe } from '#lib/api/recipes.js';
+	import IngredientList from '#lib/components/recipe/IngredientList.svelte';
+	import ServingsStepper from '#lib/components/recipe/ServingsStepper.svelte';
+	import type { Servings } from '#lib/recipe/servings.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		open = $bindable(false),

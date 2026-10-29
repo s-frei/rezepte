@@ -4,9 +4,9 @@
 	import { Dialog } from 'bits-ui';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import BottomSheet from '$lib/components/ui/BottomSheet.svelte';
-	import { importDialog } from '$lib/import.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import { importDialog } from '#lib/import.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 

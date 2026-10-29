@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError } from '$lib/api/client';
+import { ApiError } from '#lib/api/client.js';
 import { lockNotice, policyHint, refusalOr } from './access';
 
 // Pinned to English, the same mock shape form.test.ts uses, so the expected
 // sentences do not depend on the locale the test run happens to resolve.
-vi.mock('$lib/paraglide/runtime', () => ({
+vi.mock('#lib/paraglide/runtime.js', () => ({
 	getLocale: () => 'en',
 	experimentalStaticLocale: undefined
 }));

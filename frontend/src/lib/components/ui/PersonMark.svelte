@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { avatarUrl } from '$lib/user/avatar';
-	import { userColorClasses } from '$lib/user/color';
+	import { avatarUrl } from '#lib/user/avatar.js';
+	import { userColorClasses } from '#lib/user/color.js';
 
 	type Size = 'xs' | 'xs-plus' | 'sm' | 'md' | 'lg' | 'xl' | 'card' | 'profile';
 

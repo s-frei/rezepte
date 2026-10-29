@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { overLimit } from '$lib/recipe/diary';
-	import { m } from '$lib/paraglide/messages';
+	import { overLimit } from '#lib/recipe/diary.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		value = $bindable(''),

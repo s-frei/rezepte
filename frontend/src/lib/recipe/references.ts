@@ -1,4 +1,4 @@
-import type { IngredientGroup, IngredientRef, Step, StepTime } from '$lib/api/recipes';
+import type { IngredientGroup, IngredientRef, Step, StepTime } from '#lib/api/recipes.js';
 import { formatQuantityFor } from './scale';
 
 /** One piece of a step's text. `quantity` is present on a resolved reference, `time` on a stored step time. */

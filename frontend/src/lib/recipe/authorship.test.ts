@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Person } from '$lib/api/recipes';
+import type { Person } from '#lib/api/recipes.js';
 import { authorLabel, hasBeenEdited } from './authorship';
 
 const admin: Person = {

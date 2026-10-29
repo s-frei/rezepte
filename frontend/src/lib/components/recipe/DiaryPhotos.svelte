@@ -4,12 +4,12 @@
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import X from '@lucide/svelte/icons/x';
-	import { MAX_COMMENT_IMAGES } from '$lib/api/comments';
-	import { ACCEPTED_IMAGE_TYPES } from '$lib/api/recipes';
-	import { acceptFiles } from '$lib/images/pick';
-	import { m } from '$lib/paraglide/messages';
-	import { newId } from '$lib/recipe/form';
-	import { revokePreviews, type PendingPhoto } from '$lib/recipe/photos';
+	import { MAX_COMMENT_IMAGES } from '#lib/api/comments.js';
+	import { ACCEPTED_IMAGE_TYPES } from '#lib/api/recipes.js';
+	import { acceptFiles } from '#lib/images/pick.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { newId } from '#lib/recipe/form.js';
+	import { revokePreviews, type PendingPhoto } from '#lib/recipe/photos.js';
 
 	let {
 		photos = $bindable(),

@@ -17,33 +17,33 @@
 		type Author,
 		type RecipeCard as RecipeCardData,
 		type Tag
-	} from '$lib/api/recipes';
-	import Button from '$lib/components/ui/Button.svelte';
-	import EmptyState from '$lib/components/ui/EmptyState.svelte';
-	import InstallBanner from '$lib/components/install/InstallBanner.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import ActiveFilters from '$lib/components/recipe/ActiveFilters.svelte';
-	import CardSizeControl from '$lib/components/recipe/CardSizeControl.svelte';
-	import FilterPanel from '$lib/components/recipe/FilterPanel.svelte';
-	import RecipeCard from '$lib/components/recipe/RecipeCard.svelte';
-	import RecipeGrid from '$lib/components/recipe/RecipeGrid.svelte';
-	import ResultCount from '$lib/components/recipe/ResultCount.svelte';
-	import SearchBar from '$lib/components/recipe/SearchBar.svelte';
-	import TagFilter from '$lib/components/recipe/TagFilter.svelte';
+	} from '#lib/api/recipes.js';
+	import Button from '#lib/components/ui/Button.svelte';
+	import EmptyState from '#lib/components/ui/EmptyState.svelte';
+	import InstallBanner from '#lib/components/install/InstallBanner.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import ActiveFilters from '#lib/components/recipe/ActiveFilters.svelte';
+	import CardSizeControl from '#lib/components/recipe/CardSizeControl.svelte';
+	import FilterPanel from '#lib/components/recipe/FilterPanel.svelte';
+	import RecipeCard from '#lib/components/recipe/RecipeCard.svelte';
+	import RecipeGrid from '#lib/components/recipe/RecipeGrid.svelte';
+	import ResultCount from '#lib/components/recipe/ResultCount.svelte';
+	import SearchBar from '#lib/components/recipe/SearchBar.svelte';
+	import TagFilter from '#lib/components/recipe/TagFilter.svelte';
 	import {
 		cardSize,
 		setCardSize,
 		setPhoneColumns,
 		type CardSize,
 		type PhoneColumns
-	} from '$lib/recipe/card-size.svelte';
-	import { formatDay } from '$lib/recipe/format';
-	import { overviewViewState } from '$lib/recipe/overview-state';
-	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
-	import { applyRememberedSort, readSort, writeSort } from '$lib/recipe/sort-preference';
-	import { importDialog } from '$lib/import.svelte';
-	import { m } from '$lib/paraglide/messages';
+	} from '#lib/recipe/card-size.svelte.js';
+	import { formatDay } from '#lib/recipe/format.js';
+	import { overviewViewState } from '#lib/recipe/overview-state.js';
+	import { buildListQuery, isSort, parseListQuery, type Sort } from '#lib/recipe/query.js';
+	import { applyRememberedSort, readSort, writeSort } from '#lib/recipe/sort-preference.js';
+	import { importDialog } from '#lib/import.svelte.js';
+	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps, Snapshot } from './$types';
 
 	let { data }: PageProps = $props();
@@ -108,7 +108,7 @@
 	// place; a fresh list (a filter, a reload) has none.
 	let appendedFrom = $state(Infinity);
 	// Set for the first list after a sign-in (`signIn` in
-	// $lib/page-transition.ts): every card rises then, on the arrival's own
+	// #lib/page-transition.ts): every card rises then, on the arrival's own
 	// timing (`data-arrival` in app.css).
 	let arrival = $state(false);
 	let riseTimer: ReturnType<typeof setTimeout> | undefined;
@@ -196,10 +196,9 @@
 			page: pageNum
 		});
 		lastQuery = qs;
-		void goto(resolve(qs ? `/?${qs}` : '/'), {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+		void goto(resolve(qs ? `?${qs}` : '/'), {
+			replace: true,
+			reset: false
 		});
 	}
 
@@ -610,7 +609,7 @@
 	 * so without reseeding it the grid would keep showing the old filter and
 	 * the next `syncUrl()` would put it straight back into the URL.
 	 *
-	 * `buildListQuery` normalizes what it is handed (see `$lib/recipe/query`),
+	 * `buildListQuery` normalizes what it is handed (see `#lib/recipe/query`),
 	 * so comparing it against the string `syncUrl` wrote recognizes the page's
 	 * own updates and leaves them alone.
 	 */
@@ -852,9 +851,7 @@
 				     which is why it stays rather than disappearing. -->
 				<Button
 					variant="accent"
-					href={q
-						? resolve(`/recipes/new?title=${encodeURIComponent(q)}`)
-						: resolve('/recipes/new')}
+					href={q ? resolve(`recipes/new?title=${encodeURIComponent(q)}`) : resolve('/recipes/new')}
 				>
 					{q ? m.overview_create_from_search() : m.overview_new_recipe()}
 				</Button>

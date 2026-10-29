@@ -1,9 +1,9 @@
 <script lang="ts">
 	import Heart from '@lucide/svelte/icons/heart';
-	import HeartIcon from '$lib/components/icons/HeartIcon.svelte';
+	import HeartIcon from '#lib/components/icons/HeartIcon.svelte';
 	import { toast } from 'svelte-sonner';
-	import { setTasty } from '$lib/api/recipes';
-	import { m } from '$lib/paraglide/messages';
+	import { setTasty } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		id,

@@ -2,20 +2,29 @@
 	import { Dialog, RadioGroup } from 'bits-ui';
 	import Languages from '@lucide/svelte/icons/languages';
 	import { toast } from 'svelte-sonner';
-	import type { ColorUsage, Locale } from '$lib/api/auth';
-	import { ApiError, isSignedOut } from '$lib/api/client';
-	import { createUser, type SetupLinkInfo, type UserAccount, type UserRole } from '$lib/api/users';
-	import { session } from '$lib/auth.svelte';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import Select from '$lib/components/ui/Select.svelte';
-	import { languageOptions } from '$lib/i18n/languages';
-	import { withoutErrors } from '$lib/form-errors';
-	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
-	import { PASSWORD_MIN, passwordErrorsFromApi, validateNewPassword } from '$lib/settings/password';
-	import { leastUsedColor, USER_COLORS, type UserColor } from '$lib/user/color';
+	import type { ColorUsage, Locale } from '#lib/api/auth.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import {
+		createUser,
+		type SetupLinkInfo,
+		type UserAccount,
+		type UserRole
+	} from '#lib/api/users.js';
+	import { session } from '#lib/auth.svelte.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
+	import { languageOptions } from '#lib/i18n/languages.js';
+	import { withoutErrors } from '#lib/form-errors.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import {
+		PASSWORD_MIN,
+		passwordErrorsFromApi,
+		validateNewPassword
+	} from '#lib/settings/password.js';
+	import { leastUsedColor, USER_COLORS, type UserColor } from '#lib/user/color.js';
 	import ColorPicker from './ColorPicker.svelte';
 	import PasswordStrength from './PasswordStrength.svelte';
 
@@ -143,7 +152,7 @@
 				}
 				if (Object.keys(errors).length === 0) toast.error(error.detail ?? m.users_create_error());
 			} else if (!isSignedOut(error)) {
-				// 401 already redirects to the login page (see $lib/api/client).
+				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.users_create_error());
 			}
 		} finally {

@@ -1,4 +1,4 @@
-import { countOperations, type SpecDocument } from '$lib/settings/api-summary';
+import { countOperations, type SpecDocument } from '#lib/settings/api-summary.js';
 import { api } from './client';
 
 /** The number of operations in the OpenAPI document the instance serves. */

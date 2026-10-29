@@ -2,13 +2,13 @@
 	import { onMount } from 'svelte';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import { toast } from 'svelte-sonner';
-	import { fetchOperationCount } from '$lib/api/spec';
-	import CopyIcon from '$lib/components/icons/CopyIcon.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import { MCP_GUIDE_URL } from '$lib/docs';
-	import { m } from '$lib/paraglide/messages';
-	import { mcpUrl } from '$lib/settings/mcp';
-	import type { TokenSupply } from '$lib/settings/token-access';
+	import { fetchOperationCount } from '#lib/api/spec.js';
+	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { MCP_GUIDE_URL } from '#lib/docs.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { mcpUrl } from '#lib/settings/mcp.js';
+	import type { TokenSupply } from '#lib/settings/token-access.js';
 
 	let {
 		isAdmin,

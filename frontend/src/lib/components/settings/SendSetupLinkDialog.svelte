@@ -1,11 +1,11 @@
 <script lang="ts">
 	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import { Dialog, RadioGroup } from 'bits-ui';
-	import { ApiError } from '$lib/api/client';
-	import BaseDialog from '$lib/components/ui/BaseDialog.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
-	import Input from '$lib/components/ui/Input.svelte';
-	import { m } from '$lib/paraglide/messages';
+	import { ApiError } from '#lib/api/client.js';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
 
 	// The row action's step before a setup link goes out, shown only while
 	// mail is on: by mail to an address, or the link alone to pass on. The
