@@ -39,6 +39,9 @@ export type RecipeCard = {
 	/** Photos on the recipe and the bytes their largest variants take. */
 	imageCount: number;
 	imageBytes: number;
+	/** The cover's pixel size, so a card can hold its photo's shape before it loads. */
+	coverWidth: number | null;
+	coverHeight: number | null;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;

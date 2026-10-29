@@ -21,6 +21,54 @@ func (q *Queries) CountImagesByRecipe(ctx context.Context, recipeID string) (int
 	return count, err
 }
 
+const coverSizesForRecipes = `-- name: CoverSizesForRecipes :many
+SELECT r.id AS recipe_id, i.width, i.height
+FROM recipes r
+JOIN images i ON i.id = r.cover_image_id
+WHERE r.id IN (/*SLICE:recipe_ids*/?)
+`
+
+type CoverSizesForRecipesRow struct {
+	RecipeID string
+	Width    int64
+	Height   int64
+}
+
+// The pixel size of each page recipe's cover photo, so a card can hold the
+// photo's shape before it loads; recipes without a cover get no row.
+func (q *Queries) CoverSizesForRecipes(ctx context.Context, recipeIds []string) ([]CoverSizesForRecipesRow, error) {
+	query := coverSizesForRecipes
+	var queryParams []interface{}
+	if len(recipeIds) > 0 {
+		for _, v := range recipeIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:recipe_ids*/?", strings.Repeat(",?", len(recipeIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:recipe_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CoverSizesForRecipesRow{}
+	for rows.Next() {
+		var i CoverSizesForRecipesRow
+		if err := rows.Scan(&i.RecipeID, &i.Width, &i.Height); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteImage = `-- name: DeleteImage :execrows
 DELETE FROM images WHERE recipe_id = ? AND id = ?
 `

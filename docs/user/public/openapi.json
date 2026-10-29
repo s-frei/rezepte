@@ -255,9 +255,23 @@
       "Card": {
         "additionalProperties": false,
         "properties": {
+          "coverHeight": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "coverImageId": {
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "coverWidth": {
+            "format": "int64",
+            "type": [
+              "integer",
               "null"
             ]
           },
@@ -332,6 +346,8 @@
           "newComments",
           "imageCount",
           "imageBytes",
+          "coverWidth",
+          "coverHeight",
           "createdBy",
           "updatedBy"
         ],

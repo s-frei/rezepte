@@ -40,3 +40,11 @@ SELECT recipe_id,
 FROM images
 WHERE recipe_id IN (sqlc.slice(recipe_ids))
 GROUP BY recipe_id;
+
+-- The pixel size of each page recipe's cover photo, so a card can hold the
+-- photo's shape before it loads; recipes without a cover get no row.
+-- name: CoverSizesForRecipes :many
+SELECT r.id AS recipe_id, i.width, i.height
+FROM recipes r
+JOIN images i ON i.id = r.cover_image_id
+WHERE r.id IN (sqlc.slice(recipe_ids));

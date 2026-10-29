@@ -143,6 +143,10 @@ type Card struct {
 	// largest, so the size estimate runs high.
 	ImageCount int   `json:"imageCount"`
 	ImageBytes int64 `json:"imageBytes"`
+	// CoverWidth and CoverHeight are the cover's pixel size, so a card can
+	// hold its photo's shape before it loads.
+	CoverWidth  *int `json:"coverWidth" nullable:"true"`
+	CoverHeight *int `json:"coverHeight" nullable:"true"`
 	// Who wrote the recipe and who last changed it, in the same shape as on
 	// Recipe. The card shows them as initials.
 	CreatedBy Person `json:"createdBy"`

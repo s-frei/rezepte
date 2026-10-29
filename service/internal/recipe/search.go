@@ -221,6 +221,14 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 	for _, st := range statRows {
 		stats[st.RecipeID] = st
 	}
+	coverRows, err := s.q.CoverSizesForRecipes(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("cover sizes for recipes: %w", err)
+	}
+	covers := make(map[string]sqlc.CoverSizesForRecipesRow, len(coverRows))
+	for _, c := range coverRows {
+		covers[c.RecipeID] = c
+	}
 
 	for _, r := range rows {
 		card, err := toCard(r, tagsByRecipe[r.ID], favorites[r.ID],
@@ -233,6 +241,10 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		card.NewComments = newComments[r.ID]
 		card.ImageCount = int(stats[r.ID].ImageCount)
 		card.ImageBytes = stats[r.ID].ImageBytes
+		if c, ok := covers[r.ID]; ok {
+			w, h := int(c.Width), int(c.Height)
+			card.CoverWidth, card.CoverHeight = &w, &h
+		}
 		items = append(items, card)
 	}
 	return items, nil

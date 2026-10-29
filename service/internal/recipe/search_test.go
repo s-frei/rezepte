@@ -784,3 +784,49 @@ func TestListCardsCarryImageStats(t *testing.T) {
 		t.Fatalf("image stats = %v", got)
 	}
 }
+
+func TestListCardsCarryCoverSize(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	fx := loadFixtures(t)
+	withCover, err := svc.Create(ctx, uid, fx[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	without, err := svc.Create(ctx, uid, fx[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := sqlc.New(testConns[t])
+	for i, size := range [][2]int64{{1200, 1600}, {800, 600}} {
+		id := fmt.Sprintf("img-%d", i)
+		if _, err := q.InsertImage(ctx, sqlc.InsertImageParams{
+			ID: id, RecipeID: withCover.ID, Filename: id + ".jpg",
+			Width: size[0], Height: size[1], SizeBytes: 1000, Position: int64(i), CreatedAt: db.FormatTime(time.Now()),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cover := "img-0"
+	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{
+		CoverImageID: &cover, UpdatedBy: uid, UpdatedAt: db.FormatTime(time.Now()), ID: withCover.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	page, err := svc.List(ctx, recipe.ListParams{Page: 1, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range page.Items {
+		switch c.ID {
+		case withCover.ID:
+			if c.CoverWidth == nil || c.CoverHeight == nil || *c.CoverWidth != 1200 || *c.CoverHeight != 1600 {
+				t.Fatalf("cover size = %v x %v, want 1200 x 1600", c.CoverWidth, c.CoverHeight)
+			}
+		case without.ID:
+			if c.CoverWidth != nil || c.CoverHeight != nil {
+				t.Fatalf("card without cover has size %v x %v", c.CoverWidth, c.CoverHeight)
+			}
+		}
+	}
+}
