@@ -2,6 +2,12 @@ const TINTS = ['tint-1', 'tint-2', 'tint-3'] as const;
 
 export type Tint = (typeof TINTS)[number];
 
+export const TINT_CLASSES: Record<Tint, string> = {
+	'tint-1': 'bg-tint-1',
+	'tint-2': 'bg-tint-2',
+	'tint-3': 'bg-tint-3'
+};
+
 /**
  * Deterministically maps a recipe id to one of the three placeholder tint
  * tokens (`tint-1` / `tint-2` / `tint-3`).

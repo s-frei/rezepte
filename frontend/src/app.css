@@ -70,9 +70,11 @@
 	--color-user-slate-foreground: #4a5263;
 	/* The lightbox is the same near-black in both themes (it sits behind the
 	   photo, not behind the page), so its foreground is theme-independent
-	   too and is deliberately not redefined in the dark blocks below. */
+	   too and is deliberately not redefined in the dark blocks below. Its
+	   primary is the dark theme's: the light one falls below 3:1 on it. */
 	--color-lightbox: #120e0b;
 	--color-lightbox-foreground: #ffffff;
+	--color-lightbox-primary: #d97a2b;
 	--color-overlay: rgb(43 33 24 / 0.4);
 	/* Text set on a painting (the login's kitchen scene) sits on the
 	   painting's cream, not on the page, so like the lightbox pair these are
@@ -87,6 +89,7 @@
 	--radius-xl: 18px;
 	--radius-2xl: 20px;
 	--radius-3xl: 24px;
+	--radius-4xl: 28px;
 	--radius-pill: 9999px;
 	/* Below the sm/md/lg scale on purpose: this rounds the highlight behind a
 	   single word inside running text, where 10px already reads as a button
@@ -114,6 +117,15 @@
 
 	/* Overshoots and settles back - a card that springs up when picked. */
 	--ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+	/* A card "Load more" brought, rising into its place in the list. */
+	--animate-rise: rise 520ms var(--ease-spring) both;
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(32px);
+		}
+	}
 
 	--text-label: 11px;
 	--text-label--line-height: 1.2;
@@ -128,6 +140,10 @@
 	--text-card: 19px;
 	--text-card--line-height: 1.2;
 	--text-card-sm: 16px;
+	--text-card-cover: clamp(16px, 12.5cqw, 30px);
+	--text-card-cover--line-height: 1.25;
+	--text-initial-sm: 93px;
+	--text-initial: 150px;
 	--text-heading: 22px;
 	--text-heading--line-height: 1.2;
 	--text-heading-lg: 24px;
@@ -143,13 +159,14 @@
 }
 
 /*
- * One period of the hand-drawn underline a recipe card draws under its
- * title on hover (see the `squiggle` utility below). An SVG in a url()
+ * The hand-drawn underline a recipe card draws under its title on hover
+ * (see the `squiggle` utility below): one 12px period, tiled across the
+ * image's own width by an SVG pattern. An SVG in a url()
  * cannot read a custom property, so the stroke carries --color-primary's
  * value spelled out, and the dark blocks repeat the token with theirs.
  */
 :root {
-	--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23b45309' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+	--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='6'%3E%3Cpattern id='w' width='12' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23b45309' stroke-width='1.6' stroke-linecap='round'/%3E%3C/pattern%3E%3Crect width='100%25' height='6' fill='url(%23w)'/%3E%3C/svg%3E");
 }
 
 /*
@@ -206,7 +223,7 @@
 	--shadow-card: none;
 	--shadow-cover: none;
 	--shadow-cta: none;
-	--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23d97a2b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+	--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='6'%3E%3Cpattern id='w' width='12' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23d97a2b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/pattern%3E%3Crect width='100%25' height='6' fill='url(%23w)'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
@@ -258,7 +275,7 @@
 		--shadow-card: none;
 		--shadow-cover: none;
 		--shadow-cta: none;
-		--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23d97a2b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+		--image-squiggle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='6'%3E%3Cpattern id='w' width='12' height='6' patternUnits='userSpaceOnUse'%3E%3Cpath d='M0 3 Q3 0.6 6 3 T12 3' fill='none' stroke='%23d97a2b' stroke-width='1.6' stroke-linecap='round'/%3E%3C/pattern%3E%3Crect width='100%25' height='6' fill='url(%23w)'/%3E%3C/svg%3E");
 	}
 }
 
@@ -460,31 +477,28 @@
  * is gone before the new one starts drawing.
  */
 @utility squiggle {
-	background-image:
-		linear-gradient(var(--color-surface), var(--color-surface)), var(--image-squiggle);
-	background-repeat: no-repeat, repeat-x;
-	/* The strip overhangs the span by a pixel on each side: flush with it,
-	   antialiasing at its edges left a sliver of the wave showing at the
-	   end of each line. The padding drops the wave clear of the letters;
-	   it hangs below the last line box, so the title has to leave room for
-	   it under its line-clamp, and between lines it needs a leading loose
-	   enough not to touch the next line's ascenders (both in RecipeCard). */
+	/* The wave draws itself from the left: it grows from no width to the
+	   span's, rather than a strip in the card's color pulling away from
+	   it - an opaque strip would paint over whatever lies under the title,
+	   such as a text card's initial. The image tiles its 12px wave inside
+	   itself (an SVG `pattern`), so it can stretch to any width without
+	   stretching the wave. The padding drops the wave clear of the
+	   letters; it hangs below the last line box, so the title has to leave
+	   room for it under its line-clamp, and between lines it needs a
+	   leading loose enough not to touch the next line's ascenders (both in
+	   RecipeCard). `clone` gives every line of the title a wave of its own. */
+	background-image: var(--image-squiggle);
+	background-repeat: no-repeat;
 	padding-bottom: 3px;
-	background-position:
-		calc(100% + 1px) 100%,
-		0 100%;
-	background-size:
-		calc(100% + 2px) 8px,
-		12px 6px;
+	background-position: 0 100%;
+	background-size: 0% 6px;
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 	transition: background-size 120ms ease-out;
 
 	@media (hover: hover) {
 		.group:has(a:hover) & {
-			background-size:
-				0% 8px,
-				12px 6px;
+			background-size: 100% 6px;
 			transition: background-size 550ms cubic-bezier(0.4, 0, 0.2, 1) 170ms;
 		}
 	}

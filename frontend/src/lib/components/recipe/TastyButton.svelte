@@ -10,7 +10,9 @@
 		active = $bindable(false),
 		count = $bindable(0),
 		readonly = false,
-		fluid = false,
+		accent = false,
+		compact = false,
+		card = false,
 		onchange
 	}: {
 		id: string;
@@ -19,10 +21,17 @@
 		/** A pill that shows the count and cannot be pressed: the author's own
 		 * recipe, where the service refuses the mark, and the phone card. */
 		readonly?: boolean;
-		/** A read-only pill that sizes itself to the card it sits on (the
-		 * nearest size container): 24px on the narrowest phone card, growing
-		 * with the card to the desktop button's 36px. */
-		fluid?: boolean;
+		/** The read-only count in the sand of the accent rather than on the
+		 * light surface: a phone photo card's footer, where a light pill
+		 * would vanish into the light card in dark mode. */
+		accent?: boolean;
+		/** The pill sized to the author initials in a card's footer: 28px like
+		 * the phone's 24px circles, 32px like the 28px ones from md up (each
+		 * circle carries a 2px ring). */
+		compact?: boolean;
+		/** The 28px button on a card's photo, bottom-left, concentric with the
+		 * photo's corner (see RecipeCard). */
+		card?: boolean;
 		/** Called once a change has been saved, with the new state. */
 		onchange?: (active: boolean) => void;
 	} = $props();
@@ -69,30 +78,27 @@
 		}
 	}
 
-	// A display grows with its card, a button keeps the size a finger or a
-	// pointer needs. The fluid pill reaches 24px at a 150px card and 36px at
-	// 220px, linearly in between (24 + (w - 150) * 12/70), so the count never
-	// shrinks while the card grows - also not where the phone layout turns
-	// into the desktop one. Gap, padding, type and icon scale off the same
-	// height. The button is 44px on a phone, where the recipe page is the only
-	// place to set the mark, and 36px from md up.
+	// On a card every pill follows its corner or the initials: the desktop
+	// photo's button is 28px (14 + the 6px inset = the photo's 20px corner),
+	// the compact pill as tall as the initials with their ring. The button is
+	// 44px on the recipe page's phone layout, where it is the only place to
+	// set the mark, and 36px there from md up.
 	const pill = $derived(
-		fluid
-			? '[--pill:clamp(24px,calc(17.143cqw_-_1.714px),36px)] h-(--pill) gap-[calc(var(--pill)*0.16)] px-[calc(var(--pill)*0.32)] text-[length:calc(var(--pill)/12_+_10px)] [&_svg]:size-[calc(var(--pill)*0.56)]'
-			: 'h-11 gap-1.5 px-3 text-caption md:h-9 md:px-2.5 [&_svg]:size-5'
+		compact
+			? 'h-7 gap-1 px-2.5 text-micro md:h-8 md:gap-[5px] md:px-[11px] md:text-caption [&_svg]:size-4 md:[&_svg]:size-[18px]'
+			: card
+				? 'h-7 gap-1 px-[9px] text-caption [&_svg]:size-4'
+				: 'h-11 gap-1.5 px-3 text-caption md:h-9 md:px-2.5 [&_svg]:size-5'
 	);
 </script>
 
 {#if readonly}
-	<!-- The fluid count sits on a phone card's photo, where a button
-	     look would invite a tap it cannot answer: it reads as a caption on the
-	     photo instead - the lightbox's near-black, the same in both themes,
-	     translucent over a blurred patch and without the shadow a button
-	     floats on. -->
+	<!-- The sand pill lies flat in the card, without the shadow a button
+	     floats on, so it does not invite a tap it cannot answer. -->
 	<span
 		title={countLabel}
-		class="inline-flex items-center rounded-pill font-semibold {fluid
-			? 'bg-lightbox/60 text-lightbox-foreground backdrop-blur-sm'
+		class="inline-flex items-center rounded-pill font-semibold {accent
+			? 'bg-accent text-accent-foreground'
 			: 'bg-surface text-text shadow-card'} {pill}"
 	>
 		<Heart class="fill-primary text-primary" aria-hidden="true" />

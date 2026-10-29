@@ -51,6 +51,7 @@
   --radius-xl: 18px;
   --radius-2xl: 20px;
   --radius-3xl: 24px;
+  --radius-4xl: 28px;
 
   /* The app's shadows, mapped onto the four Tailwind steps Fumadocs actually
      uses (shadow-lg 13x, shadow-sm 6x, shadow-md 4x, shadow-2xl 1x):

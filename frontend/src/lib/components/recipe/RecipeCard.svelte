@@ -3,12 +3,20 @@
 	import { imageUrl, type RecipeCard as RecipeCardData } from '$lib/api/recipes';
 	import { session } from '$lib/auth.svelte';
 	import { formatMinutes } from '$lib/recipe/format';
+	import { initialFor, TINT_CLASSES, tintFor } from '$lib/recipe/placeholder';
 	import AuthorInitials from './AuthorInitials.svelte';
 	import FavoriteStar from './FavoriteStar.svelte';
-	import PlaceholderTile from './PlaceholderTile.svelte';
 	import TastyButton from './TastyButton.svelte';
 
-	let { recipe }: { recipe: RecipeCardData } = $props();
+	let {
+		recipe,
+		rise = null
+	}: {
+		recipe: RecipeCardData;
+		/** Set on a card "Load more" brought: its place in that batch, which
+		 * staggers its rise into the list. */
+		rise?: number | null;
+	} = $props();
 
 	const time = $derived(formatMinutes(recipe.totalMinutes));
 	// `$props.id()` only runs as its own top-level declaration.
@@ -22,7 +30,56 @@
 	// The service refuses the author's own mark, so the author gets the
 	// count without a button to press.
 	const own = $derived(session.user?.id === recipe.createdBy.id);
+
+	// A cover that fails to load turns the card into a text card rather than
+	// leaving a broken picture. Keyed by the image id, so a new cover gets its
+	// own chance without an effect resetting a flag.
+	let failed = $state<string | null>(null);
+	const photo = $derived(recipe.coverImageId !== null && failed !== recipe.coverImageId);
+
+	// The photo keeps its own shape, between 4:5 portrait and 16:9 landscape;
+	// `object-cover` crops what lies beyond. The size comes with the card, so
+	// the box has its height before the picture loads and the grid places
+	// the card once. Square when the service does not know the size.
+	const ratio = $derived(
+		recipe.coverWidth && recipe.coverHeight
+			? Math.min(Math.max(recipe.coverWidth / recipe.coverHeight, 4 / 5), 16 / 9)
+			: 1
+	);
+
+	// The title's type, shared by the title and the hover line's layer over
+	// it, so both break their lines at the same places.
+	const titleType = $derived(
+		`line-clamp-3 font-display font-medium hyphens-auto [hyphenate-limit-chars:6_3_3] [grid-area:1/1] ${
+			photo
+				? 'text-card-sm leading-snug md:text-card'
+				: 'pt-0.5 pr-8 text-card-cover wrap-anywhere md:pr-9'
+		}`
+	);
 </script>
+
+<!--
+	The tasty count from md up: a button, unless the recipe is the viewer's
+	own, where it is the count alone. Only the button is lifted over the
+	link's `::after`; a tap on the count falls through to the link, since the
+	author cannot mark their own. On a photo it is the `card` button, on a
+	text card the `compact` pill, as tall as the initials beside it with
+	their ring. A phone shows the count alone, in the footer (see below).
+-->
+{#snippet tasty(compact: boolean)}
+	{#if !own || recipe.tastyCount > 0}
+		<span class="hidden md:inline-flex {own ? '' : 'pointer-events-auto relative'}">
+			<TastyButton
+				id={recipe.id}
+				active={recipe.tasty}
+				count={recipe.tastyCount}
+				readonly={own}
+				{compact}
+				card={!compact}
+			/>
+		</span>
+	{/if}
+{/snippet}
 
 <!--
 	The card is a stretched link, not a link wrapped around the card: the
@@ -50,130 +107,214 @@
 	anchor no longer wrapping the card, the title is the only thing that
 	names it, and this is what gives the whole card back a name - one a
 	screen reader can announce and a test can address.
+
+	Corners are concentric: a round mark in a rounded corner shares the
+	corner's center, so corner radius = mark radius + gap. The card is 28px
+	(24 on a phone), the photo 20 (18) inside an 8px (6) inset; the star's
+	14px offset puts its 14px radius's center on the photo corner's center
+	(20 from each edge), and the text card's 28 = 14 + 14 follows the same
+	rule. The initials share the bottom-right corner's center the same way,
+	which puts them on the star's axis, and the tasty pill on a photo the
+	photo's bottom-left one.
+
+	A card "Load more" brought rises into place from a little below,
+	staggered through its batch (50ms each, the ninth on together), so the
+	new cards read as arriving rather than as the page jumping. Only the
+	`transform` animates: placement is `left`/`top` and the hover tilt uses
+	`translate` and `rotate`, which compose with it. Reduced motion drops it.
+
+	Two shapes, each as tall as its content, since the grid is a masonry:
+	a photo card, the photo above the text, and a text card for a recipe
+	without one, filled with the recipe's tint. `isolate` makes the card the
+	stacking context the text card's initial hides behind its text in.
 -->
 <article
 	bind:this={cardEl}
 	aria-labelledby={titleId}
-	class="group @container relative origin-bottom overflow-hidden rounded-xl bg-surface shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none md:rounded-2xl card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg]"
+	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none md:rounded-4xl card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] {rise ===
+	null
+		? ''
+		: 'motion-safe:animate-rise'} {photo ? 'bg-surface' : TINT_CLASSES[tintFor(recipe.id)]}"
+	style:animation-delay={rise === null ? undefined : `${Math.min(rise, 8) * 50}ms`}
 >
-	<div class="aspect-square p-1.5 md:p-2">
-		{#if recipe.coverImageId}
+	{#if photo}
+		<!-- The photo sits inset from the card's edge on three sides; the
+		     text below is its fourth. -->
+		<div class="relative px-1.5 pt-1.5 md:px-2 md:pt-2">
 			<img
-				src={imageUrl(recipe.id, recipe.coverImageId, 'thumb')}
+				src={imageUrl(recipe.id, recipe.coverImageId!, 'thumb')}
 				alt=""
 				loading="lazy"
 				decoding="async"
-				class="size-full rounded-lg object-cover"
+				onerror={() => (failed = recipe.coverImageId)}
+				style:aspect-ratio={ratio}
+				class="block w-full rounded-xl object-cover md:rounded-2xl"
 			/>
-		{:else}
-			<PlaceholderTile id={recipe.id} title={recipe.title} class="overflow-hidden rounded-lg" />
-		{/if}
-	</div>
-	<div class="px-4 pt-2 pb-[18px]">
+			<!-- From md up the button mirrors the star into the photo's
+			     bottom-left corner, 6px inside it: the photo box ends where the
+			     photo does, so `bottom` is the inset alone and `left` is the
+			     box's padding plus it. A flex box, so no line box puts a strut
+			     under the pill. The link's `::after` comes later in the
+			     document, so `z-10` paints the button over it, and
+			     `pointer-events-none` hands taps on the count alone back to the
+			     link. -->
+			<div class="pointer-events-none absolute bottom-1.5 left-3.5 z-10 flex">
+				{@render tasty(false)}
+			</div>
+		</div>
+	{:else}
+		<!-- The recipe's initial, large and faint, at the card's right edge
+		     and centered on it, so it bleeds past the top and bottom and the
+		     card's `overflow-hidden` crops it. `-z-10` lays it under the text,
+		     the star and the initials. -->
+		<span
+			aria-hidden="true"
+			class="pointer-events-none absolute top-1/2 right-2.5 -z-10 -translate-y-1/2 font-display text-initial-sm leading-none font-medium text-primary italic opacity-14 md:right-[18px] md:text-initial"
+		>
+			{initialFor(recipe.title)}
+		</span>
+	{/if}
+	<!-- One inner padding for the text of both shapes, 12px on a phone and
+	     16px from md up; the text card starts lower, where it has no photo
+	     above it. Not positioned, or it would catch the link's `::after`
+	     instead of the card. -->
+	<div
+		class={photo
+			? 'px-3 pt-2 pb-3 md:px-4 md:pt-2.5 md:pb-4'
+			: 'px-3 pt-3.5 pb-3 md:px-4 md:pt-5 md:pb-4'}
+	>
 		<!-- The time runs above the title like the timing over a cookbook
 		     heading, a label rather than a pill: without the pill's padding
 		     and with a line of its own, the longest time the service allows
 		     ("47 Std 59 Min" - prep and cook are capped at 1440 each) still
-		     fits a 320px phone's card, where a pill beside the initials broke
-		     onto two lines from "2 Std 45 Min" on. The line is kept when there
-		     is no time, so every card of a row starts its title at one height;
-		     `truncate` only guards against a catalog that outgrows it. -->
-		<p class="mb-1 h-[1lh] truncate text-label font-semibold text-accent-foreground uppercase">
-			{time}
-		</p>
-		<!-- The title is what you recognize the card by, so it wraps rather than
-		     cutting off ("Schweineschnitzel mit Bratka…"). Two line heights are
-		     reserved either way, so the footer of a row stays on one line.
-		     The hover line needs room of its own: `leading-snug` rather than
-		     text-card's 1.2 keeps it off the next line's ascenders, and `pb-1`
-		     keeps the last line's copy, which hangs below the line box, from
-		     being clipped by the clamp.
-		     A phone card leaves 124px of text, which German compounds outrun on
-		     their own - so `hyphens-auto` (the document carries the account's
-		     locale) lets them break instead of running out of the card unseen.
-		     Two lines on a phone - of twelve seeded titles exactly two need a
-		     third there, and granting it would raise every row for their sake -
-		     but three on desktop, where 19px type pushes three titles past two
-		     lines and the desktop grid has the height to spare. -->
-		<h3
-			id={titleId}
-			class="line-clamp-2 min-h-[calc(2lh+4px)] pb-1 font-display text-card-sm leading-snug font-medium hyphens-auto md:line-clamp-3 md:text-card"
-		>
-			<!-- The anchor must not be positioned itself, or its `::after` would
-			     stretch over the title instead of over the card. -->
-			<a
-				href={resolve('/recipes/[slug]', { slug: recipe.slug })}
-				class="outline-none after:absolute after:inset-0 after:content-['']"
+		     fits a 320px phone's card. Without a time there is no line. -->
+		{#if time}
+			<!-- The text card's gap is wider: its display title has more
+			     internal leading (1.15 at up to 30px) than the photo card's 1.2
+			     at 16-19px, and the label would otherwise look detached from
+			     the glyphs rather than sit on them. -->
+			<p
+				class="truncate text-label font-semibold text-accent-foreground uppercase {photo
+					? 'mb-0.5'
+					: 'mb-1.5'}"
+			>
+				{time}
+			</p>
+		{/if}
+		<!-- The title is what you recognize the card by, so it wraps, up to
+		     three lines. A phone card leaves 124px of text, which German
+		     compounds outrun on their own - so `hyphens-auto` (the document
+		     carries the account's locale) lets them break instead of running
+		     out of the card unseen, never with fewer than three letters on
+		     either side. On a text card the title is the cover: the display
+		     face in primary, sized to the card (16px on a 320px phone, 30px on
+		     desktop), clear of the star from md up, and `wrap-anywhere` breaks
+		     a word with no hyphenation point rather than cut it off.
+
+		     The clamp cuts below the third line, and what it lets through is
+		     a narrow band: the display face's descenders reach below the line
+		     box and a fourth line's accents (Ä, Ö, Ü) reach above it. 0.08em
+		     of padding keeps the descenders and still clips the accents at
+		     every size the cards use - with the text card's leading at 1.25;
+		     at 1.15 the two overlap on a phone and no padding separates them.
+		     The hover line hangs lower than that band, so it lives on a layer
+		     of its own in the same grid cell: the title again, transparent
+		     and hidden from assistive tech, whose clamp leaves 0.35em for the
+		     wave and shows nothing else, since its fourth line is invisible.
+		     One `minmax(0, 1fr)` column gives both exactly the same width, so
+		     a line never breaks in one and not the other. The negative
+		     margins give the padding back to the footer. -->
+		<div class="grid grid-cols-1">
+			<h3
+				id={titleId}
+				class="-mb-[0.08em] pb-[0.08em] {titleType} {photo
+					? ''
+					: 'text-accent-foreground md:text-primary'}"
+			>
+				<!-- The anchor must not be positioned itself, or its `::after` would
+				     stretch over the title instead of over the card. -->
+				<a
+					href={resolve('/recipes/[slug]', { slug: recipe.slug })}
+					class="outline-none after:absolute after:inset-0 after:content-['']"
+				>
+					{recipe.title}
+				</a>
+			</h3>
+			<p
+				aria-hidden="true"
+				class="pointer-events-none -mb-[0.35em] pb-[0.35em] text-transparent select-none {titleType}"
 			>
 				<span class="squiggle">{recipe.title}</span>
-			</a>
-		</h3>
-		<!-- One footer for the tags and the authors. It renders whatever is
-		     missing, so the initials of a row sit at one height; the tags give
-		     way with an ellipsis, the initials never do. -->
-		<div class="mt-2 flex h-5 items-center justify-between gap-2">
-			<p class="min-w-0 truncate text-caption text-text-muted">{recipe.tags.join(', ')}</p>
-			<!-- `relative` lifts the initials out of the link's `::after`, so a
-			     tap reaches their popover instead of opening the recipe. -->
-			<div class="relative">
-				<AuthorInitials
-					createdBy={recipe.createdBy}
-					updatedBy={recipe.updatedBy}
-					anchor={cardEl}
-					fresh={recipe.newComments}
-				/>
+			</p>
+		</div>
+		<!-- From md up the tags sit left of the marks and give way: two lines
+		     at most, ending in an ellipsis. A phone card has no room beside
+		     its marks, so the tags take a line of their own, two on a photo
+		     card and one on a text card, whose title already fills it, and
+		     the tasty count and the initials share the line below, one in
+		     each bottom corner. -->
+		<div
+			class="flex flex-wrap items-center gap-2 gap-y-1.5 md:flex-nowrap {photo
+				? 'mt-2 md:mt-2.5'
+				: 'mt-3.5 md:mt-[18px]'}"
+		>
+			{#if recipe.tags.length > 0}
+				<p
+					class="min-w-0 basis-full text-caption md:line-clamp-2 md:basis-auto md:whitespace-normal {photo
+						? 'line-clamp-2 text-text-muted'
+						: 'truncate text-text'}"
+				>
+					{recipe.tags.join(', ')}
+				</p>
+			{/if}
+			<!-- The count mirrors the initials into the bottom-left corner,
+			     its end cap's center on the corner's center, by the same
+			     negative margin. In the accent's sand on a photo card, whose
+			     light surface would swallow a light pill in dark mode; light on
+			     the tinted text card. Not positioned, so a tap falls through to
+			     the link. -->
+			{#if recipe.tastyCount > 0}
+				<span class="-mb-0.5 -ml-0.5 flex self-end md:hidden">
+					<TastyButton id={recipe.id} count={recipe.tastyCount} readonly compact accent={photo} />
+				</span>
+			{/if}
+			<!-- The initials share the star's axis: their center is the center
+			     of the card's bottom-right corner, as the star's is of the
+			     top-right one (28px from both edges, 24 on a phone). The
+			     wrapper's 2px padding holds the circles' ring, so the group is
+			     as tall as the pill beside it on every card; the negative
+			     margin moves it from the text's 16px (12) inset to the corner's
+			     14px (12) for the circle, less the ring. -->
+			<div
+				class="-mr-0.5 -mb-0.5 ml-auto flex shrink-0 items-center gap-1.5 self-end md:-mr-1 md:-mb-1"
+			>
+				{#if !photo}
+					{@render tasty(true)}
+				{/if}
+				<!-- `relative` lifts the initials out of the link's `::after`,
+				     so a tap reaches their popover instead of opening the
+				     recipe. -->
+				<div class="relative p-0.5">
+					<AuthorInitials
+						createdBy={recipe.createdBy}
+						updatedBy={recipe.updatedBy}
+						anchor={cardEl}
+						fresh={recipe.newComments}
+					/>
+				</div>
 			</div>
 		</div>
 	</div>
-	<!-- Offsets are measured from the card's own edge, not the image's: the
-	     image sits inset by the card's `p-1.5 md:p-2` padding, so the star
-	     needs that padding plus a 6px inset inside the image added back in
-	     (md:top-3.5/right-3.5 = 14px = 8px padding + 6px inset) to land
-	     inside the image tile with even clearance on both edges, rather than
-	     flush on its corner.
+	<!-- Offsets are measured from the card's own edge: on a photo card the
+	     photo sits inset by the card's 8px padding, so the star needs that
+	     padding plus a 6px inset inside the photo (top-3.5/right-3.5 = 14px)
+	     to land inside it with even clearance on both edges, rather than
+	     flush on its corner. A text card keeps it at the same place.
 
-	     Only from md up. On a phone the image is about 150px wide and a 36px
-	     circle covers too much of it, so the star is set on the recipe page
-	     there - the card keeps the photo. -->
-	<div class="absolute top-3.5 right-3.5 hidden md:block">
-		<FavoriteStar id={recipe.id} active={recipe.favorite} />
-	</div>
-	<!-- The tasty pill mirrors the star into the image's bottom-left corner.
-	     The image is square and fills the card's width, so its bottom edge is
-	     the card's width below the top: `top` is that width (100cqw, the card
-	     is the size container) minus the padding and the same 6px inset -
-	     6 + 6 = 12px on a phone, 8 + 6 = 14px from md up - and the pill hangs
-	     above that line (`-translate-y-full`), whatever height it has. `left`
-	     is padding plus inset, as for the star.
-
-	     From md up it is a button, painted over the link's `::after` because
-	     it comes later in the document. On a phone, and on the author's own
-	     recipe everywhere, it is the count alone, and only once somebody
-	     marked the recipe. On a phone that count is `fluid`: it grows with
-	     the card, not with the viewport, so a wide phone card never shows a
-	     smaller heart than the narrower desktop card just past md.
-	     `pointer-events-none` lets a tap fall through to
-	     the link, since marking happens on the recipe page and the author
-	     cannot mark their own. -->
-	<div
-		class="pointer-events-none absolute top-[calc(100cqw_-_12px)] left-3 -translate-y-full md:top-[calc(100cqw_-_14px)] md:left-3.5 {own
-			? ''
-			: 'md:pointer-events-auto'}"
-	>
-		{#if recipe.tastyCount > 0}
-			<span class="md:hidden">
-				<TastyButton id={recipe.id} count={recipe.tastyCount} readonly fluid />
-			</span>
-		{/if}
-		{#if !own || recipe.tastyCount > 0}
-			<span class="hidden md:inline">
-				<TastyButton
-					id={recipe.id}
-					active={recipe.tasty}
-					count={recipe.tastyCount}
-					readonly={own}
-				/>
-			</span>
-		{/if}
+	     On a phone the photo's corner is 18px at a 6px inset, so the 24px
+	     disc sits 12px from the card's edge; the text card's 28px disc sits
+	     10px in, its center on the 24px corner's. -->
+	<div class="absolute {photo ? 'top-3 right-3' : 'top-2.5 right-2.5'} md:top-3.5 md:right-3.5">
+		<FavoriteStar id={recipe.id} active={recipe.favorite} card {photo} />
 	</div>
 </article>

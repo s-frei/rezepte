@@ -54,7 +54,7 @@ The deployment is a single binary with SQLite for one household. There is no obj
 
 The three sizes the UI needs are known up front — a thumbnail for cards and strips, a larger rendition for the gallery, and the largest for the lightbox — so rendering all three on write beats resizing on request: the expensive path runs once per photo instead of once per view.
 
-The thumbnail is 960 px rather than something card-sized because the card shows it as a square: a 4:3 photo cropped to its center keeps only the short side, 720 px, which is what a card of about 300 CSS px needs on a 2x screen. A smaller thumbnail leaves a crop below what a 2x screen draws the card at - 480 px would keep 360 px - and the card looks soft on every high-density display.
+The thumbnail is 960 px rather than something card-sized because the card shows the photo in its own ratio, clamped to 4:5 through 16:9 (`coverWidth` and `coverHeight` on the card tell it the shape), cropped to the center beyond that: the width a card shows is the thumbnail's width or less (a 4:3 landscape is 960 px wide, a 3:4 portrait 720), and a card of about 300 CSS px needs 600 px of it on a 2x screen. A smaller thumbnail leaves less than a 2x screen draws the card at, and the card looks soft on every high-density display.
 
 Baking the orientation into the pixels means every viewer shows the photo upright, including the ones that never consult EXIF at all: a CSS `background-image`, an `object-fit: cover` thumbnail. As a side effect no camera metadata — GPS, device — ever reaches the disk, because the upload it came with is not stored.
 

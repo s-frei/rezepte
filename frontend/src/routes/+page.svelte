@@ -92,6 +92,9 @@
 
 	let loading = $state(false);
 	let loadingMore = $state(false);
+	// Where the cards "Load more" brought start, so only they rise into
+	// place; a fresh list (a filter, a reload) has none.
+	let appendedFrom = $state(Infinity);
 	let showSkeleton = $state(false);
 
 	let abortController: AbortController | null = null;
@@ -280,6 +283,7 @@
 			}
 			const result = pages[pages.length - 1];
 			const fetched = pages.flatMap((p) => p.items);
+			appendedFrom = append ? items.length : Infinity;
 			items = append ? [...items, ...fetched] : fetched;
 			total = result.total;
 			pageNum = result.page;
@@ -576,8 +580,8 @@
 		{#if showSkeleton}
 			<RecipeGrid>
 				{#each Array.from({ length: 8 }, (_, i) => i) as i (i)}
-					<div class="rounded-xl bg-surface p-1.5 shadow-card md:rounded-2xl md:p-2">
-						<Skeleton class="aspect-square rounded-lg" />
+					<div class="rounded-3xl bg-surface p-1.5 shadow-card md:rounded-4xl md:p-2">
+						<Skeleton class="aspect-[4/3] rounded-xl md:rounded-2xl" />
 						<div class="space-y-2 px-2.5 pt-2.5 pb-4">
 							<Skeleton class="h-3.5 w-3/4 rounded-sm" />
 							<Skeleton class="h-2.5 w-1/2 rounded-sm" />
@@ -624,18 +628,24 @@
 			</EmptyState>
 		{:else}
 			<RecipeGrid>
-				{#each items as recipe (recipe.id)}
-					<RecipeCard {recipe} />
+				{#each items as recipe, i (recipe.id)}
+					<RecipeCard {recipe} rise={i >= appendedFrom ? i - appendedFrom : null} />
 				{/each}
 			</RecipeGrid>
-			{#if canLoadMore}
-				<div class="mt-8 flex justify-center">
-					<!-- Also disabled while a filter fetch is in flight: "Load more"
-					     would abort it and append the new filter's page N+1 to the
-					     items the old filter left behind. -->
-					<Button variant="secondary" onclick={loadMore} disabled={loading || loadingMore}>
-						{m.overview_load_more()}
-					</Button>
+			<!-- The button's row stays once more were loaded, empty after the
+			     last page: taking it away would shorten the page by its height
+			     just as the last cards arrive, and a reader at the bottom would
+			     see the browser pull the whole list down by that much. -->
+			{#if canLoadMore || pageNum > 1}
+				<div class="mt-8 flex h-10 justify-center">
+					{#if canLoadMore}
+						<!-- Also disabled while a filter fetch is in flight: "Load more"
+						     would abort it and append the new filter's page N+1 to the
+						     items the old filter left behind. -->
+						<Button variant="secondary" onclick={loadMore} disabled={loading || loadingMore}>
+							{m.overview_load_more()}
+						</Button>
+					{/if}
 				</div>
 			{/if}
 		{/if}

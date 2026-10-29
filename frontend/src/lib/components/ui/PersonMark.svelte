@@ -2,7 +2,7 @@
 	import { avatarUrl } from '$lib/user/avatar';
 	import { userColorClasses } from '$lib/user/color';
 
-	type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'card' | 'profile';
+	type Size = 'xs' | 'xs-plus' | 'sm' | 'md' | 'lg' | 'xl' | 'card' | 'profile';
 
 	let {
 		person,
@@ -19,10 +19,11 @@
 		class?: string;
 	} = $props();
 
-	// Letter size per circle size. `xs` and `sm` use text-micro, the rest
+	// Letter size per circle size. `xs` to `sm` use text-micro, the rest
 	// inherit or step up to the heading size, as the circles did before.
 	const SIZES: Record<Size, string> = {
 		xs: 'size-5 text-micro',
+		'xs-plus': 'size-6 text-micro',
 		sm: 'size-7 text-micro',
 		md: 'size-8',
 		lg: 'size-9',

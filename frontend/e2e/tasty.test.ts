@@ -1,5 +1,14 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { createRecipe, createUser, loadFixture, login, signOut, uniqueToken } from './helpers';
+import {
+	createRecipe,
+	createUser,
+	loadFixture,
+	login,
+	signOut,
+	tinyPng,
+	uniqueToken,
+	uploadImage
+} from './helpers';
 
 const cards = (page: Page) => page.getByRole('main').getByRole('heading', { level: 3 });
 
@@ -151,11 +160,15 @@ test('sorts the overview by the most tasty marks', async ({ page, browser, isMob
 	await expect(cards(page)).toHaveText([`Twice ${token}`, `Once ${token}`, `Never ${token}`]);
 });
 
-// The count on a card is a display, so its size follows the card rather than
-// the layout: it grows with the card up to the 36px of the desktop button and
-// never shrinks while the card grows. Sized by the viewport instead, it went
-// from 24px on a 357px phone card to 36px on the 220px card one pixel wider.
-test('the count on a card grows with the card, never against it', async ({
+// The count on a photo sits in the photo's bottom-left corner and shares its
+// center (RecipeCard): 24px in the phone photo's 18px corner, 28px in the
+// desktop photo's 20px one, each 6px in - at every width, also on both sides
+// of md, where the corner and the count change together. A text card's count
+// sits beside the initials and takes their size (see "a text card shows the
+// tasty count …").
+// The count shares a corner's center: on a phone the card's bottom-left
+// one, across from the initials, from md up the photo's bottom-left one.
+test('the count on a photo card shares the center of its corner', async ({
 	page,
 	browser
 }, testInfo) => {
@@ -167,6 +180,7 @@ test('the count on a card grows with the card, never against it', async ({
 	await expect(page).toHaveURL('/');
 	await createUser(page, { username: lu, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(3), title: `Grow ${token}` });
+	await uploadImage(page, recipe.id, tinyPng([200, 120, 40], 400, 300));
 	const other = await browser.newContext();
 	const luPage = await other.newPage();
 	await login(luPage, lu);
@@ -175,7 +189,6 @@ test('the count on a card grows with the card, never against it', async ({
 	await other.close();
 
 	await page.goto(`/?q=${token}`);
-	const samples: { width: number; card: number; pill: number }[] = [];
 	for (const width of [320, 360, 412, 480, 600, 700, 767, 768, 900, 1023, 1024, 1280]) {
 		await page.setViewportSize({ width, height: 900 });
 		const label = page
@@ -183,26 +196,22 @@ test('the count on a card grows with the card, never against it', async ({
 			.getByText('1 person finds this tasty')
 			.filter({ visible: true });
 		await expect(label).toHaveCount(1);
-		samples.push({
-			width,
-			...(await label.evaluate((el) => ({
-				card: el.closest('article')!.getBoundingClientRect().width,
-				pill: el.parentElement!.getBoundingClientRect().height
-			})))
-		});
-	}
-
-	samples.sort((a, b) => a.card - b.card);
-	for (const [index, sample] of samples.entries()) {
-		expect(sample.pill, `pill at ${sample.width}px`).toBeGreaterThanOrEqual(24);
-		expect(sample.pill, `pill at ${sample.width}px`).toBeLessThanOrEqual(36);
-		const smaller = samples[index - 1];
-		if (smaller) {
-			expect(
-				sample.pill,
-				`pill on the ${Math.round(sample.card)}px card (${sample.width}px) against the ${Math.round(smaller.card)}px card (${smaller.width}px)`
-			).toBeGreaterThanOrEqual(smaller.pill - 0.5);
-		}
+		const { pill, radius, x, y } = await label.evaluate((el, phone) => {
+			const box = el.parentElement!.getBoundingClientRect();
+			const card = el.closest('article')!;
+			const corner = phone ? card : card.querySelector('img[src*="/images/"]')!;
+			const frame = corner.getBoundingClientRect();
+			return {
+				pill: box.height,
+				radius: parseFloat(getComputedStyle(corner).borderBottomLeftRadius),
+				// The center of the pill's round left end, from the corner.
+				x: box.left + box.height / 2 - frame.left,
+				y: frame.bottom - (box.top + box.height / 2)
+			};
+		}, width < 768);
+		expect(pill, `pill at ${width}px`).toBe(28);
+		expect(Math.abs(x - radius), `x at ${width}px`).toBeLessThanOrEqual(0.5);
+		expect(Math.abs(y - radius), `y at ${width}px`).toBeLessThanOrEqual(0.5);
 	}
 });
 
@@ -228,4 +237,37 @@ test('the star and the heart on the recipe page are thumb-sized on a phone', asy
 		expect(box!.height, name).toBeGreaterThanOrEqual(44);
 		expect(box!.width, name).toBeGreaterThanOrEqual(44);
 	}
+});
+
+test('a text card shows the tasty count before the initials', async ({
+	page,
+	browser,
+	isMobile
+}) => {
+	const token = uniqueToken();
+	const lu = `lu${token}`.slice(0, 20);
+
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username: lu, role: 'user' });
+	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Plain ${token}` });
+
+	const other = await browser.newContext();
+	const luPage = await other.newPage();
+	await login(luPage, lu);
+	await expect(luPage).toHaveURL('/');
+	await markTasty(luPage, recipe.id);
+	await other.close();
+
+	await page.goto(`/?q=${token}`);
+	const card = page.getByRole('article', { name: `Plain ${token}` });
+	// The author's own recipe: the count alone, on both widths.
+	const pill = card.getByTitle('1 person finds this tasty').filter({ visible: true });
+	const initials = card.getByRole('button', { name: /^Added by admin/ });
+	const [pillBox, initialsBox] = [await pill.boundingBox(), await initials.boundingBox()];
+	expect(pillBox!.x + pillBox!.width).toBeLessThanOrEqual(initialsBox!.x);
+	const center = (box: { y: number; height: number }) => box.y + box.height / 2;
+	expect(Math.abs(center(pillBox!) - center(initialsBox!))).toBeLessThan(2);
+	// As tall as the initials with their 2px ring: 24 + 4 on a phone, 28 + 4 from md.
+	expect(pillBox!.height).toBe(isMobile ? 28 : 32);
 });

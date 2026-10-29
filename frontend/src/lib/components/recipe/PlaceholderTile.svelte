@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { initialFor, tintFor, type Tint } from '$lib/recipe/placeholder';
+	import { initialFor, TINT_CLASSES, tintFor } from '$lib/recipe/placeholder';
 
 	let {
 		id,
@@ -16,12 +16,6 @@
 		 * - this component only fills its container. */
 		class?: string;
 	} = $props();
-
-	const TINT_CLASSES: Record<Tint, string> = {
-		'tint-1': 'bg-tint-1',
-		'tint-2': 'bg-tint-2',
-		'tint-3': 'bg-tint-3'
-	};
 
 	const SIZE_CLASSES = {
 		card: 'text-[72px]',

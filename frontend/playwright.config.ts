@@ -22,6 +22,14 @@ export default defineConfig({
 			name: 'webkit',
 			use: { ...devices['iPhone 15'] },
 			testMatch: /(share-image|step-times)\.test\.ts/
+		},
+		// Safari 26.4 lays the overview out with native `grid-lanes`, the path
+		// the Chromium projects (the JS fallback) never exercise.
+		{
+			name: 'webkit-masonry',
+			use: { ...devices['iPhone 15'] },
+			testMatch: /recipes\.test\.ts/,
+			grep: /text card|cards (never|re-flow)/
 		}
 	]
 });

@@ -10,7 +10,9 @@ import {
 	searchField,
 	selectInStep,
 	signOut,
-	uniqueToken
+	tinyPng,
+	uniqueToken,
+	uploadImage
 } from './helpers';
 
 // Card titles are the only level-3 headings inside `main` - the filter
@@ -431,10 +433,7 @@ test('keeps the tag row toggle inside the row at its narrowest', async ({ page }
 		.toBeLessThanOrEqual(0);
 });
 
-test('stars a recipe from the card and keeps it after a reload', async ({ page, isMobile }) => {
-	// A phone card leaves its photo alone: the star is set on the recipe
-	// page there, which 'keeps the star off phone cards' below checks.
-	test.skip(isMobile, 'phone cards carry no star');
+test('stars a recipe from the card and keeps it after a reload', async ({ page }) => {
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(1), title: `Star ${token}` });
 
@@ -451,26 +450,7 @@ test('stars a recipe from the card and keeps it after a reload', async ({ page, 
 	).toBeVisible();
 });
 
-test('keeps the star off phone cards and sets it on the recipe page', async ({
-	page,
-	isMobile
-}) => {
-	test.skip(!isMobile, 'the desktop card has its star');
-	const token = uniqueToken();
-	await createRecipe(page, { ...loadFixture(1), title: `Phone star ${token}` });
-
-	await page.goto(`/?q=${token}`);
-	await expect(cards(page)).toHaveText([`Phone star ${token}`]);
-	await expect(page.getByRole('button', { name: 'Favorite', exact: true })).toHaveCount(0);
-
-	await cards(page).first().click();
-	await page.getByRole('button', { name: 'Favorite', exact: true, pressed: false }).click();
-	await expect(
-		page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
-	).toBeVisible();
-});
-
-test('filters the overview down to favorites', async ({ page, isMobile }) => {
+test('filters the overview down to favorites', async ({ page }) => {
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(1), title: `Starred ${token}` });
 	await createRecipe(page, { ...loadFixture(2), title: `Unstarred ${token}` });
@@ -479,22 +459,12 @@ test('filters the overview down to favorites', async ({ page, isMobile }) => {
 	// "most recently changed first" order, which is nondeterministic here:
 	// both recipes are created within the same request burst, so which one
 	// counts as "most recent" isn't guaranteed - and `.first()` below needs
-	// to land on "Starred" specifically. A phone card has no star, so there
-	// the recipe is starred on its own page.
+	// to land on "Starred" specifically.
 	await page.goto(`/?q=${token}&sort=title`);
-	if (isMobile) {
-		await cards(page).first().click();
-		await page.getByRole('button', { name: 'Favorite', exact: true, pressed: false }).click();
-		await expect(
-			page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
-		).toBeVisible();
-		await page.goto(`/?q=${token}&sort=title`);
-	} else {
-		await page
-			.getByRole('button', { name: 'Favorite', exact: true, pressed: false })
-			.first()
-			.click();
-	}
+	await page.getByRole('button', { name: 'Favorite', exact: true, pressed: false }).first().click();
+	await expect(
+		page.getByRole('button', { name: 'Favorite', exact: true, pressed: true })
+	).toBeVisible();
 	await page.getByRole('button', { name: 'Filters' }).click();
 	// `role="switch"`, not checkbox: the control is a Switch, and Playwright's
 	// `check()` only drives a real checkbox or radio - clicking it and reading
@@ -848,11 +818,8 @@ test('overview columns leave a card room for its controls', async ({ page }, tes
 	for (const width of [768, 820, 900, 1000, 1023, 1024, 1100, 1280, 1440, 1920]) {
 		await page.setViewportSize({ width, height: 900 });
 		const tracks = await page.evaluate(() => {
-			let grid = document.querySelector('main h3')?.parentElement ?? null;
-			while (grid && getComputedStyle(grid).display !== 'grid') {
-				grid = grid.parentElement;
-			}
-			return getComputedStyle(grid!).gridTemplateColumns.split(' ').map(parseFloat);
+			const grid = document.querySelector('main article')!.parentElement!;
+			return getComputedStyle(grid).gridTemplateColumns.split(' ').map(parseFloat);
 		});
 		expect(tracks.length, `columns at ${width}px`).toBeLessThanOrEqual(4);
 		expect(Math.min(...tracks), `column width at ${width}px`).toBeGreaterThanOrEqual(220);
@@ -2100,4 +2067,337 @@ test('keeps a scrollbar in view while the filter panel scrolls', async ({ page, 
 		.locator('.overflow-y-auto')
 		.evaluate((el) => (el.scrollTop = el.scrollHeight));
 	await expect.poll(offset).toBeGreaterThan(0);
+});
+
+// The overview is a masonry: cards as tall as their content, each placed in
+// the shortest column. Boxes come from the layout (`offset*`), not from
+// `boundingBox`, so a card tilted under the pointer does not count as moved,
+// and are relative to the grid: the JS fallback positions its cards inside it,
+// native `grid-lanes` leaves the offset parent further up.
+type Box = { title: string; x: number; y: number; width: number; height: number };
+
+function cardBoxes(page: Page): Promise<Box[]> {
+	return page.getByRole('main').evaluate((main) =>
+		[...main.querySelectorAll<HTMLElement>('article')].map((card) => {
+			const grid = card.parentElement!;
+			const own = card.offsetParent === grid;
+			return {
+				title: card.querySelector('h3')!.textContent!.trim(),
+				x: card.offsetLeft - (own ? 0 : grid.offsetLeft),
+				y: card.offsetTop - (own ? 0 : grid.offsetTop),
+				width: card.offsetWidth,
+				height: card.offsetHeight
+			};
+		})
+	);
+}
+
+function expectNoOverlap(boxes: Box[]) {
+	for (const [i, a] of boxes.entries()) {
+		for (const b of boxes.slice(i + 1)) {
+			const apart =
+				a.x + a.width <= b.x ||
+				b.x + b.width <= a.x ||
+				a.y + a.height <= b.y ||
+				b.y + b.height <= a.y;
+			expect(apart, `${a.title} overlaps ${b.title}`).toBe(true);
+		}
+	}
+}
+
+/** Waits until two reads of the layout agree: the masonry places a resize on the next frame. */
+async function settledBoxes(page: Page): Promise<Box[]> {
+	let last = '';
+	await expect
+		.poll(async () => {
+			const now = JSON.stringify(await cardBoxes(page));
+			const same = now === last;
+			last = now;
+			return same;
+		})
+		.toBe(true);
+	return JSON.parse(last) as Box[];
+}
+
+function card(page: Page, title: string): Locator {
+	return page.getByRole('article', { name: title, exact: true });
+}
+
+test('a recipe without a photo is a text card', async ({ page }) => {
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(2), title: `Pesto ${token}`, tags: [`${token}t`] });
+	const photo = await createRecipe(page, { ...loadFixture(3), title: `Photo ${token}` });
+	await uploadImage(page, photo.id, tinyPng([200, 120, 40], 400, 300));
+	const long = await createRecipe(page, {
+		...loadFixture(4),
+		title: `Schwarzwälderkirschtorte ${token}`
+	});
+
+	await page.goto(`/?q=${token}`);
+	// A 24-letter compound wraps or hyphenates inside the card; the title's
+	// clamp would crop it silently, so the title must not scroll sideways.
+	const title = card(page, long.title).locator('h3');
+	await expect(title).toBeVisible();
+	expect(await title.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+	const text = card(page, `Pesto ${token}`);
+	await expect(text).toBeVisible();
+	await expect(text.locator('img[src*="/images/"]')).toHaveCount(0);
+	await expect(text.locator('[aria-hidden="true"]', { hasText: /^P$/ })).toBeVisible();
+	await expect(text.getByText(`${token}t`)).toBeVisible();
+
+	const pictured = card(page, `Photo ${token}`);
+	await expect(pictured.locator('img[src*="/images/"]')).toBeVisible();
+	const [textBox, photoBox] = [await text.boundingBox(), await pictured.boundingBox()];
+	expect(textBox!.height).toBeLessThan(photoBox!.height);
+});
+
+test('photo cards keep their photo’s shape', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Tall ${token}` });
+	await uploadImage(page, recipe.id, tinyPng([40, 120, 200], 1200, 1600));
+
+	await page.goto(`/?q=${token}`);
+	const img = card(page, `Tall ${token}`).locator('img[src*="/images/"]');
+	await expect(img).toBeVisible();
+	// 3:4 is taller than the 4:5 a card allows, so the box stops at 4:5.
+	const { width, height } = await img.evaluate((el) => ({
+		width: el.getBoundingClientRect().width,
+		height: el.getBoundingClientRect().height
+	}));
+	expect(Math.abs(height - width * 1.25)).toBeLessThan(2);
+});
+
+test('cards never overlap and keep their place when more load', async ({ page }) => {
+	test.setTimeout(90_000);
+	const token = uniqueToken();
+	for (let i = 0; i < 30; i++) {
+		const recipe = await createRecipe(page, {
+			...loadFixture(i % 10),
+			title: `Masonry ${i} ${token}`,
+			tags: i % 4 === 0 ? [] : [`${token}${i}`]
+		});
+		if (i % 3 === 0) {
+			const sizes = [
+				[400, 300],
+				[300, 400],
+				[640, 360]
+			] as const;
+			const [w, h] = sizes[(i / 3) % 3];
+			await uploadImage(page, recipe.id, tinyPng([200, 120, 40], w, h));
+		}
+	}
+
+	await page.goto(`/?q=${token}`);
+	await expect(page.getByRole('main').locator('article')).toHaveCount(24);
+	const before = await settledBoxes(page);
+	expectNoOverlap(before);
+
+	// Read at the very bottom, where a page that got shorter would have to
+	// pull everything down: the last page takes the button away, but not its
+	// row, so the reader stays exactly where they were.
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	const scrolled = await page.evaluate(() => scrollY);
+	await page.getByRole('button', { name: 'Load more' }).click();
+	await expect(page.getByRole('main').locator('article')).toHaveCount(30);
+	await expect(page.getByRole('button', { name: 'Load more' })).toHaveCount(0);
+	expect(await page.evaluate(() => scrollY)).toBe(scrolled);
+	const after = await settledBoxes(page);
+	expect(after.slice(0, 24)).toEqual(before);
+	expectNoOverlap(after);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+	// The URL now names page 2; a reload brings back both pages, not page 2 alone.
+	await expect(page).toHaveURL(/[?&]page=2/);
+	await page.reload();
+	await expect(page.getByRole('main').locator('article')).toHaveCount(30);
+});
+
+// The Firefox fallback once used 1px grid rows, which Gecko caps at 10 000
+// lines; the list is mocked tall enough to cross that, and nothing may stack.
+test('cards never overlap in a list taller than 10 000px', async ({ page }) => {
+	const token = uniqueToken();
+	for (const i of [1, 2, 3]) {
+		await createRecipe(page, { ...loadFixture(i), title: `Tall list ${i} ${token}` });
+	}
+	await page.route(
+		(url) => url.pathname === '/api/v1/recipes',
+		async (route) => {
+			const body = await (await route.fetch()).json();
+			const items = Array.from({ length: 300 }, (_, i) => {
+				const source = body.items[i % body.items.length];
+				return {
+					...source,
+					id: `${source.id.slice(0, -4)}${String(i).padStart(4, '0')}`,
+					slug: `${source.slug}-${i}`,
+					title: `${source.title} ${i}`
+				};
+			});
+			await route.fulfill({ json: { ...body, items, total: 300, limit: 300 } });
+		}
+	);
+
+	await page.goto(`/?q=${token}`);
+	await expect(page.getByRole('main').locator('article')).toHaveCount(300);
+	const boxes = await settledBoxes(page);
+	expect(Math.max(...boxes.map((box) => box.y + box.height))).toBeGreaterThan(10_000);
+	expectNoOverlap(boxes);
+});
+
+test('a broken cover becomes a text card', async ({ page }) => {
+	const token = uniqueToken();
+	const broken = await createRecipe(page, { ...loadFixture(4), title: `Broken ${token}` });
+	await uploadImage(page, broken.id, tinyPng([200, 120, 40], 400, 300));
+	for (const i of [1, 2, 3]) {
+		await createRecipe(page, { ...loadFixture(i), title: `Beside ${i} ${token}` });
+	}
+	await page.route(`**/images/${broken.id}/**`, (route) => route.fulfill({ status: 404 }));
+
+	await page.goto(`/?q=${token}`);
+	const text = card(page, `Broken ${token}`);
+	await expect(text.locator('[aria-hidden="true"]', { hasText: /^B$/ })).toBeVisible();
+	await expect(text.locator('img[src*="/images/"]')).toHaveCount(0);
+	expectNoOverlap(await settledBoxes(page));
+});
+
+test('cards re-flow when the window crosses md', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'sets both widths itself');
+	const token = uniqueToken();
+	for (const i of [1, 2, 3, 4, 5]) {
+		await createRecipe(page, { ...loadFixture(i), title: `Reflow ${i} ${token}` });
+	}
+
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto(`/?q=${token}`);
+	await expect(page.getByRole('main').locator('article')).toHaveCount(5);
+	expectNoOverlap(await settledBoxes(page));
+
+	await page.setViewportSize({ width: 360, height: 780 });
+	const boxes = await settledBoxes(page);
+	expectNoOverlap(boxes);
+	expect(new Set(boxes.map((box) => box.x)).size).toBe(2);
+});
+
+test('cards re-flow when a filter shortens the list', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'phones have no row of every tag; see the suggestion tests');
+	const token = uniqueToken();
+	const tag = `${token}a`;
+	for (const i of [1, 2, 3, 4, 5, 6]) {
+		await createRecipe(page, {
+			...loadFixture(i),
+			title: `Shorten ${i} ${token}`,
+			// Every other one keeps the tag, so the survivors start low in
+			// their columns and must move up.
+			tags: i % 2 === 0 ? [tag] : [`${token}b`]
+		});
+	}
+	// As in "narrows the grid with a tag chip": pinned, so the fresh tag's
+	// chip is not pushed past the fold by the shared database's tags.
+	await page.route(
+		(url) => url.pathname === '/api/v1/tags',
+		(route) =>
+			route.fulfill({
+				json: {
+					items: [
+						{ name: tag, count: 3 },
+						{ name: `${token}b`, count: 3 }
+					]
+				}
+			})
+	);
+
+	await page.goto('/');
+	await search(page, token);
+	await expect(cards(page)).toHaveCount(6);
+	await settledBoxes(page);
+	await page.getByRole('button', { name: tag }).click();
+	await expect(cards(page)).toHaveCount(3);
+
+	const boxes = await settledBoxes(page);
+	expectNoOverlap(boxes);
+	// The first row sits at the grid's top edge.
+	expect(Math.min(...boxes.map((box) => box.y))).toBe(0);
+});
+
+// A round mark in a rounded corner shares the corner's center (RecipeCard):
+// the initials' last circle is centered on the card's bottom-right corner,
+// whatever the tags beside them do, so it sits as far from the right edge as
+// from the bottom one, on the star's axis.
+async function initialsCenter(card: Locator) {
+	return card.evaluate((article) => {
+		const box = article.getBoundingClientRect();
+		const circles = [...article.querySelectorAll('button[aria-label^="Added by"] > *')].filter(
+			(el) => el.getBoundingClientRect().width > 10
+		);
+		const mark = circles[circles.length - 1].getBoundingClientRect();
+		return {
+			radius: parseFloat(getComputedStyle(article).borderBottomRightRadius),
+			size: mark.width,
+			right: box.right - (mark.left + mark.width / 2),
+			bottom: box.bottom - (mark.top + mark.height / 2)
+		};
+	});
+}
+
+test('the initials sit on the center of the card’s bottom-right corner', async ({
+	page,
+	isMobile
+}) => {
+	const token = uniqueToken();
+	const tags = ['soup', 'weeknight', 'one pot', 'vegetarian', 'freezes well', 'for guests'].map(
+		(tag) => `${tag} ${token}`
+	);
+	const photo = await createRecipe(page, { ...loadFixture(3), title: `Gap ${token}`, tags });
+	await uploadImage(page, photo.id, tinyPng([200, 120, 40], 400, 300));
+	await createRecipe(page, { ...loadFixture(2), title: `Gap plain ${token}`, tags });
+	await page.goto(`/?q=${token}`);
+
+	if (!isMobile) {
+		// The tags wrap to two lines beside the initials, so the bottom
+		// alignment is really exercised: a one-line row would pass by luck.
+		const tagLines = await card(page, `Gap ${token}`)
+			.locator('p', { hasText: tags[0] })
+			.evaluate(
+				(p) => p.getBoundingClientRect().height / parseFloat(getComputedStyle(p).lineHeight)
+			);
+		expect(tagLines, 'tag lines').toBeGreaterThanOrEqual(2);
+	}
+	for (const title of [`Gap ${token}`, `Gap plain ${token}`]) {
+		const mark = await initialsCenter(card(page, title));
+		expect(mark.radius, title).toBe(isMobile ? 24 : 28);
+		expect(mark.size, title).toBe(isMobile ? 24 : 28);
+		expect(Math.abs(mark.right - mark.radius), title).toBeLessThanOrEqual(0.5);
+		expect(Math.abs(mark.bottom - mark.radius), title).toBeLessThanOrEqual(0.5);
+		// The star above shares the axis.
+		const star = await card(page, title).getByRole('button', { name: 'Favorite' }).boundingBox();
+		const box = await card(page, title).boundingBox();
+		expect(
+			Math.abs(box!.x + box!.width - (star!.x + star!.width / 2) - mark.right),
+			title
+		).toBeLessThanOrEqual(0.5);
+	}
+});
+
+test('the star is a disc on the photo corner’s center', async ({ page, isMobile }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(3), title: `Corner ${token}` });
+	await uploadImage(page, recipe.id, tinyPng([200, 120, 40], 400, 300));
+	await page.goto(`/?q=${token}`);
+
+	const article = card(page, `Corner ${token}`);
+	const button = article.getByRole('button', { name: 'Favorite' });
+	const star = await button.boundingBox();
+	const img = await article.locator('img[src*="/images/"]').boundingBox();
+	// 24px on a phone's 18px photo corner, 28px on the 20px one from md up.
+	const [size, radius] = isMobile ? [24, 18] : [28, 20];
+	expect(star!.width).toBe(size);
+	expect(star!.height).toBe(size);
+	expect(Math.abs(star!.x + size / 2 - (img!.x + img!.width - radius))).toBeLessThanOrEqual(0.5);
+	expect(Math.abs(star!.y + size / 2 - (img!.y + radius))).toBeLessThanOrEqual(0.5);
+	if (isMobile) {
+		// The disc is small; its `::after` makes the target thumb-sized.
+		const target = await button.evaluate(
+			(el: HTMLElement) => el.offsetWidth - 2 * parseFloat(getComputedStyle(el, '::after').left)
+		);
+		expect(target).toBeGreaterThanOrEqual(44);
+	}
 });
