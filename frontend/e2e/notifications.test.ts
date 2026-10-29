@@ -70,6 +70,70 @@ test('the owner is offered to set up mail', async ({ page }) => {
 	);
 });
 
+// The hour is the instance's: one project moves it, and puts it back.
+test('the owner sets the daily new recipes hour, with mail and without', async ({
+	page,
+	browser
+}) => {
+	test.skip(test.info().project.name !== 'desktop', 'instance-wide hour; runs once, on desktop');
+	// Answered, not set: mail settings belong to mail.test.ts.
+	let mailEnabled = false;
+	await page.route('**/api/v1/settings', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({ response, json: { ...(await response.json()), mailEnabled } });
+	});
+	await login(page);
+	await page.goto('/settings/notifications');
+	const hour = page.getByRole('button', { name: 'Daily new recipes at' });
+	/** Picks `to` over `from` and checks it outlives a reload. */
+	async function move(from: string, to: string) {
+		await expect(hour).toContainText(from);
+		await hour.click();
+		await page.getByRole('option', { name: to }).click();
+		await expect(page.getByText('Send time saved').last()).toBeVisible();
+		await page.reload();
+		await expect(hour).toContainText(to);
+	}
+
+	// Without mail the digest still pushes, so the hour is there.
+	await expect(page.getByText("Mail isn't set up on this instance")).toBeVisible();
+	await move('5:00 PM', '7:00 AM');
+	// With mail, the same hour; back to the default for the tests after this one.
+	mailEnabled = true;
+	await page.reload();
+	await expect(page.getByText("Mail isn't set up on this instance")).toHaveCount(0);
+	await move('7:00 AM', '5:00 PM');
+
+	// A failed write snaps back.
+	await page.route('**/api/v1/settings', (route) =>
+		route.request().method() === 'PATCH' ? route.fulfill({ status: 500 }) : route.fallback()
+	);
+	await hour.click();
+	await page.getByRole('option', { name: '9:00 AM' }).click();
+	await expect(page.getByText('The change could not be saved.')).toBeVisible();
+	await expect(hour).toContainText('5:00 PM');
+	await page.unrouteAll();
+
+	// Settings that cannot be read hide only the hour, not the page.
+	await page.route('**/api/v1/settings', (route) => route.fulfill({ status: 500 }));
+	await page.reload();
+	await expect(page.getByRole('region', { name: 'By mail' })).toBeVisible();
+	await expect(hour).toHaveCount(0);
+
+	// An admin may not set it, so sees neither the hour nor the mail page.
+	const name = `digest${uniqueToken()}`;
+	await page.unrouteAll();
+	await createUser(page, { username: name, role: 'admin' });
+	const other = await browser.newPage();
+	await login(other, name);
+	await other.goto('/settings/notifications');
+	await expect(other.getByRole('region', { name: 'By mail' })).toBeVisible();
+	await expect(other.getByRole('button', { name: 'Daily new recipes at' })).toHaveCount(0);
+	await other.goto('/settings/mail');
+	await expect(other).toHaveURL(/\/settings$/);
+	await other.close();
+});
+
 test('the notifications page fits a 360px phone', async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 780 });
 	// The owner with a long confirmed address: every group and its switches show.

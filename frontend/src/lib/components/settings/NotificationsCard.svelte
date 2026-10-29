@@ -21,20 +21,26 @@
 		type Prefs
 	} from '#lib/api/notifications.js';
 	import { session } from '#lib/auth.svelte.js';
+	import { updateSettings } from '#lib/api/settings.js';
 	import { deviceState, enableDevice, sendPushTest } from '#lib/push.svelte.js';
 	import StatusBox from '#lib/components/settings/StatusBox.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
+	import Select from '#lib/components/ui/Select.svelte';
 	import Switch from '#lib/components/ui/Switch.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
 
 	let {
 		prefs: loaded,
-		mailEnabled
+		mailEnabled,
+		digestHour: loadedHour
 	}: {
 		/** The kinds and groups the account may have; null when they could not be read. */
 		prefs: Prefs | null;
 		mailEnabled: boolean;
+		/** The hour of the daily new recipes; null when the settings could not be read. */
+		digestHour: number | null;
 	} = $props();
 
 	// Written over by every flip, reseeded by a new load.
@@ -170,6 +176,32 @@
 			);
 		} finally {
 			testing = false;
+		}
+	}
+
+	// The daily new recipes' hour is the instance's, for mail and push alike:
+	// only the owner may set it, so only the owner sees it.
+	let digestHour = $derived(loadedHour);
+
+	// Each hour as the locale writes a time: 17:00, 5:00 PM.
+	const hourOptions = $derived.by(() => {
+		const format = new Intl.DateTimeFormat(getLocale(), { hour: 'numeric', minute: '2-digit' });
+		return Array.from({ length: 24 }, (_, hour) => ({
+			value: String(hour),
+			label: format.format(new Date(2000, 0, 1, hour))
+		}));
+	});
+
+	// Applies on pick; a failed write snaps back to what was saved.
+	async function saveHour(hour: number) {
+		const before = digestHour;
+		digestHour = hour;
+		try {
+			digestHour = (await updateSettings({ recipeDigestHour: hour })).recipeDigestHour;
+			toast.success(m.settings_notifications_digest_saved());
+		} catch (error) {
+			digestHour = before;
+			if (!isSignedOut(error)) toast.error(m.settings_notifications_save_error());
 		}
 	}
 
@@ -376,4 +408,28 @@
 			</div>
 		</section>
 	{/each}
+	{#if isOwner && digestHour !== null}
+		<!-- The owner's, apart from both channels: it sets when the household hears of new recipes. -->
+		<div
+			class="{blockClass} mt-7 flex flex-col gap-2.5 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
+		>
+			<div class="min-w-0">
+				<p class="flex flex-wrap items-center gap-2 text-body font-semibold">
+					{m.settings_notifications_digest_label()}
+					<span
+						class="rounded-pill bg-accent px-2 text-label font-bold text-accent-foreground uppercase"
+						>{m.users_role_owner()}</span
+					>
+				</p>
+				<p class="mt-0.5 text-caption text-text-muted">{m.settings_notifications_digest_hint()}</p>
+			</div>
+			<Select
+				value={String(digestHour)}
+				options={hourOptions}
+				label={m.settings_notifications_digest_label()}
+				onchange={(next) => void saveHour(Number(next))}
+				class="w-36 shrink-0 bg-surface"
+			/>
+		</div>
+	{/if}
 </section>

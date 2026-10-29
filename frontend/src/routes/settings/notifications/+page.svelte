@@ -10,5 +10,9 @@
 <svelte:head><title>{m.settings_nav_notifications()} · {m.app_name()}</title></svelte:head>
 
 <SettingsLayout active="notifications">
-	<NotificationsCard prefs={data.prefs} mailEnabled={data.mailEnabled} />
+	<NotificationsCard
+		prefs={data.prefs}
+		mailEnabled={data.mailEnabled}
+		digestHour={data.digestHour}
+	/>
 </SettingsLayout>

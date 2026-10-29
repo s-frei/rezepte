@@ -41,8 +41,6 @@ The owner finds the **Email** card on its own page, **Settings → Email**, whic
 
 On the card, the same field sits under the letterhead, filled in with your own address; change it to test another inbox. "Send" (or Enter) shows the result right under it: "Test mail sent to …", or the server's own reply when it refuses. This is also where to look when an invitation did not arrive, since only the owner sees what went wrong.
 
-Below it, "Daily new-recipes mail at" picks the hour the [new recipes mail](#notification-mails) goes out, 17:00 unless you change it. It is the hour in the server's time zone, UTC unless the server sets `TZ` (see [Configuration](/getting-started/configuration)), and it saves the moment you pick it. Moving it to an earlier hour on a day the mail already went out takes effect the next day.
-
 "Turn off" asks first, then clears the settings, and the stored password with them: a saved password can only be removed this way. When the server is set with `REZEPTE_SMTP_*` variables, the stamp reads "Set by the server", the settings cannot be changed here, and only the test works.
 
 ## What a person receives
@@ -62,7 +60,7 @@ Mails go out on their own, too:
 Four mails tell people what happened in the household. Each of them can also come as a push notification, and you switch each on or off for mail and push separately: see [Notifications](/guide/notifications).
 
 - **A new comment** on a recipe you follow, meaning one that is yours (you added it, or it came to you from an account an admin deleted) or that you commented on. It names who wrote it, quotes the comment, shows its photos and has a button that opens the recipe's comments. You never get a mail for your own comment, and each comment is its own mail.
-- **New recipes**, once a day at the hour the owner set: one mail with the recipes the others added since the last one, never your own. The first six come as cards with their photo, who added it, servings and time, and a button to open the recipe; the next 30 are listed below by name, and any beyond that are counted. A recipe waits for the next day's mail until it is an hour old, so the photo and the last corrections usually make it in. Recipes that arrive by importing an archive are not announced. On a day nobody else added a recipe, no mail comes.
+- **New recipes**, once a day at the hour the owner sets under [Settings → Notifications](/guide/notifications#choose-what-comes): one mail with the recipes the others added since the last one, never your own. The first six come as cards with their photo, who added it, servings and time, and a button to open the recipe; the next 30 are listed below by name, and any beyond that are counted. A recipe waits for the next day's mail until it is an hour old, so the photo and the last corrections usually make it in. Recipes that arrive by importing an archive are not announced. On a day nobody else added a recipe, no mail comes.
 - **Tasty**, when someone marks a recipe of yours tasty: "… went down well", with their picture and a button to the recipe. It goes out about a minute after the mark, and not at all when the mark was taken back by then.
 - **An accepted invitation**, for admins and the owner. When someone you invited opens their setup link and sets up the account, the admin who sent the link hears about it, with a button to the list of people.
 

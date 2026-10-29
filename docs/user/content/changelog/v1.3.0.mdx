@@ -7,7 +7,7 @@ upgrade: "Nothing breaks coming from 1.2.0; back up your data directory, then pu
 
 Upgrade as usual (see [Updates](/operations/updates)). A few things are worth knowing as the one who runs it:
 
-- **Notifications are on until people switch them off.** With [mail](/guide/mail) set up, everyone with a confirmed address starts getting mails about new comments, recipes of theirs found tasty, accepted invitations (admins) and, once a day at 17:00, the recipes the others added. You can move that hour under **Settings → Email**.
+- **Notifications are on until people switch them off.** With [mail](/guide/mail) set up, everyone with a confirmed address starts getting mails about new comments, recipes of theirs found tasty, accepted invitations (admins) and, once a day at 17:00, the recipes the others added. You can move that hour under **Settings → Notifications**.
 - **Mail follows the server's time zone**, UTC unless you set `TZ`, for example `TZ: Europe/Berlin` in the compose file: both the 17:00 of the daily mail and the times written in mails (see [Configuration](/getting-started/configuration)).
 - **Push notifications and installing the app need HTTPS.** Over plain HTTP everything else works, mail included (see [Reverse proxy](/operations/reverse-proxy)).
 - **Give Rezepte time to stop.** A stop now waits for a daily mail that is going out, which can take up to two minutes. Add `stop_grace_period: 2m30s` to your compose file, `--stop-timeout 150` to your `docker run`, or `TimeoutStopSec=150` to a systemd unit (see [Docker](/getting-started/docker) and [Binary](/getting-started/binary)).

@@ -72,42 +72,6 @@ test('the owner sets up mail and sends a test', async ({ page, request }) => {
 	expect((await latestMailTo(request, to)).subject).toBe('Rezepte can send mail');
 });
 
-test('the owner moves the new recipes mail; an admin never sees the mail page', async ({
-	page,
-	browser
-}) => {
-	await login(page);
-	await configure(page, mailpitSmtpPort);
-	const card = page.getByRole('region', { name: 'Email' });
-	const hour = card.getByRole('button', { name: 'Daily new-recipes mail at' });
-	await expect(hour).toContainText('5:00 PM');
-	await hour.click();
-	await page.getByRole('option', { name: '7:00 AM' }).click();
-	await expect(page.getByText('Send time saved')).toBeVisible();
-	await page.reload();
-	await expect(hour).toContainText('7:00 AM');
-	// Back to the default for the tests after this one.
-	await hour.click();
-	await page.getByRole('option', { name: '5:00 PM' }).click();
-	await expect(page.getByText('Send time saved').first()).toBeVisible();
-
-	// Settings that cannot be read hide only the hour, not the card.
-	await page.route('**/api/v1/settings', (route) => route.fulfill({ status: 500 }));
-	await page.reload();
-	await expect(card.getByText('Sending on')).toBeVisible();
-	await expect(card.getByLabel('Send a test mail to')).toBeVisible();
-	await expect(hour).toHaveCount(0);
-	await page.unroute('**/api/v1/settings');
-
-	const name = `digest-${uniqueToken()}`;
-	await createUser(page, { username: name, role: 'admin' });
-	const other = await browser.newPage();
-	await login(other, name);
-	await other.goto('/settings/mail');
-	await expect(other).toHaveURL(/\/settings$/);
-	await other.close();
-});
-
 test('an invited person sets up their account from the mail', async ({
 	page,
 	request,
