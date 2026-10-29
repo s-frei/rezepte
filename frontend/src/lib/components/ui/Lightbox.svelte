@@ -87,7 +87,9 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Portal>
-		<Dialog.Content forceMount preventScroll={false} {onkeydown}>
+		<!-- Scroll lock on, unlike the other dialogs: it covers the whole screen, so the page
+		     shifting under it cannot be seen, while its scrollbar and the wheel would be. -->
+		<Dialog.Content forceMount {onkeydown}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen && current}
 					<div
