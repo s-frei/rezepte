@@ -2,7 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade } from 'svelte/transition';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { DropdownMenu } from 'bits-ui';
@@ -216,8 +216,21 @@
 		}
 	}
 
+	// Opened from the overview, the back button pops that entry, so the
+	// overview comes back with its search, filters and place in the list; a
+	// fresh `/` would start over at the top. Kept in the history entry, not
+	// in the component, so it outlasts a round trip through cooking mode.
+	// Entered directly (bookmark, mail, shared link) there is nothing to pop.
+	afterNavigate(({ from }) => {
+		if (from?.route.id === '/') replaceState('', { ...page.state, fromOverview: true });
+	});
+
 	function goBack() {
-		void goto(resolve('/'));
+		if (page.state.fromOverview) {
+			history.back();
+		} else {
+			void goto(resolve('/'));
+		}
 	}
 
 	// Contributed to the desktop top bar via the `shell` store (see

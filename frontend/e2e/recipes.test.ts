@@ -2565,3 +2565,40 @@ test('the star is a disc on the photo corner’s center', async ({ page, isMobil
 		expect(target).toBeGreaterThanOrEqual(44);
 	}
 });
+
+test('back from a recipe returns to the same place in the list', async ({ page, isMobile }) => {
+	const token = uniqueToken();
+	// More than a page of 24, so the list needs "Load more" and the recipe
+	// opened sits far down it.
+	for (let i = 0; i < 30; i++) {
+		await createRecipe(page, {
+			...loadFixture(i % 3),
+			title: `Return ${String(i).padStart(2, '0')} ${token}`,
+			tags: [token]
+		});
+	}
+
+	await page.goto(`/?tags=${token}`);
+	await page.getByRole('button', { name: 'Load more' }).click();
+	await expect(cards(page)).toHaveCount(30);
+	await expect(page).toHaveURL(/page=2/);
+
+	const target = cards(page).filter({ hasText: `Return 02 ${token}` });
+	await target.scrollIntoViewIfNeeded();
+	const before = await page.evaluate(() => window.scrollY);
+	expect(before).toBeGreaterThan(0);
+	await target.click();
+	await expect(page).toHaveURL(/\/recipes\//);
+
+	// Phones have the header's back button; the desktop has the browser's.
+	if (isMobile) {
+		await page.getByRole('button', { name: 'Back', exact: true }).click();
+	} else {
+		await page.goBack();
+	}
+
+	await expect(page).toHaveURL(new RegExp(`tags=${token}.*page=2|page=2.*tags=${token}`));
+	await expect(cards(page)).toHaveCount(30);
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(before, -1);
+	await expect(target).toBeInViewport();
+});

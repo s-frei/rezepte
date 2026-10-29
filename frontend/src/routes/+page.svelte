@@ -44,7 +44,7 @@
 	import { applyRememberedSort, readSort, writeSort } from '$lib/recipe/sort-preference';
 	import { importDialog } from '$lib/import.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { PageProps } from './$types';
+	import type { PageProps, Snapshot } from './$types';
 
 	let { data }: PageProps = $props();
 
@@ -113,6 +113,19 @@
 	let arrival = $state(false);
 	let riseTimer: ReturnType<typeof setTimeout> | undefined;
 	let showSkeleton = $state(false);
+
+	/**
+	 * Back from a recipe, the reader lands where they left the list. The
+	 * router restores the scroll position the moment the page mounts, when
+	 * the list is not fetched yet and the page too short to hold it, so the
+	 * browser clamps it. The snapshot keeps the position with the history
+	 * entry, and the first list scrolls back to it once its cards are laid out.
+	 */
+	let restoreY: number | null = null;
+	export const snapshot: Snapshot<number> = {
+		capture: () => window.scrollY,
+		restore: (y) => (restoreY = y)
+	};
 
 	let abortController: AbortController | null = null;
 	let skeletonTimer: ReturnType<typeof setTimeout> | undefined;
@@ -334,6 +347,11 @@
 			// list has nothing to glide from.
 			if (append || !animate || !listed) {
 				show();
+				if (restoreY !== null) {
+					await tick();
+					window.scrollTo(0, restoreY);
+					restoreY = null;
+				}
 			} else {
 				await glide(show);
 			}
