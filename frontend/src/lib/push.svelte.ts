@@ -189,13 +189,17 @@ if (pushSupported()) {
 	onSignIn(resubscribe);
 	// Notifications can be revoked and allowed again in the browser or OS
 	// settings at any time; a revoke may drop the browser's subscription.
+	// Only then, or while not subscribed, is the PUT sent again: on every
+	// return a session that ran out while hidden would answer 401 and bounce
+	// the cook mid-recipe to the login page.
 	document.addEventListener('visibilitychange', () => {
 		if (document.visibilityState === 'visible') {
+			const before = state.permission;
 			state.permission = Notification.permission;
-			if (state.permission === 'granted') {
-				resubscribe();
-			} else {
+			if (state.permission !== 'granted') {
 				state.subscribed = false;
+			} else if (before !== 'granted' || !state.subscribed) {
+				resubscribe();
 			}
 		}
 	});

@@ -378,6 +378,37 @@ describe('device state', () => {
 		expect(push.deviceState()).toBe('enabled');
 	});
 
+	it('does not subscribe again each time the page comes back', async () => {
+		// A session that ran out while hidden would answer 401 and bounce the
+		// cook to the login page.
+		const env = install('granted');
+		await load();
+		await settle();
+		env.show();
+		await settle();
+		env.show();
+		await settle();
+		expect(calls(env, 'PUT', '/api/v1/push/subscription')).toHaveLength(1);
+	});
+
+	it('subscribes on visibility when granted but not subscribed', async () => {
+		const env = install('granted', okFetch());
+		let fail = true;
+		const base = env.fetch.getMockImplementation()!;
+		env.fetch.mockImplementation(async (url, init) => {
+			if (url === '/api/v1/push/subscription' && fail) throw new TypeError('offline');
+			return base(url, init);
+		});
+		const { push } = await load();
+		await settle();
+		expect(push.deviceState()).toBe('off');
+		fail = false;
+		env.show();
+		await settle();
+		expect(calls(env, 'PUT', '/api/v1/push/subscription')).toHaveLength(2);
+		expect(push.deviceState()).toBe('enabled');
+	});
+
 	it('sendPushTest turns the device off when the server forgot it', async () => {
 		install(
 			'granted',
