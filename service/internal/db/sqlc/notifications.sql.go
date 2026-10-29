@@ -87,49 +87,54 @@ func (q *Queries) HasOptOut(ctx context.Context, arg HasOptOutParams) (bool, err
 	return column_1, err
 }
 
-const listCommentMailRecipients = `-- name: ListCommentMailRecipients :many
-SELECT u.id, u.email, u.locale, CAST(u.id = r.created_by AS BOOLEAN) AS is_creator
+const listCommentRecipients = `-- name: ListCommentRecipients :many
+SELECT u.id, u.email, u.email_verified, u.locale, CAST(u.id = r.created_by AS BOOLEAN) AS is_creator
 FROM users u
 JOIN recipes r ON r.id = ?1
-WHERE u.email != '' AND u.email_verified
-  AND u.id != ?2
+WHERE u.id != ?2
   AND (u.id = r.created_by OR EXISTS (
       SELECT 1 FROM recipe_comments c WHERE c.recipe_id = r.id AND c.author_id = u.id))
   AND NOT EXISTS (
-      SELECT 1 FROM notification_optouts o WHERE o.user_id = u.id AND o.kind = 'comment' AND o.channel = 'mail')
+      SELECT 1 FROM notification_optouts o
+      WHERE o.user_id = u.id AND o.kind = 'comment' AND o.channel = ?3)
   AND NOT EXISTS (
-      SELECT 1 FROM notification_group_optouts g WHERE g.user_id = u.id AND g.grp = 'household' AND g.channel = 'mail')
+      SELECT 1 FROM notification_group_optouts g
+      WHERE g.user_id = u.id AND g.grp = 'household' AND g.channel = ?3)
 ORDER BY u.username
 `
 
-type ListCommentMailRecipientsParams struct {
+type ListCommentRecipientsParams struct {
 	RecipeID string
 	AuthorID string
+	Channel  string
 }
 
-type ListCommentMailRecipientsRow struct {
-	ID        string
-	Email     string
-	Locale    string
-	IsCreator bool
+type ListCommentRecipientsRow struct {
+	ID            string
+	Email         string
+	EmailVerified bool
+	Locale        string
+	IsCreator     bool
 }
 
-// Who a new comment by author_id on recipe_id is mailed to: its followers
-// (the creator and everyone with a comment on it, as for the unread dot)
-// with a confirmed address and the comment mail and the household mail
-// switch on, never the author.
-func (q *Queries) ListCommentMailRecipients(ctx context.Context, arg ListCommentMailRecipientsParams) ([]ListCommentMailRecipientsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listCommentMailRecipients, arg.RecipeID, arg.AuthorID)
+// Who a new comment by author_id on recipe_id goes to on channel: its
+// followers (the creator and everyone with a comment on it, as for the
+// unread dot) with neither the comment kind nor the household group
+// switched off there, never the author. Whether a mail has an address to go
+// to is the caller's: a push needs none.
+func (q *Queries) ListCommentRecipients(ctx context.Context, arg ListCommentRecipientsParams) ([]ListCommentRecipientsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCommentRecipients, arg.RecipeID, arg.AuthorID, arg.Channel)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListCommentMailRecipientsRow{}
+	items := []ListCommentRecipientsRow{}
 	for rows.Next() {
-		var i ListCommentMailRecipientsRow
+		var i ListCommentRecipientsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Email,
+			&i.EmailVerified,
 			&i.Locale,
 			&i.IsCreator,
 		); err != nil {
@@ -211,26 +216,29 @@ func (q *Queries) ListOptOuts(ctx context.Context, userID string) ([]ListOptOuts
 }
 
 const listRecipeDigestRecipients = `-- name: ListRecipeDigestRecipients :many
-SELECT id, email, locale
+SELECT id, email, email_verified, locale
 FROM users
-WHERE email != '' AND email_verified
+WHERE NOT EXISTS (
+      SELECT 1 FROM notification_optouts o
+      WHERE o.user_id = users.id AND o.kind = 'recipe' AND o.channel = ?1)
   AND NOT EXISTS (
-      SELECT 1 FROM notification_optouts o WHERE o.user_id = users.id AND o.kind = 'recipe' AND o.channel = 'mail')
-  AND NOT EXISTS (
-      SELECT 1 FROM notification_group_optouts g WHERE g.user_id = users.id AND g.grp = 'household' AND g.channel = 'mail')
+      SELECT 1 FROM notification_group_optouts g
+      WHERE g.user_id = users.id AND g.grp = 'household' AND g.channel = ?1)
 ORDER BY username
 `
 
 type ListRecipeDigestRecipientsRow struct {
-	ID     string
-	Email  string
-	Locale string
+	ID            string
+	Email         string
+	EmailVerified bool
+	Locale        string
 }
 
-// Who gets the daily new recipes digest: everyone with a confirmed address
-// and the recipe mail and the household mail switch on. Whose own recipes to leave out is the caller's.
-func (q *Queries) ListRecipeDigestRecipients(ctx context.Context) ([]ListRecipeDigestRecipientsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRecipeDigestRecipients)
+// Who gets the daily new recipes digest on channel: everyone with neither
+// the recipe kind nor the household group switched off there. Whose own
+// recipes to leave out, and whether a mail has an address, is the caller's.
+func (q *Queries) ListRecipeDigestRecipients(ctx context.Context, channel string) ([]ListRecipeDigestRecipientsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecipeDigestRecipients, channel)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +246,12 @@ func (q *Queries) ListRecipeDigestRecipients(ctx context.Context) ([]ListRecipeD
 	items := []ListRecipeDigestRecipientsRow{}
 	for rows.Next() {
 		var i ListRecipeDigestRecipientsRow
-		if err := rows.Scan(&i.ID, &i.Email, &i.Locale); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.EmailVerified,
+			&i.Locale,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

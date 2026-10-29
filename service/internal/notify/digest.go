@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db"
@@ -75,10 +76,11 @@ func (s *Service) RunRecipeDigest(ctx context.Context, now time.Time) error {
 		return nil
 	}
 	// Read before the claim, so a failure here leaves the day unclaimed.
-	recipients, err := s.q.ListRecipeDigestRecipients(ctx)
+	recipients, err := s.q.ListRecipeDigestRecipients(ctx, string(ChannelMail))
 	if err != nil {
 		return fmt.Errorf("list recipe digest recipients: %w", err)
 	}
+	recipients = slices.DeleteFunc(recipients, func(r sqlc.ListRecipeDigestRecipientsRow) bool { return !mailable(r.Email, r.EmailVerified) })
 	due, err := s.claimRecipeDigest(ctx, day, now.Add(-digestAge))
 	if err != nil || len(due) == 0 {
 		return err

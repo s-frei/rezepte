@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db"
@@ -73,10 +74,11 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 	}
 	picture := s.picture(ctx, author)
 	photos := s.commentPhotos(ctx, r.ID, commentID)
-	recipients, err := s.q.ListCommentMailRecipients(ctx, sqlc.ListCommentMailRecipientsParams{RecipeID: recipeID, AuthorID: author.ID})
+	recipients, err := s.q.ListCommentRecipients(ctx, sqlc.ListCommentRecipientsParams{RecipeID: recipeID, AuthorID: author.ID, Channel: string(ChannelMail)})
 	if err != nil {
 		return fmt.Errorf("list comment mail recipients: %w", err)
 	}
+	recipients = slices.DeleteFunc(recipients, func(r sqlc.ListCommentRecipientsRow) bool { return !mailable(r.Email, r.EmailVerified) })
 	for _, to := range recipients {
 		reason := mail.ReasonCommented
 		if to.IsCreator {
@@ -96,6 +98,9 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 	}
 	return nil
 }
+
+// mailable reports whether an address can be mailed: only a confirmed one is.
+func mailable(email string, verified bool) bool { return email != "" && verified }
 
 // commentPhotos reads the photos of comment commentID for a mail, in order;
 // one that cannot be read is left out, and the mail goes without it.
@@ -161,7 +166,7 @@ func (s *Service) InviteAccepted(ctx context.Context, inviterID string, newcomer
 		slog.WarnContext(ctx, "invitation mail: inviter lookup failed", "err", err)
 		return
 	}
-	if !inviter.Role.IsAdmin() || inviter.Email == "" || !inviter.EmailVerified {
+	if !inviter.Role.IsAdmin() || !mailable(inviter.Email, inviter.EmailVerified) {
 		return
 	}
 	on, err := s.Wants(ctx, inviter.ID, KindInviteAccepted, ChannelMail)

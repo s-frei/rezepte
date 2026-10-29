@@ -424,3 +424,61 @@ func TestCommentMailCarriesPhotosLoadedOnce(t *testing.T) {
 		t.Error("the second follower got a copy: photos were read per follower")
 	}
 }
+
+func TestCommentMailSkipsGroupOptOut(t *testing.T) {
+	ctx := context.Background()
+	f := newFanout(t)
+	olga := f.person(t, "olga", user.RoleAdmin, true)
+	mia := f.person(t, "mia", user.RoleUser, true)
+	r := f.recipe(t, olga.ID)
+	if _, err := f.svc.SetPreferences(ctx, olga, Prefs{Groups: map[Group]map[Channel]bool{GroupHousehold: {ChannelMail: false}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.mailComment(ctx, r.ID, f.comment(t, mia, r.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.mailer.comments) != 0 {
+		t.Fatalf("sent %+v", f.mailer.comments)
+	}
+}
+
+// A push needs no address: an unconfirmed follower is a push recipient and
+// not a mail one; an opt-out on one channel leaves the other.
+func TestCommentRecipientsPushNeedNoAddress(t *testing.T) {
+	ctx := context.Background()
+	f := newFanout(t)
+	olga := f.person(t, "olga", user.RoleAdmin, false)
+	mia := f.person(t, "mia", user.RoleUser, true)
+	r := f.recipe(t, olga.ID)
+	f.comment(t, mia, r.ID)
+	ids := func(ch Channel, author string) []string {
+		t.Helper()
+		rows, err := f.svc.q.ListCommentRecipients(ctx, sqlc.ListCommentRecipientsParams{RecipeID: r.ID, AuthorID: author, Channel: string(ch)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, row := range rows {
+			got = append(got, row.ID)
+		}
+		return got
+	}
+	if got := ids(ChannelPush, mia.ID); len(got) != 1 || got[0] != olga.ID {
+		t.Errorf("push recipients %v, want olga", got)
+	}
+	if err := f.svc.mailComment(ctx, r.ID, f.comment(t, mia, r.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.mailer.comments) != 0 {
+		t.Errorf("mailed an unconfirmed address: %+v", f.mailer.comments)
+	}
+	if _, err := f.svc.SetPreferences(ctx, mia, Prefs{Kinds: map[Kind]map[Channel]bool{KindComment: {ChannelPush: false}}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(ChannelPush, olga.ID); len(got) != 0 {
+		t.Errorf("push recipients after mia's push opt-out %v", got)
+	}
+	if got := ids(ChannelMail, olga.ID); len(got) != 1 || got[0] != mia.ID {
+		t.Errorf("mail recipients %v, want mia", got)
+	}
+}

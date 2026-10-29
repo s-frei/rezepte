@@ -161,6 +161,19 @@ func TestDigestRespectsOptOut(t *testing.T) {
 	}
 }
 
+func TestDigestSkipsGroupOptOut(t *testing.T) {
+	f := newFanout(t)
+	mila, jonas := f.household(t)
+	if _, err := f.svc.SetPreferences(context.Background(), jonas, Prefs{Groups: map[Group]map[Channel]bool{GroupHousehold: {ChannelMail: false}}}); err != nil {
+		t.Fatal(err)
+	}
+	f.added(t, mila, "Dal", at(0, 10, 0))
+	f.run(t, at(0, 17, 0))
+	if len(f.mailer.digests) != 0 {
+		t.Fatalf("sent %+v", f.mailer.digests)
+	}
+}
+
 func TestDigestIgnoresUnannounced(t *testing.T) {
 	f := newFanout(t)
 	mila, _ := f.household(t)
