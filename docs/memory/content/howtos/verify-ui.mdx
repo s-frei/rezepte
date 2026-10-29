@@ -156,3 +156,30 @@ Without a command, `mise run demo` keeps that instance up until Ctrl-C, which is
 One trap worth knowing:
 
 - Both `mise run e2e` and `mise run demo` refuse to start on a busy port. Without that guard a stale process answers `/healthz` instead, and every test that logs in fails with "That username or password is wrong." while the ones that do not log in pass. That failure shape means the port, not your change: check `lsof -nP -iTCP:<port> -sTCP:LISTEN`, with the port from `mise run ports`.
+
+## Handing a running demo to the owner
+
+Whenever an instance is left running for the owner to look at - after a change, at a checkpoint, after a restart - the message ends with this block, in the owner's language, never with the URL or the login inside a sentence. It is the one part of the message they act on, so it has to be findable at a glance and complete without the prose around it:
+
+```markdown
+### Demo
+
+| | |
+|---|---|
+| **URL** | http://localhost:8170 |
+| **Login** | `demo` / `demo1234` |
+| **Other accounts** | `mila` / `mila1234`, `jonas` / `jonas1234` |
+| **Build** | `edef0152` on `feat/overview-tiles` |
+| **Data** | 29 recipes, tasty marks from mila and jonas |
+| **Runs** | in the background until you say stop |
+
+**Look at:**
+1. `/` at 360px, a card without a photo: the initials sit on the star's axis.
+2. Hover a three-line title on desktop: the wave is whole under the last line.
+```
+
+- **URL** is the port from `mise run ports`, clickable, with the path when one page is meant.
+- **Build** is the commit the binary was built from, and says "uncommitted" when it carries changes not yet committed - a demo started before the last edit shows the old code.
+- **Data** names what was seeded beyond the twelve sample recipes, so the owner knows which cases the instance can show; a restart of `mise run demo` without `REZEPTE_DATA_DIR` starts from the twelve again.
+- **Look at** lists the concrete checks, each a page or width and what should be true there - not "have a look". Leave it out only when nothing changed since the last handover.
+- After every restart the block comes again, even if only the build changed.
