@@ -51,3 +51,9 @@ ORDER BY a.fire_at;
 
 -- name: DeleteTimerAlarm :execrows
 DELETE FROM timer_alarms WHERE id = ?;
+
+-- Oldest first, so the order of sends is stable.
+-- name: ListPushSubscriptionsOfUser :many
+SELECT endpoint, p256dh, auth FROM push_subscriptions
+WHERE user_id = ?
+ORDER BY created_at, id;

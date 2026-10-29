@@ -66,6 +66,8 @@
 	"mail_password_set_body_setup_link": "A password was set for your account {username} through a setup link from {admin} (admin) on {at}.",
 	"mail_password_set_heading": "A password was set",
 	"mail_password_set_subject": "A password was set for your Rezepte account",
+	"mail_push_test_body": "This is what notifications from Rezepte look like.",
+	"mail_push_test_title": "Rezepte · Test",
 	"mail_recipe_digest_added": "added on {when}",
 	"mail_recipe_digest_all": "All recipes",
 	"mail_recipe_digest_also_new": "Also new",

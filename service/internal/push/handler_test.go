@@ -25,6 +25,12 @@ import (
 
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
+	return newHandlerWith(t, nil)
+}
+
+// newHandlerWith serves the routes with client as the way to push services.
+func newHandlerWith(t *testing.T, client *http.Client) http.Handler {
+	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
 	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleUser}); err != nil {
@@ -37,7 +43,7 @@ func newHandler(t *testing.T) http.Handler {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
-	push.Register(srv.API(), push.NewService(conn, "", nil))
+	push.Register(srv.API(), push.NewService(conn, "", client))
 	return srv.Handler()
 }
 
@@ -85,6 +91,7 @@ func TestPushRoutesNeedSession(t *testing.T) {
 		{http.MethodDelete, "/api/v1/push/subscription"},
 		{http.MethodPost, "/api/v1/push/alarms"},
 		{http.MethodDelete, "/api/v1/push/alarms/x"},
+		{http.MethodPost, "/api/v1/push/test"},
 	} {
 		if rec := do(h, r[0], r[1], "", nil); rec.Code != http.StatusUnauthorized {
 			t.Errorf("%s %s: status %d, want 401", r[0], r[1], rec.Code)
@@ -128,5 +135,37 @@ func TestPushRoutes(t *testing.T) {
 	}
 	if rec := do(h, http.MethodPost, "/api/v1/push/alarms", alarm, c); rec.Code != http.StatusNotFound {
 		t.Fatalf("schedule without subscription: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// accepted is a push service that takes every push.
+type accepted struct{ n int }
+
+func (a *accepted) RoundTrip(*http.Request) (*http.Response, error) {
+	a.n++
+	return &http.Response{StatusCode: http.StatusCreated, Body: http.NoBody, Header: http.Header{}}, nil
+}
+
+func TestPushTestRoute(t *testing.T) {
+	pushes := &accepted{}
+	h := newHandlerWith(t, &http.Client{Transport: pushes})
+	c := login(t, h)
+	const ep = "https://fcm.googleapis.com/fcm/send/abc"
+	body := fmt.Sprintf(`{"endpoint":%q}`, ep)
+
+	if rec := do(h, http.MethodPost, "/api/v1/push/test", body, c); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown subscription: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := do(h, http.MethodPut, "/api/v1/push/subscription", subscription(t, ep), c); rec.Code != http.StatusNoContent {
+		t.Fatalf("subscribe: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := do(h, http.MethodPost, "/api/v1/push/test", body, c); rec.Code != http.StatusNoContent {
+		t.Fatalf("test: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := do(h, http.MethodPost, "/api/v1/push/test", body, c); rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("second test: %d %s", rec.Code, rec.Body.String())
+	}
+	if pushes.n != 1 {
+		t.Fatalf("%d pushes, want 1", pushes.n)
 	}
 }

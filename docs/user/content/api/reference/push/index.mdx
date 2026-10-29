@@ -11,4 +11,5 @@ description: Notifications a device asked for, such as a finished cook timer.
 <Card href="/api/reference/push/get-push-key" title="Read the key a device subscribes to pushes with" />
 <Card href="/api/reference/push/delete-push-subscription" title="Delete a device's push subscription and its alarms" description="One that is not there is no error." />
 <Card href="/api/reference/push/put-push-subscription" title="Store a device's push subscription" description="An endpoint another account had moves to the current user, without that account's alarms. At most 20 per user; an endpoint that is not https on a known push service is 422." />
+<Card href="/api/reference/push/create-push-test" title="Send a test push to a device" description="Pushes a test notification in the current user's language to one of their subscriptions, which is 404 otherwise. At most one every 10 seconds per subscription, 429 otherwise." />
 </Cards>

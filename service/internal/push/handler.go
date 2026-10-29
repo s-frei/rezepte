@@ -11,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/mail"
 )
 
 type keyOutput struct {
@@ -70,6 +71,8 @@ func problem(err error) error {
 		return huma.Error422UnprocessableEntity(err.Error())
 	case errors.Is(err, ErrUnknownSubscription):
 		return huma.Error404NotFound(err.Error())
+	case errors.Is(err, ErrTooSoon):
+		return huma.Error429TooManyRequests(err.Error())
 	}
 	return err
 }
@@ -181,6 +184,34 @@ func Register(api huma.API, s *Service) {
 		}
 		if err := s.Cancel(ctx, u.ID, in.ID); err != nil {
 			return nil, err
+		}
+		return &noContent{}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-push-test",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/push/test",
+		Summary:       "Send a test push to a device",
+		Description:   "Pushes a test notification in the current user's language to one of their subscriptions, which is 404 otherwise. At most one every 10 seconds per subscription, 429 otherwise.",
+		Tags:          []string{"push"},
+		Security:      auth.SessionSecurity,
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{401, 404, 429},
+	}, func(ctx context.Context, in *endpointInput) (*noContent, error) {
+		u, err := auth.CurrentUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		m := Message{Kind: "test", URL: "/settings/notifications", Tag: "test"}
+		if m.Title, err = mail.Text(u.Locale, "mail_push_test_title", nil); err != nil {
+			return nil, err
+		}
+		if m.Body, err = mail.Text(u.Locale, "mail_push_test_body", nil); err != nil {
+			return nil, err
+		}
+		if err := s.SendTest(ctx, u.ID, in.Body.Endpoint, m); err != nil {
+			return nil, problem(err)
 		}
 		return &noContent{}, nil
 	})

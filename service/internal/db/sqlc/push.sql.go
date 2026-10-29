@@ -199,6 +199,42 @@ func (q *Queries) ListDueTimerAlarms(ctx context.Context, fireAt string) ([]List
 	return items, nil
 }
 
+const listPushSubscriptionsOfUser = `-- name: ListPushSubscriptionsOfUser :many
+SELECT endpoint, p256dh, auth FROM push_subscriptions
+WHERE user_id = ?
+ORDER BY created_at, id
+`
+
+type ListPushSubscriptionsOfUserRow struct {
+	Endpoint string
+	P256dh   []byte
+	Auth     []byte
+}
+
+// Oldest first, so the order of sends is stable.
+func (q *Queries) ListPushSubscriptionsOfUser(ctx context.Context, userID string) ([]ListPushSubscriptionsOfUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPushSubscriptionsOfUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPushSubscriptionsOfUserRow{}
+	for rows.Next() {
+		var i ListPushSubscriptionsOfUserRow
+		if err := rows.Scan(&i.Endpoint, &i.P256dh, &i.Auth); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setVapidKeyIfMissing = `-- name: SetVapidKeyIfMissing :exec
 UPDATE instance_settings SET vapid_key = ? WHERE id = 1 AND vapid_key IS NULL
 `

@@ -979,6 +979,8 @@
 	"mail_unsubscribe_kind_recipe": "No more mails about new recipes",
 	"mail_unsubscribe_group_household": "Unsubscribe from all household mails",
 	"mail_unsubscribe_group_admin": "Unsubscribe from all administration mails",
+	"mail_push_test_title": "Rezepte · Test",
+	"mail_push_test_body": "This is what notifications from Rezepte look like.",
 
 	"settings_nav_mail": "Email",
 	"settings_mail_line_sender": "Sender",

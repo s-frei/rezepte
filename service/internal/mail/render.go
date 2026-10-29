@@ -149,6 +149,11 @@ func FilterCatalog(raw []byte) (map[string]string, error) {
 	return out, nil
 }
 
+// Text is text for copy built outside a mail, such as a push.
+func Text(locale user.Locale, key string, args map[string]string) (string, error) {
+	return text(locale, key, args)
+}
+
 // text returns key in locale with {placeholders} filled, falling back to the
 // base locale for a locale or key the catalog lacks. A key the base catalog
 // lacks too is an error, never an empty line in a mail. The placeholders are

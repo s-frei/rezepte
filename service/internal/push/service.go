@@ -35,6 +35,8 @@ const (
 	// or missed it.
 	staleAfter  = time.Hour
 	sendTimeout = 10 * time.Second
+	// testEvery is how often one device may be sent a test push.
+	testEvery = 10 * time.Second
 )
 
 // tick is how often Start sends due alarms.
@@ -57,7 +59,28 @@ var (
 	ErrUnknownSubscription = errors.New("no such subscription for this account")
 	ErrTooMany             = errors.New("too many subscriptions or alarms")
 	ErrInvalid             = errors.New("invalid subscription or alarm")
+	ErrTooSoon             = errors.New("a test push was just sent to this device")
 )
+
+// Message is a notification push to a member's devices. The service worker
+// reads Kind to tell it from a timer alarm; pushes with one Tag replace
+// each other, and Collapse is what it shows when one is already there.
+type Message struct {
+	Kind     string    `json:"kind"`
+	Title    string    `json:"title"`
+	Body     string    `json:"body"`
+	URL      string    `json:"url"`
+	Tag      string    `json:"tag"`
+	Collapse *Collapse `json:"collapse,omitempty"`
+}
+
+// Collapse is the copy for a push that replaces one already shown with its
+// tag. BodyMany holds a literal {count} the service worker fills.
+type Collapse struct {
+	Title    string `json:"title"`
+	BodyOne  string `json:"bodyOne"`
+	BodyMany string `json:"bodyMany"`
+}
 
 // Alarm is a push to send to a device of the member at FireAt.
 type Alarm struct {
@@ -75,9 +98,13 @@ type Service struct {
 	subject   string
 	client    *http.Client
 	allowHost func(string) bool
+	now       func() time.Time
 
 	keyMu sync.Mutex
 	key   *ecdsa.PrivateKey
+
+	testMu   sync.Mutex
+	lastTest map[string]time.Time // by endpoint
 }
 
 // NewService returns a Service on conn. subject is the instance's public URL,
@@ -96,7 +123,8 @@ func NewService(conn *sql.DB, subject string, client *http.Client) *Service {
 		c.Timeout = sendTimeout
 	}
 	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &Service{conn: conn, q: sqlc.New(conn), subject: subject, client: &c, allowHost: knownPushHost}
+	return &Service{conn: conn, q: sqlc.New(conn), subject: subject, client: &c, allowHost: knownPushHost,
+		now: time.Now, lastTest: map[string]time.Time{}}
 }
 
 func knownPushHost(host string) bool {
@@ -311,33 +339,101 @@ func (s *Service) RunDue(ctx context.Context, now time.Time) {
 			continue
 		}
 		// The send finishes on shutdown; the client's timeout bounds it.
-		s.send(context.WithoutCancel(ctx), a)
+		s.sendAlarm(context.WithoutCancel(ctx), a)
 	}
 }
 
-func (s *Service) send(ctx context.Context, a sqlc.ListDueTimerAlarmsRow) {
-	host := a.Endpoint
-	if u, err := url.Parse(a.Endpoint); err == nil {
+// SendToUser pushes m to every device of userID, each with its own
+// timeout. A device the push service has forgotten is dropped and the rest
+// still get it; failures are logged, never retried.
+func (s *Service) SendToUser(ctx context.Context, userID string, m Message) {
+	subs, err := s.q.ListPushSubscriptionsOfUser(ctx, userID)
+	if err != nil {
+		slog.WarnContext(ctx, "list subscriptions", "err", err)
+		return
+	}
+	payload, err := json.Marshal(m)
+	if err != nil {
+		slog.WarnContext(ctx, "push payload", "err", err)
+		return
+	}
+	for _, sub := range subs {
+		sctx, cancel := context.WithTimeout(ctx, sendTimeout)
+		s.send(sctx, sub.Endpoint, sub.P256dh, sub.Auth, payload)
+		cancel()
+	}
+}
+
+// SendTest pushes m to userID's device at endpoint only, at most once per
+// testEvery for that device. A device the push service has forgotten is
+// dropped and reported as ErrUnknownSubscription.
+func (s *Service) SendTest(ctx context.Context, userID, endpoint string, m Message) error {
+	sub, err := s.q.GetPushSubscriptionForUser(ctx, sqlc.GetPushSubscriptionForUserParams{UserID: userID, Endpoint: endpoint})
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUnknownSubscription
+	}
+	if err != nil {
+		return fmt.Errorf("get subscription: %w", err)
+	}
+	if !s.claimTest(endpoint) {
+		return ErrTooSoon
+	}
+	payload, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("payload: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
+	defer cancel()
+	return s.post(ctx, sub.Endpoint, sub.P256dh, sub.Auth, payload)
+}
+
+// claimTest reports whether endpoint may get a test now and records it.
+// ponytail: in-memory, a restart forgets the last test.
+func (s *Service) claimTest(endpoint string) bool {
+	s.testMu.Lock()
+	defer s.testMu.Unlock()
+	now := s.now()
+	for ep, at := range s.lastTest {
+		if now.Sub(at) >= testEvery {
+			delete(s.lastTest, ep)
+		}
+	}
+	if _, ok := s.lastTest[endpoint]; ok {
+		return false
+	}
+	s.lastTest[endpoint] = now
+	return true
+}
+
+func (s *Service) sendAlarm(ctx context.Context, a sqlc.ListDueTimerAlarmsRow) {
+	payload, err := json.Marshal(Message{Kind: "timer", Title: a.Title, Body: a.Body, URL: a.Url, Tag: a.ID})
+	if err != nil {
+		slog.WarnContext(ctx, "push payload", "err", err)
+		return
+	}
+	s.send(ctx, a.Endpoint, a.P256dh, a.Auth, payload)
+}
+
+func (s *Service) send(ctx context.Context, endpoint string, p256dh, auth, payload []byte) {
+	host := endpoint
+	if u, err := url.Parse(endpoint); err == nil {
 		host = u.Host // the path is the device's capability; it stays out of the log
 	}
-	if err := s.post(ctx, a); err != nil {
+	// A forgotten device was dropped by post; nothing to warn about.
+	if err := s.post(ctx, endpoint, p256dh, auth, payload); err != nil && !errors.Is(err, ErrUnknownSubscription) {
 		slog.WarnContext(ctx, "push failed", "host", host, "err", err)
 	}
 }
 
-func (s *Service) post(ctx context.Context, a sqlc.ListDueTimerAlarmsRow) error {
+func (s *Service) post(ctx context.Context, endpoint string, p256dh, auth, payload []byte) error {
 	// The endpoint was checked when stored; checked again so that a row
 	// from before a narrower allowlist is never reached.
-	if err := s.checkEndpoint(a.Endpoint); err != nil {
+	if err := s.checkEndpoint(endpoint); err != nil {
 		return err
 	}
 	key, err := s.vapidKey(ctx)
 	if err != nil {
 		return err
-	}
-	payload, err := json.Marshal(map[string]string{"title": a.Title, "body": a.Body, "url": a.Url, "tag": a.ID})
-	if err != nil {
-		return fmt.Errorf("payload: %w", err)
 	}
 	salt := make([]byte, 16)
 	_, _ = rand.Read(salt)
@@ -345,15 +441,15 @@ func (s *Service) post(ctx context.Context, a sqlc.ListDueTimerAlarmsRow) error 
 	if err != nil {
 		return fmt.Errorf("sender key: %w", err)
 	}
-	body, err := Encrypt(Subscription{Endpoint: a.Endpoint, P256dh: a.P256dh, Auth: a.Auth}, payload, salt, server)
+	body, err := Encrypt(Subscription{Endpoint: endpoint, P256dh: p256dh, Auth: auth}, payload, salt, server)
 	if err != nil {
 		return err
 	}
-	vapid, err := VAPID(key, a.Endpoint, s.subject, time.Now())
+	vapid, err := VAPID(key, endpoint, s.subject, time.Now())
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.Endpoint, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("request: %w", err)
 	}
@@ -374,10 +470,10 @@ func (s *Service) post(ctx context.Context, a sqlc.ListDueTimerAlarmsRow) error 
 	_ = resp.Body.Close()
 	switch {
 	case resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone:
-		if err := s.q.DeletePushSubscriptionByEndpoint(ctx, a.Endpoint); err != nil {
+		if err := s.q.DeletePushSubscriptionByEndpoint(ctx, endpoint); err != nil {
 			return fmt.Errorf("delete gone subscription: %w", err)
 		}
-		return nil
+		return ErrUnknownSubscription
 	case resp.StatusCode >= 300:
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}

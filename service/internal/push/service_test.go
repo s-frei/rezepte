@@ -253,7 +253,8 @@ type pushServer struct {
 	got    []*http.Request
 	bodies [][]byte
 	status int
-	after  func() // runs while a request is being served
+	byPath map[string]int // a status for one path instead of status
+	after  func()         // runs while a request is being served
 }
 
 func newPushServer(t *testing.T, f fixture, status int) *pushServer {
@@ -266,6 +267,10 @@ func newPushServer(t *testing.T, f fixture, status int) *pushServer {
 		p.mu.Unlock()
 		if p.after != nil {
 			p.after()
+		}
+		if st, ok := p.byPath[r.URL.Path]; ok {
+			w.WriteHeader(st)
+			return
 		}
 		w.WriteHeader(p.status)
 	}))
@@ -455,5 +460,190 @@ func TestRunDueSkipsAlarmCancelledMidBatch(t *testing.T) {
 	f.svc.RunDue(ctx, now.Add(time.Minute))
 	if len(p.got) != 1 {
 		t.Fatalf("%d requests, want 1: the cancelled alarm was sent", len(p.got))
+	}
+}
+
+func message() Message {
+	return Message{Kind: "comment", Title: "Rinderrouladen", Body: "Anna: Lecker!", URL: "/recipes/rinderrouladen?tab=comments", Tag: "comment:1",
+		Collapse: &Collapse{Title: "Rinderrouladen", BodyOne: "Anna: Lecker!", BodyMany: "{count} new comments"}}
+}
+
+func (p *pushServer) paths() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var out []string
+	for _, r := range p.got {
+		out = append(out, r.URL.Path)
+	}
+	return out
+}
+
+func TestSendToUserAllDevices(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	r1, r2 := newReceiver(t), newReceiver(t)
+	for i, r := range []receiver{r1, r2} {
+		if err := f.svc.Subscribe(ctx, f.alice, r.sub(p.URL+"/push/"+string(rune('1'+i)))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := message()
+	f.svc.SendToUser(ctx, f.alice, m)
+	if got := p.paths(); len(got) != 2 {
+		t.Fatalf("requests to %v, want both devices", got)
+	}
+	for i, r := range []receiver{r1, r2} {
+		var got Message
+		if err := json.Unmarshal(r.decrypt(t, p.bodies[i]), &got); err != nil {
+			t.Fatal(err)
+		}
+		if got.Kind != m.Kind || got.Title != m.Title || got.Body != m.Body || got.URL != m.URL || got.Tag != m.Tag || got.Collapse == nil || *got.Collapse != *m.Collapse {
+			t.Errorf("device %d got %+v", i, got)
+		}
+	}
+	var raw map[string]any
+	_ = json.Unmarshal(r1.decrypt(t, p.bodies[0]), &raw)
+	if c, _ := raw["collapse"].(map[string]any); c["bodyMany"] != "{count} new comments" || c["bodyOne"] == nil {
+		t.Errorf("payload %v", raw)
+	}
+}
+
+// TestSendToUserDropsGoneKeepsOthers: one dead device among several is
+// dropped, and the others still get the push.
+func TestSendToUserDropsGoneKeepsOthers(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	p.byPath = map[string]int{"/push/1": http.StatusGone}
+	for _, path := range []string{"/push/1", "/push/2"} {
+		if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(p.URL+path)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f.svc.SendToUser(ctx, f.alice, message())
+	if got := p.paths(); len(got) != 2 || got[0] != "/push/1" || got[1] != "/push/2" {
+		t.Fatalf("requests to %v", got)
+	}
+	if n, _ := f.svc.q.CountPushSubscriptionsByUser(ctx, f.alice); n != 1 {
+		t.Fatalf("%d subscriptions, want the live one", n)
+	}
+	f.subID(t, f.alice, p.URL+"/push/2")
+}
+
+// TestSendToUserAfterAccountMove: a device another member signed in on no
+// longer gets the first account's notifications.
+func TestSendToUserAfterAccountMove(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	r := newReceiver(t)
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.Subscribe(ctx, f.bob, r.sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	f.svc.SendToUser(ctx, f.alice, message())
+	if len(p.paths()) != 0 {
+		t.Fatal("alice's notification reached bob's device")
+	}
+	f.svc.SendToUser(ctx, f.bob, message())
+	if len(p.paths()) != 1 {
+		t.Fatalf("%d requests for bob, want 1", len(p.paths()))
+	}
+}
+
+func TestSendTestOnlyOwnEndpoint(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.bob, newReceiver(t).sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.SendTest(ctx, f.alice, ep, message()); !errors.Is(err, ErrUnknownSubscription) {
+		t.Fatalf("err %v, want ErrUnknownSubscription", err)
+	}
+	if len(p.paths()) != 0 {
+		t.Fatal("test pushed to another account's device")
+	}
+	if err := f.svc.SendTest(ctx, f.bob, ep, message()); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.paths()) != 1 {
+		t.Fatalf("%d requests, want 1", len(p.paths()))
+	}
+}
+
+func TestSendTestGoneIsUnknown(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusGone)
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.SendTest(ctx, f.alice, ep, message()); !errors.Is(err, ErrUnknownSubscription) {
+		t.Fatalf("err %v, want ErrUnknownSubscription", err)
+	}
+	if n, _ := f.svc.q.CountPushSubscriptionsByUser(ctx, f.alice); n != 0 {
+		t.Fatal("gone subscription kept")
+	}
+}
+
+func TestSendTestThrottled(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.alice, newReceiver(t).sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	f.svc.now = func() time.Time { return now }
+	if err := f.svc.SendTest(ctx, f.alice, ep, message()); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(9 * time.Second)
+	if err := f.svc.SendTest(ctx, f.alice, ep, message()); !errors.Is(err, ErrTooSoon) {
+		t.Fatalf("err %v, want ErrTooSoon", err)
+	}
+	now = now.Add(time.Second)
+	if err := f.svc.SendTest(ctx, f.alice, ep, message()); err != nil {
+		t.Fatalf("after 10 s: %v", err)
+	}
+	if len(p.paths()) != 2 {
+		t.Fatalf("%d requests, want 2", len(p.paths()))
+	}
+}
+
+func TestTimerPayloadHasKind(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	p := newPushServer(t, f, http.StatusCreated)
+	r := newReceiver(t)
+	ep := p.URL + "/push/1"
+	if err := f.svc.Subscribe(ctx, f.alice, r.sub(ep)); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now)); err != nil {
+		t.Fatal(err)
+	}
+	f.svc.RunDue(ctx, now.Add(time.Second))
+	if len(p.bodies) != 1 {
+		t.Fatalf("%d requests", len(p.bodies))
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(r.decrypt(t, p.bodies[0]), &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["kind"] != "timer" {
+		t.Fatalf("payload %v", payload)
+	}
+	if _, ok := payload["collapse"]; ok {
+		t.Fatalf("timer payload carries collapse: %v", payload)
 	}
 }
