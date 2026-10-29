@@ -51,8 +51,8 @@
 </script>
 
 <!-- 44px on a phone, the floor for an action there; 36px from md up. On a
-     card the disc is smaller and its `::after` grows the target to 44px on
-     a phone. On a photo the phone disc reads like a caption: the lightbox's
+     card the disc is smaller and its `::after` grows the target to 44px
+     below `md`, whichever look the card has there. On a photo the phone disc reads like a caption: the lightbox's
      near-black, the same in both themes, translucent over a blurred patch,
      and a set star in the lighter orange, which keeps 3:1 against it where
      the light theme's primary does not. A toggle: the name stays,
@@ -63,19 +63,19 @@
 	aria-pressed={active}
 	aria-label={m.recipe_favorite()}
 	class="relative inline-flex items-center justify-center rounded-pill hover-tint transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {!card
-		? 'size-11 bg-surface shadow-card md:size-9'
+		? 'size-11 bg-surface shadow-card desk:size-9'
 		: photo
-			? 'size-6 bg-lightbox/60 backdrop-blur-sm after:absolute after:-inset-2.5 md:size-7 md:bg-surface md:shadow-card md:backdrop-blur-none md:after:hidden'
+			? 'size-6 bg-lightbox/60 backdrop-blur-sm after:absolute after:-inset-2.5 md:after:hidden desk:size-7 desk:bg-surface desk:shadow-card desk:backdrop-blur-none desk:after:-inset-2'
 			: 'size-7 bg-surface shadow-card after:absolute after:-inset-2 md:after:hidden'}"
 >
 	<StarIcon
 		bind:this={star}
-		class="{!card ? 'size-5' : photo ? 'size-3.5 md:size-4' : 'size-4'} {!photo
+		class="{!card ? 'size-5' : photo ? 'size-3.5 desk:size-4' : 'size-4'} {!photo
 			? active
 				? 'fill-primary text-primary'
 				: 'text-text-muted'
 			: active
-				? 'fill-lightbox-primary text-lightbox-primary md:fill-primary md:text-primary'
-				: 'text-lightbox-foreground md:text-text-muted'}"
+				? 'fill-lightbox-primary text-lightbox-primary desk:fill-primary desk:text-primary'
+				: 'text-lightbox-foreground desk:text-text-muted'}"
 	/>
 </button>

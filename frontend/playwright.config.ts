@@ -29,7 +29,14 @@ export default defineConfig({
 			name: 'webkit-masonry',
 			use: { ...devices['iPhone 15'] },
 			testMatch: /recipes\.test\.ts/,
-			grep: /text card|cards (never|re-flow)/
+			grep: /text card|cards (never|re-flow)|card per row/
+		},
+		// The desktop card sizes on the same native path.
+		{
+			name: 'webkit-desktop-masonry',
+			use: { ...devices['Desktop Safari'] },
+			testMatch: /recipes\.test\.ts/,
+			grep: /card size|overview columns/
 		}
 	]
 });

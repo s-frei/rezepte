@@ -52,8 +52,8 @@
 	const titleType = $derived(
 		`line-clamp-3 font-display font-medium hyphens-auto [hyphenate-limit-chars:6_3_3] [grid-area:1/1] ${
 			photo
-				? 'text-card-sm leading-snug md:text-card'
-				: 'pt-0.5 pr-8 text-card-cover wrap-anywhere md:pr-9'
+				? 'text-card-sm leading-snug desk:text-card'
+				: 'pt-0.5 pr-8 text-card-cover wrap-anywhere desk:pr-9'
 		}`
 	);
 </script>
@@ -68,7 +68,7 @@
 -->
 {#snippet tasty(compact: boolean)}
 	{#if !own || recipe.tastyCount > 0}
-		<span class="hidden md:inline-flex {own ? '' : 'pointer-events-auto relative'}">
+		<span class="hidden desk:inline-flex {own ? '' : 'pointer-events-auto relative'}">
 			<TastyButton
 				id={recipe.id}
 				active={recipe.tasty}
@@ -131,7 +131,7 @@
 <article
 	bind:this={cardEl}
 	aria-labelledby={titleId}
-	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none md:rounded-4xl card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] {rise ===
+	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
 	null
 		? ''
 		: 'motion-safe:animate-rise'} {photo ? 'bg-surface' : TINT_CLASSES[tintFor(recipe.id)]}"
@@ -140,7 +140,7 @@
 	{#if photo}
 		<!-- The photo sits inset from the card's edge on three sides; the
 		     text below is its fourth. -->
-		<div class="relative px-1.5 pt-1.5 md:px-2 md:pt-2">
+		<div class="relative px-1.5 pt-1.5 desk:px-2 desk:pt-2">
 			<img
 				src={imageUrl(recipe.id, recipe.coverImageId!, 'thumb')}
 				alt=""
@@ -148,7 +148,7 @@
 				decoding="async"
 				onerror={() => (failed = recipe.coverImageId)}
 				style:aspect-ratio={ratio}
-				class="block w-full rounded-xl object-cover md:rounded-2xl"
+				class="block w-full rounded-xl object-cover desk:rounded-2xl"
 			/>
 			<!-- From md up the button mirrors the star into the photo's
 			     bottom-left corner, 6px inside it: the photo box ends where the
@@ -169,7 +169,7 @@
 		     the star and the initials. -->
 		<span
 			aria-hidden="true"
-			class="pointer-events-none absolute top-1/2 right-2.5 -z-10 -translate-y-1/2 font-display text-initial-sm leading-none font-medium text-primary italic opacity-14 md:right-[18px] md:text-initial"
+			class="pointer-events-none absolute top-1/2 right-2.5 -z-10 -translate-y-1/2 font-display text-initial-sm leading-none font-medium text-primary italic opacity-14 desk:right-[18px] desk:text-initial"
 		>
 			{initialFor(recipe.title)}
 		</span>
@@ -180,8 +180,8 @@
 	     instead of the card. -->
 	<div
 		class={photo
-			? 'px-3 pt-2 pb-3 md:px-4 md:pt-2.5 md:pb-4'
-			: 'px-3 pt-3.5 pb-3 md:px-4 md:pt-5 md:pb-4'}
+			? 'px-3 pt-2 pb-3 desk:px-4 desk:pt-2.5 desk:pb-4'
+			: 'px-3 pt-3.5 pb-3 desk:px-4 desk:pt-5 desk:pb-4'}
 	>
 		<!-- The time runs above the title like the timing over a cookbook
 		     heading, a label rather than a pill: without the pill's padding
@@ -229,7 +229,7 @@
 				id={titleId}
 				class="-mb-[0.08em] pb-[0.08em] {titleType} {photo
 					? ''
-					: 'text-accent-foreground md:text-primary'}"
+					: 'text-accent-foreground desk:text-primary'}"
 			>
 				<!-- The anchor must not be positioned itself, or its `::after` would
 				     stretch over the title instead of over the card. -->
@@ -254,13 +254,13 @@
 		     the tasty count and the initials share the line below, one in
 		     each bottom corner. -->
 		<div
-			class="flex flex-wrap items-center gap-2 gap-y-1.5 md:flex-nowrap {photo
-				? 'mt-2 md:mt-2.5'
-				: 'mt-3.5 md:mt-[18px]'}"
+			class="flex flex-wrap items-center gap-2 gap-y-1.5 desk:flex-nowrap {photo
+				? 'mt-2 desk:mt-2.5'
+				: 'mt-3.5 desk:mt-[18px]'}"
 		>
 			{#if recipe.tags.length > 0}
 				<p
-					class="min-w-0 basis-full text-caption md:line-clamp-2 md:basis-auto md:whitespace-normal {photo
+					class="min-w-0 basis-full text-caption desk:line-clamp-2 desk:basis-auto desk:whitespace-normal {photo
 						? 'line-clamp-2 text-text-muted'
 						: 'truncate text-text'}"
 				>
@@ -274,7 +274,7 @@
 			     the tinted text card. Not positioned, so a tap falls through to
 			     the link. -->
 			{#if recipe.tastyCount > 0}
-				<span class="-mb-0.5 -ml-0.5 flex self-end md:hidden">
+				<span class="-mb-0.5 -ml-0.5 flex self-end desk:hidden">
 					<TastyButton id={recipe.id} count={recipe.tastyCount} readonly compact accent={photo} />
 				</span>
 			{/if}
@@ -286,7 +286,7 @@
 			     margin moves it from the text's 16px (12) inset to the corner's
 			     14px (12) for the circle, less the ring. -->
 			<div
-				class="-mr-0.5 -mb-0.5 ml-auto flex shrink-0 items-center gap-1.5 self-end md:-mr-1 md:-mb-1"
+				class="-mr-0.5 -mb-0.5 ml-auto flex shrink-0 items-center gap-1.5 self-end desk:-mr-1 desk:-mb-1"
 			>
 				{#if !photo}
 					{@render tasty(true)}
@@ -314,7 +314,7 @@
 	     On a phone the photo's corner is 18px at a 6px inset, so the 24px
 	     disc sits 12px from the card's edge; the text card's 28px disc sits
 	     10px in, its center on the 24px corner's. -->
-	<div class="absolute {photo ? 'top-3 right-3' : 'top-2.5 right-2.5'} md:top-3.5 md:right-3.5">
+	<div class="absolute {photo ? 'top-3 right-3' : 'top-2.5 right-2.5'} desk:top-3.5 desk:right-3.5">
 		<FavoriteStar id={recipe.id} active={recipe.favorite} card {photo} />
 	</div>
 </article>

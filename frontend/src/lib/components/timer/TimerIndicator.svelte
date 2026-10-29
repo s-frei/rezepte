@@ -72,12 +72,14 @@
      (AppShell ends the page above it); from `md` the cook-mode capsule at
      the bottom right. The Toaster's offsets keep toasts clear of both. A
      ringing first timer turns it orange with "Aus" beside it. Only the nav
-     shares the bottom with it, so no page chrome has to know it exists. -->
+     shares the bottom with it, so no page chrome has to know it exists.
+     Named for view transitions like the nav, so the overview's cards glide
+     under it, not over it. -->
 {#if first}
 	<div
 		data-timer-indicator
 		bind:this={root}
-		class="fixed z-40 flex flex-col-reverse gap-2 transition-[left,right,bottom] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] motion-reduce:transition-none {place} {bottomNav.still
+		class="fixed z-40 flex flex-col-reverse gap-2 transition-[left,right,bottom] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:timers] motion-reduce:transition-none {place} {bottomNav.still
 			? 'transition-none'
 			: ''} md:inset-x-auto md:right-6 md:bottom-6 md:items-end {typing ? 'max-md:hidden' : ''}"
 	>

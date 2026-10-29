@@ -85,11 +85,14 @@
 	It never minimizes while reading. It steps aside while a field has focus,
 	and `AppShell` only renders it where one of its places is current
 	(`navPlace`).
+	Its own view-transition name keeps it above the overview's cards while
+	they glide to a new card size; unnamed, it would be part of the page's
+	picture under them.
 -->
 <div
 	bind:this={barEl}
 	data-docked={bottomNav.docked ? '' : undefined}
-	class="fixed inset-x-2 bottom-0 z-30 flex h-[calc(4rem+env(safe-area-inset-bottom))] origin-bottom items-center border border-border bg-surface px-2.5 pb-[env(safe-area-inset-bottom)] transition-[translate,scale,border-radius,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] motion-reduce:transition-none md:hidden {bottomNav.docked
+	class="fixed inset-x-2 bottom-0 z-30 flex h-[calc(4rem+env(safe-area-inset-bottom))] origin-bottom items-center border border-border bg-surface px-2.5 pb-[env(safe-area-inset-bottom)] transition-[translate,scale,border-radius,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:bottom-nav] motion-reduce:transition-none md:hidden {bottomNav.docked
 		? 'rounded-t-3xl border-b-transparent shadow-sheet'
 		: '-translate-y-[calc(0.75rem+env(safe-area-inset-bottom))] scale-95 rounded-dock shadow-card'} {bottomNav.still
 		? 'transition-none'

@@ -1,6 +1,10 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
+	import Columns2 from '@lucide/svelte/icons/columns-2';
+	import Grid3x3 from '@lucide/svelte/icons/grid-3x3';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+	import Square from '@lucide/svelte/icons/square';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto } from '$app/navigation';
@@ -20,12 +24,20 @@
 	import Select from '$lib/components/ui/Select.svelte';
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import ActiveFilters from '$lib/components/recipe/ActiveFilters.svelte';
+	import CardSizeControl from '$lib/components/recipe/CardSizeControl.svelte';
 	import FilterPanel from '$lib/components/recipe/FilterPanel.svelte';
 	import RecipeCard from '$lib/components/recipe/RecipeCard.svelte';
 	import RecipeGrid from '$lib/components/recipe/RecipeGrid.svelte';
 	import ResultCount from '$lib/components/recipe/ResultCount.svelte';
 	import SearchBar from '$lib/components/recipe/SearchBar.svelte';
 	import TagFilter from '$lib/components/recipe/TagFilter.svelte';
+	import {
+		cardSize,
+		setCardSize,
+		setPhoneColumns,
+		type CardSize,
+		type PhoneColumns
+	} from '$lib/recipe/card-size.svelte';
 	import { formatDay } from '$lib/recipe/format';
 	import { overviewViewState } from '$lib/recipe/overview-state';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '$lib/recipe/query';
@@ -378,6 +390,73 @@
 		{ value: 'tasty', label: m.overview_sort_tasty() }
 	];
 
+	const sizeOptions = [
+		{ value: 'small' as CardSize, label: m.overview_card_size_small(), icon: Grid3x3 },
+		{ value: 'medium' as CardSize, label: m.overview_card_size_medium(), icon: LayoutGrid },
+		{ value: 'large' as CardSize, label: m.overview_card_size_large(), icon: Square }
+	];
+	const columnOptions = [
+		{ value: 2 as PhoneColumns, label: m.overview_columns_two(), icon: Columns2 },
+		{ value: 1 as PhoneColumns, label: m.overview_columns_one(), icon: Square }
+	];
+
+	/**
+	 * Changes the card size, and the cards on screen glide from their old
+	 * place and size to their new one. The grid lays itself out
+	 * synchronously (see RecipeGrid), so once Svelte's update settles the
+	 * new layout is there to measure: the view transition takes a picture
+	 * of each named card before and after and morphs between them. Only the
+	 * cards on screen before or after are named: a picture of every card in
+	 * a long list held the first frame up for cards nobody sees move. The
+	 * first card that starts on screen stays where it was - every card
+	 * moves when the columns change, and a reader far down the list would
+	 * otherwise lose their place. Reduced motion and a browser without view
+	 * transitions get the new layout at once.
+	 */
+	async function resize(change: () => void) {
+		const cards = [...document.querySelectorAll<HTMLElement>('main article')];
+		const onScreen = (card: HTMLElement) => {
+			const box = card.getBoundingClientRect();
+			return box.bottom > 0 && box.top < window.innerHeight;
+		};
+		const name = (card: HTMLElement) => {
+			card.style.setProperty('view-transition-name', `card-${cards.indexOf(card)}`);
+			card.style.setProperty('view-transition-class', 'card');
+		};
+		// A card cut off at the top is one the reader has already passed.
+		const anchor = cards
+			.filter((card) => card.getBoundingClientRect().top >= 0)
+			.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
+		const before = anchor?.getBoundingClientRect().top;
+		const animate =
+			'startViewTransition' in document &&
+			!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const named = animate ? cards.filter(onScreen) : [];
+		const update = async () => {
+			change();
+			await tick();
+			if (anchor && before !== undefined && window.scrollY > 0) {
+				window.scrollBy(0, anchor.getBoundingClientRect().top - before);
+			}
+			for (const card of cards) {
+				if (animate && !named.includes(card) && onScreen(card)) {
+					named.push(card);
+					name(card);
+				}
+			}
+		};
+		if (!animate) {
+			await update();
+			return;
+		}
+		named.forEach(name);
+		await document.startViewTransition(update).finished.catch(() => {});
+		for (const card of named) {
+			card.style.removeProperty('view-transition-name');
+			card.style.removeProperty('view-transition-class');
+		}
+	}
+
 	function handleSort(value: string) {
 		// Select's `value` is a plain string; narrowed back to Sort since
 		// sortOptions only ever offers the known values as options.
@@ -462,13 +541,20 @@
 			class="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted border-handle"
 		></span>
 		<ResultCount count={total} {filtered} />
-		<span aria-hidden="true">·</span>
-		<!-- A long weekday ("Donnerstag") does not fit a phone's line next to
-		     the count, so below sm the date goes without it. -->
-		<time datetime={todayIso}>
-			<span class="sm:hidden">{formatDay(today, { weekday: false })}</span>
-			<span class="hidden sm:inline">{formatDay(today)}</span>
-		</time>
+		<!-- On a phone the cards-per-row switch takes the date's place: a
+		     320px line has no room for both, and the search row below none
+		     for a third control. -->
+		<span aria-hidden="true" class="hidden md:inline">·</span>
+		<time datetime={todayIso} class="hidden md:inline">{formatDay(today)}</time>
+		<div class="self-center md:hidden">
+			<CardSizeControl
+				small
+				value={cardSize.phone}
+				options={columnOptions}
+				label={m.overview_columns()}
+				onchange={(columns) => resize(() => setPhoneColumns(columns))}
+			/>
+		</div>
 	</div>
 
 	<h1 class="font-display text-display-sm font-medium md:text-display-lg">
@@ -516,6 +602,14 @@
 			     too. A wrapper's display:none hides every descendant regardless
 			     of the descendant's own display value, which sidesteps the
 			     utility-order question entirely. -->
+			<div class="hidden md:block">
+				<CardSizeControl
+					value={cardSize.desktop}
+					options={sizeOptions}
+					label={m.overview_card_size()}
+					onchange={(size) => resize(() => setCardSize(size))}
+				/>
+			</div>
 			<div class="hidden shrink-0 md:block">
 				<Select
 					value={sort}
@@ -580,8 +674,9 @@
 		{#if showSkeleton}
 			<RecipeGrid>
 				{#each Array.from({ length: 8 }, (_, i) => i) as i (i)}
-					<div class="rounded-3xl bg-surface p-1.5 shadow-card md:rounded-4xl md:p-2">
-						<Skeleton class="aspect-[4/3] rounded-xl md:rounded-2xl" />
+					<!-- `desk:`, like the card it stands in for (see RecipeGrid). -->
+					<div class="rounded-3xl bg-surface p-1.5 shadow-card desk:rounded-4xl desk:p-2">
+						<Skeleton class="aspect-[4/3] rounded-xl desk:rounded-2xl" />
 						<div class="space-y-2 px-2.5 pt-2.5 pb-4">
 							<Skeleton class="h-3.5 w-3/4 rounded-sm" />
 							<Skeleton class="h-2.5 w-1/2 rounded-sm" />

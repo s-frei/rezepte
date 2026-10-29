@@ -802,8 +802,8 @@ test('the recipe title keeps the whole width on a phone', async ({ page }, testI
 // From `md` up a card carries the star and the tasty heart over its photo,
 // and the grid, not the card, owns the room they need: four fixed columns
 // squeezed a card to 160px at 768px, where the two 36px controls hid the
-// dish. So every width of the desktop layout keeps a column at 220px or
-// more, and the widest window still gets four, not a fifth.
+// dish. So at every card size and every width of the desktop layout a
+// column stays at 220px or more, which the widest content fits five of.
 test('overview columns leave a card room for its controls', async ({ page }, testInfo) => {
 	test.skip(
 		testInfo.project.name.startsWith('mobile'),
@@ -815,15 +815,179 @@ test('overview columns leave a card room for its controls', async ({ page }, tes
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveText([`Columns ${token}`]);
 
-	for (const width of [768, 820, 900, 1000, 1023, 1024, 1100, 1280, 1440, 1920]) {
-		await page.setViewportSize({ width, height: 900 });
-		const tracks = await page.evaluate(() => {
-			const grid = document.querySelector('main article')!.parentElement!;
-			return getComputedStyle(grid).gridTemplateColumns.split(' ').map(parseFloat);
-		});
-		expect(tracks.length, `columns at ${width}px`).toBeLessThanOrEqual(4);
-		expect(Math.min(...tracks), `column width at ${width}px`).toBeGreaterThanOrEqual(220);
+	for (const size of ['Small cards', 'Medium cards', 'Large cards']) {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.getByRole('radio', { name: size }).click();
+		for (const width of [768, 820, 900, 1000, 1023, 1024, 1100, 1280, 1440, 1920]) {
+			await page.setViewportSize({ width, height: 900 });
+			const tracks = await page.evaluate(() => {
+				const grid = document.querySelector('main article')!.parentElement!;
+				return getComputedStyle(grid).gridTemplateColumns.split(' ').map(parseFloat);
+			});
+			expect(tracks.length, `${size}: columns at ${width}px`).toBeLessThanOrEqual(5);
+			expect(tracks.length, `${size}: columns at ${width}px`).toBeGreaterThanOrEqual(2);
+			expect(Math.min(...tracks), `${size}: column width at ${width}px`).toBeGreaterThanOrEqual(
+				220
+			);
+		}
 	}
+});
+
+/** How many columns the overview's cards fill, once they stopped moving. */
+async function columnCount(page: Page) {
+	let last = '';
+	await expect
+		.poll(async () => {
+			const now = JSON.stringify(
+				await page
+					.getByRole('main')
+					.locator('article')
+					.evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().left))
+			);
+			const same = now === last;
+			last = now;
+			return same;
+		})
+		.toBe(true);
+	return new Set(JSON.parse(last) as number[]).size;
+}
+
+test('the card size sets how many cards share a row, and stays', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'a phone chooses between one and two per row');
+	const token = uniqueToken();
+	for (const i of [1, 2, 3, 4, 5, 6]) {
+		await createRecipe(page, { ...loadFixture(i), title: `Size ${i} ${token}` });
+	}
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(6);
+
+	// The default is today's grid: four at the page's widest.
+	await expect(page.getByRole('radio', { name: 'Medium cards' })).toBeChecked();
+	expect(await columnCount(page)).toBe(4);
+	// Icons only: under a mouse each names itself.
+	await page.getByRole('radio', { name: 'Small cards' }).hover();
+	await expect(
+		page.getByText('Small cards', { exact: true }).filter({ visible: true })
+	).toBeVisible();
+	for (const [size, columns] of [
+		['Small cards', 5],
+		['Large cards', 3]
+	] as const) {
+		await page.getByRole('radio', { name: size }).click();
+		await expect(page.getByRole('radio', { name: size })).toBeChecked();
+		expect(await columnCount(page), size).toBe(columns);
+	}
+
+	await page.reload();
+	await expect(page.getByRole('radio', { name: 'Large cards' })).toBeChecked();
+	expect(await columnCount(page)).toBe(3);
+});
+
+test('switching the card size keeps the card at the top in place', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'the desktop sizes move every card');
+	const token = uniqueToken();
+	for (let i = 0; i < 24; i++) {
+		await createRecipe(page, { ...loadFixture((i % 5) + 1), title: `Anchor ${i} ${token}` });
+	}
+	await page.setViewportSize({ width: 1280, height: 700 });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(24);
+	await columnCount(page);
+
+	// The reader has scrolled into the middle of the list; the first card
+	// that starts on screen is the one they are looking at.
+	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 3));
+	const first = () =>
+		page
+			.getByRole('main')
+			.locator('article')
+			.evaluateAll((all) => {
+				const tops = all.map((card) => card.getBoundingClientRect().top);
+				const top = Math.min(...tops.filter((y) => y >= 0));
+				return { index: tops.indexOf(top), top };
+			});
+	const before = await first();
+	const article = page.getByRole('main').locator('article').nth(before.index);
+	// Clicked in place: Playwright's click would scroll the control into view first.
+	await page
+		.getByRole('radio', { name: 'Small cards' })
+		.evaluate((radio: HTMLElement) => radio.click());
+	await columnCount(page);
+	await expect
+		.poll(async () => Math.abs((await article.boundingBox())!.y - before.top))
+		.toBeLessThanOrEqual(1);
+});
+
+test('one card per row on a phone shows the desktop card, and stays', async ({
+	page,
+	browser,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'the desktop chooses between three card sizes');
+	const token = uniqueToken();
+	// Somebody else's recipe, so the card has a tasty button to press.
+	const ola = `ola${token}`.slice(0, 20);
+	await createUser(page, { username: ola, role: 'user' });
+	const other = await browser.newContext();
+	const olaPage = await other.newPage();
+	await login(olaPage, ola);
+	await expect(olaPage).toHaveURL('/');
+	const recipe = await createRecipe(olaPage, { ...loadFixture(3), title: `Wide ${token}` });
+	await uploadImage(olaPage, recipe.id, tinyPng([200, 120, 40], 400, 300));
+	await other.close();
+	await createRecipe(page, { ...loadFixture(2), title: `Wide plain ${token}` });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(2);
+	expect(await columnCount(page)).toBe(2);
+
+	await page.getByRole('radio', { name: 'One per row' }).click();
+	expect(await columnCount(page)).toBe(1);
+	// The desktop card: the 28px star and 28px initials of the 28px corner.
+	for (const title of [`Wide ${token}`, `Wide plain ${token}`]) {
+		const article = card(page, title);
+		const star = await article.getByRole('button', { name: 'Favorite' }).boundingBox();
+		expect(star!.width, title).toBe(28);
+		const initials = await article.getByRole('button', { name: /^Added by/ }).boundingBox();
+		expect(initials!.height, title).toBe(28);
+	}
+	// Still a phone: the star and the heart are 28px discs, and their
+	// `::after` makes each a 44px target.
+	const photoCard = card(page, `Wide ${token}`);
+	for (const button of [
+		photoCard.getByRole('button', { name: 'Favorite' }),
+		photoCard.getByRole('button', { name: 'Tasty', exact: true }),
+		card(page, `Wide plain ${token}`).getByRole('button', { name: 'Favorite' })
+	]) {
+		const target = await button.evaluate((el: HTMLElement) => {
+			const after = getComputedStyle(el, '::after');
+			return after.display === 'none'
+				? el.offsetWidth
+				: el.offsetWidth - 2 * parseFloat(after.left);
+		});
+		expect(target).toBeGreaterThanOrEqual(44);
+	}
+
+	await page.reload();
+	await expect(page.getByRole('radio', { name: 'One per row' })).toBeChecked();
+	expect(await columnCount(page)).toBe(1);
+});
+
+test('the card size answers to the arrow keys', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'the same control on a phone has two options');
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(1), title: `Keys ${token}` });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(1);
+
+	// One tab stop, on the checked option; the arrows move and check.
+	await page.getByRole('radio', { name: 'Medium cards' }).focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(page.getByRole('radio', { name: 'Large cards' })).toBeChecked();
+	await expect(page.getByRole('radio', { name: 'Large cards' })).toBeFocused();
+	await page.keyboard.press('ArrowRight');
+	await expect(page.getByRole('radio', { name: 'Small cards' })).toBeChecked();
+	await expect(page.getByRole('radio', { name: 'Medium cards' })).toHaveAttribute('tabindex', '-1');
 });
 
 test('the colophon names the author, and the editor once somebody else edits', async ({

@@ -117,6 +117,7 @@
 
 	/* Overshoots and settles back - a card that springs up when picked. */
 	--ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+	--ease-glide: cubic-bezier(0.4, 0, 0.2, 1);
 	/* A card "Load more" brought, rising into its place in the list. */
 	--animate-rise: rise 520ms var(--ease-spring) both;
 
@@ -459,6 +460,42 @@
 		&:has(a:hover) {
 			@slot;
 		}
+	}
+}
+
+/*
+ * A new card size: each card glides from its old place and size to the new
+ * one (the overview's `resize` names them for the length of it). Long
+ * enough to follow one card with the eye. The curve sets off gently and
+ * settles without the spring's overshoot: the browser's pictures of the
+ * cards hold up the first frame or two, and an ease-out that covers a third
+ * of the way in those 50ms made the cards jump off the mark.
+ */
+::view-transition-group(.card) {
+	animation-duration: 450ms;
+	animation-timing-function: var(--ease-glide);
+}
+
+/* The old and the new picture of a card cross over in the first 140ms
+   only: crossed over the whole glide, a card whose title rewraps showed
+   both versions of it, one over the other, all the way. */
+::view-transition-old(.card),
+::view-transition-new(.card) {
+	animation-duration: 140ms;
+}
+
+/*
+ * The desktop card's look: from `md` up, and on a phone whose overview shows
+ * one card per row (`data-wide` on RecipeGrid), where a card is as wide as a
+ * desktop one. The recipe card and the marks on it use this in place of
+ * `md:`; anywhere else it is the same as `md:`.
+ */
+@custom-variant desk {
+	@media (width >= 48rem) {
+		@slot;
+	}
+	&:where([data-wide] *) {
+		@slot;
 	}
 }
 

@@ -120,6 +120,8 @@ test('Recipes scrolls to the top before it clears filters', async ({ page }) => 
 	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(0), title: `Filter ${token}` });
 	await page.goto(`/?q=${token}`);
+	// The list first: a scroll before it arrives is undone when it does.
+	await expect(page.getByRole('heading', { name: `Filter ${token}` })).toBeVisible();
 	await makeTall(page);
 	await page.mouse.wheel(0, 800);
 	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(120);

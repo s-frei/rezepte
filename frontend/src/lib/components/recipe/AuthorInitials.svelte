@@ -62,13 +62,15 @@
 	so the circles stay its first children with no wrapper around them.
 	Each size is the card corner's: the circles' center is the center of the
 	card's bottom-right corner, so 24px in a phone card's 24px corner at a
-	12px gap, 28px in the desktop card's 28px corner at 14px (see RecipeCard). -->
+	12px gap, 28px in the desktop card's 28px corner at 14px (see RecipeCard).
+	`desk:`, not the screen width: a phone showing one card per row shows the
+	desktop card. -->
 {#snippet circles()}
 	{#each people as person, index (person.id)}
 		<PersonMark
 			{person}
-			size={phone.current ? 'xs-plus' : 'sm'}
-			class="ring-2 ring-surface {index > 0 ? '-ml-1.5' : ''}"
+			size="xs-plus"
+			class="ring-2 ring-surface desk:size-7 {index > 0 ? '-ml-1.5' : ''}"
 		/>
 	{/each}
 	{#if fresh}

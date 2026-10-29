@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { cardSize } from '$lib/recipe/card-size.svelte';
 	import { placeCards } from '$lib/recipe/masonry';
 
 	// Layout only - the caller decides what goes in each cell (real
@@ -17,7 +18,17 @@
 	// children in DOM order, so tab and screen-reader order is newest-first,
 	// as it is with `grid-lanes`. `left`/`top` rather than `transform`: the
 	// hover tilt uses the individual `translate` and `rotate` properties.
+	//
+	// The card size is written here, not in the template, so the tracks
+	// change and the cards are placed in the same synchronous pass: by the
+	// time Svelte's update settles (`tick`), the new grid is laid out, which
+	// is what lets the overview animate the change from one layout to the
+	// next. Reading the size also attaches the layout afresh on a change,
+	// which the observer below would miss: new tracks leave the grid's width
+	// alone, and the width is all it answers to.
 	function masonry(grid: HTMLElement) {
+		grid.dataset.size = cardSize.desktop;
+		grid.toggleAttribute('data-wide', cardSize.phone === 1);
 		if (CSS.supports('display', 'grid-lanes')) return;
 		grid.style.position = 'relative';
 
@@ -109,16 +120,20 @@
      shortest column, in DOM order. Browsers with `display: grid-lanes` lay
      it out natively; the others get the `masonry` attachment above on the
      same column tracks.
-     From `md` up a card carries the star and the tasty heart over its photo,
-     and the column, not the card, guarantees them room: a track is never
-     narrower than 220px, so a window just past `md` gets three columns
-     instead of four 160px ones hidden under their controls, and never wider
-     than a quarter of the row, so a wide window still stops at four.
-     `auto-fill` rather than `auto-fit`: one search hit keeps a card's width
-     instead of stretching over the whole row. -->
+     The reader picks the card size (see card-size.svelte.ts). A phone shows
+     two columns, or one, and then `data-wide` gives the cards the desktop
+     look (the `desk:` variant). From `md` up each size is a minimum column
+     width the row is filled with: `auto-fill` rather than `auto-fit`, so
+     one search hit keeps a card's width instead of stretching over the
+     whole row. A card there carries the star and the tasty heart over its
+     photo, and 220px, the smallest, is what leaves the dish visible under
+     them; the page's widest content (1216px) holds five of those. -->
+<!-- Medium is the default track; `data-size` overrides it. Large never
+     falls below two columns: at 768px one 704px column would stand a
+     portrait photo almost 900px tall. -->
 <div
 	{@attach masonry}
-	class="grid grid-cols-2 items-start gap-2.5 supports-[display:grid-lanes]:[display:grid-lanes] md:grid-cols-[repeat(auto-fill,minmax(max(220px,calc((100%_-_3*20px)/4)),1fr))] md:gap-5"
+	class="grid grid-cols-2 items-start gap-2.5 supports-[display:grid-lanes]:[display:grid-lanes] max-md:data-wide:grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] md:gap-5 md:data-[size=large]:grid-cols-[repeat(auto-fill,minmax(min(360px,calc((100%_-_20px)/2)),1fr))] md:data-[size=small]:grid-cols-[repeat(auto-fill,minmax(220px,1fr))]"
 >
 	{@render children()}
 </div>

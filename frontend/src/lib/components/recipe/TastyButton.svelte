@@ -30,7 +30,9 @@
 		 * circle carries a 2px ring). */
 		compact?: boolean;
 		/** The 28px button on a card's photo, bottom-left, concentric with the
-		 * photo's corner (see RecipeCard). */
+		 * photo's corner (see RecipeCard). Below `md` - a phone showing one
+		 * card per row - its `::after` grows the target to 44px, the phone
+		 * floor for an action. */
 		card?: boolean;
 		/** Called once a change has been saved, with the new state. */
 		onchange?: (active: boolean) => void;
@@ -85,10 +87,10 @@
 	// set the mark, and 36px there from md up.
 	const pill = $derived(
 		compact
-			? 'h-7 gap-1 px-2.5 text-micro md:h-8 md:gap-[5px] md:px-[11px] md:text-caption [&_svg]:size-4 md:[&_svg]:size-[18px]'
+			? 'h-7 gap-1 px-2.5 text-micro desk:h-8 desk:gap-[5px] desk:px-[11px] desk:text-caption [&_svg]:size-4 desk:[&_svg]:size-[18px]'
 			: card
 				? 'h-7 gap-1 px-[9px] text-caption [&_svg]:size-4'
-				: 'h-11 gap-1.5 px-3 text-caption md:h-9 md:px-2.5 [&_svg]:size-5'
+				: 'h-11 gap-1.5 px-3 text-caption desk:h-9 desk:px-2.5 [&_svg]:size-5'
 	);
 </script>
 
@@ -116,7 +118,9 @@
 		aria-label={m.recipe_tasty()}
 		aria-describedby={countId}
 		title={countLabel}
-		class="inline-flex items-center rounded-pill bg-surface hover-tint font-semibold text-text shadow-card transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {pill}"
+		class="inline-flex items-center rounded-pill bg-surface hover-tint font-semibold text-text shadow-card transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {card
+			? 'relative after:absolute after:-inset-2 md:after:hidden'
+			: ''} {pill}"
 	>
 		<HeartIcon bind:this={heart} class={active ? 'fill-primary text-primary' : 'text-text-muted'} />
 		{#if count > 0}
