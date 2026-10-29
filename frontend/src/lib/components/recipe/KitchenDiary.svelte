@@ -1,28 +1,57 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import Check from '@lucide/svelte/icons/check';
+	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import Send from '@lucide/svelte/icons/send';
-	import { addComment, deleteComment, editComment, type Comment } from '$lib/api/comments';
+	import { ApiError } from '$lib/api/client';
+	import {
+		addComment,
+		addCommentImageToRecipe,
+		commentImageUrl,
+		deleteComment,
+		editComment,
+		listComments,
+		type Comment
+	} from '$lib/api/comments';
+	import { MAX_IMAGES } from '$lib/api/recipes';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
+	import Lightbox from '$lib/components/ui/Lightbox.svelte';
+	import { uploadErrorMessage } from '$lib/images/pick';
+	import { refusalOr } from '$lib/recipe/access';
 	import { groupByDay, sendable } from '$lib/recipe/diary';
+	import { revokePreviews, stagePhotos, unstage, type PendingPhoto } from '$lib/recipe/photos';
 	import { m } from '$lib/paraglide/messages';
 	import DiaryEntry from './DiaryEntry.svelte';
 	import DiaryField from './DiaryField.svelte';
+	import DiaryPhotos from './DiaryPhotos.svelte';
 
 	let {
 		recipeId,
-		entries = $bindable()
+		entries = $bindable(),
+		title,
+		canEdit,
+		onrecipephoto
 	}: {
 		recipeId: string;
 		/** Owned by the page, whose diary tab counts them. */
 		entries: Comment[];
+		/** The recipe's, for the lightbox. */
+		title: string;
+		/** The reader may edit the recipe, so may add a comment photo to its photos. */
+		canEdit: boolean;
+		/** A comment photo became a recipe photo: the page reloads the recipe. */
+		onrecipephoto?: () => void;
 	} = $props();
 
 	// The composer below the entries writes new ones only; an entry is
 	// edited in place, in its own bubble (DiaryEntry).
 	let draft = $state('');
+	let photos = $state<PendingPhoto[]>([]);
 	let busy = $state(false);
+	// The upload running during a send, for the Send button's label.
+	let progress = $state<{ n: number; count: number } | null>(null);
 	let deleting = $state<Comment | null>(null);
 	let confirmOpen = $state(false);
 	let composer = $state<HTMLTextAreaElement>();
@@ -36,20 +65,65 @@
 	const hintId = $props.id();
 	const fine = matchMedia('(pointer: fine)').matches;
 
+	// Switching recipes mid-send drops this diary; the answer must not land in the next one.
+	let destroyed = false;
+	onDestroy(() => (destroyed = true));
+
+	/**
+	 * After a 422 a comment may have landed all the same (an earlier try whose
+	 * answer was lost): the list from the server, keeping this visit's New marks.
+	 */
+	async function reload() {
+		try {
+			const fresh = await listComments(recipeId);
+			if (destroyed) return;
+			const known = new Map(entries.map((e) => [e.id, e.new]));
+			entries = fresh.map((c) => ({ ...c, new: known.get(c.id) ?? c.new }));
+		} catch {
+			// The list stays as it was.
+		}
+	}
+
+	function rejected(error: unknown) {
+		return error instanceof ApiError && error.status === 422;
+	}
+
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (blocked) return;
 		busy = true;
 		const sent = draft;
 		try {
-			entries = [...entries, await addComment(recipeId, sent)];
+			// Photos go up only now; on a failure the text and the photos stay,
+			// and those already up are not sent twice (stagePhotos).
+			const ids = await stagePhotos(recipeId, photos, (n, count) => {
+				progress = { n, count };
+				announcement = m.diary_sending_photo({ n, count });
+			});
+			progress = null;
+			const added = await addComment(recipeId, sent, ids);
+			if (destroyed) return;
+			if (!entries.some((e) => e.id === added.id)) entries = [...entries, added];
 			// Whatever was typed while it went out stays.
 			if (draft === sent) draft = '';
+			revokePreviews(photos);
+			photos = [];
 			announcement = m.diary_added();
-		} catch {
-			toast.error(m.diary_error_add());
+		} catch (error) {
+			if (progress) {
+				// The upload's own 422 (a photo too small, say) stays on its tile.
+				toast.error(uploadErrorMessage(error));
+			} else if (rejected(error)) {
+				// The comment's 422: a photo id is gone (evicted or swept); the next Send uploads them again.
+				toast.error(m.diary_error_add());
+				unstage(photos);
+				await reload();
+			} else {
+				toast.error(m.diary_error_add());
+			}
 		} finally {
 			busy = false;
+			progress = null;
 		}
 		// The disabled button dropped the focus; a phone would close its keyboard.
 		await tick();
@@ -57,13 +131,71 @@
 	}
 
 	/** Bound to one entry's id by its bubble, so a save cannot land elsewhere. */
-	async function save(id: number, body: string) {
+	async function save(id: number, body: string, imageIds: string[]) {
 		try {
-			const saved = await editComment(id, body);
+			const saved = await editComment(id, body, imageIds);
+			if (destroyed) return;
 			entries = entries.map((e) => (e.id === saved.id ? { ...saved, new: e.new } : e));
 		} catch (error) {
 			toast.error(m.diary_error_edit());
+			// The bubble unstages its photos (DiaryEntry).
+			if (rejected(error)) await reload();
 			throw error;
+		}
+	}
+
+	// One lightbox for every comment's photos, fed with the clicked comment's.
+	let viewingId = $state<number | null>(null);
+	const viewing = $derived(entries.find((e) => e.id === viewingId));
+	let lightboxOpen = $state(false);
+	let lightboxIndex = $state(0);
+	let adding = $state(false);
+	const noteId = `${hintId}-note`;
+
+	function openPhoto(entry: Comment, index: number) {
+		viewingId = entry.id;
+		lightboxIndex = index;
+		lightboxOpen = true;
+	}
+
+	function markInRecipe(commentId: number, imageId: string) {
+		entries = entries.map((e) =>
+			e.id === commentId
+				? {
+						...e,
+						images: e.images.map((i) => (i.id === imageId ? { ...i, inRecipe: true } : i))
+					}
+				: e
+		);
+	}
+
+	async function toRecipe(event: MouseEvent, index: number) {
+		// Once in the recipe the button turns disabled and drops the focus: Close takes it.
+		const close = (event.currentTarget as HTMLElement)
+			.closest('[role="dialog"]')
+			?.querySelector<HTMLElement>('[data-dialog-close]');
+		const entry = viewing;
+		const image = entry?.images[index];
+		if (!entry || !image || adding) return;
+		adding = true;
+		try {
+			await addCommentImageToRecipe(recipeId, image.id);
+			markInRecipe(entry.id, image.id);
+			close?.focus();
+			toast.success(m.diary_photo_to_recipe_done());
+			onrecipephoto?.();
+		} catch (error) {
+			// 409: someone else was quicker; the photo is there either way.
+			if (error instanceof ApiError && error.status === 409) {
+				markInRecipe(entry.id, image.id);
+				close?.focus();
+			} else if (error instanceof ApiError && error.status === 422) {
+				toast.error(m.images_limit_reached({ count: MAX_IMAGES }));
+			} else {
+				toast.error(refusalOr(error, m.diary_photo_to_recipe_error()));
+			}
+		} finally {
+			adding = false;
 		}
 	}
 
@@ -95,7 +227,9 @@
 			{#each day.entries as entry (entry.id)}
 				<DiaryEntry
 					{entry}
-					onsave={(body) => save(entry.id, body)}
+					{recipeId}
+					onsave={(body, imageIds) => save(entry.id, body, imageIds)}
+					onopenphoto={(index) => openPhoto(entry, index)}
 					ondelete={() => {
 						deleting = entry;
 						confirmOpen = true;
@@ -114,17 +248,30 @@
 		<div
 			class="flex flex-wrap items-end gap-2 rounded-3xl border border-border bg-surface-elevated py-1.5 pr-1.5 pl-4 shadow-card has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary md:py-2 md:pr-2 md:pl-4.5"
 		>
+			<!-- The tiles take a row of their own above; the picker sits before the field. -->
+			<DiaryPhotos bind:photos {busy} />
 			<DiaryField
 				bind:value={draft}
 				bind:element={composer}
-				label={m.diary_placeholder()}
+				readonly={busy}
+				label={photos.length ? m.diary_placeholder_photo() : m.diary_placeholder()}
 				describedby={fine ? hintId : undefined}
 				plain
 			/>
-			<!-- A round icon on a phone, the icon and its word from md. -->
-			<Button type="submit" size="sm" disabled={blocked} class="shrink-0 max-md:size-9 max-md:px-0">
+			<!-- A round icon on a phone, the icon and its word from md; the
+			     upload count shows on every screen while photos go up. -->
+			<Button
+				type="submit"
+				size="sm"
+				disabled={blocked}
+				class="shrink-0 whitespace-nowrap {progress ? '' : 'max-md:size-9 max-md:px-0'}"
+			>
 				<Send class="size-[18px]" aria-hidden="true" />
-				<span class="max-md:sr-only">{m.diary_add()}</span>
+				<span class={progress ? '' : 'max-md:sr-only'}>
+					{progress
+						? m.diary_sending_photo({ n: progress.n, count: progress.count })
+						: m.diary_add()}
+				</span>
 			</Button>
 		</div>
 		<!-- Only true with a keyboard and mouse: on a touch screen Enter breaks the line. -->
@@ -133,6 +280,43 @@
 		</p>
 	</form>
 </div>
+
+{#snippet toRecipeAction(index: number)}
+	{@const image = viewing?.images[index]}
+	{#if canEdit && image}
+		<div class="flex basis-full flex-wrap items-center gap-x-3 gap-y-1">
+			<button
+				type="button"
+				disabled={image.inRecipe}
+				aria-disabled={adding}
+				aria-describedby={image.inRecipe ? undefined : noteId}
+				onclick={(event) => toRecipe(event, index)}
+				class="inline-flex h-9 items-center gap-2 rounded-pill bg-lightbox-foreground/15 px-3.5 text-body-sm font-semibold whitespace-nowrap text-lightbox-foreground transition hover:bg-lightbox-foreground/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:bg-transparent disabled:px-0 disabled:font-medium disabled:opacity-70 aria-disabled:opacity-70"
+			>
+				{#if image.inRecipe}
+					<Check class="size-4" aria-hidden="true" />
+					{m.diary_photo_in_recipe()}
+				{:else}
+					<ImagePlus class="size-4" aria-hidden="true" />
+					{m.diary_photo_to_recipe()}
+				{/if}
+			</button>
+			{#if !image.inRecipe}
+				<p id={noteId} class="text-caption opacity-70">{m.diary_photo_to_recipe_note()}</p>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
+<Lightbox
+	bind:open={lightboxOpen}
+	bind:index={lightboxIndex}
+	{recipeId}
+	{title}
+	images={viewing?.images ?? []}
+	src={(id, variant) => commentImageUrl(recipeId, id, variant)}
+	action={toRecipeAction}
+/>
 
 <ConfirmDialog
 	bind:open={confirmOpen}

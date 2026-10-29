@@ -27,6 +27,12 @@ test('comments', async ({ page }, testInfo) => {
 		(el, gap) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - gap),
 		TAB_GAP
 	);
+	// The photo and the composer both stay in frame: if the page is taller than
+	// the viewport, scroll to the composer's bottom edge instead.
+	await comments.getByRole('textbox').evaluate((el) => {
+		const bottom = el.getBoundingClientRect().bottom;
+		if (bottom > window.innerHeight - 16) window.scrollBy(0, bottom - window.innerHeight + 16);
+	});
 	await shot(page, 'comments');
 });
 

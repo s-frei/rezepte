@@ -5,6 +5,7 @@
     "index",
     "set-cover",
     "upload-image",
+    "add-comment-image-to-recipe",
     "reorder-images",
     "delete-image",
     "get-image-file"

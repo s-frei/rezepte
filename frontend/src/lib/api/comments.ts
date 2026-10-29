@@ -1,5 +1,11 @@
-import type { Person } from './recipes';
+import type { Image, ImageVariant, Person } from './recipes';
 import { api } from './client';
+
+/** Most photos one comment can carry. */
+export const MAX_COMMENT_IMAGES = 4;
+
+/** A photo on a comment; never a recipe image unless `inRecipe`. */
+export type CommentImage = { id: string; width: number; height: number; inRecipe: boolean };
 
 /** One comment on a recipe, as the signed-in member sees it. */
 export type Comment = {
@@ -13,6 +19,7 @@ export type Comment = {
 	new: boolean;
 	canEdit: boolean;
 	canDelete: boolean;
+	images: CommentImage[];
 };
 
 const recipePath = (recipeId: string) => `/recipes/${encodeURIComponent(recipeId)}/comments`;
@@ -25,12 +32,43 @@ export async function listComments(recipeId: string): Promise<Comment[]> {
 	return comments;
 }
 
-export function addComment(recipeId: string, body: string): Promise<Comment> {
-	return api<Comment>(recipePath(recipeId), { method: 'POST', body: JSON.stringify({ body }) });
+/** `imageIds` is the full set of staged photos to attach; empty or left out attaches none. */
+export function addComment(recipeId: string, body: string, imageIds?: string[]): Promise<Comment> {
+	return api<Comment>(recipePath(recipeId), {
+		method: 'POST',
+		body: JSON.stringify({ body, imageIds })
+	});
 }
 
-export function editComment(id: number, body: string): Promise<Comment> {
-	return api<Comment>(`/comments/${id}`, { method: 'PATCH', body: JSON.stringify({ body }) });
+/** Omitting `imageIds` keeps the photos; passing it replaces the whole set. */
+export function editComment(id: number, body: string, imageIds?: string[]): Promise<Comment> {
+	return api<Comment>(`/comments/${id}`, {
+		method: 'PATCH',
+		body: JSON.stringify({ body, imageIds })
+	});
+}
+
+/** Stages one photo for the member's next comment. */
+export function uploadCommentImage(recipeId: string, file: File): Promise<CommentImage> {
+	const body = new FormData();
+	body.append('file', file, file.name);
+	return api<CommentImage>(`/recipes/${encodeURIComponent(recipeId)}/comment-images`, {
+		method: 'POST',
+		body
+	});
+}
+
+/** Like `imageUrl`, for a comment photo; same cookie and caching rules. */
+export function commentImageUrl(recipeId: string, imageId: string, variant: ImageVariant): string {
+	return `/images/${encodeURIComponent(recipeId)}/comments/${encodeURIComponent(imageId)}/${variant}.jpg`;
+}
+
+/** Copies a comment photo into the recipe's photos; 409 if it is already there. */
+export function addCommentImageToRecipe(recipeId: string, commentImageId: string): Promise<Image> {
+	return api<Image>(`/recipes/${encodeURIComponent(recipeId)}/images/from-comment`, {
+		method: 'POST',
+		body: JSON.stringify({ commentImageId })
+	});
 }
 
 export async function deleteComment(id: number): Promise<void> {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { Dialog } from 'bits-ui';
 	import { fade } from 'svelte/transition';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
@@ -16,17 +17,20 @@
 		recipeId,
 		title,
 		images,
-		src = (imageId, variant) => imageUrl(recipeId, imageId, variant)
+		src = (imageId, variant) => imageUrl(recipeId, imageId, variant),
+		action
 	}: {
 		open?: boolean;
 		/** Index into `images` of the picture on screen. */
 		index?: number;
 		recipeId: string;
 		title: string;
-		images: Image[];
+		images: Pick<Image, 'id' | 'width' | 'height'>[];
 		/** One rendition's URL. Defaults to the signed-in `/images/...` route;
 		 * the public share page passes its own `/public-images/...` route. */
 		src?: (imageId: string, variant: ImageVariant) => string;
+		/** Something to do with the picture on screen, in the header; it may take a row of its own. */
+		action?: Snippet<[index: number]>;
 	} = $props();
 
 	const count = $derived(images.length);
@@ -91,8 +95,9 @@
 						class="fixed inset-0 z-50 flex flex-col bg-lightbox text-lightbox-foreground"
 						transition:fade={{ duration: 200 }}
 					>
-						<header class="flex h-16 shrink-0 items-center gap-3 px-4 md:px-6">
-							<Dialog.Title class="truncate font-display text-body font-medium"
+						<header class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:px-6">
+							<!-- `flex-1` with a 0 basis: a long title truncates instead of wrapping the row. -->
+							<Dialog.Title class="min-w-0 flex-1 truncate font-display text-body font-medium"
 								>{title}</Dialog.Title
 							>
 							<span class="ml-auto text-body-sm tabular-nums opacity-70">
@@ -113,15 +118,20 @@
 							<Dialog.Close aria-label={m.lightbox_close()} class={iconButton}>
 								<X class="size-5" aria-hidden="true" />
 							</Dialog.Close>
+							{@render action?.(index)}
 						</header>
 						<Dialog.Description class="sr-only">{m.lightbox_title({ title })}</Dialog.Description>
 
+						<!-- Without the thumbnail strip below, the padding keeps the photo off the edge. -->
 						<!-- `role="group"`: a div carrying pointer handlers needs a role
 						     (svelte a11y_no_static_element_interactions), and the swipe
 						     area really is a group of image plus prev/next buttons. -->
 						<div
 							role="group"
-							class="relative flex min-h-0 flex-1 items-center justify-center px-4 md:px-20"
+							class="relative flex min-h-0 flex-1 items-center justify-center px-4 md:px-20 {count >
+							1
+								? ''
+								: 'pb-4 md:pb-6'}"
 							{onpointerdown}
 							{onpointerup}
 							onpointercancel={cancelSwipe}

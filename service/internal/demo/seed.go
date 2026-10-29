@@ -103,11 +103,13 @@ var memberRecipes = map[string][]int{
 // username (AdminUser for the demo person); ago places it in the past so the
 // diary shows "today", "yesterday" and a weekday. Sample 0's two are timed
 // for the user docs' frozen 10:30: a weekday and yesterday, both at dinner.
+// photo, when not 0, attaches that numbered photo (n.jpg) of the sample.
 type sampleComment struct {
 	index  int
 	author string
 	ago    time.Duration
 	text   map[user.Locale]string
+	photo  int
 }
 
 // memberComments are the demo's diary entries. Samples 0 and 3 are the
@@ -120,35 +122,35 @@ var memberComments = []sampleComment{
 	{0, "mila", 6*24*time.Hour + 14*time.Hour + 50*time.Minute, map[user.Locale]string{
 		"de": "Hab es mit Kartoffeln vom Markt gemacht, die mehligen sind hier wirklich besser.",
 		"en": "Made it with floury potatoes from the market, they really are better here.",
-	}},
+	}, 0},
 	{1, AdminUser, 4*24*time.Hour + 2*time.Hour, map[user.Locale]string{
 		"de": "Geht das auch ohne Rotwein?",
 		"en": "Does this work without the black pudding?",
-	}},
+	}, 0},
 	{1, "jonas", 3*24*time.Hour + 20*time.Hour, map[user.Locale]string{
 		"de": "Ja, mit kräftiger Brühe und einem Schuss Essig. Schmeckt anders, aber gut.",
 		"en": "Yes, add an extra sausage and some mushrooms. Different, but good.",
-	}},
+	}, 0},
 	{2, "jonas", 3 * 24 * time.Hour, map[user.Locale]string{
 		"de": "Die Soße ist mir zu dünn geworden, wie lange lässt du sie einkochen?",
 		"en": "My sauce came out too thin, how long do you reduce it?",
-	}},
+	}, 0},
 	{3, "jonas", 2*24*time.Hour + 5*time.Hour, map[user.Locale]string{
 		"de": "Doppelte Menge gemacht, nach einem Abend war nichts mehr da.",
 		"en": "Made a double batch, nothing was left after one evening.",
-	}},
+	}, 0},
 	{2, "mila", 2*24*time.Hour + 4*time.Hour, map[user.Locale]string{
 		"de": "Gut zehn Minuten, bis sie am Löffel hängen bleibt.",
 		"en": "A good ten minutes, until it coats the spoon.",
-	}},
+	}, 0},
 	{0, "jonas", 14*time.Hour + 45*time.Minute, map[user.Locale]string{
 		"de": "Ich habe die Kapern erst zum Schluss in die Soße gegeben, das gibt den letzten Pfiff.",
 		"en": "Ours needed 10 more minutes in the oven, otherwise the crust stays pale.",
-	}},
+	}, 3},
 	{3, "mila", 2 * time.Hour, map[user.Locale]string{
 		"de": "Beim nächsten Mal nehme ich etwas weniger Käse, die Röstzwiebeln bringen schon genug Würze mit.",
 		"en": "Next time I'll go lighter on the salt, the malt vinegar adds enough already.",
-	}},
+	}, 0},
 }
 
 // sampleAge is how long before Summary.Now the samples were written: older
@@ -234,6 +236,9 @@ type Summary struct {
 	// Now is the instant the samples were stamped at; SeedMembers dates the
 	// diary entries and the admin's API tokens from it.
 	Now time.Time
+	// ImageDir is where Seed wrote the images; SeedMembers adds comment
+	// photos below it.
+	ImageDir string
 }
 
 // Seed creates the sample recipes in locale's language, owned by the user
@@ -288,7 +293,7 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 		samples[lockedSample].EditPolicy = recipe.PolicyLocked
 	}
 	images := image.NewService(conn, imageDir)
-	sum := Summary{RecipeIDs: make([]string, len(samples)), Members: members, Now: now}
+	sum := Summary{RecipeIDs: make([]string, len(samples)), Members: members, Now: now, ImageDir: imageDir}
 	// The overview sorts by updated_at desc: seeding back to front puts the
 	// first sample on top.
 	for i := len(samples) - 1; i >= 0; i-- {
@@ -595,8 +600,10 @@ func shareSamples(ctx context.Context, shares *share.Service, actor user.User, s
 // only the entries after their own new.
 func seedComments(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) error {
 	ids := map[string]string{admin.Username: admin.ID}
+	members := map[string]user.User{admin.Username: admin}
 	for _, m := range sum.Members {
 		ids[m.Username] = m.ID
+		members[m.Username] = m
 	}
 	q := sqlc.New(conn)
 	for _, c := range memberComments {
@@ -619,11 +626,50 @@ func seedComments(ctx context.Context, conn *sql.DB, sum Summary, admin user.Use
 		if err != nil {
 			return fmt.Errorf("seed comment on sample %d: %w", c.index, err)
 		}
+		if c.photo > 0 {
+			if err := attachSamplePhoto(ctx, conn, sum, c, id, members[author]); err != nil {
+				return err
+			}
+		}
 		if err := q.RaiseCommentWatermark(ctx, sqlc.RaiseCommentWatermarkParams{
 			UserID: authorID, RecipeID: recipeID, LastSeen: id,
 		}); err != nil {
 			return fmt.Errorf("seed comment watermark: %w", err)
 		}
+	}
+	return nil
+}
+
+// attachSamplePhoto stages photo c.photo of the sample c is on as author and
+// attaches it to comment id. It writes the comment's rows directly, as
+// seedComments does: no TouchRecipe, so the recipe keeps its stamp, and no
+// mail. A sample without that photo gets none.
+func attachSamplePhoto(ctx context.Context, conn *sql.DB, sum Summary, c sampleComment, id int64, author user.User) error {
+	recipeID := sum.RecipeIDs[c.index]
+	q := sqlc.New(conn)
+	r, err := q.GetRecipe(ctx, recipeID)
+	if err != nil {
+		return fmt.Errorf("get sample %d: %w", c.index, err)
+	}
+	set, err := photosFor(r.Slug)
+	if err != nil || c.photo > len(set) {
+		return err
+	}
+	at := sum.Now.Add(-c.ago)
+	images := image.NewService(conn, sum.ImageDir)
+	images.SetClock(func() time.Time { return at })
+	staged, err := images.StageCommentImage(ctx, recipeID, author, bytes.NewReader(set[c.photo-1]))
+	if err != nil {
+		return fmt.Errorf("stage comment photo on sample %d: %w", c.index, err)
+	}
+	n, err := q.AttachCommentImages(ctx, sqlc.AttachCommentImagesParams{
+		CommentID: &id, Ids: `["` + staged.ID + `"]`, RecipeID: recipeID, UploaderID: &author.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("attach comment photo on sample %d: %w", c.index, err)
+	}
+	if n != 1 {
+		return fmt.Errorf("attach comment photo on sample %d: %d rows, want 1", c.index, n)
 	}
 	return nil
 }

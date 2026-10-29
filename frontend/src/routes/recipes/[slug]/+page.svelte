@@ -14,7 +14,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
 	import { markCommentsSeen } from '$lib/api/comments';
-	import { deleteRecipe } from '$lib/api/recipes';
+	import { deleteRecipe, getRecipeBySlug } from '$lib/api/recipes';
 	import type { PublicShare } from '$lib/api/shares';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -43,15 +43,19 @@
 	// re-rendering in the persistent top bar) can still land in that window.
 	// Guarding each one here, once, keeps every reader below safe without
 	// sprinkling `?.` through the whole template.
-	const recipe = $derived(data.recipe);
+	// Writable: a comment photo added to the recipe reloads only its photos.
+	let recipe = $derived(data.recipe);
+	// Its own derived, so a reloaded recipe does not renew the share link below.
+	const recipeId = $derived(recipe?.id);
 	const editHref = $derived(recipe && resolve('/recipes/[slug]/edit', { slug: recipe.slug }));
 	const cookHref = $derived(recipe && resolve('/recipes/[slug]/cook', { slug: recipe.slug }));
 	const settings = $derived(data.settings);
 
 	// The people behind the tasty count. Derived from the loaded recipe, and
 	// written over when the reader marks or unmarks it, so their own circle
-	// follows the button without reloading the recipe.
-	let tastyBy = $derived(recipe?.tastyBy ?? []);
+	// follows the button without reloading the recipe. From `data`, so
+	// `reloadPhotos` does not reset it.
+	let tastyBy = $derived(data.recipe?.tastyBy ?? []);
 	const ownRecipe = $derived(recipe && session.user?.id === recipe.createdBy.id);
 
 	function onTasty(active: boolean) {
@@ -143,7 +147,7 @@
 	// is reused for another slug, released when it goes.
 	let shareable: ShareLink | null = null;
 	$effect(() => {
-		const id = recipe?.id;
+		const id = recipeId;
 		if (!id) {
 			return;
 		}
@@ -151,6 +155,31 @@
 		shareable = link;
 		return () => link.destroy();
 	});
+
+	// Not `invalidateAll`: that reloads the comments too, dropping this
+	// visit's New marks. The gallery and the cover are all that changed.
+	async function reloadPhotos() {
+		const id = recipe.id;
+		try {
+			const fresh = await getRecipeBySlug(recipe.slug);
+			if (recipe?.id !== id) return;
+			// The reader's own marks come along: a new `recipe` resets the
+			// star's and the heart's local state to what it passes.
+			const { images, coverImageId, updatedAt, updatedBy, favorite, tasty, tastyCount } = fresh;
+			recipe = {
+				...recipe,
+				images,
+				coverImageId,
+				updatedAt,
+				updatedBy,
+				favorite,
+				tasty,
+				tastyCount
+			};
+		} catch {
+			// The photo is in the recipe; the gallery shows it on the next visit.
+		}
+	}
 
 	function copyRecipeLink() {
 		return copyLink(shareable?.url ?? location.href);
@@ -358,7 +387,13 @@
 	<!-- Without the entries (their load failed) the steps keep a plain heading. -->
 	{#snippet diary()}
 		<!-- RecipeView keys the tabs, and so this, on the recipe. -->
-		<KitchenDiary recipeId={recipe.id} bind:entries={diaryEntries} />
+		<KitchenDiary
+			recipeId={recipe.id}
+			bind:entries={diaryEntries}
+			title={recipe.title}
+			canEdit={recipe.canEdit}
+			onrecipephoto={reloadPhotos}
+		/>
 	{/snippet}
 	<article class="pt-6 md:pt-10">
 		<RecipeView

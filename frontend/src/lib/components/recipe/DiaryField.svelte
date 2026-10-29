@@ -9,6 +9,7 @@
 		describedby,
 		oncancel,
 		plain = false,
+		readonly = false,
 		class: extra = ''
 	}: {
 		value?: string;
@@ -21,6 +22,8 @@
 		oncancel?: () => void;
 		/** Inside the composer's box, which draws the edge and the focus ring. */
 		plain?: boolean;
+		/** A send is running: the text sent is the text shown. */
+		readonly?: boolean;
 		/** Placement in the caller's form row. */
 		class?: string;
 	} = $props();
@@ -60,6 +63,7 @@
 		bind:this={element}
 		bind:value
 		onkeydown={keydown}
+		{readonly}
 		rows="1"
 		placeholder={label}
 		aria-describedby={[describedby, over > 0 && overId].filter(Boolean).join(' ') || undefined}

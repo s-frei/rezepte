@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -27,20 +29,22 @@ var (
 	ErrNotCommentAuthor       = errors.New("only the person who wrote a comment may edit it")
 	ErrCommentDeleteForbidden = errors.New("only the person who wrote a comment or an admin may delete it")
 	ErrInvalidComment         = errors.New("a comment is 1 to 2000 characters of plain text")
+	ErrInvalidCommentImages   = errors.New("a comment carries up to 4 different photos the writer uploaded for this recipe")
 )
 
 // Comment is one comment on a recipe, as one viewer sees it.
 // Author is nil for a former member. New, CanEdit and CanDelete are for the
 // viewer the entry was loaded for.
 type Comment struct {
-	ID        int64      `json:"id"`
-	Author    *Person    `json:"author,omitempty" doc:"Who wrote the comment; absent once their account was removed"`
-	Body      string     `json:"body"`
-	CreatedAt time.Time  `json:"createdAt"`
-	EditedAt  *time.Time `json:"editedAt" nullable:"true"`
-	New       bool       `json:"new" doc:"Written by somebody else after the viewer last opened the recipe's comments; only ever true for the recipe's author and members with a comment on it"`
-	CanEdit   bool       `json:"canEdit"`
-	CanDelete bool       `json:"canDelete"`
+	ID        int64          `json:"id"`
+	Author    *Person        `json:"author,omitempty" doc:"Who wrote the comment; absent once their account was removed"`
+	Body      string         `json:"body"`
+	CreatedAt time.Time      `json:"createdAt"`
+	EditedAt  *time.Time     `json:"editedAt" nullable:"true"`
+	New       bool           `json:"new" doc:"Written by somebody else after the viewer last opened the recipe's comments; only ever true for the recipe's author and members with a comment on it"`
+	CanEdit   bool           `json:"canEdit"`
+	CanDelete bool           `json:"canDelete"`
+	Images    []CommentImage `json:"images" doc:"Photos in upload order; empty when there are none"`
 }
 
 // NormalizeCommentBody trims s, turns \r\n and \r into \n, and refuses an
@@ -117,13 +121,21 @@ func (s *Service) Comments(ctx context.Context, viewer user.User, recipeID strin
 	if err != nil {
 		return nil, err
 	}
+	photos, err := s.q.ListCommentImagesForRecipe(ctx, recipeID)
+	if err != nil {
+		return nil, fmt.Errorf("list comment images: %w", err)
+	}
+	byComment := make(map[int64][]sqlc.CommentImage)
+	for _, p := range photos {
+		byComment[*p.CommentID] = append(byComment[*p.CommentID], p)
+	}
 	follows := r.CreatedBy == viewer.ID
 	for _, row := range rows {
 		follows = follows || (row.AuthorID != nil && *row.AuthorID == viewer.ID)
 	}
 	out := make([]Comment, 0, len(rows))
 	for _, row := range rows {
-		c, err := toComment(row, people, viewer)
+		c, err := toComment(row, people, byComment[row.ID], viewer)
 		if err != nil {
 			return nil, err
 		}
@@ -133,13 +145,17 @@ func (s *Service) Comments(ctx context.Context, viewer user.User, recipeID strin
 	return out, nil
 }
 
-// AddComment stores body as viewer's entry on recipeID and, once committed,
-// tells the CommentNotifier. It leaves viewer's watermark alone: only
-// opening the comments clears what is new, so an entry somebody else wrote
-// meanwhile stays new until it was shown.
-func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, body string) (Comment, error) {
+// AddComment stores body as viewer's entry on recipeID with the photos
+// imageIDs, which viewer staged on recipeID, and, once committed, tells the
+// CommentNotifier. It leaves viewer's watermark alone: only opening the
+// comments clears what is new, so an entry somebody else wrote meanwhile
+// stays new until it was shown.
+func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, body string, imageIDs []string) (Comment, error) {
 	body, err := NormalizeCommentBody(body)
 	if err != nil {
+		return Comment{}, err
+	}
+	if err := checkCommentImageIDs(imageIDs); err != nil {
 		return Comment{}, err
 	}
 	var id int64
@@ -155,7 +171,7 @@ func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, bo
 		if err != nil {
 			return fmt.Errorf("insert comment: %w", err)
 		}
-		return nil
+		return attachCommentImages(ctx, q, id, recipeID, viewer.ID, imageIDs)
 	})
 	if err != nil {
 		return Comment{}, err
@@ -166,41 +182,142 @@ func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, bo
 	return s.comment(ctx, viewer, id)
 }
 
-// EditComment replaces the body of viewer's own entry id. The id stays, so
-// an edit never makes the entry new again for anyone.
-func (s *Service) EditComment(ctx context.Context, viewer user.User, id int64, body string) (Comment, error) {
+// EditComment replaces the body of viewer's own entry id. A non-nil
+// imageIDs is the full set of photos it keeps: ones not in it are removed,
+// new ones must be staged by viewer on the recipe; nil leaves the photos
+// alone. edited_at moves only when the body or the photo set changed, so a
+// no-op edit returns the entry as it was. The id stays, so an edit never
+// makes the entry new again for anyone.
+func (s *Service) EditComment(ctx context.Context, viewer user.User, id int64, body string, imageIDs *[]string) (Comment, error) {
 	body, err := NormalizeCommentBody(body)
 	if err != nil {
 		return Comment{}, err
 	}
-	row, err := s.getComment(ctx, id)
+	if imageIDs != nil {
+		if err := checkCommentImageIDs(*imageIDs); err != nil {
+			return Comment{}, err
+		}
+	}
+	var recipeID string
+	var removed []string
+	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := getComment(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		if row.AuthorID == nil || *row.AuthorID != viewer.ID {
+			return ErrNotCommentAuthor
+		}
+		recipeID = row.RecipeID
+		photosChanged := false
+		if imageIDs != nil {
+			current, err := q.ListCommentImageIDs(ctx, &id)
+			if err != nil {
+				return fmt.Errorf("list comment images: %w", err)
+			}
+			photosChanged = !slices.Equal(slices.Sorted(slices.Values(current)), slices.Sorted(slices.Values(*imageIDs)))
+		}
+		if photosChanged {
+			keep, err := json.Marshal(*imageIDs)
+			if err != nil {
+				return fmt.Errorf("marshal image ids: %w", err)
+			}
+			if removed, err = q.DeleteCommentImages(ctx, sqlc.DeleteCommentImagesParams{CommentID: &id, Keep: string(keep)}); err != nil {
+				return fmt.Errorf("delete comment images: %w", err)
+			}
+			if err := attachCommentImages(ctx, q, id, row.RecipeID, viewer.ID, *imageIDs); err != nil {
+				return err
+			}
+		}
+		if body == row.Body && !photosChanged {
+			return nil
+		}
+		edited := db.FormatTime(s.now())
+		if err := q.UpdateCommentBody(ctx, sqlc.UpdateCommentBodyParams{Body: body, EditedAt: &edited, ID: id}); err != nil {
+			return fmt.Errorf("update comment: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
 		return Comment{}, err
 	}
-	if row.AuthorID == nil || *row.AuthorID != viewer.ID {
-		return Comment{}, ErrNotCommentAuthor
-	}
-	edited := db.FormatTime(s.now())
-	if err := s.q.UpdateCommentBody(ctx, sqlc.UpdateCommentBodyParams{Body: body, EditedAt: &edited, ID: id}); err != nil {
-		return Comment{}, fmt.Errorf("update comment: %w", err)
-	}
+	s.removeCommentImageDirs(recipeID, removed)
 	return s.comment(ctx, viewer, id)
 }
 
-// DeleteComment removes entry id when viewer wrote it or is an admin.
+// DeleteComment removes entry id when viewer wrote it or is an admin, and
+// with it its photos.
 func (s *Service) DeleteComment(ctx context.Context, viewer user.User, id int64) error {
-	row, err := s.getComment(ctx, id)
+	var recipeID string
+	var removed []string
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		row, err := getComment(ctx, q, id)
+		if err != nil {
+			return err
+		}
+		own := row.AuthorID != nil && *row.AuthorID == viewer.ID
+		if !own && !viewer.Role.IsAdmin() {
+			return ErrCommentDeleteForbidden
+		}
+		recipeID = row.RecipeID
+		if removed, err = q.DeleteCommentImages(ctx, sqlc.DeleteCommentImagesParams{CommentID: &id, Keep: "[]"}); err != nil {
+			return fmt.Errorf("delete comment images: %w", err)
+		}
+		if err := q.DeleteComment(ctx, id); err != nil {
+			return fmt.Errorf("delete comment: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	own := row.AuthorID != nil && *row.AuthorID == viewer.ID
-	if !own && !viewer.Role.IsAdmin() {
-		return ErrCommentDeleteForbidden
-	}
-	if err := s.q.DeleteComment(ctx, id); err != nil {
-		return fmt.Errorf("delete comment: %w", err)
+	s.removeCommentImageDirs(recipeID, removed)
+	return nil
+}
+
+// checkCommentImageIDs refuses more than MaxCommentImages ids and duplicates.
+func checkCommentImageIDs(ids []string) error {
+	if len(ids) > MaxCommentImages || len(slices.Compact(slices.Sorted(slices.Values(ids)))) != len(ids) {
+		return ErrInvalidCommentImages
 	}
 	return nil
+}
+
+// attachCommentImages hands the photos ids, which uploaderID staged on
+// recipeID or which already belong to commentID, to comment commentID. Any
+// id that is not such a photo refuses all of them.
+func attachCommentImages(ctx context.Context, q *sqlc.Queries, commentID int64, recipeID, uploaderID string, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	idsJSON, err := json.Marshal(ids)
+	if err != nil {
+		return fmt.Errorf("marshal image ids: %w", err)
+	}
+	n, err := q.AttachCommentImages(ctx, sqlc.AttachCommentImagesParams{
+		CommentID: &commentID, Ids: string(idsJSON), RecipeID: recipeID, UploaderID: &uploaderID,
+	})
+	if err != nil {
+		return fmt.Errorf("attach comment images: %w", err)
+	}
+	if n != int64(len(ids)) {
+		return ErrInvalidCommentImages
+	}
+	return nil
+}
+
+// removeCommentImageDirs deletes the files of photos whose rows are gone.
+// Best effort, like Delete: a leftover directory is an orphan, not an
+// inconsistency.
+func (s *Service) removeCommentImageDirs(recipeID string, ids []string) {
+	if s.imageDir == "" {
+		return
+	}
+	for _, id := range ids {
+		if err := os.RemoveAll(CommentImageDir(s.imageDir, recipeID, id)); err != nil {
+			slog.Warn("remove comment image dir", "recipe", recipeID, "image", id, "err", err)
+		}
+	}
 }
 
 // MarkCommentsSeen raises viewerID's watermark on recipeID to upTo, the
@@ -248,8 +365,8 @@ func (s *Service) newCommentsFor(ctx context.Context, userID string, ids []strin
 	return out, nil
 }
 
-func (s *Service) getComment(ctx context.Context, id int64) (sqlc.RecipeComment, error) {
-	row, err := s.q.GetComment(ctx, id)
+func getComment(ctx context.Context, q *sqlc.Queries, id int64) (sqlc.RecipeComment, error) {
+	row, err := q.GetComment(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return sqlc.RecipeComment{}, ErrCommentNotFound
 	}
@@ -262,7 +379,7 @@ func (s *Service) getComment(ctx context.Context, id int64) (sqlc.RecipeComment,
 // comment loads one entry as viewer sees it right after viewer changed it,
 // so it is never new.
 func (s *Service) comment(ctx context.Context, viewer user.User, id int64) (Comment, error) {
-	row, err := s.getComment(ctx, id)
+	row, err := getComment(ctx, s.q, id)
 	if err != nil {
 		return Comment{}, err
 	}
@@ -270,7 +387,11 @@ func (s *Service) comment(ctx context.Context, viewer user.User, id int64) (Comm
 	if err != nil {
 		return Comment{}, err
 	}
-	return toComment(row, people, viewer)
+	photos, err := s.q.ListCommentImagesForComment(ctx, &id)
+	if err != nil {
+		return Comment{}, fmt.Errorf("list comment images: %w", err)
+	}
+	return toComment(row, people, photos, viewer)
 }
 
 // commentAuthors loads the people behind rows in one query.
@@ -302,12 +423,15 @@ func (s *Service) peopleByID(ctx context.Context, ids []string) (map[string]Pers
 	return people, nil
 }
 
-func toComment(row sqlc.RecipeComment, people map[string]Person, viewer user.User) (Comment, error) {
+func toComment(row sqlc.RecipeComment, people map[string]Person, photos []sqlc.CommentImage, viewer user.User) (Comment, error) {
 	created, err := db.ParseTime(row.CreatedAt)
 	if err != nil {
 		return Comment{}, err
 	}
-	c := Comment{ID: row.ID, Body: row.Body, CreatedAt: created}
+	c := Comment{ID: row.ID, Body: row.Body, CreatedAt: created, Images: make([]CommentImage, 0, len(photos))}
+	for _, p := range photos {
+		c.Images = append(c.Images, CommentImage{ID: p.ID, Width: int(p.Width), Height: int(p.Height), InRecipe: p.RecipeImageID != nil})
+	}
 	if row.EditedAt != nil {
 		edited, err := db.ParseTime(*row.EditedAt)
 		if err != nil {

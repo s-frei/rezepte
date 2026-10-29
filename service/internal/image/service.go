@@ -95,41 +95,48 @@ func (s *Service) Upload(ctx context.Context, recipeID string, actor user.User, 
 		if err != nil {
 			return err
 		}
-		n, err := q.CountImagesByRecipe(ctx, recipeID)
-		if err != nil {
-			return fmt.Errorf("count images: %w", err)
-		}
-		if n >= maxImages {
-			return ErrTooMany
-		}
-		pos, err := q.NextImagePosition(ctx, recipeID)
-		if err != nil {
-			return fmt.Errorf("next position: %w", err)
-		}
-		now := db.FormatTime(s.now())
-		inserted, err := q.InsertImage(ctx, sqlc.InsertImageParams{
-			ID: id, RecipeID: recipeID, Filename: id + ".jpg",
-			Width: int64(w.Width), Height: int64(w.Height), SizeBytes: w.Size,
-			Position: pos, CreatedAt: now,
-		})
-		if err != nil {
-			return fmt.Errorf("insert image: %w", err)
-		}
-		if row.CoverImageID == nil {
-			if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
-				return fmt.Errorf("set cover: %w", err)
-			}
-		} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
-			return fmt.Errorf("touch recipe: %w", err)
-		}
-		out = toImage(inserted)
-		return nil
+		out, err = s.insertRecipeImage(ctx, q, row, actor.ID, id, int64(w.Width), int64(w.Height), w.Size)
+		return err
 	})
 	if err != nil {
 		removeFiles(recipeDir, id)
 		return recipe.Image{}, err
 	}
 	return out, nil
+}
+
+// insertRecipeImage records the rendered files of image id as the last photo
+// of row, its cover when it has none, with actorID as the recipe's editor.
+// Errors: ErrTooMany.
+func (s *Service) insertRecipeImage(ctx context.Context, q *sqlc.Queries, row sqlc.Recipe, actorID, id string, width, height, size int64) (recipe.Image, error) {
+	n, err := q.CountImagesByRecipe(ctx, row.ID)
+	if err != nil {
+		return recipe.Image{}, fmt.Errorf("count images: %w", err)
+	}
+	if n >= maxImages {
+		return recipe.Image{}, ErrTooMany
+	}
+	pos, err := q.NextImagePosition(ctx, row.ID)
+	if err != nil {
+		return recipe.Image{}, fmt.Errorf("next position: %w", err)
+	}
+	now := db.FormatTime(s.now())
+	inserted, err := q.InsertImage(ctx, sqlc.InsertImageParams{
+		ID: id, RecipeID: row.ID, Filename: id + ".jpg",
+		Width: width, Height: height, SizeBytes: size,
+		Position: pos, CreatedAt: now,
+	})
+	if err != nil {
+		return recipe.Image{}, fmt.Errorf("insert image: %w", err)
+	}
+	if row.CoverImageID == nil {
+		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: actorID, UpdatedAt: now, ID: row.ID}); err != nil {
+			return recipe.Image{}, fmt.Errorf("set cover: %w", err)
+		}
+	} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actorID, UpdatedAt: now, ID: row.ID}); err != nil {
+		return recipe.Image{}, fmt.Errorf("touch recipe: %w", err)
+	}
+	return toImage(inserted), nil
 }
 
 // guard runs recipe.GuardEdit and translates its not-found into this

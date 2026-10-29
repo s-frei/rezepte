@@ -6,7 +6,9 @@
     "list-comments",
     "edit-comment",
     "delete-comment",
+    "upload-comment-image",
     "add-comment",
-    "mark-comments-seen"
+    "mark-comments-seen",
+    "get-comment-image-file"
   ]
 }

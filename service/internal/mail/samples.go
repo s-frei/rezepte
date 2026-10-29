@@ -58,8 +58,9 @@ var audiences = map[string]struct {
 
 // Samples has every template in English and German, with the demo's people.
 // picture is a JPEG the comment sample to the creator shows as the author's
-// picture; the other comment sample shows the initial. photos are mail
-// photos of the dishes in dishes, in that order; a missing one is a card
+// picture; the other comment samples show the initial. photos are mail
+// photos of the dishes in dishes, in that order, and the first two are what
+// the comment sample with photos shows; a missing one is a card
 // without photo. TestEveryTemplateHasASample fails for a template missing
 // here.
 func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
@@ -154,14 +155,18 @@ func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
 				return BuildIdentityLinked(cfg, IdentityLinked{To: to, Username: username, Admin: v.admin, Provider: "Pocket ID", Origin: v.origin, At: now, Locale: locale, Owner: v.owner}, publicURL, now)
 			})
 		}
-		for _, reason := range []CommentReason{ReasonCreated, ReasonCommented} {
+		for _, v := range []struct {
+			name   string
+			reason CommentReason
+			photos [][]byte
+		}{{"created", ReasonCreated, nil}, {"commented", ReasonCommented, nil}, {"photos", ReasonCommented, photos[:min(2, len(photos))]}} {
 			var avatar []byte
-			if reason == ReasonCreated {
+			if v.reason == ReasonCreated {
 				avatar = picture
 			}
-			variant("comment", string(reason), func(cfg Config, now time.Time) (Envelope, error) {
+			variant("comment", v.name, func(cfg Config, now time.Time) (Envelope, error) {
 				return BuildComment(cfg, Comment{To: "mila@example.org", RecipeTitle: p.recipe, RecipeURLPath: "/recipes/sample?tab=comments",
-					AuthorName: p.invited, AuthorColor: "sage", AuthorAvatar: avatar, Body: p.comment, At: now, Reason: reason,
+					AuthorName: p.invited, AuthorColor: "sage", AuthorAvatar: avatar, Body: p.comment, Photos: v.photos, At: now, Reason: v.reason,
 					Unsubscribe: links("comment"), Locale: locale}, publicURL, now)
 			})
 		}

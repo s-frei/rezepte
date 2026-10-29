@@ -30,10 +30,13 @@ type Comment struct {
 	// AuthorAvatar is the author's picture as JPEG; nil shows the initial.
 	AuthorAvatar []byte
 	Body         string
-	At           time.Time
-	Reason       CommentReason
-	Unsubscribe  Unsubscribe
-	Locale       user.Locale
+	// Photos are the comment's photos as JPEG (image.MailPhoto), in order;
+	// each is an inline part under the quote.
+	Photos      [][]byte
+	At          time.Time
+	Reason      CommentReason
+	Unsubscribe Unsubscribe
+	Locale      user.Locale
 }
 
 // userColors are the light values of --color-user-<color> and
@@ -80,6 +83,24 @@ func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Enve
 		avatar = "cid:" + cid
 		pictures = []inline{{CID: cid, JPEG: in.AuthorAvatar}}
 	}
+	domain := domainOf(cfg.From)
+	var photos []htmltemplate.URL
+	for i, p := range in.Photos {
+		cid := fmt.Sprintf("photo.%d.%s@%s", i, id, domain)
+		pictures = append(pictures, inline{CID: cid, JPEG: p})
+		photos = append(photos, htmltemplate.URL("cid:"+cid)) //nolint:gosec // G203: a cid: URL built from an index, hex and the sender domain.
+	}
+	more := ""
+	if n := len(in.Photos); n > 0 {
+		key := "mail_comment_photos_other"
+		if n == 1 {
+			key = "mail_comment_photos_one"
+		}
+		var err error
+		if more, err = text(in.Locale, key, map[string]string{"count": strconv.Itoa(n)}); err != nil {
+			return Envelope{}, err
+		}
+	}
 	return build(cfg, in.To, letter{
 		Name:        "comment",
 		Lang:        string(in.Locale),
@@ -91,10 +112,12 @@ func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Enve
 		Inline:      pictures,
 		Data: struct {
 			Title, Author, Initial, Bg, Fg, Body, Reason, URL string
+			More                                              string
 			Avatar                                            htmltemplate.URL
+			Photos                                            []htmltemplate.URL
 			At                                                time.Time
 		}{in.RecipeTitle, in.AuthorName, initial, bg, fg, in.Body,
-			string(in.Reason), publicURL + in.RecipeURLPath, htmltemplate.URL(avatar), in.At}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
+			string(in.Reason), publicURL + in.RecipeURLPath, more, htmltemplate.URL(avatar), photos, in.At}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
 	}, now)
 }
 

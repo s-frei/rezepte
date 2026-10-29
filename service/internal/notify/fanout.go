@@ -11,6 +11,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -71,6 +72,7 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 		return err
 	}
 	picture := s.picture(ctx, author)
+	photos := s.commentPhotos(ctx, r.ID, commentID)
 	recipients, err := s.q.ListCommentMailRecipients(ctx, sqlc.ListCommentMailRecipientsParams{RecipeID: recipeID, AuthorID: author.ID})
 	if err != nil {
 		return fmt.Errorf("list comment mail recipients: %w", err)
@@ -83,7 +85,7 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 		sctx, cancel := context.WithTimeout(ctx, sendTimeout)
 		err := s.mailer.SendComment(sctx, mail.Comment{
 			To: to.Email, RecipeTitle: r.Title, RecipeURLPath: "/recipes/" + url.PathEscape(r.Slug) + "?tab=comments",
-			AuthorName: author.DisplayName, AuthorColor: author.Color, AuthorAvatar: picture, Body: c.Body, At: at, Reason: reason,
+			AuthorName: author.DisplayName, AuthorColor: author.Color, AuthorAvatar: picture, Body: c.Body, Photos: photos, At: at, Reason: reason,
 			Unsubscribe: s.UnsubscribeLinks(to.ID, KindComment), Locale: user.Locale(to.Locale),
 		})
 		cancel()
@@ -93,6 +95,35 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 		mail.LogUnsent(ctx, "comment mail failed", to.ID, err)
 	}
 	return nil
+}
+
+// commentPhotos reads the photos of comment commentID for a mail, in order;
+// one that cannot be read is left out, and the mail goes without it.
+func (s *Service) commentPhotos(ctx context.Context, recipeID string, commentID int64) [][]byte {
+	if s.images == nil {
+		return nil
+	}
+	rows, err := s.q.ListCommentImagesForComment(ctx, &commentID)
+	if err != nil {
+		slog.WarnContext(ctx, "comment mail: photos unreadable", "comment", commentID, "err", err)
+		return nil
+	}
+	var photos [][]byte
+	for _, row := range rows {
+		f, err := s.images.OpenCommentImage(ctx, recipeID, row.ID, "thumb")
+		if err != nil {
+			slog.WarnContext(ctx, "comment mail: photo unreadable", "comment", commentID, "err", err)
+			continue
+		}
+		b, err := image.MailPhoto(f)
+		_ = f.Close()
+		if err != nil {
+			slog.WarnContext(ctx, "comment mail: photo unreadable", "comment", commentID, "err", err)
+			continue
+		}
+		photos = append(photos, b)
+	}
+	return photos
 }
 
 // picture reads u's picture for a mail; nil, and the mail shows the

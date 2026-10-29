@@ -655,6 +655,19 @@ func TestSeedMembersWriteTheKitchenDiary(t *testing.T) {
 	if got, want := entries[len(entries)-1].CreatedAt, ref.Add(-14*time.Hour-45*time.Minute); !got.Equal(want) {
 		t.Errorf("newest entry on sample 0 at %v, want %v (14h45m before the reference)", got, want)
 	}
+	// Jonas's last entry on sample 0 carries one of the sample's photos, and
+	// attaching it left the recipe's updated_at at the seed's fixed time.
+	if got := entries[len(entries)-1].Images; len(got) != 1 {
+		t.Errorf("newest entry on sample 0 has %d photos, want 1", len(got))
+	}
+	if stamp := ref.Add(-7 * 24 * time.Hour); !first.UpdatedAt.Equal(stamp) {
+		t.Errorf("sample 0 updated at %v after the diary, want %v", first.UpdatedAt, stamp)
+	}
+	for i, c := range entries[:len(entries)-1] {
+		if len(c.Images) != 0 {
+			t.Errorf("entry %d on sample 0 has photos", i)
+		}
+	}
 }
 
 // The admin holds three API tokens from the first start, so the API page's

@@ -16,6 +16,18 @@ type ApiToken struct {
 	CreatedAt   string
 }
 
+type CommentImage struct {
+	ID            string
+	RecipeID      string
+	CommentID     *int64
+	UploaderID    *string
+	RecipeImageID *string
+	Width         int64
+	Height        int64
+	SizeBytes     int64
+	CreatedAt     string
+}
+
 type EmailConfirmation struct {
 	ID        string
 	UserID    string

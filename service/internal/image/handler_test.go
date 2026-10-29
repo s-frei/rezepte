@@ -28,22 +28,32 @@ import (
 // image operations exactly as main.go wires them.
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
+	h, _, _, _ := newStack(t)
+	return h
+}
+
+// newStack is newHandler plus the token service and the id of "sam".
+// newStack also returns the image directory, for the tests that break files on disk.
+func newStack(t *testing.T) (http.Handler, *auth.TokenService, string, string) {
+	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
-	if _, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
+	sam, err := users.Create(context.Background(), user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
+	if err != nil {
 		t.Fatal(err)
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
+		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
 	auth.Register(srv.API(), sessions, false)
 	dir := filepath.Join(t.TempDir(), "images")
 	recipe.Register(srv.API(), recipe.NewService(conn, dir))
 	images := image.NewService(conn, dir)
 	image.Register(srv.API(), images)
-	return srv.Handler()
+	return srv.Handler(), tokens, sam.ID, dir
 }
 
 func doReq(h http.Handler, method, path string, body []byte, contentType string, cookie *http.Cookie) *httptest.ResponseRecorder {

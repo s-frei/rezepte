@@ -6,11 +6,9 @@
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import { toast } from 'svelte-sonner';
-	import { ApiError } from '$lib/api/client';
 	import {
 		ACCEPTED_IMAGE_TYPES,
 		MAX_IMAGES,
-		MAX_IMAGE_BYTES,
 		deleteImage,
 		imageUrl,
 		reorderImages,
@@ -18,6 +16,7 @@
 		uploadImage,
 		type Image
 	} from '$lib/api/recipes';
+	import { acceptFiles, uploadErrorMessage } from '$lib/images/pick';
 	import { m } from '$lib/paraglide/messages';
 	import { refusalOr } from '$lib/recipe/access';
 	import { newId } from '$lib/recipe/form';
@@ -103,45 +102,12 @@
 
 	onDestroy(() => tiles.forEach(revoke));
 
-	function accept(list: FileList | File[]): File[] {
-		const files = Array.from(list);
-		const typed = files.filter((file) => ACCEPTED_IMAGE_TYPES.includes(file.type));
-		if (typed.length < files.length) {
-			toast.error(m.images_rejected_type());
-		}
-		// The server would answer 413 anyway; refusing the file here saves
-		// pushing megabytes over the wire first.
-		const small = typed.filter((file) => file.size <= MAX_IMAGE_BYTES);
-		if (small.length < typed.length) {
-			toast.error(m.images_rejected_size());
-		}
-		const room = Math.max(0, MAX_IMAGES - tiles.length);
-		if (small.length > room) {
-			toast.error(m.images_limit_reached({ count: MAX_IMAGES }));
-		}
-		return small.slice(0, room);
-	}
-
-	/**
-	 * What went wrong with an upload, in the user's terms. 413 and 415 are the
-	 * rejections the pre-checks can still miss - a file whose reported type is
-	 * one thing and whose bytes are another, or a body that grew past the cap
-	 * on the way - so they name the actual limit instead of failing vaguely.
-	 */
-	function uploadError(error: unknown): string {
-		if (error instanceof ApiError) {
-			if (error.status === 413) {
-				return m.images_rejected_size();
-			}
-			if (error.status === 415) {
-				return m.images_rejected_type();
-			}
-		}
-		return refusalOr(error, m.images_upload_error());
-	}
-
 	function addFiles(list: FileList | File[]) {
-		for (const file of accept(list)) {
+		for (const file of acceptFiles(
+			Array.from(list),
+			MAX_IMAGES - tiles.length,
+			m.images_limit_reached({ count: MAX_IMAGES })
+		)) {
 			const tile: Tile = { id: newId(), url: URL.createObjectURL(file), file, uploading: !queued };
 			tiles.push(tile);
 			if (!queued) {
@@ -168,7 +134,7 @@
 				coverId = image.id; // the server made the first upload the cover
 			}
 		} catch (error) {
-			toast.error(uploadError(error));
+			toast.error(uploadErrorMessage(error));
 			const index = tiles.findIndex((t) => t.id === tile.id);
 			if (index !== -1) {
 				revoke(tiles[index]);

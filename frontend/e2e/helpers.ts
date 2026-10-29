@@ -468,6 +468,28 @@ export async function addDiaryEntry(page: Page, recipeId: string, body: string):
 	).toBe(201);
 }
 
+/** Writes a comment with one photo through the API; returns the photo's id. */
+export async function addDiaryPhoto(
+	page: Page,
+	recipeId: string,
+	body: string,
+	png: Buffer
+): Promise<string> {
+	const origin = new URL(page.url()).origin;
+	const up = await page.request.post(`/api/v1/recipes/${recipeId}/comment-images`, {
+		headers: { Origin: origin },
+		multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: png } }
+	});
+	expect(up.status(), `POST comment-images: ${await up.text()}`).toBe(201);
+	const { id } = (await up.json()) as { id: string };
+	const response = await page.request.post(`/api/v1/recipes/${recipeId}/comments`, {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { body, imageIds: [id] }
+	});
+	expect(response.status(), `POST comments: ${await response.text()}`).toBe(201);
+	return id;
+}
+
 /**
  * Allows or withdraws a person's right to create public links, through the
  * API as the signed-in admin. Withdrawing pauses their existing links -

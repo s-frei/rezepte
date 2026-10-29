@@ -2,7 +2,8 @@
 
 {{.Data.Author}} · {{datetime .Data.At}}
 {{.Data.Body}}
-
+{{with .Data.More}}{{.}}
+{{end}}
 {{t "mail_comment_button"}}: {{.Data.URL}}
 
 {{t (printf "mail_comment_reason_%s" .Data.Reason)}}

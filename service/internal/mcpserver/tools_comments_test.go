@@ -1,23 +1,34 @@
 package mcpserver
 
 import (
+	"crypto/rand"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/db"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 )
 
 type diaryEntry struct {
 	Author string `json:"author"`
 	Body   string `json:"body"`
 	New    bool   `json:"new"`
+	Photos int    `json:"photos"`
 }
 
 func TestKitchenDiaryTools(t *testing.T) {
 	e := newEnv(t)
 	r := e.seed(t, "Leek soup")
 	jana := e.member(t, "jana")
-	if _, err := e.svc.AddComment(t.Context(), jana, r.ID, "Kapern zum Schluss"); err != nil {
+	photo := strings.ToLower(rand.Text())
+	if err := sqlc.New(e.conn).InsertCommentImage(t.Context(), sqlc.InsertCommentImageParams{
+		ID: photo, RecipeID: r.ID, UploaderID: &jana.ID, Width: 800, Height: 600, SizeBytes: 1000, CreatedAt: db.FormatTime(time.Now()),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.AddComment(t.Context(), jana, r.ID, "Kapern zum Schluss", []string{photo}); err != nil {
 		t.Fatal(err)
 	}
 	cs := e.connect(t, auth.ScopeRecipesRead, auth.ScopeRecipesWrite)
@@ -28,8 +39,8 @@ func TestKitchenDiaryTools(t *testing.T) {
 		}](t, call(t, cs, "list_comments", map[string]any{"slug": r.Slug})).Comments
 	}
 
-	if got := list(); len(got) != 1 || got[0].Author != jana.DisplayName || !got[0].New {
-		t.Fatalf("list = %+v, want one new entry by %q", got, jana.DisplayName)
+	if got := list(); len(got) != 1 || got[0].Author != jana.DisplayName || !got[0].New || got[0].Photos != 1 {
+		t.Fatalf("list = %+v, want one new entry with one photo by %q", got, jana.DisplayName)
 	}
 	if err := e.users.Delete(t.Context(), e.owner, jana.ID); err != nil {
 		t.Fatal(err)

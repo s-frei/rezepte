@@ -20,7 +20,8 @@ const at = (iso: string, id = 1): Comment => ({
 	editedAt: null,
 	new: false,
 	canEdit: false,
-	canDelete: false
+	canDelete: false,
+	images: []
 });
 
 describe('groupByDay', () => {

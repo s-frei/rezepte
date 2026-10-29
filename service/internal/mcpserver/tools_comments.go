@@ -30,6 +30,7 @@ type commentOut struct {
 	CreatedAt time.Time  `json:"createdAt"`
 	EditedAt  *time.Time `json:"editedAt,omitempty"`
 	New       bool       `json:"new"`
+	Photos    int        `json:"photos" jsonschema:"How many photos the comment has"`
 }
 
 func (c caller) recipeID(ctx context.Context, in getIn) (string, error) {
@@ -51,7 +52,7 @@ func toCommentOut(c recipe.Comment) commentOut {
 	if c.Author != nil {
 		author = c.Author.DisplayName
 	}
-	return commentOut{Author: author, Body: c.Body, CreatedAt: c.CreatedAt, EditedAt: c.EditedAt, New: c.New}
+	return commentOut{Author: author, Body: c.Body, CreatedAt: c.CreatedAt, EditedAt: c.EditedAt, New: c.New, Photos: len(c.Images)}
 }
 
 func addListComments(s *mcp.Server, c caller) {
@@ -86,7 +87,7 @@ func addAddComment(s *mcp.Server, c caller) {
 		if err != nil {
 			return nil, nil, err
 		}
-		e, err := c.svc.AddComment(ctx, c.user, id, in.Body)
+		e, err := c.svc.AddComment(ctx, c.user, id, in.Body, nil)
 		if err != nil {
 			return nil, nil, toolError(ctx, fmt.Errorf("add comment: %w", err))
 		}

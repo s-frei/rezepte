@@ -163,6 +163,7 @@ func Register(api huma.API, svc *Service) {
 		return &coverOutput{}, nil
 	})
 	registerFile(api, svc)
+	registerCommentImages(api, svc)
 }
 
 // imageErr maps the service's domain errors to their HTTP status; anything
@@ -173,6 +174,8 @@ func imageErr(err error) error {
 		return huma.Error404NotFound(err.Error())
 	case errors.Is(err, recipe.ErrEditForbidden):
 		return huma.Error403Forbidden(err.Error())
+	case errors.Is(err, ErrAlreadyInRecipe):
+		return huma.Error409Conflict(err.Error())
 	case errors.Is(err, ErrUnsupported):
 		return huma.Error415UnsupportedMediaType(err.Error())
 	case errors.Is(err, ErrInvalid), errors.Is(err, ErrTooLarge), errors.Is(err, ErrTooMany), errors.Is(err, ErrBadOrder):

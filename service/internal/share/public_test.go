@@ -1,8 +1,11 @@
 package share_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	stdimage "image"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -318,5 +321,40 @@ func TestUnsubscribeShellCarriesThePublicHeaders(t *testing.T) {
 	checkPublicHeaders(t, "shell for /unsubscribe", s.do(http.MethodGet, "/unsubscribe?u=a&k=comment&s=x", "", nil))
 	if rec := s.do(http.MethodGet, "/unsubscribed", "", nil); rec.Header().Get("X-Robots-Tag") != "" {
 		t.Errorf("the shell for /unsubscribed says noindex")
+	}
+}
+
+// TestPublicImagesRefuseCommentPhotos: a photo on a comment is not a photo
+// of the recipe, so a public link never serves it - until somebody adds it
+// to the recipe photos, and then only under its new id.
+func TestPublicImagesRefuseCommentPhotos(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	img := stdimage.NewNRGBA(stdimage.Rect(0, 0, 64, 64))
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	photo, err := s.images.StageCommentImage(ctx, s.recipe.ID, s.member, &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.recipes.AddComment(ctx, s.member, s.recipe.ID, "Lecker", []string{photo.ID}); err != nil {
+		t.Fatal(err)
+	}
+	token := tokenOf(s.create(t, s.login(t, s.member), s.recipe.ID, `{"days":null}`))
+
+	if rec := s.do(http.MethodGet, "/public-images/"+token+"/"+photo.ID+"/thumb.jpg", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("comment photo: %d, want 404", rec.Code)
+	}
+	added, err := s.images.AddCommentImageToRecipe(ctx, s.recipe.ID, photo.ID, s.member)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rec := s.do(http.MethodGet, "/public-images/"+token+"/"+added.ID+"/thumb.jpg", "", nil); rec.Code != http.StatusOK {
+		t.Errorf("added photo: %d, want 200", rec.Code)
+	}
+	if rec := s.do(http.MethodGet, "/public-images/"+token+"/"+photo.ID+"/thumb.jpg", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("comment photo after adding: %d, want 404", rec.Code)
 	}
 }

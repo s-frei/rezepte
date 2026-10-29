@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	stdimage "image"
+	"image/jpeg"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -14,7 +16,9 @@ import (
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/avatar"
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -135,7 +139,7 @@ func (f fanout) recipe(t *testing.T, createdBy string) recipe.Recipe {
 
 func (f fanout) comment(t *testing.T, author user.User, recipeID string) int64 {
 	t.Helper()
-	c, err := f.recipes.AddComment(context.Background(), author, recipeID, "<b>Mehr Kreuzkümmel</b>")
+	c, err := f.recipes.AddComment(context.Background(), author, recipeID, "<b>Mehr Kreuzkümmel</b>", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,5 +368,59 @@ func TestSendFailuresAreLogged(t *testing.T) {
 	}
 	if strings.Contains(out, "@") {
 		t.Errorf("log holds an address: %s", out)
+	}
+}
+
+// A comment's photos are read once for the whole fan-out: every follower
+// gets the same bytes, made into mail photos from the _thumb.jpg files.
+func TestCommentMailCarriesPhotosLoadedOnce(t *testing.T) {
+	ctx := context.Background()
+	f := newFanout(t)
+	olga := f.person(t, "olga", user.RoleAdmin, true)
+	mia := f.person(t, "mia", user.RoleUser, true)
+	adam := f.person(t, "adam", user.RoleUser, true)
+	r := f.recipe(t, olga.ID)
+	f.comment(t, mia, r.ID) // mia follows: two followers get adam's comment
+	var ids []string
+	for i := range 2 {
+		id := fmt.Sprintf("0b7f2f4e-3c1d-4a8e-9f00-12345678900%d", i)
+		if err := sqlc.New(f.conn).InsertCommentImage(ctx, sqlc.InsertCommentImageParams{
+			ID: id, RecipeID: r.ID, UploaderID: &adam.ID, Width: 4, Height: 4, SizeBytes: 100, CreatedAt: db.FormatTime(time.Now()),
+		}); err != nil {
+			t.Fatal(err)
+		}
+		dir := recipe.CommentImageDir(f.imageDir, r.ID, id)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, stdimage.NewRGBA(stdimage.Rect(0, 0, 4, 4)), nil); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, id+"_thumb.jpg"), buf.Bytes(), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	c, err := f.recipes.AddComment(ctx, adam, r.ID, "mit Fotos", ids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.mailComment(ctx, r.ID, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.mailer.comments) != 2 {
+		t.Fatalf("sent %d mails, want 2", len(f.mailer.comments))
+	}
+	for _, m := range f.mailer.comments {
+		if len(m.Photos) != 2 || len(m.Photos[0]) == 0 {
+			t.Fatalf("mail to %s has %d photos", m.To, len(m.Photos))
+		}
+		if _, err := jpeg.Decode(bytes.NewReader(m.Photos[0])); err != nil {
+			t.Errorf("photo is no JPEG: %v", err)
+		}
+	}
+	if a, b := f.mailer.comments[0].Photos, f.mailer.comments[1].Photos; &a[0][0] != &b[0][0] {
+		t.Error("the second follower got a copy: photos were read per follower")
 	}
 }

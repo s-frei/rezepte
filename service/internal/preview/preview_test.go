@@ -314,3 +314,19 @@ func TestLinkJSON(t *testing.T) {
 		t.Errorf("json = %s", b)
 	}
 }
+
+func TestLinkPreviewRefusesCommentPhotos(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	photo, err := e.images.StageCommentImage(ctx, e.recipe.ID, e.owner, bytes.NewReader(pngBytes(t, 64, 64)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.recipes.AddComment(ctx, e.owner, e.recipe.ID, "Lecker", []string{photo.ID}); err != nil {
+		t.Fatal(err)
+	}
+	tok := token(t, e.share(t).Path)
+	if rec := e.cover("/link-preview/" + e.recipe.ID + "/" + photo.ID + "?share=" + tok); rec.Code != http.StatusNotFound {
+		t.Errorf("comment photo: %d, want 404", rec.Code)
+	}
+}

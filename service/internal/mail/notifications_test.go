@@ -293,3 +293,54 @@ func TestCircleWithoutName(t *testing.T) {
 		t.Errorf("initial = %q", initial)
 	}
 }
+
+func TestCommentMailCarriesPhotos(t *testing.T) {
+	in := comment("Nach dem Quote")
+	in.Photos = [][]byte{[]byte("\xff\xd8one"), []byte("\xff\xd8two")}
+	env, err := BuildComment(cfg, in, "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, p, pics := parts(t, env)
+	html := p["text/html"]
+	id := strings.TrimSuffix(strings.TrimPrefix(msg.Header.Get("Message-Id"), "<"), "@example.org>")
+	for i, want := range in.Photos {
+		cid := fmt.Sprintf("photo.%d.%s@example.org", i, id)
+		if !strings.Contains(html, `<img src="cid:`+cid+`"`) || pics[cid].contentType != "image/jpeg" || decoded(pics[cid]) != string(want) {
+			t.Errorf("photo %d (%s) missing: %v", i, cid, pics)
+		}
+	}
+	if strings.Index(html, `src="cid:photo.0.`) < strings.Index(html, "Nach dem Quote") {
+		t.Error("the photos come before the quote")
+	}
+	if n := bytes.Count(env.Data, []byte("Content-Id: <photo.")); n != 2 {
+		t.Errorf("%d photo parts, want 2", n)
+	}
+	if !strings.Contains(p["text/plain"], "+ 2 photos") {
+		t.Errorf("text part: %s", p["text/plain"])
+	}
+	in.Photos, in.Locale = in.Photos[:1], "de"
+	env, err = BuildComment(cfg, in, "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, p, _ = parts(t, env); !strings.Contains(p["text/plain"], "+ 1 Foto") || strings.Contains(p["text/plain"], "Fotos") {
+		t.Errorf("german text part: %s", p["text/plain"])
+	}
+}
+
+func TestCommentMailWithoutPhotosHasNone(t *testing.T) {
+	env, err := BuildComment(cfg, comment("hi"), "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, p, _ := parts(t, env)
+	if bytes.Contains(env.Data, []byte("photo.")) || strings.Contains(p["text/plain"], "+ ") {
+		t.Error("photo markup without photos")
+	}
+}
+
+func decoded(p picture) string {
+	b, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(p.raw))
+	return string(b)
+}

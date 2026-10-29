@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -18,6 +19,7 @@ import (
 )
 
 type env struct {
+	conn   *sql.DB
 	svc    *recipe.Service
 	users  *user.Service
 	tokens *auth.TokenService
@@ -60,7 +62,7 @@ func newEnv(t *testing.T) env {
 		t.Fatal(err)
 	}
 	base := caller{svc: svc, create: create, update: update, search: search}
-	return env{svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", base: base}
+	return env{conn: conn, svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", base: base}
 }
 
 // member creates a plain user, whose editing rights are narrower than the

@@ -230,6 +230,7 @@ func run() error {
 	notifications := notify.NewService(conn, signingKey, users, avatars, images, mailer, cfg.PublicURL)
 	sessions.SetNotifier(notifications)
 	go shares.SweepLoop(ctx, shareSweepInterval, logger)
+	go images.CommentImageSweepLoop(ctx, shareSweepInterval, logger)
 	digestDone := notifications.StartRecipeDigest(ctx)
 	pushes := push.NewService(conn, cfg.PublicURL, &http.Client{})
 	pushDone := pushes.Start(ctx)

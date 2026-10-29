@@ -19,6 +19,7 @@ func TestImageErr(t *testing.T) {
 		ErrTooLarge:                       422,
 		ErrTooMany:                        422,
 		ErrBadOrder:                       422,
+		ErrAlreadyInRecipe:                409,
 		fmt.Errorf("x: %w", ErrNotFound):  404,
 	} {
 		var se huma.StatusError

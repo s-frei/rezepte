@@ -2,24 +2,34 @@
 	import { tick } from 'svelte';
 	import { DropdownMenu } from 'bits-ui';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
-	import type { Comment } from '$lib/api/comments';
+	import { toast } from 'svelte-sonner';
+	import { ApiError } from '$lib/api/client';
+	import { commentImageUrl, type Comment } from '$lib/api/comments';
 	import Button from '$lib/components/ui/Button.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
+	import { uploadErrorMessage } from '$lib/images/pick';
 	import { entryTime, sendable } from '$lib/recipe/diary';
+	import { stagePhotos, unstage, type PendingPhoto } from '$lib/recipe/photos';
 	import { userColorClasses } from '$lib/user/color';
 	import { m } from '$lib/paraglide/messages';
 	import DiaryField from './DiaryField.svelte';
+	import DiaryPhotos from './DiaryPhotos.svelte';
 
 	let {
 		entry,
+		recipeId,
 		onsave,
-		ondelete
+		ondelete,
+		onopenphoto
 	}: {
 		/** `canEdit` means the signed-in member wrote it: right-aligned, in their own color. */
 		entry: Comment;
-		/** Saves a new body for this entry; rejects when the save failed. */
-		onsave: (body: string) => Promise<void>;
+		recipeId: string;
+		/** Saves a new body and the full set of photos; rejects when the save failed. */
+		onsave: (body: string, imageIds: string[]) => Promise<void>;
 		ondelete: () => void;
+		/** Opens the lightbox on this entry's photo `index`. */
+		onopenphoto: (index: number) => void;
 	} = $props();
 
 	const mine = $derived(entry.canEdit);
@@ -30,7 +40,9 @@
 	// Editing swaps this bubble for the composer, prefilled, in place.
 	let editing = $state(false);
 	let draft = $state('');
+	let photos = $state<PendingPhoto[]>([]);
 	let busy = $state(false);
+	let progress = $state<{ n: number; count: number } | null>(null);
 	let field = $state<HTMLTextAreaElement>();
 	let trigger = $state<HTMLButtonElement | null>(null);
 	// Set when "Edit" closes the menu, so the menu does not hand focus
@@ -40,6 +52,11 @@
 	function startEdit() {
 		editChosen = true;
 		draft = entry.body;
+		photos = entry.images.map((image) => ({
+			key: image.id,
+			preview: commentImageUrl(recipeId, image.id, 'thumb'),
+			staged: image
+		}));
 		editing = true;
 	}
 
@@ -62,12 +79,18 @@
 		if (busy || !sendable(draft)) return;
 		busy = true;
 		try {
-			await onsave(draft);
+			const ids = await stagePhotos(recipeId, photos, (n, count) => (progress = { n, count }));
+			progress = null;
+			await onsave(draft, ids);
 			await stopEdit();
-		} catch {
-			// The caller has said so; the draft stays for another try.
+		} catch (error) {
+			// A failed save has been toasted by the caller; the draft stays for another try.
+			if (progress) toast.error(uploadErrorMessage(error));
+			// 422: a picked photo's staged copy is gone; the next Save uploads them again.
+			else if (error instanceof ApiError && error.status === 422) unstage(photos);
 		} finally {
 			busy = false;
+			progress = null;
 		}
 	}
 </script>
@@ -88,18 +111,31 @@
 				bind:value={draft}
 				bind:element={field}
 				label={m.diary_edit_label()}
-				oncancel={stopEdit}
+				readonly={busy}
+				oncancel={busy ? undefined : stopEdit}
 				class="basis-full"
 			/>
+			<!-- Cancel drops the picked files; after a failed Save some may be up
+			     already, and the sweep takes those. While a save runs it waits. -->
+			<DiaryPhotos bind:photos {busy} />
 			<div class="ml-auto flex gap-2">
-				<Button variant="ghost" onclick={stopEdit}>{m.common_cancel()}</Button>
-				<Button type="submit" disabled={busy || !sendable(draft)}>
-					{m.common_save()}
+				<Button variant="ghost" disabled={busy} onclick={stopEdit}>{m.common_cancel()}</Button>
+				<Button type="submit" disabled={busy || !sendable(draft)} class="whitespace-nowrap">
+					{progress
+						? m.diary_sending_photo({ n: progress.n, count: progress.count })
+						: m.common_save()}
 				</Button>
 			</div>
 		</form>
 	{:else}
-		<div class="max-w-[82%] min-w-0 rounded-2xl diary-paper px-4 pt-1.5 pb-2 shadow-card {paper}">
+		<div
+			class="max-w-[82%] min-w-0 rounded-2xl diary-paper px-4 pt-1.5 pb-2 shadow-card {paper} {entry
+				.images.length
+				? entry.images.length === 1
+					? 'w-full md:w-auto'
+					: 'w-full'
+				: ''}"
+		>
 			<div
 				class="flex flex-wrap items-center gap-x-1.5 text-micro leading-[26px] {mine
 					? ''
@@ -161,6 +197,36 @@
 			>
 				{entry.body}
 			</p>
+			{#if entry.images.length}
+				{@const count = entry.images.length}
+				<!-- One photo fills the bubble on phones and is capped at 24rem from md up, where the bubble grows with its text; two to four share one row, even at 320px. -->
+				<ul
+					aria-label={m.diary_photos()}
+					class="mt-1.5 mb-0.5 {count > 1 ? 'grid grid-cols-4 gap-1' : 'max-w-full md:w-96'}"
+				>
+					{#each entry.images as image, index (image.id)}
+						<li>
+							<button
+								type="button"
+								onclick={() => onopenphoto(index)}
+								aria-label={m.images_open({ number: index + 1, count })}
+								class="block w-full overflow-hidden rounded-md bg-skeleton focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {count >
+								1
+									? 'aspect-square'
+									: 'aspect-[4/3]'}"
+							>
+								<img
+									src={commentImageUrl(recipeId, image.id, 'thumb')}
+									alt=""
+									loading="lazy"
+									decoding="async"
+									class="size-full object-cover"
+								/>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</div>
 	{/if}
 </li>

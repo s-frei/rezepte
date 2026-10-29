@@ -18,7 +18,7 @@ An AI assistant reaches the recipe collection over the Model Context Protocol: s
 | `add_tasty` | `recipes:write` | `idempotentHint`, `destructiveHint: false` | `Service.SetTasty(..., true)`; refused for the token owner's own recipe |
 | `remove_tasty` | `recipes:write` | `idempotentHint`, `destructiveHint: false` | `Service.SetTasty(..., false)` |
 | `list_comments` | `recipes:read` | `readOnlyHint` | `Service.Comments` for a recipe `id` or `slug`; each comment's author display name ("former member" when the account is gone), body, dates and `new`; marks nothing seen ([Recipe comments](/features/recipe-comments)) |
-| `add_comment` | `recipes:write` | `destructiveHint: false` | `Service.AddComment` for a recipe `id` or `slug`, as the token owner; the same body rules as REST |
+| `add_comment` | `recipes:write` | `destructiveHint: false` | `Service.AddComment` for a recipe `id` or `slug`, as the token owner; the same body rules as REST; text only, no photos |
 
 ## How it works
 
@@ -74,7 +74,7 @@ An AI assistant reaches the recipe collection over the Model Context Protocol: s
 
 - Over MCP the editing rights refuse nothing, because only an admin's token authenticates ([API tokens](/features/api-tokens)) and an admin may edit and delete every recipe. `connectAs` in `harness_test.go` registers the tools for a plain member to pin that they would.
 - No OAuth: claude.ai custom connectors need OAuth 2.1, which [OIDC login](/features/oidc) does not provide by itself - see [Roadmap](/roadmap). A static bearer token in a client configuration is the whole credential story; a client that tries OAuth discovery after a `401` gets a `404` problem body for every path under `/.well-known/` (see [Overview](/architecture/overview)).
-- No images over MCP - neither uploading one nor a URL a client could open without a session.
+- No images over MCP - neither uploading one nor a URL a client could open without a session. `list_comments` reports a comment's photos only as a `photos` count.
 - Tools only - no MCP resources or prompts.
 - No rate limiting, the same as the REST API.
 - `update_recipe` replaces the whole document; a model that omits a field changes it. Required `references` closes the one silent case; everything else is visible in the tool's own response.

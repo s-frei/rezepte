@@ -18,7 +18,8 @@ type CommentList struct {
 type commentListOutput struct{ Body CommentList }
 
 type commentBody struct {
-	Body string `json:"body" doc:"Plain text, 1 to 2000 characters after trimming"`
+	Body     string    `json:"body" doc:"Plain text, 1 to 2000 characters after trimming"`
+	ImageIDs *[]string `json:"imageIds,omitempty" maxItems:"4" doc:"Staged comment photo ids; on edit the full set to keep. Leave the field out (not null) to keep the photos as they are"`
 }
 
 type addCommentInput struct {
@@ -58,7 +59,7 @@ func commentError(err error) error {
 		return huma.Error404NotFound(err.Error())
 	case errors.Is(err, ErrNotCommentAuthor), errors.Is(err, ErrCommentDeleteForbidden):
 		return huma.Error403Forbidden(err.Error())
-	case errors.Is(err, ErrInvalidComment):
+	case errors.Is(err, ErrInvalidComment), errors.Is(err, ErrInvalidCommentImages):
 		return huma.Error422UnprocessableEntity(err.Error())
 	}
 	return err
@@ -103,7 +104,11 @@ func registerComments(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		c, err := svc.AddComment(ctx, u, in.ID, in.Body.Body)
+		var imageIDs []string
+		if in.Body.ImageIDs != nil {
+			imageIDs = *in.Body.ImageIDs
+		}
+		c, err := svc.AddComment(ctx, u, in.ID, in.Body.Body, imageIDs)
 		if err != nil {
 			return nil, commentError(err)
 		}
@@ -114,7 +119,8 @@ func registerComments(api huma.API, svc *Service) {
 		OperationID: "edit-comment",
 		Method:      http.MethodPatch,
 		Path:        "/api/v1/comments/{commentId}",
-		Summary:     "Change the text of one's own comment",
+		Summary:     "Change the text and photos of one's own comment",
+		Description: "Replaces the body and, when imageIds is present, the photo set. editedAt moves only when the body or the photos changed.",
 		Tags:        []string{"comments"},
 		Security:    auth.Protected(auth.ScopeRecipesWrite),
 		Errors:      []int{403, 404, 422},
@@ -123,7 +129,7 @@ func registerComments(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		c, err := svc.EditComment(ctx, u, in.CommentID, in.Body.Body)
+		c, err := svc.EditComment(ctx, u, in.CommentID, in.Body.Body, in.Body.ImageIDs)
 		if err != nil {
 			return nil, commentError(err)
 		}

@@ -135,3 +135,45 @@ func TestCommentScopes(t *testing.T) {
 		t.Fatalf("seen with read scope = %d", r.Code)
 	}
 }
+
+func TestCommentPhotoEndpoints(t *testing.T) {
+	h, conn := newRecipeHandlerWithConn(t)
+	testConns[t] = conn
+	t.Cleanup(func() { delete(testConns, t) })
+	sam := loginCookie(t, h)
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, loadFixtures(t)[0]), sam)
+	var created recipe.Recipe
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	mara := member(t, "mara")
+	cookie := loginAs(t, h, "mara", "pw")
+	base := "/api/v1/recipes/" + created.ID + "/comments"
+
+	five := make([]string, 5)
+	for i := range five {
+		five[i] = stagePhoto(t, "", created.ID, mara)
+	}
+	if r := doReq(h, http.MethodPost, base, mustMarshal(t, map[string]any{"body": "Fünf", "imageIds": five}), cookie); r.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("five photos = %d: %s", r.Code, r.Body)
+	}
+	add := doReq(h, http.MethodPost, base, mustMarshal(t, map[string]any{"body": "Zwei", "imageIds": five[:2]}), cookie)
+	if add.Code != http.StatusCreated {
+		t.Fatalf("add = %d: %s", add.Code, add.Body)
+	}
+	var c recipe.Comment
+	if err := json.Unmarshal(add.Body.Bytes(), &c); err != nil {
+		t.Fatal(err)
+	}
+	entry := "/api/v1/comments/" + strconv.FormatInt(c.ID, 10)
+	edit := doReq(h, http.MethodPatch, entry, mustMarshal(t, map[string]string{"body": "Nur Text"}), cookie)
+	if edit.Code != http.StatusOK {
+		t.Fatalf("edit = %d: %s", edit.Code, edit.Body)
+	}
+	if err := json.Unmarshal(edit.Body.Bytes(), &c); err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Images) != 2 {
+		t.Fatalf("an edit without imageIds dropped photos: %+v", c.Images)
+	}
+}

@@ -1,6 +1,8 @@
 {
 	"mail_comment_button": "Kommentar ansehen",
 	"mail_comment_heading": "Neuer Kommentar zu „{title}“",
+	"mail_comment_photos_one": "+ 1 Foto",
+	"mail_comment_photos_other": "+ {count} Fotos",
 	"mail_comment_reason_commented": "Du bekommst diese Mail, weil du dieses Rezept kommentiert hast.",
 	"mail_comment_reason_created": "Du bekommst diese Mail, weil dieses Rezept dir gehört.",
 	"mail_comment_subject": "{author} hat „{title}“ kommentiert",

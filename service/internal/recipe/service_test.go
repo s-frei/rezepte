@@ -261,11 +261,21 @@ func TestDeleteRemovesImageDirectory(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(recipeDir, "x.jpg"), []byte("jpg"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	photoDir := recipe.CommentImageDir(dir, created.ID, "photo")
+	if err := os.MkdirAll(photoDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(photoDir, "photo.jpg"), []byte("jpg"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if err := svc.Delete(ctx, created.ID, u); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(recipeDir); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("image dir still there: %v", err)
+	}
+	if _, err := os.Stat(photoDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("comment photo dir still there: %v", err)
 	}
 }
 

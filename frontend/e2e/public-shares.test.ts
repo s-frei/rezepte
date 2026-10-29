@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
 	addDiaryEntry,
+	addDiaryPhoto,
 	createPublicShare,
 	createRecipe,
 	createUser,
@@ -31,6 +32,7 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	await uploadImage(page, recipe.id, tinyPng());
 	await addDiaryEntry(page, recipe.id, 'Only for the household.');
+	const commentImageId = await addDiaryPhoto(page, recipe.id, 'A private photo', tinyPng());
 
 	try {
 		await setPublicShares(page, true);
@@ -58,6 +60,12 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 			// The comments stay in the household.
 			await expect(stranger.getByRole('tab', { name: /^Comments/ })).toHaveCount(0);
 			await expect(stranger.getByText('Only for the household.')).toHaveCount(0);
+			// ... and so do their photos, whichever way they are asked for.
+			await expect(stranger.getByText('A private photo')).toHaveCount(0);
+			const leaked = await stranger.request.get(
+				`/public-images/${token}/${commentImageId}/thumb.jpg`
+			);
+			expect(leaked.status()).toBe(404);
 			await expect(stranger.getByRole('link', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'More actions' })).toHaveCount(0);
