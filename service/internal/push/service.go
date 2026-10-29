@@ -47,6 +47,8 @@ var tick = 5 * time.Second
 // to a host of their choosing, an internal one included.
 var pushHosts = []string{
 	"fcm.googleapis.com",
+	// Chrome's newer endpoints; only this host, never all of google.com.
+	"jmt17.google.com",
 	"updates.push.services.mozilla.com",
 	"push.services.mozilla.com",
 	"web.push.apple.com",

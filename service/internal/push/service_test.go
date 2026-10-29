@@ -113,6 +113,8 @@ func TestSubscribeRejectsForeignEndpoint(t *testing.T) {
 		"https://fcm.googleapis.com.evil.example/x",
 		"https://evilfcm.googleapis.com/x",
 		"https://user@evil.example/x",
+		"https://google.com/fcm/send/x",
+		"https://evil.google.com/fcm/send/x",
 		"/relative",
 	} {
 		if err := f.svc.Subscribe(context.Background(), f.alice, r.sub(ep)); !errors.Is(err, ErrForeignEndpoint) {
@@ -121,6 +123,7 @@ func TestSubscribeRejectsForeignEndpoint(t *testing.T) {
 	}
 	for _, ep := range []string{
 		fcm,
+		"https://jmt17.google.com/fcm/send/x",
 		"https://updates.push.services.mozilla.com/wpush/v2/x",
 		"https://web.push.apple.com/x",
 		"https://wns2-par02p.notify.windows.com/w/?token=x",
