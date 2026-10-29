@@ -477,7 +477,7 @@ func TestRunDueSkipsAlarmCancelledMidBatch(t *testing.T) {
 
 func message() Message {
 	return Message{Kind: "comment", Title: "Rinderrouladen", Body: "Anna: Lecker!", URL: "/recipes/rinderrouladen?tab=comments", Tag: "comment:1",
-		Collapse: &Collapse{Title: "Rinderrouladen", BodyOne: "Anna: Lecker!", BodyMany: "{count} new comments"}}
+		Collapse: &Collapse{Title: "Rinderrouladen", BodyMany: "{count} new comments"}}
 }
 
 func (p *pushServer) paths() []string {
@@ -516,7 +516,7 @@ func TestSendToUserAllDevices(t *testing.T) {
 	}
 	var raw map[string]any
 	_ = json.Unmarshal(r1.decrypt(t, p.bodies[0]), &raw)
-	if c, _ := raw["collapse"].(map[string]any); c["bodyMany"] != "{count} new comments" || c["bodyOne"] == nil {
+	if c, _ := raw["collapse"].(map[string]any); c["bodyMany"] != "{count} new comments" || len(c) != 2 {
 		t.Errorf("payload %v", raw)
 	}
 }

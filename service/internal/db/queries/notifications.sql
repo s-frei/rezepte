@@ -28,11 +28,11 @@ SELECT CAST(EXISTS (
     WHERE g.user_id = sqlc.arg(user_id) AND g.grp = sqlc.arg(grp) AND g.channel = sqlc.arg(channel)
 ) AS BOOLEAN);
 
--- name: GetMailAlertState :one
-SELECT mail_failing_since, mail_alert_last_at FROM instance_settings WHERE id = 1;
+-- name: GetMailAlertLastAt :one
+SELECT mail_alert_last_at FROM instance_settings WHERE id = 1;
 
--- name: SetMailAlertState :exec
-UPDATE instance_settings SET mail_failing_since = ?, mail_alert_last_at = ? WHERE id = 1;
+-- name: SetMailAlertLastAt :exec
+UPDATE instance_settings SET mail_alert_last_at = ? WHERE id = 1;
 
 -- name: ListCommentRecipients :many
 -- Who a new comment by author_id on recipe_id goes to on channel: its

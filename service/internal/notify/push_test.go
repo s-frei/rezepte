@@ -91,7 +91,7 @@ func TestCommentPushToFollowersNotAuthor(t *testing.T) {
 	body := adam.DisplayName + ": <b>Mehr Kreuzkümmel</b>"
 	want := push.Message{
 		Kind: "comment", Title: "Neuer Kommentar zu „" + r.Title + "“", Body: body, URL: "/recipes/" + r.Slug + "?tab=comments", Tag: "comment:" + r.ID,
-		Collapse: &push.Collapse{Title: "Neue Kommentare zu „" + r.Title + "“", BodyOne: body, BodyMany: "{count} neue Kommentare"},
+		Collapse: &push.Collapse{Title: "Neue Kommentare zu „" + r.Title + "“", BodyMany: "{count} neue Kommentare"},
 	}
 	if m.Collapse == nil || *m.Collapse != *want.Collapse {
 		t.Errorf("collapse %+v, want %+v", m.Collapse, want.Collapse)

@@ -50,13 +50,12 @@ type Service struct {
 
 // DeliveryReporter hears how real sends go, so the owner can be warned
 // when mail stops getting out. MailFailed gets a setup failure only (see
-// setupError) with its reason; MailWorked follows every accepted send;
-// MailReconfigured follows a Save or Clear. The test send never reports:
+// setupError) with its reason; MailReset follows every accepted send and
+// every Save or Clear. The test send never reports:
 // the owner reads its error on screen.
 type DeliveryReporter interface {
 	MailFailed(ctx context.Context, reason string)
-	MailWorked(ctx context.Context)
-	MailReconfigured(ctx context.Context)
+	MailReset(ctx context.Context)
 }
 
 // SetReporter makes s report its sends to r; nil, the default, reports
@@ -171,7 +170,7 @@ func (s *Service) Save(ctx context.Context, actor user.User, c Config, keepPassw
 		return fmt.Errorf("set mail settings: %w", err)
 	}
 	if s.reporter != nil {
-		s.reporter.MailReconfigured(ctx)
+		s.reporter.MailReset(ctx)
 	}
 	return nil
 }
@@ -185,7 +184,7 @@ func (s *Service) Clear(ctx context.Context, actor user.User) error {
 		return fmt.Errorf("clear mail settings: %w", err)
 	}
 	if s.reporter != nil {
-		s.reporter.MailReconfigured(ctx)
+		s.reporter.MailReset(ctx)
 	}
 	return nil
 }
@@ -305,7 +304,7 @@ func (s *Service) deliver(ctx context.Context, to, what string, build func(Confi
 		return err
 	}
 	if s.reporter != nil {
-		s.reporter.MailWorked(ctx)
+		s.reporter.MailReset(ctx)
 	}
 	return nil
 }

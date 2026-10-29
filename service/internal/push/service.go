@@ -80,7 +80,6 @@ type Message struct {
 // tag. BodyMany holds a literal {count} the service worker fills.
 type Collapse struct {
 	Title    string `json:"title"`
-	BodyOne  string `json:"bodyOne"`
 	BodyMany string `json:"bodyMany"`
 }
 

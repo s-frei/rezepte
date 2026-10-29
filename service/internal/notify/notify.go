@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"slices"
 	"sync"
 	"time"
@@ -260,6 +261,16 @@ func (s *Service) SetPreferences(ctx context.Context, u user.User, set Prefs) (P
 		return Prefs{}, err
 	}
 	return s.Preferences(ctx, u)
+}
+
+// wanted is Wants for a send that is skipped when the answer is unknown:
+// a failed lookup is logged and sends nothing.
+func (s *Service) wanted(ctx context.Context, userID string, k Kind, ch Channel) bool {
+	on, err := s.Wants(ctx, userID, k, ch)
+	if err != nil {
+		slog.WarnContext(ctx, "notification preference lookup failed", "kind", k, "channel", ch, "err", err)
+	}
+	return on
 }
 
 // Wants reports whether userID gets k on ch: neither k nor its group is

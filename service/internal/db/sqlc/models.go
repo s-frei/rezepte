@@ -94,7 +94,6 @@ type InstanceSetting struct {
 	RecipeDigestHour       int64
 	RecipeDigestLastDay    string
 	VapidKey               []byte
-	MailFailingSince       string
 	MailAlertLastAt        string
 }
 

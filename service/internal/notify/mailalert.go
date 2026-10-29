@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db"
-	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -25,28 +24,20 @@ const mailAlertEvery = 24 * time.Hour
 func (s *Service) MailFailed(ctx context.Context, reason string) {
 	s.alertMu.Lock()
 	defer s.alertMu.Unlock()
-	st, err := s.q.GetMailAlertState(ctx)
+	lastAt, err := s.q.GetMailAlertLastAt(ctx)
 	if err != nil {
 		slog.WarnContext(ctx, "mail alert: state lookup failed", "err", err)
 		return
 	}
 	now := s.now()
-	due := st.MailFailingSince == ""
-	if !due {
-		last, err := db.ParseTime(st.MailAlertLastAt)
-		due = err != nil || now.Sub(last) >= mailAlertEvery
+	if last, err := db.ParseTime(lastAt); lastAt != "" && err == nil && now.Sub(last) < mailAlertEvery {
+		return
 	}
-	if st.MailFailingSince == "" {
-		st.MailFailingSince = db.FormatTime(now)
-	}
-	if due {
-		st.MailAlertLastAt = db.FormatTime(now)
-	}
-	if err := s.q.SetMailAlertState(ctx, sqlc.SetMailAlertStateParams(st)); err != nil {
+	if err := s.q.SetMailAlertLastAt(ctx, db.FormatTime(now)); err != nil {
 		slog.WarnContext(ctx, "mail alert: state update failed", "err", err)
 		return
 	}
-	if due && s.pusher != nil {
+	if s.pusher != nil {
 		detach(ctx, "mail alert", func(ctx context.Context) { s.pushMailFailing(ctx, reason) })
 	}
 }
@@ -59,12 +50,7 @@ func (s *Service) pushMailFailing(ctx context.Context, reason string) {
 		slog.WarnContext(ctx, "mail alert: owner lookup failed", "err", err)
 		return
 	}
-	on, err := s.Wants(ctx, owner.ID, KindMailFailing, ChannelPush)
-	if err != nil {
-		slog.WarnContext(ctx, "mail alert: preference lookup failed", "err", err)
-		return
-	}
-	if !on {
+	if !s.wanted(ctx, owner.ID, KindMailFailing, ChannelPush) {
 		return
 	}
 	loc := user.Locale(owner.Locale)
@@ -77,27 +63,13 @@ func (s *Service) pushMailFailing(ctx context.Context, reason string) {
 	s.pusher.SendToUser(ctx, owner.ID, push.Message{Kind: string(KindMailFailing), Title: title, Body: body, URL: "/settings/mail", Tag: "mail-failing"})
 }
 
-// MailWorked clears the failing state after a mail went out, so the next
-// failure alerts at once. It implements mail.DeliveryReporter.
-func (s *Service) MailWorked(ctx context.Context) {
+// MailReset clears the alert state after a mail went out or mail was set
+// up anew, so the next failure alerts at once. It implements
+// mail.DeliveryReporter.
+func (s *Service) MailReset(ctx context.Context) {
 	s.alertMu.Lock()
 	defer s.alertMu.Unlock()
-	st, err := s.q.GetMailAlertState(ctx)
-	if err != nil || st.MailFailingSince == "" {
-		return
-	}
-	st.MailFailingSince = ""
-	if err := s.q.SetMailAlertState(ctx, sqlc.SetMailAlertStateParams(st)); err != nil {
-		slog.WarnContext(ctx, "mail alert: state update failed", "err", err)
-	}
-}
-
-// MailReconfigured clears the whole alert state: the first failure with
-// new settings alerts at once. It implements mail.DeliveryReporter.
-func (s *Service) MailReconfigured(ctx context.Context) {
-	s.alertMu.Lock()
-	defer s.alertMu.Unlock()
-	if err := s.q.SetMailAlertState(ctx, sqlc.SetMailAlertStateParams{}); err != nil {
+	if err := s.q.SetMailAlertLastAt(ctx, ""); err != nil {
 		slog.WarnContext(ctx, "mail alert: state reset failed", "err", err)
 	}
 }

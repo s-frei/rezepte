@@ -201,8 +201,7 @@ type reports struct{ got []string }
 func (r *reports) MailFailed(_ context.Context, reason string) {
 	r.got = append(r.got, "failed:"+reason)
 }
-func (r *reports) MailWorked(context.Context)       { r.got = append(r.got, "worked") }
-func (r *reports) MailReconfigured(context.Context) { r.got = append(r.got, "reconfigured") }
+func (r *reports) MailReset(context.Context) { r.got = append(r.got, "reset") }
 
 // reportingSvc saves a server at host:port without sign-in and reports to
 // the returned recorder from then on.
@@ -236,7 +235,7 @@ func TestDeliverReportsSetupFailureAndSuccess(t *testing.T) {
 	if err := s.Clear(ctx, owner); err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"failed:connect", "reconfigured", "worked", "reconfigured"}; !slices.Equal(r.got, want) {
+	if want := []string{"failed:connect", "reset", "reset", "reset"}; !slices.Equal(r.got, want) {
 		t.Fatalf("reported %v, want %v", r.got, want)
 	}
 }
@@ -252,7 +251,7 @@ func TestDeliverReportsAuthRefusal(t *testing.T) {
 	if err := s.SendHint(context.Background(), Hint{To: "a@example.org"}); err == nil {
 		t.Fatal("SendHint succeeded with a refused login")
 	}
-	if want := []string{"reconfigured", "failed:auth"}; !slices.Equal(r.got, want) {
+	if want := []string{"reset", "failed:auth"}; !slices.Equal(r.got, want) {
 		t.Fatalf("reported %v, want %v", r.got, want)
 	}
 }

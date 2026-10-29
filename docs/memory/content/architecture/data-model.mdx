@@ -132,7 +132,6 @@ erDiagram
     integer recipe_digest_hour "0 to 23, 17 by default"
     text recipe_digest_last_day "local YYYY-MM-DD of the last digest, empty before"
     blob vapid_key "nullable, raw 32-byte P-256 scalar, written on first use, never in an API"
-    text mail_failing_since "when real sends began failing, empty while mail works"
     text mail_alert_last_at "last mail-failing push to the owner, empty before"
   }
   notification_optouts {
@@ -266,7 +265,7 @@ erDiagram
   - `link_previews` (off by default), `link_preview_minutes` (15, 60 or 1440 under a `CHECK`, 15 by default) and `link_preview_key` to [Link previews](/features/link-previews), whose key the unsubscribe links of [Notifications](/features/notifications) sign with too, under their own label. The key is 32 random bytes the migration writes with `randomblob`, since SQLite refuses a non-constant default in `ADD COLUMN`; `GetInstanceSettings` names its columns so the key never rides along.
   - `public_shares`, `public_share_default_days`, `public_share_max_days` and `public_share_attribution` to [Public shares](/features/public-shares). The rule that the default may never exceed the maximum is a `CHECK` on `public_share_max_days` alone, since SQLite's `ALTER TABLE` cannot add a table-level constraint and a column constraint may only name a column that already exists by the time it is added.
   - `recipe_digest_hour` and `recipe_digest_last_day` to [Notifications](/features/notifications): the owner's hour of the new recipes digest in the server's time zone (`settings.Service.SetRecipeDigestHour`, 0 to 23, `ErrUnknownHour` otherwise) and the local date of the last run. `ClaimRecipeDigestDay` writes the date only when it differs and reports the rows it changed, so of two runs on one day only the first gets a row back.
-  - `mail_failing_since` and `mail_alert_last_at` to [Notifications](/features/notifications): the state of the owner's mail-failing push, kept here so a restart does not re-arm it, both `TEXT NOT NULL DEFAULT ''` (empty: mail works, no alert yet). `GetMailAlertState` reads and `SetMailAlertState` writes both, only from `notify/mailalert.go`.
+  - `mail_alert_last_at` to [Notifications](/features/notifications): when the owner's mail-failing push last went, kept here so a restart does not re-arm it, `TEXT NOT NULL DEFAULT ''` (empty: no alert since mail last worked or was set up). `GetMailAlertLastAt` reads and `SetMailAlertLastAt` writes it, only from `notify/mailalert.go`.
   - The seven `smtp_*` columns to [Email](/features/email): the mail configuration the owner saves in the UI, `smtp_host = ''` meaning not configured here, the password stored as plain text like `link_preview_key`, and `GetMailSettings` the one query that reads them.
   - The four `oidc_*` columns to [OIDC](/features/oidc): the provider the owner saves in the UI, `oidc_issuer = ''` meaning not configured here, the client secret plain text like `smtp_password`, and `GetOIDCSettings` the one query that reads them.
   - `vapid_key` to [Cook timers](/features/cook-timers): the VAPID signing key as the raw 32-byte P-256 scalar, `NULL` until the push service first needs it and then generated and stored, so a migration does not have to make a key and an instance that never pushes never has one.

@@ -73,7 +73,7 @@ func (s *Service) pushComment(ctx context.Context, recipeID string, commentID in
 		s.pusher.SendToUser(ctx, to.ID, push.Message{
 			Kind: string(KindComment), Title: title, Body: body,
 			URL: "/recipes/" + url.PathEscape(r.Slug) + "?tab=comments", Tag: "comment:" + r.ID,
-			Collapse: &push.Collapse{Title: titleMany, BodyOne: body, BodyMany: many},
+			Collapse: &push.Collapse{Title: titleMany, BodyMany: many},
 		})
 	}
 	return nil
@@ -120,12 +120,7 @@ func (s *Service) pushDigest(ctx context.Context, recipients []sqlc.ListRecipeDi
 // pushInviteAccepted pushes inviter that newcomer set up their account,
 // unless inviter switched it off for push.
 func (s *Service) pushInviteAccepted(ctx context.Context, inviter, newcomer user.User) {
-	on, err := s.Wants(ctx, inviter.ID, KindInviteAccepted, ChannelPush)
-	if err != nil {
-		slog.WarnContext(ctx, "invitation push: preference lookup failed", "err", err)
-		return
-	}
-	if !on {
+	if !s.wanted(ctx, inviter.ID, KindInviteAccepted, ChannelPush) {
 		return
 	}
 	title, err1 := mail.Text(inviter.Locale, "mail_push_invite_accepted_title", nil)

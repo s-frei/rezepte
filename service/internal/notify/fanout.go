@@ -200,15 +200,10 @@ func (s *Service) mailInviteAccepted(ctx context.Context, inviter, newcomer user
 	if !mailable(inviter.Email, inviter.EmailVerified) {
 		return
 	}
-	on, err := s.Wants(ctx, inviter.ID, KindInviteAccepted, ChannelMail)
-	if err != nil {
-		slog.WarnContext(ctx, "invitation mail: preference lookup failed", "err", err)
+	if !s.wanted(ctx, inviter.ID, KindInviteAccepted, ChannelMail) {
 		return
 	}
-	if !on {
-		return
-	}
-	err = s.mailer.SendInviteAccepted(ctx, mail.InviteAccepted{
+	err := s.mailer.SendInviteAccepted(ctx, mail.InviteAccepted{
 		To: inviter.Email, Username: newcomer.Username, DisplayName: newcomer.DisplayName,
 		Unsubscribe: s.UnsubscribeLinks(inviter.ID, KindInviteAccepted), Locale: inviter.Locale,
 	})

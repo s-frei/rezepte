@@ -231,7 +231,7 @@ func TestNotificationChannelsMigration(t *testing.T) {
 		t.Error("channel sms accepted")
 	}
 	var alerts string
-	if err := conn.QueryRowContext(ctx, `SELECT mail_failing_since || '|' || mail_alert_last_at FROM instance_settings WHERE id = 1`).Scan(&alerts); err != nil || alerts != "|" {
+	if err := conn.QueryRowContext(ctx, `SELECT mail_alert_last_at FROM instance_settings WHERE id = 1`).Scan(&alerts); err != nil || alerts != "" {
 		t.Errorf("mail alert state %q, %v", alerts, err)
 	}
 

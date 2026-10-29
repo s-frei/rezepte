@@ -101,17 +101,12 @@ func (s *Service) mailTasty(ctx context.Context, marker, author user.User, r sql
 	if !mailable(author.Email, author.EmailVerified) {
 		return
 	}
-	on, err := s.Wants(ctx, author.ID, KindTasty, ChannelMail)
-	if err != nil {
-		slog.WarnContext(ctx, "tasty mail: preference lookup failed", "err", err)
-		return
-	}
-	if !on {
+	if !s.wanted(ctx, author.ID, KindTasty, ChannelMail) {
 		return
 	}
 	sctx, cancel := context.WithTimeout(ctx, sendTimeout)
 	defer cancel()
-	err = s.mailer.SendTasty(sctx, mail.Tasty{
+	err := s.mailer.SendTasty(sctx, mail.Tasty{
 		To: author.Email, RecipeTitle: r.Title, RecipeURLPath: "/recipes/" + url.PathEscape(r.Slug),
 		MarkerName: marker.DisplayName, MarkerColor: marker.Color, MarkerAvatar: s.picture(ctx, marker),
 		Unsubscribe: s.UnsubscribeLinks(author.ID, KindTasty), Locale: author.Locale,
@@ -120,12 +115,7 @@ func (s *Service) mailTasty(ctx context.Context, marker, author user.User, r sql
 }
 
 func (s *Service) pushTasty(ctx context.Context, marker, author user.User, r sqlc.Recipe) {
-	on, err := s.Wants(ctx, author.ID, KindTasty, ChannelPush)
-	if err != nil {
-		slog.WarnContext(ctx, "tasty push: preference lookup failed", "err", err)
-		return
-	}
-	if !on {
+	if !s.wanted(ctx, author.ID, KindTasty, ChannelPush) {
 		return
 	}
 	title, err1 := mail.Text(author.Locale, "mail_push_tasty_title", nil)

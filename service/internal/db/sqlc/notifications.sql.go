@@ -41,20 +41,15 @@ func (q *Queries) AddOptOut(ctx context.Context, arg AddOptOutParams) error {
 	return err
 }
 
-const getMailAlertState = `-- name: GetMailAlertState :one
-SELECT mail_failing_since, mail_alert_last_at FROM instance_settings WHERE id = 1
+const getMailAlertLastAt = `-- name: GetMailAlertLastAt :one
+SELECT mail_alert_last_at FROM instance_settings WHERE id = 1
 `
 
-type GetMailAlertStateRow struct {
-	MailFailingSince string
-	MailAlertLastAt  string
-}
-
-func (q *Queries) GetMailAlertState(ctx context.Context) (GetMailAlertStateRow, error) {
-	row := q.db.QueryRowContext(ctx, getMailAlertState)
-	var i GetMailAlertStateRow
-	err := row.Scan(&i.MailFailingSince, &i.MailAlertLastAt)
-	return i, err
+func (q *Queries) GetMailAlertLastAt(ctx context.Context) (string, error) {
+	row := q.db.QueryRowContext(ctx, getMailAlertLastAt)
+	var mail_alert_last_at string
+	err := row.Scan(&mail_alert_last_at)
+	return mail_alert_last_at, err
 }
 
 const hasOptOut = `-- name: HasOptOut :one
@@ -295,16 +290,11 @@ func (q *Queries) RemoveOptOut(ctx context.Context, arg RemoveOptOutParams) erro
 	return err
 }
 
-const setMailAlertState = `-- name: SetMailAlertState :exec
-UPDATE instance_settings SET mail_failing_since = ?, mail_alert_last_at = ? WHERE id = 1
+const setMailAlertLastAt = `-- name: SetMailAlertLastAt :exec
+UPDATE instance_settings SET mail_alert_last_at = ? WHERE id = 1
 `
 
-type SetMailAlertStateParams struct {
-	MailFailingSince string
-	MailAlertLastAt  string
-}
-
-func (q *Queries) SetMailAlertState(ctx context.Context, arg SetMailAlertStateParams) error {
-	_, err := q.db.ExecContext(ctx, setMailAlertState, arg.MailFailingSince, arg.MailAlertLastAt)
+func (q *Queries) SetMailAlertLastAt(ctx context.Context, mailAlertLastAt string) error {
+	_, err := q.db.ExecContext(ctx, setMailAlertLastAt, mailAlertLastAt)
 	return err
 }

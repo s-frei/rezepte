@@ -7,9 +7,9 @@
 -- mail rows; where an account had every kind of a group off (what the old
 -- group switch wrote), they become that group's mail row. The group is grp:
 -- group is an SQL keyword.
--- instance_settings.mail_failing_since is when real sends began failing for
--- the instance's mail setup, empty while mail works; mail_alert_last_at is
--- when the owner was last warned by push, empty before the first.
+-- instance_settings.mail_alert_last_at is when the owner was last warned by
+-- push that mail fails, empty before the first and again once a real send
+-- worked or mail was set up anew.
 -- A push subscription belongs to the session that stored it and ends with
 -- it, so a signed-out or revoked device stops getting a member's
 -- notifications. Rows from before have no session and are dropped, with
@@ -42,7 +42,6 @@ DELETE FROM notification_optouts WHERE kind IN ('comment', 'recipe')
 DELETE FROM notification_optouts WHERE kind = 'invite_accepted'
   AND user_id IN (SELECT user_id FROM notification_group_optouts WHERE grp = 'admin');
 
-ALTER TABLE instance_settings ADD COLUMN mail_failing_since TEXT NOT NULL DEFAULT '';
 ALTER TABLE instance_settings ADD COLUMN mail_alert_last_at TEXT NOT NULL DEFAULT '';
 
 -- Emptying the table first takes the alarms with it, so dropping it leaves
@@ -84,7 +83,6 @@ INSERT INTO timer_alarms SELECT * FROM timer_alarms_kept;
 DROP TABLE timer_alarms_kept;
 
 ALTER TABLE instance_settings DROP COLUMN mail_alert_last_at;
-ALTER TABLE instance_settings DROP COLUMN mail_failing_since;
 
 CREATE TABLE notification_optouts_old (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

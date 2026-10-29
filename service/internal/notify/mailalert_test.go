@@ -74,26 +74,17 @@ func TestMailAlertOncePerDay(t *testing.T) {
 	}
 }
 
-func TestMailAlertResetOnSuccess(t *testing.T) {
+// TestMailAlertReset: after a working send or new settings, the next
+// failure alerts at once.
+func TestMailAlertReset(t *testing.T) {
 	a := newAlerting(t)
 	if a.fail(t, "tls") == nil {
 		t.Fatal("first failure: no push")
 	}
-	a.svc.MailWorked(context.Background())
+	a.svc.MailReset(context.Background())
 	a.at = a.at.Add(time.Hour)
 	if a.fail(t, "tls") == nil {
-		t.Fatal("failure after a working send: no push")
-	}
-}
-
-func TestMailAlertResetOnReconfigure(t *testing.T) {
-	a := newAlerting(t)
-	if a.fail(t, "sender") == nil {
-		t.Fatal("first failure: no push")
-	}
-	a.svc.MailReconfigured(context.Background())
-	if a.fail(t, "sender") == nil {
-		t.Fatal("failure after new settings: no push")
+		t.Fatal("failure after a reset: no push")
 	}
 }
 
