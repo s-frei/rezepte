@@ -5,6 +5,9 @@
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import X from '@lucide/svelte/icons/x';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fly } from 'svelte/transition';
 	import type { Tag } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import { palette } from '$lib/palette.svelte';
@@ -264,7 +267,11 @@
 		     padding, so a visible scrollbar runs inside the straight part of
 		     the edge instead of squaring it off. 8px down a 20px radius the
 		     curve is 4px in, which the 6px side padding clears. -->
+		<!-- It drops into place as it opens, and goes at once: the focus has
+		     moved on by then, and a list fading out under the next tap would
+		     still catch it. Under reduced motion it only fades. -->
 		<div
+			in:fly={{ y: prefersReducedMotion.current ? 0 : -4, duration: 140, easing: cubicOut }}
 			class="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog"
 		>
 			<ul

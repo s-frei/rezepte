@@ -36,6 +36,16 @@
 	// own chance without an effect resetting a flag.
 	let failed = $state<string | null>(null);
 	const photo = $derived(recipe.coverImageId !== null && failed !== recipe.coverImageId);
+	// The photo fades in once it has loaded, over the skeleton's tint that
+	// holds its place, rather than popping in as the list scrolls. One the
+	// browser already has (a way back from the recipe) is there at once and
+	// never fades. Keyed by the image id, as `failed` is.
+	let loaded = $state<string | null>(null);
+	function seeCached(img: HTMLImageElement) {
+		if (img.complete && img.naturalWidth > 0) {
+			loaded = recipe.coverImageId;
+		}
+	}
 
 	// The photo keeps its own shape, between 4:5 portrait and 16:9 landscape;
 	// `object-cover` crops what lies beyond. The size comes with the card, so
@@ -129,6 +139,7 @@
 -->
 <article
 	bind:this={cardEl}
+	data-card={recipe.id}
 	aria-labelledby={titleId}
 	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
 	null
@@ -140,16 +151,23 @@
 		<!-- The photo sits inset from the card's edge on three sides; the
 		     text below is its fourth. -->
 		<div class="relative px-1.5 pt-1.5 desk:px-2 desk:pt-2">
-			<img
-				src={imageUrl(recipe.id, recipe.coverImageId!, 'thumb')}
-				alt=""
-				data-cover={recipe.slug}
-				loading="lazy"
-				decoding="async"
-				onerror={() => (failed = recipe.coverImageId)}
-				style:aspect-ratio={ratio}
-				class="block w-full rounded-xl object-cover desk:rounded-2xl"
-			/>
+			<div class="rounded-xl bg-skeleton desk:rounded-2xl">
+				<img
+					src={imageUrl(recipe.id, recipe.coverImageId!, 'thumb')}
+					alt=""
+					data-cover={recipe.slug}
+					loading="lazy"
+					decoding="async"
+					{@attach seeCached}
+					onload={() => (loaded = recipe.coverImageId)}
+					onerror={() => (failed = recipe.coverImageId)}
+					style:aspect-ratio={ratio}
+					class="block w-full rounded-xl object-cover transition-opacity duration-200 motion-reduce:transition-none desk:rounded-2xl {loaded ===
+					recipe.coverImageId
+						? ''
+						: 'opacity-0'}"
+				/>
+			</div>
 			<!-- From md up the button mirrors the star into the photo's
 			     bottom-left corner, 6px inside it: the photo box ends where the
 			     photo does, so `bottom` is the inset alone and `left` is the

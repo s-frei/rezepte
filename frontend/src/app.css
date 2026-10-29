@@ -464,8 +464,9 @@
 }
 
 /*
- * A new card size: each card glides from its old place and size to the new
- * one (the overview's `resize` names them for the length of it). Long
+ * A new card size or a new list: each card glides from its old place and
+ * size to the new one (the overview's `glide` names them by recipe for the
+ * length of it). Long
  * enough to follow one card with the eye. The curve sets off gently and
  * settles without the spring's overshoot: the browser's pictures of the
  * cards hold up the first frame or two, and an ease-out that covers a third
@@ -482,6 +483,37 @@
 ::view-transition-old(.card),
 ::view-transition-new(.card) {
 	animation-duration: 140ms;
+}
+
+/* A card that leaves a new list (a filter, an order) fades out at its
+   place before one that joins fades in at its own, as a page change does:
+   crossed over, a card leaving a slot and one arriving in it showed both
+   titles, one through the other. */
+::view-transition-old(.card):only-child {
+	animation-duration: 80ms;
+	animation-timing-function: ease-out;
+}
+
+::view-transition-new(.card):only-child {
+	animation-duration: 160ms;
+	animation-delay: 60ms;
+	animation-timing-function: var(--ease-glide);
+}
+
+/*
+ * Only the cards move in the overview's glide (`glide` on the page): the
+ * rest of what it captures shows as it is now rather than crossing over
+ * from its picture. Crossed over, the tag row's chips, which glide on a
+ * pick of their own, and the card-size pill showed twice, once frozen and
+ * once moving. The attribute sits on the transition's scope: the results
+ * where the browser scopes view transitions, the document elsewhere.
+ */
+[data-card-transition]::view-transition-old(root) {
+	display: none;
+}
+
+[data-card-transition]::view-transition-new(root) {
+	animation: none;
 }
 
 /*

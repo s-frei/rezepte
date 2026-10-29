@@ -250,7 +250,7 @@
 	const suggestedTags = tagList((result) => (allTags = result));
 	const rowTags = tagList((result) => (textTags = result));
 
-	async function fetchPage(pageToFetch: number, append: boolean) {
+	async function fetchPage(pageToFetch: number, append: boolean, animate = true) {
 		abortController?.abort();
 		const controller = new AbortController();
 		abortController = controller;
@@ -295,19 +295,43 @@
 			}
 			const result = pages[pages.length - 1];
 			const fetched = pages.flatMap((p) => p.items);
-			appendedFrom = append ? items.length : Infinity;
-			items = append ? [...items, ...fetched] : fetched;
-			total = result.total;
-			pageNum = result.page;
-			syncUrl();
+			const show = () => {
+				// A glide hands this over a frame later, by when a newer
+				// request may have taken over.
+				if (controller !== abortController) {
+					return;
+				}
+				appendedFrom = append ? items.length : Infinity;
+				items = append ? [...items, ...fetched] : fetched;
+				total = result.total;
+				pageNum = result.page;
+				// Inside the update, so the glide's picture of the new state
+				// already has the skeleton or the empty state where it belongs.
+				settle();
+				syncUrl();
+			};
+			// A new list replaces the cards on screen, and the ones that stay
+			// glide to their new place; "Load more" only adds below, the
+			// search while typing would glide at every pause, and the first
+			// list has nothing to glide from.
+			if (append || !animate || !listed) {
+				show();
+			} else {
+				await glide(show);
+			}
+			listed = true;
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				return;
 			}
 			toast.error(m.overview_load_error());
 		} finally {
-			// Guard against a superseded (aborted) request's `finally` clearing
-			// the loading state of the request that replaced it.
+			settle();
+		}
+
+		// Guard against a superseded (aborted) request clearing the loading
+		// state of the request that replaced it.
+		function settle() {
 			if (controller === abortController) {
 				loading = false;
 				loadingMore = false;
@@ -320,7 +344,7 @@
 	function handleSearch(value: string) {
 		q = value;
 		pageNum = 1;
-		void fetchPage(1, false);
+		void fetchPage(1, false, false);
 	}
 
 	function toggleTag(name: string) {
@@ -400,48 +424,91 @@
 		{ value: 1 as PhoneColumns, label: m.overview_columns_one(), icon: Square }
 	];
 
+	// Whether a list has been shown yet: the first one arrives without a
+	// glide, as nothing moves on page load.
+	let listed = false;
+	// Set while a glide runs: a second one started in it would cut it off.
+	let gliding = false;
+	let results: HTMLElement | undefined;
+
 	/**
-	 * Changes the card size, and the cards on screen glide from their old
+	 * Moves the grid to its next state - a new card size, or a new list for
+	 * a filter or an order - and the cards on screen glide from their old
 	 * place and size to their new one. The grid lays itself out
 	 * synchronously (see RecipeGrid), so once Svelte's update settles the
 	 * new layout is there to measure: the view transition takes a picture
-	 * of each named card before and after and morphs between them. Only the
-	 * cards on screen before or after are named: a picture of every card in
-	 * a long list held the first frame up for cards nobody sees move. The
-	 * first card that starts on screen stays where it was - every card
-	 * moves when the columns change, and a reader far down the list would
-	 * otherwise lose their place. Reduced motion and a browser without view
-	 * transitions get the new layout at once.
+	 * of each named card before and after and morphs between them. A card
+	 * is named by its recipe, so one that stays in a new list finds itself
+	 * again, one that joins fades in at its place and one that left fades
+	 * out at its old one; the empty state is named the same way and crosses
+	 * over with the cards it replaces or makes way for. Only what is on
+	 * screen is named: a picture of every card in a long list held the
+	 * first frame up for cards nobody sees move. The rest of
+	 * the page is not crossed over (`data-card-transition` in app.css).
+	 *
+	 * `keepPlace`, for a size change: the first card that starts on screen
+	 * stays where it was - every card moves when the columns change, and a
+	 * reader far down the list would otherwise lose their place. A new list
+	 * holds other cards, so there is no place to keep.
+	 *
+	 * Reduced motion, a browser without view transitions and a transition
+	 * already under way (a page change, a theme change, an earlier glide)
+	 * get the new state at once.
 	 */
-	async function resize(change: () => void) {
-		const cards = [...document.querySelectorAll<HTMLElement>('main article')];
-		const onScreen = (card: HTMLElement) => {
-			const box = card.getBoundingClientRect();
+	async function glide(change: () => void, keepPlace = false) {
+		const root = document.documentElement;
+		const shown = () => [
+			...document.querySelectorAll<HTMLElement>('main [data-card], main [data-empty]')
+		];
+		const onScreen = (el: HTMLElement) => {
+			const box = el.getBoundingClientRect();
 			return box.bottom > 0 && box.top < window.innerHeight;
 		};
-		const name = (card: HTMLElement) => {
-			card.style.setProperty('view-transition-name', `card-${cards.indexOf(card)}`);
-			card.style.setProperty('view-transition-class', 'card');
+		const name = (el: HTMLElement) => {
+			const card = el.dataset.card;
+			el.style.setProperty('view-transition-name', card ? `card-${card}` : 'overview-empty');
+			el.style.setProperty('view-transition-class', 'card');
 		};
+		const unname = (el: HTMLElement) => {
+			el.style.removeProperty('view-transition-name');
+			el.style.removeProperty('view-transition-class');
+		};
+		const before = shown();
 		// A card cut off at the top is one the reader has already passed.
-		const anchor = cards
-			.filter((card) => card.getBoundingClientRect().top >= 0)
-			.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0];
-		const before = anchor?.getBoundingClientRect().top;
+		const anchor = keepPlace
+			? before
+					.filter((el) => el.dataset.card && el.getBoundingClientRect().top >= 0)
+					.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0]
+			: undefined;
+		const top = anchor?.getBoundingClientRect().top;
 		const animate =
 			'startViewTransition' in document &&
-			!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		const named = animate ? cards.filter(onScreen) : [];
+			!window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+			!gliding &&
+			!('pageTransition' in root.dataset) &&
+			!('themeTransition' in root.dataset);
+		const named = animate ? before.filter(onScreen) : [];
 		const update = async () => {
 			change();
 			await tick();
-			if (anchor && before !== undefined && window.scrollY > 0) {
-				window.scrollBy(0, anchor.getBoundingClientRect().top - before);
+			if (anchor && top !== undefined && window.scrollY > 0) {
+				window.scrollBy(0, anchor.getBoundingClientRect().top - top);
 			}
-			for (const card of cards) {
-				if (animate && !named.includes(card) && onScreen(card)) {
-					named.push(card);
-					name(card);
+			if (!animate) {
+				return;
+			}
+			for (const el of shown()) {
+				if (!named.includes(el) && onScreen(el)) {
+					named.push(el);
+					name(el);
+				}
+			}
+			// One that glided off screen faded as it went: the browser's
+			// picture of its new place below the fold came out empty. It
+			// fades out where it was instead, as one that left the list does.
+			for (const el of named) {
+				if (el.isConnected && !onScreen(el)) {
+					unname(el);
 				}
 			}
 		};
@@ -449,12 +516,25 @@
 			await update();
 			return;
 		}
+		gliding = true;
+		// Scoped to the results where the browser can: a transition takes
+		// every click inside its scope for its length (the hit lands on the
+		// scope, and `pointer-events: none` on the pseudo-elements does not
+		// pass it on), and over the whole document a second tag picked right
+		// after the first was lost.
+		// The fallback is `document`'s, not `<html>`'s: only Chromium gives
+		// elements a `startViewTransition`, and Safari threw on the root's.
+		const scoped = results && 'startViewTransition' in results ? results : null;
+		const marked = scoped ?? root;
+		marked.dataset.cardTransition = '';
 		named.forEach(name);
-		await document.startViewTransition(update).finished.catch(() => {});
-		for (const card of named) {
-			card.style.removeProperty('view-transition-name');
-			card.style.removeProperty('view-transition-class');
-		}
+		const transition = scoped
+			? (scoped as unknown as Pick<Document, 'startViewTransition'>).startViewTransition(update)
+			: document.startViewTransition(update);
+		await transition.finished.catch(() => {});
+		gliding = false;
+		delete marked.dataset.cardTransition;
+		named.forEach(unname);
 	}
 
 	function handleSort(value: string) {
@@ -552,7 +632,7 @@
 				value={cardSize.phone}
 				options={columnOptions}
 				label={m.overview_columns()}
-				onchange={(columns) => resize(() => setPhoneColumns(columns))}
+				onchange={(columns) => glide(() => setPhoneColumns(columns), true)}
 			/>
 		</div>
 	</div>
@@ -607,7 +687,7 @@
 					value={cardSize.desktop}
 					options={sizeOptions}
 					label={m.overview_card_size()}
-					onchange={(size) => resize(() => setCardSize(size))}
+					onchange={(size) => glide(() => setCardSize(size), true)}
 				/>
 			</div>
 			<div class="hidden shrink-0 md:block">
@@ -670,7 +750,7 @@
 		{/if}
 	</div>
 
-	<div class="mt-7 md:mt-9">
+	<div bind:this={results} class="mt-7 md:mt-9">
 		{#if showSkeleton}
 			<RecipeGrid>
 				{#each Array.from({ length: 8 }, (_, i) => i) as i (i)}

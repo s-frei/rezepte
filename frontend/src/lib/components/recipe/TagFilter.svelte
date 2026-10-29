@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { untrack, type Snippet } from 'svelte';
+	import { flip } from 'svelte/animate';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import type { Tag } from '$lib/api/recipes';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
@@ -24,6 +27,12 @@
 	} = $props();
 
 	const GAP_PX = 8; // gap-2
+
+	// A picked tag moves to the front of the row, and the chips it passes
+	// make room: they glide rather than jump, so the eye can follow the
+	// pick. Arriving and leaving chips just appear and go - the folded row
+	// clips, and an outro would hold a chip `measure()` already dropped.
+	const flipDuration = $derived(prefersReducedMotion.current ? 0 : 240);
 
 	// This row is the only place tags are filtered from. An earlier version
 	// listed them a second time inside the filter panel, with the overflow
@@ -128,7 +137,7 @@
 		// Everything fits on its own: show every chip, reserve nothing for a
 		// button that would only waste the space it sits in.
 		if (totalWidth <= rowWidth) {
-			folded = tags.map((tag) => tag.name);
+			fold(tags.map((tag) => tag.name));
 			return;
 		}
 
@@ -171,7 +180,17 @@
 				break;
 			}
 		}
-		folded = chosen;
+		fold(chosen);
+	}
+
+	// Only a change of which chips fit is a new list. A fresh array of the
+	// same names, assigned right after a pick, re-ran the row in the same
+	// update: `animate:flip` measured the chips again where they already
+	// stood, and the pick jumped to the front instead of gliding.
+	function fold(names: string[]) {
+		if (names.length !== folded.length || names.some((name) => !folded.includes(name))) {
+			folded = names;
+		}
 	}
 
 	$effect(() => {
@@ -221,7 +240,11 @@
 			<span {@attach registerLead} class="shrink-0">{@render leading()}</span>
 		{/if}
 		{#each shown as tag (tag.name)}
-			<span class="shrink-0">
+			<!-- A chosen chip passes over the ones it overtakes, not under. -->
+			<span
+				class="shrink-0 {active.includes(tag.name) ? 'relative z-10' : ''}"
+				animate:flip={{ duration: flipDuration, easing: cubicOut }}
+			>
 				<TagChip
 					label={tag.name}
 					count={tag.count}

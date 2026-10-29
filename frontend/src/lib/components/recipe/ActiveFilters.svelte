@@ -6,6 +6,10 @@
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import X from '@lucide/svelte/icons/x';
+	import { flip } from 'svelte/animate';
+	import { cubicOut } from 'svelte/easing';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { scale } from 'svelte/transition';
 	import type { Author } from '$lib/api/recipes';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
 	import TagChip from '$lib/components/ui/TagChip.svelte';
@@ -104,6 +108,23 @@
 			] as (Chip | false)[]
 		).filter((chip): chip is Chip => chip !== false)
 	);
+	/** The spelled-out row: the panel's chips, then the tags. One list, so a
+	 * tag after a chip that goes glides up as well. */
+	const entries = $derived([
+		...chips.map((chip) => ({ key: chip.key, chip, tag: '' })),
+		...tags.map((tag) => ({ key: `tag:${tag}`, chip: null, tag }))
+	]);
+	// A new chip grows into the row and the others make room; one that is
+	// dropped just goes. No outro: `keepFocus` hands the focus on once the
+	// removed button is out of the document, a task after the click. Local,
+	// as Svelte's transitions are, so the chips standing when the row
+	// appears - a page load, the first filter - do not pop in.
+	const flipDuration = $derived(prefersReducedMotion.current ? 0 : 200);
+	const grow = $derived({
+		start: prefersReducedMotion.current ? 1 : 0.9,
+		duration: 160,
+		easing: cubicOut
+	});
 	/** The chips that narrow the grid - all but the order, which the bar
 	 * shows with an icon but does not count or list as a filter. */
 	const filters = $derived(chips.filter((chip) => chip.key !== 'sort'));
@@ -308,11 +329,20 @@
 			{/if}
 		</div>
 	{:else}
-		{#each chips as chip (chip.key)}
-			{@render full(chip)}
-		{/each}
-		{#each tags as name (name)}
-			{@render tagChip(name)}
+		<!-- The wrapper carries the chip's own flex sizing, so a long name
+		     still truncates inside the row. -->
+		{#each entries as entry (entry.key)}
+			<span
+				class="flex max-w-full min-w-0 shrink-0"
+				in:scale={grow}
+				animate:flip={{ duration: flipDuration, easing: cubicOut }}
+			>
+				{#if entry.chip}
+					{@render full(entry.chip)}
+				{:else}
+					{@render tagChip(entry.tag)}
+				{/if}
+			</span>
 		{/each}
 	{/if}
 	{#if crowded && expanded}

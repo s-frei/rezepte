@@ -22,6 +22,7 @@
 	} = $props();
 
 	let buttons: HTMLButtonElement[] = $state([]);
+	const index = $derived(options.findIndex((option) => option.value === value));
 
 	// Roving tabindex, as the WAI-ARIA radio group pattern expects (see
 	// SegmentedControl): only the checked option is in the tab order, the
@@ -49,7 +50,10 @@
 	button's description too, or a screen reader would read them twice. The
 	checked option is in the accent's sand, like the current page in the
 	bottom nav: the light surface the settings' segmented control uses
-	hardly stood out from the track in dark mode. The track has the shape
+	hardly stood out from the track in dark mode. Like the bottom nav's, it
+	is one pill under the icons that glides to the chosen one: the options
+	are equal squares, so each step is one square and the gap between them
+	(instant under reduced motion). The track has the shape
 	of "Filters" beside it, and each option the corner concentric with the
 	track's: its radius less the border and the padding.
 -->
@@ -57,10 +61,19 @@
 	<div
 		role="radiogroup"
 		aria-label={label}
-		class="inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-surface {small
+		class="relative inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-surface {small
 			? 'p-px'
 			: 'p-[3px]'}"
 	>
+		{#if index >= 0}
+			<span
+				aria-hidden="true"
+				class="absolute bg-accent transition-transform duration-240 ease-glide motion-reduce:transition-none {small
+					? 'top-px left-px size-7 rounded-sm'
+					: 'top-[3px] left-[3px] size-9 rounded-[calc(var(--radius-md)-4px)]'}"
+				style:transform="translateX(calc({index} * (100% + var(--spacing) * 0.5)))"
+			></span>
+		{/if}
 		{#each options as option, i (option.value)}
 			{@const checked = option.value === value}
 			<Tooltip.Root>
@@ -77,10 +90,10 @@
 							tabindex={checked ? 0 : -1}
 							onclick={() => onchange(option.value)}
 							onkeydown={(event) => handleKey(event, i)}
-							class="inline-flex items-center justify-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {small
+							class="relative inline-flex items-center justify-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {small
 								? 'size-7 rounded-sm'
 								: 'size-9 rounded-[calc(var(--radius-md)-4px)]'} {checked
-								? 'bg-accent text-accent-foreground'
+								? 'text-accent-foreground'
 								: 'hover-tint text-text-muted'}"
 						>
 							<option.icon class={small ? 'size-4' : 'size-[18px]'} aria-hidden="true" />

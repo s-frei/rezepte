@@ -12,7 +12,9 @@
 	} = $props();
 </script>
 
-<div class="flex flex-col items-center gap-4 px-6 py-16 text-center">
+<!-- `data-empty`: the overview's glide names it, so it crosses over with
+     the cards it replaces (see `glide` there). -->
+<div data-empty class="flex flex-col items-center gap-4 px-6 py-16 text-center">
 	<div
 		aria-hidden="true"
 		class="flex size-[120px] items-center justify-center rounded-full bg-accent italic-centered initial-centered font-display text-[64px] font-medium text-primary italic"
