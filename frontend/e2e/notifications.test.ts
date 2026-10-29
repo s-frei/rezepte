@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createUser, login, uniqueToken } from './helpers';
+import {
+	addDiaryEntry,
+	createRecipe,
+	createUser,
+	loadFixture,
+	login,
+	uniqueToken
+} from './helpers';
 
 /** Signs whoever is in out and name in. */
 async function switchTo(page: Page, name: string) {
@@ -297,4 +304,52 @@ test('a push in a visible window also shows as a toast that opens its page', asy
 	await expect(toast).toContainText('3 new comments');
 	await toast.getByRole('button', { name: 'Open' }).click();
 	await expect(page).toHaveURL('/recipes/does-not-matter?tab=comments');
+});
+
+/** Hands the page what the worker posts for a push, as the test above does. */
+const postToast = (page: Page, data: unknown) =>
+	page.evaluate((d) => {
+		navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: d }));
+	}, data);
+
+test("a toast's Open on the recipe already open shows the new comment", async ({ page }) => {
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Toast ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect(page.getByRole('heading', { name: recipe.title })).toBeVisible();
+	const body = `Fresh comment ${uniqueToken()}`;
+	await addDiaryEntry(page, recipe.id, body);
+	await postToast(page, {
+		type: 'rezepte-push',
+		title: recipe.title,
+		body: '1 new comment',
+		url: `/recipes/${recipe.slug}?tab=comments`,
+		tag: `comment:${recipe.id}`
+	});
+	await page.locator('[data-sonner-toast]').getByRole('button', { name: 'Open' }).click();
+	await expect(page.getByRole('tabpanel', { name: /^Comments/ }).getByText(body)).toBeVisible();
+});
+
+test('a later push under the same tag replaces its toast', async ({ page }) => {
+	await login(page);
+	await page.goto('/settings/notifications');
+	// The app's listener is up once it has rendered, not at the load event.
+	await expect(page.getByRole('region', { name: 'Push' })).toBeVisible();
+	const push = (body: string) =>
+		postToast(page, { type: 'rezepte-push', title: 'Soup', body, url: '/', tag: 'comment:r9' });
+	await push('1 new comment');
+	const toast = page.locator('[data-sonner-toast]');
+	await expect(toast).toContainText('1 new comment');
+	await push('2 new comments');
+	await expect(toast).toHaveCount(1);
+	await expect(toast).toContainText('2 new comments');
+});
+
+test('signed out, a push shows no toast', async ({ page }) => {
+	await page.goto('/login');
+	await expect(page.getByLabel('Username')).toBeVisible();
+	await postToast(page, { type: 'rezepte-push', title: 'Soup', body: '', url: '/', tag: 'x' });
+	await page.waitForTimeout(300);
+	await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+	await expect(page).toHaveURL(/\/login/);
 });
