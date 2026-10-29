@@ -14,7 +14,7 @@
 	// What the last click switched off, so Undo turns back on only that (the
 	// kind's mail or the group's mail switch, never the other kinds' choices);
 	// null until then and after Undo.
-	let done = $state<{ scope: 'kind' | 'group' } | null>(null);
+	let done = $state<'kind' | 'group' | null>(null);
 	let busy = $state(false);
 
 	// Whether any kind of the group still comes by mail.
@@ -53,11 +53,11 @@
 	});
 
 	async function unsubscribe(scope: 'kind' | 'group') {
-		if (await send({ scope, subscribed: false })) done = { scope };
+		if (await send({ scope, subscribed: false })) done = scope;
 	}
 
 	async function undo() {
-		if (done && (await send({ ...done, subscribed: true }))) done = null;
+		if (done && (await send({ scope: done, subscribed: true }))) done = null;
 	}
 
 	async function send(change: { scope: 'kind' | 'group'; subscribed: boolean }) {
@@ -113,7 +113,7 @@
 			class="flex items-center gap-2.5 rounded-md bg-success-soft px-4 py-3 text-body font-semibold text-success-foreground"
 		>
 			<CircleCheck class="size-5 shrink-0" aria-hidden="true" />
-			{doneText[done.scope === 'kind' ? info.kind : info.group]()}
+			{doneText[done === 'kind' ? info.kind : info.group]()}
 		</p>
 		<Button variant="secondary" size="lg" class="w-full" disabled={busy} onclick={undo}
 			>{m.unsubscribe_undo()}</Button

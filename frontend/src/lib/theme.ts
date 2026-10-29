@@ -1,7 +1,7 @@
 /**
  * Theme handling shared by the store (`theme.svelte.ts`) and the tests.
- * The inline script in `app.html` re-implements `readStoredTheme` +
- * `applyTheme` in plain JS so the choice is applied before first paint;
+ * The inline script in `app.html` re-implements reading the stored
+ * theme and `applyTheme` in plain JS so the choice is applied before first paint;
  * keep the key and the attribute name in sync with it.
  */
 export type Theme = 'system' | 'light' | 'dark';
@@ -10,16 +10,6 @@ export const THEME_STORAGE_KEY = 'rezepte-theme';
 
 export function isTheme(value: unknown): value is Theme {
 	return value === 'system' || value === 'light' || value === 'dark';
-}
-
-/** Reads the stored choice; anything missing, unknown or unreadable counts as `system`. */
-export function readStoredTheme(storage: Pick<Storage, 'getItem'> | null | undefined): Theme {
-	try {
-		const raw = storage?.getItem(THEME_STORAGE_KEY);
-		return isTheme(raw) ? raw : 'system';
-	} catch {
-		return 'system';
-	}
 }
 
 /**

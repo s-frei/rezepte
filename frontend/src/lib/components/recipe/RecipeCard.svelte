@@ -3,7 +3,7 @@
 	import { imageUrl, type RecipeCard as RecipeCardData } from '$lib/api/recipes';
 	import { session } from '$lib/auth.svelte';
 	import { formatMinutes } from '$lib/recipe/format';
-	import { initialFor, TINT_CLASSES, tintFor } from '$lib/recipe/placeholder';
+	import { initialFor, tintFor } from '$lib/recipe/placeholder';
 	import AuthorInitials from './AuthorInitials.svelte';
 	import FavoriteStar from './FavoriteStar.svelte';
 	import TastyButton from './TastyButton.svelte';
@@ -74,8 +74,7 @@
 				active={recipe.tasty}
 				count={recipe.tastyCount}
 				readonly={own}
-				{compact}
-				card={!compact}
+				size={compact ? 'compact' : 'card'}
 			/>
 		</span>
 	{/if}
@@ -134,7 +133,7 @@
 	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
 	null
 		? ''
-		: 'motion-safe:animate-rise'} {photo ? 'bg-surface' : TINT_CLASSES[tintFor(recipe.id)]}"
+		: 'motion-safe:animate-rise'} {photo ? 'bg-surface' : tintFor(recipe.id)}"
 	style:animation-delay={rise === null ? undefined : `${Math.min(rise, 8) * 50}ms`}
 >
 	{#if photo}
@@ -275,7 +274,13 @@
 			     the link. -->
 			{#if recipe.tastyCount > 0}
 				<span class="-mb-0.5 -ml-0.5 flex self-end desk:hidden">
-					<TastyButton id={recipe.id} count={recipe.tastyCount} readonly compact accent={photo} />
+					<TastyButton
+						id={recipe.id}
+						count={recipe.tastyCount}
+						readonly
+						size="compact"
+						accent={photo}
+					/>
 				</span>
 			{/if}
 			<!-- The initials share the star's axis: their center is the center

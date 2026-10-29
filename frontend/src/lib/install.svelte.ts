@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
-import { installOffer, isIos, readDismissed, writeDismissed } from './install';
+import { DISMISSED_STORAGE_KEY, installOffer, isIos } from './install';
+import { load, save } from './storage';
 
 /** Chromium's `beforeinstallprompt` event; no DOM typing ships for it. */
 interface InstallPrompt extends Event {
@@ -26,7 +27,7 @@ export const install = $state({
 		? ((window as Window & { __installPrompt?: InstallPrompt }).__installPrompt ?? null)
 		: null) as InstallPrompt | null,
 	installed: false,
-	dismissed: browser && readDismissed(() => window.localStorage),
+	dismissed: load(DISMISSED_STORAGE_KEY) === '1',
 	iosSheet: false
 });
 
@@ -77,5 +78,5 @@ export async function startInstall(): Promise<void> {
 
 export function dismissBanner(): void {
 	install.dismissed = true;
-	writeDismissed(() => window.localStorage);
+	save(DISMISSED_STORAGE_KEY, '1');
 }

@@ -6,7 +6,6 @@
 	import TimerBanner from './TimerBanner.svelte';
 	import TimerRow from './TimerRow.svelte';
 	import TimerSummary from './TimerSummary.svelte';
-	import { isField } from '$lib/components/shell/typing';
 	import { bottomNav } from '$lib/shell.svelte';
 	import { m } from '$lib/paraglide/messages';
 	import { byEnding } from '$lib/recipe/timers';
@@ -36,8 +35,6 @@
 				? 'inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))]'
 				: 'inset-x-[calc(0.5rem+(100vw-1rem)*0.025)] bottom-[calc(0.75rem+0.95*(4rem+env(safe-area-inset-bottom))+env(safe-area-inset-bottom)+0.5rem)]'
 	);
-	// The software keyboard is up: on a phone the player steps aside like the nav.
-	let typing = $state(false);
 	let root = $state<HTMLElement>();
 	let toggle = $state<HTMLButtonElement>();
 
@@ -61,12 +58,7 @@
 	}
 </script>
 
-<svelte:window
-	{onpointerdown}
-	{onkeydown}
-	onfocusin={(event) => (typing = isField(event.target))}
-	onfocusout={() => (typing = false)}
-/>
+<svelte:window {onpointerdown} {onkeydown} />
 
 <!-- Below `md` a player across the bottom, above the nav where there is one
      (AppShell ends the page above it); from `md` the cook-mode capsule at
@@ -81,7 +73,9 @@
 		bind:this={root}
 		class="fixed z-40 flex flex-col-reverse gap-2 transition-[left,right,bottom] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:timers] motion-reduce:transition-none {place} {bottomNav.still
 			? 'transition-none'
-			: ''} md:inset-x-auto md:right-6 md:bottom-6 md:items-end {typing ? 'max-md:hidden' : ''}"
+			: ''} md:inset-x-auto md:right-6 md:bottom-6 md:items-end {bottomNav.typing
+			? 'max-md:hidden'
+			: ''}"
 	>
 		<div
 			class="flex items-center rounded-pill shadow-lift md:max-w-[480px] {ringing

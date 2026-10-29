@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { initialFor, TINT_CLASSES, tintFor } from '$lib/recipe/placeholder';
+	import { initialFor, tintFor } from '$lib/recipe/placeholder';
 
 	let {
 		id,
@@ -26,10 +26,7 @@
 	const initial = $derived(initialFor(title));
 </script>
 
-<div
-	aria-hidden="true"
-	class="flex size-full items-center justify-center {TINT_CLASSES[tint]} {className}"
->
+<div aria-hidden="true" class="flex size-full items-center justify-center {tint} {className}">
 	<span class="font-display font-medium text-primary italic {SIZE_CLASSES[size]}">
 		{initial}
 	</span>

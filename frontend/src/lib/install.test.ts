@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appCardState, installOffer, isIos, writeDismissed } from './install';
+import { appCardState, installOffer, isIos } from './install';
 
 const none = { secure: true, standalone: false, installed: false, ios: false, hasPrompt: false };
 
@@ -61,17 +61,5 @@ describe('isIos', () => {
 		const ua =
 			'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 		expect(isIos(ua, 'Linux armv81', 5)).toBe(false);
-	});
-});
-
-describe('writeDismissed', () => {
-	it('dismissal survives storage that throws', () => {
-		expect(() =>
-			writeDismissed(() => ({
-				setItem: () => {
-					throw new Error('blocked');
-				}
-			}))
-		).not.toThrow();
 	});
 });

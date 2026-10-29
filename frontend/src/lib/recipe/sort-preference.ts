@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { load, save } from '$lib/storage';
 import { isSort, type ListQuery, type Sort } from './query';
 
 /**
@@ -26,30 +26,11 @@ export function applyRememberedSort(
 
 /** The remembered order, or `null` for the default or nothing usable. */
 export function readSort(): Sort | null {
-	if (!browser) {
-		return null;
-	}
-	try {
-		const raw = window.localStorage.getItem(SORT_STORAGE_KEY);
-		return raw !== null && raw !== 'updated' && isSort(raw) ? raw : null;
-	} catch {
-		// `window.localStorage` itself throws when site data is blocked.
-		return null;
-	}
+	const raw = load(SORT_STORAGE_KEY);
+	return raw !== null && raw !== 'updated' && isSort(raw) ? raw : null;
 }
 
 /** Remembers a chosen order; the default is stored as no entry at all. */
 export function writeSort(sort: Sort): void {
-	if (!browser) {
-		return;
-	}
-	try {
-		if (sort === 'updated') {
-			window.localStorage.removeItem(SORT_STORAGE_KEY);
-		} else {
-			window.localStorage.setItem(SORT_STORAGE_KEY, sort);
-		}
-	} catch {
-		// Storage blocked or full: the order still applies to this page view.
-	}
+	save(SORT_STORAGE_KEY, sort === 'updated' ? null : sort);
 }

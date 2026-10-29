@@ -1,23 +1,16 @@
-const TINTS = ['tint-1', 'tint-2', 'tint-3'] as const;
-
-export type Tint = (typeof TINTS)[number];
-
-export const TINT_CLASSES: Record<Tint, string> = {
-	'tint-1': 'bg-tint-1',
-	'tint-2': 'bg-tint-2',
-	'tint-3': 'bg-tint-3'
-};
+// Whole class names, so Tailwind finds them in the source.
+const TINTS = ['bg-tint-1', 'bg-tint-2', 'bg-tint-3'];
 
 /**
- * Deterministically maps a recipe id to one of the three placeholder tint
- * tokens (`tint-1` / `tint-2` / `tint-3`).
+ * Deterministically maps a recipe id to the background class of one of the
+ * three placeholder tint tokens (`tint-1` / `tint-2` / `tint-3`).
  *
  * Used to give a recipe without a cover photo a stable background color
  * (the same id always renders in the same tint), while spreading recipes
  * roughly evenly across the three tones. The hash itself has no meaning
  * beyond that - it's not a content fingerprint.
  */
-export function tintFor(id: string): Tint {
+export function tintFor(id: string): string {
 	let hash = 0;
 	for (let i = 0; i < id.length; i++) {
 		// `| 0` keeps the running hash a 32-bit signed integer, both to match

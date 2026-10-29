@@ -1,31 +1,8 @@
-import { browser } from '$app/environment';
+import { load, save } from '$lib/storage';
 import { clampServings, parseServings, servingsKey } from './servings';
 
-function readStored(recipeId: string): number | null {
-	if (!browser) {
-		return null;
-	}
-	try {
-		return parseServings(window.localStorage.getItem(servingsKey(recipeId)));
-	} catch {
-		// `window.localStorage` itself throws when site data is blocked.
-		return null;
-	}
-}
-
 function writeStored(recipeId: string, value: number | null): void {
-	if (!browser) {
-		return;
-	}
-	try {
-		if (value === null) {
-			window.localStorage.removeItem(servingsKey(recipeId));
-		} else {
-			window.localStorage.setItem(servingsKey(recipeId), String(value));
-		}
-	} catch {
-		// Storage blocked or full: the choice still applies to this page view.
-	}
+	save(servingsKey(recipeId), value === null ? null : String(value));
 }
 
 /**
@@ -43,7 +20,7 @@ export class Servings {
 	constructor(recipeId: string, base: number) {
 		this.recipeId = recipeId;
 		this.base = base;
-		this.value = readStored(recipeId) ?? base;
+		this.value = parseServings(load(servingsKey(recipeId))) ?? base;
 	}
 
 	/** True while the list shows scaled quantities. */

@@ -29,9 +29,11 @@ export const shell = $state<{ breadcrumb?: string; actions?: Snippet }>({
  * The phone's bottom nav, as far as what sits above it needs to know: whether
  * it is docked to the edge or floats (smaller, lifted), and whether it is
  * moving `still` - placed without its morph after a navigation. The timer
- * player follows both, so the two stay one stack. Only `BottomNav` writes it.
+ * player follows both, so the two stay one stack. Only `BottomNav` writes
+ * them. `typing`: a field has the focus, so a phone's software keyboard is
+ * up and both step aside; `AppShell` tracks it.
  */
-export const bottomNav = $state({ docked: false, still: false });
+export const bottomNav = $state({ docked: false, still: false, typing: false });
 
 /** The places the phone's bottom nav can mark as current. */
 export type NavPlace = 'recipes' | 'you';

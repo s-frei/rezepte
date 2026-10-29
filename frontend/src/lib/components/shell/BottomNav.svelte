@@ -11,7 +11,6 @@
 	import { m } from '$lib/paraglide/messages';
 	import { bottomNav, type NavPlace } from '$lib/shell.svelte';
 	import { docked } from './nav-scroll';
-	import { isField } from './typing';
 	import NewSheet from './NewSheet.svelte';
 	import YouSheet from './YouSheet.svelte';
 
@@ -22,7 +21,6 @@
 	// Set while a page arrives, so a page restored below the fold starts
 	// docked instead of sliding down from the floating spot.
 	let barEl = $state<HTMLElement>();
-	let typing = $state(false);
 	bottomNav.docked = docked(window.scrollY);
 
 	// The bar only exists below `md`; a wide window has no use for the work.
@@ -63,11 +61,7 @@
 		current === id ? 'text-accent-foreground' : 'text-text hover:text-accent-foreground';
 </script>
 
-<svelte:window
-	onscroll={onScroll}
-	onfocusin={(event) => (typing = phone.current && isField(event.target))}
-	onfocusout={() => (typing = false)}
-/>
+<svelte:window onscroll={onScroll} />
 
 <!--
 	The phone's way around: one bar of three icons - a book for the recipes, a
@@ -96,7 +90,7 @@
 		? 'rounded-t-3xl border-b-transparent shadow-sheet'
 		: '-translate-y-[calc(0.75rem+env(safe-area-inset-bottom))] scale-95 rounded-dock shadow-card'} {bottomNav.still
 		? 'transition-none'
-		: ''} {typing ? 'hidden' : ''}"
+		: ''} {bottomNav.typing ? 'hidden' : ''}"
 >
 	<nav aria-label={m.nav_main()} class="relative flex flex-1 items-center">
 		<span

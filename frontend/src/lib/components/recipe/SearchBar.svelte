@@ -4,6 +4,7 @@
 	import Search from '@lucide/svelte/icons/search';
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import X from '@lucide/svelte/icons/x';
+	import { MediaQuery } from 'svelte/reactivity';
 	import type { Tag } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
 	import { palette } from '$lib/palette.svelte';
@@ -12,8 +13,8 @@
 	let {
 		value = $bindable(''),
 		onsearch,
-		tags = [],
-		active = [],
+		tags,
+		active,
 		ontoggle,
 		id = 'overview-search',
 		class: className = ''
@@ -24,11 +25,11 @@
 		onsearch: (value: string) => void;
 		/** Tags the field suggests while it has focus: the ones that still
 		 * narrow the grid under its other filters, plus the chosen ones. */
-		tags?: Tag[];
+		tags: Tag[];
 		/** Currently selected tag names; suggested with a check. */
-		active?: string[];
-		/** Turns a suggested tag on or off. Without it the field suggests nothing. */
-		ontoggle?: (name: string) => void;
+		active: string[];
+		/** Turns a suggested tag on or off. */
+		ontoggle: (name: string) => void;
 		/** Id of the text field, for a label or a caller that needs to reach it. */
 		id?: string;
 		/** Extra classes appended to the wrapper, e.g. to constrain its width. */
@@ -36,7 +37,7 @@
 	} = $props();
 
 	let inputNode: HTMLInputElement | undefined;
-	let wrapperNode: HTMLDivElement | undefined;
+	let wrapperNode = $state<HTMLDivElement>();
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	let open = $state(false);
@@ -45,14 +46,10 @@
 
 	const query = $derived(value.trim().toLocaleLowerCase());
 	/** The text row first while there is text, then the tags that match it. */
-	const rows = $derived(
-		ontoggle
-			? [
-					...(query ? [{ kind: 'text' as const }] : []),
-					...rankTags(tags, query).map((tag) => ({ kind: 'tag' as const, tag }))
-				]
-			: []
-	);
+	const rows = $derived([
+		...(query ? [{ kind: 'text' as const }] : []),
+		...rankTags(tags, query).map((tag) => ({ kind: 'tag' as const, tag }))
+	]);
 	const listboxOpen = $derived(open && rows.length > 0);
 	// The rows can shrink under a highlight while the list is open - the tags
 	// are refetched whenever a filter changes - so every read goes through
@@ -63,7 +60,7 @@
 	// the suggestions get the room between it and the keyboard, and searching
 	// the text drops the keyboard so the grid it changed comes into view.
 	// Picking a tag keeps it: the next tag is usually what comes next.
-	const isPhone = () => matchMedia('(max-width: 767.98px)').matches;
+	const phone = new MediaQuery('max-width: 767.98px');
 
 	$effect(() => {
 		if (!listboxOpen || current < 0) {
@@ -95,7 +92,7 @@
 		clearTimeout(debounceTimer);
 		onsearch(value);
 		close();
-		if (isPhone()) {
+		if (phone.current) {
 			inputNode?.blur();
 		}
 	}
@@ -106,7 +103,7 @@
 	function toggle(name: string) {
 		clearTimeout(debounceTimer);
 		value = '';
-		ontoggle?.(name);
+		ontoggle(name);
 		close();
 	}
 
@@ -124,7 +121,7 @@
 
 	function handleFocus() {
 		open = true;
-		if (ontoggle && isPhone()) {
+		if (phone.current) {
 			wrapperNode?.scrollIntoView({
 				block: 'start',
 				behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -173,13 +170,6 @@
 		};
 	}
 
-	function registerWrapper(node: HTMLDivElement) {
-		wrapperNode = node;
-		return () => {
-			wrapperNode = undefined;
-		};
-	}
-
 	/** The tag name split around the first match, so the match can be set bold. */
 	function split(name: string) {
 		const at = query ? name.toLocaleLowerCase().indexOf(query) : -1;
@@ -205,7 +195,7 @@
      so they reach out to the caller's row - which the overview makes
      `relative`, giving the list the width of the recipe cards. -->
 <div
-	{@attach registerWrapper}
+	bind:this={wrapperNode}
 	class="flex h-12 w-full min-w-0 scroll-mt-4 items-center gap-2 rounded-pill bg-surface px-4 md:relative md:w-[460px] {className}"
 >
 	<Search class="size-5 shrink-0 text-text-muted" aria-hidden="true" />
@@ -229,10 +219,10 @@
 		maxlength="100"
 		placeholder={m.overview_search_placeholder()}
 		aria-label={m.overview_search_label()}
-		role={ontoggle ? 'combobox' : undefined}
-		aria-expanded={ontoggle ? listboxOpen : undefined}
-		aria-controls={ontoggle ? `${id}-listbox` : undefined}
-		aria-autocomplete={ontoggle ? 'list' : undefined}
+		role="combobox"
+		aria-expanded={listboxOpen}
+		aria-controls="{id}-listbox"
+		aria-autocomplete="list"
 		aria-activedescendant={listboxOpen && current >= 0 ? `${id}-option-${current}` : undefined}
 		class="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-text-muted"
 	/>

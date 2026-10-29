@@ -8,35 +8,9 @@ import {
 	type Timer,
 	type TimerStart
 } from './timers';
+import { load, save } from '$lib/storage';
 
 export type TimerEvent = 'start' | 'pause' | 'resume' | 'stop';
-
-function readStored(): Timer[] {
-	if (!browser) {
-		return [];
-	}
-	try {
-		return parseTimers(window.localStorage.getItem(TIMERS_STORAGE_KEY));
-	} catch {
-		// `window.localStorage` itself throws when site data is blocked.
-		return [];
-	}
-}
-
-function writeStored(list: Timer[]): void {
-	if (!browser) {
-		return;
-	}
-	try {
-		if (list.length === 0) {
-			window.localStorage.removeItem(TIMERS_STORAGE_KEY);
-		} else {
-			window.localStorage.setItem(TIMERS_STORAGE_KEY, JSON.stringify(list));
-		}
-	} catch {
-		// Storage blocked or full: the timers still run for this page view.
-	}
-}
 
 /**
  * The cook timers of this browser. They outlive steps, pages and reloads:
@@ -51,7 +25,7 @@ export class Timers {
 	private listeners: ((event: TimerEvent, t: Timer) => void)[] = [];
 
 	constructor() {
-		this.list = settle(readStored(), Date.now());
+		this.list = settle(parseTimers(load(TIMERS_STORAGE_KEY)), Date.now());
 		this.sync();
 		if (browser && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
 			// Another tab wrote the list (or signed out): take it, do not write it back.
@@ -156,7 +130,7 @@ export class Timers {
 
 	private commit(list: Timer[]): void {
 		this.list = list;
-		writeStored(list);
+		save(TIMERS_STORAGE_KEY, list.length === 0 ? null : JSON.stringify(list));
 		this.sync();
 	}
 

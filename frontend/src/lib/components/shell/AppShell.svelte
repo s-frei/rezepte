@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
-	import { navPlace } from '$lib/shell.svelte';
+	import { bottomNav, navPlace } from '$lib/shell.svelte';
 	import TimerIndicator from '$lib/components/timer/TimerIndicator.svelte';
 	import { timers } from '$lib/recipe/timers.svelte';
 	import BottomNav from './BottomNav.svelte';
 	import TopBar from './TopBar.svelte';
+	import { isField } from './typing';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -20,7 +22,18 @@
 			? `md:pb-24 ${withNav ? 'pb-36' : 'pb-24'}`
 			: `md:pb-8 ${withNav ? 'pb-20' : 'pb-10'}`
 	);
+
+	// A navigation can take the focused field away without a `focusout`, so
+	// it reads the focus afresh; one that keeps the focus keeps `typing`.
+	afterNavigate(() => {
+		bottomNav.typing = isField(document.activeElement);
+	});
 </script>
+
+<svelte:window
+	onfocusin={(event) => (bottomNav.typing = isField(event.target))}
+	onfocusout={() => (bottomNav.typing = false)}
+/>
 
 <TopBar />
 <main class="mx-auto max-w-[1280px] px-5 md:px-8 {bottom}">

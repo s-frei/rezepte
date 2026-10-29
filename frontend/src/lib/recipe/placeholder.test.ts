@@ -9,16 +9,16 @@ describe('tintFor', () => {
 		);
 	});
 
-	it('always returns one of the three tint tokens', () => {
+	it('always returns one of the three tint classes', () => {
 		const ids = ['', 'a', 'recipe-1', '11111111-1111-1111-1111-111111111111'];
 		for (const id of ids) {
-			expect(['tint-1', 'tint-2', 'tint-3']).toContain(tintFor(id));
+			expect(['bg-tint-1', 'bg-tint-2', 'bg-tint-3']).toContain(tintFor(id));
 		}
 	});
 
 	it('reaches all three tints across a spread of ids', () => {
 		const seen = new Set(Array.from({ length: 30 }, (_, i) => tintFor(`recipe-${i}`)));
-		expect(seen).toEqual(new Set(['tint-1', 'tint-2', 'tint-3']));
+		expect(seen).toEqual(new Set(['bg-tint-1', 'bg-tint-2', 'bg-tint-3']));
 	});
 });
 

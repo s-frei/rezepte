@@ -41,21 +41,3 @@ export function isIos(ua: string, platform: string, maxTouchPoints: number): boo
 }
 
 export const DISMISSED_STORAGE_KEY = 'rezepte-install-banner-dismissed';
-
-// Reaching for `window.localStorage` itself throws in a browser that blocks
-// site data, so both take a getter and guard the access, as theme.svelte.ts does.
-export function readDismissed(storage: () => Pick<Storage, 'getItem'>): boolean {
-	try {
-		return storage().getItem(DISMISSED_STORAGE_KEY) === '1';
-	} catch {
-		return false;
-	}
-}
-
-export function writeDismissed(storage: () => Pick<Storage, 'setItem'>): void {
-	try {
-		storage().setItem(DISMISSED_STORAGE_KEY, '1');
-	} catch {
-		// Storage blocked or full: the banner stays hidden for this page view.
-	}
-}

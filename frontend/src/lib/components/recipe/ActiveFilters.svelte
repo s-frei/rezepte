@@ -28,7 +28,7 @@
 		ontagremove,
 		onreset,
 		focusfallback,
-		class: className = 'flex flex-wrap gap-2'
+		class: className
 	}: {
 		/** The filter panel's state, as FilterPanel gets it. */
 		maxMinutes: number;
@@ -61,7 +61,7 @@
 		 * not the search field, whose focus would open its suggestions. */
 		focusfallback?: () => void;
 		/** Classes of the row itself, e.g. desktop's tray. */
-		class?: string;
+		class: string;
 	} = $props();
 
 	type Chip = { key: string; label: string; remove: () => void; removeLabel?: string };
@@ -165,24 +165,6 @@
 		}
 	}
 
-	// A listener rather than an `onclick` on the row: the row is not a
-	// control, it only watches the clicks of the ones inside it.
-	function registerRow(node: HTMLDivElement) {
-		row = node;
-		node.addEventListener('click', keepFocus);
-		return () => {
-			node.removeEventListener('click', keepFocus);
-			row = null;
-		};
-	}
-
-	function registerTwin(node: HTMLDivElement) {
-		twin = node;
-		return () => {
-			twin = null;
-		};
-	}
-
 	// Folding is for a row that has run out of room, not for a count: one
 	// tag and a time limit stay spelled out on any phone. Whether they fit
 	// is measured the way TagFilter measures its row - the spelled-out row
@@ -272,7 +254,10 @@
      and a tap goes back there to change them, while the × drops just this
      one. Two buttons side by side in one pill, since a button cannot hold
      another. -->
-<div {@attach registerRow} class={className}>
+<!-- The row is not a control, it only watches the clicks of the ones
+     inside it - in the capture phase, a native listener, so it runs before
+     their handlers, which Svelte delegates to the document root. -->
+<div bind:this={row} onclickcapture={keepFocus} class={className}>
 	{#if folded}
 		<!-- Folded, everything goes into one bar across the row: a circle per
 		     kind of filter says which are on, the tags' with how many - the
@@ -349,7 +334,7 @@
 			<!-- `w-max`: inside the zero-width box the chips' `max-w-full`
 			     would otherwise cap every one of them at 0px, and the row
 			     would always seem to fit. -->
-			<div {@attach registerTwin} class="flex w-max gap-2">
+			<div bind:this={twin} class="flex w-max gap-2">
 				{#each chips as chip (chip.key)}
 					{@render full(chip)}
 				{/each}
