@@ -14,6 +14,7 @@
 	// Registers the service worker and arms a push alarm for each running timer.
 	import '$lib/push.svelte';
 	import { palette } from '$lib/palette.svelte';
+	import { navPlace } from '$lib/shell.svelte';
 	import { listenForLaunches } from '$lib/launch';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { startChime, stopChime, unlockAudio } from '$lib/recipe/chime';
@@ -114,10 +115,14 @@
 	its specificity - without the `!` every toast rendered white, with a black
 	action button. Only the properties sonner sets carry it.
 -->
-<!-- From `md` a running timer's capsule sits at the bottom right; the toasts
-     stack above it instead of on it. -->
+<!-- A running timer's player sits at the bottom of a phone, above the nav
+     where there is one, and from `md` at the bottom right; the toasts stack
+     above it instead of on it. -->
 <Toaster
 	offset={timers.list.length && !bare ? { bottom: '84px', right: '24px' } : undefined}
+	mobileOffset={timers.list.length && !bare
+		? { bottom: navPlace(page.route.id, page.error !== null) ? '140px' : '68px' }
+		: undefined}
 	richColors={false}
 	toastOptions={{
 		classes: {

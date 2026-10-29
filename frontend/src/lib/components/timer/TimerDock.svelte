@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import ChevronUp from '@lucide/svelte/icons/chevron-up';
-	import TimerRing from './TimerRing.svelte';
 	import TimerRow from './TimerRow.svelte';
+	import TimerSummary from './TimerSummary.svelte';
+	import { timerStatus } from './status';
 	import { m } from '$lib/paraglide/messages';
-	import { byEnding, formatClock, fraction, remainingMs, type Timer } from '$lib/recipe/timers';
+	import { byEnding, formatClock, remainingMs, type Timer } from '$lib/recipe/timers';
 	import { timers } from '$lib/recipe/timers.svelte';
 	import { pushUnavailable } from '$lib/push.svelte';
 
@@ -52,33 +52,30 @@
 				onclick={() => setExpanded(true)}
 				aria-label={m.timer_expand()}
 				aria-expanded="false"
-				class="inline-flex h-12 max-w-full items-center gap-2.5 rounded-pill bg-user-teal hover-tint pr-3.5 pl-2 text-time-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] md:hidden"
+				class="flex h-12 w-full max-w-[392px] items-center gap-2.5 rounded-pill bg-user-teal hover-tint pr-3.5 pl-2 text-time-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] md:hidden"
 			>
-				<TimerRing fraction={fraction(first, timers.now)} class="size-8" />
-				<span data-clock class="text-body-lg font-semibold tabular-nums"
-					>{formatClock(remainingMs(first, timers.now))}</span
-				>
-				<span class="truncate text-caption font-medium"
-					>{m.editor_step_number({ number: first.step + 1 })}</span
-				>
-				{#if list.length > 1}
-					<span
-						class="rounded-pill bg-time-foreground px-1.5 py-0.5 text-micro font-semibold text-user-teal"
-						>{m.timer_more({ count: list.length - 1 })}</span
-					>
-				{/if}
-				<ChevronUp class="size-[18px] shrink-0" aria-hidden="true" />
+				<TimerSummary
+					timer={first}
+					now={timers.now}
+					title={m.timer_name({ number: first.step + 1, phrase: first.phrase })}
+					detail={first.recipeId === recipeId
+						? timerStatus(first, timers.now)
+						: `${timerStatus(first, timers.now)} · ${first.recipeTitle}`}
+					more={list.length - 1}
+					chevronClass="rotate-180"
+				/>
 			</button>
 		{/if}
-		<!-- Below `md` the panel on `accent`, only while expanded; from `md`
-		     the bare rows, two side by side, always. -->
+		<!-- Below `md` the panel on `user-teal`, the capsule's own color, only
+		     while expanded; from `md` the bare rows, two side by side, always -
+		     one alone as wide as the footer under it. -->
 		<div
 			class="{expanded
 				? 'flex'
-				: 'hidden'} max-h-[40dvh] w-full flex-col gap-2 overflow-y-auto rounded-3xl bg-accent px-2 pt-1.5 pb-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
+				: 'hidden'} max-h-[40dvh] w-full max-w-[392px] flex-col gap-2 overflow-y-auto rounded-3xl bg-user-teal px-2 pt-1.5 pb-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
 		>
 			<div class="flex items-center justify-between pl-2.5 md:hidden">
-				<p class="text-caption font-semibold text-text-muted">
+				<p class="text-caption font-semibold text-time-foreground">
 					{list.length === 1 ? m.timer_count_one() : m.timer_count({ count: list.length })}
 				</p>
 				<button
@@ -87,13 +84,13 @@
 					onclick={() => setExpanded(false)}
 					aria-label={m.timer_collapse()}
 					aria-expanded="true"
-					class="grid size-11 place-items-center rounded-full text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					class="grid size-11 place-items-center rounded-full hover-tint text-time-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					<ChevronDown class="size-[18px]" aria-hidden="true" />
 				</button>
 			</div>
 			{#each list as t (t.id)}
-				<div class="md:w-[calc(50%-4px)]">
+				<div class={list.length === 1 ? 'md:w-full md:max-w-[392px]' : 'md:w-[calc(50%-4px)]'}>
 					<TimerRow
 						timer={t}
 						now={timers.now}

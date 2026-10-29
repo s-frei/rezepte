@@ -56,12 +56,16 @@ export function settle(list: Timer[], now: number): Timer[] {
 	);
 }
 
-const order: Record<TimerState, number> = { ringing: 0, running: 1, paused: 2 };
-
+/** Least time left first, paused or not; a ringing timer has none left. */
 export function byEnding(list: Timer[], now: number): Timer[] {
-	return [...list].sort(
-		(a, b) => order[a.state] - order[b.state] || remainingMs(a, now) - remainingMs(b, now)
-	);
+	return [...list].sort((a, b) => remainingMs(a, now) - remainingMs(b, now));
+}
+
+/** Cook mode at the timer's step (`?step` is 1-based). */
+export function cookPath(
+	t: Pick<Timer, 'slug' | 'step'>
+): `/recipes/${string}/cook?step=${number}` {
+	return `/recipes/${t.slug}/cook?step=${t.step + 1}`;
 }
 
 function isTimer(v: unknown): v is Timer {

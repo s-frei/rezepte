@@ -9,8 +9,9 @@
 	import { resolve } from '$app/paths';
 	import { palette } from '$lib/palette.svelte';
 	import { m } from '$lib/paraglide/messages';
-	import type { NavPlace } from '$lib/shell.svelte';
+	import { bottomNav, type NavPlace } from '$lib/shell.svelte';
 	import { docked } from './nav-scroll';
+	import { isField } from './typing';
 	import NewSheet from './NewSheet.svelte';
 	import YouSheet from './YouSheet.svelte';
 
@@ -18,12 +19,11 @@
 
 	let youOpen = $state(false);
 	let newOpen = $state(false);
-	let isDocked = $state(docked(window.scrollY));
 	// Set while a page arrives, so a page restored below the fold starts
 	// docked instead of sliding down from the floating spot.
-	let still = $state(false);
 	let barEl = $state<HTMLElement>();
 	let typing = $state(false);
+	bottomNav.docked = docked(window.scrollY);
 
 	// The bar only exists below `md`; a wide window has no use for the work.
 	const phone = new MediaQuery('max-width: 767.98px');
@@ -35,37 +35,19 @@
 	const slot = $derived(current === 'recipes' ? 0 : current === 'search' ? 1 : 2);
 
 	function onScroll() {
-		if (phone.current) isDocked = docked(window.scrollY);
+		if (phone.current) bottomNav.docked = docked(window.scrollY);
 	}
 
 	// The new shape is written with transitions off and read back once, so
 	// the browser settles on it before they come back on - a frame callback
 	// can run before the style is recalculated, and the slide would play.
 	afterNavigate(() => {
-		still = true;
-		isDocked = docked(window.scrollY);
+		bottomNav.still = true;
+		bottomNav.docked = docked(window.scrollY);
 		flushSync();
 		void barEl?.offsetHeight;
-		still = false;
+		bottomNav.still = false;
 	});
-
-	// A field outside the bar's own sheets brings up the software keyboard,
-	// which the bar would otherwise sit on top of or cover the field with.
-	const NOT_TYPED = new Set([
-		'button',
-		'checkbox',
-		'color',
-		'file',
-		'radio',
-		'range',
-		'reset',
-		'submit'
-	]);
-	function isField(target: EventTarget | null): boolean {
-		if (!(target instanceof HTMLElement) || target.closest('[role="dialog"]')) return false;
-		if (target instanceof HTMLTextAreaElement || target.isContentEditable) return true;
-		return target instanceof HTMLInputElement && !NOT_TYPED.has(target.type);
-	}
 
 	// On the overview, a tap while reading goes back to the top and keeps the
 	// search and filters; only a tap at the top starts over at `/`.
@@ -106,10 +88,10 @@
 -->
 <div
 	bind:this={barEl}
-	data-docked={isDocked ? '' : undefined}
-	class="fixed inset-x-2 bottom-0 z-30 flex h-[calc(4rem+env(safe-area-inset-bottom))] origin-bottom items-center border border-border bg-surface px-2.5 pb-[env(safe-area-inset-bottom)] transition-[translate,scale,border-radius,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] motion-reduce:transition-none md:hidden {isDocked
+	data-docked={bottomNav.docked ? '' : undefined}
+	class="fixed inset-x-2 bottom-0 z-30 flex h-[calc(4rem+env(safe-area-inset-bottom))] origin-bottom items-center border border-border bg-surface px-2.5 pb-[env(safe-area-inset-bottom)] transition-[translate,scale,border-radius,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] motion-reduce:transition-none md:hidden {bottomNav.docked
 		? 'rounded-t-3xl border-b-transparent shadow-sheet'
-		: '-translate-y-[calc(0.75rem+env(safe-area-inset-bottom))] scale-95 rounded-dock shadow-card'} {still
+		: '-translate-y-[calc(0.75rem+env(safe-area-inset-bottom))] scale-95 rounded-dock shadow-card'} {bottomNav.still
 		? 'transition-none'
 		: ''} {typing ? 'hidden' : ''}"
 >

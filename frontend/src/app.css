@@ -504,16 +504,3 @@ button:not(:disabled),
 	height: 0;
 	pointer-events: none;
 }
-
-/*
- * The running-timer island (TimerIndicator) floats over the top of a phone's
- * page. While it shows, AppShell sets `data-timer-island` on the root, and the
- * shell's padding and every fixed top bar move down by `--timer-island`, so
- * the island never covers anything. From `md` the indicator is a capsule at
- * the bottom right and the offset stays 0.
- */
-@media (width < 48rem) {
-	:root[data-timer-island] {
-		--timer-island: calc(56px + env(safe-area-inset-top));
-	}
-}

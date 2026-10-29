@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	byEnding,
 	clampStep,
+	cookPath,
 	formatClock,
 	fraction,
 	parseTimers,
@@ -80,13 +81,19 @@ describe('settle', () => {
 });
 
 describe('byEnding', () => {
-	it('puts ringing first, then running by remaining, then paused', () => {
+	it('puts the least time left first, paused or not', () => {
 		const ringing = timer({ id: 'a', state: 'ringing' });
 		const long = timer({ id: 'b', endsAt: 3_792_000 });
 		const short = timer({ id: 'c', endsAt: 860_000 });
-		const paused = timer({ id: 'd', state: 'paused', endsAt: null, remainingMs: 5 });
-		const ids = byEnding([paused, long, ringing, short], 0).map((t) => t.id);
-		expect(ids).toEqual(['a', 'c', 'b', 'd']);
+		const paused = timer({ id: 'd', state: 'paused', endsAt: null, remainingMs: 5_000 });
+		const ids = byEnding([long, paused, ringing, short], 0).map((t) => t.id);
+		expect(ids).toEqual(['a', 'd', 'c', 'b']);
+	});
+});
+
+describe('cookPath', () => {
+	it('points at the 1-based step', () => {
+		expect(cookPath({ slug: 'soup', step: 2 })).toBe('/recipes/soup/cook?step=3');
 	});
 });
 

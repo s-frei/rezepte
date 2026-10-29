@@ -7,7 +7,7 @@ import {
 	putSubscription
 } from '$lib/api/push';
 import { m } from '$lib/paraglide/messages';
-import type { Timer } from '$lib/recipe/timers';
+import { cookPath, type Timer } from '$lib/recipe/timers';
 import { timers } from '$lib/recipe/timers.svelte';
 
 /**
@@ -102,7 +102,7 @@ async function arm(t: Timer, pending: Promise<string>): Promise<void> {
 		fireAt: new Date(t.endsAt).toISOString(),
 		title: m.timer_notify_title({ recipe: t.recipeTitle }),
 		body: m.timer_name({ number: t.step + 1, phrase: t.phrase }),
-		url: `/recipes/${t.slug}/cook?step=${t.step + 1}`
+		url: cookPath(t)
 	});
 	const now = timers.byId(t.id);
 	if (now?.state === 'running' && now.endsAt === t.endsAt) {

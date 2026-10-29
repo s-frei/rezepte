@@ -13,23 +13,20 @@
 	// with their own action bar, and the error page, go without it.
 	const place = $derived(navPlace(page.route.id, page.error !== null));
 	const withNav = $derived(place !== null);
-	// While a timer shows, phones make room for the island (see
-	// `--timer-island` in app.css).
-	$effect(() => {
-		document.documentElement.toggleAttribute('data-timer-island', timers.list.length > 0);
-		return () => document.documentElement.removeAttribute('data-timer-island');
-	});
+	// A running timer's player sits above the phone's nav (or the bottom
+	// edge), and from `md` in the bottom right corner: the page ends above it.
+	const bottom = $derived(
+		timers.list.length > 0
+			? `md:pb-24 ${withNav ? 'pb-36' : 'pb-24'}`
+			: `md:pb-8 ${withNav ? 'pb-20' : 'pb-10'}`
+	);
 </script>
 
 <TopBar />
-<main
-	class="mx-auto max-w-[1280px] px-5 md:px-8 md:pb-8 {withNav
-		? 'pb-20'
-		: 'pb-10'} pt-[var(--timer-island,0px)]"
->
+<main class="mx-auto max-w-[1280px] px-5 md:px-8 {bottom}">
 	{@render children()}
 </main>
-<TimerIndicator />
+<TimerIndicator aboveNav={withNav} />
 {#if place}
 	<BottomNav {place} />
 {/if}

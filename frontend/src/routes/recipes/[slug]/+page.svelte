@@ -294,7 +294,7 @@
 	outlasts the background.
 -->
 	<div
-		class="fixed inset-x-0 top-[var(--timer-island,0px)] z-40 flex gap-3 border-b transition-all md:hidden {scrolled
+		class="fixed inset-x-0 top-0 z-40 flex gap-3 border-b transition-all md:hidden {scrolled
 			? 'h-16 items-center border-border bg-background/80 px-5 backdrop-blur'
 			: 'pointer-events-none h-28 items-start border-transparent px-10 pt-11'}"
 	>

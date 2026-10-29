@@ -20,7 +20,7 @@
 	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '$lib/recipe/type-size';
 	import { ScreenWakeLock } from '$lib/recipe/wake-lock.svelte';
 	import { unlockAudio } from '$lib/recipe/chime';
-	import { clampStep, timerId, type Timer } from '$lib/recipe/timers';
+	import { clampStep, cookPath, timerId, type Timer } from '$lib/recipe/timers';
 	import { timers } from '$lib/recipe/timers.svelte';
 	import type { StepTime } from '$lib/api/recipes';
 	import { m } from '$lib/paraglide/messages';
@@ -34,11 +34,18 @@
 	// without passing anything through the URL.
 	const servings = $derived(createServings(recipe.id, recipe.servings));
 
-	// `?step=N` (1-based, from a timer outside cook mode) opens that step,
-	// clamped: the recipe may have lost steps since the timer started.
+	// The step on screen lives in the URL as `?step=N` (1-based), so a
+	// reload, a shared link and a timer all open it. A value out of range is
+	// clamped (the recipe may have lost steps since the timer started); a
+	// missing or malformed one opens the first step.
 	function stepFromUrl(): number {
 		const n = Number.parseInt(page.url.searchParams.get('step') ?? '', 10);
 		return Number.isFinite(n) ? clampStep(n - 1, recipe.steps.length) : 0;
+	}
+
+	// Replaced, not pushed: paging steps is not a history entry of its own.
+	function showStep(step: number) {
+		replaceState(resolve(cookPath({ slug: recipe.slug, step })), page.state);
 	}
 
 	let index = $state(stepFromUrl());
@@ -58,6 +65,7 @@
 		}
 		direction = next > index ? 1 : -1;
 		index = next;
+		showStep(next);
 	}
 
 	// Coming from the detail page pushed a history entry. Leaving with `goto`
@@ -73,10 +81,8 @@
 			index = stepFromUrl();
 		}
 		cameFromDetail = from?.route.id === '/recipes/[slug]';
-		// Read once, then dropped: paging and a reload go on from the step
-		// on screen, not back to the one a timer opened.
-		if (page.url.searchParams.has('step')) {
-			replaceState(resolve('/recipes/[slug]/cook', { slug: recipe.slug }), page.state);
+		if (count > 0 && page.url.searchParams.get('step') !== String(index + 1)) {
+			showStep(index);
 		}
 	});
 
@@ -109,7 +115,7 @@
 			// The recipe may have lost steps since the timer started.
 			go(clampStep(t.step, count));
 		} else {
-			void goto(resolve(`/recipes/${t.slug}/cook?step=${t.step + 1}`));
+			void goto(resolve(cookPath(t)));
 		}
 	}
 

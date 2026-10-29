@@ -54,7 +54,8 @@ async function startCookMode(page: Page) {
 		.filter({ visible: true })
 		.first()
 		.click();
-	await expect(page).toHaveURL(/\/recipes\/[^/]+\/cook$/);
+	// The step on screen is in the URL.
+	await expect(page).toHaveURL(/\/recipes\/[^/]+\/cook\?step=1$/);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -225,14 +226,14 @@ test('toggles the ingredient sheet and shares the servings with the recipe page'
 	// Tapping the backdrop closes the sheet.
 	await page.getByRole('button', { name: 'Close the ingredients' }).click();
 	await expect(sheet).toBeHidden();
-	await expect(page).toHaveURL(/\/cook$/);
+	await expect(page).toHaveURL(/\/cook\?step=\d+$/);
 
 	// Escape closes the sheet first and only then leaves cook mode.
 	await page.getByRole('button', { name: 'Ingredients · 2' }).click();
 	await expect(sheet).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(sheet).toBeHidden();
-	await expect(page).toHaveURL(/\/cook$/);
+	await expect(page).toHaveURL(/\/cook\?step=\d+$/);
 
 	// The arrows are inert while the sheet is open: the cook is reading the list.
 	await page.getByRole('button', { name: 'Ingredients · 2' }).click();
@@ -305,7 +306,7 @@ test('sets the step type size for this visit to cook mode only', async ({ page, 
 	// Escape closes the specimen, not cook mode.
 	await page.keyboard.press('Escape');
 	await expect(sizes).toBeHidden();
-	await expect(page).toHaveURL(/\/cook$/);
+	await expect(page).toHaveURL(/\/cook\?step=\d+$/);
 
 	// The size holds across steps.
 	await page.keyboard.press('ArrowRight');

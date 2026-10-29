@@ -155,7 +155,19 @@ test('dock and footer leave the step readable at 320 px and the largest type', a
 	expect(box!.y + box!.height).toBeLessThanOrEqual(footer!.y);
 });
 
-// Outside cook mode: the island (phones) or the capsule (wide screens).
+test('one timer on a wide screen lines up with the footer', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	const recipe = await germanRecipe(page, 0);
+	await cookAt(page, recipe, 3);
+	await page.getByRole('button', { name: 'Timer starten: 15 Minuten' }).click();
+	const row = (await dock(page).locator('.rounded-2xl').first().boundingBox())!;
+	const back = (await page.getByRole('button', { name: 'Zurück', exact: true }).boundingBox())!;
+	const next = (await page.getByRole('button', { name: 'Weiter' }).boundingBox())!;
+	expect(Math.round(row.x)).toBe(Math.round(back.x));
+	expect(Math.round(row.x + row.width)).toBe(Math.round(next.x + next.width));
+});
+
+// Outside cook mode: the player (phones) or the capsule (wide screens).
 const indicator = (page: Page) => page.locator('[data-timer-indicator]');
 
 async function startKlopse(page: Page): Promise<Recipe> {
@@ -173,8 +185,9 @@ test('shows on the overview', async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 780 });
 	await expect(indicator(page)).toBeVisible();
 	await expect(indicator(page)).toContainText('15:00');
-	const island = await indicator(page).boundingBox();
-	expect(island!.y).toBeLessThan(40);
+	// At the bottom, above the nav.
+	const player = await indicator(page).boundingBox();
+	expect(player!.y + player!.height).toBeGreaterThan(780 - 120);
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await expect(indicator(page)).toContainText('15:00');
 	const capsule = await indicator(page).boundingBox();
@@ -182,44 +195,144 @@ test('shows on the overview', async ({ page }) => {
 	expect(capsule!.y + capsule!.height).toBeGreaterThan(800 - 60);
 });
 
-test('jump opens the step', async ({ page }) => {
+test('the player opens every timer and jumps to its step', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
 	const recipe = await startKlopse(page);
 	await page.goto('/');
+	const toggle = indicator(page).locator('button[aria-expanded]');
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	const panel = page.locator('#timer-panel');
+	await expect(panel).toBeVisible();
+	// Above the player, as on a wide screen.
+	const player = await toggle.boundingBox();
+	const box = await panel.boundingBox();
+	expect(box!.y + box!.height).toBeLessThan(player!.y);
+	await page.keyboard.press('Escape');
+	await expect(panel).toBeHidden();
+	await expect(toggle).toBeFocused();
+	await toggle.click();
 	// A client-side link navigation stalls on the paused page clock.
 	await page.clock.resume();
-	await indicator(page).getByRole('link').click();
+	await panel.getByRole('link', { name: /Schritt 3 · 15 Minuten/ }).click();
 	await expect(page.getByText('Schritt 3 von 6')).toBeVisible();
-	// Read once and dropped, so a reload starts over instead of jumping back.
-	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook`);
+	// The step stays in the URL while paging, so a reload keeps it.
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=3`);
 	await page.getByRole('button', { name: 'Weiter' }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=4`);
 	await page.reload();
-	await expect(page.getByText('Schritt 1 von 6')).toBeVisible();
+	await expect(page.getByText('Schritt 4 von 6')).toBeVisible();
+});
+
+test('the desktop capsule opens upwards', async ({ page }) => {
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await startKlopse(page);
+	await page.goto('/');
+	const toggle = indicator(page).locator('button[aria-expanded]');
+	await toggle.click();
+	const panel = page.locator('#timer-panel');
+	await expect(panel).toBeVisible();
+	const capsule = await toggle.boundingBox();
+	const box = await panel.boundingBox();
+	expect(box!.y + box!.height).toBeLessThan(capsule!.y);
+	// A tap elsewhere closes it.
+	await page.mouse.click(200, 200);
+	await expect(panel).toBeHidden();
+});
+
+test('shows the timer with the least time left, paused or not', async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 780 });
+	const klopse = await germanRecipe(page, 0);
+	const rouladen = await germanRecipe(page, 1);
+	await cookAt(page, rouladen, 5);
+	await page.getByRole('button', { name: 'Timer starten: 90 Minuten' }).click();
+	await page.clock.runFor(80 * 60_000);
+	await expandDock(page);
+	await dock(page).getByRole('button', { name: 'Schritt 5 · 90 Minuten pausieren' }).click();
+	await cookAt(page, klopse, 3);
+	await page.getByRole('button', { name: 'Timer starten: 15 Minuten' }).click();
+	// Ten paused minutes left beat fifteen running ones.
+	const capsule = page.getByRole('button', { name: 'Alle Timer zeigen' });
+	await expect(capsule).toContainText('10:00');
+	await expect(capsule).toContainText('Schritt 5 · 90 Minuten');
+	await expect(capsule).toContainText('pausiert');
+});
+
+test("another recipe's timer opens its cook mode at the step", async ({ page }) => {
+	const klopse = await startKlopse(page);
+	const other = await germanRecipe(page, 1);
+	await cookAt(page, other, 1);
+	await expandDock(page);
+	await page.clock.resume();
+	await dock(page)
+		.getByRole('button', { name: /Schritt 3 · 15 Minuten/ })
+		.filter({ hasText: klopse.title })
+		.click();
+	await expect(page).toHaveURL(`/recipes/${klopse.slug}/cook?step=3`);
+	await expect(page.getByText('Schritt 3 von 6')).toBeVisible();
 });
 
 test('jump clamps to the last step', async ({ page }) => {
 	const recipe = await germanRecipe(page, 0);
 	await page.goto(`/recipes/${recipe.slug}/cook?step=99`);
 	await expect(page.getByText('Schritt 6 von 6')).toBeVisible();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=6`);
 	await page.goto(`/recipes/${recipe.slug}/cook?step=abc`);
 	await expect(page.getByText('Schritt 1 von 6')).toBeVisible();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=1`);
 });
 
-test('island covers nothing', async ({ page }) => {
+test('the player covers nothing', async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 780 });
 	const recipe = await startKlopse(page);
-	await page.goto('/');
-	const island = await indicator(page).boundingBox();
-	const head = await page.locator('main time').first().boundingBox();
-	expect(island && head).toBeTruthy();
-	expect(head!.y).toBeGreaterThanOrEqual(island!.y + island!.height);
+	const player = () => indicator(page).locator('button[aria-expanded]');
+	const bottomNav = page.getByRole('navigation', { name: 'Hauptmenü' }).locator('..');
 
-	// The detail page's fixed top bar moves down too.
-	await page.goto(`/recipes/${recipe.slug}`);
-	// Polled: the bar's `transition-all` eases it down once the shell set the offset.
-	const back = page.getByRole('button', { name: 'Zurück' }).first();
+	// Above the nav, and the overview's last row ends above the player.
+	await page.goto('/');
+	// Scrolled again on every try: the overview may still be loading its
+	// cards, and the nav docks on the scroll with the player riding along.
 	await expect
-		.poll(async () => (await back.boundingBox())!.y)
-		.toBeGreaterThanOrEqual(island!.y + island!.height);
+		.poll(async () => {
+			await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+			const box = (await player().boundingBox())!;
+			const nav = (await bottomNav.boundingBox())!;
+			const last = (await page.locator('main > *').last().boundingBox())!;
+			return box.y + box.height <= nav.y && last.y + last.height <= box.y;
+		})
+		.toBe(true);
+	// As wide as the nav, docked (scrolled past DOCK_AT) and floating (at
+	// the top); a short viewport, so one recipe card scrolls far enough.
+	await page.setViewportSize({ width: 360, height: 420 });
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	const sameEdges = async () => {
+		const p = (await indicator(page).locator('> div').first().boundingBox())!;
+		const n = (await bottomNav.boundingBox())!;
+		expect(Math.abs(p.x - n.x)).toBeLessThan(1);
+		expect(Math.abs(p.x + p.width - (n.x + n.width))).toBeLessThan(1);
+	};
+	await expect.poll(() => bottomNav.getAttribute('data-docked')).toBe('');
+	await expect.poll(async () => (await bottomNav.boundingBox())!.x).toBeLessThan(9);
+	await sameEdges();
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await expect.poll(() => bottomNav.getAttribute('data-docked')).toBeNull();
+	// Both morph over 500 ms.
+	await expect.poll(async () => (await bottomNav.boundingBox())!.x).toBeGreaterThan(15);
+	await page.waitForTimeout(600);
+	await sameEdges();
+
+	// A page without the nav keeps its fixed top bar at the top.
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect(player()).toBeVisible();
+	expect(
+		(await page.getByRole('button', { name: 'Zurück' }).first().boundingBox())!.y
+	).toBeLessThan(60);
+
+	// The software keyboard is up: the player steps aside like the nav.
+	await page.goto('/settings');
+	await page.getByRole('textbox').first().focus();
+	await expect(player()).toBeHidden();
 });
 
 /** The element shows its whole text: nothing cut off by an ellipsis. */
@@ -235,15 +348,10 @@ test('rings outside cook mode and turns off', async ({ page }) => {
 	await page.clock.runFor(15 * 60_000);
 	await expect(indicator(page)).toContainText('Fertig');
 	// The name, not the recipe title, is what tells two timers apart.
-	await expectWhole(
-		indicator(page).locator('[data-timer-name]'),
-		'Fertig · Schritt 3 · 15 Minuten'
-	);
+	const name = indicator(page).locator('button[aria-expanded] [data-timer-name]');
+	await expectWhole(name, 'Schritt 3 · 15 Minuten');
 	await page.setViewportSize({ width: 320, height: 640 });
-	await expectWhole(
-		indicator(page).locator('[data-timer-name]'),
-		'Fertig · Schritt 3 · 15 Minuten'
-	);
+	await expectWhole(name, 'Schritt 3 · 15 Minuten');
 	await indicator(page).getByRole('button', { name: 'Aus' }).click();
 	await expect(indicator(page)).toHaveCount(0);
 });
