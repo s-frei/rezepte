@@ -50,8 +50,8 @@ import (
 const sweepInterval = 24 * time.Hour
 
 // shareSweepInterval is how often public links whose own expiry has passed
-// are deleted. They serve nothing from that moment on; the sweep only
-// removes the rows.
+// are deleted, and staged comment photos nobody sent. Expired links serve
+// nothing from that moment on; the sweep only removes the rows.
 const shareSweepInterval = time.Hour
 
 // digestShutdownWait bounds how long a shutdown waits for a recipe digest
@@ -227,13 +227,29 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	notifications := notify.NewService(conn, signingKey, users, avatars, images, mailer, cfg.PublicURL)
-	sessions.SetNotifier(notifications)
-	go shares.SweepLoop(ctx, shareSweepInterval, logger)
-	go images.CommentImageSweepLoop(ctx, shareSweepInterval, logger)
 	pushes := push.NewService(conn, cfg.PublicURL, &http.Client{})
 	pushDone := pushes.Start(ctx)
-	notifications.SetPusher(pushes)
+	notifications := notify.NewService(conn, signingKey, users, avatars, images, mailer, pushes, cfg.PublicURL)
+	sessions.SetNotifier(notifications)
+	// One tick sweeps expired shares and unclaimed comment photos; the
+	// photos also at start. A failure is logged, never the end of the loop.
+	go func() {
+		ticker := time.NewTicker(shareSweepInterval)
+		defer ticker.Stop()
+		for {
+			if err := images.SweepCommentImages(ctx, time.Now()); err != nil {
+				logger.Warn("sweep staged comment images", "err", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+			if err := shares.Sweep(ctx, time.Now()); err != nil {
+				logger.Warn("sweep expired shares", "err", err)
+			}
+		}
+	}()
 	mailer.SetReporter(notifications)
 	digestDone := notifications.StartRecipeDigest(ctx)
 

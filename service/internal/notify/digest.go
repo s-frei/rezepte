@@ -61,13 +61,9 @@ func (s *Service) tickRecipeDigest(ctx context.Context) {
 // when now, in the server's time zone, is at or past the owner's hour and no
 // run happened on that date yet. Each recipient gets the announced recipes
 // at least digestAge old that others created; one with none gets nothing.
-// With mail off and no pusher nothing is claimed, so the run happens once
-// mail is on.
+// With mail off it only pushes.
 func (s *Service) RunRecipeDigest(ctx context.Context, now time.Time) error {
 	mailOn := s.mailer.Enabled(ctx)
-	if !mailOn && s.pusher == nil {
-		return nil
-	}
 	local := now.In(time.Local)
 	day := local.Format(time.DateOnly)
 	st, err := s.q.GetRecipeDigestState(ctx)
@@ -85,10 +81,8 @@ func (s *Service) RunRecipeDigest(ctx context.Context, now time.Time) error {
 		}
 		recipients = slices.DeleteFunc(recipients, func(r sqlc.ListRecipeDigestRecipientsRow) bool { return !mailable(r.Email, r.EmailVerified) })
 	}
-	if s.pusher != nil {
-		if pushTo, err = s.q.ListRecipeDigestRecipients(ctx, string(ChannelPush)); err != nil {
-			return fmt.Errorf("list recipe digest push recipients: %w", err)
-		}
+	if pushTo, err = s.q.ListRecipeDigestRecipients(ctx, string(ChannelPush)); err != nil {
+		return fmt.Errorf("list recipe digest push recipients: %w", err)
 	}
 	due, err := s.claimRecipeDigest(ctx, day, now.Add(-digestAge))
 	if err != nil || len(due) == 0 {
@@ -143,9 +137,7 @@ func (s *Service) RunRecipeDigest(ctx context.Context, now time.Time) error {
 		}
 		mail.LogUnsent(ctx, "recipe digest mail failed", to.ID, err)
 	}
-	if s.pusher != nil {
-		s.pushDigest(ctx, pushTo, due, creators)
-	}
+	s.pushDigest(ctx, pushTo, due, creators)
 	return nil
 }
 

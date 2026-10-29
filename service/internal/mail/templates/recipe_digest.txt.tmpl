@@ -13,7 +13,7 @@
 {{t "mail_recipe_digest_all"}}: {{.Data.AllURL}}
 
 {{t "mail_recipe_digest_reason"}}
-{{with .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_recipe"}}: {{.}}
-{{end}}{{with .Unsubscribe.GroupURL}}{{t "mail_unsubscribe_group_household"}}: {{.}}
+{{if .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_recipe"}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_household"}}: {{.Unsubscribe.GroupURL}}
 {{end}}
 {{end}}

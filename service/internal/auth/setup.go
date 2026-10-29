@@ -156,14 +156,9 @@ func (s *Service) peek(ctx context.Context, hash string) (OpenLink, error) {
 	return OpenLink{User: u, Purpose: Purpose(row.Purpose)}, nil
 }
 
-// ConsumeSetupLink uses the link up and returns its account. Of two callers
-// with the same token, exactly one gets the id.
-func (s *Service) ConsumeSetupLink(ctx context.Context, token string) (string, error) {
-	return s.ConsumeSetupLinkByHash(ctx, hashToken(token), false)
-}
-
-// ConsumeSetupLinkByHash is ConsumeSetupLink for a link known by
-// SetupLinkHash. It is the OIDC path: no password is set. linked says the
+// ConsumeSetupLinkByHash uses the link known by SetupLinkHash up and returns
+// its account. Of two callers with the same hash, exactly one gets the id.
+// It is the OIDC path: no password is set. linked says the
 // caller just added an identity (user.Service.LinkIdentity reported a new
 // row); only then does an account that could sign in already hear of it.
 func (s *Service) ConsumeSetupLinkByHash(ctx context.Context, hash string, linked bool) (string, error) {

@@ -58,16 +58,6 @@ func (e *setupError) Unwrap() error { return e.err }
 
 func setup(reason string, err error) error { return &setupError{reason, err} }
 
-// setupFailure returns why err is a failure of the mail setup, empty when
-// it is not one.
-func setupFailure(err error) string {
-	var se *setupError
-	if errors.As(err, &se) {
-		return se.Reason
-	}
-	return ""
-}
-
 func send(ctx context.Context, cfg Config, env Envelope) error {
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	ctx, cancel := context.WithTimeout(ctx, sendTimeout)

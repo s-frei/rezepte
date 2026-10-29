@@ -46,9 +46,6 @@ func joins(r rune) bool {
 // want it by push, never its author. The pushes of one recipe share a tag,
 // so a newer one replaces the one shown.
 func (s *Service) pushComment(ctx context.Context, recipeID string, commentID int64) error {
-	if s.pusher == nil {
-		return nil
-	}
 	c, author, r, ok, err := s.commentFacts(ctx, recipeID, commentID)
 	if !ok {
 		return err

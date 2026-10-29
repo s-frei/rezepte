@@ -131,7 +131,7 @@ func addListTags(s *mcp.Server, c caller) {
 		Description: "List every tag in use with how many recipes carry it, most used first. Prefer these over inventing new tags.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		tags, err := c.svc.Tags(ctx)
+		tags, err := c.svc.TagsFor(ctx, recipe.ListParams{})
 		if err != nil {
 			return nil, nil, toolError(ctx, fmt.Errorf("list tags: %w", err))
 		}

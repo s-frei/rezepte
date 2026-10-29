@@ -466,7 +466,7 @@ func TestSetupWithUsedLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	authorize, fc := flow(t, e.h, "setup", url.Values{"setup": {link.Token}}, nil)
-	if _, err := e.sessions.ConsumeSetupLink(ctx, link.Token); err != nil {
+	if _, err := e.sessions.ConsumeSetupLinkByHash(ctx, auth.SetupLinkHash(link.Token), false); err != nil {
 		t.Fatal(err)
 	}
 	state, code := e.idp.approve(t, authorize, idClaims{Subject: "sub-anna"})

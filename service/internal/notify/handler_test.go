@@ -22,6 +22,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/notify"
+	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/sign"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -39,6 +40,10 @@ func (mailOff) SendInviteAccepted(context.Context, mail.InviteAccepted) error {
 }
 func (mailOff) SendRecipeDigest(context.Context, mail.RecipeDigest) error { return mail.ErrDisabled }
 func (mailOff) SendTasty(context.Context, mail.Tasty) error               { return mail.ErrDisabled }
+
+type pushOff struct{}
+
+func (pushOff) SendToUser(context.Context, string, push.Message) {}
 
 type fixture struct {
 	h     http.Handler
@@ -65,7 +70,7 @@ func newFixture(t *testing.T) fixture {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	f.svc = notify.NewService(conn, testKey, users, nil, nil, mailOff{}, publicURL)
+	f.svc = notify.NewService(conn, testKey, users, nil, nil, mailOff{}, pushOff{}, publicURL)
 	notify.Register(srv.API(), f.svc)
 	f.h = srv.Handler()
 	return f

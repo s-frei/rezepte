@@ -170,8 +170,9 @@ type Service struct {
 
 // NewService returns a Service backed by conn that signs unsubscribe links
 // with key (32 bytes, settings.Service.LinkPreviewKey) and puts publicURL in
-// front of them. images serves the digest's cover photos.
-func NewService(conn *sql.DB, key []byte, users *user.Service, avatars *avatar.Service, images *image.Service, m Mailer, publicURL string) *Service {
+// front of them. images serves the digest's cover photos; p pushes beside
+// the mails.
+func NewService(conn *sql.DB, key []byte, users *user.Service, avatars *avatar.Service, images *image.Service, m Mailer, p Pusher, publicURL string) *Service {
 	return &Service{
 		conn:      conn,
 		q:         sqlc.New(conn),
@@ -180,14 +181,11 @@ func NewService(conn *sql.DB, key []byte, users *user.Service, avatars *avatar.S
 		avatars:   avatars,
 		images:    images,
 		mailer:    m,
+		pusher:    p,
 		publicURL: publicURL,
 		now:       time.Now,
 	}
 }
-
-// SetPusher makes s push beside mailing; nil, the default, sends no push.
-// Call it before StartRecipeDigest.
-func (s *Service) SetPusher(p Pusher) { s.pusher = p }
 
 // Preferences returns every kind and group u may have, per channel, true
 // unless u switched it off.

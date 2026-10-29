@@ -116,7 +116,7 @@ func newFanout(t *testing.T) fanout {
 		conn: conn, avatarDir: t.TempDir(), imageDir: t.TempDir()}
 	avatars := avatar.NewService(conn, f.avatarDir, nil)
 	f.images = image.NewService(conn, f.imageDir)
-	f.svc = NewService(conn, bytes.Repeat([]byte{7}, 32), f.users, avatars, f.images, f.mailer, "https://r.example.org")
+	f.svc = NewService(conn, bytes.Repeat([]byte{7}, 32), f.users, avatars, f.images, f.mailer, &fakePusher{}, "https://r.example.org")
 	return f
 }
 

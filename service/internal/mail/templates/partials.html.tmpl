@@ -25,5 +25,5 @@
     <div style="font-size:16px;line-height:1.6;white-space:pre-line;margin:4px 0 0;">{{.body}}</div></td>
   </tr></table>{{end}}
 
-{{/* unsubscribe: dict "links" (an Unsubscribe) "kind" "group" (catalog keys); a link without a URL is left out */}}
-{{define "unsubscribe"}}{{if or .links.KindURL .links.GroupURL}}<p class="muted" style="font-size:13px;line-height:1.55;color:#756554;margin:14px 0 0;">{{if .links.KindURL}}<a class="link" href="{{.links.KindURL}}" style="color:#b45309;">{{t .kind}}</a>{{end}}{{if and .links.KindURL .links.GroupURL}} · {{end}}{{if .links.GroupURL}}<a class="link" href="{{.links.GroupURL}}" style="color:#b45309;">{{t .group}}</a>{{end}}</p>{{end}}{{end}}
+{{/* unsubscribe: dict "links" (an Unsubscribe) "kind" "group" (catalog keys); KindURL and GroupURL come together, and without them the footer is left out */}}
+{{define "unsubscribe"}}{{if .links.KindURL}}<p class="muted" style="font-size:13px;line-height:1.55;color:#756554;margin:14px 0 0;"><a class="link" href="{{.links.KindURL}}" style="color:#b45309;">{{t .kind}}</a> · <a class="link" href="{{.links.GroupURL}}" style="color:#b45309;">{{t .group}}</a></p>{{end}}{{end}}

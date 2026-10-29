@@ -244,12 +244,6 @@ func canSignIn(ctx context.Context, sessions *auth.Service, u user.User) bool {
 	return ok
 }
 
-// confirmAddress mails a confirmation when actor's write turned before into
-// an after with a new address, naming actor unless they changed their own.
-func confirmAddress(ctx context.Context, sessions *auth.Service, actor, before, after user.User) {
-	sessions.ConfirmChangedAddress(ctx, before, after, adminName(actor, after))
-}
-
 // adminName is who a mail about target names as having changed it: actor's
 // display name, empty when actor is target.
 func adminName(actor, target user.User) string {
@@ -617,7 +611,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			// The address is written: the old one hears and the new one gets
 			// its confirmation now, so a later step that fails (a full argon2
 			// queue answers 503) cannot leave the change unannounced.
-			confirmAddress(ctx, sessions, actor, before, u)
+			sessions.ConfirmChangedAddress(ctx, before, u, adminName(actor, u))
 		}
 		if hasProfile {
 			u, err = users.SetProfile(ctx, in.ID, user.ProfileUpdate{DisplayName: update.DisplayName, Color: update.Color})

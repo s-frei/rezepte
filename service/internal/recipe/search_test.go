@@ -541,7 +541,7 @@ func TestListRejectsAnUnknownSort(t *testing.T) {
 
 func TestTagsWithCounts(t *testing.T) {
 	svc := seedAll(t)
-	tags, err := svc.Tags(context.Background())
+	tags, err := svc.TagsFor(context.Background(), recipe.ListParams{})
 	if err != nil || len(tags) == 0 {
 		t.Fatalf("tags: %v %v", tags, err)
 	}
@@ -556,7 +556,7 @@ func TestTagsWithCounts(t *testing.T) {
 func TestTagsForCountsUnderTheFilter(t *testing.T) {
 	svc := seedAll(t)
 	ctx := context.Background()
-	all, err := svc.Tags(ctx)
+	all, err := svc.TagsFor(ctx, recipe.ListParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

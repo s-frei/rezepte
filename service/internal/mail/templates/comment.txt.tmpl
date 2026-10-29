@@ -7,7 +7,7 @@
 {{t "mail_comment_button"}}: {{.Data.URL}}
 
 {{t (printf "mail_comment_reason_%s" .Data.Reason)}}
-{{with .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_comment"}}: {{.}}
-{{end}}{{with .Unsubscribe.GroupURL}}{{t "mail_unsubscribe_group_household"}}: {{.}}
+{{if .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_comment"}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_household"}}: {{.Unsubscribe.GroupURL}}
 {{end}}
 {{end}}

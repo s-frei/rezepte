@@ -52,9 +52,7 @@ func (s *Service) sendTasty(ctx context.Context, markerID, recipeID string) {
 		return
 	}
 	s.mailTasty(ctx, marker, author, r)
-	if s.pusher != nil {
-		s.pushTasty(ctx, marker, author, r)
-	}
+	s.pushTasty(ctx, marker, author, r)
 }
 
 // tastyFacts reads the marker, the recipe and its author; ok is false when

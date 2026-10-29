@@ -52,7 +52,7 @@ func Register(api huma.API, l *Login) {
 		Tags:        []string{"auth"},
 	}, func(ctx context.Context, _ *struct{}) (*configOutput, error) {
 		out := &configOutput{}
-		if cfg, ok := l.config(ctx); ok {
+		if cfg, ok := l.settings.active(ctx); ok {
 			out.Body.Enabled, out.Body.Name = true, cfg.Name
 		}
 		return out, nil
@@ -71,7 +71,7 @@ func Register(api huma.API, l *Login) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		cfg, ok := l.config(ctx)
+		cfg, ok := l.settings.active(ctx)
 		if !ok {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
@@ -102,7 +102,7 @@ func Register(api huma.API, l *Login) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		cfg, ok := l.config(ctx)
+		cfg, ok := l.settings.active(ctx)
 		if !ok {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
@@ -140,7 +140,7 @@ func Register(api huma.API, l *Login) {
 		if !actor.Role.IsAdmin() {
 			return nil, huma.Error403Forbidden("admin role required")
 		}
-		cfg, ok := l.config(ctx)
+		cfg, ok := l.settings.active(ctx)
 		if !ok {
 			return nil, huma.Error404NotFound("no identity connected")
 		}
@@ -165,7 +165,7 @@ func Register(api huma.API, l *Login) {
 	// stream: the handler writes the redirect and its cookies itself.
 	step := func(serve func(*Login, Config, http.ResponseWriter, *http.Request)) func(context.Context, *struct{}) (*huma.StreamResponse, error) {
 		return func(ctx context.Context, _ *struct{}) (*huma.StreamResponse, error) {
-			cfg, ok := l.config(ctx)
+			cfg, ok := l.settings.active(ctx)
 			if !ok {
 				return nil, huma.Error404NotFound("sign-in through an identity provider is not configured")
 			}

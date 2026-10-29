@@ -200,19 +200,6 @@ func TestDigestDropsDeleted(t *testing.T) {
 	}
 }
 
-func TestDigestMailOffClaimsNothing(t *testing.T) {
-	f := newFanout(t)
-	mila, _ := f.household(t)
-	f.added(t, mila, "Dal", at(0, 10, 0))
-	f.mailer.off = true
-	f.run(t, at(0, 17, 0))
-	f.mailer.off = false
-	f.run(t, at(0, 17, 1))
-	if len(f.mailer.digests) != 1 {
-		t.Fatalf("sent %+v, want the run once mail is back", f.mailer.digests)
-	}
-}
-
 // cover uploads a photo to r, which becomes its cover.
 func (f fanout) cover(t *testing.T, r recipe.Recipe, actor user.User) {
 	t.Helper()

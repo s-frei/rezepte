@@ -31,7 +31,7 @@ func newAlerting(t *testing.T) *alerting {
 func (a *alerting) use(svc *Service) {
 	a.svc = svc
 	a.p = &fakePusher{ch: make(chan pushed, 8)}
-	svc.SetPusher(a.p)
+	svc.pusher = a.p
 	svc.now = func() time.Time { return a.at }
 }
 
@@ -93,7 +93,7 @@ func TestMailAlertSurvivesRestart(t *testing.T) {
 	if a.fail(t, "auth") == nil {
 		t.Fatal("first failure: no push")
 	}
-	a.use(NewService(a.conn, bytes.Repeat([]byte{7}, 32), a.users, nil, a.images, a.mailer, "https://r.example.org"))
+	a.use(NewService(a.conn, bytes.Repeat([]byte{7}, 32), a.users, nil, a.images, a.mailer, &fakePusher{}, "https://r.example.org"))
 	if m := a.fail(t, "auth"); m != nil {
 		t.Fatalf("after a restart: pushed %+v", m)
 	}

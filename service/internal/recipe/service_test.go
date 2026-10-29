@@ -169,7 +169,7 @@ func TestDeleteCascadesAndDropsOrphanTags(t *testing.T) {
 	if err := svc.Delete(ctx, created.ID, adminActor(uid)); !errors.Is(err, recipe.ErrNotFound) {
 		t.Fatalf("second delete: %v", err)
 	}
-	tags, err := svc.Tags(ctx)
+	tags, err := svc.TagsFor(ctx, recipe.ListParams{})
 	if err != nil || len(tags) != 0 {
 		t.Fatalf("tags after delete = %v, %v", tags, err)
 	}

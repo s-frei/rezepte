@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -62,7 +63,7 @@ func TestEnvWinsAndNeverSeeds(t *testing.T) {
 func TestEffectiveNoneByDefault(t *testing.T) {
 	s := newSettings(t, dbtest.Open(t), Config{PublicURL: testPublicURL})
 	got, src, err := s.Effective(context.Background())
-	if err != nil || src != SourceNone || got != (Config{PublicURL: testPublicURL}) || s.Enabled(context.Background()) {
+	if err != nil || src != SourceNone || got != (Config{PublicURL: testPublicURL}) || s.Provider(context.Background()) != (auth.Provider{}) {
 		t.Fatalf("got %+v from %q, %v", got, src, err)
 	}
 }
@@ -75,7 +76,7 @@ func TestEffectiveDefaultsName(t *testing.T) {
 	if err := s.Save(ctx, owner, c, nil); err != nil {
 		t.Fatal(err)
 	}
-	if got, _, _ := s.Effective(ctx); got.Name != "single sign-on" || !s.Enabled(ctx) {
+	if got, _, _ := s.Effective(ctx); got.Name != "single sign-on" || s.Provider(ctx).Issuer == "" {
 		t.Fatalf("got %+v", got)
 	}
 }

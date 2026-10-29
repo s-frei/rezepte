@@ -91,7 +91,7 @@ func (s *Service) FromText(ctx context.Context, text string) (Result, error) {
 }
 
 func (s *Service) build(ctx context.Context, page Page) (Result, error) {
-	counts, err := s.recipes.Tags(ctx)
+	counts, err := s.recipes.TagsFor(ctx, recipe.ListParams{})
 	if err != nil {
 		return Result{}, fmt.Errorf("load tags: %w", err)
 	}

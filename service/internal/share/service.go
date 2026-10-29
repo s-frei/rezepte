@@ -335,24 +335,6 @@ func (s *Service) Sweep(ctx context.Context, now time.Time) error {
 	return nil
 }
 
-// SweepLoop calls Sweep every d until ctx is canceled, logging failures at
-// warn instead of returning them so a transient database error never stops
-// the sweep for good. Intended to run in its own goroutine.
-func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.Logger) {
-	ticker := time.NewTicker(d)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if err := s.Sweep(ctx, s.now()); err != nil {
-				logger.Warn("sweep expired shares", "err", err)
-			}
-		}
-	}
-}
-
 // buildShare converts a stored row into a public Share, running the
 // validity rule (evaluate) against st and creatorAllowed to fill Status and
 // the effective ExpiresAt.

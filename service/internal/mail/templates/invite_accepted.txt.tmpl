@@ -5,7 +5,7 @@
 {{t "mail_invite_accepted_button"}}: {{.Data.URL}}
 
 {{t "mail_invite_accepted_reason"}}
-{{with .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_invite_accepted"}}: {{.}}
-{{end}}{{with .Unsubscribe.GroupURL}}{{t "mail_unsubscribe_group_admin"}}: {{.}}
+{{if .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_invite_accepted"}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_admin"}}: {{.Unsubscribe.GroupURL}}
 {{end}}
 {{end}}

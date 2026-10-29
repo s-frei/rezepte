@@ -191,9 +191,7 @@ func (s *Service) InviteAccepted(ctx context.Context, inviterID string, newcomer
 		return
 	}
 	s.mailInviteAccepted(ctx, inviter, newcomer)
-	if s.pusher != nil {
-		detach(ctx, "invitation push", func(ctx context.Context) { s.pushInviteAccepted(ctx, inviter, newcomer) })
-	}
+	detach(ctx, "invitation push", func(ctx context.Context) { s.pushInviteAccepted(ctx, inviter, newcomer) })
 }
 
 func (s *Service) mailInviteAccepted(ctx context.Context, inviter, newcomer user.User) {

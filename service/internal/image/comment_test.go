@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -352,11 +351,15 @@ func TestAddCommentImageToRecipe(t *testing.T) {
 	if !inRecipe(t, e, photo.ID) {
 		t.Error("inRecipe = false after adding")
 	}
-	for i, p := range commentFiles(e, photo.ID) {
-		a, errA := os.Stat(p)
-		b, errB := os.Stat(recipeFiles(e, img.ID)[i])
-		if errA != nil || errB != nil || !os.SameFile(a, b) {
-			t.Errorf("variant %d not shared: %v %v", i, errA, errB)
+	for i, src := range commentFiles(e, photo.ID) {
+		dst := recipeFiles(e, img.ID)[i]
+		a, errA := os.ReadFile(src)
+		b, errB := os.ReadFile(dst)
+		if errA != nil || errB != nil || !bytes.Equal(a, b) {
+			t.Errorf("%s: copy differs (%v, %v)", dst, errA, errB)
+		}
+		if exists(dst + ".tmp") {
+			t.Errorf("%s.tmp left behind", dst)
 		}
 	}
 
@@ -498,35 +501,6 @@ func TestAddedPhotoOutlivesItsComment(t *testing.T) {
 	})
 }
 
-func TestAddCommentImageFallsBackToCopy(t *testing.T) {
-	e := setup(t)
-	saved := *image.Link
-	*image.Link = func(string, string) error { return errors.New("cross-device link") }
-	t.Cleanup(func() { *image.Link = saved })
-
-	photo := attached(t, e, e.recipe.ID, adminOf(e))
-	img, err := e.images.AddCommentImageToRecipe(context.Background(), e.recipe.ID, photo.ID, adminOf(e))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i, src := range commentFiles(e, photo.ID) {
-		dst := recipeFiles(e, img.ID)[i]
-		a, errA := os.ReadFile(src)
-		b, errB := os.ReadFile(dst)
-		if errA != nil || errB != nil || !bytes.Equal(a, b) {
-			t.Errorf("%s: copy differs (%v, %v)", dst, errA, errB)
-		}
-		sa, _ := os.Stat(src)
-		sb, _ := os.Stat(dst)
-		if os.SameFile(sa, sb) {
-			t.Errorf("%s shares the inode although linking failed", dst)
-		}
-		if exists(dst + ".tmp") {
-			t.Errorf("%s.tmp left behind", dst)
-		}
-	}
-}
-
 func TestSweepCommentImagesKeepsGoing(t *testing.T) {
 	e := setup(t)
 	now := time.Now()
@@ -555,25 +529,6 @@ func TestSweepCommentImagesKeepsGoing(t *testing.T) {
 	}
 	if left != 1 {
 		t.Errorf("dirs left = %d, want 1 (only the failed one)", left)
-	}
-}
-
-func TestCommentImageSweepLoopSweepsAtStart(t *testing.T) {
-	e := setup(t)
-	now := time.Now()
-	e.images.SetClock(func() time.Time { return now.Add(-25 * time.Hour) })
-	old, _ := stage(t, e, adminOf(e))
-	e.images.SetClock(func() time.Time { return now })
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() { e.images.CommentImageSweepLoop(ctx, time.Hour, slog.New(slog.DiscardHandler)); close(done) }()
-	defer func() { cancel(); <-done }()
-
-	dir := recipe.CommentImageDir(e.dir, e.recipe.ID, old.ID)
-	for deadline := time.Now().Add(5 * time.Second); exists(dir); time.Sleep(10 * time.Millisecond) {
-		if time.Now().After(deadline) {
-			t.Fatal("old staged photo not swept at startup")
-		}
 	}
 }
 

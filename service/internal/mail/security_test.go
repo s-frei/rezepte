@@ -193,7 +193,7 @@ func TestEveryBuiltKeyExists(t *testing.T) {
 }
 
 func TestMissingKeyFailsTheRender(t *testing.T) {
-	if _, err := text("de", "mail_no_such_key", nil); err == nil {
+	if _, err := Text("de", "mail_no_such_key", nil); err == nil {
 		t.Error("text: no error for a missing key")
 	}
 	_, err := BuildPasswordChanged(cfg, PasswordChanged{To: "a@b.c", Origin: "nope", Locale: "en"}, "", time.Unix(0, 0))
@@ -204,7 +204,7 @@ func TestMissingKeyFailsTheRender(t *testing.T) {
 
 // A value is never scanned for placeholders again.
 func TestPlaceholdersFillInOnePass(t *testing.T) {
-	got, err := text("en", "mail_comment_subject", map[string]string{"author": "{title}", "title": "{author}"})
+	got, err := Text("en", "mail_comment_subject", map[string]string{"author": "{title}", "title": "{author}"})
 	if err != nil || got != "{title} commented on “{author}”" {
 		t.Errorf("text = %q, %v", got, err)
 	}

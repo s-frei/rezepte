@@ -68,6 +68,16 @@ func circle(color user.Color, name string) (bg, fg, initial string) {
 	return colors.bg, colors.fg, strings.ToUpper(string(r))
 }
 
+// avatarPart inlines a person's picture under a Content-ID that shares the
+// message's random id; without a picture the URL is empty and no part goes.
+func avatarPart(cfg Config, id string, jpeg []byte) (string, []inline) {
+	if len(jpeg) == 0 {
+		return "", nil
+	}
+	cid := "avatar." + id + "@" + domainOf(cfg.From)
+	return "cid:" + cid, []inline{{CID: cid, JPEG: jpeg}}
+}
+
 // BuildComment renders the comment mail; its button opens the recipe on
 // the comments tab.
 func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Envelope, error) {
@@ -76,13 +86,7 @@ func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Enve
 	// wants it unique, and a client that caches by cid must not show one
 	// author's picture in another's mail.
 	id := newID()
-	var pictures []inline
-	avatar := ""
-	if len(in.AuthorAvatar) > 0 {
-		cid := "avatar." + id + "@" + domainOf(cfg.From)
-		avatar = "cid:" + cid
-		pictures = []inline{{CID: cid, JPEG: in.AuthorAvatar}}
-	}
+	avatar, pictures := avatarPart(cfg, id, in.AuthorAvatar)
 	domain := domainOf(cfg.From)
 	var photos []htmltemplate.URL
 	for i, p := range in.Photos {
@@ -92,12 +96,8 @@ func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Enve
 	}
 	more := ""
 	if n := len(in.Photos); n > 0 {
-		key := "mail_comment_photos_other"
-		if n == 1 {
-			key = "mail_comment_photos_one"
-		}
 		var err error
-		if more, err = text(in.Locale, key, map[string]string{"count": strconv.Itoa(n)}); err != nil {
+		if more, err = Text(in.Locale, plural("mail_comment_photos", n), map[string]string{"count": strconv.Itoa(n)}); err != nil {
 			return Envelope{}, err
 		}
 	}
@@ -138,13 +138,7 @@ func BuildTasty(cfg Config, in Tasty, publicURL string, now time.Time) (Envelope
 	// The picture's Content-ID shares the Message-ID's random part, as in
 	// BuildComment.
 	id := newID()
-	var pictures []inline
-	avatar := ""
-	if len(in.MarkerAvatar) > 0 {
-		cid := "avatar." + id + "@" + domainOf(cfg.From)
-		avatar = "cid:" + cid
-		pictures = []inline{{CID: cid, JPEG: in.MarkerAvatar}}
-	}
+	avatar, pictures := avatarPart(cfg, id, in.MarkerAvatar)
 	return build(cfg, in.To, letter{
 		Name:        "tasty",
 		Lang:        string(in.Locale),
@@ -233,7 +227,7 @@ func BuildRecipeDigest(cfg Config, in RecipeDigest, publicURL string, now time.T
 	if len(in.Recipes) == 0 {
 		return Envelope{}, errors.New("recipe digest without recipes")
 	}
-	former, err := text(in.Locale, "mail_recipe_digest_former_member", nil)
+	former, err := Text(in.Locale, "mail_recipe_digest_former_member", nil)
 	if err != nil {
 		return Envelope{}, err
 	}
@@ -283,11 +277,7 @@ func BuildRecipeDigest(cfg Config, in RecipeDigest, publicURL string, now time.T
 	if len(in.Recipes) == 1 {
 		subjectKey, subjectArgs = "mail_recipe_digest_subject_one", map[string]string{"title": in.Recipes[0].Title}
 	}
-	countKey := "mail_recipe_digest_count_other"
-	if len(in.Recipes) == 1 {
-		countKey = "mail_recipe_digest_count_one"
-	}
-	count, err := text(in.Locale, countKey, map[string]string{"count": strconv.Itoa(len(in.Recipes))})
+	count, err := Text(in.Locale, plural("mail_recipe_digest_count", len(in.Recipes)), map[string]string{"count": strconv.Itoa(len(in.Recipes))})
 	if err != nil {
 		return Envelope{}, err
 	}
@@ -315,14 +305,18 @@ func BuildRecipeDigest(cfg Config, in RecipeDigest, publicURL string, now time.T
 // digestFacts is a card's line of short facts: the servings and, when
 // known, the time.
 func digestFacts(locale user.Locale, r DigestRecipe) (string, error) {
-	key := "mail_recipe_digest_servings_other"
-	if r.Servings == 1 {
-		key = "mail_recipe_digest_servings_one"
-	}
-	facts, err := text(locale, key, map[string]string{"count": strconv.Itoa(r.Servings)})
+	facts, err := Text(locale, plural("mail_recipe_digest_servings", r.Servings), map[string]string{"count": strconv.Itoa(r.Servings)})
 	if err != nil || r.Minutes <= 0 {
 		return facts, err
 	}
-	minutes, err := text(locale, "mail_recipe_digest_minutes", map[string]string{"count": strconv.Itoa(r.Minutes)})
+	minutes, err := Text(locale, "mail_recipe_digest_minutes", map[string]string{"count": strconv.Itoa(r.Minutes)})
 	return facts + " · " + minutes, err
+}
+
+// plural is base's key for n: base_one for 1, base_other otherwise.
+func plural(base string, n int) string {
+	if n == 1 {
+		return base + "_one"
+	}
+	return base + "_other"
 }

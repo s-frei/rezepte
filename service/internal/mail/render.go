@@ -98,10 +98,10 @@ func funcs(locale user.Locale) map[string]any {
 			for i := 0; i < len(kv); i += 2 {
 				args[kv[i]] = kv[i+1]
 			}
-			return text(locale, key, args)
+			return Text(locale, key, args)
 		},
 		"datetime": func(t time.Time) (string, error) {
-			layout, err := text(locale, "mail_datetime_format", nil)
+			layout, err := Text(locale, "mail_datetime_format", nil)
 			// time.Local is the server's TZ, UTC unless the deployment sets it.
 			return t.In(time.Local).Format(layout), err
 		},
@@ -149,16 +149,11 @@ func FilterCatalog(raw []byte) (map[string]string, error) {
 	return out, nil
 }
 
-// Text is text for copy built outside a mail, such as a push.
-func Text(locale user.Locale, key string, args map[string]string) (string, error) {
-	return text(locale, key, args)
-}
-
-// text returns key in locale with {placeholders} filled, falling back to the
+// Text returns key in locale with {placeholders} filled, falling back to the
 // base locale for a locale or key the catalog lacks. A key the base catalog
 // lacks too is an error, never an empty line in a mail. The placeholders are
 // filled in one pass, so a value holding "{title}" stays as typed.
-func text(locale user.Locale, key string, args map[string]string) (string, error) {
+func Text(locale user.Locale, key string, args map[string]string) (string, error) {
 	s, ok := catalogs[string(locale)][key]
 	if !ok {
 		if s, ok = catalogs[string(user.BaseLocale)][key]; !ok {
@@ -210,7 +205,7 @@ func render(l letter) (subject, txt, html string, err error) {
 	if !ok {
 		return "", "", "", fmt.Errorf("no mail template %q", l.Name)
 	}
-	if l.Subject, err = text(user.Locale(l.Lang), l.SubjectKey, l.SubjectArgs); err != nil {
+	if l.Subject, err = Text(user.Locale(l.Lang), l.SubjectKey, l.SubjectArgs); err != nil {
 		return "", "", "", err
 	}
 	f := funcs(user.Locale(l.Lang))

@@ -293,13 +293,12 @@ func (s *Service) deliver(ctx context.Context, to, what string, build func(Confi
 	}
 	if err := Send(ctx, cfg, env); err != nil {
 		reason := any("send failed")
-		var reply *textproto.Error
-		if errors.As(err, &reply) {
+		if reply, ok := errors.AsType[*textproto.Error](err); ok {
 			reason = reply.Code
 		}
 		s.logger.Warn("mail: "+what+" not sent", "domain", to[strings.LastIndex(to, "@")+1:], "reason", reason)
-		if why := setupFailure(err); why != "" && s.reporter != nil {
-			s.reporter.MailFailed(ctx, why)
+		if se, ok := errors.AsType[*setupError](err); ok && s.reporter != nil {
+			s.reporter.MailFailed(ctx, se.Reason)
 		}
 		return err
 	}

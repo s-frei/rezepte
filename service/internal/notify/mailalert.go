@@ -37,9 +37,7 @@ func (s *Service) MailFailed(ctx context.Context, reason string) {
 		slog.WarnContext(ctx, "mail alert: state update failed", "err", err)
 		return
 	}
-	if s.pusher != nil {
-		detach(ctx, "mail alert", func(ctx context.Context) { s.pushMailFailing(ctx, reason) })
-	}
+	detach(ctx, "mail alert", func(ctx context.Context) { s.pushMailFailing(ctx, reason) })
 }
 
 // pushMailFailing pushes the owner reason's copy, unless they switched it

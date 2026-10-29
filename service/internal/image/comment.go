@@ -142,31 +142,6 @@ func (s *Service) SweepCommentImages(ctx context.Context, now time.Time) error {
 	return errors.Join(errs...)
 }
 
-// CommentImageSweepLoop calls SweepCommentImages once at start and then
-// every d until ctx is canceled, logging failures at warn. Intended to run
-// in its own goroutine.
-func (s *Service) CommentImageSweepLoop(ctx context.Context, d time.Duration, logger *slog.Logger) {
-	sweep := func() {
-		if err := s.SweepCommentImages(ctx, s.now()); err != nil {
-			logger.Warn("sweep staged comment images", "err", err)
-		}
-	}
-	sweep()
-	ticker := time.NewTicker(d)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			sweep()
-		}
-	}
-}
-
-// link hard-links a file; a variable so tests can force the copy fallback.
-var link = os.Link
-
 // removeAll deletes a directory tree; a variable so tests can make it fail.
 var removeAll = os.RemoveAll
 
@@ -190,7 +165,7 @@ func (s *Service) AddCommentImageToRecipe(ctx context.Context, recipeID, comment
 	recipeDir := filepath.Join(s.dir, recipeID)
 	srcDir := recipe.CommentImageDir(s.dir, recipeID, commentImageID)
 	for _, v := range variants {
-		if err := linkOrCopy(filepath.Join(srcDir, commentImageID+v.suffix+".jpg"), variantPath(s.dir, recipeID, id, v.suffix)); err != nil {
+		if err := copyFile(filepath.Join(srcDir, commentImageID+v.suffix+".jpg"), variantPath(s.dir, recipeID, id, v.suffix)); err != nil {
 			removeFiles(recipeDir, id)
 			if errors.Is(err, os.ErrNotExist) {
 				return recipe.Image{}, ErrNotFound // the comment went meanwhile
@@ -230,15 +205,9 @@ func (s *Service) AddCommentImageToRecipe(ctx context.Context, recipeID, comment
 	return out, nil
 }
 
-// linkOrCopy gives src a second name dst. Sharing the inode is safe because
-// image files are never rewritten after they are written, and deleting
-// either name leaves the other intact. When linking fails (another file
-// system, no link support) the bytes are copied through a ".tmp" sibling
-// and renamed into place, so a reader never sees a partial file.
-func linkOrCopy(src, dst string) error {
-	if link(src, dst) == nil {
-		return nil
-	}
+// copyFile copies src to dst through a ".tmp" sibling renamed into place,
+// so a reader never sees a partial file.
+func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", src, err)

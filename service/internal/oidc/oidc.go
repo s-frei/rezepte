@@ -97,17 +97,6 @@ func New(settings *Settings, sessions *auth.Service, users *user.Service, secure
 	}
 }
 
-// config returns the provider in force and whether sign-in through it is
-// offered.
-func (l *Login) config(ctx context.Context) (Config, bool) {
-	c, src, err := l.settings.Effective(ctx)
-	if err != nil {
-		l.logger.Warn("oidc settings", "err", err)
-		return Config{}, false
-	}
-	return c, src != SourceNone && c.PublicURL != ""
-}
-
 // ctx carries the timeout client go-oidc and oauth2 read from the context.
 func (l *Login) ctx(r *http.Request) context.Context {
 	return gooidc.ClientContext(r.Context(), l.client)

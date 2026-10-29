@@ -35,7 +35,7 @@ func (p *fakePusher) SendToUser(_ context.Context, userID string, m push.Message
 
 func (f fanout) pusher() *fakePusher {
 	p := &fakePusher{}
-	f.svc.SetPusher(p)
+	f.svc.pusher = p
 	return p
 }
 

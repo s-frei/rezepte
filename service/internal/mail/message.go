@@ -76,7 +76,7 @@ func providerName(locale user.Locale, name string) (string, error) {
 	if name != "" {
 		return name, nil
 	}
-	return text(locale, "mail_hint_provider_fallback", nil)
+	return Text(locale, "mail_hint_provider_fallback", nil)
 }
 
 // Confirm asks whoever reads To to confirm it for the account Username, so

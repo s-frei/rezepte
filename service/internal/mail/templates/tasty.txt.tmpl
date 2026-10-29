@@ -5,7 +5,7 @@
 {{t "mail_tasty_button"}}: {{.Data.URL}}
 
 {{t "mail_tasty_reason"}}
-{{with .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_tasty"}}: {{.}}
-{{end}}{{with .Unsubscribe.GroupURL}}{{t "mail_unsubscribe_group_household"}}: {{.}}
+{{if .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_tasty"}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_household"}}: {{.Unsubscribe.GroupURL}}
 {{end}}
 {{end}}
