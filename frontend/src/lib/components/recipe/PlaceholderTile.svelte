@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tintFor, type Tint } from '$lib/recipe/placeholder';
+	import { initialFor, tintFor, type Tint } from '$lib/recipe/placeholder';
 
 	let {
 		id,
@@ -29,7 +29,7 @@
 	} as const;
 
 	const tint = $derived(tintFor(id));
-	const initial = $derived(title.trim().charAt(0).toUpperCase() || '?');
+	const initial = $derived(initialFor(title));
 </script>
 
 <div

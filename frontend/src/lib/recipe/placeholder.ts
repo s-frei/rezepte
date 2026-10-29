@@ -21,3 +21,12 @@ export function tintFor(id: string): Tint {
 	}
 	return TINTS[Math.abs(hash) % TINTS.length];
 }
+
+/**
+ * The first letter or digit of a title, uppercased, or `?` when it has none.
+ * Skips leading emoji, quotes and punctuation, which `charAt(0)` would show
+ * (an emoji even as half a surrogate pair); `\p{L}\p{N}` matches whole code points.
+ */
+export function initialFor(title: string): string {
+	return title.match(/[\p{L}\p{N}]/u)?.[0].toLocaleUpperCase() ?? '?';
+}

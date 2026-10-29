@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tintFor } from './placeholder';
+import { initialFor, tintFor } from './placeholder';
 
 describe('tintFor', () => {
 	it('is stable for the same id', () => {
@@ -19,5 +19,19 @@ describe('tintFor', () => {
 	it('reaches all three tints across a spread of ids', () => {
 		const seen = new Set(Array.from({ length: 30 }, (_, i) => tintFor(`recipe-${i}`)));
 		expect(seen).toEqual(new Set(['tint-1', 'tint-2', 'tint-3']));
+	});
+});
+
+describe('initialFor', () => {
+	it.each([
+		['Pesto', 'P'],
+		['🍝 Spaghetti aglio e olio', 'S'],
+		['„Omas“ Kartoffelsuppe', 'O'],
+		['3-Minuten-Ei', '3'],
+		['ölkuchen', 'Ö'],
+		['🍝', '?'],
+		['', '?']
+	])('%s -> %s', (title, initial) => {
+		expect(initialFor(title)).toBe(initial);
 	});
 });
