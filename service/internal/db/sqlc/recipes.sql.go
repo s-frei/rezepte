@@ -1010,7 +1010,7 @@ func (q *Queries) SetFavorite(ctx context.Context, arg SetFavoriteParams) error 
 	return err
 }
 
-const setTasty = `-- name: SetTasty :exec
+const setTasty = `-- name: SetTasty :execrows
 INSERT OR IGNORE INTO tasty (user_id, recipe_id, created_at) VALUES (?, ?, ?)
 `
 
@@ -1020,9 +1020,13 @@ type SetTastyParams struct {
 	CreatedAt string
 }
 
-func (q *Queries) SetTasty(ctx context.Context, arg SetTastyParams) error {
-	_, err := q.db.ExecContext(ctx, setTasty, arg.UserID, arg.RecipeID, arg.CreatedAt)
-	return err
+// Affects no row when the mark exists, so only a new mark is announced.
+func (q *Queries) SetTasty(ctx context.Context, arg SetTastyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setTasty, arg.UserID, arg.RecipeID, arg.CreatedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const slugExists = `-- name: SlugExists :one

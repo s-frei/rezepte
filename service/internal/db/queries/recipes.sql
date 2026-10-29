@@ -126,7 +126,8 @@ FROM favorites
 WHERE user_id = sqlc.arg(user_id)
   AND recipe_id IN (SELECT value FROM json_each(sqlc.arg(recipe_ids)));
 
--- name: SetTasty :exec
+-- name: SetTasty :execrows
+-- Affects no row when the mark exists, so only a new mark is announced.
 INSERT OR IGNORE INTO tasty (user_id, recipe_id, created_at) VALUES (?, ?, ?);
 
 -- name: DeleteTasty :exec

@@ -32,7 +32,7 @@ var sendTimeout = 15 * time.Second
 // comment commentID in the background, so the request that wrote it never
 // waits on SMTP or a push service. It implements recipe.CommentNotifier.
 func (s *Service) CommentAdded(ctx context.Context, recipeID string, commentID int64) {
-	detach(ctx, "comment notification", detachedTimeout, func(ctx context.Context) {
+	detach(ctx, "comment notification", func(ctx context.Context) {
 		if err := s.mailComment(ctx, recipeID, commentID); err != nil {
 			slog.WarnContext(ctx, "comment mail failed", "recipe", recipeID, "comment", commentID, "err", err)
 		}
@@ -43,11 +43,11 @@ func (s *Service) CommentAdded(ctx context.Context, recipeID string, commentID i
 }
 
 // detach runs fn in its own goroutine on ctx without its cancellation,
-// bounded by timeout. No request is left to fail: a panic is logged, since
+// bounded by detachedTimeout. No request is left to fail: a panic is logged, since
 // it would end the process.
-func detach(ctx context.Context, what string, timeout time.Duration, fn func(context.Context)) {
+func detach(ctx context.Context, what string, fn func(context.Context)) {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), detachedTimeout)
 		defer cancel()
 		defer func() {
 			if r := recover(); r != nil {
@@ -192,7 +192,7 @@ func (s *Service) InviteAccepted(ctx context.Context, inviterID string, newcomer
 	}
 	s.mailInviteAccepted(ctx, inviter, newcomer)
 	if s.pusher != nil {
-		detach(ctx, "invitation push", detachedTimeout, func(ctx context.Context) { s.pushInviteAccepted(ctx, inviter, newcomer) })
+		detach(ctx, "invitation push", func(ctx context.Context) { s.pushInviteAccepted(ctx, inviter, newcomer) })
 	}
 }
 

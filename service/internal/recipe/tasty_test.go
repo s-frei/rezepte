@@ -207,3 +207,32 @@ func TestListSortsByTasty(t *testing.T) {
 		}
 	}
 }
+
+type tastyFunc func(ctx context.Context, userID, recipeID string)
+
+func (f tastyFunc) TastyMarked(ctx context.Context, userID, recipeID string) {
+	f(ctx, userID, recipeID)
+}
+
+// TestTastyRemarkDoesNotRenotify pins that only a new mark is announced:
+// marking again, clearing and the author's refused mark tell nobody.
+func TestTastyRemarkDoesNotRenotify(t *testing.T) {
+	ctx := context.Background()
+	svc, author := setup(t)
+	mara := createUser(t, "mara")
+	created, err := svc.Create(ctx, author, loadFixtures(t)[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	svc.SetTastyNotifier(tastyFunc(func(_ context.Context, userID, recipeID string) { got = append(got, userID+"/"+recipeID) }))
+	_ = svc.SetTasty(ctx, author, created.ID, true)
+	for _, on := range []bool{true, true, false} {
+		if err := svc.SetTasty(ctx, mara, created.ID, on); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if want := mara + "/" + created.ID; len(got) != 1 || got[0] != want {
+		t.Fatalf("notified %v, want [%s]", got, want)
+	}
+}

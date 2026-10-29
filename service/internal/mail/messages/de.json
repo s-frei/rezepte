@@ -78,6 +78,8 @@
 	"mail_push_recipe_body_many": "{count} neue Rezepte von {names}",
 	"mail_push_recipe_body_one": "{title} von {names}",
 	"mail_push_recipe_title": "Neue Rezepte",
+	"mail_push_tasty_body": "{name} findet dein Rezept „{title}“ lecker",
+	"mail_push_tasty_title": "Lecker",
 	"mail_push_test_body": "So sehen Benachrichtigungen von Rezepte aus.",
 	"mail_push_test_title": "Rezepte · Test",
 	"mail_recipe_digest_added": "angelegt am {when}",
@@ -101,11 +103,17 @@
 	"mail_reset_subject": "Ein neues Passwort für Rezepte",
 	"mail_reset_validity": "Der Link ist 1 Stunde gültig und funktioniert einmal.",
 	"mail_security_notice": "Diese Mail ist ein Sicherheitshinweis und lässt sich nicht abbestellen.",
+	"mail_tasty_body": "{name} findet dein Rezept lecker.",
+	"mail_tasty_button": "Rezept ansehen",
+	"mail_tasty_heading": "„{title}“ kam gut an",
+	"mail_tasty_reason": "Du bekommst diese Mail, weil dieses Rezept dir gehört.",
+	"mail_tasty_subject": "{name} findet „{title}“ lecker",
 	"mail_test_body": "Das ist ein Test von Rezepte. Wenn du ihn liest, funktioniert der Versand.",
 	"mail_test_subject": "Rezepte kann Mails senden",
 	"mail_unsubscribe_group_admin": "Alle Verwaltungs-Mails abbestellen",
 	"mail_unsubscribe_group_household": "Alle Haushalts-Mails abbestellen",
 	"mail_unsubscribe_kind_comment": "Keine Mails zu neuen Kommentaren mehr",
 	"mail_unsubscribe_kind_invite_accepted": "Keine Mails zu angenommenen Einladungen mehr",
-	"mail_unsubscribe_kind_recipe": "Keine Mails zu neuen Rezepten mehr"
+	"mail_unsubscribe_kind_recipe": "Keine Mails zu neuen Rezepten mehr",
+	"mail_unsubscribe_kind_tasty": "Keine Mails zu Lecker-Markierungen mehr"
 }

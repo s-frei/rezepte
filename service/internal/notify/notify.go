@@ -143,6 +143,7 @@ type Mailer interface {
 	SendComment(context.Context, mail.Comment) error
 	SendInviteAccepted(context.Context, mail.InviteAccepted) error
 	SendRecipeDigest(context.Context, mail.RecipeDigest) error
+	SendTasty(context.Context, mail.Tasty) error
 }
 
 // Pusher is the push side notify sends through; *push.Service is it.

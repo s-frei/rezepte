@@ -26,6 +26,7 @@ type Service struct {
 	now      func() time.Time
 	imageDir string // "" disables image directory cleanup on Delete
 	notifier CommentNotifier
+	tasty    TastyNotifier
 }
 
 // NewService returns a Service backed by conn. imageDir tells Delete where
@@ -42,6 +43,15 @@ type CommentNotifier interface {
 
 // SetCommentNotifier hands every added comment to n; nil (the default) is off.
 func (s *Service) SetCommentNotifier(n CommentNotifier) { s.notifier = n }
+
+// TastyNotifier hears of every new tasty mark, after it was stored; not of
+// a mark that existed already, nor of one cleared.
+type TastyNotifier interface {
+	TastyMarked(ctx context.Context, userID, recipeID string)
+}
+
+// SetTastyNotifier hands every new tasty mark to n; nil (the default) is off.
+func (s *Service) SetTastyNotifier(n TastyNotifier) { s.tasty = n }
 
 // SetClock overrides the time source. Intended for tests and the demo seed.
 func (s *Service) SetClock(now func() time.Time) { s.now = now }

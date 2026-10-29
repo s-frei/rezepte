@@ -38,6 +38,7 @@ func (mailOff) SendInviteAccepted(context.Context, mail.InviteAccepted) error {
 	return mail.ErrDisabled
 }
 func (mailOff) SendRecipeDigest(context.Context, mail.RecipeDigest) error { return mail.ErrDisabled }
+func (mailOff) SendTasty(context.Context, mail.Tasty) error               { return mail.ErrDisabled }
 
 type fixture struct {
 	h     http.Handler

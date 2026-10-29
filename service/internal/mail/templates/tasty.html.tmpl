@@ -1,0 +1,9 @@
+{{define "content"}}<p style="font-family:Georgia,'Times New Roman',serif;font-size:22px;margin:0 0 20px;">{{t "mail_tasty_heading" "title" .Data.Title}}</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;"><tr>
+    <td valign="middle" style="padding:0 12px 0 0;">{{template "circle" (dict "avatar" .Data.Avatar "initial" .Data.Initial "bg" .Data.Bg "fg" .Data.Fg "size" 36 "font" 16)}}</td>
+    <td valign="middle" style="font-size:16px;line-height:1.6;">{{t "mail_tasty_body" "name" .Data.Name}}</td>
+  </tr></table>
+  {{template "button" (dict "text" (t "mail_tasty_button") "url" .Data.URL)}}
+  {{template "fallback" .Data.URL}}{{end}}
+{{define "footer"}}{{template "note" (t "mail_tasty_reason")}}
+  {{template "unsubscribe" (dict "links" .Unsubscribe "kind" "mail_unsubscribe_kind_tasty" "group" "mail_unsubscribe_group_household")}}{{end}}

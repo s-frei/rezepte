@@ -36,6 +36,7 @@ type fakeMailer struct {
 	comments []mail.Comment
 	invites  []mail.InviteAccepted
 	digests  []mail.RecipeDigest
+	tasties  []mail.Tasty
 	// sent runs after each recorded digest.
 	sent func()
 }
@@ -66,6 +67,17 @@ func (m *fakeMailer) SendInviteAccepted(_ context.Context, in mail.InviteAccepte
 		return m.err
 	}
 	m.invites = append(m.invites, in)
+	return nil
+}
+
+func (m *fakeMailer) SendTasty(_ context.Context, in mail.Tasty) error {
+	if m.off {
+		return mail.ErrDisabled
+	}
+	if m.err != nil {
+		return m.err
+	}
+	m.tasties = append(m.tasties, in)
 	return nil
 }
 

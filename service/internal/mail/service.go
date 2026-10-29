@@ -332,6 +332,13 @@ func (s *Service) SendRecipeDigest(ctx context.Context, in RecipeDigest) error {
 	})
 }
 
+// SendTasty mails a recipe's author that somebody finds it tasty.
+func (s *Service) SendTasty(ctx context.Context, in Tasty) error {
+	return s.deliver(ctx, in.To, "tasty notification", func(cfg Config) (Envelope, error) {
+		return BuildTasty(cfg, in, s.publicURL, s.now())
+	})
+}
+
 // SendInviteAccepted mails an admin that their invitation was accepted.
 func (s *Service) SendInviteAccepted(ctx context.Context, in InviteAccepted) error {
 	return s.deliver(ctx, in.To, "invitation notification", func(cfg Config) (Envelope, error) {

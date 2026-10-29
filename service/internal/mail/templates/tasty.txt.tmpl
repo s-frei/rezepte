@@ -1,0 +1,11 @@
+{{define "content"}}{{t "mail_tasty_heading" "title" .Data.Title}}
+
+{{t "mail_tasty_body" "name" .Data.Name}}
+
+{{t "mail_tasty_button"}}: {{.Data.URL}}
+
+{{t "mail_tasty_reason"}}
+{{with .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_tasty"}}: {{.}}
+{{end}}{{with .Unsubscribe.GroupURL}}{{t "mail_unsubscribe_group_household"}}: {{.}}
+{{end}}
+{{end}}

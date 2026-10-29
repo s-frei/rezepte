@@ -47,7 +47,7 @@ func (s *Service) MailFailed(ctx context.Context, reason string) {
 		return
 	}
 	if due && s.pusher != nil {
-		detach(ctx, "mail alert", detachedTimeout, func(ctx context.Context) { s.pushMailFailing(ctx, reason) })
+		detach(ctx, "mail alert", func(ctx context.Context) { s.pushMailFailing(ctx, reason) })
 	}
 }
 

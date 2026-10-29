@@ -51,6 +51,8 @@ var audiences = map[string]struct {
 		"or commented on it before, never the author.", "household", toAnyone},
 	"recipe_digest": {"Notifications", "Every role at a confirmed email address, unless switched off, once a day at the owner's hour: " +
 		"the recipes other people created since the last run, at least an hour old. Nobody whose only new recipes are their own.", "household", toAnyone},
+	"tasty": {"Notifications", "Whoever owns the recipe (created or inherited it), at a confirmed email address, unless switched off: " +
+		"a minute after another person marks it tasty, if the mark is still there. Not again for a mark that stays.", "household", toAnyone},
 	"invite_accepted": {"Notifications", "The admin or owner who issued a setup link, when a new person (an account that could not sign in yet) " +
 		"redeems it: only while they are still admin or owner, with a confirmed email address, unless switched off.", "admin", toAdmins},
 	"test": {"Owner tools", "Only the owner can send it, to any address.", "", toOwner},
@@ -200,6 +202,15 @@ func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
 			variant("recipe_digest", v.name, func(cfg Config, now time.Time) (Envelope, error) {
 				return BuildRecipeDigest(cfg, RecipeDigest{To: "mila@example.org", Recipes: v.recipes,
 					Unsubscribe: links("recipe"), Locale: locale}, publicURL, now)
+			})
+		}
+		for _, v := range []struct {
+			name   string
+			avatar []byte
+		}{{"picture", picture}, {"initial", nil}} {
+			variant("tasty", v.name, func(cfg Config, now time.Time) (Envelope, error) {
+				return BuildTasty(cfg, Tasty{To: "mila@example.org", RecipeTitle: p.recipe, RecipeURLPath: "/recipes/sample",
+					MarkerName: p.invited, MarkerColor: "sage", MarkerAvatar: v.avatar, Unsubscribe: links("tasty"), Locale: locale}, publicURL, now)
 			})
 		}
 		add("invite_accepted", func(cfg Config, now time.Time) (Envelope, error) {

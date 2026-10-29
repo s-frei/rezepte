@@ -16,6 +16,8 @@ import (
 // on userID alone so a caller only ever changes their own mark, with the
 // existence check on marking and none on clearing.
 //
+// A new mark, not one that existed already, goes to the TastyNotifier.
+//
 // Marking returns ErrOwnRecipe when userID wrote the recipe. Clearing is
 // not checked that way, since there is nothing of the author's to clear.
 func (s *Service) SetTasty(ctx context.Context, userID, recipeID string, on bool) error {
@@ -35,10 +37,14 @@ func (s *Service) SetTasty(ctx context.Context, userID, recipeID string, on bool
 	if row.CreatedBy == userID {
 		return ErrOwnRecipe
 	}
-	if err := s.q.SetTasty(ctx, sqlc.SetTastyParams{
+	n, err := s.q.SetTasty(ctx, sqlc.SetTastyParams{
 		UserID: userID, RecipeID: recipeID, CreatedAt: db.FormatTime(s.now()),
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("set tasty: %w", err)
+	}
+	if n > 0 && s.tasty != nil {
+		s.tasty.TastyMarked(ctx, userID, recipeID)
 	}
 	return nil
 }

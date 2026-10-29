@@ -121,6 +121,46 @@ func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Enve
 	}, now)
 }
 
+// Tasty tells a recipe's author that somebody marked it tasty.
+// RecipeURLPath is appended to REZEPTE_PUBLIC_URL.
+type Tasty struct {
+	To, RecipeTitle, RecipeURLPath, MarkerName string
+	MarkerColor                                user.Color
+	// MarkerAvatar is the marker's picture as JPEG; nil shows the initial.
+	MarkerAvatar []byte
+	Unsubscribe  Unsubscribe
+	Locale       user.Locale
+}
+
+// BuildTasty renders the tasty mail; its button opens the recipe.
+func BuildTasty(cfg Config, in Tasty, publicURL string, now time.Time) (Envelope, error) {
+	bg, fg, initial := circle(in.MarkerColor, in.MarkerName)
+	// The picture's Content-ID shares the Message-ID's random part, as in
+	// BuildComment.
+	id := newID()
+	var pictures []inline
+	avatar := ""
+	if len(in.MarkerAvatar) > 0 {
+		cid := "avatar." + id + "@" + domainOf(cfg.From)
+		avatar = "cid:" + cid
+		pictures = []inline{{CID: cid, JPEG: in.MarkerAvatar}}
+	}
+	return build(cfg, in.To, letter{
+		Name:        "tasty",
+		Lang:        string(in.Locale),
+		SubjectKey:  "mail_tasty_subject",
+		SubjectArgs: map[string]string{"name": in.MarkerName, "title": in.RecipeTitle},
+		ID:          id,
+		PublicURL:   publicURL,
+		Unsubscribe: in.Unsubscribe,
+		Inline:      pictures,
+		Data: struct {
+			Title, Name, Initial, Bg, Fg, URL string
+			Avatar                            htmltemplate.URL
+		}{in.RecipeTitle, in.MarkerName, initial, bg, fg, publicURL + in.RecipeURLPath, htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
+	}, now)
+}
+
 // InviteAccepted tells the admin who issued a setup link that the new
 // person set up their account.
 type InviteAccepted struct {

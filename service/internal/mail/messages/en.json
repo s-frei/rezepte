@@ -78,6 +78,8 @@
 	"mail_push_recipe_body_many": "{count} new recipes from {names}",
 	"mail_push_recipe_body_one": "{title} from {names}",
 	"mail_push_recipe_title": "New recipes",
+	"mail_push_tasty_body": "{name} finds your recipe “{title}” tasty",
+	"mail_push_tasty_title": "Tasty",
 	"mail_push_test_body": "This is what notifications from Rezepte look like.",
 	"mail_push_test_title": "Rezepte · Test",
 	"mail_recipe_digest_added": "added on {when}",
@@ -101,11 +103,17 @@
 	"mail_reset_subject": "A new password for Rezepte",
 	"mail_reset_validity": "The link is valid for 1 hour and works once.",
 	"mail_security_notice": "This is a security notice and can't be unsubscribed.",
+	"mail_tasty_body": "{name} finds your recipe tasty.",
+	"mail_tasty_button": "View recipe",
+	"mail_tasty_heading": "“{title}” went down well",
+	"mail_tasty_reason": "You get this mail because this recipe is yours.",
+	"mail_tasty_subject": "{name} finds “{title}” tasty",
 	"mail_test_body": "This is a test from Rezepte. If you are reading it, mail works.",
 	"mail_test_subject": "Rezepte can send mail",
 	"mail_unsubscribe_group_admin": "Unsubscribe from all administration mails",
 	"mail_unsubscribe_group_household": "Unsubscribe from all household mails",
 	"mail_unsubscribe_kind_comment": "No more mails about new comments",
 	"mail_unsubscribe_kind_invite_accepted": "No more mails about accepted invitations",
-	"mail_unsubscribe_kind_recipe": "No more mails about new recipes"
+	"mail_unsubscribe_kind_recipe": "No more mails about new recipes",
+	"mail_unsubscribe_kind_tasty": "No more mails about tasty marks"
 }

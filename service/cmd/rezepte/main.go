@@ -249,6 +249,7 @@ func run() error {
 	oidc.Register(srv.API(), oidc.New(oidcSettings, sessions, users, cfg.SecureCookies))
 	recipes := recipe.NewService(conn, imageDir)
 	recipes.SetCommentNotifier(notifications)
+	recipes.SetTastyNotifier(notifications)
 	recipe.Register(srv.API(), recipes)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
