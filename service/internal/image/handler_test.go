@@ -345,6 +345,20 @@ func TestUploadRejections(t *testing.T) {
 		t.Fatalf("11 MiB: %d %s", rec.Code, rec.Body.String())
 	}
 
+	// Unknown length (chunked) above the cap: cut off mid-parse, also 413.
+	over, overCT := multipartBody(t, big, "image/png")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/recipes/"+r.ID+"/images", bytes.NewReader(over))
+	req.ContentLength = -1
+	req.Header.Set("Content-Type", overCT)
+	req.Host = "localhost:8060"
+	req.Header.Set("Origin", "http://localhost:8060")
+	req.AddCookie(cookie)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("chunked 11 MiB: %d %s", rec.Code, rec.Body.String())
+	}
+
 	for i := 0; i < 20; i++ {
 		uploadPNG(t, h, cookie, r.ID, 64, 64)
 	}

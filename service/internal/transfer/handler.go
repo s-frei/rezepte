@@ -91,7 +91,7 @@ func Register(api huma.API, svc *Service) {
 
 	// The import input has neither Body nor RawBody, and the request body's
 	// schema is a binary string, so huma never reads the body (verified in
-	// v2.39.1: processInputType leaves hasInputBody false). spoolBody streams
+	// v2.40.0: processInputType leaves hasInputBody false). spoolBody streams
 	// it to a temp file instead of holding up to 1 GiB in memory.
 	huma.Register(api, huma.Operation{
 		OperationID:   "import-recipes",

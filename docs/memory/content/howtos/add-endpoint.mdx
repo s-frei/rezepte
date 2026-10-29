@@ -81,7 +81,7 @@ description: huma operations, security, errors
 
 <Callout type="warn" title="Multipart uploads">
 
-  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`) but does **not** apply `Operation.MaxBodyBytes` on the multipart path (v2.39.1) - put `image.LimitUpload` (`internal/image/handler.go`) into the operation's `Middlewares`. Serve a binary response from the operation too, as a `*huma.StreamResponse` - see below.
+  For a file upload use `RawBody huma.MultipartFormFiles[T]` with a `huma.FormFile` field tagged `form:"file" contentType:"..." required:"true"`. huma validates the part's declared type (`422`). Set `Operation.MaxBodyBytes` (huma has no default for multipart, so without it the body is unlimited) and put `image.LimitUpload` (`internal/image/handler.go`) into the operation's `Middlewares`, which refuses an oversized declared length before anything is read. Serve a binary response from the operation too, as a `*huma.StreamResponse` - see below.
 
 </Callout>
 

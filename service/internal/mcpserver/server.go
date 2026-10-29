@@ -58,7 +58,7 @@ var tools []tool
 // Register mounts Handler at /mcp as huma operations marked auth.TokenOnly
 // with auth.ScopeRecipesRead, so a token with no recipe scope never gets a
 // server. None of them declares a body, so huma leaves the request body to
-// the SDK (verified in v2.39.1: processInputType leaves hasInputBody false).
+// the SDK (verified in v2.40.0: processInputType leaves hasInputBody false).
 // Only POST is documented: the handler is stateless, so GET and DELETE
 // answer 405 once authenticated. They are registered hidden all the same,
 // so they are refused like POST instead of falling through to the SPA.

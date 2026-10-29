@@ -184,13 +184,12 @@ func imageErr(err error) error {
 	return err
 }
 
-// LimitUpload enforces the upload cap on the wire. huma's multipart path
-// does not apply Operation.MaxBodyBytes (verified in v2.39.1: humago's
-// GetMultipartForm calls ParseMultipartForm with no limit reader, and
-// readBody, which honors MaxBodyBytes, is only used for non-multipart
-// bodies). A declared Content-Length above the cap is answered 413 before
-// anything is read; http.MaxBytesReader stops chunked or lying clients at
-// the cap, which huma then reports as a 422 on "body".
+// LimitUpload enforces the upload cap on the wire. A declared
+// Content-Length above the cap is answered 413 before anything is read;
+// http.MaxBytesReader stops chunked or lying clients at the cap, which huma
+// reports as a 413 too. Since v2.40.0 humago's GetMultipartForm wraps the
+// body in its own MaxBytesReader from Operation.MaxBodyBytes, so that half
+// is a backstop; the early refusal of a declared length is what huma lacks.
 //
 // The declared length is read from Request.ContentLength rather than the
 // raw header: net/http parses the header into it for every server request
