@@ -155,6 +155,8 @@
 	}
 
 	async function sendTest() {
+		// Cleared first, so a repeat's "Sent" is new text and is announced again.
+		testSent = false;
 		testing = true;
 		try {
 			await sendPushTest();

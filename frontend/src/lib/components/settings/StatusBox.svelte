@@ -18,7 +18,7 @@
 		hint: string;
 		/** A button; full width under the text on phones. */
 		action?: Snippet;
-		/** A line under the whole box, such as the answer to that button. */
+		/** A line under the whole box, such as the answer to that button; a live region. */
 		note?: string;
 	} = $props();
 
@@ -54,7 +54,7 @@
 			</div>
 		{/if}
 	</div>
-	{#if note}
-		<p class="mt-2 text-caption text-text-muted" role="status">{note}</p>
-	{/if}
+	<!-- Always there, empty without a note: screen readers announce a live
+	     region's text changing, rarely one inserted along with its text. -->
+	<p class={note ? 'mt-2 text-caption text-text-muted' : ''} role="status">{note ?? ''}</p>
 </div>

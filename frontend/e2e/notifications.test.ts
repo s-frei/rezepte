@@ -191,6 +191,32 @@ test('this device is enabled and sent a test', async ({ page }) => {
 	await expect(push.getByText(/^Gesendet\. Nichts angekommen\?/)).toBeVisible();
 });
 
+test('the live region for a sent test is there before it and speaks again on a repeat', async ({
+	page
+}) => {
+	const { push } = await germanMember(page, 'granted');
+	// Screen readers announce a change of a live region's text, not one
+	// inserted along with it.
+	const status = push.getByRole('status');
+	await expect(status).toHaveCount(1);
+	await expect(status).toHaveText('');
+	let release!: () => void;
+	let hold: Promise<void> | null = null;
+	await page.route('**/api/v1/push/test', async (route) => {
+		await hold;
+		await route.fulfill({ status: 204 });
+	});
+	const send = push.getByRole('button', { name: 'Test senden' });
+	await send.click();
+	await expect(status).toHaveText(/^Gesendet\. Nichts angekommen\?/);
+	hold = new Promise((done) => (release = done));
+	await send.click();
+	// Cleared while the repeat is on its way, so its answer is new text.
+	await expect(status).toHaveText('');
+	release();
+	await expect(status).toHaveText(/^Gesendet\. Nichts angekommen\?/);
+});
+
 test('a device allowed before is enabled on load', async ({ page }) => {
 	const { push } = await germanMember(page, 'granted');
 	await expect(push.getByText('Empfängt Benachrichtigungen')).toBeVisible();
