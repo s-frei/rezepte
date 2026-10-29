@@ -67,7 +67,8 @@ func (s *Service) pushComment(ctx context.Context, recipeID string, commentID in
 		body, err3 := mail.Text(loc, "mail_push_comment_body", map[string]string{"author": author.DisplayName, "text": text})
 		many, err4 := mail.Text(loc, "mail_push_comment_body_many", nil)
 		if err := errors.Join(err1, err2, err3, err4); err != nil {
-			return err
+			slog.WarnContext(ctx, "comment push failed", "user", to.ID, "err", err)
+			continue
 		}
 		s.pusher.SendToUser(ctx, to.ID, push.Message{
 			Kind: string(KindComment), Title: title, Body: body,
@@ -110,7 +111,7 @@ func (s *Service) pushDigest(ctx context.Context, recipients []sqlc.ListRecipeDi
 		body, err2 := mail.Text(loc, key, args)
 		if err := errors.Join(err1, err2); err != nil {
 			slog.WarnContext(ctx, "recipe digest push failed", "user", to.ID, "err", err)
-			return
+			continue
 		}
 		s.pusher.SendToUser(ctx, to.ID, push.Message{Kind: string(KindRecipe), Title: title, Body: body, URL: "/", Tag: "recipe-digest"})
 	}
