@@ -143,6 +143,7 @@
 			<img
 				src={imageUrl(recipe.id, recipe.coverImageId!, 'thumb')}
 				alt=""
+				data-cover={recipe.slug}
 				loading="lazy"
 				decoding="async"
 				onerror={() => (failed = recipe.coverImageId)}

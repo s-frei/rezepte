@@ -70,6 +70,7 @@
 	<div class="relative size-full">
 		<div
 			{@attach startAtCover}
+			data-cover
 			onscroll={trackScroll}
 			class="flex size-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto rounded-2xl"
 		>
@@ -107,6 +108,7 @@
 		<button
 			type="button"
 			onclick={() => onopen(active)}
+			data-cover
 			aria-label={m.images_open({ number: active + 1, count: images.length })}
 			class="block aspect-[4/3] w-full overflow-hidden rounded-3xl shadow-cover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>

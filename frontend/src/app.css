@@ -485,6 +485,81 @@
 }
 
 /*
+ * A page change (`pageTransition` in $lib/page-transition.ts): the old page
+ * fades out and the new one in after it, so a tap answers at once and the
+ * two pages never lie over each other - crossed over, both texts showed
+ * through one another for a third of the change. Meanwhile a recipe's photo
+ * glides from its card to the cover and back, long enough to follow. Both
+ * pictures are the same photo cut differently, so they keep their own crop
+ * (`object-fit`) and cross over early, as the cards do on a size change.
+ */
+html[data-page-transition]::view-transition-old(root) {
+	animation-duration: 80ms;
+	animation-timing-function: ease-out;
+}
+
+html[data-page-transition]::view-transition-new(root) {
+	animation-duration: 160ms;
+	animation-delay: 60ms;
+	animation-timing-function: var(--ease-glide);
+}
+
+/*
+ * A theme change (`setTheme`): the new colors open as a circle from the
+ * control that chose them (`--theme-x`/`--theme-y`) over the old ones,
+ * which stay as they are. Crossed over instead, light and dark met in a
+ * muddy grey halfway. Everything named elsewhere drops its name for it, so
+ * the bars recolor with the page rather than fading on their own.
+ */
+html[data-theme-transition] * {
+	view-transition-name: none !important;
+}
+
+html[data-theme-transition]::view-transition-old(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+
+html[data-theme-transition]::view-transition-new(root) {
+	animation: theme-reveal 520ms var(--ease-glide);
+	mix-blend-mode: normal;
+}
+
+@keyframes theme-reveal {
+	from {
+		clip-path: circle(0 at var(--theme-x, 100%) var(--theme-y, 0));
+	}
+	to {
+		clip-path: circle(150vmax at var(--theme-x, 100%) var(--theme-y, 0));
+	}
+}
+
+/*
+ * Settings to settings: the navigation is the same on both pages, so it
+ * stays as it is instead of fading out and in with the page, and its pill
+ * glides on the new one (`pill` in SettingsLayout).
+ */
+::view-transition-old(settings-nav):not(:only-child) {
+	display: none;
+}
+
+::view-transition-new(settings-nav):not(:only-child) {
+	animation: none;
+}
+
+::view-transition-group(recipe-cover) {
+	animation-duration: 420ms;
+	animation-timing-function: var(--ease-glide);
+}
+
+::view-transition-old(recipe-cover),
+::view-transition-new(recipe-cover) {
+	height: 100%;
+	object-fit: cover;
+	animation-duration: 200ms;
+}
+
+/*
  * The desktop card's look: from `md` up, and on a phone whose overview shows
  * one card per row (`data-wide` on RecipeGrid), where a card is as wide as a
  * desktop one. The recipe card and the marks on it use this in place of

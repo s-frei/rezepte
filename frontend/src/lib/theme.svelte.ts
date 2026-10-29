@@ -12,7 +12,33 @@ export function setTheme(next: Theme): void {
 	if (!browser) {
 		return;
 	}
-	applyTheme(document.documentElement, next);
-	applyThemeColor(document.querySelectorAll('meta[name="theme-color"]'), next);
+	// The new colors open as a circle from the control that chose them
+	// (app.css): every surface switching in one frame flashed.
+	const root = document.documentElement;
+	const apply = () => {
+		applyTheme(root, next);
+		applyThemeColor(document.querySelectorAll('meta[name="theme-color"]'), next);
+	};
+	if (
+		'startViewTransition' in document &&
+		!window.matchMedia('(prefers-reduced-motion: reduce)').matches
+	) {
+		const from = document.activeElement?.getBoundingClientRect();
+		if (from && from.width > 0) {
+			root.style.setProperty('--theme-x', `${from.left + from.width / 2}px`);
+			root.style.setProperty('--theme-y', `${from.top + from.height / 2}px`);
+		}
+		root.dataset.themeTransition = '';
+		void document
+			.startViewTransition(apply)
+			.finished.catch(() => {})
+			.finally(() => {
+				delete root.dataset.themeTransition;
+				root.style.removeProperty('--theme-x');
+				root.style.removeProperty('--theme-y');
+			});
+	} else {
+		apply();
+	}
 	save(THEME_STORAGE_KEY, next === 'system' ? null : next);
 }

@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { onMount, type Snippet } from 'svelte';
 	import { Toaster } from 'svelte-sonner';
+	import { onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import AppShell from '$lib/components/shell/AppShell.svelte';
 	import CommandPalette from '$lib/components/ui/CommandPalette.svelte';
@@ -15,6 +16,7 @@
 	import '$lib/push.svelte';
 	import { palette } from '$lib/palette.svelte';
 	import { navPlace } from '$lib/shell.svelte';
+	import { pageTransition } from '$lib/page-transition';
 	import { listenForLaunches } from '$lib/launch';
 	import { listenForPushToasts } from '$lib/push-toast';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -76,6 +78,7 @@
 
 	onMount(listenForLaunches);
 	onMount(listenForPushToasts);
+	onNavigate(pageTransition);
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (bare) {

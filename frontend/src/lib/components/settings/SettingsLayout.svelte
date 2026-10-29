@@ -1,3 +1,11 @@
+<script lang="ts" module>
+	// Where the current pill sat on the settings page just left, and when:
+	// every settings page mounts its own navigation, so the new pill reads
+	// the old one to glide from its row. Only a page change a moment ago
+	// counts; coming back to settings later starts the pill in place.
+	let leftPill: { top: number; at: number } | null = null;
+</script>
+
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -10,6 +18,7 @@
 	import { settingsPages, type SettingsPageId } from '$lib/settings/pages';
 	import { shell } from '$lib/shell.svelte';
 	import { signOut } from '$lib/sign-out';
+	import { prefersReducedMotion } from 'svelte/motion';
 
 	let { active, children }: { active: SettingsPageId; children: Snippet } = $props();
 
@@ -38,6 +47,29 @@
 			onselect: () => void signOut()
 		}
 	];
+
+	// Glides the pill from the row it sat on to this one, while the page
+	// change fades the rest in; the labels stay where they are. The row is
+	// measured from the top of its navigation, not the window: the new page
+	// mounts while the old one is still in the document above it.
+	function offset(node: HTMLElement) {
+		const nav = node.closest('nav');
+		return node.getBoundingClientRect().top - (nav?.getBoundingClientRect().top ?? 0);
+	}
+
+	function pill(node: HTMLElement) {
+		if (leftPill && performance.now() - leftPill.at < 1000 && !prefersReducedMotion.current) {
+			const easing = getComputedStyle(node).getPropertyValue('--ease-glide').trim() || 'ease';
+			node.animate(
+				[{ transform: `translateY(${leftPill.top - offset(node)}px)` }, { transform: 'none' }],
+				{ duration: 320, easing }
+			);
+		}
+		leftPill = null;
+		return () => {
+			leftPill = { top: offset(node), at: performance.now() };
+		};
+	}
 </script>
 
 {#snippet noActions()}{/snippet}
@@ -59,7 +91,7 @@
 	<div class="mt-5 md:grid md:grid-cols-[200px_minmax(0,720px)] md:items-start md:gap-14">
 		<nav
 			aria-label={m.settings_sections_label()}
-			class="sticky top-6 hidden flex-col gap-1.5 text-body-sm font-medium md:flex"
+			class="sticky top-6 isolate hidden flex-col gap-1.5 text-body-sm font-medium [view-transition-name:settings-nav] md:flex"
 		>
 			{#each byGroup(pages) as run, i (run.label)}
 				<div role="group" aria-label={run.label} class="flex flex-col gap-1.5">
@@ -69,14 +101,24 @@
 						{@const current = active === item.id}
 						<!-- The bottom nav's current pill: one way to say "you are here"
 						     across the app. The other icons stay muted, as in the
-						     avatar menu. -->
+						     avatar menu. The pill is a layer of its own under every
+						     label (the nav is the stacking context), and glides from
+						     the old row to the new one (`pill`) while the labels stay
+						     put. -->
 						<a
 							href={item.href}
 							aria-current={current ? 'page' : undefined}
-							class="flex items-center gap-2.5 rounded-pill px-3.5 py-2 text-left transition {current
-								? 'bg-accent font-semibold text-accent-foreground'
+							class="relative flex items-center gap-2.5 rounded-pill px-3.5 py-2 text-left transition {current
+								? 'font-semibold text-accent-foreground'
 								: 'text-text-muted hover:text-text'}"
 						>
+							{#if current}
+								<span
+									aria-hidden="true"
+									class="absolute inset-0 -z-10 rounded-pill bg-accent"
+									{@attach pill}
+								></span>
+							{/if}
 							<Icon class="size-4 shrink-0 {current ? '' : 'text-text-muted'}" aria-hidden="true" />
 							{item.label}
 						</a>
