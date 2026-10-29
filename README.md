@@ -57,15 +57,15 @@ English and German are built in, and every member picks their own. Missing your 
 
 <br>
 
-Connect Claude Code, Cursor, VS Code or any MCP client that sends a token header. The assistant gets twelve tools, each limited by what the token allows:
+Connect Claude Code, Cursor, VS Code or any MCP client that sends a token header. The assistant gets fifteen tools, each limited by what the token allows:
 
 | Token level | Tools |
 | --- | --- |
-| **Read** | search recipes, read a recipe and its comments, list the tags in use |
-| **Write** | create a recipe, edit a recipe, write a comment, star or unstar it, mark it tasty or take the mark back |
+| **Read** | search recipes, read a recipe and its comments, list the tags in use, look at a recipe's photos |
+| **Write** | create a recipe, edit a recipe, add photos from a link or from your computer, write a comment, star or unstar it, mark it tasty or take the mark back |
 | **Delete** | delete a recipe with its photos |
 
-Photos are not part of MCP, and nothing touches accounts or passwords. Clients that only connect through OAuth, such as claude.ai's custom connectors, are not supported yet. → [Connect an AI assistant](https://s-frei.github.io/rezepte/api/mcp/)
+Nothing touches accounts or passwords. Clients that only connect through OAuth, such as claude.ai's custom connectors, are not supported. → [Connect an AI assistant](https://s-frei.github.io/rezepte/api/mcp/)
 
 </details>
 

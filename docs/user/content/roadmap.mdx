@@ -11,10 +11,6 @@ description: Where Rezepte could go next
 
 One Rezepte instance could mirror another's recipes read-only, using an [API token](/api/tokens) the source instance issues.
 
-## OAuth for MCP clients
-
-MCP clients that accept a static header already work — see [Connect an AI assistant](/api/mcp). Clients that only connect through OAuth, such as claude.ai's custom connectors, need OAuth 2.1 instead. Rezepte will issue those tokens itself, so connecting signs in with your Rezepte account and does not need [single sign-on](/operations/single-sign-on).
-
 ## Shopping list
 
 Collecting several recipes on one shopping list, with the same ingredients added up. A single recipe's ingredients already copy as a shopping list for the servings you chose - see [Servings](/guide/servings#copy-a-shopping-list).
