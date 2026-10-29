@@ -48,5 +48,6 @@ Counting in a subquery rather than keeping a counter column is cheap at a househ
 
 - Like favorites, marks disappear with the user who left them (`ON DELETE CASCADE`), so deleting a member lowers counts.
 - A notification waits in memory for its minute: a restart in that minute drops it, and the author sees the mark only when they next look.
+- Only a mark taken back within its minute is silent: a member who marks, clears and marks again more than a minute apart tells the author each time. Members are trusted, so nothing remembers past marks to stop that.
 - There is no filter by tasty, only the order.
 - `tastyBy` lists everyone who marked a recipe, unpaginated; a household has too few members for that to matter.
