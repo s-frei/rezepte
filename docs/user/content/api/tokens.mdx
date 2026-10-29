@@ -49,17 +49,21 @@ are out of reach whatever scopes it carries:
 
 - managing API tokens, so a token can never list, issue or revoke one
 - anything about its own account: reading it (`GET /api/v1/auth/me`),
-  changing its password, display name, color, photo or email address, or
-  looking up which colors are taken
+  changing its password, display name, color, photo, email address or
+  notification choices, or looking up which colors are taken
 - signing out, or any other session mechanics
 - changing the household settings (`PATCH /api/v1/settings`): editing
-  rights, public links and link previews; reading them works with
+  rights, public links, link previews and the hour of the daily
+  new-recipes notification; reading them works with
   **Recipes: Read**
 - issuing or revoking a setup link for an account
-  (`/api/v1/users/{id}/setup-link`)
+  (`/api/v1/users/{id}/setup-link`), or disconnecting an account from its
+  identity provider (`/api/v1/users/{id}/identity`)
 - public links (`/api/v1/shares`, `/api/v1/recipes/{id}/public-share`):
   listing, creating or revoking them
-- the mail settings and the test mail (`/api/v1/settings/mail`)
+- the mail settings and the test mail (`/api/v1/settings/mail`), and the
+  sign-in settings (`/api/v1/settings/sign-in`)
+- push notifications and timer alarms (`/api/v1/push/...`)
 - anything at all, once the admin who issued it loses the admin role or is
   deleted
 

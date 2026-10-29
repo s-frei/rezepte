@@ -34,10 +34,12 @@ The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA fo
     - `internal/userapi`, `internal/tokenapi` – the admin-only user and token operations, plus the people list every account reads; handlers only, in packages of their own because they need `auth` and `auth` already imports `user`
     - `internal/mail`, `internal/mailapi` – the SMTP sender, its templates and settings, and the owner-only HTTP surface for them; `userapi` reaches the sender through a small interface (see [Email](/features/email))
     - `internal/oidc` – sign-in through one OpenID Connect provider, ending in an ordinary session (see [OIDC](/features/oidc))
+    - `internal/notify` – who is told of a comment, a new recipe, a tasty mark, an accepted invitation or failing mail, by mail and push, and their preferences (see [Notifications](/features/notifications))
+    - `internal/push` – Web Push: devices, timer alarms and the sending (see [Cook timers](/features/cook-timers))
     - `internal/recipeimport` – turns a recipe page or pasted text into a draft recipe (see [Recipe import](/features/recipe-import))
     - `internal/transfer` – export and import of recipes between instances as a zip (see [Import and export](/features/import-export))
     - `internal/preview` – what a crawler sees for a recipe link shared from the app (see [Link previews](/features/link-previews))
-    - `internal/sign` – short, stateless HMAC tokens with an expiry, used by `preview` and `recipeimport`
+    - `internal/sign` – short, stateless HMAC tokens with an expiry, used by `preview`, `recipeimport`, `notify` (unsubscribe links) and `image` (upload links)
     - `internal/mcpserver` – the MCP endpoint at `/mcp`, its tools calling the same services as the HTTP handlers (see [MCP server](/features/mcp))
     - `internal/i18n` – the set of interface languages, read from `locales.json` (see [Languages](/features/languages))
     - `internal/demo` – seeds the sample recipes with their embedded photos through those services for `--demo`, with generated placeholders only for a sample set that has no photos (see [Demo mode](/features/demo-mode))
@@ -66,7 +68,7 @@ The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA fo
 
 ## Configuration
 
-Every setting is an environment variable read once at startup by `service/internal/config`. The user docs' configuration page (`docs/user/content/getting-started/configuration.mdx`) lists all of them for the people hosting Rezepte and owns the list; `config.go` owns the defaults. The development defaults the tasks set (`REZEPTE_ADDR` from the port offset, the bootstrapped admin password) are in [Run the app locally](/howtos/run-dev).
+Every setting is an environment variable read once at startup by `service/internal/config`; mail and sign-in may instead be set by the owner in the app, where the environment still wins ([Email](/features/email), [OIDC](/features/oidc)). The user docs' configuration page (`docs/user/content/getting-started/configuration.mdx`) lists all of them for the people hosting Rezepte and owns the list; `config.go` owns the defaults. The development defaults the tasks set (`REZEPTE_ADDR` from the port offset, the bootstrapped admin password) are in [Run the app locally](/howtos/run-dev).
 
 ## Why it is this way
 

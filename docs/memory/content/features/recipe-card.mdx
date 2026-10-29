@@ -21,7 +21,7 @@ A member can pass a recipe on as a picture: one long PNG with the cover, title, 
 
 **The credit follows the household setting.** `publicShareAttribution` ("Name Rezepte when sharing", owner only, on by default) switches the card's foot - the ingredient list's perforation, `Lockup` and `SOURCE_URL` - as well as the public page's. The People page shows the switch whether public shares are on or not.
 
-**Tests.** `pickScale` in `share-image.test.ts`. `e2e/share-image.test.ts` runs in `desktop`, `mobile` and a `webkit` project (iPhone 15) that exists only for this file; it removes `navigator.share` so **Image** downloads deterministically, stubs it to reject with `AbortError` for the cancel case, answers the cover with a `404` for the placeholder case, and takes both APIs away to cover plain http: the copy fallback, the text shown when nothing copies, and the press-and-hold hint. The credit test lives in the serial `public-shares.test.ts`, since it flips the instance-wide setting that file's public-page tests read.
+**Tests.** `pickScale` in `share-image.test.ts`. `e2e/share-image.test.ts` runs in `desktop`, `mobile` and a `webkit` project (iPhone 15) that runs only this file and `step-times.test.ts`; it removes `navigator.share` so **Image** downloads deterministically, stubs it to reject with `AbortError` for the cancel case, answers the cover with a `404` for the placeholder case, and takes both APIs away to cover plain http: the copy fallback, the text shown when nothing copies, and the press-and-hold hint. The credit test lives in the serial `public-shares.test.ts`, since it flips the instance-wide setting that file's public-page tests read.
 
 ## Why it is this way
 

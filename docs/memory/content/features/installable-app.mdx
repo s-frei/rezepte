@@ -3,7 +3,7 @@ title: Installable app
 description: The web app manifest, Share → Rezepte, and the hints that offer installing; every member sees the hints, the owner also sees why there are none
 ---
 
-Rezepte installs as an app on Android and in desktop Chrome and, through Safari's own steps, on an iPhone or iPad. The installed app has its own icon and window, three shortcuts and an entry in the system share menu. `service/internal/httpserver/manifest.go` serves the manifest; `frontend/src/lib/install.ts` and `install.svelte.ts` hold the install decision; `frontend/src/lib/components/install/` and `components/settings/AppCard.svelte` draw the hints. The page that receives a share is owned by [Recipe import](/features/recipe-import); the icon and the manifest's look by [Design system](/architecture/design-system).
+Rezepte installs as an app on Android and in Chrome or Edge on a computer and, through Safari's own steps, on an iPhone or iPad. The installed app has its own icon and window, three shortcuts and an entry in the system share menu. `service/internal/httpserver/manifest.go` serves the manifest; `frontend/src/lib/install.ts` and `install.svelte.ts` hold the install decision; `frontend/src/lib/components/install/` and `components/settings/AppCard.svelte` draw the hints. The page that receives a share is owned by [Recipe import](/features/recipe-import); the icon and the manifest's look by [Design system](/architecture/design-system).
 
 ## How it works
 
@@ -46,7 +46,7 @@ Rezepte installs as an app on Android and in desktop Chrome and, through Safari'
 
 ## Limits
 
-- There is no share target on iOS: Safari does not support it, so iPhone and iPad paste the link.
+- The share target works only on Android, Windows and ChromeOS: Safari does not support it, and neither does Chrome on macOS or Linux, so everyone else pastes the link.
 - On Android only a WebAPK gets the share target, which Chrome mints and Brave, for one, does not: Brave's install is a home-screen shortcut that never shows in the share menu.
 - Shortcut names are in the instance language, not the member's.
 - `launch_handler` is Chromium-only; elsewhere a second share opens a new window.

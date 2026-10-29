@@ -39,7 +39,7 @@ The `REZEPTE_OIDC_*` variables are optional: the owner can set the provider up i
 
 ## Mail
 
-Rezepte can mail setup links to the people you invite, links for a new password (or a sign-in hint for someone who signs in with an identity provider) and links that confirm an email address. Forgot password and address confirmation need mail; without it the login page shows no **Forgot password?** link. Set `REZEPTE_SMTP_HOST` and `REZEPTE_SMTP_FROM` (and the username and password your mail provider gave you) and mail is on; Rezepte refuses to start when `REZEPTE_SMTP_HOST` is set without `REZEPTE_SMTP_FROM` or `REZEPTE_PUBLIC_URL`, or with a security other than `starttls`, `tls` or `none`. With `starttls` Rezepte never falls back to an unencrypted connection: a server that does not offer it is an error.
+Rezepte can mail setup links to the people you invite, links for a new password (or a sign-in hint for someone who signs in with an identity provider), links that confirm an email address, security notices and [notifications](/guide/notifications). Forgot password and address confirmation need mail; without it the login page shows no **Forgot password?** link. Set `REZEPTE_SMTP_HOST` and `REZEPTE_SMTP_FROM` (and the username and password your mail provider gave you) and mail is on; Rezepte refuses to start when `REZEPTE_SMTP_HOST` is set without `REZEPTE_SMTP_FROM` or `REZEPTE_PUBLIC_URL`, or with a security other than `starttls`, `tls` or `none`. With `starttls` Rezepte never falls back to an unencrypted connection: a server that does not offer it is an error.
 
 Times in mails, such as when a password was changed, are in the server's time zone and name none, so set `TZ` to yours (`TZ: Europe/Berlin` in the compose file).
 

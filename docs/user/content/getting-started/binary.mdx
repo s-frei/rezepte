@@ -50,6 +50,7 @@ Environment=REZEPTE_SECURE_COOKIES=true
 EnvironmentFile=-/etc/rezepte.env
 ExecStart=/usr/local/bin/rezepte
 Restart=on-failure
+TimeoutStopSec=150
 
 [Install]
 WantedBy=multi-user.target
@@ -64,3 +65,5 @@ REZEPTE_ADMIN_PASSWORD=change-me-now
 ```bash
 sudo systemctl enable --now rezepte
 ```
+
+`TimeoutStopSec=150` gives Rezepte the same time to stop as the compose file's `stop_grace_period: 2m30s`: on a stop it finishes open requests and a daily new-recipes mail that is going out, which can take longer than systemd's default of 90 seconds.

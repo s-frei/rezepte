@@ -10,7 +10,7 @@ An AI assistant reaches the recipe collection over the Model Context Protocol: s
 | `search_recipes` | `recipes:read` | `readOnlyHint` | `Service.List` - `query`, `tags`, `maxMinutes`, `favorites`, `author`, `sort`, `page`, `limit`; returns cards plus the total |
 | `get_recipe` | `recipes:read` | `readOnlyHint` | `Service.ByID` or `Service.BySlug` (exactly one of `id`, `slug`), then `caller.fill` for the caller's `favorite` and `tasty` flags and editing rights |
 | `list_tags` | `recipes:read` | `readOnlyHint` | `Service.Tags` |
-| `create_recipe` | `recipes:write` | `destructiveHint: false` | `Service.Create` with the full document, then `caller.fill` |
+| `create_recipe` | `recipes:write` | `destructiveHint: false` | `Service.CreateAnnounced` with the full document (queued for the [digest](/features/notifications)), then `caller.fill` |
 | `update_recipe` | `recipes:write` | `idempotentHint` | `Service.Update` with `id` and the full document; replaces it, then `caller.fill` |
 | `delete_recipe` | `recipes:delete` | `destructiveHint`, `idempotentHint` | `Service.Delete` |
 | `add_favorite` | `recipes:write` | `idempotentHint`, `destructiveHint: false` | `Service.SetFavorite(..., true)` |

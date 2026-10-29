@@ -14,7 +14,7 @@ Rezepte can offer one OpenID Connect provider next to its own passwords: Google,
 - **One provider per instance.** GitHub, Facebook and other providers that are not OpenID Connect do not work.
 - **Roles stay in Rezepte.** The provider says who somebody is; what they may do is still decided under "People".
 - **Signing out of Rezepte ends the Rezepte session only**, and signing out at the provider does not sign anybody out of Rezepte.
-- **If the provider is down, passwords keep working.** Rezepte starts without contacting it; only saving the settings asks the provider, to check the address.
+- **If the provider is down, passwords keep working.** Rezepte starts without contacting it; it first asks the provider when somebody presses the button, or when the owner saves the settings, to check the address.
 
 ## Configure it
 
