@@ -16,6 +16,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mail"
+	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/sign"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -142,6 +143,12 @@ type Mailer interface {
 	SendRecipeDigest(context.Context, mail.RecipeDigest) error
 }
 
+// Pusher is the push side notify sends through; *push.Service is it.
+// SendToUser logs its own failures and gives each device its own timeout.
+type Pusher interface {
+	SendToUser(ctx context.Context, userID string, m push.Message)
+}
+
 // Service reads and writes notification preferences.
 type Service struct {
 	conn      *sql.DB
@@ -151,6 +158,7 @@ type Service struct {
 	avatars   *avatar.Service
 	images    *image.Service
 	mailer    Mailer
+	pusher    Pusher
 	publicURL string
 }
 
@@ -169,6 +177,10 @@ func NewService(conn *sql.DB, key []byte, users *user.Service, avatars *avatar.S
 		publicURL: publicURL,
 	}
 }
+
+// SetPusher makes s push beside mailing; nil, the default, sends no push.
+// Call it before StartRecipeDigest.
+func (s *Service) SetPusher(p Pusher) { s.pusher = p }
 
 // Preferences returns every kind and group u may have, per channel, true
 // unless u switched it off.

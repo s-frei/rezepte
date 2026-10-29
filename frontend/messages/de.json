@@ -981,6 +981,13 @@
 	"mail_unsubscribe_group_admin": "Alle Verwaltungs-Mails abbestellen",
 	"mail_push_test_title": "Rezepte · Test",
 	"mail_push_test_body": "So sehen Benachrichtigungen von Rezepte aus.",
+	"mail_push_comment_body": "{author}: {text}",
+	"mail_push_comment_body_many": "{count} neue Kommentare",
+	"mail_push_recipe_title": "Neue Rezepte",
+	"mail_push_recipe_body_one": "{title} von {names}",
+	"mail_push_recipe_body_many": "{count} neue Rezepte von {names}",
+	"mail_push_invite_accepted_title": "Einladung angenommen",
+	"mail_push_invite_accepted_body": "{name} meldet sich als {username} an",
 
 	"settings_nav_mail": "E-Mail",
 	"settings_mail_line_sender": "Absender",

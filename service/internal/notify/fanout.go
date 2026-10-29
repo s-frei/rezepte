@@ -17,33 +17,64 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// commentTimeout bounds the background fan-out of one comment; each mail in
-// it has sendTimeout of its own, so a slow server costs the follower it is
-// slow for, not every follower after them.
-const commentTimeout = 10 * time.Minute
+// detachedTimeout bounds one background fan-out, a comment's or an
+// invitation's push; each mail in it has sendTimeout of its own (each push
+// push.Service's), so a slow server costs the recipient it is slow for, not
+// every recipient after them.
+const detachedTimeout = 10 * time.Minute
 
 // sendTimeout bounds one follower's mail: the settings lookup, rendering
 // and the SMTP dialog (whose own deadline is 10 seconds). A variable so a
 // test can shorten it.
 var sendTimeout = 15 * time.Second
 
-// CommentAdded mails the followers of recipeID about comment commentID in
-// the background, so the request that wrote it never waits on SMTP. It
-// implements recipe.CommentNotifier.
+// CommentAdded mails and then pushes the followers of recipeID about
+// comment commentID in the background, so the request that wrote it never
+// waits on SMTP or a push service. It implements recipe.CommentNotifier.
 func (s *Service) CommentAdded(ctx context.Context, recipeID string, commentID int64) {
-	go func() {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), commentTimeout)
-		defer cancel()
-		// No request is left to fail: a panic here would end the process.
-		defer func() {
-			if r := recover(); r != nil {
-				slog.ErrorContext(ctx, "comment mail panicked", "panic", r)
-			}
-		}()
+	detach(ctx, "comment notification", detachedTimeout, func(ctx context.Context) {
 		if err := s.mailComment(ctx, recipeID, commentID); err != nil {
 			slog.WarnContext(ctx, "comment mail failed", "recipe", recipeID, "comment", commentID, "err", err)
 		}
+		if err := s.pushComment(ctx, recipeID, commentID); err != nil {
+			slog.WarnContext(ctx, "comment push failed", "recipe", recipeID, "comment", commentID, "err", err)
+		}
+	})
+}
+
+// detach runs fn in its own goroutine on ctx without its cancellation,
+// bounded by timeout. No request is left to fail: a panic is logged, since
+// it would end the process.
+func detach(ctx context.Context, what string, timeout time.Duration, fn func(context.Context)) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+		defer cancel()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.ErrorContext(ctx, what+" panicked", "panic", r)
+			}
+		}()
+		fn(ctx)
 	}()
+}
+
+// commentFacts reads the comment, its author and its recipe; ok is false
+// when the author's account went in the meantime.
+func (s *Service) commentFacts(ctx context.Context, recipeID string, commentID int64) (c sqlc.RecipeComment, author user.User, r sqlc.Recipe, ok bool, err error) {
+	c, err = s.q.GetComment(ctx, commentID)
+	if err != nil {
+		return c, author, r, false, fmt.Errorf("get comment %d: %w", commentID, err)
+	}
+	if c.AuthorID == nil {
+		return c, author, r, false, nil
+	}
+	if author, err = s.users.ByID(ctx, *c.AuthorID); err != nil {
+		return c, author, r, false, fmt.Errorf("get comment author: %w", err)
+	}
+	if r, err = s.q.GetRecipe(ctx, recipeID); err != nil {
+		return c, author, r, false, fmt.Errorf("get recipe %s: %w", recipeID, err)
+	}
+	return c, author, r, true, nil
 }
 
 // mailComment sends one mail per follower. It returns only lookup errors: a
@@ -53,20 +84,9 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 	if !s.mailer.Enabled(ctx) {
 		return nil
 	}
-	c, err := s.q.GetComment(ctx, commentID)
-	if err != nil {
-		return fmt.Errorf("get comment %d: %w", commentID, err)
-	}
-	if c.AuthorID == nil {
-		return nil // the author's account went in the meantime
-	}
-	author, err := s.users.ByID(ctx, *c.AuthorID)
-	if err != nil {
-		return fmt.Errorf("get comment author: %w", err)
-	}
-	r, err := s.q.GetRecipe(ctx, recipeID)
-	if err != nil {
-		return fmt.Errorf("get recipe %s: %w", recipeID, err)
+	c, author, r, ok, err := s.commentFacts(ctx, recipeID, commentID)
+	if !ok {
+		return err
 	}
 	at, err := db.ParseTime(c.CreatedAt)
 	if err != nil {
@@ -151,9 +171,10 @@ func (s *Service) picture(ctx context.Context, u user.User) []byte {
 	return b
 }
 
-// InviteAccepted mails inviterID that newcomer set up the account their
-// setup link was for. It implements auth.Notifier and runs after the
-// redeem committed; failures are logged.
+// InviteAccepted mails and pushes inviterID that newcomer set up the
+// account their setup link was for. It implements auth.Notifier and runs
+// after the redeem committed: the mail in the request, the push detached;
+// failures are logged.
 func (s *Service) InviteAccepted(ctx context.Context, inviterID string, newcomer user.User) {
 	if inviterID == newcomer.ID {
 		return
@@ -163,10 +184,20 @@ func (s *Service) InviteAccepted(ctx context.Context, inviterID string, newcomer
 		return
 	}
 	if err != nil {
-		slog.WarnContext(ctx, "invitation mail: inviter lookup failed", "err", err)
+		slog.WarnContext(ctx, "invitation notification: inviter lookup failed", "err", err)
 		return
 	}
-	if !inviter.Role.IsAdmin() || !mailable(inviter.Email, inviter.EmailVerified) {
+	if !inviter.Role.IsAdmin() {
+		return
+	}
+	s.mailInviteAccepted(ctx, inviter, newcomer)
+	if s.pusher != nil {
+		detach(ctx, "invitation push", detachedTimeout, func(ctx context.Context) { s.pushInviteAccepted(ctx, inviter, newcomer) })
+	}
+}
+
+func (s *Service) mailInviteAccepted(ctx context.Context, inviter, newcomer user.User) {
+	if !mailable(inviter.Email, inviter.EmailVerified) {
 		return
 	}
 	on, err := s.Wants(ctx, inviter.ID, KindInviteAccepted, ChannelMail)

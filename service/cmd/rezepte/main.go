@@ -231,9 +231,10 @@ func run() error {
 	sessions.SetNotifier(notifications)
 	go shares.SweepLoop(ctx, shareSweepInterval, logger)
 	go images.CommentImageSweepLoop(ctx, shareSweepInterval, logger)
-	digestDone := notifications.StartRecipeDigest(ctx)
 	pushes := push.NewService(conn, cfg.PublicURL, &http.Client{})
 	pushDone := pushes.Start(ctx)
+	notifications.SetPusher(pushes)
+	digestDone := notifications.StartRecipeDigest(ctx)
 
 	srv := httpserver.New(cfg, logger, web.Dist(),
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
