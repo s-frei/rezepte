@@ -988,6 +988,8 @@
 	"mail_unsubscribe_group_admin": "Alle Verwaltungs-Mails abbestellen",
 	"mail_push_test_title": "Rezepte · Test",
 	"mail_push_test_body": "So sehen Benachrichtigungen von Rezepte aus.",
+	"mail_push_comment_title": "Neuer Kommentar zu „{title}“",
+	"mail_push_comment_title_many": "Neue Kommentare zu „{title}“",
 	"mail_push_comment_body": "{author}: {text}",
 	"mail_push_comment_body_many": "{count} neue Kommentare",
 	"mail_push_recipe_title": "Neue Rezepte",

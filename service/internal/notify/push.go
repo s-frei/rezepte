@@ -60,15 +60,19 @@ func (s *Service) pushComment(ctx context.Context, recipeID string, commentID in
 	text := shorten(c.Body, pushTextMax)
 	for _, to := range recipients {
 		loc := user.Locale(to.Locale)
-		body, err1 := mail.Text(loc, "mail_push_comment_body", map[string]string{"author": author.DisplayName, "text": text})
-		many, err2 := mail.Text(loc, "mail_push_comment_body_many", nil)
-		if err := errors.Join(err1, err2); err != nil {
+		// The title names what happened, as every other kind's does; the
+		// recipe alone left a toast without its reason.
+		title, err1 := mail.Text(loc, "mail_push_comment_title", map[string]string{"title": r.Title})
+		titleMany, err2 := mail.Text(loc, "mail_push_comment_title_many", map[string]string{"title": r.Title})
+		body, err3 := mail.Text(loc, "mail_push_comment_body", map[string]string{"author": author.DisplayName, "text": text})
+		many, err4 := mail.Text(loc, "mail_push_comment_body_many", nil)
+		if err := errors.Join(err1, err2, err3, err4); err != nil {
 			return err
 		}
 		s.pusher.SendToUser(ctx, to.ID, push.Message{
-			Kind: string(KindComment), Title: r.Title, Body: body,
+			Kind: string(KindComment), Title: title, Body: body,
 			URL: "/recipes/" + url.PathEscape(r.Slug) + "?tab=comments", Tag: "comment:" + r.ID,
-			Collapse: &push.Collapse{Title: r.Title, BodyOne: body, BodyMany: many},
+			Collapse: &push.Collapse{Title: titleMany, BodyOne: body, BodyMany: many},
 		})
 	}
 	return nil

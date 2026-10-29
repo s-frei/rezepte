@@ -90,8 +90,8 @@ func TestCommentPushToFollowersNotAuthor(t *testing.T) {
 	m := got[mia.ID][0]
 	body := adam.DisplayName + ": <b>Mehr Kreuzkümmel</b>"
 	want := push.Message{
-		Kind: "comment", Title: r.Title, Body: body, URL: "/recipes/" + r.Slug + "?tab=comments", Tag: "comment:" + r.ID,
-		Collapse: &push.Collapse{Title: r.Title, BodyOne: body, BodyMany: "{count} neue Kommentare"},
+		Kind: "comment", Title: "Neuer Kommentar zu „" + r.Title + "“", Body: body, URL: "/recipes/" + r.Slug + "?tab=comments", Tag: "comment:" + r.ID,
+		Collapse: &push.Collapse{Title: "Neue Kommentare zu „" + r.Title + "“", BodyOne: body, BodyMany: "{count} neue Kommentare"},
 	}
 	if m.Collapse == nil || *m.Collapse != *want.Collapse {
 		t.Errorf("collapse %+v, want %+v", m.Collapse, want.Collapse)
@@ -244,7 +244,7 @@ func TestPushCopyGerman(t *testing.T) {
 	if m := got[olga.ID]; len(m) != 1 || m[0].Collapse.BodyMany != "{count} neue Kommentare" {
 		t.Errorf("olga %+v", m)
 	}
-	if m := got[mia.ID]; len(m) != 1 || m[0].Collapse.BodyMany != "{count} new comments" {
+	if m := got[mia.ID]; len(m) != 1 || m[0].Collapse.BodyMany != "{count} new comments" || m[0].Title != "New comment on “"+r.Title+"”" {
 		t.Errorf("mia %+v", m)
 	}
 }

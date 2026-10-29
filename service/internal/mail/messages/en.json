@@ -68,6 +68,8 @@
 	"mail_password_set_subject": "A password was set for your Rezepte account",
 	"mail_push_comment_body": "{author}: {text}",
 	"mail_push_comment_body_many": "{count} new comments",
+	"mail_push_comment_title": "New comment on “{title}”",
+	"mail_push_comment_title_many": "New comments on “{title}”",
 	"mail_push_invite_accepted_body": "{name} signs in as {username}",
 	"mail_push_invite_accepted_title": "Invitation accepted",
 	"mail_push_mail_failing_auth": "The mail server refused the login.",
