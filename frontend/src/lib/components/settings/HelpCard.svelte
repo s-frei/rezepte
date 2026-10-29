@@ -37,7 +37,7 @@
 	</span>
 	<ArrowUpRight
 		aria-hidden="true"
-		class="size-5 shrink-0 text-text-muted transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-text"
+		class="size-5 shrink-0 text-text-muted transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-text motion-reduce:transition-none"
 	/>
 </a>
 <!-- eslint-enable svelte/no-navigation-without-resolve -->

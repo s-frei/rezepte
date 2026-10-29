@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { Dialog } from 'bits-ui';
 	import { fade } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Download from '@lucide/svelte/icons/download';
@@ -35,6 +36,7 @@
 
 	const count = $derived(images.length);
 	const current = $derived(images[index]);
+	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
 	function show(next: number) {
 		if (count === 0) {
@@ -95,7 +97,7 @@
 					<div
 						{...props}
 						class="fixed inset-0 z-50 flex flex-col bg-lightbox text-lightbox-foreground"
-						transition:fade={{ duration: 200 }}
+						transition:fade={{ duration: fadeDuration }}
 					>
 						<header class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:px-6">
 							<!-- `flex-1` with a 0 basis: a long title truncates instead of wrapping the row. -->

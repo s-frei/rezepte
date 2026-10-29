@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { Pathname, ResolvedPathname } from '$app/types';
@@ -184,7 +185,10 @@
 		steering = true;
 		pinnedAt = null;
 		releaseSteeringAfter(300);
-		document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		document.getElementById(id)?.scrollIntoView({
+			behavior: prefersReducedMotion.current ? 'auto' : 'smooth',
+			block: 'start'
+		});
 		// Also for a pick with nothing to scroll, which fires no scroll events.
 		measureProgress();
 	}
@@ -291,7 +295,10 @@
 		if (!target) {
 			return;
 		}
-		target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		target.scrollIntoView({
+			behavior: prefersReducedMotion.current ? 'auto' : 'smooth',
+			block: 'center'
+		});
 		// A step is a ProseMirror surface rather than a textarea, so the test
 		// asks what the element can do, not which class it is.
 		if (

@@ -194,7 +194,7 @@
 					<div
 						{...props}
 						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: 200 }}
+						transition:fade={{ duration: prefersReducedMotion.current ? 0 : 200 }}
 					></div>
 				{/if}
 			{/snippet}

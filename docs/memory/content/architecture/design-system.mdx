@@ -131,7 +131,7 @@ Each of these comes from a bug that shipped. Verify them at 360px - see [Verify 
 - Editor: `beforeunload` prompt when dirty; Enter adds an ingredient row, Backspace in an empty row deletes it.
 - Form errors come from a save, never while typing, and a field's error leaves as soon as someone types in that field: it answered the last save and no longer describes what is there. `withoutErrors` in `$lib/form-errors` drops them; the editor's fields name the errors they own with `data-error-key` and one `oninput` on the form clears them.
 - Theme: `data-theme` on `<html>`, persisted as `rezepte-theme` - see [Implementation notes](#implementation-notes).
-- Respect `prefers-reduced-motion`.
+- Respect `prefers-reduced-motion`: under it nothing travels, scales, turns or pulses, and the state still changes. Nothing in Svelte does this on its own - `transition:`, `animate:flip`, svelte-dnd-action's `flipDurationMs` and `scrollIntoView({ behavior: 'smooth' })` all move regardless - so every duration is `$derived(prefersReducedMotion.current ? 0 : n)` (`svelte/motion`), every smooth scroll asks the same, and a moving utility (`transition-transform`, `animate-*`) carries `motion-reduce:transition-none` or `motion-safe:`. A color or opacity `transition` on hover may stay. To check it, freeze the page's clock (see [Verify UI](/howtos/verify-ui#motion-frame-by-frame)) under `reducedMotion: 'reduce'`: `document.getAnimations()` should list nothing after the action.
 
 ## Components
 

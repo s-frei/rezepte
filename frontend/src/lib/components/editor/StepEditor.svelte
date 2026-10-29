@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { tick } from 'svelte';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -34,7 +35,7 @@
 		errors?: FieldErrors;
 	} = $props();
 
-	const FLIP_DURATION = 150;
+	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
 
 	const entries = $derived(pickerEntries(groups));
 	const pendingCount = $derived(countPending(steps, groups, dismissed));

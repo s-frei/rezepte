@@ -31,6 +31,6 @@
 	class="inline-flex h-4 w-7 shrink-0 items-center rounded-pill bg-border px-0.5 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=checked]:bg-primary"
 >
 	<BitsSwitch.Thumb
-		class="block size-3 rounded-full bg-surface-elevated shadow-card transition-transform data-[state=checked]:translate-x-3"
+		class="block size-3 rounded-full bg-surface-elevated shadow-card transition-transform data-[state=checked]:translate-x-3 motion-reduce:transition-none"
 	/>
 </BitsSwitch.Root>

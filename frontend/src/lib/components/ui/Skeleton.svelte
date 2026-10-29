@@ -5,4 +5,4 @@
 	let { class: className = '' }: { class?: string } = $props();
 </script>
 
-<div class="animate-pulse bg-skeleton {className}"></div>
+<div class="bg-skeleton motion-safe:animate-pulse {className}"></div>

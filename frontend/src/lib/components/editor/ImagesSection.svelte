@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { flip } from 'svelte/animate';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import X from '@lucide/svelte/icons/x';
@@ -45,7 +46,7 @@
 	 */
 	type Tile = { id: string; url: string; file?: File; uploading: boolean };
 
-	const FLIP_DURATION = 150;
+	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
 
 	// The props seed the section once: a `$state` initializer runs on the
 	// first render only, so a later prop value never re-seeds and undoes the

@@ -110,7 +110,7 @@
 				{/if}
 			</span>
 			<ChevronDown
-				class="col-start-2 row-start-1 size-4 text-text-muted transition-transform group-data-[state=open]:rotate-180 @xs:col-start-3"
+				class="col-start-2 row-start-1 size-4 text-text-muted transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none @xs:col-start-3"
 				aria-hidden="true"
 			/>
 		</Collapsible.Trigger>

@@ -3,6 +3,7 @@
 	import Filter from '@lucide/svelte/icons/filter';
 	import { fade, fly, scale } from 'svelte/transition';
 	import type { TransitionConfig } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import PersonMark from '$lib/components/ui/PersonMark.svelte';
@@ -179,8 +180,8 @@
 	 */
 	function panelTransition(node: HTMLElement): TransitionConfig {
 		return window.matchMedia(PHONE_QUERY).matches
-			? fly(node, { y: 200, duration: 250 })
-			: scale(node, { duration: 200, start: 0.95 });
+			? fly(node, { y: 200, duration: prefersReducedMotion.current ? 0 : 250 })
+			: scale(node, { duration: prefersReducedMotion.current ? 0 : 200, start: 0.95 });
 	}
 </script>
 
@@ -199,7 +200,7 @@
 					<div
 						{...props}
 						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: 200 }}
+						transition:fade={{ duration: prefersReducedMotion.current ? 0 : 200 }}
 					></div>
 				{/if}
 			{/snippet}

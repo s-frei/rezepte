@@ -245,7 +245,9 @@
 			>
 				{expanded ? m.overview_tags_less() : m.overview_tags_more({ count: hiddenCount })}
 				<ChevronDown
-					class="size-4 transition-transform {expanded ? 'rotate-180' : ''}"
+					class="size-4 transition-transform motion-reduce:transition-none {expanded
+						? 'rotate-180'
+						: ''}"
 					aria-hidden="true"
 				/>
 			</button>

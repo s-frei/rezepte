@@ -163,7 +163,9 @@
 		class="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-text-muted"
 	>
 		<ChevronDown
-			class="size-4 transition-transform {listboxOpen ? 'rotate-180' : ''}"
+			class="size-4 transition-transform motion-reduce:transition-none {listboxOpen
+				? 'rotate-180'
+				: ''}"
 			aria-hidden="true"
 		/>
 	</button>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { flip } from 'svelte/animate';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import Button from '$lib/components/ui/Button.svelte';
@@ -22,7 +23,7 @@
 		errors?: FieldErrors;
 	} = $props();
 
-	const FLIP_DURATION = 150;
+	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
 
 	/** Rows an import asked about that nobody has answered yet. */
 	const toCheck = $derived(

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { fade, scale } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import type { Snippet } from 'svelte';
 
 	// Shared Overlay + Content wrapper for the app's small centered dialogs
@@ -26,6 +27,8 @@
 		wide?: boolean;
 		children: Snippet;
 	} = $props();
+
+	const duration = $derived(prefersReducedMotion.current ? 0 : 200);
 </script>
 
 <Dialog.Root bind:open>
@@ -36,7 +39,7 @@
 					<div
 						{...props}
 						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: 200 }}
+						transition:fade={{ duration }}
 					></div>
 				{/if}
 			{/snippet}
@@ -59,7 +62,7 @@
 						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
 							? 'max-w-[720px]'
 							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 shadow-dialog md:p-7"
-						transition:scale={{ duration: 200, start: 0.95 }}
+						transition:scale={{ duration, start: 0.95 }}
 					>
 						{@render children()}
 					</div>

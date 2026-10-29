@@ -140,6 +140,25 @@ A change that sends mail is verified against Mailpit, not against a mocked sende
 - **Preview:** `mise run //service:mail-preview` renders every sample mail, in English and German, into an ignored `out` folder and prints the path of its index page; open it to see a letter's HTML and text without a send. A new mail needs a `mail.Samples` entry, or `TestEveryTemplateHasASample` fails.
 - **Screenshots:** the screenshot and OpenAPI tasks set `RZP_DEMO_MAIL=off`, so the pictures show the unconfigured card whether or not Mailpit runs; the specs that need a configured one configure it themselves.
 
+## Motion, frame by frame
+
+A screenshot after an animation says nothing about the animation, and one taken during it lands wherever the clock happened to be. Stop the clock instead: CDP's `Animation.setPlaybackRate` with `0` holds every CSS transition, CSS animation, Web Animation (Svelte's `transition:` and `animate:` run as those) and view transition at its first frame as it starts. Run the action, list `document.getAnimations()` (each one's target, `getComputedTiming()` delay, duration and easing), then for each point of the run set every animation's `currentTime` after `pause()` and take a screenshot; lay the frames side by side to read them as one strip. `finish()` them and put the rate back to `1` afterwards.
+
+```ts
+const cdp = await page.context().newCDPSession(page);
+await cdp.send('Animation.enable');
+await cdp.send('Animation.setPlaybackRate', { playbackRate: 0 });
+await page.locator('#overview-filters').click();
+for (const t of [0, 40, 80, 120, 200]) {
+	await page.evaluate((t) => document.getAnimations().forEach((a) => (a.pause(), (a.currentTime = t))), t);
+	await page.screenshot({ path: `test-results/filters-${t}.png` });
+}
+```
+
+- Look at the first frame and the last: a first frame that already shows the end state, or a last one that is not the resting layout, is a jump the eye sees.
+- Run it twice, with `reducedMotion: 'no-preference'` and `'reduce'` on the context. Under `reduce` the list should come back empty for anything that moves.
+- A hover left over from the click (the card under the pointer) shows up in the list too; read the targets, not just the count.
+
 ## Running a probe
 
 `mise run demo -- <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images), runs the command against it and stops it afterwards - the fastest way to a realistic page:
