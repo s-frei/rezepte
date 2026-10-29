@@ -156,9 +156,12 @@
 						<!-- `role="group"`: a div carrying pointer handlers needs a role
 						     (svelte a11y_no_static_element_interactions), and the swipe
 						     area really is a group of image plus prev/next buttons. -->
+						<!-- `select-none`: a mouse swipe across it would select, and the next
+						     press inside that selection drags it instead (Chromium on Linux
+						     and Windows), cancelling the pointer and with it the swipe. -->
 						<div
 							role="group"
-							class="relative flex min-h-0 flex-1 items-center justify-center px-4 md:px-20 {count >
+							class="relative flex min-h-0 flex-1 items-center justify-center px-4 select-none md:px-20 {count >
 							1
 								? ''
 								: 'pb-4 md:pb-6'}"

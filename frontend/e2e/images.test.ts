@@ -98,6 +98,10 @@ test('swipes between the lightbox images', async ({ page, isMobile }) => {
 	// Exactly the 50px threshold, leftwards: the next image.
 	await drag(250, 200);
 	await expect(dialog.getByText('2 / 2')).toBeVisible();
+	// A swipe selects nothing: a press inside a selection drags the selection
+	// instead (Chromium on Linux and Windows at once), and the pointercancel
+	// that starts that drag drops the swipe.
+	expect(await page.evaluate(() => getSelection()?.type)).not.toBe('Range');
 	// 49px rightwards is below the threshold and must not page.
 	await drag(200, 249);
 	await expect(dialog.getByText('2 / 2')).toBeVisible();
