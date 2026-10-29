@@ -90,7 +90,10 @@ export function manifest(locale: string): string {
 		start_url: '/',
 		scope: '/',
 		display: 'standalone',
-		theme_color: GROUND,
+		// No theme_color: Chrome paints an installed app's navigation bar
+		// with it, and a manifest holds one color for both themes, so a dark
+		// phone got a light bar. Without it the bar follows the phone; the
+		// status bar follows the theme-color metas in app.html.
 		background_color: GROUND,
 		icons: [
 			{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' },

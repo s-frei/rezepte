@@ -26,3 +26,25 @@ export function applyTheme(
 		root.setAttribute('data-theme', theme);
 	}
 }
+
+/**
+ * Points the `theme-color` metas in `app.html` at the chosen theme. Each
+ * carries `data-scheme`; `system` hands them back to prefers-color-scheme,
+ * an explicit choice turns its own meta on and the other off. Android
+ * paints the status and navigation bars of the installed app from it.
+ */
+export function applyThemeColor(
+	metas: Iterable<Pick<Element, 'getAttribute' | 'setAttribute'>>,
+	theme: Theme
+): void {
+	for (const meta of metas) {
+		const scheme = meta.getAttribute('data-scheme');
+		const media =
+			theme === 'system'
+				? `(prefers-color-scheme: ${scheme})`
+				: scheme === theme
+					? 'all'
+					: 'not all';
+		meta.setAttribute('media', media);
+	}
+}

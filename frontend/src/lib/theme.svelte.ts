@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
 import { load, save } from './storage';
-import { applyTheme, isTheme, THEME_STORAGE_KEY, type Theme } from './theme';
+import { applyTheme, applyThemeColor, isTheme, THEME_STORAGE_KEY, type Theme } from './theme';
 
 const stored = load(THEME_STORAGE_KEY);
 
@@ -13,5 +13,6 @@ export function setTheme(next: Theme): void {
 		return;
 	}
 	applyTheme(document.documentElement, next);
+	applyThemeColor(document.querySelectorAll('meta[name="theme-color"]'), next);
 	save(THEME_STORAGE_KEY, next === 'system' ? null : next);
 }

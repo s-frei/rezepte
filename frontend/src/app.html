@@ -4,6 +4,24 @@
 	<head>
 		<meta charset="utf-8" />
 
+		<!--
+			These mirror --color-background in app.css; app.html cannot read
+			tokens. They sit above the script so it can point them at the
+			stored theme (applyThemeColor in src/lib/theme.ts).
+		-->
+		<meta
+			name="theme-color"
+			data-scheme="light"
+			media="(prefers-color-scheme: light)"
+			content="#f4ede2"
+		/>
+		<meta
+			name="theme-color"
+			data-scheme="dark"
+			media="(prefers-color-scheme: dark)"
+			content="#1c1612"
+		/>
+
 		<script>
 			// Applies the stored theme before the first paint so a dark-mode
 			// user never sees a light flash. Mirrors src/lib/theme.ts. Wrapped in
@@ -13,6 +31,12 @@
 					var theme = localStorage.getItem('rezepte-theme');
 					if (theme === 'light' || theme === 'dark') {
 						document.documentElement.setAttribute('data-theme', theme);
+						document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+							meta.setAttribute(
+								'media',
+								meta.getAttribute('data-scheme') === theme ? 'all' : 'not all'
+							);
+						});
 					}
 				} catch (_) {}
 			})();
@@ -31,9 +55,6 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
-		<!-- These mirror --color-background in app.css; app.html cannot read tokens. -->
-		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4ede2" />
-		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1c1612" />
 		<!--
 			Link preview for a shared URL, in the Open Graph and Twitter Card
 			tags that WhatsApp, Signal, Telegram, iMessage, Slack, Discord,

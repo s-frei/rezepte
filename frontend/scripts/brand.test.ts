@@ -83,6 +83,7 @@ test('the favicon is the book, and the manifests what the generator writes', asy
 
 test('manifest makes an installable app', () => {
 	const m = JSON.parse(manifest('en'));
+	expect(m).not.toHaveProperty('theme_color');
 	expect(m).toMatchObject({
 		id: '/',
 		name: 'Rezepte',
@@ -91,7 +92,6 @@ test('manifest makes an installable app', () => {
 		scope: '/',
 		display: 'standalone',
 		lang: 'en',
-		theme_color: GROUND,
 		background_color: GROUND,
 		launch_handler: { client_mode: 'focus-existing' },
 		share_target: {
