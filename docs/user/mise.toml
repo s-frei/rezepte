@@ -53,7 +53,7 @@ description = "Copy the logo, favicon and social preview into the docs site (pub
 run = "bun run brand-assets"
 
 [tasks."readme-images"]
-description = "Round the overview screenshots for the README (assets/readme); screenshots runs it too"
+description = "Round the README screenshots into assets/readme; screenshots runs it too"
 run = "bun run readme-images"
 
 [tasks."hero-images"]

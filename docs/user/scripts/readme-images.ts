@@ -1,6 +1,7 @@
-// Rounds the overview and phone cook-mode screenshots for the README. GitHub strips CSS from a
-// README, so the corners and the border the docs site draws around every
-// <Screenshot> (rounded-xl, 1px fd-border) are baked into the picture here.
+// Rounds the overview and the phone cook mode with running timers for the
+// README. GitHub strips CSS from a README, so the corners and the border the
+// docs site draws around every <Screenshot> (rounded-xl, 1px fd-border) are
+// baked into the picture here.
 // Runs after `mise run //docs/user:screenshots`, and on its own as
 // `mise run //docs/user:readme-images`.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -39,7 +40,7 @@ export async function rounded(png: ArrayBuffer | Buffer, scheme: keyof typeof BO
 }
 
 // The screenshots the README shows, as named in public/screenshots.
-export const README_SHOTS = ['overview-desktop', 'cook-mode-mobile'] as const;
+export const README_SHOTS = ['overview-desktop', 'cook-mode-timers-mobile'] as const;
 
 // node:fs rather than Bun.file: Next type-checks every script in this
 // package, and its tsconfig carries no Bun types.

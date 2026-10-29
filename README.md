@@ -16,16 +16,16 @@ Your family's and friends' recipes in one place, on your own server, without a c
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/overview-desktop-dark.png">
-  <img alt="Rezepte recipe overview on a desktop: search, tag chips and a grid of recipe cards with photos" src="assets/readme/overview-desktop-light.png" width="74%">
+  <img alt="Rezepte recipe overview on a desktop: search, tag chips and recipe cards in columns, most of them with a photo" src="assets/readme/overview-desktop-light.png" width="74%">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cook-mode-mobile-dark.png">
-  <img alt="Rezepte cook mode on a phone: one step in large type with its ingredient amounts" src="assets/readme/cook-mode-mobile-light.png" width="21%">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/cook-mode-timers-mobile-dark.png">
+  <img alt="Rezepte cook mode on a phone: a step in large type with its time running as a timer, and two timers counting down below it" src="assets/readme/cook-mode-timers-mobile-light.png" width="21%">
 </picture>
 
 </div>
 
-*Rezepte* is German for "recipes". You run it once, invite your household and your friends with a link or by mail, and everyone writes down what they cook: ingredient groups, steps, photos, where the recipe comes from. Then you find it again by title, ingredient or tag, and cook from your phone at the stove. The interface is modern and made for the phone first: light and dark, a bottom bar under your thumb, <kbd>⌘</kbd><kbd>K</kbd> to jump anywhere.
+*Rezepte* is German for "recipes". You run it once, invite your household and your friends with a link or by mail, and everyone writes down what they cook: ingredient groups, steps, photos, where the recipe comes from. Then you find it again by title, ingredient or tag, and cook from your phone at the stove. The interface is modern and made for the phone first: light and dark, a bottom bar under your thumb, <kbd>⌘</kbd><kbd>K</kbd> to jump anywhere, and an [app to install](https://s-frei.github.io/rezepte/guide/install-app/) on your home screen.
 
 It runs as **one binary** with the web app built in, an SQLite database and your photos in a single data directory: no Node runtime, no database server, no external services.
 
@@ -44,13 +44,15 @@ Open <http://localhost:8060> and log in as **`demo`** / **`demo1234`**.
 
 ## Features
 
-- 🍳 **Cooking:** a full-screen [cook mode](https://s-frei.github.io/rezepte/guide/cook-mode/) for the phone at the stove, steps that show the amounts they use, [times in a step](https://s-frei.github.io/rezepte/guide/recipes/#mark-times-in-a-step) marked with a small clock, quantities [scaled to your servings](https://s-frei.github.io/rezepte/guide/servings/), and [a shopping list to copy](https://s-frei.github.io/rezepte/guide/servings/#copy-a-shopping-list) with everything you have not ticked off.
-- 📖 **Collection:** [recipes](https://s-frei.github.io/rezepte/guide/recipes/) with ingredient groups, notes, times and their source (a book, a website or a person), [several photos each](https://s-frei.github.io/rezepte/guide/images/), [tags and search](https://s-frei.github.io/rezepte/guide/tags-and-search/) by ingredient, time or author, private favorites, and [tasty marks](https://s-frei.github.io/rezepte/guide/recipes/#tasty) that show who liked what, and [comments](https://s-frei.github.io/rezepte/guide/comments/) for what you learned cooking it.
-- 👥 **People:** [accounts and roles](https://s-frei.github.io/rezepte/guide/users/) with a one-time setup link, [sent by mail](https://s-frei.github.io/rezepte/guide/mail/) if you connect a mail server, and [Forgot password?](https://s-frei.github.io/rezepte/getting-started/first-login/#forgot-your-password) on the login page, [profile photos](https://s-frei.github.io/rezepte/guide/settings/#profile), [sign-in with Google or your own OIDC provider](https://s-frei.github.io/rezepte/operations/single-sign-on/), and [sharing](https://s-frei.github.io/rezepte/guide/sharing/) as a household link, a public link that expires, or [an image for any messenger](https://s-frei.github.io/rezepte/guide/sharing/#pass-on-as-an-image).
-- 📥 **Import:** [paste a link or the recipe text](https://s-frei.github.io/rezepte/guide/importing/) and get a draft to check, with ingredients split into amounts, units and names, the photo and the source; anything Rezepte was unsure about is marked for you.
+- 🍳 **Cooking:** a full-screen [cook mode](https://s-frei.github.io/rezepte/guide/cook-mode/) for the phone at the stove, steps that show the amounts they use, [times in a step](https://s-frei.github.io/rezepte/guide/recipes/#mark-times-in-a-step) that start [a timer](https://s-frei.github.io/rezepte/guide/cook-mode/#run-timers) with a tap and ring until you turn it off, with a notification when the phone is locked, quantities [scaled to your servings](https://s-frei.github.io/rezepte/guide/servings/), and [a shopping list to copy](https://s-frei.github.io/rezepte/guide/servings/#copy-a-shopping-list) with everything you have not ticked off.
+- 📱 **An app on your phone:** [install Rezepte](https://s-frei.github.io/rezepte/guide/install-app/) on the home screen or the desktop, no app store needed. It opens in its own window with [shortcuts](https://s-frei.github.io/rezepte/guide/install-app/#shortcuts) to the import, a new recipe and your favorites, and tells you when a timer is done, even with the phone locked. On Android, Windows and ChromeOS it joins the [share menu](https://s-frei.github.io/rezepte/guide/install-app/#share-to-rezepte): share a recipe link from another app or a chat, and it lands straight in the import.
+- 📖 **Collection:** [recipes](https://s-frei.github.io/rezepte/guide/recipes/) with ingredient groups, notes, times and their source (a book, a website or a person), [several photos each](https://s-frei.github.io/rezepte/guide/images/), [tags and search](https://s-frei.github.io/rezepte/guide/tags-and-search/) by ingredient, time or author, private favorites, [tasty marks](https://s-frei.github.io/rezepte/guide/recipes/#tasty) that show who liked what, and [comments](https://s-frei.github.io/rezepte/guide/comments/) with photos for what you learned cooking it.
+- 🔔 **Notifications:** [by mail, as a push, or both](https://s-frei.github.io/rezepte/guide/notifications/) when someone comments on a recipe you follow, finds yours tasty or accepts your invitation, and once a day about the recipes the others added. Every member [chooses what comes](https://s-frei.github.io/rezepte/guide/notifications/#choose-what-comes) on which channel, every notification mail has a one-click unsubscribe, and the owner gets a push when mail stops getting out.
+- 👥 **People:** [accounts and roles](https://s-frei.github.io/rezepte/guide/users/) with a one-time setup link, [sent by mail](https://s-frei.github.io/rezepte/guide/mail/) if you connect a mail server, and [Forgot password?](https://s-frei.github.io/rezepte/getting-started/first-login/#forgot-your-password) on the login page, [profile photos](https://s-frei.github.io/rezepte/guide/settings/#profile), [sign-in with Google or your own OIDC provider](https://s-frei.github.io/rezepte/operations/single-sign-on/) set up right in the app, and [sharing](https://s-frei.github.io/rezepte/guide/sharing/) as a household link, a public link that expires, or [an image for any messenger](https://s-frei.github.io/rezepte/guide/sharing/#pass-on-as-an-image).
+- 📥 **Import:** [paste a link or the recipe text](https://s-frei.github.io/rezepte/guide/importing/), or share a link into the installed app, and get a draft to check, with ingredients split into amounts, units and names, the photo and the source; anything Rezepte was unsure about is marked for you.
 - 🔌 **Your data:** [zip export and import](https://s-frei.github.io/rezepte/guide/import-export/) between instances, an [HTTP API](https://s-frei.github.io/rezepte/api/) with scoped [tokens](https://s-frei.github.io/rezepte/api/tokens/) and an OpenAPI reference, and an [MCP server](https://s-frei.github.io/rezepte/api/mcp/) for AI assistants.
 
-English and German are built in, and every member picks their own. Missing your language? [Adding one](https://s-frei.github.io/rezepte/contributing/add-a-language/) takes three files and no programming.
+English and German are built in, and every member picks their own. Missing your language? [Adding one](https://s-frei.github.io/rezepte/contributing/add-a-language/) takes four files and no programming.
 
 <details>
 <summary><b>What an AI assistant can do through MCP</b></summary>
@@ -100,10 +102,15 @@ services:
   rezepte:
     image: ghcr.io/s-frei/rezepte:latest
     restart: unless-stopped
+    # Room to finish a running daily mail on stop: up to 10 s for open
+    # requests plus up to 2 min for the mail, where Docker's default is 10 s.
+    stop_grace_period: 2m30s
     volumes:
       - rezepte-data:/data
     environment:
       REZEPTE_ADMIN_PASSWORD: change-me-now
+      # The time zone the times in mails are written in; UTC without it.
+      # TZ: Europe/Berlin
     ports:
       - "8060:8060"
 
@@ -115,6 +122,8 @@ Open <http://localhost:8060> and log in as **`admin`** with the password you set
 
 > [!IMPORTANT]
 > `REZEPTE_ADMIN_PASSWORD` is read only on the very first start, to create the owner. Afterwards, change the password inside the app; the variable is read again only by `--reset-superadmin-password`.
+
+Before you invite anyone, put Rezepte behind a [reverse proxy with HTTPS](https://s-frei.github.io/rezepte/operations/reverse-proxy/): browsers keep the installable app, push notifications and timer alarms for a locked phone to secure addresses.
 
 `latest` is the newest stable release. Every version is on the [releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte). [Getting started](https://s-frei.github.io/rezepte/getting-started/) covers plain `docker run`, the binary with systemd, and every setting.
 
