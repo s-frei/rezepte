@@ -560,7 +560,11 @@
 		// after the first was lost.
 		// The fallback is `document`'s, not `<html>`'s: only Chromium gives
 		// elements a `startViewTransition`, and Safari threw on the root's.
-		const scoped = results && 'startViewTransition' in results ? results : null;
+		// A size change keeps its place over the whole document too: a scoped
+		// transition holds its scope at the old height until it ends, so the
+		// page could not scroll past the old bottom, and a phone going to one
+		// card per row (the list twice as tall) lost the reader's card.
+		const scoped = !keepPlace && results && 'startViewTransition' in results ? results : null;
 		const marked = scoped ?? root;
 		marked.dataset.cardTransition = '';
 		named.forEach(name);

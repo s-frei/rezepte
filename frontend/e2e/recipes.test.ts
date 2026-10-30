@@ -884,20 +884,26 @@ test('the card size sets how many cards share a row, and stays', async ({ page, 
 	expect(await columnCount(page)).toBe(3);
 });
 
+// On a phone, one card per row makes the list about twice as tall, so a
+// reader at the bottom has to be scrolled past where the page used to end:
+// a transition scoped to the results held them at its old height, and the
+// card landed far down the screen.
 test('switching the card size keeps the card at the top in place', async ({ page, isMobile }) => {
-	test.skip(isMobile, 'the desktop sizes move every card');
 	const token = uniqueToken();
 	for (let i = 0; i < 24; i++) {
 		await createRecipe(page, { ...loadFixture((i % 5) + 1), title: `Anchor ${i} ${token}` });
 	}
-	await page.setViewportSize({ width: 1280, height: 700 });
+	if (!isMobile) await page.setViewportSize({ width: 1280, height: 700 });
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveCount(24);
 	await columnCount(page);
 
-	// The reader has scrolled into the middle of the list; the first card
-	// that starts on screen is the one they are looking at.
-	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 3));
+	// The reader has scrolled into the list; the first card that starts on
+	// screen is the one they are looking at.
+	await page.evaluate(
+		(bottom) => window.scrollTo(0, document.body.scrollHeight / (bottom ? 1 : 3)),
+		isMobile
+	);
 	const first = () =>
 		page
 			.getByRole('main')
@@ -911,7 +917,7 @@ test('switching the card size keeps the card at the top in place', async ({ page
 	const article = page.getByRole('main').locator('article').nth(before.index);
 	// Clicked in place: Playwright's click would scroll the control into view first.
 	await page
-		.getByRole('radio', { name: 'Small cards' })
+		.getByRole('radio', { name: isMobile ? 'One per row' : 'Small cards' })
 		.evaluate((radio: HTMLElement) => radio.click());
 	await columnCount(page);
 	await expect
