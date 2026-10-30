@@ -1,6 +1,6 @@
 <div align="center">
 
-<img alt="Rezepte, the self-hosted recipe manager: its waving cookbook mascot on a kitchen counter" src="docs/user/public/heroes/kitchen.jpg" width="320">
+<img alt="Rezepte app icon: the waving cookbook mascot with a wooden spoon" src="assets/readme/app-icon.png" width="160">
 
 # Rezepte
 
