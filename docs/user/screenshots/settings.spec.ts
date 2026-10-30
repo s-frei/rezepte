@@ -327,11 +327,17 @@ test('notifications', async ({ page }, testInfo) => {
 test('notifications-push', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(Notification, 'permission', { get: () => 'granted' });
-    PushManager.prototype.getSubscription = async () =>
-      ({
-        endpoint: 'https://fcm.googleapis.com/fcm/send/docs',
-        toJSON: () => ({ keys: { p256dh: 'p', auth: 'a' } }),
-      }) as unknown as PushSubscription;
+    // No push service in a headless browser: a stand-in subscription. Its
+    // key never matches the instance's, so the page renews it through
+    // unsubscribe and subscribe, as it would one made under another key.
+    const sub = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/docs',
+      options: { applicationServerKey: null },
+      unsubscribe: async () => true,
+      toJSON: () => ({ keys: { p256dh: 'p', auth: 'a' } }),
+    } as unknown as PushSubscription;
+    PushManager.prototype.getSubscription = async () => sub;
+    PushManager.prototype.subscribe = async () => sub;
   });
   await page.route('**/api/v1/push/subscription', (route) => route.fulfill({ status: 204 }));
   await page.route('**/api/v1/push/test', (route) => route.fulfill({ status: 204 }));
