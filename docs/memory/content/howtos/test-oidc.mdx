@@ -41,9 +41,9 @@ With Dex up, `mise run demo` prints which Dex user goes with which demo account.
 
 The stub's port is random, so the issuer on the Sign-in page would change every run, and the redirect URI there follows the worktree's port offset. The `sign-in-card` screenshot (`docs/user/screenshots/settings.spec.ts`) therefore rewrites both texts to fixed addresses in the DOM before the shot, rather than giving the stub a port from the map: any port tied to the offset would still differ between worktrees and fail `screenshots:check` in one of them. A screenshot that shows the issuer or the redirect URI must do the same.
 
-## Once a release
+## When a release touches sign-in
 
-Dex proves the protocol, not every provider's quirks. Before a release, sign in with a real Google account by hand once - `docs/memory/content/features/oidc.mdx` names the exact routes and cookies the flow uses.
+Dex proves the protocol, not every provider's quirks: an exact redirect URI, a real consent screen, discovery and JWKS at Google's endpoints, and the flow cookie surviving a cross-site redirect back from another domain. Before a release whose commits touch the sign-in path, sign in with a real Google account by hand once - `docs/memory/content/features/oidc.mdx` names the exact routes and cookies the flow uses. The sign-in path is `service/internal/oidc`, the session and cookie code in `service/internal/auth`, a bump of `github.com/coreos/go-oidc/v3` or `golang.org/x/oauth2`, and the SPA's `/login`, `/welcome` and `ProviderButton.svelte`. A release that touches none of it skips the check: what it would prove, the last release already proved, and a change on Google's side does not wait for our releases.
 
 ## Why it is this way
 

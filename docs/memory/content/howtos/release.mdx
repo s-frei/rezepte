@@ -49,7 +49,7 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
     mise run e2e -- --retries 0
     ```
 
-    `mise run check` does not run e2e, and a pushed tag whose release gate fails has to be recreated. Without Dex and Mailpit their specs skip, so a green run would prove nothing about sign-in or mail. A test that fails once has found something until it is reproduced or explained - it is not "flaky" on a guess. The commits being released also need a green CI run (`gh run list --branch develop`), and a real Google account signs in once by hand ([Test OIDC sign-in](/howtos/test-oidc#once-a-release)).
+    `mise run check` does not run e2e, and a pushed tag whose release gate fails has to be recreated. Without Dex and Mailpit their specs skip, so a green run would prove nothing about sign-in or mail. A test that fails once has found something until it is reproduced or explained - it is not "flaky" on a guess. The commits being released also need a green CI run (`gh run list --branch develop`), and when the release touches sign-in, a real Google account signs in once by hand ([Test OIDC sign-in](/howtos/test-oidc#when-a-release-touches-sign-in)).
 
   </Step>
   <Step>
