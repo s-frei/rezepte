@@ -549,6 +549,16 @@
 		scrollbar-gutter: auto;
 	}
 
+	/* On a touch screen the page stays put under an open sheet or dialog:
+	   the dialogs pass `preventScroll={false}`, so a swipe on the overlay or
+	   past the end of a sheet's list scrolled the page behind it. A touch
+	   screen's scrollbar takes no room, so locking here cannot shift the page. */
+	@media (pointer: coarse) {
+		:root:has([aria-modal='true']) {
+			overflow: hidden;
+		}
+	}
+
 	* {
 		scrollbar-width: thin;
 	}

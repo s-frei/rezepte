@@ -242,6 +242,26 @@ test('You switches the theme without leaving the sheet', async ({ page }) => {
 	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
 });
 
+test('the page stays put under an open sheet', async ({ page }) => {
+	await login(page);
+	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
+	await makeTall(page);
+
+	await bottomNav(page).getByRole('button', { name: 'You' }).click();
+	await expect(page.getByRole('dialog', { name: 'admin' })).toBeVisible();
+	// Over the overlay, above the sheet.
+	await page.mouse.move(200, 100);
+	await page.mouse.wheel(0, 800);
+	// A poll for 0 would pass before the wheel lands.
+	await page.waitForTimeout(300);
+	expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await page.mouse.wheel(0, 800);
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+});
+
 test('no bar on a page that does not exist', async ({ page }) => {
 	await login(page);
 	await page.goto('/gibt-es-nicht');
