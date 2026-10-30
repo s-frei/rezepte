@@ -109,7 +109,9 @@ This checkout stays on develop - open that folder to work on the release.
 Next, in that worktree:
   1. Write ${CHANGELOG_DIR}/${version}.mdx - highlights, the rest, and
      the upgrade notice if anything is breaking. Remove the DRAFT line.
-  2. Commit it, together with ${OPENAPI_PATH}:
+  2. Mark what the highlights describe as new in the user docs: \`new: ${version}\`
+     in a page's frontmatter, <NewIn release="${version}" /> after a section's heading.
+  3. Commit it, together with ${OPENAPI_PATH}:
        docs(changelog): write the ${version} release notes
-  3. Run:  mise run release:finish
+  4. Run:  mise run release:finish
 `);

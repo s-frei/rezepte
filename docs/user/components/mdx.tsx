@@ -11,6 +11,7 @@ import { Mermaid } from '@/components/mdx/mermaid';
 import { Hero } from '@/components/hero';
 import { Screenshot } from '@/components/screenshot';
 import { ReleaseTimeline } from '@/components/releases';
+import { NewIn } from '@/components/new-in';
 import { Audience, AudienceLegend } from '@/components/audience';
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -28,6 +29,7 @@ export function getMDXComponents(components?: MDXComponents) {
 		Folder,
 		Hero,
 		Mermaid,
+		NewIn,
 		ReleaseTimeline,
 		Screenshot,
 		Step,

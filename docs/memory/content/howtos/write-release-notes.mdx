@@ -73,6 +73,15 @@ A recipe's `author` and `editor` are people now - objects with `username`, `name
 - **Fixed:** The page language follows the interface after signing out.
 ```
 
+## Mark what is new in the user docs
+
+The docs mark what a release brought, in the sidebar, beside the heading and in the page's table of contents, for as long as that release is the newest ([Documentation sites](/architecture/docs#the-changelog-chapter)). Mark what the highlights describe, nothing from "Also in this release":
+
+- a page that is new or largely rewritten: `new: v1.3.0` in its frontmatter;
+- a new section of an existing page: `<NewIn release="v1.3.0" />` straight after the heading text, with no space, and `import { NewIn } from '@/components/new-in';` under the frontmatter, as for `<Audience>`.
+
+The marks of the previous release need no cleanup: they stop showing when this release becomes the newest, and stay as a record of when a page or section arrived. A version with no changelog page fails the docs build, so a typo cannot hide a mark.
+
 ## Check and hand over
 
 - `mise run release:finish --dry-run` in the release worktree: it refuses a page with leftovers, missing fields or no `upgrade` despite breaking commits, and exits 0 once the page is ready.

@@ -1,19 +1,32 @@
 import { DocsLayout } from 'fumadocs-ui/layouts/notebook';
 import type * as PageTree from 'fumadocs-core/page-tree';
 import type { ReactNode } from 'react';
+import { NewBadge, isNewIn } from '@/components/new-in';
 import { ReleaseNavName, isReleaseUrl } from '@/components/releases';
 import { baseOptions } from '@/lib/layout.shared';
 import { source } from '@/lib/source';
 
 // The sidebar shows a release as its version, large, with the release's name
-// beneath, instead of the whole "v1.3.0 — …" title in sidebar type.
-function withReleaseNames<T extends PageTree.Root | PageTree.Folder>(node: T): T {
+// beneath, instead of the whole "v1.3.0 — …" title in sidebar type; and it
+// marks a page whose `new` names the newest release, so the mark leaves by
+// itself with the next one.
+function sidebarTree<T extends PageTree.Root | PageTree.Folder>(node: T): T {
 	return {
 		...node,
 		children: node.children.map((child) => {
-			if (child.type === 'folder') return withReleaseNames(child);
-			if (child.type === 'page' && isReleaseUrl(child.url) && typeof child.name === 'string')
-				return { ...child, name: <ReleaseNavName title={child.name} /> };
+			if (child.type === 'folder') return sidebarTree(child);
+			if (child.type !== 'page') return child;
+			if (isReleaseUrl(child.url) && typeof child.name === 'string') return { ...child, name: <ReleaseNavName title={child.name} /> };
+			if (isNewIn(source.getNodePage(child)?.data.new))
+				return {
+					...child,
+					name: (
+						<>
+							{child.name}
+							<NewBadge className="ms-auto" />
+						</>
+					)
+				};
 			return child;
 		})
 	};
@@ -24,7 +37,7 @@ function withReleaseNames<T extends PageTree.Root | PageTree.Folder>(node: T): T
 export default function Layout({ children }: { children: ReactNode }) {
 	return (
 		<DocsLayout
-			tree={withReleaseNames(source.getPageTree())}
+			tree={sidebarTree(source.getPageTree())}
 			tabMode="navbar"
 			// The navbar tabs render only the title, so the section's icon goes in
 			// with it. On phones the tabs become the sidebar's dropdown, which shows

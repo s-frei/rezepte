@@ -1,5 +1,6 @@
 import { Banner } from 'fumadocs-ui/components/banner';
 import Link from 'next/link';
+import { LATEST_RELEASE } from '@/components/new-in';
 import { source } from '@/lib/source';
 
 // How the changelog chapter presents a release: in the sidebar, as the
@@ -15,6 +16,11 @@ export function releaseParts(title: string): { version: string; name: string } |
 }
 
 export const isReleaseUrl = (url: string) => url.startsWith(CHANGELOG_PREFIX);
+
+/** The page of the newest release (see components/new-in.tsx). */
+export function latestRelease() {
+	return source.getPages().find((page) => page.url === `/changelog/${LATEST_RELEASE}`);
+}
 
 const releaseDate = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
@@ -71,11 +77,7 @@ export function ReleaseTimeline() {
  * once, with the next one.
  */
 export function ReleaseBanner() {
-	const latest = source
-		.getPages()
-		// A release candidate (v1.0.0-rc1) is not announced.
-		.filter((page) => isReleaseUrl(page.url) && !page.url.includes('-'))
-		.sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))[0];
+	const latest = latestRelease();
 	const parts = latest && releaseParts(latest.data.title);
 	if (!latest || !parts) return null;
 	return (

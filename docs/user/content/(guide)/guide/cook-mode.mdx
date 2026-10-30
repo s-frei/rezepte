@@ -1,7 +1,10 @@
 ---
 title: Cook mode
 description: A full-screen, step-by-step view for cooking at the stove
+new: v1.3.0
 ---
+
+import { NewIn } from '@/components/new-in';
 
 <Hero name="phone" alt="The cookbook mascot cooking along with cook mode on a phone" />
 
@@ -24,7 +27,7 @@ description: A full-screen, step-by-step view for cooking at the stove
   </Step>
   <Step>
 
-    ### Run timers
+    ### Run timers<NewIn release="v1.3.0" />
 
     Tap a duration — "20 minutes" — to start a timer for it. Each marked time has its own timer, so tapping one that already runs starts nothing new, and timers of different steps, or of different recipes, run side by side. A duration given as a range — "20 to 25 minutes" — runs on the shorter time; check then and add more if needed.
 
