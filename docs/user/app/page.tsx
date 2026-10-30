@@ -74,8 +74,11 @@ const IDEAS = [
 	{ title: 'Servings and shopping list', text: 'Every quantity scales; copy the list with one tap.', href: '/guide/servings' },
 	{ title: 'Comments', text: 'Write down what you learned for next time.', href: '/guide/comments' },
 	{ title: 'Photos', text: 'Several per recipe, a cover and a lightbox.', href: '/guide/images' },
-	{ title: 'Command palette', text: 'Jump to any recipe with ⌘K.', href: '/guide#command-palette' },
+	{ title: 'Tasty marks', text: 'See who in the household liked what, at a glance on every card.', href: '/guide/recipes#tasty' },
 	{ title: 'Editing rights', text: 'Decide who may change whose recipes.', href: '/guide/editing-rights' },
+	{ title: 'Previews in your chats', text: 'A recipe link in WhatsApp or Signal shows its photo and title.', href: '/guide/sharing#the-link-preview' },
+	{ title: 'Share as an image', text: 'Pass a recipe on to any messenger as one picture.', href: '/guide/sharing#pass-on-as-an-image' },
+	{ title: 'Invite with a link', text: 'Bring the household in with a setup link, sent by mail if you like.', href: '/guide/users' },
 	{ title: 'English and German', text: 'Every member picks their own language.', href: '/guide/settings' }
 ];
 
@@ -161,9 +164,8 @@ export default function Home() {
 				</section>
 
 				<section className="pt-22 max-lg:pt-16">
-					<p className={eyebrow}>Good ideas, everywhere</p>
 					<h2 className="mb-6 max-w-[18em] font-display text-[clamp(1.6rem,3.6vw,2.4rem)] font-semibold leading-tight tracking-tight">
-						Built for the moment you actually cook
+						Collect them, cook them, share them
 					</h2>
 					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
 						{TILES.map((tile) => (
@@ -183,10 +185,10 @@ export default function Home() {
 				</section>
 
 				<section className="pt-22 max-lg:pt-16">
-					<h2 className="mb-6 font-display text-[clamp(1.6rem,3.6vw,2.4rem)] font-semibold leading-tight tracking-tight">And many small good ideas</h2>
+					<h2 className="mb-6 font-display text-[clamp(1.6rem,3.6vw,2.4rem)] font-semibold leading-tight tracking-tight">And the small things that add up</h2>
 					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 						{IDEAS.map((idea) => (
-							<Link key={idea.title} href={idea.href} className={`${card} p-[22px] transition-colors hover:border-fd-primary`}>
+							<Link key={idea.title} href={idea.href} className={`${card} p-[22px] transition-colors hover:border-fd-primary md:last:odd:col-span-2 lg:last:odd:col-span-1`}>
 								<h3 className="font-display text-xl font-semibold">{idea.title}</h3>
 								<p className="mt-1.5 leading-relaxed text-fd-muted-foreground">{idea.text}</p>
 							</Link>
