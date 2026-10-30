@@ -11,7 +11,7 @@ import { ROLE_LABEL } from '@/components/audience';
 // real files in content/api/reference/, but their body is a single
 // <OpenAPIPage> tag, so anything that wants text out of them needs the branch
 // in `renderPage` below rather than the page itself.
-const API_REFERENCE_PREFIX = '/api/reference';
+export const API_REFERENCE_PREFIX = '/api/reference';
 
 export const source = loader({
 	baseUrl: '/',

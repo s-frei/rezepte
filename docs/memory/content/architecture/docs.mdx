@@ -18,9 +18,13 @@ The user docs come in four sections, one per reader: **Guide** (`content/(guide)
 - **Inside a section, separators group the pages** (`---Recipes---` in `guide/meta.json`), rather than more folders, which would add a level to every address below them.
 - `contributing/` holds only what someone outside the project can do without knowing the code. There is no FAQ or troubleshooting section.
 
+**Search starts in the reader's section.** `docs/user/app/api/search/route.ts` tags every page in the index with its section (`sectionOf` in `docs/user/lib/sections.ts`, from the address, since the group folders leave none), and `docs/user/components/search.tsx` filters by the section of the open page, with the four sections as toggles in the dialog's footer; clicking the active one searches everything. The dialog is assembled from Fumadocs' parts rather than its `DefaultSearchDialog`, which renders the tag footer outside the popup. Generated API reference pages are indexed by title and description only: their body is component props, which would show up in results as raw `card href:` text.
+
 ## The changelog chapter
 
 `content/(releases)/changelog/` holds one page per release ([Releases](/architecture/releases)), titled `v1.3.0 — <what it is about>` by the release tooling. `docs/user/components/releases.tsx` splits that title and shows the two parts at their own sizes: the version large in the display face and the name beneath it in the sidebar (the layout swaps each release's name in the page tree), the same pair as a release page's heading, and every release newest first as a timeline on the changelog page (`<ReleaseTimeline />` in its `index.mdx`). A title not in that form shows as it is.
+
+**The newest release is announced above every page.** `<ReleaseBanner />` in `docs/user/app/layout.tsx` (from `components/releases.tsx`) is Fumadocs' `Banner` naming the newest release that is not a release candidate, linked to its page, in the primary color so it does not merge with the navbar. Its id carries the version: closing it is remembered in the browser until the next release changes the id.
 
 **A release's address is permanent, and so is every address linked from outside.** The GitHub release notes link `/changelog/<version>/` and its Markdown view, the app links the guide, the changelog and the MCP page from `frontend/src/lib/docs.ts`, and `README.md` and `CONTRIBUTING.md` link pages down to their headings; none of them changes when the docs do. `docs/user/scripts/published-urls-audit.ts`, run by `//docs/user:check` after the build, fails when any of those addresses, or an anchor the two Markdown files use, is missing from the export, so a regrouping that moves one fails the gate instead of a reader's link.
 

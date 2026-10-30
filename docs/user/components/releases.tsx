@@ -1,3 +1,4 @@
+import { Banner } from 'fumadocs-ui/components/banner';
 import Link from 'next/link';
 import { source } from '@/lib/source';
 
@@ -61,5 +62,29 @@ export function ReleaseTimeline() {
 				);
 			})}
 		</ol>
+	);
+}
+
+/**
+ * A line above every page naming the newest release. Closing it is
+ * remembered per release (the id carries the version), so it comes back
+ * once, with the next one.
+ */
+export function ReleaseBanner() {
+	const latest = source
+		.getPages()
+		// A release candidate (v1.0.0-rc1) is not announced.
+		.filter((page) => isReleaseUrl(page.url) && !page.url.includes('-'))
+		.sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))[0];
+	const parts = latest && releaseParts(latest.data.title);
+	if (!latest || !parts) return null;
+	return (
+		// The primary color sets it apart from the navbar, which wears the page's own.
+		<Banner id={`release-${parts.version}`} className="bg-fd-primary text-fd-primary-foreground [&_button]:text-fd-primary-foreground [&_button:hover]:bg-black/10">
+			<Link href={latest.url} className="truncate px-4 underline-offset-4 hover:underline">
+				<span className="font-display font-semibold">Rezepte {parts.version.slice(1)}</span>
+				<span className="opacity-90 max-sm:hidden">: {parts.name}</span>
+			</Link>
+		</Banner>
 	);
 }
