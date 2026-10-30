@@ -70,7 +70,7 @@ jobs:
           labels: &oci-metadata |
             org.opencontainers.image.title=Rezepte
             org.opencontainers.image.description=Self-hosted recipe manager with the web app built in and SQLite storage
-            org.opencontainers.image.url=https://s-frei.github.io/rezepte/
+            org.opencontainers.image.url=https://getrezepte.app/
           annotations: *oci-metadata
           flavor: |
             latest=${{ github.event_name == 'workflow_dispatch' && 'false' || 'auto' }}

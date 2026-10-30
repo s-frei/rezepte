@@ -12,7 +12,6 @@
     "readme-images": "bun scripts/readme-images.ts",
     "hero-images": "bun scripts/hero-images.ts",
     "brand-assets": "bun scripts/brand-assets.ts",
-    "base-path:audit": "bun scripts/base-path-audit.ts",
     "published-urls:audit": "bun scripts/published-urls-audit.ts"
   },
   "dependencies": {

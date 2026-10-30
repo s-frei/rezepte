@@ -6,11 +6,11 @@ Thanks for wanting to help. Rezepte is a small project with one maintainer, so t
 
 | You have | Go to |
 |---|---|
-| A bug: something does not work as the [documentation](https://s-frei.github.io/rezepte/) says | [Open an issue](https://github.com/s-frei/rezepte/issues/new) with the version (`rezepte --version`), what you did, what you expected and what happened instead |
+| A bug: something does not work as the [documentation](https://getrezepte.app/) says | [Open an issue](https://github.com/s-frei/rezepte/issues/new) with the version (`rezepte --version`), what you did, what you expected and what happened instead |
 | An idea or a feature wish | [Ideas in Discussions](https://github.com/s-frei/rezepte/discussions/categories/ideas) |
 | A question about installing or using Rezepte | [Q&A in Discussions](https://github.com/s-frei/rezepte/discussions/categories/q-a) |
 | A security problem | **Not an issue.** See [SECURITY.md](SECURITY.md) |
-| A new interface language | [Add a language](https://s-frei.github.io/rezepte/contributing/add-a-language/) - a pull request is welcome right away |
+| A new interface language | [Add a language](https://getrezepte.app/contributing/add-a-language/) - a pull request is welcome right away |
 
 ## Pull requests
 

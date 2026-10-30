@@ -23,9 +23,9 @@ export const source = loader({
 });
 
 // The loader's URLs are root-relative ("/guide"), which a browser resolves
-// under the /rezepte base path but an assistant reading /llms.txt does not:
-// it lands on s-frei.github.io/guide. Everything the llms routes serve goes
-// through this, so a Markdown link always names the full address.
+// against the page but an assistant handed /llms.txt as text cannot. Everything
+// the llms routes serve goes through this, so a Markdown link always names the
+// full address.
 export function absoluteLinks(markdown: string): string {
 	return markdown.replaceAll('](/', `](${SITE_URL}`);
 }

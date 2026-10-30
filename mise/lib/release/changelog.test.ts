@@ -116,8 +116,8 @@ describe('checkPage', () => {
 
 describe('release body', () => {
 	test('urls follow the docs site', () => {
-		expect(pageUrl('v1.1.0')).toBe('https://s-frei.github.io/rezepte/changelog/v1.1.0/');
-		expect(markdownUrl('v1.1.0')).toBe('https://s-frei.github.io/rezepte/llms.mdx/changelog/v1.1.0/content.md');
+		expect(pageUrl('v1.1.0')).toBe('https://getrezepte.app/changelog/v1.1.0/');
+		expect(markdownUrl('v1.1.0')).toBe('https://getrezepte.app/llms.mdx/changelog/v1.1.0/content.md');
 	});
 
 	test('with an upgrade notice', () => {
@@ -129,8 +129,8 @@ describe('release body', () => {
 				'',
 				'Steps link their ingredients.',
 				'',
-				'📖 Release notes: https://s-frei.github.io/rezepte/changelog/v1.1.0/',
-				'🤖 For LLMs: https://s-frei.github.io/rezepte/llms.mdx/changelog/v1.1.0/content.md',
+				'📖 Release notes: https://getrezepte.app/changelog/v1.1.0/',
+				'🤖 For LLMs: https://getrezepte.app/llms.mdx/changelog/v1.1.0/content.md',
 				''
 			].join('\n')
 		);

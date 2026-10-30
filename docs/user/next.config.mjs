@@ -5,11 +5,6 @@ import { createMDX } from 'fumadocs-mdx/next';
 
 const withMDX = createMDX();
 
-// GitHub Pages serves the site under /rezepte. Only that build carries the
-// prefix (pages.yml, and `check`, whose base-path audit needs it); the dev
-// server and a local build answer at the root.
-const basePath = process.env.RZP_DOCS_PAGES ? '/rezepte' : '';
-
 // Next blocks dev requests to /_next/* whose Origin is not localhost, so opening
 // the dev server from another device on the LAN - a phone, say - serves the HTML
 // but 403s every chunk: the page renders and then never hydrates, leaving the
@@ -33,9 +28,7 @@ const config = {
   // Static export has no image optimizer; <Screenshot> uses next/image via
   // ImageZoom.
   images: { unoptimized: true },
-  basePath,
   allowedDevOrigins: lanOrigins,
-  env: { NEXT_PUBLIC_BASE_PATH: basePath },
   turbopack: {
     // The repository root, not this directory. It still stops Turbopack
     // searching above the repo for a root (the "ignored bun.lock in <home dir>"

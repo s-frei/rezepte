@@ -5,11 +5,13 @@
 // (frontend/src/lib/docs.ts); and every docs link in README.md and
 // CONTRIBUTING.md, anchors included, since GitHub shows those to everyone who
 // finds the project. Moving content around is free as long as these stay put;
-// see docs/memory/content/architecture/docs.mdx.
+// see docs/memory/content/architecture/docs.mdx. It also fails on a
+// root-relative link in llms.txt or llms-full.txt, which an assistant reading
+// them as text cannot resolve.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const SITE = 'https://s-frei.github.io/rezepte/';
+const SITE = 'https://getrezepte.app/';
 const CHANGELOG = 'content/(releases)/changelog';
 
 if (!existsSync('out')) throw new Error('out/ does not exist - run `mise run //docs/user:build` first');
@@ -50,6 +52,13 @@ for (const [link, why] of anchors) {
 	if (!existsSync(html) || readFileSync(html, 'utf8').includes(`id="${anchor}"`)) continue;
 	console.error(`${SITE}${file.replace(/index\.html$/, '')}#${anchor} (${why}): the page has no such heading`);
 	failed = true;
+}
+// lib/source.ts absoluteLinks should have made every one of these absolute.
+for (const file of ['llms.txt', 'llms-full.txt']) {
+	for (const [, link] of readFileSync(path.join('out', file), 'utf8').matchAll(/\]\((\/[^)]*)\)/g)) {
+		console.error(`out/${file}: root-relative link "${link}"; lib/source.ts absoluteLinks should have made it absolute`);
+		failed = true;
+	}
 }
 if (failed) process.exit(1);
 console.log(`published-urls audit: ${required.size} linked addresses and ${anchors.size} anchors all exported`);

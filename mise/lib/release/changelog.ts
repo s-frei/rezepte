@@ -6,7 +6,7 @@ import type { Classified } from './version';
 
 // A copy of SITE_URL in docs/user/lib/shared.ts, not an import: the docs app
 // and the release tooling stay independent. Change both together.
-export const DOCS_URL = 'https://s-frei.github.io/rezepte/';
+export const DOCS_URL = 'https://getrezepte.app/';
 export const CHANGELOG_DIR = 'docs/user/content/(releases)/changelog';
 export const DRAFT_MARKER = '{/* DRAFT */}';
 export const FILL_IN = 'FILL IN';

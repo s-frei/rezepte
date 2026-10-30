@@ -8,8 +8,6 @@ type Props = {
 	alt: string;
 };
 
-// See components/screenshot.tsx: the base path has to be added by hand.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const frame = 'not-prose my-6 w-full rounded-xl border border-fd-border';
 
 /**
@@ -19,12 +17,12 @@ const frame = 'not-prose my-6 w-full rounded-xl border border-fd-border';
  */
 export function Hero({ name, alt }: Props) {
 	const themed = existsSync(path.join(process.cwd(), 'public', 'heroes', `${name}-light.jpg`));
-	/* eslint-disable @next/next/no-img-element -- plain files under the base path, see screenshot.tsx */
-	if (!themed) return <img src={`${basePath}/heroes/${name}.jpg`} alt={alt} className={frame} />;
+	/* eslint-disable @next/next/no-img-element -- plain files from public/, no optimizer in a static export */
+	if (!themed) return <img src={`/heroes/${name}.jpg`} alt={alt} className={frame} />;
 	return (
 		<>
-			<img src={`${basePath}/heroes/${name}-light.jpg`} alt={alt} className={`${frame} dark:hidden`} />
-			<img src={`${basePath}/heroes/${name}-dark.jpg`} alt={alt} className={`${frame} hidden dark:block`} />
+			<img src={`/heroes/${name}-light.jpg`} alt={alt} className={`${frame} dark:hidden`} />
+			<img src={`/heroes/${name}-dark.jpg`} alt={alt} className={`${frame} hidden dark:block`} />
 		</>
 	);
 	/* eslint-enable @next/next/no-img-element */

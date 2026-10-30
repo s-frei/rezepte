@@ -41,7 +41,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 # `source` and `licenses` are repeated deliberately, so an image built here or
 # in CI still says where it came from and under what terms.
 LABEL org.opencontainers.image.source="https://github.com/s-frei/rezepte" \
-	org.opencontainers.image.documentation="https://s-frei.github.io/rezepte/" \
+	org.opencontainers.image.documentation="https://getrezepte.app/" \
 	org.opencontainers.image.licenses="Apache-2.0"
 COPY --from=backend /out/rezepte /rezepte
 ENV REZEPTE_ADDR=:8060 REZEPTE_DATA_DIR=/data

@@ -30,10 +30,8 @@ const JSON_LD = {
 	sameAs: ['https://github.com/s-frei/rezepte']
 };
 
-// See components/screenshot.tsx: plain files under public/ need the base path by hand.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const shot = (name: string, device: 'desktop' | 'mobile', scheme: 'light' | 'dark') =>
-	`${basePath}/screenshots/${name}-${device}-${scheme}.png`;
+	`/screenshots/${name}-${device}-${scheme}.png`;
 
 type Tile = {
 	title: string;
@@ -155,10 +153,10 @@ export default function Home() {
 							</Link>
 						</div>
 					</div>
-					{/* eslint-disable @next/next/no-img-element -- plain files under the base path, see screenshot.tsx */}
+					{/* eslint-disable @next/next/no-img-element -- plain files from public/, no optimizer in a static export */}
 					<div>
-						<img src={`${basePath}/heroes/laptop-light.jpg`} alt="The cookbook mascot presenting the recipe overview on a laptop" className="w-full rounded-2xl border border-fd-border shadow-lg dark:hidden" />
-						<img src={`${basePath}/heroes/laptop-dark.jpg`} alt="The cookbook mascot presenting the recipe overview on a laptop" className="hidden w-full rounded-2xl border border-fd-border shadow-lg dark:block" />
+						<img src="/heroes/laptop-light.jpg" alt="The cookbook mascot presenting the recipe overview on a laptop" className="w-full rounded-2xl border border-fd-border shadow-lg dark:hidden" />
+						<img src="/heroes/laptop-dark.jpg" alt="The cookbook mascot presenting the recipe overview on a laptop" className="hidden w-full rounded-2xl border border-fd-border shadow-lg dark:block" />
 					</div>
 					{/* eslint-enable @next/next/no-img-element */}
 				</section>

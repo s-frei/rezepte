@@ -74,6 +74,6 @@ test('the API page shows the MCP endpoint', async ({ page }) => {
 	await expect(card.getByText(/^http:\/\/.+\/mcp$/)).toBeVisible();
 	await expect(card.getByRole('link', { name: 'Setup guide' })).toHaveAttribute(
 		'href',
-		'https://s-frei.github.io/rezepte/api/mcp/'
+		'https://getrezepte.app/api/mcp/'
 	);
 });

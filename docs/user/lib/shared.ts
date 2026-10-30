@@ -1,10 +1,7 @@
 import { createGetUrl } from 'fumadocs-core/source';
 
-// Trailing slash required: a relative metadata URL (e.g. a future `./og.png`)
-// resolves against this with `new URL()`, and without it the sub-path is
-// dropped - `new URL('./og.png', 'https://host/rezepte')` resolves to
-// `https://host/og.png`, not `https://host/rezepte/og.png`.
-export const SITE_URL = 'https://s-frei.github.io/rezepte/';
+// Ends in a slash: publishedUrl joins page paths onto it.
+export const SITE_URL = 'https://getrezepte.app/';
 
 // The published address of a page URL ("/" or "/guide/cook-mode"), slashed
 // like the export (`trailingSlash: true`): the one form search engines and

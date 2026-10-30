@@ -73,7 +73,7 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 			await expect(footer).toContainText('A cookbook like this one?');
 			await expect(footer.getByRole('link', { name: /Get Rezepte/ })).toHaveAttribute(
 				'href',
-				'https://s-frei.github.io/rezepte/'
+				'https://getrezepte.app/'
 			);
 			await expect(footer.getByRole('link', { name: /Source/ })).toHaveAttribute(
 				'href',

@@ -10,9 +10,7 @@ export const COPIES: [string, string][] = [
 	['public/brand/rezepte-lockup-horizontal.svg', 'assets/brand/lockups/rezepte-lockup-horizontal.svg'],
 	// The tab icon, through Next's app/icon convention.
 	['app/icon.svg', 'frontend/static/favicon.svg'],
-	// The link preview. Not app/opengraph-image: Next prefixes the base path
-	// to that URL on top of metadataBase, which already ends in /rezepte/, and
-	// publishes /rezepte/rezepte/…; lib/shared.ts points at ./og.png instead.
+	// The link preview, which lib/shared.ts points at as ./og.png.
 	['public/og.png', 'assets/brand/social-preview.png']
 ];
 

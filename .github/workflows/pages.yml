@@ -42,8 +42,6 @@ jobs:
 
       - name: "Build the user documentation"
         run: mise run //docs/user:build
-        env:
-          RZP_DOCS_PAGES: "1"
 
       - name: "Upload the Pages artifact"
         uses: actions/upload-pages-artifact@v5

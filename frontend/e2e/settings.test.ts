@@ -638,7 +638,7 @@ test('the settings page links to the user guide in a new tab', async ({ page }) 
 	await page.goto('/settings');
 	const help = page.getByRole('link', { name: /Help & guide/ });
 	await expect(help).toBeVisible();
-	await expect(help).toHaveAttribute('href', 'https://s-frei.github.io/rezepte/guide/');
+	await expect(help).toHaveAttribute('href', 'https://getrezepte.app/guide/');
 	await expect(help).toHaveAttribute('target', '_blank');
 });
 
@@ -654,7 +654,7 @@ test('the settings page says which Rezepte runs and where it comes from', async 
 	);
 	await expect(about.getByRole('link', { name: /Changelog/ })).toHaveAttribute(
 		'href',
-		'https://s-frei.github.io/rezepte/changelog/'
+		'https://getrezepte.app/changelog/'
 	);
 });
 
