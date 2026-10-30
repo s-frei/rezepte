@@ -994,6 +994,24 @@ test('the card size answers to the arrow keys', async ({ page, isMobile }) => {
 	await page.keyboard.press('ArrowRight');
 	await expect(page.getByRole('radio', { name: 'Small cards' })).toBeChecked();
 	await expect(page.getByRole('radio', { name: 'Medium cards' })).toHaveAttribute('tabindex', '-1');
+	// The keyboard still gets the label, which the icons alone do not say.
+	await expect(page.getByText('Small cards', { exact: true })).toBeVisible();
+});
+
+// A tap focuses the button only after the finger has lifted, so a tooltip
+// that opens on focus came up with every switch and stayed until the next
+// tap somewhere else.
+test('a tap on the card size shows no tooltip', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'only a finger focuses after letting go');
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(1), title: `Tap ${token}` });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(1);
+
+	await page.getByRole('radio', { name: 'One per row' }).tap();
+	await expect(page.getByRole('radio', { name: 'One per row' })).toBeChecked();
+	await page.waitForTimeout(600);
+	await expect(page.getByText('One per row', { exact: true })).toHaveCount(0);
 });
 
 test('the colophon names the author, and the editor once somebody else edits', async ({

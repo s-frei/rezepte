@@ -56,8 +56,10 @@
 	(instant under reduced motion). The track has the shape
 	of "Filters" beside it, and each option the corner concentric with the
 	track's: its radius less the border and the padding.
+	Only keyboard focus opens the tooltip: a tap focuses the button after the
+	finger has lifted, so every switch on a phone opened it, and it stayed.
 -->
-<Tooltip.Provider delayDuration={300}>
+<Tooltip.Provider delayDuration={300} ignoreNonKeyboardFocus>
 	<div
 		role="radiogroup"
 		aria-label={label}
