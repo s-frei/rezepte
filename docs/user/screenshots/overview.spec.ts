@@ -85,6 +85,10 @@ test('no-results', async ({ page }, testInfo) => {
 	await page.getByLabel('Search recipes').fill('zzz');
 	await page.getByLabel('Search recipes').press('Enter');
 	await expect(page.getByRole('heading', { name: 'Nothing found' })).toBeVisible();
+	// The focused field scrolls the phone's page a few pixels, sometimes
+	// before and sometimes after the picture; start from the top instead.
+	await page.getByLabel('Search recipes').blur();
+	await page.evaluate(() => scrollTo(0, 0));
 	await shot(page, 'no-results');
 });
 
