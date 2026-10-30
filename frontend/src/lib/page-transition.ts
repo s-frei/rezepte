@@ -166,7 +166,10 @@ export function pageTransition(navigation: OnNavigate): Promise<void> | undefine
  * still renders the held one once its `onNavigate` promise resolves, and only
  * then drops it as superseded, so the recipe was drawn over the list the
  * back had already shown. A navigation that starts meanwhile waits for this,
- * so it renders last; it gets no transition of its own.
+ * so it renders last; it gets no transition of its own. SvelteKit's bug is
+ * sveltejs/kit#17492, fixed by sveltejs/kit#17302; once a release carries
+ * that, `held` can go, and `back while the recipe still opens shows the list`
+ * in e2e/recipes.test.ts says whether the fix alone holds.
  */
 let held: Promise<void> | null = null;
 
