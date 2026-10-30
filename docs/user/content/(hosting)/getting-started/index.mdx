@@ -5,6 +5,18 @@ description: Run Rezepte with Docker Compose and log in for the first time
 
 Rezepte ships as a single Docker image. This page gets a household instance running in a few minutes; see [Docker](/getting-started/docker) and [Running the binary](/getting-started/binary) for other ways to run it, and [Configuration](/getting-started/configuration) for every setting.
 
+```mermaid
+flowchart TB
+  members[Members' browsers and phones] -- HTTPS --> proxy[Reverse proxy]
+  proxy -- HTTP --> rezepte[Rezepte]
+  rezepte --> data[(Data directory:<br/>SQLite and photos)]
+  rezepte -. optional .-> mail[Mail server]
+  rezepte -. optional .-> sso[Sign-in provider]
+  assistants[AI assistants and scripts] -- API and MCP --> proxy
+```
+
+One process serves the app, the API and the MCP endpoint; everything it keeps is in one [data directory](/operations/data-and-backup). The [reverse proxy](/operations/reverse-proxy) adds HTTPS, a [mail server](/guide/mail) and a [sign-in provider](/operations/single-sign-on) are optional.
+
 <Steps>
   <Step>
 
