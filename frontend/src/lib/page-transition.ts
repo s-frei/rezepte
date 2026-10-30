@@ -142,6 +142,35 @@ function signIn(navigation: OnNavigate): Promise<void> {
  * sign-in that lands on the overview has a transition of its own.
  */
 export function pageTransition(navigation: OnNavigate): Promise<void> | undefined {
+	if (held) {
+		return held;
+	}
+	const transition = transitionFor(navigation);
+	if (transition) {
+		const settled = navigation.complete.then(
+			() => {},
+			() => {}
+		);
+		held = settled;
+		void settled.then(() => {
+			if (held === settled) held = null;
+		});
+	}
+	return transition;
+}
+
+/**
+ * Settles once the navigation a view transition holds in `onNavigate` is
+ * over. The browser pictures the old page before it runs the update, and a
+ * back that arrives in that gap starts a newer navigation - but SvelteKit
+ * still renders the held one once its `onNavigate` promise resolves, and only
+ * then drops it as superseded, so the recipe was drawn over the list the
+ * back had already shown. A navigation that starts meanwhile waits for this,
+ * so it renders last; it gets no transition of its own.
+ */
+let held: Promise<void> | null = null;
+
+function transitionFor(navigation: OnNavigate): Promise<void> | undefined {
 	const from = navigation.from;
 	const to = navigation.to;
 	if (

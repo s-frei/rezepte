@@ -2629,3 +2629,38 @@ test('back from a recipe returns to the same place in the list', async ({ page, 
 	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeCloseTo(before, -1);
 	await expect(target).toBeInViewport();
 });
+
+test('back while the recipe still opens shows the list', async ({ page }) => {
+	// The browser takes its picture of the old page before a view transition
+	// updates it; under load that took long enough for a back to arrive in
+	// between, and the recipe was drawn over the list the back had shown.
+	// Holding every update for 300ms keeps that gap open on any machine.
+	await page.addInitScript(() => {
+		const start = document.startViewTransition?.bind(document);
+		if (!start) return;
+		document.startViewTransition = ((update: () => unknown) =>
+			start(async () => {
+				await new Promise((resolve) => setTimeout(resolve, 300));
+				await update();
+			})) as typeof document.startViewTransition;
+	});
+	const token = uniqueToken();
+	for (let i = 0; i < 3; i++) {
+		await createRecipe(page, { ...loadFixture(i), title: `Hasty ${i} ${token}`, tags: [token] });
+	}
+	await page.goto(`/?tags=${token}`);
+	await expect(cards(page)).toHaveCount(3);
+
+	await cards(page)
+		.filter({ hasText: `Hasty 1 ${token}` })
+		.click();
+	await expect(page).toHaveURL(/\/recipes\//);
+	await page.goBack();
+
+	await expect(page).toHaveURL(new RegExp(`tags=${token}`));
+	// The list is still on screen at once; the recipe came only once the held
+	// update ran, so the check waits for the transition to be over.
+	await expect(page.locator('html[data-page-transition]')).toHaveCount(0);
+	await expect(cards(page)).toHaveCount(3);
+	await expect(page.getByRole('heading', { level: 1, name: `Hasty 1 ${token}` })).toHaveCount(0);
+});
