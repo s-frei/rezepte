@@ -1,0 +1,22 @@
+---
+title: "v1.3.1 — The app offers notifications"
+description: "The installed app offers to turn on notifications, sheets on a phone close with a pull on their handle, and going back, card sizes and sheets behave on phones."
+date: 2026-10-30
+---
+
+Nothing breaks coming from 1.3.0: back up your data directory, then pull and start `ghcr.io/s-frei/rezepte:1.3.1` (see [Updates](/operations/updates)).
+
+## The app offers notifications
+
+Installed as an app, Rezepte asks once whether you want notifications: a note headed **Tip**, "Never miss a thing", sits at the top of the overview until the device has been asked. Tap **Turn on notifications** and allow them, or **×** to hide the note on this device. **Settings → Notifications** stays where it was. See [Notifications](/guide/notifications#push-on-this-device).
+
+<Screenshot name="push-banner" caption="The notifications note at the top of the overview in the installed app" />
+
+## Also in this release
+
+- **New:** On a phone, a sheet closes when you pull its handle down. The filter panel is a full sheet there, with the same handle.
+- **Improved:** The documentation has a landing page, tabs for the guide, hosting and releases, and search that starts in the section you are reading.
+- **Fixed:** Going back while a recipe is still opening shows the overview again.
+- **Fixed:** The page behind an open sheet no longer moves on touch screens.
+- **Fixed:** A tap on a phone no longer leaves the card size tooltip open.
+- **Fixed:** Switching a phone to one card per row keeps the card you were reading in view.
