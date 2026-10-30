@@ -19,6 +19,22 @@ test('install-banner', async ({ page }, testInfo) => {
 	await shot(page, 'install-banner');
 });
 
+// Inside the installed app on a device never asked: `emulateMedia` cannot
+// set display-mode, and headless Chromium reads notifications as denied.
+test('push-banner', async ({ page }, testInfo) => {
+	await page.addInitScript(() => {
+		const matchMedia = window.matchMedia.bind(window);
+		window.matchMedia = (query: string) =>
+			query === '(display-mode: standalone)'
+				? ({ ...matchMedia(query), matches: true, media: query } as MediaQueryList)
+				: matchMedia(query);
+		Object.defineProperty(Notification, 'permission', { get: () => 'default' });
+	});
+	await prepare(page, testInfo, { login: true });
+	await expect(page.getByText('Never miss a thing')).toBeVisible();
+	await shot(page, 'push-banner');
+});
+
 test('command-palette', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	// Keyboard in both projects: the ⌘K button in SearchBar.svelte is

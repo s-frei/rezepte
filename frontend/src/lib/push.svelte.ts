@@ -49,6 +49,14 @@ export function deviceState(): DeviceState {
 	return state.permission === 'granted' && state.subscribed ? 'enabled' : 'off';
 }
 
+/**
+ * Never asked on this device, so a tap can still allow it. Not `'off'`:
+ * that also covers a granted device between load and its resubscribe.
+ */
+export function pushUndecided(): boolean {
+	return pushSupported() && state.permission === 'default';
+}
+
 /** True when a timer can only tell the cook while the page is open. */
 export function pushUnavailable(): boolean {
 	return state.permission === 'denied';

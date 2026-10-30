@@ -125,3 +125,53 @@ test('iPhone gets the steps', async ({ browser, isMobile }) => {
 	await expect(sheet.getByRole('listitem')).toHaveCount(3);
 	await context.close();
 });
+
+// Inside the app, on a device never asked for notifications: a push service
+// that hands out a fake subscription, and a permission the test can grant.
+async function insideTheApp(page: Page) {
+	await page.addInitScript(() => {
+		const matchMedia = window.matchMedia.bind(window);
+		window.matchMedia = (query: string) =>
+			query === '(display-mode: standalone)'
+				? ({ ...matchMedia(query), matches: true, media: query } as MediaQueryList)
+				: matchMedia(query);
+		let permission: NotificationPermission = 'default';
+		Object.defineProperty(Notification, 'permission', { get: () => permission });
+		Notification.requestPermission = async () => (permission = 'granted');
+		PushManager.prototype.getSubscription = async () => null;
+		PushManager.prototype.subscribe = async () =>
+			({
+				endpoint: 'https://fcm.googleapis.com/fcm/send/e2e',
+				toJSON: () => ({ keys: { p256dh: 'p', auth: 'a' } })
+			}) as unknown as PushSubscription;
+	});
+	await page.route('**/api/v1/push/subscription', (route) => route.fulfill({ status: 204 }));
+}
+
+const pushNote = (page: Page) => page.getByText('Never miss a thing');
+
+test('the installed app offers notifications and one tap turns them on', async ({ page }) => {
+	await login(page);
+	await page.goto('/');
+	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	await expect(pushNote(page)).toHaveCount(0);
+
+	await insideTheApp(page);
+	await page.reload();
+	const subscribed = page.waitForRequest('**/api/v1/push/subscription');
+	await page.getByRole('button', { name: 'Turn on notifications' }).click();
+	await subscribed;
+	await expect(pushNote(page)).toBeHidden();
+});
+
+test('× hides the notifications note for good', async ({ page }) => {
+	await insideTheApp(page);
+	await login(page);
+	await page.goto('/');
+	await expect(pushNote(page)).toBeVisible();
+	await page.getByRole('button', { name: 'Hide' }).click();
+	await expect(pushNote(page)).toBeHidden();
+	await page.reload();
+	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	await expect(pushNote(page)).toHaveCount(0);
+});
