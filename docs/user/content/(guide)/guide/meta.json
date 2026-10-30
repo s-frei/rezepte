@@ -1,0 +1,26 @@
+{
+	"title": "Features",
+	"pages": [
+		"index",
+		"---Recipes---",
+		"recipes",
+		"importing",
+		"images",
+		"tags-and-search",
+		"comments",
+		"---Cooking---",
+		"servings",
+		"cook-mode",
+		"---Household---",
+		"users",
+		"sharing",
+		"editing-rights",
+		"notifications",
+		"mail",
+		"---App---",
+		"settings",
+		"install-app",
+		"shortcuts",
+		"import-export"
+	]
+}

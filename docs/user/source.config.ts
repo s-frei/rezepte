@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const docs = defineDocs({
 	dir: 'content',
 	docs: {
-		// Two fields only the changelog pages use (content/changelog/): the
+		// Two fields only the changelog pages use (content/(releases)/changelog/): the
 		// release date, and what someone running an instance must do before
 		// upgrading. mise/lib/release/ writes and reads the same fields.
 		// `audience` marks a page that is not for everyone; components/audience.tsx

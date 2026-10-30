@@ -1,5 +1,6 @@
 import { loader, llms } from 'fumadocs-core/source';
 import { openapiPlugin } from 'fumadocs-openapi/server';
+import { lucideIconsPlugin } from 'fumadocs-core/source/plugins/lucide-icons';
 // The installed fumadocs-mdx (15.4.1) generates .source/server.ts (no plain
 // .source/index.ts), so the collections are imported from '@/.source/server'.
 import { docs } from '@/.source/server';
@@ -15,8 +16,10 @@ const API_REFERENCE_PREFIX = '/api/reference';
 export const source = loader({
 	baseUrl: '/',
 	source: docs.toFumadocsSource(),
-	// Adds the HTTP method badge to each generated page in the page tree.
-	plugins: [openapiPlugin()]
+	// lucideIconsPlugin turns the `icon` names in meta.json (Lucide's) into the
+	// icons the section tabs show; openapiPlugin adds the HTTP method badge to
+	// each generated page in the page tree.
+	plugins: [lucideIconsPlugin(), openapiPlugin()]
 });
 
 // The loader's URLs are root-relative ("/guide"), which a browser resolves

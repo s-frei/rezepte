@@ -68,7 +68,7 @@ The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA fo
 
 ## Configuration
 
-Every setting is an environment variable read once at startup by `service/internal/config`; mail and sign-in may instead be set by the owner in the app, where the environment still wins ([Email](/features/email), [OIDC](/features/oidc)). The user docs' configuration page (`docs/user/content/getting-started/configuration.mdx`) lists all of them for the people hosting Rezepte and owns the list; `config.go` owns the defaults. The development defaults the tasks set (`REZEPTE_ADDR` from the port offset, the bootstrapped admin password) are in [Run the app locally](/howtos/run-dev).
+Every setting is an environment variable read once at startup by `service/internal/config`; mail and sign-in may instead be set by the owner in the app, where the environment still wins ([Email](/features/email), [OIDC](/features/oidc)). The user docs' configuration page (`docs/user/content/(hosting)/getting-started/configuration.mdx`) lists all of them for the people hosting Rezepte and owns the list; `config.go` owns the defaults. The development defaults the tasks set (`REZEPTE_ADDR` from the port offset, the bootstrapped admin password) are in [Run the app locally](/howtos/run-dev).
 
 ## Why it is this way
 

@@ -47,7 +47,7 @@ Several people in a household share one recipe collection. Accounts are created,
 
 - The profile write is the one column that never reads the target's rank: `guardProfileEdit` asks only whether the caller is the owner, so the owner reaches every row including their own, and everybody else is `403` `superadmin role required` whoever they aim at. The people list still hides it on the caller's own row: the profile page is the one place a person renames themselves.
 - Nobody deletes their own account (`409` `cannot delete yourself`, checked before the transaction opens), and nobody resets their own password through the admin path — an admin aiming at their own row is aiming at an admin.
-- `docs/user/content/guide/users.mdx` states the same matrix as what a person sees in the row, since an action the caller may not take is never rendered.
+- `docs/user/content/(guide)/guide/users.mdx` states the same matrix as what a person sees in the row, since an action the caller may not take is never rendered.
 
 **The rank guard runs inside the write transaction.**
 

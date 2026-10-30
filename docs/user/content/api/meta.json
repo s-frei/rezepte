@@ -1,4 +1,12 @@
 {
 	"title": "API",
-	"pages": ["index", "tokens", "mcp", "reference"]
+	"pages": [
+		"index",
+		"tokens",
+		"mcp",
+		"reference"
+	],
+	"root": true,
+	"icon": "Code",
+	"description": "HTTP API and MCP"
 }

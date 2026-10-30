@@ -1,0 +1,7 @@
+{
+	"title": "Guide",
+	"description": "Cooking with Rezepte",
+	"root": true,
+	"icon": "BookOpen",
+	"pages": ["overview", "...guide", "---Contributing---", "...contributing"]
+}

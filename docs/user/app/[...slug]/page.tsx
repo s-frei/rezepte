@@ -1,11 +1,13 @@
 import { Callout } from 'fumadocs-ui/components/callout';
-import { DocsBody, DocsDescription, DocsPage, DocsTitle, MarkdownCopyButton, ViewOptionsPopover } from 'fumadocs-ui/layouts/docs/page';
+// The notebook layout's own page components; the docs layout's refuse to render under it.
+import { DocsBody, DocsDescription, DocsPage, DocsTitle, MarkdownCopyButton, ViewOptionsPopover } from 'fumadocs-ui/layouts/notebook/page';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { OpenAPIPageProps_Preloaded } from 'fumadocs-openapi/ui';
 import { OpenAPIPage } from '@/components/api-page';
 import { Audience } from '@/components/audience';
+import { isReleaseUrl, releaseParts } from '@/components/releases';
 import { InlineCode } from '@/components/inline-code';
 import { getMDXComponents } from '@/components/mdx';
 import { openapi } from '@/lib/openapi';
@@ -25,10 +27,18 @@ export default async function Page({ params }: Props) {
 	if (!page) notFound();
 
 	const MDX = page.data.body;
+	const release = isReleaseUrl(page.url) ? releaseParts(page.data.title) : null;
 	return (
 		<DocsPage toc={page.data.toc} full={page.data.full}>
 			<DocsTitle>
-				{page.data.title}
+				{release ? (
+					<>
+						<span className="block font-display text-5xl text-fd-primary">{release.version}</span>
+						<span className="mt-2 block">{release.name}</span>
+					</>
+				) : (
+					page.data.title
+				)}
 				{page.data.audience && <Audience role={page.data.audience} className="ms-3" />}
 			</DocsTitle>
 			<DocsDescription>{page.data.description}</DocsDescription>

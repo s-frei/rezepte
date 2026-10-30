@@ -12,7 +12,8 @@
     "readme-images": "bun scripts/readme-images.ts",
     "hero-images": "bun scripts/hero-images.ts",
     "brand-assets": "bun scripts/brand-assets.ts",
-    "base-path:audit": "bun scripts/base-path-audit.ts"
+    "base-path:audit": "bun scripts/base-path-audit.ts",
+    "published-urls:audit": "bun scripts/published-urls-audit.ts"
   },
   "dependencies": {
     "@fontsource-variable/literata": "^5.3.0",
@@ -22,6 +23,7 @@
     "fumadocs-mdx": "15.4.10",
     "fumadocs-openapi": "^12.0.2",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.17.9",
+    "lucide-react": "1.47.0",
     "mermaid": "^12.0.0",
     "next": "16.4.3",
     "next-themes": "^0.4.6",

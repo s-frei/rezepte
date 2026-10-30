@@ -23,7 +23,7 @@ describe('estimateStrength', () => {
 		expect(with_!).toBeLessThanOrEqual(1);
 	});
 
-	// The example docs/user/content/guide/settings.mdx gives.
+	// The example docs/user/content/(guide)/guide/settings.mdx gives.
 	it('rates anna1990 weak for Anna', async () => {
 		expect(await estimateStrength('anna1990', ['anna', 'Anna'])).toBeLessThanOrEqual(1);
 	});

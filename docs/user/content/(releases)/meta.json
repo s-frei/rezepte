@@ -1,0 +1,7 @@
+{
+	"title": "Changelog",
+	"description": "Releases and the roadmap",
+	"root": true,
+	"icon": "Milestone",
+	"pages": ["...changelog", "---Next---", "roadmap"]
+}

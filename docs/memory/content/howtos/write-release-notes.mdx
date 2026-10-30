@@ -3,7 +3,7 @@ title: Write release notes
 description: Turning a release:start draft into the changelog page people upgrade by
 ---
 
-The release notes are the page `release:start` drafts at `docs/user/content/changelog/<version>.mdx`, on the release branch in its worktree. Write them only after `release:start`, never ahead of it: the task writes that page unconditionally, so a page prepared earlier is overwritten, and then stops because `meta.json` already lists the version. An agent usually writes them, and the maintainer reads the result before `release:finish`. The draft holds the commit subjects as raw material; this page is how that material becomes notes. What the page is and how it is rendered is in [Releases](/architecture/releases).
+The release notes are the page `release:start` drafts at `docs/user/content/(releases)/changelog/<version>.mdx`, on the release branch in its worktree. Write them only after `release:start`, never ahead of it: the task writes that page unconditionally, so a page prepared earlier is overwritten, and then stops because `meta.json` already lists the version. An agent usually writes them, and the maintainer reads the result before `release:finish`. The draft holds the commit subjects as raw material; this page is how that material becomes notes. What the page is and how it is rendered is in [Releases](/architecture/releases).
 
 ## Who reads them
 

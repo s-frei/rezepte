@@ -10,6 +10,7 @@ import type { MDXComponents } from 'mdx/types';
 import { Mermaid } from '@/components/mdx/mermaid';
 import { Hero } from '@/components/hero';
 import { Screenshot } from '@/components/screenshot';
+import { ReleaseTimeline } from '@/components/releases';
 import { Audience, AudienceLegend } from '@/components/audience';
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -27,6 +28,7 @@ export function getMDXComponents(components?: MDXComponents) {
 		Folder,
 		Hero,
 		Mermaid,
+		ReleaseTimeline,
 		Screenshot,
 		Step,
 		Steps,

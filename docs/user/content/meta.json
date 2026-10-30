@@ -1,19 +1,4 @@
 {
 	"title": "Rezepte",
-	"pages": [
-		"overview",
-		"---Getting started---",
-		"...getting-started",
-		"---Features---",
-		"...guide",
-		"---Operations---",
-		"...operations",
-		"---API---",
-		"...api",
-		"---Contributing---",
-		"...contributing",
-		"---Releases---",
-		"...changelog",
-		"roadmap"
-	]
+	"pages": ["(guide)", "(hosting)", "api", "(releases)"]
 }

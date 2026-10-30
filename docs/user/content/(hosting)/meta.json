@@ -1,0 +1,7 @@
+{
+	"title": "Hosting",
+	"description": "Running your own instance",
+	"root": true,
+	"icon": "Server",
+	"pages": ["---Getting started---", "...getting-started", "---Operations---", "...operations"]
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 //MISE description="Print the GitHub release body for a version from its changelog page"
-//USAGE arg "<version>" help="The released version, like v1.2.0; its page is docs/user/content/changelog/<version>.mdx"
+//USAGE arg "<version>" help="The released version, like v1.2.0; its page is docs/user/content/(releases)/changelog/<version>.mdx"
 //USAGE flag "--url" help="Print only the URL of the version's changelog page"
 // release:publish writes this to the notes file of `gh release create`. See
 // docs/memory/content/architecture/releases.mdx.

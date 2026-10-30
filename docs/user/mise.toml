@@ -11,8 +11,8 @@ description = "Static export of the user docs"
 run = "bun run build"
 
 [tasks.check]
-description = "Lint, screenshot audit, README image, hero image, logo copy and OpenAPI version tests, build (validates MDX) and base-path audit"
-run = ["bun run lint", "bun run screenshots:audit", "bun test scripts/readme-images.test.ts scripts/hero-images.test.ts scripts/brand-assets.test.ts scripts/openapi-version.test.ts", "bun run build", "bun run base-path:audit"]
+description = "Lint, screenshot audit, README image, hero image, logo copy and OpenAPI version tests, build (validates MDX), base-path and published-URLs audits"
+run = ["bun run lint", "bun run screenshots:audit", "bun test scripts/readme-images.test.ts scripts/hero-images.test.ts scripts/brand-assets.test.ts scripts/openapi-version.test.ts", "bun run build", "bun run base-path:audit", "bun run published-urls:audit"]
 # Builds as GitHub Pages does, under /rezepte, so the audit has a prefix to check.
 env = { RZP_DOCS_PAGES = "1" }
 

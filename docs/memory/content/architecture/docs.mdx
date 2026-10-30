@@ -9,7 +9,20 @@ description: Two Fumadocs apps under docs/, committed screenshots and a generate
 
 Each app is Fumadocs on the Next.js static template (`output: 'export'`) with its own `package.json`, `mise.toml`, `app/` and `content/` directory. Nothing is shared between them — not a build, not a dependency list, not a deployment. `mise run //docs/memory:check` and `mise run //docs/user:check` each lint, audit and build their own site, so broken MDX in either fails the gate. Both dev servers take their port from the worktree's offset ([Toolchain](/architecture/toolchain)).
 
-`docs/user/content/meta.json` lists the user docs' sections in their order, starting with `overview`. `changelog/` holds one page per release ([Releases](/architecture/releases)); `contributing/` holds only what someone outside the project can do without knowing the code. There is no FAQ or troubleshooting section.
+## Sections
+
+The user docs come in four sections, one per reader: **Guide** (`content/(guide)/`: the overview, the tour and every feature, and contributing - for the people cooking), **Hosting** (`content/(hosting)/`: getting started and operations - for whoever runs the instance), **API** (`content/api/`) and **Changelog** (`content/(releases)/`: a page per release and the roadmap). Each is a root folder (`"root": true` in its `meta.json`) with a Lucide `icon` name, turned into an icon by `lucideIconsPlugin` in `docs/user/lib/source.ts`.
+
+- **Folders in parentheses are groups, not addresses.** Fumadocs leaves them out of the URL, so `content/(guide)/guide/cook-mode.mdx` is still `/guide/cook-mode/`. That is what let the sections form without moving a single published address; a group is the tool for regrouping, renaming a real folder never is.
+- **`docs/user/app/[...slug]/layout.tsx` uses Fumadocs' notebook layout with `tabMode="navbar"`**: the sections are tabs in the navbar, and the sidebar lists only the open one. The navbar tabs render a section's title and nothing else, so the layout's `tabs.transform` puts the icon into the title; on phones the tabs become the sidebar's dropdown, which shows the icon by itself, so the one in the title is hidden there. The notebook layout needs its own page components: `page.tsx` imports from `fumadocs-ui/layouts/notebook/page`, and the docs layout's ones refuse to render under it.
+- **Inside a section, separators group the pages** (`---Recipes---` in `guide/meta.json`), rather than more folders, which would add a level to every address below them.
+- `contributing/` holds only what someone outside the project can do without knowing the code. There is no FAQ or troubleshooting section.
+
+## The changelog chapter
+
+`content/(releases)/changelog/` holds one page per release ([Releases](/architecture/releases)), titled `v1.3.0 — <what it is about>` by the release tooling. `docs/user/components/releases.tsx` splits that title and shows the two parts at their own sizes: the version large in the display face and the name beneath it in the sidebar (the layout swaps each release's name in the page tree), the same pair as a release page's heading, and every release newest first as a timeline on the changelog page (`<ReleaseTimeline />` in its `index.mdx`). A title not in that form shows as it is.
+
+**A release's address is permanent, and so is every address linked from outside.** The GitHub release notes link `/changelog/<version>/` and its Markdown view, the app links the guide, the changelog and the MCP page from `frontend/src/lib/docs.ts`, and `README.md` and `CONTRIBUTING.md` link pages down to their headings; none of them changes when the docs do. `docs/user/scripts/published-urls-audit.ts`, run by `//docs/user:check` after the build, fails when any of those addresses, or an anchor the two Markdown files use, is missing from the export, so a regrouping that moves one fails the gate instead of a reader's link.
 
 **Who a user-docs page is for is a word badge, not a warning box.**
 
@@ -26,7 +39,7 @@ The user docs wear the app's "Warm & handmade" palette, mapped onto Fumadocs' `-
 
 ## The landing page
 
-The user docs open on a landing page, not on a docs page: `docs/user/app/page.tsx`, a React page inside Fumadocs' `HomeLayout` (the same nav, search and theme switch, no sidebar), written to make someone who has never heard of Rezepte want to try it. The docs themselves live under the required catch-all `app/[...slug]/`, and `content/overview.mdx` is their first page - the sidebar's lockup leads back to the landing page. `app/sitemap.ts` lists the root by hand, because it is not a content page.
+The user docs open on a landing page, not on a docs page: `docs/user/app/page.tsx`, a React page inside Fumadocs' `HomeLayout` (the same nav, search and theme switch, no sidebar), written to make someone who has never heard of Rezepte want to try it. The docs themselves live under the required catch-all `app/[...slug]/`, and `content/(guide)/overview.mdx` is their first page - the lockup leads back to the landing page. `app/sitemap.ts` lists the root by hand, because it is not a content page.
 
 - **A hero, a bento of features with screenshots, small idea cards, and the self-hosting pitch** with the one-line `docker run … --demo`. The bento is the core: `TILES` in `page.tsx` names each feature, the guide page it links to and the screenshot it shows. Below `lg` a tile shows the mobile screenshot in a phone-shaped frame; from `lg` up it shows the desktop one, and `focus` / `zoom` pick and enlarge the part worth seeing, since a 1440px page is unreadable at tile size. A tile marked `phone` shows the mobile screenshot at every width.
 - **The pictures are the committed screenshots**, read from `public/screenshots` by name, so `mise run //docs/user:screenshots` keeps the landing page current along with the docs, and `screenshots-audit.ts` fails on a tile whose name has no test, as it does for a `<Screenshot>` tag. A `focus` or `zoom` is tuned to the picture as it is; when a regenerated screenshot moves its content, check the tile.
@@ -90,6 +103,9 @@ The API reference is rendered by the official integration rather than by a gener
 
 ## Rejected
 
+- **The sections as a dropdown in the sidebar** (Fumadocs' default for root folders). The same split, but the other sections are a click away and the navbar stays as it was; the navbar tabs show all four at once, which is what makes the changelog read as a chapter of its own.
+- **One tree with every section collapsed but the open one.** Everything stays a click away in one place, but the tree grows long again as soon as a reader opens two sections.
+- **Moving the content into new real folders.** Cleaner paths, but every moved page changes its published address; the groups in parentheses regroup without that.
 - **The base path on the dev server too.** It kept dev and production identical, but every local address carried `/rezepte` for a host the dev server never is; the audit under `check` covers what it guarded against.
 - **The landing page as `content/index.mdx` with a hero and cards.** One file fewer, but a docs page carries the sidebar and the page chrome, and MDX has no grid of screenshots without a component of its own anyway.
 - **One Fumadocs app for memory and user docs.** Simplest, but internal and public content would share a build and a deployment, and only one of the two is meant to be published.
@@ -106,8 +122,6 @@ The API reference is rendered by the official integration rather than by a gener
 ## Limits
 
 - The dev server cannot show a missing base path, since it has none; only `//docs/user:check` (and CI) can. Run it before committing anything that builds a URL by hand.
-- GitHub Pages from a private repository is not available on every GitHub plan, and nothing in the workflow can detect that: the deploy step is where it surfaces.
-- The published site is world-readable even though the repository is private. Nothing in `docs/user/content/` may be written assuming the readership is limited to people with repository access.
 - `docs/user/app/robots.ts` exports to a robots file under the base path, which crawlers never read: robots.txt is honored only at the origin root, and that origin belongs to another repository. The file is kept because it becomes correct behind a custom domain, but the sitemap it points at has to be submitted to search engines by hand.
 - Screenshot comparison stays local. Font rendering differs between platforms, so a comparison run in CI would fail on rendering rather than on content; `screenshots:check` is the local drift report and CI never runs it.
 - The committed PNGs can only be produced where Chromium starts. Everywhere else the audit warns, the pages show placeholder frames and `mise run //docs/user:check` still passes — so someone with a working browser has to regenerate them before a release.
