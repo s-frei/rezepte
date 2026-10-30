@@ -18,7 +18,7 @@ description: What to test and how, per package
   <Tab value="Frontend">
 
     - Vitest for pure logic (`src/lib/**/*.test.ts`): API client, scaling, formatting.
-    - Playwright end-to-end tests in `frontend/e2e/` against the built binary (`mise run e2e`), desktop and mobile projects, plus WebKit projects for the tests that need Safari (`frontend/playwright.config.ts`). One test per user-facing flow.
+    - Playwright end-to-end tests in `frontend/e2e/` against the built binary (`mise run e2e`), a desktop project, a mobile project for the files with a phone path (its `testIgnore` lists the rest, see [Verify UI](/howtos/verify-ui)), plus WebKit projects for the tests that need Safari (`frontend/playwright.config.ts`). One test per user-facing flow.
     - Users a test bootstraps take their password from their username, through `devPassword` in `frontend/e2e/helpers.ts` ([Development credentials](/conventions/dev-credentials)); Go unit tests keep their own fixture passwords.
     - `bun run lint` keeps Prettier's and ESLint's caches in the frontend's node_modules, so a repeated local lint takes a second instead of ESLint's twenty (its typed `projectService` setup is what `svelte/no-navigation-without-resolve` needs). A cached result can miss a type change in another file; CI starts without a cache, so it catches that.
     - These caches, like the docs sites' `.next/cache`, key their entries by absolute path, so a new worktree starts cold and a copy from the main checkout never hits; a seeded `.next/cache` even builds slower than none.

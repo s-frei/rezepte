@@ -53,9 +53,29 @@ export async function pinLocale(page: Page, locale: 'en' | 'de' = 'en'): Promise
  * every account the suite creates without naming a locale - `admin`
  * included - agrees with the pin. `locale.test.ts` is where accounts say
  * otherwise.
+ *
+ * The right password signs in through the API, not the form: `page.request`
+ * shares the context's cookie jar, so the session cookie the response sets
+ * signs the page in, and the test skips the sign-in transition - 1.4s
+ * against 0.1s, in nearly every test. auth.test.ts and smoke.test.ts drive
+ * the form itself. Any other password, or a refused right one, goes through
+ * the form, so a test that expects the error still reads it there.
  */
 export async function login(page: Page, username = 'admin', password = devPassword(username)) {
 	await pinLocale(page, 'en');
+	if (password === devPassword(username)) {
+		for (let attempt = 0; attempt < 6; attempt++) {
+			const res = await page.request.post('/api/v1/auth/login', { data: { username, password } });
+			if (res.ok()) {
+				await page.goto('/');
+				await page.getByRole('main').waitFor();
+				return;
+			}
+			// The throttle race described below, answered with 429.
+			if (res.status() !== 429) break;
+			await page.waitForTimeout(250 * (attempt + 1));
+		}
+	}
 	// The login throttle counts an attempt when it begins, so the workers of
 	// one run signing `admin` in at the same moment lock the name before the
 	// first of them succeeds - and that success unlocks it again. A lock on

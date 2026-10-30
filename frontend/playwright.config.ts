@@ -6,6 +6,8 @@ export default defineConfig({
 	testDir: 'e2e',
 	fullyParallel: true,
 	retries: process.env.CI ? 1 : 0,
+	// The default, half the cores, leaves two of a hosted runner's four idle.
+	workers: process.env.CI ? '100%' : undefined,
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
 		baseURL: process.env.E2E_BASE_URL ?? `http://localhost:${process.env.RZP_BACKEND_PORT ?? 8060}`,
@@ -14,7 +16,15 @@ export default defineConfig({
 	},
 	projects: [
 		{ name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-		{ name: 'mobile', use: { ...devices['Pixel 7'] } },
+		// Only the files with a phone path of their own: the rest would run the
+		// same steps again at 412px. cook-timers and source size their own
+		// viewport; the others never ask isMobile.
+		{
+			name: 'mobile',
+			use: { ...devices['Pixel 7'] },
+			testIgnore:
+				/(cook-timers|notifications|tokens|source|locale|required-fields|transfer|sign-in-settings|smoke|titles|icons)\.test\.ts/
+		},
 		// Safari draws the recipe card differently enough (fonts, pictures,
 		// canvas size) to deserve its own run, and focuses no button on click,
 		// which the step-time popover has to survive; only those tests pay for it.

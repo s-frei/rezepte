@@ -292,7 +292,9 @@ test('shows the timer with the least time left, paused or not', async ({ page })
 	const rouladen = await germanRecipe(page, 1);
 	await cookAt(page, rouladen, 5);
 	await page.getByRole('button', { name: 'Timer starten: 90 Minuten' }).click();
-	await page.clock.runFor(80 * 60_000);
+	// fastForward, not runFor: runFor renders every one of the 4 800 ticks
+	// and took 25s; the dock reads the time left from the clock either way.
+	await page.clock.fastForward(80 * 60_000);
 	await expandDock(page);
 	await dock(page).getByRole('button', { name: 'Schritt 5 · 90 Minuten pausieren' }).click();
 	await cookAt(page, klopse, 3);

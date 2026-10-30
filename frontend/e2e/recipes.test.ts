@@ -2256,7 +2256,9 @@ function cardBoxes(page: Page): Promise<Box[]> {
 	);
 }
 
+// One expect for all pairs: an expect per pair cost the 300-card test 40s.
 function expectNoOverlap(boxes: Box[]) {
+	const overlaps: string[] = [];
 	for (const [i, a] of boxes.entries()) {
 		for (const b of boxes.slice(i + 1)) {
 			const apart =
@@ -2264,9 +2266,10 @@ function expectNoOverlap(boxes: Box[]) {
 				b.x + b.width <= a.x ||
 				a.y + a.height <= b.y ||
 				b.y + b.height <= a.y;
-			expect(apart, `${a.title} overlaps ${b.title}`).toBe(true);
+			if (!apart) overlaps.push(`${a.title} overlaps ${b.title}`);
 		}
 	}
+	expect(overlaps).toEqual([]);
 }
 
 /** Waits until two reads of the layout agree: the masonry places a resize on the next frame. */

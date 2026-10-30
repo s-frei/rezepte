@@ -100,12 +100,12 @@ jobs:
         run: git diff --exit-code
 
   e2e:
-    name: e2e (${{ matrix.shard }}/2)
+    name: e2e (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - name: "Check out the repository"
         uses: actions/checkout@v7
@@ -131,7 +131,7 @@ jobs:
           PLAYWRIGHT_INSTALL_ARGS: --with-deps
 
       - name: "Build and run the Playwright end-to-end tests"
-        run: mise run e2e --shard=${{ matrix.shard }}/2
+        run: mise run e2e --shard=${{ matrix.shard }}/4
 
       - name: "Upload the Playwright results"
         uses: actions/upload-artifact@v7
