@@ -42,6 +42,11 @@ export async function prepare(
     await page.getByLabel("Password").fill(DEMO_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL("/");
+    // The address reads the overview while the sign-in's view transition
+    // still runs, and until it ends every click lands on its overlay (the
+    // <html>): Playwright then retries the click and scrolls the page to
+    // other alignments on the way. See frontend/e2e/helpers.ts.
+    await expect(page.locator("html[data-sign-in]")).toHaveCount(0);
   }
 }
 
