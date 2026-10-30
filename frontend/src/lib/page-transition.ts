@@ -138,14 +138,17 @@ function signIn(navigation: OnNavigate): Promise<void> {
  *
  * Not for a change of the query on the same page (the overview's filters
  * have their own), not under reduced motion, and not for a back or forward
- * on a touch screen, whose swipe already draws a page sliding away. A
- * sign-in that lands on the overview has a transition of its own.
+ * on a touch screen, whose swipe already draws a page sliding away - unless
+ * the app's own back button (`back`) asked for it. A sign-in that lands on
+ * the overview has a transition of its own.
  */
 export function pageTransition(navigation: OnNavigate): Promise<void> | undefined {
+	const tapped = backTapped;
+	backTapped = false;
 	if (held) {
 		return held;
 	}
-	const transition = transitionFor(navigation);
+	const transition = transitionFor(navigation, tapped);
 	if (transition) {
 		const settled = navigation.complete.then(
 			() => {},
@@ -173,7 +176,21 @@ export function pageTransition(navigation: OnNavigate): Promise<void> | undefine
  */
 let held: Promise<void> | null = null;
 
-function transitionFor(navigation: OnNavigate): Promise<void> | undefined {
+/**
+ * Set by `back` for the popstate it causes: a tap on the app's back button
+ * draws no slide of its own, so on a touch screen it still gets the
+ * transition a swipe goes without. Without it the overview showed bare for a
+ * frame before its cards arrived.
+ */
+let backTapped = false;
+
+/** `history.back()` for the app's own back button, with the page transition. */
+export function back(): void {
+	backTapped = true;
+	history.back();
+}
+
+function transitionFor(navigation: OnNavigate, tapped: boolean): Promise<void> | undefined {
 	const from = navigation.from;
 	const to = navigation.to;
 	if (
@@ -194,7 +211,7 @@ function transitionFor(navigation: OnNavigate): Promise<void> | undefined {
 		// through read as a fresh load. The pill glides on its own.
 		(from.route.id.startsWith('/settings') && to.route.id.startsWith('/settings')) ||
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
-		(navigation.type === 'popstate' && window.matchMedia('(pointer: coarse)').matches)
+		(navigation.type === 'popstate' && !tapped && window.matchMedia('(pointer: coarse)').matches)
 	) {
 		return undefined;
 	}

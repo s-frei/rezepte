@@ -2664,3 +2664,41 @@ test('back while the recipe still opens shows the list', async ({ page }) => {
 	await expect(cards(page)).toHaveCount(3);
 	await expect(page.getByRole('heading', { level: 1, name: `Hasty 1 ${token}` })).toHaveCount(0);
 });
+
+test('the back button glides the cover home on a touch screen too', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'the back button sits in the phone header; desktop has none');
+	// A back on a touch screen gets no transition, as its swipe draws its own
+	// slide; the app's back button draws none, so it keeps the transition.
+	await page.addInitScript(() => {
+		const start = document.startViewTransition?.bind(document);
+		if (!start) return;
+		const w = window as unknown as { transitions: number };
+		w.transitions = 0;
+		document.startViewTransition = ((update: () => unknown) => {
+			w.transitions++;
+			return start(update);
+		}) as typeof document.startViewTransition;
+	});
+	const transitions = () =>
+		page.evaluate(() => (window as unknown as { transitions: number }).transitions);
+	const settled = () => expect(page.locator('html[data-page-transition]')).toHaveCount(0);
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(0), title: `Glide ${token}`, tags: [token] });
+	await page.goto(`/?tags=${token}`);
+	await expect(cards(page)).toHaveCount(1);
+
+	await cards(page).click();
+	await expect(page).toHaveURL(/\/recipes\//);
+	await settled();
+	await page.getByRole('button', { name: 'Back', exact: true }).click();
+	await expect(page).toHaveURL(new RegExp(`tags=${token}`));
+	await settled();
+	expect(await transitions()).toBe(2);
+
+	await cards(page).click();
+	await expect(page).toHaveURL(/\/recipes\//);
+	await settled();
+	await page.goBack();
+	await expect(page).toHaveURL(new RegExp(`tags=${token}`));
+	expect(await transitions()).toBe(3);
+});

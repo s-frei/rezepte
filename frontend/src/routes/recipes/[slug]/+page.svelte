@@ -35,6 +35,7 @@
 	import { clearServings } from '#lib/recipe/servings.svelte.js';
 	import { copyLink, ShareLink } from '#lib/recipe/share.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { back } from '#lib/page-transition.js';
 	import { shell } from '#lib/shell.svelte.js';
 	import type { PageProps } from './$types';
 
@@ -227,7 +228,7 @@
 
 	function goBack() {
 		if (page.state.fromOverview) {
-			history.back();
+			back();
 		} else {
 			void goto(resolve('/'));
 		}

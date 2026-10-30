@@ -25,6 +25,7 @@
 	import { clampStep, cookPath, timerId, type Timer } from '#lib/recipe/timers.js';
 	import { timers } from '#lib/recipe/timers.svelte.js';
 	import type { StepTime } from '#lib/api/recipes.js';
+	import { back } from '#lib/page-transition.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
@@ -160,7 +161,7 @@
 
 	function finish() {
 		if (cameFromDetail) {
-			history.back();
+			back();
 		} else {
 			void goto(detailHref, { replace: true });
 		}
