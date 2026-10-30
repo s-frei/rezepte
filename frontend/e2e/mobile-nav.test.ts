@@ -262,6 +262,52 @@ test('the page stays put under an open sheet', async ({ page }) => {
 	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 });
 
+/** Presses the dialog's handle and moves `dy` pixels down before letting go. */
+async function pullHandle(page: Page, dy: number) {
+	const dialog = page.getByRole('dialog');
+	// Measured while the sheet still rises, the handle is lower than the press lands.
+	await expect.poll(() => dialog.evaluate((el) => el.getAnimations().length)).toBe(0);
+	const handle = dialog.getByRole('button', { name: 'Close' });
+	const box = (await handle.boundingBox())!;
+	const x = box.x + box.width / 2;
+	const y = box.y + box.height / 2;
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(x, y + dy, { steps: 10 });
+	await page.mouse.up();
+}
+
+test('a sheet closes when its handle is pulled down', async ({ page }) => {
+	await login(page);
+	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
+	await bottomNav(page).getByRole('button', { name: 'You' }).click();
+	const sheet = page.getByRole('dialog', { name: 'admin' });
+	await expect(sheet).toBeVisible();
+
+	// A short pull springs back, and the click it ends in does not close.
+	await pullHandle(page, 20);
+	await page.waitForTimeout(300);
+	await expect(sheet).toBeVisible();
+	await expect(sheet).not.toHaveAttribute('style', /translateY\(\d/);
+
+	await pullHandle(page, 300);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+
+	// A tap still closes.
+	await bottomNav(page).getByRole('button', { name: 'You' }).click();
+	await expect(sheet).toBeVisible();
+	await sheet.getByRole('button', { name: 'Close' }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('the filter sheet closes when its handle is pulled down', async ({ page }) => {
+	await login(page);
+	await page.getByRole('button', { name: 'Filters' }).click();
+	await expect(page.getByRole('dialog', { name: 'Filters' })).toBeVisible();
+	await pullHandle(page, 300);
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
 test('no bar on a page that does not exist', async ({ page }) => {
 	await login(page);
 	await page.goto('/gibt-es-nicht');

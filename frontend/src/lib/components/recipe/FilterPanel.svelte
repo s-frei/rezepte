@@ -10,6 +10,7 @@
 	import TagChip from '#lib/components/ui/TagChip.svelte';
 	import Slider from '#lib/components/ui/Slider.svelte';
 	import Switch from '#lib/components/ui/Switch.svelte';
+	import SheetHandle from '#lib/components/ui/SheetHandle.svelte';
 	import { formatMinutes } from '#lib/recipe/format.js';
 	import { isSort, type Sort } from '#lib/recipe/query.js';
 	import type { Author } from '#lib/api/recipes.js';
@@ -228,9 +229,16 @@
 					     which one a flick will move. -->
 					<div
 						{...props}
-						class="fixed top-1/2 left-1/2 z-50 flex max-h-[min(70dvh,32rem)] w-[min(24rem,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl bg-surface p-6 shadow-dialog max-md:inset-x-0 max-md:top-auto max-md:bottom-0 max-md:max-h-[85dvh] max-md:w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:p-5 max-md:pb-8 max-md:shadow-sheet"
+						class="fixed top-1/2 left-1/2 z-50 flex max-h-[min(70dvh,32rem)] w-[min(24rem,calc(100vw-2.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl bg-surface p-6 shadow-dialog max-md:inset-x-0 max-md:top-auto max-md:bottom-0 max-md:max-h-[85dvh] max-md:w-full max-md:translate-x-0 max-md:translate-y-0 max-md:rounded-b-none max-md:bg-background max-md:p-5 max-md:pt-0 max-md:pb-8 max-md:shadow-sheet"
 						transition:panelTransition
 					>
+						<!-- On phones the panel is a sheet, so it carries the sheets'
+						     handle; the desktop's dialog closes outside or on Done. -->
+						<SheetHandle
+							label={m.common_close()}
+							onclose={() => (open = false)}
+							class="-mx-5 md:hidden"
+						/>
 						<Dialog.Title class="shrink-0 font-display text-heading font-medium">
 							{m.overview_filter()}
 						</Dialog.Title>

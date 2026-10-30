@@ -3,10 +3,12 @@
 	import type { Snippet } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, fly } from 'svelte/transition';
+	import SheetHandle from './SheetHandle.svelte';
 
 	// Shared Overlay + Content wrapper for the phone's bottom sheets (the
 	// contents, You, one person), so the phone has one kind of sheet: a
-	// rounded panel rising from the bottom edge, its handle the close button.
+	// rounded panel rising from the bottom edge, its handle closing it on a
+	// tap or a pull.
 	// The caller renders the title and the scrolling body inside it.
 	let {
 		open = $bindable(false),
@@ -50,12 +52,7 @@
 						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[80dvh] w-full max-w-[640px] flex-col rounded-t-3xl bg-background shadow-sheet outline-none"
 						transition:fly={{ duration, y: 200 }}
 					>
-						<Dialog.Close
-							aria-label={closeLabel}
-							class="flex w-full shrink-0 justify-center pt-2 pb-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-						>
-							<span class="h-1 w-9 rounded-pill bg-handle" aria-hidden="true"></span>
-						</Dialog.Close>
+						<SheetHandle label={closeLabel} onclose={() => (open = false)} />
 						{@render children()}
 					</div>
 				{/if}
