@@ -2,11 +2,7 @@ import './global.css';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { OG_IMAGES, OG_SHARED, SITE_TITLE, SITE_URL } from '@/lib/shared';
-import { source } from '@/lib/source';
-
-// The home page's description is the site's; content/index.mdx owns the wording.
-const description = source.getPage([])?.data.description;
+import { OG_IMAGES, OG_SHARED, SITE_DESCRIPTION as description, SITE_TITLE, SITE_URL } from '@/lib/shared';
 
 export const metadata: Metadata = {
 	metadataBase: new URL(SITE_URL),

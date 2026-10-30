@@ -1,8 +1,9 @@
-// Cross-checks the three places a screenshot name lives:
-//   <Screenshot name="…"/> in content/**/*.mdx, test('…') in screenshots/*.spec.ts,
-//   and PNGs in public/screenshots. A name used in MDX without a test fails
-//   the check; missing or unused PNGs are only reported, because PNGs can
-//   only be produced on a machine where Chromium starts.
+// Cross-checks the places a screenshot name lives:
+//   <Screenshot name="…"/> in content/**/*.mdx, `shot: '…'` in the landing
+//   page's tiles (app/page.tsx), test('…') in screenshots/*.spec.ts, and PNGs
+//   in public/screenshots. A name used in a page without a test fails the
+//   check; missing or unused PNGs are only reported, because PNGs can only be
+//   produced on a machine where Chromium starts.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -21,6 +22,11 @@ for (const f of walk('content', '.mdx')) {
 	for (const m of readFileSync(f, 'utf8').matchAll(/<Screenshot\s[^>]*?name="([^"]+)"/g)) {
 		referenced.set(m[1], [...(referenced.get(m[1]) ?? []), f]);
 	}
+}
+// The landing page builds its image paths from these names itself, so a
+// renamed test would otherwise leave a broken picture on the front page.
+for (const m of readFileSync('app/page.tsx', 'utf8').matchAll(/\bshot: '([^']+)'/g)) {
+	referenced.set(m[1], [...(referenced.get(m[1]) ?? []), 'app/page.tsx']);
 }
 const tested = new Set<string>();
 for (const f of walk('screenshots', '.spec.ts')) {

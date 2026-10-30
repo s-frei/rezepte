@@ -5,7 +5,10 @@ import { createMDX } from 'fumadocs-mdx/next';
 
 const withMDX = createMDX();
 
-const basePath = '/rezepte';
+// GitHub Pages serves the site under /rezepte. Only that build carries the
+// prefix (pages.yml, and `check`, whose base-path audit needs it); the dev
+// server and a local build answer at the root.
+const basePath = process.env.RZP_DOCS_PAGES ? '/rezepte' : '';
 
 // Next blocks dev requests to /_next/* whose Origin is not localhost, so opening
 // the dev server from another device on the LAN - a phone, say - serves the HTML
@@ -30,8 +33,6 @@ const config = {
   // Static export has no image optimizer; <Screenshot> uses next/image via
   // ImageZoom.
   images: { unoptimized: true },
-  // Published at https://s-frei.github.io/rezepte, set unconditionally so
-  // the dev server matches production instead of drifting behind a CI flag.
   basePath,
   allowedDevOrigins: lanOrigins,
   env: { NEXT_PUBLIC_BASE_PATH: basePath },

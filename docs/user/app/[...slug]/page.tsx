@@ -10,17 +10,17 @@ import { InlineCode } from '@/components/inline-code';
 import { getMDXComponents } from '@/components/mdx';
 import { openapi } from '@/lib/openapi';
 import { source } from '@/lib/source';
-import { getPageMarkdownUrl, OG_SHARED, SITE_TITLE } from '@/lib/shared';
+import { getPageMarkdownUrl, OG_SHARED, publishedUrl } from '@/lib/shared';
 
-type Props = { params: Promise<{ slug?: string[] }> };
+type Props = { params: Promise<{ slug: string[] }> };
 
 // A changelog page's `date` is a calendar day; UTC keeps it from shifting a day
 // in whatever timezone the build runs in.
 const releaseDate = new Intl.DateTimeFormat('en', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
-// `/` renders content/index.mdx: with a single collection there is no landing chooser.
+// `/` is the landing page (app/page.tsx); every docs page lives below it.
 export default async function Page({ params }: Props) {
-	const { slug = [] } = await params;
+	const { slug } = await params;
 	const page = source.getPage(slug);
 	if (!page) notFound();
 
@@ -76,15 +76,15 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-	const { slug = [] } = await params;
+	const { slug } = await params;
 	const page = source.getPage(slug);
 	if (!page) notFound();
-	// The home page's heading is the bare name, which the template would turn
-	// into "Rezepte — Rezepte"; it takes the site title whole instead.
-	const title = slug.length === 0 ? SITE_TITLE : page.data.title;
+	const title = page.data.title;
+	const url = publishedUrl(page.url);
 	return {
-		title: slug.length === 0 ? { absolute: title } : title,
+		title,
 		description: page.data.description,
-		openGraph: { ...OG_SHARED, title, description: page.data.description }
+		alternates: { canonical: url },
+		openGraph: { ...OG_SHARED, title, description: page.data.description, url }
 	};
 }

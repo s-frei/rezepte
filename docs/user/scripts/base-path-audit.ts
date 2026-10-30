@@ -20,6 +20,8 @@ import nextConfig from '../next.config.mjs';
 // regenerates `.source/` as a side effect - gitignored, and the build does it
 // anyway.
 const BASE_PATH = nextConfig.basePath ?? '';
+// Without it every root-relative path would pass and the audit would prove nothing.
+if (!BASE_PATH) throw new Error('no base path set - build and audit with RZP_DOCS_PAGES=1 (mise run //docs/user:check does)');
 
 function walk(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

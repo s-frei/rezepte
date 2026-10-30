@@ -9,7 +9,7 @@ description: Two Fumadocs apps under docs/, committed screenshots and a generate
 
 Each app is Fumadocs on the Next.js static template (`output: 'export'`) with its own `package.json`, `mise.toml`, `app/` and `content/` directory. Nothing is shared between them — not a build, not a dependency list, not a deployment. `mise run //docs/memory:check` and `mise run //docs/user:check` each lint, audit and build their own site, so broken MDX in either fails the gate. Both dev servers take their port from the worktree's offset ([Toolchain](/architecture/toolchain)).
 
-`docs/user/content/meta.json` lists the user docs' sections in their order. `changelog/` holds one page per release ([Releases](/architecture/releases)); `contributing/` holds only what someone outside the project can do without knowing the code. There is no FAQ or troubleshooting section.
+`docs/user/content/meta.json` lists the user docs' sections in their order, starting with `overview`. `changelog/` holds one page per release ([Releases](/architecture/releases)); `contributing/` holds only what someone outside the project can do without knowing the code. There is no FAQ or troubleshooting section.
 
 **Who a user-docs page is for is a word badge, not a warning box.**
 
@@ -24,13 +24,21 @@ Each serves the agent-facing routes for its own content: `/llms.txt`, `/llms-ful
 
 The user docs wear the app's "Warm & handmade" palette, mapped onto Fumadocs' `--color-fd-*` variables in `docs/user/app/global.css`, while the memory app stays neutral. [Design system](/architecture/design-system) owns those values and the handful of places the docs deliberately differ. `global.css` imports `fumadocs-ui/css/lib/default-colors.css` rather than the `neutral.css` preset it replaces: `neutral.css` carries a `.dark #nd-sidebar` rule whose id selector would outweigh any `.dark` override placed after it. The overrides themselves sit in plain `:root` and `.dark` blocks rather than in `@theme`, because unlayered declarations beat Tailwind's `@layer theme` and so win regardless of import order.
 
+## The landing page
+
+The user docs open on a landing page, not on a docs page: `docs/user/app/page.tsx`, a React page inside Fumadocs' `HomeLayout` (the same nav, search and theme switch, no sidebar), written to make someone who has never heard of Rezepte want to try it. The docs themselves live under the required catch-all `app/[...slug]/`, and `content/overview.mdx` is their first page - the sidebar's lockup leads back to the landing page. `app/sitemap.ts` lists the root by hand, because it is not a content page.
+
+- **A hero, a bento of features with screenshots, small idea cards, and the self-hosting pitch** with the one-line `docker run … --demo`. The bento is the core: `TILES` in `page.tsx` names each feature, the guide page it links to and the screenshot it shows. Below `lg` a tile shows the mobile screenshot in a phone-shaped frame; from `lg` up it shows the desktop one, and `focus` / `zoom` pick and enlarge the part worth seeing, since a 1440px page is unreadable at tile size. A tile marked `phone` shows the mobile screenshot at every width.
+- **The pictures are the committed screenshots**, read from `public/screenshots` by name, so `mise run //docs/user:screenshots` keeps the landing page current along with the docs, and `screenshots-audit.ts` fails on a tile whose name has no test, as it does for a `<Screenshot>` tag. A `focus` or `zoom` is tuned to the picture as it is; when a regenerated screenshot moves its content, check the tile.
+- **Only design tokens.** Colors, radii and type come from the `--color-fd-*` palette and the `@theme` scale in `docs/user/app/global.css`, like everything else in the docs ([Design system](/architecture/design-system)).
+
 ## Screenshots
 
 Screenshots are Playwright snapshot tests in `docs/user/screenshots/`, one `test('<name>')` per screenshot, run against `rezepte --demo` through `mise run demo -- bunx playwright test` (see [Demo mode](/features/demo-mode) for what that instance contains). `docs/user/playwright.config.ts` defines four projects — `desktop-light`, `desktop-dark`, `mobile-light`, `mobile-dark` — and a `snapshotPathTemplate` that writes straight into `docs/user/public/screenshots/` as `<name>-<project>.png`. The PNGs are committed, because the docs build must not need a browser. The suite runs single-worker and unparallelized: every spec shares one demo database and the settings spec creates a user, so determinism beats speed.
 
 Pages reference a screenshot by name, `<Screenshot name="…" caption="…" />`. `docs/user/components/screenshot.tsx` checks `public/screenshots` for `<name>-<device>-<scheme>.png` at build time and renders a dashed placeholder frame carrying the caption for every variant it does not find, rather than failing the build.
 
-`docs/user/scripts/screenshots-audit.ts` cross-checks the three places a name lives — `<Screenshot name>` in the content, `test('<name>')` in the specs, and the files on disk. It **fails** when a referenced name has no matching test or is not `a-z0-9-`; it only **warns** about missing PNGs and about files nothing references, because PNGs can only be produced where Chromium starts.
+`docs/user/scripts/screenshots-audit.ts` cross-checks the three places a name lives — `<Screenshot name>` in the content, `test('<name>')` in the specs, and the files on disk. It reads the names the landing page's tiles use too, and **fails** when a referenced name has no matching test or is not `a-z0-9-`; it only **warns** about missing PNGs and about files nothing references, because PNGs can only be produced where Chromium starts.
 
 `mise run //docs/user:screenshots` regenerates every PNG (`--update-snapshots=all`, so a change too small for the diff tolerance cannot leave a stale file behind) and `mise run //docs/user:screenshots:check` reports drift. Neither runs in CI. [Add a screenshot](/howtos/add-screenshot) owns the procedure.
 
@@ -56,10 +64,10 @@ The fetch logs in as the demo admin and replays the session cookie, because the 
 
 A `workflow_dispatch` is the other entry point, and it publishes the ref it was started from without waiting for a merge or a release. It exists for the two cases the automatic path cannot serve: a wording fix that should be live now, and a change to `pages.yml` itself, which can only be exercised from the branch carrying it, since a dispatch runs the workflow as it exists on the chosen ref. The job's first step fails the run for any ref but `main` and `develop` — those two are the branches whose content is meant to be readable, and from anywhere else a dispatch would put an unreviewed branch on a public address, where the only recovery is a second dispatch. Both entry points share the `pages` concurrency group, so a manual run and a push-triggered one queue instead of racing for the same deployment.
 
-**The export is served under a fixed sub-path.** `docs/user/next.config.mjs` sets `basePath` unconditionally and puts the same value into `NEXT_PUBLIC_BASE_PATH`.
+**The Pages build is served under a sub-path, everything else at the root.** `docs/user/next.config.mjs` sets `basePath: '/rezepte'` only when `RZP_DOCS_PAGES` is set, and puts the same value into `NEXT_PUBLIC_BASE_PATH`. Two places set it: the build step of `pages.yml`, and `//docs/user:check`, so the base-path audit below has a prefix to check before CI does. The dev server and a plain `//docs/user:build` answer at `/`.
 
 - Components that build their own root-relative URLs read it from there: `<Screenshot>`, because `next/image` under `images: { unoptimized: true }` returns `src` verbatim and prefixes nothing, and `docs/user/app/layout.tsx`, which hands the static search client its endpoint explicitly rather than relying on the builder to polyfill one.
-- `docs/user/scripts/base-path-audit.ts`, wired into `//docs/user:check`, walks the built export and fails on any root-relative `src` or `href` that lacks the prefix. It imports the value from the config instead of repeating it, and skips the two things that legitimately lack it — resource hints such as `preconnect`, and protocol-relative URLs on another origin.
+- `docs/user/scripts/base-path-audit.ts`, wired into `//docs/user:check`, walks the built export and fails on any root-relative `src` or `href` that lacks the prefix. It imports the value from the config instead of repeating it, refuses to run when there is none (without a prefix every path would pass), and skips the two things that legitimately lack it — resource hints such as `preconnect`, and protocol-relative URLs on another origin.
 - The llms routes are Markdown read by assistants that know nothing of the base path, so `absoluteLinks` in `docs/user/lib/source.ts` turns every root-relative link they serve into a full `SITE_URL` address, and the audit fails on any `](/` left in `llms.txt` or `llms-full.txt`.
 
 Every address the app links to outside itself is a constant in `frontend/src/lib/docs.ts`. Every self-hosted instance points at the same public site, so the URLs are constants rather than configuration, and the site's carry the trailing slash the export uses, since Pages redirects the bare path.
@@ -68,18 +76,22 @@ Every address the app links to outside itself is a constant in `frontend/src/lib
 
 One repository setting no workflow can perform: in Settings → Pages, Source must be **GitHub Actions**. Until it is set by hand, `deploy-pages` fails with "Get Pages site failed", and no API call inside the job can set it.
 
-**The home page is titled for search, not by its heading.** "Rezepte" is an everyday German word that recipe sites rank for, so a result titled with the name alone is never found. `SITE_TITLE` in `docs/user/lib/shared.ts` carries the words people search with — self-hosted, recipe manager — and the home page takes it whole (`{ absolute: … }`), because the `%s — Rezepte` template every other page uses would turn its heading into "Rezepte — Rezepte". The visible heading stays the bare name. The site-wide description is the home page's own, read from `content/index.mdx`, so the meta description and the subtitle under the heading are one sentence with one owner.
+**The landing page is titled for search, not by its heading.** "Rezepte" is an everyday German word that recipe sites rank for, so a result titled with the name alone is never found. `SITE_TITLE` in `docs/user/lib/shared.ts` carries the words people search with — self-hosted, recipe manager — and the landing page takes it whole (`{ absolute: … }`), because the `%s — Rezepte` template every other page uses would append the name a second time. `SITE_DESCRIPTION` beside it is the site-wide meta description, owned by the landing page. Every page names its published address, slashed like the export, as its canonical URL and `og:url` (`publishedUrl` in the same file, which the sitemap uses too), so the redirecting unslashed form never counts as a page of its own. The landing page also carries a schema.org `SoftwareApplication` block (`JSON_LD` in `app/page.tsx`) for a software result in search.
 
 ## Why it is this way
 
 Internal memory and a public manual have different audiences and different deployment targets. Two apps mean `docs/user/` carries the dependencies the memory has no reason to hold — Playwright, a generated reference, three Fontsource packages for its typefaces (OFL-1.1, like the two the frontend already carries) — and an independent static export deploys without ever putting the internal memory on a public address.
 
-Setting the base path unconditionally keeps the dev server honest. Stripping it outside CI would let a link work locally and 404 in production, which is exactly the class of bug the base-path audit guards against.
+The base path belongs to one host, GitHub Pages, so only the Pages build carries it: locally the docs open at the root like every other dev server here. What a prefix everywhere bought - a link that forgets it breaks locally, before it breaks in production - the audit still buys, because `check` builds the way Pages does and fails on the missing prefix before a commit.
+
+The landing page is a page of its own rather than an MDX page with a hero, because a docs page always wears the sidebar, the table of contents and the Markdown buttons; a first impression meant to make someone want Rezepte has no use for any of them.
 
 The API reference is rendered by the official integration rather than by a generator of this project's own. A hand-rolled OpenAPI reader has to be taught every schema shape huma starts emitting before it renders correctly, and that teaching never ends; `fumadocs-openapi` already reads the whole of OpenAPI 3.1 and renders code samples in seven languages beside each operation. What made it a bad fit was one feature, and that feature is a flag.
 
 ## Rejected
 
+- **The base path on the dev server too.** It kept dev and production identical, but every local address carried `/rezepte` for a host the dev server never is; the audit under `check` covers what it guarded against.
+- **The landing page as `content/index.mdx` with a hero and cards.** One file fewer, but a docs page carries the sidebar and the page chrome, and MDX has no grid of screenshots without a component of its own anyway.
 - **One Fumadocs app for memory and user docs.** Simplest, but internal and public content would share a build and a deployment, and only one of the two is meant to be published.
 - **Generating screenshots during the docs build.** Couples the build to Go, Bun and Chromium, and a docs build has to work where none of the three is available.
 - **Keeping the screenshot project in `frontend/e2e`.** Reuses one Playwright config, but makes the frontend the owner of documentation assets.
@@ -93,6 +105,7 @@ The API reference is rendered by the official integration rather than by a gener
 
 ## Limits
 
+- The dev server cannot show a missing base path, since it has none; only `//docs/user:check` (and CI) can. Run it before committing anything that builds a URL by hand.
 - GitHub Pages from a private repository is not available on every GitHub plan, and nothing in the workflow can detect that: the deploy step is where it surfaces.
 - The published site is world-readable even though the repository is private. Nothing in `docs/user/content/` may be written assuming the readership is limited to people with repository access.
 - `docs/user/app/robots.ts` exports to a robots file under the base path, which crawlers never read: robots.txt is honored only at the origin root, and that origin belongs to another repository. The file is kept because it becomes correct behind a custom domain, but the sitemap it points at has to be submitted to search engines by hand.
