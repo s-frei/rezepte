@@ -3469,7 +3469,7 @@
             "type": "boolean"
           },
           "recipeDigestHour": {
-            "description": "Hour, 0 to 23 in the server's time zone, of the daily mail about new recipes",
+            "description": "Hour, 0 to 23 in the server's time zone, of the daily new-recipes notification, by mail and push",
             "format": "int64",
             "type": "integer"
           },

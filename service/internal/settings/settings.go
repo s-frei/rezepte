@@ -62,7 +62,7 @@ type Settings struct {
 	// picture.
 	PublicShareAttribution bool `json:"publicShareAttribution"`
 	// RecipeDigestHour is the hour, in the server's time zone, the daily
-	// mail about new recipes goes out.
+	// new recipes notification goes out by mail and push.
 	RecipeDigestHour int `json:"recipeDigestHour" minimum:"0" maximum:"23"`
 }
 
@@ -159,7 +159,7 @@ func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User
 }
 
 // SetRecipeDigestHour chooses the hour, 0 to 23, of the daily new recipes
-// mail. Only the superadmin may; everybody else gets ErrOwnerRequired, any
+// notification, by mail and push. Only the superadmin may; everybody else gets ErrOwnerRequired, any
 // other hour ErrUnknownHour.
 func (s *Service) SetRecipeDigestHour(ctx context.Context, actor user.User, hour int) (Settings, error) {
 	if !actor.Role.IsSuperadmin() {
