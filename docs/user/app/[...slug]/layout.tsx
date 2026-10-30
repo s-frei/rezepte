@@ -8,8 +8,8 @@ import { source } from '@/lib/source';
 
 // The sidebar shows a release as its version, large, with the release's name
 // beneath, instead of the whole "v1.3.0 — …" title in sidebar type; and it
-// marks a page whose `new` names the newest release, so the mark leaves by
-// itself with the next one.
+// marks a page whose `new` names a release of the newest minor line, so the
+// mark leaves by itself with the next minor release.
 function sidebarTree<T extends PageTree.Root | PageTree.Folder>(node: T): T {
 	return {
 		...node,
@@ -17,13 +17,14 @@ function sidebarTree<T extends PageTree.Root | PageTree.Folder>(node: T): T {
 			if (child.type === 'folder') return sidebarTree(child);
 			if (child.type !== 'page') return child;
 			if (isReleaseUrl(child.url) && typeof child.name === 'string') return { ...child, name: <ReleaseNavName title={child.name} /> };
-			if (isNewIn(source.getNodePage(child)?.data.new))
+			const release = source.getNodePage(child)?.data.new;
+			if (release && isNewIn(release))
 				return {
 					...child,
 					name: (
 						<>
 							{child.name}
-							<NewBadge className="ms-auto" />
+							<NewBadge release={release} className="ms-auto" />
 						</>
 					)
 				};

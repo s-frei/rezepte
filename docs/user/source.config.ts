@@ -18,7 +18,7 @@ export const docs = defineDocs({
 			upgrade: z.string().optional(),
 			audience: z.enum(['admin', 'owner']).optional(),
 			// The release a page is new or much changed in, like v1.3.0; the
-			// sidebar marks it while that release is the newest.
+			// sidebar marks it while that release is in the newest minor line.
 			new: z.string().regex(/^v\d+\.\d+\.\d+$/).optional()
 		}),
 		postprocess: { includeProcessedMarkdown: true }
