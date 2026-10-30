@@ -864,7 +864,7 @@ test('the card size sets how many cards share a row, and stays', async ({ page, 
 
 	// The default is today's grid: four at the page's widest.
 	await expect(page.getByRole('radio', { name: 'Medium cards' })).toBeChecked();
-	expect(await columnCount(page)).toBe(4);
+	await expect.poll(() => columnCount(page)).toBe(4);
 	// Icons only: under a mouse each names itself.
 	await page.getByRole('radio', { name: 'Small cards' }).hover();
 	await expect(
@@ -876,12 +876,12 @@ test('the card size sets how many cards share a row, and stays', async ({ page, 
 	] as const) {
 		await page.getByRole('radio', { name: size }).click();
 		await expect(page.getByRole('radio', { name: size })).toBeChecked();
-		expect(await columnCount(page), size).toBe(columns);
+		await expect.poll(() => columnCount(page), { message: size }).toBe(columns);
 	}
 
 	await page.reload();
 	await expect(page.getByRole('radio', { name: 'Large cards' })).toBeChecked();
-	expect(await columnCount(page)).toBe(3);
+	await expect.poll(() => columnCount(page)).toBe(3);
 });
 
 // On a phone, one card per row makes the list about twice as tall, so a
@@ -945,10 +945,10 @@ test('one card per row on a phone shows the desktop card, and stays', async ({
 	await createRecipe(page, { ...loadFixture(2), title: `Wide plain ${token}` });
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveCount(2);
-	expect(await columnCount(page)).toBe(2);
+	await expect.poll(() => columnCount(page)).toBe(2);
 
 	await page.getByRole('radio', { name: 'One per row' }).click();
-	expect(await columnCount(page)).toBe(1);
+	await expect.poll(() => columnCount(page)).toBe(1);
 	// The desktop card: the 28px star and 28px initials of the 28px corner.
 	for (const title of [`Wide ${token}`, `Wide plain ${token}`]) {
 		const article = card(page, title);
@@ -976,7 +976,7 @@ test('one card per row on a phone shows the desktop card, and stays', async ({
 
 	await page.reload();
 	await expect(page.getByRole('radio', { name: 'One per row' })).toBeChecked();
-	expect(await columnCount(page)).toBe(1);
+	await expect.poll(() => columnCount(page)).toBe(1);
 });
 
 test('the card size answers to the arrow keys', async ({ page, isMobile }) => {

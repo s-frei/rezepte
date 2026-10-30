@@ -217,15 +217,16 @@ export async function createRecipe(page: Page, input: RecipeInput): Promise<Reci
 export async function openNewRecipe(page: Page) {
 	const topBar = page.getByRole('link', { name: 'New recipe' });
 	const bottomNav = page.getByRole('button', { name: 'New', exact: true });
+	const write = page.getByRole('dialog').getByRole('button', { name: /^Write it yourself/ });
 	await topBar.or(bottomNav).first().click();
-	// The phone's "+" opens a sheet with two ways to a new recipe.
-	if (await bottomNav.isVisible()) {
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: /^Write it yourself/ })
-			.click();
-	}
-	await expect(page).toHaveURL(/\/recipes\/new$/);
+	// The phone's "+" opens a sheet with two ways to a new recipe. An empty
+	// overview's own "New recipe" link comes first in the page and goes
+	// straight to the editor, while the bottom nav is still on screen - so
+	// whether a sheet is coming is read from what happens, not from the nav.
+	await expect(async () => {
+		if (await write.isVisible()) await write.click();
+		await expect(page).toHaveURL(/\/recipes\/new$/, { timeout: 1_000 });
+	}).toPass();
 }
 
 /** Opens the import dialog (desktop) or sheet (phone) through the viewport's own entry point. */
