@@ -4,8 +4,8 @@
 // the item stays in the list as the landing slot and its face follows the
 // pointer at the size it was picked up at; the slot under the pointer is
 // where it goes: each new slot calls `onmove`, which the caller runs inside
-// `flip` so everything else slides. Alt+Arrow on a focused item moves it by
-// one, or by a row up and down.
+// `flip` so everything else slides. Alt+Arrow on a focused item moves it one
+// place: Left and Up earlier, Right and Down later.
 //
 // The CSS contract a component using it adds:
 // - on every item: `user-select: none; -webkit-touch-callout: none;
@@ -26,7 +26,7 @@
 import { tick } from 'svelte';
 import type { Action } from 'svelte/action';
 import { prefersReducedMotion } from 'svelte/motion';
-import { EASE, ring } from './flip.js';
+import { EASE, SLIDE, ring } from './flip.js';
 import { keyTarget } from './order.js';
 
 export type SortableOptions = {
@@ -34,8 +34,6 @@ export type SortableOptions = {
 	keys: string[];
 	/** An item that cannot be picked up or moved by key. */
 	disabled?: (key: string) => boolean;
-	/** Items per row, for Alt+ArrowUp and Alt+ArrowDown. */
-	columns: () => number;
 	/** Move the item at `from` to `to`; the caller updates its list inside `flip`. */
 	onmove: (from: number, to: number) => void;
 	/** A drag or key press has put `key` in a new place: save the order. */
@@ -135,6 +133,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		clearTimeout(held?.timer);
 		held = null;
 		removeEventListener('pointermove', move);
+		removeEventListener('scroll', scroll);
 		removeEventListener('pointerup', up);
 		removeEventListener('pointercancel', up);
 	}
@@ -169,6 +168,12 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		addEventListener('pointermove', move);
 		addEventListener('pointerup', up);
 		addEventListener('pointercancel', up);
+		addEventListener('scroll', scroll, { passive: true });
+	}
+
+	// The page scrolling under a held item moves its slot, not the pointer.
+	function scroll() {
+		if (held?.lifted) place(held);
 	}
 
 	function move(e: PointerEvent) {
@@ -226,7 +231,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 						},
 						{ transform: 'none', boxShadow: 'none' }
 					],
-					{ duration: 220, easing: EASE }
+					{ duration: SLIDE, easing: EASE }
 				);
 		glide.finished
 			.then(() => ring(el))
@@ -266,18 +271,23 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		if (e.target instanceof Element && e.target.closest('[data-sortable-ignore]')) return;
 		const el = itemAt(e.target);
 		const key = el?.dataset.sortableKey;
-		if (!el || !key || opts.disabled?.(key)) return;
+		if (!el || !key) return;
 		const from = opts.keys.indexOf(key);
-		const to = keyTarget(from, opts.keys.length, e.key, opts.columns());
+		const to = keyTarget(from, opts.keys.length, e.key);
 		if (to === null) return;
+		// Even when nothing moves: Alt+Left is the browser's Back.
 		e.preventDefault();
+		if (to === from || opts.disabled?.(key)) return;
 		const focused = document.activeElement;
 		opts.onmove(from, to);
-		moved(key, to);
-		// Moving an element in the DOM drops its focus.
 		void tick().then(() => {
+			// Moving an element in the DOM drops its focus.
 			if (focused instanceof HTMLElement && document.activeElement !== focused) focused.focus();
-			ring(el, 220);
+			// Where the caller put it, which may be short of `to`, or nowhere.
+			const at = opts.keys.indexOf(key);
+			if (at === from) return;
+			moved(key, at);
+			ring(el, SLIDE);
 		});
 	}
 

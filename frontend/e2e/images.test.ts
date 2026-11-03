@@ -263,6 +263,80 @@ test('moves a photo earlier and later from its menu', async ({ page }) => {
 	await expect(page.getByText('Photo moved to position 3')).toBeAttached();
 });
 
+test('moves a photo by Alt+Arrow and stays put at either end', async ({ page }) => {
+	const { recipe, ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+	let saves = 0;
+	page.on('request', (request) => {
+		if (isOrderSave(request)) saves++;
+	});
+	// Alt+Left is the browser's Back: the window sees whether it was kept from it.
+	await page.evaluate(() =>
+		addEventListener('keydown', (e) =>
+			document.body.setAttribute('data-kept', `${e.defaultPrevented}`)
+		)
+	);
+
+	const saved = page.waitForResponse((response) => isOrderSave(response.request()));
+	await page.getByRole('button', { name: 'Show photo 2' }).focus();
+	await page.keyboard.press('Alt+ArrowRight');
+	expect((await saved).ok()).toBeTruthy();
+	expect(await order(page)).toEqual([one, three, two]);
+	await expect(page.getByText('Photo moved to position 3', { exact: true })).toBeAttached();
+	await expect(page.getByRole('button', { name: 'Show photo 3' })).toBeFocused();
+
+	// The cover is already first: nothing moves, nothing is saved, the page stays.
+	await page.getByRole('button', { name: 'Show photo 1' }).focus();
+	await page.keyboard.press('Alt+ArrowLeft');
+	await expect(page.locator('body')).toHaveAttribute('data-kept', 'true');
+	await page.waitForTimeout(300);
+	expect(await order(page)).toEqual([one, three, two]);
+	expect(saves).toBe(1);
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/edit`);
+});
+
+test('shows what the server holds when another member changed the photos', async ({
+	page,
+	isMobile
+}) => {
+	const { recipe, ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+	// Someone else adds a photo meanwhile: the order sent misses it.
+	const added = (await uploadImage(page, recipe.id, tinyPng([10, 200, 90]))).id;
+
+	const refused = page.waitForResponse((response) => isOrderSave(response.request()));
+	await drag(page, isMobile, tiles(page).nth(2), tiles(page).nth(0));
+	expect((await refused).status()).toBe(422);
+
+	await expect(page.getByText('The new order could not be saved.')).toBeVisible();
+	await expect(tiles(page)).toHaveCount(4);
+	await expect.poll(() => order(page)).toEqual([one, two, three, added]);
+});
+
+test('leaving the editor waits for the photos still going up', async ({ page }) => {
+	const { recipe } = await editorWithPhotos(page, 1);
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => (release = resolve));
+	await page.route('**/api/v1/recipes/*/images', async (route) => {
+		if (route.request().method() === 'POST') await held;
+		return route.continue();
+	});
+
+	await page
+		.getByLabel('Choose photos')
+		.setInputFiles([{ name: 'late.png', mimeType: 'image/png', buffer: tinyPng([10, 200, 90]) }]);
+	const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+	await cancel.click();
+	await expect(cancel).toBeDisabled();
+	await page.waitForTimeout(300);
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/edit`);
+
+	release();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	const stored = (await (await page.request.get(`/api/v1/recipes/${recipe.id}`)).json()) as Recipe;
+	expect(stored.images).toHaveLength(2);
+});
+
 test('a vertical swipe over the photos scrolls instead of reordering', async ({
 	page,
 	isMobile

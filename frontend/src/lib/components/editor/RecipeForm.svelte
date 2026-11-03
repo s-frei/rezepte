@@ -377,8 +377,15 @@
 
 	async function handleCancel() {
 		// A dirty form asks first: `discardChanges` flushes on the way out.
-		if (!dirty) await images?.flush();
+		if (!dirty) await flushImages();
 		void goto(cancelHref);
+	}
+
+	/** Waits for the photos still going up or out, with the buttons busy meanwhile. */
+	async function flushImages() {
+		saving = true;
+		await images?.flush();
+		saving = false;
 	}
 
 	async function discardChanges() {
@@ -391,7 +398,7 @@
 		const href = target
 			? resolve(`${target.pathname.slice(1)}${target.search}${target.hash}` as Path)
 			: cancelHref;
-		await images?.flush();
+		await flushImages();
 		void goto(href);
 	}
 

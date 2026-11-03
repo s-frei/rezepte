@@ -477,6 +477,26 @@ test('reorders picked photos and posts them in that order', async ({ page }) => 
 	await expect(entries(page).locator('img').first()).toHaveAttribute('width', '96');
 });
 
+test('moves a picked photo by Alt+Arrow', async ({ page }) => {
+	await freshDiary(page, 'Keys');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
+	const cells = composerPhotos(page).getByRole('listitem');
+	await expect(cells.nth(2).locator('img')).toHaveAttribute('width', '96');
+	const widths = () =>
+		cells.locator('img').evaluateAll((imgs) => imgs.map((i) => i.getAttribute('width')));
+
+	await composerPhotos(page).getByRole('button', { name: 'Open photo 2 of 3' }).focus();
+	await page.keyboard.press('Alt+ArrowRight');
+	await expect.poll(widths).toEqual(['64', '96', '64']);
+	await expect(page.getByText('Photo moved to position 3 of 3', { exact: true })).toBeAttached();
+
+	// Already first: nothing moves.
+	await composerPhotos(page).getByRole('button', { name: 'Open photo 1 of 3' }).focus();
+	await page.keyboard.press('Alt+ArrowLeft');
+	await page.waitForTimeout(300);
+	expect(await widths()).toEqual(['64', '96', '64']);
+});
+
 test('a press on a picked photo’s remove button never picks the photo up', async ({ page }) => {
 	await freshDiary(page, 'Remove press');
 	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());

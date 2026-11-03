@@ -216,6 +216,11 @@ export async function setTasty(id: string, on: boolean): Promise<void> {
 	});
 }
 
+/** Fetches a single recipe by its id. */
+export function getRecipe(id: string): Promise<Recipe> {
+	return api<Recipe>(`/recipes/${encodeURIComponent(id)}`);
+}
+
 /** Fetches a single recipe by its human-readable slug. */
 export function getRecipeBySlug(slug: string): Promise<Recipe> {
 	return api<Recipe>(`/recipes/by-slug/${encodeURIComponent(slug)}`);

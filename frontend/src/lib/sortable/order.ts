@@ -10,24 +10,13 @@ export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
 }
 
 /**
- * Where Alt+`key` moves the item at `index`: Left/Right by one, Up/Down by a
- * row of `columns`, clamped to the list. `null` for any other key, or when
- * the item already stands at that end.
+ * Where Alt+`key` moves the item at `index`: Left and Up one place earlier,
+ * Right and Down one place later, clamped to the list (at an end it stays).
+ * `null` for any other key.
  */
-export function keyTarget(
-	index: number,
-	length: number,
-	key: string,
-	columns: number
-): number | null {
-	const steps: Record<string, number> = {
-		ArrowLeft: -1,
-		ArrowRight: 1,
-		ArrowUp: -columns,
-		ArrowDown: columns
-	};
+export function keyTarget(index: number, length: number, key: string): number | null {
+	const steps: Record<string, number> = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
 	const step = steps[key];
 	if (step === undefined) return null;
-	const to = Math.max(0, Math.min(index + step, length - 1));
-	return to === index ? null : to;
+	return Math.max(0, Math.min(index + step, length - 1));
 }

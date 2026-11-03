@@ -25,12 +25,15 @@
 		ACCEPTED_IMAGE_TYPES,
 		MAX_IMAGES,
 		deleteImage,
+		getRecipe,
 		imageUrl,
 		reorderImages,
 		uploadImage,
 		type Image
 	} from '#lib/api/recipes.js';
+	import { ApiError } from '#lib/api/client.js';
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
+	import ProgressRing from '#lib/components/ui/ProgressRing.svelte';
 	import { acceptFiles, uploadErrorMessage } from '#lib/images/pick.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { refusalOr } from '#lib/recipe/access.js';
@@ -82,6 +85,15 @@
 	// everything after that is this component's own state, kept in step
 	// with the server or with `pending`. In queued mode the tiles come back
 	// from `pending`, so a remount keeps the queue.
+	const storedTile = (image: Image, key = image.id): Tile => ({
+		key,
+		id: image.id,
+		url: imageUrl(recipeId as string, image.id, 'thumb'),
+		state: 'stored',
+		progress: 1,
+		width: image.width,
+		height: image.height
+	});
 	// svelte-ignore state_referenced_locally
 	let tiles = $state<Tile[]>(
 		recipeId === undefined
@@ -89,15 +101,7 @@
 					const key = newId();
 					return { key, id: key, url: URL.createObjectURL(file), file, ...rest };
 				})
-			: initialImages.map((image) => ({
-					key: image.id,
-					id: image.id,
-					url: imageUrl(recipeId as string, image.id, 'thumb'),
-					state: 'stored',
-					progress: 1,
-					width: image.width,
-					height: image.height
-				}))
+			: initialImages.map((image) => storedTile(image))
 	);
 	// The order the server holds, by tile key: a failed save goes back to it.
 	// svelte-ignore state_referenced_locally
@@ -208,22 +212,14 @@
 			await serial(async () => {
 				const image = await uploadImage(id, tile.file as File, (p) => (tile.progress = p));
 				revoke(tile);
-				Object.assign(tile, {
-					id: image.id,
-					url: imageUrl(id, image.id, 'thumb'),
-					file: undefined,
-					state: 'stored',
-					progress: 1,
-					width: image.width,
-					height: image.height
-				});
+				Object.assign(tile, { ...storedTile(image, key), file: undefined });
 				savedKeys = [...savedKeys, key];
 				// The server appended it after the photos it holds: stored
 				// tiles stay a prefix, ahead of a failed one still waiting.
 				const index = tiles.indexOf(tile);
 				const to = tiles.findIndex((t) => t.state !== 'stored');
 				if (index !== -1 && to !== -1 && to < index) {
-					await flip(grid as HTMLElement, () => (tiles = moveItem(tiles, index, to)));
+					await flip(grid, () => (tiles = moveItem(tiles, index, to)));
 				}
 			});
 		} catch (error) {
@@ -264,23 +260,53 @@
 				savedKeys = sent.map((tile) => tile.key);
 			});
 		} catch (err) {
+			toast.error(refusalOr(err, error));
+			// A 422: the server holds other photos than the ones sent (another
+			// member added or removed some), so `savedKeys` is stale too.
+			if (err instanceof ApiError && err.status === 422) {
+				await serial(reload).catch(() => {});
+				return;
+			}
 			// Back to what the server holds; tiles it does not know yet
 			// (uploading) stay at the end, in their order.
 			const rank = new Map(savedKeys.map((key, i) => [key, i]));
-			void flip(grid as HTMLElement, () => {
+			void flip(grid, () => {
 				tiles = tiles.toSorted(
 					(a, b) => (rank.get(a.key) ?? MAX_IMAGES) - (rank.get(b.key) ?? MAX_IMAGES)
 				);
 			});
-			toast.error(refusalOr(err, error));
 		}
+	}
+
+	/**
+	 * Shows the photos the server holds, in its order, keeping the tiles it
+	 * still knows; uploading and failed ones stay at the end. A pending
+	 * delete stays off the screen, or is dropped once the photo is gone.
+	 */
+	async function reload() {
+		const { images } = await getRecipe(recipeId as string);
+		const known = new Map(
+			[...tiles, ...pendingDeletes.values()].filter(onServer).map((t) => [t.id, t])
+		);
+		const held = new Set(images.map((image) => image.id));
+		for (const [key, tile] of pendingDeletes) {
+			if (!held.has(tile.id) && !deleting.has(key)) pendingDeletes.delete(key);
+		}
+		const all = images.map((image) => known.get(image.id) ?? storedTile(image));
+		savedKeys = all.map((tile) => tile.key);
+		await flip(grid, () => {
+			tiles = [
+				...all.filter((tile) => !pendingDeletes.has(tile.key)),
+				...tiles.filter((tile) => !onServer(tile))
+			];
+		});
 	}
 
 	/** A menu move: the same slide and settle ring as a drag, then announced and saved. */
 	function move(from: number, to: number, error = m.images_reorder_error()) {
 		const key = tiles[from].key;
 		const el = grid?.querySelector<HTMLElement>(`[data-sortable-key="${key}"]`) ?? null;
-		void flip(grid as HTMLElement, () => (tiles = moveItem(tiles, from, to)), { settle: el });
+		void flip(grid, () => (tiles = moveItem(tiles, from, to)), { settle: el });
 		announcement = m.images_moved({ position: to + 1 });
 		void saveOrder(error);
 	}
@@ -292,7 +318,7 @@
 	 */
 	function remove(index: number) {
 		const tile = tiles[index];
-		void flip(grid as HTMLElement, () => (tiles = tiles.filter((t) => t !== tile)));
+		void flip(grid, () => (tiles = tiles.filter((t) => t !== tile)));
 		syncPending();
 		if (tile.state === 'failed') {
 			revoke(tile);
@@ -318,7 +344,7 @@
 		const unsettled = tiles.findIndex((t) => t.state !== 'stored');
 		const prefix = unsettled === -1 ? tiles.length : unsettled;
 		const at = tile.state === 'stored' ? Math.min(index, prefix) : Math.max(index, prefix);
-		void flip(grid as HTMLElement, () => {
+		void flip(grid, () => {
 			tiles = tiles.toSpliced(at, 0, tile);
 		});
 		syncPending();
@@ -361,7 +387,7 @@
 				pendingDeletes.delete(key);
 				const rank = savedKeys.indexOf(key);
 				const at = tiles.filter((t) => onServer(t) && savedKeys.indexOf(t.key) < rank).length;
-				void flip(grid as HTMLElement, () => (tiles = tiles.toSpliced(at, 0, tile)));
+				void flip(grid, () => (tiles = tiles.toSpliced(at, 0, tile)));
 				toast.error(refusalOr(error, m.images_delete_error()));
 			})
 			.finally(() => deleting.delete(key));
@@ -466,12 +492,8 @@
 			use:sortable={{
 				keys: tiles.map((tile) => tile.key),
 				disabled: (key) => tiles.find((tile) => tile.key === key)?.state !== 'stored',
-				columns: () => getComputedStyle(grid as HTMLElement).gridTemplateColumns.split(' ').length,
 				onmove: (from, to) => {
-					void flip(
-						grid as HTMLElement,
-						() => (tiles = moveItem(tiles, from, Math.min(to, lastStored)))
-					);
+					void flip(grid, () => (tiles = moveItem(tiles, from, Math.min(to, lastStored))));
 				},
 				ondrop: () => void saveOrder(),
 				label: (_key, position) => m.images_moved({ position })
@@ -533,26 +555,8 @@
 						</button>
 
 						{#if tile.state === 'uploading'}
-							<!-- r=16: the circumference is 100.53, so the dash offset is the share left. -->
 							<div class="pointer-events-none absolute inset-0 grid place-items-center bg-overlay">
-								<svg
-									viewBox="0 0 40 40"
-									role="progressbar"
-									aria-label={m.images_uploading()}
-									aria-valuenow={Math.round(tile.progress * 100)}
-									class="size-10 -rotate-90 fill-none stroke-[3.5]"
-								>
-									<circle cx="20" cy="20" r="16" class="stroke-lightbox-foreground/35" />
-									<circle
-										cx="20"
-										cy="20"
-										r="16"
-										stroke-linecap="round"
-										stroke-dasharray="100.53"
-										stroke-dashoffset={100.53 * (1 - tile.progress)}
-										class="stroke-lightbox-foreground transition-[stroke-dashoffset] duration-200 motion-reduce:transition-none"
-									/>
-								</svg>
+								<ProgressRing progress={tile.progress} size={40} />
 							</div>
 						{:else}
 							<!-- Hidden while `flip` resizes the tile, or they stretch with it. -->

@@ -5,6 +5,8 @@ import { tick } from 'svelte';
 import { prefersReducedMotion } from 'svelte/motion';
 
 export const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
+/** How long a slide takes, in ms. */
+export const SLIDE = 220;
 
 /** The slide each item is running, so a new move starts from where it is now. */
 const running = new WeakMap<HTMLElement, Animation>();
@@ -17,12 +19,14 @@ const running = new WeakMap<HTMLElement, Animation>();
  * it slides, so the caller can hide what would stretch with it (a ×).
  * `settle` slides over the others and gets the settle ring once it lands.
  * Under reduced motion the moved items crossfade and nothing rings.
+ * Without a `container` (the list is gone) it only runs `change`.
  */
 export async function flip(
-	container: HTMLElement,
+	container: HTMLElement | undefined,
 	change: () => void,
-	{ duration = 220, settle = null }: { duration?: number; settle?: HTMLElement | null } = {}
+	{ settle = null }: { settle?: HTMLElement | null } = {}
 ): Promise<void> {
+	if (!container) return change();
 	const items = () => [...container.querySelectorAll<HTMLElement>('[data-sortable-key]')];
 	const first = new Map(items().map((el) => [el.dataset.sortableKey, el.getBoundingClientRect()]));
 	change();
@@ -55,7 +59,7 @@ export async function flip(
 					{ transformOrigin: '0 0', transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
 					{ transformOrigin: '0 0', transform: 'none' }
 				],
-				{ duration, easing: EASE }
+				{ duration: SLIDE, easing: EASE }
 			);
 		}
 		running.set(el, anim);
@@ -68,7 +72,7 @@ export async function flip(
 				if (el === settle) el.style.zIndex = '';
 			});
 	}
-	if (settle) ring(settle, duration);
+	if (settle) ring(settle, SLIDE);
 }
 
 /**

@@ -226,9 +226,8 @@
 				use:sortable={{
 					keys: photos.map((photo) => photo.key),
 					disabled: () => busy,
-					columns: () => 2,
 					onmove: (from, to) => {
-						if (collage) void flip(collage, () => (photos = moveItem(photos, from, to)));
+						void flip(collage, () => (photos = moveItem(photos, from, to)));
 					},
 					label: (_, position) => m.comments_photo_moved({ position, count: photos.length })
 				}}

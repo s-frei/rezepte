@@ -19,27 +19,22 @@ describe('moveItem', () => {
 });
 
 describe('keyTarget', () => {
-	test('up and down move by a row', () => {
-		expect(keyTarget(4, 8, 'ArrowUp', 3)).toBe(1);
-		expect(keyTarget(4, 8, 'ArrowDown', 3)).toBe(7);
+	test('left and up move one place earlier', () => {
+		expect(keyTarget(4, 8, 'ArrowLeft')).toBe(3);
+		expect(keyTarget(4, 8, 'ArrowUp')).toBe(3);
 	});
 
-	test('left and right move by one', () => {
-		expect(keyTarget(4, 8, 'ArrowLeft', 3)).toBe(3);
-		expect(keyTarget(4, 8, 'ArrowRight', 3)).toBe(5);
+	test('right and down move one place later', () => {
+		expect(keyTarget(4, 8, 'ArrowRight')).toBe(5);
+		expect(keyTarget(4, 8, 'ArrowDown')).toBe(5);
 	});
 
-	test('clamps a row step to the ends', () => {
-		expect(keyTarget(1, 8, 'ArrowUp', 3)).toBe(0);
-		expect(keyTarget(6, 8, 'ArrowDown', 3)).toBe(7);
-	});
-
-	test('returns null at an edge', () => {
-		expect(keyTarget(0, 8, 'ArrowLeft', 3)).toBeNull();
-		expect(keyTarget(7, 8, 'ArrowRight', 3)).toBeNull();
+	test('stays at an end', () => {
+		expect(keyTarget(0, 8, 'ArrowLeft')).toBe(0);
+		expect(keyTarget(7, 8, 'ArrowDown')).toBe(7);
 	});
 
 	test('returns null for any other key', () => {
-		expect(keyTarget(2, 8, 'Enter', 3)).toBeNull();
+		expect(keyTarget(2, 8, 'Enter')).toBeNull();
 	});
 });
