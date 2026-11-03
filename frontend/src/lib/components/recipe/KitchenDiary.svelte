@@ -4,7 +4,9 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
 	import Check from '@lucide/svelte/icons/check';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import Send from '@lucide/svelte/icons/send';
 	import { ApiError } from '#lib/api/client.js';
 	import {
@@ -57,6 +59,9 @@
 	let deleting = $state<Comment | null>(null);
 	let confirmOpen = $state(false);
 	let composer = $state<HTMLTextAreaElement>();
+	let picker = $state<DiaryPhotos>();
+	// The first photo that did not go up; tapping it sends again.
+	const failedAt = $derived(photos.findIndex((photo) => photo.failed));
 	// Read out after a send or a delete, which otherwise happen silently.
 	let announcement = $state('');
 	// The entry this visit just sent rises into place; nothing else does, so
@@ -110,8 +115,13 @@
 		return error instanceof ApiError && error.status === 422;
 	}
 
-	async function submit(event: SubmitEvent) {
+	function submit(event: SubmitEvent) {
 		event.preventDefault();
+		void send();
+	}
+
+	/** Send, and the retry of a failed photo: uploads what is not up yet, then posts. */
+	async function send() {
 		if (blocked) return;
 		busy = true;
 		const sent = draft;
@@ -278,12 +288,15 @@
 
 	<!-- One notepad: the field and its send button share the box, which
 	     carries the field's focus ring. -->
-	<form class="mt-5" onsubmit={submit}>
+	<form class="mt-5" onsubmit={submit} onpaste={(event) => picker?.paste(event)}>
+		<!-- With photos the collage runs nearly edge to edge and the text starts flush under it. -->
 		<div
-			class="flex flex-wrap items-end gap-2 rounded-3xl border border-border bg-surface-elevated py-1.5 pr-1.5 pl-4 shadow-card has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary md:py-2 md:pr-2 md:pl-4.5"
+			class="flex flex-wrap items-end gap-x-2 gap-y-1 rounded-3xl border border-border bg-surface-elevated shadow-card has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary {photos.length
+				? 'p-2.5 pb-1.5'
+				: 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
 		>
-			<!-- The tiles take a row of their own above; the picker sits before the field. -->
-			<DiaryPhotos bind:photos {busy} />
+			<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
+			<DiaryPhotos bind:this={picker} bind:photos {busy} onretry={send} />
 			<DiaryField
 				bind:value={draft}
 				bind:element={composer}
@@ -291,23 +304,37 @@
 				label={photos.length ? m.diary_placeholder_photo() : m.diary_placeholder()}
 				describedby={fine ? hintId : undefined}
 				plain
+				class={photos.length ? 'pl-1.5' : ''}
 			/>
-			<!-- A round icon on a phone, the icon and its word from md; the
-			     upload count shows on every screen while photos go up. -->
+			<!-- A round icon on a phone, the icon and its word from md; while
+			     photos go up it spins, and the collage shows each one's state. -->
 			<Button
 				type="submit"
 				size="sm"
 				disabled={blocked}
-				class="shrink-0 whitespace-nowrap {progress ? '' : 'max-md:size-9 max-md:px-0'}"
+				class="shrink-0 whitespace-nowrap max-md:size-9 max-md:px-0"
 			>
-				<Send class="size-[18px]" aria-hidden="true" />
-				<span class={progress ? '' : 'max-md:sr-only'}>
+				{#if progress}
+					<LoaderCircle
+						class="size-[18px] animate-spin motion-reduce:animate-none"
+						aria-hidden="true"
+					/>
+				{:else}
+					<Send class="size-[18px]" aria-hidden="true" />
+				{/if}
+				<span class="max-md:sr-only">
 					{progress
 						? m.diary_sending_photo({ n: progress.n, count: progress.count })
 						: m.diary_add()}
 				</span>
 			</Button>
 		</div>
+		{#if failedAt >= 0 && !busy}
+			<p role="alert" class="mt-2 ml-4 flex gap-1.5 text-body-sm text-destructive md:ml-4.5">
+				<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+				{m.comments_photo_failed({ number: failedAt + 1 })}
+			</p>
+		{/if}
 		<!-- Only true with a keyboard and mouse: on a touch screen Enter breaks the line. -->
 		<p id={hintId} class="mt-2 ml-4 hidden text-micro text-text-muted md:ml-4.5 pointer-fine:block">
 			{m.diary_hint()}

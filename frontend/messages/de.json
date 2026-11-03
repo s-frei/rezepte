@@ -451,6 +451,11 @@
 	"diary_photo_remove": "Foto {n} entfernen",
 	"diary_photos_limit": "Bis zu {count} Fotos pro Kommentar",
 	"diary_sending_photo": "Foto {n} von {count} …",
+	"comments_photos_hint_touch": "{count}/{max} · Zum Sortieren halten und ziehen",
+	"comments_photos_hint_mouse": "{count}/{max} · Zum Sortieren ziehen",
+	"comments_photo_failed": "Foto {number} konnte nicht hochgeladen werden. Tippe darauf, um es nochmal zu versuchen.",
+	"comments_photo_uploaded": "Hochgeladen",
+	"comments_photo_moved": "Foto an Stelle {position} von {count} verschoben",
 
 	"cook_back": "Zurück zum Rezept",
 	"cook_step_counter": "Schritt {number} von {count}",

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
 	addDiaryPhoto,
 	createRecipe,
@@ -332,13 +332,19 @@ for (const status of [500, 422]) {
 		});
 		await diary(page).getByPlaceholder('Something about your photo?').fill('Two shots');
 		await diary(page).getByRole('button', { name: 'Send' }).click();
-		await expect(page.getByText('Photo could not be uploaded.').first()).toBeVisible();
+		const failed = pending.getByRole('button', { name: /could not be uploaded/ });
+		await expect(failed).toHaveCount(1);
 		await expect(
-			pending.getByRole('listitem').nth(1).getByText('Photo could not be uploaded.')
-		).toHaveCount(1);
+			pending
+				.getByRole('listitem')
+				.nth(1)
+				.getByRole('button', { name: /^Photo 2 could not/ })
+		).toBeVisible();
 		await expect(
-			pending.getByRole('listitem').nth(0).getByText('Photo could not be uploaded.')
-		).toHaveCount(0);
+			diary(page)
+				.getByRole('alert')
+				.getByText('Photo 2 could not be uploaded. Tap it to try again.')
+		).toBeVisible();
 		expect(uploads).toBe(2);
 
 		await diary(page).getByRole('button', { name: 'Send' }).click();
@@ -384,6 +390,157 @@ test('a comment refused for a gone photo reloads the diary and uploads it again'
 	await diary(page).getByRole('button', { name: 'Send' }).click();
 	await expect(entries(page)).toHaveCount(2);
 	expect(uploads).toBe(2);
+});
+
+/** The composer's photos, apart from the posted comments' collages. */
+const composerPhotos = (page: Page) =>
+	diary(page)
+		.locator('form', { has: page.getByRole('button', { name: 'Send' }) })
+		.getByRole('list', { name: 'Photos in this comment' });
+
+/** Drags `from` onto `to` with a mouse, in steps, so the sortable sees the way. */
+async function drag(page: Page, from: Locator, to: Locator) {
+	// Both ends on screen: a press outside the viewport never lands.
+	await to.scrollIntoViewIfNeeded();
+	await from.scrollIntoViewIfNeeded();
+	const a = (await from.boundingBox())!;
+	const b = (await to.boundingBox())!;
+	const [ax, ay, bx, by] = [
+		a.x + a.width / 2,
+		a.y + a.height / 2,
+		b.x + b.width / 2,
+		b.y + b.height / 2
+	];
+	await page.mouse.move(ax, ay);
+	await page.mouse.down();
+	for (let i = 1; i <= 12; i++)
+		await page.mouse.move(ax + ((bx - ax) * i) / 12, ay + ((by - ay) * i) / 12);
+	await page.mouse.up();
+	// The drop glides and rings; the sortable eats the click of its own
+	// pointerup for 100ms, so the next click waits for the motion to end.
+	await expect
+		.poll(() => to.locator('xpath=..').evaluate((el) => el.getAnimations({ subtree: true }).length))
+		.toBe(0);
+}
+
+/** Three photos told apart by their size: 64x64, 64x96, 96x64. */
+const threeShapes = () => [
+	{ name: 'square.png', mimeType: 'image/png', buffer: tinyPng([200, 120, 40], 64, 64) },
+	{ name: 'tall.png', mimeType: 'image/png', buffer: tinyPng([40, 120, 200], 64, 96) },
+	{ name: 'wide.png', mimeType: 'image/png', buffer: tinyPng([90, 160, 90], 96, 64) }
+];
+
+async function postedWidths(page: Page, recipeId: string, body: string) {
+	const listed = await page.request.get(`/api/v1/comments?recipeId=${recipeId}`);
+	const { comments } = (await listed.json()) as {
+		comments: { body: string; images: { width: number }[] }[];
+	};
+	return comments.find((c) => c.body === body)!.images.map((i) => i.width);
+}
+
+test('reorders picked photos and posts them in that order', async ({ page }) => {
+	const recipe = await freshDiary(page, 'Collage');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
+	const cells = composerPhotos(page).getByRole('listitem');
+	await expect(cells).toHaveCount(3);
+	await expect(cells.first().locator('img')).toHaveAttribute('width', '64');
+
+	// Photo 3 onto the large cell: it grows into it, the others move along.
+	await drag(page, cells.nth(2), cells.nth(0));
+	await expect(cells.first().locator('img')).toHaveAttribute('width', '96');
+	await expect(cells.nth(1).locator('img')).toHaveAttribute('height', '64');
+	await expect(cells.nth(1).locator('img')).toHaveAttribute('width', '64');
+
+	await diary(page).getByPlaceholder('Something about your photo?').fill('Wide first');
+	await diary(page).getByRole('button', { name: 'Send' }).click();
+	const entry = entries(page).filter({ hasText: 'Wide first' });
+	await expect(entry.getByRole('button', { name: 'Open photo 3 of 3' })).toBeVisible();
+	await expect(entry.locator('img').first()).toHaveAttribute('width', '96');
+	expect(await postedWidths(page, recipe.id, 'Wide first')).toEqual([96, 64, 64]);
+
+	await page.reload();
+	await diaryTab(page).click();
+	await expect(entries(page).locator('img').first()).toHaveAttribute('width', '96');
+});
+
+test('retrying a failed photo posts the comment', async ({ page }) => {
+	await freshDiary(page, 'Tap retry');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
+	let uploads = 0;
+	await page.route('**/comment-images', (route) =>
+		++uploads === 2 ? route.fulfill({ status: 500, json: { error: 'boom' } }) : route.fallback()
+	);
+	await diary(page).getByPlaceholder('Something about your photo?').fill('Third time lucky');
+	await diary(page).getByRole('button', { name: 'Send' }).click();
+	const retry = composerPhotos(page).getByRole('button', { name: /^Photo 2 could not/ });
+	await expect(retry).toBeVisible();
+	await expect(diary(page).getByRole('alert')).toHaveText(
+		'Photo 2 could not be uploaded. Tap it to try again.'
+	);
+	// The text and the other photos stay; tapping the photo sends without another Send.
+	await retry.click();
+	await expect(entries(page).filter({ hasText: 'Third time lucky' })).toHaveCount(1);
+	await expect(entries(page).getByRole('button', { name: 'Open photo 3 of 3' })).toBeVisible();
+	await expect(composerPhotos(page)).toHaveCount(0);
+	await expect(diary(page).getByRole('alert')).toHaveCount(0);
+	expect(uploads).toBe(4);
+});
+
+test('reorders the photos of a posted comment when editing', async ({ page }) => {
+	const recipe = await freshDiary(page, 'Edit order');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes().slice(0, 2));
+	await diary(page).getByPlaceholder('Something about your photo?').fill('Two of them');
+	await diary(page).getByRole('button', { name: 'Send' }).click();
+	const entry = entries(page);
+	await expect(entry.getByRole('button', { name: 'Open photo 2 of 2' })).toBeVisible();
+	await expect(entry.getByText('edited')).toHaveCount(0);
+
+	await entry.getByRole('button', { name: 'Comment options' }).click();
+	await page.getByRole('menuitem', { name: 'Edit' }).click();
+	const form = diary(page)
+		.getByRole('listitem')
+		.filter({ has: page.getByRole('textbox', { name: 'Your comment' }) });
+	const cells = form.getByRole('list', { name: 'Photos in this comment' }).getByRole('listitem');
+	await expect(cells.first().locator('img')).toHaveAttribute('height', '64');
+	await drag(page, cells.nth(1), cells.nth(0));
+	await expect(cells.first().locator('img')).toHaveAttribute('height', '96');
+	await form.getByRole('button', { name: 'Save' }).click();
+
+	await expect(entry.getByText('edited')).toBeVisible();
+	await expect(entry.locator('img').first()).toHaveAttribute('height', '96');
+	await page.reload();
+	await diaryTab(page).click();
+	await expect(entries(page).locator('img').first()).toHaveAttribute('height', '96');
+	await expect(entries(page).getByText('edited')).toBeVisible();
+	expect(await postedWidths(page, recipe.id, 'Two of them')).toEqual([64, 64]);
+});
+
+test('pastes photos into the composer up to four', async ({ page }) => {
+	await freshDiary(page, 'Paste');
+	const field = diary(page).getByPlaceholder('What did you notice?');
+	const png = tinyPng().toString('base64');
+	await field.evaluate((el, data) => {
+		const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+		const transfer = new DataTransfer();
+		for (let i = 1; i <= 5; i++)
+			transfer.items.add(new File([bytes], `${i}.png`, { type: 'image/png' }));
+		el.dispatchEvent(
+			new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })
+		);
+	}, png);
+	await expect(composerPhotos(page).getByRole('listitem')).toHaveCount(4);
+	await expect(page.getByText('Up to 4 photos per comment')).toBeVisible();
+	await expect(diary(page).getByLabel('Add photos')).toBeDisabled();
+});
+
+test('shows a picked photo large before sending', async ({ page }) => {
+	await freshDiary(page, 'Preview');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
+	await composerPhotos(page).getByRole('button', { name: 'Open photo 2 of 3' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByText('2 / 3')).toBeVisible();
+	await expect(dialog.getByRole('link', { name: 'Download the original' })).toHaveCount(0);
+	await expect(dialog.getByRole('button', { name: 'Add to recipe photos' })).toHaveCount(0);
 });
 
 test('an edit cannot be cancelled while it saves', async ({ page }) => {

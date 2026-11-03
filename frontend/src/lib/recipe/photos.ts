@@ -4,11 +4,15 @@ import { uploadCommentImage, type CommentImage } from '#lib/api/comments.js';
  * One photo in a comment's composer or editor. A picked file carries `file`
  * and an object URL in `preview` until it is staged on Send; a photo the
  * comment already has carries only `staged` and its thumbnail URL.
+ * `progress` is its upload's fraction, 0 to 1; 1 once it is up.
  */
 export type PendingPhoto = {
 	key: string;
 	file?: File;
 	preview: string;
+	width: number;
+	height: number;
+	progress: number;
 	staged?: CommentImage;
 	failed?: boolean;
 };
@@ -17,7 +21,8 @@ export type PendingPhoto = {
  * Uploads every photo not yet staged, one after another, and returns the ids
  * of all of them in order. A photo that went up keeps `staged`, so after a
  * failure (which marks the photo `failed` and rethrows) a retry uploads only
- * the rest. `onprogress` counts the uploads, not the photos.
+ * the rest. `onprogress` counts the uploads, not the photos; each photo's
+ * own `progress` follows its upload.
  */
 export async function stagePhotos(
 	recipeId: string,
@@ -28,8 +33,14 @@ export async function stagePhotos(
 	for (const [i, photo] of todo.entries()) {
 		onprogress(i + 1, todo.length);
 		photo.failed = false;
+		photo.progress = 0;
 		try {
-			photo.staged = await uploadCommentImage(recipeId, photo.file as File);
+			photo.staged = await uploadCommentImage(
+				recipeId,
+				photo.file as File,
+				(f) => (photo.progress = f)
+			);
+			photo.progress = 1;
 		} catch (error) {
 			photo.failed = true;
 			throw error;
@@ -53,5 +64,6 @@ export function unstage(photos: PendingPhoto[]) {
 		if (!photo.file) continue;
 		photo.staged = undefined;
 		photo.failed = false;
+		photo.progress = 0;
 	}
 }

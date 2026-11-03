@@ -20,7 +20,8 @@
 		title,
 		images,
 		src = (imageId, variant) => imageUrl(recipeId, imageId, variant),
-		action
+		action,
+		download = true
 	}: {
 		open?: boolean;
 		/** Index into `images` of the picture on screen. */
@@ -33,6 +34,8 @@
 		src?: (imageId: string, variant: ImageVariant) => string;
 		/** Something to do with the picture on screen, in the header; it may take a row of its own. */
 		action?: Snippet<[index: number]>;
+		/** Offer the original for download; off for photos that are not on the server yet. */
+		download?: boolean;
 	} = $props();
 
 	const count = $derived(images.length);
@@ -136,14 +139,16 @@
 							<!-- `/images/...` is served by the Go binary, not by SvelteKit's
 							     router, so there is no route id for `resolve()` to take. -->
 							<!-- eslint-disable svelte/no-navigation-without-resolve -->
-							<a
-								href={src(current.id, 'original')}
-								download={`${title}-${index + 1}.jpg`}
-								aria-label={m.lightbox_download()}
-								class={iconButton}
-							>
-								<Download class="size-5" aria-hidden="true" />
-							</a>
+							{#if download}
+								<a
+									href={src(current.id, 'original')}
+									download={`${title}-${index + 1}.jpg`}
+									aria-label={m.lightbox_download()}
+									class={iconButton}
+								>
+									<Download class="size-5" aria-hidden="true" />
+								</a>
+							{/if}
 							<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							<Dialog.Close aria-label={m.lightbox_close()} class={iconButton}>
 								<X class="size-5" aria-hidden="true" />
