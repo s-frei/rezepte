@@ -561,11 +561,14 @@ test('two quick pastes stop at four photos', async ({ page }) => {
 });
 
 test('shows a picked photo large before sending', async ({ page }) => {
-	await freshDiary(page, 'Preview');
+	const recipe = await freshDiary(page, 'Preview');
 	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
 	await composerPhotos(page).getByRole('button', { name: 'Open photo 2 of 3' }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByText('2 / 3')).toBeVisible();
+	// Named after the recipe, as every lightbox is.
+	await expect(dialog).toHaveAccessibleName(recipe.title);
+	await expect(dialog).toHaveAccessibleDescription(`Photos of ${recipe.title}`);
 	await expect(dialog.getByRole('link', { name: 'Download the original' })).toHaveCount(0);
 	await expect(dialog.getByRole('button', { name: 'Add to recipe photos' })).toHaveCount(0);
 });

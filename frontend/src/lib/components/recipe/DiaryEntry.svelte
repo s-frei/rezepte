@@ -20,6 +20,7 @@
 	let {
 		entry,
 		recipeId,
+		title,
 		onsave,
 		ondelete,
 		onopenphoto
@@ -27,6 +28,8 @@
 		/** `canEdit` means the signed-in member wrote it: right-aligned, in their own color. */
 		entry: Comment;
 		recipeId: string;
+		/** The recipe's title, for the lightbox. */
+		title: string;
 		/** Saves a new body and the full set of photos; rejects when the save failed. */
 		onsave: (body: string, imageIds: string[]) => Promise<void>;
 		ondelete: () => void;
@@ -134,7 +137,7 @@
 			/>
 			<!-- Cancel drops the picked files; after a failed Save some may be up
 			     already, and the sweep takes those. While a save runs it waits. -->
-			<DiaryPhotos bind:this={picker} bind:photos {busy} onretry={save} />
+			<DiaryPhotos bind:this={picker} bind:photos {busy} {title} onretry={save} />
 			<div class="ml-auto flex gap-2">
 				<Button variant="ghost" disabled={busy} onclick={stopEdit}>{m.common_cancel()}</Button>
 				<Button type="submit" disabled={busy || !sendable(draft)} class="whitespace-nowrap">

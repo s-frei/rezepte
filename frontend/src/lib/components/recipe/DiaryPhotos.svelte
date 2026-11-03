@@ -19,12 +19,15 @@
 	let {
 		photos = $bindable(),
 		busy,
+		title,
 		onretry
 	}: {
 		/** Picked files wait here until the caller stages them on Send. */
 		photos: PendingPhoto[];
 		/** A send is running: nothing may be added, removed or moved. */
 		busy: boolean;
+		/** The recipe's title, for the lightbox. */
+		title: string;
 		/** A failed photo was tapped: send again, which uploads the rest and posts. */
 		onretry: () => void;
 	} = $props();
@@ -273,7 +276,7 @@
 	bind:open={viewing}
 	bind:index={shown}
 	recipeId=""
-	title={m.diary_photos()}
+	{title}
 	images={photos.map((photo) => ({ id: photo.key, width: photo.width, height: photo.height }))}
 	src={(id) => photos.find((photo) => photo.key === id)?.preview ?? ''}
 	download={false}

@@ -271,6 +271,7 @@
 					<DiaryEntry
 						{entry}
 						{recipeId}
+						{title}
 						onsave={(body, imageIds) => save(entry.id, body, imageIds)}
 						onopenphoto={(index) => openPhoto(entry, index)}
 						ondelete={() => {
@@ -296,7 +297,7 @@
 				: 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
 		>
 			<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
-			<DiaryPhotos bind:this={picker} bind:photos {busy} onretry={send} />
+			<DiaryPhotos bind:this={picker} bind:photos {busy} {title} onretry={send} />
 			<DiaryField
 				bind:value={draft}
 				bind:element={composer}
