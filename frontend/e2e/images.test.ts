@@ -552,3 +552,46 @@ test('queues images for a new recipe and uploads them on save', async ({ page })
 	await expect(page).toHaveURL(/\/recipes\/new-with-photo-/);
 	await expect(page.getByRole('img', { name: `Cover photo of ${title}` })).toBeVisible();
 });
+
+for (const leave of ['Cancel', 'Save']) {
+	test(`a photo removed before ${leave} is gone from the recipe page`, async ({ page }) => {
+		const { recipe } = await editorWithPhotos(page, 3);
+		// A slow delete: the recipe page loads while it is on its way unless
+		// the editor waits for it.
+		await page.route('**/api/v1/recipes/*/images/*', async (route) => {
+			if (route.request().method() === 'DELETE') {
+				await new Promise((resolve) => setTimeout(resolve, 500));
+			}
+			return route.continue();
+		});
+
+		await page.getByRole('button', { name: 'Photo 2 options' }).click();
+		await page.getByRole('menuitem', { name: 'Remove' }).click();
+		await expect(tiles(page)).toHaveCount(2);
+		await page.getByRole('button', { name: leave, exact: true }).click();
+
+		await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+		await expect(page.getByRole('button', { name: 'Open photo 1 of 2' })).toBeVisible();
+	});
+}
+
+test('a cover whose delete fails comes back as the cover', async ({ page }) => {
+	const { recipe, ids } = await editorWithPhotos(page, 3);
+	await page.route('**/api/v1/recipes/*/images/*', (route) =>
+		route.request().method() === 'DELETE'
+			? route.fulfill({ status: 500, json: { title: 'Internal Server Error', status: 500 } })
+			: route.continue()
+	);
+
+	await page.getByRole('button', { name: 'Photo 1 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(tiles(page)).toHaveCount(2);
+	// The delete goes out when the undo toast closes.
+	await expect(page.getByText('Photo could not be removed.')).toBeVisible({ timeout: 10_000 });
+
+	await expect(tiles(page)).toHaveCount(3);
+	expect(await order(page)).toEqual(ids);
+	const stored = (await (await page.request.get(`/api/v1/recipes/${recipe.id}`)).json()) as Recipe;
+	expect(stored.images[0].id).toBe(ids[0]);
+	await expect(tiles(page).first().getByText('Cover', { exact: true })).toBeVisible();
+});

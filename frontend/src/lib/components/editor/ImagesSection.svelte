@@ -217,6 +217,7 @@
 					width: image.width,
 					height: image.height
 				});
+				savedKeys = [...savedKeys, key];
 				// The server appended it after the photos it holds: stored
 				// tiles stay a prefix, ahead of a failed one still waiting.
 				const index = tiles.indexOf(tile);
@@ -355,9 +356,12 @@
 			savedKeys = savedKeys.filter((k) => k !== key);
 		})
 			.catch((error) => {
-				// Still on the server: show it again, where the server keeps it.
+				// Still on the server: show it again where the server keeps it,
+				// behind the stored tiles it ranks after there.
 				pendingDeletes.delete(key);
-				tiles = [...tiles.filter(onServer), tile, ...tiles.filter((t) => !onServer(t))];
+				const rank = savedKeys.indexOf(key);
+				const at = tiles.filter((t) => onServer(t) && savedKeys.indexOf(t.key) < rank).length;
+				void flip(grid as HTMLElement, () => (tiles = tiles.toSpliced(at, 0, tile)));
 				toast.error(refusalOr(error, m.images_delete_error()));
 			})
 			.finally(() => deleting.delete(key));
@@ -365,6 +369,15 @@
 
 	function flushDeletes(unloading = false) {
 		for (const key of [...pendingDeletes.keys()]) flushDelete(key, unloading);
+	}
+
+	/**
+	 * Sends every pending delete and resolves once the queue has settled, so
+	 * the page loaded next no longer shows them. Await it before leaving.
+	 */
+	export async function flush(): Promise<void> {
+		flushDeletes();
+		await lock;
 	}
 
 	function view(index: number) {

@@ -124,6 +124,8 @@
 	let sectionProgress = $state(0);
 	// Out of the images section, which owns the photos of a stored recipe.
 	let photoCount = $state(0);
+	// Its pending deletes are sent before leaving, or the next page still shows them.
+	let images = $state<ImagesSection>();
 	// The counter's words around the count, which is set in bold.
 	const photoCounter = m.images_counter({ count: '\u0000', max: MAX_IMAGES }).split('\u0000');
 
@@ -353,6 +355,7 @@
 			const recipe = await save(toInput(form), pendingFiles);
 			bypassGuard = true;
 			toast.success(m.editor_saved());
+			await images?.flush();
 			await goto(resolve('/recipes/[slug]', { slug: recipe.slug }));
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 422) {
@@ -372,11 +375,13 @@
 		}
 	}
 
-	function handleCancel() {
+	async function handleCancel() {
+		// A dirty form asks first: `discardChanges` flushes on the way out.
+		if (!dirty) await images?.flush();
 		void goto(cancelHref);
 	}
 
-	function discardChanges() {
+	async function discardChanges() {
 		bypassGuard = true;
 		const target = pendingUrl;
 		pendingUrl = null;
@@ -386,6 +391,7 @@
 		const href = target
 			? resolve(`${target.pathname.slice(1)}${target.search}${target.hash}` as Path)
 			: cancelHref;
+		await images?.flush();
 		void goto(href);
 	}
 
@@ -529,6 +535,7 @@
 					</span>
 				</h2>
 				<ImagesSection
+					bind:this={images}
 					recipeId={existing?.id}
 					title={form.title}
 					initialImages={existing?.images ?? []}
