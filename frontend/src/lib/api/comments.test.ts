@@ -53,13 +53,29 @@ it('sends imageIds only when given', async () => {
 	expect(sent(fetch)[1].body).toBe('{"body":"hi"}');
 });
 
-it('uploads a photo as multipart without a Content-Type', async () => {
-	const fetch = mockFetch(201, { id: 'i', width: 1, height: 1, inRecipe: false });
+it('uploads a photo as multipart over XHR without a Content-Type', async () => {
+	const calls: { method: string; url: string; headers: string[]; body: unknown }[] = [];
+	class Xhr {
+		upload = {};
+		status = 201;
+		responseText = '{"id":"i","width":1,"height":1,"inRecipe":false}';
+		onload?: () => void;
+		open(method: string, url: string) {
+			calls.push({ method, url, headers: [], body: null });
+		}
+		setRequestHeader(name: string) {
+			calls[0].headers.push(name);
+		}
+		send(body: unknown) {
+			calls[0].body = body;
+			queueMicrotask(() => this.onload?.());
+		}
+	}
+	vi.stubGlobal('XMLHttpRequest', Xhr);
 	await uploadCommentImage('r/1', new File(['x'], 'a.png', { type: 'image/png' }));
-	const [url, init] = sent(fetch);
-	expect(url).toContain('/recipes/r%2F1/comment-images');
-	expect(init.body).toBeInstanceOf(FormData);
-	expect(new Headers(init.headers).has('Content-Type')).toBe(false);
+	expect(calls[0].url).toContain('/recipes/r%2F1/comment-images');
+	expect(calls[0].body).toBeInstanceOf(FormData);
+	expect(calls[0].headers).not.toContain('Content-Type');
 });
 
 it('builds the photo URL', () => {

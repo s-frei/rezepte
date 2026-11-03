@@ -1,6 +1,7 @@
 import type { UserColor } from '#lib/user/color.js';
 import { buildListQuery, type ListQuery } from '#lib/recipe/query.js';
 import { api } from './client';
+import { uploadWithProgress } from './upload';
 
 // Contract types (binding for both the backend and the frontend, see
 // docs/superpowers/plans/2026-09-17-phase-3-recipe-core.md, "API contract").
@@ -249,10 +250,17 @@ export function imageUrl(recipeId: string, imageId: string, variant: ImageVarian
 }
 
 /** Uploads one image; the server appends it and makes it the cover if the recipe had none. */
-export function uploadImage(recipeId: string, file: File): Promise<Image> {
+export function uploadImage(
+	recipeId: string,
+	file: File,
+	onProgress?: (f: number) => void
+): Promise<Image> {
 	const body = new FormData();
 	body.append('file', file, file.name);
-	return api<Image>(`/recipes/${encodeURIComponent(recipeId)}/images`, { method: 'POST', body });
+	return uploadWithProgress<Image>(`/recipes/${encodeURIComponent(recipeId)}/images`, body, {
+		expect: 201,
+		onProgress
+	});
 }
 
 /** Deletes an image; the server promotes the next image to cover if needed. */

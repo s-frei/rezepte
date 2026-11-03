@@ -1,5 +1,6 @@
 import type { Image, ImageVariant, Person } from './recipes';
 import { api } from './client';
+import { uploadWithProgress } from './upload';
 
 /** Most photos one comment can carry. */
 export const MAX_COMMENT_IMAGES = 4;
@@ -49,13 +50,18 @@ export function editComment(id: number, body: string, imageIds?: string[]): Prom
 }
 
 /** Stages one photo for the member's next comment. */
-export function uploadCommentImage(recipeId: string, file: File): Promise<CommentImage> {
+export function uploadCommentImage(
+	recipeId: string,
+	file: File,
+	onProgress?: (f: number) => void
+): Promise<CommentImage> {
 	const body = new FormData();
 	body.append('file', file, file.name);
-	return api<CommentImage>(`/recipes/${encodeURIComponent(recipeId)}/comment-images`, {
-		method: 'POST',
-		body
-	});
+	return uploadWithProgress<CommentImage>(
+		`/recipes/${encodeURIComponent(recipeId)}/comment-images`,
+		body,
+		{ expect: 201, onProgress }
+	);
 }
 
 /** Like `imageUrl`, for a comment photo; same cookie and caching rules. */

@@ -56,7 +56,7 @@ export function isSignedOut(error: unknown): boolean {
  * browser context (see the `typeof window` guard at the call site) so tests
  * running in Node never hit this.
  */
-function redirectToLogin(): void {
+export function redirectToLogin(): void {
 	session.user = null;
 	const next = encodeURIComponent(window.location.pathname + window.location.search);
 	void goto(resolve(`login?next=${next}`));
