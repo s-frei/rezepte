@@ -19,15 +19,17 @@ RETURNING recipe_id, id;
 -- name: AttachCommentImages :execrows
 -- Only the caller's own photos of this recipe, staged or already on this
 -- comment, attach; callers compare the row count with the ids they sent.
+-- position is the id's index in ids.
 UPDATE comment_images
-SET comment_id = sqlc.arg(comment_id)
+SET comment_id = sqlc.arg(comment_id),
+    position = (SELECT CAST(j.key AS INTEGER) FROM json_each(sqlc.arg(ids)) j WHERE j.value = comment_images.id)
 WHERE id IN (SELECT value FROM json_each(sqlc.arg(ids)))
   AND recipe_id = sqlc.arg(recipe_id)
   AND uploader_id = sqlc.arg(uploader_id)
   AND (comment_id IS NULL OR comment_id = sqlc.arg(comment_id));
 
 -- name: ListCommentImageIDs :many
-SELECT id FROM comment_images WHERE comment_id = ? ORDER BY rowid;
+SELECT id FROM comment_images WHERE comment_id = ? ORDER BY position, rowid;
 
 -- name: DeleteCommentImages :many
 -- Drops the photos of a comment that are not in keep; the caller removes the files.
@@ -37,11 +39,11 @@ WHERE comment_id = sqlc.arg(comment_id)
 RETURNING id;
 
 -- name: ListCommentImagesForRecipe :many
--- Insertion order; staged photos are not part of any comment yet.
-SELECT * FROM comment_images WHERE recipe_id = ? AND comment_id IS NOT NULL ORDER BY rowid;
+-- The writer's order; staged photos are not part of any comment yet.
+SELECT * FROM comment_images WHERE recipe_id = ? AND comment_id IS NOT NULL ORDER BY position, rowid;
 
 -- name: ListCommentImagesForComment :many
-SELECT * FROM comment_images WHERE comment_id = ? ORDER BY rowid;
+SELECT * FROM comment_images WHERE comment_id = ? ORDER BY position, rowid;
 
 -- name: GetAttachedCommentImage :one
 SELECT * FROM comment_images WHERE id = ? AND recipe_id = ? AND comment_id IS NOT NULL;

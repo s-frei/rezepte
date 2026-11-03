@@ -183,9 +183,9 @@ func (s *Service) AddComment(ctx context.Context, viewer user.User, recipeID, bo
 }
 
 // EditComment replaces the body of viewer's own entry id. A non-nil
-// imageIDs is the full set of photos it keeps: ones not in it are removed,
+// imageIDs is the full, ordered list of photos it keeps: ones not in it are removed,
 // new ones must be staged by viewer on the recipe; nil leaves the photos
-// alone. edited_at moves only when the body or the photo set changed, so a
+// alone. edited_at moves only when the body or the photos (their order included) changed, so a
 // no-op edit returns the entry as it was. The id stays, so an edit never
 // makes the entry new again for anyone.
 func (s *Service) EditComment(ctx context.Context, viewer user.User, id int64, body string, imageIDs *[]string) (Comment, error) {
@@ -215,7 +215,7 @@ func (s *Service) EditComment(ctx context.Context, viewer user.User, id int64, b
 			if err != nil {
 				return fmt.Errorf("list comment images: %w", err)
 			}
-			photosChanged = !slices.Equal(slices.Sorted(slices.Values(current)), slices.Sorted(slices.Values(*imageIDs)))
+			photosChanged = !slices.Equal(current, *imageIDs)
 		}
 		if photosChanged {
 			keep, err := json.Marshal(*imageIDs)

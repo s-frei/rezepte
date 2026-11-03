@@ -340,3 +340,51 @@ func TestCoverFirstMigration(t *testing.T) {
 		t.Fatalf("after down = %q, want %q", got, want)
 	}
 }
+
+// TestCommentImagePositionMigration numbers existing attached photos by
+// insertion order; Down drops the column.
+func TestCommentImagePositionMigration(t *testing.T) {
+	ctx := context.Background()
+	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	fsys, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.UpTo(ctx, 22); err != nil {
+		t.Fatalf("up to 22: %v", err)
+	}
+	for _, q := range []string{
+		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
+			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
+		`INSERT INTO recipes (id, slug, title, created_by, created_at, updated_by, updated_at)
+			VALUES ('r1', 'r', 'R', 'u1', 't', 'u1', 't')`,
+		`INSERT INTO recipe_comments (recipe_id, author_id, body, created_at) VALUES ('r1', 'u1', 'hi', 't')`,
+		`INSERT INTO comment_images (id, recipe_id, comment_id, uploader_id, width, height, size_bytes, created_at) VALUES
+			('x', 'r1', 1, 'u1', 10, 10, 100, 't'), ('y', 'r1', 1, 'u1', 10, 10, 100, 't')`,
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if _, err := provider.UpTo(ctx, 23); err != nil {
+		t.Fatalf("up to 23: %v", err)
+	}
+	var got string
+	if err := conn.QueryRowContext(ctx, `SELECT group_concat(id || position, ' ') FROM (SELECT * FROM comment_images ORDER BY position)`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != "x0 y1" {
+		t.Fatalf("positions = %q, want %q", got, "x0 y1")
+	}
+	if _, err := provider.DownTo(ctx, 22); err != nil {
+		t.Fatalf("down to 22: %v", err)
+	}
+}

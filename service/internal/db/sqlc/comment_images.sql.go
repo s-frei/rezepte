@@ -11,7 +11,8 @@ import (
 
 const attachCommentImages = `-- name: AttachCommentImages :execrows
 UPDATE comment_images
-SET comment_id = ?1
+SET comment_id = ?1,
+    position = (SELECT CAST(j.key AS INTEGER) FROM json_each(?2) j WHERE j.value = comment_images.id)
 WHERE id IN (SELECT value FROM json_each(?2))
   AND recipe_id = ?3
   AND uploader_id = ?4
@@ -27,6 +28,7 @@ type AttachCommentImagesParams struct {
 
 // Only the caller's own photos of this recipe, staged or already on this
 // comment, attach; callers compare the row count with the ids they sent.
+// position is the id's index in ids.
 func (q *Queries) AttachCommentImages(ctx context.Context, arg AttachCommentImagesParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, attachCommentImages,
 		arg.CommentID,
@@ -111,7 +113,7 @@ func (q *Queries) DeleteOldestStagedCommentImage(ctx context.Context, uploaderID
 }
 
 const getAttachedCommentImage = `-- name: GetAttachedCommentImage :one
-SELECT id, recipe_id, comment_id, uploader_id, recipe_image_id, width, height, size_bytes, created_at FROM comment_images WHERE id = ? AND recipe_id = ? AND comment_id IS NOT NULL
+SELECT id, recipe_id, comment_id, uploader_id, recipe_image_id, width, height, size_bytes, created_at, position FROM comment_images WHERE id = ? AND recipe_id = ? AND comment_id IS NOT NULL
 `
 
 type GetAttachedCommentImageParams struct {
@@ -132,6 +134,7 @@ func (q *Queries) GetAttachedCommentImage(ctx context.Context, arg GetAttachedCo
 		&i.Height,
 		&i.SizeBytes,
 		&i.CreatedAt,
+		&i.Position,
 	)
 	return i, err
 }
@@ -166,7 +169,7 @@ func (q *Queries) InsertCommentImage(ctx context.Context, arg InsertCommentImage
 }
 
 const listCommentImageIDs = `-- name: ListCommentImageIDs :many
-SELECT id FROM comment_images WHERE comment_id = ? ORDER BY rowid
+SELECT id FROM comment_images WHERE comment_id = ? ORDER BY position, rowid
 `
 
 func (q *Queries) ListCommentImageIDs(ctx context.Context, commentID *int64) ([]string, error) {
@@ -193,7 +196,7 @@ func (q *Queries) ListCommentImageIDs(ctx context.Context, commentID *int64) ([]
 }
 
 const listCommentImagesForComment = `-- name: ListCommentImagesForComment :many
-SELECT id, recipe_id, comment_id, uploader_id, recipe_image_id, width, height, size_bytes, created_at FROM comment_images WHERE comment_id = ? ORDER BY rowid
+SELECT id, recipe_id, comment_id, uploader_id, recipe_image_id, width, height, size_bytes, created_at, position FROM comment_images WHERE comment_id = ? ORDER BY position, rowid
 `
 
 func (q *Queries) ListCommentImagesForComment(ctx context.Context, commentID *int64) ([]CommentImage, error) {
@@ -215,6 +218,7 @@ func (q *Queries) ListCommentImagesForComment(ctx context.Context, commentID *in
 			&i.Height,
 			&i.SizeBytes,
 			&i.CreatedAt,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}
@@ -230,10 +234,10 @@ func (q *Queries) ListCommentImagesForComment(ctx context.Context, commentID *in
 }
 
 const listCommentImagesForRecipe = `-- name: ListCommentImagesForRecipe :many
-SELECT id, recipe_id, comment_id, uploader_id, recipe_image_id, width, height, size_bytes, created_at FROM comment_images WHERE recipe_id = ? AND comment_id IS NOT NULL ORDER BY rowid
+SELECT id, recipe_id, comment_id, uploader_id, recipe_image_id, width, height, size_bytes, created_at, position FROM comment_images WHERE recipe_id = ? AND comment_id IS NOT NULL ORDER BY position, rowid
 `
 
-// Insertion order; staged photos are not part of any comment yet.
+// The writer's order; staged photos are not part of any comment yet.
 func (q *Queries) ListCommentImagesForRecipe(ctx context.Context, recipeID string) ([]CommentImage, error) {
 	rows, err := q.db.QueryContext(ctx, listCommentImagesForRecipe, recipeID)
 	if err != nil {
@@ -253,6 +257,7 @@ func (q *Queries) ListCommentImagesForRecipe(ctx context.Context, recipeID strin
 			&i.Height,
 			&i.SizeBytes,
 			&i.CreatedAt,
+			&i.Position,
 		); err != nil {
 			return nil, err
 		}

@@ -26,6 +26,7 @@ type CommentImage struct {
 	Height        int64
 	SizeBytes     int64
 	CreatedAt     string
+	Position      int64
 }
 
 type EmailConfirmation struct {

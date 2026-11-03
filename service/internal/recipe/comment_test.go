@@ -483,15 +483,15 @@ func TestCommentWithPhotos(t *testing.T) {
 	a, b := stagePhoto(t, "", r.ID, jana), stagePhoto(t, "", r.ID, jana)
 
 	c := must(svc.AddComment(ctx, jana, r.ID, "Mit Bild", []string{b, a}))(t)
-	if got := photoIDs(c); !slices.Equal(got, []string{a, b}) {
-		t.Fatalf("images %v, want insertion order %v", got, []string{a, b})
+	if got := photoIDs(c); !slices.Equal(got, []string{b, a}) {
+		t.Fatalf("images %v, want the sent order %v", got, []string{b, a})
 	}
 	if img := c.Images[0]; img.Width != 800 || img.Height != 600 || img.InRecipe {
 		t.Fatalf("image: %+v", img)
 	}
 	plain := must(svc.AddComment(ctx, jana, r.ID, "Ohne", nil))(t)
 	list := must(svc.Comments(ctx, adminActor(adminID), r.ID))(t)
-	if len(list) != 2 || !slices.Equal(photoIDs(list[0]), []string{a, b}) || list[1].ID != plain.ID {
+	if len(list) != 2 || !slices.Equal(photoIDs(list[0]), []string{b, a}) || list[1].ID != plain.ID {
 		t.Fatalf("list: %+v", list)
 	}
 	out, err := json.Marshal(list[1])
@@ -549,8 +549,8 @@ func TestEditCommentPhotos(t *testing.T) {
 	keep, drop, third := stagePhoto(t, base, r.ID, jana), stagePhoto(t, base, r.ID, jana), stagePhoto(t, base, r.ID, jana)
 	c := must(svc.AddComment(ctx, jana, r.ID, "Drei Bilder", []string{keep, drop, third}))(t)
 
-	// The same body and photos change nothing, not even editedAt.
-	if noop := must(svc.EditComment(ctx, jana, c.ID, "Drei Bilder", &[]string{third, keep, drop}))(t); noop.EditedAt != nil {
+	// The same body and photos in the same order change nothing, not even editedAt.
+	if noop := must(svc.EditComment(ctx, jana, c.ID, "Drei Bilder", &[]string{keep, drop, third}))(t); noop.EditedAt != nil {
 		t.Fatalf("no-op edit set editedAt: %+v", noop)
 	}
 
@@ -619,5 +619,41 @@ func TestDeleteCommentRemovesPhotoFiles(t *testing.T) {
 		if exists(t, recipe.CommentImageDir(base, r.ID, id)) {
 			t.Fatalf("deleted by %s: directory still there", actor.Role)
 		}
+	}
+}
+
+func TestAddCommentKeepsPhotoOrder(t *testing.T) {
+	ctx := context.Background()
+	svc, adminID := setup(t)
+	jana := member(t, "jana")
+	r := must(svc.Create(ctx, adminID, loadFixtures(t)[0]))(t)
+	a, b, c := stagePhoto(t, "", r.ID, jana), stagePhoto(t, "", r.ID, jana), stagePhoto(t, "", r.ID, jana)
+
+	added := must(svc.AddComment(ctx, jana, r.ID, "Reihenfolge", []string{c, a, b}))(t)
+	want := []string{c, a, b}
+	if got := photoIDs(added); !slices.Equal(got, want) {
+		t.Fatalf("added %v, want %v", got, want)
+	}
+	if list := must(svc.Comments(ctx, jana, r.ID))(t); !slices.Equal(photoIDs(list[0]), want) {
+		t.Fatalf("listed %v, want %v", photoIDs(list[0]), want)
+	}
+}
+
+func TestEditCommentReorderIsAnEdit(t *testing.T) {
+	ctx := context.Background()
+	svc, adminID := setup(t)
+	jana := member(t, "jana")
+	r := must(svc.Create(ctx, adminID, loadFixtures(t)[0]))(t)
+	a, b := stagePhoto(t, "", r.ID, jana), stagePhoto(t, "", r.ID, jana)
+	c := must(svc.AddComment(ctx, jana, r.ID, "Zwei", []string{a, b}))(t)
+
+	swapped := must(svc.EditComment(ctx, jana, c.ID, "Zwei", &[]string{b, a}))(t)
+	if !slices.Equal(photoIDs(swapped), []string{b, a}) || swapped.EditedAt == nil {
+		t.Fatalf("reordered: %+v", swapped)
+	}
+	svc.SetClock(func() time.Time { return time.Now().Add(time.Hour) })
+	again := must(svc.EditComment(ctx, jana, c.ID, "Zwei", &[]string{b, a}))(t)
+	if !again.EditedAt.Equal(*swapped.EditedAt) {
+		t.Fatalf("same order moved editedAt: %v, want %v", again.EditedAt, swapped.EditedAt)
 	}
 }
