@@ -397,6 +397,48 @@ test('removes for good when the toast closes, also when reordered meanwhile', as
 	expect(await order(page)).toEqual([three, one]);
 });
 
+test('names a removed photo in an order saved before its delete', async ({ page, isMobile }) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+	// An upload holds the queue, so the order save and then the delete
+	// line up behind it.
+	let release!: () => void;
+	const held = new Promise<void>((resolve) => (release = resolve));
+	await page.route('**/api/v1/recipes/*/images', async (route) => {
+		if (route.request().method() === 'POST') await held;
+		return route.continue();
+	});
+	let deletes = 0;
+	page.on('request', (request) => {
+		if (request.method() === 'DELETE') deletes++;
+	});
+
+	await page
+		.getByLabel('Choose photos')
+		.setInputFiles([{ name: 'late.png', mimeType: 'image/png', buffer: tinyPng([10, 200, 90]) }]);
+	await page.getByRole('button', { name: 'Photo 2 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await drag(page, isMobile, tiles(page).nth(1), tiles(page).nth(0));
+	await expect(page.getByText('Photo removed')).toBeHidden({ timeout: 10_000 });
+
+	const saved = page.waitForRequest(isOrderSave);
+	const deleted = page.waitForResponse((response) => response.request().method() === 'DELETE');
+	release();
+	const body = (await saved).postDataJSON() as { imageIds: string[] };
+	expect(body.imageIds.slice(0, 2)).toEqual([three, one]);
+	expect(body.imageIds).toHaveLength(4);
+	expect(body.imageIds.at(-1)).toBe(two);
+	expect((await deleted).ok()).toBeTruthy();
+
+	await expect(tiles(page).locator('img[src^="/images/"]')).toHaveCount(3);
+	await page.waitForTimeout(500);
+	expect(deletes).toBe(1);
+	await expect(page.getByText('The new order could not be saved.')).toHaveCount(0);
+	await page.reload();
+	await expect(tiles(page)).toHaveCount(3);
+	expect((await order(page)).slice(0, 2)).toEqual([three, one]);
+});
+
 test('sends a pending removal when leaving the editor', async ({ page }) => {
 	const { recipe } = await editorWithPhotos(page, 3);
 	const stored = async () =>
@@ -439,6 +481,21 @@ test('pastes photos and refuses what exceeds the limit', async ({ page }) => {
 	await expect(page.getByText('No more than 20 photos.')).toBeVisible();
 	await expect(page.getByLabel('Choose photos')).toHaveCount(0);
 	await expect(tiles(page).locator('img[src^="/images/"]')).toHaveCount(20);
+});
+
+test('pastes photos while the page itself has the focus', async ({ page }) => {
+	await editorWithPhotos(page, 1);
+	const png = tinyPng([30, 160, 90]).toString('base64');
+	await page.evaluate((data) => {
+		const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+		const clipboard = new DataTransfer();
+		clipboard.items.add(new File([bytes], 'a.png', { type: 'image/png' }));
+		document.body.dispatchEvent(
+			new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true })
+		);
+	}, png);
+	await expect(tiles(page)).toHaveCount(2);
+	await expect(tiles(page).locator('img[src^="/images/"]')).toHaveCount(2);
 });
 
 test('makes a queued photo the cover of a new recipe', async ({ page }) => {

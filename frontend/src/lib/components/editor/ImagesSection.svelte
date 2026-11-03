@@ -6,7 +6,7 @@
 	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery, SvelteMap } from 'svelte/reactivity';
+	import { MediaQuery, SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { beforeNavigate } from '$app/navigation';
 	import { scale } from 'svelte/transition';
 	import { DropdownMenu } from 'bits-ui';
@@ -310,11 +310,13 @@
 	const toastIds = new SvelteMap<string, string | number>();
 
 	function undo(tile: Tile, index: number) {
-		if (!pendingDeletes.delete(tile.key)) return;
+		if (deleting.has(tile.key) || !pendingDeletes.delete(tile.key)) return;
 		toastIds.delete(tile.key);
-		// Back where it was, but never behind a tile the server does not hold.
+		// Back where it was, on its side of the stored prefix: a stored tile
+		// never behind one the server does not hold, any other never inside it.
 		const unsettled = tiles.findIndex((t) => t.state !== 'stored');
-		const at = Math.min(index, unsettled === -1 ? tiles.length : unsettled);
+		const prefix = unsettled === -1 ? tiles.length : unsettled;
+		const at = tile.state === 'stored' ? Math.min(index, prefix) : Math.max(index, prefix);
 		void flip(grid as HTMLElement, () => {
 			tiles = tiles.toSpliced(at, 0, tile);
 		});
@@ -324,30 +326,41 @@
 		if (now.join() !== savedKeys.join()) void saveOrder();
 	}
 
+	// Pending deletes whose request is queued or on its way. They stay in
+	// `pendingDeletes` until the server answers, so an order request queued
+	// ahead of the delete still names them (the server holds them till then).
+	const deleting = new SvelteSet<string>();
+
 	function flushDelete(key: string, unloading = false) {
 		const tile = pendingDeletes.get(key);
-		if (!tile) return;
-		pendingDeletes.delete(key);
+		if (!tile || (deleting.has(key) && !unloading)) return;
 		const toastId = toastIds.get(key);
 		toastIds.delete(key);
 		if (toastId !== undefined) toast.dismiss(toastId);
 		if (!onServer(tile)) {
+			pendingDeletes.delete(key);
 			revoke(tile);
 			return;
 		}
 		const id = recipeId as string;
 		if (unloading) {
+			pendingDeletes.delete(key);
 			void deleteImage(id, tile.id, { keepalive: true }).catch(() => {});
 			return;
 		}
+		deleting.add(key);
 		serial(async () => {
 			await deleteImage(id, tile.id);
+			pendingDeletes.delete(key);
 			savedKeys = savedKeys.filter((k) => k !== key);
-		}).catch((error) => {
-			// Still on the server: show it again, where the server keeps it.
-			tiles = [...tiles.filter(onServer), tile, ...tiles.filter((t) => !onServer(t))];
-			toast.error(refusalOr(error, m.images_delete_error()));
-		});
+		})
+			.catch((error) => {
+				// Still on the server: show it again, where the server keeps it.
+				pendingDeletes.delete(key);
+				tiles = [...tiles.filter(onServer), tile, ...tiles.filter((t) => !onServer(t))];
+				toast.error(refusalOr(error, m.images_delete_error()));
+			})
+			.finally(() => deleting.delete(key));
 	}
 
 	function flushDeletes(unloading = false) {
@@ -367,10 +380,7 @@
 		input.value = '';
 	}
 
-	/**
-	 * The whole section card takes dropped files, carrying `data-dropping`
-	 * while they hover, and pasted ones while the focus is inside it.
-	 */
+	/** The whole section card takes dropped files; it carries `data-dropping` while they hover. */
 	function dropTarget(node: HTMLElement) {
 		const section = node.closest('section') ?? node;
 		const set = (on: boolean) => {
@@ -391,22 +401,36 @@
 			set(false);
 			if (event.dataTransfer?.files) addFiles(event.dataTransfer.files);
 		};
-		const paste = (event: ClipboardEvent) => {
-			const files = event.clipboardData?.files;
-			if (!files?.length) return;
-			event.preventDefault();
-			addFiles(files);
-		};
-		section.addEventListener('paste', paste);
 		section.addEventListener('dragover', over);
 		section.addEventListener('dragleave', leave);
 		section.addEventListener('drop', drop);
 		return () => {
-			section.removeEventListener('paste', paste);
 			section.removeEventListener('dragover', over);
 			section.removeEventListener('dragleave', leave);
 			section.removeEventListener('drop', drop);
 		};
+	}
+
+	/**
+	 * Pasted image files land here wherever the editor has the focus, except
+	 * in a text field: Safari focuses no button on click, so the focus is
+	 * often on the page itself, not in this section.
+	 */
+	function onpaste(event: ClipboardEvent) {
+		const target = event.target;
+		if (
+			target instanceof HTMLInputElement ||
+			target instanceof HTMLTextAreaElement ||
+			(target instanceof HTMLElement && target.isContentEditable)
+		) {
+			return;
+		}
+		const files = [...(event.clipboardData?.files ?? [])].filter((file) =>
+			file.type.startsWith('image/')
+		);
+		if (files.length === 0) return;
+		event.preventDefault();
+		addFiles(files);
 	}
 
 	function lightboxSrc(imageId: string, variant: 'thumb' | 'detail' | 'original') {
@@ -417,6 +441,8 @@
 	const menuItem =
 		'flex min-h-10 items-center gap-2.5 rounded-sm px-2.5 text-body-sm font-medium outline-none data-disabled:opacity-40 data-highlighted:bg-accent data-highlighted:text-accent-foreground';
 </script>
+
+<svelte:window {onpaste} />
 
 <div {@attach dropTarget}>
 	<p class="mb-3.5 text-caption text-text-muted">{hint}</p>
