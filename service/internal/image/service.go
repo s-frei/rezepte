@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 	"uuid"
@@ -237,41 +236,8 @@ func (s *Service) Reorder(ctx context.Context, recipeID string, actor user.User,
 		if err != nil {
 			return fmt.Errorf("list images: %w", err)
 		}
-		byID := make(map[string]sqlc.Image, len(current))
-		for _, im := range current {
-			byID[im.ID] = im
-		}
-		if len(ids) != len(current) {
-			return ErrBadOrder
-		}
-		ordered := make([]sqlc.Image, 0, len(ids))
-		seen := make(map[string]bool, len(ids))
-		for _, id := range ids {
-			im, ok := byID[id]
-			if !ok || seen[id] {
-				return ErrBadOrder
-			}
-			seen[id] = true
-			ordered = append(ordered, im)
-		}
-		if err := renumber(ctx, q, recipeID, ordered); err != nil {
-			return err
-		}
-		// The cover is always the first photo; SetRecipeCover also records the editor.
-		now := db.FormatTime(s.now())
-		if len(ordered) == 0 {
-			if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
-				return fmt.Errorf("touch recipe: %w", err)
-			}
-		} else if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &ordered[0].ID, UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
-			return fmt.Errorf("set cover: %w", err)
-		}
-		out = make([]recipe.Image, len(ordered))
-		for i, im := range ordered {
-			im.Position = int64(i)
-			out[i] = toImage(im)
-		}
-		return nil
+		out, err = s.order(ctx, q, actor, recipeID, current, ids)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -279,9 +245,10 @@ func (s *Service) Reorder(ctx context.Context, recipeID string, actor user.User,
 	return out, nil
 }
 
-// SetCover makes imageID the cover of recipeID. The image must belong to
-// the recipe (ErrNotFound otherwise). actor is recorded as the recipe's
-// editor. Errors: ErrNotFound, recipe.ErrEditForbidden.
+// SetCover makes imageID the cover of recipeID: it moves it to the front,
+// like Reorder. The image must belong to the recipe (ErrNotFound
+// otherwise). actor is recorded as the recipe's editor. Errors:
+// ErrNotFound, recipe.ErrEditForbidden.
 func (s *Service) SetCover(ctx context.Context, recipeID, imageID string, actor user.User) error {
 	if !IsID(recipeID) || !IsID(imageID) {
 		return ErrNotFound
@@ -294,21 +261,60 @@ func (s *Service) SetCover(ctx context.Context, recipeID, imageID string, actor 
 		if err != nil {
 			return fmt.Errorf("list images: %w", err)
 		}
-		i := slices.IndexFunc(current, func(im sqlc.Image) bool { return im.ID == imageID })
-		if i < 0 {
+		ids := []string{imageID}
+		for _, im := range current {
+			if im.ID != imageID {
+				ids = append(ids, im.ID)
+			}
+		}
+		// Nothing was left out: imageID is not one of the recipe's.
+		if len(ids) > len(current) {
 			return ErrNotFound
 		}
-		target := current[i]
-		ordered := append([]sqlc.Image{target}, slices.Delete(current, i, i+1)...)
-		if err := renumber(ctx, q, recipeID, ordered); err != nil {
-			return err
-		}
-		id := imageID
-		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: actor.ID, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
-			return fmt.Errorf("set cover: %w", err)
-		}
-		return nil
+		_, err = s.order(ctx, q, actor, recipeID, current, ids)
+		return err
 	})
+}
+
+// order puts current, the recipe's images, in the order of ids, which must
+// name each of them once (ErrBadOrder otherwise), and makes the first the
+// cover. actor is recorded as the recipe's editor.
+func (s *Service) order(ctx context.Context, q *sqlc.Queries, actor user.User, recipeID string, current []sqlc.Image, ids []string) ([]recipe.Image, error) {
+	byID := make(map[string]sqlc.Image, len(current))
+	for _, im := range current {
+		byID[im.ID] = im
+	}
+	if len(ids) != len(current) {
+		return nil, ErrBadOrder
+	}
+	ordered := make([]sqlc.Image, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		im, ok := byID[id]
+		if !ok || seen[id] {
+			return nil, ErrBadOrder
+		}
+		seen[id] = true
+		ordered = append(ordered, im)
+	}
+	if err := renumber(ctx, q, recipeID, ordered); err != nil {
+		return nil, err
+	}
+	// The cover is always the first photo; SetRecipeCover also records the editor.
+	now := db.FormatTime(s.now())
+	if len(ordered) == 0 {
+		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
+			return nil, fmt.Errorf("touch recipe: %w", err)
+		}
+	} else if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &ordered[0].ID, UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
+		return nil, fmt.Errorf("set cover: %w", err)
+	}
+	out := make([]recipe.Image, len(ordered))
+	for i, im := range ordered {
+		im.Position = int64(i)
+		out[i] = toImage(im)
+	}
+	return out, nil
 }
 
 // Open returns the file of one variant ("thumb", "detail" or "original")
