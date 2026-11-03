@@ -182,3 +182,37 @@ test("an admin sees another admin's token only in the household view", async ({ 
 		list.getByRole('list', { name: 'API tokens' }).getByRole('heading', { level: 3 })
 	).toHaveText([theirs]);
 });
+
+test('a Shopping lists token reaches the lists API', async ({ page, request }) => {
+	const name = `lists-${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/api');
+	await page.getByRole('button', { name: 'Create token' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByLabel('Name').fill(name);
+	await dialog
+		.getByRole('radiogroup', { name: 'Shopping lists' })
+		.getByRole('radio', { name: 'Write' })
+		.click();
+	await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+
+	const reveal = page.getByRole('dialog');
+	const secret = reveal.getByText(/^rzp_/);
+	await expect(secret).toBeVisible();
+	const raw = (await secret.textContent()) ?? '';
+	await reveal.getByRole('button', { name: 'I have saved it' }).click();
+
+	const row = page
+		.getByRole('list', { name: 'API tokens' })
+		.getByRole('listitem')
+		.filter({ hasText: name });
+	await expect(row.getByRole('listitem').filter({ hasText: 'Shopping lists' })).toContainText(
+		'Write'
+	);
+
+	const res = await request.get('/api/v1/shopping-lists', {
+		headers: { Authorization: `Bearer ${raw}` }
+	});
+	expect(res.status()).toBe(200);
+});

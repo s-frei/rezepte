@@ -39,7 +39,8 @@
 		return (
 			[
 				[m.tokens_access_recipes(), levels.recipes, ['none', 'read', 'write', 'delete']],
-				[m.tokens_access_users(), levels.users, ['none', 'read', 'write']]
+				[m.tokens_access_users(), levels.users, ['none', 'read', 'write']],
+				[m.tokens_access_lists(), levels.lists, ['none', 'read', 'write']]
 			] as const
 		).map(([area, level, steps]) => ({
 			area,

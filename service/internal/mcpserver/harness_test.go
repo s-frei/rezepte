@@ -18,12 +18,14 @@ import (
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/recipeimport"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 type env struct {
 	conn   *sql.DB
 	svc    *recipe.Service
+	lists  *shopping.Service
 	users  *user.Service
 	tokens *auth.TokenService
 	owner  user.User
@@ -54,6 +56,7 @@ func newEnvWith(t *testing.T, publicURL string, allow func(netip.Addr) bool) env
 	tokens := auth.NewTokenService(conn, users)
 	dir := t.TempDir()
 	svc := recipe.NewService(conn, dir)
+	lists := shopping.NewService(conn)
 	photos := Photos{
 		Images: image.NewService(conn, dir),
 		Links:  image.NewUploadLinks(publicURL, users),
@@ -67,7 +70,7 @@ func newEnvWith(t *testing.T, publicURL string, allow func(netip.Addr) bool) env
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Register(api, svc, "test", photos); err != nil {
+	if err := Register(api, svc, lists, "test", photos); err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(mux)
@@ -84,8 +87,8 @@ func newEnvWith(t *testing.T, publicURL string, allow func(netip.Addr) bool) env
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := caller{svc: svc, create: create, update: update, search: search, photos: photos}
-	return env{conn: conn, svc: svc, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", photos: photos, base: base}
+	base := caller{svc: svc, lists: lists, create: create, update: update, search: search, photos: photos}
+	return env{conn: conn, svc: svc, lists: lists, users: users, tokens: tokens, owner: owner, url: ts.URL + "/mcp", photos: photos, base: base}
 }
 
 // member creates a plain user, whose editing rights are narrower than the

@@ -25,15 +25,22 @@ describe('accessLevels', () => {
 	it('names the deepest level per area', () => {
 		expect(accessLevels(['recipes:read', 'recipes:write', 'users:read'])).toEqual({
 			recipes: 'write',
-			users: 'read'
+			users: 'read',
+			lists: 'none'
 		});
 	});
 
 	it('reaches delete for recipes and none for an area without scopes', () => {
 		expect(accessLevels(['recipes:read', 'recipes:write', 'recipes:delete'])).toEqual({
 			recipes: 'delete',
-			users: 'none'
+			users: 'none',
+			lists: 'none'
 		});
+	});
+
+	it('names the shopping lists level', () => {
+		expect(accessLevels(['lists:read', 'lists:write']).lists).toBe('write');
+		expect(accessLevels(['lists:read']).lists).toBe('read');
 	});
 });
 

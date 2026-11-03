@@ -284,7 +284,7 @@ func run() error {
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
 	photos := mcpserver.Photos{Images: images, Links: uploadLinks, Fetch: recipeimport.NewFetcher(version, recipeimport.PublicOnly)}
-	if err := mcpserver.Register(srv.API(), recipes, version, photos); err != nil {
+	if err := mcpserver.Register(srv.API(), recipes, shoppingSvc, version, photos); err != nil {
 		return fmt.Errorf("mcp: %w", err)
 	}
 	image.Register(srv.API(), images)

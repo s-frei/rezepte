@@ -88,7 +88,7 @@ func newFullApp(t *testing.T) fullApp {
 	shoppingSvc.SetHub(shopping.NewHub())
 	shopping.Register(srv.API(), shoppingSvc)
 	links := image.NewUploadLinks(wiringPublicURL, users)
-	if err := mcpserver.Register(srv.API(), recipes, "test", mcpserver.Photos{Images: images, Links: links, Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
+	if err := mcpserver.Register(srv.API(), recipes, shoppingSvc, "test", mcpserver.Photos{Images: images, Links: links, Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
 		t.Fatal(err)
 	}
 	image.Register(srv.API(), images)

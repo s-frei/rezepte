@@ -829,7 +829,9 @@
                 "recipes:write",
                 "recipes:delete",
                 "users:read",
-                "users:write"
+                "users:write",
+                "lists:read",
+                "lists:write"
               ],
               "type": "string"
             },
@@ -9487,6 +9489,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Sort an ingredient name under a department on every list",
@@ -9523,6 +9530,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:read"
+            ]
           }
         ],
         "summary": "List the caller's shopping lists",
@@ -9577,6 +9589,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Create a shopping list",
@@ -9636,6 +9653,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Delete a shopping list",
@@ -9700,6 +9722,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:read"
+            ]
           }
         ],
         "summary": "Get a shopping list",
@@ -9774,6 +9801,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Rename a shopping list",
@@ -9840,6 +9872,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Remove every ticked item",
@@ -9907,6 +9944,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:read"
+            ]
           }
         ],
         "summary": "Follow a shopping list's changes",
@@ -9983,6 +10025,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Invite a person to a list",
@@ -10059,6 +10106,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Add a free-text item",
@@ -10135,6 +10187,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Tick or untick items",
@@ -10211,6 +10268,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Remove items",
@@ -10285,6 +10347,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Remove a member or withdraw an invitation",
@@ -10344,6 +10411,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Leave a list or decline its invitation",
@@ -10408,6 +10480,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Accept an invitation to a list",
@@ -10484,6 +10561,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Copy a recipe's ingredients onto a list",
@@ -10558,6 +10640,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Remove a recipe and its items from a list",
@@ -10640,6 +10727,11 @@
         "security": [
           {
             "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
           }
         ],
         "summary": "Change the servings of a recipe on a list",

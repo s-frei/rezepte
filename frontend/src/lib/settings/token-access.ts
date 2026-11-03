@@ -11,12 +11,14 @@ export type UserAccess = 'none' | 'read' | 'write';
 export function accessLevels(scopes: readonly TokenScope[]): {
 	recipes: RecipeAccess;
 	users: UserAccess;
+	lists: UserAccess;
 } {
 	const deepest = <L extends string>(area: string, ladder: readonly L[], none: L): L =>
 		ladder.findLast((level) => scopes.includes(`${area}:${level}` as TokenScope)) ?? none;
 	return {
 		recipes: deepest('recipes', ['read', 'write', 'delete'] as const, 'none'),
-		users: deepest('users', ['read', 'write'] as const, 'none')
+		users: deepest('users', ['read', 'write'] as const, 'none'),
+		lists: deepest('lists', ['read', 'write'] as const, 'none')
 	};
 }
 

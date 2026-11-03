@@ -42,10 +42,12 @@ const (
 	ScopeRecipesDelete = "recipes:delete"
 	ScopeUsersRead     = "users:read"
 	ScopeUsersWrite    = "users:write"
+	ScopeListsRead     = "lists:read"
+	ScopeListsWrite    = "lists:write"
 )
 
 // knownScopes is the closed set Create accepts.
-var knownScopes = []string{ScopeRecipesRead, ScopeRecipesWrite, ScopeRecipesDelete, ScopeUsersRead, ScopeUsersWrite}
+var knownScopes = []string{ScopeRecipesRead, ScopeRecipesWrite, ScopeRecipesDelete, ScopeUsersRead, ScopeUsersWrite, ScopeListsRead, ScopeListsWrite}
 
 // Errors returned by TokenService.
 var (

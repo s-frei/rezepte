@@ -15,6 +15,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -23,6 +24,7 @@ import (
 // account, not just its id, because editing rights read its role.
 type caller struct {
 	svc    *recipe.Service
+	lists  *shopping.Service
 	user   user.User
 	create *jsonschema.Schema
 	update *jsonschema.Schema
@@ -63,8 +65,8 @@ var tools []tool
 // answer 405 once authenticated. They are registered hidden all the same,
 // so they are refused like POST instead of falling through to the SPA.
 // api must already have recipe.Register applied.
-func Register(api huma.API, svc *recipe.Service, version string, photos Photos) error {
-	h, err := Handler(svc, api, version, photos)
+func Register(api huma.API, svc *recipe.Service, lists *shopping.Service, version string, photos Photos) error {
+	h, err := Handler(svc, lists, api, version, photos)
 	if err != nil {
 		return err
 	}
@@ -103,7 +105,7 @@ func Register(api huma.API, svc *recipe.Service, version string, photos Photos) 
 // Handler serves MCP over stateless Streamable HTTP; Register mounts it. It
 // reads the caller from auth.UserFrom and the token's scopes from
 // auth.ScopesFrom. api must already have recipe.Register applied.
-func Handler(svc *recipe.Service, api huma.API, version string, photos Photos) (http.Handler, error) {
+func Handler(svc *recipe.Service, lists *shopping.Service, api huma.API, version string, photos Photos) (http.Handler, error) {
 	create, err := recipeSchema(api, false)
 	if err != nil {
 		return nil, fmt.Errorf("create_recipe schema: %w", err)
@@ -132,7 +134,7 @@ func Handler(svc *recipe.Service, api huma.API, version string, photos Photos) (
 		}
 		scopes := auth.ScopesFrom(r.Context())
 		s := mcp.NewServer(impl, &mcp.ServerOptions{SchemaCache: cache})
-		c := caller{svc: svc, user: u, create: create, update: update, search: search, photos: photos}
+		c := caller{svc: svc, lists: lists, user: u, create: create, update: update, search: search, photos: photos}
 		for _, t := range tools {
 			if slices.Contains(scopes, t.scope) {
 				t.add(s, c)

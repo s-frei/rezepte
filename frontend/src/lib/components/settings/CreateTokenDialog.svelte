@@ -28,6 +28,7 @@
 	let name = $state('');
 	let recipes = $state<Access>('read');
 	let users = $state<UserAccess>('none');
+	let lists = $state<UserAccess>('none');
 	let expiry = $state('90');
 	let errors = $state<{ name?: string }>({});
 	let saving = $state(false);
@@ -58,6 +59,12 @@
 		write: m.tokens_access_users_write
 	};
 
+	const listsAccessText: Record<UserAccess, () => string> = {
+		none: m.tokens_access_lists_none,
+		read: m.tokens_access_lists_read,
+		write: m.tokens_access_lists_write
+	};
+
 	const expiryOptions = [
 		{ value: '30', label: m.tokens_expiry_30() },
 		{ value: '90', label: m.tokens_expiry_90() },
@@ -67,16 +74,20 @@
 
 	// Each level sends every scope below it, so the server compares plain
 	// lists instead of applying an implication rule.
-	function scopesOf(area: 'recipes' | 'users', access: Access): TokenScope[] {
+	function scopesOf(area: 'recipes' | 'users' | 'lists', access: Access): TokenScope[] {
 		const ladder = [`${area}:read`, `${area}:write`, `${area}:delete`] as TokenScope[];
 		const depth = { none: 0, read: 1, write: 2, full: 3 }[access];
 		return ladder.slice(0, depth);
 	}
 
-	const scopes = $derived([...scopesOf('recipes', recipes), ...scopesOf('users', users)]);
+	const scopes = $derived([
+		...scopesOf('recipes', recipes),
+		...scopesOf('users', users),
+		...scopesOf('lists', lists)
+	]);
 
 	// A token with no scope could do nothing, and the server refuses one.
-	// Said the moment both ladders reach None rather than on submit, so
+	// Said the moment all ladders reach None rather than on submit, so
 	// nobody fills in the rest of the form before finding out.
 	const noAccess = $derived(scopes.length === 0);
 
@@ -86,6 +97,7 @@
 			name = '';
 			recipes = 'read';
 			users = 'none';
+			lists = 'none';
 			expiry = '90';
 			errors = {};
 		}
@@ -154,6 +166,15 @@
 					options={accessOptions}
 					label={m.tokens_access_users()}
 					description={userAccessText[users]()}
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<span class="text-body-sm font-semibold">{m.tokens_access_lists()}</span>
+				<AccessLadder
+					bind:value={lists}
+					options={accessOptions}
+					label={m.tokens_access_lists()}
+					description={listsAccessText[lists]()}
 				/>
 			</div>
 			{#if noAccess}

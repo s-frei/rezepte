@@ -208,7 +208,7 @@ type sampleToken struct {
 var sampleTokens = []sampleToken{
 	{
 		names:  map[user.Locale]string{"en": "Claude Code on the laptop", "de": "Claude Code am Laptop"},
-		scopes: []string{"recipes:read", "recipes:write"},
+		scopes: []string{"recipes:read", "recipes:write", "lists:read", "lists:write"},
 		issued: -45, expires: 45, lastUsedAt: -1,
 	},
 	{

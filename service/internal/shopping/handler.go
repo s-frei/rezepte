@@ -94,14 +94,19 @@ type (
 )
 
 // Register installs the shopping-list operations onto api. Every operation
-// needs a session; a list is visible to its creator and accepted members.
+// needs a session or a token (lists:write, or lists:read for the readers); a list is visible to its creator and accepted members.
 func Register(api huma.API, svc *Service) {
 	op := func(id, method, path, summary string, status int, errs ...int) huma.Operation {
 		return huma.Operation{
 			OperationID: id, Method: method, Path: path, Summary: summary,
-			Tags: []string{"shopping-lists"}, Security: auth.SessionSecurity,
+			Tags: []string{"shopping-lists"}, Security: auth.Protected(auth.ScopeListsWrite),
 			DefaultStatus: status, Errors: errs,
 		}
+	}
+	// reader marks a read-only operation as reachable with lists:read.
+	reader := func(o huma.Operation) huma.Operation {
+		o.Security = auth.Protected(auth.ScopeListsRead)
+		return o
 	}
 	// fail maps service errors; field is the body field a validation error names.
 	fail := func(err error, field string) error {
@@ -136,7 +141,7 @@ func Register(api huma.API, svc *Service) {
 		return &listOut{Body: l}, nil
 	}
 
-	huma.Register(api, op("list-shopping-lists", http.MethodGet, "/api/v1/shopping-lists", "List the caller's shopping lists", http.StatusOK),
+	huma.Register(api, reader(op("list-shopping-lists", http.MethodGet, "/api/v1/shopping-lists", "List the caller's shopping lists", http.StatusOK)),
 		func(ctx context.Context, _ *struct{}) (*summaries, error) {
 			uid, err := caller(ctx)
 			if err != nil {
@@ -158,12 +163,12 @@ func Register(api huma.API, svc *Service) {
 			return mutation(ctx, "name", func(uid string) (List, error) { return svc.Create(ctx, uid, in.Body.Name) })
 		})
 
-	huma.Register(api, op("get-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}", "Get a shopping list", http.StatusOK, 404),
+	huma.Register(api, reader(op("get-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}", "Get a shopping list", http.StatusOK, 404)),
 		func(ctx context.Context, in *listID) (*listOut, error) {
 			return mutation(ctx, "", func(uid string) (List, error) { return svc.Get(ctx, uid, in.ID) })
 		})
 
-	stream := op("stream-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}/events", "Follow a shopping list's changes", http.StatusOK, 404)
+	stream := reader(op("stream-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}/events", "Follow a shopping list's changes", http.StatusOK, 404))
 	stream.Description = "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` with `data: {}` after every change to the list " +
 		"(refetch it to see what changed), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down."
 	stream.Responses = map[string]*huma.Response{"200": {

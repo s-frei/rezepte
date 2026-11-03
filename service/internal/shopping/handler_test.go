@@ -1,7 +1,6 @@
 package shopping_test
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -248,23 +247,6 @@ func TestShoppingRequiresSession(t *testing.T) {
 	if rec := a.do(http.MethodGet, base, "", nil); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("no cookie: %d", rec.Code)
 	}
-	anna, err := a.users.ByUsername(context.Background(), "anna")
-	if err != nil {
-		t.Fatal(err)
-	}
-	raw, _, err := a.tokens.Create(context.Background(), anna.ID, "t", []string{auth.ScopeRecipesRead}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := httptest.NewRequest(http.MethodGet, base, bytes.NewReader(nil))
-	req.Host = "localhost:8060"
-	req.Header.Set("Origin", "http://localhost:8060")
-	req.Header.Set("Authorization", "Bearer "+raw)
-	rec := httptest.NewRecorder()
-	a.h.ServeHTTP(rec, req)
-	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "API tokens cannot use this operation") {
-		t.Fatalf("token: %d %s", rec.Code, rec.Body.String())
-	}
 }
 
 func TestLeaveEndpoint(t *testing.T) {
@@ -313,5 +295,68 @@ func TestInvitationEndpoints(t *testing.T) {
 	a.call(t, member, http.MethodPost, p+"/invitations", map[string]string{"userId": anna.ID}, http.StatusNotFound)
 	if got := a.call(t, owner, http.MethodDelete, p+"/members/"+ben.ID, nil, http.StatusOK); len(got.Members) != 0 {
 		t.Fatalf("members = %+v", got.Members)
+	}
+}
+
+// bearer sends a request authenticated by a token carrying scopes, issued for
+// the superadmin anna.
+func (a api) bearer(t *testing.T, scopes []string, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	u, err := a.users.ByUsername(context.Background(), "anna")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _, err := a.tokens.Create(context.Background(), u.ID, "t", scopes, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Host = "localhost:8060"
+	req.Header.Set("Origin", "http://localhost:8060")
+	req.Header.Set("Authorization", "Bearer "+raw)
+	rec := httptest.NewRecorder()
+	a.h.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestShoppingNeedsListScopes(t *testing.T) {
+	a := newAPI(t)
+	recipes := []string{auth.ScopeRecipesRead}
+	for _, tc := range []struct{ method, path, body string }{
+		{http.MethodGet, base, ""},
+		{http.MethodPost, base + "/x/items", `{"text":"Milch"}`},
+	} {
+		if rec := a.bearer(t, recipes, tc.method, tc.path, tc.body); rec.Code != http.StatusForbidden {
+			t.Errorf("%s %s: status %d, want 403", tc.method, tc.path, rec.Code)
+		}
+	}
+}
+
+func TestTokenReadsOwnLists(t *testing.T) {
+	a := newAPI(t)
+	c := a.login(t, "anna")
+	l := a.call(t, c, http.MethodPost, base, map[string]string{"name": "Woche"}, http.StatusCreated)
+	read := []string{auth.ScopeListsRead}
+	if rec := a.bearer(t, read, http.MethodGet, base+"/"+l.ID, ""); rec.Code != http.StatusOK {
+		t.Fatalf("read: %d %s", rec.Code, rec.Body.String())
+	}
+	items := base + "/" + l.ID + "/items"
+	if rec := a.bearer(t, read, http.MethodPost, items, `{"text":"Milch"}`); rec.Code != http.StatusForbidden {
+		t.Fatalf("write with read scope: %d, want 403", rec.Code)
+	}
+	write := []string{auth.ScopeListsRead, auth.ScopeListsWrite}
+	if rec := a.bearer(t, write, http.MethodPost, items, `{"text":"Milch"}`); rec.Code != http.StatusOK {
+		t.Fatalf("write: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestTokenActsAsIssuer(t *testing.T) {
+	a := newAPI(t)
+	c := a.login(t, "ben")
+	l := a.call(t, c, http.MethodPost, base, map[string]string{"name": "Privat"}, http.StatusCreated)
+	rec := a.bearer(t, []string{auth.ScopeListsRead}, http.MethodGet, base+"/"+l.ID, "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d, want 404 for another user's list", rec.Code)
 	}
 }

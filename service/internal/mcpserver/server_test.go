@@ -22,7 +22,7 @@ import (
 // components, which is the cheapest way to make the schema build fail.
 func TestHandlerFailsAtBootWithoutRecipeRegister(t *testing.T) {
 	_, api := humatest.New(t)
-	if _, err := Handler(&recipe.Service{}, api, "test", Photos{}); err == nil || !strings.Contains(err.Error(), "recipe.Register") {
+	if _, err := Handler(&recipe.Service{}, nil, api, "test", Photos{}); err == nil || !strings.Contains(err.Error(), "recipe.Register") {
 		t.Fatalf("err = %v, want a recipe.Register error", err)
 	}
 }

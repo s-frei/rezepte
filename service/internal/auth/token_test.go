@@ -87,6 +87,17 @@ func TestCreateAcceptsRecipesDelete(t *testing.T) {
 	}
 }
 
+func TestCreateAcceptsListScopes(t *testing.T) {
+	svc, _, ownerID := newTokenService(t)
+	if _, _, err := svc.Create(context.Background(), ownerID, "lists", []string{auth.ScopeListsRead, auth.ScopeListsWrite}, nil); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	_, _, err := svc.Create(context.Background(), ownerID, "bad", []string{"lists:delete"}, nil)
+	if !errors.Is(err, auth.ErrInvalidScope) {
+		t.Fatalf("err = %v, want ErrInvalidScope", err)
+	}
+}
+
 func TestCreateRejectsUnknownScope(t *testing.T) {
 	svc, _, ownerID := newTokenService(t)
 	_, _, err := svc.Create(context.Background(), ownerID, "bad", []string{"recipes:frobnicate"}, nil)

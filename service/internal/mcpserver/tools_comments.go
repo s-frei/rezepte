@@ -47,6 +47,24 @@ func (c caller) recipeID(ctx context.Context, in getIn) (string, error) {
 	return r.ID, nil
 }
 
+// recipe loads the recipe named by exactly one of id or slug.
+func (c caller) recipe(ctx context.Context, id, slug string) (recipe.Recipe, error) {
+	if (id == "") == (slug == "") {
+		return recipe.Recipe{}, errors.New("pass exactly one of recipeId or slug")
+	}
+	var r recipe.Recipe
+	var err error
+	if id != "" {
+		r, err = c.svc.ByID(ctx, id)
+	} else {
+		r, err = c.svc.BySlug(ctx, slug)
+	}
+	if err != nil {
+		return recipe.Recipe{}, toolError(ctx, fmt.Errorf("get recipe: %w", err))
+	}
+	return r, nil
+}
+
 func toCommentOut(c recipe.Comment) commentOut {
 	author := "former member"
 	if c.Author != nil {
