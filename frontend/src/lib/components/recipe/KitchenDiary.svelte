@@ -4,6 +4,7 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
 	import Check from '@lucide/svelte/icons/check';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import Send from '@lucide/svelte/icons/send';
@@ -58,6 +59,8 @@
 	let deleting = $state<Comment | null>(null);
 	let confirmOpen = $state(false);
 	let composer = $state<HTMLTextAreaElement>();
+	// The first photo that did not go up; tapping it sends again.
+	const failedAt = $derived(photos.findIndex((photo) => photo.failed));
 	// Read out after a send or a delete, which otherwise happen silently.
 	let announcement = $state('');
 	// The entry this visit just sent rises into place; nothing else does, so
@@ -289,7 +292,7 @@
 				: 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
 		>
 			<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
-			<DiaryPhotos bind:photos {busy} {title} />
+			<DiaryPhotos bind:photos {busy} {title} hint={false} />
 			<DiaryField
 				bind:value={draft}
 				bind:element={composer}
@@ -322,6 +325,12 @@
 				</span>
 			</Button>
 		</div>
+		{#if failedAt >= 0 && !busy}
+			<p role="alert" class="mt-2 ml-4 flex gap-1.5 text-body-sm text-destructive md:ml-4.5">
+				<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+				{m.comments_photo_failed({ number: failedAt + 1 })}
+			</p>
+		{/if}
 		<!-- Only true with a keyboard and mouse: on a touch screen Enter breaks the line. -->
 		<p id={hintId} class="mt-2 ml-4 hidden text-micro text-text-muted md:ml-4.5 pointer-fine:block">
 			{m.diary_hint()}

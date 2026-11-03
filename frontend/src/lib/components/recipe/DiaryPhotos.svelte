@@ -21,7 +21,8 @@
 	let {
 		photos = $bindable(),
 		busy,
-		title
+		title,
+		hint = true
 	}: {
 		/** Picked files wait here until the caller stages them on Send. */
 		photos: PendingPhoto[];
@@ -29,6 +30,8 @@
 		busy: boolean;
 		/** The recipe's title, for the lightbox. */
 		title: string;
+		/** Draws the failed-photo line last in the caller's row; the composer draws it under its box instead. */
+		hint?: boolean;
 	} = $props();
 
 	let collage = $state<HTMLElement>();
@@ -232,7 +235,7 @@
 	{:else}
 		{@render picker('size-10 rounded-full')}
 	{/if}
-	{#if failedAt >= 0 && !busy}
+	{#if hint && failedAt >= 0 && !busy}
 		<p role="alert" class="order-last flex basis-full gap-1.5 text-body-sm text-destructive">
 			<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
 			{m.comments_photo_failed({ number: failedAt + 1 })}
