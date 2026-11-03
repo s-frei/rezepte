@@ -38,6 +38,8 @@
 		download?: boolean;
 	} = $props();
 
+	let windowWidth = $state(0);
+
 	const count = $derived(images.length);
 	const current = $derived(images[index]);
 	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
@@ -116,16 +118,22 @@
 		'inline-flex size-10 items-center justify-center rounded-full text-lightbox-foreground transition hover:bg-lightbox-foreground/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
 
+<svelte:window bind:innerWidth={windowWidth} />
+
 <Dialog.Root bind:open>
 	<Dialog.Portal>
 		<!-- Scroll lock on, unlike the other dialogs: it covers the whole screen, so the page
 		     shifting under it cannot be seen, while its scrollbar and the wheel would be. -->
+		<!-- The page keeps `scrollbar-gutter: stable` under the lock, and `inset-0`, `100vw` and
+		     `100%` all stop short of that gutter; only `innerWidth` counts it. Changing the
+		     gutter instead would reflow the page under the fading overlay. -->
 		<Dialog.Content forceMount {onkeydown}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen && current}
 					<div
 						{...props}
-						class="fixed inset-0 z-50 flex flex-col bg-lightbox text-lightbox-foreground"
+						style:width={windowWidth ? `${windowWidth}px` : undefined}
+						class="fixed inset-y-0 left-0 z-50 flex w-screen flex-col bg-lightbox text-lightbox-foreground"
 						transition:fade={{ duration: fadeDuration }}
 					>
 						<header class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:px-6">
