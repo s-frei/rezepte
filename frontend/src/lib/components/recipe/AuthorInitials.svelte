@@ -40,7 +40,7 @@
 	// Below `md` the people open in a bottom sheet instead: under a card in a
 	// two-column grid the panel was 153px wide, cut the name and the role off
 	// and slid under the bottom nav. The sheet is the phone's one shape for
-	// "one person" (see PersonSheet).
+	// "one person" (PersonTile does the same).
 	const phone = new MediaQuery('max-width: 767.98px');
 </script>
 

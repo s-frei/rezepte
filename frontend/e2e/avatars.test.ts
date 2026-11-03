@@ -109,25 +109,16 @@ test('a file over 10 MB is refused before the dialog', async ({ page }) => {
 	await expect(page.getByRole('dialog', { name: 'Crop the photo' })).toHaveCount(0);
 });
 
-test("the owner sets another account's picture", async ({ page, isMobile }) => {
+test("the owner sets another account's picture", async ({ page }) => {
 	const name = `other${uniqueToken()}`.toLowerCase();
 	await login(page);
 	await createUser(page, { username: name, role: 'user' });
 	await page.goto('/settings/users');
-	// A wide screen has the button in the row, a phone behind the row's sheet.
 	const row = page
 		.getByRole('region', { name: 'People' })
 		.getByRole('listitem')
 		.filter({ has: page.getByText(name, { exact: true }) });
-	if (isMobile) {
-		await row.getByRole('button', { name: `Manage ${name}` }).click();
-		await page
-			.getByRole('dialog', { name, exact: true })
-			.getByRole('button', { name: 'Edit profile' })
-			.click();
-	} else {
-		await row.getByRole('button', { name: 'Edit profile' }).click();
-	}
+	await row.getByRole('button', { name: 'Edit profile' }).click();
 	const edit = page.getByRole('dialog');
 	await edit.locator('input[type=file]').setInputFiles({
 		name: 'x.png',

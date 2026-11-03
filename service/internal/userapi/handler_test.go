@@ -115,6 +115,12 @@ func newStackWithMailer(t *testing.T, environment map[string]string, mailer *fak
 // asked of issuer on every request.
 func newStackWithIssuer(t *testing.T, environment map[string]string, mailer *fakeMailer, issuer func(context.Context) string) (http.Handler, *user.Service) {
 	t.Helper()
+	return newStackFull(t, environment, mailer, issuer, nil)
+}
+
+// newStackFull is newStackWithIssuer with the per-person counts source too.
+func newStackFull(t *testing.T, environment map[string]string, mailer *fakeMailer, issuer func(context.Context) string, counts userapi.Counts) (http.Handler, *user.Service) {
+	t.Helper()
 	cfg, err := config.LoadFrom(environment)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
@@ -135,7 +141,7 @@ func newStackWithIssuer(t *testing.T, environment map[string]string, mailer *fak
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer, mailer)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer, mailer, counts)
 	return srv.Handler(), users
 }
 
@@ -174,7 +180,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), nil, &fakeMailer{})
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), nil, &fakeMailer{}, nil)
 	raw, _, err := tokens.Create(context.Background(), samID, "t", scopes, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -302,7 +308,7 @@ func TestPeopleHidesAccountDetails(t *testing.T) {
 	if len(body.Items) == 0 {
 		t.Fatalf("no people in %s", rec.Body.String())
 	}
-	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true}
+	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true, "recipeCount": true, "listCount": true}
 	for _, item := range body.Items {
 		if len(item) != len(want) {
 			t.Fatalf("keys of %v, want exactly %v", item, want)
@@ -1366,5 +1372,65 @@ func TestAddressAndPasswordChangeMailsOldAddressBoth(t *testing.T) {
 	}
 	if ac.To != "kim@example.org" || ac.NewAddress != "kim@new.org" || ac.Admin != "sam" {
 		t.Fatalf("address notice = %+v", *ac)
+	}
+}
+
+// countsStub answers the per-person numbers by user id.
+type countsStub struct {
+	recipes, lists map[string]int
+	titles         map[string]string
+}
+
+func (c countsStub) RecipeCounts(context.Context) (map[string]int, error) { return c.recipes, nil }
+func (c countsStub) ListCounts(context.Context) (map[string]int, error)   { return c.lists, nil }
+func (c countsStub) LastRecipeTitles(context.Context) (map[string]string, error) {
+	return c.titles, nil
+}
+
+func TestPeopleCarryCounts(t *testing.T) {
+	var kimID string
+	counts := countsStub{recipes: map[string]int{}, lists: map[string]int{}, titles: map[string]string{}}
+	h, users := newStackFull(t, map[string]string{}, &fakeMailer{}, nil, counts)
+	list, err := users.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range list {
+		if u.Username == "kim" {
+			kimID = u.ID
+		}
+	}
+	counts.recipes[kimID], counts.lists[kimID], counts.titles[kimID] = 3, 2, "Dal"
+	kim := loginAs(t, h, "kim", "pw")
+	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
+	var people userapi.PersonList
+	if err := json.Unmarshal(rec.Body.Bytes(), &people); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range people.Items {
+		wantR, wantL := 0, 0
+		if p.Username == "kim" {
+			wantR, wantL = 3, 2
+		}
+		if p.RecipeCount != wantR || p.ListCount != wantL {
+			t.Fatalf("%s: recipes %d lists %d, want %d %d", p.Username, p.RecipeCount, p.ListCount, wantR, wantL)
+		}
+	}
+	if rec := doReq(h, http.MethodGet, "/api/v1/users", "", kim); rec.Code != http.StatusForbidden {
+		t.Fatalf("users as member: %d", rec.Code)
+	}
+	sam := loginAs(t, h, "sam", "pw")
+	for _, u := range listUsers(t, h, sam) {
+		if u.CreatedAt.IsZero() {
+			t.Fatalf("%s: no createdAt", u.Username)
+		}
+		var title *string
+		if u.Username == "kim" {
+			s := "Dal"
+			title = &s
+		}
+		if (u.LastRecipeTitle == nil) != (title == nil) || (title != nil && *u.LastRecipeTitle != *title) {
+			t.Fatalf("%s: lastRecipeTitle %v, want %v", u.Username, u.LastRecipeTitle, title)
+		}
 	}
 }

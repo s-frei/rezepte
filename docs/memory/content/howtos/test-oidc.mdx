@@ -26,7 +26,7 @@ Four accounts are seeded, passwords by the [development-credential](/conventions
 - `gast@example.com` / `gast1234` has no demo account behind it, for the not-connected and setup-link cases.
 - Their Dex subjects are fixed (`userID: demo`, `mila`, `jonas`, `gast`), so a re-rendered config never changes who they are.
 - In the demo, demo and mila connect by hand: sign in at Dex from the demo account's profile. jonas is pre-linked by the seed at the issuer `--demo-oidc-issuer` names, so `jonas@example.com` / `jonas1234` signs in right away ([Demo mode](/features/demo-mode) owns how).
-- The e2e suite splits the accounts so its two Dex files never race for one identity: `frontend/e2e/oidc.test.ts` (desktop project) signs in as mila and gast, `frontend/e2e/oidc-mobile.test.ts` (mobile project) as jonas. The e2e instance is not a demo, so nothing is pre-linked there.
+- The e2e suite's Dex file, `frontend/e2e/oidc.test.ts`, runs serially on the desktop project and signs in as mila and gast; `mail.test.ts` uses demo@. The e2e instance is not a demo, so nothing is pre-linked there.
 
 ## Automatic pickup
 

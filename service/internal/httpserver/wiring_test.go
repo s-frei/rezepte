@@ -84,7 +84,8 @@ func newFullApp(t *testing.T) fullApp {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
-	shopping.Register(srv.API(), shopping.NewService(conn))
+	shoppingSvc := shopping.NewService(conn)
+	shopping.Register(srv.API(), shoppingSvc)
 	links := image.NewUploadLinks(wiringPublicURL, users)
 	if err := mcpserver.Register(srv.API(), recipes, "test", mcpserver.Photos{Images: images, Links: links, Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
 		t.Fatal(err)
@@ -97,7 +98,7 @@ func newFullApp(t *testing.T) fullApp {
 	share.Register(srv.API(), shares)
 	share.RegisterPublic(srv.API(), shares, recipes, images)
 	push.Register(srv.API(), push.NewService(conn, "", nil))
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), nil, nil)
+	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), nil, nil, userapi.NewCounts(recipes, shoppingSvc))
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens, recipes: recipes, links: links}
 }

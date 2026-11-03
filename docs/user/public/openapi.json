@@ -1075,6 +1075,13 @@
             "description": "User id",
             "type": "string"
           },
+          "lastRecipeTitle": {
+            "description": "Title of the recipe this person created that changed most recently; null when they created none; set only by list-users",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "locale": {
             "description": "The account holder's interface language",
             "enum": [
@@ -1118,6 +1125,7 @@
           "hasPassword",
           "email",
           "emailVerified",
+          "lastRecipeTitle",
           "hasIdentity"
         ],
         "type": "object"
@@ -2617,6 +2625,16 @@
             "description": "User id",
             "type": "string"
           },
+          "listCount": {
+            "description": "Shopping lists this person created",
+            "format": "int64",
+            "type": "integer"
+          },
+          "recipeCount": {
+            "description": "Recipes this person created",
+            "format": "int64",
+            "type": "integer"
+          },
           "role": {
             "description": "Authorization role",
             "enum": [
@@ -2637,7 +2655,9 @@
           "displayName",
           "color",
           "role",
-          "avatarId"
+          "avatarId",
+          "recipeCount",
+          "listCount"
         ],
         "type": "object"
       },
@@ -4084,6 +4104,13 @@
             "description": "User id",
             "type": "string"
           },
+          "lastRecipeTitle": {
+            "description": "Title of the recipe this person created that changed most recently; null when they created none; set only by list-users",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "locale": {
             "description": "The account holder's interface language",
             "enum": [
@@ -4124,6 +4151,7 @@
           "hasPassword",
           "email",
           "emailVerified",
+          "lastRecipeTitle",
           "hasIdentity"
         ],
         "type": "object"
@@ -5988,7 +6016,7 @@
     },
     "/api/v1/people": {
       "get": {
-        "description": "Every account's login name, display name, color and role, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+        "description": "Every account's login name, display name, color, role and recipe and shopping-list counts, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
         "operationId": "list-people",
         "responses": {
           "200": {

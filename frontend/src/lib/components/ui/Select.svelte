@@ -67,7 +67,7 @@
 	// against the closed set of this design system's font-size tokens
 	// (`app.css`) and Tailwind's font-weight keywords specifically, rather
 	// than a bare `text-`/`font-` prefix: `text-` also names color
-	// utilities (PersonRow.svelte's role pill passes `text-accent-foreground`
+	// utilities (PersonTile.svelte's role pill passes `text-accent-foreground`
 	// / `text-text-muted`, which must NOT suppress the default size here)
 	// and `font-` also names this app's font-family tokens (`font-display`,
 	// `font-sans`).

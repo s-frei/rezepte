@@ -792,3 +792,23 @@ func TestCreateAnnouncedFlagsRecipe(t *testing.T) {
 		}
 	}
 }
+
+func TestCountsAndLastTitleByCreator(t *testing.T) {
+	svc, uid := setup(t)
+	ctx := context.Background()
+	in := loadFixtures(t)[0]
+	for _, title := range []string{"First", "Second"} {
+		in.Title = title
+		if _, err := svc.Create(ctx, uid, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	counts, err := svc.CountsByCreator(ctx)
+	if err != nil || counts[uid] != 2 {
+		t.Fatalf("counts = %v, %v", counts, err)
+	}
+	titles, err := svc.LastTitlesByCreator(ctx)
+	if err != nil || titles[uid] != "Second" {
+		t.Fatalf("titles = %v, %v", titles, err)
+	}
+}

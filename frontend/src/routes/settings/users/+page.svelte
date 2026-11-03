@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import Lock from '@lucide/svelte/icons/lock';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { toast } from 'svelte-sonner';
 	import { listColorUsage, type ColorUsage } from '#lib/api/auth.js';
@@ -34,7 +35,7 @@
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { isAdminRole, roleLabel } from '#lib/roles.js';
-	import { focusManageButton, focusMenuTrigger, personRowId } from '#lib/settings/person-focus.js';
+	import { focusMenuTrigger, personRowId } from '#lib/settings/person-focus.js';
 	import { rowMotion } from '#lib/settings/row-motion.svelte.js';
 
 	let users = $state<PersonEntry[]>([]);
@@ -44,9 +45,10 @@
 	// admin's business, not everyone's - so an admin reads it from the
 	// account list alongside; a member's view has no entries at all.
 	let sharing = $state<Record<string, boolean>>({});
-	// hasPassword, hasIdentity, the open setup link's expiry and the address
-	// with its state, by id - an admin's business like `sharing`, and left out
-	// of a member's view the same way.
+	// hasPassword, hasIdentity, the open setup link's expiry, the address
+	// with its state, when the account was made and its latest recipe, by id -
+	// an admin's business like `sharing`, and left out of a member's view the
+	// same way.
 	let setup = $state<
 		Record<
 			string,
@@ -56,6 +58,8 @@
 				setupLinkExpiresAt?: string;
 				email?: string;
 				emailVerified?: boolean;
+				createdAt?: string;
+				lastRecipeTitle?: string | null;
 			}
 		>
 	>({});
@@ -118,7 +122,9 @@
 						hasIdentity: a.hasIdentity,
 						setupLinkExpiresAt: a.setupLinkExpiresAt,
 						email: a.email,
-						emailVerified: a.emailVerified
+						emailVerified: a.emailVerified,
+						createdAt: a.createdAt,
+						lastRecipeTitle: a.lastRecipeTitle
 					}
 				])
 			);
@@ -151,8 +157,10 @@
 		}
 	}
 
+	// Merged, not swapped: a PATCH answer carries no list or recipe counts,
+	// and the card would drop to "none" until the next reload.
 	function replace(updated: PersonEntry) {
-		users = users.map((u) => (u.id === updated.id ? updated : u));
+		users = users.map((u) => (u.id === updated.id ? { ...u, ...updated } : u));
 	}
 
 	// A PATCH answer carries the address, and a changed one is unconfirmed:
@@ -186,7 +194,8 @@
 				hasPassword: !setupLink,
 				setupLinkExpiresAt: setupLink?.expiresAt,
 				email: user.email,
-				emailVerified: user.emailVerified
+				emailVerified: user.emailVerified,
+				createdAt: user.createdAt
 			}
 		};
 		if (setupLink) {
@@ -252,13 +261,10 @@
 		setupLinkName = user.displayName;
 		// The result records whatever has focus as where to return it, so the
 		// step closes first and focus goes back to the row's trigger - the
-		// step's own Send button is gone by the time the result closes. Only
-		// one of the two triggers is shown at a time (menu from md, row button
-		// on phones); focusing the hidden one does nothing.
+		// step's own Send button is gone by the time the result closes.
 		if (sendOpen) {
 			sendOpen = false;
 			await tick();
-			focusManageButton(user.id);
 			focusMenuTrigger(user.id);
 		}
 		setupLinkOpen = true;
@@ -461,6 +467,10 @@
 				onprofile={profileSaved}
 				motion={rows.duration}
 			/>
+			<p class="mt-5 flex items-start gap-1.5 text-micro text-text-muted">
+				<Lock class="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+				<span>{m.users_lists_privacy()}</span>
+			</p>
 		{/if}
 	</section>
 	{#if isAdmin}

@@ -16,6 +16,8 @@ import (
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/mail"
+	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -35,6 +37,7 @@ type UserAccount struct {
 	SetupLinkExpiresAt *time.Time `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
 	Email              string     `json:"email" doc:"Profile address; where setup links are mailed. Empty means none"`
 	EmailVerified      bool       `json:"emailVerified" doc:"True once a provider vouched for it or the person redeemed a link mailed to it"`
+	LastRecipeTitle    *string    `json:"lastRecipeTitle" nullable:"true" doc:"Title of the recipe this person created that changed most recently; null when they created none; set only by list-users"`
 	HasIdentity        bool       `json:"hasIdentity" doc:"Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users"`
 }
 
@@ -66,6 +69,8 @@ type PersonEntry struct {
 	Color       string  `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Role        string  `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	AvatarID    *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
+	RecipeCount int     `json:"recipeCount" doc:"Recipes this person created"`
+	ListCount   int     `json:"listCount" doc:"Shopping lists this person created"`
 }
 
 // PersonList is the response body of list-people.
@@ -193,6 +198,36 @@ func toResponse(u user.User) UserAccount {
 	}
 }
 
+// Counts answers the per-person numbers, keyed by user id; a person with none
+// is absent.
+type Counts interface {
+	RecipeCounts(context.Context) (map[string]int, error)
+	ListCounts(context.Context) (map[string]int, error)
+	LastRecipeTitles(context.Context) (map[string]string, error)
+}
+
+type counts struct {
+	recipes *recipe.Service
+	lists   *shopping.Service
+}
+
+// NewCounts reads the numbers from the recipe and shopping services.
+func NewCounts(recipes *recipe.Service, lists *shopping.Service) Counts {
+	return counts{recipes, lists}
+}
+
+func (c counts) RecipeCounts(ctx context.Context) (map[string]int, error) {
+	return c.recipes.CountsByCreator(ctx)
+}
+
+func (c counts) ListCounts(ctx context.Context) (map[string]int, error) {
+	return c.lists.CountsByCreator(ctx)
+}
+
+func (c counts) LastRecipeTitles(ctx context.Context) (map[string]string, error) {
+	return c.recipes.LastTitlesByCreator(ctx)
+}
+
 // Mailer is what user management needs from package mail.
 type Mailer interface {
 	SendInvite(context.Context, mail.Invite) error
@@ -258,14 +293,14 @@ func adminName(actor, target user.User) string {
 // removes a deleted account's pictures. issuer answers the OIDC issuer in
 // force for a request, empty when OIDC is off (a nil issuer: always off):
 // list-users reports hasIdentity only for an identity there, the one sign-in
-// and disconnect use.
-func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer func(context.Context) string, mailer Mailer) {
+// and disconnect use. counts feeds the recipe and list numbers; nil is zeros.
+func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars *avatar.Service, issuer func(context.Context) string, mailer Mailer, counts Counts) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-people",
 		Method:      http.MethodGet,
 		Path:        "/api/v1/people",
 		Summary:     "List people",
-		Description: "Every account's login name, display name, color and role, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+		Description: "Every account's login name, display name, color, role and recipe and shopping-list counts, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
 		Tags:        []string{"users"},
 		Security:    auth.Protected(auth.ScopeUsersRead),
 		Errors:      []int{401},
@@ -277,6 +312,15 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
+		recipes, lists := map[string]int{}, map[string]int{}
+		if counts != nil {
+			if recipes, err = counts.RecipeCounts(ctx); err != nil {
+				return nil, err
+			}
+			if lists, err = counts.ListCounts(ctx); err != nil {
+				return nil, err
+			}
+		}
 		items := make([]PersonEntry, 0, len(list))
 		for _, u := range list {
 			items = append(items, PersonEntry{
@@ -286,6 +330,8 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				Color:       string(u.Color),
 				Role:        string(u.Role),
 				AvatarID:    u.AvatarID,
+				RecipeCount: recipes[u.ID],
+				ListCount:   lists[u.ID],
 			})
 		}
 		return &peopleOutput{Body: PersonList{Items: items}}, nil
@@ -319,9 +365,18 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				}
 			}
 		}
+		titles := map[string]string{}
+		if counts != nil {
+			if titles, err = counts.LastRecipeTitles(ctx); err != nil {
+				return nil, err
+			}
+		}
 		items := make([]UserAccount, 0, len(list))
 		for _, u := range list {
 			item := toResponse(u)
+			if t, ok := titles[u.ID]; ok {
+				item.LastRecipeTitle = &t
+			}
 			item.HasIdentity = linked[u.ID]
 			if expires, ok := open[u.ID]; ok {
 				item.SetupLinkExpiresAt = &expires

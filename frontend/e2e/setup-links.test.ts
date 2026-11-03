@@ -35,7 +35,7 @@ test('an invited person sets their own password through the setup link', async (
 	await expect(invited.getByText('This link no longer works')).toBeVisible();
 });
 
-test('an admin revokes an open setup link', async ({ page, browser, isMobile }) => {
+test('an admin revokes an open setup link', async ({ page, browser }) => {
 	const name = `revoke${uniqueToken()}`;
 	await login(page);
 	await page.goto('/settings/users');
@@ -46,24 +46,14 @@ test('an admin revokes an open setup link', async ({ page, browser, isMobile }) 
 	const url = await linkDialog.getByRole('textbox').inputValue();
 	await page.keyboard.press('Escape');
 
-	// The status line under the name is text only on both viewports; "Revoke
-	// link" is an item in the row's "..." menu on a wide screen and sits beside
-	// the status in the person's sheet on a phone. Its accessible name carries
+	// The status note under the name is text only; "Revoke link" is an item
+	// in the card's "..." menu on every screen. Its accessible name carries
 	// the username (users_setup_link_revoke_aria), since a flat list otherwise
 	// has one identically-worded "Revoke link" per row.
 	const row = page.getByRole('listitem').filter({ hasText: name });
 	await expect(row.getByText(/Setup link open until/)).toBeVisible();
-	if (isMobile) {
-		await row.getByRole('button', { name: `Manage ${name}` }).click();
-		// Revoking closes the sheet, like its other actions.
-		await page
-			.getByRole('dialog')
-			.getByRole('button', { name: `Revoke setup link for ${name}` })
-			.click();
-	} else {
-		await row.getByRole('button', { name: `More actions for ${name}` }).click();
-		await page.getByRole('menuitem', { name: `Revoke setup link for ${name}` }).click();
-	}
+	await row.getByRole('button', { name: `More actions for ${name}` }).click();
+	await page.getByRole('menuitem', { name: `Revoke setup link for ${name}` }).click();
 	await expect(row.getByText('Not set up yet')).toBeVisible();
 
 	const invited = await (await browser.newContext()).newPage();

@@ -109,6 +109,16 @@ JOIN recipes r ON r.created_by = u.id
 GROUP BY u.id, u.username, u.display_name, u.color, u.avatar_id
 ORDER BY recipe_count DESC, u.username;
 
+-- Recipes written per person; people with none are absent.
+-- name: CountRecipesByCreator :many
+SELECT created_by, COUNT(*) AS recipes FROM recipes GROUP BY created_by;
+
+-- The title of each person's most recently updated recipe.
+-- name: LastRecipeTitleByCreator :many
+SELECT r.created_by, r.title FROM recipes r
+WHERE r.updated_at = (SELECT MAX(updated_at) FROM recipes WHERE created_by = r.created_by)
+ORDER BY r.rowid;
+
 -- name: SetFavorite :exec
 INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?);
 

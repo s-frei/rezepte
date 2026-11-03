@@ -29,6 +29,39 @@ func (q *Queries) ClearAnnouncements(ctx context.Context, ids []string) error {
 	return err
 }
 
+const countRecipesByCreator = `-- name: CountRecipesByCreator :many
+SELECT created_by, COUNT(*) AS recipes FROM recipes GROUP BY created_by
+`
+
+type CountRecipesByCreatorRow struct {
+	CreatedBy string
+	Recipes   int64
+}
+
+// Recipes written per person; people with none are absent.
+func (q *Queries) CountRecipesByCreator(ctx context.Context) ([]CountRecipesByCreatorRow, error) {
+	rows, err := q.db.QueryContext(ctx, countRecipesByCreator)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountRecipesByCreatorRow{}
+	for rows.Next() {
+		var i CountRecipesByCreatorRow
+		if err := rows.Scan(&i.CreatedBy, &i.Recipes); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteFavorite = `-- name: DeleteFavorite :exec
 DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?
 `
@@ -364,6 +397,41 @@ func (q *Queries) InsertStepTime(ctx context.Context, arg InsertStepTimeParams) 
 		arg.Position,
 	)
 	return err
+}
+
+const lastRecipeTitleByCreator = `-- name: LastRecipeTitleByCreator :many
+SELECT r.created_by, r.title FROM recipes r
+WHERE r.updated_at = (SELECT MAX(updated_at) FROM recipes WHERE created_by = r.created_by)
+ORDER BY r.rowid
+`
+
+type LastRecipeTitleByCreatorRow struct {
+	CreatedBy string
+	Title     string
+}
+
+// The title of each person's most recently updated recipe.
+func (q *Queries) LastRecipeTitleByCreator(ctx context.Context) ([]LastRecipeTitleByCreatorRow, error) {
+	rows, err := q.db.QueryContext(ctx, lastRecipeTitleByCreator)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LastRecipeTitleByCreatorRow{}
+	for rows.Next() {
+		var i LastRecipeTitleByCreatorRow
+		if err := rows.Scan(&i.CreatedBy, &i.Title); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many

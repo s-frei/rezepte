@@ -363,6 +363,33 @@ func (s *Service) Authors(ctx context.Context) ([]AuthorCount, error) {
 	return out, nil
 }
 
+// CountsByCreator returns how many recipes each person wrote.
+func (s *Service) CountsByCreator(ctx context.Context) (map[string]int, error) {
+	rows, err := s.q.CountRecipesByCreator(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count recipes by creator: %w", err)
+	}
+	out := make(map[string]int, len(rows))
+	for _, r := range rows {
+		out[r.CreatedBy] = int(r.Recipes)
+	}
+	return out, nil
+}
+
+// LastTitlesByCreator returns the title of each person's most recently
+// updated recipe.
+func (s *Service) LastTitlesByCreator(ctx context.Context) (map[string]string, error) {
+	rows, err := s.q.LastRecipeTitleByCreator(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("last recipe titles: %w", err)
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		out[r.CreatedBy] = r.Title
+	}
+	return out, nil
+}
+
 // Count returns how many recipes exist.
 func (s *Service) Count(ctx context.Context) (int, error) {
 	n, err := s.q.CountRecipes(ctx, sqlc.RecipeFilter{})

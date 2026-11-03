@@ -275,7 +275,8 @@ func run() error {
 	recipes.SetCommentNotifier(notifications)
 	recipes.SetTastyNotifier(notifications)
 	recipe.Register(srv.API(), recipes)
-	shopping.Register(srv.API(), shopping.NewService(conn))
+	shoppingSvc := shopping.NewService(conn)
+	shopping.Register(srv.API(), shoppingSvc)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
 	photos := mcpserver.Photos{Images: images, Links: uploadLinks, Fetch: recipeimport.NewFetcher(version, recipeimport.PublicOnly)}
@@ -300,7 +301,7 @@ func run() error {
 	notify.Register(srv.API(), notifications)
 	push.Register(srv.API(), pushes)
 	userapi.Register(srv.API(), users, sessions, avatars,
-		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer)
+		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer, userapi.NewCounts(recipes, shoppingSvc))
 	tokenapi.Register(srv.API(), tokens)
 	err = srv.Run(ctx)
 	stop() // a failed listen returns before ctx ends

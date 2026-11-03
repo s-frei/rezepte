@@ -11,16 +11,6 @@ export function personRowId(id: string): string {
 	return `person-${id}`;
 }
 
-/** The `id` of the phone's row button that opens this person's sheet. */
-export function manageButtonId(id: string): string {
-	return `person-${id}-manage`;
-}
-
-/** Focuses the phone's row button for this person, if it is on the page. */
-export function focusManageButton(id: string): void {
-	document.getElementById(manageButtonId(id))?.focus();
-}
-
 /** Focuses the role select in this person's row, if it is on the page. */
 export function focusRoleControl(id: string): void {
 	document

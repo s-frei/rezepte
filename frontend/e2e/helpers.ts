@@ -369,7 +369,13 @@ export async function uploadImage(page: Page, recipeId: string, png: Buffer): Pr
  */
 export async function createUser(
 	page: Page,
-	input: { username: string; password?: string; role: 'admin' | 'user'; locale?: 'en' | 'de' }
+	input: {
+		username: string;
+		password?: string;
+		role: 'admin' | 'user';
+		locale?: 'en' | 'de';
+		email?: string;
+	}
 ): Promise<UserAccount> {
 	const origin = new URL(page.url()).origin;
 	const response = await page.request.post('/api/v1/users', {

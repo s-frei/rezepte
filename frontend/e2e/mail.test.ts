@@ -452,7 +452,7 @@ test('a second request within five minutes mails nothing', async ({ page, reques
 	expect(await mailCountTo(request, address)).toBe(2);
 });
 
-// Dex's demo@ account: oidc.test.ts uses mila@ and gast@, oidc-mobile jonas@.
+// Dex's demo@ account: oidc.test.ts uses mila@ and gast@.
 test('an account that signs in only with Dex gets a hint', async ({ page, request, browser }) => {
 	const oidc = await (await request.get('/api/v1/auth/oidc')).json();
 	test.skip(!oidc.enabled, 'Dex is not running (mise run oidc:up)');

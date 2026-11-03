@@ -7,8 +7,7 @@
 	import { rowPermissions } from '#lib/settings/row-permissions.js';
 	import { focusRoleControl } from '#lib/settings/person-focus.js';
 	import EditProfileDialog from './EditProfileDialog.svelte';
-	import PersonRow from './PersonRow.svelte';
-	import PersonSheet from './PersonSheet.svelte';
+	import PersonTile from './PersonTile.svelte';
 
 	let {
 		people,
@@ -47,6 +46,8 @@
 				setupLinkExpiresAt?: string;
 				email?: string;
 				emailVerified?: boolean;
+				createdAt?: string;
+				lastRecipeTitle?: string | null;
 			}
 		>;
 		/** The identity provider's name; undefined while this instance has none. */
@@ -86,13 +87,10 @@
 		user: m.users_group_members
 	};
 
-	// The sheet and the profile dialog belong to the list, not to a row, and
-	// find their person by id: a role change moves the row to another group,
-	// which re-creates it, and a dialog owned by the row would vanish with it.
-	// The ids stay set after closing, so the close transitions can play.
-	let sheetOpen = $state(false);
-	let sheetId = $state<string | null>(null);
-	const sheetPerson = $derived(people.find((p) => p.id === sheetId));
+	// The profile dialog belongs to the list, not to a card, and finds its
+	// person by id: a role change moves the card to another group, which
+	// re-creates it, and a dialog owned by the card would vanish with it.
+	// The id stays set after closing, so the close transition can play.
 	let editOpen = $state(false);
 	let editId = $state<string | null>(null);
 	const editPerson = $derived(people.find((p) => p.id === editId));
@@ -100,14 +98,8 @@
 		editPerson && rowPermissions(actorRole, editPerson, editPerson.id === meId)
 	);
 
-	// The component mounts with the id, and opens a tick later: mounted
-	// already open, its first slide-in would not play.
-	async function manage(person: PersonEntry) {
-		sheetId = person.id;
-		await tick();
-		sheetOpen = true;
-	}
-
+	// The dialog mounts with the id, and opens a tick later: mounted already
+	// open, its first transition would not play.
 	async function edit(person: PersonEntry) {
 		editId = person.id;
 		await tick();
@@ -116,11 +108,9 @@
 
 	// A saved change moves the row to its new group, which re-creates it and
 	// drops the focus the select had just returned to its trigger. The select
-	// in the new row takes it back; the sheet, when it made the change, keeps
-	// focus itself and stays open.
+	// in the new card takes it back.
 	async function changeRole(person: PersonEntry, role: UserRole) {
 		await onrole(person, role);
-		if (sheetOpen) return;
 		await tick();
 		focusRoleControl(person.id);
 	}
@@ -144,9 +134,9 @@
 				<span class="text-caption text-text-muted tabular-nums">{group.people.length}</span>
 			{/if}
 		</div>
-		<ul aria-labelledby={headingId} class="mt-1">
+		<ul aria-labelledby={headingId} class="mt-2.5 flex flex-col gap-2.5">
 			{#each group.people as person (person.id)}
-				<PersonRow
+				<PersonTile
 					{person}
 					isSelf={person.id === meId}
 					{actorRole}
@@ -157,9 +147,10 @@
 					setupLinkExpiresAt={setup[person.id]?.setupLinkExpiresAt}
 					email={setup[person.id]?.email}
 					emailVerified={setup[person.id]?.emailVerified}
+					createdAt={setup[person.id]?.createdAt}
+					lastRecipeTitle={setup[person.id]?.lastRecipeTitle}
 					onrole={changeRole}
 					{onshare}
-					onmanage={manage}
 					onedit={edit}
 					{onreset}
 					{onsetuplink}
@@ -173,29 +164,6 @@
 	</div>
 {/each}
 
-{#if sheetPerson}
-	<PersonSheet
-		bind:open={sheetOpen}
-		person={sheetPerson}
-		{actorRole}
-		isSelf={sheetPerson.id === meId}
-		canShare={sharing[sheetPerson.id]}
-		hasPassword={setup[sheetPerson.id]?.hasPassword}
-		hasIdentity={setup[sheetPerson.id]?.hasIdentity}
-		{provider}
-		setupLinkExpiresAt={setup[sheetPerson.id]?.setupLinkExpiresAt}
-		email={setup[sheetPerson.id]?.email}
-		emailVerified={setup[sheetPerson.id]?.emailVerified}
-		onrole={changeRole}
-		{onshare}
-		onedit={edit}
-		{onreset}
-		{onsetuplink}
-		{onrevokelink}
-		{onunlink}
-		{ondelete}
-	/>
-{/if}
 {#if editPerson && editPermissions}
 	<EditProfileDialog
 		bind:open={editOpen}

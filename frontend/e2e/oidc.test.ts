@@ -114,9 +114,8 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	await context.close();
 
 	// The admin disconnects the new account's identity, after confirming;
-	// without a password it is not set up any more. This file runs on
-	// desktop only, so "Disconnect" is always in the row's "..." menu, not
-	// the phone's sheet.
+	// without a password it is not set up any more. "Disconnect" is in the
+	// card's "..." menu on every screen.
 	await page.reload();
 	const row = page.getByRole('listitem').filter({ hasText: name });
 	const more = row.getByRole('button', { name: `More actions for ${name}` });
@@ -166,8 +165,8 @@ test('switching the provider warns with the number of connected accounts', async
 		await expect(confirm).toBeHidden();
 		await dialog.getByLabel('Client secret').fill('another-secret');
 		await save.click();
-		// The count as the server has it: oidc-mobile.test.ts may link an
-		// account of its own at the same time, so it is at least mila.
+		// The count as the server has it: at least mila, whatever else a
+		// spec running beside this one has linked.
 		expect(before.connected).toBeGreaterThanOrEqual(1);
 		await expect(confirm).toContainText(
 			before.connected === 1

@@ -26,35 +26,14 @@ function personRow(page: Page, username: string): Locator {
 }
 
 /**
- * Where an admin acts on one person: the row itself on a wide screen, the
- * sheet the row opens on a phone. The sheet is titled with the display name,
- * which these tests leave at the login name.
+ * Opens the card's "..." menu, where reset password, setup link and delete
+ * live on every screen. Its content portals onto the page rather than into
+ * the card, so callers look for `menuitem`s on the page.
  */
-async function controlsFor(page: Page, isMobile: boolean, username: string): Promise<Locator> {
-	const row = personRow(page, username);
-	if (!isMobile) return row;
-	await row.getByRole('button', { name: `Manage ${username}` }).click();
-	const sheet = page.getByRole('dialog', { name: username, exact: true });
-	await expect(sheet).toBeVisible();
-	return sheet;
-}
-
-/**
- * Where reset password, setup link and delete live now: on a phone they are
- * plain buttons in the sheet `controlsFor` already returned. On a wide
- * screen they are in the row's "..." menu, which this opens; its content
- * portals onto the page rather than into the row, so callers look for
- * `menuitem`s on the returned `page` there, not inside `controls`.
- */
-async function actionMenu(
-	page: Page,
-	isMobile: boolean,
-	controls: Locator,
-	username: string
-): Promise<Locator | Page> {
-	if (isMobile) return controls;
-	await controls.getByRole('button', { name: `More actions for ${username}` }).click();
-	return page;
+async function openActionMenu(page: Page, username: string): Promise<void> {
+	await personRow(page, username)
+		.getByRole('button', { name: `More actions for ${username}` })
+		.click();
 }
 
 test('a member changes the own password and logs in with it', async ({ page }) => {
@@ -139,7 +118,7 @@ test('the new password is rated as it is typed, and only advised on', async ({ p
 	await expect(page.getByText(/^Strength:/)).toHaveCount(0);
 });
 
-test('a member sees everyone, read-only', async ({ page, isMobile }) => {
+test('a member sees everyone, read-only', async ({ page }) => {
 	const username = `m${uniqueToken()}`;
 	const adminName = `a${uniqueToken()}`;
 	await login(page);
@@ -162,21 +141,56 @@ test('a member sees everyone, read-only', async ({ page, isMobile }) => {
 		page.getByText('Everyone with an account here. Admins manage accounts.')
 	).toBeVisible();
 
-	// Nothing to act on: no way to add an account, and not one control in
-	// any row - no role select, no pencil, no reset, no delete, and on a
-	// phone no row that opens anything but their own profile. The one button
-	// a row keeps is its circle, which only shows who that person is.
+	// Nothing to act on: no way to add an account, and not one control on
+	// any card - no role select, no pencil, no "...", no details chevron.
+	// The one button a card keeps is its circle, which only shows who that
+	// person is. The counts are there for everyone.
 	await expect(page.getByRole('button', { name: 'Add account' })).toHaveCount(0);
 	await expect(people(page).getByRole('button', { name: /^(?!About )/ })).toHaveCount(0);
 	await expect(people(page).getByRole('button', { name: `About ${adminName}` })).toBeVisible();
-	await expect(page.getByText('This account cannot be removed.')).toHaveCount(0);
-	if (isMobile) {
-		await personRow(page, username).getByRole('link', { name: 'Open your profile' }).click();
-		await expect(page).toHaveURL('/settings');
-	}
+	await expect(personRow(page, adminName)).toContainText('No shopping list');
+	await expect(personRow(page, adminName)).toContainText('No recipes');
+	await expect(page.getByText(/What is on a list only the people/)).toBeVisible();
+	// An address and its state are an admin's business: not even the symbol.
+	await expect(people(page)).not.toContainText('Address');
+	// The one link is the own card's pencil, to the own profile.
+	await expect(people(page).getByRole('link')).toHaveCount(1);
+	await personRow(page, username).getByRole('link', { name: 'Open your profile' }).click();
+	await expect(page).toHaveURL('/settings');
 });
 
-test('the owner creates, promotes, resets and deletes a user', async ({ page, isMobile }) => {
+test('an admin opens a card for the address and keeps its controls', async ({ page }) => {
+	const username = `d${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, role: 'user', email: `${username}@example.com` });
+	await page.context().clearCookies();
+	await login(page, username);
+	const fixture = loadFixture(0);
+	fixture.title = `Soup ${username}`;
+	await createRecipe(page, fixture);
+	await page.context().clearCookies();
+	await login(page);
+	await page.goto('/settings/users');
+
+	const row = personRow(page, username);
+	await expect(row).toContainText('No shopping list');
+	await expect(row).toContainText('1 recipe');
+	const chevron = row.getByRole('button', { name: `Show details for ${username}` });
+	await expect(chevron).toHaveAttribute('aria-expanded', 'false');
+	await chevron.click();
+	await expect(row.getByRole('button', { name: `Hide details for ${username}` })).toHaveAttribute(
+		'aria-expanded',
+		'true'
+	);
+	// The details take the counts' place; the role, pencil and menu stay.
+	await expect(row.getByText(`${username}@example.com`)).toBeVisible();
+	await expect(row.getByText(`latest “Soup ${username}”`)).toBeVisible();
+	await expect(row.getByRole('button', { name: `${username}'s role` })).toBeVisible();
+	await expect(row.getByRole('button', { name: `More actions for ${username}` })).toBeVisible();
+});
+
+test('the owner creates, promotes, resets and deletes a user', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -194,53 +208,32 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page, is
 	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
 	await expect(people(page).getByRole('list', { name: 'Members' })).toContainText(username);
 
-	// Promoting moves them under "Admins". On a wide screen the role is a
-	// select in the row - Bits UI renders its trigger as a plain <button>
-	// named "<name>'s role" - and on a phone a segmented control in the sheet.
-	let controls = await controlsFor(page, isMobile, username);
-	// Moving to another group re-creates the row, and neither the control
+	// Promoting moves them under "Admins". The role is a select on the card -
+	// Bits UI renders its trigger as a plain <button> named "<name>'s role".
+	// Moving to another group re-creates the card, and neither the control
 	// just used nor the keyboard focus may get lost on the way.
-	const manage = personRow(page, username).getByRole('button', { name: `Manage ${username}` });
-	if (isMobile) {
-		const role = controls.getByRole('radiogroup', { name: `${username}'s role` });
-		await role.getByRole('radio', { name: 'Admin' }).click();
-		await expect(page.getByText(`${username} is now Admin`)).toBeVisible();
-		await expect(controls).toBeVisible();
-		await expect(role.getByRole('radio', { name: 'Admin' })).toHaveAttribute(
-			'aria-checked',
-			'true'
-		);
-		await page.keyboard.press('Escape');
-		await expect(manage).toBeFocused();
-	} else {
-		await controls.getByRole('button', { name: `${username}'s role` }).click();
-		await page.getByRole('option', { name: 'Admin' }).click();
-		await expect(page.getByText(`${username} is now Admin`)).toBeVisible();
-		await expect(
-			personRow(page, username).getByRole('button', { name: `${username}'s role` })
-		).toBeFocused();
-	}
+	await personRow(page, username)
+		.getByRole('button', { name: `${username}'s role` })
+		.click();
+	await page.getByRole('option', { name: 'Admin' }).click();
+	await expect(page.getByText(`${username} is now Admin`)).toBeVisible();
+	await expect(
+		personRow(page, username).getByRole('button', { name: `${username}'s role` })
+	).toBeFocused();
 	await expect(people(page).getByRole('list', { name: 'Admins' })).toContainText(username);
 
 	// The visible words are part of every name, so what a voice-control
 	// user reads is what they can say.
-	controls = await controlsFor(page, isMobile, username);
-	let menu = await actionMenu(page, isMobile, controls, username);
-	await menu.getByRole(isMobile ? 'button' : 'menuitem', { name: 'Reset password' }).click();
+	await openActionMenu(page, username);
+	await page.getByRole('menuitem', { name: 'Reset password' }).click();
 	const reset = page.getByRole('dialog', { name: `Reset ${username}'s password` });
 	await reset.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
 	await reset.getByLabel('Repeat the new password').fill(devPasswordNext(username));
 	await reset.getByRole('button', { name: 'Reset', exact: true }).click();
 	await expect(page.getByText('Password reset')).toBeVisible();
-	if (isMobile) await expect(manage).toBeFocused();
 
-	controls = await controlsFor(page, isMobile, username);
-	menu = await actionMenu(page, isMobile, controls, username);
-	await menu
-		.getByRole(isMobile ? 'button' : 'menuitem', {
-			name: isMobile ? 'Delete account' : `Delete ${username}`
-		})
-		.click();
+	await openActionMenu(page, username);
+	await page.getByRole('menuitem', { name: `Delete ${username}` }).click();
 	await page
 		.getByRole('dialog', { name: 'Delete account?' })
 		.getByRole('button', { name: 'Delete' })
@@ -250,16 +243,15 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page, is
 	await expect(people(page).getByRole('heading', { name: 'People', level: 2 })).toBeFocused();
 });
 
-test('a reset password has to be typed the same twice', async ({ page, isMobile }) => {
+test('a reset password has to be typed the same twice', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 	await page.goto('/settings/users');
 
-	const controls = await controlsFor(page, isMobile, username);
-	const menu = await actionMenu(page, isMobile, controls, username);
-	await menu.getByRole(isMobile ? 'button' : 'menuitem', { name: 'Reset password' }).click();
+	await openActionMenu(page, username);
+	await page.getByRole('menuitem', { name: 'Reset password' }).click();
 	const dialog = page.getByRole('dialog', { name: `Reset ${username}'s password` });
 	const repeat = dialog.getByLabel('Repeat the new password');
 
@@ -299,7 +291,7 @@ test('adding an account refuses a password typed differently twice', async ({ pa
 	await expect(people(page).getByRole('list', { name: 'Members' })).toContainText(username);
 });
 
-test('every field that sets a password says how long it has to be', async ({ page, isMobile }) => {
+test('every field that sets a password says how long it has to be', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -320,9 +312,8 @@ test('every field that sets a password says how long it has to be', async ({ pag
 	await page.keyboard.press('Escape');
 	await expect(add).toBeHidden();
 
-	const controls = await controlsFor(page, isMobile, username);
-	const menu = await actionMenu(page, isMobile, controls, username);
-	await menu.getByRole(isMobile ? 'button' : 'menuitem', { name: 'Reset password' }).click();
+	await openActionMenu(page, username);
+	await page.getByRole('menuitem', { name: 'Reset password' }).click();
 	await expect(
 		page
 			.getByRole('dialog', { name: `Reset ${username}'s password` })
@@ -330,23 +321,17 @@ test('every field that sets a password says how long it has to be', async ({ pag
 	).toHaveAccessibleDescription('At least 8 characters');
 });
 
-test('a role change is undone from its toast', async ({ page, isMobile }) => {
+test('a role change is undone from its toast', async ({ page }) => {
 	const username = `r${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 	await page.goto('/settings/users');
 
-	const controls = await controlsFor(page, isMobile, username);
-	if (isMobile) {
-		await controls
-			.getByRole('radiogroup', { name: `${username}'s role` })
-			.getByRole('radio', { name: 'Admin' })
-			.click();
-	} else {
-		await controls.getByRole('button', { name: `${username}'s role` }).click();
-		await page.getByRole('option', { name: 'Admin' }).click();
-	}
+	await personRow(page, username)
+		.getByRole('button', { name: `${username}'s role` })
+		.click();
+	await page.getByRole('option', { name: 'Admin' }).click();
 	await expect(people(page).getByRole('list', { name: 'Admins' })).toContainText(username);
 
 	await page.getByRole('button', { name: 'Undo' }).click();
@@ -372,7 +357,7 @@ test('the people list groups everyone under their role', async ({ page }) => {
 	await expect(people(page).getByRole('list', { name: 'Members' })).toContainText(member);
 });
 
-test('a second admin cannot touch the instance owner', async ({ page, isMobile }) => {
+test('a second admin cannot touch the instance owner', async ({ page }) => {
 	const username = `a${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -383,21 +368,16 @@ test('a second admin cannot touch the instance owner', async ({ page, isMobile }
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
-	// The owner's row offers nothing: no role control, no actions, and on a
-	// phone no sheet to open. Only the circle, which shows who they are.
+	// The owner's card offers nothing to act on: the "Owner" chip where the
+	// role select would be, no pencil, no menu. Only the circle, which shows
+	// who they are, and the chevron to the details.
 	await expect(people(page).getByRole('list', { name: 'Owner' })).toContainText('admin');
-	await expect(personRow(page, 'admin').getByRole('button', { name: /^(?!About )/ })).toHaveCount(
-		0
-	);
-	// A wide screen says why, where the other rows have their actions.
-	if (!isMobile) {
-		await expect(
-			personRow(page, 'admin').getByText('This account cannot be removed.')
-		).toBeVisible();
-	}
+	const owner = personRow(page, 'admin');
+	await expect(owner.getByRole('button', { name: /^(?!About |Show details )/ })).toHaveCount(0);
+	await expect(owner.getByText('Owner', { exact: true })).toBeVisible();
 });
 
-test('a plain admin manages a member but cannot change their role', async ({ page, isMobile }) => {
+test('a plain admin manages a member but cannot change their role', async ({ page }) => {
 	const admin = `a${uniqueToken()}`;
 	const member = `m${uniqueToken()}`;
 	await login(page);
@@ -412,15 +392,11 @@ test('a plain admin manages a member but cannot change their role', async ({ pag
 
 	// Changing a role is the owner's alone, so there is no role control -
 	// while delete and reset stay this admin's to use.
-	const controls = await controlsFor(page, isMobile, member);
-	await expect(controls.getByRole('button', { name: `${member}'s role` })).toHaveCount(0);
-	await expect(controls.getByRole('radiogroup')).toHaveCount(0);
-	const menu = await actionMenu(page, isMobile, controls, member);
 	await expect(
-		menu.getByRole(isMobile ? 'button' : 'menuitem', {
-			name: isMobile ? 'Delete account' : `Delete ${member}`
-		})
-	).toBeVisible();
+		personRow(page, member).getByRole('button', { name: `${member}'s role` })
+	).toHaveCount(0);
+	await openActionMenu(page, member);
+	await expect(page.getByRole('menuitem', { name: `Delete ${member}` })).toBeVisible();
 });
 
 test('only the owner can hand out the admin role', async ({ page }) => {
@@ -588,31 +564,25 @@ test("an admin changes a member's address but not their name, the owner can", as
 	await login(page, admin);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
-	let asAdmin = await controlsFor(page, isMobile, member);
-	await asAdmin.getByRole('button', { name: 'Edit profile' }).click();
+	await personRow(page, member).getByRole('button', { name: 'Edit profile' }).click();
 	const emailDialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
 	await expect(emailDialog.getByLabel('Display name')).toHaveCount(0);
 	await emailDialog.getByLabel('Email').fill(`${member}@example.com`);
 	await emailDialog.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByText('Profile saved')).toBeVisible();
 	await expect(emailDialog).toBeHidden();
-	// The new address is unconfirmed at once, without a reload: the row's
-	// symbol on a wide screen, its spoken words on a phone, where the sheet
-	// closed when the dialog opened.
+	// The new address is unconfirmed at once, without a reload: the symbol's
+	// tooltip button from md, its spoken words on a phone.
 	if (isMobile) {
 		await expect(personRow(page, member)).toContainText('Address not confirmed yet');
-		asAdmin = await controlsFor(page, isMobile, member);
 	} else {
 		await expect(
 			personRow(page, member).getByRole('button', { name: 'Address not confirmed yet' })
 		).toBeVisible();
 	}
-	const menu = await actionMenu(page, isMobile, asAdmin, member);
-	await expect(
-		menu.getByRole(isMobile ? 'button' : 'menuitem', {
-			name: isMobile ? 'Delete account' : `Delete ${member}`
-		})
-	).toBeVisible();
+	await openActionMenu(page, member);
+	await expect(page.getByRole('menuitem', { name: `Delete ${member}` })).toBeVisible();
+	await page.keyboard.press('Escape');
 
 	// The `admin` the e2e task seeds is the instance owner, and renaming
 	// somebody else is theirs alone.
@@ -620,8 +590,7 @@ test("an admin changes a member's address but not their name, the owner can", as
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
-	const controls = await controlsFor(page, isMobile, member);
-	await controls.getByRole('button', { name: 'Edit profile' }).click();
+	await personRow(page, member).getByRole('button', { name: 'Edit profile' }).click();
 	const dialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
 	await dialog.getByLabel('Display name').fill(displayName);
 	await dialog.getByRole('radio', { name: 'Teal' }).click();

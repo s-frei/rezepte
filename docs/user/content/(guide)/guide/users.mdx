@@ -7,7 +7,7 @@ import { Audience } from '@/components/audience';
 
 Everyone with an account finds "People" in Settings: a list of every account on this Rezepte, with its display name, its login name, its color and its role, so it is always clear who takes part and who looks after the accounts. A "Member" account reads the list and nothing more; the actions on this page are for admins.
 
-Admins are not all equal here. Every admin looks after the members; admins themselves belong to the instance owner — the account created on the very first start (see [First login](/getting-started/first-login)). Actions you are not allowed to take are simply not shown in the row, so the list already reflects this table:
+Admins are not all equal here. Every admin looks after the members; admins themselves belong to the instance owner — the account created on the very first start (see [First login](/getting-started/first-login)). Actions you are not allowed to take are simply not shown on the card, so the list already reflects this table:
 
 | | Member | Admin | Owner |
 | --- | :-: | :-: | :-: |
@@ -37,18 +37,18 @@ There is exactly one Owner and it never changes: the role cannot be handed to an
 
 <Screenshot name="users" caption="The list of people in Settings, as an admin sees it" />
 
-A small envelope after a login name shows the state of that person's address: a green check when it is confirmed, so a forgotten-password mail can reach it (except the owner's, and someone who signs in only through a provider gets a hint instead of a link); a question mark while it is not. No envelope means no address. On a phone the person's sheet says it in words. How to change an address is under [Change someone's name, color, photo or email address](#change-someones-name-color-photo-or-email-address).
+Admins see a small envelope after a login name that shows the state of that person's address: a green check when it is confirmed, so a forgotten-password mail can reach it (except the owner's, and someone who signs in only through a provider gets a hint instead of a link); a question mark while it is not. No envelope means no address. An admin finds the address itself, and its state in words, in the person's details. How to change an address is under [Change someone's name, color, photo or email address](#change-someones-name-color-photo-or-email-address).
 
 <Steps>
   <Step>
 
     ### Open the list
 
-    Go to "Settings" → "People". Everyone is listed under their role — "Owner" first, then "Admins", then "Members", with the number of people beside the last two — and by name within each group. Each person shows their display name and, under it, the login name; someone signed in through [single sign-on](/operations/single-sign-on) also shows which provider, and someone with an open setup link shows when it expires.
+    Go to "Settings" → "People". Everyone is listed under their role — "Owner" first, then "Admins", then "Members", with the number of people beside the last two — and by name within each group. Each person has a card with their display name and, under it, the login name; someone signed in through [single sign-on](/operations/single-sign-on) also shows which provider, and someone with an open setup link shows when it expires. Under a dashed line the card says how many shopping lists and how many recipes the person has — on a phone one under the other. How many lists someone has is all anybody sees here: what is on a list only the people it is shared with can see.
 
-    Everyone's circle shows their photo, or their initial in their color if they have none. On a wide screen, click a person's circle to open their person card: name, login name, role and a link to the recipes they wrote. On a phone, the card is at the top of the sheet a row opens, so an admin sees it for every person they may act on; the owner's row and, for a Member, every row but their own open no sheet, and there the card is not shown.
+    Everyone's circle shows their photo, or their initial in their color if they have none. Click or tap a person's circle to open their person card: name, login name, role and a link to the recipes they wrote.
 
-    On a wide screen the role select and the pencil (where there is one) sit at the end of each row, and a "..." menu next to them holds everything else you may do with that account. On a phone, tap a person to open a sheet with their actions; rows with a small arrow are the ones that open something, and your own row takes you to your profile.
+    Beside the counts — on a phone below them — sit the role select (the owner's card carries an "Owner" badge instead), the pencil where there is one, and a "..." menu that holds everything else you may do with that account. The pencil on your own card takes you to your profile. The arrow at the top right of a card opens its details in place of the counts: shopping lists, recipes with the title of the latest one, email address and whether it is confirmed, when the account joined, how it signs in, and whether the person may share publicly. The controls stay where they are.
 
   </Step>
   <Step>
@@ -78,32 +78,32 @@ A small envelope after a login name shows the state of that person's address: a 
 
     ### Change a role
 
-    Use the "Role" select in a member's row — on a phone, the "Admin" / "Member" switch in their sheet — to change their role; they move to the matching group right away. Only the owner has this control; every other admin reads the role from the group the person is listed under.
+    Use the "Role" select on a member's card to change their role; they move to the matching group right away. Only the owner has this control; every other admin reads the role from the group the person is listed under.
 
   </Step>
   <Step>
 
     ### Change someone's name, color, photo or email address
 
-    The pencil in a person's row — "Edit profile" in their sheet on a phone — opens their photo, their display name, their color and their email address. "Add photo" or "Change photo" works as on your own profile (see [Settings](/guide/settings#profile)): pick a file, frame the round section, confirm; "Remove photo" puts their initial back. Name, color and photo are the owner's alone. The address follows the rule for resetting a password: any admin can change it for a member, only the owner for an admin, so an admin who is not the owner gets the pencil on a member's row with just the address in it.
+    The pencil on a person's card opens their photo, their display name, their color and their email address. "Add photo" or "Change photo" works as on your own profile (see [Settings](/guide/settings#profile)): pick a file, frame the round section, confirm; "Remove photo" puts their initial back. Name, color and photo are the owner's alone. The address follows the rule for resetting a password: any admin can change it for a member, only the owner for an admin, so an admin who is not the owner gets the pencil on a member's card with just the address in it.
 
     Under the address it says whether it is confirmed. Change it and save, and the new address is unconfirmed: when your Rezepte can send mail, a confirmation mail that names you goes to it; without mail it stays unconfirmed. Clear the field to remove the address. Sending a setup link by mail to a new address (below) is the other way to change it, and confirms it once the link is used.
 
-    It is not offered on your own row. Your own name, color, photo and address live in "Settings" → "Profile", so there is only ever one place to change them (see [Settings](/guide/settings)).
+    On your own card the pencil leads to your profile instead: your own name, color, photo and address live in "Settings" → "Profile", so there is only ever one place to change them (see [Settings](/guide/settings)).
 
   </Step>
   <Step>
 
     ### Allow or withdraw public sharing
 
-    On a wide screen the "..." menu in a person's row carries "May share publicly" as a checkbox, among the other actions below; on a phone it is a switch in the sheet that opens when you tap the person. It follows the same rule as resetting a password: any admin can switch it for a member, only the owner for an admin, and nobody for the owner. Turning it off pauses that person's existing public links until it is turned back on, and hides "Share publicly…" on their recipe pages meanwhile. It has nothing to do with whether public links are allowed for the household at all — that is the owner's own **Public sharing** switch, below the list of people. See [Public links](/guide/sharing#public-links).
+    The "..." menu on a person's card carries "May share publicly" as a checkbox, among the other actions below. It follows the same rule as resetting a password: any admin can switch it for a member, only the owner for an admin, and nobody for the owner. Turning it off pauses that person's existing public links until it is turned back on, and hides "Share publicly…" on their recipe pages meanwhile. It has nothing to do with whether public links are allowed for the household at all — that is the owner's own **Public sharing** switch, below the list of people. See [Public links](/guide/sharing#public-links).
 
   </Step>
   <Step>
 
     ### Reset a password
 
-    Open the "..." menu in a member's row — their sheet on a phone — for "Reset password", which sets a new password for that member and signs them out on every device. Type the new password twice; the reset only goes through when both match. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
+    Open the "..." menu on a member's card for "Reset password", which sets a new password for that member and signs them out on every device. Type the new password twice; the reset only goes through when both match. Resetting another admin's password is the owner's alone, and nobody resets their own password here — that is "Change password" in your own settings, which asks for the current one.
 
     "Setup link", in the same menu, is the alternative that keeps you from ever knowing their password: it works exactly like the one offered when creating an account, and signs them out everywhere too once they use it. When your Rezepte can send mail, it first asks how the link gets there, the same kind of choice as "Add account" offers. "Send by mail" is picked, with the address on the account filled in; one you change becomes the account's new address, and "Send link" mails it. "Pass it on myself" drops the address, and "Show link" gives you the link to pass on yourself. Either way a new link replaces the open one.
 
@@ -114,21 +114,21 @@ A small envelope after a login name shows the state of that person's address: a 
 
     ### Revoking a link
 
-    While a setup link is unused, the person's row reads "Setup link open until" the date it stops working — a week after it was issued. "Revoke link" ends it at once, no confirmation needed, since sending a fresh one is the same "Setup link" action again — on a wide screen in the "..." menu with the other actions, on a phone in the person's sheet, beside the same line. Before anyone has been sent a link at all, the row reads "Not set up yet" instead — unless the person already signs in through [single sign-on](/operations/single-sign-on).
+    While a setup link is unused, the person's card reads "Setup link open until" the date it stops working — a week after it was issued. "Revoke link" ends it at once, no confirmation needed, since sending a fresh one is the same "Setup link" action again — both in the "..." menu with the other actions. Before anyone has been sent a link at all, the card reads "Not set up yet" instead — unless the person already signs in through [single sign-on](/operations/single-sign-on).
 
   </Step>
   <Step>
 
     ### Disconnect single sign-on
 
-    When your Rezepte uses [single sign-on](/operations/single-sign-on) and a person has connected their account to it, their row reads "Signs in with" the provider's name, and "Disconnect" and the provider's name are among their actions — in the "..." menu on a wide screen, in their sheet on a phone. It follows the same rule as resetting a password and signs the person out on every device, so Rezepte asks you to confirm first. It works even when they have no password: their row then loses that line and reads "Not set up yet" instead, and a "Setup link" is how they get back in, with a password or by connecting the provider again.
+    When your Rezepte uses [single sign-on](/operations/single-sign-on) and a person has connected their account to it, their card reads "Signs in with" the provider's name, and "Disconnect" and the provider's name are among their actions in the "..." menu. It follows the same rule as resetting a password and signs the person out on every device, so Rezepte asks you to confirm first. It works even when they have no password: their card then loses that line and reads "Not set up yet" instead, and a "Setup link" is how they get back in, with a password or by connecting the provider again.
 
   </Step>
   <Step>
 
     ### Delete an account
 
-    "Delete account", at the end of the "..." menu — the last action in their sheet on a phone — asks "Delete account?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
+    "Delete account", at the end of the "..." menu, asks "Delete account?" and, once confirmed, deletes the account. Their recipes are kept — see the note below.
 
   </Step>
 </Steps>
@@ -144,7 +144,7 @@ The **Public sharing** card is where the owner turns public links on for the hou
 <Screenshot name="public-sharing-card" caption="The Public sharing card, switched on" />
 
 <Callout type="info" title="Good to know">
-  The owner is listed under "Owner" and their row carries no actions at all: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
+  The owner is listed under "Owner" and their card carries no actions at all, only the "Owner" badge: that account cannot be deleted, cannot lose its admin rights, and its password cannot be reset from here by anyone, the owner included. So the household always keeps at least one admin. You also cannot delete your own account from this page.
 </Callout>
 
 <Callout type="info" title="A display name is not a login">
@@ -156,6 +156,6 @@ The **Public sharing** card is where the owner turns public links on for the hou
     They are not deleted — they are transferred to the admin who performed the deletion, who becomes their author. Where the deleted member was the last to edit somebody else's recipe, that admin takes their place as "Last edited by" too; the recipe's author stays who it was. Each recipe's editing setting stays as it was. Their [comments](/guide/comments) stay too, under "Former member" rather than the admin's name.
   </Accordion>
   <Accordion title="What a Member sees here">
-    The same list, with a line saying that admins manage the accounts, and no buttons: no "Add account", no role select, no "Reset password" or "Delete", and no Recipe editing card. On a phone only your own row opens anything — your profile. The same rule is enforced by the API, so the missing buttons are a courtesy, not the only protection. The list shows login names, so everyone in the household can see what the others sign in with — never their passwords.
+    The same list, with a line saying that admins manage the accounts, and no buttons: no "Add account", no role select, no "Reset password" or "Delete", no details, and no Recipe editing card. Every card still shows how many shopping lists and recipes the person has, but no envelope: addresses are the admins' business. The pencil on your own card takes you to your profile. The same rule is enforced by the API, so the missing buttons are a courtesy, not the only protection. The list shows login names, so everyone in the household can see what the others sign in with — never their passwords.
   </Accordion>
 </Accordions>

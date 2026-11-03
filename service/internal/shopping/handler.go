@@ -191,14 +191,14 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("check-shopping-items", http.MethodPost, "/api/v1/shopping-lists/{id}/items/check", "Tick or untick items", http.StatusOK, 404),
 		func(ctx context.Context, in *checkIn) (*listOut, error) {
-			return mutation(ctx, "itemIds", func(uid string) (List, error) {
+			return mutation(ctx, "", func(uid string) (List, error) {
 				return svc.SetChecked(ctx, uid, in.ID, in.Body.ItemIDs, in.Body.Checked)
 			})
 		})
 
 	huma.Register(api, op("remove-shopping-items", http.MethodPost, "/api/v1/shopping-lists/{id}/items/remove", "Remove items", http.StatusOK, 404),
 		func(ctx context.Context, in *removeIn) (*listOut, error) {
-			return mutation(ctx, "itemIds", func(uid string) (List, error) { return svc.RemoveItems(ctx, uid, in.ID, in.Body.ItemIDs) })
+			return mutation(ctx, "", func(uid string) (List, error) { return svc.RemoveItems(ctx, uid, in.ID, in.Body.ItemIDs) })
 		})
 
 	huma.Register(api, op("clear-checked-shopping-items", http.MethodPost, "/api/v1/shopping-lists/{id}/clear-checked", "Remove every ticked item", http.StatusOK, 404),
