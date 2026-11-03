@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Request } from '@playwright/test';
 import {
 	createRecipe,
 	loadFixture,
@@ -9,10 +9,6 @@ import {
 	uniqueToken,
 	uploadImage
 } from './helpers';
-
-// Written for `mise run e2e`, but NOT executed in Phase 4: Chromium cannot
-// start on the development machine. Keep the locators role-based so the
-// suite is ready to run unchanged once a browser is available.
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -131,41 +127,192 @@ test('keeps the first lightbox thumbnail reachable when the strip overflows', as
 	expect(firstBox!.x).toBeGreaterThanOrEqual(stripBox!.x);
 });
 
-test('uploads, re-covers and removes images in the editor', async ({ page }) => {
+// The editor's photo grid. A tile's identity is the image id in its
+// thumbnail's address; its `aria-label` only says where it stands.
+const tiles = (page: Page) => page.locator('#editor-section-images li[data-sortable-key]');
+
+function order(page: Page): Promise<string[]> {
+	return tiles(page)
+		.locator('img')
+		.evaluateAll((imgs) => imgs.map((img) => img.getAttribute('src')!.split('/')[3]));
+}
+
+const isOrderSave = (request: Request) =>
+	request.method() === 'PUT' && request.url().endsWith('/images/order');
+
+async function editorWithPhotos(page: Page, count: number) {
 	const token = uniqueToken();
-	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Editor photos ${token}` });
-
+	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Photo grid ${token}` });
+	const ids: string[] = [];
+	for (let i = 0; i < count; i++) {
+		ids.push((await uploadImage(page, recipe.id, tinyPng([60 * i, 120, 200 - 40 * i]))).id);
+	}
 	await page.goto(`/recipes/${recipe.slug}/edit`);
-	await page.getByLabel('Choose photos').setInputFiles([
-		{ name: 'one.png', mimeType: 'image/png', buffer: tinyPng([200, 120, 40]) },
-		{ name: 'two.png', mimeType: 'image/png', buffer: tinyPng([40, 120, 200]) }
-	]);
+	await expect(tiles(page)).toHaveCount(count);
+	await tiles(page).first().scrollIntoViewIfNeeded();
+	return { recipe, ids, title: `Photo grid ${token}` };
+}
 
-	// svelte-dnd-action puts `role="listitem"` on every tile; the label is the
-	// section's own "Photo {number}", which the ingredient and step lists
-	// ("Ingredient 1", "Step 1") cannot collide with.
-	const tiles = page.getByRole('listitem', { name: /^Photo \d$/ });
-	await expect(tiles).toHaveCount(2);
-	await expect(page.getByText('Uploading…')).toHaveCount(0);
-	// The first upload became the cover. `exact` matters: without it the badge
-	// text also matches the "Make cover" button of every other tile.
-	await expect(tiles.nth(0).getByText('Cover', { exact: true })).toBeVisible();
+async function center(locator: Locator) {
+	const box = (await locator.boundingBox())!;
+	return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
 
-	await tiles.nth(1).hover();
-	await tiles.nth(1).getByRole('button', { name: 'Make cover' }).click();
-	await expect(tiles.nth(1).getByText('Cover', { exact: true })).toBeVisible();
-	await expect(tiles.nth(0).getByText('Cover', { exact: true })).toHaveCount(0);
+/**
+ * Drags `from` onto `to` the way the project's user would: a mouse moves
+ * after pressing, a finger holds 350ms first (the sortable lifts at 250ms).
+ * Touch goes through CDP, since Playwright's touchscreen only taps.
+ */
+async function drag(page: Page, isMobile: boolean, from: Locator, to: Locator) {
+	const a = await center(from);
+	const b = await center(to);
+	const steps = 12;
+	const at = (i: number) => ({
+		x: a.x + ((b.x - a.x) * i) / steps,
+		y: a.y + ((b.y - a.y) * i) / steps
+	});
+	if (!isMobile) {
+		await page.mouse.move(a.x, a.y);
+		await page.mouse.down();
+		for (let i = 1; i <= steps; i++) await page.mouse.move(at(i).x, at(i).y);
+		await page.mouse.up();
+		return;
+	}
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [a] });
+	await page.waitForTimeout(350);
+	for (let i = 1; i <= steps; i++) {
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [at(i)] });
+	}
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await cdp.detach();
+}
 
-	await tiles.nth(0).hover();
-	await tiles.nth(0).getByRole('button', { name: 'Remove photo' }).click();
-	await expect(tiles).toHaveCount(1);
-	await expect(tiles.nth(0).getByText('Cover', { exact: true })).toBeVisible();
+test('reorders photos by dragging and keeps the order after reload', async ({ page, isMobile }) => {
+	const { recipe, ids, title } = await editorWithPhotos(page, 4);
+	const [one, two, three, four] = ids;
 
-	// Images are saved immediately, so the detail page already shows them.
+	const saved = page.waitForResponse((response) => isOrderSave(response.request()));
+	await drag(page, isMobile, tiles(page).nth(3), tiles(page).nth(0));
+	expect((await saved).ok()).toBeTruthy();
+
+	await expect(tiles(page)).toHaveCount(4);
+	expect(await order(page)).toEqual([four, one, two, three]);
+	await expect(tiles(page).first().getByText('Cover', { exact: true })).toBeVisible();
+
+	await page.reload();
+	await expect(tiles(page)).toHaveCount(4);
+	expect(await order(page)).toEqual([four, one, two, three]);
+
 	await page.goto(`/recipes/${recipe.slug}`);
-	await expect(
-		page.getByRole('img', { name: `Cover photo of Editor photos ${token}` })
-	).toBeVisible();
+	await expect(page.getByRole('img', { name: `Cover photo of ${title}` })).toHaveAttribute(
+		'src',
+		new RegExp(`/${four}/`)
+	);
+});
+
+test('makes a photo the cover from its menu', async ({ page }) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+
+	await page.getByRole('button', { name: 'Photo 3 options' }).click();
+	const request = page.waitForRequest(isOrderSave);
+	await page.getByRole('menuitem', { name: 'Make cover' }).click();
+	expect((await request).postDataJSON()).toEqual({ imageIds: [three, one, two] });
+	expect(await order(page)).toEqual([three, one, two]);
+	await expect(tiles(page).first().getByText('Cover', { exact: true })).toBeVisible();
+
+	// Removing the cover hands the badge to the next photo.
+	await page.getByRole('button', { name: 'Photo 1 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(tiles(page)).toHaveCount(2);
+	expect(await order(page)).toEqual([one, two]);
+	await expect(tiles(page).first().getByText('Cover', { exact: true })).toBeVisible();
+});
+
+test('moves a photo earlier and later from its menu', async ({ page }) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+
+	// Keyboard only: focus the menu button, open it, arrow to the item.
+	async function choose(trigger: string, item: string) {
+		await page.getByRole('button', { name: trigger }).focus();
+		await page.keyboard.press('Enter');
+		const target = page.getByRole('menuitem', { name: item });
+		await expect(page.getByRole('menu')).toBeVisible();
+		for (let i = 0; i < 6 && !(await target.evaluate((el) => el === document.activeElement)); i++) {
+			await page.keyboard.press('ArrowDown');
+		}
+		await expect(target).toBeFocused();
+		const saved = page.waitForResponse((response) => isOrderSave(response.request()));
+		await page.keyboard.press('Enter');
+		expect((await saved).ok()).toBeTruthy();
+	}
+
+	await choose('Photo 2 options', 'Move earlier');
+	expect(await order(page)).toEqual([two, one, three]);
+	await expect(page.getByText('Photo moved to position 1')).toBeAttached();
+
+	await choose('Photo 2 options', 'Move later');
+	expect(await order(page)).toEqual([two, three, one]);
+	await expect(page.getByText('Photo moved to position 3')).toBeAttached();
+});
+
+test('a vertical swipe over the photos scrolls instead of reordering', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'a touch swipe needs the phone');
+	const { ids } = await editorWithPhotos(page, 6);
+	let saves = 0;
+	page.on('request', (request) => {
+		if (isOrderSave(request)) saves++;
+	});
+
+	const before = await page.evaluate(() => window.scrollY);
+	const start = await center(tiles(page).nth(4));
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+	for (let i = 1; i <= 10; i++) {
+		await cdp.send('Input.dispatchTouchEvent', {
+			type: 'touchMove',
+			touchPoints: [{ x: start.x, y: start.y - 25 * i }]
+		});
+	}
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await cdp.detach();
+	await page.waitForTimeout(500);
+
+	expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+	expect(await order(page)).toEqual(ids);
+	expect(saves).toBe(0);
+});
+
+test('keeps a photo that finished uploading during a reorder', async ({ page, isMobile }) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+	// The order save lingers, so the upload lands on the server first unless
+	// the section waits for it.
+	await page.route('**/images/order', async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		await route.continue();
+	});
+
+	const saved = page.waitForResponse((response) => isOrderSave(response.request()));
+	await drag(page, isMobile, tiles(page).nth(2), tiles(page).nth(1));
+	await page
+		.getByLabel('Choose photos')
+		.setInputFiles([{ name: 'late.png', mimeType: 'image/png', buffer: tinyPng([10, 200, 90]) }]);
+	expect((await saved).ok()).toBeTruthy();
+
+	await expect(tiles(page)).toHaveCount(4);
+	await expect(tiles(page).locator('img[src^="blob:"]')).toHaveCount(0);
+	const shown = await order(page);
+	expect(shown.slice(0, 3)).toEqual([one, three, two]);
+
+	await page.reload();
+	await expect(tiles(page)).toHaveCount(4);
+	expect(await order(page)).toEqual(shown);
 });
 
 test('queues images for a new recipe and uploads them on save', async ({ page }) => {

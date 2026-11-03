@@ -1,14 +1,23 @@
+<script module lang="ts">
+	const rest = { state: 'stored' as const, progress: 0, width: 0, height: 0 };
+</script>
+
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { flip } from 'svelte/animate';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { fade, scale } from 'svelte/transition';
-	import GripVertical from '@lucide/svelte/icons/grip-vertical';
-	import ImagePlus from '@lucide/svelte/icons/image-plus';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { scale } from 'svelte/transition';
+	import { DropdownMenu } from 'bits-ui';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import Eye from '@lucide/svelte/icons/eye';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-	import X from '@lucide/svelte/icons/x';
-	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
+	import Plus from '@lucide/svelte/icons/plus';
+	import Star from '@lucide/svelte/icons/star';
+	import Trash from '@lucide/svelte/icons/trash';
+	import Upload from '@lucide/svelte/icons/upload';
 	import { toast } from 'svelte-sonner';
 	import {
 		ACCEPTED_IMAGE_TYPES,
@@ -16,90 +25,120 @@
 		deleteImage,
 		imageUrl,
 		reorderImages,
-		setCover,
 		uploadImage,
 		type Image
 	} from '#lib/api/recipes.js';
+	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import { acceptFiles, uploadErrorMessage } from '#lib/images/pick.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { refusalOr } from '#lib/recipe/access.js';
 	import { newId } from '#lib/recipe/form.js';
+	import { flip } from '#lib/sortable/flip.js';
+	import { moveItem } from '#lib/sortable/order.js';
+	import { sortable } from '#lib/sortable/sortable.svelte.js';
 	import { fresh } from './motion';
 
 	let {
 		recipeId,
+		title,
 		initialImages = [],
-		initialCoverId = null,
 		pending = $bindable([]),
 		oncount
 	}: {
 		/** Set for an existing recipe: every action calls the API at once. Unset: files are queued into `pending`. */
 		recipeId?: string;
+		/** The recipe's title, for the lightbox. */
+		title: string;
+		/** In their stored order: the first one is the cover. */
 		initialImages?: Image[];
-		initialCoverId?: string | null;
-		/** New-recipe mode only: the queued files, in upload order. */
+		/** New-recipe mode only: the queued files, in the order shown (the first becomes the cover). */
 		pending?: File[];
-		/** Told how many photos the section holds whenever that changes (the phone's contents sheet). */
+		/** Told how many photos the section holds whenever that changes. */
 		oncount?: (count: number) => void;
 	} = $props();
 
 	/**
-	 * One tile. Stored images carry their server id and thumbnail URL; queued
-	 * or in-flight files carry the File plus an object URL that is revoked
-	 * once the tile leaves the list or the section is destroyed. `key` stays
-	 * when an upload lands and `id` turns into the server's, so the tile
-	 * stays the same element: its overlay fades off the photo instead of
-	 * the whole tile being replaced (and its photo blanking while the
-	 * thumbnail loads).
+	 * One tile; the first is the cover. Stored images carry their server id
+	 * and thumbnail URL; queued or in-flight files carry the File plus an
+	 * object URL that is revoked once the tile leaves the list or the
+	 * section is destroyed. `key` stays when an upload lands and `id` turns
+	 * into the server's, so the tile stays the same element. A queued tile
+	 * of a new recipe is `stored` too: nothing is in flight for it.
 	 */
-	type Tile = { key: string; id: string; url: string; file?: File; uploading: boolean };
+	type Tile = {
+		key: string;
+		id: string;
+		url: string;
+		file?: File;
+		state: 'stored' | 'uploading' | 'failed';
+		progress: number;
+		width: number;
+		height: number;
+	};
 
-	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
-	const ARRIVE_DURATION = $derived(prefersReducedMotion.current ? 0 : 220);
-	const OVERLAY_DURATION = $derived(prefersReducedMotion.current ? 0 : 200);
-
-	// The props seed the section once: a `$state` initializer runs on the
-	// first render only, so a later prop value never re-seeds and undoes the
-	// user's edits - which is what the `svelte-ignore` comments say out loud.
-	// Everything after that is this component's own state, kept in step with
-	// the server (or with `pending`). In queued mode the tiles come back from
-	// `pending`, the mirror `syncPending` writes - a remount keeps the queue
-	// instead of wiping it on the next sync.
+	// The props seed the section once (see the `svelte-ignore` comments);
+	// everything after that is this component's own state, kept in step
+	// with the server or with `pending`. In queued mode the tiles come back
+	// from `pending`, so a remount keeps the queue.
 	// svelte-ignore state_referenced_locally
 	let tiles = $state<Tile[]>(
-		// `queued` is declared below, so the check is spelled out here.
 		recipeId === undefined
-			? pending.map((file) => ({
-					key: newId(),
-					id: newId(),
-					url: URL.createObjectURL(file),
-					file,
-					uploading: false
-				}))
+			? pending.map((file) => {
+					const key = newId();
+					return { key, id: key, url: URL.createObjectURL(file), file, ...rest };
+				})
 			: initialImages.map((image) => ({
 					key: image.id,
 					id: image.id,
 					url: imageUrl(recipeId as string, image.id, 'thumb'),
-					uploading: false
+					state: 'stored',
+					progress: 1,
+					width: image.width,
+					height: image.height
 				}))
 	);
+	// The order the server holds, by tile key: a failed save goes back to it.
 	// svelte-ignore state_referenced_locally
-	let coverId = $state<string | null>(initialCoverId);
-	let dragging = $state(false);
+	let savedKeys = tiles.map((tile) => tile.key);
+	let dropping = $state(false);
+	let viewing = $state(false);
+	let viewIndex = $state(0);
+	let announcement = $state('');
+	let grid = $state<HTMLElement>();
 
 	$effect.pre(() => {
 		oncount?.(tiles.length);
 	});
 
 	const queued = $derived(recipeId === undefined);
-	const uploading = $derived(tiles.some((tile) => tile.uploading));
 	const full = $derived(tiles.length >= MAX_IMAGES);
-	// In queued mode the first tile is the future cover (see the props doc).
-	const effectiveCoverId = $derived(queued ? (tiles[0]?.id ?? null) : coverId);
+	// Tiles still uploading sit at the end; nothing moves past the last stored one.
+	const lastStored = $derived(tiles.findLastIndex((tile) => tile.state === 'stored'));
+	const coarse = new MediaQuery('pointer: coarse');
+	const hint = $derived(
+		queued
+			? m.images_queued_hint()
+			: tiles.length < 2
+				? m.images_hint()
+				: coarse.current
+					? m.images_hint_sort_touch()
+					: m.images_hint_sort_mouse()
+	);
 
 	// Uploads run one after another: a second drop while the first batch is
 	// still in flight simply extends the chain.
 	let chain: Promise<void> = Promise.resolve();
+	// One request to the recipe's photos at a time. The order request names
+	// every stored photo, so an upload or delete landing while it is on the
+	// way made the server refuse it; queued behind them it names what the
+	// server holds by then. Uploads join one by one (through `chain`), so a
+	// reorder waits for the upload in flight, not for the whole batch.
+	let lock: Promise<unknown> = Promise.resolve();
+	function serial<T>(run: () => Promise<T>): Promise<T> {
+		const next = lock.then(run);
+		lock = next.catch(() => {});
+		return next;
+	}
 
 	function syncPending() {
 		if (queued) {
@@ -121,138 +160,114 @@
 			MAX_IMAGES - tiles.length,
 			m.images_limit_reached({ count: MAX_IMAGES })
 		)) {
-			const id = newId();
-			const tile: Tile = { key: id, id, url: URL.createObjectURL(file), file, uploading: !queued };
-			fresh.add(tile.key);
-			tiles.push(tile);
+			const key = newId();
+			fresh.add(key);
+			tiles.push({
+				key,
+				id: key,
+				url: URL.createObjectURL(file),
+				file,
+				...rest,
+				state: queued ? 'stored' : 'uploading'
+			});
 			if (!queued) {
-				chain = chain.then(() => upload(tile));
+				chain = chain.then(() => upload(key));
 			}
 		}
 		syncPending();
 	}
 
-	async function upload(tile: Tile) {
-		if (!recipeId) {
+	async function upload(key: string) {
+		const id = recipeId as string;
+		const tile = tiles.find((t) => t.key === key);
+		if (!tile?.file) {
 			return;
 		}
-		const id = recipeId;
 		try {
-			const image = await uploadImage(id, tile.file as File);
-			const index = tiles.findIndex((t) => t.id === tile.id);
-			if (index === -1) {
-				return; // removed while uploading
-			}
-			revoke(tiles[index]);
-			tiles[index] = {
-				key: tile.key,
+			const image = await serial(() =>
+				uploadImage(id, tile.file as File, (progress) => (tile.progress = progress))
+			);
+			revoke(tile);
+			Object.assign(tile, {
 				id: image.id,
 				url: imageUrl(id, image.id, 'thumb'),
-				uploading: false
-			};
-			if (coverId === null) {
-				coverId = image.id; // the server made the first upload the cover
-			}
+				file: undefined,
+				state: 'stored',
+				progress: 1,
+				width: image.width,
+				height: image.height
+			});
 		} catch (error) {
 			toast.error(uploadErrorMessage(error));
-			const index = tiles.findIndex((t) => t.id === tile.id);
+			const index = tiles.indexOf(tile);
 			if (index !== -1) {
-				revoke(tiles[index]);
+				revoke(tile);
 				tiles.splice(index, 1);
 			}
 		}
 	}
 
-	async function remove(index: number) {
-		const tile = tiles[index];
-		if (tile.uploading) {
+	/** Saves the order on screen; `error` is the toast when the server refuses it. */
+	async function saveOrder(error = m.images_reorder_error()) {
+		syncPending();
+		if (queued) {
 			return;
 		}
-		if (!queued && recipeId) {
+		const id = recipeId as string;
+		try {
+			const sent = await serial(async () => {
+				const stored = tiles.filter((tile) => tile.state === 'stored');
+				await reorderImages(
+					id,
+					stored.map((tile) => tile.id)
+				);
+				return stored.map((tile) => tile.key);
+			});
+			// The answer is the order sent, which the screen shows already.
+			savedKeys = sent;
+		} catch (err) {
+			// Back to what the server holds; tiles it does not know yet
+			// (uploading) stay at the end, in their order.
+			const rank = new Map(savedKeys.map((key, i) => [key, i]));
+			void flip(grid as HTMLElement, () => {
+				tiles = tiles.toSorted(
+					(a, b) => (rank.get(a.key) ?? MAX_IMAGES) - (rank.get(b.key) ?? MAX_IMAGES)
+				);
+			});
+			toast.error(refusalOr(err, error));
+		}
+	}
+
+	/** A menu move: the same slide and settle ring as a drag, then announced and saved. */
+	function move(from: number, to: number, error = m.images_reorder_error()) {
+		const key = tiles[from].key;
+		const el = grid?.querySelector<HTMLElement>(`[data-sortable-key="${key}"]`) ?? null;
+		void flip(grid as HTMLElement, () => (tiles = moveItem(tiles, from, to)), { settle: el });
+		announcement = m.images_moved({ position: to + 1 });
+		void saveOrder(error);
+	}
+
+	async function remove(index: number) {
+		const tile = tiles[index];
+		if (!queued) {
 			try {
-				await deleteImage(recipeId, tile.id);
+				await serial(() => deleteImage(recipeId as string, tile.id));
 			} catch (error) {
 				toast.error(refusalOr(error, m.images_delete_error()));
 				return;
 			}
 		}
-		// An upload finishing during the round trip above can have moved the
-		// tile, so `index` is stale by now: look the tile up again and let the
-		// refreshed list decide which image inherits the cover.
-		const current = tiles.findIndex((t) => t.id === tile.id);
-		if (current === -1) {
-			return;
-		}
-		revoke(tiles[current]);
-		tiles.splice(current, 1);
-		if (coverId === tile.id) {
-			coverId = tiles[0]?.id ?? null; // mirrors the server's promotion rule
-		}
+		await flip(grid as HTMLElement, () => {
+			revoke(tile);
+			tiles = tiles.filter((t) => t !== tile);
+		});
+		savedKeys = savedKeys.filter((key) => key !== tile.key);
 		syncPending();
 	}
 
-	async function makeCover(index: number) {
-		const tile = tiles[index];
-		if (tile.uploading) {
-			return;
-		}
-		if (queued) {
-			tiles.splice(index, 1);
-			tiles.unshift(tile);
-			syncPending();
-			return;
-		}
-		if (!recipeId) {
-			return;
-		}
-		try {
-			await setCover(recipeId, tile.id);
-			coverId = tile.id;
-		} catch (error) {
-			toast.error(refusalOr(error, m.images_cover_error()));
-		}
-	}
-
-	// The order the running drag started from. Not `$state`: nothing renders
-	// from it, it only survives from the first `consider` to `finalize`.
-	let orderBeforeDrag: Tile[] | null = null;
-
-	function consider(event: CustomEvent<DndEvent<Tile>>) {
-		orderBeforeDrag ??= [...tiles];
-		tiles = event.detail.items;
-	}
-
-	async function finalize(event: CustomEvent<DndEvent<Tile>>) {
-		const before = orderBeforeDrag;
-		orderBeforeDrag = null;
-		tiles = event.detail.items;
-		syncPending();
-		if (queued || !recipeId) {
-			return;
-		}
-		try {
-			const ordered = await reorderImages(
-				recipeId,
-				tiles.map((tile) => tile.id)
-			);
-			// A file added while the request was in flight is not in the
-			// server's answer: map the returned order onto the tiles that are
-			// still here and keep every tile that still carries its file -
-			// queued or in flight - at the end, where a new upload lands.
-			const byId = new Map(tiles.map((tile) => [tile.id, tile]));
-			const stored = ordered.flatMap((image) => {
-				const tile = byId.get(image.id);
-				return tile ? [tile] : [];
-			});
-			tiles = [...stored, ...tiles.filter((tile) => tile.file !== undefined)];
-		} catch (error) {
-			// The server kept the old order, so the screen goes back to it
-			// rather than showing an order that only exists locally.
-			if (before !== null) {
-				tiles = before;
-			}
-			toast.error(refusalOr(error, m.images_reorder_error()));
-		}
+	function view(index: number) {
+		viewIndex = index;
+		viewing = true;
 	}
 
 	function onchange(event: Event) {
@@ -263,137 +278,256 @@
 		input.value = '';
 	}
 
-	function ondrop(event: DragEvent) {
-		event.preventDefault();
-		dragging = false;
-		if (event.dataTransfer?.files) {
-			addFiles(event.dataTransfer.files);
-		}
+	/** The whole section card takes dropped files; it carries `data-dropping` while they hover. */
+	function dropTarget(node: HTMLElement) {
+		const section = node.closest('section') ?? node;
+		const set = (on: boolean) => {
+			dropping = on;
+			section.toggleAttribute('data-dropping', on);
+		};
+		const over = (event: DragEvent) => {
+			if (!event.dataTransfer?.types.includes('Files')) return;
+			event.preventDefault();
+			set(true);
+		};
+		const leave = (event: DragEvent) => {
+			if (!section.contains(event.relatedTarget as Node | null)) set(false);
+		};
+		const drop = (event: DragEvent) => {
+			if (!dropping) return;
+			event.preventDefault();
+			set(false);
+			if (event.dataTransfer?.files) addFiles(event.dataTransfer.files);
+		};
+		section.addEventListener('dragover', over);
+		section.addEventListener('dragleave', leave);
+		section.addEventListener('drop', drop);
+		return () => {
+			section.removeEventListener('dragover', over);
+			section.removeEventListener('dragleave', leave);
+			section.removeEventListener('drop', drop);
+		};
 	}
 
-	function ondragover(event: DragEvent) {
-		event.preventDefault();
-		dragging = true;
+	function lightboxSrc(imageId: string, variant: 'thumb' | 'detail' | 'original') {
+		const tile = tiles.find((t) => t.id === imageId);
+		return tile?.file ? tile.url : imageUrl(recipeId as string, imageId, variant);
 	}
 
-	const overlayButton =
-		'rounded-pill bg-surface px-2.5 py-1 text-micro font-semibold text-text shadow-card transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+	const menuItem =
+		'flex min-h-10 items-center gap-2.5 rounded-sm px-2.5 text-body-sm font-medium outline-none data-disabled:opacity-40 data-highlighted:bg-accent data-highlighted:text-accent-foreground';
 </script>
 
-<div class="space-y-4">
-	<p class="text-caption text-text-muted">
-		{queued ? m.images_queued_hint() : m.images_saved_immediately()}
-	</p>
+<div {@attach dropTarget}>
+	<p class="mb-3.5 text-caption text-text-muted">{hint}</p>
 
-	{#if tiles.length > 0}
-		<!-- The zone and item `aria-label`s are what svelte-dnd-action announces. -->
+	<div class="relative">
 		<ul
-			use:dragHandleZone={{
-				items: tiles,
-				type: 'photo',
-				flipDurationMs: FLIP_DURATION,
-				dropTargetStyle: {},
-				dragDisabled: uploading
+			bind:this={grid}
+			use:sortable={{
+				keys: tiles.map((tile) => tile.key),
+				disabled: (key) => tiles.find((tile) => tile.key === key)?.state !== 'stored',
+				columns: () => getComputedStyle(grid as HTMLElement).gridTemplateColumns.split(' ').length,
+				onmove: (from, to) => {
+					void flip(
+						grid as HTMLElement,
+						() => (tiles = moveItem(tiles, from, Math.min(to, lastStored)))
+					);
+				},
+				ondrop: () => void saveOrder(),
+				label: (_key, position) => m.images_moved({ position })
 			}}
-			onconsider={consider}
-			onfinalize={finalize}
 			aria-label={m.editor_section_images()}
-			class="flex flex-wrap gap-3"
+			class="grid grid-cols-3 gap-1.5 md:grid-cols-6 md:gap-2"
 		>
 			{#each tiles as tile, index (tile.key)}
+				{@const radius = index === 0 ? 'rounded-lg' : 'rounded-md'}
 				<!-- The intro is `|global`: the first photo creates the whole
-				     list with it, and a local intro does not play for a block
-				     created with its parent. `fresh` keeps a page load still. -->
+				     list with it. `fresh` keeps a page load still. The item is
+				     the landing slot while its face follows the pointer
+				     (`#lib/sortable`), so rounding and clipping sit on the face. -->
 				<li
-					animate:flip={{ duration: FLIP_DURATION }}
+					data-sortable-key={tile.key}
 					in:scale|global={{
 						start: 0.95,
-						duration: fresh.delete(tile.key) ? ARRIVE_DURATION : 0,
+						duration: fresh.delete(tile.key) && !prefersReducedMotion.current ? 220 : 0,
 						easing: cubicOut
 					}}
 					aria-label={m.images_item_label({ number: index + 1 })}
-					class="group relative h-[120px] w-[160px] list-none overflow-hidden rounded-lg bg-skeleton {tile.id ===
-					effectiveCoverId
-						? 'outline-2 outline-offset-2 outline-primary'
-						: ''}"
+					class="group relative aspect-square touch-pan-y select-none [-webkit-touch-callout:none] {radius} {index ===
+					0
+						? 'col-span-2 row-span-2'
+						: ''} data-sortable-slot:bg-primary/8 data-sortable-slot:outline-2 data-sortable-slot:-outline-offset-2 data-sortable-slot:outline-primary data-sortable-slot:outline-dashed"
 				>
-					<img src={tile.url} alt="" decoding="async" class="size-full object-cover" />
-
-					{#if tile.uploading}
-						<div
-							out:fade={{ duration: OVERLAY_DURATION }}
-							class="absolute inset-0 flex items-center justify-center gap-1.5 bg-overlay text-body-sm font-semibold text-inverse-foreground"
+					<div
+						data-sortable-face
+						class="absolute inset-0 overflow-hidden bg-skeleton transition-opacity {radius} {dropping
+							? 'opacity-60'
+							: ''}"
+					>
+						<button
+							type="button"
+							onclick={() => view(index)}
+							aria-label={m.images_show({ number: index + 1 })}
+							class="block size-full {tile.state === 'stored'
+								? 'cursor-grab'
+								: ''} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {radius}"
 						>
-							<LoaderCircle
-								class="size-4 animate-spin motion-reduce:animate-none"
-								aria-hidden="true"
+							<img
+								src={tile.url}
+								alt=""
+								decoding="async"
+								onload={(event) => {
+									// A local file's size, for the lightbox.
+									const img = event.currentTarget as HTMLImageElement;
+									if (tile.width === 0) {
+										tile.width = img.naturalWidth;
+										tile.height = img.naturalHeight;
+									}
+								}}
+								class="size-full object-cover {tile.state === 'uploading' ? 'opacity-55' : ''}"
 							/>
-							{m.images_uploading()}
-						</div>
-					{:else}
-						{#if tile.id === effectiveCoverId}
-							<span
-								class="absolute top-2 left-2 rounded-pill bg-primary px-2 py-0.5 text-label font-semibold text-primary-foreground"
+						</button>
+
+						{#if tile.state === 'uploading'}
+							<div
+								class="pointer-events-none absolute inset-0 grid place-items-center bg-overlay text-inverse-foreground"
 							>
-								{m.images_cover_badge()}
-							</span>
-						{/if}
-						<!-- Hidden until hover only where hovering exists: on a touch
-						     screen the row stays visible, so nothing is tappable
-						     without being seen. Keyboard focus reveals it either way. -->
-						<div
-							class="absolute inset-x-2 bottom-2 flex items-center gap-1.5 opacity-100 transition group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0"
-						>
-							<button
-								use:dragHandle
-								type="button"
-								aria-label={m.images_reorder()}
-								class="inline-flex size-[26px] cursor-grab items-center justify-center rounded-full bg-surface text-handle shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-							>
-								<GripVertical class="size-4" aria-hidden="true" />
-							</button>
-							{#if tile.id !== effectiveCoverId}
-								<button type="button" onclick={() => makeCover(index)} class={overlayButton}>
-									{m.images_set_cover()}
-								</button>
+								<LoaderCircle
+									class="size-5 animate-spin motion-reduce:animate-none"
+									aria-label={m.images_uploading()}
+								/>
+							</div>
+						{:else}
+							<!-- Hidden while `flip` resizes the tile, or they stretch with it. -->
+							{#if index === 0}
+								<span
+									class="pointer-events-none absolute top-2 left-2 rounded-pill bg-primary px-2.5 py-0.5 text-label font-semibold tracking-wide text-primary-foreground group-data-resizing:opacity-0"
+								>
+									{m.images_cover_badge()}
+								</span>
+							{:else}
+								<span
+									aria-hidden="true"
+									class="pointer-events-none absolute bottom-1.5 left-1.5 h-[18px] min-w-[18px] rounded-pill bg-surface/90 px-1.5 text-center text-label leading-[18px] font-semibold text-text-muted tabular-nums group-data-resizing:opacity-0"
+								>
+									{index + 1}
+								</span>
 							{/if}
-							<button
-								type="button"
-								onclick={() => remove(index)}
-								aria-label={m.images_remove()}
-								class="ml-auto inline-flex size-[26px] items-center justify-center rounded-full bg-surface text-text shadow-card transition hover:text-destructive focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-							>
-								<X class="size-4" aria-hidden="true" />
-							</button>
-						</div>
-					{/if}
+							<DropdownMenu.Root>
+								<DropdownMenu.Trigger
+									aria-label={m.images_actions({ number: index + 1 })}
+									class="group/more absolute top-0 right-0 grid size-10 place-items-center text-text outline-none group-data-resizing:opacity-0"
+								>
+									<span
+										class="grid size-6 place-items-center rounded-pill bg-surface/90 shadow-card group-focus-visible/more:outline-2 group-focus-visible/more:outline-offset-2 group-focus-visible/more:outline-primary group-data-[state=open]/more:bg-surface group-data-[state=open]/more:outline-2 group-data-[state=open]/more:outline-offset-1 group-data-[state=open]/more:outline-primary"
+									>
+										<Ellipsis class="size-3.5" aria-hidden="true" />
+									</span>
+								</DropdownMenu.Trigger>
+								<DropdownMenu.Portal>
+									<DropdownMenu.Content
+										preventScroll={false}
+										sideOffset={2}
+										align="end"
+										class="z-50 min-w-46 rounded-md border border-popover-border bg-popover p-1.5 shadow-dialog"
+									>
+										<DropdownMenu.Item onSelect={() => view(index)} class="{menuItem} text-text">
+											<Eye class="size-4" aria-hidden="true" />
+											{m.images_view()}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											disabled={index === 0}
+											onSelect={() => move(index, 0, m.images_cover_error())}
+											class="{menuItem} text-text"
+										>
+											<Star class="size-4" aria-hidden="true" />
+											{m.images_set_cover()}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											disabled={index === 0}
+											onSelect={() => move(index, index - 1)}
+											class="{menuItem} text-text"
+										>
+											<ArrowLeft class="size-4" aria-hidden="true" />
+											{m.images_move_earlier()}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											disabled={index >= lastStored}
+											onSelect={() => move(index, index + 1)}
+											class="{menuItem} text-text"
+										>
+											<ArrowRight class="size-4" aria-hidden="true" />
+											{m.images_move_later()}
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator class="mx-0.5 my-1 h-px bg-border" />
+										<DropdownMenu.Item
+											onSelect={() => remove(index)}
+											class="{menuItem} text-destructive data-highlighted:bg-destructive-soft data-highlighted:text-destructive"
+										>
+											<Trash class="size-4" aria-hidden="true" />
+											{m.common_remove()}
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Portal>
+							</DropdownMenu.Root>
+						{/if}
+					</div>
 				</li>
 			{/each}
-		</ul>
-	{/if}
 
-	{#if !full}
-		<label
-			{ondragover}
-			ondragleave={() => (dragging = false)}
-			{ondrop}
-			class="flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed bg-background px-4 py-6 text-center text-body-sm font-medium text-text-muted transition {dragging
-				? 'border-primary'
-				: 'border-border'}"
-		>
-			<ImagePlus class="size-6 text-handle" aria-hidden="true" />
-			<span class="mt-2">
-				{m.images_dropzone_text()}
-				<span class="font-semibold text-primary">{m.images_dropzone_action()}</span>
-			</span>
-			<input
-				type="file"
-				multiple
-				accept={ACCEPTED_IMAGE_TYPES.join(',')}
-				aria-label={m.images_dropzone_label()}
-				{onchange}
-				class="sr-only"
-			/>
-		</label>
-	{/if}
+			{#if !full}
+				<li class={tiles.length === 0 ? 'col-span-2 row-span-2' : ''}>
+					<label
+						class="flex aspect-square size-full cursor-pointer flex-col items-center justify-center border-2 border-dashed bg-background p-1 text-center font-semibold transition focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary hover:border-primary {dropping
+							? 'border-primary text-primary'
+							: 'border-border text-text-muted'} {tiles.length === 0
+							? 'gap-2 rounded-lg text-body'
+							: 'gap-1.5 rounded-md text-caption'}"
+					>
+						<Plus
+							class="text-handle {tiles.length === 0 ? 'size-7' : 'size-[22px]'}"
+							aria-hidden="true"
+						/>
+						{#if tiles.length === 0}
+							<span>{m.images_add_first()}</span>
+							<span class="text-caption font-normal text-text-muted">{m.images_add_drop()}</span>
+						{:else}
+							<span>{m.images_add()}</span>
+						{/if}
+						<input
+							type="file"
+							multiple
+							accept={ACCEPTED_IMAGE_TYPES.join(',')}
+							aria-label={m.images_dropzone_label()}
+							{onchange}
+							class="sr-only"
+						/>
+					</label>
+				</li>
+			{/if}
+		</ul>
+
+		{#if dropping}
+			<div class="pointer-events-none absolute inset-0 z-20 grid place-items-center">
+				<span
+					class="inline-flex items-center gap-2 rounded-pill bg-primary px-4 py-2.5 text-body-sm font-semibold text-primary-foreground shadow-cta"
+				>
+					<Upload class="size-4" aria-hidden="true" />
+					{m.images_drop_release()}
+				</span>
+			</div>
+		{/if}
+	</div>
+
+	<p class="sr-only" aria-live="polite">{announcement}</p>
 </div>
+
+<Lightbox
+	bind:open={viewing}
+	bind:index={viewIndex}
+	recipeId={recipeId ?? ''}
+	{title}
+	images={tiles}
+	src={lightboxSrc}
+/>

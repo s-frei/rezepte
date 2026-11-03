@@ -6,7 +6,13 @@
 	import type { Path, ResolvedPathname } from '$app/types';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '#lib/api/client.js';
-	import type { EditPolicy, Image, Recipe, RecipeInput } from '#lib/api/recipes.js';
+	import {
+		MAX_IMAGES,
+		type EditPolicy,
+		type Image,
+		type Recipe,
+		type RecipeInput
+	} from '#lib/api/recipes.js';
 	import { session } from '#lib/auth.svelte.js';
 	import ContentsSheet from '#lib/components/nav/ContentsSheet.svelte';
 	import RunningHead from '#lib/components/nav/RunningHead.svelte';
@@ -55,7 +61,7 @@
 		/** Where "Abbrechen" goes. */
 		cancelHref: ResolvedPathname;
 		/** Set when editing: lets the images section talk to the API for this recipe. */
-		existing?: { id: string; images: Image[]; coverImageId: string | null };
+		existing?: { id: string; images: Image[] };
 		/** Set when editing an existing recipe; absent means the caller is creating it and is its author. */
 		access?: { canChangePolicy: boolean; isAuthor: boolean; authorName: string };
 		/** Performs the create or update call; `pendingFiles` is non-empty only for a new recipe with queued images. */
@@ -118,6 +124,8 @@
 	let sectionProgress = $state(0);
 	// Out of the images section, which owns the photos of a stored recipe.
 	let photoCount = $state(0);
+	// The counter's words around the count, which is set in bold.
+	const photoCounter = m.images_counter({ count: '\u0000', max: MAX_IMAGES }).split('\u0000');
 
 	const policyLabels: Record<EditPolicy, string> = {
 		default: m.editor_policy_default(),
@@ -509,12 +517,21 @@
 				<BasicsSection bind:form {errors} bind:suggestedTags />
 			</section>
 
-			<section id="editor-section-images" class={sectionCard}>
-				<h2 class={sectionTitle}>{m.editor_section_images()}</h2>
+			<!-- The whole card takes dropped photos: `ImagesSection` sets `data-dropping`. -->
+			<section
+				id="editor-section-images"
+				class="{sectionCard} data-dropping:bg-accent/45 data-dropping:outline-2 data-dropping:-outline-offset-2 data-dropping:outline-primary data-dropping:outline-dashed"
+			>
+				<h2 class="{sectionTitle} flex items-baseline justify-between gap-3">
+					{m.editor_section_images()}
+					<span class="font-sans text-caption font-normal text-text-muted tabular-nums">
+						{photoCounter[0]}<b class="font-semibold text-text">{photoCount}</b>{photoCounter[1]}
+					</span>
+				</h2>
 				<ImagesSection
 					recipeId={existing?.id}
+					title={form.title}
 					initialImages={existing?.images ?? []}
-					initialCoverId={existing?.coverImageId ?? null}
 					bind:pending={pendingFiles}
 					oncount={(count) => (photoCount = count)}
 				/>
