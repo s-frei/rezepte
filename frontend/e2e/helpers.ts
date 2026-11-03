@@ -577,3 +577,38 @@ export async function selectInStep(step: Locator, word: string, what: 'word' | '
 		[word, what] as const
 	);
 }
+
+/**
+ * Holds a finger on `target` for 1.2s through Chrome's own gesture pipeline,
+ * so its long-press fires (selection, context menu) as on a phone. Raw
+ * `Input.dispatchTouchEvent` sequences never trigger it. Returns what got
+ * selected and which `selectstart`/`contextmenu` reached the document
+ * without their default prevented.
+ */
+export async function longPress(
+	page: Page,
+	target: Locator
+): Promise<{ selection: string; unprevented: string[] }> {
+	await page.evaluate(() => {
+		const seen: string[] = [];
+		(window as unknown as { unprevented: string[] }).unprevented = seen;
+		for (const type of ['selectstart', 'contextmenu'])
+			document.addEventListener(type, (e) => {
+				if (!e.defaultPrevented) seen.push(`${type} on ${(e.target as Element).tagName}`);
+			});
+	});
+	const box = (await target.boundingBox())!;
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Input.synthesizeTapGesture', {
+		x: Math.round(box.x + box.width / 2),
+		y: Math.round(box.y + box.height / 2),
+		duration: 1200,
+		tapCount: 1,
+		gestureSourceType: 'touch'
+	});
+	await cdp.detach();
+	return page.evaluate(() => ({
+		selection: String(getSelection()),
+		unprevented: (window as unknown as { unprevented: string[] }).unprevented
+	}));
+}

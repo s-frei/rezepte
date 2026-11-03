@@ -3,6 +3,7 @@ import {
 	createRecipe,
 	loadFixture,
 	login,
+	longPress,
 	search,
 	setCover,
 	tinyPng,
@@ -680,4 +681,14 @@ test('a press on a photo’s menu button never picks the photo up', async ({ pag
 
 	expect(saves).toBe(0);
 	expect(await order(page)).toEqual(ids);
+});
+
+test('a long press on a photo selects nothing and opens no menu', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'Chrome’s long-press is a touch gesture');
+	await editorWithPhotos(page, 3);
+
+	const { selection, unprevented } = await longPress(page, tiles(page).nth(1));
+
+	expect(selection).toBe('');
+	expect(unprevented).toEqual([]);
 });

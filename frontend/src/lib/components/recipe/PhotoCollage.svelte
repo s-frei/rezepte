@@ -54,7 +54,7 @@
 							const img = event.currentTarget as HTMLImageElement;
 							onmeasure?.(index, img.naturalWidth, img.naturalHeight);
 						}}
-						class="size-full object-cover"
+						class="size-full object-cover [-webkit-user-drag:none]"
 					/>
 				{/snippet}
 				{#if onopen}

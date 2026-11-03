@@ -523,7 +523,7 @@
 						easing: cubicOut
 					}}
 					aria-label={m.images_item_label({ number: index + 1 })}
-					class="group relative aspect-square touch-pan-y select-none [-webkit-touch-callout:none] {radius} {index ===
+					class="group relative aspect-square touch-pan-y select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] {radius} {index ===
 					0
 						? 'col-span-2 row-span-2'
 						: ''} data-sortable-slot:bg-primary/8 data-sortable-slot:outline-2 data-sortable-slot:-outline-offset-2 data-sortable-slot:outline-primary data-sortable-slot:outline-dashed"
@@ -550,6 +550,7 @@
 								src={tile.url}
 								alt=""
 								decoding="async"
+								draggable="false"
 								onload={(event) => {
 									// A local file's size, for the lightbox.
 									const img = event.currentTarget as HTMLImageElement;
@@ -558,7 +559,9 @@
 										tile.height = img.naturalHeight;
 									}
 								}}
-								class="size-full object-cover {tile.state === 'uploading' ? 'opacity-55' : ''}"
+								class="size-full object-cover [-webkit-user-drag:none] {tile.state === 'uploading'
+									? 'opacity-55'
+									: ''}"
 							/>
 						</button>
 

@@ -5,6 +5,7 @@ import {
 	createUser,
 	loadFixture,
 	login,
+	longPress,
 	setRecipesLockedByDefault,
 	signOut,
 	tinyPng,
@@ -510,6 +511,23 @@ test('a press on a picked photo’s remove button never picks the photo up', asy
 
 	await expect(composerPhotos(page).locator('[data-lifted]')).toHaveCount(0);
 	expect(await widths()).toEqual(before);
+});
+
+test('a long press on a picked photo selects nothing and opens no menu', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'Chrome’s long-press is a touch gesture');
+	await freshDiary(page, 'Long press');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
+	const cells = composerPhotos(page).getByRole('listitem');
+	await expect(cells).toHaveCount(3);
+	await cells.nth(1).scrollIntoViewIfNeeded();
+
+	const { selection, unprevented } = await longPress(page, cells.nth(1));
+
+	expect(selection).toBe('');
+	expect(unprevented).toEqual([]);
 });
 
 test('retrying a failed photo posts the comment', async ({ page }) => {

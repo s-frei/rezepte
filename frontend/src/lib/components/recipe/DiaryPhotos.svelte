@@ -195,7 +195,7 @@
 					},
 					label: (_, position) => m.comments_photo_moved({ position, count: photos.length })
 				}}
-				class="[&_[data-sortable-key]]:touch-pan-y [&_[data-sortable-key]]:select-none [&_[data-sortable-key]]:[-webkit-touch-callout:none] [&_[data-sortable-slot]]:outline-2 [&_[data-sortable-slot]]:-outline-offset-2 [&_[data-sortable-slot]]:outline-primary [&_[data-sortable-slot]]:outline-dashed"
+				class="[&_[data-sortable-key]]:touch-pan-y [&_[data-sortable-key]]:select-none [&_[data-sortable-key]]:[-webkit-tap-highlight-color:transparent] [&_[data-sortable-key]]:[-webkit-touch-callout:none] [&_[data-sortable-slot]]:outline-2 [&_[data-sortable-slot]]:-outline-offset-2 [&_[data-sortable-slot]]:outline-primary [&_[data-sortable-slot]]:outline-dashed"
 			>
 				<PhotoCollage
 					photos={photos.map((photo) => ({

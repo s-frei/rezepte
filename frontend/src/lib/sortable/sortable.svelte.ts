@@ -9,8 +9,11 @@
 //
 // The CSS contract a component using it adds:
 // - on every item: `user-select: none; -webkit-touch-callout: none;
-//   touch-action: pan-y` - without the touch-action the browser's pan cancels
-//   the press before the long-press lifts it;
+//   -webkit-tap-highlight-color: transparent; touch-action: pan-y` - without
+//   the touch-action the browser's pan cancels the press before the
+//   long-press lifts it;
+// - on every `<img>` in an item: `draggable="false"` and
+//   `-webkit-user-drag: none`, or the browser's own long-press drags the image;
 // - `[data-sortable-face]` inside the item, `position: absolute; inset: 0`
 //   (the item is its containing block): it is what follows the pointer, with
 //   its picked-up width and height set inline. Without a face the item itself
@@ -23,6 +26,10 @@
 // - `[data-resizing]` on an item while `flip` changes its size: hide what
 //   would stretch with it, such as a ×.
 // `[data-lifted]` marks the held item from the lift to the drop.
+//
+// From the press to the release the list prevents `selectstart` and
+// `contextmenu`: the lifted item lets pointers through, so Chrome's own
+// long-press (~650ms) lands on the list behind it, which is selectable.
 import { tick } from 'svelte';
 import type { Action } from 'svelte/action';
 import { prefersReducedMotion } from 'svelte/motion';
@@ -103,6 +110,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 
 	function lift(h: Held, touch: boolean) {
 		h.lifted = true;
+		getSelection()?.removeAllRanges();
 		h.el.setAttribute('data-lifted', '');
 		Object.assign(h.el.style, { zIndex: '10', pointerEvents: 'none' });
 		Object.assign(h.face.style, { transformOrigin: '0 0', boxShadow: 'var(--shadow-lift)' });
@@ -295,8 +303,10 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	const touchmove = (e: TouchEvent) => {
 		if (held?.lifted) e.preventDefault();
 	};
-	// A long press would open the image's menu, a mouse drag the image itself.
-	const contextmenu = (e: Event) => {
+	// A long press would open the image's menu or select the word nearest to
+	// it, on the list itself once the lifted item lets the press through; a
+	// mouse drag would drag the image itself.
+	const whileHeld = (e: Event) => {
 		if (held) e.preventDefault();
 	};
 	const dragstart = (e: Event) => e.preventDefault();
@@ -304,7 +314,8 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	node.addEventListener('pointerdown', down);
 	node.addEventListener('keydown', keydown);
 	node.addEventListener('touchmove', touchmove, { passive: false });
-	node.addEventListener('contextmenu', contextmenu);
+	node.addEventListener('contextmenu', whileHeld);
+	node.addEventListener('selectstart', whileHeld);
 	node.addEventListener('dragstart', dragstart);
 
 	return {
@@ -317,7 +328,8 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 			node.removeEventListener('pointerdown', down);
 			node.removeEventListener('keydown', keydown);
 			node.removeEventListener('touchmove', touchmove);
-			node.removeEventListener('contextmenu', contextmenu);
+			node.removeEventListener('contextmenu', whileHeld);
+			node.removeEventListener('selectstart', whileHeld);
 			node.removeEventListener('dragstart', dragstart);
 		}
 	};
