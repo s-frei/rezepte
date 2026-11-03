@@ -1,7 +1,7 @@
 package db
 
 import (
-	"context"
+	"database/sql"
 	"io/fs"
 	"path/filepath"
 	"slices"
@@ -10,11 +10,11 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
-// TestRecipeCommentsMigrationDownAndUp rolls 0014 back and applies it again,
-// so its Down section is known to undo exactly what its Up section creates.
-func TestRecipeCommentsMigrationDownAndUp(t *testing.T) {
-	ctx := context.Background()
-	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
+// openAt opens a fresh database migrated up to version, and the provider
+// that moves it further.
+func openAt(t *testing.T, version int64) (*sql.DB, *goose.Provider) {
+	t.Helper()
+	conn, err := Open(t.Context(), filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +27,17 @@ func TestRecipeCommentsMigrationDownAndUp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := provider.UpTo(t.Context(), version); err != nil {
+		t.Fatalf("up to %d: %v", version, err)
+	}
+	return conn, provider
+}
+
+// TestRecipeCommentsMigrationDownAndUp rolls 0014 back and applies it again,
+// so its Down section is known to undo exactly what its Up section creates.
+func TestRecipeCommentsMigrationDownAndUp(t *testing.T) {
+	ctx := t.Context()
+	conn, provider := openAt(t, goose.MaxVersion)
 	tables := func() int {
 		t.Helper()
 		var n int
@@ -37,9 +48,6 @@ func TestRecipeCommentsMigrationDownAndUp(t *testing.T) {
 		return n
 	}
 
-	if _, err := provider.Up(ctx); err != nil {
-		t.Fatalf("up: %v", err)
-	}
 	if _, err := provider.DownTo(ctx, 13); err != nil {
 		t.Fatalf("down to 13: %v", err)
 	}
@@ -57,20 +65,8 @@ func TestRecipeCommentsMigrationDownAndUp(t *testing.T) {
 // TestPushMigrationDownAndUp rolls 0019 back and applies it again, so its
 // Down section undoes the push tables and the VAPID key column.
 func TestPushMigrationDownAndUp(t *testing.T) {
-	ctx := context.Background()
-	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	fsys, err := fs.Sub(migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := t.Context()
+	conn, provider := openAt(t, goose.MaxVersion)
 	objects := func() int {
 		t.Helper()
 		var n int
@@ -82,9 +78,6 @@ func TestPushMigrationDownAndUp(t *testing.T) {
 		return n
 	}
 
-	if _, err := provider.Up(ctx); err != nil {
-		t.Fatalf("up: %v", err)
-	}
 	if n := objects(); n != 3 {
 		t.Fatalf("%d push objects after up, want 3", n)
 	}
@@ -103,20 +96,8 @@ func TestPushMigrationDownAndUp(t *testing.T) {
 // with a row in the table, so its Down section is known to undo exactly what
 // its Up section creates.
 func TestCommentImagesMigrationDownAndUp(t *testing.T) {
-	ctx := context.Background()
-	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	fsys, err := fs.Sub(migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := t.Context()
+	conn, provider := openAt(t, goose.MaxVersion)
 	objects := func() int {
 		t.Helper()
 		var n int
@@ -128,9 +109,6 @@ func TestCommentImagesMigrationDownAndUp(t *testing.T) {
 		return n
 	}
 
-	if _, err := provider.Up(ctx); err != nil {
-		t.Fatalf("up: %v", err)
-	}
 	for _, q := range []string{
 		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
 			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
@@ -165,23 +143,8 @@ func TestCommentImagesMigrationDownAndUp(t *testing.T) {
 // channels: a group with every kind off becomes one group row, the rest stay
 // kind rows, push starts empty; Down expands the group rows back.
 func TestNotificationChannelsMigration(t *testing.T) {
-	ctx := context.Background()
-	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	fsys, err := fs.Sub(migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := provider.UpTo(ctx, 20); err != nil {
-		t.Fatalf("up to 20: %v", err)
-	}
+	ctx := t.Context()
+	conn, provider := openAt(t, 20)
 	for _, q := range []string{
 		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at) VALUES
 			('a', 'a', 'A', 'x', 'user', '#000', 'en', 't', 't'),
@@ -285,26 +248,12 @@ func TestNotificationChannelsMigration(t *testing.T) {
 	}
 }
 
-// TestCoverFirstMigration moves a recipe's cover to position 0 and leaves a
-// recipe whose cover is already first alone; Down is a no-op.
+// TestCoverFirstMigration moves a recipe's cover to position 0, leaves a
+// recipe whose cover is already first alone and gives a recipe without one
+// its first photo; Down is a no-op.
 func TestCoverFirstMigration(t *testing.T) {
-	ctx := context.Background()
-	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	fsys, err := fs.Sub(migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := provider.UpTo(ctx, 21); err != nil {
-		t.Fatalf("up to 21: %v", err)
-	}
+	ctx := t.Context()
+	conn, provider := openAt(t, 21)
 	for _, q := range []string{
 		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
 			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
@@ -312,11 +261,12 @@ func TestCoverFirstMigration(t *testing.T) {
 			('r1', 'r1', 'R1', 'u1', 't', 'u1', 't', 'b'),
 			('r2', 'r2', 'R2', 'u1', 't', 'u1', 't', 'x')`,
 		`INSERT INTO recipes (id, slug, title, created_by, created_at, updated_by, updated_at) VALUES
-			('r3', 'r3', 'R3', 'u1', 't', 'u1', 't')`,
+			('r3', 'r3', 'R3', 'u1', 't', 'u1', 't'), ('r4', 'r4', 'R4', 'u1', 't', 'u1', 't')`,
 		`INSERT INTO images (id, recipe_id, filename, width, height, size_bytes, position, created_at) VALUES
 			('a', 'r1', 'a', 1, 1, 1, 0, 't'), ('b', 'r1', 'b', 1, 1, 1, 1, 't'), ('c', 'r1', 'c', 1, 1, 1, 2, 't'),
 			('x', 'r2', 'x', 1, 1, 1, 0, 't'), ('y', 'r2', 'y', 1, 1, 1, 1, 't'),
-			('p', 'r3', 'p', 1, 1, 1, 0, 't'), ('q', 'r3', 'q', 1, 1, 1, 1, 't')`,
+			('p', 'r3', 'p', 1, 1, 1, 0, 't'), ('q', 'r3', 'q', 1, 1, 1, 1, 't'),
+			('m', 'r4', 'm', 1, 1, 1, 2, 't'), ('n', 'r4', 'n', 1, 1, 1, 1, 't')`,
 	} {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			t.Fatalf("%s: %v", q, err)
@@ -333,17 +283,18 @@ func TestCoverFirstMigration(t *testing.T) {
 	if _, err := provider.UpTo(ctx, 22); err != nil {
 		t.Fatalf("up to 22: %v", err)
 	}
-	if got, want := order(), "b0 a1 c2 x0 y1 p0 q1"; got != want {
+	if got, want := order(), "b0 a1 c2 x0 y1 p0 q1 n1 m2"; got != want {
 		t.Fatalf("after up = %q, want %q", got, want)
 	}
-	var cover string
-	if err := conn.QueryRowContext(ctx, `SELECT cover_image_id FROM recipes WHERE id = 'r3'`).Scan(&cover); err != nil || cover != "p" {
-		t.Fatalf("cover of a recipe without one = %q, %v; want p", cover, err)
+	// A recipe without a cover gets its first photo, wherever its positions start.
+	var covers string
+	if err := conn.QueryRowContext(ctx, `SELECT group_concat(cover_image_id, ' ') FROM (SELECT * FROM recipes WHERE id IN ('r3', 'r4') ORDER BY id)`).Scan(&covers); err != nil || covers != "p n" {
+		t.Fatalf("covers of recipes without one = %q, %v; want p n", covers, err)
 	}
 	if _, err := provider.DownTo(ctx, 21); err != nil {
 		t.Fatalf("down to 21: %v", err)
 	}
-	if got, want := order(), "b0 a1 c2 x0 y1 p0 q1"; got != want {
+	if got, want := order(), "b0 a1 c2 x0 y1 p0 q1 n1 m2"; got != want {
 		t.Fatalf("after down = %q, want %q", got, want)
 	}
 }
@@ -351,23 +302,8 @@ func TestCoverFirstMigration(t *testing.T) {
 // TestCommentImagePositionMigration numbers existing attached photos by
 // insertion order; Down drops the column.
 func TestCommentImagePositionMigration(t *testing.T) {
-	ctx := context.Background()
-	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	fsys, err := fs.Sub(migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := provider.UpTo(ctx, 22); err != nil {
-		t.Fatalf("up to 22: %v", err)
-	}
+	ctx := t.Context()
+	conn, provider := openAt(t, 22)
 	for _, q := range []string{
 		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
 			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
