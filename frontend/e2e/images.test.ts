@@ -315,26 +315,34 @@ test('shows what the server holds when another member changed the photos', async
 
 test('leaving the editor waits for the photos still going up', async ({ page }) => {
 	const { recipe } = await editorWithPhotos(page, 1);
-	let release!: () => void;
-	const held = new Promise<void>((resolve) => (release = resolve));
+	// Each upload waits for its own release; the second starts only after the first.
+	const releases: (() => void)[] = [];
 	await page.route('**/api/v1/recipes/*/images', async (route) => {
-		if (route.request().method() === 'POST') await held;
+		if (route.request().method() === 'POST') {
+			await new Promise<void>((resolve) => releases.push(resolve));
+		}
 		return route.continue();
 	});
 
-	await page
-		.getByLabel('Choose photos')
-		.setInputFiles([{ name: 'late.png', mimeType: 'image/png', buffer: tinyPng([10, 200, 90]) }]);
+	await page.getByLabel('Choose photos').setInputFiles([
+		{ name: 'one.png', mimeType: 'image/png', buffer: tinyPng([10, 200, 90]) },
+		{ name: 'two.png', mimeType: 'image/png', buffer: tinyPng([200, 10, 90]) }
+	]);
 	const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
 	await cancel.click();
 	await expect(cancel).toBeDisabled();
+	await expect.poll(() => releases.length).toBe(1);
+	releases[0]();
+
+	// The second photo is still on its way: the editor stays.
+	await expect.poll(() => releases.length).toBe(2);
 	await page.waitForTimeout(300);
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}/edit`);
 
-	release();
+	releases[1]();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 	const stored = (await (await page.request.get(`/api/v1/recipes/${recipe.id}`)).json()) as Recipe;
-	expect(stored.images).toHaveLength(2);
+	expect(stored.images).toHaveLength(3);
 });
 
 test('a vertical swipe over the photos scrolls instead of reordering', async ({

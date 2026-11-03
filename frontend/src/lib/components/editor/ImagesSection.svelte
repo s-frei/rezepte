@@ -264,8 +264,14 @@
 			// A 422: the server holds other photos than the ones sent (another
 			// member added or removed some), so `savedKeys` is stale too.
 			if (err instanceof ApiError && err.status === 422) {
-				await serial(reload).catch(() => {});
-				return;
+				try {
+					await serial(reload);
+					return;
+				} catch (reloadError) {
+					// What the server holds is unknown: back to the last order it
+					// accepted, below. The toast above already says it failed.
+					console.error(reloadError);
+				}
 			}
 			// Back to what the server holds; tiles it does not know yet
 			// (uploading) stay at the end, in their order.
@@ -403,6 +409,8 @@
 	 */
 	export async function flush(): Promise<void> {
 		flushDeletes();
+		// Uploads join the queue one by one: the chain holds those not in it yet.
+		await chain;
 		await lock;
 	}
 

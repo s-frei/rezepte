@@ -12,7 +12,7 @@
 		photos: { key: string; src: string; width: number; height: number }[];
 		/** Tapping photo `index`; without it the photos are pictures, not buttons. */
 		onopen?: (index: number) => void;
-		/** Photo `index` has loaded, at its natural size. */
+		/** Photo `index` has loaded, at its natural size. With it every photo loads at once, so each is measured. */
 		onmeasure?: (index: number, width: number, height: number) => void;
 		/** Drawn over photo `index`: a remove button, an upload state. */
 		children?: Snippet<[index: number]>;
@@ -47,7 +47,7 @@
 						alt=""
 						width={photo.width}
 						height={photo.height}
-						loading="lazy"
+						loading={onmeasure ? 'eager' : 'lazy'}
 						decoding="async"
 						draggable="false"
 						onload={(event) => {
