@@ -40,9 +40,16 @@
 	// The step on screen lives in the URL as `?step=N` (1-based), so a
 	// reload, a shared link and a timer all open it. A value out of range is
 	// clamped (the recipe may have lost steps since the timer started); a
-	// missing or malformed one opens the first step.
+	// missing or malformed one opens the first step. Read from the address,
+	// not `page.url`: `replaceState` leaves `page.url` at the URL the page
+	// loaded with, and a back or forward onto this entry loads that one again,
+	// while `page.shallow.url` holds the step written since.
+	function stepParam(): string | null {
+		return (page.shallow?.url ?? page.url).searchParams.get('step');
+	}
+
 	function stepFromUrl(): number {
-		const n = Number.parseInt(page.url.searchParams.get('step') ?? '', 10);
+		const n = Number.parseInt(stepParam() ?? '', 10);
 		return Number.isFinite(n) ? clampStep(n - 1, recipe.steps.length) : 0;
 	}
 
@@ -154,7 +161,7 @@
 			index = stepFromUrl();
 		}
 		cameFromDetail = from?.route.id === '/recipes/[slug]';
-		if (count > 0 && page.url.searchParams.get('step') !== String(index + 1)) {
+		if (count > 0 && stepParam() !== String(index + 1)) {
 			showStep(index);
 		}
 	});

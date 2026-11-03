@@ -189,6 +189,23 @@ test('opens cook mode from the recipe and walks the steps with the keyboard', as
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 });
 
+test('back and forward return to the step the cook was on', async ({ page }) => {
+	const recipe = await createRecipe(page, scalingRecipe(`Return ${uniqueToken()}`));
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await startCookMode(page);
+	await page.getByRole('button', { name: 'Next' }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=2`);
+
+	// The step is written with replaceState, which leaves `page.url` at
+	// ?step=1; forward loaded that one and showed step 1 under ?step=2.
+	await page.goBack();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await page.goForward();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/cook?step=2`);
+	await expect(page.getByText('Step 2 of 3')).toBeVisible();
+});
+
 test('"Done" and the back button return to the recipe', async ({ page }) => {
 	const recipe = await createRecipe(page, scalingRecipe(`Done ${uniqueToken()}`));
 
