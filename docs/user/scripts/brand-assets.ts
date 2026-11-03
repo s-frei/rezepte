@@ -8,8 +8,11 @@ import { copyFile, mkdir } from 'node:fs/promises';
 // [target in docs/user, source from the repository root]
 export const COPIES: [string, string][] = [
 	['public/brand/rezepte-lockup-horizontal.svg', 'assets/brand/lockups/rezepte-lockup-horizontal.svg'],
-	// The tab icon, through Next's app/icon convention.
+	// The tab icon, through Next's app/icon convention. The PNG beside the SVG
+	// is for search results: Google wants a raster icon a multiple of 48px.
 	['app/icon.svg', 'frontend/static/favicon.svg'],
+	['app/icon.png', 'frontend/static/icon-192.png'],
+	['app/apple-icon.png', 'frontend/static/apple-touch-icon.png'],
 	// The link preview, which lib/shared.ts points at as ./og.png.
 	['public/og.png', 'assets/brand/social-preview.png']
 ];
