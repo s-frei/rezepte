@@ -1,0 +1,11 @@
+{{define "content"}}{{t "mail_list_invite_heading" "name" .Data.Name "list" .Data.List}}
+
+{{t "mail_list_invite_body"}}
+
+{{t "mail_list_invite_button"}}: {{.Data.URL}}
+
+{{t "mail_list_invite_reason"}}
+{{if .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_list_invite"}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_household"}}: {{.Unsubscribe.GroupURL}}
+{{end}}
+{{end}}

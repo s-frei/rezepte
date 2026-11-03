@@ -3,7 +3,9 @@ import { prepare, shot } from './helpers';
 
 // Shopping lists as the demo seeds them for its admin: "Weekly shop" with
 // two samples at 4 servings, typed-in items and three rows checked off, and
-// "Saturday market" with typed-in items only. Keep the test names - they are
+// "Saturday market" with typed-in items only. "Weekly shop" is shared with
+// Mila, Mila's "Sunday dinner" with the demo person, and Jonas's "Barbecue"
+// waits as an invitation. Keep the test names - they are
 // the contract with <Screenshot name=…/>.
 
 async function openWeeklyShop(page: Page) {
@@ -46,4 +48,19 @@ test('add-to-list', async ({ page }, testInfo) => {
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByText('Ingredients · 12 of 14')).toBeVisible();
 	await shot(page, 'add-to-list');
+});
+
+test('lists-invitation', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  await page.goto('/lists');
+  await expect(page.getByText(/invites you to/)).toBeVisible();
+  await shot(page, 'lists-invitation');
+});
+
+test('list-share', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  await openWeeklyShop(page);
+  await page.getByRole('button', { name: 'Share', exact: true }).first().click();
+  await expect(page.getByRole('dialog').getByText('Has access')).toBeVisible();
+  await shot(page, 'list-share');
 });

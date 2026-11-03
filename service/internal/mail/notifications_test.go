@@ -344,3 +344,18 @@ func decoded(p picture) string {
 	b, _ := base64.StdEncoding.DecodeString(strings.TrimSpace(p.raw))
 	return string(b)
 }
+
+func TestBuildListInviteGerman(t *testing.T) {
+	env, err := BuildListInvite(cfg, ListInvite{To: "mia@example.org", ListName: "Grillfest", InviterName: "Dattel",
+		InviterColor: "sage", Unsubscribe: sampleLinks, Locale: "de"}, "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, p, _ := parts(t, env)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Dattel lädt dich zu „Grillfest“ ein" {
+		t.Errorf("Subject = %q", got)
+	}
+	if !strings.Contains(p["text/html"], `href="https://r.example.org/lists"`) {
+		t.Errorf("html lacks the button URL: %s", p["text/html"])
+	}
+}

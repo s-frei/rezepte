@@ -638,3 +638,24 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 	await off.click();
 	await expect(off).toHaveAttribute('aria-checked', 'true');
 });
+
+test('inviting someone to a shopping list mails them', async ({ page, request }) => {
+	const { address } = await confirmedAccount(page, request, 'guest');
+	const inviteeId = (await (await page.request.get('/api/v1/auth/me')).json()).id as string;
+	await page.context().clearCookies({ name: 'rezepte_session' });
+	await login(page);
+	const owner = `host${uniqueToken()}`;
+	await createUser(page, { username: owner, role: 'user' });
+	await page.context().clearCookies({ name: 'rezepte_session' });
+	await login(page, owner);
+	const headers = { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' };
+	const list = await (
+		await page.request.post('/api/v1/shopping-lists', { headers, data: { name: 'Picnic' } })
+	).json();
+	const res = await page.request.post(`/api/v1/shopping-lists/${list.id}/invitations`, {
+		headers,
+		data: { userId: inviteeId }
+	});
+	expect(res.ok()).toBeTruthy();
+	await mailWithSubject(request, address, `${owner} invites you to “Picnic”`);
+});

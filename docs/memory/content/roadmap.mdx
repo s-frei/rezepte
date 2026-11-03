@@ -15,9 +15,8 @@ Instance A issues an [API token](/features/api-tokens) scoped to `recipes:read`.
 
 ## Shared shopping lists
 
-Personal lists exist - see [Shopping lists](/features/shopping-lists). Ahead, in this order:
+Lists and sharing them exist - see [Shopping lists](/features/shopping-lists). Ahead, in this order:
 
-- **Sharing.** The creator invites people from the instance; a list appears for an invitee once they accept on the lists overview. Members do everything but delete the list and change who has access, and may leave it. An invitation is a new notification kind, mail and push.
 - **Live updates and a shopping mode.** Everyone with a list open sees changes within about a second over Server-Sent Events, one stream per open list behind a small hub (the standard library serves SSE; WebSockets would need a dependency). A full-screen shopping mode, its own route like cook mode, keeps the screen awake.
 - **API and MCP.** Token scopes `lists:read` and `lists:write`, and MCP tools to read lists, add a recipe at servings and add, tick and remove items. The list endpoints then take tokens as well as sessions.
 

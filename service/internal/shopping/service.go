@@ -14,13 +14,24 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 )
 
-// Service stores shopping lists. A list is visible and changeable only by
-// its creator; any other caller gets ErrNotFound.
+// Service stores shopping lists. A list is visible and changeable by its
+// creator and its accepted members, and only the creator can delete it; any
+// other caller gets ErrNotFound.
 type Service struct {
 	conn *sql.DB
 	q    *sqlc.Queries
 	now  func() time.Time
+	inv  InviteNotifier
 }
+
+// InviteNotifier hears of every new invitation, after it was stored; not of
+// an invitation that existed already.
+type InviteNotifier interface {
+	ListInvited(ctx context.Context, listID, inviterID, inviteeID string)
+}
+
+// SetInviteNotifier hands every new invitation to n; nil (the default) is off.
+func (s *Service) SetInviteNotifier(n InviteNotifier) { s.inv = n }
 
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB) *Service {
@@ -45,19 +56,28 @@ func clean(field, text string, maxRunes int) (string, error) {
 	return text, nil
 }
 
-// Lists returns the caller's lists, most recently changed first.
+// Lists returns the lists the caller created or accepted, most recently
+// changed first.
 func (s *Service) Lists(ctx context.Context, userID string) ([]Summary, error) {
 	rows, err := s.q.ListShoppingLists(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list shopping lists: %w", err)
 	}
-	titles, err := s.q.ListShoppingEntryTitlesByCreator(ctx, userID)
+	titles, err := s.q.ListShoppingEntryTitlesForUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list shopping entries: %w", err)
 	}
 	byList := map[string][]SummaryRecipe{}
 	for _, t := range titles {
 		byList[t.ListID] = append(byList[t.ListID], SummaryRecipe{Title: t.Title, Servings: int(t.Servings)})
+	}
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+	}
+	members, _, err := listMembers(ctx, s.q, ids, true)
+	if err != nil {
+		return nil, err
 	}
 	out := make([]Summary, 0, len(rows))
 	for _, r := range rows {
@@ -69,7 +89,15 @@ func (s *Service) Lists(ctx context.Context, userID string) ([]Summary, error) {
 		if recipes == nil {
 			recipes = []SummaryRecipe{}
 		}
-		out = append(out, Summary{ID: r.ID, Name: r.Name, OpenCount: int(r.OpenCount), DoneCount: int(r.DoneCount), Recipes: recipes, UpdatedAt: updated})
+		sum := Summary{
+			ID: r.ID, Name: r.Name, OpenCount: int(r.OpenCount), DoneCount: int(r.DoneCount), Recipes: recipes, UpdatedAt: updated,
+			Owner:   ListPerson{ID: r.CreatedBy, DisplayName: r.OwnerName, Color: r.OwnerColor, AvatarID: r.OwnerAvatarID},
+			Members: members[r.ID],
+		}
+		if r.UpdatedBy != nil && r.UpdaterName != nil {
+			sum.UpdatedBy = &ListPerson{ID: *r.UpdatedBy, DisplayName: *r.UpdaterName, Color: deref(r.UpdaterColor), AvatarID: r.UpdaterAvatarID}
+		}
+		out = append(out, sum)
 	}
 	return out, nil
 }
@@ -81,7 +109,7 @@ func (s *Service) Create(ctx context.Context, userID, name string) (List, error)
 		return List{}, err
 	}
 	id, now := newID(), s.stamp()
-	if err := s.q.InsertShoppingList(ctx, sqlc.InsertShoppingListParams{ID: id, Name: name, CreatedBy: userID, CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := s.q.InsertShoppingList(ctx, sqlc.InsertShoppingListParams{ID: id, Name: name, CreatedBy: userID, CreatedAt: now, UpdatedAt: now, UpdatedBy: &userID}); err != nil {
 		return List{}, fmt.Errorf("insert shopping list: %w", err)
 	}
 	return s.Get(ctx, userID, id)
@@ -94,14 +122,22 @@ func (s *Service) Get(ctx context.Context, userID, id string) (List, error) {
 }
 
 func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) {
-	row, err := q.GetShoppingList(ctx, sqlc.GetShoppingListParams{ID: id, CreatedBy: userID})
+	row, err := q.GetShoppingList(ctx, sqlc.GetShoppingListParams{ID: id, UserID: userID})
 	if errors.Is(err, sql.ErrNoRows) {
 		return List{}, ErrNotFound
 	}
 	if err != nil {
 		return List{}, fmt.Errorf("get shopping list: %w", err)
 	}
-	l := List{ID: row.ID, Name: row.Name, CreatedBy: row.CreatedBy, Entries: []Entry{}, Items: []Item{}}
+	l := List{
+		ID: row.ID, Name: row.Name, CreatedBy: row.CreatedBy, Entries: []Entry{}, Items: []Item{},
+		Owner: ListPerson{ID: row.CreatedBy, DisplayName: row.OwnerName, Color: row.OwnerColor, AvatarID: row.OwnerAvatarID},
+	}
+	members, pending, err := listMembers(ctx, q, []string{id}, userID == row.CreatedBy)
+	if err != nil {
+		return List{}, err
+	}
+	l.Members, l.Pending = members[id], pending[id]
 	if l.CreatedAt, err = db.ParseTime(row.CreatedAt); err != nil {
 		return List{}, err
 	}
@@ -152,7 +188,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 			it.Department = DefaultDepartment(r.NameKey)
 		}
 		if r.EntryID == nil && r.AddedBy != nil && r.AdderName != nil {
-			it.AddedBy = &Adder{ID: *r.AddedBy, DisplayName: *r.AdderName, Color: deref(r.AdderColor), AvatarID: r.AdderAvatarID}
+			it.AddedBy = &ListPerson{ID: *r.AddedBy, DisplayName: *r.AdderName, Color: deref(r.AdderColor), AvatarID: r.AdderAvatarID}
 		}
 		open[r.NameKey] = open[r.NameKey] || !it.Checked
 		l.Items = append(l.Items, it)
@@ -165,6 +201,31 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 		}
 	}
 	return l, nil
+}
+
+// listMembers returns the accepted members of the lists by list ID, and the
+// pending invitees when withPending is set. Absent lists map to empty slices.
+func listMembers(ctx context.Context, q *sqlc.Queries, listIDs []string, withPending bool) (members, pending map[string][]ListPerson, err error) {
+	members, pending = map[string][]ListPerson{}, map[string][]ListPerson{}
+	for _, id := range listIDs {
+		members[id], pending[id] = []ListPerson{}, []ListPerson{}
+	}
+	if len(listIDs) == 0 {
+		return members, pending, nil
+	}
+	rows, err := q.ListShoppingListMembers(ctx, listIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list shopping list members: %w", err)
+	}
+	for _, r := range rows {
+		p := ListPerson{ID: r.UserID, DisplayName: r.DisplayName, Color: r.Color, AvatarID: r.AvatarID}
+		if r.AcceptedAt != nil {
+			members[r.ListID] = append(members[r.ListID], p)
+		} else if withPending {
+			pending[r.ListID] = append(pending[r.ListID], p)
+		}
+	}
+	return members, pending, nil
 }
 
 func deref(s *string) string {
@@ -180,7 +241,7 @@ func (s *Service) Rename(ctx context.Context, userID, id, name string) (List, er
 	if err != nil {
 		return List{}, err
 	}
-	n, err := s.q.RenameShoppingList(ctx, sqlc.RenameShoppingListParams{Name: name, UpdatedAt: s.stamp(), ID: id, CreatedBy: userID})
+	n, err := s.q.RenameShoppingList(ctx, sqlc.RenameShoppingListParams{Name: name, UpdatedAt: s.stamp(), ID: id, UserID: &userID})
 	if err != nil {
 		return List{}, fmt.Errorf("rename shopping list: %w", err)
 	}
@@ -202,12 +263,113 @@ func (s *Service) Delete(ctx context.Context, userID, id string) error {
 	return nil
 }
 
-// mutate runs fn in a transaction after touching the list (which proves it
-// is the caller's), then returns the list as it is afterwards.
+// Leave ends the caller's membership whatever its state, so it also declines
+// an invitation. The creator cannot leave their own list.
+func (s *Service) Leave(ctx context.Context, userID, listID string) error {
+	creator, err := s.q.GetShoppingListCreator(ctx, listID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("get shopping list creator: %w", err)
+	}
+	if err == nil && creator == userID {
+		return invalid("the creator cannot leave")
+	}
+	n, err := s.q.DeleteShoppingMembership(ctx, sqlc.DeleteShoppingMembershipParams{ListID: listID, UserID: userID})
+	if err != nil {
+		return fmt.Errorf("delete shopping membership: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ownList reports ErrNotFound unless the caller created the list.
+func (s *Service) ownList(ctx context.Context, userID, listID string) error {
+	creator, err := s.q.GetShoppingListCreator(ctx, listID)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && creator != userID {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get shopping list creator: %w", err)
+	}
+	return nil
+}
+
+// Invite asks a person to share a list; only the creator can. An existing
+// row, pending or accepted, stays as it is and nobody is notified again.
+func (s *Service) Invite(ctx context.Context, userID, listID, inviteeID string) (List, error) {
+	if err := s.ownList(ctx, userID, listID); err != nil {
+		return List{}, err
+	}
+	if inviteeID == userID {
+		return List{}, invalid("you cannot invite yourself")
+	}
+	if _, err := s.q.GetUserByID(ctx, inviteeID); errors.Is(err, sql.ErrNoRows) {
+		return List{}, invalid("no such person")
+	} else if err != nil {
+		return List{}, fmt.Errorf("get invitee: %w", err)
+	}
+	n, err := s.q.InsertShoppingMember(ctx, sqlc.InsertShoppingMemberParams{ListID: listID, UserID: inviteeID, InvitedAt: s.stamp()})
+	if err != nil {
+		return List{}, fmt.Errorf("insert shopping member: %w", err)
+	}
+	if n > 0 && s.inv != nil {
+		s.inv.ListInvited(ctx, listID, userID, inviteeID)
+	}
+	return s.Get(ctx, userID, listID)
+}
+
+// RemoveMember lets the creator withdraw an invitation or remove a member.
+func (s *Service) RemoveMember(ctx context.Context, userID, listID, memberID string) (List, error) {
+	n, err := s.q.DeleteShoppingMember(ctx, sqlc.DeleteShoppingMemberParams{ListID: listID, MemberID: memberID, UserID: userID})
+	if err != nil {
+		return List{}, fmt.Errorf("delete shopping member: %w", err)
+	}
+	if n == 0 {
+		return List{}, ErrNotFound
+	}
+	return s.Get(ctx, userID, listID)
+}
+
+// Accept turns the caller's pending invitation into a membership.
+func (s *Service) Accept(ctx context.Context, userID, listID string) (List, error) {
+	now := s.stamp()
+	n, err := s.q.AcceptShoppingMembership(ctx, sqlc.AcceptShoppingMembershipParams{AcceptedAt: &now, ListID: listID, UserID: userID})
+	if err != nil {
+		return List{}, fmt.Errorf("accept shopping invitation: %w", err)
+	}
+	if n == 0 {
+		return List{}, ErrNotFound
+	}
+	return s.Get(ctx, userID, listID)
+}
+
+// Invitations returns the caller's pending invitations, newest first.
+func (s *Service) Invitations(ctx context.Context, userID string) ([]Invitation, error) {
+	rows, err := s.q.ListShoppingInvitations(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list shopping invitations: %w", err)
+	}
+	out := make([]Invitation, 0, len(rows))
+	for _, r := range rows {
+		at, err := db.ParseTime(r.InvitedAt)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, Invitation{
+			ListID: r.ID, ListName: r.Name, OpenCount: int(r.OpenCount), InvitedAt: at,
+			From: ListPerson{ID: r.CreatedBy, DisplayName: r.OwnerName, Color: r.OwnerColor, AvatarID: r.OwnerAvatarID},
+		})
+	}
+	return out, nil
+}
+
+// mutate runs fn in a transaction after touching the list (which proves the
+// caller has access), then returns the list as it is afterwards.
 func (s *Service) mutate(ctx context.Context, userID, listID string, fn func(q *sqlc.Queries) error) (List, error) {
 	var l List
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		n, err := q.TouchShoppingList(ctx, sqlc.TouchShoppingListParams{UpdatedAt: s.stamp(), ID: listID, CreatedBy: userID})
+		n, err := q.TouchShoppingList(ctx, sqlc.TouchShoppingListParams{UpdatedAt: s.stamp(), ID: listID, UserID: &userID})
 		if err != nil {
 			return fmt.Errorf("touch shopping list: %w", err)
 		}

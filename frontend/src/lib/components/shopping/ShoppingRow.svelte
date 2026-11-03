@@ -6,6 +6,7 @@
 	/** What follows a source's amount: its recipe (unless the block names it), or who typed it in. */
 	export function sourceOrigin(source: Source, bySource = false): string | null {
 		if (source.recipe) return bySource ? null : source.recipe;
+		if (source.formerMember) return m.list_added_by_former();
 		if (source.addedById && source.addedById === session.user?.id) return m.list_added_by_you();
 		return source.addedBy ? m.list_added_by({ name: source.addedBy }) : null;
 	}

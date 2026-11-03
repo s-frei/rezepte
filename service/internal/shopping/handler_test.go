@@ -264,3 +264,52 @@ func TestShoppingRequiresSession(t *testing.T) {
 		t.Fatalf("token: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestLeaveEndpoint(t *testing.T) {
+	a := newAPI(t)
+	owner, member := a.login(t, "anna"), a.login(t, "ben")
+	l := a.call(t, owner, http.MethodPost, base, map[string]string{"name": "Woche"}, http.StatusCreated)
+	ben, err := a.users.ByUsername(context.Background(), "ben")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.conn.Exec(`INSERT INTO shopping_list_members (list_id, user_id, invited_at, accepted_at) VALUES (?, ?, 'x', 'x')`, l.ID, ben.ID); err != nil {
+		t.Fatal(err)
+	}
+	p := base + "/" + l.ID + "/membership"
+	a.call(t, owner, http.MethodDelete, p, nil, http.StatusUnprocessableEntity)
+	a.call(t, member, http.MethodDelete, p, nil, http.StatusNoContent)
+	a.call(t, member, http.MethodDelete, p, nil, http.StatusNotFound)
+}
+
+func TestInvitationEndpoints(t *testing.T) {
+	a := newAPI(t)
+	owner, member := a.login(t, "anna"), a.login(t, "ben")
+	ben, err := a.users.ByUsername(context.Background(), "ben")
+	if err != nil {
+		t.Fatal(err)
+	}
+	anna, err := a.users.ByUsername(context.Background(), "anna")
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := a.call(t, owner, http.MethodPost, base, map[string]string{"name": "Woche"}, http.StatusCreated)
+	p := base + "/" + l.ID
+	if got := a.call(t, owner, http.MethodPost, p+"/invitations", map[string]string{"userId": ben.ID}, http.StatusOK); len(got.Pending) != 1 {
+		t.Fatalf("pending = %+v", got.Pending)
+	}
+	rec := a.do(http.MethodPost, p+"/invitations", `{"userId":"`+anna.ID+`"}`, owner)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.userId") {
+		t.Fatalf("invite self: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := a.do(http.MethodGet, base, "", member); !strings.Contains(rec.Body.String(), `"invitations":[{`) {
+		t.Fatalf("overview: %s", rec.Body.String())
+	}
+	if got := a.call(t, member, http.MethodPost, p+"/membership", nil, http.StatusOK); len(got.Members) != 1 {
+		t.Fatalf("members = %+v", got.Members)
+	}
+	a.call(t, member, http.MethodPost, p+"/invitations", map[string]string{"userId": anna.ID}, http.StatusNotFound)
+	if got := a.call(t, owner, http.MethodDelete, p+"/members/"+ben.ID, nil, http.StatusOK); len(got.Members) != 0 {
+		t.Fatalf("members = %+v", got.Members)
+	}
+}

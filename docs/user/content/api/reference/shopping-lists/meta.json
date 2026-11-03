@@ -10,9 +10,13 @@
     "rename-shopping-list",
     "delete-shopping-list",
     "clear-checked-shopping-items",
+    "invite-to-shopping-list",
     "add-shopping-item",
     "check-shopping-items",
     "remove-shopping-items",
+    "remove-shopping-list-member",
+    "accept-shopping-list-invitation",
+    "leave-shopping-list",
     "add-recipe-to-shopping-list",
     "set-shopping-entry-servings",
     "remove-shopping-entry"

@@ -276,6 +276,7 @@ func run() error {
 	recipes.SetTastyNotifier(notifications)
 	recipe.Register(srv.API(), recipes)
 	shoppingSvc := shopping.NewService(conn)
+	shoppingSvc.SetInviteNotifier(notifications)
 	shopping.Register(srv.API(), shoppingSvc)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)

@@ -330,6 +330,13 @@ func (s *Service) SendRecipeDigest(ctx context.Context, in RecipeDigest) error {
 	})
 }
 
+// SendListInvite mails somebody that they were invited to a shopping list.
+func (s *Service) SendListInvite(ctx context.Context, in ListInvite) error {
+	return s.deliver(ctx, in.To, "list invitation notification", func(cfg Config) (Envelope, error) {
+		return BuildListInvite(cfg, in, s.publicURL, s.now())
+	})
+}
+
 // SendTasty mails a recipe's author that somebody finds it tasty.
 func (s *Service) SendTasty(ctx context.Context, in Tasty) error {
 	return s.deliver(ctx, in.To, "tasty notification", func(cfg Config) (Envelope, error) {

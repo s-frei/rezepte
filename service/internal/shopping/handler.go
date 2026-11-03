@@ -14,7 +14,8 @@ import (
 type (
 	// SummaryList is the response body of the list-shopping-lists operation.
 	SummaryList struct {
-		Items []Summary `json:"items"`
+		Items       []Summary    `json:"items"`
+		Invitations []Invitation `json:"invitations"`
 	}
 	nameBody struct {
 		Name string `json:"name" minLength:"1" maxLength:"80" doc:"List name; surrounding whitespace is trimmed"`
@@ -48,6 +49,16 @@ type (
 	removeEntryIn struct {
 		ID      string `path:"id"`
 		EntryID string `path:"entryId"`
+	}
+	inviteIn struct {
+		ID   string `path:"id"`
+		Body struct {
+			UserID string `json:"userId" minLength:"1"`
+		}
+	}
+	memberIn struct {
+		ID     string `path:"id"`
+		UserID string `path:"userId"`
 	}
 	listOut   struct{ Body List }
 	emptyOut  struct{}
@@ -83,7 +94,7 @@ type (
 )
 
 // Register installs the shopping-list operations onto api. Every operation
-// needs a session; a list is visible only to its creator.
+// needs a session; a list is visible to its creator and accepted members.
 func Register(api huma.API, svc *Service) {
 	op := func(id, method, path, summary string, status int, errs ...int) huma.Operation {
 		return huma.Operation{
@@ -135,7 +146,11 @@ func Register(api huma.API, svc *Service) {
 			if err != nil {
 				return nil, err
 			}
-			return &summaries{Body: SummaryList{Items: items}}, nil
+			invs, err := svc.Invitations(ctx, uid)
+			if err != nil {
+				return nil, err
+			}
+			return &summaries{Body: SummaryList{Items: items, Invitations: invs}}, nil
 		})
 
 	huma.Register(api, op("create-shopping-list", http.MethodPost, "/api/v1/shopping-lists", "Create a shopping list", http.StatusCreated, 422),
@@ -163,6 +178,33 @@ func Register(api huma.API, svc *Service) {
 				return nil, fail(err, "")
 			}
 			return &emptyOut{}, nil
+		})
+
+	huma.Register(api, op("leave-shopping-list", http.MethodDelete, "/api/v1/shopping-lists/{id}/membership", "Leave a list or decline its invitation", http.StatusNoContent, 404, 422),
+		func(ctx context.Context, in *listID) (*emptyOut, error) {
+			uid, err := caller(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if err := svc.Leave(ctx, uid, in.ID); err != nil {
+				return nil, fail(err, "")
+			}
+			return &emptyOut{}, nil
+		})
+
+	huma.Register(api, op("invite-to-shopping-list", http.MethodPost, "/api/v1/shopping-lists/{id}/invitations", "Invite a person to a list", http.StatusOK, 404, 422),
+		func(ctx context.Context, in *inviteIn) (*listOut, error) {
+			return mutation(ctx, "userId", func(uid string) (List, error) { return svc.Invite(ctx, uid, in.ID, in.Body.UserID) })
+		})
+
+	huma.Register(api, op("remove-shopping-list-member", http.MethodDelete, "/api/v1/shopping-lists/{id}/members/{userId}", "Remove a member or withdraw an invitation", http.StatusOK, 404),
+		func(ctx context.Context, in *memberIn) (*listOut, error) {
+			return mutation(ctx, "", func(uid string) (List, error) { return svc.RemoveMember(ctx, uid, in.ID, in.UserID) })
+		})
+
+	huma.Register(api, op("accept-shopping-list-invitation", http.MethodPost, "/api/v1/shopping-lists/{id}/membership", "Accept an invitation to a list", http.StatusOK, 404),
+		func(ctx context.Context, in *listID) (*listOut, error) {
+			return mutation(ctx, "", func(uid string) (List, error) { return svc.Accept(ctx, uid, in.ID) })
 		})
 
 	huma.Register(api, op("add-recipe-to-shopping-list", http.MethodPost, "/api/v1/shopping-lists/{id}/recipes", "Copy a recipe's ingredients onto a list", http.StatusOK, 404, 422),

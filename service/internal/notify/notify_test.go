@@ -23,7 +23,7 @@ func TestPreferencesDefaultAllOn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := map[notify.Kind]map[notify.Channel]bool{notify.KindComment: both, notify.KindRecipe: both, notify.KindTasty: both}; !equalPrefs(got.Kinds, want) {
+	if want := map[notify.Kind]map[notify.Channel]bool{notify.KindComment: both, notify.KindRecipe: both, notify.KindTasty: both, notify.KindListInvite: both}; !equalPrefs(got.Kinds, want) {
 		t.Errorf("kinds %v, want %v", got.Kinds, want)
 	}
 	if want := map[notify.Group]map[notify.Channel]bool{notify.GroupHousehold: both}; !equalPrefs(got.Groups, want) {

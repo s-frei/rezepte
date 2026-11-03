@@ -12,6 +12,8 @@ export type Source = {
 	/** Account id behind `addedBy`, so the page can say "by you". */
 	addedById: string | null;
 	note: string | null;
+	/** A free item whose adder's account is gone. */
+	formerMember: boolean;
 };
 
 export type Row = {
@@ -42,7 +44,8 @@ function rowsOf(list: ShoppingList, items: ShoppingItem[]): Row[] {
 			recipe: it.entryId ? (titles.get(it.entryId) ?? null) : null,
 			addedBy: it.addedBy?.displayName ?? null,
 			addedById: it.addedBy?.id ?? null,
-			note: it.note
+			note: it.note,
+			formerMember: it.entryId === null && it.addedBy === null
 		});
 	}
 	return [...rows.values()];

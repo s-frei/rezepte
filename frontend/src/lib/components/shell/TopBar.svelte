@@ -7,6 +7,7 @@
 	import Lockup from '#lib/components/brand/Lockup.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
+	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { shell } from '#lib/shell.svelte.js';
 	import UserMenu from './UserMenu.svelte';
@@ -29,6 +30,10 @@
 			<Button variant={onLists ? 'accent' : 'ghost'} href={resolve('/lists')} current={onLists}>
 				<ShoppingBasket class="size-4" aria-hidden="true" />
 				{m.nav_lists()}
+				{#if invitations.count > 0}
+					<span aria-hidden="true" class="size-2 rounded-full bg-primary"></span>
+					<span class="sr-only">{m.nav_lists_invitations({ count: invitations.count })}</span>
+				{/if}
 			</Button>
 			<!-- Ghost, not secondary: importing is reached for now and then,
 			     while "New recipe" beside it is what the bar is for. -->

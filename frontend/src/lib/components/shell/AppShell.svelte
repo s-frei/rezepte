@@ -2,6 +2,8 @@
 	import type { Snippet } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { session } from '#lib/auth.svelte.js';
+	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { bottomNav, navPlace } from '#lib/shell.svelte.js';
 	import TimerIndicator from '#lib/components/timer/TimerIndicator.svelte';
 	import { timers } from '#lib/recipe/timers.svelte.js';
@@ -23,6 +25,11 @@
 			: `md:pb-8 ${withNav ? 'pb-20' : 'pb-10'}`
 	);
 
+	// The nav dot: on mount, on sign-in and whenever the tab comes back.
+	$effect(() => {
+		if (session.user) void invitations.refresh();
+	});
+
 	// A navigation can take the focused field away without a `focusout`, so
 	// it reads the focus afresh; one that keeps the focus keeps `typing`.
 	afterNavigate(() => {
@@ -33,6 +40,12 @@
 <svelte:window
 	onfocusin={(event) => (bottomNav.typing = isField(event.target))}
 	onfocusout={() => (bottomNav.typing = false)}
+/>
+
+<svelte:document
+	onvisibilitychange={() => {
+		if (!document.hidden && session.user) void invitations.refresh();
+	}}
 />
 
 <TopBar />

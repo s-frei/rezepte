@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Share2 from '@lucide/svelte/icons/share-2';
 	import { session } from '#lib/auth.svelte.js';
 	import type { ShoppingEntry, ShoppingList } from '#lib/api/shopping.js';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
@@ -10,12 +11,17 @@
 	let {
 		list,
 		onservings,
-		onremove
+		onremove,
+		onshare
 	}: {
 		list: ShoppingList;
 		onservings: (entry: ShoppingEntry, servings: number) => void;
 		onremove: (entry: ShoppingEntry) => void;
+		/** Given for the creator only, who alone may share. */
+		onshare?: () => void;
 	} = $props();
+
+	const me = $derived(session.user?.id);
 
 	function itemCount(entry: ShoppingEntry): string {
 		const count = list.items.filter((i) => i.entryId === entry.id).length;
@@ -23,7 +29,6 @@
 	}
 </script>
 
-<!-- Phase 1 has no sharing: "Shared with" names only the creator, the one who sees the list. -->
 <div class="grid grid-cols-1 gap-4">
 	{#if list.entries.length > 0}
 		<section class="rounded-2xl bg-surface px-5 py-4.5 shadow-card">
@@ -51,16 +56,37 @@
 			</ul>
 		</section>
 	{/if}
-	{#if session.user}
-		<section class="rounded-2xl bg-surface px-5 py-4.5 shadow-card">
-			<h2 class="mb-1 font-display text-heading font-medium">{m.list_side_people()}</h2>
+	<section class="rounded-2xl bg-surface px-5 py-4.5 shadow-card">
+		<div class="mb-1 flex items-center justify-between gap-3">
+			<h2 class="font-display text-heading font-medium">{m.list_side_people()}</h2>
+			{#if onshare}
+				<button
+					type="button"
+					onclick={onshare}
+					class="inline-flex h-8 items-center gap-1.5 rounded-pill text-body-sm font-semibold text-primary transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				>
+					<Share2 class="size-4" aria-hidden="true" />
+					{m.list_share()}
+				</button>
+			{/if}
+		</div>
+		<div class="flex items-center gap-3 py-2">
+			<PersonMark person={list.owner} size="sm" />
+			<div class="min-w-0">
+				<p class="truncate text-body font-semibold">{list.owner.displayName}</p>
+				<p class="text-caption text-text-muted">
+					{list.owner.id === me ? m.list_side_you_created() : m.list_side_created()}
+				</p>
+			</div>
+		</div>
+		{#each list.members as person (person.id)}
 			<div class="flex items-center gap-3 py-2">
-				<PersonMark person={session.user} size="sm" />
+				<PersonMark {person} size="sm" />
 				<div class="min-w-0">
-					<p class="truncate text-body font-semibold">{session.user.displayName}</p>
-					<p class="text-caption text-text-muted">{m.list_side_you_created()}</p>
+					<p class="truncate text-body font-semibold">{person.displayName}</p>
+					<p class="text-caption text-text-muted">{m.list_side_member()}</p>
 				</div>
 			</div>
-		</section>
-	{/if}
+		{/each}
+	</section>
 </div>

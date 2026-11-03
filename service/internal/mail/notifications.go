@@ -155,6 +155,38 @@ func BuildTasty(cfg Config, in Tasty, publicURL string, now time.Time) (Envelope
 	}, now)
 }
 
+// ListInvite tells somebody that they were invited to a shopping list.
+type ListInvite struct {
+	To, ListName, InviterName string
+	InviterColor              user.Color
+	// InviterAvatar is the inviter's picture as JPEG; nil shows the initial.
+	InviterAvatar []byte
+	Unsubscribe   Unsubscribe
+	Locale        user.Locale
+}
+
+// BuildListInvite renders the list invitation mail; its button opens the
+// shopping lists.
+func BuildListInvite(cfg Config, in ListInvite, publicURL string, now time.Time) (Envelope, error) {
+	bg, fg, initial := circle(in.InviterColor, in.InviterName)
+	id := newID()
+	avatar, pictures := avatarPart(cfg, id, in.InviterAvatar)
+	return build(cfg, in.To, letter{
+		Name:        "list_invite",
+		Lang:        string(in.Locale),
+		SubjectKey:  "mail_list_invite_subject",
+		SubjectArgs: map[string]string{"name": in.InviterName, "list": in.ListName},
+		ID:          id,
+		PublicURL:   publicURL,
+		Unsubscribe: in.Unsubscribe,
+		Inline:      pictures,
+		Data: struct {
+			Name, List, Initial, Bg, Fg, URL string
+			Avatar                           htmltemplate.URL
+		}{in.InviterName, in.ListName, initial, bg, fg, publicURL + "/lists", htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
+	}, now)
+}
+
 // InviteAccepted tells the admin who issued a setup link that the new
 // person set up their account.
 type InviteAccepted struct {

@@ -65,7 +65,7 @@ func (s *Service) resolve(ctx context.Context, userID, kind, token string) (user
 type unsubscribeState struct {
 	Username        string        `json:"username"`
 	Email           string        `json:"email" doc:"The account's address, masked like the address-changed notice: the link's holder may be an old mailbox"`
-	Kind            Kind          `json:"kind" enum:"comment,recipe,tasty,invite_accepted"`
+	Kind            Kind          `json:"kind" enum:"comment,recipe,tasty,list_invite,invite_accepted"`
 	Group           Group         `json:"group" enum:"household,admin"`
 	KindSubscribed  bool          `json:"kindSubscribed" doc:"Whether the account gets the link's kind by mail: its own switch and its group's are on"`
 	GroupSubscribed bool          `json:"groupSubscribed" doc:"Whether the group's mail switch is on"`

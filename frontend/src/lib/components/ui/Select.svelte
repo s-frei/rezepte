@@ -20,6 +20,7 @@
 		disabled = false,
 		variant = 'field',
 		icon,
+		placeholder = '',
 		onchange,
 		class: className = ''
 	}: {
@@ -43,6 +44,8 @@
 		 * its funnel, so the two controls read as a pair.
 		 */
 		icon?: Snippet;
+		/** Muted text of the trigger while nothing is chosen. */
+		placeholder?: string;
 		/** Fires when the user picks an option (not on programmatic changes). */
 		onchange?: (value: string) => void;
 		/**
@@ -92,7 +95,9 @@
 		class="inline-flex items-center gap-1.5 {shape} {size} {weight} transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 {className}"
 	>
 		{#if icon}{@render icon()}{/if}
-		{selectedLabel}
+		{#if selectedLabel}{selectedLabel}{:else}<span class="font-normal text-text-muted"
+				>{placeholder}</span
+			>{/if}
 		<ChevronDown class="size-3.5 shrink-0" aria-hidden="true" />
 	</BitsSelect.Trigger>
 	<BitsSelect.Portal>

@@ -50,6 +50,11 @@
 	"mail_invite_ignore": "Kennst du {inviter} nicht? Dann ignoriere diese Mail einfach.",
 	"mail_invite_subject": "{inviter} hat dich zu Rezepte eingeladen",
 	"mail_invite_validity": "Der Link ist 7 Tage gültig und funktioniert einmal.",
+	"mail_list_invite_body": "Nimm die Einladung bei deinen Einkaufslisten an, dann seht und bearbeitet ihr sie gemeinsam.",
+	"mail_list_invite_button": "Einkaufslisten öffnen",
+	"mail_list_invite_heading": "{name} lädt dich zu „{list}“ ein",
+	"mail_list_invite_reason": "Du bekommst diese Mail, weil dich jemand zu einer Einkaufsliste eingeladen hat.",
+	"mail_list_invite_subject": "{name} lädt dich zu „{list}“ ein",
 	"mail_password_changed_body_admin": "{admin} (Admin) hat am {at} ein neues Passwort für dein Konto {username} gesetzt.",
 	"mail_password_changed_body_command_line": "Das Passwort deines Kontos {username} wurde am {at} auf der Kommandozeile des Servers zurückgesetzt.",
 	"mail_password_changed_body_profile": "Das Passwort deines Kontos {username} wurde am {at} im Profil geändert.",
@@ -72,6 +77,8 @@
 	"mail_push_comment_title_many": "Neue Kommentare zu „{title}“",
 	"mail_push_invite_accepted_body": "{name} meldet sich als {username} an",
 	"mail_push_invite_accepted_title": "Einladung angenommen",
+	"mail_push_list_invite_body": "{name} lädt dich zu „{list}“ ein",
+	"mail_push_list_invite_title": "Einkaufsliste",
 	"mail_push_mail_failing_auth": "Der Mailserver hat die Anmeldung abgelehnt.",
 	"mail_push_mail_failing_connect": "Der Mailserver ist nicht erreichbar.",
 	"mail_push_mail_failing_sender": "Der Mailserver hat die Absenderadresse abgelehnt.",
@@ -116,6 +123,7 @@
 	"mail_unsubscribe_group_household": "Alle Haushalts-Mails abbestellen",
 	"mail_unsubscribe_kind_comment": "Keine Mails zu neuen Kommentaren mehr",
 	"mail_unsubscribe_kind_invite_accepted": "Keine Mails zu angenommenen Einladungen mehr",
+	"mail_unsubscribe_kind_list_invite": "Keine Mails mehr zu Einladungen auf Einkaufslisten",
 	"mail_unsubscribe_kind_recipe": "Keine Mails zu neuen Rezepten mehr",
 	"mail_unsubscribe_kind_tasty": "Keine Mails zu Lecker-Markierungen mehr"
 }

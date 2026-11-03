@@ -10,6 +10,25 @@ import (
 	"strings"
 )
 
+const acceptShoppingMembership = `-- name: AcceptShoppingMembership :execrows
+UPDATE shopping_list_members SET accepted_at = ?1
+WHERE list_id = ?2 AND user_id = ?3 AND accepted_at IS NULL
+`
+
+type AcceptShoppingMembershipParams struct {
+	AcceptedAt *string
+	ListID     string
+	UserID     string
+}
+
+func (q *Queries) AcceptShoppingMembership(ctx context.Context, arg AcceptShoppingMembershipParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, acceptShoppingMembership, arg.AcceptedAt, arg.ListID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countShoppingListsByCreator = `-- name: CountShoppingListsByCreator :many
 SELECT created_by, COUNT(*) AS lists FROM shopping_lists GROUP BY created_by
 `
@@ -110,26 +129,106 @@ func (q *Queries) DeleteShoppingList(ctx context.Context, arg DeleteShoppingList
 	return result.RowsAffected()
 }
 
+const deleteShoppingMember = `-- name: DeleteShoppingMember :execrows
+DELETE FROM shopping_list_members
+WHERE list_id = ?1 AND user_id = ?2
+  AND EXISTS (SELECT 1 FROM shopping_lists l WHERE l.id = ?1 AND l.created_by = ?3)
+`
+
+type DeleteShoppingMemberParams struct {
+	ListID   string
+	MemberID string
+	UserID   string
+}
+
+// The creator withdraws an invitation or removes a member.
+func (q *Queries) DeleteShoppingMember(ctx context.Context, arg DeleteShoppingMemberParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteShoppingMember, arg.ListID, arg.MemberID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteShoppingMembership = `-- name: DeleteShoppingMembership :execrows
+DELETE FROM shopping_list_members WHERE list_id = ?1 AND user_id = ?2
+`
+
+type DeleteShoppingMembershipParams struct {
+	ListID string
+	UserID string
+}
+
+// Ends a membership whatever its state: leaving and declining are the same.
+func (q *Queries) DeleteShoppingMembership(ctx context.Context, arg DeleteShoppingMembershipParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteShoppingMembership, arg.ListID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getShoppingList = `-- name: GetShoppingList :one
-SELECT id, name, created_by, created_at, updated_at FROM shopping_lists WHERE id = ?1 AND created_by = ?2
+SELECT l.id, l.name, l.created_by, l.created_at, l.updated_at,
+       o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id
+FROM shopping_lists l
+JOIN users o ON o.id = l.created_by
+WHERE l.id = ?1 AND (l.created_by = ?2 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = ?2 AND m.accepted_at IS NOT NULL))
 `
 
 type GetShoppingListParams struct {
-	ID        string
-	CreatedBy string
+	ID     string
+	UserID string
 }
 
-func (q *Queries) GetShoppingList(ctx context.Context, arg GetShoppingListParams) (ShoppingList, error) {
-	row := q.db.QueryRowContext(ctx, getShoppingList, arg.ID, arg.CreatedBy)
-	var i ShoppingList
+type GetShoppingListRow struct {
+	ID            string
+	Name          string
+	CreatedBy     string
+	CreatedAt     string
+	UpdatedAt     string
+	OwnerName     string
+	OwnerColor    string
+	OwnerAvatarID *string
+}
+
+// A list the person created or accepted, with its creator.
+func (q *Queries) GetShoppingList(ctx context.Context, arg GetShoppingListParams) (GetShoppingListRow, error) {
+	row := q.db.QueryRowContext(ctx, getShoppingList, arg.ID, arg.UserID)
+	var i GetShoppingListRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OwnerName,
+		&i.OwnerColor,
+		&i.OwnerAvatarID,
 	)
 	return i, err
+}
+
+const getShoppingListCreator = `-- name: GetShoppingListCreator :one
+SELECT created_by FROM shopping_lists WHERE id = ?
+`
+
+func (q *Queries) GetShoppingListCreator(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getShoppingListCreator, id)
+	var created_by string
+	err := row.Scan(&created_by)
+	return created_by, err
+}
+
+const getShoppingListName = `-- name: GetShoppingListName :one
+SELECT name FROM shopping_lists WHERE id = ?
+`
+
+func (q *Queries) GetShoppingListName(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getShoppingListName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
 }
 
 const insertShoppingEntry = `-- name: InsertShoppingEntry :exec
@@ -199,7 +298,7 @@ func (q *Queries) InsertShoppingItem(ctx context.Context, arg InsertShoppingItem
 }
 
 const insertShoppingList = `-- name: InsertShoppingList :exec
-INSERT INTO shopping_lists (id, name, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+INSERT INTO shopping_lists (id, name, created_by, created_at, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type InsertShoppingListParams struct {
@@ -208,6 +307,7 @@ type InsertShoppingListParams struct {
 	CreatedBy string
 	CreatedAt string
 	UpdatedAt string
+	UpdatedBy *string
 }
 
 func (q *Queries) InsertShoppingList(ctx context.Context, arg InsertShoppingListParams) error {
@@ -217,8 +317,29 @@ func (q *Queries) InsertShoppingList(ctx context.Context, arg InsertShoppingList
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.UpdatedBy,
 	)
 	return err
+}
+
+const insertShoppingMember = `-- name: InsertShoppingMember :execrows
+INSERT INTO shopping_list_members (list_id, user_id, invited_at) VALUES (?, ?, ?)
+ON CONFLICT DO NOTHING
+`
+
+type InsertShoppingMemberParams struct {
+	ListID    string
+	UserID    string
+	InvitedAt string
+}
+
+// A new invitation; zero rows when the person already has a row, pending or accepted.
+func (q *Queries) InsertShoppingMember(ctx context.Context, arg InsertShoppingMemberParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertShoppingMember, arg.ListID, arg.UserID, arg.InvitedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const listDepartmentOverrides = `-- name: ListDepartmentOverrides :many
@@ -303,31 +424,86 @@ func (q *Queries) ListShoppingEntries(ctx context.Context, listID string) ([]Lis
 	return items, nil
 }
 
-const listShoppingEntryTitlesByCreator = `-- name: ListShoppingEntryTitlesByCreator :many
+const listShoppingEntryTitlesForUser = `-- name: ListShoppingEntryTitlesForUser :many
 SELECT e.list_id, e.title, e.servings
 FROM shopping_list_entries e
 JOIN shopping_lists l ON l.id = e.list_id
-WHERE l.created_by = ?1
+WHERE (l.created_by = ?1 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = ?1 AND m.accepted_at IS NOT NULL))
 ORDER BY e.created_at, e.id
 `
 
-type ListShoppingEntryTitlesByCreatorRow struct {
+type ListShoppingEntryTitlesForUserRow struct {
 	ListID   string
 	Title    string
 	Servings int64
 }
 
-// The recipe entries of every list of one person, for the list overview.
-func (q *Queries) ListShoppingEntryTitlesByCreator(ctx context.Context, createdBy string) ([]ListShoppingEntryTitlesByCreatorRow, error) {
-	rows, err := q.db.QueryContext(ctx, listShoppingEntryTitlesByCreator, createdBy)
+// The recipe entries of every list one person created or accepted, for the list overview.
+func (q *Queries) ListShoppingEntryTitlesForUser(ctx context.Context, userID string) ([]ListShoppingEntryTitlesForUserRow, error) {
+	rows, err := q.db.QueryContext(ctx, listShoppingEntryTitlesForUser, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListShoppingEntryTitlesByCreatorRow{}
+	items := []ListShoppingEntryTitlesForUserRow{}
 	for rows.Next() {
-		var i ListShoppingEntryTitlesByCreatorRow
+		var i ListShoppingEntryTitlesForUserRow
 		if err := rows.Scan(&i.ListID, &i.Title, &i.Servings); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShoppingInvitations = `-- name: ListShoppingInvitations :many
+SELECT l.id, l.name, m.invited_at, l.created_by,
+       o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id,
+       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL) AS open_count
+FROM shopping_list_members m
+JOIN shopping_lists l ON l.id = m.list_id
+JOIN users o ON o.id = l.created_by
+WHERE m.user_id = ?1 AND m.accepted_at IS NULL
+ORDER BY m.invited_at DESC, l.id DESC
+`
+
+type ListShoppingInvitationsRow struct {
+	ID            string
+	Name          string
+	InvitedAt     string
+	CreatedBy     string
+	OwnerName     string
+	OwnerColor    string
+	OwnerAvatarID *string
+	OpenCount     int64
+}
+
+// The person's pending invitations, newest first.
+func (q *Queries) ListShoppingInvitations(ctx context.Context, userID string) ([]ListShoppingInvitationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listShoppingInvitations, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListShoppingInvitationsRow{}
+	for rows.Next() {
+		var i ListShoppingInvitationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.InvitedAt,
+			&i.CreatedBy,
+			&i.OwnerName,
+			&i.OwnerColor,
+			&i.OwnerAvatarID,
+			&i.OpenCount,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -404,29 +580,99 @@ func (q *Queries) ListShoppingItems(ctx context.Context, listID string) ([]ListS
 	return items, nil
 }
 
+const listShoppingListMembers = `-- name: ListShoppingListMembers :many
+SELECT m.list_id, m.user_id, m.accepted_at, u.display_name, u.color, u.avatar_id
+FROM shopping_list_members m
+JOIN users u ON u.id = m.user_id
+WHERE m.list_id IN (/*SLICE:list_ids*/?)
+ORDER BY m.accepted_at, m.invited_at, m.user_id
+`
+
+type ListShoppingListMembersRow struct {
+	ListID      string
+	UserID      string
+	AcceptedAt  *string
+	DisplayName string
+	Color       string
+	AvatarID    *string
+}
+
+// Accepted and pending members of lists, oldest first.
+func (q *Queries) ListShoppingListMembers(ctx context.Context, listIds []string) ([]ListShoppingListMembersRow, error) {
+	query := listShoppingListMembers
+	var queryParams []interface{}
+	if len(listIds) > 0 {
+		for _, v := range listIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:list_ids*/?", strings.Repeat(",?", len(listIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:list_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListShoppingListMembersRow{}
+	for rows.Next() {
+		var i ListShoppingListMembersRow
+		if err := rows.Scan(
+			&i.ListID,
+			&i.UserID,
+			&i.AcceptedAt,
+			&i.DisplayName,
+			&i.Color,
+			&i.AvatarID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShoppingLists = `-- name: ListShoppingLists :many
-SELECT l.id, l.name, l.updated_at,
+SELECT l.id, l.name, l.updated_at, l.created_by,
+       o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id,
+       l.updated_by, u.display_name AS updater_name, u.color AS updater_color, u.avatar_id AS updater_avatar_id,
        (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL) AS open_count,
        (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id)
          - (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL) AS done_count
 FROM shopping_lists l
-WHERE l.created_by = ?1
+JOIN users o ON o.id = l.created_by
+LEFT JOIN users u ON u.id = l.updated_by
+WHERE (l.created_by = ?1 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = ?1 AND m.accepted_at IS NOT NULL))
 ORDER BY l.updated_at DESC, l.id DESC
 `
 
 type ListShoppingListsRow struct {
-	ID        string
-	Name      string
-	UpdatedAt string
-	OpenCount int64
-	DoneCount int64
+	ID              string
+	Name            string
+	UpdatedAt       string
+	CreatedBy       string
+	OwnerName       string
+	OwnerColor      string
+	OwnerAvatarID   *string
+	UpdatedBy       *string
+	UpdaterName     *string
+	UpdaterColor    *string
+	UpdaterAvatarID *string
+	OpenCount       int64
+	DoneCount       int64
 }
 
-// Every list of one person with its open and done row counts, newest first.
+// Every list one person created or accepted, with its open and done row counts, newest first.
 // A row is a name_key, as the list page's department view shows it: open
 // while any of its items is unticked, done once all are.
-func (q *Queries) ListShoppingLists(ctx context.Context, createdBy string) ([]ListShoppingListsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listShoppingLists, createdBy)
+func (q *Queries) ListShoppingLists(ctx context.Context, userID string) ([]ListShoppingListsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listShoppingLists, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -438,6 +684,14 @@ func (q *Queries) ListShoppingLists(ctx context.Context, createdBy string) ([]Li
 			&i.ID,
 			&i.Name,
 			&i.UpdatedAt,
+			&i.CreatedBy,
+			&i.OwnerName,
+			&i.OwnerColor,
+			&i.OwnerAvatarID,
+			&i.UpdatedBy,
+			&i.UpdaterName,
+			&i.UpdaterColor,
+			&i.UpdaterAvatarID,
 			&i.OpenCount,
 			&i.DoneCount,
 		); err != nil {
@@ -466,23 +720,23 @@ func (q *Queries) MaxShoppingItemPosition(ctx context.Context, listID string) (i
 }
 
 const renameShoppingList = `-- name: RenameShoppingList :execrows
-UPDATE shopping_lists SET name = ?1, updated_at = ?2
-WHERE id = ?3 AND created_by = ?4
+UPDATE shopping_lists SET name = ?1, updated_at = ?2, updated_by = ?3
+WHERE id = ?4 AND (shopping_lists.created_by = ?3 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = shopping_lists.id AND m.user_id = ?3 AND m.accepted_at IS NOT NULL))
 `
 
 type RenameShoppingListParams struct {
 	Name      string
 	UpdatedAt string
+	UserID    *string
 	ID        string
-	CreatedBy string
 }
 
 func (q *Queries) RenameShoppingList(ctx context.Context, arg RenameShoppingListParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, renameShoppingList,
 		arg.Name,
 		arg.UpdatedAt,
+		arg.UserID,
 		arg.ID,
-		arg.CreatedBy,
 	)
 	if err != nil {
 		return 0, err
@@ -538,19 +792,19 @@ func (q *Queries) SetShoppingItemsChecked(ctx context.Context, arg SetShoppingIt
 }
 
 const touchShoppingList = `-- name: TouchShoppingList :execrows
-UPDATE shopping_lists SET updated_at = ?1
-WHERE id = ?2 AND created_by = ?3
+UPDATE shopping_lists SET updated_at = ?1, updated_by = ?2
+WHERE id = ?3 AND (shopping_lists.created_by = ?2 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = shopping_lists.id AND m.user_id = ?2 AND m.accepted_at IS NOT NULL))
 `
 
 type TouchShoppingListParams struct {
 	UpdatedAt string
+	UserID    *string
 	ID        string
-	CreatedBy string
 }
 
-// Marks a list as changed; zero rows when it is not the person's.
+// Marks a list as changed by the person; zero rows when they have no access.
 func (q *Queries) TouchShoppingList(ctx context.Context, arg TouchShoppingListParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, touchShoppingList, arg.UpdatedAt, arg.ID, arg.CreatedBy)
+	result, err := q.db.ExecContext(ctx, touchShoppingList, arg.UpdatedAt, arg.UserID, arg.ID)
 	if err != nil {
 		return 0, err
 	}

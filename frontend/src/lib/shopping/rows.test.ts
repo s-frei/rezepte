@@ -36,7 +36,10 @@ const list = (items: ShoppingItem[]): ShoppingList => ({
 	openCount: 0,
 	doneCount: 0,
 	entries: [entry('e1', 'Soup'), entry('e2', 'Stew')],
-	items
+	items,
+	owner: { id: 'u', displayName: 'U', color: 'terracotta', avatarId: null },
+	members: [],
+	pending: []
 });
 
 describe('groupByDepartment', () => {
@@ -52,8 +55,24 @@ describe('groupByDepartment', () => {
 		expect(g[0].rows).toHaveLength(1);
 		expect(g[0].rows[0].itemIds).toEqual(['a', 'b']);
 		expect(g[0].rows[0].sources).toEqual([
-			{ itemId: 'a', amount: '1 ½ kg', recipe: 'Soup', addedBy: null, addedById: null, note: null },
-			{ itemId: 'b', amount: '2', recipe: 'Stew', addedBy: null, addedById: null, note: 'diced' }
+			{
+				itemId: 'a',
+				amount: '1 ½ kg',
+				recipe: 'Soup',
+				addedBy: null,
+				addedById: null,
+				note: null,
+				formerMember: false
+			},
+			{
+				itemId: 'b',
+				amount: '2',
+				recipe: 'Stew',
+				addedBy: null,
+				addedById: null,
+				note: 'diced',
+				formerMember: false
+			}
 		]);
 	});
 
@@ -87,6 +106,19 @@ describe('groupByDepartment', () => {
 			addedById: 'u',
 			recipe: null
 		});
+	});
+
+	it('marks free items of a gone account', () => {
+		const by = { id: 'u', displayName: 'Mara', color: 'x', avatarId: null };
+		const g = groupByDepartment(
+			list([
+				item({ id: 'a', entryId: null, addedBy: null }),
+				item({ id: 'b', nameKey: 'milk', name: 'Milk', entryId: null, addedBy: by }),
+				item({ id: 'c', nameKey: 'egg', name: 'Egg', entryId: 'e1' })
+			])
+		);
+		const former = Object.fromEntries(g[0].rows.map((r) => [r.key, r.sources[0].formerMember]));
+		expect(former).toEqual({ onion: true, milk: false, egg: false });
 	});
 
 	it('puts fully checked rows in checkedRows only', () => {

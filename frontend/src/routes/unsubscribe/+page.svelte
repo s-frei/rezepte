@@ -29,6 +29,7 @@
 		comment: m.unsubscribe_kind_comment,
 		recipe: m.unsubscribe_kind_recipe,
 		tasty: m.unsubscribe_kind_tasty,
+		list_invite: m.unsubscribe_kind_list_invite,
 		invite_accepted: m.unsubscribe_kind_invite_accepted
 	};
 	const groupLabel = { household: m.unsubscribe_group_household, admin: m.unsubscribe_group_admin };
@@ -36,6 +37,7 @@
 		comment: m.unsubscribe_done_comment,
 		recipe: m.unsubscribe_done_recipe,
 		tasty: m.unsubscribe_done_tasty,
+		list_invite: m.unsubscribe_done_list_invite,
 		invite_accepted: m.unsubscribe_done_invite_accepted,
 		household: m.unsubscribe_done_household,
 		admin: m.unsubscribe_done_admin

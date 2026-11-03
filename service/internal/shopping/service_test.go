@@ -437,3 +437,321 @@ func TestCountsAreRowsOfMergedNames(t *testing.T) {
 	}
 	counts("fully ticked", 1, 1)
 }
+
+// share makes memberID an accepted member of a list (Task 2 adds the invite).
+func (e env) share(t *testing.T, listID, memberID string, accepted bool) {
+	t.Helper()
+	var at *string
+	if accepted {
+		now := "2026-11-03T10:00:00Z"
+		at = &now
+	}
+	if _, err := e.conn.Exec(`INSERT INTO shopping_list_members (list_id, user_id, invited_at, accepted_at) VALUES (?, ?, ?, ?)`,
+		listID, memberID, "2026-11-03T09:00:00Z", at); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMemberCanReadAndChange(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	r := e.hackfleisch(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, true)
+	m := e.b.ID
+	steps := []func() (shopping.List, error){
+		func() (shopping.List, error) { return e.svc.Get(ctx, m, l.ID) },
+		func() (shopping.List, error) { return e.svc.Rename(ctx, m, l.ID, "Neu") },
+		func() (shopping.List, error) {
+			return e.svc.AddRecipe(ctx, m, l.ID, r.ID, 4, []shopping.IngredientPick{{Group: 0, Index: 0}})
+		},
+		func() (shopping.List, error) { return e.svc.AddFree(ctx, m, l.ID, "Milch") },
+	}
+	var cur shopping.List
+	for i, f := range steps {
+		var err error
+		if cur, err = f(); err != nil {
+			t.Fatalf("step %d: %v", i, err)
+		}
+	}
+	ids := []string{cur.Items[0].ID}
+	for _, f := range []struct {
+		name string
+		f    func() (shopping.List, error)
+	}{
+		{"SetChecked", func() (shopping.List, error) { return e.svc.SetChecked(ctx, m, l.ID, ids, true) }},
+		{"ClearChecked", func() (shopping.List, error) { return e.svc.ClearChecked(ctx, m, l.ID) }},
+		{"SetServings", func() (shopping.List, error) { return e.svc.SetServings(ctx, m, l.ID, cur.Entries[0].ID, 2) }},
+		{"RemoveEntry", func() (shopping.List, error) { return e.svc.RemoveEntry(ctx, m, l.ID, cur.Entries[0].ID) }},
+		{"RemoveItems", func() (shopping.List, error) { return e.svc.RemoveItems(ctx, m, l.ID, ids) }},
+	} {
+		if _, err := f.f(); err != nil {
+			t.Errorf("%s: %v", f.name, err)
+		}
+	}
+	sums, err := e.svc.Lists(ctx, e.a.ID)
+	if err != nil || len(sums) != 1 {
+		t.Fatalf("lists = %v, %v", sums, err)
+	}
+	if sums[0].UpdatedBy == nil || sums[0].UpdatedBy.ID != m {
+		t.Fatalf("updatedBy = %+v, want member", sums[0].UpdatedBy)
+	}
+}
+
+func TestMemberCannotDelete(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, true)
+	if err := e.svc.Delete(ctx, e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Delete = %v", err)
+	}
+	if _, err := e.svc.Get(ctx, e.a.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPendingInviteeCannotRead(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, false)
+	if _, err := e.svc.Get(ctx, e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Get = %v", err)
+	}
+	if _, err := e.svc.AddFree(ctx, e.b.ID, l.ID, "Milch"); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("AddFree = %v", err)
+	}
+	if sums, err := e.svc.Lists(ctx, e.b.ID); err != nil || len(sums) != 0 {
+		t.Fatalf("lists = %v, %v", sums, err)
+	}
+	got, err := e.svc.Get(ctx, e.a.ID, l.ID)
+	if err != nil || len(got.Pending) != 1 || got.Pending[0].ID != e.b.ID || len(got.Members) != 0 {
+		t.Fatalf("owner view = %+v, %v", got, err)
+	}
+}
+
+func TestStrangerCannotRead(t *testing.T) {
+	e := setup(t)
+	l, err := e.svc.Create(context.Background(), e.b.ID, "Bens")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(context.Background(), e.a.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("admin Get = %v", err)
+	}
+}
+
+func TestListsIncludesShared(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, true)
+	own, err := e.svc.Lists(ctx, e.a.ID)
+	if err != nil || len(own) != 1 || len(own[0].Members) != 1 || own[0].Members[0].ID != e.b.ID || own[0].Owner.ID != e.a.ID {
+		t.Fatalf("owner lists = %+v, %v", own, err)
+	}
+	mem, err := e.svc.Lists(ctx, e.b.ID)
+	if err != nil || len(mem) != 1 || mem[0].Owner.ID != e.a.ID || mem[0].ID != l.ID {
+		t.Fatalf("member lists = %+v, %v", mem, err)
+	}
+}
+
+func TestCreatorCannotLeave(t *testing.T) {
+	e := setup(t)
+	l := e.list(t)
+	if err := e.svc.Leave(context.Background(), e.a.ID, l.ID); !errors.Is(err, shopping.ErrInvalid) {
+		t.Fatalf("Leave = %v", err)
+	}
+}
+
+func TestLeaveEndsAccess(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, true)
+	if err := e.svc.Leave(ctx, e.b.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(ctx, e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Get = %v", err)
+	}
+	if got, _ := e.svc.Get(ctx, e.a.ID, l.ID); len(got.Members) != 0 {
+		t.Fatalf("members = %v", got.Members)
+	}
+	if err := e.svc.Leave(ctx, e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("second Leave = %v", err)
+	}
+}
+
+func TestDeletedAccountLeavesFreeItems(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, true)
+	if _, err := e.svc.AddFree(ctx, e.b.ID, l.ID, "Milch"); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.users.Delete(ctx, e.a, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.Get(ctx, e.a.ID, l.ID)
+	if err != nil || len(got.Items) != 1 || got.Items[0].AddedBy != nil {
+		t.Fatalf("after account delete = %+v, %v", got, err)
+	}
+	if sums, _ := e.svc.Lists(ctx, e.a.ID); len(sums) != 1 || sums[0].UpdatedBy != nil {
+		t.Fatalf("summary = %+v", sums)
+	}
+	e.share(t, l.ID, e.a.ID, true) // a row that must vanish with the list
+	if err := e.svc.Delete(ctx, e.a.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := e.conn.QueryRow(`SELECT COUNT(*) FROM shopping_list_members`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("members left = %d, %v", n, err)
+	}
+}
+
+type recorder struct{ got []string }
+
+func (r *recorder) ListInvited(_ context.Context, listID, inviterID, inviteeID string) {
+	r.got = append(r.got, listID+"/"+inviterID+"/"+inviteeID)
+}
+
+func TestInviteAcceptFlow(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	rec := &recorder{}
+	e.svc.SetInviteNotifier(rec)
+	l, err := e.svc.AddFree(ctx, e.a.ID, e.list(t).ID, "Milch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID)
+	if err != nil || len(got.Pending) != 1 || got.Pending[0].ID != e.b.ID {
+		t.Fatalf("Invite = %+v, %v", got, err)
+	}
+	if want := []string{l.ID + "/" + e.a.ID + "/" + e.b.ID}; len(rec.got) != 1 || rec.got[0] != want[0] {
+		t.Fatalf("notified = %v, want %v", rec.got, want)
+	}
+	sums, err := e.svc.Lists(ctx, e.b.ID)
+	if err != nil || len(sums) != 0 {
+		t.Fatalf("invitee lists = %+v, %v", sums, err)
+	}
+	invs, err := e.svc.Invitations(ctx, e.b.ID)
+	if err != nil || len(invs) != 1 || invs[0].ListName != "Woche" || invs[0].From.ID != e.a.ID || invs[0].OpenCount != l.OpenCount || invs[0].OpenCount != 1 {
+		t.Fatalf("invitations = %+v, %v", invs, err)
+	}
+	if _, err := e.svc.Get(ctx, e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Get before accept = %v", err)
+	}
+	if got, err = e.svc.Accept(ctx, e.b.ID, l.ID); err != nil || got.ID != l.ID || len(got.Pending) != 0 {
+		t.Fatalf("Accept = %+v, %v", got, err)
+	}
+	if got, _ = e.svc.Get(ctx, e.a.ID, l.ID); len(got.Members) != 1 || got.Members[0].ID != e.b.ID || len(got.Pending) != 0 {
+		t.Fatalf("owner list = %+v", got)
+	}
+	if invs, _ = e.svc.Invitations(ctx, e.b.ID); len(invs) != 0 {
+		t.Fatalf("invitations after accept = %+v", invs)
+	}
+}
+
+func TestInviteIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	rec := &recorder{}
+	e.svc.SetInviteNotifier(rec)
+	l := e.list(t)
+	for range 2 {
+		if _, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.svc.Accept(ctx, e.b.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID)
+	if err != nil || len(got.Members) != 1 || len(got.Pending) != 0 {
+		t.Fatalf("Invite accepted = %+v, %v", got, err)
+	}
+	if len(rec.got) != 1 {
+		t.Fatalf("notifications = %v", rec.got)
+	}
+}
+
+func TestInviteRejectsSelfAndUnknown(t *testing.T) {
+	e := setup(t)
+	l := e.list(t)
+	for _, id := range []string{e.a.ID, "nope"} {
+		if _, err := e.svc.Invite(context.Background(), e.a.ID, l.ID, id); !errors.Is(err, shopping.ErrInvalid) {
+			t.Fatalf("Invite %q = %v", id, err)
+		}
+	}
+}
+
+func TestOnlyCreatorShares(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	e.share(t, l.ID, e.b.ID, true)
+	if _, err := e.svc.Invite(ctx, e.b.ID, l.ID, e.a.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Invite = %v", err)
+	}
+	if _, err := e.svc.RemoveMember(ctx, e.b.ID, l.ID, e.b.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("RemoveMember = %v", err)
+	}
+}
+
+func TestDeclineIsLeave(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	if _, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Leave(ctx, e.b.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	if invs, _ := e.svc.Invitations(ctx, e.b.ID); len(invs) != 0 {
+		t.Fatalf("invitations = %+v", invs)
+	}
+	if got, _ := e.svc.Get(ctx, e.a.ID, l.ID); len(got.Pending) != 0 {
+		t.Fatalf("pending = %+v", got.Pending)
+	}
+}
+
+func TestRemovedMemberLosesAccess(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	if _, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Accept(ctx, e.b.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.svc.RemoveMember(ctx, e.a.ID, l.ID, e.b.ID); err != nil || len(got.Members) != 0 {
+		t.Fatalf("RemoveMember = %+v, %v", got, err)
+	}
+	if _, err := e.svc.Get(ctx, e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Get = %v", err)
+	}
+	// A pending invitation is withdrawn the same way.
+	if _, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.svc.RemoveMember(ctx, e.a.ID, l.ID, e.b.ID); err != nil || len(got.Pending) != 0 {
+		t.Fatalf("withdraw = %+v, %v", got, err)
+	}
+	if _, err := e.svc.RemoveMember(ctx, e.a.ID, l.ID, e.b.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("second RemoveMember = %v", err)
+	}
+}
+
+func TestAcceptWithoutInvitation(t *testing.T) {
+	e := setup(t)
+	l := e.list(t)
+	if _, err := e.svc.Accept(context.Background(), e.b.ID, l.ID); !errors.Is(err, shopping.ErrNotFound) {
+		t.Fatalf("Accept = %v", err)
+	}
+}

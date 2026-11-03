@@ -5,7 +5,7 @@ description: Collect recipes and anything else you need on lists, sorted by stor
 
 <Screenshot name="lists-overview" caption="Your shopping lists, each with its recipes and how much is done" />
 
-"Shopping lists" sits in the top bar on a computer and in the bottom bar on a phone. Every list shows how many items are open and done, and which recipes are on it at how many servings. Your lists are yours alone: nobody else sees what is on them, the [people page](/guide/users) only shows how many you have.
+"Shopping lists" sits in the top bar on a computer and in the bottom bar on a phone. Every list shows how many items are open and done, and which recipes are on it at how many servings. A list is yours until you [share it](#share-a-list); the [people page](/guide/users) only shows how many you started.
 
 <Steps>
   <Step>
@@ -43,7 +43,7 @@ description: Collect recipes and anything else you need on lists, sorted by stor
 
     Tap the circle to check a row off; it moves down to "Done", and tapping it again brings it back. "Remove done" clears everything checked off.
 
-    The counts under the list's name, and on its card in the overview, count these rows. On a computer, the panel beside the list shows its recipes and "Shared with", which for now lists only you as the one who created the list; the cards in the overview say "Only you" for the same reason.
+    The counts under the list's name, and on its card in the overview, count these rows. On a computer, the panel beside the list shows its recipes and "Shared with": you as the one who created the list, and everyone it is shared with.
 
   </Step>
   <Step>
@@ -66,6 +66,20 @@ description: Collect recipes and anything else you need on lists, sorted by stor
 
 The list's `…` renames it, copies the open items as text — one per line, ready to paste into a reminders app — or deletes it.
 
+## Share a list
+
+<Screenshot name="list-share" caption="Sharing a list: pick a person; those with access are listed below" />
+
+Share a list with anyone who has an account on your instance. On the list, tap **Share** (on a phone, the share icon next to the title), choose a person under "Invite someone" and close the window with **Done**. The person gets a mail and a push notification (see [Notifications](/guide/notifications)); until they answer, the window shows them as "Waiting for an answer". The **×** beside a name withdraws an invitation or removes a member.
+
+<Screenshot name="lists-invitation" caption="An invitation on the overview, with the lists shared with you below" />
+
+An invitation appears at the top of the person's shopping lists, with a dot on "Shopping lists" in the top or bottom bar. **Accept** opens the list; **Decline** turns it down, and you can be invited again. Accepted lists show under "Shared with you", and each card says who owns it, who shares it and who changed it last, for example "Changed by Mila 3 hours ago".
+
+Everyone with access can add recipes and items, tick them off, change servings, move items between departments and rename the list. Only the owner can share it further or delete it. A member leaves with `…` → **Leave list**; the list then disappears from their lists, and they get back on it only if the owner invites them again. Items a member typed in stay on the list, marked "from a former member" if their account is gone.
+
+Only you and the people you invited see a list. An invitation shows its list's name and how many items are open, nothing more, and administrators have no way into a list they were not invited to. If someone is removed while the list is open on their screen, their next change says the list is no longer there and takes them back to their lists.
+
 <Callout type="info" title="Good to know">
-  Lists are personal for now: sharing a list with others in the household, seeing their changes live and a shopping mode for the store are on the [roadmap](/roadmap#shared-shopping-lists).
+  Changes by others show when you open or reload a list, not live. Live updates and a shopping mode for the store are on the [roadmap](/roadmap#shared-shopping-lists).
 </Callout>

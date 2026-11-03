@@ -90,7 +90,7 @@
 		loaded = false;
 		loadFailed = false;
 		try {
-			const all = await listShoppingLists();
+			const all = (await listShoppingLists()).items;
 			if (mine !== req) return;
 			lists = all;
 			listId = defaultList(all, load(LAST_LIST));
@@ -133,7 +133,10 @@
 						openCount: 0,
 						doneCount: 0,
 						recipes: [],
-						updatedAt: created.updatedAt
+						updatedAt: created.updatedAt,
+						owner: created.owner,
+						members: [],
+						updatedBy: null
 					},
 					...lists
 				];

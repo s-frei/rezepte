@@ -16,9 +16,9 @@ function mockFetch(body: unknown, status = 200) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('shopping api', () => {
-	it('unwraps the summary list', async () => {
-		mockFetch({ items: [{ id: 'a' }] });
-		expect(await listShoppingLists()).toEqual([{ id: 'a' }]);
+	it('returns the lists and the invitations', async () => {
+		mockFetch({ items: [{ id: 'a' }], invitations: [] });
+		expect(await listShoppingLists()).toEqual({ items: [{ id: 'a' }], invitations: [] });
 	});
 
 	it('posts recipe ingredients', async () => {

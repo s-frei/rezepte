@@ -205,6 +205,7 @@ type ShoppingList struct {
 	CreatedBy string
 	CreatedAt string
 	UpdatedAt string
+	UpdatedBy *string
 }
 
 type ShoppingListEntry struct {
@@ -231,6 +232,13 @@ type ShoppingListItem struct {
 	AddedBy   *string
 	CheckedAt *string
 	CreatedAt string
+}
+
+type ShoppingListMember struct {
+	ListID     string
+	UserID     string
+	InvitedAt  string
+	AcceptedAt *string
 }
 
 type Step struct {

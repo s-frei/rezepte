@@ -1,15 +1,17 @@
 <script lang="ts">
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { isSignedOut } from '#lib/api/client.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		addFreeItem,
 		clearChecked,
 		deleteShoppingList,
 		getShoppingList,
+		leaveList,
 		removeEntry,
 		removeItems,
 		renameShoppingList,
@@ -23,11 +25,16 @@
 	import AddItemField from '#lib/components/shopping/AddItemField.svelte';
 	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
 	import EntryMenu from '#lib/components/shopping/EntryMenu.svelte';
+	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import ItemSheet from '#lib/components/shopping/ItemSheet.svelte';
 	import ListMenu from '#lib/components/shopping/ListMenu.svelte';
 	import ListSide from '#lib/components/shopping/ListSide.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
 	import ViewSwitch from '#lib/components/shopping/ViewSwitch.svelte';
+	import { session } from '#lib/auth.svelte.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { servingsUnit } from '#lib/recipe/format.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
@@ -72,8 +79,19 @@
 		return () => (shell.breadcrumb = undefined);
 	});
 
+	const owner = $derived(list.owner.id === session.user?.id);
+	const people = $derived([list.owner, ...list.members]);
+	let shareOpen = $state(false);
+
 	function fail(error: unknown) {
-		if (!isSignedOut(error)) toast.error(m.list_action_error());
+		if (isSignedOut(error)) return;
+		// The list was deleted, or the owner removed me: the server no longer shows it to me.
+		if (error instanceof ApiError && error.status === 404) {
+			toast.error(m.list_gone());
+			void goto(resolve('/lists'));
+			return;
+		}
+		toast.error(m.list_action_error());
 	}
 
 	/*
@@ -184,6 +202,16 @@
 		}
 	}
 
+	async function leave() {
+		try {
+			await leaveList(list.id);
+			toast.success(m.list_left());
+			await goto(resolve('/lists'));
+		} catch (error) {
+			fail(error);
+		}
+	}
+
 	const changeServings = (entry: ShoppingEntry, servings: number) =>
 		apply(setEntryServings(list.id, entry.id, servings));
 	const dropEntry = (entry: ShoppingEntry) => apply(removeEntry(list.id, entry.id));
@@ -209,9 +237,22 @@
 				{m.list_counts({ open: openRows, done: doneRows })}
 			</p>
 		</div>
-		<div class="col-start-2 row-start-1 md:mb-1">
+		<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1">
+			{#if people.length > 1}<PeopleStack {people} />{/if}
+			{#if owner}
+				<IconButton label={m.list_share()} onclick={() => (shareOpen = true)} class="md:hidden">
+					<Share2 class="size-[18px]" aria-hidden="true" />
+				</IconButton>
+				<Button variant="secondary" onclick={() => (shareOpen = true)} class="max-md:hidden">
+					<Share2 class="size-4" aria-hidden="true" />
+					{m.list_share()}
+				</Button>
+			{/if}
 			<ListMenu
 				name={list.name}
+				{owner}
+				onshare={() => (shareOpen = true)}
+				onleave={leave}
 				onrename={(name) => apply(renameShoppingList(list.id, name))}
 				oncopy={() => copyText(listText(list), m.list_copied())}
 				ondelete={deleteList}
@@ -337,10 +378,17 @@
 		</div>
 
 		<aside class="min-w-0 max-lg:hidden">
-			<ListSide {list} onservings={changeServings} onremove={dropEntry} />
+			<ListSide
+				{list}
+				onservings={changeServings}
+				onremove={dropEntry}
+				onshare={owner ? () => (shareOpen = true) : undefined}
+			/>
 		</aside>
 	</div>
 </div>
+
+<ShareDialog bind:open={shareOpen} {list} {apply} />
 
 <ItemSheet
 	bind:open={sheetOpen}

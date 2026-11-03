@@ -1,0 +1,9 @@
+{{define "content"}}<p style="font-family:Georgia,'Times New Roman',serif;font-size:22px;margin:0 0 20px;">{{t "mail_list_invite_heading" "name" .Data.Name "list" .Data.List}}</p>
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;"><tr>
+    <td valign="middle" style="padding:0 12px 0 0;">{{template "circle" (dict "avatar" .Data.Avatar "initial" .Data.Initial "bg" .Data.Bg "fg" .Data.Fg "size" 36 "font" 16)}}</td>
+    <td valign="middle" style="font-size:16px;line-height:1.6;">{{t "mail_list_invite_body"}}</td>
+  </tr></table>
+  {{template "button" (dict "text" (t "mail_list_invite_button") "url" .Data.URL)}}
+  {{template "fallback" .Data.URL}}{{end}}
+{{define "footer"}}{{template "note" (t "mail_list_invite_reason")}}
+  {{template "unsubscribe" (dict "links" .Unsubscribe "kind" "mail_unsubscribe_kind_list_invite" "group" "mail_unsubscribe_group_household")}}{{end}}

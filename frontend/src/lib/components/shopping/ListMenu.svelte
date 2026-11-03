@@ -1,7 +1,9 @@
 <script lang="ts">
 	import Copy from '@lucide/svelte/icons/copy';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import LogOut from '@lucide/svelte/icons/log-out';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Share2 from '@lucide/svelte/icons/share-2';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { Dialog, DropdownMenu } from 'bits-ui';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
@@ -12,19 +14,27 @@
 
 	let {
 		name,
+		owner,
 		onrename,
+		onshare,
 		oncopy,
-		ondelete
+		ondelete,
+		onleave
 	}: {
 		name: string;
+		/** The creator may share and delete; a member may leave instead. */
+		owner: boolean;
+		onshare: () => void;
 		/** Resolves to whether the new name was stored, which closes the dialog. */
 		onrename: (name: string) => Promise<boolean>;
 		oncopy: () => void;
 		ondelete: () => void;
+		onleave: () => void;
 	} = $props();
 
 	let renameOpen = $state(false);
 	let deleteOpen = $state(false);
+	let leaveOpen = $state(false);
 	let draft = $state('');
 	let saving = $state(false);
 
@@ -71,17 +81,28 @@
 				<Pencil class="size-4" aria-hidden="true" />
 				{m.list_rename()}
 			</DropdownMenu.Item>
+			{#if owner}
+				<DropdownMenu.Item onSelect={onshare} class={item}>
+					<Share2 class="size-4" aria-hidden="true" />
+					{m.list_share()}
+				</DropdownMenu.Item>
+			{/if}
 			<DropdownMenu.Item onSelect={oncopy} class={item}>
 				<Copy class="size-4" aria-hidden="true" />
 				{m.list_copy_text()}
 			</DropdownMenu.Item>
 			<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
 			<DropdownMenu.Item
-				onSelect={() => (deleteOpen = true)}
+				onSelect={() => (owner ? (deleteOpen = true) : (leaveOpen = true))}
 				class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
 			>
-				<Trash2 class="size-4" aria-hidden="true" />
-				{m.list_delete()}
+				{#if owner}
+					<Trash2 class="size-4" aria-hidden="true" />
+					{m.list_delete()}
+				{:else}
+					<LogOut class="size-4" aria-hidden="true" />
+					{m.list_leave()}
+				{/if}
 			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</DropdownMenu.Portal>
@@ -111,4 +132,13 @@
 	confirmLabel={m.common_delete()}
 	destructive
 	onconfirm={ondelete}
+/>
+
+<ConfirmDialog
+	bind:open={leaveOpen}
+	title={m.list_leave_confirm_title({ name })}
+	text={m.list_leave_confirm_text()}
+	confirmLabel={m.list_leave()}
+	destructive
+	onconfirm={onleave}
 />

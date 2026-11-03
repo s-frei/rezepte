@@ -50,6 +50,11 @@
 	"mail_invite_ignore": "Don't know {inviter}? Just ignore this mail.",
 	"mail_invite_subject": "{inviter} invited you to Rezepte",
 	"mail_invite_validity": "The link is valid for 7 days and works once.",
+	"mail_list_invite_body": "Accept on your shopping lists to see and edit it together.",
+	"mail_list_invite_button": "Open shopping lists",
+	"mail_list_invite_heading": "{name} invites you to “{list}”",
+	"mail_list_invite_reason": "You get this mail because someone invited you to a shopping list.",
+	"mail_list_invite_subject": "{name} invites you to “{list}”",
 	"mail_password_changed_body_admin": "{admin} (admin) set a new password for your account {username} on {at}.",
 	"mail_password_changed_body_command_line": "The password of your account {username} was reset on the server's command line on {at}.",
 	"mail_password_changed_body_profile": "The password of your account {username} was changed in your profile on {at}.",
@@ -72,6 +77,8 @@
 	"mail_push_comment_title_many": "New comments on “{title}”",
 	"mail_push_invite_accepted_body": "{name} signs in as {username}",
 	"mail_push_invite_accepted_title": "Invitation accepted",
+	"mail_push_list_invite_body": "{name} invites you to “{list}”",
+	"mail_push_list_invite_title": "Shopping list",
 	"mail_push_mail_failing_auth": "The mail server refused the login.",
 	"mail_push_mail_failing_connect": "The mail server cannot be reached.",
 	"mail_push_mail_failing_sender": "The mail server refused the sender address.",
@@ -116,6 +123,7 @@
 	"mail_unsubscribe_group_household": "Unsubscribe from all household mails",
 	"mail_unsubscribe_kind_comment": "No more mails about new comments",
 	"mail_unsubscribe_kind_invite_accepted": "No more mails about accepted invitations",
+	"mail_unsubscribe_kind_list_invite": "No more mails about shopping list invitations",
 	"mail_unsubscribe_kind_recipe": "No more mails about new recipes",
 	"mail_unsubscribe_kind_tasty": "No more mails about tasty marks"
 }

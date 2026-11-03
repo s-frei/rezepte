@@ -601,6 +601,17 @@ type sampleList struct {
 	recipes []int
 	free    map[user.Locale][]string
 	checked map[user.Locale][]string
+	// sharedWith are the people invited to the list; each who accepted
+	// adds the extra free items.
+	sharedWith []sampleInvite
+	extra      map[user.Locale][]string
+}
+
+// sampleInvite is one invitation the demo writes: to whom, and whether the
+// person has accepted it. Seeding runs with no notifier, so nothing is sent.
+type sampleInvite struct {
+	to       string
+	accepted bool
 }
 
 // listServings is how many the demo's lists cook every sample for; an
@@ -610,8 +621,9 @@ const listServings = 4
 // sampleLists give the lists overview, the list page in both views and the
 // add-to-list dialog something to show: the admin's weekly shop with two
 // samples, typed-in items and ticked rows, the admin's market list of typed-in
-// items only, and one list of Mila's, so the people page counts lists for
-// more than one person.
+// items only, one list of Mila's shared with the admin, and Jonas's barbecue
+// list with an invitation still pending for the admin. The weekly shop is
+// shared with Mila, who added an item.
 var sampleLists = []sampleList{
 	{
 		owner: AdminUser, ago: 2 * 24 * time.Hour,
@@ -623,12 +635,22 @@ var sampleLists = []sampleList{
 	},
 	{
 		owner: "mila", ago: 26 * time.Hour,
-		name:    map[user.Locale]string{"de": "Grillabend", "en": "Barbecue"},
+		name:    map[user.Locale]string{"de": "Sonntagsessen", "en": "Sunday dinner"},
 		recipes: []int{2},
 		free: map[user.Locale][]string{
-			"de": {"Grillkohle"},
-			"en": {"charcoal"},
+			"de": {"Kerzen"},
+			"en": {"candles"},
 		},
+		sharedWith: []sampleInvite{{AdminUser, true}},
+	},
+	{
+		owner: "jonas", ago: 5 * time.Hour,
+		name: map[user.Locale]string{"de": "Grillfest", "en": "Barbecue"},
+		free: map[user.Locale][]string{
+			"de": {"Grillkohle", "6 Würstchen", "Maiskolben"},
+			"en": {"charcoal", "6 sausages", "corn on the cob"},
+		},
+		sharedWith: []sampleInvite{{AdminUser, false}},
 	},
 	{
 		owner: AdminUser, ago: 3 * time.Hour,
@@ -641,6 +663,11 @@ var sampleLists = []sampleList{
 		checked: map[user.Locale][]string{
 			"de": {"Salz", "Pfeffer", "Senf"},
 			"en": {"salt", "pepper", "butter"},
+		},
+		sharedWith: []sampleInvite{{"mila", true}},
+		extra: map[user.Locale][]string{
+			"de": {"Haferflocken"},
+			"en": {"oats"},
 		},
 	},
 }
@@ -712,6 +739,26 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 		}
 		if _, err := lists.SetChecked(ctx, owner.ID, l.ID, ids, true); err != nil {
 			return fmt.Errorf("check items on %q: %w", name, err)
+		}
+		for _, inv := range sl.sharedWith {
+			who, ok := people[inv.to]
+			if !ok {
+				continue
+			}
+			if _, err := lists.Invite(ctx, owner.ID, l.ID, who.ID); err != nil {
+				return fmt.Errorf("invite %s to %q: %w", inv.to, name, err)
+			}
+			if !inv.accepted {
+				continue
+			}
+			if _, err := lists.Accept(ctx, who.ID, l.ID); err != nil {
+				return fmt.Errorf("accept %q as %s: %w", name, inv.to, err)
+			}
+			for _, text := range in(sl.extra) {
+				if _, err := lists.AddFree(ctx, who.ID, l.ID, text); err != nil {
+					return fmt.Errorf("add %q to %q as %s: %w", text, name, inv.to, err)
+				}
+			}
 		}
 	}
 	return nil

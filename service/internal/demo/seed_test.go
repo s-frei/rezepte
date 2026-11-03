@@ -754,8 +754,8 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(mine) != 2 || mine[0].Name != "Wocheneinkauf" || mine[1].Name != "Markt Samstag" {
-		t.Fatalf("admin's lists = %+v, want Wocheneinkauf before Markt Samstag", mine)
+	if len(mine) != 3 || mine[0].Name != "Wocheneinkauf" || mine[1].Name != "Sonntagsessen" || mine[2].Name != "Markt Samstag" {
+		t.Fatalf("admin's lists = %+v, want Wocheneinkauf, Sonntagsessen, Markt Samstag", mine)
 	}
 	if !mine[0].UpdatedAt.Before(ref) {
 		t.Errorf("Wocheneinkauf changed at %v, want before %v", mine[0].UpdatedAt, ref)
@@ -783,10 +783,20 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 			checked[i.NameKey] = true
 		}
 	}
-	if free != 2 || len(checked) != 3 {
-		t.Errorf("%d free items, checked names %v; want 2 and 3", free, checked)
+	if free != 3 || len(checked) != 3 {
+		t.Errorf("%d free items, checked names %v; want 3 and 3", free, checked)
 	}
-	market, err := lists.Get(ctx, admin.ID, mine[1].ID)
+	if len(weekly.Members) != 1 || weekly.Members[0].DisplayName != "Mila Majoran" || mine[0].UpdatedBy == nil || mine[0].UpdatedBy.DisplayName != "Mila Majoran" {
+		t.Errorf("Wocheneinkauf members %+v, updated by %+v; want Mila, who added Haferflocken", weekly.Members, mine[0].UpdatedBy)
+	}
+	invites, err := lists.Invitations(ctx, admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(invites) != 1 || invites[0].ListName != "Grillfest" {
+		t.Errorf("admin's invitations = %+v, want Grillfest", invites)
+	}
+	market, err := lists.Get(ctx, admin.ID, mine[2].ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -798,7 +808,7 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, m := range members {
-		if want := map[string]int{"mila": 1}[m.Username]; counts[m.ID] != want {
+		if want := map[string]int{"mila": 1, "jonas": 1}[m.Username]; counts[m.ID] != want {
 			t.Errorf("%s has %d lists, want %d", m.Username, counts[m.ID], want)
 		}
 	}

@@ -8,6 +8,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { palette } from '#lib/palette.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { bottomNav, type NavPlace } from '#lib/shell.svelte.js';
@@ -112,12 +113,20 @@
 		</a>
 		<a
 			href={resolve('/lists')}
-			aria-label={m.nav_lists()}
+			aria-label={invitations.count > 0
+				? `${m.nav_lists()}, ${m.nav_lists_invitations({ count: invitations.count })}`
+				: m.nav_lists()}
 			aria-current={place === 'lists' ? 'page' : undefined}
 			data-current={current === 'lists' ? '' : undefined}
 			class="{item} {itemState('lists')}"
 		>
 			<ShoppingBasket class="size-6" aria-hidden="true" />
+			{#if invitations.count > 0}
+				<span
+					aria-hidden="true"
+					class="absolute top-2.5 left-1/2 ml-1.5 size-2.5 rounded-full bg-primary ring-2 ring-surface"
+				></span>
+			{/if}
 		</a>
 		<button
 			type="button"

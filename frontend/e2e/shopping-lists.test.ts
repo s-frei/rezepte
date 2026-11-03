@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import { createRecipe, createUser, loadFixture, login, uniqueToken } from './helpers';
 
 // A list is its creator's alone, so each test signs in as a person of its
@@ -110,4 +110,125 @@ test('a shopping list fills from a recipe and by hand', async ({ page }) => {
 	const counts = (await card.getByText(/^\d+ open · \d+ done$/).textContent())!.trim();
 	await card.click();
 	await expect(page.getByText(counts, { exact: true })).toBeVisible();
+});
+
+/** A second browser, signed in as `name`. */
+async function signedInAs(browser: Browser, name: string) {
+	const context = await browser.newContext();
+	const page = await context.newPage();
+	await login(page, name);
+	return { context, page };
+}
+
+/** Invites `name` from the open share dialog of the list page. */
+async function shareWith(page: Page, name: string) {
+	await page.getByRole('button', { name: 'Share', exact: true }).first().click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByRole('button', { name: 'Invite someone' }).click();
+	await page.getByRole('option', { name }).click();
+	await expect(dialog.getByText('Waiting for an answer')).toBeVisible();
+	return dialog;
+}
+
+test('a shared list is ticked by both, until the owner removes the member', async ({
+	page,
+	browser
+}, testInfo) => {
+	// Two people at once; the share flow is the same component on both viewports.
+	test.skip(testInfo.project.name.startsWith('mobile'), 'two browsers; runs once, on desktop');
+	const token = uniqueToken();
+	const owner = `own${token}`.slice(0, 20);
+	const mila = `mil${token}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: owner, role: 'user' });
+	await createUser(page, { username: mila, role: 'user' });
+	await login(page, owner);
+
+	await newList(page, `Grill ${token}`);
+	await addFree(page, 'Kohle');
+	await addFree(page, 'Brot');
+	const listUrl = page.url();
+	const dialog = await shareWith(page, mila);
+	await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
+
+	const guest = await signedInAs(browser, mila);
+	try {
+		const lists = guest.page;
+		await lists.goto('/lists');
+		await expect(lists.getByText(`${owner} invites you to “Grill ${token}”`)).toBeVisible();
+		await expect(lists.getByText('1 invitations')).toBeAttached();
+		await lists.getByRole('button', { name: 'Accept' }).click();
+		await expect(lists.getByRole('heading', { level: 1, name: `Grill ${token}` })).toBeVisible();
+		await lists.getByRole('button', { name: 'Check off Kohle' }).click();
+		await expect(lists.getByRole('heading', { name: 'Done · 1' })).toBeVisible();
+
+		// The owner sees the tick, and who changed the list.
+		await page.goto(listUrl);
+		await expect(page.getByRole('heading', { name: 'Done · 1' })).toBeVisible();
+		await page.goto('/lists');
+		await expect(page.getByText(new RegExp(`Changed by ${mila}`))).toBeVisible();
+
+		// Removed, her next change finds the list gone.
+		await page.goto(listUrl);
+		await page.getByRole('button', { name: 'Share', exact: true }).first().click();
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: `Remove ${mila}` })
+			.click();
+		await expect(page.getByRole('dialog').getByText(mila)).toHaveCount(0);
+
+		await lists.getByRole('button', { name: 'Check off Brot' }).click();
+		await expect(lists.getByText('This list is no longer there for you')).toBeVisible();
+		await expect(lists).toHaveURL('/lists');
+	} finally {
+		await guest.context.close();
+	}
+});
+
+test('an invitation is declined, and a member leaves', async ({ page, browser }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'two browsers; runs once, on desktop');
+	const token = uniqueToken();
+	const owner = `own${token}`.slice(0, 20);
+	const mila = `mil${token}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: owner, role: 'user' });
+	await createUser(page, { username: mila, role: 'user' });
+	await login(page, owner);
+	for (const name of [`Nein ${token}`, `Ja ${token}`]) {
+		await newList(page, name);
+		const dialog = await shareWith(page, mila);
+		await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
+	}
+
+	const guest = await signedInAs(browser, mila);
+	try {
+		const lists = guest.page;
+		await lists.goto('/lists');
+		await expect(lists.getByText(`invites you to “Nein ${token}”`)).toBeVisible();
+		await lists
+			.locator('div', { hasText: `invites you to “Nein ${token}”` })
+			.getByRole('button', { name: 'Decline' })
+			.last()
+			.click();
+		await expect(lists.getByText(`invites you to “Nein ${token}”`)).toHaveCount(0);
+
+		await lists
+			.locator('div', { hasText: `invites you to “Ja ${token}”` })
+			.getByRole('button', { name: 'Accept' })
+			.last()
+			.click();
+		await expect(lists.getByRole('heading', { level: 1, name: `Ja ${token}` })).toBeVisible();
+
+		// A member may leave but not share or delete.
+		await expect(lists.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+		await lists.getByRole('button', { name: 'More actions' }).click();
+		await expect(lists.getByRole('menuitem', { name: 'Delete list' })).toHaveCount(0);
+		await lists.getByRole('menuitem', { name: 'Leave list' }).click();
+		await lists.getByRole('dialog').getByRole('button', { name: 'Leave list' }).click();
+		await expect(lists).toHaveURL('/lists');
+		await expect(lists.getByRole('heading', { level: 3, name: `Ja ${token}` })).toHaveCount(0);
+		await expect(lists.getByRole('heading', { level: 3, name: `Nein ${token}` })).toHaveCount(0);
+	} finally {
+		await guest.context.close();
+	}
 });
