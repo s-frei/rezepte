@@ -54,6 +54,7 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/import': 'recipes',
 	'/lists': 'lists',
 	'/lists/[id]': 'lists',
+	'/lists/[id]/shop': null,
 	'/settings': 'you',
 	'/settings/api': 'you',
 	'/settings/mail': 'you',

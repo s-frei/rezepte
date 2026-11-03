@@ -163,6 +163,26 @@ func Register(api huma.API, svc *Service) {
 			return mutation(ctx, "", func(uid string) (List, error) { return svc.Get(ctx, uid, in.ID) })
 		})
 
+	stream := op("stream-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}/events", "Follow a shopping list's changes", http.StatusOK, 404)
+	stream.Description = "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` with `data: {}` after every change to the list " +
+		"(refetch it to see what changed), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down."
+	stream.Responses = map[string]*huma.Response{"200": {
+		Description: "The event stream",
+		Content:     map[string]*huma.MediaType{"text/event-stream": {Schema: &huma.Schema{Type: "string"}}},
+	}}
+	huma.Register(api, stream, func(ctx context.Context, in *listID) (*huma.StreamResponse, error) {
+		uid, err := caller(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if ok, err := svc.CanAccess(ctx, uid, in.ID); err != nil {
+			return nil, err
+		} else if !ok {
+			return nil, fail(ErrNotFound, "")
+		}
+		return svc.stream(uid, in.ID), nil
+	})
+
 	huma.Register(api, op("rename-shopping-list", http.MethodPatch, "/api/v1/shopping-lists/{id}", "Rename a shopping list", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *renameIn) (*listOut, error) {
 			return mutation(ctx, "name", func(uid string) (List, error) { return svc.Rename(ctx, uid, in.ID, in.Body.Name) })

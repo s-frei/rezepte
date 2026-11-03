@@ -22,6 +22,7 @@ type Service struct {
 	q    *sqlc.Queries
 	now  func() time.Time
 	inv  InviteNotifier
+	hub  *Hub
 }
 
 // InviteNotifier hears of every new invitation, after it was stored; not of
@@ -32,6 +33,19 @@ type InviteNotifier interface {
 
 // SetInviteNotifier hands every new invitation to n; nil (the default) is off.
 func (s *Service) SetInviteNotifier(n InviteNotifier) { s.inv = n }
+
+// SetHub hands every committed change to h for the open event streams; nil
+// (the default) publishes nothing.
+func (s *Service) SetHub(h *Hub) { s.hub = h }
+
+// CanAccess reports whether the person created or accepted the list.
+func (s *Service) CanAccess(ctx context.Context, userID, listID string) (bool, error) {
+	ok, err := s.q.CanAccessShoppingList(ctx, sqlc.CanAccessShoppingListParams{ID: listID, UserID: userID})
+	if err != nil {
+		return false, fmt.Errorf("check shopping list access: %w", err)
+	}
+	return ok, nil
+}
 
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB) *Service {
@@ -248,6 +262,7 @@ func (s *Service) Rename(ctx context.Context, userID, id, name string) (List, er
 	if n == 0 {
 		return List{}, ErrNotFound
 	}
+	s.hub.Publish(id)
 	return s.Get(ctx, userID, id)
 }
 
@@ -260,6 +275,7 @@ func (s *Service) Delete(ctx context.Context, userID, id string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
+	s.hub.Publish(id)
 	return nil
 }
 
@@ -280,6 +296,7 @@ func (s *Service) Leave(ctx context.Context, userID, listID string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
+	s.hub.Publish(listID)
 	return nil
 }
 
@@ -313,8 +330,11 @@ func (s *Service) Invite(ctx context.Context, userID, listID, inviteeID string) 
 	if err != nil {
 		return List{}, fmt.Errorf("insert shopping member: %w", err)
 	}
-	if n > 0 && s.inv != nil {
-		s.inv.ListInvited(ctx, listID, userID, inviteeID)
+	if n > 0 {
+		s.hub.Publish(listID)
+		if s.inv != nil {
+			s.inv.ListInvited(ctx, listID, userID, inviteeID)
+		}
 	}
 	return s.Get(ctx, userID, listID)
 }
@@ -328,6 +348,7 @@ func (s *Service) RemoveMember(ctx context.Context, userID, listID, memberID str
 	if n == 0 {
 		return List{}, ErrNotFound
 	}
+	s.hub.Publish(listID)
 	return s.Get(ctx, userID, listID)
 }
 
@@ -341,6 +362,7 @@ func (s *Service) Accept(ctx context.Context, userID, listID string) (List, erro
 	if n == 0 {
 		return List{}, ErrNotFound
 	}
+	s.hub.Publish(listID)
 	return s.Get(ctx, userID, listID)
 }
 
@@ -365,7 +387,8 @@ func (s *Service) Invitations(ctx context.Context, userID string) ([]Invitation,
 }
 
 // mutate runs fn in a transaction after touching the list (which proves the
-// caller has access), then returns the list as it is afterwards.
+// caller has access), then returns the list as it is afterwards and, once
+// committed, tells the hub.
 func (s *Service) mutate(ctx context.Context, userID, listID string, fn func(q *sqlc.Queries) error) (List, error) {
 	var l List
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
@@ -382,7 +405,11 @@ func (s *Service) mutate(ctx context.Context, userID, listID string, fn func(q *
 		l, err = get(ctx, q, userID, listID)
 		return err
 	})
-	return l, err
+	if err != nil {
+		return List{}, err
+	}
+	s.hub.Publish(listID)
+	return l, nil
 }
 
 // AddRecipe copies the included ingredients of a recipe onto a list as one
@@ -558,6 +585,7 @@ func (s *Service) SetDepartment(ctx context.Context, userID, name string, d Depa
 	if err != nil {
 		return fmt.Errorf("set department override: %w", err)
 	}
+	s.hub.PublishAll()
 	return nil
 }
 

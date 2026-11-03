@@ -9,6 +9,10 @@ FROM shopping_lists l
 JOIN users o ON o.id = l.created_by
 WHERE l.id = sqlc.arg(id) AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL));
 
+-- Whether the person created or accepted the list.
+-- name: CanAccessShoppingList :one
+SELECT EXISTS (SELECT 1 FROM shopping_lists l WHERE l.id = sqlc.arg(id) AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL)));
+
 -- name: GetShoppingListCreator :one
 SELECT created_by FROM shopping_lists WHERE id = ?;
 

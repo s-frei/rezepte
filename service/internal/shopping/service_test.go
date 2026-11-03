@@ -755,3 +755,75 @@ func TestAcceptWithoutInvitation(t *testing.T) {
 		t.Fatalf("Accept = %v", err)
 	}
 }
+
+func TestDepartmentChangePublishesAll(t *testing.T) {
+	e := setup(t)
+	hub := shopping.NewHub()
+	e.svc.SetHub(hub)
+	ch, cancel := hub.Subscribe("any-list")
+	defer cancel()
+	if err := e.svc.SetDepartment(context.Background(), e.a.ID, "Kapern", shopping.Chilled); err != nil {
+		t.Fatal(err)
+	}
+	if !signaled(ch) {
+		t.Fatal("no signal after a department change")
+	}
+}
+
+// TestChangesPublish holds every change to its signal: one after it
+// committed, none when it changed nothing.
+func TestChangesPublish(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	hub := shopping.NewHub()
+	e.svc.SetHub(hub)
+	l := e.list(t)
+	ch, cancel := hub.Subscribe(l.ID)
+	defer cancel()
+	step := func(name string, want bool, f func() error) {
+		t.Helper()
+		if err := f(); err != nil && want {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := signaled(ch); got != want {
+			t.Fatalf("%s: signal %v, want %v", name, got, want)
+		}
+	}
+	ignore := func(_ shopping.List, err error) error { return err }
+	step("add free", true, func() error { return ignore(e.svc.AddFree(ctx, e.a.ID, l.ID, "Milch")) })
+	step("stranger adds", false, func() error { return ignore(e.svc.AddFree(ctx, e.b.ID, l.ID, "Milch")) })
+	step("rename", true, func() error { return ignore(e.svc.Rename(ctx, e.a.ID, l.ID, "Neu")) })
+	step("stranger renames", false, func() error { return ignore(e.svc.Rename(ctx, e.b.ID, l.ID, "Neu")) })
+	step("invite", true, func() error { return ignore(e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID)) })
+	step("invite again", false, func() error { return ignore(e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID)) })
+	step("accept", true, func() error { return ignore(e.svc.Accept(ctx, e.b.ID, l.ID)) })
+	step("leave", true, func() error { return e.svc.Leave(ctx, e.b.ID, l.ID) })
+	step("leave again", false, func() error { return e.svc.Leave(ctx, e.b.ID, l.ID) })
+	e.share(t, l.ID, e.b.ID, true)
+	step("remove member", true, func() error { return ignore(e.svc.RemoveMember(ctx, e.a.ID, l.ID, e.b.ID)) })
+	step("delete", true, func() error { return e.svc.Delete(ctx, e.a.ID, l.ID) })
+}
+
+func TestCanAccess(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	check := func(userID string, want bool) {
+		t.Helper()
+		got, err := e.svc.CanAccess(ctx, userID, l.ID)
+		if err != nil || got != want {
+			t.Fatalf("CanAccess(%s) = %v, %v; want %v", userID, got, err, want)
+		}
+	}
+	check(e.a.ID, true)
+	check(e.b.ID, false)
+	e.share(t, l.ID, e.b.ID, false)
+	check(e.b.ID, false)
+	if _, err := e.svc.Accept(ctx, e.b.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	check(e.b.ID, true)
+	if ok, err := e.svc.CanAccess(ctx, e.a.ID, "nope"); ok || err != nil {
+		t.Fatalf("unknown list: %v, %v", ok, err)
+	}
+}

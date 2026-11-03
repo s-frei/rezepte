@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
@@ -46,6 +47,9 @@
 		tickedItemRows,
 		type Row
 	} from '#lib/shopping/rows.js';
+	import { ListState } from '#lib/shopping/list-state.svelte.js';
+	import { followList } from '#lib/shopping/live.js';
+	import { shopHref } from '#lib/shopping/href.js';
 	import { listView } from '#lib/shopping/view.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { shell } from '#lib/shell.svelte.js';
@@ -53,8 +57,18 @@
 
 	let { data }: PageProps = $props();
 
-	// Follows each load; every change below replaces it with the server's answer.
-	let list = $derived<ShoppingList>(data.list);
+	// Starts as the first load; `load` below follows each later one, and every
+	// change replaces the list with the server's answer.
+	// svelte-ignore state_referenced_locally
+	const lst = new ListState(data.list, fail);
+	const list = $derived(lst.list);
+	$effect.pre(() => lst.load(data.list));
+	// Follows the list live: another member's change refetches it.
+	// Only the id: a reload of the same list must not reopen the stream (the first open is not a refetch).
+	const listId = $derived(data.list.id);
+	$effect(() => followList(listId, () => void lst.refresh()));
+	const apply = (request: Promise<ShoppingList>, revert?: () => ShoppingList) =>
+		lst.apply(request, revert);
 
 	const departments = $derived(groupByDepartment(list));
 	const recipes = $derived(groupByRecipe(list));
@@ -94,59 +108,6 @@
 		toast.error(m.list_action_error());
 	}
 
-	/*
-	 * Changes race: two quick taps send two requests, and their answers may
-	 * arrive in either order. Every change takes the next revision and only the
-	 * newest one's answer replaces the list; an older answer is dropped. Answers
-	 * for another list are dropped too - the page component stays mounted when
-	 * one list links to the next, so `rev` moves on with each load as well.
-	 */
-	let rev = 0;
-	$effect.pre(() => {
-		void data.list;
-		rev++;
-	});
-
-	const current = (answer: ShoppingList, mine: number) =>
-		mine === rev && answer.id === data.list.id;
-
-	/** Reloads the list unless a newer change has started meanwhile (its answer will do). */
-	async function refresh() {
-		const mine = rev;
-		try {
-			const answer = await getShoppingList(data.list.id);
-			if (current(answer, mine)) list = answer;
-		} catch (error) {
-			fail(error);
-		}
-	}
-
-	/**
-	 * Takes the server's answer as the new list when it is still the newest;
-	 * false (and a toast) when the request failed. A failed change undoes its
-	 * own optimistic step (`revert`) only while nothing newer was sent;
-	 * otherwise the list is reloaded, since undoing locally would also undo
-	 * the newer change.
-	 */
-	async function apply(
-		request: Promise<ShoppingList>,
-		revert?: () => ShoppingList
-	): Promise<boolean> {
-		const mine = ++rev;
-		const id = data.list.id;
-		try {
-			const answer = await request;
-			if (current(answer, mine)) list = answer;
-			return true;
-		} catch (error) {
-			fail(error);
-			if (id !== data.list.id) return false;
-			if (mine !== rev) void refresh();
-			else if (revert) list = revert();
-			return false;
-		}
-	}
-
 	function withChecked(ids: string[], checked: boolean): ShoppingList {
 		const set = new Set(ids);
 		return {
@@ -158,7 +119,7 @@
 	// Optimistic: the circle flips at once; a failed request flips it back.
 	async function toggle(row: Row) {
 		const checked = !row.checked;
-		list = withChecked(row.itemIds, checked);
+		lst.list = withChecked(row.itemIds, checked);
 		await apply(setItemsChecked(list.id, row.itemIds, checked), () =>
 			withChecked(row.itemIds, !checked)
 		);
@@ -173,9 +134,12 @@
 		const row = sheetRow;
 		if (!row) return;
 		const ids = new Set(row.itemIds);
-		list = { ...list, items: list.items.map((i) => (ids.has(i.id) ? { ...i, department } : i)) };
+		lst.list = {
+			...list,
+			items: list.items.map((i) => (ids.has(i.id) ? { ...i, department } : i))
+		};
 		// Taken as a change of its own, so a tick sent meanwhile outranks the reload.
-		const mine = ++rev;
+		const mine = lst.begin();
 		try {
 			await setDepartment(row.name, department);
 		} catch (error) {
@@ -183,8 +147,8 @@
 		}
 		// The override reaches every item of that name, on this list too; a failed
 		// one is undone by the server's state.
-		if (mine === rev) await apply(getShoppingList(list.id));
-		else await refresh();
+		if (lst.isLatest(mine)) await apply(getShoppingList(list.id));
+		else await lst.refresh();
 	}
 
 	async function removeSheetRow() {
@@ -219,6 +183,13 @@
 
 <svelte:head><title>{list.name} · {m.app_name()}</title></svelte:head>
 
+{#snippet shop(className: string)}
+	<Button href={shopHref(list.id)} class="shrink-0 {className}">
+		<ShoppingBasket class="size-4" aria-hidden="true" />
+		{m.list_shop()}
+	</Button>
+{/snippet}
+
 <div class="pt-6 pb-8 md:pt-4">
 	<!-- Phone: back and ⋯ above the title; desktop: ⋯ beside it. One menu either way. -->
 	<header class="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4">
@@ -233,11 +204,16 @@
 			<h1 class="font-display text-display-md font-medium wrap-break-word md:text-display-lg">
 				{list.name}
 			</h1>
-			<p class="mt-1.5 text-caption text-text-muted">
-				{m.list_counts({ open: openRows, done: doneRows })}
-			</p>
+			<!-- Phone: "Shop" right of the counts; desktop: first in the header's buttons. -->
+			<div class="mt-1.5 flex items-center justify-between gap-3">
+				<p class="text-caption text-text-muted">
+					{m.list_counts({ open: openRows, done: doneRows })}
+				</p>
+				{@render shop('md:hidden')}
+			</div>
 		</div>
 		<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1">
+			{@render shop('max-md:hidden')}
 			{#if people.length > 1}<PeopleStack {people} />{/if}
 			{#if owner}
 				<IconButton label={m.list_share()} onclick={() => (shareOpen = true)} class="md:hidden">

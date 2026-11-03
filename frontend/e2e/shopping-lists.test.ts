@@ -232,3 +232,76 @@ test('an invitation is declined, and a member leaves', async ({ page, browser },
 		await guest.context.close();
 	}
 });
+
+test('a change by one member appears for the other without reload', async ({
+	page,
+	browser
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'two browsers; runs once, on desktop');
+	const token = uniqueToken();
+	const owner = `own${token}`.slice(0, 20);
+	const mila = `mil${token}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: owner, role: 'user' });
+	await createUser(page, { username: mila, role: 'user' });
+	await login(page, owner);
+
+	await newList(page, `Live ${token}`);
+	await addFree(page, 'Kohle');
+	const dialog = await shareWith(page, mila);
+	await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
+
+	const guest = await signedInAs(browser, mila);
+	try {
+		const b = guest.page;
+		await b.goto('/lists');
+		await b.getByRole('button', { name: 'Accept' }).click();
+		await expect(b.getByRole('heading', { level: 1, name: `Live ${token}` })).toBeVisible();
+
+		// B ticks; A, who did not reload, sees it.
+		await b.getByRole('button', { name: 'Check off Kohle' }).click();
+		await expect(page.getByRole('heading', { name: 'Done · 1' })).toBeVisible({ timeout: 3000 });
+
+		// A renames; B's heading follows.
+		await page.getByRole('button', { name: 'More actions' }).click();
+		await page.getByRole('menuitem', { name: 'Rename' }).click();
+		await page.getByRole('dialog').getByLabel('Name').fill(`Neu ${token}`);
+		await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+		await expect(b.getByRole('heading', { level: 1, name: `Neu ${token}` })).toBeVisible({
+			timeout: 3000
+		});
+	} finally {
+		await guest.context.close();
+	}
+});
+
+test('shopping mode ticks and collapses done items', async ({ page }) => {
+	const token = uniqueToken();
+	const person = `mode${token}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: person, role: 'user' });
+	await login(page, person);
+	await newList(page, `Laden ${token}`);
+	await addFree(page, 'Kohle');
+	await addFree(page, 'Senf');
+
+	await page.getByRole('link', { name: 'Shop', exact: true }).filter({ visible: true }).click();
+	await expect(page).toHaveURL(/\/lists\/[^/]+\/shop$/);
+	await expect(page.getByRole('main', { name: 'Shopping mode' })).toBeVisible();
+
+	// A tap anywhere on the row ticks, not only on the circle; the row leaves the open groups.
+	await page.getByRole('listitem').filter({ hasText: 'Kohle' }).click();
+	const done = page.getByRole('button', { name: '1 done' });
+	await expect(done).toHaveAttribute('aria-expanded', 'false');
+	await expect(page.getByText('Kohle', { exact: true })).toHaveCount(0);
+	await done.click();
+	await expect(done).toHaveAttribute('aria-expanded', 'true');
+	await expect(page.getByRole('button', { name: 'Check off Kohle' })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+
+	await page.getByRole('link', { name: 'Leave shopping mode' }).click();
+	await expect(page.getByRole('heading', { level: 1, name: `Laden ${token}` })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Done · 1' })).toBeVisible();
+});

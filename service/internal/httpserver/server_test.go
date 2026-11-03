@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -269,5 +270,25 @@ func TestHandleRegistersMuxRouteAheadOfSPA(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/images/r1", nil))
 	if rec.Code != http.StatusOK || rec.Body.String() != "app" {
 		t.Fatalf("got %d %q, want SPA fallback", rec.Code, rec.Body.String())
+	}
+}
+
+func TestOnShutdownRunsWhenRunStops(t *testing.T) {
+	cfg, err := config.LoadFrom(map[string]string{"REZEPTE_ADDR": "127.0.0.1:0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{})
+	stopped := make(chan struct{})
+	srv.OnShutdown(func() { close(stopped) })
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := srv.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-stopped:
+	case <-time.After(time.Second):
+		t.Fatal("OnShutdown function did not run")
 	}
 }

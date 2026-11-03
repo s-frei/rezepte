@@ -64,3 +64,18 @@ test('list-share', async ({ page }, testInfo) => {
   await expect(page.getByRole('dialog').getByText('Has access')).toBeVisible();
   await shot(page, 'list-share');
 });
+
+test('list-shop', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  await openWeeklyShop(page);
+  await page.getByRole('link', { name: 'Shop', exact: true }).first().click();
+  await expect(page.getByRole('main', { name: 'Shopping mode' })).toBeVisible();
+  await shot(page, 'list-shop');
+});
+
+test('list-shop-entry', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  await openWeeklyShop(page);
+  await expect(page.getByRole('link', { name: 'Shop', exact: true }).first()).toBeVisible();
+  await shot(page, 'list-shop-entry');
+});

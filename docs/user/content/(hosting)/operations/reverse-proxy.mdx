@@ -39,7 +39,17 @@ sequenceDiagram
     }
     ```
 
-    `client_max_body_size` matches Rezepte's own limit of 10 MiB per photo upload. nginx's default is 1 MB, which turns away most photos from a phone camera with `413 Request Entity Too Large` before they reach Rezepte.
+    ```nginx
+    location ~ ^/api/v1/shopping-lists/[^/]+/events$ {
+      proxy_pass http://127.0.0.1:8060;
+      proxy_set_header Host $host;
+      proxy_set_header Origin $http_origin;
+      proxy_buffering off;
+      proxy_read_timeout 1h;
+    }
+    ```
+
+    The second block is for [live shopping lists](#live-lists). `client_max_body_size` matches Rezepte's own limit of 10 MiB per photo upload. nginx's default is 1 MB, which turns away most photos from a phone camera with `413 Request Entity Too Large` before they reach Rezepte.
 
   </Tab>
 </Tabs>
@@ -49,3 +59,9 @@ sequenceDiagram
 </Callout>
 
 Once the app is reachable over HTTPS, set `REZEPTE_SECURE_COOKIES=true` so the session cookie gets the `Secure` attribute (see [Configuration](/getting-started/configuration)). It also tells Rezepte to link its preview image over `https`, so a link shared in a chat app shows the Rezepte logo.
+
+## Live lists
+
+An open [shopping list](/guide/shopping-lists#live) holds one long-lived response, `/api/v1/shopping-lists/<id>/events`, that Rezepte writes to whenever the list changes and every 25 seconds otherwise. The proxy must pass it on as it arrives instead of collecting it: with nginx, turn off `proxy_buffering` and raise `proxy_read_timeout` for that path as above (the default of 60 seconds is above the 25-second heartbeat, but a long timeout is cheap). Caddy and Traefik stream by default and need nothing.
+
+Browsers allow six connections per host over HTTP/1.1, and every open list tab holds one. Serving the browser over HTTP/2, which Caddy does automatically and nginx does with `listen 443 ssl http2;`, lifts that limit.

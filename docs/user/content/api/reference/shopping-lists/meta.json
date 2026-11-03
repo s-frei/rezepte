@@ -1,6 +1,6 @@
 {
   "title": "Shopping lists",
-  "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, and the store department an ingredient is sorted under. Session only.",
+  "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. Session only.",
   "pages": [
     "index",
     "set-shopping-department",
@@ -10,6 +10,7 @@
     "rename-shopping-list",
     "delete-shopping-list",
     "clear-checked-shopping-items",
+    "stream-shopping-list",
     "invite-to-shopping-list",
     "add-shopping-item",
     "check-shopping-items",

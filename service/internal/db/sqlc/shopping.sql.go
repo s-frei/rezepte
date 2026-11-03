@@ -29,6 +29,23 @@ func (q *Queries) AcceptShoppingMembership(ctx context.Context, arg AcceptShoppi
 	return result.RowsAffected()
 }
 
+const canAccessShoppingList = `-- name: CanAccessShoppingList :one
+SELECT EXISTS (SELECT 1 FROM shopping_lists l WHERE l.id = ?1 AND (l.created_by = ?2 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = ?2 AND m.accepted_at IS NOT NULL)))
+`
+
+type CanAccessShoppingListParams struct {
+	ID     string
+	UserID string
+}
+
+// Whether the person created or accepted the list.
+func (q *Queries) CanAccessShoppingList(ctx context.Context, arg CanAccessShoppingListParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, canAccessShoppingList, arg.ID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const countShoppingListsByCreator = `-- name: CountShoppingListsByCreator :many
 SELECT created_by, COUNT(*) AS lists FROM shopping_lists GROUP BY created_by
 `

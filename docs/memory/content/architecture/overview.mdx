@@ -21,6 +21,8 @@ One process. `cmd/rezepte/main.go` loads config from `REZEPTE_*` variables, open
 
 The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA for everything else with an `index.html` fallback. **Two prefixes never fall back:** an unmatched route under `/api/` and anything under `/.well-known/` get a `404` problem body from `notFound` in `service/internal/httpserver/server.go` - the second because an MCP client that gets a `401` looks there for OAuth metadata, and the app shell with a `200` would read as a broken document rather than none.
 
+`httpserver.Server.OnShutdown` hands functions to `http.Server.RegisterOnShutdown`, which runs them when shutdown starts, while `Shutdown` waits for open requests; a long-lived response (the shopping list event streams) registers its hub's close there, since `Shutdown` would otherwise wait for it until the stop timeout.
+
 ## Packages
 
 <Tabs items={['service', 'frontend', 'docs']}>

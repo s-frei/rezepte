@@ -137,3 +137,6 @@ export const leaveList = (id: string) => send<void>(`${base(id)}/membership`, 'D
 /** Overrides the department of an ingredient name for every list on the instance. */
 export const setDepartment = (name: string, department: Department) =>
 	send<void>('/shopping-departments', 'PUT', { name, department });
+
+/** The server-sent events stream of one list: an event per change, see service/internal/shopping. */
+export const listEventsUrl = (id: string) => `/api/v1${base(id)}/events`;

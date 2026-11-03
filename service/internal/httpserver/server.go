@@ -29,6 +29,7 @@ type Server struct {
 	preview   PreviewFunc
 	headers   ShellHeaderFunc
 	version   string
+	onStop    []func()
 }
 
 // Option configures a Server at construction time. Options run after the
@@ -258,12 +259,19 @@ func (s *Server) guardSpec(next http.Handler) http.Handler {
 	})
 }
 
+// OnShutdown registers f to run when Run starts shutting down, such as
+// ending long-lived streams so that shutdown need not wait them out.
+func (s *Server) OnShutdown(f func()) { s.onStop = append(s.onStop, f) }
+
 // Run serves until ctx is canceled, then shuts down gracefully.
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:              s.cfg.Addr,
 		Handler:           s.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
+	}
+	for _, f := range s.onStop {
+		srv.RegisterOnShutdown(f)
 	}
 	errc := make(chan error, 1)
 	go func() {
