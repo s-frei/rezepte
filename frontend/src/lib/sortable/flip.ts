@@ -19,18 +19,22 @@ const running = new WeakMap<HTMLElement, Animation>();
  * it slides, so the caller can hide what would stretch with it (a ×).
  * `settle` slides over the others and gets the settle ring once it lands.
  * Under reduced motion the moved items crossfade and nothing rings.
+ * `after` runs once the change has rendered, before anything is measured:
+ * the sortable puts its held face over the new slot there, or the first
+ * measurement lays it out at the old one.
  * Without a `container` (the list is gone) it only runs `change`.
  */
 export async function flip(
 	container: HTMLElement | undefined,
 	change: () => void,
-	{ settle = null }: { settle?: HTMLElement | null } = {}
+	{ settle = null, after }: { settle?: HTMLElement | null; after?: () => void } = {}
 ): Promise<void> {
 	if (!container) return change();
 	const items = () => [...container.querySelectorAll<HTMLElement>('[data-sortable-key]')];
 	const first = new Map(items().map((el) => [el.dataset.sortableKey, el.getBoundingClientRect()]));
 	change();
 	await tick();
+	after?.();
 	const reduce = prefersReducedMotion.current;
 	for (const el of items()) {
 		const a = first.get(el.dataset.sortableKey);

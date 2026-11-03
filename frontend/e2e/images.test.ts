@@ -217,6 +217,57 @@ test('reorders photos by dragging and keeps the order after reload', async ({ pa
 	);
 });
 
+// A phone lowered the page's scroll at its end when the lifted cover hung
+// past the right edge for even one layout (Chrome widens its layout viewport).
+// A window just short of the editor's height keeps the grid on screen there.
+test('dragging the cover at the end of the page keeps the page still', async ({
+	page,
+	isMobile
+}) => {
+	const fixture = loadFixture(2);
+	const recipe = await createRecipe(page, {
+		...fixture,
+		title: `Page end ${uniqueToken()}`
+	});
+	const ids: string[] = [];
+	for (const tint of [
+		[200, 90, 90],
+		[90, 200, 90],
+		[90, 90, 200]
+	] as const)
+		ids.push((await uploadImage(page, recipe.id, tinyPng([...tint]))).id);
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	await expect(tiles(page)).toHaveCount(3);
+	const height = await page.evaluate(() => document.documentElement.scrollHeight);
+	await page.setViewportSize({ width: page.viewportSize()!.width, height: height - 120 });
+	await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+	await page.waitForFunction(
+		() => scrollY > 0 && scrollY + innerHeight >= document.documentElement.scrollHeight - 1
+	);
+	await expect(tiles(page).nth(1)).toBeInViewport();
+	await page.evaluate(() => {
+		const rec = { scrolls: [] as number[], on: true };
+		(window as unknown as { rec: typeof rec }).rec = rec;
+		const frame = () => {
+			rec.scrolls.push(scrollY);
+			if (rec.on) requestAnimationFrame(frame);
+		};
+		requestAnimationFrame(frame);
+	});
+
+	const saved = page.waitForResponse((response) => isOrderSave(response.request()));
+	await drag(page, isMobile, tiles(page).nth(0), tiles(page).nth(1));
+	await saved;
+
+	const scrolls = await page.evaluate(() => {
+		const rec = (window as unknown as { rec: { on: boolean; scrolls: number[] } }).rec;
+		rec.on = false;
+		return rec.scrolls;
+	});
+	expect(Math.max(...scrolls) - Math.min(...scrolls)).toBe(0);
+	expect(await order(page)).toEqual([ids[1], ids[0], ids[2]]);
+});
+
 test('makes a photo the cover from its menu', async ({ page }) => {
 	const { ids } = await editorWithPhotos(page, 3);
 	const [one, two, three] = ids;

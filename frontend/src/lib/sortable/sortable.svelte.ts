@@ -2,9 +2,10 @@
 // A mouse drags after 4px; a finger lifts the item after a 250ms press (a
 // move of more than 8px before that is a scroll and lets go). While held,
 // the item stays in the list as the landing slot and its face follows the
-// pointer at the size it was picked up at; the slot under the pointer is
-// where it goes: each new slot calls `onmove`, which the caller runs inside
-// `flip` so everything else slides. Alt+Arrow on a focused item moves it one
+// pointer at the size it was picked up at, or with `faceFollowsSlot` at the
+// size of its slot, easing from one to the next; the slot under the pointer is
+// where it goes: each new slot calls `onmove`, and everything else slides
+// there (`flip`). Alt+Arrow on a focused item moves it one
 // place: Left and Up earlier, Right and Down later.
 //
 // The CSS contract a component using it adds:
@@ -16,24 +17,25 @@
 //   `-webkit-user-drag: none`, or the browser's own long-press drags the image;
 // - `[data-sortable-face]` inside the item, `position: absolute; inset: 0`
 //   (the item is its containing block): it is what follows the pointer, with
-//   its picked-up width and height set inline. Without a face the item itself
-//   moves and no slot stays behind. Clipping (`overflow: hidden`) and rounding
+//   its picked-up width and height set inline (left alone with
+//   `faceFollowsSlot`). Every item needs one: the held item stays put as the
+//   slot the pointer's target is measured from (`restingAt`). Clipping (`overflow: hidden`) and rounding
 //   go on the face, never on the item: the item would cut off the lifted face;
 // - `[data-sortable-ignore]` on a control inside an item that has a press of
 //   its own, such as a menu button or a ×: a press there never picks it up;
 // - `[data-sortable-slot]` on the held item: style it as the landing slot, the
 //   dashed `primary` gap;
-// - `[data-resizing]` on an item while `flip` changes its size: hide what
-//   would stretch with it, such as a ×.
+// - `[data-resizing]` on an item while `flip` changes its size, and on the
+//   held item while its face eases to a new slot's size: hide what would
+//   stretch with it, such as a ×.
 // `[data-lifted]` marks the held item from the lift to the drop.
 //
 // From the press to the release the list prevents `selectstart` and
 // `contextmenu`: the lifted item lets pointers through, so Chrome's own
 // long-press (~650ms) lands on the list behind it, which is selectable.
-import { tick } from 'svelte';
 import type { Action } from 'svelte/action';
 import { prefersReducedMotion } from 'svelte/motion';
-import { EASE, SLIDE, ring } from './flip.js';
+import { EASE, SLIDE, flip, ring } from './flip.js';
 import { keyTarget } from './order.js';
 
 export type SortableOptions = {
@@ -41,12 +43,14 @@ export type SortableOptions = {
 	keys: string[];
 	/** An item that cannot be picked up or moved by key. */
 	disabled?: (key: string) => boolean;
-	/** Move the item at `from` to `to`; the caller updates its list inside `flip`. */
+	/** Move the item at `from` to `to`: the caller updates its list, at once. */
 	onmove: (from: number, to: number) => void;
 	/** A drag or key press has put `key` in a new place: save the order. */
 	ondrop?: (key: string) => void;
 	/** What the live region announces after a move; `position` counts from 1. */
 	label: (key: string, position: number) => string;
+	/** The held face takes the size of the slot it is over, so it shows how it lands. */
+	faceFollowsSlot?: boolean;
 };
 
 const LIFT = 1.06;
@@ -63,11 +67,15 @@ type Held = {
 	y0: number;
 	x: number;
 	y: number;
-	/** The grab point inside the item, and its size when picked up. */
-	gx: number;
-	gy: number;
+	/** The grab point inside the face, as a share of its size. */
+	fx: number;
+	fy: number;
+	/** The face's size before the lift scale: as picked up, or easing to `slotW` x `slotH`. */
 	w: number;
 	h: number;
+	slotW: number;
+	slotH: number;
+	resizing?: number;
 	lifted: boolean;
 	timer?: ReturnType<typeof setTimeout>;
 	liftAnim?: Animation;
@@ -98,14 +106,58 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	};
 	const scale = () => (prefersReducedMotion.current ? 1 : LIFT);
 
-	/** Puts the held face under the pointer at its picked-up size, from its resting box. */
+	/**
+	 * The item whose resting place is under the pointer. Not the box the
+	 * browser hit-tests: a neighbor sliding past (`flip`) would count, and the
+	 * two would trade back and forth. Offsets ignore transforms; the held slot,
+	 * which never slides, turns them into screen coordinates.
+	 */
+	function restingAt(h: Held) {
+		// Whatever covers the list, such as a sticky bar, is not the list.
+		if (!node.contains(document.elementFromPoint(h.x, h.y))) return null;
+		const slot = h.el.getBoundingClientRect();
+		for (const el of node.querySelectorAll<HTMLElement>('[data-sortable-key]')) {
+			const left = slot.left + el.offsetLeft - h.el.offsetLeft;
+			const top = slot.top + el.offsetTop - h.el.offsetTop;
+			if (h.x >= left && h.x < left + el.offsetWidth && h.y >= top && h.y < top + el.offsetHeight)
+				return el.dataset.sortableKey ?? null;
+		}
+		return null;
+	}
+
+	/** Puts the held face under the pointer at its size `w` x `h`, from its resting box. */
 	function place(h: Held) {
 		h.face.style.transform = '';
 		const slot = h.face.getBoundingClientRect();
 		const s = scale();
 		h.face.style.transform =
-			`translate(${h.x - h.gx * s - slot.left}px, ${h.y - h.gy * s - slot.top}px) ` +
+			`translate(${h.x - h.fx * h.w * s - slot.left}px, ${h.y - h.fy * h.h * s - slot.top}px) ` +
 			`scale(${(h.w * s) / slot.width}, ${(h.h * s) / slot.height})`;
+	}
+
+	/** With `faceFollowsSlot`: eases the face from its size now to its new slot's, around the pointer. */
+	function follow(h: Held) {
+		const slot = h.el.getBoundingClientRect();
+		if (Math.abs(slot.width - h.slotW) < 0.5 && Math.abs(slot.height - h.slotH) < 0.5) return;
+		[h.slotW, h.slotH] = [slot.width, slot.height];
+		cancelAnimationFrame(h.resizing ?? 0);
+		if (prefersReducedMotion.current) {
+			[h.w, h.h] = [h.slotW, h.slotH];
+			return;
+		}
+		h.el.setAttribute('data-resizing', '');
+		const [w0, h0, t0] = [h.w, h.h, performance.now()];
+		const step = (now: number) => {
+			if (held !== h) return;
+			const t = Math.min(1, (now - t0) / SLIDE);
+			const eased = 1 - (1 - t) ** 3;
+			h.w = w0 + (h.slotW - w0) * eased;
+			h.h = h0 + (h.slotH - h0) * eased;
+			place(h);
+			if (t < 1) h.resizing = requestAnimationFrame(step);
+			else h.el.removeAttribute('data-resizing');
+		};
+		h.resizing = requestAnimationFrame(step);
 	}
 
 	function lift(h: Held, touch: boolean) {
@@ -114,8 +166,8 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		h.el.setAttribute('data-lifted', '');
 		Object.assign(h.el.style, { zIndex: '10', pointerEvents: 'none' });
 		Object.assign(h.face.style, { transformOrigin: '0 0', boxShadow: 'var(--shadow-lift)' });
-		if (h.face !== h.el) {
-			h.el.setAttribute('data-sortable-slot', '');
+		if (h.face !== h.el) h.el.setAttribute('data-sortable-slot', '');
+		if (h.face !== h.el && !opts.faceFollowsSlot) {
 			// The face keeps its size even when its slot becomes the 2x2 cover.
 			Object.assign(h.face.style, {
 				width: `${h.w}px`,
@@ -139,6 +191,8 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 
 	function release() {
 		clearTimeout(held?.timer);
+		cancelAnimationFrame(held?.resizing ?? 0);
+		held?.el.removeAttribute('data-resizing');
 		held = null;
 		removeEventListener('pointermove', move);
 		removeEventListener('scroll', scroll);
@@ -164,10 +218,12 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 			y0: e.clientY,
 			x: e.clientX,
 			y: e.clientY,
-			gx: e.clientX - r.left,
-			gy: e.clientY - r.top,
+			fx: (e.clientX - r.left) / r.width,
+			fy: (e.clientY - r.top) / r.height,
 			w: r.width,
 			h: r.height,
+			slotW: r.width,
+			slotH: r.height,
 			lifted: false,
 			over: null
 		};
@@ -196,14 +252,21 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 			if (!h.lifted) return;
 		}
 		h.liftAnim?.cancel();
-		const over = itemAt(document.elementFromPoint(h.x, h.y))?.dataset.sortableKey ?? null;
+		const over = restingAt(h);
 		if (over !== h.over) {
 			h.over = null;
 			if (over && over !== h.key) {
 				h.over = over;
-				opts.onmove(opts.keys.indexOf(h.key), opts.keys.indexOf(over));
-				// The slot has moved once the caller's list renders.
-				void tick().then(() => held === h && place(h));
+				const [from, to] = [opts.keys.indexOf(h.key), opts.keys.indexOf(over)];
+				// The face follows its slot in the render that moves it.
+				void flip(node, () => opts.onmove(from, to), {
+					after: () => {
+						if (held !== h) return;
+						// First, before anything measures: the face at its old slot's place could hang past the edge.
+						place(h);
+						if (opts.faceFollowsSlot && h.face !== h.el) follow(h);
+					}
+				});
 			}
 		}
 		place(h);
@@ -287,8 +350,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		e.preventDefault();
 		if (to === from || opts.disabled?.(key)) return;
 		const focused = document.activeElement;
-		opts.onmove(from, to);
-		void tick().then(() => {
+		void flip(node, () => opts.onmove(from, to)).then(() => {
 			// Moving an element in the DOM drops its focus.
 			if (focused instanceof HTMLElement && document.activeElement !== focused) focused.focus();
 			// Where the caller put it, which may be short of `to`, or nowhere.

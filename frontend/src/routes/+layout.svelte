@@ -105,7 +105,15 @@
      #lib/page-transition.ts). -->
 <!-- `data-bare`: a page that owns the whole window keeps no room for a
      scrollbar (app.css), or the login's painting stopped short of the edge. -->
-<div data-app data-bare={bare || undefined} class="min-h-dvh bg-background font-sans text-text">
+<!-- `overflow-x-clip`: on a phone, anything past the right edge for even one
+     layout (a lifted photo) widens Chrome's layout viewport, which at the
+     page's end lowers the scroll for good. `clip`, not `hidden`: no scroll
+     container, so every sticky header and bar keeps sticking. -->
+<div
+	data-app
+	data-bare={bare || undefined}
+	class="min-h-dvh overflow-x-clip bg-background font-sans text-text"
+>
 	{#if bare}
 		{@render children()}
 	{:else}

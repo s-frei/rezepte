@@ -581,6 +581,184 @@ test('reorders the photos of a posted comment when editing', async ({ page }) =>
 	expect(await postedWidths(page, recipe.id, 'Two of them')).toEqual([64, 64]);
 });
 
+/** Picks up what is at `at`: a mouse press, or on a phone a finger held until the sortable lifts. */
+async function hold(page: Page, isMobile: boolean, at: { x: number; y: number }) {
+	const cdp = isMobile ? await page.context().newCDPSession(page) : null;
+	if (cdp) {
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+		await page.waitForTimeout(400);
+	} else {
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+	}
+	return {
+		move: async (to: { x: number; y: number }) => {
+			if (cdp) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [to] });
+			else await page.mouse.move(to.x, to.y);
+		},
+		up: async () => {
+			if (!cdp) return page.mouse.up();
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+			await cdp.detach();
+		}
+	};
+}
+
+/**
+ * Drags photo `from` onto photo `to` of the composer (both counted from 1) at
+ * a person's pace, a finger on a phone, and records every frame from the
+ * press until the slides have settled: the composer box's top, the page's
+ * scroll and each new order of the photos, as their positions before the drag.
+ */
+async function recordDrag(page: Page, isMobile: boolean, from: number, to: number) {
+	const list = composerPhotos(page);
+	const cells = list.getByRole('listitem');
+	const [a, b] = [await cells.nth(from - 1).boundingBox(), await cells.nth(to - 1).boundingBox()];
+	await list.evaluate((ul) => {
+		const keys = [...ul.children].map((li) => (li as HTMLElement).dataset.sortableKey);
+		const order = () =>
+			[...ul.children]
+				.map((li) => keys.indexOf((li as HTMLElement).dataset.sortableKey) + 1)
+				.join('');
+		const box = ul.closest('form')!.firstElementChild!;
+		const rec = { tops: [] as number[], scrolls: [] as number[], orders: [order()], on: true };
+		(window as unknown as { rec: typeof rec }).rec = rec;
+		new MutationObserver(() => {
+			if (order() !== rec.orders.at(-1)) rec.orders.push(order());
+		}).observe(ul, { childList: true });
+		const frame = () => {
+			rec.tops.push(box.getBoundingClientRect().top);
+			rec.scrolls.push(scrollY);
+			if (rec.on) requestAnimationFrame(frame);
+		};
+		requestAnimationFrame(frame);
+	});
+	const [x0, y0] = [a!.x + a!.width / 2, a!.y + a!.height / 2];
+	const [x1, y1] = [b!.x + b!.width / 2, b!.y + b!.height / 2];
+	const at = (i: number) => ({ x: x0 + ((x1 - x0) * i) / 20, y: y0 + ((y1 - y0) * i) / 20 });
+	const finger = await hold(page, isMobile, at(0));
+	// 20ms apart: the neighbors' slides run while the pointer moves on.
+	for (let i = 1; i <= 20; i++) {
+		await finger.move(at(i));
+		await page.waitForTimeout(20);
+	}
+	await finger.up();
+	await page.waitForTimeout(500);
+	return page.evaluate(() => {
+		const rec = (
+			window as unknown as {
+				rec: { on: boolean; tops: number[]; scrolls: number[]; orders: string[] };
+			}
+		).rec;
+		rec.on = false;
+		const spread = (values: number[]) => Math.max(...values) - Math.min(...values);
+		return { top: spread(rec.tops), scroll: spread(rec.scrolls), orders: rec.orders };
+	});
+}
+
+/** Opens a fresh diary with `count` picked photos, scrolled to the page's end, where the composer is. */
+async function composerAtPageEnd(page: Page, count: number) {
+	await freshDiary(page, `Drag ${count}`);
+	await diary(page)
+		.getByLabel('Add photos')
+		.setInputFiles([1, 2, 3, 4].slice(0, count).map((n) => png(`${n}.png`, [n * 50, 90, 90])));
+	await expect(composerPhotos(page).getByRole('listitem')).toHaveCount(count);
+	await page.evaluate(() => {
+		(document.activeElement as HTMLElement | null)?.blur();
+		scrollTo(0, document.documentElement.scrollHeight);
+	});
+	await page.waitForFunction(
+		() => scrollY > 0 && scrollY + innerHeight >= document.documentElement.scrollHeight - 1
+	);
+}
+
+// The page's end is where a phone's page jumped: a face hanging past the
+// right edge for one layout widened Chrome's layout viewport, which lowered
+// the scroll for good.
+for (const [count, from, to, order] of [
+	[2, 1, 2, '21'],
+	[3, 1, 2, '213']
+] as const) {
+	test(`dragging photo ${from} of ${count} onto ${to} at the page's end keeps the composer still`, async ({
+		page,
+		isMobile
+	}) => {
+		await composerAtPageEnd(page, count);
+
+		const { top, scroll, orders } = await recordDrag(page, isMobile, from, to);
+
+		expect({ top, scroll }).toEqual({ top: 0, scroll: 0 });
+		expect(orders.at(-1)).toBe(order);
+	});
+}
+
+// The app's clip hides an overhang from the scroll; without it, the lifted
+// photo must still never be laid out at its old slot's place, where the move
+// to the right left it hanging past the edge for one layout.
+test('a lifted photo follows its new slot within the same layout', async ({ page, isMobile }) => {
+	await composerAtPageEnd(page, 2);
+	await page.addStyleTag({ content: '[data-app] { overflow-x: visible !important }' });
+
+	const { top, scroll, orders } = await recordDrag(page, isMobile, 1, 2);
+
+	expect({ top, scroll }).toEqual({ top: 0, scroll: 0 });
+	expect(orders.at(-1)).toBe('21');
+});
+
+// The approved collage design: the held photo takes the size of the cell
+// under it, so it shows whether it lands large or small.
+test('a held photo grows and shrinks with the cell it is over', async ({ page, isMobile }) => {
+	await composerAtPageEnd(page, 3);
+	const cells = composerPhotos(page).getByRole('listitem');
+	const box = async (n: number) => (await cells.nth(n).boundingBox())!;
+	const [large, small] = [await box(0), await box(1)];
+	const middle = (b: { x: number; y: number; width: number; height: number }) => ({
+		x: b.x + b.width / 2,
+		y: b.y + b.height / 2
+	});
+	const face = composerPhotos(page).locator('[data-lifted] [data-sortable-face]');
+	const remove = composerPhotos(page).locator('[data-lifted] button[data-remove]');
+
+	const finger = await hold(page, isMobile, middle(large));
+	await finger.move({ x: middle(large).x + 10, y: middle(large).y });
+	const lifted = (await face.boundingBox())!;
+	expect(lifted.width).toBeCloseTo(large.width * 1.06, 0);
+
+	// While it shrinks, its × would shrink with it: what the × showed as the shrinking began.
+	await composerPhotos(page).evaluate((ul) => {
+		const seen: string[] = [];
+		(window as unknown as { seen: string[] }).seen = seen;
+		new MutationObserver(() => {
+			const x = ul.querySelector('[data-lifted][data-resizing] button[data-remove]');
+			if (x) seen.push(getComputedStyle(x).opacity);
+		}).observe(ul, { subtree: true, attributeFilter: ['data-resizing'] });
+	});
+	await finger.move(middle(small));
+	await expect
+		.poll(() => page.evaluate(() => (window as unknown as { seen: string[] }).seen))
+		.toEqual(['0']);
+	await expect
+		.poll(async () => (await face.boundingBox())!.width, { timeout: 2000 })
+		.toBeCloseTo(small.width * 1.06, 0);
+	await expect(remove).toHaveCSS('opacity', '1');
+	await finger.up();
+});
+
+// Neighbors sliding through the pointer are not where it is: the order
+// changes once, when the photo enters the slot it goes to.
+for (const [from, to, order] of [
+	[4, 1, '4123'],
+	[2, 4, '1342']
+] as const) {
+	test(`dragging photo ${from} of 4 onto ${to} moves it once`, async ({ page, isMobile }) => {
+		await composerAtPageEnd(page, 4);
+
+		const { orders } = await recordDrag(page, isMobile, from, to);
+
+		expect(orders).toEqual(['1234', order]);
+	});
+}
+
 test('pastes photos into the composer up to four', async ({ page }) => {
 	await freshDiary(page, 'Paste');
 	const field = diary(page).getByPlaceholder('What did you notice?');

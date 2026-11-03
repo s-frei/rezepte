@@ -500,9 +500,7 @@
 			use:sortable={{
 				keys: tiles.map((tile) => tile.key),
 				disabled: (key) => tiles.find((tile) => tile.key === key)?.state !== 'stored',
-				onmove: (from, to) => {
-					void flip(grid, () => (tiles = moveItem(tiles, from, Math.min(to, lastStored))));
-				},
+				onmove: (from, to) => (tiles = moveItem(tiles, from, Math.min(to, lastStored))),
 				ondrop: () => void saveOrder(),
 				label: (_key, position) => m.images_moved({ position })
 			}}

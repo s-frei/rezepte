@@ -13,7 +13,6 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { newId } from '#lib/recipe/form.js';
 	import { revokePreviews, type PendingPhoto } from '#lib/recipe/photos.js';
-	import { flip } from '#lib/sortable/flip.js';
 	import { moveItem } from '#lib/sortable/order.js';
 	import { sortable } from '#lib/sortable/sortable.svelte.js';
 	import PhotoCollage from './PhotoCollage.svelte';
@@ -190,9 +189,8 @@
 				use:sortable={{
 					keys: photos.map((photo) => photo.key),
 					disabled: () => busy,
-					onmove: (from, to) => {
-						void flip(collage, () => (photos = moveItem(photos, from, to)));
-					},
+					onmove: (from, to) => (photos = moveItem(photos, from, to)),
+					faceFollowsSlot: true,
 					label: (_, position) => m.comments_photo_moved({ position, count: photos.length })
 				}}
 				class="[&_[data-sortable-key]]:touch-pan-y [&_[data-sortable-key]]:select-none [&_[data-sortable-key]]:[-webkit-tap-highlight-color:transparent] [&_[data-sortable-key]]:[-webkit-touch-callout:none] [&_[data-sortable-slot]]:outline-2 [&_[data-sortable-slot]]:-outline-offset-2 [&_[data-sortable-slot]]:outline-primary [&_[data-sortable-slot]]:outline-dashed"
