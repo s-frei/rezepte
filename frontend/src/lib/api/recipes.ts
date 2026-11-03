@@ -278,21 +278,13 @@ export function deleteImage(
 	);
 }
 
-/** Sets the display order; `imageIds` must list every image exactly once. */
+/** Sets the display order; `imageIds` must list every image exactly once, and the first becomes the cover. */
 export async function reorderImages(recipeId: string, imageIds: string[]): Promise<Image[]> {
 	const page = await api<{ items: Image[] }>(
 		`/recipes/${encodeURIComponent(recipeId)}/images/order`,
 		{ method: 'PUT', body: JSON.stringify({ imageIds }) }
 	);
 	return page.items;
-}
-
-/** Chooses the cover image. */
-export function setCover(recipeId: string, imageId: string): Promise<void> {
-	return api<void>(`/recipes/${encodeURIComponent(recipeId)}/cover`, {
-		method: 'PUT',
-		body: JSON.stringify({ imageId })
-	});
 }
 
 /**

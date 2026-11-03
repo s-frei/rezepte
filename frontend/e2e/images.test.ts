@@ -67,21 +67,6 @@ test('opens the lightbox and walks through the images', async ({ page }) => {
 	await expect(dialog).toBeHidden();
 });
 
-test('the lightbox covers the whole window', async ({ page, isMobile }) => {
-	test.skip(isMobile, 'the desktop viewport is the one that keeps a scrollbar gutter');
-	await page.setViewportSize({ width: 1280, height: 900 });
-	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Cover ${uniqueToken()}` });
-	await uploadImage(page, recipe.id, tinyPng([200, 120, 40]));
-
-	await page.goto(`/recipes/${recipe.slug}`);
-	await page.getByRole('button', { name: 'Open photo 1 of 1' }).click();
-	const box = await page.getByRole('dialog').evaluate((el) => {
-		const { left, width } = el.getBoundingClientRect();
-		return { left, width };
-	});
-	expect(box).toEqual({ left: 0, width: 1280 });
-});
-
 test('swipes between the lightbox images', async ({ page, isMobile }) => {
 	test.skip(!isMobile, 'pointer swipe is exercised on the mobile project only');
 	const token = uniqueToken();

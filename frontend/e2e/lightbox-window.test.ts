@@ -6,8 +6,9 @@ import { createRecipe, loadFixture, login, tinyPng, uniqueToken, uploadImage } f
 // cannot be set per test).
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } });
 
-test('the lightbox covers the whole window and the page stays put', async ({ page, isMobile }) => {
-	test.skip(isMobile, 'the desktop viewport is the one that keeps a scrollbar gutter');
+// Desktop only (the mobile project ignores this file): the desktop viewport
+// is the one that keeps a scrollbar gutter.
+test('the lightbox covers the whole window and the page stays put', async ({ page }) => {
 	await login(page);
 	await page.setViewportSize({ width: 1280, height: 900 });
 	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Cover ${uniqueToken()}` });
