@@ -521,6 +521,11 @@
 	"images_add": "Photos",
 	"images_add_first": "Add photos",
 	"images_add_drop": "or drag them here",
+	"images_retry": "Retry",
+	"images_retry_photo": "Upload photo {number} again",
+	"images_failed_hint": "Photo {number} could not be uploaded. Tap it to try again.",
+	"images_removed": "Photo removed",
+	"images_undo": "Undo",
 
 	"lightbox_title": "Photos of {title}",
 	"lightbox_counter": "{number} / {count}",

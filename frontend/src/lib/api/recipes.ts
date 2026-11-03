@@ -263,11 +263,18 @@ export function uploadImage(
 	});
 }
 
-/** Deletes an image; the server promotes the next image to cover if needed. */
-export function deleteImage(recipeId: string, imageId: string): Promise<void> {
+/**
+ * Deletes an image; the server promotes the next image to cover if needed.
+ * `keepalive` lets the request outlive the page that sends it.
+ */
+export function deleteImage(
+	recipeId: string,
+	imageId: string,
+	{ keepalive = false } = {}
+): Promise<void> {
 	return api<void>(
 		`/recipes/${encodeURIComponent(recipeId)}/images/${encodeURIComponent(imageId)}`,
-		{ method: 'DELETE' }
+		{ method: 'DELETE', keepalive }
 	);
 }
 

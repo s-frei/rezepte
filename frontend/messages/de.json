@@ -521,6 +521,11 @@
 	"images_add": "Fotos",
 	"images_add_first": "Fotos hinzufügen",
 	"images_add_drop": "oder hierher ziehen",
+	"images_retry": "Erneut",
+	"images_retry_photo": "Foto {number} erneut hochladen",
+	"images_failed_hint": "Foto {number} konnte nicht hochgeladen werden. Tippe aufs Foto, um es nochmal zu versuchen.",
+	"images_removed": "Bild entfernt",
+	"images_undo": "Rückgängig",
 
 	"lightbox_title": "Bilder von {title}",
 	"lightbox_counter": "{number} / {count}",

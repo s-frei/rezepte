@@ -6,15 +6,17 @@
 	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
+	import { MediaQuery, SvelteMap } from 'svelte/reactivity';
+	import { beforeNavigate } from '$app/navigation';
 	import { scale } from 'svelte/transition';
 	import { DropdownMenu } from 'bits-ui';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Eye from '@lucide/svelte/icons/eye';
-	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import Plus from '@lucide/svelte/icons/plus';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import Star from '@lucide/svelte/icons/star';
 	import Trash from '@lucide/svelte/icons/trash';
 	import Upload from '@lucide/svelte/icons/upload';
@@ -111,8 +113,7 @@
 	});
 
 	const queued = $derived(recipeId === undefined);
-	const full = $derived(tiles.length >= MAX_IMAGES);
-	// Tiles still uploading sit at the end; nothing moves past the last stored one.
+	// Stored tiles are a prefix (uploading and failed ones follow); nothing moves past the last stored one.
 	const lastStored = $derived(tiles.findLastIndex((tile) => tile.state === 'stored'));
 	const coarse = new MediaQuery('pointer: coarse');
 	const hint = $derived(
@@ -128,17 +129,29 @@
 	// Uploads run one after another: a second drop while the first batch is
 	// still in flight simply extends the chain.
 	let chain: Promise<void> = Promise.resolve();
-	// One request to the recipe's photos at a time. The order request names
-	// every stored photo, so an upload or delete landing while it is on the
-	// way made the server refuse it; queued behind them it names what the
-	// server holds by then. Uploads join one by one (through `chain`), so a
-	// reorder waits for the upload in flight, not for the whole batch.
+	// One request to the recipe's photos at a time, each job committing its
+	// own change to `tiles` before the next starts. The order request names
+	// every photo the server holds, so an upload or delete landing while it
+	// was on the way made the server refuse it; queued behind them it names
+	// what the server holds by then. Uploads join one by one (through
+	// `chain`), so a reorder waits for the upload in flight, not the batch.
 	let lock: Promise<unknown> = Promise.resolve();
 	function serial<T>(run: () => Promise<T>): Promise<T> {
 		const next = lock.then(run);
 		lock = next.catch(() => {});
 		return next;
 	}
+
+	// Removed tiles waiting for their undo toast to close, by key. Off the
+	// screen already; a stored one is still on the server until then.
+	const pendingDeletes = new SvelteMap<string, Tile>();
+	const onServer = (tile: Tile) => !queued && tile.state === 'stored';
+	// What the server holds counts against the limit, a pending delete too.
+	const used = $derived(
+		tiles.length + [...pendingDeletes.values()].filter((tile) => onServer(tile)).length
+	);
+	const full = $derived(used >= MAX_IMAGES);
+	const failed = $derived(tiles.findIndex((tile) => tile.state === 'failed'));
 
 	function syncPending() {
 		if (queued) {
@@ -152,12 +165,20 @@
 		}
 	}
 
-	onDestroy(() => tiles.forEach(revoke));
+	// Leaving the editor deletes what is pending; a page unload sends the
+	// requests at once, past the queue, so they outlive the page.
+	beforeNavigate(({ willUnload }) => {
+		if (willUnload) flushDeletes(true);
+	});
+	onDestroy(() => {
+		flushDeletes();
+		tiles.forEach(revoke);
+	});
 
 	function addFiles(list: FileList | File[]) {
 		for (const file of acceptFiles(
 			Array.from(list),
-			MAX_IMAGES - tiles.length,
+			MAX_IMAGES - used,
 			m.images_limit_reached({ count: MAX_IMAGES })
 		)) {
 			const key = newId();
@@ -180,31 +201,46 @@
 	async function upload(key: string) {
 		const id = recipeId as string;
 		const tile = tiles.find((t) => t.key === key);
-		if (!tile?.file) {
+		if (!tile?.file || tile.state !== 'uploading') {
 			return;
 		}
 		try {
-			const image = await serial(() =>
-				uploadImage(id, tile.file as File, (progress) => (tile.progress = progress))
-			);
-			revoke(tile);
-			Object.assign(tile, {
-				id: image.id,
-				url: imageUrl(id, image.id, 'thumb'),
-				file: undefined,
-				state: 'stored',
-				progress: 1,
-				width: image.width,
-				height: image.height
+			await serial(async () => {
+				const image = await uploadImage(id, tile.file as File, (p) => (tile.progress = p));
+				revoke(tile);
+				Object.assign(tile, {
+					id: image.id,
+					url: imageUrl(id, image.id, 'thumb'),
+					file: undefined,
+					state: 'stored',
+					progress: 1,
+					width: image.width,
+					height: image.height
+				});
+				// The server appended it after the photos it holds: stored
+				// tiles stay a prefix, ahead of a failed one still waiting.
+				const index = tiles.indexOf(tile);
+				const to = tiles.findIndex((t) => t.state !== 'stored');
+				if (index !== -1 && to !== -1 && to < index) {
+					await flip(grid as HTMLElement, () => (tiles = moveItem(tiles, index, to)));
+				}
 			});
 		} catch (error) {
-			toast.error(uploadErrorMessage(error));
-			const index = tiles.indexOf(tile);
-			if (index !== -1) {
-				revoke(tile);
-				tiles.splice(index, 1);
-			}
+			// It stays, marked, until it is retried or removed; the hint
+			// under the grid says so. A reason a retry cannot fix (size,
+			// type, a refusal) is worth a toast of its own.
+			const reason = uploadErrorMessage(error);
+			if (reason !== m.images_upload_error()) toast.error(reason);
+			tile.state = 'failed';
+			tile.progress = 0;
 		}
+	}
+
+	function retry(key: string) {
+		const tile = tiles.find((t) => t.key === key);
+		if (tile?.state !== 'failed') return;
+		tile.state = 'uploading';
+		chain = chain.then(() => upload(key));
 	}
 
 	/** Saves the order on screen; `error` is the toast when the server refuses it. */
@@ -215,16 +251,17 @@
 		}
 		const id = recipeId as string;
 		try {
-			const sent = await serial(async () => {
-				const stored = tiles.filter((tile) => tile.state === 'stored');
+			await serial(async () => {
+				// A pending delete is still on the server, which wants every
+				// photo named: it goes last.
+				const sent = [...tiles, ...pendingDeletes.values()].filter(onServer);
 				await reorderImages(
 					id,
-					stored.map((tile) => tile.id)
+					sent.map((tile) => tile.id)
 				);
-				return stored.map((tile) => tile.key);
+				// The answer is the order sent, which the screen shows already.
+				savedKeys = sent.map((tile) => tile.key);
 			});
-			// The answer is the order sent, which the screen shows already.
-			savedKeys = sent;
 		} catch (err) {
 			// Back to what the server holds; tiles it does not know yet
 			// (uploading) stay at the end, in their order.
@@ -247,22 +284,74 @@
 		void saveOrder(error);
 	}
 
-	async function remove(index: number) {
+	/**
+	 * Takes the tile off the screen at once. A failed upload is simply gone;
+	 * anything else waits in `pendingDeletes` behind an undo toast, and is
+	 * deleted when the toast closes or the editor is left.
+	 */
+	function remove(index: number) {
 		const tile = tiles[index];
-		if (!queued) {
-			try {
-				await serial(() => deleteImage(recipeId as string, tile.id));
-			} catch (error) {
-				toast.error(refusalOr(error, m.images_delete_error()));
-				return;
-			}
-		}
-		await flip(grid as HTMLElement, () => {
-			revoke(tile);
-			tiles = tiles.filter((t) => t !== tile);
-		});
-		savedKeys = savedKeys.filter((key) => key !== tile.key);
+		void flip(grid as HTMLElement, () => (tiles = tiles.filter((t) => t !== tile)));
 		syncPending();
+		if (tile.state === 'failed') {
+			revoke(tile);
+			return;
+		}
+		pendingDeletes.set(tile.key, tile);
+		const toastId = toast(m.images_removed(), {
+			action: { label: m.images_undo(), onClick: () => undo(tile, index) },
+			onAutoClose: () => flushDelete(tile.key),
+			onDismiss: () => flushDelete(tile.key)
+		});
+		toastIds.set(tile.key, toastId);
+	}
+
+	// Each pending removal's toast, to close it on a flush.
+	const toastIds = new SvelteMap<string, string | number>();
+
+	function undo(tile: Tile, index: number) {
+		if (!pendingDeletes.delete(tile.key)) return;
+		toastIds.delete(tile.key);
+		// Back where it was, but never behind a tile the server does not hold.
+		const unsettled = tiles.findIndex((t) => t.state !== 'stored');
+		const at = Math.min(index, unsettled === -1 ? tiles.length : unsettled);
+		void flip(grid as HTMLElement, () => {
+			tiles = tiles.toSpliced(at, 0, tile);
+		});
+		syncPending();
+		// Moves made meanwhile sent it last; put the server back in step.
+		const now = [...tiles, ...pendingDeletes.values()].filter(onServer).map((t) => t.key);
+		if (now.join() !== savedKeys.join()) void saveOrder();
+	}
+
+	function flushDelete(key: string, unloading = false) {
+		const tile = pendingDeletes.get(key);
+		if (!tile) return;
+		pendingDeletes.delete(key);
+		const toastId = toastIds.get(key);
+		toastIds.delete(key);
+		if (toastId !== undefined) toast.dismiss(toastId);
+		if (!onServer(tile)) {
+			revoke(tile);
+			return;
+		}
+		const id = recipeId as string;
+		if (unloading) {
+			void deleteImage(id, tile.id, { keepalive: true }).catch(() => {});
+			return;
+		}
+		serial(async () => {
+			await deleteImage(id, tile.id);
+			savedKeys = savedKeys.filter((k) => k !== key);
+		}).catch((error) => {
+			// Still on the server: show it again, where the server keeps it.
+			tiles = [...tiles.filter(onServer), tile, ...tiles.filter((t) => !onServer(t))];
+			toast.error(refusalOr(error, m.images_delete_error()));
+		});
+	}
+
+	function flushDeletes(unloading = false) {
+		for (const key of [...pendingDeletes.keys()]) flushDelete(key, unloading);
 	}
 
 	function view(index: number) {
@@ -278,7 +367,10 @@
 		input.value = '';
 	}
 
-	/** The whole section card takes dropped files; it carries `data-dropping` while they hover. */
+	/**
+	 * The whole section card takes dropped files, carrying `data-dropping`
+	 * while they hover, and pasted ones while the focus is inside it.
+	 */
 	function dropTarget(node: HTMLElement) {
 		const section = node.closest('section') ?? node;
 		const set = (on: boolean) => {
@@ -299,10 +391,18 @@
 			set(false);
 			if (event.dataTransfer?.files) addFiles(event.dataTransfer.files);
 		};
+		const paste = (event: ClipboardEvent) => {
+			const files = event.clipboardData?.files;
+			if (!files?.length) return;
+			event.preventDefault();
+			addFiles(files);
+		};
+		section.addEventListener('paste', paste);
 		section.addEventListener('dragover', over);
 		section.addEventListener('dragleave', leave);
 		section.addEventListener('drop', drop);
 		return () => {
+			section.removeEventListener('paste', paste);
 			section.removeEventListener('dragover', over);
 			section.removeEventListener('dragleave', leave);
 			section.removeEventListener('drop', drop);
@@ -363,12 +463,16 @@
 						data-sortable-face
 						class="absolute inset-0 overflow-hidden bg-skeleton transition-opacity {radius} {dropping
 							? 'opacity-60'
+							: ''} {tile.state === 'failed'
+							? 'outline-2 outline-offset-1 outline-destructive'
 							: ''}"
 					>
 						<button
 							type="button"
-							onclick={() => view(index)}
-							aria-label={m.images_show({ number: index + 1 })}
+							onclick={() => (tile.state === 'failed' ? retry(tile.key) : view(index))}
+							aria-label={tile.state === 'failed'
+								? m.images_retry_photo({ number: index + 1 })
+								: m.images_show({ number: index + 1 })}
 							class="block size-full {tile.state === 'stored'
 								? 'cursor-grab'
 								: ''} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {radius}"
@@ -390,17 +494,38 @@
 						</button>
 
 						{#if tile.state === 'uploading'}
-							<div
-								class="pointer-events-none absolute inset-0 grid place-items-center bg-overlay text-inverse-foreground"
-							>
-								<LoaderCircle
-									class="size-5 animate-spin motion-reduce:animate-none"
+							<!-- r=16: the circumference is 100.53, so the dash offset is the share left. -->
+							<div class="pointer-events-none absolute inset-0 grid place-items-center bg-overlay">
+								<svg
+									viewBox="0 0 40 40"
+									role="progressbar"
 									aria-label={m.images_uploading()}
-								/>
+									aria-valuenow={Math.round(tile.progress * 100)}
+									class="size-10 -rotate-90 fill-none stroke-[3.5]"
+								>
+									<circle cx="20" cy="20" r="16" class="stroke-lightbox-foreground/35" />
+									<circle
+										cx="20"
+										cy="20"
+										r="16"
+										stroke-linecap="round"
+										stroke-dasharray="100.53"
+										stroke-dashoffset={100.53 * (1 - tile.progress)}
+										class="stroke-lightbox-foreground transition-[stroke-dashoffset] duration-200 motion-reduce:transition-none"
+									/>
+								</svg>
 							</div>
 						{:else}
 							<!-- Hidden while `flip` resizes the tile, or they stretch with it. -->
-							{#if index === 0}
+							{#if tile.state === 'failed'}
+								<span class="pointer-events-none absolute inset-0 bg-destructive/35"></span>
+								<span
+									class="pointer-events-none absolute bottom-1.5 left-1.5 inline-flex h-[22px] items-center gap-1 rounded-pill bg-destructive pr-2 pl-1.5 text-micro font-semibold text-destructive-foreground max-[340px]:w-[22px] max-[340px]:justify-center max-[340px]:px-0"
+								>
+									<RotateCcw class="size-[13px] stroke-[2.5]" aria-hidden="true" />
+									<span class="max-[340px]:hidden">{m.images_retry()}</span>
+								</span>
+							{:else if index === 0}
 								<span
 									class="pointer-events-none absolute top-2 left-2 rounded-pill bg-primary px-2.5 py-0.5 text-label font-semibold tracking-wide text-primary-foreground group-data-resizing:opacity-0"
 								>
@@ -432,34 +557,44 @@
 										align="end"
 										class="z-50 min-w-46 rounded-md border border-popover-border bg-popover p-1.5 shadow-dialog"
 									>
-										<DropdownMenu.Item onSelect={() => view(index)} class="{menuItem} text-text">
-											<Eye class="size-4" aria-hidden="true" />
-											{m.images_view()}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											disabled={index === 0}
-											onSelect={() => move(index, 0, m.images_cover_error())}
-											class="{menuItem} text-text"
-										>
-											<Star class="size-4" aria-hidden="true" />
-											{m.images_set_cover()}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											disabled={index === 0}
-											onSelect={() => move(index, index - 1)}
-											class="{menuItem} text-text"
-										>
-											<ArrowLeft class="size-4" aria-hidden="true" />
-											{m.images_move_earlier()}
-										</DropdownMenu.Item>
-										<DropdownMenu.Item
-											disabled={index >= lastStored}
-											onSelect={() => move(index, index + 1)}
-											class="{menuItem} text-text"
-										>
-											<ArrowRight class="size-4" aria-hidden="true" />
-											{m.images_move_later()}
-										</DropdownMenu.Item>
+										{#if tile.state === 'failed'}
+											<DropdownMenu.Item
+												onSelect={() => retry(tile.key)}
+												class="{menuItem} text-text"
+											>
+												<RotateCcw class="size-4" aria-hidden="true" />
+												{m.images_retry()}
+											</DropdownMenu.Item>
+										{:else}
+											<DropdownMenu.Item onSelect={() => view(index)} class="{menuItem} text-text">
+												<Eye class="size-4" aria-hidden="true" />
+												{m.images_view()}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item
+												disabled={index === 0}
+												onSelect={() => move(index, 0, m.images_cover_error())}
+												class="{menuItem} text-text"
+											>
+												<Star class="size-4" aria-hidden="true" />
+												{m.images_set_cover()}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item
+												disabled={index === 0}
+												onSelect={() => move(index, index - 1)}
+												class="{menuItem} text-text"
+											>
+												<ArrowLeft class="size-4" aria-hidden="true" />
+												{m.images_move_earlier()}
+											</DropdownMenu.Item>
+											<DropdownMenu.Item
+												disabled={index >= lastStored}
+												onSelect={() => move(index, index + 1)}
+												class="{menuItem} text-text"
+											>
+												<ArrowRight class="size-4" aria-hidden="true" />
+												{m.images_move_later()}
+											</DropdownMenu.Item>
+										{/if}
 										<DropdownMenu.Separator class="mx-0.5 my-1 h-px bg-border" />
 										<DropdownMenu.Item
 											onSelect={() => remove(index)}
@@ -519,6 +654,13 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if failed !== -1}
+		<p role="alert" class="mt-3 flex items-start gap-1.5 text-caption text-destructive">
+			<CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
+			{m.images_failed_hint({ number: failed + 1 })}
+		</p>
+	{/if}
 
 	<p class="sr-only" aria-live="polite">{announcement}</p>
 </div>

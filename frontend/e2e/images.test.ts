@@ -9,6 +9,7 @@ import {
 	uniqueToken,
 	uploadImage
 } from './helpers';
+import type { Recipe } from '../src/lib/api/recipes';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -149,7 +150,7 @@ async function editorWithPhotos(page: Page, count: number) {
 	}
 	await page.goto(`/recipes/${recipe.slug}/edit`);
 	await expect(tiles(page)).toHaveCount(count);
-	await tiles(page).first().scrollIntoViewIfNeeded();
+	await page.locator('#editor-section-images').scrollIntoViewIfNeeded();
 	return { recipe, ids, title: `Photo grid ${token}` };
 }
 
@@ -164,6 +165,10 @@ async function center(locator: Locator) {
  * Touch goes through CDP, since Playwright's touchscreen only taps.
  */
 async function drag(page: Page, isMobile: boolean, from: Locator, to: Locator) {
+	// Measured while the tiles still slide (after a removal), the press lands on a neighbor.
+	await page.waitForFunction(() =>
+		document.getAnimations().every((animation) => animation.playState !== 'running')
+	);
 	const a = await center(from);
 	const b = await center(to);
 	const steps = 12;
@@ -313,6 +318,148 @@ test('keeps a photo that finished uploading during a reorder', async ({ page, is
 	await page.reload();
 	await expect(tiles(page)).toHaveCount(4);
 	expect(await order(page)).toEqual(shown);
+});
+
+test('shows upload progress and retries a failed upload by tapping it', async ({ page }) => {
+	await editorWithPhotos(page, 0);
+	let posts = 0;
+	await page.route('**/api/v1/recipes/*/images', async (route) => {
+		if (route.request().method() !== 'POST') return route.continue();
+		posts++;
+		if (posts === 1) {
+			return route.fulfill({ status: 500, json: { title: 'Internal Server Error', status: 500 } });
+		}
+		// Slow enough to see the progress ring.
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		return route.continue();
+	});
+
+	await page
+		.getByLabel('Choose photos')
+		.setInputFiles([{ name: 'one.png', mimeType: 'image/png', buffer: tinyPng() }]);
+	const retry = page.getByRole('button', { name: 'Upload photo 1 again' });
+	await expect(retry).toBeVisible();
+	const hint = page.getByText('Photo 1 could not be uploaded. Tap it to try again.');
+	await expect(hint).toBeVisible();
+
+	await retry.click();
+	await expect(page.getByRole('progressbar', { name: 'Uploading…' })).toBeVisible();
+	await expect(tiles(page).locator('img[src^="/images/"]')).toHaveCount(1);
+	await expect(hint).toBeHidden();
+	await expect(tiles(page)).toHaveCount(1);
+	expect(posts).toBe(2);
+});
+
+test('undoes a removal', async ({ page }) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	let deletes = 0;
+	page.on('request', (request) => {
+		if (request.method() === 'DELETE') deletes++;
+	});
+
+	await page.getByRole('button', { name: 'Photo 2 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(tiles(page)).toHaveCount(2);
+	await expect(page.getByText('Photo removed')).toBeVisible();
+	await page.getByRole('button', { name: 'Undo' }).click();
+
+	await expect(tiles(page)).toHaveCount(3);
+	expect(await order(page)).toEqual(ids);
+	await page.waitForTimeout(5000); // past the toast's own lifetime
+	expect(deletes).toBe(0);
+});
+
+test('removes for good when the toast closes, also when reordered meanwhile', async ({
+	page,
+	isMobile
+}) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	const [one, two, three] = ids;
+
+	await page.getByRole('button', { name: 'Photo 2 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(tiles(page)).toHaveCount(2);
+
+	const saved = page.waitForRequest(isOrderSave);
+	await drag(page, isMobile, tiles(page).nth(1), tiles(page).nth(0));
+	// The server still holds the removed photo and wants every photo named.
+	expect((await saved).postDataJSON()).toEqual({ imageIds: [three, one, two] });
+
+	const deleted = await page.waitForResponse(
+		(response) => response.request().method() === 'DELETE',
+		{ timeout: 10_000 }
+	);
+	expect(deleted.url()).toContain(two);
+	expect(deleted.ok()).toBeTruthy();
+
+	await page.reload();
+	await expect(tiles(page)).toHaveCount(2);
+	expect(await order(page)).toEqual([three, one]);
+});
+
+test('sends a pending removal when leaving the editor', async ({ page }) => {
+	const { recipe } = await editorWithPhotos(page, 3);
+	const stored = async () =>
+		((await (await page.request.get(`/api/v1/recipes/${recipe.id}`)).json()) as Recipe).images
+			.length;
+
+	// Leaving inside the app.
+	await page.getByRole('button', { name: 'Photo 2 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect.poll(stored).toBe(2);
+
+	// Leaving the page altogether.
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	await expect(tiles(page)).toHaveCount(2);
+	await page.getByRole('button', { name: 'Photo 2 options' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await page.goto('/');
+	await expect.poll(stored).toBe(1);
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	await expect(tiles(page)).toHaveCount(1);
+});
+
+test('pastes photos and refuses what exceeds the limit', async ({ page }) => {
+	await editorWithPhotos(page, 19);
+	const png = tinyPng([30, 160, 90]).toString('base64');
+	await page.locator('#editor-section-images').evaluate((section, data) => {
+		const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+		const clipboard = new DataTransfer();
+		clipboard.items.add(new File([bytes], 'a.png', { type: 'image/png' }));
+		clipboard.items.add(new File([bytes], 'b.png', { type: 'image/png' }));
+		section.dispatchEvent(
+			new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true })
+		);
+	}, png);
+
+	await expect(tiles(page)).toHaveCount(20);
+	await expect(page.getByText('No more than 20 photos.')).toBeVisible();
+	await expect(page.getByLabel('Choose photos')).toHaveCount(0);
+	await expect(tiles(page).locator('img[src^="/images/"]')).toHaveCount(20);
+});
+
+test('makes a queued photo the cover of a new recipe', async ({ page }) => {
+	const title = `Queued cover ${uniqueToken()}`;
+	await page.goto('/recipes/new');
+	await page.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
+	await page.getByRole('textbox', { name: 'Ingredient', exact: true }).fill('Flour');
+	// Told apart by width: the detail rendition keeps a small photo's size.
+	await page.getByLabel('Choose photos').setInputFiles([
+		{ name: 'one.png', mimeType: 'image/png', buffer: tinyPng([200, 120, 40], 64, 64) },
+		{ name: 'two.png', mimeType: 'image/png', buffer: tinyPng([40, 120, 200], 96, 64) }
+	]);
+	await expect(tiles(page)).toHaveCount(2);
+	await page.getByRole('button', { name: 'Photo 2 options' }).click();
+	await page.getByRole('menuitem', { name: 'Make cover' }).click();
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(/\/recipes\/queued-cover-/);
+	const cover = page.getByRole('img', { name: `Cover photo of ${title}` });
+	await expect(cover).toBeVisible();
+	await expect.poll(() => cover.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(96);
 });
 
 test('queues images for a new recipe and uploads them on save', async ({ page }) => {
