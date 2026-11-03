@@ -19,7 +19,7 @@ type commentListOutput struct{ Body CommentList }
 
 type commentBody struct {
 	Body     string    `json:"body" doc:"Plain text, 1 to 2000 characters after trimming"`
-	ImageIDs *[]string `json:"imageIds,omitempty" maxItems:"4" doc:"Staged comment photo ids; on edit the full set to keep. Leave the field out (not null) to keep the photos as they are"`
+	ImageIDs *[]string `json:"imageIds,omitempty" maxItems:"4" doc:"Staged comment photo ids, in the order they are shown; on edit the full set to keep, in its new order. Leave the field out (not null) to keep the photos as they are"`
 }
 
 type addCommentInput struct {

@@ -39,7 +39,7 @@ type deleteImageOutput struct{}
 
 // OrderInput is the body of the reorder operation.
 type OrderInput struct {
-	ImageIDs []string `json:"imageIds" maxItems:"20" doc:"Every image id of the recipe, in the new order"`
+	ImageIDs []string `json:"imageIds" maxItems:"20" doc:"Every image id of the recipe, in the new order; the first becomes the cover"`
 }
 
 type orderInput struct {
@@ -125,6 +125,7 @@ func Register(api huma.API, svc *Service) {
 		Method:      http.MethodPut,
 		Path:        "/api/v1/recipes/{id}/images/order",
 		Summary:     "Reorder a recipe's images",
+		Description: "The first image in the new order becomes the recipe's cover.",
 		Tags:        []string{"images"},
 		Security:    auth.Protected(auth.ScopeRecipesWrite),
 		Errors:      []int{403, 404, 422},
@@ -148,6 +149,7 @@ func Register(api huma.API, svc *Service) {
 		Method:        http.MethodPut,
 		Path:          "/api/v1/recipes/{id}/cover",
 		Summary:       "Choose the cover image",
+		Description:   "Moves the image to the front of the recipe's images; the others keep their order behind it.",
 		Tags:          []string{"images"},
 		Security:      auth.Protected(auth.ScopeRecipesWrite),
 		DefaultStatus: http.StatusNoContent,

@@ -513,7 +513,7 @@
             "type": "string"
           },
           "imageIds": {
-            "description": "Staged comment photo ids; on edit the full set to keep. Leave the field out (not null) to keep the photos as they are",
+            "description": "Staged comment photo ids, in the order they are shown; on edit the full set to keep, in its new order. Leave the field out (not null) to keep the photos as they are",
             "items": {
               "type": "string"
             },
@@ -2068,7 +2068,7 @@
             "type": "string"
           },
           "imageIds": {
-            "description": "Every image id of the recipe, in the new order",
+            "description": "Every image id of the recipe, in the new order; the first becomes the cover",
             "items": {
               "type": "string"
             },
@@ -7027,6 +7027,7 @@
     },
     "/api/v1/recipes/{id}/cover": {
       "put": {
+        "description": "Moves the image to the front of the recipe's images; the others keep their order behind it.",
         "operationId": "set-cover",
         "parameters": [
           {
@@ -7444,6 +7445,7 @@
     },
     "/api/v1/recipes/{id}/images/order": {
       "put": {
+        "description": "The first image in the new order becomes the recipe's cover.",
         "operationId": "reorder-images",
         "parameters": [
           {
