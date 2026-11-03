@@ -1,11 +1,13 @@
 package transfer_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -153,5 +155,42 @@ func TestImportWritesNothingWhenAPhotoIsCorrupt(t *testing.T) {
 	dirs, _ := os.ReadDir(filepath.Join(dst.dataDir, "images"))
 	if len(dirs) != 0 {
 		t.Fatalf("%d image dirs left behind", len(dirs))
+	}
+}
+
+// An export from before the cover was always first may name a later photo as
+// the cover; Import moves it to the front.
+func TestImportMovesAnOldExportsCoverFirst(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, body := range map[string][]byte{
+		"focaccia/recipe.json": []byte(`{"format":"` + transfer.Format + `","version":` + strconv.Itoa(transfer.Version) + `,"title":"Focaccia","description":"","servings":2,"tags":[],"steps":[],` +
+			`"ingredientGroups":[{"name":null,"ingredients":[{"name":"Mehl"}]}],"images":["1.jpg","2.jpg"],"cover":"2.jpg"}`),
+		"focaccia/1.jpg": jpegBytes(t, 120, 80),
+		"focaccia/2.jpg": jpegBytes(t, 80, 120),
+	} {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	created, err := e.svc.Import(ctx, e.admin, bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.recipes.ByID(ctx, created[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Images) != 2 || got.Images[0].Width != 80 || got.CoverImageID == nil || *got.CoverImageID != got.Images[0].ID {
+		t.Fatalf("images = %+v cover = %v", got.Images, got.CoverImageID)
 	}
 }

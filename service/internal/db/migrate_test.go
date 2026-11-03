@@ -311,9 +311,12 @@ func TestCoverFirstMigration(t *testing.T) {
 		`INSERT INTO recipes (id, slug, title, created_by, created_at, updated_by, updated_at, cover_image_id) VALUES
 			('r1', 'r1', 'R1', 'u1', 't', 'u1', 't', 'b'),
 			('r2', 'r2', 'R2', 'u1', 't', 'u1', 't', 'x')`,
+		`INSERT INTO recipes (id, slug, title, created_by, created_at, updated_by, updated_at) VALUES
+			('r3', 'r3', 'R3', 'u1', 't', 'u1', 't')`,
 		`INSERT INTO images (id, recipe_id, filename, width, height, size_bytes, position, created_at) VALUES
 			('a', 'r1', 'a', 1, 1, 1, 0, 't'), ('b', 'r1', 'b', 1, 1, 1, 1, 't'), ('c', 'r1', 'c', 1, 1, 1, 2, 't'),
-			('x', 'r2', 'x', 1, 1, 1, 0, 't'), ('y', 'r2', 'y', 1, 1, 1, 1, 't')`,
+			('x', 'r2', 'x', 1, 1, 1, 0, 't'), ('y', 'r2', 'y', 1, 1, 1, 1, 't'),
+			('p', 'r3', 'p', 1, 1, 1, 0, 't'), ('q', 'r3', 'q', 1, 1, 1, 1, 't')`,
 	} {
 		if _, err := conn.ExecContext(ctx, q); err != nil {
 			t.Fatalf("%s: %v", q, err)
@@ -330,13 +333,17 @@ func TestCoverFirstMigration(t *testing.T) {
 	if _, err := provider.UpTo(ctx, 22); err != nil {
 		t.Fatalf("up to 22: %v", err)
 	}
-	if got, want := order(), "b0 a1 c2 x0 y1"; got != want {
+	if got, want := order(), "b0 a1 c2 x0 y1 p0 q1"; got != want {
 		t.Fatalf("after up = %q, want %q", got, want)
+	}
+	var cover string
+	if err := conn.QueryRowContext(ctx, `SELECT cover_image_id FROM recipes WHERE id = 'r3'`).Scan(&cover); err != nil || cover != "p" {
+		t.Fatalf("cover of a recipe without one = %q, %v; want p", cover, err)
 	}
 	if _, err := provider.DownTo(ctx, 21); err != nil {
 		t.Fatalf("down to 21: %v", err)
 	}
-	if got, want := order(), "b0 a1 c2 x0 y1"; got != want {
+	if got, want := order(), "b0 a1 c2 x0 y1 p0 q1"; got != want {
 		t.Fatalf("after down = %q, want %q", got, want)
 	}
 }

@@ -368,7 +368,10 @@ func TestReorderMovesTheCover(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, _ := e.recipes.ByID(ctx, e.recipe.ID)
+	r, err := e.recipes.ByID(ctx, e.recipe.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if r.CoverImageID == nil || *r.CoverImageID != c.ID {
 		t.Fatalf("cover = %v, want %s", r.CoverImageID, c.ID)
 	}

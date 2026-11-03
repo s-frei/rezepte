@@ -11,5 +11,11 @@ WHERE position <= (
     WHERE r.id = images.recipe_id
 );
 
+-- Older data may hold photos but no cover: the first photo becomes the cover.
+UPDATE recipes SET cover_image_id = (
+    SELECT i.id FROM images i WHERE i.recipe_id = recipes.id AND i.position = 0
+)
+WHERE cover_image_id IS NULL AND EXISTS (SELECT 1 FROM images i WHERE i.recipe_id = recipes.id);
+
 -- +goose Down
 SELECT 1;
