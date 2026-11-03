@@ -232,13 +232,21 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 				face.style.transformOrigin = '';
 			});
 		// The pointerup's own click would open the item that was just put down.
+		// Only that one: the next press or key starts a gesture of its own.
 		if (e.type === 'pointerup') {
 			const swallow = (click: Event) => {
 				click.stopPropagation();
 				click.preventDefault();
 			};
+			const disarm = () => {
+				removeEventListener('click', swallow, { capture: true });
+				removeEventListener('pointerdown', disarm, { capture: true });
+				removeEventListener('keydown', disarm, { capture: true });
+			};
 			addEventListener('click', swallow, { capture: true, once: true });
-			setTimeout(() => removeEventListener('click', swallow, { capture: true }), 100);
+			addEventListener('pointerdown', disarm, { capture: true, once: true });
+			addEventListener('keydown', disarm, { capture: true, once: true });
+			setTimeout(disarm, 100);
 		}
 		const to = opts.keys.indexOf(h.key);
 		if (to !== h.from) moved(h.key, to);

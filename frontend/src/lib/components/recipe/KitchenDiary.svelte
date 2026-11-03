@@ -312,7 +312,7 @@
 				type="submit"
 				size="sm"
 				disabled={blocked}
-				class="shrink-0 whitespace-nowrap max-md:size-9 max-md:px-0"
+				class="shrink-0 whitespace-nowrap max-md:size-10 max-md:px-0"
 			>
 				{#if progress}
 					<LoaderCircle

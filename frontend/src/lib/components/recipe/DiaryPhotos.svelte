@@ -43,7 +43,9 @@
 
 	onDestroy(() => revokePreviews(photos));
 
-	/** The size the lightbox draws a picked file at; a file that will not decode fails on Send. */
+	/** The size the lightbox draws a picked file at; a file that will not decode keeps the guess. */
+	const GUESS = { width: 1600, height: 1200 };
+
 	async function measure(file: File) {
 		try {
 			const bitmap = await createImageBitmap(file);
@@ -51,23 +53,28 @@
 			bitmap.close();
 			return { width, height };
 		} catch {
-			return { width: 1600, height: 1200 };
+			return GUESS;
 		}
 	}
 
 	async function add(files: File[]) {
 		const accepted = acceptFiles(files, max - photos.length, m.diary_photos_limit({ count: max }));
 		if (!accepted.length) return;
-		const picked = await Promise.all(
-			accepted.map(async (file) => ({
-				key: newId(),
-				file,
-				preview: URL.createObjectURL(file),
-				progress: 0,
-				...(await measure(file))
-			}))
-		);
+		// In at once, so the limit holds for the next paste and a Send sees
+		// them; the real size follows when the file is decoded.
+		const picked = accepted.map((file) => ({
+			key: newId(),
+			file,
+			preview: URL.createObjectURL(file),
+			progress: 0,
+			...GUESS
+		}));
 		photos = [...photos, ...picked];
+		for (const { key, file } of picked)
+			void measure(file).then((size) => {
+				const photo = photos.find((p) => p.key === key);
+				if (photo) Object.assign(photo, size);
+			});
 		// The first photo moves the picker under the collage: a new input, which
 		// takes the focus. The fourth disables it: the last remove button takes it.
 		await tick();
@@ -129,10 +136,9 @@
 {#snippet state(index: number)}
 	{@const photo = photos[index]}
 	{@const number = index + 1}
-	{#if photo.failed}
+	{#if photo.failed && !busy}
 		<button
 			type="button"
-			disabled={busy}
 			onclick={onretry}
 			aria-label={m.comments_photo_failed({ number })}
 			class="absolute inset-0 grid place-items-center rounded-md bg-destructive/35 ring-2 ring-destructive ring-inset focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-lightbox-foreground"
@@ -257,7 +263,7 @@
 			{/if}
 		</div>
 	{:else}
-		{@render picker('size-9 rounded-full')}
+		{@render picker('size-10 rounded-full')}
 	{/if}
 </div>
 

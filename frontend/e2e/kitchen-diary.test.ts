@@ -416,11 +416,24 @@ async function drag(page: Page, from: Locator, to: Locator) {
 	for (let i = 1; i <= 12; i++)
 		await page.mouse.move(ax + ((bx - ax) * i) / 12, ay + ((by - ay) * i) / 12);
 	await page.mouse.up();
-	// The drop glides and rings; the sortable eats the click of its own
-	// pointerup for 100ms, so the next click waits for the motion to end.
-	await expect
-		.poll(() => to.locator('xpath=..').evaluate((el) => el.getAnimations({ subtree: true }).length))
-		.toBe(0);
+}
+
+/** Pastes PNGs into `field`, one paste event per entry of `counts`, all in one task. */
+async function pasteImages(field: Locator, counts: number[]) {
+	await field.evaluate(
+		(el, [data, counts]) => {
+			const bytes = Uint8Array.from(atob(data as string), (c) => c.charCodeAt(0));
+			for (const count of counts as number[]) {
+				const transfer = new DataTransfer();
+				for (let i = 1; i <= count; i++)
+					transfer.items.add(new File([bytes], `${i}.png`, { type: 'image/png' }));
+				el.dispatchEvent(
+					new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })
+				);
+			}
+		},
+		[tinyPng().toString('base64'), counts]
+	);
 }
 
 /** Three photos told apart by their size: 64x64, 64x96, 96x64. */
@@ -445,16 +458,17 @@ test('reorders picked photos and posts them in that order', async ({ page }) => 
 	await expect(cells).toHaveCount(3);
 	await expect(cells.first().locator('img')).toHaveAttribute('width', '64');
 
+	await diary(page).getByPlaceholder('Something about your photo?').fill('Wide first');
+
 	// Photo 3 onto the large cell: it grows into it, the others move along.
 	await drag(page, cells.nth(2), cells.nth(0));
-	await expect(cells.first().locator('img')).toHaveAttribute('width', '96');
-	await expect(cells.nth(1).locator('img')).toHaveAttribute('height', '64');
-	await expect(cells.nth(1).locator('img')).toHaveAttribute('width', '64');
-
-	await diary(page).getByPlaceholder('Something about your photo?').fill('Wide first');
-	await diary(page).getByRole('button', { name: 'Send' }).click();
+	// Send at once, in the drop's own moment: the sortable eats only the
+	// drop's click, never the next press.
+	const send = (await diary(page).getByRole('button', { name: 'Send' }).boundingBox())!;
+	await page.mouse.click(send.x + send.width / 2, send.y + send.height / 2);
 	const entry = entries(page).filter({ hasText: 'Wide first' });
 	await expect(entry.getByRole('button', { name: 'Open photo 3 of 3' })).toBeVisible();
+	// The large cell is photo 3, posted as it was shown.
 	await expect(entry.locator('img').first()).toHaveAttribute('width', '96');
 	expect(await postedWidths(page, recipe.id, 'Wide first')).toEqual([96, 64, 64]);
 
@@ -503,7 +517,6 @@ test('reorders the photos of a posted comment when editing', async ({ page }) =>
 	const cells = form.getByRole('list', { name: 'Photos in this comment' }).getByRole('listitem');
 	await expect(cells.first().locator('img')).toHaveAttribute('height', '64');
 	await drag(page, cells.nth(1), cells.nth(0));
-	await expect(cells.first().locator('img')).toHaveAttribute('height', '96');
 	await form.getByRole('button', { name: 'Save' }).click();
 
 	await expect(entry.getByText('edited')).toBeVisible();
@@ -518,19 +531,18 @@ test('reorders the photos of a posted comment when editing', async ({ page }) =>
 test('pastes photos into the composer up to four', async ({ page }) => {
 	await freshDiary(page, 'Paste');
 	const field = diary(page).getByPlaceholder('What did you notice?');
-	const png = tinyPng().toString('base64');
-	await field.evaluate((el, data) => {
-		const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
-		const transfer = new DataTransfer();
-		for (let i = 1; i <= 5; i++)
-			transfer.items.add(new File([bytes], `${i}.png`, { type: 'image/png' }));
-		el.dispatchEvent(
-			new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true })
-		);
-	}, png);
+	await pasteImages(field, [5]);
 	await expect(composerPhotos(page).getByRole('listitem')).toHaveCount(4);
 	await expect(page.getByText('Up to 4 photos per comment')).toBeVisible();
 	await expect(diary(page).getByLabel('Add photos')).toBeDisabled();
+});
+
+test('two quick pastes stop at four photos', async ({ page }) => {
+	await freshDiary(page, 'Paste twice');
+	// Both land before either file is decoded: the limit counts the first.
+	await pasteImages(diary(page).getByPlaceholder('What did you notice?'), [3, 3]);
+	await expect(composerPhotos(page).getByRole('listitem')).toHaveCount(4);
+	await expect(page.getByText('Up to 4 photos per comment')).toBeVisible();
 });
 
 test('shows a picked photo large before sending', async ({ page }) => {
