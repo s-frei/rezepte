@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { devPassword, login, uniqueToken } from './helpers';
+import { devPassword, login, pinLocale, uniqueToken } from './helpers';
 
 // "Add account" defaults to the "Send a setup link" mode (CreateUserDialog),
 // so these tests never touch the password fields the older account-creation
@@ -88,4 +88,21 @@ test('a setup link opened while signed in says whose it is', async ({ page }) =>
 	).toBeVisible();
 	// Nothing else changes: the form is still there to finish the link.
 	await expect(page.getByRole('button', { name: 'Save and sign in' })).toBeVisible();
+});
+
+// The page clears the token from the address bar. Clearing it with a null
+// history state took SvelteKit's entry away, so a back onto the page changed
+// only the address and left the login form on screen.
+test('back onto a setup link shows its page again', async ({ browser }) => {
+	const page = await (await browser.newContext()).newPage();
+	await pinLocale(page);
+	await page.goto(`/welcome#unknown${uniqueToken()}`);
+	await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+	await page.getByRole('link', { name: 'Back to sign-in' }).click();
+	await expect(page).toHaveURL('/login');
+
+	await page.goBack();
+	await expect(page).toHaveURL('/welcome');
+	await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Sign in' })).toHaveCount(0);
 });

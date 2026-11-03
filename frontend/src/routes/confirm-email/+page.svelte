@@ -20,7 +20,8 @@
 	// once, like /welcome: it never reaches a server log or a Referer header.
 	onMount(async () => {
 		const token = window.location.hash.slice(1);
-		window.history.replaceState(null, '', '/confirm-email');
+		// SvelteKit's entry is kept, as on /welcome.
+		window.history.replaceState(window.history.state, '', '/confirm-email');
 		if (!token) {
 			phase = 'invalid';
 			return;

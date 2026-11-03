@@ -89,7 +89,9 @@
 
 	onMount(async () => {
 		token = window.location.hash.slice(1);
-		window.history.replaceState(null, '', '/welcome' + window.location.search);
+		// SvelteKit's entry is kept: with `null` a back onto this page found
+		// no entry of its own and left the previous page on screen.
+		window.history.replaceState(window.history.state, '', '/welcome' + window.location.search);
 		// The button is an extra, so a failed lookup simply leaves it out.
 		const info = getOidc().catch(() => null);
 		void info.then((i) => (oidc = i));
