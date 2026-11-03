@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"uuid"
@@ -256,8 +257,14 @@ func (s *Service) Reorder(ctx context.Context, recipeID string, actor user.User,
 		if err := renumber(ctx, q, recipeID, ordered); err != nil {
 			return err
 		}
-		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
-			return fmt.Errorf("touch recipe: %w", err)
+		// The cover is always the first photo; SetRecipeCover also records the editor.
+		now := db.FormatTime(s.now())
+		if len(ordered) == 0 {
+			if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
+				return fmt.Errorf("touch recipe: %w", err)
+			}
+		} else if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &ordered[0].ID, UpdatedBy: actor.ID, UpdatedAt: now, ID: recipeID}); err != nil {
+			return fmt.Errorf("set cover: %w", err)
 		}
 		out = make([]recipe.Image, len(ordered))
 		for i, im := range ordered {
@@ -283,11 +290,18 @@ func (s *Service) SetCover(ctx context.Context, recipeID, imageID string, actor 
 		if _, err := guard(ctx, q, actor, recipeID); err != nil {
 			return err
 		}
-		if _, err := q.GetImage(ctx, sqlc.GetImageParams{RecipeID: recipeID, ID: imageID}); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ErrNotFound
-			}
-			return fmt.Errorf("get image: %w", err)
+		current, err := q.ListImagesByRecipe(ctx, recipeID)
+		if err != nil {
+			return fmt.Errorf("list images: %w", err)
+		}
+		i := slices.IndexFunc(current, func(im sqlc.Image) bool { return im.ID == imageID })
+		if i < 0 {
+			return ErrNotFound
+		}
+		target := current[i]
+		ordered := append([]sqlc.Image{target}, slices.Delete(current, i, i+1)...)
+		if err := renumber(ctx, q, recipeID, ordered); err != nil {
+			return err
 		}
 		id := imageID
 		if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: actor.ID, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {

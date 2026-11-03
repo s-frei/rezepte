@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -356,5 +357,48 @@ func TestUploadLockedRefusedBeforeDecode(t *testing.T) {
 	_, err := e.images.Upload(context.Background(), e.recipe.ID, ben, strings.NewReader("not an image"))
 	if !errors.Is(err, recipe.ErrEditForbidden) {
 		t.Fatalf("err = %v, want ErrEditForbidden", err)
+	}
+}
+
+func TestReorderMovesTheCover(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	a, b, c := upload(t, e, 64, 64), upload(t, e, 64, 64), upload(t, e, 64, 64)
+	got, err := e.images.Reorder(ctx, e.recipe.ID, adminOf(e), []string{c.ID, a.ID, b.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _ := e.recipes.ByID(ctx, e.recipe.ID)
+	if r.CoverImageID == nil || *r.CoverImageID != c.ID {
+		t.Fatalf("cover = %v, want %s", r.CoverImageID, c.ID)
+	}
+	if got[0].ID != c.ID || got[1].ID != a.ID || got[2].ID != b.ID {
+		t.Fatalf("reordered = %+v", got)
+	}
+}
+
+func TestSetCoverMovesTheImageFirst(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	a, b, c := upload(t, e, 64, 64), upload(t, e, 64, 64), upload(t, e, 64, 64)
+	order := func() []string {
+		t.Helper()
+		r, err := e.recipes.ByID(ctx, e.recipe.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := make([]string, len(r.Images))
+		for i, im := range r.Images {
+			ids[i] = im.ID
+		}
+		return append(ids, *r.CoverImageID)
+	}
+	for range 2 {
+		if err := e.images.SetCover(ctx, e.recipe.ID, c.ID, adminOf(e)); err != nil {
+			t.Fatal(err)
+		}
+		if got := order(); !slices.Equal(got, []string{c.ID, a.ID, b.ID, c.ID}) {
+			t.Fatalf("order+cover = %v", got)
+		}
 	}
 }

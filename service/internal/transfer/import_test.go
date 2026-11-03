@@ -63,10 +63,10 @@ func TestImportRoundTrip(t *testing.T) {
 	if got.CreatedBy.ID != dst.admin.ID {
 		t.Fatalf("author = %s", got.CreatedBy.ID)
 	}
-	if len(got.Images) != 2 || got.Images[0].Width != 120 || got.Images[1].Width != 80 {
+	if len(got.Images) != 2 || got.Images[0].Width != 80 || got.Images[1].Width != 120 {
 		t.Fatalf("images = %+v", got.Images)
 	}
-	if got.CoverImageID == nil || *got.CoverImageID != got.Images[1].ID {
+	if got.CoverImageID == nil || *got.CoverImageID != got.Images[0].ID {
 		t.Fatalf("cover = %v", got.CoverImageID)
 	}
 	if len(got.Steps) != 1 || len(got.Steps[0].References) != 1 {

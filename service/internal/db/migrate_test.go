@@ -284,3 +284,59 @@ func TestNotificationChannelsMigration(t *testing.T) {
 		t.Errorf("%d subscriptions outlive their session", n)
 	}
 }
+
+// TestCoverFirstMigration moves a recipe's cover to position 0 and leaves a
+// recipe whose cover is already first alone; Down is a no-op.
+func TestCoverFirstMigration(t *testing.T) {
+	ctx := context.Background()
+	conn, err := Open(ctx, filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	fsys, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := goose.NewProvider(goose.DialectSQLite3, conn, fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.UpTo(ctx, 21); err != nil {
+		t.Fatalf("up to 21: %v", err)
+	}
+	for _, q := range []string{
+		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
+			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
+		`INSERT INTO recipes (id, slug, title, created_by, created_at, updated_by, updated_at, cover_image_id) VALUES
+			('r1', 'r1', 'R1', 'u1', 't', 'u1', 't', 'b'),
+			('r2', 'r2', 'R2', 'u1', 't', 'u1', 't', 'x')`,
+		`INSERT INTO images (id, recipe_id, filename, width, height, size_bytes, position, created_at) VALUES
+			('a', 'r1', 'a', 1, 1, 1, 0, 't'), ('b', 'r1', 'b', 1, 1, 1, 1, 't'), ('c', 'r1', 'c', 1, 1, 1, 2, 't'),
+			('x', 'r2', 'x', 1, 1, 1, 0, 't'), ('y', 'r2', 'y', 1, 1, 1, 1, 't')`,
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	order := func() string {
+		t.Helper()
+		var s string
+		if err := conn.QueryRowContext(ctx, `SELECT group_concat(id || position, ' ') FROM (SELECT * FROM images ORDER BY recipe_id, position)`).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if _, err := provider.UpTo(ctx, 22); err != nil {
+		t.Fatalf("up to 22: %v", err)
+	}
+	if got, want := order(), "b0 a1 c2 x0 y1"; got != want {
+		t.Fatalf("after up = %q, want %q", got, want)
+	}
+	if _, err := provider.DownTo(ctx, 21); err != nil {
+		t.Fatalf("down to 21: %v", err)
+	}
+	if got, want := order(), "b0 a1 c2 x0 y1"; got != want {
+		t.Fatalf("after down = %q, want %q", got, want)
+	}
+}

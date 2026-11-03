@@ -80,7 +80,7 @@ func TestExportWritesOneFolderPerRecipe(t *testing.T) {
 	if got.Format != transfer.Format || got.Version != transfer.Version || got.Title != "Apfelstrudel" {
 		t.Fatalf("header = %+v", got)
 	}
-	if !slices.Equal(got.Images, []string{"1.jpg", "2.jpg"}) || got.Cover == nil || *got.Cover != "2.jpg" {
+	if !slices.Equal(got.Images, []string{"1.jpg", "2.jpg"}) || got.Cover == nil || *got.Cover != "1.jpg" {
 		t.Fatalf("images = %v cover = %v", got.Images, got.Cover)
 	}
 	if bytes.Contains(raw, []byte("editPolicy")) || bytes.Contains(raw, []byte(r.ID)) {
