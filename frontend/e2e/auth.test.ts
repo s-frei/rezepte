@@ -1,9 +1,36 @@
 import { expect, test } from '@playwright/test';
-import { login, signOut } from './helpers';
+import { devPassword, login, pinLocale, signOut } from './helpers';
 
 test('redirects anonymous users to login', async ({ page }) => {
 	await page.goto('/');
 	await expect(page).toHaveURL(/\/login\?next=%2F/);
+});
+
+// SvelteKit 3's goto rejects a path without a route, and the login form read
+// that rejection as a failed sign-in: signed in, yet told it went wrong.
+test('a sign-in towards a page that does not exist lands on its 404', async ({ page }) => {
+	await pinLocale(page);
+	await page.goto('/nope');
+	await expect(page).toHaveURL('/login?next=%2Fnope');
+	// The form, not the API: the redirect after it is what broke. A lock is
+	// the throttle race the login helper describes, so it waits and retries.
+	for (let attempt = 0; attempt < 6; attempt++) {
+		await page.getByLabel('Username').fill('admin');
+		await page.getByLabel('Password').fill(devPassword('admin'));
+		await page.getByRole('button', { name: 'Sign in' }).click();
+		const outcome = await Promise.race([
+			page.waitForURL('/nope').then(() => 'in'),
+			page
+				.getByRole('alert')
+				.waitFor()
+				.then(async () => page.getByRole('alert').textContent())
+		]);
+		if (outcome === 'in' || !outcome?.startsWith('Too many')) break;
+		await page.waitForTimeout(250 * (attempt + 1));
+	}
+	await expect(page).toHaveURL('/nope');
+	await expect(page.getByText('This page does not exist.')).toBeVisible();
+	await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 test('rejects a wrong password', async ({ page }) => {

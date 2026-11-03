@@ -88,18 +88,6 @@ export function safeNext(next: string | null): string {
 }
 
 /**
- * True when `path` is a SvelteKit route, so `goto` can reach it.
- *
- * Everything under /api/ is served by the Go binary, not by the SPA - the
- * Scalar docs page, which sends a signed-out visitor here with ?next, is the
- * case that matters. `goto` would render the app's own 404 for it, so those
- * targets need a full page load instead.
- */
-export function isAppPath(path: string): boolean {
-	return !path.startsWith('/api/');
-}
-
-/**
  * Changes the own password; other sessions of the user are ended server-side.
  * currentPassword is undefined for an account that has none yet - the field
  * is then omitted from the body rather than sent as an empty string, so the

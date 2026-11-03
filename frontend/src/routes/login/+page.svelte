@@ -3,10 +3,10 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { match, resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { Path } from '$app/types';
-	import { isAppPath, login, safeNext } from '#lib/api/auth.js';
+	import { login, safeNext } from '#lib/api/auth.js';
 	import { ApiError } from '#lib/api/client.js';
 	import type { OidcInfo } from '#lib/api/oidc.js';
 	import { session } from '#lib/auth.svelte.js';
@@ -90,10 +90,11 @@
 		try {
 			session.user = await login(username, password);
 			const next = safeNext(page.url.searchParams.get('next'));
-			// Targets outside the SPA (the Scalar docs page under /api/) are
-			// served by the Go binary, so they need a real navigation - goto
-			// would look the path up in the client router and 404.
-			if (isAppPath(next)) {
+			// A target without a client route - the Scalar docs page under
+			// /api/, served by the Go binary, or a path that no longer exists -
+			// needs a real navigation: SvelteKit 3's goto rejects it, and the
+			// rejection read as a failed sign-in.
+			if (await match(new URL(next, location.origin))) {
 				await goto(resolve(next.slice(1) as Path));
 			} else {
 				window.location.assign(next);
