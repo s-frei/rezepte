@@ -121,9 +121,11 @@ test('copies the open ingredients as a shopping list and the whole list', async 
 	await expect(page.getByText('Ingredients copied')).toBeVisible();
 	expect(await clipboard()).toBe('250 g Flour\n1 ¼ pinch Salt');
 
+	// With nothing left to buy the copy button goes; adding to a list stays.
 	await page.getByRole('checkbox', { name: 'Flour' }).click();
-	await expect(slip).toBeDisabled();
-	await expect(slip).toHaveAccessibleDescription('Everything is in the house');
+	await expect(slip).toHaveCount(0);
+	await expect(page.getByText('Everything is in the house')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Add to shopping list' })).toBeVisible();
 });
 
 test('rounds scaled quantities to kitchen fractions', async ({ page }) => {

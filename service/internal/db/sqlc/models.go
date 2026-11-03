@@ -192,6 +192,47 @@ type Share struct {
 	ExpiresAt *string
 }
 
+type ShoppingDepartmentOverride struct {
+	NameKey    string
+	Department string
+	UpdatedBy  *string
+	UpdatedAt  string
+}
+
+type ShoppingList struct {
+	ID        string
+	Name      string
+	CreatedBy string
+	CreatedAt string
+	UpdatedAt string
+}
+
+type ShoppingListEntry struct {
+	ID           string
+	ListID       string
+	RecipeID     *string
+	Title        string
+	BaseServings int64
+	Servings     int64
+	CreatedAt    string
+}
+
+type ShoppingListItem struct {
+	ID        string
+	ListID    string
+	EntryID   *string
+	Name      string
+	NameKey   string
+	Quantity  *float64
+	Unit      *string
+	Note      *string
+	GroupName *string
+	Position  int64
+	AddedBy   *string
+	CheckedAt *string
+	CreatedAt string
+}
+
 type Step struct {
 	ID       string
 	RecipeID string

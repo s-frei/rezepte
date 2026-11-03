@@ -4,6 +4,7 @@
 	import { backOut } from 'svelte/easing';
 	import { fade, scale } from 'svelte/transition';
 	import Check from '@lucide/svelte/icons/check';
+	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import type { IngredientGroup } from '#lib/api/recipes.js';
 	import { ingredientKey } from '#lib/recipe/checked.js';
 	import { isChecked, toggle } from '#lib/recipe/checked.svelte.js';
@@ -12,6 +13,7 @@
 	import { shoppingList } from '#lib/recipe/ingredient-text.js';
 	import { formatQuantityFor } from '#lib/recipe/scale.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
+	import AddToListDialog from '#lib/components/shopping/AddToListDialog.svelte';
 	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 
@@ -21,7 +23,9 @@
 		servings,
 		baseServings,
 		copyable = false,
-		columns: split = false
+		addable = false,
+		columns: split = false,
+		title
 	}: {
 		recipeId: string;
 		groups: IngredientGroup[];
@@ -31,12 +35,17 @@
 		baseServings: number;
 		/** Ends the card in a tear-off shopping list. */
 		copyable?: boolean;
+		/** Adds the basket button; only where the recipe is the signed-in user's own to add. */
+		addable?: boolean;
 		/** Two columns on a tablet, where the stacked recipe spans the page. */
 		columns?: boolean;
+		/** The recipe's title, for the add-to-list dialog. */
+		title?: string;
 	} = $props();
 
 	const uid = $props.id();
 	let slipIcon = $state<CopyIcon>();
+	let adding = $state(false);
 	const scaled = $derived(servings !== baseServings);
 	// A check springs in and a recomputed amount answers the stepper with a
 	// brief grow; neither moves under reduced motion. Taking a check back has
@@ -193,23 +202,7 @@
 				class="absolute top-0.5 -right-[11px] size-[22px] -translate-y-1/2 rounded-full bg-background"
 				aria-hidden="true"
 			></span>
-			<button
-				type="button"
-				disabled={open === 0}
-				aria-label={m.ingredients_slip_copy()}
-				aria-describedby="{uid}-slip"
-				onclick={async () => {
-					if (
-						await copyText(
-							shoppingList(groups, baseServings, servings, checkedAt),
-							m.ingredients_slip_copied()
-						)
-					) {
-						slipIcon?.play();
-					}
-				}}
-				class="flex w-full items-center gap-4 rounded-b-2xl px-6 pt-4 pb-5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-			>
+			<div class="flex w-full items-center gap-4 rounded-b-2xl px-6 pt-4 pb-5">
 				<span class="min-w-0 flex-1">
 					<span class="block font-display text-[17px] font-medium text-primary italic">
 						{m.ingredients_slip_title()}
@@ -221,13 +214,39 @@
 					</span>
 				</span>
 				{#if open > 0}
-					<span
-						class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition active:scale-[.96]"
+					<button
+						type="button"
+						aria-label={m.ingredients_slip_copy()}
+						aria-describedby="{uid}-slip"
+						onclick={async () => {
+							if (
+								await copyText(
+									shoppingList(groups, baseServings, servings, checkedAt),
+									m.ingredients_slip_copied()
+								)
+							) {
+								slipIcon?.play();
+							}
+						}}
+						class="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary hover-tint text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]"
 					>
 						<CopyIcon bind:this={slipIcon} class="size-[18px]" />
-					</span>
+					</button>
 				{/if}
-			</button>
+				{#if addable}
+					<button
+						type="button"
+						aria-label={m.ingredients_slip_add()}
+						onclick={() => (adding = true)}
+						class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary hover-tint text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]"
+					>
+						<ShoppingBasket class="size-[18px]" aria-hidden="true" />
+					</button>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </div>
+{#if addable}
+	<AddToListDialog bind:open={adding} {recipeId} {groups} {baseServings} {servings} {title} />
+{/if}

@@ -10,6 +10,8 @@ export type UserAccount = User & {
 	setupLinkExpiresAt?: string;
 	/** Whether the person connected an identity provider; true only in listUsers (other responses carry false). */
 	hasIdentity: boolean;
+	/** Title of the recipe the person created that changed most recently; null when none. */
+	lastRecipeTitle: string | null;
 };
 
 export type UserRole = User['role'];
@@ -41,7 +43,11 @@ export function setupLinkUrl(info: SetupLinkInfo): string {
 export type PersonEntry = Pick<
 	User,
 	'id' | 'username' | 'displayName' | 'color' | 'role' | 'avatarId'
->;
+> & {
+	/** Set by list-people only; absent on the admin operations' UserAccount. */
+	recipeCount?: number;
+	listCount?: number;
+};
 
 /** Every account, ordered by username; readable by any signed-in account. */
 export async function listPeople(): Promise<PersonEntry[]> {

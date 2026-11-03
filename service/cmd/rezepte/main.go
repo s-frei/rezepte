@@ -41,6 +41,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/recipeimport"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/transfer"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -274,6 +275,7 @@ func run() error {
 	recipes.SetCommentNotifier(notifications)
 	recipes.SetTastyNotifier(notifications)
 	recipe.Register(srv.API(), recipes)
+	shopping.Register(srv.API(), shopping.NewService(conn))
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
 	photos := mcpserver.Photos{Images: images, Links: uploadLinks, Fetch: recipeimport.NewFetcher(version, recipeimport.PublicOnly)}

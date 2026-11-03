@@ -33,7 +33,7 @@ A household cooks the same recipe for different numbers of people without editin
 
 **The ingredient list copies as text, in two shapes.** Both are scaled through `formatQuantityFor` to the chosen servings, and both go through `copyText` in `share.svelte.ts`, the one clipboard-and-toast call that is also behind "Copy link"; [Recipe card](/features/recipe-card) owns its fallback without https.
 
-- The stub at the foot of a `copyable` `IngredientList` (the detail page and a public share page, which renders the same `RecipeView`) copies `shoppingList` from `frontend/src/lib/recipe/ingredient-text.ts`: every ingredient not ticked off, one per line, without group names or notes, because Reminders, Todoist and Keep turn every pasted line into an item and a group name or "(sifted)" would become one too. With everything ticked it is disabled.
+- The stub at the foot of a `copyable` `IngredientList` (the detail page and a public share page, which renders the same `RecipeView`) copies `shoppingList` from `frontend/src/lib/recipe/ingredient-text.ts`: every ingredient not ticked off, one per line, without group names or notes, because Reminders, Todoist and Keep turn every pasted line into an item and a group name or "(sifted)" would become one too. With everything ticked its copy button goes and the stub says so. Beside it a basket button opens `AddToListDialog`, which puts the ingredients on a list instead - [Shopping lists](/features/shopping-lists) owns it.
 - The copy on the ingredients heading copies `fullList`, the list as the page shows it with group names and notes, for a message or a note.
 - Cook mode's ingredient sheet leaves `copyable` off: by then the shopping is done.
 

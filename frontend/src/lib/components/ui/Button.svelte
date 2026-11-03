@@ -15,6 +15,7 @@
 		href,
 		title,
 		label,
+		current = false,
 		onclick,
 		class: className = '',
 		children
@@ -36,6 +37,8 @@
 		title?: string;
 		/** Accessible name, when the visible text needs more context. */
 		label?: string;
+		/** Marks the link as the page being shown (`aria-current="page"`); `href` only. */
+		current?: boolean;
 		onclick?: (event: MouseEvent) => void;
 		class?: string;
 		children: Snippet;
@@ -77,6 +80,7 @@
 		{title}
 		aria-label={label}
 		aria-disabled={disabled}
+		aria-current={current ? 'page' : undefined}
 		tabindex={disabled ? -1 : undefined}
 		class="{classes} {disabled ? 'pointer-events-none opacity-50' : ''}"
 	>

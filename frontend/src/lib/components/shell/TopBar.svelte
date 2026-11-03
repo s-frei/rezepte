@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Import from '@lucide/svelte/icons/import';
+	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Plus from '@lucide/svelte/icons/plus';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import Lockup from '#lib/components/brand/Lockup.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -8,6 +10,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { shell } from '#lib/shell.svelte.js';
 	import UserMenu from './UserMenu.svelte';
+	const onLists = $derived(page.route.id?.startsWith('/lists') ?? false);
 </script>
 
 <header class="mx-auto hidden h-16 max-w-[1280px] items-center justify-between px-8 md:flex">
@@ -23,6 +26,10 @@
 		{#if shell.actions}
 			{@render shell.actions()}
 		{:else}
+			<Button variant={onLists ? 'accent' : 'ghost'} href={resolve('/lists')} current={onLists}>
+				<ShoppingBasket class="size-4" aria-hidden="true" />
+				{m.nav_lists()}
+			</Button>
 			<!-- Ghost, not secondary: importing is reached for now and then,
 			     while "New recipe" beside it is what the bar is for. -->
 			<Button variant="ghost" onclick={() => (importDialog.open = true)}>

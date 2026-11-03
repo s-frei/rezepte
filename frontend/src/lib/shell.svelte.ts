@@ -36,7 +36,7 @@ export const shell = $state<{ breadcrumb?: string; actions?: Snippet }>({
 export const bottomNav = $state({ docked: false, still: false, typing: false });
 
 /** The places the phone's bottom nav can mark as current. */
-export type NavPlace = 'recipes' | 'you';
+export type NavPlace = 'recipes' | 'lists' | 'you';
 
 /**
  * Every page route and what the phone's bottom nav does on it. The bar shows
@@ -52,6 +52,8 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/': 'recipes',
 	// Share → Rezepte lands here and moves on to the overview at once.
 	'/import': 'recipes',
+	'/lists': 'lists',
+	'/lists/[id]': 'lists',
 	'/settings': 'you',
 	'/settings/api': 'you',
 	'/settings/mail': 'you',

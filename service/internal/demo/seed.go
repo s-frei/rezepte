@@ -25,6 +25,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -477,7 +478,8 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 // named owner, who must be the instance owner, since only the owner
 // switches sharing on, which creating a link needs. It is switched off
 // again once the links exist, so they start out paused. The diary entries
-// in memberComments are dated back from sum.Now. Last it issues that admin
+// in memberComments are dated back from sum.Now, and so are the
+// sampleLists. Last it issues that admin
 // the sampleTokens, dated from sum.Now too. After a skipped seed it writes
 // nothing.
 func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer string) error {
@@ -545,6 +547,9 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 	if err := seedComments(ctx, conn, sum, admin); err != nil {
 		return err
 	}
+	if err := seedLists(ctx, conn, sum, admin); err != nil {
+		return err
+	}
 	if sharing {
 		if _, err := instance.SetPublicShares(ctx, admin, false); err != nil {
 			return fmt.Errorf("turn public sharing off: %w", err)
@@ -579,6 +584,134 @@ func issueSampleTokens(ctx context.Context, tokens *auth.TokenService, admin use
 			if _, err := tokens.Authenticate(ctx, raw); err != nil {
 				return fmt.Errorf("use demo token %q: %w", name, err)
 			}
+		}
+	}
+	return nil
+}
+
+// sampleList is one shopping list the demo writes: whose it is (a username,
+// AdminUser for the demo person), its name, how long before Summary.Now it
+// was last changed, the samples (by index) it holds at listServings, the
+// free items typed in, and the names whose rows are already checked off.
+// Texts are per locale; a locale without its own uses English.
+type sampleList struct {
+	owner   string
+	ago     time.Duration
+	name    map[user.Locale]string
+	recipes []int
+	free    map[user.Locale][]string
+	checked map[user.Locale][]string
+}
+
+// listServings is how many the demo's lists cook every sample for; an
+// English sample written for two shows its amounts doubled.
+const listServings = 4
+
+// sampleLists give the lists overview, the list page in both views and the
+// add-to-list dialog something to show: the admin's weekly shop with two
+// samples, typed-in items and ticked rows, the admin's market list of typed-in
+// items only, and one list of Mila's, so the people page counts lists for
+// more than one person.
+var sampleLists = []sampleList{
+	{
+		owner: AdminUser, ago: 2 * 24 * time.Hour,
+		name: map[user.Locale]string{"de": "Markt Samstag", "en": "Saturday market"},
+		free: map[user.Locale][]string{
+			"de": {"1 kg Äpfel", "6 Eier", "Blumenkohl", "Bergkäse"},
+			"en": {"1 kg apples", "6 eggs", "cauliflower", "sourdough loaf"},
+		},
+	},
+	{
+		owner: "mila", ago: 26 * time.Hour,
+		name:    map[user.Locale]string{"de": "Grillabend", "en": "Barbecue"},
+		recipes: []int{2},
+		free: map[user.Locale][]string{
+			"de": {"Grillkohle"},
+			"en": {"charcoal"},
+		},
+	},
+	{
+		owner: AdminUser, ago: 3 * time.Hour,
+		name:    map[user.Locale]string{"de": "Wocheneinkauf", "en": "Weekly shop"},
+		recipes: []int{0, 1},
+		free: map[user.Locale][]string{
+			"de": {"2 l Milch", "Kaffee"},
+			"en": {"2 l milk", "coffee"},
+		},
+		checked: map[user.Locale][]string{
+			"de": {"Salz", "Pfeffer", "Senf"},
+			"en": {"salt", "pepper", "butter"},
+		},
+	},
+}
+
+// seedLists writes sampleLists in the admin's locale through the shopping
+// service, its clock set to each list's time, so the overview's order and
+// the lists' dates follow sum.Now.
+func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) error {
+	people := map[string]user.User{AdminUser: admin}
+	for _, m := range sum.Members {
+		people[m.Username] = m
+	}
+	in := func(texts map[user.Locale][]string) []string {
+		if t, ok := texts[admin.Locale]; ok {
+			return t
+		}
+		return texts["en"]
+	}
+	lists := shopping.NewService(conn)
+	defer lists.SetClock(time.Now)
+	recipes := recipe.NewService(conn, "")
+	for _, sl := range sampleLists {
+		owner, ok := people[sl.owner]
+		if !ok {
+			continue
+		}
+		at := sum.Now.Add(-sl.ago)
+		lists.SetClock(func() time.Time { return at })
+		name, ok := sl.name[admin.Locale]
+		if !ok {
+			name = sl.name["en"]
+		}
+		l, err := lists.Create(ctx, owner.ID, name)
+		if err != nil {
+			return fmt.Errorf("create demo list %q: %w", name, err)
+		}
+		for _, i := range sl.recipes {
+			if i >= len(sum.RecipeIDs) {
+				continue
+			}
+			r, err := recipes.ByID(ctx, sum.RecipeIDs[i])
+			if err != nil {
+				return fmt.Errorf("get sample %d: %w", i, err)
+			}
+			var all []shopping.IngredientPick
+			for g, group := range r.IngredientGroups {
+				for n := range group.Ingredients {
+					all = append(all, shopping.IngredientPick{Group: g, Index: n})
+				}
+			}
+			if l, err = lists.AddRecipe(ctx, owner.ID, l.ID, r.ID, listServings, all); err != nil {
+				return fmt.Errorf("add sample %d to %q: %w", i, name, err)
+			}
+		}
+		for _, text := range in(sl.free) {
+			if l, err = lists.AddFree(ctx, owner.ID, l.ID, text); err != nil {
+				return fmt.Errorf("add %q to %q: %w", text, name, err)
+			}
+		}
+		keys := map[string]bool{}
+		for _, n := range in(sl.checked) {
+			keys[shopping.NameKey(n)] = true
+		}
+		var ids []string
+		for _, item := range l.Items {
+			if keys[item.NameKey] {
+				ids = append(ids, item.ID)
+			}
+		}
+		if _, err := lists.SetChecked(ctx, owner.ID, l.ID, ids, true); err != nil {
+			return fmt.Errorf("check items on %q: %w", name, err)
 		}
 	}
 	return nil

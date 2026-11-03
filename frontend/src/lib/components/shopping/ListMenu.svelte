@@ -1,0 +1,114 @@
+<script lang="ts">
+	import Copy from '@lucide/svelte/icons/copy';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import { Dialog, DropdownMenu } from 'bits-ui';
+	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
+	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
+	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+
+	let {
+		name,
+		onrename,
+		oncopy,
+		ondelete
+	}: {
+		name: string;
+		/** Resolves to whether the new name was stored, which closes the dialog. */
+		onrename: (name: string) => Promise<boolean>;
+		oncopy: () => void;
+		ondelete: () => void;
+	} = $props();
+
+	let renameOpen = $state(false);
+	let deleteOpen = $state(false);
+	let draft = $state('');
+	let saving = $state(false);
+
+	function openRename() {
+		draft = name;
+		renameOpen = true;
+	}
+
+	async function rename(event: SubmitEvent) {
+		event.preventDefault();
+		const trimmed = draft.trim();
+		if (!trimmed || saving) return;
+		if (trimmed === name) {
+			renameOpen = false;
+			return;
+		}
+		saving = true;
+		try {
+			if (await onrename(trimmed)) renameOpen = false;
+		} finally {
+			saving = false;
+		}
+	}
+
+	const item =
+		'flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background';
+</script>
+
+<DropdownMenu.Root>
+	<DropdownMenu.Trigger
+		aria-label={m.detail_menu()}
+		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
+	>
+		<Ellipsis class="size-5" aria-hidden="true" />
+	</DropdownMenu.Trigger>
+	<DropdownMenu.Portal>
+		<DropdownMenu.Content
+			preventScroll={false}
+			sideOffset={8}
+			align="end"
+			class="z-50 w-60 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
+		>
+			<DropdownMenu.Item onSelect={openRename} class={item}>
+				<Pencil class="size-4" aria-hidden="true" />
+				{m.list_rename()}
+			</DropdownMenu.Item>
+			<DropdownMenu.Item onSelect={oncopy} class={item}>
+				<Copy class="size-4" aria-hidden="true" />
+				{m.list_copy_text()}
+			</DropdownMenu.Item>
+			<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
+			<DropdownMenu.Item
+				onSelect={() => (deleteOpen = true)}
+				class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
+			>
+				<Trash2 class="size-4" aria-hidden="true" />
+				{m.list_delete()}
+			</DropdownMenu.Item>
+		</DropdownMenu.Content>
+	</DropdownMenu.Portal>
+</DropdownMenu.Root>
+
+<BaseDialog bind:open={renameOpen}>
+	<Dialog.Title class="font-display text-heading font-medium">{m.list_rename()}</Dialog.Title>
+	<form onsubmit={rename} class="mt-4 space-y-5">
+		<Input
+			id="rename-list-name"
+			label={m.lists_new_name_label()}
+			autocomplete="off"
+			maxlength={80}
+			bind:value={draft}
+		/>
+		<div class="flex justify-end gap-2.5">
+			<Button variant="ghost" onclick={() => (renameOpen = false)}>{m.common_cancel()}</Button>
+			<Button type="submit" busy={saving} disabled={!draft.trim()}>{m.common_save()}</Button>
+		</div>
+	</form>
+</BaseDialog>
+
+<ConfirmDialog
+	bind:open={deleteOpen}
+	title={m.list_delete_confirm_title({ name })}
+	text={m.list_delete_confirm_text()}
+	confirmLabel={m.common_delete()}
+	destructive
+	onconfirm={ondelete}
+/>

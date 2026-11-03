@@ -30,9 +30,12 @@
 		diaryCount = 0,
 		diaryNew = false,
 		ondiaryopen,
-		diaryFirst = false
+		diaryFirst = false,
+		addable = false
 	}: {
 		recipe: RecipeContent;
+		/** Offers "add to shopping list"; only the signed-in recipe page sets it. */
+		addable?: boolean;
 		/** Forwarded to `ImageGallery`; defaults there to the signed-in `imageUrl` route. */
 		imageSrc?: (imageId: string, variant: ImageVariant) => string;
 		/** A tag's destination. Omitted renders plain, non-interactive chips. */
@@ -232,7 +235,9 @@
 			servings={servings.value}
 			baseServings={servings.base}
 			copyable
+			{addable}
 			columns
+			title={recipe.title}
 		/>
 	</section>
 	<section>

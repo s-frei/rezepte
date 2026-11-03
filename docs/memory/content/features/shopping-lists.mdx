@@ -1,0 +1,64 @@
+---
+title: Shopping lists
+description: Personal lists filled from recipes and by hand, sorted by department, with server-side scaling and instance-wide department overrides
+---
+
+A signed-in person keeps any number of shopping lists, fills them from recipes (the basket on a recipe's ingredient stub) and by typing, ticks items off and sees them either by store department or by recipe. The service side is `service/internal/shopping` (pure rules, service, huma handler); the frontend is `frontend/src/routes/lists/`, `frontend/src/lib/components/shopping/`, `frontend/src/lib/shopping/` and the client `frontend/src/lib/api/shopping.ts`.
+
+## How it works
+
+**A list is its creator's alone.** Every query is scoped by `created_by`, and another person's list id answers exactly like an id that does not exist: `shopping.ErrNotFound`, HTTP 404, never 403, on reads and on every change, so a guessed id tells nobody that the list exists (`TestForeignShoppingListAnswers404`, `TestForeignListIsNotFound`). Deleting an account deletes its lists. The tables and their delete rules are on [Data model](/architecture/data-model#shopping-lists).
+
+**Adding a recipe copies it.** `AddRecipe` writes one entry (title, the recipe's servings as `base_servings`, the chosen `servings`) and one item per picked ingredient, picked by `(group, index)` into the recipe as it is at that moment. The items keep name, unscaled quantity, unit, note and group name. Editing the recipe afterwards never reaches the list (`TestRecipeEditDoesNotReachList`); deleting it nulls `recipe_id` and the list keeps the entry's title without a link (`TestDeletedRecipeKeepsItems`). Adding the same recipe twice makes two entries. An unknown recipe is `ErrRecipeNotFound` (404 "recipe not found"), an empty pick list `ErrInvalid` (422).
+
+**Quantities scale on the server, on every read.** `get` scales an entry's items from `base_servings` to `servings` with `ScaleQuantity` and rounds with `RoundScaled` in `service/internal/shopping/scale.go`, a port of `frontend/src/lib/recipe/scale.ts` (thirds and quarters below ten, whole numbers from ten). `TestRoundScaledMatchesFrontend` carries the rows of `frontend/src/lib/recipe/scale.test.ts`: a change to rounding on one side changes both files and both tables. Changing an entry's servings is one column; its items rescale, ticked ones too (a tick stays a tick), and an item without a quantity stays without one (`TestSetServingsRescalesAndKeepsTicks`).
+
+**Typed text splits into amount, unit, name and note.** `ParseFree` in `freetext.go` reads "2 l Milch" or "500g Mehl" as amount, unit and name, with the units the recipe editor suggests in both languages; text without a leading amount is all name. The first ", ", " – " or " - " after the name (`noteSepRe`), or a closing "(…)", starts the note. A free item remembers who typed it (`added_by`, shown as "by …"; once that person's account is deleted the line shows nothing, where the spec wants "former member" - only reachable once lists are shared).
+
+**Names meet through a key.** `NameKey` lowercases, trims, collapses spaces, folds French and Spanish accents (é, ç, ñ…, never ä, ö, ü, ß) and strips a German or English plural ending from the last word, with `irregularPlurals` for what the suffix rules cannot reach ("Äpfel", "Eier"). "Zwiebel", "Zwiebeln" and " zwiebeln " share a key. The key is stored with the item when it is written.
+
+**A department comes from an override or the word list.** `shopping_department_overrides` wins; otherwise `DefaultDepartment` looks the key up in `words` in `departments.go`, one German and English word list per department, exact match first, then the longest known word the key ends with ("rinderhackfleisch" ends with "hackfleisch"), which needs four letters or a word boundary so "graham" never lands on "ham". Unknown names go to `other`. The order of `Departments` is the aisle order on the page. Recipes carry no language, so every name is looked up in both languages at once. `TestDemoIngredientsAreSorted` puts every ingredient of both demo sample sets through it and fails on any that lands in `other` without a reason in `demoOther`, which is empty: every demo ingredient has a department. The sample recipes stand for real ones, and a common ingredient in `other` defeats the sorting.
+
+**Moving an item teaches the whole instance.** The item sheet's department choice calls `PUT /api/v1/shopping-departments` with the row's name; `SetDepartment` upserts the override for its key, and every list of every person reads it on its next load (`TestDepartmentOverrideAppliesToAllLists`).
+
+**The API is session-only and every change answers with the whole list.** The routes are in `handler.go` under the `shopping-lists` tag with `auth.SessionSecurity`: list, create, get, rename and delete lists; add a recipe, change an entry's servings, remove an entry; add a free item, tick or untick and remove items by id, clear the ticked ones; set a department. Each change runs in one transaction that first touches the list (which proves ownership and moves `updated_at`) and returns the list as it is afterwards, scaled and sorted, so the client replaces its copy instead of patching it.
+
+**The list page groups on the client.** `frontend/src/lib/shopping/rows.ts` builds the views from the list the server sent:
+
+- **By department**, items with the same `nameKey` form one row with one circle; each source shows its amount and recipe (or who typed it), nothing is added up. Ticking a row ticks every item behind it; a row shows ticked only when all its items are. Ticked rows move to "Done".
+- **By recipe**, one block per entry with its servings and a menu (open recipe, change servings, remove), then "Without a recipe" for free items; each item shows its own tick.
+- Counts are **rows** everywhere: the server's `openCount`/`doneCount` on a list and on every overview card count name keys, a row open while any item behind it is unticked and done once all are (`ListShoppingLists` in SQL, `get` in Go, `TestCountsAreRowsOfMergedNames`). The list header computes the same from `rows.ts`, matching "Done · n", and the e2e spec checks that card and header agree.
+- The list's menu renames it, copies it as text ("Copy as text": the open rows in aisle order, one per line, amounts first - `listText`, the shape the recipe stub copies) and deletes it.
+- The side panel on a wide screen lists the recipes on the list and "Shared with", which shows only the creator ("You · created the list"); every overview card says "Only you" and when the list last changed, as a relative time (`relativeTime`). Both are where sharing will show its members.
+- The chosen view is remembered per device (`rezepte:list-view`); the add dialog remembers the last list it added to (`rezepte:last-list`).
+
+**The list page drops answers that arrive out of order.** Two quick taps send two requests whose answers may come back in either order. Every change takes the next revision, and only the newest change's answer replaces the list; an older answer is dropped, and so is an answer for another list, since the page stays mounted when one list links to the next. A failed change undoes its own optimistic step only while nothing newer was sent, and reloads otherwise. Ticks and department moves are optimistic.
+
+**The add dialog starts from the recipe page.** Only the signed-in recipe page offers the basket (`addable` on `RecipeView` and `IngredientList`); the public share page keeps the copy button but has no basket, since its recipe id is client-only and an anonymous reader has no lists. `AddToListDialog` opens at the reader's current servings with every ingredient picked except the ones ticked off on the recipe page; it can create a list inline, and a failed add after a created list retries on that list rather than making a second one. The toast after adding links to the list.
+
+**Navigation and people.** Shopping lists are a top-bar link on a computer and a bottom-nav slot on a phone ([Design system](/architecture/design-system)). The people page shows each person's number of lists, from `CountsByCreator`, never their content ([Users and authentication](/features/users-and-auth)).
+
+## Why it is this way
+
+**Copy on add, because a recipe save rewrites its ingredient rows.** `recipe.Service.Update` deletes and re-inserts ingredients on every save, so an item pointing at an ingredient row would break on the next edit; and a list someone is shopping from must not change under them because an author fixed a typo. To pick up a correction one adds the recipe again.
+
+**Scaling lives in Go too, because more than the browser adds at servings.** Changing servings on the list, and adding through the API, both need scaled amounts the server computes; the stored quantity stays unscaled so that a servings change is exact rather than a rescale of a rounded number.
+
+**404 rather than 403**, because a 403 confirms the id exists and belongs to someone.
+
+**Overrides are instance-wide**, because one person teaching Rezepte where capers go helps everyone on the instance; a per-person or per-list override would have to be taught again by each.
+
+**The word list is a short table, not a dictionary library.** A stemmer or lemma library is a dependency against "standard library first", and the ingredients that matter are a few hundred words.
+
+## Rejected
+
+- **Summing amounts across recipes** ("3 Zwiebeln" from two recipes). Units differ (Stück, g, a pinch), and a wrong sum is worse than two visible amounts.
+- **Items referencing ingredient rows** - see the copy rule above.
+- **A dictionary or stemming library for name keys** - see the word list above.
+
+## Limits
+
+- Lists are personal: no sharing, no members, no live updates between devices, no full-screen shopping mode, no token access and no MCP tools - the [Roadmap](/roadmap) holds that direction.
+- Irregular plurals beyond `irregularPlurals` stay separate keys, and a changed `NameKey` does not rewrite stored keys.
+- An override is per name key, not per list or person, and nothing lists or resets overrides except moving the item again.
+- Free-text parsing is naive: "Salz, Pfeffer" becomes name "Salz" plus note "Pfeffer", "2 - 3 Zitronen" splits at the dash, and a bare "pepper" is pantry rather than spice.

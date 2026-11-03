@@ -39,6 +39,13 @@ erDiagram
   push_subscriptions ||--o{ timer_alarms : schedules
   users ||--o{ shares : creates
   recipes ||--o{ shares : "shared by"
+  users ||--o{ shopping_lists : creates
+  shopping_lists ||--o{ shopping_list_entries : holds
+  shopping_lists ||--o{ shopping_list_items : holds
+  shopping_list_entries |o--o{ shopping_list_items : "copied as"
+  recipes |o--o{ shopping_list_entries : "copied from"
+  users |o--o{ shopping_list_items : "typed in"
+  users |o--o{ shopping_department_overrides : "last set"
   users {
     text id PK
     text username UK "COLLATE NOCASE"
@@ -205,6 +212,31 @@ erDiagram
     text recipe_id FK
     integer size_bytes "all three variants"
   }
+  shopping_lists {
+    text id PK
+    text created_by FK "the only person who sees it"
+  }
+  shopping_list_entries {
+    text id PK
+    text list_id FK
+    text recipe_id FK "nullable, SET NULL: title stays"
+    integer base_servings "the recipe's, at the copy"
+    integer servings "1 to 99"
+  }
+  shopping_list_items {
+    text id PK
+    text list_id FK
+    text entry_id FK "nullable: a free item"
+    text name_key "shopping.NameKey(name)"
+    real quantity "unscaled for an entry's item"
+    text added_by FK "nullable, SET NULL: free items only"
+    text checked_at "nullable, set when ticked"
+  }
+  shopping_department_overrides {
+    text name_key PK
+    text department
+    text updated_by FK "nullable, SET NULL"
+  }
 ```
 
 ## Conventions
@@ -216,7 +248,7 @@ erDiagram
   - Two writes in the same second get the same `updated_at`, so the recipe list and search queries (`queries/recipes.sql`) break ties with `id DESC`: UUIDv7 ids sort lexicographically by creation time, so the newest row still sorts first. Without that tiebreaker, two recipes saved in the same second come back oldest first.
   - If a fractional part is ever added to `FormatTime`, it must be fixed-width - `time.RFC3339Nano` trims trailing zeros, and a shortened fraction no longer sorts lexicographically the same as the full value.
 - The connection DSN in `service/internal/db/db.go` sets the pragmas: `journal_mode(WAL)`, `busy_timeout(5000)`, `synchronous(NORMAL)`, `foreign_keys(ON)`, `recursive_triggers(ON)` and `_txlock=immediate`. The recursive triggers are not for the one trigger that writes (`users_change_closes_reset_link`, which deletes rows of another table and recurses into nothing) but because SQLite fires a `BEFORE DELETE` trigger for the delete half of a `REPLACE` only when that pragma is on.
-- Foreign keys are enforced; deletes cascade, except three `ON DELETE SET NULL` columns and one with no constraint. `recipe_comments.author_id` is `SET NULL`, so an entry outlives its author; `comment_images.uploader_id` and `comment_images.recipe_image_id` are too, so a former member's comments keep their photos and deleting a recipe photo only clears `inRecipe`. The unconstrained one, `recipes.cover_image_id`, is a plain nullable `TEXT` with no `REFERENCES` constraint at all: it points at `images.id`, but the image service keeps it consistent itself (set on first upload, moved on delete of the cover), and a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
+- Foreign keys are enforced; deletes cascade, except the `ON DELETE SET NULL` columns named here and one with no constraint. `recipe_comments.author_id` is `SET NULL`, so an entry outlives its author; `comment_images.uploader_id` and `comment_images.recipe_image_id` are too, so a former member's comments keep their photos and deleting a recipe photo only clears `inRecipe`. On shopping lists, `shopping_list_entries.recipe_id`, `shopping_list_items.added_by` and `shopping_department_overrides.updated_by` are `SET NULL` (below). The unconstrained one, `recipes.cover_image_id`, is a plain nullable `TEXT` with no `REFERENCES` constraint at all: it points at `images.id`, but the image service keeps it consistent itself (set on first upload, moved on delete of the cover), and a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
 - NULL means "absent," not "empty": `prep_minutes`, `cook_minutes`, `source_url`, `source_name`, `cover_image_id`, `ingredient_groups.name`, `ingredients.unit` and `ingredients.note` are stored as `NULL`, never `''`, when unset (the service converts an empty string to `nil` on write). `recipes.description` is the exception - it defaults to `''`, not `NULL`, when omitted.
 - An alphabetical `ORDER BY` over user text uses `COLLATE unicode`, which `service/internal/db/collate.go` registers on every connection the package opens: `NOCASE` and `BINARY` fold ASCII alone, so every word with a non-ASCII initial would sort after `z`. The collation exists only inside the Go driver, so a query that names it fails in a `sqlite3` CLI session ([Recipes](/features/recipes) for the title sort).
 - `recipes_fts` is not in the diagram: an FTS5 virtual table is a search index rather than a relation - it holds no copy of the text and no foreign keys, so there is nothing for the diagram to connect it to. [Recipes](/features/recipes) owns how it is declared, keyed and kept in step.
@@ -257,6 +289,15 @@ erDiagram
 - `notification_optouts` holds one row per (user, kind, channel) an account switched off, and `notification_group_optouts` one per (user, group, channel) whose master switch is off (`grp`: `group` is an SQL keyword); both cascade with the user, and `channel` is `mail` or `push` under a `CHECK`, while kinds and groups have none, so a new one needs no migration. Every switchable notification is on until a row says otherwise, so a new kind or a new account needs no rows; a group row silences every kind of the group on that channel, later kinds too, and leaves the kind rows alone. See [Notifications](/features/notifications).
 - `recipes.announce_pending` is `NOT NULL DEFAULT FALSE`, so an upgraded instance announces nothing it already had. `recipe.Service.CreateAnnounced` sets it in the create's own insert, and only the HTTP `create-recipe` and MCP `create_recipe` call that; archive import and the demo seed use `Create` and leave it false. `ListDueAnnouncements` reads the pending rows older than a cutoff, oldest first, through the partial index `recipes_announce_pending_idx` on `created_at WHERE announce_pending`, and `ClearAnnouncements` drops the mark. A deleted recipe takes its mark with it. See [Notifications](/features/notifications).
 - `recipes.edit_policy` is `NULL`, `'open'` or `'locked'` (a `CHECK` constraint); `NULL` means "follow the household setting" and is never written as a string. [Editing rights](/features/editing-rights) owns what it decides.
+
+### Shopping lists
+
+- `shopping_lists.created_by` cascades: a list is its creator's alone and goes with their account. `shopping_lists_creator_idx` on `(created_by, updated_at DESC)` serves the overview, newest first; every change to a list moves `updated_at`.
+- `shopping_list_entries` is a recipe copied onto a list: `title` and `base_servings` are copied, `recipe_id` is `SET NULL`, so deleting the recipe leaves the entry and its items with the title as plain text. Entries and items cascade with their list, items with their entry.
+- `shopping_list_items` holds the recipe's **unscaled** quantity for an entry's item and scales it on every read to the entry's `servings`, which is what lets a servings change rescale without touching an item and keep its tick. A free item (`entry_id` `NULL`) holds its amount as typed. No item references an `ingredients` row: a recipe save rewrites those rows.
+- `name_key` is written with the item and never recomputed, so a change to `shopping.NameKey` leaves existing items under their old key until they are added again.
+- `shopping_department_overrides` is keyed by `name_key` with no list column: one row sorts that name on every list of the instance. `department` has no `CHECK`; `shopping.Department.Valid` guards the one writer.
+- All four tables belong to [Shopping lists](/features/shopping-lists).
 
 ### Settings and shares
 

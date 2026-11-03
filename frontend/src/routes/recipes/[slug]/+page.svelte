@@ -431,6 +431,7 @@
 	<article class="pt-6 md:pt-10">
 		<RecipeView
 			{recipe}
+			addable
 			onopenimage={openLightbox}
 			diaryCount={diaryEntries.length}
 			diaryNew={!diarySeen && diaryEntries.some((e) => e.new)}

@@ -69,6 +69,7 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 			await expect(stranger.getByRole('link', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'Edit' })).toHaveCount(0);
 			await expect(stranger.getByRole('button', { name: 'More actions' })).toHaveCount(0);
+			await expect(stranger.getByRole('button', { name: 'Add to shopping list' })).toHaveCount(0);
 			const footer = stranger.getByRole('contentinfo');
 			await expect(footer).toContainText('A cookbook like this one?');
 			await expect(footer.getByRole('link', { name: /Get Rezepte/ })).toHaveAttribute(
@@ -113,6 +114,7 @@ test('a signed-in member sees the same public page', async ({ page }, testInfo) 
 		// user menu button are both gone.
 		await expect(page.getByRole('navigation')).toHaveCount(0);
 		await expect(page.getByRole('button', { name: 'Account menu' })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Add to shopping list' })).toHaveCount(0);
 		await expect(
 			page.getByRole('contentinfo').getByRole('link', { name: /Get Rezepte/ })
 		).toBeVisible();

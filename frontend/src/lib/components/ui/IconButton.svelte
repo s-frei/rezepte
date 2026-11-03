@@ -21,6 +21,8 @@
 	// The default surface steps aside when the caller passes its own bg-* class
 	// (no tailwind-merge in this project, and CSS source order would otherwise win).
 	const background = $derived(/\bbg-/.test(className) ? '' : 'bg-surface');
+	// Likewise the default ink steps aside for a caller's own text-* color.
+	const ink = $derived(/\btext-/.test(className) ? '' : 'text-text');
 </script>
 
 <BitsButton.Root
@@ -28,7 +30,7 @@
 	{disabled}
 	{onclick}
 	aria-label={label}
-	class="inline-flex size-10 items-center justify-center rounded-full border border-border {background} hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 {className}"
+	class="inline-flex size-10 items-center justify-center rounded-full border border-border {background} {ink} hover-tint transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 {className}"
 >
 	{@render children()}
 </BitsButton.Root>

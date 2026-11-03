@@ -30,6 +30,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/recipeimport"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/transfer"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -83,6 +84,7 @@ func newFullApp(t *testing.T) fullApp {
 	auth.Register(srv.API(), sessions, cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
+	shopping.Register(srv.API(), shopping.NewService(conn))
 	links := image.NewUploadLinks(wiringPublicURL, users)
 	if err := mcpserver.Register(srv.API(), recipes, "test", mcpserver.Photos{Images: images, Links: links, Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
 		t.Fatal(err)

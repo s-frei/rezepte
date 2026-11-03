@@ -11,6 +11,10 @@ describe('navPlace', () => {
 		expect(navPlace('/', false)).toBe('recipes');
 	});
 
+	it('marks the shopping lists as Lists', () => {
+		expect(navPlace('/lists', false)).toBe('lists');
+	});
+
 	it('marks every settings page as You', () => {
 		expect(navPlace('/settings', false)).toBe('you');
 		expect(navPlace('/settings/mail', false)).toBe('you');

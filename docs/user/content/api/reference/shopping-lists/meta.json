@@ -1,0 +1,20 @@
+{
+  "title": "Shopping lists",
+  "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, and the store department an ingredient is sorted under. Session only.",
+  "pages": [
+    "index",
+    "set-shopping-department",
+    "list-shopping-lists",
+    "create-shopping-list",
+    "get-shopping-list",
+    "rename-shopping-list",
+    "delete-shopping-list",
+    "clear-checked-shopping-items",
+    "add-shopping-item",
+    "check-shopping-items",
+    "remove-shopping-items",
+    "add-recipe-to-shopping-list",
+    "set-shopping-entry-servings",
+    "remove-shopping-entry"
+  ]
+}

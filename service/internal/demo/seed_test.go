@@ -15,6 +15,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/demo"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -723,5 +724,82 @@ func TestSeedMembersIssuesTheAdminsTokens(t *testing.T) {
 	}
 	if tokens[0].Name != "Claude Code am Laptop" && tokens[1].Name != "Claude Code am Laptop" && tokens[2].Name != "Claude Code am Laptop" {
 		t.Fatalf("no German token name in %+v", tokens)
+	}
+}
+
+func TestSeedMembersWriteShoppingLists(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	admin, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin, Locale: "de"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref := time.Date(2026, 9, 17, 10, 30, 0, 0, time.UTC)
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", ref, quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
+		t.Fatalf("SeedMembers: %v", err)
+	}
+
+	lists := shopping.NewService(conn)
+	mine, err := lists.Lists(ctx, admin.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mine) != 2 || mine[0].Name != "Wocheneinkauf" || mine[1].Name != "Markt Samstag" {
+		t.Fatalf("admin's lists = %+v, want Wocheneinkauf before Markt Samstag", mine)
+	}
+	if !mine[0].UpdatedAt.Before(ref) {
+		t.Errorf("Wocheneinkauf changed at %v, want before %v", mine[0].UpdatedAt, ref)
+	}
+	weekly, err := lists.Get(ctx, admin.ID, mine[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var titles []string
+	for _, e := range weekly.Entries {
+		titles = append(titles, e.Title)
+		if e.Servings != 4 {
+			t.Errorf("%s at %d servings, want 4", e.Title, e.Servings)
+		}
+	}
+	if strings.Join(titles, ", ") != "Königsberger Klopse, Rinderrouladen" {
+		t.Errorf("entries = %v", titles)
+	}
+	free, checked := 0, map[string]bool{}
+	for _, i := range weekly.Items {
+		if i.EntryID == nil {
+			free++
+		}
+		if i.Checked {
+			checked[i.NameKey] = true
+		}
+	}
+	if free != 2 || len(checked) != 3 {
+		t.Errorf("%d free items, checked names %v; want 2 and 3", free, checked)
+	}
+	market, err := lists.Get(ctx, admin.ID, mine[1].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(market.Items) != 4 || len(market.Entries) != 0 {
+		t.Errorf("Markt Samstag: %d items, %d entries; want 4 free items", len(market.Items), len(market.Entries))
+	}
+	counts, err := lists.CountsByCreator(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range members {
+		if want := map[string]int{"mila": 1}[m.Username]; counts[m.ID] != want {
+			t.Errorf("%s has %d lists, want %d", m.Username, counts[m.ID], want)
+		}
 	}
 }

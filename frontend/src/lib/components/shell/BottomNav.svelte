@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import CircleUserRound from '@lucide/svelte/icons/circle-user-round';
+	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { flushSync } from 'svelte';
@@ -30,7 +31,7 @@
 	// What the reader is looking at: an open sheet takes the pill, and it
 	// goes back to the place when the sheet closes.
 	const current = $derived(youOpen ? 'you' : palette.open ? 'search' : place);
-	const slot = $derived(current === 'recipes' ? 0 : current === 'search' ? 1 : 2);
+	const slot = $derived({ recipes: 0, lists: 1, search: 2, you: 3 }[current]);
 
 	function onScroll() {
 		if (phone.current) bottomNav.docked = docked(window.scrollY);
@@ -64,12 +65,13 @@
 <svelte:window onscroll={onScroll} />
 
 <!--
-	The phone's way around: one bar of three icons - a book for the recipes, a
-	lens for search, a person for you - and New, the one action that makes
-	something, as a primary circle at its end. No word is printed in it, so no
-	language can squeeze it: the three places are equal slots in every locale
-	and on every page, and the names are the buttons' accessible names. The
-	current place sits on an accent pill that glides between the slots.
+	The phone's way around: one bar of four icons - a book for the recipes, a
+	basket for the shopping lists, a lens for search, a person for you - and
+	New, the one action that makes something, as a primary circle at its end.
+	No word is printed in it, so no language can squeeze it: the four places
+	are equal slots in every locale and on every page, and the names are the
+	buttons' accessible names. The current place sits on an accent pill that
+	glides between the slots.
 
 	At the top of a page the bar floats like a control; once reading starts
 	(`docked`) it settles onto the bottom edge, a step in from the sides with
@@ -95,7 +97,7 @@
 	<nav aria-label={m.nav_main()} class="relative flex flex-1 items-center">
 		<span
 			aria-hidden="true"
-			class="absolute inset-y-0 left-0 w-1/3 rounded-pill bg-accent transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none"
+			class="absolute inset-y-0 left-0 w-1/4 rounded-pill bg-accent transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none"
 			style:transform="translateX({slot * 100}%)"
 		></span>
 		<a
@@ -107,6 +109,15 @@
 			class="{item} {itemState('recipes')}"
 		>
 			<BookOpen class="size-6" aria-hidden="true" />
+		</a>
+		<a
+			href={resolve('/lists')}
+			aria-label={m.nav_lists()}
+			aria-current={place === 'lists' ? 'page' : undefined}
+			data-current={current === 'lists' ? '' : undefined}
+			class="{item} {itemState('lists')}"
+		>
+			<ShoppingBasket class="size-6" aria-hidden="true" />
 		</a>
 		<button
 			type="button"
