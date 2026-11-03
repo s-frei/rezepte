@@ -8,6 +8,9 @@ import {
 	markCommentsSeen,
 	uploadCommentImage
 } from './comments';
+import { uploadWithProgress } from './upload';
+
+vi.mock('./upload', () => ({ uploadWithProgress: vi.fn(async () => ({})) }));
 
 function mockFetch(status: number, body?: unknown) {
 	const fn = vi.fn(
@@ -53,29 +56,12 @@ it('sends imageIds only when given', async () => {
 	expect(sent(fetch)[1].body).toBe('{"body":"hi"}');
 });
 
-it('uploads a photo as multipart over XHR without a Content-Type', async () => {
-	const calls: { method: string; url: string; headers: string[]; body: unknown }[] = [];
-	class Xhr {
-		upload = {};
-		status = 201;
-		responseText = '{"id":"i","width":1,"height":1,"inRecipe":false}';
-		onload?: () => void;
-		open(method: string, url: string) {
-			calls.push({ method, url, headers: [], body: null });
-		}
-		setRequestHeader(name: string) {
-			calls[0].headers.push(name);
-		}
-		send(body: unknown) {
-			calls[0].body = body;
-			queueMicrotask(() => this.onload?.());
-		}
-	}
-	vi.stubGlobal('XMLHttpRequest', Xhr);
+it('uploads a photo as multipart without a Content-Type', async () => {
 	await uploadCommentImage('r/1', new File(['x'], 'a.png', { type: 'image/png' }));
-	expect(calls[0].url).toContain('/recipes/r%2F1/comment-images');
-	expect(calls[0].body).toBeInstanceOf(FormData);
-	expect(calls[0].headers).not.toContain('Content-Type');
+	const [path, body, opts] = vi.mocked(uploadWithProgress).mock.calls[0];
+	expect(path).toBe('/recipes/r%2F1/comment-images');
+	expect(body).toBeInstanceOf(FormData);
+	expect(opts).not.toHaveProperty('contentType');
 });
 
 it('builds the photo URL', () => {

@@ -4,13 +4,13 @@ const BASE = '/api/v1';
 
 /**
  * POSTs a body with upload progress; fetch cannot report that. Resolves with
- * the parsed JSON on the `expect` status and rejects like `api()` does:
+ * the parsed JSON on any 2xx and rejects like `api()` does:
  * `ApiError(status, problem)`, with status 0 for network, abort and timeout.
  */
 export function uploadWithProgress<T>(
 	path: string,
 	body: FormData | Uint8Array,
-	opts: { contentType?: string; expect: number; onProgress?: (fraction: number) => void }
+	opts: { contentType?: string; onProgress?: (fraction: number) => void } = {}
 ): Promise<T> {
 	return new Promise((resolve, reject) => {
 		const xhr = new XMLHttpRequest();
@@ -30,7 +30,7 @@ export function uploadWithProgress<T>(
 			} catch {
 				// keep {}
 			}
-			if (xhr.status === opts.expect) {
+			if (xhr.status >= 200 && xhr.status < 300) {
 				resolve(parsed as T);
 				return;
 			}

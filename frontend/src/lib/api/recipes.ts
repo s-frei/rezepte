@@ -263,7 +263,6 @@ export function uploadImage(
 	const body = new FormData();
 	body.append('file', file, file.name);
 	return uploadWithProgress<Image>(`/recipes/${encodeURIComponent(recipeId)}/images`, body, {
-		expect: 201,
 		onProgress
 	});
 }

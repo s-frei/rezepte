@@ -5,12 +5,15 @@
 	let {
 		photos,
 		onopen,
+		onmeasure,
 		children
 	}: {
 		/** One to four, in the order shown; `key` is also each cell's `data-sortable-key`. */
 		photos: { key: string; src: string; width: number; height: number }[];
 		/** Tapping photo `index`; without it the photos are pictures, not buttons. */
 		onopen?: (index: number) => void;
+		/** Photo `index` has loaded, at its natural size. */
+		onmeasure?: (index: number, width: number, height: number) => void;
 		/** Drawn over photo `index`: a remove button, an upload state. */
 		children?: Snippet<[index: number]>;
 	} = $props();
@@ -47,6 +50,10 @@
 						loading="lazy"
 						decoding="async"
 						draggable="false"
+						onload={(event) => {
+							const img = event.currentTarget as HTMLImageElement;
+							onmeasure?.(index, img.naturalWidth, img.naturalHeight);
+						}}
 						class="size-full object-cover"
 					/>
 				{/snippet}

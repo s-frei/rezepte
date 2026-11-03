@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { DropdownMenu } from 'bits-ui';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '#lib/api/client.js';
@@ -49,8 +48,6 @@
 	let busy = $state(false);
 	let progress = $state<{ n: number; count: number } | null>(null);
 	let field = $state<HTMLTextAreaElement>();
-	let picker = $state<DiaryPhotos>();
-	const failedAt = $derived(photos.findIndex((photo) => photo.failed));
 	let trigger = $state<HTMLButtonElement | null>(null);
 	// Set when "Edit" closes the menu, so the menu does not hand focus
 	// back to its trigger - the trigger is about to go, the field takes it.
@@ -84,13 +81,9 @@
 		trigger?.focus();
 	}
 
-	function submit(event: SubmitEvent) {
-		event.preventDefault();
-		void save();
-	}
-
 	/** Save, and the retry of a failed photo: uploads what is not up yet, then saves. */
-	async function save() {
+	async function save(event: SubmitEvent) {
+		event.preventDefault();
 		if (busy || !sendable(draft)) return;
 		busy = true;
 		try {
@@ -122,11 +115,7 @@
 		></span>
 	{/if}
 	{#if editing}
-		<form
-			class="flex min-w-0 flex-1 flex-wrap items-end gap-2"
-			onsubmit={submit}
-			onpaste={(event) => picker?.paste(event)}
-		>
+		<form class="flex min-w-0 flex-1 flex-wrap items-end gap-2" onsubmit={save}>
 			<DiaryField
 				bind:value={draft}
 				bind:element={field}
@@ -137,7 +126,7 @@
 			/>
 			<!-- Cancel drops the picked files; after a failed Save some may be up
 			     already, and the sweep takes those. While a save runs it waits. -->
-			<DiaryPhotos bind:this={picker} bind:photos {busy} {title} onretry={save} />
+			<DiaryPhotos bind:photos {busy} {title} />
 			<div class="ml-auto flex gap-2">
 				<Button variant="ghost" disabled={busy} onclick={stopEdit}>{m.common_cancel()}</Button>
 				<Button type="submit" disabled={busy || !sendable(draft)} class="whitespace-nowrap">
@@ -146,12 +135,6 @@
 						: m.common_save()}
 				</Button>
 			</div>
-			{#if failedAt >= 0 && !busy}
-				<p role="alert" class="flex basis-full gap-1.5 text-body-sm text-destructive">
-					<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-					{m.comments_photo_failed({ number: failedAt + 1 })}
-				</p>
-			{/if}
 		</form>
 	{:else}
 		<div

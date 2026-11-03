@@ -4,7 +4,6 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
 	import Check from '@lucide/svelte/icons/check';
-	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import Send from '@lucide/svelte/icons/send';
@@ -59,9 +58,6 @@
 	let deleting = $state<Comment | null>(null);
 	let confirmOpen = $state(false);
 	let composer = $state<HTMLTextAreaElement>();
-	let picker = $state<DiaryPhotos>();
-	// The first photo that did not go up; tapping it sends again.
-	const failedAt = $derived(photos.findIndex((photo) => photo.failed));
 	// Read out after a send or a delete, which otherwise happen silently.
 	let announcement = $state('');
 	// The entry this visit just sent rises into place; nothing else does, so
@@ -115,13 +111,9 @@
 		return error instanceof ApiError && error.status === 422;
 	}
 
-	function submit(event: SubmitEvent) {
-		event.preventDefault();
-		void send();
-	}
-
 	/** Send, and the retry of a failed photo: uploads what is not up yet, then posts. */
-	async function send() {
+	async function send(event: SubmitEvent) {
+		event.preventDefault();
 		if (blocked) return;
 		busy = true;
 		const sent = draft;
@@ -289,7 +281,7 @@
 
 	<!-- One notepad: the field and its send button share the box, which
 	     carries the field's focus ring. -->
-	<form class="mt-5" onsubmit={submit} onpaste={(event) => picker?.paste(event)}>
+	<form class="mt-5" onsubmit={send}>
 		<!-- With photos the collage runs nearly edge to edge and the text starts flush under it. -->
 		<div
 			class="flex flex-wrap items-end gap-x-2 gap-y-1 rounded-3xl border border-border bg-surface-elevated shadow-card has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary {photos.length
@@ -297,7 +289,7 @@
 				: 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
 		>
 			<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
-			<DiaryPhotos bind:this={picker} bind:photos {busy} {title} onretry={send} />
+			<DiaryPhotos bind:photos {busy} {title} />
 			<DiaryField
 				bind:value={draft}
 				bind:element={composer}
@@ -330,12 +322,6 @@
 				</span>
 			</Button>
 		</div>
-		{#if failedAt >= 0 && !busy}
-			<p role="alert" class="mt-2 ml-4 flex gap-1.5 text-body-sm text-destructive md:ml-4.5">
-				<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-				{m.comments_photo_failed({ number: failedAt + 1 })}
-			</p>
-		{/if}
 		<!-- Only true with a keyboard and mouse: on a touch screen Enter breaks the line. -->
 		<p id={hintId} class="mt-2 ml-4 hidden text-micro text-text-muted md:ml-4.5 pointer-fine:block">
 			{m.diary_hint()}

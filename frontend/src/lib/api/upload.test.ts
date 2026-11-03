@@ -20,11 +20,10 @@ class FakeXhr {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('uploadWithProgress', () => {
-	it('resolves the parsed body on the expected status and reports progress', async () => {
+	it('resolves the parsed body on a 2xx and reports progress', async () => {
 		vi.stubGlobal('XMLHttpRequest', FakeXhr);
 		const seen: number[] = [];
 		const p = uploadWithProgress<{ id: string }>('/x', new FormData(), {
-			expect: 201,
 			onProgress: (f) => seen.push(f)
 		});
 		FakeXhr.last.upload.onprogress!({
@@ -42,7 +41,7 @@ describe('uploadWithProgress', () => {
 
 	it('rejects an ApiError carrying status and problem', async () => {
 		vi.stubGlobal('XMLHttpRequest', FakeXhr);
-		const p = uploadWithProgress('/x', new FormData(), { expect: 201 });
+		const p = uploadWithProgress('/x', new FormData());
 		FakeXhr.last.status = 413;
 		FakeXhr.last.responseText = '{"title":"Too large","detail":"over limit"}';
 		FakeXhr.last.onload!();
@@ -54,7 +53,7 @@ describe('uploadWithProgress', () => {
 
 	it('maps a network error to ApiError status 0', async () => {
 		vi.stubGlobal('XMLHttpRequest', FakeXhr);
-		const p = uploadWithProgress('/x', new FormData(), { expect: 201 });
+		const p = uploadWithProgress('/x', new FormData());
 		FakeXhr.last.onerror!();
 		await expect(p).rejects.toMatchObject({ status: 0 });
 	});

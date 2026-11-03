@@ -45,7 +45,6 @@ export function importZip(
 ): Promise<ImportResult> {
 	return uploadWithProgress<ImportResult>('/import', zip, {
 		contentType: 'application/zip',
-		expect: 201,
 		onProgress: onUpload
 	});
 }

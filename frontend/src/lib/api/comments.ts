@@ -60,7 +60,7 @@ export function uploadCommentImage(
 	return uploadWithProgress<CommentImage>(
 		`/recipes/${encodeURIComponent(recipeId)}/comment-images`,
 		body,
-		{ expect: 201, onProgress }
+		{ onProgress }
 	);
 }
 
