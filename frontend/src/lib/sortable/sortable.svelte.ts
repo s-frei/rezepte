@@ -1,10 +1,25 @@
 // Reorders a list's `[data-sortable-key]` children by pointer and keyboard.
 // A mouse drags after 4px; a finger lifts the item after a 250ms press (a
-// move of more than 8px before that is a scroll and lets go). The held item
-// follows the pointer at the size it was picked up at, and the slot under the
-// pointer is where it goes: each new slot calls `onmove`, which the caller
-// runs inside `flip` so everything else slides. Alt+Arrow on a focused item
-// moves it by one, or by a row up and down.
+// move of more than 8px before that is a scroll and lets go). While held,
+// the item stays in the list as the landing slot and its face follows the
+// pointer at the size it was picked up at; the slot under the pointer is
+// where it goes: each new slot calls `onmove`, which the caller runs inside
+// `flip` so everything else slides. Alt+Arrow on a focused item moves it by
+// one, or by a row up and down.
+//
+// The CSS contract a component using it adds:
+// - on every item: `user-select: none; -webkit-touch-callout: none;
+//   touch-action: pan-y` - without the touch-action the browser's pan cancels
+//   the press before the long-press lifts it;
+// - `[data-sortable-face]` inside the item, `position: absolute; inset: 0`
+//   (the item is its containing block): it is what follows the pointer, with
+//   its picked-up width and height set inline. Without a face the item itself
+//   moves and no slot stays behind;
+// - `[data-sortable-slot]` on the held item: style it as the landing slot, the
+//   dashed `primary` gap;
+// - `[data-resizing]` on an item while `flip` changes its size: hide what
+//   would stretch with it, such as a ×.
+// `[data-lifted]` marks the held item from the lift to the drop.
 import { tick } from 'svelte';
 import type { Action } from 'svelte/action';
 import { prefersReducedMotion } from 'svelte/motion';
@@ -30,6 +45,8 @@ const LIFT = 1.06;
 
 type Held = {
 	el: HTMLElement;
+	/** What follows the pointer: the item's `[data-sortable-face]`, or the item. */
+	face: HTMLElement;
 	key: string;
 	from: number;
 	pointer: number;
@@ -73,12 +90,12 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	};
 	const scale = () => (prefersReducedMotion.current ? 1 : LIFT);
 
-	/** Puts the held item under the pointer at its picked-up size, from its slot's box. */
+	/** Puts the held face under the pointer at its picked-up size, from its resting box. */
 	function place(h: Held) {
-		h.el.style.transform = '';
-		const slot = h.el.getBoundingClientRect();
+		h.face.style.transform = '';
+		const slot = h.face.getBoundingClientRect();
 		const s = scale();
-		h.el.style.transform =
+		h.face.style.transform =
 			`translate(${h.x - h.gx * s - slot.left}px, ${h.y - h.gy * s - slot.top}px) ` +
 			`scale(${(h.w * s) / slot.width}, ${(h.h * s) / slot.height})`;
 	}
@@ -86,18 +103,24 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	function lift(h: Held, touch: boolean) {
 		h.lifted = true;
 		h.el.setAttribute('data-lifted', '');
-		Object.assign(h.el.style, {
-			transformOrigin: '0 0',
-			boxShadow: 'var(--shadow-lift)',
-			zIndex: '10',
-			pointerEvents: 'none'
-		});
+		Object.assign(h.el.style, { zIndex: '10', pointerEvents: 'none' });
+		Object.assign(h.face.style, { transformOrigin: '0 0', boxShadow: 'var(--shadow-lift)' });
+		if (h.face !== h.el) {
+			h.el.setAttribute('data-sortable-slot', '');
+			// The face keeps its size even when its slot becomes the 2x2 cover.
+			Object.assign(h.face.style, {
+				width: `${h.w}px`,
+				height: `${h.h}px`,
+				right: 'auto',
+				bottom: 'auto'
+			});
+		}
 		place(h);
 		if (!touch) return;
 		navigator.vibrate?.(10);
 		if (!prefersReducedMotion.current)
-			h.liftAnim = h.el.animate(
-				[{ transform: 'none', boxShadow: 'none' }, { transform: h.el.style.transform }],
+			h.liftAnim = h.face.animate(
+				[{ transform: 'none', boxShadow: 'none' }, { transform: h.face.style.transform }],
 				{
 					duration: 160,
 					easing: 'ease-out'
@@ -118,9 +141,11 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		const el = itemAt(e.target);
 		const key = el?.dataset.sortableKey;
 		if (!el || !key || opts.disabled?.(key)) return;
-		const r = el.getBoundingClientRect();
+		const face = el.querySelector<HTMLElement>('[data-sortable-face]') ?? el;
+		const r = face.getBoundingClientRect();
 		const h: Held = {
 			el,
+			face,
 			key,
 			from: opts.keys.indexOf(key),
 			pointer: e.pointerId,
@@ -172,19 +197,28 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		if (!h || e.pointerId !== h.pointer) return;
 		release();
 		if (!h.lifted) return;
-		const el = h.el;
-		const at = el.getBoundingClientRect();
-		Object.assign(el.style, { transform: '', boxShadow: '', pointerEvents: '' });
+		const { el, face } = h;
+		const at = face.getBoundingClientRect();
+		Object.assign(face.style, {
+			transform: '',
+			boxShadow: '',
+			width: '',
+			height: '',
+			right: '',
+			bottom: ''
+		});
+		el.style.pointerEvents = '';
 		el.removeAttribute('data-lifted');
+		el.removeAttribute('data-sortable-slot');
 		// Glide from where it was let go into its slot, whatever the slot's size.
-		const slot = el.getBoundingClientRect();
+		const slot = face.getBoundingClientRect();
 		const glide = prefersReducedMotion.current
-			? el.animate([{ opacity: 0.2 }, { opacity: 1 }], { duration: 160 })
-			: el.animate(
+			? face.animate([{ opacity: 0.2 }, { opacity: 1 }], { duration: 160 })
+			: face.animate(
 					[
 						{
 							transform: `translate(${at.left - slot.left}px, ${at.top - slot.top}px) scale(${at.width / slot.width}, ${at.height / slot.height})`,
-							boxShadow: getComputedStyle(el).getPropertyValue('--shadow-lift')
+							boxShadow: getComputedStyle(face).getPropertyValue('--shadow-lift')
 						},
 						{ transform: 'none', boxShadow: 'none' }
 					],
@@ -193,7 +227,10 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		glide.finished
 			.then(() => ring(el))
 			.catch(() => {})
-			.finally(() => Object.assign(el.style, { zIndex: '', transformOrigin: '' }));
+			.finally(() => {
+				el.style.zIndex = '';
+				face.style.transformOrigin = '';
+			});
 		// The pointerup's own click would open the item that was just put down.
 		if (e.type === 'pointerup') {
 			const swallow = (click: Event) => {
