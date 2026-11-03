@@ -3,7 +3,7 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Settings from '@lucide/svelte/icons/settings';
 	import SunMoon from '@lucide/svelte/icons/sun-moon';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { DropdownMenu } from 'bits-ui';
 	import { session } from '#lib/auth.svelte.js';
@@ -18,6 +18,15 @@
 
 	/** The desktop top bar's avatar menu; a phone reaches the same through the bottom nav's "You". */
 	let { open = $bindable(false) }: { open?: boolean } = $props();
+
+	// Back and forward navigate without a tap in the menu; it closes with
+	// them, as the You sheet does.
+	afterNavigate(({ from, to, type }) => {
+		// A page rewriting its own query (the overview's filters, once its
+		// list arrives) has not been left; anything else closes it.
+		if (type === 'goto' && from?.url.pathname === to?.url.pathname) return;
+		open = false;
+	});
 
 	const user = $derived(session.user);
 

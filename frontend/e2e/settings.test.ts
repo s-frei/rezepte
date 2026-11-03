@@ -796,3 +796,20 @@ test('mail card stacks left-aligned on a 320px phone', async ({ page }) => {
 	expect(lineStarts.length).toBeGreaterThan(0);
 	expect(lineStarts.every((c) => c === '@' || c === '.')).toBe(true);
 });
+
+// The menu sits in the top bar, which every page keeps, so nothing closed it
+// when the back button left the page under it.
+test('the account menu closes with the back button', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'the account menu is the desktop top bar');
+	await login(page);
+	const menuButton = page.getByRole('button', { name: 'Account menu' });
+	await menuButton.click();
+	await page.getByRole('menuitem', { name: 'Settings' }).click();
+	await expect(page).toHaveURL('/settings');
+
+	await menuButton.click();
+	await expect(page.getByRole('menu')).toBeVisible();
+	await page.goBack();
+	await expect(page).toHaveURL('/');
+	await expect(page.getByRole('menu')).toHaveCount(0);
+});

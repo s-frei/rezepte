@@ -318,3 +318,17 @@ test('no bar on a page that does not exist', async ({ page }) => {
 	await expect(page).toHaveURL('/');
 	await expect(bottomNav(page)).toBeVisible();
 });
+
+test('New closes with the back button', async ({ page }) => {
+	await login(page);
+	await bottomNav(page).getByRole('button', { name: 'You' }).click();
+	await page.getByRole('dialog').getByRole('link', { name: 'People' }).click();
+	await expect(page).toHaveURL('/settings/users');
+
+	await page.getByRole('button', { name: 'New', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'New recipe' });
+	await expect(sheet).toBeVisible();
+	await page.goBack();
+	await expect(page).toHaveURL('/');
+	await expect(sheet).toHaveCount(0);
+});

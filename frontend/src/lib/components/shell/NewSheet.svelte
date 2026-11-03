@@ -2,13 +2,22 @@
 	import Import from '@lucide/svelte/icons/import';
 	import PencilLine from '@lucide/svelte/icons/pencil-line';
 	import { Dialog } from 'bits-ui';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
+
+	// Back and forward navigate without a tap in the sheet; it closes with
+	// them, as the You sheet does.
+	afterNavigate(({ from, to, type }) => {
+		// A page rewriting its own query (the overview's filters, once its
+		// list arrives) has not been left; anything else closes it.
+		if (type === 'goto' && from?.url.pathname === to?.url.pathname) return;
+		open = false;
+	});
 
 	function write() {
 		open = false;
