@@ -595,3 +595,22 @@ test('a cover whose delete fails comes back as the cover', async ({ page }) => {
 	expect(stored.images[0].id).toBe(ids[0]);
 	await expect(tiles(page).first().getByText('Cover', { exact: true })).toBeVisible();
 });
+
+test('a press on a photo’s menu button never picks the photo up', async ({ page, isMobile }) => {
+	const { ids } = await editorWithPhotos(page, 3);
+	let saves = 0;
+	page.on('request', (request) => {
+		if (isOrderSave(request)) saves++;
+	});
+
+	await drag(
+		page,
+		isMobile,
+		page.getByRole('button', { name: 'Photo 3 options' }),
+		tiles(page).nth(1)
+	);
+	await page.waitForTimeout(300);
+
+	expect(saves).toBe(0);
+	expect(await order(page)).toEqual(ids);
+});

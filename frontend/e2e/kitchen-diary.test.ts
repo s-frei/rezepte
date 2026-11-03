@@ -477,6 +477,21 @@ test('reorders picked photos and posts them in that order', async ({ page }) => 
 	await expect(entries(page).locator('img').first()).toHaveAttribute('width', '96');
 });
 
+test('a press on a picked photo’s remove button never picks the photo up', async ({ page }) => {
+	await freshDiary(page, 'Remove press');
+	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
+	const cells = composerPhotos(page).getByRole('listitem');
+	await expect(cells).toHaveCount(3);
+	const widths = () =>
+		cells.locator('img').evaluateAll((imgs) => imgs.map((i) => i.getAttribute('width')));
+	const before = await widths();
+
+	await drag(page, diary(page).getByRole('button', { name: 'Remove photo 3' }), cells.nth(0));
+
+	await expect(composerPhotos(page).locator('[data-lifted]')).toHaveCount(0);
+	expect(await widths()).toEqual(before);
+});
+
 test('retrying a failed photo posts the comment', async ({ page }) => {
 	await freshDiary(page, 'Tap retry');
 	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());

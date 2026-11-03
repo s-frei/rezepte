@@ -14,7 +14,10 @@
 // - `[data-sortable-face]` inside the item, `position: absolute; inset: 0`
 //   (the item is its containing block): it is what follows the pointer, with
 //   its picked-up width and height set inline. Without a face the item itself
-//   moves and no slot stays behind;
+//   moves and no slot stays behind. Clipping (`overflow: hidden`) and rounding
+//   go on the face, never on the item: the item would cut off the lifted face;
+// - `[data-sortable-ignore]` on a control inside an item that has a press of
+//   its own, such as a menu button or a ×: a press there never picks it up;
 // - `[data-sortable-slot]` on the held item: style it as the landing slot, the
 //   dashed `primary` gap;
 // - `[data-resizing]` on an item while `flip` changes its size: hide what
@@ -138,6 +141,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 
 	function down(e: PointerEvent) {
 		if (held || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+		if (e.target instanceof Element && e.target.closest('[data-sortable-ignore]')) return;
 		const el = itemAt(e.target);
 		const key = el?.dataset.sortableKey;
 		if (!el || !key || opts.disabled?.(key)) return;
@@ -259,6 +263,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 
 	function keydown(e: KeyboardEvent) {
 		if (!e.altKey || held) return;
+		if (e.target instanceof Element && e.target.closest('[data-sortable-ignore]')) return;
 		const el = itemAt(e.target);
 		const key = el?.dataset.sortableKey;
 		if (!el || !key || opts.disabled?.(key)) return;

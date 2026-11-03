@@ -580,6 +580,7 @@
 							{/if}
 							<DropdownMenu.Root>
 								<DropdownMenu.Trigger
+									data-sortable-ignore
 									aria-label={m.images_actions({ number: index + 1 })}
 									class="group/more absolute top-0 right-0 grid size-10 place-items-center text-text outline-none group-data-resizing:opacity-0"
 								>

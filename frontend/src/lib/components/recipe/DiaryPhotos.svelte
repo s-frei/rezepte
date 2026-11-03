@@ -195,6 +195,7 @@
 		<button
 			type="button"
 			data-remove
+			data-sortable-ignore
 			onclick={() => remove(index)}
 			aria-label={m.diary_photo_remove({ n: number })}
 			class="group absolute top-0 right-0 grid size-10 place-items-center transition-opacity focus-visible:outline-none in-data-resizing:opacity-0 in-data-resizing:transition-none"
