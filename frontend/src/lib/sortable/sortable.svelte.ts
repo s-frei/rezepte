@@ -143,6 +143,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		cancelAnimationFrame(h.resizing ?? 0);
 		if (prefersReducedMotion.current) {
 			[h.w, h.h] = [h.slotW, h.slotH];
+			place(h);
 			return;
 		}
 		h.el.setAttribute('data-resizing', '');
@@ -207,6 +208,9 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		const key = el?.dataset.sortableKey;
 		if (!el || !key || opts.disabled?.(key)) return;
 		const face = el.querySelector<HTMLElement>('[data-sortable-face]') ?? el;
+		// An item still sliding or gliding into place is measured where it rests;
+		// the glide's cleanup runs now, not in the middle of this drag.
+		for (const a of el.getAnimations({ subtree: true })) a.cancel();
 		const r = face.getBoundingClientRect();
 		const h: Held = {
 			el,

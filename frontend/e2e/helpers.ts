@@ -582,20 +582,26 @@ export async function selectInStep(step: Locator, word: string, what: 'word' | '
  * Holds a finger on `target` for 1.2s through Chrome's own gesture pipeline,
  * so its long-press fires (selection, context menu) as on a phone. Raw
  * `Input.dispatchTouchEvent` sequences never trigger it. Returns what got
- * selected and which `selectstart`/`contextmenu` reached the document
- * without their default prevented.
+ * selected, which `selectstart`/`contextmenu` reached the document with and
+ * without their default prevented, and whether an item got lifted - so a
+ * test can tell a guarded long-press from one that never fired.
  */
 export async function longPress(
 	page: Page,
 	target: Locator
-): Promise<{ selection: string; unprevented: string[] }> {
+): Promise<{ selection: string; prevented: string[]; unprevented: string[]; lifted: boolean }> {
 	await page.evaluate(() => {
-		const seen: string[] = [];
-		(window as unknown as { unprevented: string[] }).unprevented = seen;
+		const w = window as unknown as { prevented: string[]; unprevented: string[]; lifted: boolean };
+		[w.prevented, w.unprevented, w.lifted] = [[], [], false];
 		for (const type of ['selectstart', 'contextmenu'])
-			document.addEventListener(type, (e) => {
-				if (!e.defaultPrevented) seen.push(`${type} on ${(e.target as Element).tagName}`);
-			});
+			document.addEventListener(type, (e) =>
+				(e.defaultPrevented ? w.prevented : w.unprevented).push(
+					`${type} on ${(e.target as Element).tagName}`
+				)
+			);
+		new MutationObserver(() => {
+			if (document.querySelector('[data-lifted]')) w.lifted = true;
+		}).observe(document.body, { subtree: true, attributeFilter: ['data-lifted'] });
 	});
 	const box = (await target.boundingBox())!;
 	const cdp = await page.context().newCDPSession(page);
@@ -607,8 +613,8 @@ export async function longPress(
 		gestureSourceType: 'touch'
 	});
 	await cdp.detach();
-	return page.evaluate(() => ({
-		selection: String(getSelection()),
-		unprevented: (window as unknown as { unprevented: string[] }).unprevented
-	}));
+	return page.evaluate(() => {
+		const w = window as unknown as { prevented: string[]; unprevented: string[]; lifted: boolean };
+		return { selection: String(getSelection()), ...w };
+	});
 }

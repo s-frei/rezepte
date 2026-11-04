@@ -524,8 +524,10 @@ test('a long press on a picked photo selects nothing and opens no menu', async (
 	await expect(cells).toHaveCount(3);
 	await cells.nth(1).scrollIntoViewIfNeeded();
 
-	const { selection, unprevented } = await longPress(page, cells.nth(1));
+	const { selection, prevented, unprevented, lifted } = await longPress(page, cells.nth(1));
 
+	expect(lifted).toBe(true);
+	expect(prevented).not.toEqual([]);
 	expect(selection).toBe('');
 	expect(unprevented).toEqual([]);
 });
