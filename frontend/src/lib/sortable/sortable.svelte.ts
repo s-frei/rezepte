@@ -5,7 +5,8 @@
 // pointer at the size it was picked up at, or with `faceFollowsSlot` at the
 // size of its slot, easing from one to the next; the slot under the pointer is
 // where it goes: each new slot calls `onmove`, and everything else slides
-// there (`flip`). Alt+Arrow on a focused item moves it one
+// there (`flip`). Held within `EDGE` of the window's top or bottom, the page
+// scrolls, faster the closer it gets. Alt+Arrow on a focused item moves it one
 // place: Left and Up earlier, Right and Down later.
 //
 // The CSS contract a component using it adds:
@@ -54,6 +55,8 @@ export type SortableOptions = {
 };
 
 const LIFT = 1.06;
+/** How close to the window's top or bottom a held item scrolls the page, in px. */
+const EDGE = 64;
 
 type Held = {
 	el: HTMLElement;
@@ -76,6 +79,7 @@ type Held = {
 	slotW: number;
 	slotH: number;
 	resizing?: number;
+	scrolling?: number;
 	lifted: boolean;
 	timer?: ReturnType<typeof setTimeout>;
 	liftAnim?: Animation;
@@ -193,8 +197,10 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	function release() {
 		clearTimeout(held?.timer);
 		cancelAnimationFrame(held?.resizing ?? 0);
+		cancelAnimationFrame(held?.scrolling ?? 0);
 		held?.el.removeAttribute('data-resizing');
 		held = null;
+		removeEventListener('keydown', keysWhileHeld, true);
 		removeEventListener('pointermove', move);
 		removeEventListener('scroll', scroll);
 		removeEventListener('pointerup', up);
@@ -233,15 +239,56 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		};
 		held = h;
 		if (e.pointerType !== 'mouse') h.timer = setTimeout(() => lift(h, true), 250);
+		addEventListener('keydown', keysWhileHeld, true);
 		addEventListener('pointermove', move);
 		addEventListener('pointerup', up);
 		addEventListener('pointercancel', up);
 		addEventListener('scroll', scroll, { passive: true });
 	}
 
-	// The page scrolling under a held item moves its slot, not the pointer.
+	// The page scrolling under a held item moves its slot and what is under
+	// the pointer, not the pointer.
 	function scroll() {
-		if (held?.lifted) place(held);
+		if (!held?.lifted) return;
+		track(held);
+		place(held);
+	}
+
+	// Scrolls the page while the pointer stays near the window's top or bottom.
+	function autoscroll(h: Held) {
+		cancelAnimationFrame(h.scrolling ?? 0);
+		const step = () => {
+			if (held !== h) return;
+			const v = h.y < EDGE ? h.y - EDGE : h.y > innerHeight - EDGE ? h.y - innerHeight + EDGE : 0;
+			if (!v) return;
+			scrollBy(0, Math.round(v / 5));
+			h.scrolling = requestAnimationFrame(step);
+		};
+		h.scrolling = requestAnimationFrame(step);
+	}
+
+	// Alt+Arrow mid-drag would reach the browser (Alt+Left is Back) with focus anywhere.
+	function keysWhileHeld(e: KeyboardEvent) {
+		if (e.altKey && e.key.startsWith('Arrow')) e.preventDefault();
+	}
+
+	/** Moves the held item to the slot under the pointer, once per slot. */
+	function track(h: Held) {
+		const over = restingAt(h);
+		if (over === h.over) return;
+		h.over = null;
+		if (!over || over === h.key) return;
+		h.over = over;
+		const [from, to] = [opts.keys.indexOf(h.key), opts.keys.indexOf(over)];
+		// The face follows its slot in the render that moves it.
+		void flip(node, () => opts.onmove(from, to), {
+			after: () => {
+				if (held !== h) return;
+				// First, before anything measures: the face at its old slot's place could hang past the edge.
+				place(h);
+				if (opts.faceFollowsSlot && h.face !== h.el) follow(h);
+			}
+		});
 	}
 
 	function move(e: PointerEvent) {
@@ -256,24 +303,9 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 			if (!h.lifted) return;
 		}
 		h.liftAnim?.cancel();
-		const over = restingAt(h);
-		if (over !== h.over) {
-			h.over = null;
-			if (over && over !== h.key) {
-				h.over = over;
-				const [from, to] = [opts.keys.indexOf(h.key), opts.keys.indexOf(over)];
-				// The face follows its slot in the render that moves it.
-				void flip(node, () => opts.onmove(from, to), {
-					after: () => {
-						if (held !== h) return;
-						// First, before anything measures: the face at its old slot's place could hang past the edge.
-						place(h);
-						if (opts.faceFollowsSlot && h.face !== h.el) follow(h);
-					}
-				});
-			}
-		}
+		track(h);
 		place(h);
+		autoscroll(h);
 	}
 
 	function up(e: PointerEvent) {

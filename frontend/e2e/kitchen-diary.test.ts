@@ -312,7 +312,8 @@ const entries = (page: Page) =>
 // read as the comment's, which would unstage the photos that went up.
 for (const status of [500, 422]) {
 	test(`a failed upload (${status}) marks its tile and the retry sends only that photo`, async ({
-		page
+		page,
+		isMobile
 	}) => {
 		await freshDiary(page, 'Retry');
 		const pending = diary(page).getByRole('list', { name: 'Photos in this comment' });
@@ -344,7 +345,7 @@ for (const status of [500, 422]) {
 		await expect(
 			diary(page)
 				.getByRole('alert')
-				.getByText('Photo 2 could not be uploaded. Tap it to try again.')
+				.getByText(`Photo 2 could not be uploaded. ${isMobile ? 'Tap' : 'Click'} it to try again.`)
 		).toBeVisible();
 		expect(uploads).toBe(2);
 
@@ -532,7 +533,7 @@ test('a long press on a picked photo selects nothing and opens no menu', async (
 	expect(unprevented).toEqual([]);
 });
 
-test('retrying a failed photo posts the comment', async ({ page }) => {
+test('retrying a failed photo posts the comment', async ({ page, isMobile }) => {
 	await freshDiary(page, 'Tap retry');
 	await diary(page).getByLabel('Add photos').setInputFiles(threeShapes());
 	let uploads = 0;
@@ -544,7 +545,7 @@ test('retrying a failed photo posts the comment', async ({ page }) => {
 	const retry = composerPhotos(page).getByRole('button', { name: /^Photo 2 could not/ });
 	await expect(retry).toBeVisible();
 	await expect(diary(page).getByRole('alert')).toHaveText(
-		'Photo 2 could not be uploaded. Tap it to try again.'
+		`Photo 2 could not be uploaded. ${isMobile ? 'Tap' : 'Click'} it to try again.`
 	);
 	// The text and the other photos stay; tapping the photo sends without another Send.
 	await retry.click();

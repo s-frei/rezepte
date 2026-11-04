@@ -711,7 +711,7 @@
 	{#if failed !== -1}
 		<p role="alert" class="mt-3 flex items-start gap-1.5 text-caption text-destructive">
 			<CircleAlert class="mt-px size-4 shrink-0" aria-hidden="true" />
-			{m.images_failed_hint({ number: failed + 1 })}
+			{(coarse.current ? m.images_failed_hint : m.images_failed_hint_mouse)({ number: failed + 1 })}
 		</p>
 	{/if}
 

@@ -454,6 +454,7 @@
 	"comments_photos_hint_touch": "{count}/{max} · Zum Sortieren halten und ziehen",
 	"comments_photos_hint_mouse": "{count}/{max} · Zum Sortieren ziehen",
 	"comments_photo_failed": "Foto {number} konnte nicht hochgeladen werden. Tippe darauf, um es nochmal zu versuchen.",
+	"comments_photo_failed_mouse": "Foto {number} konnte nicht hochgeladen werden. Klicke darauf, um es nochmal zu versuchen.",
 	"comments_photo_uploaded": "Hochgeladen",
 	"comments_photo_moved": "Foto an Stelle {position} von {count} verschoben",
 
@@ -529,6 +530,7 @@
 	"images_retry": "Erneut",
 	"images_retry_photo": "Foto {number} erneut hochladen",
 	"images_failed_hint": "Foto {number} konnte nicht hochgeladen werden. Tippe aufs Foto, um es nochmal zu versuchen.",
+	"images_failed_hint_mouse": "Foto {number} konnte nicht hochgeladen werden. Klicke aufs Foto, um es nochmal zu versuchen.",
 	"images_removed": "Bild entfernt",
 	"images_undo": "Rückgängig",
 

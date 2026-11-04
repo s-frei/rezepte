@@ -454,6 +454,7 @@
 	"comments_photos_hint_touch": "{count}/{max} · Hold and drag to sort",
 	"comments_photos_hint_mouse": "{count}/{max} · Drag to sort",
 	"comments_photo_failed": "Photo {number} could not be uploaded. Tap it to try again.",
+	"comments_photo_failed_mouse": "Photo {number} could not be uploaded. Click it to try again.",
 	"comments_photo_uploaded": "Uploaded",
 	"comments_photo_moved": "Photo moved to position {position} of {count}",
 
@@ -529,6 +530,7 @@
 	"images_retry": "Retry",
 	"images_retry_photo": "Upload photo {number} again",
 	"images_failed_hint": "Photo {number} could not be uploaded. Tap it to try again.",
+	"images_failed_hint_mouse": "Photo {number} could not be uploaded. Click it to try again.",
 	"images_removed": "Photo removed",
 	"images_undo": "Undo",
 

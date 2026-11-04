@@ -427,6 +427,86 @@ test('a vertical swipe over the photos scrolls instead of reordering', async ({
 	expect(saves).toBe(0);
 });
 
+// A held photo scrolls the page near the window's edge, so it reaches a
+// place below the screen: the finger or mouse stays still while it scrolls.
+test('a photo held at the window’s bottom edge scrolls the page and lands further down', async ({
+	page,
+	isMobile
+}) => {
+	await page.setViewportSize({ width: page.viewportSize()!.width, height: 300 });
+	const { ids } = await editorWithPhotos(page, 20);
+	await tiles(page)
+		.nth(1)
+		.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+	await page.evaluate(() => scrollBy(0, -80));
+	expect(
+		await tiles(page)
+			.last()
+			.evaluate((el) => el.getBoundingClientRect().top - innerHeight)
+	).toBeGreaterThan(100);
+	const before = await page.evaluate(() => scrollY);
+	const a = await center(tiles(page).nth(1));
+	const edge = { x: a.x, y: 300 - 12 };
+
+	const saved = page.waitForResponse((response) => isOrderSave(response.request()));
+	const cdp = isMobile ? await page.context().newCDPSession(page) : null;
+	const to = async (point: { x: number; y: number }) =>
+		cdp
+			? cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+			: page.mouse.move(point.x, point.y);
+	if (cdp) {
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [a] });
+		await page.waitForTimeout(350);
+	} else {
+		await page.mouse.move(a.x, a.y);
+		await page.mouse.down();
+	}
+	for (let i = 1; i <= 8; i++) await to({ x: a.x, y: a.y + ((edge.y - a.y) * i) / 8 });
+	await page.waitForFunction(
+		() =>
+			scrollY + innerHeight >= document.documentElement.scrollHeight - 1 ||
+			document.querySelector('#editor-section-images li:last-of-type')!.getBoundingClientRect()
+				.bottom < innerHeight
+	);
+	await page.waitForTimeout(150);
+	const moved = page.locator('#editor-section-images li[data-lifted]');
+	await to({ x: a.x, y: (await moved.evaluate((el) => el.getBoundingClientRect().top)) + 1 });
+	if (cdp) {
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await cdp.detach();
+	} else await page.mouse.up();
+	await saved;
+
+	expect(await page.evaluate(() => scrollY)).toBeGreaterThan(before + 100);
+	expect((await order(page)).indexOf(ids[1])).toBeGreaterThan(12);
+});
+
+test('Alt+Arrow while dragging a photo stays away from the browser', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'a key press during a drag needs a keyboard');
+	const { ids } = await editorWithPhotos(page, 3);
+	await page.evaluate(() => {
+		const w = window as unknown as { keys: boolean[] };
+		w.keys = [];
+		addEventListener('keydown', (e) => {
+			if (e.key.startsWith('Arrow')) w.keys.push(e.defaultPrevented);
+		});
+	});
+	const a = await center(tiles(page).nth(1));
+	await page.mouse.move(a.x, a.y);
+	await page.mouse.down();
+	await page.mouse.move(a.x + 10, a.y + 10);
+	await expect(page.locator('#editor-section-images li[data-lifted]')).toHaveCount(1);
+
+	await page.keyboard.press('Alt+ArrowLeft');
+	await page.mouse.move(a.x, a.y);
+	await page.mouse.up();
+
+	expect(await page.evaluate(() => (window as unknown as { keys: boolean[] }).keys)).toEqual([
+		true
+	]);
+	expect(await order(page)).toEqual(ids);
+});
+
 test('keeps a photo that finished uploading during a reorder', async ({ page, isMobile }) => {
 	const { ids } = await editorWithPhotos(page, 3);
 	const [one, two, three] = ids;
@@ -454,7 +534,10 @@ test('keeps a photo that finished uploading during a reorder', async ({ page, is
 	expect(await order(page)).toEqual(shown);
 });
 
-test('shows upload progress and retries a failed upload by tapping it', async ({ page }) => {
+test('shows upload progress and retries a failed upload by tapping it', async ({
+	page,
+	isMobile
+}) => {
 	await editorWithPhotos(page, 0);
 	let posts = 0;
 	await page.route('**/api/v1/recipes/*/images', async (route) => {
@@ -473,7 +556,9 @@ test('shows upload progress and retries a failed upload by tapping it', async ({
 		.setInputFiles([{ name: 'one.png', mimeType: 'image/png', buffer: tinyPng() }]);
 	const retry = page.getByRole('button', { name: 'Upload photo 1 again' });
 	await expect(retry).toBeVisible();
-	const hint = page.getByText('Photo 1 could not be uploaded. Tap it to try again.');
+	const hint = page.getByText(
+		`Photo 1 could not be uploaded. ${isMobile ? 'Tap' : 'Click'} it to try again.`
+	);
 	await expect(hint).toBeVisible();
 
 	await retry.click();

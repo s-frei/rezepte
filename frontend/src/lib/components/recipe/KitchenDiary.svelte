@@ -2,6 +2,7 @@
 	import { onDestroy, tick } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import Check from '@lucide/svelte/icons/check';
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
@@ -51,6 +52,10 @@
 
 	// The composer below the entries writes new ones only; an entry is
 	// edited in place, in its own bubble (DiaryEntry).
+	// A failed photo is tapped or clicked to try again.
+	const coarse = new MediaQuery('pointer: coarse');
+	const failedText = (number: number) =>
+		(coarse.current ? m.comments_photo_failed : m.comments_photo_failed_mouse)({ number });
 	let draft = $state('');
 	let photos = $state<PendingPhoto[]>([]);
 	let busy = $state(false);
@@ -328,7 +333,7 @@
 		{#if failedAt >= 0 && !busy}
 			<p role="alert" class="mt-2 ml-4 flex gap-1.5 text-body-sm text-destructive md:ml-4.5">
 				<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-				{m.comments_photo_failed({ number: failedAt + 1 })}
+				{failedText(failedAt + 1)}
 			</p>
 		{/if}
 		<!-- Only true with a keyboard and mouse: on a touch screen Enter breaks the line. -->

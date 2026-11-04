@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import Check from '@lucide/svelte/icons/check';
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
@@ -33,6 +34,10 @@
 		hint?: boolean;
 	} = $props();
 
+	// A failed photo is tapped or clicked to try again.
+	const coarse = new MediaQuery('pointer: coarse');
+	const failedText = (number: number) =>
+		(coarse.current ? m.comments_photo_failed : m.comments_photo_failed_mouse)({ number });
 	let collage = $state<HTMLElement>();
 	let input = $state<HTMLInputElement>();
 	let viewing = $state(false);
@@ -133,7 +138,7 @@
 		<!-- Submits the caller's form: the send uploads what is not up yet, then posts. -->
 		<button
 			type="submit"
-			aria-label={m.comments_photo_failed({ number })}
+			aria-label={failedText(number)}
 			class="absolute inset-0 grid place-items-center rounded-md bg-destructive/35 ring-2 ring-destructive ring-inset focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-lightbox-foreground"
 		>
 			<span
@@ -236,7 +241,7 @@
 	{#if hint && failedAt >= 0 && !busy}
 		<p role="alert" class="order-last flex basis-full gap-1.5 text-body-sm text-destructive">
 			<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-			{m.comments_photo_failed({ number: failedAt + 1 })}
+			{failedText(failedAt + 1)}
 		</p>
 	{/if}
 </div>
