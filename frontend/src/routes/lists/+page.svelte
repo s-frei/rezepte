@@ -33,7 +33,7 @@
 			const body = await listShoppingLists();
 			lists = body.items;
 			invited = body.invitations;
-			nav.set(invited.length);
+			nav.count = invited.length;
 		} catch (error) {
 			if (!isSignedOut(error)) toast.error(m.lists_load_error());
 			failed = true;
@@ -44,7 +44,7 @@
 
 	function declined(listId: string) {
 		invited = invited.filter((i) => i.listId !== listId);
-		nav.set(invited.length);
+		nav.count = invited.length;
 	}
 
 	$effect(() => {
@@ -57,7 +57,11 @@
 
 <div class="pt-6 pb-8 md:pt-4">
 	<div class="mb-6 flex items-end justify-between gap-4">
-		<h1 class="font-display text-display-md font-medium md:text-display-lg">{m.lists_title()}</h1>
+		<h1
+			class="min-w-0 font-display text-display-md font-medium hyphens-auto max-[359px]:text-display-sm md:text-display-lg"
+		>
+			{m.lists_title()}
+		</h1>
 		{#if !failed && (lists === undefined || lists.length > 0 || invited.length > 0)}
 			<Button variant="primary" onclick={() => (newOpen = true)} class="max-md:hidden">
 				<Plus class="size-4" aria-hidden="true" />

@@ -113,9 +113,7 @@
 		</a>
 		<a
 			href={resolve('/lists')}
-			aria-label={invitations.count > 0
-				? `${m.nav_lists()}, ${m.nav_lists_invitations({ count: invitations.count })}`
-				: m.nav_lists()}
+			aria-label={invitations.count > 0 ? `${m.nav_lists()}, ${invitations.label}` : m.nav_lists()}
 			aria-current={place === 'lists' ? 'page' : undefined}
 			data-current={current === 'lists' ? '' : undefined}
 			class="{item} {itemState('lists')}"

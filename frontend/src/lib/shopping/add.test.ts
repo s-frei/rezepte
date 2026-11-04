@@ -14,7 +14,7 @@ describe('add to list', () => {
 		expect([...picked]).toEqual(['0:0', '1:0']);
 	});
 	it('orders refs by recipe position', () => {
-		expect(pickedRefs(new Set(['1:0', '0:1', '0:0']))).toEqual([
+		expect(pickedRefs(groups, new Set(['1:0', '0:1', '0:0']))).toEqual([
 			{ group: 0, index: 0 },
 			{ group: 0, index: 1 },
 			{ group: 1, index: 0 }

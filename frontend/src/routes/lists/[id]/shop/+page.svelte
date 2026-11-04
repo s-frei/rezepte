@@ -4,12 +4,6 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
 	import { onMount } from 'svelte';
-	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
-	import { ApiError, isSignedOut } from '#lib/api/client.js';
-	import { addFreeItem, setItemsChecked, type ShoppingList } from '#lib/api/shopping.js';
-	import AddItemField from '#lib/components/shopping/AddItemField.svelte';
 	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
 	import ViewSwitch from '#lib/components/shopping/ViewSwitch.svelte';
@@ -17,15 +11,10 @@
 	import { ScreenWakeLock } from '#lib/recipe/wake-lock.svelte.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
 	import { listHref } from '#lib/shopping/href.js';
+	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
 	import { followList } from '#lib/shopping/live.js';
-	import {
-		checkedRows,
-		groupByDepartment,
-		groupByRecipe,
-		tickedItemRows,
-		type Row
-	} from '#lib/shopping/rows.js';
+	import { listViews } from '#lib/shopping/rows.js';
 	import { listView } from '#lib/shopping/view.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
@@ -34,47 +23,18 @@
 
 	// As on the list page: the server's answer replaces the list, live changes refetch it.
 	// svelte-ignore state_referenced_locally
-	const lst = new ListState(data.list, fail);
-	const list = $derived(lst.list);
+	const lst = new ListState(data.list, failList);
+	// `shown`: what another device just ticked stays in place for a moment.
+	const list = $derived(lst.shown);
 	$effect.pre(() => lst.load(data.list));
 	const listId = $derived(data.list.id);
-	$effect(() => followList(listId, () => void lst.refresh()));
+	$effect(() => followList(listId, (revision) => void lst.follow(revision)));
 
-	const departments = $derived(groupByDepartment(list));
-	const recipes = $derived(groupByRecipe(list));
-	const done = $derived(
-		listView.current === 'department' ? checkedRows(list) : tickedItemRows(list)
+	const { departments, recipes, done, openRows, doneRows } = $derived(
+		listViews(list, listView.current)
 	);
-	const openRows = $derived(departments.reduce((n, g) => n + g.rows.length, 0));
-	const doneRows = $derived(checkedRows(list).length);
 	const progress = $derived((doneRows / Math.max(1, openRows + doneRows)) * 100);
 	let doneOpen = $state(false);
-
-	function fail(error: unknown) {
-		if (isSignedOut(error)) return;
-		if (error instanceof ApiError && error.status === 404) {
-			toast.error(m.list_gone());
-			void goto(resolve('/lists'));
-			return;
-		}
-		toast.error(m.list_action_error());
-	}
-
-	function withChecked(ids: string[], checked: boolean): ShoppingList {
-		const set = new Set(ids);
-		return {
-			...list,
-			items: list.items.map((i) => (set.has(i.id) ? { ...i, checked } : i))
-		};
-	}
-
-	async function toggle(row: Row) {
-		const checked = !row.checked;
-		lst.list = withChecked(row.itemIds, checked);
-		await lst.apply(setItemsChecked(list.id, row.itemIds, checked), () =>
-			withChecked(row.itemIds, !checked)
-		);
-	}
 
 	const wakeLock = new ScreenWakeLock();
 
@@ -96,7 +56,7 @@
 
 <svelte:head><title>{list.name} · {m.list_shop_title()}</title></svelte:head>
 
-<!-- S1: the list without the app's bars; top and add field stay, the rows scroll between. -->
+<!-- S1: the list without the app's bars; the top stays, the rows scroll below it. -->
 <main aria-label={m.list_shop_title()} class="flex h-dvh flex-col bg-surface text-text">
 	<header class="shrink-0 pt-4">
 		<div class={column}>
@@ -104,7 +64,7 @@
 				<a
 					href={listHref(list.id)}
 					aria-label={m.list_shop_close()}
-					class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					class="relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover-tint text-text transition after:absolute after:-inset-[3px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					<X class="size-5" aria-hidden="true" />
 				</a>
@@ -123,7 +83,14 @@
 		</div>
 	</header>
 
-	<div class="min-h-0 flex-1 overflow-y-auto pb-5">
+	<!--
+		The rows fade out at both ends instead of meeting the top and the
+		screen's foot at a hard edge; the padding keeps every row clear of the
+		fades once scrolled to that end.
+	-->
+	<div
+		class="min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_1.5rem,black_calc(100%-2.5rem),transparent)] pt-3 pb-10"
+	>
 		<div class={column}>
 			{#if listView.current === 'department'}
 				{#each departments as group (group.department)}
@@ -138,7 +105,12 @@
 						</h2>
 						<ul>
 							{#each group.rows as row (row.key)}
-								<ShoppingRow {row} shop onToggle={toggle} />
+								<ShoppingRow
+									checkers={list.members.length > 0}
+									{row}
+									shop
+									onToggle={(row) => lst.toggle(row)}
+								/>
 							{/each}
 						</ul>
 					</section>
@@ -174,7 +146,13 @@
 							</div>
 							<ul>
 								{#each rows as row (row.key)}
-									<ShoppingRow {row} bySource shop onToggle={toggle} />
+									<ShoppingRow
+										checkers={list.members.length > 0}
+										{row}
+										bySource
+										shop
+										onToggle={(row) => lst.toggle(row)}
+									/>
 								{/each}
 							</ul>
 						</section>
@@ -202,7 +180,12 @@
 					{#if doneOpen}
 						<ul class="mt-1">
 							{#each done as row (row.key)}
-								<ShoppingRow {row} shop onToggle={toggle} />
+								<ShoppingRow
+									checkers={list.members.length > 0}
+									{row}
+									shop
+									onToggle={(row) => lst.toggle(row)}
+								/>
 							{/each}
 						</ul>
 					{/if}
@@ -211,16 +194,12 @@
 		</div>
 	</div>
 
-	<footer
-		class="mx-auto w-full max-w-[760px] shrink-0 rounded-t-3xl bg-background pt-3.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sheet"
-	>
-		<div class={column}>
-			<AddItemField large onadd={(text) => lst.apply(addFreeItem(list.id, text))} />
-			{#if wakeLock.active}
-				<p class="mt-2 text-center text-label tracking-normal text-text-muted">
-					{m.list_shop_awake()}
-				</p>
-			{/if}
-		</div>
-	</footer>
+	<!-- Nothing is added here: the list is kept before, shopping mode is for ticking. -->
+	{#if wakeLock.active}
+		<footer class="shrink-0 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+			<p class="text-center text-label tracking-normal text-text-muted">
+				{m.list_shop_awake()}
+			</p>
+		</footer>
+	{/if}
 </main>

@@ -6,7 +6,6 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		addFreeItem,
 		clearChecked,
@@ -18,14 +17,13 @@
 		renameShoppingList,
 		setDepartment,
 		setEntryServings,
-		setItemsChecked,
 		type Department,
-		type ShoppingEntry,
-		type ShoppingList
+		type ShoppingEntry
 	} from '#lib/api/shopping.js';
-	import AddItemField from '#lib/components/shopping/AddItemField.svelte';
+	import AddItemCard from '#lib/components/shopping/AddItemCard.svelte';
 	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
 	import EntryMenu from '#lib/components/shopping/EntryMenu.svelte';
+	import PeopleSheet from '#lib/components/shopping/PeopleSheet.svelte';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import IconButton from '#lib/components/ui/IconButton.svelte';
@@ -39,14 +37,8 @@
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { servingsUnit } from '#lib/recipe/format.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
-	import {
-		checkedRows,
-		groupByDepartment,
-		groupByRecipe,
-		listText,
-		tickedItemRows,
-		type Row
-	} from '#lib/shopping/rows.js';
+	import { listText, listViews, type Row } from '#lib/shopping/rows.js';
+	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
 	import { followList } from '#lib/shopping/live.js';
 	import { shopHref } from '#lib/shopping/href.js';
@@ -60,26 +52,18 @@
 	// Starts as the first load; `load` below follows each later one, and every
 	// change replaces the list with the server's answer.
 	// svelte-ignore state_referenced_locally
-	const lst = new ListState(data.list, fail);
-	const list = $derived(lst.list);
+	const lst = new ListState(data.list, failList);
+	// `shown`: what another device just ticked stays in place for a moment.
+	const list = $derived(lst.shown);
 	$effect.pre(() => lst.load(data.list));
 	// Follows the list live: another member's change refetches it.
-	// Only the id: a reload of the same list must not reopen the stream (the first open is not a refetch).
+	// Only the id: a reload of the same list must not reopen the stream (every open refetches).
 	const listId = $derived(data.list.id);
-	$effect(() => followList(listId, () => void lst.refresh()));
-	const apply = (request: Promise<ShoppingList>, revert?: () => ShoppingList) =>
-		lst.apply(request, revert);
+	$effect(() => followList(listId, (revision) => void lst.follow(revision)));
 
-	const departments = $derived(groupByDepartment(list));
-	const recipes = $derived(groupByRecipe(list));
-	// The recipe view shows each item's own tick, so its "Done" holds every ticked item.
-	const done = $derived(
-		listView.current === 'department' ? checkedRows(list) : tickedItemRows(list)
+	const { departments, recipes, done, openRows, doneRows } = $derived(
+		listViews(list, listView.current)
 	);
-	// The header counts what the department view shows: its open rows and its done rows,
-	// so "n offen · m erledigt" agrees with "Erledigt · m" (the overview card counts the same rows).
-	const openRows = $derived(departments.reduce((n, g) => n + g.rows.length, 0));
-	const doneRows = $derived(checkedRows(list).length);
 	const empty = $derived(list.items.length === 0 && list.entries.length === 0);
 
 	let sheetOpen = $state(false);
@@ -96,34 +80,7 @@
 	const owner = $derived(list.owner.id === session.user?.id);
 	const people = $derived([list.owner, ...list.members]);
 	let shareOpen = $state(false);
-
-	function fail(error: unknown) {
-		if (isSignedOut(error)) return;
-		// The list was deleted, or the owner removed me: the server no longer shows it to me.
-		if (error instanceof ApiError && error.status === 404) {
-			toast.error(m.list_gone());
-			void goto(resolve('/lists'));
-			return;
-		}
-		toast.error(m.list_action_error());
-	}
-
-	function withChecked(ids: string[], checked: boolean): ShoppingList {
-		const set = new Set(ids);
-		return {
-			...list,
-			items: list.items.map((i) => (set.has(i.id) ? { ...i, checked } : i))
-		};
-	}
-
-	// Optimistic: the circle flips at once; a failed request flips it back.
-	async function toggle(row: Row) {
-		const checked = !row.checked;
-		lst.list = withChecked(row.itemIds, checked);
-		await apply(setItemsChecked(list.id, row.itemIds, checked), () =>
-			withChecked(row.itemIds, !checked)
-		);
-	}
+	let peopleOpen = $state(false);
 
 	function openSheet(row: Row) {
 		sheetRow = row;
@@ -133,28 +90,22 @@
 	async function pickDepartment(department: Department) {
 		const row = sheetRow;
 		if (!row) return;
-		const ids = new Set(row.itemIds);
+		const before = lst.list;
 		lst.list = {
-			...list,
-			items: list.items.map((i) => (ids.has(i.id) ? { ...i, department } : i))
+			...before,
+			items: before.items.map((i) => (row.itemIds.includes(i.id) ? { ...i, department } : i))
 		};
-		// Taken as a change of its own, so a tick sent meanwhile outranks the reload.
-		const mine = lst.begin();
-		try {
-			await setDepartment(row.name, department);
-		} catch (error) {
-			fail(error);
-		}
-		// The override reaches every item of that name, on this list too; a failed
-		// one is undone by the server's state.
-		if (lst.isLatest(mine)) await apply(getShoppingList(list.id));
-		else await lst.refresh();
+		// The override reaches every item of that name, on this list too: the reload brings it.
+		await lst.apply(
+			setDepartment(row.name, department).then(() => getShoppingList(list.id)),
+			() => before
+		);
 	}
 
 	async function removeSheetRow() {
 		if (!sheetRow) return;
 		sheetOpen = false;
-		await apply(removeItems(list.id, sheetRow.itemIds));
+		await lst.apply(removeItems(list.id, sheetRow.itemIds));
 	}
 
 	async function deleteList() {
@@ -162,7 +113,7 @@
 			await deleteShoppingList(list.id);
 			await goto(resolve('/lists'));
 		} catch (error) {
-			fail(error);
+			failList(error);
 		}
 	}
 
@@ -172,23 +123,38 @@
 			toast.success(m.list_left());
 			await goto(resolve('/lists'));
 		} catch (error) {
-			fail(error);
+			failList(error);
 		}
 	}
 
 	const changeServings = (entry: ShoppingEntry, servings: number) =>
-		apply(setEntryServings(list.id, entry.id, servings));
-	const dropEntry = (entry: ShoppingEntry) => apply(removeEntry(list.id, entry.id));
+		lst.apply(setEntryServings(list.id, entry.id, servings));
+	const dropEntry = (entry: ShoppingEntry) => lst.apply(removeEntry(list.id, entry.id));
+
+	/** The item just added: its row lights up where the list sorted it. */
+	let flashId = $state<string | null>(null);
+	let flashTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function add(text: string, fields: { quantity?: number; unit?: string }) {
+		const before = new Set(list.items.map((i) => i.id));
+		if (!(await lst.apply(addFreeItem(list.id, text, fields)))) return false;
+		// The newest of one's own: a member's item may have come in with the same answer.
+		const item = list.items.findLast(
+			(i) => !before.has(i.id) && i.addedBy?.id === session.user?.id
+		);
+		if (item) {
+			clearTimeout(flashTimer);
+			flashId = item.id;
+			flashTimer = setTimeout(() => (flashId = null), 1800);
+			toast.success(
+				m.list_added_to({ name: item.name, department: departmentLabel(item.department) })
+			);
+		}
+		return true;
+	}
 </script>
 
 <svelte:head><title>{list.name} · {m.app_name()}</title></svelte:head>
-
-{#snippet shop(className: string)}
-	<Button href={shopHref(list.id)} class="shrink-0 {className}">
-		<ShoppingBasket class="size-4" aria-hidden="true" />
-		{m.list_shop()}
-	</Button>
-{/snippet}
 
 <div class="pt-6 pb-8 md:pt-4">
 	<!-- Phone: back and ⋯ above the title; desktop: ⋯ beside it. One menu either way. -->
@@ -204,17 +170,53 @@
 			<h1 class="font-display text-display-md font-medium wrap-break-word md:text-display-lg">
 				{list.name}
 			</h1>
-			<!-- Phone: "Shop" right of the counts; desktop: first in the header's buttons. -->
-			<div class="mt-1.5 flex items-center justify-between gap-3">
-				<p class="text-caption text-text-muted">
-					{m.list_counts({ open: openRows, done: doneRows })}
-				</p>
-				{@render shop('md:hidden')}
-			</div>
+			<!--
+				Phone: "Shop" is the page's main action, a wide button that also
+				carries the counts and fills along its foot as items are ticked.
+				From a tablet on, "Shop" leads the header's buttons and the counts
+				head the list card, beside the view switch.
+			-->
+			<a
+				href={shopHref(list.id)}
+				aria-describedby="list-shop-counts"
+				class="relative mt-4 flex h-14 items-center gap-3 overflow-hidden rounded-2xl bg-primary hover-tint px-5 text-primary-foreground shadow-cta transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.99] md:hidden"
+			>
+				<ShoppingBasket class="size-5 shrink-0" aria-hidden="true" />
+				<span class="text-body font-semibold">{m.list_shop()}</span>
+				<span aria-hidden="true" class="ml-auto text-body-sm whitespace-nowrap opacity-85">
+					<span class="max-[359px]:hidden">{m.list_counts({ open: openRows, done: doneRows })}</span
+					>
+					<span class="min-[360px]:hidden">{m.list_open({ open: openRows })}</span>
+				</span>
+				<span aria-hidden="true" class="absolute inset-x-0 bottom-0 h-1 bg-primary-foreground/25">
+					<span
+						class="block h-full bg-primary-foreground transition-[width] duration-300"
+						style:width="{(doneRows / Math.max(1, openRows + doneRows)) * 100}%"
+					></span>
+				</span>
+			</a>
+			<!-- The counts describe the link without joining its name, "Shop". -->
+			<span id="list-shop-counts" class="sr-only"
+				>{m.list_counts({ open: openRows, done: doneRows })}</span
+			>
 		</div>
 		<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1">
-			{@render shop('max-md:hidden')}
-			{#if people.length > 1}<PeopleStack {people} />{/if}
+			<Button href={shopHref(list.id)} class="shrink-0 max-md:hidden">
+				<ShoppingBasket class="size-4" aria-hidden="true" />
+				{m.list_shop()}
+			</Button>
+			{#if people.length > 1}
+				<!-- Opens who is on the list; from lg on the side card shows them too. -->
+				<button
+					type="button"
+					aria-haspopup="dialog"
+					aria-label={m.list_people_show({ count: people.length })}
+					onclick={() => (peopleOpen = true)}
+					class="rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				>
+					<PeopleStack {people} />
+				</button>
+			{/if}
 			{#if owner}
 				<IconButton label={m.list_share()} onclick={() => (shareOpen = true)} class="md:hidden">
 					<Share2 class="size-[18px]" aria-hidden="true" />
@@ -229,7 +231,7 @@
 				{owner}
 				onshare={() => (shareOpen = true)}
 				onleave={leave}
-				onrename={(name) => apply(renameShoppingList(list.id, name))}
+				onrename={(name) => lst.apply(renameShoppingList(list.id, name))}
 				oncopy={() => copyText(listText(list), m.list_copied())}
 				ondelete={deleteList}
 			/>
@@ -237,119 +239,129 @@
 	</header>
 
 	<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-		<!--
-			View switch A3 with one instance: on a desktop it sits right of the add
-			field in the first row; on a phone it moves into the list card's first
-			row, over the card's background (an empty grid cell spanning the
-			switch's row and the content's), with a dashed rule below it.
-		-->
-		<div class="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3">
-			<AddItemField
-				class="md:col-start-1 md:row-start-1"
-				onadd={(text) => apply(addFreeItem(list.id, text))}
-			/>
-			<div
-				aria-hidden="true"
-				class="col-span-full row-start-2 row-end-4 mt-4 rounded-2xl bg-surface shadow-card md:row-end-3"
-			></div>
-			<div
-				class="col-start-1 row-start-2 mx-4.5 mt-4 border-b border-dashed border-border pt-3.5 pb-3.5 md:col-start-2 md:row-start-1 md:m-0 md:border-0 md:p-0"
-			>
-				<ViewSwitch />
-			</div>
-			<div
-				class="col-span-full row-start-3 px-4.5 pb-3 md:row-start-2 md:mt-4 md:px-6 md:pt-1.5 md:pb-4"
-			>
-				{#if empty}
-					<div class="py-10 text-center">
-						<p class="font-display text-heading font-medium">{m.list_empty_title()}</p>
-						<p class="mx-auto mt-1.5 max-w-sm text-body text-text-muted">{m.list_empty_text()}</p>
-					</div>
-				{:else if listView.current === 'department'}
-					{#each departments as group (group.department)}
-						<section>
-							<h2
-								class="mt-4.5 mb-0.5 flex items-baseline justify-between gap-3 font-display text-body-lg font-medium text-primary italic"
-							>
-								{departmentLabel(group.department)}
-								<span class="font-sans text-caption font-semibold text-text-muted not-italic"
-									>{group.rows.length}</span
+		<div class="min-w-0">
+			<AddItemCard onadd={add} />
+			<div class="mt-4 rounded-2xl bg-surface shadow-card">
+				<div
+					class="mx-4.5 border-b border-dashed border-border py-3.5 md:mx-6 md:flex md:items-center md:justify-between md:py-3"
+				>
+					<p class="text-caption text-text-muted max-md:hidden">
+						{m.list_counts({ open: openRows, done: doneRows })}
+					</p>
+					<ViewSwitch compact />
+				</div>
+				<div class="px-4.5 pb-3 md:px-6 md:pt-1.5 md:pb-4">
+					{#if empty}
+						<div class="py-10 text-center">
+							<p class="font-display text-heading font-medium">{m.list_empty_title()}</p>
+							<p class="mx-auto mt-1.5 max-w-sm text-body text-text-muted">{m.list_empty_text()}</p>
+						</div>
+					{:else if listView.current === 'department'}
+						{#each departments as group (group.department)}
+							<section>
+								<h2
+									class="mt-4.5 mb-0.5 flex items-baseline justify-between gap-3 font-display text-body-lg font-medium text-primary italic"
 								>
-							</h2>
-							<ul>
-								{#each group.rows as row (row.key)}
-									<ShoppingRow {row} onToggle={toggle} onOpen={openSheet} />
-								{/each}
-							</ul>
-						</section>
-					{/each}
-				{:else}
-					{#each recipes as group, i (group.entry?.id ?? 'free')}
-						{@const rows = group.rows.filter((r) => !r.checked)}
-						{#if group.entry || rows.length > 0}
-							<section class={i > 0 ? 'mt-2 border-t border-border' : ''}>
-								<div class="flex items-center gap-3 pt-4 pb-1">
-									{#if group.entry}
-										{@const entry = group.entry}
-										<EntryCover entry={group.entry} class="size-10 text-body-lg" />
-										<div class="min-w-0 flex-1">
-											<h2 class="font-display text-card font-medium text-pretty">
-												{group.entry.title}
-											</h2>
-											<p class="text-caption text-text-muted">
-												{group.entry.servings}
-												{servingsUnit(group.entry.servings)}
-											</p>
-										</div>
-										<EntryMenu
-											{entry}
-											onservings={(n) => changeServings(entry, n)}
-											onremove={() => dropEntry(entry)}
-										/>
-									{:else}
-										<span
-											aria-hidden="true"
-											class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"
-										>
-											<Plus class="size-[18px]" />
-										</span>
-										<div class="min-w-0 flex-1">
-											<h2 class="font-display text-card font-medium">{m.list_free_items()}</h2>
-											<p class="text-caption text-text-muted">{m.list_free_items_hint()}</p>
-										</div>
-									{/if}
-								</div>
+									{departmentLabel(group.department)}
+									<span class="font-sans text-caption font-semibold text-text-muted not-italic"
+										>{group.rows.length}</span
+									>
+								</h2>
 								<ul>
-									{#each rows as row (row.key)}
-										<ShoppingRow {row} bySource onToggle={toggle} onOpen={openSheet} />
+									{#each group.rows as row (row.key)}
+										<ShoppingRow
+											checkers={people.length > 1}
+											{row}
+											flash={!!flashId && row.itemIds.includes(flashId)}
+											onToggle={(row) => lst.toggle(row)}
+											onOpen={openSheet}
+										/>
 									{/each}
 								</ul>
 							</section>
-						{/if}
-					{/each}
-				{/if}
+						{/each}
+					{:else}
+						{#each recipes as group, i (group.entry?.id ?? 'free')}
+							{@const rows = group.rows.filter((r) => !r.checked)}
+							{#if group.entry || rows.length > 0}
+								<section class={i > 0 ? 'mt-2 border-t border-border' : ''}>
+									<div class="flex items-center gap-3 pt-4 pb-1">
+										{#if group.entry}
+											{@const entry = group.entry}
+											<EntryCover entry={group.entry} class="size-10 text-body-lg" />
+											<div class="min-w-0 flex-1">
+												<h2 class="font-display text-card font-medium text-pretty">
+													{group.entry.title}
+												</h2>
+												<p class="text-caption text-text-muted">
+													{group.entry.servings}
+													{servingsUnit(group.entry.servings)}
+												</p>
+											</div>
+											<EntryMenu
+												{entry}
+												onservings={(n) => changeServings(entry, n)}
+												onremove={() => dropEntry(entry)}
+											/>
+										{:else}
+											<span
+												aria-hidden="true"
+												class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"
+											>
+												<Plus class="size-[18px]" />
+											</span>
+											<div class="min-w-0 flex-1">
+												<h2 class="font-display text-card font-medium">{m.list_free_items()}</h2>
+												<p class="text-caption text-text-muted">{m.list_free_items_hint()}</p>
+											</div>
+										{/if}
+									</div>
+									<ul>
+										{#each rows as row (row.key)}
+											<ShoppingRow
+												checkers={people.length > 1}
+												{row}
+												bySource
+												flash={!!flashId && row.itemIds.includes(flashId)}
+												onToggle={(row) => lst.toggle(row)}
+												onOpen={openSheet}
+											/>
+										{/each}
+									</ul>
+								</section>
+							{/if}
+						{/each}
+					{/if}
 
-				{#if done.length > 0}
-					<section class="mt-5">
-						<div class="flex items-center justify-between gap-2">
-							<h2 class="font-display text-body-lg font-medium text-text-muted italic">
-								{m.list_done_heading({ count: done.length })}
-							</h2>
-							<button
-								type="button"
-								onclick={() => apply(clearChecked(list.id))}
-								class="h-8 rounded-pill px-1 text-body-sm font-semibold text-primary transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-							>
-								{m.list_clear_checked()}
-							</button>
-						</div>
-						<ul>
-							{#each done as row (row.key)}
-								<ShoppingRow {row} onToggle={toggle} onOpen={openSheet} />
-							{/each}
-						</ul>
-					</section>
-				{/if}
+					{#if done.length > 0}
+						<section class="mt-5">
+							<div class="flex items-center justify-between gap-2">
+								<h2 class="font-display text-body-lg font-medium text-text-muted italic">
+									{m.list_done_heading({ count: done.length })}
+								</h2>
+								<!-- A 44px target grown upward: the first done row's target starts right below. -->
+								<button
+									type="button"
+									onclick={() => lst.apply(clearChecked(list.id))}
+									class="relative h-8 rounded-pill px-1 text-body-sm font-semibold text-primary transition after:absolute after:inset-x-0 after:-top-[13px] after:bottom-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+								>
+									{m.list_clear_checked()}
+								</button>
+							</div>
+							<ul>
+								{#each done as row (row.key)}
+									<ShoppingRow
+										checkers={people.length > 1}
+										{row}
+										flash={!!flashId && row.itemIds.includes(flashId)}
+										onToggle={(row) => lst.toggle(row)}
+										onOpen={openSheet}
+									/>
+								{/each}
+							</ul>
+						</section>
+					{/if}
+				</div>
 			</div>
 		</div>
 
@@ -364,7 +376,13 @@
 	</div>
 </div>
 
-<ShareDialog bind:open={shareOpen} {list} {apply} />
+<PeopleSheet bind:open={peopleOpen} {list} onshare={owner ? () => (shareOpen = true) : undefined} />
+
+<ShareDialog
+	bind:open={shareOpen}
+	{list}
+	apply={(request, onfail) => lst.apply(request, undefined, onfail)}
+/>
 
 <ItemSheet
 	bind:open={sheetOpen}

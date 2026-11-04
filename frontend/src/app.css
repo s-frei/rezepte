@@ -157,6 +157,15 @@
 			transform: scale(0.6);
 		}
 	}
+	/* A shopping item just added, lighting up where the list sorted it. */
+	--animate-flash: flash 1800ms var(--ease-glide) both;
+
+	@keyframes flash {
+		from,
+		30% {
+			background-color: var(--color-accent);
+		}
+	}
 	/* A select's list opening out of its trigger; under reduced motion it
 	   only fades (`animate-appear`). Closing is instant. */
 	--animate-drop: drop 120ms var(--ease-glide) both;

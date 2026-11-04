@@ -43,7 +43,6 @@ func newAPI(t *testing.T) api {
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
 	svc := shopping.NewService(conn)
-	svc.SetHub(shopping.NewHub())
 	shopping.Register(srv.API(), svc)
 	return api{h: srv.Handler(), conn: conn, tokens: tokens, users: users}
 }

@@ -4,7 +4,7 @@ import { followList } from './live';
 class FakeSource {
 	static last: FakeSource;
 	static CLOSED = 2;
-	listeners: Record<string, (() => void)[]> = {};
+	listeners: Record<string, ((event: { data?: string }) => void)[]> = {};
 	closed = false;
 	readyState = 1;
 	constructor(
@@ -13,15 +13,15 @@ class FakeSource {
 	) {
 		FakeSource.last = this;
 	}
-	addEventListener(type: string, fn: () => void) {
+	addEventListener(type: string, fn: (event: { data?: string }) => void) {
 		(this.listeners[type] ??= []).push(fn);
 	}
 	close() {
 		this.closed = true;
 		this.readyState = 2;
 	}
-	emit(type: string) {
-		for (const fn of this.listeners[type] ?? []) fn();
+	emit(type: string, data?: string) {
+		for (const fn of this.listeners[type] ?? []) fn({ data });
 	}
 }
 const Source = FakeSource as unknown as typeof EventSource;
@@ -40,15 +40,31 @@ describe('followList', () => {
 		expect(onchange).toHaveBeenCalledTimes(1);
 	});
 
-	it('refetches after a reconnect but not on the first open', () => {
+	it("passes a burst's highest revision, none when an open joined it", () => {
+		const onchange = vi.fn();
+		followList('l1', onchange, Source);
+		FakeSource.last.emit('changed', '{"revision":5}');
+		FakeSource.last.emit('changed', '{"revision":3}');
+		vi.advanceTimersByTime(200);
+		expect(onchange).toHaveBeenLastCalledWith(5);
+		FakeSource.last.emit('changed', '{"revision":7}');
+		FakeSource.last.emit('open');
+		vi.advanceTimersByTime(200);
+		expect(onchange).toHaveBeenLastCalledWith(undefined);
+		FakeSource.last.emit('changed', '{}');
+		vi.advanceTimersByTime(200);
+		expect(onchange).toHaveBeenLastCalledWith(undefined);
+	});
+
+	it('refetches on every open, the first included (a change may land before it)', () => {
 		const onchange = vi.fn();
 		followList('l1', onchange, Source);
 		FakeSource.last.emit('open');
 		vi.advanceTimersByTime(200);
-		expect(onchange).not.toHaveBeenCalled();
+		expect(onchange).toHaveBeenCalledTimes(1);
 		FakeSource.last.emit('open');
 		vi.advanceTimersByTime(200);
-		expect(onchange).toHaveBeenCalledTimes(1);
+		expect(onchange).toHaveBeenCalledTimes(2);
 	});
 
 	it('refetches once when the stream is closed for good, so a 404 surfaces', () => {

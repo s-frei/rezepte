@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -33,24 +32,11 @@ type commentOut struct {
 	Photos    int        `json:"photos" jsonschema:"How many photos the comment has"`
 }
 
-func (c caller) recipeID(ctx context.Context, in getIn) (string, error) {
-	if (in.ID == "") == (in.Slug == "") {
-		return "", errors.New("pass exactly one of id or slug")
-	}
-	if in.ID != "" {
-		return in.ID, nil
-	}
-	r, err := c.svc.BySlug(ctx, in.Slug)
-	if err != nil {
-		return "", toolError(ctx, fmt.Errorf("get recipe: %w", err))
-	}
-	return r.ID, nil
-}
-
-// recipe loads the recipe named by exactly one of id or slug.
-func (c caller) recipe(ctx context.Context, id, slug string) (recipe.Recipe, error) {
+// recipe loads the recipe named by exactly one of id or slug; idName is the
+// tool's name for the id field, for the error message.
+func (c caller) recipe(ctx context.Context, idName, id, slug string) (recipe.Recipe, error) {
 	if (id == "") == (slug == "") {
-		return recipe.Recipe{}, errors.New("pass exactly one of recipeId or slug")
+		return recipe.Recipe{}, fmt.Errorf("pass exactly one of %s or slug", idName)
 	}
 	var r recipe.Recipe
 	var err error
@@ -79,11 +65,11 @@ func addListComments(s *mcp.Server, c caller) {
 		Description: "Read a recipe's comments: what household members wrote about cooking it, oldest first. new marks comments by others since the token owner last opened the recipe's comments in the app; reading here does not change that. Pass exactly one of id or slug.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getIn) (*mcp.CallToolResult, any, error) {
-		id, err := c.recipeID(ctx, in)
+		r, err := c.recipe(ctx, "id", in.ID, in.Slug)
 		if err != nil {
 			return nil, nil, err
 		}
-		list, err := c.svc.Comments(ctx, c.user, id)
+		list, err := c.svc.Comments(ctx, c.user, r.ID)
 		if err != nil {
 			return nil, nil, toolError(ctx, fmt.Errorf("list comments: %w", err))
 		}
@@ -101,11 +87,11 @@ func addAddComment(s *mcp.Server, c caller) {
 		Description: "Write a comment on a recipe as the token owner, visible to the whole household. Plain text, 1 to 2000 characters. Pass exactly one of id or slug.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: false, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in addCommentIn) (*mcp.CallToolResult, any, error) {
-		id, err := c.recipeID(ctx, in.getIn)
+		r, err := c.recipe(ctx, "id", in.ID, in.Slug)
 		if err != nil {
 			return nil, nil, err
 		}
-		e, err := c.svc.AddComment(ctx, c.user, id, in.Body, nil)
+		e, err := c.svc.AddComment(ctx, c.user, r.ID, in.Body, nil)
 		if err != nil {
 			return nil, nil, toolError(ctx, fmt.Errorf("add comment: %w", err))
 		}

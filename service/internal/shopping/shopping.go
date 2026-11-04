@@ -24,10 +24,12 @@ type List struct {
 	CreatedBy string    `json:"createdBy"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
-	OpenCount int       `json:"openCount"`
-	DoneCount int       `json:"doneCount"`
-	Entries   []Entry   `json:"entries"`
-	Items     []Item    `json:"items"`
+	// Revision counts the list's changes; the live stream sends it too.
+	Revision  int64   `json:"revision"`
+	OpenCount int     `json:"openCount"`
+	DoneCount int     `json:"doneCount"`
+	Entries   []Entry `json:"entries"`
+	Items     []Item  `json:"items"`
 	// Owner is the creator. Members are the accepted people, oldest first;
 	// Pending are invitees still waiting and is empty unless the caller is
 	// the creator.
@@ -62,6 +64,8 @@ type Item struct {
 	Department Department  `json:"department" enum:"produce,bakery,chilled,meat,pantry,frozen,drinks,household,other"`
 	AddedBy    *ListPerson `json:"addedBy"`
 	Checked    bool        `json:"checked"`
+	// CheckedBy is who ticked it; nil while open, or once that account is gone.
+	CheckedBy *ListPerson `json:"checkedBy"`
 }
 
 // ListPerson is a person shown on a list: its creator, a member, an invitee,
@@ -101,6 +105,8 @@ type Invitation struct {
 type SummaryRecipe struct {
 	Title    string `json:"title"`
 	Servings int    `json:"servings"`
+	// RecipeID is nil once the recipe is deleted; the app uses it to say a recipe is on a list already.
+	RecipeID *string `json:"recipeId"`
 }
 
 // IngredientPick points at one ingredient of a recipe by group and position.

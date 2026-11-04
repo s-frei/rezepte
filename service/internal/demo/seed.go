@@ -740,6 +740,7 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 		if _, err := lists.SetChecked(ctx, owner.ID, l.ID, ids, true); err != nil {
 			return fmt.Errorf("check items on %q: %w", name, err)
 		}
+		memberTicked := false
 		for _, inv := range sl.sharedWith {
 			who, ok := people[inv.to]
 			if !ok {
@@ -753,6 +754,17 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 			}
 			if _, err := lists.Accept(ctx, who.ID, l.ID); err != nil {
 				return fmt.Errorf("accept %q as %s: %w", name, inv.to, err)
+			}
+			// The first member ticked every other done item, so "Done" shows two people.
+			if !memberTicked {
+				memberTicked = true
+				var theirs []string
+				for i := 0; i < len(ids); i += 2 {
+					theirs = append(theirs, ids[i])
+				}
+				if _, err := lists.SetChecked(ctx, who.ID, l.ID, theirs, true); err != nil {
+					return fmt.Errorf("check items on %q as %s: %w", name, inv.to, err)
+				}
 			}
 			for _, text := range in(sl.extra) {
 				if _, err := lists.AddFree(ctx, who.ID, l.ID, text); err != nil {

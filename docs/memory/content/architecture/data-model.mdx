@@ -47,6 +47,7 @@ erDiagram
   shopping_list_entries |o--o{ shopping_list_items : "copied as"
   recipes |o--o{ shopping_list_entries : "copied from"
   users |o--o{ shopping_list_items : "typed in"
+  users |o--o{ shopping_list_items : "ticked"
   users |o--o{ shopping_department_overrides : "last set"
   users {
     text id PK
@@ -218,6 +219,7 @@ erDiagram
     text id PK
     text created_by FK "the owner"
     text updated_by FK "nullable, SET NULL: who changed it last"
+    integer revision "counts changes, sent on the live stream"
   }
   shopping_list_members {
     text list_id PK "also FK to shopping_lists.id"
@@ -240,6 +242,7 @@ erDiagram
     real quantity "unscaled for an entry's item"
     text added_by FK "nullable, SET NULL: free items only"
     text checked_at "nullable, set when ticked"
+    text checked_by FK "nullable, SET NULL: who ticked it"
   }
   shopping_department_overrides {
     text name_key PK
@@ -257,7 +260,7 @@ erDiagram
   - Two writes in the same second get the same `updated_at`, so the recipe list and search queries (`queries/recipes.sql`) break ties with `id DESC`: UUIDv7 ids sort lexicographically by creation time, so the newest row still sorts first. Without that tiebreaker, two recipes saved in the same second come back oldest first.
   - If a fractional part is ever added to `FormatTime`, it must be fixed-width - `time.RFC3339Nano` trims trailing zeros, and a shortened fraction no longer sorts lexicographically the same as the full value.
 - The connection DSN in `service/internal/db/db.go` sets the pragmas: `journal_mode(WAL)`, `busy_timeout(5000)`, `synchronous(NORMAL)`, `foreign_keys(ON)`, `recursive_triggers(ON)` and `_txlock=immediate`. The recursive triggers are not for the one trigger that writes (`users_change_closes_reset_link`, which deletes rows of another table and recurses into nothing) but because SQLite fires a `BEFORE DELETE` trigger for the delete half of a `REPLACE` only when that pragma is on.
-- Foreign keys are enforced; deletes cascade, except the `ON DELETE SET NULL` columns named here and one with no constraint. `recipe_comments.author_id` is `SET NULL`, so an entry outlives its author; `comment_images.uploader_id` and `comment_images.recipe_image_id` are too, so a former member's comments keep their photos and deleting a recipe photo only clears `inRecipe`. On shopping lists, `shopping_list_entries.recipe_id`, `shopping_list_items.added_by`, `shopping_lists.updated_by` and `shopping_department_overrides.updated_by` are `SET NULL` (below). The unconstrained one, `recipes.cover_image_id`, is a plain nullable `TEXT` with no `REFERENCES` constraint at all: it points at `images.id`, but the image service keeps it consistent itself (set on first upload, moved on delete of the cover), and a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
+- Foreign keys are enforced; deletes cascade, except the `ON DELETE SET NULL` columns named here and one with no constraint. `recipe_comments.author_id` is `SET NULL`, so an entry outlives its author; `comment_images.uploader_id` and `comment_images.recipe_image_id` are too, so a former member's comments keep their photos and deleting a recipe photo only clears `inRecipe`. On shopping lists, `shopping_list_entries.recipe_id`, `shopping_list_items.added_by`, `shopping_list_items.checked_by`, `shopping_lists.updated_by` and `shopping_department_overrides.updated_by` are `SET NULL` (below). The unconstrained one, `recipes.cover_image_id`, is a plain nullable `TEXT` with no `REFERENCES` constraint at all: it points at `images.id`, but the image service keeps it consistent itself (set on first upload, moved on delete of the cover), and a FK with `ON DELETE SET NULL` would silently clear it instead of promoting the next image (see [Images](/features/images)).
 - NULL means "absent," not "empty": `prep_minutes`, `cook_minutes`, `source_url`, `source_name`, `cover_image_id`, `ingredient_groups.name`, `ingredients.unit` and `ingredients.note` are stored as `NULL`, never `''`, when unset (the service converts an empty string to `nil` on write). `recipes.description` is the exception - it defaults to `''`, not `NULL`, when omitted.
 - An alphabetical `ORDER BY` over user text uses `COLLATE unicode`, which `service/internal/db/collate.go` registers on every connection the package opens: `NOCASE` and `BINARY` fold ASCII alone, so every word with a non-ASCII initial would sort after `z`. The collation exists only inside the Go driver, so a query that names it fails in a `sqlite3` CLI session ([Recipes](/features/recipes) for the title sort).
 - `recipes_fts` is not in the diagram: an FTS5 virtual table is a search index rather than a relation - it holds no copy of the text and no foreign keys, so there is nothing for the diagram to connect it to. [Recipes](/features/recipes) owns how it is declared, keyed and kept in step.

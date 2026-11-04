@@ -145,10 +145,8 @@ func TestCheckAndRemoveItems(t *testing.T) {
 
 func TestToolChangePublishes(t *testing.T) {
 	e := newEnv(t)
-	hub := shopping.NewHub()
-	e.lists.SetHub(hub)
 	l := e.list(t)
-	events, cancel := hub.Subscribe(l.ID)
+	events, cancel := e.lists.Hub().Subscribe(l.ID)
 	defer cancel()
 	cs := e.connect(t, auth.ScopeRecipesRead, auth.ScopeListsWrite)
 	call(t, cs, "add_shopping_items", map[string]any{"listId": l.ID, "items": []string{"Milch"}})

@@ -34,9 +34,9 @@ type InviteNotifier interface {
 // SetInviteNotifier hands every new invitation to n; nil (the default) is off.
 func (s *Service) SetInviteNotifier(n InviteNotifier) { s.inv = n }
 
-// SetHub hands every committed change to h for the open event streams; nil
-// (the default) publishes nothing.
-func (s *Service) SetHub(h *Hub) { s.hub = h }
+// Hub is where every committed change is published for the open event
+// streams; main closes it on shutdown.
+func (s *Service) Hub() *Hub { return s.hub }
 
 // CanAccess reports whether the person created or accepted the list.
 func (s *Service) CanAccess(ctx context.Context, userID, listID string) (bool, error) {
@@ -47,9 +47,19 @@ func (s *Service) CanAccess(ctx context.Context, userID, listID string) (bool, e
 	return ok, nil
 }
 
+// changed bumps the revision of a list whose change did not touch its row
+// (members), then tells its open streams.
+func (s *Service) changed(ctx context.Context, listID string) error {
+	if err := s.q.BumpShoppingListRevision(ctx, listID); err != nil {
+		return fmt.Errorf("bump shopping list revision: %w", err)
+	}
+	s.hub.Publish(listID)
+	return nil
+}
+
 // NewService returns a Service backed by conn.
 func NewService(conn *sql.DB) *Service {
-	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now}
+	return &Service{conn: conn, q: sqlc.New(conn), now: time.Now, hub: NewHub()}
 }
 
 // SetClock overrides the time source. Intended for tests.
@@ -83,7 +93,7 @@ func (s *Service) Lists(ctx context.Context, userID string) ([]Summary, error) {
 	}
 	byList := map[string][]SummaryRecipe{}
 	for _, t := range titles {
-		byList[t.ListID] = append(byList[t.ListID], SummaryRecipe{Title: t.Title, Servings: int(t.Servings)})
+		byList[t.ListID] = append(byList[t.ListID], SummaryRecipe{Title: t.Title, Servings: int(t.Servings), RecipeID: t.RecipeID})
 	}
 	ids := make([]string, len(rows))
 	for i, r := range rows {
@@ -144,7 +154,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 		return List{}, fmt.Errorf("get shopping list: %w", err)
 	}
 	l := List{
-		ID: row.ID, Name: row.Name, CreatedBy: row.CreatedBy, Entries: []Entry{}, Items: []Item{},
+		ID: row.ID, Name: row.Name, CreatedBy: row.CreatedBy, Revision: row.Revision, Entries: []Entry{}, Items: []Item{},
 		Owner: ListPerson{ID: row.CreatedBy, DisplayName: row.OwnerName, Color: row.OwnerColor, AvatarID: row.OwnerAvatarID},
 	}
 	members, pending, err := listMembers(ctx, q, []string{id}, userID == row.CreatedBy)
@@ -203,6 +213,9 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 		}
 		if r.EntryID == nil && r.AddedBy != nil && r.AdderName != nil {
 			it.AddedBy = &ListPerson{ID: *r.AddedBy, DisplayName: *r.AdderName, Color: deref(r.AdderColor), AvatarID: r.AdderAvatarID}
+		}
+		if it.Checked && r.CheckedBy != nil && r.CheckerName != nil {
+			it.CheckedBy = &ListPerson{ID: *r.CheckedBy, DisplayName: *r.CheckerName, Color: deref(r.CheckerColor), AvatarID: r.CheckerAvatarID}
 		}
 		open[r.NameKey] = open[r.NameKey] || !it.Checked
 		l.Items = append(l.Items, it)
@@ -296,8 +309,7 @@ func (s *Service) Leave(ctx context.Context, userID, listID string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	s.hub.Publish(listID)
-	return nil
+	return s.changed(ctx, listID)
 }
 
 // ownList reports ErrNotFound unless the caller created the list.
@@ -331,7 +343,9 @@ func (s *Service) Invite(ctx context.Context, userID, listID, inviteeID string) 
 		return List{}, fmt.Errorf("insert shopping member: %w", err)
 	}
 	if n > 0 {
-		s.hub.Publish(listID)
+		if err := s.changed(ctx, listID); err != nil {
+			return List{}, err
+		}
 		if s.inv != nil {
 			s.inv.ListInvited(ctx, listID, userID, inviteeID)
 		}
@@ -348,7 +362,9 @@ func (s *Service) RemoveMember(ctx context.Context, userID, listID, memberID str
 	if n == 0 {
 		return List{}, ErrNotFound
 	}
-	s.hub.Publish(listID)
+	if err := s.changed(ctx, listID); err != nil {
+		return List{}, err
+	}
 	return s.Get(ctx, userID, listID)
 }
 
@@ -362,7 +378,9 @@ func (s *Service) Accept(ctx context.Context, userID, listID string) (List, erro
 	if n == 0 {
 		return List{}, ErrNotFound
 	}
-	s.hub.Publish(listID)
+	if err := s.changed(ctx, listID); err != nil {
+		return List{}, err
+	}
 	return s.Get(ctx, userID, listID)
 }
 
@@ -510,11 +528,25 @@ func (s *Service) RemoveEntry(ctx context.Context, userID, listID, entryID strin
 
 // AddFree adds one item typed as text such as "2 l Milch".
 func (s *Service) AddFree(ctx context.Context, userID, listID, text string) (List, error) {
+	return s.AddItem(ctx, userID, listID, text, nil, nil)
+}
+
+// AddItem adds one item from text parsed as AddFree does; a given quantity or
+// unit (the app's own fields) replaces the parsed one.
+func (s *Service) AddItem(ctx context.Context, userID, listID, text string, quantity *float64, unitIn *string) (List, error) {
 	text, err := clean("text", text, 200)
 	if err != nil {
 		return List{}, err
 	}
 	qty, unit, name, note := ParseFree(text)
+	if quantity != nil {
+		qty = quantity
+	}
+	if unitIn != nil {
+		if u := strings.TrimSpace(*unitIn); u != "" {
+			unit = &u
+		}
+	}
 	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
 		pos, err := q.MaxShoppingItemPosition(ctx, listID)
 		if err != nil {
@@ -536,12 +568,12 @@ func (s *Service) SetChecked(ctx context.Context, userID, listID string, itemIDs
 		if len(itemIDs) == 0 {
 			return nil
 		}
-		var at *string
+		var at, by *string
 		if checked {
 			now := s.stamp()
-			at = &now
+			at, by = &now, &userID
 		}
-		if err := q.SetShoppingItemsChecked(ctx, sqlc.SetShoppingItemsCheckedParams{CheckedAt: at, ListID: listID, Ids: itemIDs}); err != nil {
+		if err := q.SetShoppingItemsChecked(ctx, sqlc.SetShoppingItemsCheckedParams{CheckedAt: at, CheckedBy: by, ListID: listID, Ids: itemIDs}); err != nil {
 			return fmt.Errorf("set items checked: %w", err)
 		}
 		return nil
@@ -584,6 +616,9 @@ func (s *Service) SetDepartment(ctx context.Context, userID, name string, d Depa
 	err := s.q.UpsertDepartmentOverride(ctx, sqlc.UpsertDepartmentOverrideParams{NameKey: key, Department: string(d), UpdatedBy: &userID, UpdatedAt: s.stamp()})
 	if err != nil {
 		return fmt.Errorf("set department override: %w", err)
+	}
+	if err := s.q.BumpAllShoppingListRevisions(ctx); err != nil {
+		return fmt.Errorf("bump shopping list revisions: %w", err)
 	}
 	s.hub.PublishAll()
 	return nil

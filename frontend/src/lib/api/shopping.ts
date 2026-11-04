@@ -37,6 +37,10 @@ export type ShoppingItem = {
 	/** Free items only. */
 	addedBy: ListPerson | null;
 	checked: boolean;
+	/** Who ticked it; null while open, or once that account is gone. */
+	checkedBy: ListPerson | null;
+	/** Client only (`ListState.shown`): ticked elsewhere a moment ago, still shown open. */
+	lingering?: boolean;
 };
 
 export type ListPerson = {
@@ -52,6 +56,8 @@ export type ShoppingList = {
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
+	/** Counts the list's changes; the live stream sends it too. */
+	revision: number;
 	openCount: number;
 	doneCount: number;
 	entries: ShoppingEntry[];
@@ -68,7 +74,8 @@ export type ShoppingSummary = {
 	name: string;
 	openCount: number;
 	doneCount: number;
-	recipes: { title: string; servings: number }[];
+	/** `recipeId` is null once the recipe is deleted. */
+	recipes: { title: string; servings: number; recipeId: string | null }[];
 	updatedAt: string;
 	owner: ListPerson;
 	members: ListPerson[];
@@ -111,8 +118,12 @@ export const setEntryServings = (id: string, entryId: string, servings: number) 
 export const removeEntry = (id: string, entryId: string) =>
 	send<ShoppingList>(`${base(id)}/recipes/${encodeURIComponent(entryId)}`, 'DELETE');
 
-export const addFreeItem = (id: string, text: string) =>
-	send<ShoppingList>(`${base(id)}/items`, 'POST', { text });
+/** `quantity` and `unit`, when given, replace what the server parses from `text`. */
+export const addFreeItem = (
+	id: string,
+	text: string,
+	fields: { quantity?: number; unit?: string } = {}
+) => send<ShoppingList>(`${base(id)}/items`, 'POST', { text, ...fields });
 
 export const setItemsChecked = (id: string, itemIds: string[], checked: boolean) =>
 	send<ShoppingList>(`${base(id)}/items/check`, 'POST', { itemIds, checked });

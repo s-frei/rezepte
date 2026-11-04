@@ -758,9 +758,7 @@ func TestAcceptWithoutInvitation(t *testing.T) {
 
 func TestDepartmentChangePublishesAll(t *testing.T) {
 	e := setup(t)
-	hub := shopping.NewHub()
-	e.svc.SetHub(hub)
-	ch, cancel := hub.Subscribe("any-list")
+	ch, cancel := e.svc.Hub().Subscribe("any-list")
 	defer cancel()
 	if err := e.svc.SetDepartment(context.Background(), e.a.ID, "Kapern", shopping.Chilled); err != nil {
 		t.Fatal(err)
@@ -775,10 +773,8 @@ func TestDepartmentChangePublishesAll(t *testing.T) {
 func TestChangesPublish(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
-	hub := shopping.NewHub()
-	e.svc.SetHub(hub)
 	l := e.list(t)
-	ch, cancel := hub.Subscribe(l.ID)
+	ch, cancel := e.svc.Hub().Subscribe(l.ID)
 	defer cancel()
 	step := func(name string, want bool, f func() error) {
 		t.Helper()
@@ -825,5 +821,99 @@ func TestCanAccess(t *testing.T) {
 	check(e.b.ID, true)
 	if ok, err := e.svc.CanAccess(ctx, e.a.ID, "nope"); ok || err != nil {
 		t.Fatalf("unknown list: %v, %v", ok, err)
+	}
+}
+
+func TestAddItemFields(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	qty, unit := 1.5, " Becher "
+	l, err := e.svc.AddItem(ctx, e.a.ID, l.ID, "Joghurt, griechisch", &qty, &unit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := l.Items[0]
+	wantQty(t, j, 1.5)
+	if j.Unit == nil || *j.Unit != "Becher" || j.Name != "Joghurt" || j.Note == nil || *j.Note != "griechisch" {
+		t.Fatalf("yogurt = %+v", j)
+	}
+	// Without fields the text is parsed as before; a blank unit keeps the parsed one.
+	blank := ""
+	if l, err = e.svc.AddItem(ctx, e.a.ID, l.ID, "2 l Milch", nil, &blank); err != nil {
+		t.Fatal(err)
+	}
+	m := l.Items[1]
+	wantQty(t, m, 2)
+	if m.Unit == nil || *m.Unit != "l" || m.Name != "Milch" {
+		t.Fatalf("milk = %+v", m)
+	}
+}
+
+// Every change counts, those that do not touch the list row too: the live
+// stream sends the revision and a page skips the refetch when it has it.
+func TestRevisionCountsEveryChange(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	rev := l.Revision
+	steps := map[string]func() error{
+		"AddFree": func() error { _, err := e.svc.AddFree(ctx, e.a.ID, l.ID, "Milch"); return err },
+		"Rename":  func() error { _, err := e.svc.Rename(ctx, e.a.ID, l.ID, "Neu"); return err },
+		"Invite":  func() error { _, err := e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID); return err },
+		"Accept":  func() error { _, err := e.svc.Accept(ctx, e.b.ID, l.ID); return err },
+		"SetDepartment": func() error {
+			return e.svc.SetDepartment(ctx, e.a.ID, "Milch", shopping.Pantry)
+		},
+		"Leave": func() error { return e.svc.Leave(ctx, e.b.ID, l.ID) },
+	}
+	for _, name := range []string{"AddFree", "Rename", "Invite", "Accept", "SetDepartment", "Leave"} {
+		if err := steps[name](); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		got, err := e.svc.Get(ctx, e.a.ID, l.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Revision <= rev {
+			t.Fatalf("%s: revision %d, was %d", name, got.Revision, rev)
+		}
+		rev = got.Revision
+	}
+}
+
+func TestCheckedBy(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	l := e.list(t)
+	l, err := e.svc.AddFree(ctx, e.a.ID, l.ID, "Milch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.svc.Invite(ctx, e.a.ID, l.ID, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = e.svc.Accept(ctx, e.b.ID, l.ID); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{l.Items[0].ID}
+	if l, err = e.svc.SetChecked(ctx, e.b.ID, l.ID, ids, true); err != nil {
+		t.Fatal(err)
+	}
+	if by := l.Items[0].CheckedBy; by == nil || by.ID != e.b.ID {
+		t.Fatalf("checkedBy = %+v", by)
+	}
+	// Ticking a merged row again ticks what is open and keeps who ticked the rest.
+	if l, err = e.svc.SetChecked(ctx, e.a.ID, l.ID, ids, true); err != nil {
+		t.Fatal(err)
+	}
+	if by := l.Items[0].CheckedBy; by == nil || by.ID != e.b.ID {
+		t.Fatalf("ticked again, checkedBy = %+v", by)
+	}
+	if l, err = e.svc.SetChecked(ctx, e.a.ID, l.ID, ids, false); err != nil {
+		t.Fatal(err)
+	}
+	if l.Items[0].CheckedBy != nil {
+		t.Fatalf("unticked, checkedBy = %+v", l.Items[0].CheckedBy)
 	}
 }

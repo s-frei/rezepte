@@ -69,7 +69,7 @@
 							aria-hidden="true"
 							class="size-5 shrink-0 rounded-full {checked
 								? 'border-[6px] border-primary'
-								: 'border-[1.5px] border-handle'}"
+								: 'border-[1.5px] border-text-muted'}"
 						></span>
 						{departmentLabel(d)}
 					{/snippet}

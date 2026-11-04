@@ -1,12 +1,11 @@
 <script lang="ts">
 	import Share2 from '@lucide/svelte/icons/share-2';
-	import { session } from '#lib/auth.svelte.js';
 	import type { ShoppingEntry, ShoppingList } from '#lib/api/shopping.js';
-	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { servingsUnit } from '#lib/recipe/format.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import EntryCover from './EntryCover.svelte';
 	import EntryMenu from './EntryMenu.svelte';
+	import PeopleList from './PeopleList.svelte';
 
 	let {
 		list,
@@ -20,8 +19,6 @@
 		/** Given for the creator only, who alone may share. */
 		onshare?: () => void;
 	} = $props();
-
-	const me = $derived(session.user?.id);
 
 	function itemCount(entry: ShoppingEntry): string {
 		const count = list.items.filter((i) => i.entryId === entry.id).length;
@@ -40,7 +37,7 @@
 					>
 						<EntryCover {entry} class="size-11 text-body-lg" />
 						<div class="min-w-0 flex-1">
-							<p class="truncate text-body font-semibold">{entry.title}</p>
+							<p class="text-body font-semibold text-pretty break-words">{entry.title}</p>
 							<p class="truncate text-caption text-text-muted">
 								{entry.servings}
 								{servingsUnit(entry.servings)} · {itemCount(entry)}
@@ -70,23 +67,6 @@
 				</button>
 			{/if}
 		</div>
-		<div class="flex items-center gap-3 py-2">
-			<PersonMark person={list.owner} size="sm" />
-			<div class="min-w-0">
-				<p class="truncate text-body font-semibold">{list.owner.displayName}</p>
-				<p class="text-caption text-text-muted">
-					{list.owner.id === me ? m.list_side_you_created() : m.list_side_created()}
-				</p>
-			</div>
-		</div>
-		{#each list.members as person (person.id)}
-			<div class="flex items-center gap-3 py-2">
-				<PersonMark {person} size="sm" />
-				<div class="min-w-0">
-					<p class="truncate text-body font-semibold">{person.displayName}</p>
-					<p class="text-caption text-text-muted">{m.list_side_member()}</p>
-				</div>
-			</div>
-		{/each}
+		<PeopleList {list} />
 	</section>
 </div>

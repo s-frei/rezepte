@@ -3,6 +3,7 @@ package shopping_test
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -101,9 +102,10 @@ func TestStreamFlushesEachEvent(t *testing.T) {
 	id := a.sharedList(t, owner, member)
 	s := a.openStream(t, owner, id)
 	s.expect(t, "retry: 3000")
-	a.call(t, member, http.MethodPost, base+"/"+id+"/items", map[string]string{"text": "Milch"}, http.StatusOK)
+	l := a.call(t, member, http.MethodPost, base+"/"+id+"/items", map[string]string{"text": "Milch"}, http.StatusOK)
 	s.expect(t, "event: changed")
-	s.expect(t, "data: {}")
+	// The event names the revision the change's own answer carried, so that page skips the refetch.
+	s.expect(t, fmt.Sprintf(`data: {"revision":%d}`, l.Revision))
 	a.call(t, member, http.MethodPost, base+"/"+id+"/items", map[string]string{"text": "Brot"}, http.StatusOK)
 	s.expect(t, "event: changed")
 }

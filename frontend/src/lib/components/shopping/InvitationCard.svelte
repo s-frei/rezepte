@@ -3,7 +3,7 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { acceptListInvitation, leaveList, type ShoppingInvitation } from '#lib/api/shopping.js';
-	import { isSignedOut } from '#lib/api/client.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
@@ -13,7 +13,11 @@
 	let {
 		invitation,
 		ondecline
-	}: { invitation: ShoppingInvitation; ondecline: (listId: string) => void } = $props();
+	}: {
+		invitation: ShoppingInvitation;
+		/** The card is done: declined, or the invitation was withdrawn meanwhile. */
+		ondecline: (listId: string) => void;
+	} = $props();
 
 	let busy = $state(false);
 
@@ -23,14 +27,17 @@
 		try {
 			if (accept) {
 				await acceptListInvitation(invitation.listId);
-				invitations.set(Math.max(0, invitations.count - 1));
+				invitations.count--;
 				await goto(listHref(invitation.listId));
 			} else {
 				await leaveList(invitation.listId);
 				ondecline(invitation.listId);
 			}
 		} catch (error) {
-			if (!isSignedOut(error)) toast.error(m.lists_invite_error());
+			if (error instanceof ApiError && error.status === 404) {
+				toast.error(m.list_gone());
+				ondecline(invitation.listId);
+			} else if (!isSignedOut(error)) toast.error(m.lists_invite_error());
 		} finally {
 			busy = false;
 		}
@@ -49,7 +56,7 @@
 			{m.lists_invite_hint({ count: invitation.openCount })}
 		</p>
 	</div>
-	<div class="flex w-full gap-2 md:ml-auto md:w-auto">
+	<div class="flex w-full flex-wrap gap-2 md:ml-auto md:w-auto">
 		<Button variant="ghost" disabled={busy} onclick={() => answer(false)} class="max-md:flex-1">
 			{m.lists_invite_decline()}
 		</Button>

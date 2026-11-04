@@ -46,7 +46,7 @@ var apiTags = []*huma.Tag{
 	{Name: "recipes", Description: "Creating, reading, updating and deleting recipes, and searching them."},
 	{Name: "comments", Description: "Household members' comments on a recipe."},
 	{Name: "tags", Description: "The tags recipes are filed under."},
-	{Name: "shopping-lists", Description: "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. Session only."},
+	{Name: "shopping-lists", Description: "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. A session, or an API token with lists:read to read and lists:write to change."},
 	{Name: "images", Description: "Uploading recipe images and serving them in their rendered sizes."},
 	{Name: "transfer", Description: "Exporting recipes with their photos as a zip and importing such a file. Administrators only."},
 	{Name: "push", Description: "Devices that receive notifications: a finished cook timer, a new comment and the other notifications a member keeps on for push, and a test push."},

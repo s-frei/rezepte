@@ -30,16 +30,16 @@ description: Collect recipes and anything else you need on lists, sorted by stor
 
     ### Add anything else
 
-    Type into "Add something" at the top of the list and press Enter or `+`. "2 l milk" or "500g flour" become an amount and a name; "coffee" is just a name. Whatever follows a comma becomes a note.
+    The card at the top of the list has the same fields as an ingredient in the recipe editor: amount, unit (pick one from the list or type your own) and "What do you need?". Only the name is needed; press Enter or `+`. Whatever follows a comma in the name becomes a note. The new item lights up where the list sorted it, and a message names its department. You can also type it all into the name, as in shopping mode: "2 l milk" or "500g flour" become an amount and a name.
 
   </Step>
   <Step>
 
     ### Shop by department
 
-    <Screenshot name="list" caption="A list by department: one row per ingredient, each recipe's amount beside it" />
+    <Screenshot name="list" caption="A list by department: one row per ingredient, each recipe's amount on a line below it" />
 
-    The list sorts everything into departments in the order of a typical store walk: Produce, Bakery, Dairy & chilled, Meat & fish, Pantry, Frozen, Drinks, Household, Other. The same ingredient from several recipes is one row, with each recipe's amount listed — "onions" from two recipes is one row with two amounts. Amounts are not added up, since one recipe's "1" and another's "200 g" do not add.
+    The list sorts everything into departments in the order of a typical store walk: Produce, Bakery, Dairy & chilled, Meat & fish, Pantry, Frozen, Drinks, Household, Other. The same ingredient from several recipes is one row: each recipe's amount sits on a line of its own below the name, and the total stands beside it — "onions" from two recipes reads "3 pc" with "1 pc · Soup" and "2 pc · Stew" below. Weights and volumes add up across units ("100 ml" and "2 l" make "2.1 l"), pieces round up to whole ones, and other units add up when they are the same, so "1 pc" and "200 g" stay "1 pc + 200 g". The total counts what is still to buy: a recipe's part you ticked in the recipe view is struck through and left out. An ingredient without an amount ("eggs") gets its own line and no total, so it is never hidden in one.
 
     Tap the circle to check a row off; it moves down to "Done", and tapping it again brings it back. "Remove done" clears everything checked off.
 
@@ -52,7 +52,7 @@ description: Collect recipes and anything else you need on lists, sorted by stor
 
     <Screenshot name="list-by-recipe" caption="The same list by recipe, with the typed-in items last" />
 
-    "Recipe" next to the add field groups the list by recipe instead, with what you typed in last under "Without a recipe". A recipe's `…` opens the recipe, changes its servings — every amount of that recipe recalculates, checked items stay checked — or takes it off the list with its ingredients. Your choice of view is remembered on this device.
+    "Recipe" at the top of the list groups the list by recipe instead, with what you typed in last under "Without a recipe". A recipe's `…` opens the recipe, changes its servings — every amount of that recipe recalculates, checked items stay checked — or takes it off the list with its ingredients. Your choice of view is remembered on this device.
 
   </Step>
   <Step>
@@ -76,21 +76,19 @@ Share a list with anyone who has an account on your instance. On the list, tap *
 
 An invitation appears at the top of the person's shopping lists, with a dot on "Shopping lists" in the top or bottom bar. **Accept** opens the list; **Decline** turns it down, and you can be invited again. Accepted lists show under "Shared with you", and each card says who owns it, who shares it and who changed it last, for example "Changed by Mila 3 hours ago".
 
-Everyone with access can add recipes and items, tick them off, change servings, move items between departments and rename the list. Only the owner can share it further or delete it. A member leaves with `…` → **Leave list**; the list then disappears from their lists, and they get back on it only if the owner invites them again. Items a member typed in stay on the list, marked "from a former member" if their account is gone.
+Tap the faces at the top of a shared list to see who is on it. Everyone with access can add recipes and items, tick them off, change servings, move items between departments and rename the list. Only the owner can share it further or delete it. A member leaves with `…` → **Leave list**; the list then disappears from their lists, and they get back on it only if the owner invites them again. Items a member typed in stay on the list, marked "from a former member" if their account is gone.
 
-Only you and the people you invited see a list. An invitation shows its list's name and how many items are open, nothing more, and administrators have no way into a list they were not invited to. If someone is removed while the list is open on their screen, their next change says the list is no longer there and takes them back to their lists.
+Only you and the people you invited see a list. An invitation shows its list's name and how many items are open, nothing more, and administrators have no way into a list they were not invited to. If someone is removed, or the list deleted, while it is open on their screen, within a few seconds it says the list is no longer there and takes them back to their lists.
 
 ## Live
 
-Changes show up for everyone who has the list open, within about a second: an item someone ticks in the store is ticked on your screen, too, without reloading. If the connection drops, the list catches up when it is back. Behind a reverse proxy this needs one setting, see [Reverse proxy](/operations/reverse-proxy#live-lists).
+Changes show up for everyone who has the list open, within about a second: an item someone ticks in the store is ticked on your screen, too, without reloading. It lights up and stays in its place for a moment, so you see what changed, then moves to "Done". On a shared list every done item shows who ticked it. If the connection drops, the list catches up when it is back. Behind a reverse proxy this needs one setting, see [Reverse proxy](/operations/reverse-proxy#live-lists).
 
 ## Shopping mode
 
-<Screenshot name="list-shop" mobile caption="Shopping mode on a phone: big rows, one tap to tick, the add field below" />
+<Screenshot name="list-shop" mobile caption="Shopping mode on a phone: big rows, one tap to tick" />
 
-<Screenshot name="list-shop-entry" caption="The Shop button beside the list's title opens shopping mode" />
-
-**Shop** on a list opens shopping mode: the list without the bars of the app, with large rows and the add field at the bottom. Tap anywhere on a row to tick it; every recipe's amount sits on its own line. Ticked rows collapse into "Done" at the end. By recipe, a recipe whose items are all ticked disappears from view. The cross at the top leaves the mode.
+**Shop** — on a phone the wide button under the list's name, which also shows how much is open and fills along its foot as you tick; on a larger screen the first button on the right of the header (see [the list above](#shop-by-department)) — opens shopping mode: the list without the bars of the app, with large rows and nothing to type: you keep the list before you go, and in the store only tick. Tap anywhere on a row to tick it; every recipe's amount sits on its own line. Ticked rows collapse into one row at the end that counts them, such as "3 done"; tap it to see them. By recipe, a recipe whose items are all ticked disappears from view. The cross at the top leaves the mode.
 
 The screen stays on while you shop, as in [cook mode](/guide/cook-mode) - which needs HTTPS, see [Reverse proxy](/operations/reverse-proxy).
 

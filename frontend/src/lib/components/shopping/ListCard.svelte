@@ -22,8 +22,9 @@
 				: m.lists_card_shared_with({ names })
 			: m.lists_card_from({ owner: list.owner.displayName, names })
 	);
+	// Who changed it last, unless that is me or the owner the card already names.
 	const changed = $derived(
-		list.updatedBy && list.updatedBy.id !== meId
+		list.updatedBy && list.updatedBy.id !== meId && (mine || list.updatedBy.id !== list.owner.id)
 			? m.lists_card_changed_by({
 					name: list.updatedBy.displayName,
 					when: relativeTime(list.updatedAt)
@@ -48,10 +49,12 @@
 	{#if list.recipes.length > 0}
 		<ul class="mt-2.5 flex flex-wrap gap-1.5">
 			{#each list.recipes as recipe, i (i)}
+				<!-- Only the title gives way; the servings stay readable. -->
 				<li
-					class="max-w-full truncate rounded-pill bg-background px-2.5 py-0.5 text-caption font-semibold text-text-muted"
+					class="flex max-w-full rounded-pill bg-background px-2.5 py-0.5 text-caption font-semibold text-text-muted"
 				>
-					{recipe.title} · {recipe.servings}
+					<span class="min-w-0 truncate">{recipe.title}</span>
+					<span class="shrink-0">&nbsp;·&nbsp;{recipe.servings}</span>
 				</li>
 			{/each}
 		</ul>

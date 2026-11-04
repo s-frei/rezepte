@@ -1,6 +1,6 @@
 {
   "title": "Shopping lists",
-  "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. Session only.",
+  "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. A session, or an API token with lists:read to read and lists:write to change.",
   "pages": [
     "index",
     "set-shopping-department",

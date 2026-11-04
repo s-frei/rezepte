@@ -118,7 +118,7 @@ func addRecipeToShoppingList(s *mcp.Server, c caller) {
 		Description: "Copy a recipe's ingredients onto a shopping list as one entry. Pass exactly one of recipeId or slug. Without servings the recipe's own are used; without ingredients all are added. Amounts come back already scaled to the servings, and items with the same nameKey merge into one row in the app.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in addRecipeIn) (*mcp.CallToolResult, any, error) {
-		r, err := c.recipe(ctx, in.RecipeID, in.Slug)
+		r, err := c.recipe(ctx, "recipeId", in.RecipeID, in.Slug)
 		if err != nil {
 			return nil, nil, err
 		}

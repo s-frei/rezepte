@@ -29,14 +29,17 @@ type (
 		Servings int `json:"servings" minimum:"1" maximum:"99"`
 	}
 	textBody struct {
-		Text string `json:"text" minLength:"1" maxLength:"200" doc:"Free text such as \"2 l Milch\""`
+		Text     string   `json:"text" minLength:"1" maxLength:"200" doc:"Free text such as \"2 l Milch\", or only the name when quantity or unit is given"`
+		Quantity *float64 `json:"quantity,omitempty" exclusiveMinimum:"0" maximum:"100000" doc:"Overrides an amount parsed from text"`
+		Unit     *string  `json:"unit,omitempty" maxLength:"30" doc:"Overrides a unit parsed from text"`
+	}
+	// ItemSet names items by id; exported because huma skips unexported embedded fields.
+	ItemSet struct {
+		ItemIDs []string `json:"itemIds" maxItems:"500"`
 	}
 	checkBody struct {
-		ItemIDs []string `json:"itemIds" maxItems:"500"`
-		Checked bool     `json:"checked"`
-	}
-	removeBody struct {
-		ItemIDs []string `json:"itemIds" maxItems:"500"`
+		ItemSet
+		Checked bool `json:"checked"`
 	}
 	departmentBody struct {
 		Name       string     `json:"name" minLength:"1" maxLength:"200"`
@@ -88,7 +91,7 @@ type (
 	}
 	removeIn struct {
 		ID   string `path:"id"`
-		Body removeBody
+		Body ItemSet
 	}
 	departmentIn struct{ Body departmentBody }
 )
@@ -140,6 +143,17 @@ func Register(api huma.API, svc *Service) {
 		}
 		return &listOut{Body: l}, nil
 	}
+	// command is mutation for the operations that answer with no body.
+	command := func(ctx context.Context, field string, f func(uid string) error) (*emptyOut, error) {
+		uid, err := caller(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err := f(uid); err != nil {
+			return nil, fail(err, field)
+		}
+		return &emptyOut{}, nil
+	}
 
 	huma.Register(api, reader(op("list-shopping-lists", http.MethodGet, "/api/v1/shopping-lists", "List the caller's shopping lists", http.StatusOK)),
 		func(ctx context.Context, _ *struct{}) (*summaries, error) {
@@ -169,8 +183,8 @@ func Register(api huma.API, svc *Service) {
 		})
 
 	stream := reader(op("stream-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}/events", "Follow a shopping list's changes", http.StatusOK, 404))
-	stream.Description = "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` with `data: {}` after every change to the list " +
-		"(refetch it to see what changed), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down."
+	stream.Description = "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the list, its JSON data carrying the list's `revision` " +
+		"(refetch the list to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down."
 	stream.Responses = map[string]*huma.Response{"200": {
 		Description: "The event stream",
 		Content:     map[string]*huma.MediaType{"text/event-stream": {Schema: &huma.Schema{Type: "string"}}},
@@ -195,26 +209,12 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("delete-shopping-list", http.MethodDelete, "/api/v1/shopping-lists/{id}", "Delete a shopping list", http.StatusNoContent, 404),
 		func(ctx context.Context, in *listID) (*emptyOut, error) {
-			uid, err := caller(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if err := svc.Delete(ctx, uid, in.ID); err != nil {
-				return nil, fail(err, "")
-			}
-			return &emptyOut{}, nil
+			return command(ctx, "", func(uid string) error { return svc.Delete(ctx, uid, in.ID) })
 		})
 
 	huma.Register(api, op("leave-shopping-list", http.MethodDelete, "/api/v1/shopping-lists/{id}/membership", "Leave a list or decline its invitation", http.StatusNoContent, 404, 422),
 		func(ctx context.Context, in *listID) (*emptyOut, error) {
-			uid, err := caller(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if err := svc.Leave(ctx, uid, in.ID); err != nil {
-				return nil, fail(err, "")
-			}
-			return &emptyOut{}, nil
+			return command(ctx, "", func(uid string) error { return svc.Leave(ctx, uid, in.ID) })
 		})
 
 	huma.Register(api, op("invite-to-shopping-list", http.MethodPost, "/api/v1/shopping-lists/{id}/invitations", "Invite a person to a list", http.StatusOK, 404, 422),
@@ -253,7 +253,9 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("add-shopping-item", http.MethodPost, "/api/v1/shopping-lists/{id}/items", "Add a free-text item", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *textIn) (*listOut, error) {
-			return mutation(ctx, "text", func(uid string) (List, error) { return svc.AddFree(ctx, uid, in.ID, in.Body.Text) })
+			return mutation(ctx, "text", func(uid string) (List, error) {
+				return svc.AddItem(ctx, uid, in.ID, in.Body.Text, in.Body.Quantity, in.Body.Unit)
+			})
 		})
 
 	huma.Register(api, op("check-shopping-items", http.MethodPost, "/api/v1/shopping-lists/{id}/items/check", "Tick or untick items", http.StatusOK, 404),
@@ -275,13 +277,6 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("set-shopping-department", http.MethodPut, "/api/v1/shopping-departments", "Sort an ingredient name under a department on every list", http.StatusNoContent, 422),
 		func(ctx context.Context, in *departmentIn) (*emptyOut, error) {
-			uid, err := caller(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if err := svc.SetDepartment(ctx, uid, in.Body.Name, in.Body.Department); err != nil {
-				return nil, fail(err, "name")
-			}
-			return &emptyOut{}, nil
+			return command(ctx, "name", func(uid string) error { return svc.SetDepartment(ctx, uid, in.Body.Name, in.Body.Department) })
 		})
 }

@@ -450,8 +450,8 @@
           }
         },
         "required": [
-          "itemIds",
-          "checked"
+          "checked",
+          "itemIds"
         ],
         "type": "object"
       },
@@ -1976,6 +1976,9 @@
           "checked": {
             "type": "boolean"
           },
+          "checkedBy": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
           "department": {
             "enum": [
               "produce",
@@ -2042,7 +2045,36 @@
           "group",
           "department",
           "addedBy",
-          "checked"
+          "checked",
+          "checkedBy"
+        ],
+        "type": "object"
+      },
+      "ItemSet": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ItemSet.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "itemIds": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "itemIds"
         ],
         "type": "object"
       },
@@ -2194,6 +2226,10 @@
               "null"
             ]
           },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
           "updatedAt": {
             "format": "date-time",
             "type": "string"
@@ -2205,6 +2241,7 @@
           "createdBy",
           "createdAt",
           "updatedAt",
+          "revision",
           "openCount",
           "doneCount",
           "entries",
@@ -3153,34 +3190,6 @@
         ],
         "type": "object"
       },
-      "RemoveBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/v1/schemas/RemoveBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "itemIds": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 500,
-            "type": [
-              "array",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "itemIds"
-        ],
-        "type": "object"
-      },
       "ServingsBody": {
         "additionalProperties": false,
         "properties": {
@@ -3817,6 +3826,12 @@
       "SummaryRecipe": {
         "additionalProperties": false,
         "properties": {
+          "recipeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "servings": {
             "format": "int64",
             "type": "integer"
@@ -3827,7 +3842,8 @@
         },
         "required": [
           "title",
-          "servings"
+          "servings",
+          "recipeId"
         ],
         "type": "object"
       },
@@ -3913,10 +3929,22 @@
             "readOnly": true,
             "type": "string"
           },
+          "quantity": {
+            "description": "Overrides an amount parsed from text",
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 100000,
+            "type": "number"
+          },
           "text": {
-            "description": "Free text such as \"2 l Milch\"",
+            "description": "Free text such as \"2 l Milch\", or only the name when quantity or unit is given",
             "maxLength": 200,
             "minLength": 1,
+            "type": "string"
+          },
+          "unit": {
+            "description": "Overrides a unit parsed from text",
+            "maxLength": 30,
             "type": "string"
           }
         },
@@ -9887,7 +9915,7 @@
     },
     "/api/v1/shopping-lists/{id}/events": {
       "get": {
-        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` with `data: {}` after every change to the list (refetch it to see what changed), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down.",
+        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the list, its JSON data carrying the list's `revision` (refetch the list to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down.",
         "operationId": "stream-shopping-list",
         "parameters": [
           {
@@ -10217,7 +10245,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RemoveBody"
+                "$ref": "#/components/schemas/ItemSet"
               }
             }
           },
@@ -12829,7 +12857,7 @@
       "name": "tags"
     },
     {
-      "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. Session only.",
+      "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. A session, or an API token with lists:read to read and lists:write to change.",
       "name": "shopping-lists"
     },
     {

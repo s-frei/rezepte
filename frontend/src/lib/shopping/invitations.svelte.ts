@@ -1,4 +1,5 @@
 import { listShoppingLists } from '#lib/api/shopping.js';
+import { m } from '#lib/paraglide/messages.js';
 
 /** How many shopping-list invitations wait for an answer; drives the nav dot. */
 export const invitations = $state({
@@ -11,7 +12,10 @@ export const invitations = $state({
 			/* silent */
 		}
 	},
-	set(n: number) {
-		invitations.count = n;
+	/** "1 invitation", "3 invitations": the nav's screen-reader text. */
+	get label() {
+		return invitations.count === 1
+			? m.nav_lists_invitations_one()
+			: m.nav_lists_invitations({ count: invitations.count });
 	}
 });

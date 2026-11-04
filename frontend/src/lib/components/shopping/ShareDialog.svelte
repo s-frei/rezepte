@@ -18,6 +18,7 @@
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import { failList } from '#lib/shopping/fail.js';
 
 	let {
 		open = $bindable(false),
@@ -27,7 +28,7 @@
 		open?: boolean;
 		list: ShoppingList;
 		/** The page's guard for racing answers: takes the returned list, false when the request failed. */
-		apply: (request: Promise<ShoppingList>) => Promise<boolean>;
+		apply: (request: Promise<ShoppingList>, onfail?: (error: unknown) => void) => Promise<boolean>;
 	} = $props();
 
 	const phone = new MediaQuery('max-width: 767.98px');
@@ -41,7 +42,7 @@
 		listPeople().then(
 			(all) => (people = all),
 			(error) => {
-				if (!isSignedOut(error)) toast.error(m.list_share_error());
+				if (!isSignedOut(error)) toast.error(m.users_load_error());
 			}
 		);
 	});
@@ -57,7 +58,7 @@
 
 	async function invite(userId: string) {
 		if (!userId) return;
-		await apply(inviteToList(list.id, userId));
+		await apply(inviteToList(list.id, userId), (error) => failList(error, m.list_share_error()));
 		picked = '';
 	}
 

@@ -22,9 +22,10 @@ Only admins can issue tokens, under **Settings → API**.
    chosen step allows. **Recipes** has a fourth step, **Delete** — a **Write**
    token can create and edit recipes but never delete one. **Shopping lists**
    **Read** shows your lists and what is on them; **Write** also creates lists
-   and adds, ticks and removes items. Sharing, renaming and deleting a list stay
-   in the app. Give a token the
-   least it needs — but not nothing: as soon as all ladders stand at
+   and adds, ticks and removes items, and over the HTTP API renames, deletes
+   and shares them too: invite and remove people, accept an invitation, leave a
+   list. [MCP](/api/mcp) offers none of those four. Give a token the least it
+   needs — but not nothing: as soon as all ladders stand at
    **None**, the dialog says "Please choose at least one kind of access"
    under them, and **Create** does nothing until one of them is raised.
 4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.

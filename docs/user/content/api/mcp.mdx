@@ -16,7 +16,7 @@ Follow [API tokens](/api/tokens) to issue one from **Settings → API**. What th
 Shopping lists have a ladder of their own, **Shopping lists**:
 
 - **Read** — see your lists and what is on them.
-- **Write** — also create lists, add recipes and items, and tick or remove items.
+- **Write** — also create lists, add recipes and items, and tick or remove items. The same token over the [HTTP API](/api/tokens) also renames, deletes and shares lists; MCP does not.
 
 Give it the least it needs.
 
@@ -69,11 +69,11 @@ Twenty-two tools, each reaching as far as the token's scopes allow. The assistan
 - **Add a photo from a link** to a recipe — Rezepte downloads it itself. The first photo a recipe gets becomes its cover.
 - **Upload photos from your computer**, in an assistant that can run commands, such as Claude Code. It asks Rezepte for an upload link that works for 15 minutes and sends each photo there; your token never appears in it. This needs the instance's [public address](/getting-started/configuration) set (`REZEPTE_PUBLIC_URL`).
 - **Look at a recipe's photos**, to check an upload or describe a dish.
-- **Work with your [shopping lists](/guide/shopping-lists)**, with a **Shopping lists** token: list them and read one, create a list, put a recipe on it at the servings you name (the recipe's own otherwise, all ingredients unless you pick), add free items such as "2 l Milch" or "Brot", and tick or remove items. For example: "Put Königsberger Klopse for 6 on Wocheneinkauf". Up to 50 items go in at once; if one of them fails, the ones before it stay on the list and the assistant is told how many went in. The assistant acts on your lists only; a list that is not yours is "not found".
+- **Work with your [shopping lists](/guide/shopping-lists)**, with a **Shopping lists** token: list them and read one, create a list, put a recipe on it at the servings you name (the recipe's own otherwise, all ingredients unless you pick), add free items such as "2 l Milch" or "Brot", and tick or remove items. For example: "Put Königsberger Klopse for 6 on Wocheneinkauf". Up to 50 items go in at once; if one of them fails, the ones before it stay on the list and the assistant is told how many went in. The assistant acts on your lists and the ones shared with you only; a list you have no access to is "not found".
 
 ## What it cannot do
 
-- It cannot share, rename or delete a shopping list — do that in the app.
+- It cannot share, rename or delete a shopping list — do that in the app, or over the HTTP API with a **Shopping lists** **Write** token.
 - It cannot change the cover, reorder or delete photos — do that in the app.
 - Photos must be JPEG, PNG or WebP; an assistant converts others, such as iPhone HEIC photos, before uploading.
 - It cannot see or add photos on comments.

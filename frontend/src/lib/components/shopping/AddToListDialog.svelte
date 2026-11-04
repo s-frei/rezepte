@@ -62,6 +62,10 @@
 	const total = $derived(groups.reduce((sum, g) => sum + g.ingredients.length, 0));
 	const count = $derived(picked.size);
 	const showNew = $derived(creating || (loaded && !loadFailed && lists.length === 0));
+	// The recipe on the picked list already: adding again adds its amounts to the ones there.
+	const already = $derived(
+		!showNew && !!lists.find((l) => l.id === listId)?.recipes.some((r) => r.recipeId === recipeId)
+	);
 	const canSubmit = $derived(
 		count > 0 && !loadFailed && (showNew ? !!newName.trim() : !!listId) && !saving
 	);
@@ -147,7 +151,7 @@
 			await addRecipeToList(target, {
 				recipeId,
 				servings: chosen,
-				ingredients: pickedRefs(picked)
+				ingredients: pickedRefs(groups, picked)
 			});
 			save(LAST_LIST, target);
 			open = false;
@@ -176,10 +180,11 @@
 			<div class="mb-2 flex items-baseline justify-between">
 				<span class={label}>{m.add_to_list_list_label()}</span>
 				{#if lists.length > 0 && !loadFailed}
+					<!-- A 44px target that keeps the line's height: padding out, margin back. -->
 					<button
 						type="button"
 						onclick={() => (creating = !creating)}
-						class="text-caption font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+						class="-mx-2 -mt-4 -mb-2 rounded-md px-2 pt-4 pb-2 text-caption font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 					>
 						{creating ? m.common_cancel() : m.add_to_list_new_list()}
 					</button>
@@ -212,6 +217,9 @@
 					label={m.add_to_list_list_label()}
 					class="w-full justify-between bg-surface-elevated"
 				/>
+				{#if already}
+					<p class="mt-1.5 text-caption text-text-muted">{m.add_to_list_already()}</p>
+				{/if}
 			{/if}
 		</div>
 		<div class="flex items-center justify-between">
@@ -224,7 +232,7 @@
 				<button
 					type="button"
 					onclick={toggleAll}
-					class="text-caption font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					class="-mx-2 -mt-4 -mb-2 rounded-md px-2 pt-4 pb-2 text-caption font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					{allPicked() ? m.add_to_list_select_none() : m.add_to_list_select_all()}
 				</button>

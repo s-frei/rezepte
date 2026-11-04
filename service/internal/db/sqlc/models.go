@@ -206,6 +206,7 @@ type ShoppingList struct {
 	CreatedAt string
 	UpdatedAt string
 	UpdatedBy *string
+	Revision  int64
 }
 
 type ShoppingListEntry struct {
@@ -231,6 +232,7 @@ type ShoppingListItem struct {
 	Position  int64
 	AddedBy   *string
 	CheckedAt *string
+	CheckedBy *string
 	CreatedAt string
 }
 

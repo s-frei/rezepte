@@ -3,7 +3,7 @@ INSERT INTO shopping_lists (id, name, created_by, created_at, updated_at, update
 
 -- A list the person created or accepted, with its creator.
 -- name: GetShoppingList :one
-SELECT l.id, l.name, l.created_by, l.created_at, l.updated_at,
+SELECT l.id, l.name, l.created_by, l.created_at, l.updated_at, l.revision,
        o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id
 FROM shopping_lists l
 JOIN users o ON o.id = l.created_by
@@ -12,6 +12,17 @@ WHERE l.id = sqlc.arg(id) AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELEC
 -- Whether the person created or accepted the list.
 -- name: CanAccessShoppingList :one
 SELECT EXISTS (SELECT 1 FROM shopping_lists l WHERE l.id = sqlc.arg(id) AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL)));
+
+-- The list's revision when the person may read it; no row otherwise.
+-- name: GetShoppingListRevision :one
+SELECT l.revision FROM shopping_lists l WHERE l.id = sqlc.arg(id) AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL));
+
+-- A change that does not touch the list row itself (members, department overrides).
+-- name: BumpShoppingListRevision :exec
+UPDATE shopping_lists SET revision = revision + 1 WHERE id = ?;
+
+-- name: BumpAllShoppingListRevisions :exec
+UPDATE shopping_lists SET revision = revision + 1;
 
 -- name: GetShoppingListCreator :one
 SELECT created_by FROM shopping_lists WHERE id = ?;
@@ -34,19 +45,19 @@ ORDER BY l.updated_at DESC, l.id DESC;
 
 -- The recipe entries of every list one person created or accepted, for the list overview.
 -- name: ListShoppingEntryTitlesForUser :many
-SELECT e.list_id, e.title, e.servings
+SELECT e.list_id, e.title, e.servings, e.recipe_id
 FROM shopping_list_entries e
 JOIN shopping_lists l ON l.id = e.list_id
 WHERE (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
 ORDER BY e.created_at, e.id;
 
 -- name: RenameShoppingList :execrows
-UPDATE shopping_lists SET name = sqlc.arg(name), updated_at = sqlc.arg(updated_at), updated_by = sqlc.arg(user_id)
+UPDATE shopping_lists SET name = sqlc.arg(name), updated_at = sqlc.arg(updated_at), updated_by = sqlc.arg(user_id), revision = revision + 1
 WHERE id = sqlc.arg(id) AND (shopping_lists.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = shopping_lists.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL));
 
 -- Marks a list as changed by the person; zero rows when they have no access.
 -- name: TouchShoppingList :execrows
-UPDATE shopping_lists SET updated_at = sqlc.arg(updated_at), updated_by = sqlc.arg(user_id)
+UPDATE shopping_lists SET updated_at = sqlc.arg(updated_at), updated_by = sqlc.arg(user_id), revision = revision + 1
 WHERE id = sqlc.arg(id) AND (shopping_lists.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = shopping_lists.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL));
 
 -- name: DeleteShoppingList :execrows
@@ -122,15 +133,20 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 -- name: ListShoppingItems :many
 SELECT i.id, i.entry_id, i.name, i.name_key, i.quantity, i.unit, i.note, i.group_name,
        i.checked_at, i.added_by,
-       u.display_name AS adder_name, u.color AS adder_color, u.avatar_id AS adder_avatar_id
+       u.display_name AS adder_name, u.color AS adder_color, u.avatar_id AS adder_avatar_id,
+       i.checked_by, c.display_name AS checker_name, c.color AS checker_color, c.avatar_id AS checker_avatar_id
 FROM shopping_list_items i
 LEFT JOIN users u ON u.id = i.added_by
+LEFT JOIN users c ON c.id = i.checked_by
 WHERE i.list_id = ?
 ORDER BY i.position, i.id;
 
+-- Ticking stamps only open items, so a merged row ticked again keeps who
+-- ticked its parts first; unticking (NULL) clears every one.
 -- name: SetShoppingItemsChecked :exec
-UPDATE shopping_list_items SET checked_at = sqlc.narg(checked_at)
-WHERE list_id = sqlc.arg(list_id) AND id IN (sqlc.slice(ids));
+UPDATE shopping_list_items SET checked_at = sqlc.narg(checked_at), checked_by = sqlc.narg(checked_by)
+WHERE list_id = sqlc.arg(list_id) AND id IN (sqlc.slice(ids))
+  AND (checked_at IS NULL OR sqlc.narg(checked_at) IS NULL);
 
 -- name: DeleteShoppingItems :exec
 DELETE FROM shopping_list_items WHERE list_id = sqlc.arg(list_id) AND id IN (sqlc.slice(ids));

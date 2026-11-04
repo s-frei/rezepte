@@ -111,7 +111,7 @@
 				{m.nav_lists()}
 				{#if invitations.count > 0}
 					<span aria-hidden="true" class="size-2 rounded-full bg-primary"></span>
-					<span class="sr-only">{m.nav_lists_invitations({ count: invitations.count })}</span>
+					<span class="sr-only">{invitations.label}</span>
 				{/if}
 			</a>
 		</nav>

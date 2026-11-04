@@ -96,14 +96,3 @@ func TestHubCloseEndsStreams(t *testing.T) {
 		t.Fatal("Subscribe after Close returned an open channel")
 	}
 }
-
-func TestNilHubIsOff(t *testing.T) {
-	var h *shopping.Hub
-	h.Publish("A")
-	h.PublishAll()
-	ch, cancel := h.Subscribe("A")
-	defer cancel()
-	if !closed(ch) {
-		t.Fatal("a nil hub's subscription is open")
-	}
-}

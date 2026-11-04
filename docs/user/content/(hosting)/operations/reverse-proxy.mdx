@@ -3,7 +3,7 @@ title: Reverse proxy
 description: Put Rezepte behind Caddy or nginx with TLS
 ---
 
-Rezepte itself only speaks plain HTTP. Terminate TLS at a reverse proxy in front of it and forward everything to its port (8060 by default). Browsers keep several features to secure addresses, so over plain HTTP (other than `localhost`) members get no [installable app](/guide/install-app), no screen that stays on in [cook mode](/guide/cook-mode), and no push notifications: neither when a timer ends while Rezepte is in the background nor the [notifications](/guide/notifications) about comments, new recipes and the rest.
+Rezepte itself only speaks plain HTTP. Terminate TLS at a reverse proxy in front of it and forward everything to its port (8060 by default). Browsers keep several features to secure addresses, so over plain HTTP (other than `localhost`) members get no [installable app](/guide/install-app), no screen that stays on in [cook mode](/guide/cook-mode) or [shopping mode](/guide/shopping-lists#shopping-mode), and no push notifications: neither when a timer ends while Rezepte is in the background nor the [notifications](/guide/notifications) about comments, new recipes and the rest.
 
 ```mermaid
 sequenceDiagram
@@ -64,4 +64,4 @@ Once the app is reachable over HTTPS, set `REZEPTE_SECURE_COOKIES=true` so the s
 
 An open [shopping list](/guide/shopping-lists#live) holds one long-lived response, `/api/v1/shopping-lists/<id>/events`, that Rezepte writes to whenever the list changes and every 25 seconds otherwise. The proxy must pass it on as it arrives instead of collecting it: with nginx, turn off `proxy_buffering` and raise `proxy_read_timeout` for that path as above (the default of 60 seconds is above the 25-second heartbeat, but a long timeout is cheap). Caddy and Traefik stream by default and need nothing.
 
-Browsers allow six connections per host over HTTP/1.1, and every open list tab holds one. Serving the browser over HTTP/2, which Caddy does automatically and nginx does with `listen 443 ssl http2;`, lifts that limit.
+Browsers allow six connections per host over HTTP/1.1, and every open list tab holds one. Serving the browser over HTTP/2, which Caddy does automatically and nginx does with `http2 on;` beside `listen 443 ssl;`, lifts that limit.

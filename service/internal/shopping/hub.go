@@ -5,8 +5,7 @@ import "sync"
 // Hub fans "list changed" signals out to the open event streams. A signal
 // carries nothing: the stream tells the client to refetch. Every channel
 // holds one signal at most, so a burst of changes coalesces and a publisher
-// never waits for a slow reader. A nil Hub is off: it publishes nothing and
-// its subscriptions are closed at once.
+// never waits for a slow reader.
 type Hub struct {
 	mu     sync.Mutex
 	subs   map[string]map[chan struct{}]struct{}
@@ -23,10 +22,6 @@ func NewHub() *Hub {
 // closes; after Close it is closed from the start.
 func (h *Hub) Subscribe(listID string) (events <-chan struct{}, cancel func()) {
 	ch := make(chan struct{}, 1)
-	if h == nil {
-		close(ch)
-		return ch, func() {}
-	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {
@@ -49,9 +44,6 @@ func (h *Hub) Subscribe(listID string) (events <-chan struct{}, cancel func()) {
 
 // Publish signals every stream open on the lists.
 func (h *Hub) Publish(listIDs ...string) {
-	if h == nil {
-		return
-	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, id := range listIDs {
@@ -64,9 +56,6 @@ func (h *Hub) Publish(listIDs ...string) {
 // PublishAll signals every open stream, for a change that reaches every
 // list such as a department override.
 func (h *Hub) PublishAll() {
-	if h == nil {
-		return
-	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for _, chans := range h.subs {

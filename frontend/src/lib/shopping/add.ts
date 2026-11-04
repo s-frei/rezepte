@@ -21,11 +21,10 @@ export function preselected(
 }
 
 /** The request body's ingredient refs, in recipe order. */
-export function pickedRefs(picked: Set<string>) {
-	return [...picked]
-		.map((key) => key.split(':').map(Number))
-		.map(([group, index]) => ({ group, index }))
-		.sort((a, b) => a.group - b.group || a.index - b.index);
+export function pickedRefs(groups: IngredientGroup[], picked: Set<string>) {
+	return groups
+		.flatMap((g, group) => g.ingredients.map((_, index) => ({ group, index })))
+		.filter((r) => picked.has(pickKey(r.group, r.index)));
 }
 
 /** The remembered list if it still exists, else the first - the server sends newest first. */

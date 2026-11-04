@@ -40,9 +40,10 @@
 </script>
 
 <DropdownMenu.Root>
+	<!-- Round and outlined like the list header's ⋯, so it reads as a button where "remove" lives. -->
 	<DropdownMenu.Trigger
 		aria-label={m.list_entry_menu({ title: entry.title })}
-		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full text-text transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
 	>
 		<Ellipsis class="size-5" aria-hidden="true" />
 	</DropdownMenu.Trigger>

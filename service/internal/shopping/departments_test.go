@@ -34,6 +34,9 @@ func TestCommonIngredientDepartments(t *testing.T) {
 		"Kokosmilch": shopping.Pantry, "Vollmilch": shopping.Chilled, "Sonnenblumenöl": shopping.Pantry, "vegetable oil": shopping.Pantry,
 		"Weißweinessig": shopping.Pantry, "Dinkelmehl": shopping.Pantry, "Bergkäse": shopping.Chilled, "Orangensaft": shopping.Drinks,
 		"Bauernbrot": shopping.Bakery, "Leberwurst": shopping.Meat,
+		"Rinderhackfleisch, gemischt (halb und halb)": shopping.Meat, "Hackfleisch (gemischt)": shopping.Meat,
+		"Paprikaschoten": shopping.Produce, "Chilischote": shopping.Produce, "Vanilleschote": shopping.Pantry,
+		"Lasagneplatten": shopping.Pantry, "Dinkel-Brötchen": shopping.Bakery, "Dinkel-Vollkornbrötchen": shopping.Bakery,
 	}
 	for in, want := range cases {
 		if got := shopping.DefaultDepartment(shopping.NameKey(in)); got != want {
