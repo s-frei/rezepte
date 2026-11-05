@@ -312,7 +312,7 @@ func (s *Service) deliver(ctx context.Context, to, what string, build func(Confi
 // send, which deliver already logged; with userID, never the address.
 func LogUnsent(ctx context.Context, msg, userID string, err error) {
 	if err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrSend) {
-		slog.WarnContext(ctx, msg, "user", userID, "err", err)
+		slog.WarnContext(ctx, "mail: "+msg, "user", userID, "err", err)
 	}
 }
 

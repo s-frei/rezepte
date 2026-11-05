@@ -265,7 +265,7 @@ func (l *Login) callback(cfg Config, w http.ResponseWriter, r *http.Request) {
 	// decode leave it empty rather than fail a verified sign-in.
 	var cl claims
 	if err := idt.Claims(&cl); err != nil {
-		l.logger.Info("oidc email claims unreadable", "intent", f.Intent, "err", err)
+		l.logger.Info("oidc: email claims unreadable", "intent", f.Intent, "err", err)
 		cl = claims{}
 	}
 	// Only from here on is anything written: the ID token is verified.
@@ -283,7 +283,7 @@ func (l *Login) login(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 	ctx := r.Context()
 	u, err := l.users.ByIdentity(ctx, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrNotFound) {
-		l.logger.Info("oidc login with an unlinked identity")
+		l.logger.Info("oidc: login with an unlinked identity")
 		redirect(w, r, "/login?oidc=unlinked")
 		return
 	}
@@ -312,7 +312,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 	}
 	added, err := l.users.LinkIdentity(ctx, f.UserID, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
-		l.logger.Info("oidc link refused: identity taken", "user", f.UserID)
+		l.logger.Info("oidc: link refused, identity taken", "user", f.UserID)
 		redirect(w, r, "/settings?oidc=taken")
 		return
 	}
@@ -328,7 +328,7 @@ func (l *Login) link(w http.ResponseWriter, r *http.Request, f flow, idt *gooidc
 		l.sessions.IdentityLinked(ctx, v.User, mail.IdentityProfile, "")
 	}
 	if err := l.users.SetEmailIfEmpty(ctx, f.UserID, cl.Email, bool(cl.EmailVerified)); err != nil {
-		l.logger.Warn("oidc link: store email", "user", f.UserID, "err", err)
+		l.logger.Warn("oidc: link, store email failed", "user", f.UserID, "err", err)
 	}
 	redirect(w, r, "/settings?oidc=linked")
 }
@@ -344,7 +344,7 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 	}
 	added, err := l.users.LinkIdentity(ctx, u.ID, f.Issuer, idt.Subject)
 	if errors.Is(err, user.ErrIdentityTaken) {
-		l.logger.Info("oidc setup refused: identity taken", "user", u.ID)
+		l.logger.Info("oidc: setup refused, identity taken", "user", u.ID)
 		redirect(w, r, "/welcome?oidc=taken")
 		return
 	}
@@ -357,7 +357,7 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 		return
 	}
 	if err := l.users.SetEmailIfEmpty(ctx, u.ID, cl.Email, bool(cl.EmailVerified)); err != nil {
-		l.logger.Warn("oidc setup: store email", "user", u.ID, "err", err)
+		l.logger.Warn("oidc: setup, store email failed", "user", u.ID, "err", err)
 	}
 	if err := l.sessions.DeleteUserSessionsExcept(ctx, u.ID, ""); err != nil {
 		l.fail(w, r, f.Intent, "end earlier sessions", err)
@@ -387,7 +387,7 @@ func (l *Login) signIn(w http.ResponseWriter, r *http.Request, intent string, u 
 // fail logs why a flow ended and sends the browser back to the page it
 // started from. reason and err never carry a token, code or cookie value.
 func (l *Login) fail(w http.ResponseWriter, r *http.Request, intent, reason string, err error) {
-	l.logger.Info("oidc flow failed", "intent", intent, "reason", reason, "err", err)
+	l.logger.Info("oidc: flow failed", "intent", intent, "reason", reason, "err", err)
 	redirect(w, r, page(intent)+"?oidc=failed")
 }
 

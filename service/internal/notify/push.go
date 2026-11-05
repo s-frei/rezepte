@@ -64,7 +64,7 @@ func (s *Service) pushComment(ctx context.Context, recipeID string, commentID in
 		body, err3 := mail.Text(loc, "mail_push_comment_body", map[string]string{"author": author.DisplayName, "text": text})
 		many, err4 := mail.Text(loc, "mail_push_comment_body_many", nil)
 		if err := errors.Join(err1, err2, err3, err4); err != nil {
-			slog.WarnContext(ctx, "comment push failed", "user", to.ID, "err", err)
+			slog.WarnContext(ctx, "push: comment push failed", "user", to.ID, "err", err)
 			continue
 		}
 		s.pusher.SendToUser(ctx, to.ID, push.Message{
@@ -107,7 +107,7 @@ func (s *Service) pushDigest(ctx context.Context, recipients []sqlc.ListRecipeDi
 		title, err1 := mail.Text(loc, "mail_push_recipe_title", nil)
 		body, err2 := mail.Text(loc, key, args)
 		if err := errors.Join(err1, err2); err != nil {
-			slog.WarnContext(ctx, "recipe digest push failed", "user", to.ID, "err", err)
+			slog.WarnContext(ctx, "push: recipe digest push failed", "user", to.ID, "err", err)
 			continue
 		}
 		s.pusher.SendToUser(ctx, to.ID, push.Message{Kind: string(KindRecipe), Title: title, Body: body, URL: "/", Tag: "recipe-digest"})
@@ -123,7 +123,7 @@ func (s *Service) pushInviteAccepted(ctx context.Context, inviter, newcomer user
 	title, err1 := mail.Text(inviter.Locale, "mail_push_invite_accepted_title", nil)
 	body, err2 := mail.Text(inviter.Locale, "mail_push_invite_accepted_body", map[string]string{"name": newcomer.DisplayName, "username": newcomer.Username})
 	if err := errors.Join(err1, err2); err != nil {
-		slog.WarnContext(ctx, "invitation push failed", "err", err)
+		slog.WarnContext(ctx, "push: invitation push failed", "err", err)
 		return
 	}
 	s.pusher.SendToUser(ctx, inviter.ID, push.Message{

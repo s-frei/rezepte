@@ -226,7 +226,7 @@ func (s *Service) Delete(ctx context.Context, id string, actor user.User) error 
 		// Best effort: the rows are gone (and with them every reference to
 		// the files); a leftover directory is an orphan, not an inconsistency.
 		if err := os.RemoveAll(filepath.Join(s.imageDir, id)); err != nil {
-			slog.Warn("remove recipe image dir", "recipe", id, "err", err)
+			slog.Warn("recipe: remove image dir failed", "recipe", id, "err", err)
 		}
 	}
 	return nil

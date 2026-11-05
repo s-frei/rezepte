@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
@@ -130,4 +131,22 @@ func parsePublicURL(raw string) (string, error) {
 		return "", fmt.Errorf("REZEPTE_PUBLIC_URL must be an http or https origin like https://rezepte.example.org, got %q", raw)
 	}
 	return strings.TrimSuffix(raw, "/"), nil
+}
+
+// OpenURL is the address to open the instance at: REZEPTE_PUBLIC_URL when
+// set, else REZEPTE_ADDR on this machine, an address naming every interface
+// (":8060", "0.0.0.0:8060") shown as localhost.
+func (c Config) OpenURL() string {
+	if c.PublicURL != "" {
+		return c.PublicURL
+	}
+	host, port, err := net.SplitHostPort(c.Addr)
+	if err != nil {
+		return c.Addr
+	}
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port)
 }

@@ -131,7 +131,7 @@ func installErrorHook() {
 				return original(ctx, status, msg, errs...)
 			}
 			if logger := errorLogger.Load(); logger != nil {
-				logger.Error("internal error",
+				logger.Error("http: internal error",
 					"operation", ctx.Operation().OperationID,
 					"method", ctx.Method(),
 					"path", ctx.URL().Path,
@@ -267,7 +267,7 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	errc := make(chan error, 1)
 	go func() {
-		s.logger.Info("listening", "addr", s.cfg.Addr)
+		s.logger.Info("http: listening", "addr", s.cfg.Addr, "url", s.cfg.OpenURL())
 		errc <- srv.ListenAndServe()
 	}()
 	select {
@@ -277,6 +277,7 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 		return fmt.Errorf("listen on %s: %w", s.cfg.Addr, err)
 	case <-ctx.Done():
+		s.logger.Info("http: shutting down")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -299,7 +300,7 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 		case rec.status >= http.StatusBadRequest:
 			level = slog.LevelWarn
 		}
-		s.logger.Log(r.Context(), level, "request",
+		s.logger.Log(r.Context(), level, "http: request",
 			"method", r.Method, "path", r.URL.Path,
 			"status", rec.status, "duration", time.Since(start))
 	})

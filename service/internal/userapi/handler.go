@@ -217,7 +217,7 @@ func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor,
 	}
 	if err != nil && !errors.Is(err, mail.ErrSend) {
 		// Not a delivery failure (settings lookup, rendering): nothing was sent.
-		slog.WarnContext(ctx, "mail invite failed", "user", target.ID, "err", err)
+		slog.WarnContext(ctx, "mail: invite failed", "user", target.ID, "err", err)
 		return
 	}
 	body.MailedTo = target.Email
@@ -229,7 +229,7 @@ func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor,
 	// only cost is that redeeming the link does not verify the address.
 	// No handler gets a logger injected; slog's default is main's logger.
 	if err := sessions.MarkSetupLinkSent(ctx, link.Token, target.Email); err != nil {
-		slog.WarnContext(ctx, "mark setup link sent failed", "user", target.ID, "err", err)
+		slog.WarnContext(ctx, "auth: mark setup link sent failed", "user", target.ID, "err", err)
 	}
 }
 

@@ -315,7 +315,7 @@ func (s *Service) removeCommentImageDirs(recipeID string, ids []string) {
 	}
 	for _, id := range ids {
 		if err := os.RemoveAll(CommentImageDir(s.imageDir, recipeID, id)); err != nil {
-			slog.Warn("remove comment image dir", "recipe", recipeID, "image", id, "err", err)
+			slog.Warn("recipe: remove comment image dir failed", "recipe", recipeID, "image", id, "err", err)
 		}
 	}
 }

@@ -223,7 +223,7 @@ func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.L
 			s.resetCooldown.sweep(s.now())
 			s.confirmCooldown.sweep(s.now())
 			if err := s.DeleteExpired(ctx); err != nil {
-				logger.Warn("sweep expired sessions", "err", err)
+				logger.Warn("auth: sweep expired sessions failed", "err", err)
 			}
 		}
 	}

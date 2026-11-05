@@ -61,7 +61,7 @@ func mapSettingsErr(err error) error {
 	case errors.Is(err, ErrDiscovery):
 		// The cause (refused, timed out, another issuer) helps whoever
 		// reads the log; the owner gets the field error.
-		slog.Info("oidc discovery failed", "err", err)
+		slog.Info("oidc: discovery failed", "err", err)
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body.issuer", Message: "no OpenID provider answers at this address"})
 	case errors.Is(err, ErrSecretRequired):
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body.clientSecret", Message: "enter the secret for a different provider"})

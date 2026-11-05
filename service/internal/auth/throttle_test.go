@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -178,5 +181,36 @@ func TestCooldown(t *testing.T) {
 	c.sweep(t0.Add(11 * time.Minute))
 	if len(c.last) != 0 {
 		t.Fatalf("sweep kept %d keys", len(c.last))
+	}
+}
+
+// A locked name is logged once per lock, on the first attempt it refuses -
+// not when the lock is set, which a correct fifth password lifts again, and
+// not on every refused attempt, which anyone could repeat at request speed.
+func TestThrottleLogsALockOnce(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	th := newThrottle(100)
+	fail(t, th, "sam", 5, t0)
+	if buf.Len() != 0 {
+		t.Fatalf("logged before any refusal: %s", buf.String())
+	}
+	for range 3 {
+		th.begin("sam", t0)
+	}
+	if n := strings.Count(buf.String(), "auth: login locked"); n != 1 {
+		t.Fatalf("logged %d times, want once: %s", n, buf.String())
+	}
+	if !strings.Contains(buf.String(), "username=sam") || !strings.Contains(buf.String(), "for=30s") {
+		t.Errorf("record lacks the name or the lock: %s", buf.String())
+	}
+	// The next lock is a new one.
+	fail(t, th, "sam", 1, t0.Add(31*time.Second))
+	th.begin("sam", t0.Add(31*time.Second))
+	if n := strings.Count(buf.String(), "auth: login locked"); n != 2 {
+		t.Fatalf("logged %d times after a second lock, want twice", n)
 	}
 }

@@ -191,7 +191,7 @@ func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service, images 
 		f, err := svc.openPublicImage(ctx, images, in.Token, in.ImageID, in.File)
 		if err != nil {
 			if !errors.Is(err, errNotServed) {
-				svc.logger.Warn("public image", "err", err)
+				svc.logger.Warn("share: public image failed", "err", err)
 			}
 			return nil, errNotAvailable()
 		}
@@ -255,7 +255,7 @@ func (s *Service) ForRequest(r *http.Request) *httpserver.LinkPreview {
 	}
 	p, err := s.previewFor(r.Context(), token)
 	if err != nil {
-		s.logger.Warn("public share link preview", "err", err)
+		s.logger.Warn("share: link preview failed", "err", err)
 		return nil
 	}
 	return p

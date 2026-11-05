@@ -81,7 +81,7 @@ func Register(api huma.API, svc *Service) {
 		}
 		switch {
 		case errors.Is(err, ErrUnreachable):
-			slog.InfoContext(ctx, "recipe import fetch failed", "err", err)
+			slog.InfoContext(ctx, "recipe import: fetch failed", "err", err)
 			return nil, huma.Error422UnprocessableEntity("import failed", &huma.ErrorDetail{Location: loc, Message: "unreachable"})
 		case errors.Is(err, ErrNoRecipe), errors.Is(err, ErrNoRecipeInText):
 			return nil, huma.Error422UnprocessableEntity("import failed", &huma.ErrorDetail{Location: loc, Message: err.Error()})
@@ -119,7 +119,7 @@ func Register(api huma.API, svc *Service) {
 	}, func(ctx context.Context, in *photoInput) (*huma.StreamResponse, error) {
 		body, ct, err := svc.Photo(ctx, in.Src, in.Token)
 		if err != nil {
-			slog.InfoContext(ctx, "recipe import photo refused", "err", err)
+			slog.InfoContext(ctx, "recipe import: photo refused", "err", err)
 			return nil, huma.Error404NotFound("not found")
 		}
 		return &huma.StreamResponse{Body: func(hctx huma.Context) {

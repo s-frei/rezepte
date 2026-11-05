@@ -97,7 +97,7 @@ func (s *Service) ForRequest(r *http.Request) *httpserver.LinkPreview {
 	}
 	p, err := s.forSlug(r.Context(), slug, r.URL.Query().Get(shareParam))
 	if err != nil {
-		s.logger.Warn("link preview", "path", r.URL.Path, "err", err)
+		s.logger.Warn("preview: link preview failed", "path", r.URL.Path, "err", err)
 		return nil
 	}
 	return p
@@ -144,7 +144,7 @@ func (s *Service) forSlug(ctx context.Context, slug, token string) (*httpserver.
 func (s *Service) showsCover(ctx context.Context, recipeID, imageID, token string) bool {
 	st, err := s.settings.Get(ctx)
 	if err != nil {
-		s.logger.Warn("link preview cover", "err", err)
+		s.logger.Warn("preview: cover failed", "err", err)
 		return false
 	}
 	if !st.LinkPreviews || !s.signer.Verify(recipeID, token) {

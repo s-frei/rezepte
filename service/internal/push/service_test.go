@@ -446,7 +446,7 @@ func TestRunDueLogsNoEndpointPath(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
 	t.Cleanup(func() { slog.SetDefault(prev) })
 	f.svc.RunDue(ctx, now.Add(time.Second))
-	if !strings.Contains(buf.String(), "push failed") || strings.Contains(buf.String(), "secret-path") {
+	if !strings.Contains(buf.String(), "push: send failed") || strings.Contains(buf.String(), "secret-path") {
 		t.Fatalf("log: %s", buf.String())
 	}
 }

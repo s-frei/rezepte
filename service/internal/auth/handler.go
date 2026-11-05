@@ -411,7 +411,7 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 			// No request is left to fail: a panic here would end the process.
 			defer func() {
 				if r := recover(); r != nil {
-					slog.ErrorContext(ctx, "forgot password panicked", "panic", r)
+					slog.ErrorContext(ctx, "auth: forgot password panicked", "panic", r)
 				}
 			}()
 			svc.ForgotPassword(ctx, login)
@@ -623,7 +623,7 @@ func respond(ctx context.Context, svc *Service, u user.User) UserResponse {
 	r := toResponse(u)
 	pending, err := svc.ConfirmationPending(ctx, u)
 	if err != nil {
-		slog.WarnContext(ctx, "confirmation lookup failed", "user", u.ID, "err", err)
+		slog.WarnContext(ctx, "auth: confirmation lookup failed", "user", u.ID, "err", err)
 	}
 	r.EmailConfirmationPending = pending
 	return r

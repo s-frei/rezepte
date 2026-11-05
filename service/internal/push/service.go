@@ -309,7 +309,7 @@ func (s *Service) tick(ctx context.Context) {
 	// A panic would end the process, and with it every later alarm.
 	defer func() {
 		if r := recover(); r != nil {
-			slog.ErrorContext(ctx, "push sender panicked", "panic", r)
+			slog.ErrorContext(ctx, "push: sender panicked", "panic", r)
 		}
 	}()
 	s.RunDue(ctx, time.Now())
@@ -321,7 +321,7 @@ func (s *Service) tick(ctx context.Context) {
 func (s *Service) RunDue(ctx context.Context, now time.Time) {
 	due, err := s.q.ListDueTimerAlarms(ctx, db.FormatTime(now))
 	if err != nil {
-		slog.WarnContext(ctx, "list due alarms", "err", err)
+		slog.WarnContext(ctx, "push: list due alarms failed", "err", err)
 		return
 	}
 	for _, a := range due {
@@ -332,7 +332,7 @@ func (s *Service) RunDue(ctx context.Context, now time.Time) {
 		// Deleted before the send, so a crash mid-send cannot send it twice.
 		// No row deleted: the cook cancelled it after the list was read.
 		if n, err := s.q.DeleteTimerAlarm(ctx, a.ID); err != nil {
-			slog.WarnContext(ctx, "delete alarm", "err", err)
+			slog.WarnContext(ctx, "push: delete alarm failed", "err", err)
 			continue
 		} else if n == 0 {
 			continue
@@ -351,12 +351,12 @@ func (s *Service) RunDue(ctx context.Context, now time.Time) {
 func (s *Service) SendToUser(ctx context.Context, userID string, m Message) {
 	subs, err := s.q.ListPushSubscriptionsOfUser(ctx, sqlc.ListPushSubscriptionsOfUserParams{UserID: userID, Now: db.FormatTime(s.now())})
 	if err != nil {
-		slog.WarnContext(ctx, "list subscriptions", "err", err)
+		slog.WarnContext(ctx, "push: list subscriptions failed", "err", err)
 		return
 	}
 	payload, err := json.Marshal(m)
 	if err != nil {
-		slog.WarnContext(ctx, "push payload", "err", err)
+		slog.WarnContext(ctx, "push: payload failed", "err", err)
 		return
 	}
 	for _, sub := range subs {
@@ -410,7 +410,7 @@ func (s *Service) claimTest(endpoint string) bool {
 func (s *Service) sendAlarm(ctx context.Context, a sqlc.ListDueTimerAlarmsRow) {
 	payload, err := json.Marshal(Message{Kind: "timer", Title: a.Title, Body: a.Body, URL: a.Url, Tag: a.ID})
 	if err != nil {
-		slog.WarnContext(ctx, "push payload", "err", err)
+		slog.WarnContext(ctx, "push: payload failed", "err", err)
 		return
 	}
 	s.send(ctx, a.Endpoint, a.P256dh, a.Auth, payload)
@@ -423,7 +423,7 @@ func (s *Service) send(ctx context.Context, endpoint string, p256dh, auth, paylo
 	}
 	// A forgotten device was dropped by post; nothing to warn about.
 	if err := s.post(ctx, endpoint, p256dh, auth, payload); err != nil && !errors.Is(err, ErrUnknownSubscription) {
-		slog.WarnContext(ctx, "push failed", "host", host, "err", err)
+		slog.WarnContext(ctx, "push: send failed", "host", host, "err", err)
 	}
 }
 

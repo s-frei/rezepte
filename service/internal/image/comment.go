@@ -96,7 +96,7 @@ func (s *Service) StageCommentImage(ctx context.Context, recipeID string, actor 
 	if evicted.ID != "" {
 		// The row is gone already; a failed removal only wastes disk.
 		if err := removeAll(recipe.CommentImageDir(s.dir, evicted.RecipeID, evicted.ID)); err != nil {
-			slog.Warn("remove evicted comment image", "image", evicted.ID, "err", err)
+			slog.Warn("image: remove evicted comment image failed", "image", evicted.ID, "err", err)
 		}
 	}
 	return recipe.CommentImage{ID: id, Width: w.Width, Height: w.Height}, nil

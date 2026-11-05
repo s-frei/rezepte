@@ -7,13 +7,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	// The zone database, so TZ works in the distroless image, which has
@@ -69,7 +72,8 @@ var version = "dev"
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "rezepte:", err)
+		// Before the logger is set up, slog's default still writes to stderr.
+		slog.Error("rezepte: start failed", "err", err)
 		os.Exit(1)
 	}
 }
@@ -139,6 +143,9 @@ func run() error {
 	}
 	logger := newLogger(cfg)
 	slog.SetDefault(logger)
+	if !*resetOwner {
+		logger.Info("rezepte: starting", "version", version, "dataDir", cfg.DataDir)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -171,7 +178,7 @@ func run() error {
 		if err := sessions.DeleteUserSessionsExcept(ctx, owner.ID, ""); err != nil {
 			return err
 		}
-		logger.Info("superadmin password reset", "username", owner.Username)
+		logger.Info("auth: owner password reset", "username", owner.Username)
 		return nil
 	}
 	if err := users.EnsureSuperadmin(ctx, cfg.AdminUser, cfg.AdminPassword); err != nil {
@@ -192,7 +199,7 @@ func run() error {
 
 	sessions := auth.NewService(conn, users)
 	if err := sessions.DeleteExpired(ctx); err != nil {
-		logger.Warn("cleanup expired sessions", "err", err)
+		logger.Warn("auth: cleanup expired sessions failed", "err", err)
 	}
 	go sessions.SweepLoop(ctx, sweepInterval, logger)
 	tokens := auth.NewTokenService(conn, users)
@@ -207,14 +214,14 @@ func run() error {
 	sessions.SetMail(mailer, oidcSettings.Provider)
 	// Only log lines: both are resolved again on every request.
 	if _, mailSource, err := mailer.Effective(ctx); err != nil {
-		logger.Warn("mail", "err", err)
+		logger.Warn("mail: settings unreadable", "err", err)
 	} else {
-		logger.Info("mail", "source", mailSource)
+		logSource(logger, "mail", string(mailSource), string(mail.SourceNone))
 	}
 	if _, src, err := oidcSettings.Effective(ctx); err != nil {
-		logger.Warn("oidc", "err", err)
+		logger.Warn("oidc: settings unreadable", "err", err)
 	} else {
-		logger.Info("oidc", "source", src)
+		logSource(logger, "oidc", string(src), string(oidc.SourceNone))
 	}
 	previews, err := preview.NewService(ctx, conn, instance, images, logger)
 	if err != nil {
@@ -238,7 +245,7 @@ func run() error {
 		defer ticker.Stop()
 		for {
 			if err := images.SweepCommentImages(ctx, time.Now()); err != nil {
-				logger.Warn("sweep staged comment images", "err", err)
+				logger.Warn("image: sweep staged comment images failed", "err", err)
 			}
 			select {
 			case <-ctx.Done():
@@ -246,7 +253,7 @@ func run() error {
 			case <-ticker.C:
 			}
 			if err := shares.Sweep(ctx, time.Now()); err != nil {
-				logger.Warn("sweep expired shares", "err", err)
+				logger.Warn("share: sweep expired shares failed", "err", err)
 			}
 		}
 	}()
@@ -279,7 +286,7 @@ func run() error {
 	// Leftovers of a killed process are only wasted disk, so a failed sweep
 	// is worth a warning, not a refusal to start.
 	if err := transfer.SweepTemp(cfg.DataDir); err != nil {
-		logger.Warn("transfer temp files", "err", err)
+		logger.Warn("transfer: remove temp files failed", "err", err)
 	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance, mailer.Enabled)
@@ -301,12 +308,12 @@ func run() error {
 	select {
 	case <-digestDone:
 	case <-time.After(digestShutdownWait):
-		logger.Warn("recipe digest still running at exit; its remaining mails are lost")
+		logger.Warn("rezepte: recipe digest still running at exit, its remaining mails are lost")
 	}
 	select {
 	case <-pushDone:
 	case <-pushDeadline:
-		logger.Warn("push still sending at exit")
+		logger.Warn("rezepte: push still sending at exit")
 	}
 	return err
 }
@@ -359,8 +366,8 @@ func resetError(err error, dataDir string) error {
 
 // seedDemo fills an empty instance with the sample recipes - and, on the
 // demo credentials, with the demo's other members, the samples they wrote
-// and their tasty marks - and logs the demo admin's credentials so operators
-// know how to log in. demoDefaults
+// and their tasty marks - and prints the logins so operators know how to
+// log in. demoDefaults
 // tells whether cfg.AdminUser/AdminPassword were replaced with the
 // well-known demo credentials, or came from the operator's configuration.
 // oidcIssuer is the issuer jonas's identity is linked at, empty for none.
@@ -392,8 +399,47 @@ func seedDemo(ctx context.Context, conn *sql.DB, imageDir string, cfg config.Con
 			return err
 		}
 	}
-	logger.Info("demo mode", "user", cfg.AdminUser, "password", password, "seeded", !sum.Skipped, "dataDir", cfg.DataDir)
+	rows := [][3]string{{cfg.AdminUser, password, "admin"}}
+	if demoDefaults {
+		// From the list, not from members: on a kept data directory the
+		// members exist already and AddMembers creates none.
+		for _, name := range demo.Members {
+			rows = append(rows, [3]string{name, demo.MemberPassword(name), "member"})
+		}
+	}
+	// A table straight to stdout, past the log level, which `mise run demo`
+	// sets to warn: the logins are what someone starting a demo is after. A
+	// log collector reading JSON gets a record instead.
+	if cfg.LogFormat == "text" {
+		writeDemoTable(os.Stdout, cfg.OpenURL(), rows)
+		return nil
+	}
+	logger.Info("demo: ready", "url", cfg.OpenURL(), "logins", rows, "seeded", !sum.Skipped)
 	return nil
+}
+
+// writeDemoTable prints where the demo runs and its logins: user, password,
+// role per row.
+func writeDemoTable(w io.Writer, url string, rows [][3]string) {
+	rule := strings.Repeat("─", 30)
+	_, _ = fmt.Fprintf(w, "demo ready at %s\n%s\n", url, rule)
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(tw, "user\tpassword\trole")
+	for _, r := range rows {
+		_, _ = fmt.Fprintf(tw, "%s\t%s\t%s\n", r[0], r[1], r[2])
+	}
+	_ = tw.Flush()
+	_, _ = fmt.Fprintln(w, rule)
+}
+
+// logSource says where the mail or sign-in provider settings come from, at
+// start: from the environment, the settings, or none.
+func logSource(logger *slog.Logger, area, source, none string) {
+	if source == none {
+		logger.Info(area + ": not configured")
+		return
+	}
+	logger.Info(area+": configured", "source", source)
 }
 
 func newLogger(cfg config.Config) *slog.Logger {
@@ -401,5 +447,7 @@ func newLogger(cfg config.Config) *slog.Logger {
 	if cfg.LogFormat == "json" {
 		return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	}
-	return slog.New(slog.NewTextHandler(os.Stdout, opts))
+	stat, err := os.Stdout.Stat()
+	terminal := err == nil && stat.Mode()&os.ModeCharDevice != 0
+	return slog.New(newTextHandler(os.Stdout, cfg.LogLevel, useColor(terminal, os.Getenv)))
 }

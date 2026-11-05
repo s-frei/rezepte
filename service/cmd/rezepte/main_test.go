@@ -135,3 +135,19 @@ func TestHealthcheckRejectsAnUnparsableAddress(t *testing.T) {
 		t.Fatal("healthcheck accepted a malformed address, want an error")
 	}
 }
+
+func TestWriteDemoTable(t *testing.T) {
+	var buf strings.Builder
+	writeDemoTable(&buf, "http://localhost:8070", [][3]string{
+		{"demo", "demo1234", "admin"},
+		{"mila", "mila1234", "member"},
+	})
+	rule := strings.Repeat("─", 30)
+	want := "demo ready at http://localhost:8070\n" + rule + "\n" +
+		"user  password  role\n" +
+		"demo  demo1234  admin\n" +
+		"mila  mila1234  member\n" + rule + "\n"
+	if got := buf.String(); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}

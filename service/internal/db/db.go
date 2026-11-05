@@ -7,6 +7,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -53,8 +54,12 @@ func Migrate(ctx context.Context, conn *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("goose provider: %w", err)
 	}
-	if _, err := provider.Up(ctx); err != nil {
+	results, err := provider.Up(ctx)
+	if err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
+	}
+	if len(results) > 0 {
+		slog.InfoContext(ctx, "db: migrated", "applied", len(results), "version", results[len(results)-1].Source.Version)
 	}
 	return nil
 }

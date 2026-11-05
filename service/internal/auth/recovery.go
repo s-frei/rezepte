@@ -71,7 +71,7 @@ func (s *Service) ForgotPassword(ctx context.Context, login string) {
 		// A delivery failure is already logged by package mail, with the
 		// recipient's domain and reply code only.
 		if err := s.mailRecovery(ctx, u); err != nil && !errors.Is(err, mail.ErrSend) {
-			slog.WarnContext(ctx, "forgot password", "user", u.ID, "err", err)
+			slog.WarnContext(ctx, "auth: forgot password failed", "user", u.ID, "err", err)
 		}
 	}
 }
@@ -189,7 +189,7 @@ func (s *Service) sendConfirmation(ctx context.Context, u user.User, by string) 
 		// replaced link before it is dead either way. By token, so a newer
 		// confirmation issued meanwhile stays.
 		if derr := s.q.DeleteEmailConfirmation(ctx, hashToken(token)); derr != nil {
-			slog.WarnContext(ctx, "drop unsent confirmation", "user", u.ID, "err", derr)
+			slog.WarnContext(ctx, "auth: drop unsent confirmation failed", "user", u.ID, "err", derr)
 		}
 		// A mail that never went out does not use up the minute, so the
 		// send button offered next works at once.

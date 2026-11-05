@@ -250,3 +250,18 @@ func TestLoadFromSMTPRejects(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenURL(t *testing.T) {
+	for _, tc := range []struct{ addr, public, want string }{
+		{":8060", "", "http://localhost:8060"},
+		{"0.0.0.0:8060", "", "http://localhost:8060"},
+		{"[::]:8060", "", "http://localhost:8060"},
+		{"127.0.0.1:9000", "", "http://127.0.0.1:9000"},
+		{":8060", "https://rezepte.example.com", "https://rezepte.example.com"},
+	} {
+		c := Config{Addr: tc.addr, PublicURL: tc.public}
+		if got := c.OpenURL(); got != tc.want {
+			t.Errorf("Config{Addr: %q, PublicURL: %q}.OpenURL() = %q, want %q", tc.addr, tc.public, got, tc.want)
+		}
+	}
+}

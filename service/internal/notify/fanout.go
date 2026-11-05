@@ -34,10 +34,10 @@ var sendTimeout = 15 * time.Second
 func (s *Service) CommentAdded(ctx context.Context, recipeID string, commentID int64) {
 	detach(ctx, "comment notification", func(ctx context.Context) {
 		if err := s.mailComment(ctx, recipeID, commentID); err != nil {
-			slog.WarnContext(ctx, "comment mail failed", "recipe", recipeID, "comment", commentID, "err", err)
+			slog.WarnContext(ctx, "mail: comment mail failed", "recipe", recipeID, "comment", commentID, "err", err)
 		}
 		if err := s.pushComment(ctx, recipeID, commentID); err != nil {
-			slog.WarnContext(ctx, "comment push failed", "recipe", recipeID, "comment", commentID, "err", err)
+			slog.WarnContext(ctx, "push: comment push failed", "recipe", recipeID, "comment", commentID, "err", err)
 		}
 	})
 }
@@ -51,7 +51,7 @@ func detach(ctx context.Context, what string, fn func(context.Context)) {
 		defer cancel()
 		defer func() {
 			if r := recover(); r != nil {
-				slog.ErrorContext(ctx, what+" panicked", "panic", r)
+				slog.ErrorContext(ctx, "notify: "+what+" panicked", "panic", r)
 			}
 		}()
 		fn(ctx)
@@ -114,7 +114,7 @@ func (s *Service) mailComment(ctx context.Context, recipeID string, commentID in
 		if errors.Is(err, mail.ErrDisabled) {
 			return nil
 		}
-		mail.LogUnsent(ctx, "comment mail failed", to.ID, err)
+		mail.LogUnsent(ctx, "mail: comment mail failed", to.ID, err)
 	}
 	return nil
 }

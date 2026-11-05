@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -708,6 +709,7 @@ func (s *Service) EnsureSuperadmin(ctx context.Context, username, password strin
 	if _, err := s.Create(ctx, CreateParams{Username: username, Password: password, Role: RoleSuperadmin}); err != nil {
 		return fmt.Errorf("create superadmin: %w", err)
 	}
+	slog.InfoContext(ctx, "auth: owner account created", "username", username)
 	return nil
 }
 

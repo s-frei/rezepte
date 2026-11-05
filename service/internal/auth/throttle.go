@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +35,8 @@ type attempts struct {
 	count       int
 	lockedUntil time.Time
 	lastSeen    time.Time
+	// logged is the lockedUntil already logged, so a lock is logged once.
+	logged time.Time
 }
 
 func newThrottle(capacity int) *throttle {
@@ -72,6 +75,12 @@ func (t *throttle) begin(username string, now time.Time) (time.Duration, bool) {
 	}
 	a.lastSeen = now
 	if wait := a.lockedUntil.Sub(now); wait > 0 {
+		// Logged on the first refusal, not where the lock is set: a correct
+		// password on the last free attempt lifts that lock again.
+		if !a.logged.Equal(a.lockedUntil) {
+			a.logged = a.lockedUntil
+			slog.Warn("auth: login locked", "username", username, "for", lockFor(a.count))
+		}
 		return wait, false
 	}
 	a.count++

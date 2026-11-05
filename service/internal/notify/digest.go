@@ -49,11 +49,11 @@ func (s *Service) tickRecipeDigest(ctx context.Context) {
 	// A panic would end the process, and with it the next day's run.
 	defer func() {
 		if r := recover(); r != nil {
-			slog.ErrorContext(ctx, "recipe digest panicked", "panic", r)
+			slog.ErrorContext(ctx, "recipe digest: panicked", "panic", r)
 		}
 	}()
 	if err := s.RunRecipeDigest(ctx, time.Now()); err != nil {
-		slog.WarnContext(ctx, "recipe digest failed", "err", err)
+		slog.WarnContext(ctx, "recipe digest: failed", "err", err)
 	}
 }
 

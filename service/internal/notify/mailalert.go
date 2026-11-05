@@ -55,7 +55,7 @@ func (s *Service) pushMailFailing(ctx context.Context, reason string) {
 	title, err1 := mail.Text(loc, "mail_push_mail_failing_title", nil)
 	body, err2 := mail.Text(loc, "mail_push_mail_failing_"+reason, nil)
 	if err := errors.Join(err1, err2); err != nil {
-		slog.WarnContext(ctx, "mail alert push failed", "err", err)
+		slog.WarnContext(ctx, "mail alert: push failed", "err", err)
 		return
 	}
 	s.pusher.SendToUser(ctx, owner.ID, push.Message{Kind: string(KindMailFailing), Title: title, Body: body, URL: "/settings/mail", Tag: "mail-failing"})

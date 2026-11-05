@@ -126,7 +126,7 @@ func (s *Settings) stored(ctx context.Context) (Config, error) {
 func (s *Settings) active(ctx context.Context) (Config, bool) {
 	c, src, err := s.Effective(ctx)
 	if err != nil {
-		slog.WarnContext(ctx, "oidc settings", "err", err)
+		slog.WarnContext(ctx, "oidc: settings unreadable", "err", err)
 		return Config{}, false
 	}
 	return c, src != SourceNone && c.PublicURL != ""

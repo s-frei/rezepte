@@ -46,7 +46,7 @@ func (s *Service) TastyMarked(ctx context.Context, markerID, recipeID string) {
 func (s *Service) sendTasty(ctx context.Context, markerID, recipeID string) {
 	marker, author, r, ok, err := s.tastyFacts(ctx, markerID, recipeID)
 	if err != nil {
-		slog.WarnContext(ctx, "tasty notification failed", "recipe", recipeID, "err", err)
+		slog.WarnContext(ctx, "notify: tasty notification failed", "recipe", recipeID, "err", err)
 	}
 	if !ok {
 		return
@@ -119,7 +119,7 @@ func (s *Service) pushTasty(ctx context.Context, marker, author user.User, r sql
 	title, err1 := mail.Text(author.Locale, "mail_push_tasty_title", nil)
 	body, err2 := mail.Text(author.Locale, "mail_push_tasty_body", map[string]string{"name": marker.DisplayName, "title": r.Title})
 	if err := errors.Join(err1, err2); err != nil {
-		slog.WarnContext(ctx, "tasty push failed", "err", err)
+		slog.WarnContext(ctx, "push: tasty push failed", "err", err)
 		return
 	}
 	s.pusher.SendToUser(ctx, author.ID, push.Message{

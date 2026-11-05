@@ -266,7 +266,7 @@ func (s *Service) SetPreferences(ctx context.Context, u user.User, set Prefs) (P
 func (s *Service) wanted(ctx context.Context, userID string, k Kind, ch Channel) bool {
 	on, err := s.Wants(ctx, userID, k, ch)
 	if err != nil {
-		slog.WarnContext(ctx, "notification preference lookup failed", "kind", k, "channel", ch, "err", err)
+		slog.WarnContext(ctx, "notify: preference lookup failed", "kind", k, "channel", ch, "err", err)
 	}
 	return on
 }

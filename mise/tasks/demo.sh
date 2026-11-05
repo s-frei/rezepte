@@ -140,7 +140,6 @@ if [ "$#" -gt 0 ]; then
 	exit
 fi
 
-echo "demo: http://localhost:$PORT - log in as demo / demo1234"
 if [ -n "$RZP_OWNED_DATA_DIR" ]; then
 	echo "demo: Ctrl-C stops it and deletes its data; REZEPTE_DATA_DIR=<dir> keeps it"
 else

@@ -85,14 +85,16 @@ The container image uses it for its own `HEALTHCHECK`, which is why it exists â€
 
 ## Logging
 
-`REZEPTE_LOG_FORMAT=text` (the default):
+`REZEPTE_LOG_FORMAT=text` (the default), one line per event with the time, the level (`DBG`, `INF`, `WRN`, `ERR`) and the message:
 
 ```text
-time=2026-09-18T10:00:00.000+02:00 level=INFO msg=listening addr=:8060
+10:00:00 INF http: listening addr=:8060 url=http://localhost:8060
 ```
 
-`REZEPTE_LOG_FORMAT=json`:
+In a terminal the level is colored. Without one - output into a file, journald or a log collector - the lines stay plain text, so no color codes end up in your logs. `NO_COLOR=1` turns color off everywhere, `FORCE_COLOR=1` turns it on without a terminal. With Docker Compose, `tty: true` on the service gives the container a terminal, and `docker compose logs` shows the colors.
+
+`REZEPTE_LOG_FORMAT=json`, one JSON object per line and never colored, for a log collector:
 
 ```json
-{"time":"2026-09-18T10:00:00.000+02:00","level":"INFO","msg":"listening","addr":":8060"}
+{"time":"2026-09-18T10:00:00.000+02:00","level":"INFO","msg":"http: listening","addr":":8060","url":"http://localhost:8060"}
 ```

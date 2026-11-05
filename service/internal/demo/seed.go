@@ -57,6 +57,10 @@ var photos fs.FS = embedded
 // appended.
 var Members = []string{"mila", "jonas"}
 
+// MemberPassword is a member's password: the name with 1234 appended, like
+// every bootstrapped account (docs/memory conventions/dev-credentials).
+func MemberPassword(name string) string { return name + "1234" }
+
 // displayNames names the demo's people after the pantry, per locale, so
 // nobody takes them for real accounts and a login name never reads the same
 // as the name shown beside it. Each keeps its username's initial, which is
@@ -429,7 +433,7 @@ func AddMembers(ctx context.Context, conn *sql.DB, locale user.Locale, logger *s
 		return nil
 	}
 	for _, name := range Members {
-		if err := add(name, name+"1234"); err != nil {
+		if err := add(name, MemberPassword(name)); err != nil {
 			return nil, err
 		}
 	}
