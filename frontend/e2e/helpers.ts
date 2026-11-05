@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
-import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import type { Editor } from '@tiptap/core';
 // Type-only, so the relative hop into `src` is erased at runtime and the e2e
 // suite still speaks the same contract as the app.
@@ -591,11 +591,19 @@ export async function selectInStep(step: Locator, word: string, what: 'word' | '
  * selected, which `selectstart`/`contextmenu` reached the document with and
  * without their default prevented, and whether an item got lifted - so a
  * test can tell a guarded long-press from one that never fired.
+ *
+ * Skips on Linux: Chromium there runs the gesture's touches but fires
+ * neither `selectstart` nor `contextmenu` for it, so there is nothing to
+ * guard against, and CI runs these tests on Linux. They guard on macOS.
  */
 export async function longPress(
 	page: Page,
 	target: Locator
 ): Promise<{ selection: string; prevented: string[]; unprevented: string[]; lifted: boolean }> {
+	test.skip(
+		process.platform === 'linux',
+		'Linux Chromium fires no long-press selectstart or contextmenu'
+	);
 	await page.evaluate(() => {
 		const w = window as unknown as { prevented: string[]; unprevented: string[]; lifted: boolean };
 		[w.prevented, w.unprevented, w.lifted] = [[], [], false];
