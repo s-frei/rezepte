@@ -82,3 +82,34 @@ export function mainBlocker(root: string, branch: string): string | null {
 	}
 	return null;
 }
+
+export type CiRun = { status: string; conclusion: string };
+
+// Why the commit develop points at has no green CI run, or null. Only CI
+// runs the end-to-end suite on Linux: a local `mise run e2e` on a Mac passes
+// where CI can fail, and a tag whose release gate then fails has published
+// nothing and must be recreated. An unpushed develop has no run at all.
+// `runs` is the answer of ciRuns, or why GitHub could not be asked.
+export function ciBlocker(sha: string, runs: CiRun[] | string): string | null {
+	const short = sha.slice(0, 8);
+	if (typeof runs === 'string') return `cannot ask GitHub for the CI runs of develop (${short}): ${runs}`;
+	if (runs.some((r) => r.status === 'completed' && r.conclusion === 'success')) return null;
+	if (runs.length === 0) return `CI has not run on develop (${short}); push develop, wait for CI, then run this again`;
+	if (runs.some((r) => r.status !== 'completed')) return `CI is still running on develop (${short}); wait for it, then run this again`;
+	return `CI failed on develop (${short}); fix develop first - gh run list --commit ${sha}`;
+}
+
+export function ciRuns(sha: string, root: string): CiRun[] | string {
+	try {
+		const r = Bun.spawnSync(['gh', 'run', 'list', '--commit', sha, '--workflow', 'CI', '--json', 'status,conclusion'], {
+			cwd: root,
+			env,
+			stdout: 'pipe',
+			stderr: 'pipe'
+		});
+		if (r.exitCode !== 0) return r.stderr.toString().trim() || `gh exited with ${r.exitCode}`;
+		return JSON.parse(r.stdout.toString()) as CiRun[];
+	} catch (e) {
+		return `gh is not available (${(e as Error).message})`;
+	}
+}

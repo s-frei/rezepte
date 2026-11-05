@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { mainBlocker, remoteBlocker, tagBlocker } from './git';
+import { ciBlocker, mainBlocker, remoteBlocker, tagBlocker } from './git';
 
 // A throwaway repository per test: develop with two commits and a release
 // branch on top, the shape release:finish sees.
@@ -120,5 +120,30 @@ describe('tagBlocker', () => {
 	test('an existing tag blocks', () => {
 		sh('tag', 'v1.0.0', 'HEAD~1');
 		expect(tagBlocker(dir, 'v1.0.0')).toBe('the tag v1.0.0 already exists');
+	});
+});
+
+describe('ciBlocker', () => {
+	const sha = '223189aa23e82a11c0ff6c6fe04a5764fb856b7d';
+	const run = (status: string, conclusion = '') => ({ status, conclusion });
+
+	test('passes a develop CI has proven green', () => {
+		expect(ciBlocker(sha, [run('completed', 'failure'), run('completed', 'success')])).toBeNull();
+	});
+
+	test('stops on a develop CI never saw, which is an unpushed one', () => {
+		expect(ciBlocker(sha, [])).toContain('CI has not run on develop (223189aa); push develop');
+	});
+
+	test('stops while CI is still running', () => {
+		expect(ciBlocker(sha, [run('in_progress')])).toContain('CI is still running on develop');
+	});
+
+	test('stops on a failed CI run', () => {
+		expect(ciBlocker(sha, [run('completed', 'failure')])).toContain('CI failed on develop');
+	});
+
+	test('stops when GitHub cannot be asked', () => {
+		expect(ciBlocker(sha, 'gh: not logged in')).toContain('gh: not logged in');
 	});
 });

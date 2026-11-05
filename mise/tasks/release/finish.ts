@@ -4,7 +4,7 @@
 // Runs inside the release worktree that release:start opened. See
 // docs/memory/content/howtos/release.mdx.
 import { CHANGELOG_DIR, checkPage, parseFrontmatter } from '../../lib/release/changelog';
-import { env, fail, git, gitOk, lastTag, mainBlocker, mainCheckout, remoteBlocker, subjectsSince, tagBlocker } from '../../lib/release/git';
+import { ciBlocker, ciRuns, env, fail, git, gitOk, lastTag, mainBlocker, mainCheckout, remoteBlocker, subjectsSince, tagBlocker } from '../../lib/release/git';
 import { checkSpec, OPENAPI_PATH } from '../../lib/release/openapi';
 import { finishSteps, formatStep, parseArgs } from '../../lib/release/steps';
 import { classificationBase, classify, parseVersion } from '../../lib/release/version';
@@ -60,7 +60,8 @@ function blocker(): string | null {
   git rebase develop && mise run release:finish`;
 	}
 	gitOk(['fetch', '--quiet', 'origin'], root);
-	return tagBlocker(root, version) ?? mainBlocker(root, branch) ?? remoteBlocker(root, branch);
+	const sha = git(['rev-parse', 'develop'], root);
+	return tagBlocker(root, version) ?? mainBlocker(root, branch) ?? remoteBlocker(root, branch) ?? ciBlocker(sha, ciRuns(sha, root));
 }
 const before = blocker();
 if (before) fail(before);

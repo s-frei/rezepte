@@ -51,7 +51,7 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
 
     Stop both with `mise run oidc:down && mise run mail:down` in the release worktree before `release:finish`: their compose project is named after the worktree's port offset, so once `release:finish` removes the worktree the tasks in the main checkout no longer find them, and only `docker compose -p rezepte-test-<port> down` does.
 
-    `mise run check` does not run e2e, and a pushed tag whose release gate fails has to be recreated. Without Dex and Mailpit their specs skip, so a green run would prove nothing about sign-in or mail. A test that fails once has found something until it is reproduced or explained - it is not "flaky" on a guess. The commits being released also need a green CI run (`gh run list --branch develop`), and when the release touches sign-in, a real Google account signs in once by hand ([Test OIDC sign-in](/howtos/test-oidc#when-a-release-touches-sign-in)).
+    `mise run check` does not run e2e, and a pushed tag whose release gate fails has to be recreated. Without Dex and Mailpit their specs skip, so a green run would prove nothing about sign-in or mail. A test that fails once has found something until it is reproduced or explained - it is not "flaky" on a guess. The local run cannot stand in for CI: CI runs the suite on Linux, where Chromium behaves differently from a Mac's (see [Images](/features/images)), so `release:finish` also demands a green CI run on `develop`. When the release touches sign-in, a real Google account signs in once by hand ([Test OIDC sign-in](/howtos/test-oidc#when-a-release-touches-sign-in)).
 
   </Step>
   <Step>
@@ -60,7 +60,7 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
     ```bash
     mise run release:finish
     ```
-    In the release worktree. It refuses a page that still has the draft marker, `FILL IN`, a missing field, or no upgrade notice despite breaking commits, and an `openapi.json` whose `info.version` is not the release's; stops if `develop` moved on meanwhile (`git rebase develop` in the release worktree, then run it again), if the tag already exists, if a local `main` is diverged or checked out in a worktree, or if `origin/develop` or `origin/main` has commits the release lacks - before the gate and once more after it; runs `mise run check`; fast-forwards `develop`, then `main`; tags `main` with a signed `vX.Y.Z` (`git tag -s`, with the key that signs your commits); removes the worktree and the branch. All of it is local. `mise run release:finish --dry-run` runs every check except `mise run check`, then lists the exact git commands it would run and the push; it exits 0 only when the release is ready. If a step fails in a real run, the message lists what already happened and the remaining commands, quoted so they can be pasted.
+    In the release worktree. It refuses a page that still has the draft marker, `FILL IN`, a missing field, or no upgrade notice despite breaking commits, and an `openapi.json` whose `info.version` is not the release's; stops if `develop` moved on meanwhile (`git rebase develop` in the release worktree, then run it again), if the tag already exists, if a local `main` is diverged or checked out in a worktree, if `origin/develop` or `origin/main` has commits the release lacks, or if the commit `develop` points at has no successful `CI` run (unpushed, still running or failed; asked with `gh run list --commit`, so `gh` has to be logged in) - before the gate and once more after it; runs `mise run check`; fast-forwards `develop`, then `main`; tags `main` with a signed `vX.Y.Z` (`git tag -s`, with the key that signs your commits); removes the worktree and the branch. All of it is local. `mise run release:finish --dry-run` runs every check except `mise run check`, then lists the exact git commands it would run and the push; it exits 0 only when the release is ready. If a step fails in a real run, the message lists what already happened and the remaining commands, quoted so they can be pasted.
 
   </Step>
   <Step>
@@ -73,7 +73,7 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
 
     If the `release` job fails after `release:publish` has started, the GitHub release already exists and re-running fails with "release already exists": `gh release delete vX.Y.Z`, then re-run. If it timed out waiting for the docs, re-run it once the Pages run is green.
 
-    The local gate is `mise run check`; CI also builds and runs the end-to-end tests. A failure only CI finds leaves a pushed tag that published nothing, and the fix costs a new patch version. The careful path, for a release that touches the build: push `develop` and `main` first, wait for CI, then push the tag.
+    The local gate is `mise run check`; CI also builds and runs the end-to-end tests. A failure only CI finds leaves a pushed tag that published nothing, and the fix costs a new patch version. `release:finish` therefore refuses a `develop` CI has not passed; what CI has not seen is only the release commit on top, the notes and the stamped `openapi.json`. For a release that changes the release workflow itself, the dispatch test run at the top covers what CI cannot.
 
   </Step>
   <Step>
