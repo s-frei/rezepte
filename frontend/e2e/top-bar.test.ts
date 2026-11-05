@@ -1,0 +1,79 @@
+import { expect, test, type Page } from '@playwright/test';
+import { createRecipe, createUser, loadFixture, login, uniqueToken } from './helpers';
+
+test.skip(({ isMobile }) => isMobile, 'the top bar is desktop-only');
+
+const places = (page: Page) => page.getByRole('banner').getByRole('navigation');
+
+test('the places mark where you are, and give way on a recipe', async ({ page }) => {
+	await login(page);
+	await expect(places(page).getByRole('link', { name: 'Recipes' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await places(page).getByRole('link', { name: 'Shopping lists' }).click();
+	await expect(page).toHaveURL(/\/lists$/);
+	await expect(places(page).getByRole('link', { name: 'Shopping lists' })).toHaveAttribute(
+		'aria-current',
+		'page'
+	);
+	await expect(places(page).getByRole('link', { name: 'Recipes' })).not.toHaveAttribute(
+		'aria-current'
+	);
+
+	const recipe = await createRecipe(page, loadFixture(0));
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect(page.getByRole('banner').getByRole('link', { name: 'Edit' })).toBeVisible();
+	await expect(places(page)).toHaveCount(0);
+});
+
+// The places sit in the exact middle, nothing in the bar overlaps, and
+// "New recipe" is a circle only where its label does not fit - in both
+// languages, whose labels differ in length.
+for (const locale of ['en', 'de'] as const) {
+	test(`the places stay centered and "New recipe" fits at every width (${locale})`, async ({
+		page
+	}) => {
+		// An account of that language: the login sets the interface from it.
+		const username = `bar${locale}${uniqueToken()}`;
+		await login(page);
+		await createUser(page, { username, role: 'user', locale });
+		await page.context().clearCookies();
+		await login(page, username);
+		await expect(places(page)).toBeVisible();
+		const seen = new Set<boolean>();
+		const failures: string[] = [];
+		for (let width = 768; width <= 1440; width += 24) {
+			await page.setViewportSize({ width, height: 700 });
+			// Two frames: the resize, then the measurement it triggers.
+			await page.evaluate(
+				() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+			);
+			const bar = await page.evaluate(() => {
+				const header = document.querySelector('header')!.getBoundingClientRect();
+				const nav = document.querySelector('header nav')!.getBoundingClientRect();
+				const row = document.querySelector('header > :last-child > div')!.getBoundingClientRect();
+				const newRecipe = document.querySelector('header a[href="/recipes/new"]')!;
+				return {
+					offCenter: Math.abs(nav.left + nav.width / 2 - (header.left + header.width / 2)),
+					gap: row.left - nav.right,
+					overflow: row.right - (header.right - 32),
+					labeled: (newRecipe.textContent ?? '').trim().length > 0,
+					tall: newRecipe.getBoundingClientRect().height > 40
+				};
+			});
+			seen.add(bar.labeled);
+			if (bar.offCenter > 1 || bar.gap < 16 || bar.overflow > 1 || bar.tall) {
+				failures.push(`${width}px: ${JSON.stringify(bar)}`);
+			}
+		}
+		expect(failures).toEqual([]);
+		// Both shapes occur across the range, so the check saw each.
+		expect([...seen].sort()).toEqual([false, true]);
+		await expect(
+			page
+				.getByRole('banner')
+				.getByRole('link', { name: locale === 'de' ? 'Neues Rezept' : 'New recipe' })
+		).toBeVisible();
+	});
+}

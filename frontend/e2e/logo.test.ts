@@ -19,14 +19,15 @@ test('the login page shows the wordmark, named Rezepte, over the kitchen scene',
 	expect(await loaded(scene)).toBe(true);
 });
 
-test('the top bar links home with the horizontal lockup', async ({ page }, testInfo) => {
+test('the top bar links home with the mascot and the wordmark', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'the top bar is desktop-only');
 	await login(page);
 	const home = page.getByRole('banner').getByRole('link', { name: 'Rezepte', exact: true });
 	await expect(home).toBeVisible();
 	const logo = home.locator('img');
-	await expect(logo).toHaveAttribute('src', /rezepte-lockup-horizontal/);
+	await expect(logo).toHaveAttribute('src', /rezepte-mascot/);
 	// The link names the logo, so the picture itself stays silent.
 	await expect(logo).toHaveAttribute('alt', '');
 	expect(await loaded(logo)).toBe(true);
+	await expect(home.locator('span[aria-hidden="true"]')).toHaveCSS('mask-image', /url\(/);
 });

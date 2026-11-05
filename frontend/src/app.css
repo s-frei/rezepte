@@ -610,7 +610,9 @@
 
 /* The phone's bar and the timer player stay above the gliding cards too:
    their own names give them pictures of their own, but in Safari those
-   lay under the cards' and the cards slid across the bar. */
+   lay under the cards' and the cards slid across the bar. The desktop top
+   bar has its name for a page change (below). */
+::view-transition-group(top-bar),
 ::view-transition-group(bottom-nav),
 ::view-transition-group(timers) {
 	z-index: 2;
@@ -680,6 +682,17 @@ html[data-page-transition]::view-transition-new(root) {
 	animation-duration: 160ms;
 	animation-delay: 60ms;
 	animation-timing-function: var(--ease-glide);
+}
+
+/* The desktop top bar (`top-bar`) shows its new state at once: faded with
+   the page it went blank for two frames on every click, and crossed over
+   on its own it showed "New recipe" through the recipe's "Cook mode". */
+html[data-page-transition]::view-transition-old(top-bar) {
+	display: none;
+}
+
+html[data-page-transition]::view-transition-new(top-bar) {
+	animation: none;
 }
 
 /*

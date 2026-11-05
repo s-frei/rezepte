@@ -23,7 +23,7 @@ export default defineConfig({
 			name: 'mobile',
 			use: { ...devices['Pixel 7'] },
 			testIgnore:
-				/(cook-timers|notifications|tokens|source|locale|required-fields|transfer|sign-in-settings|smoke|titles|icons|lightbox-window)\.test\.ts/
+				/(cook-timers|notifications|tokens|source|locale|required-fields|transfer|sign-in-settings|smoke|titles|icons|lightbox-window|top-bar)\.test\.ts/
 		},
 		// Safari draws the recipe card differently enough (fonts, pictures,
 		// canvas size) to deserve its own run, and focuses no button on click,
