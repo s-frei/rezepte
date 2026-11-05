@@ -15,6 +15,8 @@ shasum -a 256 -c checksums.txt --ignore-missing
 sudo install -m 0755 rezepte /usr/local/bin/rezepte
 ```
 
+Each archive has an SPDX SBOM beside it with the same name, such as `rezepte_1.0.0_linux_amd64.spdx.json`. It lists every Go module and web app package that binary is built from. Hand it to a scanner such as `grype sbom:rezepte_1.0.0_linux_amd64.spdx.json` to check a version for known vulnerabilities.
+
 <Callout type="warn" title="macOS binaries are unsigned">
   They are cross-compiled and carry no Apple signature, so Gatekeeper blocks the first launch. Allow it once under System Settings → Privacy & Security, or remove the quarantine attribute with `xattr -d com.apple.quarantine rezepte`.
 </Callout>

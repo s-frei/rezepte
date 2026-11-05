@@ -33,6 +33,8 @@ The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/
 
 `latest` is the newest stable release. Every version is listed on the [GitHub releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte); use one in place of `latest` to run that version.
 
+Each released image carries an SPDX SBOM and build provenance as attestations, so Trivy and Grype scan it straight from the registry. The Go modules show up there; the web app's packages are in the release's `.spdx.json` files (see [Running the binary](/getting-started/binary#download)).
+
 ## Bind mounts
 
 The container runs as the nonroot user (UID 65532), so a bind-mounted `./data` directory must be writable by that UID before the first start:

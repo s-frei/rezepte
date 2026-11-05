@@ -46,9 +46,29 @@ done
 # for nothing.
 rm -f service/bin/rezepte
 
+# One SBOM per archive, named after it. syft scans a staged allowlist rather
+# than the checkout, so a node_modules that appears anywhere else can never
+# leak in:
+# - the archive's binary, whose embedded build info names exactly the Go
+#   modules linked in plus the Go version (go.mod/go.sum also list unlinked
+#   ones, and macOS links modules Linux does not);
+# - the package.json of every installed frontend package, since syft has no
+#   bun.lock cataloger. The SPA is bundled into the binary, where no scanner
+#   sees it.
+SBOM="$STAGE/sbom"
+mkdir -p "$SBOM/frontend"
+rsync -a -m --include='*/' --include='package.json' --exclude='*' \
+	frontend/node_modules "$SBOM/frontend/"
+for archive in "$DIST"/*.tar.gz; do
+	tar -xzf "$archive" -C "$SBOM"
+	syft scan "dir:$SBOM" --source-name rezepte --source-version "$VERSION" \
+		--override-default-catalogers go-module-binary-cataloger,javascript-package-cataloger \
+		-q -o "spdx-json=${archive%.tar.gz}.spdx.json"
+done
+
 # shasum rather than sha256sum: it exists on both macOS and the CI runner.
 cd "$DIST"
-shasum -a 256 ./*.tar.gz > checksums.txt
+shasum -a 256 ./*.tar.gz ./*.spdx.json > checksums.txt
 
 echo "release:binaries: wrote $VERSION to $DIST"
 ls -1 "$DIST"

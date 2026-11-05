@@ -36,7 +36,7 @@ Docker is the one tool in this list not in `[tools]`: nothing else here needs it
 
 `mise/lib/` holds what is not a task. `mise/lib/instance.sh` is the port guard and the `/healthz` wait that `//:demo` and `//:e2e` both source rather than run; it cannot live beside them, because a file inside `mise/tasks/` would become a task itself, and `mise/lib/` is not scanned. `mise/lib/release/` is the TypeScript behind the release tasks (`release:start`, `release:finish`, `release:notes`, which are Bun files with a `//MISE` header): version and changelog logic as pure functions with `bun test` beside them, run by `//:test:release` inside `check`, and the few git calls apart from them. There is no `scripts/` directory.
 
-`[tools]` pins Go, Bun, golangci-lint, sqlc, watchexec and git-lfs, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
+`[tools]` pins Go, Bun, golangci-lint, sqlc, watchexec, git-lfs and syft, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
 
 Git LFS holds the generated originals: the demo photos under `assets/demo-photos/`, the demo avatars and the logo mascot under `assets/brand/mascot/`. `.lfsconfig` keeps every clone, CI included, from downloading the demo photos, and `mise run demo-photos:pull` fetches them when a photo is regenerated. CI checks out no LFS file at all, so `//frontend:brand:check` reads only what `brand:export` generated.
 

@@ -11,6 +11,7 @@ golangci-lint = "2.15.0"
 sqlc = "1.31.1"
 watchexec = "2.8.0"
 git-lfs = "3.8.1"
+syft = "1.55.0"
 
 [settings]
 lockfile = true

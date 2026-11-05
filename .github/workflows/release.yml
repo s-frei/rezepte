@@ -126,6 +126,12 @@ jobs:
           build-args: |
             REZEPTE_VERSION=${{ needs.image-build.outputs.version }}
           cache-from: type=gha
+          # Attached to the index as attestations, where Trivy, Grype and
+          # `docker buildx imagetools inspect` look for them. The image SBOM
+          # sees the Go modules in the binary; the frontend packages are in
+          # the SPDX file on the GitHub release.
+          sbom: true
+          provenance: mode=max
 
   binaries:
     runs-on: ubuntu-latest
