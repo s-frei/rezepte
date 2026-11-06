@@ -1,6 +1,7 @@
 ---
 title: People
 description: See who has an account; admins open a person's page to reset, invite or delete them, and the owner assigns roles and edits profiles
+new: v1.4.0
 ---
 
 import { Audience } from '@/components/audience';
@@ -48,7 +49,7 @@ Admins see a small envelope after a login name that shows the state of that pers
 
     Everyone's circle shows their photo, or their initial in their color if they have none. The role sits at the end of the card as a label; the owner's carries an "Owner" badge.
 
-    Admins also see on every card how long ago that person was last active, after a small dot: "Active today", "Active 3 days ago", "Active 6 weeks ago", or "No activity recorded yet". The dot is green within a week and an empty ring when nothing is recorded. Signing in, coming back to an open session and using an API token all count, and the value can lag by up to a day. Anyone idle for 30 days or more stands out in amber, so accounts nobody uses any more are easy to spot.
+    Admins also see on every card how long ago that person was last active, after a small dot: "Active today", "Active 3 days ago", "Active 6 weeks ago", or "No activity recorded yet". The dot is green within a week and an empty ring when nothing is recorded. Signing in, coming back to an open session and using an API token all count, and the value can lag by up to an hour. Anyone idle for 30 days or more stands out in amber, so accounts nobody uses any more are easy to spot.
 
     A card that leads somewhere ends in an arrow and opens with one click or tap anywhere on it: as an admin, the page of anyone you may act on; for everyone, your own card opens your profile. Every other card only shows who the person is: click or tap their circle for their person card, with name, login name, role and a link to the recipes they wrote.
 

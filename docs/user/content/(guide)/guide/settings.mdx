@@ -4,10 +4,11 @@ description: Your profile with photo, name and color, your address, password and
 ---
 
 import { Audience } from '@/components/audience';
+import { NewIn } from '@/components/new-in';
 
 <Screenshot name="settings" caption="The settings page" />
 
-## Profile
+## Profile<NewIn release="v1.4.0" />
 
 The page opens with one card: how Rezepte shows you to the household at the top, then your account, then how you use the app.
 
@@ -23,7 +24,7 @@ If a photo is missing or cannot be loaded, Rezepte shows your initial in your co
 
 The pencil beside your name turns it into a field with "Save" and "Cancel". The display name is the name on your recipes, in the list of people and on the circles that sign a recipe card: up to 64 characters, and saving it empty puts your login name back. It does not have to be unique, so two people can both be "Mia".
 
-The eight circles under your name are the colors to choose from, and yours marks you wherever the app names you. Tapping one saves it right away, no button, and the band follows. The line under them says who else wears the chosen color — "also Sofia, Ida and Tom" — or that nobody else does. Sharing a color is fine: your initial stays in the circle either way.
+The eight circles under your name are the colors to choose from, and yours marks you wherever the app names you. Tapping one saves it right away, no button, and the band follows. The line under them says who else wears the chosen color — "Sage is also worn by Sofia, Ida and Tom" — or that nobody else does. Sharing a color is fine: your initial stays in the circle either way.
 
 ### Your account
 
@@ -96,4 +97,4 @@ Admins have one more tab, "Import & export", for passing recipes with their phot
 
 "Sign out" ends the current session on this device. You find it in the "Account menu" (your initial, top right on desktop) and at the foot of the Settings sidebar; on a phone, in the "You" sheet of the bottom bar and at the foot of the Settings "Contents" sheet.
 
-The instance owner can change another person's display name, color and photo from the list under "People"; nobody else can. See [People](/guide/users) for that and the rest of the account management admins do there. The owner also finds the household's **Recipe editing** setting there (see [Editing rights](/guide/editing-rights)), **Link previews** and **Public sharing** (see [Sharing recipes](/guide/sharing)).
+The instance owner can change another person's display name, color and photo on that person's page under "People"; nobody else can. See [People](/guide/users) for that and the rest of the account management admins do there. The owner also finds the household's **Recipe editing** setting there (see [Editing rights](/guide/editing-rights)), **Link previews** and **Public sharing** (see [Sharing recipes](/guide/sharing)).

@@ -16,7 +16,9 @@ Follow [API tokens](/api/tokens) to issue one from **Settings → API**. What th
 Shopping lists have a ladder of their own, **Shopping lists**:
 
 - **Read** — see your lists and what is on them.
-- **Write** — also create lists, add recipes and items, and tick or remove items. The same token over the [HTTP API](/api/tokens) also renames, deletes and shares lists; MCP does not.
+- **Write** — also create lists, add recipes and items, and tick or remove items. The same token over the [HTTP API](/api/tokens) does the rest of what the app does with a list, too; MCP does not.
+
+The assistant connects only with **Recipes** at **Read** or above, so a token for shopping lists needs that as well; with **Shopping lists** alone, the connection is refused.
 
 Give it the least it needs.
 
@@ -73,7 +75,7 @@ Twenty-two tools, each reaching as far as the token's scopes allow. The assistan
 
 ## What it cannot do
 
-- It cannot share, rename or delete a shopping list — do that in the app, or over the HTTP API with a **Shopping lists** **Write** token.
+- It cannot share a shopping list, accept an invitation to one, leave one, rename or delete it, change the servings of a recipe on it or take the recipe off, clear its done items, or move an item to another department — do that in the app, or over the HTTP API with a **Shopping lists** **Write** token.
 - It cannot change the cover, reorder or delete photos — do that in the app.
 - Photos must be JPEG, PNG or WebP; an assistant converts others, such as iPhone HEIC photos, before uploading.
 - It cannot see or add photos on comments.

@@ -22,10 +22,12 @@ Only admins can issue tokens, under **Settings → API**.
    chosen step allows. **Recipes** has a fourth step, **Delete** — a **Write**
    token can create and edit recipes but never delete one. **Shopping lists**
    **Read** shows your lists and what is on them; **Write** also creates lists
-   and adds, ticks and removes items, and over the HTTP API renames, deletes
-   and shares them too: invite and remove people, accept an invitation, leave a
-   list. [MCP](/api/mcp) offers none of those four. Give a token the least it
-   needs — but not nothing: as soon as all ladders stand at
+   and adds, ticks and removes items, and over the HTTP API does everything
+   else the app does with a list too, renaming, deleting and sharing included:
+   invite and remove people, accept an invitation, leave a list.
+   [MCP](/api/mcp#what-it-cannot-do) does less, and an assistant connects
+   only with **Recipes** at **Read** or above as well. Give a token the least
+   it needs — but not nothing: as soon as all ladders stand at
    **None**, the dialog says "Please choose at least one kind of access"
    under them, and **Create** does nothing until one of them is raised.
 4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.
@@ -43,10 +45,11 @@ Send it as a bearer token, in place of the session cookie:
 curl -H "Authorization: Bearer rzp_..." https://your-instance/api/v1/recipes
 ```
 
-A token reaches the shopping lists of the admin who issued it, never anyone
-else's. Adding a recipe to a list needs only **Shopping lists: Write**, although
-it copies that recipe's ingredients: every account sees every recipe in the app,
-so a token without **Recipes** access loses nothing by it.
+A token reaches the shopping lists the admin who issued it can open — their
+own and those shared with them — never anyone else's. Over the HTTP API,
+adding a recipe to a list needs only **Shopping lists: Write**, although it
+copies that recipe's ingredients: every account sees every recipe in the
+app, so a token without **Recipes** access loses nothing by it.
 
 A token also opens the image files and the OpenAPI document, so a client can
 discover the API on its own.

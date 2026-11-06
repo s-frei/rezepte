@@ -70,7 +70,7 @@ const TILES: Tile[] = [
 ];
 
 const IDEAS = [
-	{ title: 'Servings and shopping list', text: 'Every quantity scales; copy the list with one tap.', href: '/guide/servings' },
+	{ title: 'Servings and shopping lists', text: 'Every quantity scales, and the ingredients go onto a list you can share.', href: '/guide/shopping-lists' },
 	{ title: 'Comments', text: 'Write down what you learned for next time.', href: '/guide/comments' },
 	{ title: 'Photos', text: 'Several per recipe, a cover and a lightbox.', href: '/guide/images' },
 	{ title: 'Tasty marks', text: 'See who in the household liked what, at a glance on every card.', href: '/guide/recipes#tasty' },

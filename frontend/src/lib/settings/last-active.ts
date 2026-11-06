@@ -9,7 +9,7 @@ export type ActivityState = 'recent' | 'quiet' | 'dormant' | 'none';
  * activity, whether it counts as dormant (30 days or more), and its `state`
  * for the list's dot: recent below 7 days, quiet up to 29, dormant, or none
  * when nothing is recorded. Counted in
- * calendar days, since the service records the moment at most daily; a
+ * calendar days; the service records the moment at most hourly. A
  * date ahead of `now` (another clock) reads as today.
  */
 export function lastActive(
