@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { User } from './api/auth';
 import type { TimerStart } from './recipe/timers';
 
@@ -139,6 +139,17 @@ function calls(env: Env, method: string, url: string) {
 		([u, init]) => u === url && ((init as RequestInit | undefined)?.method ?? 'GET') === method
 	);
 }
+
+// The first import compiles the store's whole module graph (about 400 ms at
+// rest, several seconds while `mise run check` runs everything at once). Paid
+// here, once, under a hook timeout sized for it; in a test it ran the first
+// one past its 5 s, and that test, still running, then fetched through the
+// next test's mocks. `load` re-imports from the warm cache in milliseconds.
+beforeAll(async () => {
+	install('denied');
+	await load({ user: null });
+	vi.unstubAllGlobals();
+}, 60_000);
 
 beforeEach(() => {
 	vi.setSystemTime(1_000_000);
