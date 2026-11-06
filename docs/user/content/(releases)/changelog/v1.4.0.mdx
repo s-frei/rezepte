@@ -1,0 +1,62 @@
+---
+title: "v1.4.0 — Shopping lists you share"
+description: "Shopping lists fill from recipes and by hand, add up what several recipes need and follow along live on every screen they are shared with, recipe photos sort in a grid whose first photo is the cover, and the people of the household show as cards with their newest recipes."
+date: 2026-11-06
+upgrade: "Nothing breaks coming from 1.3.1; back up your data directory, then pull and start `ghcr.io/s-frei/rezepte:1.4.0`."
+---
+
+Upgrade as usual (see [Updates](/operations/updates)). A few things are worth knowing as the one who runs it:
+
+- **Shopping lists stream through your proxy.** An open list keeps one connection to Rezepte that brings every change as it happens. A setup from before this release already passes it on - Caddy and Traefik stream by default, and Rezepte tells nginx not to hold it back - but [Reverse proxy](/operations/reverse-proxy#live-lists) now writes it into the nginx configuration as well, and says why HTTP/2 is worth turning on.
+- **Photo orders change once.** On the first start, a recipe whose cover was not its first photo gets that photo moved to the front; the cover stays the same picture. A recipe with photos but no cover gets its first photo as the cover, so its card shows a photo from now on.
+- **The log reads differently.** A line is now `10:00:00 INF http: listening …`: the time, a three-letter level, colored in a terminal, and the part of Rezepte that speaks before every message. `NO_COLOR` and `FORCE_COLOR` switch the color, and in JSON the messages carry the same prefix, so an alert that matches a message text needs a look (see [Logging](/getting-started/configuration#logging)).
+- **Admins see when someone was last active.** Rezepte now records it, at most once an hour, from signing in, coming back to a session and using an API token, and fills it in on the first start from the sessions and tokens there are. Members never see it.
+
+## Shopping lists you share
+
+"Shopping lists" sits in the top bar and in the bottom bar on a phone. On a recipe, the basket beside the shopping list puts its ingredients on a list at the servings you chose, leaving out what you ticked off, and anything else goes on by typing it, "2 l milk" included. The list sorts itself by store department, and the same ingredient from several recipes is one row with the amounts added up: 100 ml and 2 l make 2.1 l. Share a list with anyone on your instance, and every change shows on every open screen within a second; in the store, **Shop** opens a full-screen mode where a tap anywhere on a row ticks it off and the screen stays on. See [Shopping lists](/guide/shopping-lists).
+
+<Screenshot name="list" caption="A shared list, sorted by department, with its recipes beside it" />
+
+Whoever you invite gets a mail and a push where those reach them, and accepts or declines on their lists. The copy button beside the basket stays, for lists that live in another app.
+
+## Photos in the order you choose
+
+A recipe's photos are one grid in the editor, and the first one is the cover, shown large with a "Cover" badge. Drag a photo to another place, or on a phone hold it for a moment first; "Make cover" in a photo's menu moves it to the front. Photos can be pasted in, a failed upload stays in its place with **Retry**, and a removed photo comes back with **Undo** for a few seconds. The photos of a comment show while you write it the way the comment will, and keep the order you drag them into. See [Photos](/guide/images) and [Comments](/guide/comments#adding-photos).
+
+<Screenshot name="editor-images" caption="The photo grid in the editor, the cover first" />
+
+## The household at a glance
+
+Under **Settings → People**, everyone is a card: their photo, role, their newest recipes and how many recipes and shopping lists they have, never what is on them. **Settings → Profile** is now one card in your color, and that color marks you across the app - around your photo, on the rows you tick on a shared list and in the comment box - while your face shows on the push notifications others get because of you. Someone new sees their color and who invited them on the page their setup link opens. Admins open a person's page for everything they do to an account, from a new setup link to deleting it, and see there when that person was last active. See [People](/guide/users) and [Profile](/guide/settings#profile).
+
+<Screenshot name="users" caption="People as cards, with their newest recipes" />
+
+## API
+
+- Shopping lists: `GET` and `POST /api/v1/shopping-lists` and `GET`, `PATCH` and `DELETE /api/v1/shopping-lists/{id}` list, create, read, rename and delete lists. `POST /api/v1/shopping-lists/{id}/recipes` puts a recipe's ingredients on a list at the servings you name, and `PATCH` and `DELETE /api/v1/shopping-lists/{id}/recipes/{entryId}` change its servings or take it off. `POST /api/v1/shopping-lists/{id}/items`, `…/items/check`, `…/items/remove` and `…/clear-checked` add, tick and remove items, and `PUT /api/v1/shopping-departments` sorts an item under a department on every list. Most changes answer with the whole list - deleting a list, leaving one and sorting into a department answer `204` - and `GET /api/v1/shopping-lists/{id}/events` sends each change's `revision` as Server-Sent Events. Reading takes the new scope `lists:read`, everything else `lists:write`, and a token reaches the lists its admin can open.
+- Sharing lists: `POST /api/v1/shopping-lists/{id}/invitations` invites a person, `POST` and `DELETE /api/v1/shopping-lists/{id}/membership` accept, decline or leave, and `DELETE /api/v1/shopping-lists/{id}/members/{userId}` removes a member. Only the list's creator invites, removes and deletes. Notifications have a new kind, `list_invite`, in the `household` group.
+- Photos: the order and the cover are one now, where before they were set apart. `PUT /api/v1/recipes/{id}/images/order` also makes the first id the cover, `PUT /api/v1/recipes/{id}/cover` moves that photo to the front, and `coverImageId` always names `images[0]`. A comment's `imageIds` keep the order they are sent in.
+- People: `GET /api/v1/people` entries carry `recipeCount`, `listCount` and `latestRecipes`, up to four of the newest; `GET /api/v1/users` carries `lastActiveAt` and `lastRecipeTitle`. `GET /api/v1/auth/me/colors` is gone, since `GET /api/v1/people` carries every person's color.
+- Public pages: `GET` and `PATCH /api/v1/settings` carry `publicShareSharer`, which the owner sets with a session. While it is on, `GET /api/v1/public/shares/{token}` carries `sharedBy`, with their picture at `/public-images/{token}/sharer.jpg`. `POST /api/v1/auth/setup/inspect` answers the newcomer's `color` and who invited them, as `inviter`.
+- MCP: seven tools for shopping lists, `list_shopping_lists` and `get_shopping_list` with **Shopping lists: Read**, `create_shopping_list`, `add_recipe_to_shopping_list`, `add_shopping_items`, `check_shopping_items` and `remove_shopping_items` with **Write**, which makes twenty-two. Connecting still takes **Recipes: Read**. See [Connect an AI assistant](/api/mcp).
+
+The [API reference](/api/reference) lists every endpoint.
+
+## Also in this release
+
+- **New:** The owner can let public pages say who shared them: **Name who shared it**, off by default, adds "Shared by" with the name and photo of whoever made the link. See [People](/guide/users#public-sharing).
+- **New:** Every release archive comes with an SPDX SBOM, and the image carries one with its build provenance, so a scanner such as Trivy or Grype checks a version for known vulnerabilities. See [Running the binary](/getting-started/binary#download) and [Docker](/getting-started/docker).
+- **New:** The demo prints every login it creates, so you can sign in as a second person and watch a shared list change on both screens.
+- **Improved:** A page that does not exist, an error and a lost connection each get a page of their own, with the mascot and a way back or **Try again**.
+- **Improved:** On a computer, the logo hangs from the top edge as a tab, Recipes and Shopping lists sit in the middle of the top bar, and the bar stays still between pages.
+- **Improved:** The color picker names who else wears a color.
+- **Improved:** Dialogs, sheets and menus fit a phone and enlarged text, and their buttons are easy to hit with a thumb.
+- **Improved:** The documentation lives at getrezepte.app; the old addresses lead there.
+- **Fixed:** Back and Forward in cook mode return to the step you were on.
+- **Fixed:** The browser's back button closes the account menu and, on a phone, the **New** sheet.
+- **Fixed:** On a phone, going back from a recipe glides its photo into its card, and the overview no longer flashes empty.
+- **Fixed:** Going back to a setup or confirmation link shows that page again.
+- **Fixed:** Signing in from a link to a page that no longer exists lands on the page saying so instead of reporting a failed sign-in.
+- **Fixed:** The large photo covers the whole window on computers with scroll bars that always show.
+- **Fixed:** The password rating no longer moves the save button just as you click it.
