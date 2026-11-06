@@ -96,9 +96,10 @@ func newFullApp(t *testing.T) fullApp {
 	settings.Register(srv.API(), instance, func(context.Context) bool { return false })
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
-	share.RegisterPublic(srv.API(), shares, recipes, images)
+	avatars := avatar.NewService(conn, t.TempDir(), images)
+	share.RegisterPublic(srv.API(), shares, recipes, images, avatars)
 	push.Register(srv.API(), push.NewService(conn, "", nil))
-	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), images), nil, nil, userapi.NewCounts(recipes, shoppingSvc))
+	userapi.Register(srv.API(), users, sessions, avatars, nil, nil, userapi.NewCounts(recipes, shoppingSvc))
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens, recipes: recipes, links: links}
 }
@@ -501,7 +502,7 @@ func TestPublicSharesWiring(t *testing.T) {
 	if got := app.get("/api/v1/shares", nil).Code; got != http.StatusUnauthorized {
 		t.Errorf("GET /api/v1/shares without a session: status %d, want 401", got)
 	}
-	for _, route := range []string{"/api/v1/public/shares/x", "/public-images/x/y/thumb.jpg"} {
+	for _, route := range []string{"/api/v1/public/shares/x", "/public-images/x/y/thumb.jpg", "/public-images/x/sharer.jpg"} {
 		for _, accept := range []string{"", "text/html,application/xhtml+xml"} {
 			req := httptest.NewRequest(http.MethodGet, route, nil)
 			if accept != "" {

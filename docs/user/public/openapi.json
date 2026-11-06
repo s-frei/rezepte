@@ -455,53 +455,6 @@
         ],
         "type": "object"
       },
-      "ColorCount": {
-        "additionalProperties": false,
-        "properties": {
-          "color": {
-            "description": "Palette token",
-            "type": "string"
-          },
-          "count": {
-            "description": "How many accounts hold it",
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "color",
-          "count"
-        ],
-        "type": "object"
-      },
-      "ColorUsageOutputBody": {
-        "additionalProperties": false,
-        "properties": {
-          "$schema": {
-            "description": "A URL to the JSON Schema for this object.",
-            "examples": [
-              "https://example.com/api/v1/schemas/ColorUsageOutputBody.json"
-            ],
-            "format": "uri",
-            "readOnly": true,
-            "type": "string"
-          },
-          "items": {
-            "description": "Every palette color and how many accounts hold it, in palette order",
-            "items": {
-              "$ref": "#/components/schemas/ColorCount"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "items"
-        ],
-        "type": "object"
-      },
       "Comment": {
         "additionalProperties": false,
         "properties": {
@@ -1050,6 +1003,14 @@
             "description": "User id",
             "type": "string"
           },
+          "lastActiveAt": {
+            "description": "When this person last signed in, used a session or an API token, up to an hour late; null when never recorded; set only by list-users",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "lastRecipeTitle": {
             "description": "Title of the recipe this person created that changed most recently; null when they created none; set only by list-users",
             "type": [
@@ -1101,6 +1062,7 @@
           "email",
           "emailVerified",
           "lastRecipeTitle",
+          "lastActiveAt",
           "hasIdentity"
         ],
         "type": "object"
@@ -1921,8 +1883,26 @@
             "readOnly": true,
             "type": "string"
           },
+          "color": {
+            "description": "The account's color, which the welcome page shows with its initial",
+            "enum": [
+              "amber",
+              "clay",
+              "rose",
+              "plum",
+              "sage",
+              "olive",
+              "teal",
+              "slate"
+            ],
+            "type": "string"
+          },
           "displayName": {
             "type": "string"
+          },
+          "inviter": {
+            "$ref": "#/components/schemas/Inviter",
+            "description": "Who issued a setup link for someone else; absent for a reset and when the issuer cannot be read"
           },
           "purpose": {
             "description": "setup: set a password or connect a provider; reset: a forgotten-password link, which only sets a password",
@@ -1939,7 +1919,34 @@
         "required": [
           "username",
           "displayName",
+          "color",
           "purpose"
+        ],
+        "type": "object"
+      },
+      "Inviter": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "enum": [
+              "amber",
+              "clay",
+              "rose",
+              "plum",
+              "sage",
+              "olive",
+              "teal",
+              "slate"
+            ],
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayName",
+          "color"
         ],
         "type": "object"
       },
@@ -2097,6 +2104,37 @@
         },
         "required": [
           "key"
+        ],
+        "type": "object"
+      },
+      "LatestRecipe": {
+        "additionalProperties": false,
+        "properties": {
+          "coverImageId": {
+            "description": "The cover photo, served at /images/{id}/{coverImageId}/thumb.jpg; null when it has none",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Recipe id",
+            "type": "string"
+          },
+          "slug": {
+            "description": "The recipe's URL slug",
+            "type": "string"
+          },
+          "title": {
+            "description": "Recipe title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "coverImageId"
         ],
         "type": "object"
       },
@@ -2740,6 +2778,16 @@
             "description": "User id",
             "type": "string"
           },
+          "latestRecipes": {
+            "description": "Up to four recipes this person created, newest created first; empty when they created none",
+            "items": {
+              "$ref": "#/components/schemas/LatestRecipe"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "listCount": {
             "description": "Shopping lists this person created",
             "format": "int64",
@@ -2772,7 +2820,8 @@
           "role",
           "avatarId",
           "recipeCount",
-          "listCount"
+          "listCount",
+          "latestRecipes"
         ],
         "type": "object"
       },
@@ -3306,6 +3355,9 @@
               "null"
             ]
           },
+          "publicShareSharer": {
+            "type": "boolean"
+          },
           "publicShares": {
             "type": "boolean"
           },
@@ -3328,6 +3380,7 @@
           "publicShareDefaultDays",
           "publicShareMaxDays",
           "publicShareAttribution",
+          "publicShareSharer",
           "recipeDigestHour"
         ],
         "type": "object"
@@ -3501,6 +3554,36 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "Sharer": {
+        "additionalProperties": false,
+        "properties": {
+          "avatarUrl": {
+            "description": "The sharer's picture, served at /public-images/{token}/sharer.jpg; absent when they have none",
+            "type": "string"
+          },
+          "color": {
+            "enum": [
+              "amber",
+              "clay",
+              "rose",
+              "plum",
+              "sage",
+              "olive",
+              "teal",
+              "slate"
+            ],
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayName",
+          "color"
         ],
         "type": "object"
       },
@@ -4156,6 +4239,10 @@
               "null"
             ]
           },
+          "publicShareSharer": {
+            "description": "Name the member who shared a recipe, by display name and an initial on their color, at the foot of its public page",
+            "type": "boolean"
+          },
           "publicShares": {
             "description": "Let members turn a recipe into a public, read-only link",
             "type": "boolean"
@@ -4238,6 +4325,14 @@
             "description": "User id",
             "type": "string"
           },
+          "lastActiveAt": {
+            "description": "When this person last signed in, used a session or an API token, up to an hour late; null when never recorded; set only by list-users",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "lastRecipeTitle": {
             "description": "Title of the recipe this person created that changed most recently; null when they created none; set only by list-users",
             "type": [
@@ -4286,6 +4381,7 @@
           "email",
           "emailVerified",
           "lastRecipeTitle",
+          "lastActiveAt",
           "hasIdentity"
         ],
         "type": "object"
@@ -4925,53 +5021,6 @@
           }
         ],
         "summary": "Set the own picture (JPEG, PNG or WebP, at most 10 MiB)",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/me/colors": {
-      "get": {
-        "description": "Counts, not names: the picker only needs to mark a color as taken. It sits under /auth/me because it describes what the caller may choose for themselves; /people names every account without counting colors, and everything under /users is admin-only.",
-        "operationId": "list-color-usage",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ColorUsageOutputBody"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "401": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "500": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorModel"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          }
-        },
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "summary": "List the color palette and how many accounts hold each color",
         "tags": [
           "auth"
         ]
@@ -6150,7 +6199,7 @@
     },
     "/api/v1/people": {
       "get": {
-        "description": "Every account's login name, display name, color, role and recipe and shopping-list counts, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+        "description": "Every account's login name, display name, color, role, recipe and shopping-list counts and newest recipes, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
         "operationId": "list-people",
         "responses": {
           "200": {
@@ -6265,6 +6314,10 @@
                     "servings": {
                       "format": "int64",
                       "type": "integer"
+                    },
+                    "sharedBy": {
+                      "$ref": "#/components/schemas/Sharer",
+                      "description": "The member who shared the recipe, only while the owner lets public pages name them (publicShareSharer)"
                     },
                     "sourceName": {
                       "type": [
@@ -12695,6 +12748,82 @@
         ]
       }
     },
+    "/marks/{file}": {
+      "get": {
+        "description": "No session needed: the notification system that fetches a push's icon may send no cookie. The address a push carries is signed for one account and lasts a day. Answers the account's picture cropped round, or their initial on their color, as a PNG. An invalid or expired signature and an account that is gone answer 404 alike.",
+        "operationId": "get-push-mark",
+        "parameters": [
+          {
+            "description": "The account's id followed by .png",
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "description": "The account's id followed by .png",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The address's signature",
+            "explode": false,
+            "in": "query",
+            "name": "s",
+            "schema": {
+              "description": "The address's signature",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The PNG, with conditional-request support"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Read the face a push notification shows",
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/mcp": {
       "post": {
         "description": "The endpoint an MCP client such as an AI agent connects to: stateless Streamable HTTP, one JSON-RPC message per request, answered as JSON. The tools describe themselves over tools/list; the token's scopes decide which ones it lists. See https://modelcontextprotocol.io/specification.",
@@ -12741,6 +12870,82 @@
         "summary": "Talk to Rezepte over the Model Context Protocol",
         "tags": [
           "mcp"
+        ]
+      }
+    },
+    "/public-images/{token}/sharer.jpg": {
+      "get": {
+        "description": "No session needed, like get-public-recipe. Only while the owner lets public pages name the sharer (publicShareSharer) and the sharer has a picture; otherwise, and for a link that serves nothing, 404 alike.",
+        "operationId": "get-public-sharer-avatar",
+        "parameters": [
+          {
+            "description": "The token of the public link, the last segment of /s/{token}",
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "description": "The token of the public link, the last segment of /s/{token}",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The JPEG, with Range and conditional-request support"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Read the picture of who shared the recipe behind a public link",
+        "tags": [
+          "public"
         ]
       }
     },

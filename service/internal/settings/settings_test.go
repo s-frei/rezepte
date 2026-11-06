@@ -38,6 +38,9 @@ func TestDefaultsToOpen(t *testing.T) {
 	if !got.PublicShareAttribution {
 		t.Error("PublicShareAttribution = false on a fresh instance, want true")
 	}
+	if got.PublicShareSharer {
+		t.Error("PublicShareSharer = true on a fresh instance, want false: a stranger learns a name only once the owner chose so")
+	}
 }
 
 func TestOnlyTheOwnerSetsShareAttribution(t *testing.T) {
@@ -54,6 +57,21 @@ func TestOnlyTheOwnerSetsShareAttribution(t *testing.T) {
 	}
 	if got.PublicShareAttribution {
 		t.Error("PublicShareAttribution = true after switching it off")
+	}
+}
+
+func TestOnlyTheOwnerNamesTheSharer(t *testing.T) {
+	ctx := context.Background()
+	svc := settings.NewService(dbtest.Open(t))
+	if _, err := svc.SetPublicShareSharer(ctx, user.User{ID: "a", Role: user.RoleAdmin}, true); !errors.Is(err, settings.ErrOwnerRequired) {
+		t.Errorf("admin switch: err = %v, want ErrOwnerRequired", err)
+	}
+	got, err := svc.SetPublicShareSharer(ctx, user.User{ID: "o", Role: user.RoleSuperadmin}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.PublicShareSharer {
+		t.Error("PublicShareSharer = false after switching it on")
 	}
 }
 

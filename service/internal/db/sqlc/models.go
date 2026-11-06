@@ -96,6 +96,7 @@ type InstanceSetting struct {
 	RecipeDigestLastDay    string
 	VapidKey               []byte
 	MailAlertLastAt        string
+	PublicShareSharer      bool
 }
 
 type NotificationGroupOptout struct {
@@ -300,6 +301,7 @@ type User struct {
 	AvatarID         *string
 	Email            string
 	EmailVerified    bool
+	LastActiveAt     *string
 }
 
 type UserIdentity struct {

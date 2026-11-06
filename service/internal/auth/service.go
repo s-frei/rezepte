@@ -110,6 +110,9 @@ func (s *Service) StartSession(ctx context.Context, u user.User) (Session, error
 	}); err != nil {
 		return Session{}, fmt.Errorf("insert session: %w", err)
 	}
+	if err := touchActive(ctx, s.q, u.ID, now); err != nil {
+		return Session{}, err
+	}
 	return Session{Token: token, ExpiresAt: expires, User: u}, nil
 }
 
@@ -163,6 +166,13 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Verified, err
 	}
 	if err != nil {
 		return Verified{}, err
+	}
+	// Activity is recorded at most once per touchAfter, like a token's use,
+	// so someone who opens the app daily reads "active today".
+	if u.LastActiveAt == nil || now.Sub(*u.LastActiveAt) >= touchAfter {
+		if err := touchActive(ctx, s.q, u.ID, now); err != nil {
+			return Verified{}, err
+		}
 	}
 	return Verified{User: u, SessionID: row.ID, ExpiresAt: expires, Renewed: renewed}, nil
 }
@@ -227,6 +237,20 @@ func (s *Service) SweepLoop(ctx context.Context, d time.Duration, logger *slog.L
 			}
 		}
 	}
+}
+
+// touchActive records that userID was active at now: on every new session,
+// and on a session's or an API token's use at most once per touchAfter.
+// Activity is recorded where it is already detected and throttled, never per
+// request, so it adds at most one write per person and hour and lags real
+// activity by up to an hour.
+func touchActive(ctx context.Context, q *sqlc.Queries, userID string, now time.Time) error {
+	if err := q.TouchUserActive(ctx, sqlc.TouchUserActiveParams{
+		LastActiveAt: new(db.FormatTime(now)), ID: userID,
+	}); err != nil {
+		return fmt.Errorf("touch user %s active: %w", userID, err)
+	}
+	return nil
 }
 
 // hashToken stores only a digest so a database leak does not leak sessions.

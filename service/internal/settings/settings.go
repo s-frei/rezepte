@@ -61,6 +61,9 @@ type Settings struct {
 	// the foot of a public share page and of a recipe card passed on as a
 	// picture.
 	PublicShareAttribution bool `json:"publicShareAttribution"`
+	// PublicShareSharer names the member who shared a recipe, by display
+	// name and an initial on their color, at the foot of its public page.
+	PublicShareSharer bool `json:"publicShareSharer"`
 	// RecipeDigestHour is the hour, in the server's time zone, the daily
 	// new recipes notification goes out by mail and push.
 	RecipeDigestHour int `json:"recipeDigestHour" minimum:"0" maximum:"23"`
@@ -90,6 +93,7 @@ func (s *Service) Get(ctx context.Context) (Settings, error) {
 		PublicShareDefaultDays: db.Conv[int](row.PublicShareDefaultDays),
 		PublicShareMaxDays:     db.Conv[int](row.PublicShareMaxDays),
 		PublicShareAttribution: row.PublicShareAttribution,
+		PublicShareSharer:      row.PublicShareSharer,
 		RecipeDigestHour:       int(row.RecipeDigestHour),
 	}, nil
 }
@@ -154,6 +158,19 @@ func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User
 	}
 	if err := s.q.SetPublicShareAttribution(ctx, on); err != nil {
 		return Settings{}, fmt.Errorf("set public share attribution: %w", err)
+	}
+	return s.Get(ctx)
+}
+
+// SetPublicShareSharer switches whether public share pages name the member
+// who shared the recipe. Only the superadmin may; everybody else gets
+// ErrOwnerRequired.
+func (s *Service) SetPublicShareSharer(ctx context.Context, actor user.User, on bool) (Settings, error) {
+	if !actor.Role.IsSuperadmin() {
+		return Settings{}, ErrOwnerRequired
+	}
+	if err := s.q.SetPublicShareSharer(ctx, on); err != nil {
+		return Settings{}, fmt.Errorf("set public share sharer: %w", err)
 	}
 	return s.Get(ctx)
 }

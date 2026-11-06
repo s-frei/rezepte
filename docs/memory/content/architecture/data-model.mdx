@@ -61,6 +61,7 @@ erDiagram
     text avatar_id "nullable, names the current picture file"
     text email "profile data, not unique, empty means none"
     boolean email_verified "true when a provider vouched for it, a setup link mailed to it was redeemed, or its confirmation link was opened"
+    text last_active_at "nullable, up to an hour behind"
   }
   shares {
     text id PK
@@ -132,6 +133,7 @@ erDiagram
     integer public_share_default_days "nullable, 1/7/30/365, null is permanent"
     integer public_share_max_days "nullable, 1/7/30/365, null is no maximum"
     boolean public_share_attribution "owner switch, on by default"
+    boolean public_share_sharer "owner switch, off by default"
     text smtp_host "empty means mail is not configured here"
     integer smtp_port "587 by default"
     text smtp_security "starttls, tls or none"
@@ -278,6 +280,7 @@ erDiagram
 - `users.email` is `NOT NULL DEFAULT ''`, profile data like `display_name`, so no migration had to backfill existing rows and no reader has to handle `NULL`; it carries no `UNIQUE` or `CHECK`, because nothing signs in by it. `users.email_verified` is `NOT NULL DEFAULT 0`; [Users and authentication](/features/users-and-auth) owns who writes each column and when the mark is dropped.
 - `users.avatar_id` is nullable: `NULL` is no picture, otherwise it is the UUID that names `<REZEPTE_DATA_DIR>/avatars/<users.id>/<avatar_id>.jpg`. It carries no foreign key because the file is not a row; [Users and authentication](/features/users-and-auth) owns the order of a replace, which keeps the column from naming a missing file.
 - `users.can_share_publicly` is `NOT NULL DEFAULT 1`: an admin's per-person switch for [public shares](/features/public-shares), separate from the household-wide `instance_settings.public_shares`.
+- `users.last_active_at` is nullable, `NULL` until the account shows activity. `touchActive` in `service/internal/auth/service.go` writes it (`TouchUserActive`) on `StartSession` (every login - password, setup link or OIDC) and, at most once per `touchAfter` (an hour), when `Authenticate` serves a session or an API token's `last_used_at` is touched, so it adds at most one write per person and hour and lags real activity by up to an hour. Throttling on the session's 24-hour `renewAfter` instead made someone who opens the app every morning read "active yesterday". It does not move `updated_at`, which tracks changes to the account, not its use. Migration 0025 backfilled it from the later of each user's newest session renewal (`expires_at` minus the 30-day `SessionTTL`, which is the row's last write) and newest `api_tokens.last_used_at`; `TestUserLastActiveMigration` pins that.
 - A session id is the SHA-256 digest of the session's own random token; the raw value exists only in the cookie and is never stored. Sessions and API tokens cascade with their user.
 - `api_tokens.token_hash` is `UNIQUE`, which doubles as the lookup index for authentication. `id` is a separate UUIDv7 rather than the hash, because a token is deleted from a list at a moment the raw value no longer exists to hash again. `token_prefix` keeps the first 8 characters in clear, for matching a row in the list against an entry in a client configuration. See [API tokens](/features/api-tokens).
 - `setup_links.id` is the SHA-256 digest of the setup token, following `sessions.id`: the raw value exists only in the link. `setup_links_user_idx` is a unique index on `user_id`, so a second `ReplaceSetupLink` for the same account is an `UPDATE` by construction - no state has two links resolving to one account. Both foreign keys cascade: deleting the account the link is for or the one that issued it removes the row. `sent_to` is `NOT NULL DEFAULT ''`, read when the link is redeemed to decide whether to verify the account's address ([Email](/features/email)).
@@ -287,6 +290,7 @@ erDiagram
 
 ### Recipes
 
+- `LatestRecipesByCreator` (the people list's covers) ranks every recipe with `ROW_NUMBER() OVER (PARTITION BY created_by ORDER BY created_at DESC, rowid DESC)` and keeps four per person: one scan of `recipes` for the whole list, fine at a household's size; `rowid` breaks ties between recipes created in the same instant. There is no index on `created_by`; add `(created_by, created_at)` if the table ever grows past what a scan answers in a few milliseconds.
 - `recipes.created_by` and `recipes.updated_by` are both `NOT NULL` without `ON DELETE`; deleting a user moves every recipe they wrote **or last edited** to the acting admin (see [Users and authentication](/features/users-and-auth)).
 - `updated_by` always names somebody: a new recipe seeds it from `created_by`, so "never edited" is "both columns still match their `created_*` twin" rather than a NULL. Reading it needs both — with second resolution, an edit in the same second as the create moves only `updated_by`. Every write that moves `updated_at` moves `updated_by` with it, image uploads and cover changes included (see [Recipes and search](/features/recipes)).
 - `ingredient_groups.position`, `ingredients.position` and `steps.position` are 0-based integers, rewritten sequentially in full on every recipe save (see [Recipes and search](/features/recipes)) - never edited in place, so there are no gaps or renumbering to reason about between saves.
@@ -317,7 +321,7 @@ erDiagram
 - `instance_settings` holds exactly one row: `id INTEGER PRIMARY KEY CHECK (id = 1)`, inserted by the migration that creates the table, so reading it never has to handle "no row" and writing it is an `UPDATE`. It stands alone in the diagram because nothing references it. Its columns belong to their features:
   - `recipes_locked_by_default` to [Editing rights](/features/editing-rights).
   - `link_previews` (off by default), `link_preview_minutes` (15, 60 or 1440 under a `CHECK`, 15 by default) and `link_preview_key` to [Link previews](/features/link-previews), whose key the unsubscribe links of [Notifications](/features/notifications) sign with too, under their own label. The key is 32 random bytes the migration writes with `randomblob`, since SQLite refuses a non-constant default in `ADD COLUMN`; `GetInstanceSettings` names its columns so the key never rides along.
-  - `public_shares`, `public_share_default_days`, `public_share_max_days` and `public_share_attribution` to [Public shares](/features/public-shares). The rule that the default may never exceed the maximum is a `CHECK` on `public_share_max_days` alone, since SQLite's `ALTER TABLE` cannot add a table-level constraint and a column constraint may only name a column that already exists by the time it is added.
+  - `public_shares`, `public_share_default_days`, `public_share_max_days`, `public_share_attribution` and `public_share_sharer` to [Public shares](/features/public-shares). The rule that the default may never exceed the maximum is a `CHECK` on `public_share_max_days` alone, since SQLite's `ALTER TABLE` cannot add a table-level constraint and a column constraint may only name a column that already exists by the time it is added.
   - `recipe_digest_hour` and `recipe_digest_last_day` to [Notifications](/features/notifications): the owner's hour of the new recipes digest in the server's time zone (`settings.Service.SetRecipeDigestHour`, 0 to 23, `ErrUnknownHour` otherwise) and the local date of the last run. `ClaimRecipeDigestDay` writes the date only when it differs and reports the rows it changed, so of two runs on one day only the first gets a row back.
   - `mail_alert_last_at` to [Notifications](/features/notifications): when the owner's mail-failing push last went, kept here so a restart does not re-arm it, `TEXT NOT NULL DEFAULT ''` (empty: no alert since mail last worked or was set up). `GetMailAlertLastAt` reads and `SetMailAlertLastAt` writes it, only from `notify/mailalert.go`.
   - The seven `smtp_*` columns to [Email](/features/email): the mail configuration the owner saves in the UI, `smtp_host = ''` meaning not configured here, the password stored as plain text like `link_preview_key`, and `GetMailSettings` the one query that reads them.

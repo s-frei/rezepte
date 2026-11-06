@@ -196,6 +196,9 @@ func (s *TokenService) Authenticate(ctx context.Context, raw string) (VerifiedTo
 		}); err != nil {
 			return VerifiedToken{}, fmt.Errorf("touch api token: %w", err)
 		}
+		if err := touchActive(ctx, s.q, row.UserID, now); err != nil {
+			return VerifiedToken{}, err
+		}
 	}
 	return VerifiedToken{User: u, Scopes: strings.Fields(row.Scopes)}, nil
 }

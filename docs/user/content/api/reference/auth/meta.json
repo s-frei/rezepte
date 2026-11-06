@@ -10,7 +10,6 @@
     "change-own-password",
     "delete-own-avatar",
     "set-own-avatar",
-    "list-color-usage",
     "resend-email-confirmation",
     "get-own-identity",
     "unlink-own-identity",

@@ -13,11 +13,13 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/user"
 )
 
 // notAvailable is the one answer every public route gives for a link that
@@ -40,7 +42,8 @@ type PublicImage struct {
 // PublicRecipe is what a public link shows: the recipe's content and nothing
 // about the household it lives in - no ids, people, permissions, favorites or
 // timestamps - plus whether the owner wants Rezepte named at the page's foot,
-// since the page has no session to read the settings with. It is its own type, built field by field, never recipe.Recipe:
+// and the sharer's name, color and picture only while the owner lets the
+// page name them, since the page has no session to read the settings with. It is its own type, built field by field, never recipe.Recipe:
 // a field added there must not reach a stranger by accident.
 type PublicRecipe struct {
 	Title            string                   `json:"title"`
@@ -56,6 +59,16 @@ type PublicRecipe struct {
 	Images           []PublicImage            `json:"images" nullable:"false"`
 	CoverImageID     *string                  `json:"coverImageId" nullable:"true"`
 	Attribution      bool                     `json:"attribution" doc:"Whether the page names Rezepte, with a link to the project, at its foot"`
+	SharedBy         *Sharer                  `json:"sharedBy,omitempty" required:"false" doc:"The member who shared the recipe, only while the owner lets public pages name them (publicShareSharer)"`
+}
+
+// Sharer is the member behind a public link as a stranger may see them: a
+// name, a color for an initial and, when they have one, their picture at a
+// share-scoped address - never an id.
+type Sharer struct {
+	DisplayName string `json:"displayName"`
+	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate"`
+	AvatarURL   string `json:"avatarUrl,omitempty" required:"false" doc:"The sharer's picture, served at /public-images/{token}/sharer.jpg; absent when they have none"`
 }
 
 // toPublic copies the recipe's content into a PublicRecipe.
@@ -134,7 +147,7 @@ func ShellHeaders(r *http.Request, h http.Header) {
 // RegisterPublic installs get-public-recipe, the recipe behind a public link.
 // It declares no Security, so auth.Middleware lets it through without a
 // session; the token is the whole authorization.
-func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service, images *image.Service) {
+func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service, images *image.Service, avatars *avatar.Service) {
 	// The body schema is given inline rather than as a $ref: huma's schema
 	// link transformer adds a "$schema" field and a Link header to every
 	// response whose schema is a $ref, which would put a key into the public
@@ -174,6 +187,11 @@ func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service, images 
 		}
 		body := toPublic(r)
 		body.Attribution = st.PublicShareAttribution
+		if st.PublicShareSharer {
+			if body.SharedBy, err = svc.sharer(ctx, in.Token); err != nil {
+				return nil, err
+			}
+		}
 		return &publicOutput{Body: body}, nil
 	})
 
@@ -198,6 +216,93 @@ func RegisterPublic(api huma.API, svc *Service, recipes *recipe.Service, images 
 		// Cache-Control is publicHeaders' own.
 		return image.JPEG(f, ""), nil
 	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-public-sharer-avatar",
+		Method:      http.MethodGet,
+		Path:        "/public-images/{token}/sharer.jpg",
+		Summary:     "Read the picture of who shared the recipe behind a public link",
+		Description: "No session needed, like get-public-recipe. Only while the owner lets public pages name the sharer (publicShareSharer) and the sharer has a picture; otherwise, and for a link that serves nothing, 404 alike.",
+		Tags:        []string{"public"},
+		Errors:      []int{404},
+		Responses:   image.JPEGResponses,
+		Middlewares: huma.Middlewares{withPublicHeaders},
+	}, func(ctx context.Context, in *publicInput) (*huma.StreamResponse, error) {
+		f, err := svc.openSharerAvatar(ctx, avatars, in.Token)
+		if err != nil {
+			if !errors.Is(err, errNotServed) {
+				svc.logger.Warn("share: public sharer picture failed", "err", err)
+			}
+			return nil, errNotAvailable()
+		}
+		// Cache-Control is publicHeaders' own: revalidated on every use, so
+		// a revoke or the switch going off stops the picture at once.
+		return image.JPEG(f, ""), nil
+	})
+}
+
+// sharer is the member who created the link token; nil when the link is
+// gone by now.
+func (s *Service) sharer(ctx context.Context, token string) (*Sharer, error) {
+	u, err := s.sharerUser(ctx, token)
+	if u == nil || err != nil {
+		return nil, err
+	}
+	sh := &Sharer{DisplayName: u.DisplayName, Color: string(u.Color)}
+	if u.AvatarID != nil {
+		sh.AvatarURL = "/public-images/" + url.PathEscape(token) + "/sharer.jpg"
+	}
+	return sh, nil
+}
+
+func (s *Service) sharerUser(ctx context.Context, token string) (*user.User, error) {
+	row, err := s.q.GetShareByToken(ctx, token)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get share by token: %w", err)
+	}
+	u, err := s.users.ByID(ctx, row.CreatedBy)
+	if errors.Is(err, user.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get sharer: %w", err)
+	}
+	return &u, nil
+}
+
+// openSharerAvatar opens the sharer's picture while the link serves, the
+// owner lets public pages name the sharer and the sharer has a picture -
+// the one way a face reaches a stranger.
+func (s *Service) openSharerAvatar(ctx context.Context, avatars *avatar.Service, token string) (*os.File, error) {
+	_, ok, err := s.Resolve(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errNotServed
+	}
+	st, err := s.settings.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get settings: %w", err)
+	}
+	if !st.PublicShareSharer {
+		return nil, errNotServed
+	}
+	u, err := s.sharerUser(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	if u == nil || u.AvatarID == nil {
+		return nil, errNotServed
+	}
+	f, err := avatars.Open(u.ID, *u.AvatarID)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, errNotServed
+	}
+	return f, err
 }
 
 // withPublicHeaders sets publicHeaders on every answer of a public

@@ -53,10 +53,10 @@ var userColors = map[user.Color]struct{ bg, fg string }{
 	"slate": {"#dedfe4", "#4a5263"},
 }
 
-// circle is what a person's circle in a mail shows without a picture: the
-// light colors of their palette color, amber for an unknown one, and the
-// initial of their name, or "?" for an empty one.
-func circle(color user.Color, name string) (bg, fg, initial string) {
+// Circle is what a person's circle in a mail or a push icon shows without
+// a picture: the light colors of their palette color, amber for an unknown
+// one, and the initial of their name, or "?" for an empty one.
+func Circle(color user.Color, name string) (bg, fg, initial string) {
 	colors, ok := userColors[color]
 	if !ok {
 		colors = userColors["amber"]
@@ -81,7 +81,7 @@ func avatarPart(cfg Config, id string, jpeg []byte) (string, []inline) {
 // BuildComment renders the comment mail; its button opens the recipe on
 // the comments tab.
 func BuildComment(cfg Config, in Comment, publicURL string, now time.Time) (Envelope, error) {
-	bg, fg, initial := circle(in.AuthorColor, in.AuthorName)
+	bg, fg, initial := Circle(in.AuthorColor, in.AuthorName)
 	// The picture's Content-ID shares the Message-ID's random part: RFC 2392
 	// wants it unique, and a client that caches by cid must not show one
 	// author's picture in another's mail.
@@ -134,7 +134,7 @@ type Tasty struct {
 
 // BuildTasty renders the tasty mail; its button opens the recipe.
 func BuildTasty(cfg Config, in Tasty, publicURL string, now time.Time) (Envelope, error) {
-	bg, fg, initial := circle(in.MarkerColor, in.MarkerName)
+	bg, fg, initial := Circle(in.MarkerColor, in.MarkerName)
 	// The picture's Content-ID shares the Message-ID's random part, as in
 	// BuildComment.
 	id := newID()
@@ -168,7 +168,7 @@ type ListInvite struct {
 // BuildListInvite renders the list invitation mail; its button opens the
 // shopping lists.
 func BuildListInvite(cfg Config, in ListInvite, publicURL string, now time.Time) (Envelope, error) {
-	bg, fg, initial := circle(in.InviterColor, in.InviterName)
+	bg, fg, initial := Circle(in.InviterColor, in.InviterName)
 	id := newID()
 	avatar, pictures := avatarPart(cfg, id, in.InviterAvatar)
 	return build(cfg, in.To, letter{
@@ -191,13 +191,17 @@ func BuildListInvite(cfg Config, in ListInvite, publicURL string, now time.Time)
 // person set up their account.
 type InviteAccepted struct {
 	To, Username, DisplayName string
-	Unsubscribe               Unsubscribe
-	Locale                    user.Locale
+	// Color colors the newcomer's circle, which shows their initial: they
+	// have no picture yet, and a mail never carries one it need not.
+	Color       user.Color
+	Unsubscribe Unsubscribe
+	Locale      user.Locale
 }
 
 // BuildInviteAccepted renders the invitation-accepted mail; its button
 // opens the people settings.
 func BuildInviteAccepted(cfg Config, in InviteAccepted, publicURL string, now time.Time) (Envelope, error) {
+	bg, fg, initial := Circle(in.Color, in.DisplayName)
 	return build(cfg, in.To, letter{
 		Name:        "invite_accepted",
 		Lang:        string(in.Locale),
@@ -205,8 +209,8 @@ func BuildInviteAccepted(cfg Config, in InviteAccepted, publicURL string, now ti
 		SubjectArgs: map[string]string{"name": in.DisplayName},
 		PublicURL:   publicURL,
 		Unsubscribe: in.Unsubscribe,
-		Data: struct{ Name, Username, URL string }{
-			in.DisplayName, in.Username, publicURL + "/settings/users"},
+		Data: struct{ Name, Username, URL, Initial, Bg, Fg string }{
+			in.DisplayName, in.Username, publicURL + "/settings/users", initial, bg, fg},
 	}, now)
 }
 
@@ -280,7 +284,7 @@ func BuildRecipeDigest(cfg Config, in RecipeDigest, publicURL string, now time.T
 			}
 			continue
 		}
-		bg, fg, initial := circle(r.CreatorColor, r.CreatorName)
+		bg, fg, initial := Circle(r.CreatorColor, r.CreatorName)
 		facts, err := digestFacts(in.Locale, r)
 		if err != nil {
 			return Envelope{}, err

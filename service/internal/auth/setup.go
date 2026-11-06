@@ -57,6 +57,10 @@ const (
 type OpenLink struct {
 	User    user.User
 	Purpose Purpose
+	// Issuer is the admin who issued a setup link for someone else; nil
+	// for a reset, a link the account issued itself, or an issuer that
+	// cannot be read.
+	Issuer *user.User
 }
 
 // newToken is a fresh 256-bit token in URL-safe base64.
@@ -153,7 +157,13 @@ func (s *Service) peek(ctx context.Context, hash string) (OpenLink, error) {
 	if err != nil {
 		return OpenLink{}, err
 	}
-	return OpenLink{User: u, Purpose: Purpose(row.Purpose)}, nil
+	l := OpenLink{User: u, Purpose: Purpose(row.Purpose)}
+	if l.Purpose == PurposeSetup && row.CreatedBy != u.ID {
+		if issuer, err := s.users.ByID(ctx, row.CreatedBy); err == nil {
+			l.Issuer = &issuer
+		}
+	}
+	return l, nil
 }
 
 // ConsumeSetupLinkByHash uses the link known by SetupLinkHash up and returns

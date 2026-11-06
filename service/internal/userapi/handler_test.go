@@ -308,7 +308,7 @@ func TestPeopleHidesAccountDetails(t *testing.T) {
 	if len(body.Items) == 0 {
 		t.Fatalf("no people in %s", rec.Body.String())
 	}
-	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true, "recipeCount": true, "listCount": true}
+	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true, "recipeCount": true, "listCount": true, "latestRecipes": true}
 	for _, item := range body.Items {
 		if len(item) != len(want) {
 			t.Fatalf("keys of %v, want exactly %v", item, want)
@@ -1379,6 +1379,11 @@ func TestAddressAndPasswordChangeMailsOldAddressBoth(t *testing.T) {
 type countsStub struct {
 	recipes, lists map[string]int
 	titles         map[string]string
+	latest         map[string][]userapi.LatestRecipe
+}
+
+func (c countsStub) LatestRecipes(context.Context) (map[string][]userapi.LatestRecipe, error) {
+	return c.latest, nil
 }
 
 func (c countsStub) RecipeCounts(context.Context) (map[string]int, error) { return c.recipes, nil }
@@ -1389,7 +1394,7 @@ func (c countsStub) LastRecipeTitles(context.Context) (map[string]string, error)
 
 func TestPeopleCarryCounts(t *testing.T) {
 	var kimID string
-	counts := countsStub{recipes: map[string]int{}, lists: map[string]int{}, titles: map[string]string{}}
+	counts := countsStub{recipes: map[string]int{}, lists: map[string]int{}, titles: map[string]string{}, latest: map[string][]userapi.LatestRecipe{}}
 	h, users := newStackFull(t, map[string]string{}, &fakeMailer{}, nil, counts)
 	list, err := users.List(context.Background())
 	if err != nil {
@@ -1401,6 +1406,7 @@ func TestPeopleCarryCounts(t *testing.T) {
 		}
 	}
 	counts.recipes[kimID], counts.lists[kimID], counts.titles[kimID] = 3, 2, "Dal"
+	counts.latest[kimID] = []userapi.LatestRecipe{{ID: "r1", Slug: "dal", Title: "Dal"}}
 	kim := loginAs(t, h, "kim", "pw")
 	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
 	var people userapi.PersonList
@@ -1415,6 +1421,13 @@ func TestPeopleCarryCounts(t *testing.T) {
 		if p.RecipeCount != wantR || p.ListCount != wantL {
 			t.Fatalf("%s: recipes %d lists %d, want %d %d", p.Username, p.RecipeCount, p.ListCount, wantR, wantL)
 		}
+		if wantLatest := min(wantR, 1); len(p.LatestRecipes) != wantLatest {
+			t.Fatalf("%s: latestRecipes %v, want %d", p.Username, p.LatestRecipes, wantLatest)
+		}
+	}
+	// A person without recipes carries [], never null.
+	if strings.Contains(rec.Body.String(), `"latestRecipes":null`) || !strings.Contains(rec.Body.String(), `"latestRecipes":[]`) {
+		t.Fatalf("latestRecipes not [] for people without recipes: %s", rec.Body.String())
 	}
 	if rec := doReq(h, http.MethodGet, "/api/v1/users", "", kim); rec.Code != http.StatusForbidden {
 		t.Fatalf("users as member: %d", rec.Code)
@@ -1432,5 +1445,14 @@ func TestPeopleCarryCounts(t *testing.T) {
 		if (u.LastRecipeTitle == nil) != (title == nil) || (title != nil && *u.LastRecipeTitle != *title) {
 			t.Fatalf("%s: lastRecipeTitle %v, want %v", u.Username, u.LastRecipeTitle, title)
 		}
+		// kim and sam logged in above; owner never did.
+		if loggedIn := u.Username != "owner"; (u.LastActiveAt != nil) != loggedIn {
+			t.Fatalf("%s: lastActiveAt %v, want set %v", u.Username, u.LastActiveAt, loggedIn)
+		}
+	}
+	// The wire carries the field even when it is null.
+	rec = doReq(h, http.MethodGet, "/api/v1/users", "", sam)
+	if !strings.Contains(rec.Body.String(), `"lastActiveAt":null`) {
+		t.Fatalf("no null lastActiveAt in %s", rec.Body.String())
 	}
 }

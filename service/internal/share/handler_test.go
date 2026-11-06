@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
@@ -37,6 +38,7 @@ type stack struct {
 	settings *settings.Service
 	recipes  *recipe.Service
 	images   *image.Service
+	avatars  *avatar.Service
 	shares   *share.Service
 	owner    user.User
 	admin    user.User
@@ -93,7 +95,8 @@ func newStack(t *testing.T) *stack {
 		httpserver.WithShellHeaders(share.ShellHeaders))
 	auth.Register(srv.API(), sessions, false)
 	share.Register(srv.API(), s.shares)
-	share.RegisterPublic(srv.API(), s.shares, s.recipes, s.images)
+	s.avatars = avatar.NewService(conn, filepath.Join(t.TempDir(), "avatars"), s.images)
+	share.RegisterPublic(srv.API(), s.shares, s.recipes, s.images, s.avatars)
 	s.h = srv.Handler()
 	return s
 }

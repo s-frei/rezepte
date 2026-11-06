@@ -23,6 +23,8 @@ mise run //docs/user:openapi
 
 Run it whenever an endpoint, parameter or schema changes - see [Keep the user docs in step with the UI](/howtos/update-user-docs). CI runs the same task and then `git diff --exit-code`, so a forgotten regeneration fails the build, not just a review.
 
+**A removed operation leaves its page behind.** `generateFiles` writes pages, it never deletes one, so after an endpoint goes its `content/api/reference/<tag>/<operation-id>.mdx` stays on disk while the regenerated `meta.json` and card page no longer list it - and CI's `git diff --exit-code` passes, since nothing regenerated changed it. Delete that page by hand in the same commit.
+
 ## A new tag still needs a declaration
 
 `groupBy: 'tag'` groups by the tags an operation carries, so an undeclared tag does produce a folder — but a shabby one: the raw tag name as its title, no description on its card, and a position after every declared tag, both in the sidebar and among the cards of the top-level page, since the declaration order in `apiTags` (`service/internal/httpserver/api.go`) is what `beforeWrite` restores onto the top-level `meta.json` and follows when it writes those cards.

@@ -434,6 +434,55 @@ func (q *Queries) LastRecipeTitleByCreator(ctx context.Context) ([]LastRecipeTit
 	return items, nil
 }
 
+const latestRecipesByCreator = `-- name: LatestRecipesByCreator :many
+SELECT created_by, id, slug, title, cover_image_id FROM (
+    SELECT created_by, id, slug, title, cover_image_id,
+        ROW_NUMBER() OVER (PARTITION BY created_by ORDER BY created_at DESC, rowid DESC) AS pos
+    FROM recipes
+) WHERE pos <= 4
+ORDER BY created_by, pos
+`
+
+type LatestRecipesByCreatorRow struct {
+	CreatedBy    string
+	ID           string
+	Slug         string
+	Title        string
+	CoverImageID *string
+}
+
+// Each person's newest four created recipes, newest first, for the people
+// list's cover strip: one statement for every person, not one per card.
+// No visibility filter: every signed-in account reads every recipe.
+func (q *Queries) LatestRecipesByCreator(ctx context.Context) ([]LatestRecipesByCreatorRow, error) {
+	rows, err := q.db.QueryContext(ctx, latestRecipesByCreator)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestRecipesByCreatorRow{}
+	for rows.Next() {
+		var i LatestRecipesByCreatorRow
+		if err := rows.Scan(
+			&i.CreatedBy,
+			&i.ID,
+			&i.Slug,
+			&i.Title,
+			&i.CoverImageID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuthorsForIDs = `-- name: ListAuthorsForIDs :many
 SELECT id, username, display_name, color, avatar_id FROM users WHERE id IN (/*SLICE:ids*/?)
 `

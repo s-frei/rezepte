@@ -390,6 +390,28 @@ func (s *Service) LastTitlesByCreator(ctx context.Context) (map[string]string, e
 	return out, nil
 }
 
+// LatestRecipe is one of a person's newest recipes as the people list shows it.
+type LatestRecipe struct {
+	ID           string
+	Slug         string
+	Title        string
+	CoverImageID *string
+}
+
+// LatestByCreator returns each person's four newest created recipes, newest
+// created first; people without recipes are absent.
+func (s *Service) LatestByCreator(ctx context.Context) (map[string][]LatestRecipe, error) {
+	rows, err := s.q.LatestRecipesByCreator(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("latest recipes by creator: %w", err)
+	}
+	out := map[string][]LatestRecipe{}
+	for _, r := range rows {
+		out[r.CreatedBy] = append(out[r.CreatedBy], LatestRecipe{ID: r.ID, Slug: r.Slug, Title: r.Title, CoverImageID: r.CoverImageID})
+	}
+	return out, nil
+}
+
 // Count returns how many recipes exist.
 func (s *Service) Count(ctx context.Context) (int, error) {
 	n, err := s.q.CountRecipes(ctx, sqlc.RecipeFilter{})

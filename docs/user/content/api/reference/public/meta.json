@@ -8,6 +8,8 @@
     "unsubscribe",
     "unsubscribe-one-click",
     "get-link-preview-cover",
+    "get-push-mark",
+    "get-public-sharer-avatar",
     "get-public-image-file"
   ]
 }

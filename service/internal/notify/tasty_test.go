@@ -31,6 +31,7 @@ func TestTastyNotifiesCreator(t *testing.T) {
 	f.svc.TastyMarked(ctx, mia.ID, r.ID)
 	select {
 	case got := <-p.ch:
+		f.face(t, &got.m, mia)
 		want := push.Message{Kind: "tasty", Title: "Lecker", Body: mia.DisplayName + " findet dein Rezept „" + r.Title + "“ lecker",
 			URL: "/recipes/" + r.Slug, Tag: "tasty:" + r.ID + ":" + mia.ID}
 		if got.to != olga.ID || got.m != want {

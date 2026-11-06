@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -810,5 +811,44 @@ func TestCountsAndLastTitleByCreator(t *testing.T) {
 	titles, err := svc.LastTitlesByCreator(ctx)
 	if err != nil || titles[uid] != "Second" {
 		t.Fatalf("titles = %v, %v", titles, err)
+	}
+}
+
+func TestLatestByCreator(t *testing.T) {
+	svc, uid := setup(t)
+	ctx := context.Background()
+	in := loadFixtures(t)[0]
+	var older recipe.Recipe
+	for i, title := range []string{"One", "Two", "Three", "Four", "Five"} {
+		in.Title = title
+		r, err := svc.Create(ctx, uid, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if i == 1 {
+			older = r
+		}
+	}
+	// Editing an older one must not move it: newest means created, not changed.
+	in.Title = "Two edited"
+	if _, err := svc.Update(ctx, older.ID, adminActor(uid), in); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.LatestByCreator(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var titles []string
+	for _, r := range got[uid] {
+		titles = append(titles, r.Title)
+		if r.ID == "" || r.Slug == "" {
+			t.Fatalf("recipe without id or slug: %+v", r)
+		}
+	}
+	if want := "Five Four Three Two edited"; strings.Join(titles, " ") != want {
+		t.Fatalf("latest = %v, want %s", titles, want)
+	}
+	if len(got) != 1 {
+		t.Fatalf("people with recipes = %d, want 1", len(got))
 	}
 }

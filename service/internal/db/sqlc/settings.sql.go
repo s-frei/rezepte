@@ -50,7 +50,7 @@ func (q *Queries) ClearOIDCSettings(ctx context.Context) error {
 const getInstanceSettings = `-- name: GetInstanceSettings :one
 SELECT recipes_locked_by_default, link_previews, link_preview_minutes,
        public_shares, public_share_default_days, public_share_max_days,
-       public_share_attribution, recipe_digest_hour
+       public_share_attribution, public_share_sharer, recipe_digest_hour
 FROM instance_settings WHERE id = 1
 `
 
@@ -62,6 +62,7 @@ type GetInstanceSettingsRow struct {
 	PublicShareDefaultDays *int64
 	PublicShareMaxDays     *int64
 	PublicShareAttribution bool
+	PublicShareSharer      bool
 	RecipeDigestHour       int64
 }
 
@@ -77,6 +78,7 @@ func (q *Queries) GetInstanceSettings(ctx context.Context) (GetInstanceSettingsR
 		&i.PublicShareDefaultDays,
 		&i.PublicShareMaxDays,
 		&i.PublicShareAttribution,
+		&i.PublicShareSharer,
 		&i.RecipeDigestHour,
 	)
 	return i, err
@@ -241,6 +243,15 @@ UPDATE instance_settings SET public_share_attribution = ? WHERE id = 1
 
 func (q *Queries) SetPublicShareAttribution(ctx context.Context, publicShareAttribution bool) error {
 	_, err := q.db.ExecContext(ctx, setPublicShareAttribution, publicShareAttribution)
+	return err
+}
+
+const setPublicShareSharer = `-- name: SetPublicShareSharer :exec
+UPDATE instance_settings SET public_share_sharer = ? WHERE id = 1
+`
+
+func (q *Queries) SetPublicShareSharer(ctx context.Context, publicShareSharer bool) error {
+	_, err := q.db.ExecContext(ctx, setPublicShareSharer, publicShareSharer)
 	return err
 }
 

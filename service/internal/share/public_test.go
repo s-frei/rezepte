@@ -358,3 +358,146 @@ func TestPublicImagesRefuseCommentPhotos(t *testing.T) {
 		t.Errorf("comment photo after adding: %d, want 404", rec.Code)
 	}
 }
+
+// TestPublicRecipeNamesTheSharerOnlyWhenAllowed: a stranger learns who
+// shared the recipe - display name and color, never an id -
+// only once the owner switched publicShareSharer on.
+func TestPublicRecipeNamesTheSharerOnlyWhenAllowed(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	sh := s.create(t, s.login(t, s.member), s.recipe.ID, `{"days":null}`)
+	get := func() string {
+		t.Helper()
+		rec := s.do(http.MethodGet, "/api/v1/public/shares/"+tokenOf(sh), "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("public recipe: %d %s", rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+	if body := get(); strings.Contains(body, "sharedBy") || strings.Contains(body, s.member.DisplayName) {
+		t.Errorf("the sharer is named while the switch is off: %s", body)
+	}
+	if _, err := s.settings.SetPublicShareSharer(ctx, s.owner, true); err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		SharedBy json.RawMessage `json:"sharedBy"`
+	}
+	body := get()
+	if err := json.Unmarshal([]byte(body), &got); err != nil {
+		t.Fatal(err)
+	}
+	if keys := keysOf(t, got.SharedBy); !slices.Equal(keys, []string{"color", "displayName"}) {
+		t.Errorf("sharedBy keys = %v", keys)
+	}
+	want := `"sharedBy":{"displayName":"` + s.member.DisplayName + `","color":"` + string(s.member.Color) + `"}`
+	if !strings.Contains(body, want) {
+		t.Errorf("body %s lacks %s", body, want)
+	}
+	if strings.Contains(body, s.member.ID) || strings.Contains(body, "avatar") {
+		t.Errorf("the public recipe carries the sharer's id or picture: %s", body)
+	}
+}
+
+// TestPublicSharerAvatar: the sharer's picture reaches a stranger only at
+// the share-scoped address, only while the link serves, the owner lets the
+// page name the sharer and the sharer has one - every other case is the
+// public routes' one 404.
+func TestPublicSharerAvatar(t *testing.T) {
+	s := newStack(t)
+	ctx := context.Background()
+	mia := s.login(t, s.member)
+	sh := s.create(t, mia, s.recipe.ID, `{"days":null}`)
+	token := tokenOf(sh)
+	path := "/public-images/" + token + "/sharer.jpg"
+	avatarURL := func() string {
+		t.Helper()
+		var body struct {
+			SharedBy *struct {
+				AvatarURL *string `json:"avatarUrl"`
+			} `json:"sharedBy"`
+		}
+		rec := s.do(http.MethodGet, "/api/v1/public/shares/"+token, "", nil)
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode %s: %v", rec.Body.String(), err)
+		}
+		if body.SharedBy == nil || body.SharedBy.AvatarURL == nil {
+			return ""
+		}
+		return *body.SharedBy.AvatarURL
+	}
+	var bodies []string
+	fail := func(what, path string) {
+		t.Helper()
+		rec := s.do(http.MethodGet, path, "", nil)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("%s: %d, want 404", what, rec.Code)
+		}
+		checkPublicHeaders(t, what, rec)
+		bodies = append(bodies, rec.Body.String())
+	}
+	setSharer := func(on bool) {
+		t.Helper()
+		if _, err := s.settings.SetPublicShareSharer(ctx, s.owner, on); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	setSharer(true)
+	fail("a sharer without a picture", path)
+	if got := avatarURL(); got != "" {
+		t.Errorf("avatarUrl = %q for a sharer without a picture", got)
+	}
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, stdimage.NewNRGBA(stdimage.Rect(0, 0, 400, 400))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.avatars.Set(ctx, s.member.ID, &buf, nil); err != nil {
+		t.Fatal(err)
+	}
+	setSharer(false)
+	fail("the sharer switch off", path)
+	if got := avatarURL(); got != "" {
+		t.Errorf("avatarUrl = %q while the switch is off", got)
+	}
+
+	setSharer(true)
+	if got := avatarURL(); got != path {
+		t.Errorf("avatarUrl = %q, want %q", got, path)
+	}
+	rec := s.do(http.MethodGet, path, "", nil)
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("the sharer's picture: %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	checkPublicHeaders(t, "the sharer's picture", rec)
+
+	fail("an unknown token", "/public-images/AAAAAAAAAAAAAAAAAAAAAA/sharer.jpg")
+
+	if _, err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
+		t.Fatal(err)
+	}
+	fail("public sharing off", path)
+	if _, err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
+		t.Fatal(err)
+	}
+
+	other := s.newRecipe(t, "Tomatensalat")
+	short := tokenOf(s.create(t, mia, other.ID, `{"days":1}`))
+	if rec := s.do(http.MethodGet, "/public-images/"+short+"/sharer.jpg", "", nil); rec.Code != http.StatusOK {
+		t.Fatalf("a one-day link before it expires: %d", rec.Code)
+	}
+	s.clock = s.clock.Add(48 * time.Hour)
+	fail("an expired link", "/public-images/"+short+"/sharer.jpg")
+
+	if rec := s.do(http.MethodDelete, "/api/v1/shares/"+sh.ID, "", mia); rec.Code != http.StatusNoContent {
+		t.Fatalf("revoke: %d", rec.Code)
+	}
+	fail("a revoked link", path)
+
+	for i, b := range bodies {
+		if b != bodies[0] {
+			t.Errorf("body %d = %q, want %q like the first", i, b, bodies[0])
+		}
+	}
+}

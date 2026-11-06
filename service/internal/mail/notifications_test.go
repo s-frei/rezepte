@@ -285,11 +285,11 @@ func TestRecipeDigestFormerMember(t *testing.T) {
 
 func TestCircleWithoutName(t *testing.T) {
 	for _, name := range []string{"", "\xff"} {
-		if _, _, initial := circle("sage", name); initial != "?" {
-			t.Errorf("circle(%q) initial = %q", name, initial)
+		if _, _, initial := Circle("sage", name); initial != "?" {
+			t.Errorf("Circle(%q) initial = %q", name, initial)
 		}
 	}
-	if _, _, initial := circle("sage", "élise"); initial != "É" {
+	if _, _, initial := Circle("sage", "élise"); initial != "É" {
 		t.Errorf("initial = %q", initial)
 	}
 }
@@ -357,5 +357,37 @@ func TestBuildListInviteGerman(t *testing.T) {
 	}
 	if !strings.Contains(p["text/html"], `href="https://r.example.org/lists"`) {
 		t.Errorf("html lacks the button URL: %s", p["text/html"])
+	}
+}
+
+// TestInviteMailsShowAnInitialNeverAPicture pins the circle of both
+// invitation mails: initial on the person's light color, no image, since
+// the setup mail reaches an inbox outside the household.
+func TestInviteMailsShowAnInitialNeverAPicture(t *testing.T) {
+	invite, err := BuildInvite(cfg, Invite{To: "lena@example.org", Name: "Lena", Inviter: "Samuel", InviterColor: "clay",
+		Path: "/welcome#tok", Locale: "en"}, "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	accepted, err := BuildInviteAccepted(cfg, InviteAccepted{To: "sam@example.org", Username: "noah", DisplayName: "noah", Color: "teal",
+		Unsubscribe: sampleLinks, Locale: "en"}, "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, tc := range map[string]struct {
+		env           Envelope
+		bg, fg, glyph string
+	}{
+		"invite":          {invite, "#f3dbcd", "#8a4527", ">S</div>"},
+		"invite accepted": {accepted, "#d5e5e4", "#2f6260", ">N</div>"},
+	} {
+		_, p, _ := parts(t, tc.env)
+		html := p["text/html"]
+		if !strings.Contains(html, "background:"+tc.bg+";color:"+tc.fg) || !strings.Contains(html, tc.glyph) {
+			t.Errorf("%s: no circle in %s, %s with %s", name, tc.bg, tc.fg, tc.glyph)
+		}
+		if strings.Contains(html, "<img") || strings.Contains(html, "cid:") {
+			t.Errorf("%s carries a picture", name)
+		}
 	}
 }

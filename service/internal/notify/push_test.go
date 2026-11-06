@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -50,6 +51,21 @@ func (p *fakePusher) pushesTo() map[string][]push.Message {
 	return got
 }
 
+// face checks that m's icon is u's mark, signed for u, and clears it so
+// the rest of m can be compared whole.
+func (f fanout) face(t *testing.T, m *push.Message, u user.User) {
+	t.Helper()
+	path, token, ok := strings.Cut(m.Icon, ".png?s=")
+	if !ok || path != "/marks/"+u.ID {
+		t.Errorf("icon %q, want the mark of %s", m.Icon, u.Username)
+	}
+	tok, _ := url.QueryUnescape(token)
+	if !f.svc.marks.Verify(u.ID, tok) {
+		t.Errorf("icon %q is not signed for %s", m.Icon, u.Username)
+	}
+	m.Icon = ""
+}
+
 func TestShortenRuneSafe(t *testing.T) {
 	// Each prefix moves the cut to another rune of the pattern.
 	for _, prefix := range []string{"", "x", "xy"} {
@@ -88,6 +104,7 @@ func TestCommentPushToFollowersNotAuthor(t *testing.T) {
 		t.Fatalf("pushed %+v", p.sent)
 	}
 	m := got[mia.ID][0]
+	f.face(t, &m, adam)
 	body := adam.DisplayName + ": <b>Mehr Kreuzkümmel</b>"
 	want := push.Message{
 		Kind: "comment", Title: "Neuer Kommentar zu „" + r.Title + "“", Body: body, URL: "/recipes/" + r.Slug + "?tab=comments", Tag: "comment:" + r.ID,
@@ -204,6 +221,7 @@ func TestInviteAcceptedPush(t *testing.T) {
 	f.svc.InviteAccepted(ctx, admin.ID, newcomer)
 	select {
 	case got := <-p.ch:
+		f.face(t, &got.m, newcomer)
 		want := push.Message{Kind: "invite_accepted", Title: "Einladung angenommen", Body: newcomer.DisplayName + " meldet sich als noah an",
 			URL: "/settings/users", Tag: "invite:" + newcomer.ID}
 		if got.to != admin.ID || got.m != want {

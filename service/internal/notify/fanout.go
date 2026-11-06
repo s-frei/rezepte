@@ -202,7 +202,7 @@ func (s *Service) mailInviteAccepted(ctx context.Context, inviter, newcomer user
 		return
 	}
 	err := s.mailer.SendInviteAccepted(ctx, mail.InviteAccepted{
-		To: inviter.Email, Username: newcomer.Username, DisplayName: newcomer.DisplayName,
+		To: inviter.Email, Username: newcomer.Username, DisplayName: newcomer.DisplayName, Color: newcomer.Color,
 		Unsubscribe: s.UnsubscribeLinks(inviter.ID, KindInviteAccepted), Locale: inviter.Locale,
 	})
 	mail.LogUnsent(ctx, "invitation mail failed", inviter.ID, err)

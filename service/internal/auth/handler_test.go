@@ -399,42 +399,6 @@ func TestUpdateOwnProfileRequiresSession(t *testing.T) {
 	}
 }
 
-func TestListColorUsageReturnsThePaletteInOrder(t *testing.T) {
-	h := newHandler(t)
-	cookie := login(t, h)
-
-	rec := do(h, http.MethodGet, "/api/v1/auth/me/colors", "", cookie)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
-	}
-	var body struct {
-		Items []user.ColorCount `json:"items"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if len(body.Items) != len(user.Colors) {
-		t.Fatalf("len %d, want %d: %s", len(body.Items), len(user.Colors), rec.Body.String())
-	}
-	for i, c := range user.Colors {
-		if body.Items[i].Color != c {
-			t.Fatalf("items[%d] = %q, want %q", i, body.Items[i].Color, c)
-		}
-	}
-	// The seeded "sam" holds the first color of the palette, nobody holds
-	// the second.
-	if body.Items[0].Count != 1 || body.Items[1].Count != 0 {
-		t.Errorf("counts %+v; want 1 and 0", body.Items[:2])
-	}
-}
-
-func TestListColorUsageRequiresSession(t *testing.T) {
-	rec := do(newHandler(t), http.MethodGet, "/api/v1/auth/me/colors", "", nil)
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status %d, want 401", rec.Code)
-	}
-}
-
 func TestMeReturnsTheLocale(t *testing.T) {
 	h := newHandler(t)
 	cookie := login(t, h)
@@ -621,5 +585,42 @@ func TestInspectSetupLinkReturnsPurpose(t *testing.T) {
 	rec := do(h, http.MethodPost, "/api/v1/auth/setup/inspect", `{"token":"`+link.Token+`"}`, nil)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"purpose":"reset"`) {
 		t.Fatalf("inspect = %d %s", rec.Code, rec.Body)
+	}
+	if strings.Contains(rec.Body.String(), `"inviter"`) {
+		t.Errorf("a reset names an inviter: %s", rec.Body)
+	}
+}
+
+// TestInspectSetupLinkNamesTheInviter pins what /welcome shows a person who
+// has no session yet: their own color, and the inviter's name and color,
+// never a picture.
+func TestInspectSetupLinkNamesTheInviter(t *testing.T) {
+	h, sessions, users := newHandlerWithSessions(t)
+	ctx := context.Background()
+	sam, _ := users.Authenticate(ctx, "sam", "pw")
+	if _, err := users.SetProfile(ctx, sam.ID, user.ProfileUpdate{DisplayName: ptr("Sam Salbei"), Color: ptr(user.Color("plum"))}); err != nil {
+		t.Fatal(err)
+	}
+	anna, _ := users.Create(ctx, user.CreateParams{Username: "anna", Role: user.RoleUser, Color: "teal"})
+	link, err := sessions.IssueSetupLink(ctx, sam, anna.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := do(h, http.MethodPost, "/api/v1/auth/setup/inspect", `{"token":"`+link.Token+`"}`, nil)
+	var got auth.InvitedAccount
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("inspect = %d %s", rec.Code, rec.Body)
+	}
+	want := auth.InvitedAccount{Username: "anna", DisplayName: anna.DisplayName, Color: "teal", Purpose: "setup",
+		Inviter: &auth.Inviter{DisplayName: "Sam Salbei", Color: "plum"}}
+	if got.Inviter == nil || *got.Inviter != *want.Inviter {
+		t.Fatalf("inviter %+v, want %+v", got.Inviter, want.Inviter)
+	}
+	got.Inviter, want.Inviter = nil, nil
+	if got != want {
+		t.Errorf("inspect %+v, want %+v", got, want)
+	}
+	if strings.Contains(rec.Body.String(), "avatar") {
+		t.Errorf("inspect names a picture: %s", rec.Body)
 	}
 }

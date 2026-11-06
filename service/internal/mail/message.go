@@ -11,12 +11,17 @@ import (
 // provider): its copy does not say an account was created.
 type Invite struct {
 	To, Name, Inviter, Path string
-	Locale                  user.Locale
-	Existing                bool
+	// InviterColor colors the inviter's circle, which shows their initial
+	// and never their picture: the mail reaches an inbox outside the
+	// household.
+	InviterColor user.Color
+	Locale       user.Locale
+	Existing     bool
 }
 
 // BuildInvite renders the setup mail.
 func BuildInvite(cfg Config, in Invite, publicURL string, now time.Time) (Envelope, error) {
+	bg, fg, initial := Circle(in.InviterColor, in.Inviter)
 	prefix := "mail_invite"
 	if in.Existing {
 		prefix = "mail_invite_existing"
@@ -27,7 +32,8 @@ func BuildInvite(cfg Config, in Invite, publicURL string, now time.Time) (Envelo
 		SubjectKey:  prefix + "_subject",
 		SubjectArgs: map[string]string{"inviter": in.Inviter},
 		PublicURL:   publicURL,
-		Data:        struct{ Prefix, Name, Inviter, URL string }{prefix, in.Name, in.Inviter, publicURL + in.Path},
+		Data: struct{ Prefix, Name, Inviter, URL, Initial, Bg, Fg string }{
+			prefix, in.Name, in.Inviter, publicURL + in.Path, initial, bg, fg},
 	}, now)
 }
 

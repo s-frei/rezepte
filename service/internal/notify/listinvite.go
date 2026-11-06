@@ -67,6 +67,6 @@ func (s *Service) pushListInvite(ctx context.Context, listID, name string, invit
 		return
 	}
 	s.pusher.SendToUser(ctx, invitee.ID, push.Message{
-		Kind: string(KindListInvite), Title: title, Body: body, URL: "/lists", Tag: "list-invite:" + listID,
+		Kind: string(KindListInvite), Title: title, Body: body, URL: "/lists", Tag: "list-invite:" + listID, Icon: s.markURL(inviter),
 	})
 }

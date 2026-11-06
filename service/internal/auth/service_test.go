@@ -195,3 +195,58 @@ func TestDeleteUserSessionsExcept(t *testing.T) {
 		t.Fatalf("after delete all: err = %v, want ErrNoSession", err)
 	}
 }
+
+// lastActive reads sam's recorded activity.
+func lastActive(t *testing.T, users *user.Service) *time.Time {
+	t.Helper()
+	u, err := users.ByUsername(context.Background(), "sam")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u.LastActiveAt
+}
+
+// Activity is recorded on login and on a renewal, and not on an
+// Authenticate that renews nothing.
+func TestLastActiveFollowsLoginAndUse(t *testing.T) {
+	ctx := context.Background()
+	svc, users := newServices(t)
+	if got := lastActive(t, users); got != nil {
+		t.Fatalf("before login: %v, want nil", got)
+	}
+
+	login := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clock := login
+	svc.SetClock(func() time.Time { return clock })
+	sess, err := svc.Login(ctx, "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := lastActive(t, users); got == nil || !got.Equal(login) {
+		t.Fatalf("after login: %v, want %v", got, login)
+	}
+
+	clock = clock.Add(30 * time.Minute)
+	if _, err := svc.Authenticate(ctx, sess.Token); err != nil {
+		t.Fatal(err)
+	}
+	if got := lastActive(t, users); got == nil || !got.Equal(login) {
+		t.Fatalf("30m later: %v, want it unchanged at %v", got, login)
+	}
+
+	clock = clock.Add(time.Hour)
+	if v, err := svc.Authenticate(ctx, sess.Token); err != nil || v.Renewed {
+		t.Fatalf("90m later: %+v, %v; want no renewal", v, err)
+	}
+	if got := lastActive(t, users); got == nil || !got.Equal(clock) {
+		t.Fatalf("90m later: %v, want %v without a renewal", got, clock)
+	}
+
+	clock = clock.Add(2 * 24 * time.Hour)
+	if v, err := svc.Authenticate(ctx, sess.Token); err != nil || !v.Renewed {
+		t.Fatalf("2d later: %+v, %v; want a renewal", v, err)
+	}
+	if got := lastActive(t, users); got == nil || !got.Equal(clock) {
+		t.Fatalf("after renewal: %v, want %v", got, clock)
+	}
+}

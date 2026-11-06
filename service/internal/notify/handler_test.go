@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/config"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
@@ -71,7 +72,7 @@ func newFixture(t *testing.T) fixture {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
 	auth.Register(srv.API(), sessions, false)
-	f.svc = notify.NewService(conn, testKey, users, nil, nil, mailOff{}, pushOff{}, publicURL)
+	f.svc = notify.NewService(conn, testKey, users, avatar.NewService(conn, t.TempDir(), nil), nil, mailOff{}, pushOff{}, publicURL)
 	notify.Register(srv.API(), f.svc)
 	f.h = srv.Handler()
 	return f
@@ -487,5 +488,40 @@ func TestOneClickOptsOutKindOnly(t *testing.T) {
 				t.Errorf("second one-click: %d %s", rec.Code, rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestPushMarkNeedsItsSignature(t *testing.T) {
+	f := newFixture(t)
+	mia, olga := f.users["mia"], f.users["olga"]
+	marks := sign.New(testKey, "rezepte push mark")
+	token, _ := marks.Sign(mia.ID, time.Hour)
+	path := "/marks/" + mia.ID + ".png?s=" + url.QueryEscape(token)
+	rec := f.do(http.MethodGet, path, "", "", nil) // no session: the notification system may send none
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" || !bytes.HasPrefix(rec.Body.Bytes(), []byte("\x89PNG")) {
+		t.Fatalf("mark: %d %s", rec.Code, rec.Header())
+	}
+	etag := rec.Header().Get("ETag")
+	if etag == "" || rec.Header().Get("Cache-Control") != "private, max-age=86400" {
+		t.Errorf("headers %v", rec.Header())
+	}
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Header.Set("If-None-Match", etag)
+	again := httptest.NewRecorder()
+	f.h.ServeHTTP(again, req)
+	if again.Code != http.StatusNotModified {
+		t.Errorf("revalidation: %d", again.Code)
+	}
+	unsubscribe, _ := sign.New(testKey, "rezepte unsubscribe").Sign(mia.ID, time.Hour)
+	for name, p := range map[string]string{
+		"another account":         "/marks/" + olga.ID + ".png?s=" + url.QueryEscape(token),
+		"no signature":            "/marks/" + mia.ID + ".png",
+		"another label's":         "/marks/" + mia.ID + ".png?s=" + url.QueryEscape(unsubscribe),
+		"not a png":               "/marks/" + mia.ID + "?s=" + url.QueryEscape(token),
+		"an account that is gone": "/marks/0190a3f0-0000-7000-8000-000000000009.png?s=" + url.QueryEscape(func() string { s, _ := marks.Sign("0190a3f0-0000-7000-8000-000000000009", time.Hour); return s }()),
+	} {
+		if rec := f.do(http.MethodGet, p, "", "", nil); rec.Code != http.StatusNotFound {
+			t.Errorf("%s: %d", name, rec.Code)
+		}
 	}
 }

@@ -68,7 +68,7 @@ func (q *Queries) GetIdentityOfUser(ctx context.Context, arg GetIdentityOfUserPa
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT u.id, u.username, u.display_name, u.password_hash, u.role, u.color, u.locale, u.created_at, u.updated_at, u.can_share_publicly, u.avatar_id, u.email, u.email_verified FROM users u JOIN user_identities i ON i.user_id = u.id
+SELECT u.id, u.username, u.display_name, u.password_hash, u.role, u.color, u.locale, u.created_at, u.updated_at, u.can_share_publicly, u.avatar_id, u.email, u.email_verified, u.last_active_at FROM users u JOIN user_identities i ON i.user_id = u.id
 WHERE i.issuer = ? AND i.subject = ?
 `
 
@@ -94,6 +94,7 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.AvatarID,
 		&i.Email,
 		&i.EmailVerified,
+		&i.LastActiveAt,
 	)
 	return i, err
 }

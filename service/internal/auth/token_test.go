@@ -214,3 +214,46 @@ func TestDeleteRevokes(t *testing.T) {
 		t.Fatalf("second delete: err = %v, want ErrNoToken", err)
 	}
 }
+
+// A token use records the owner's activity under the same throttle as
+// last_used_at.
+func TestTokenUseRecordsOwnerActivity(t *testing.T) {
+	ctx := context.Background()
+	svc, users, ownerID := newTokenService(t)
+	now := time.Date(2026, 9, 20, 12, 0, 0, 0, time.UTC)
+	svc.SetClock(func() time.Time { return now })
+	raw, _, err := svc.Create(ctx, ownerID, "mcp", []string{auth.ScopeRecipesRead}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := func() *time.Time {
+		t.Helper()
+		u, err := users.ByID(ctx, ownerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return u.LastActiveAt
+	}
+
+	if _, err := svc.Authenticate(ctx, raw); err != nil {
+		t.Fatal(err)
+	}
+	first := now
+	if got := active(); got == nil || !got.Equal(first) {
+		t.Fatalf("first use: %v, want %v", got, first)
+	}
+	now = now.Add(30 * time.Minute)
+	if _, err := svc.Authenticate(ctx, raw); err != nil {
+		t.Fatal(err)
+	}
+	if got := active(); got == nil || !got.Equal(first) {
+		t.Fatalf("after 30m: %v, want it unchanged at %v", got, first)
+	}
+	now = now.Add(31 * time.Minute)
+	if _, err := svc.Authenticate(ctx, raw); err != nil {
+		t.Fatal(err)
+	}
+	if got := active(); got == nil || !got.Equal(now) {
+		t.Fatalf("after 61m: %v, want %v", got, now)
+	}
+}

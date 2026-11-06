@@ -63,6 +63,9 @@ type User struct {
 	// HasPassword is false for an account set up through a setup link or an
 	// identity provider only; such an account cannot sign in with a password.
 	HasPassword bool
+	// LastActiveAt is when the account was last active (see auth.touchActive);
+	// nil when never recorded.
+	LastActiveAt *time.Time
 }
 
 // Errors returned by the service.
@@ -744,6 +747,14 @@ func fromRow(row sqlc.User) (User, error) {
 	if err != nil {
 		return User{}, err
 	}
+	var active *time.Time
+	if row.LastActiveAt != nil {
+		t, err := db.ParseTime(*row.LastActiveAt)
+		if err != nil {
+			return User{}, err
+		}
+		active = &t
+	}
 	return User{
 		ID:               row.ID,
 		Username:         row.Username,
@@ -758,6 +769,7 @@ func fromRow(row sqlc.User) (User, error) {
 		Email:            row.Email,
 		EmailVerified:    row.EmailVerified,
 		HasPassword:      row.PasswordHash != "",
+		LastActiveAt:     active,
 	}, nil
 }
 

@@ -112,3 +112,7 @@ SELECT email, email_verified, CAST(password_hash != '' AS BOOLEAN) AS has_passwo
     WHERE user_identities.user_id = sqlc.arg(user_id) AND user_identities.created_at < sqlc.arg(before)
 ) AS BOOLEAN) AS has_credential
 FROM users WHERE id = sqlc.arg(user_id);
+
+-- See auth.touchActive; updated_at tracks changes to the account, not its use.
+-- name: TouchUserActive :exec
+UPDATE users SET last_active_at = ? WHERE id = ?;

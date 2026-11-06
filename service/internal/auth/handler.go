@@ -112,12 +112,6 @@ type confirmOutput struct{ Body ConfirmedAddress }
 // starts: lookups, the link, and every mail's 10 s SMTP deadline.
 const forgotTimeout = 15 * time.Second
 
-type colorUsageOutput struct {
-	Body struct {
-		Items []user.ColorCount `json:"items" doc:"Every palette color and how many accounts hold it, in palette order"`
-	}
-}
-
 type setupTokenBody struct {
 	Token string `json:"token" minLength:"1" maxLength:"128"`
 }
@@ -129,9 +123,19 @@ type inspectSetupInput struct{ Body setupTokenBody }
 // an inline struct, so the OpenAPI document names this schema for what it is
 // instead of a generated "InspectSetupOutputBody".
 type InvitedAccount struct {
-	Username    string `json:"username"`
+	Username    string   `json:"username"`
+	DisplayName string   `json:"displayName"`
+	Color       string   `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"The account's color, which the welcome page shows with its initial"`
+	Purpose     string   `json:"purpose" enum:"setup,reset" doc:"setup: set a password or connect a provider; reset: a forgotten-password link, which only sets a password"`
+	Inviter     *Inviter `json:"inviter,omitempty" doc:"Who issued a setup link for someone else; absent for a reset and when the issuer cannot be read"`
+}
+
+// Inviter is the admin behind a setup link, as the welcome page names
+// them: a name and a color for an initial, never a picture, since whoever
+// holds the link has no session yet.
+type Inviter struct {
 	DisplayName string `json:"displayName"`
-	Purpose     string `json:"purpose" enum:"setup,reset" doc:"setup: set a password or connect a provider; reset: a forgotten-password link, which only sets a password"`
+	Color       string `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate"`
 }
 
 type inspectSetupOutput struct {
@@ -312,28 +316,6 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 	})
 
 	huma.Register(api, huma.Operation{
-		OperationID: "list-color-usage",
-		Method:      http.MethodGet,
-		Path:        "/api/v1/auth/me/colors",
-		Summary:     "List the color palette and how many accounts hold each color",
-		Description: "Counts, not names: the picker only needs to mark a color as taken. It sits under /auth/me because it describes what the caller may choose for themselves; /people names every account without counting colors, and everything under /users is admin-only.",
-		Tags:        []string{"auth"},
-		Security:    SessionSecurity,
-		Errors:      []int{401},
-	}, func(ctx context.Context, _ *struct{}) (*colorUsageOutput, error) {
-		if _, ok := UserFrom(ctx); !ok {
-			return nil, huma.Error401Unauthorized("authentication required")
-		}
-		usage, err := svc.users.ColorUsage(ctx)
-		if err != nil {
-			return nil, err
-		}
-		out := &colorUsageOutput{}
-		out.Body.Items = usage
-		return out, nil
-	})
-
-	huma.Register(api, huma.Operation{
 		OperationID: "inspect-setup-link",
 		Method:      http.MethodPost,
 		Path:        "/api/v1/auth/setup/inspect",
@@ -351,7 +333,11 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		out := &inspectSetupOutput{}
 		out.Body.Username = l.User.Username
 		out.Body.DisplayName = l.User.DisplayName
+		out.Body.Color = string(l.User.Color)
 		out.Body.Purpose = string(l.Purpose)
+		if l.Issuer != nil {
+			out.Body.Inviter = &Inviter{DisplayName: l.Issuer.DisplayName, Color: string(l.Issuer.Color)}
+		}
 		return out, nil
 	})
 

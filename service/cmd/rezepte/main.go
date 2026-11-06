@@ -299,7 +299,7 @@ func run() error {
 	oidc.RegisterSettings(srv.API(), oidcSettings)
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
-	share.RegisterPublic(srv.API(), shares, recipes, images)
+	share.RegisterPublic(srv.API(), shares, recipes, images, avatars)
 	notify.Register(srv.API(), notifications)
 	push.Register(srv.API(), pushes)
 	userapi.Register(srv.API(), users, sessions, avatars,

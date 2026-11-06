@@ -331,3 +331,41 @@ func TestCommentImagePositionMigration(t *testing.T) {
 		t.Fatalf("down to 22: %v", err)
 	}
 }
+
+// TestUserLastActiveMigration backfills 0025's last_active_at from the later
+// of a session's last renewal (expiry minus 30 days) and a token's last use;
+// an account with neither stays NULL. Down drops the column.
+func TestUserLastActiveMigration(t *testing.T) {
+	ctx := t.Context()
+	conn, provider := openAt(t, 24)
+	for _, q := range []string{
+		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at) VALUES
+			('s', 's', 'S', 'x', 'user', '#000', 'en', 't', 't'),
+			('a', 'a', 'A', 'x', 'admin', '#000', 'en', 't', 't'),
+			('n', 'n', 'N', 'x', 'user', '#000', 'en', 't', 't')`,
+		`INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES
+			('s1', 's', '2026-03-01T10:00:00Z', 't'), ('s2', 's', '2026-03-05T10:00:00Z', 't'),
+			('a1', 'a', '2026-03-31T08:00:00Z', 't')`,
+		`INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, scopes, created_at, last_used_at) VALUES
+			('t1', 'a', 'mcp', 'h1', 'p1', '', 't', '2026-03-02T09:00:00Z'),
+			('t2', 'a', 'cli', 'h2', 'p2', '', 't', NULL)`,
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if _, err := provider.UpTo(ctx, 25); err != nil {
+		t.Fatalf("up to 25: %v", err)
+	}
+	var got string
+	if err := conn.QueryRowContext(ctx, `SELECT group_concat(id || '=' || coalesce(last_active_at, 'null'), ' ')
+		FROM (SELECT * FROM users ORDER BY id)`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if want := "a=2026-03-02T09:00:00Z n=null s=2026-02-03T10:00:00Z"; got != want {
+		t.Fatalf("backfill = %q, want %q", got, want)
+	}
+	if _, err := provider.DownTo(ctx, 24); err != nil {
+		t.Fatalf("down to 24: %v", err)
+	}
+}

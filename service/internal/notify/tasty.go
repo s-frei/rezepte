@@ -124,6 +124,6 @@ func (s *Service) pushTasty(ctx context.Context, marker, author user.User, r sql
 	}
 	s.pusher.SendToUser(ctx, author.ID, push.Message{
 		Kind: string(KindTasty), Title: title, Body: body,
-		URL: "/recipes/" + url.PathEscape(r.Slug), Tag: "tasty:" + r.ID + ":" + marker.ID,
+		URL: "/recipes/" + url.PathEscape(r.Slug), Tag: "tasty:" + r.ID + ":" + marker.ID, Icon: s.markURL(marker),
 	})
 }

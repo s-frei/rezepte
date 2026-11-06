@@ -31,6 +31,7 @@ func TestListInviteNotifiesInvitee(t *testing.T) {
 	f.svc.ListInvited(ctx, id, olga.ID, mia.ID)
 	select {
 	case got := <-p.ch:
+		f.face(t, &got.m, olga)
 		want := push.Message{Kind: "list_invite", Title: "Einkaufsliste", Body: olga.DisplayName + " lädt dich zu „Grillfest“ ein",
 			URL: "/lists", Tag: "list-invite:" + id}
 		if got.to != mia.ID || got.m != want {

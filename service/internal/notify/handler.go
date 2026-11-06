@@ -1,12 +1,15 @@
 package notify
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/httpserver"
@@ -47,6 +50,11 @@ type unsubscribeInput struct {
 		Scope      string `json:"scope" enum:"kind,group" doc:"kind switches the mail of the link's kind, group its group's mail switch; the other kinds' choices and push stay as they are"`
 		Subscribed bool   `json:"subscribed" doc:"false unsubscribes, true undoes it"`
 	}
+}
+
+type markInput struct {
+	File string `path:"file" doc:"The account's id followed by .png"`
+	S    string `query:"s" doc:"The address's signature"`
 }
 
 // oneClickInput has no RawBody: huma makes a RawBody required, and a sender
@@ -188,5 +196,31 @@ func Register(api huma.API, s *Service) {
 			return nil, gone(err)
 		}
 		return nil, s.switchByLink(ctx, u, k, false, false)
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-push-mark",
+		Method:      http.MethodGet,
+		Path:        "/marks/{file}",
+		Summary:     "Read the face a push notification shows",
+		Description: "No session needed: the notification system that fetches a push's icon may send no cookie. The address a push carries is signed for one account and lasts a day. Answers the account's picture cropped round, or their initial on their color, as a PNG. An invalid or expired signature and an account that is gone answer 404 alike.",
+		Tags:        []string{"public"},
+		Errors:      []int{404},
+		Responses: map[string]*huma.Response{"200": {
+			Description: "The PNG, with conditional-request support",
+			Content:     map[string]*huma.MediaType{"image/png": {Schema: &huma.Schema{Type: "string", Format: "binary"}}},
+		}},
+	}, func(ctx context.Context, in *markInput) (*huma.StreamResponse, error) {
+		b, etag, ok := s.mark(ctx, in.File, in.S)
+		if !ok {
+			return nil, httpserver.PublicNotFound("not found")
+		}
+		return &huma.StreamResponse{Body: func(hctx huma.Context) {
+			r, w := humago.Unwrap(hctx)
+			w.Header().Set("Content-Type", "image/png")
+			w.Header().Set("ETag", etag)
+			w.Header().Set("Cache-Control", "private, max-age=86400")
+			http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(b))
+		}}, nil
 	})
 }

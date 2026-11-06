@@ -119,6 +119,17 @@ SELECT r.created_by, r.title FROM recipes r
 WHERE r.updated_at = (SELECT MAX(updated_at) FROM recipes WHERE created_by = r.created_by)
 ORDER BY r.rowid;
 
+-- Each person's newest four created recipes, newest first, for the people
+-- list's cover strip: one statement for every person, not one per card.
+-- No visibility filter: every signed-in account reads every recipe.
+-- name: LatestRecipesByCreator :many
+SELECT created_by, id, slug, title, cover_image_id FROM (
+    SELECT created_by, id, slug, title, cover_image_id,
+        ROW_NUMBER() OVER (PARTITION BY created_by ORDER BY created_at DESC, rowid DESC) AS pos
+    FROM recipes
+) WHERE pos <= 4
+ORDER BY created_by, pos;
+
 -- name: SetFavorite :exec
 INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?);
 

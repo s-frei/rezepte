@@ -68,11 +68,14 @@ var (
 // reads Kind to tell it from a timer alarm; pushes with one Tag replace
 // each other, and Collapse is what it shows when one is already there.
 type Message struct {
-	Kind     string    `json:"kind"`
-	Title    string    `json:"title"`
-	Body     string    `json:"body"`
-	URL      string    `json:"url"`
-	Tag      string    `json:"tag"`
+	Kind  string `json:"kind"`
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	URL   string `json:"url"`
+	Tag   string `json:"tag"`
+	// Icon is the face of the person who caused the push, a path on this
+	// origin; empty keeps the app's icon.
+	Icon     string    `json:"icon,omitempty"`
 	Collapse *Collapse `json:"collapse,omitempty"`
 }
 

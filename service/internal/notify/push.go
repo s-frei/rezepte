@@ -69,7 +69,7 @@ func (s *Service) pushComment(ctx context.Context, recipeID string, commentID in
 		}
 		s.pusher.SendToUser(ctx, to.ID, push.Message{
 			Kind: string(KindComment), Title: title, Body: body,
-			URL: "/recipes/" + url.PathEscape(r.Slug) + "?tab=comments", Tag: "comment:" + r.ID,
+			URL: "/recipes/" + url.PathEscape(r.Slug) + "?tab=comments", Tag: "comment:" + r.ID, Icon: s.markURL(author),
 			Collapse: &push.Collapse{Title: titleMany, BodyMany: many},
 		})
 	}
@@ -127,6 +127,6 @@ func (s *Service) pushInviteAccepted(ctx context.Context, inviter, newcomer user
 		return
 	}
 	s.pusher.SendToUser(ctx, inviter.ID, push.Message{
-		Kind: string(KindInviteAccepted), Title: title, Body: body, URL: "/settings/users", Tag: "invite:" + newcomer.ID,
+		Kind: string(KindInviteAccepted), Title: title, Body: body, URL: "/settings/users", Tag: "invite:" + newcomer.ID, Icon: s.markURL(newcomer),
 	})
 }

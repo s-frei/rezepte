@@ -103,7 +103,7 @@ func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
 			existing bool
 		}{{"new", false}, {"existing", true}} {
 			variant("invite", v.name, func(cfg Config, now time.Time) (Envelope, error) {
-				return BuildInvite(cfg, Invite{To: "noah@example.org", Name: p.invited, Inviter: p.admin, Path: "/welcome#sample", Locale: locale, Existing: v.existing}, publicURL, now)
+				return BuildInvite(cfg, Invite{To: "noah@example.org", Name: p.invited, Inviter: p.admin, InviterColor: "clay", Path: "/welcome#sample", Locale: locale, Existing: v.existing}, publicURL, now)
 			})
 		}
 		add("reset", func(cfg Config, now time.Time) (Envelope, error) {
@@ -225,7 +225,7 @@ func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
 			})
 		}
 		add("invite_accepted", func(cfg Config, now time.Time) (Envelope, error) {
-			return BuildInviteAccepted(cfg, InviteAccepted{To: "demo@example.org", Username: "noah", DisplayName: p.invited,
+			return BuildInviteAccepted(cfg, InviteAccepted{To: "demo@example.org", Username: "noah", DisplayName: p.invited, Color: "teal",
 				Unsubscribe: links("invite_accepted"), Locale: locale}, publicURL, now)
 		})
 		add("test", func(cfg Config, now time.Time) (Envelope, error) {

@@ -160,6 +160,7 @@ type Service struct {
 	conn      *sql.DB
 	q         *sqlc.Queries
 	signer    *sign.Signer
+	marks     *sign.Signer
 	users     *user.Service
 	avatars   *avatar.Service
 	images    *image.Service
@@ -179,6 +180,7 @@ func NewService(conn *sql.DB, key []byte, users *user.Service, avatars *avatar.S
 		conn:      conn,
 		q:         sqlc.New(conn),
 		signer:    sign.New(key, signerLabel),
+		marks:     sign.New(key, markLabel),
 		users:     users,
 		avatars:   avatars,
 		images:    images,
