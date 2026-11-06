@@ -106,6 +106,18 @@ jobs:
     name: e2e (${{ matrix.shard }}/4)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # Playwright's image carries the browsers and every system library they
+    # need, so no shard downloads a few hundred MB of fonts and codecs from
+    # the Ubuntu mirror on every run. Its tag must match @playwright/test in
+    # frontend/bun.lock: `mise run playwright:image:check` fails the gate
+    # otherwise, and Renovate moves both in one pull request.
+    # As the runner's own UID: the workspace belongs to it, and git refuses
+    # a repository owned by another user, which root in the container is.
+    # --ipc=host because Docker gives a container 64 MB of /dev/shm and
+    # Chromium needs more; with less, tests time out at random.
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001 --ipc=host
     strategy:
       fail-fast: false
       matrix:
@@ -126,13 +138,14 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
             ~/.bun/install/cache
-          key: e2e-${{ hashFiles('service/go.sum', '**/bun.lock') }}
-          restore-keys: e2e-
+          # Not shared with the jobs on the runner: actions/cache stores paths
+          # relative to the workspace, and the container's HOME sits elsewhere,
+          # so their archive cannot be unpacked here.
+          key: e2e-container-${{ hashFiles('service/go.sum', '**/bun.lock') }}
+          restore-keys: e2e-container-
 
       - name: "Install dependencies"
         run: mise run setup
-        env:
-          PLAYWRIGHT_INSTALL_ARGS: --with-deps
 
       - name: "Build and run the Playwright end-to-end tests"
         run: mise run e2e --shard=${{ matrix.shard }}/4

@@ -12,6 +12,7 @@ sqlc = "1.31.1"
 watchexec = "2.8.0"
 git-lfs = "3.8.1"
 syft = "1.55.0"
+yq = "4.54.1"
 
 [settings]
 lockfile = true
@@ -55,7 +56,7 @@ depends = ["//service:dev", "//frontend:dev"]
 
 [tasks.check]
 description = "All lint, format and test gates"
-depends = ["test:release", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
+depends = ["test:release", "playwright:image:check", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
 
 [tasks.build]
 description = "Build frontend, then the Go binary with embedded assets"
@@ -78,6 +79,23 @@ VERSION="${REZEPTE_VERSION:-$(git describe --tags --always 2>/dev/null || echo d
 VERSION="${VERSION#v}"
 docker build --build-arg "REZEPTE_VERSION=$VERSION" -t rezepte:local .
 echo "docker:build: tagged rezepte:local, version $VERSION"
+'''
+
+[tasks."playwright:image:check"]
+description = "Fail when the e2e container's Playwright differs from the installed one"
+# CI runs the e2e suite in mcr.microsoft.com/playwright, whose browsers belong
+# to one Playwright release. A @playwright/test from another release looks
+# for browsers the image does not have and fails every e2e shard at launch.
+# The installed package is what the suite runs with, so it is the reference.
+run = '''
+version="$(yq -oy '.version' frontend/node_modules/@playwright/test/package.json)"
+want="mcr.microsoft.com/playwright:v${version}-noble"
+have="$(yq '.jobs.e2e.container.image' .github/workflows/check.yml)"
+if [ "$have" != "$want" ]; then
+	echo "playwright:image:check: the e2e job runs $have, but @playwright/test is $version; set the image to $want" >&2
+	exit 1
+fi
+echo "playwright:image:check: $have"
 '''
 
 [tasks."docker:compose:check"]

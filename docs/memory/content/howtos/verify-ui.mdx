@@ -58,7 +58,7 @@ description: End-to-end tests and screenshots, no browser extensions
   </Tab>
 </Tabs>
 
-The Chromium build is installed by `mise run setup` (`bunx playwright install chromium`). In CI, `PLAYWRIGHT_INSTALL_ARGS=--with-deps` adds the system libraries.
+The Chromium build is installed by `mise run setup` (`bunx playwright install chromium`). CI runs the e2e job in `mcr.microsoft.com/playwright`, which carries the browsers and their system libraries, so nothing is installed with apt there; `mise run playwright:image:check` (part of `mise run check`) fails when the image's tag is not the installed `@playwright/test`. On a Linux machine of your own, `bunx playwright install --with-deps chromium webkit` adds the libraries once.
 
 ## Widths that matter
 

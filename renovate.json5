@@ -50,6 +50,13 @@
       matchDepNames: ['bun', 'oven/bun'],
       groupName: 'Bun',
     },
+    // The e2e job runs in Playwright's image, which only carries the
+    // browsers of its own release; playwright:image:check fails the gate
+    // when the two differ.
+    {
+      matchDepNames: ['@playwright/test', 'mcr.microsoft.com/playwright'],
+      groupName: 'Playwright',
+    },
     // Majors the tooling around them does not support yet wait in the
     // Dependency Dashboard until someone ticks them. TypeScript 7: the
     // peer ranges of svelte-check, typescript-eslint and @sveltejs/kit end
