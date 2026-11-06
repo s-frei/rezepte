@@ -11,6 +11,7 @@ Workflows live in `.github/workflows/` and are English like the rest of the repo
   - Actions are pinned to a major tag (`@v7`), never to a branch, a patch tag or `@main`.
   - Tools come from `jdx/mise-action` and run as `mise run <task>`; no workflow installs a language itself.
   - Every job that runs on a runner carries `timeout-minutes`, about three times its slowest normal run.
+  - Jobs run on a named runner image (`ubuntu-24.04`), never on `ubuntu-latest`.
 
 </Callout>
 
@@ -34,6 +35,10 @@ A blank line separates steps, and indentation is two spaces per `.editorconfig`.
 A major tag is the pin. It keeps security and bug fixes arriving without a commit here, while the interface stays put - which a patch tag gives up and a branch never offers at all.
 
 Raising a major is therefore a deliberate change, and the inputs have to be read against the new version's `action.yml` before it lands: a major release is exactly where an input is renamed or dropped, and a removed input fails at run time rather than at parse time.
+
+## Runner image
+
+`ubuntu-latest` is an alias GitHub moves to the next Ubuntu release on its own schedule, and every job on it carries a notice about the move for months beforehand - the annotations of a run then hide the one warning that matters among a dozen that do not. A named image moves only when we move it: Renovate's `github-runners` datasource proposes the next one as a pull request in the "GitHub Actions" group, and CI on that pull request is the test of the new image.
 
 ## Timeouts
 

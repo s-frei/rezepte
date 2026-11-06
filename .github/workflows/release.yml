@@ -28,7 +28,7 @@ jobs:
     uses: ./.github/workflows/check.yml
 
   image-build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
@@ -94,7 +94,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [check, image-build]
     permissions:
@@ -134,7 +134,7 @@ jobs:
           provenance: mode=max
 
   binaries:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     if: github.event_name == 'push'
     steps:
@@ -162,7 +162,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [image, binaries]
     if: github.event_name == 'push'

@@ -12,7 +12,7 @@ jobs:
   # Publishes nothing, so it need not wait for the gate: it proves the image
   # still builds, side by side with the gate instead of after it.
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: "Check out the repository"

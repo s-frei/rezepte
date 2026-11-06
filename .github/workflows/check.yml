@@ -11,7 +11,7 @@ jobs:
   # own. The list is read from mise.toml, so a gate added there runs here
   # without touching this file.
   plan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       gates: ${{ steps.gates.outputs.gates }}
@@ -39,7 +39,7 @@ jobs:
   gate:
     name: ${{ matrix.task }}
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -72,7 +72,7 @@ jobs:
         run: mise run "${{ matrix.task }}"
 
   generated:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: "Check out the repository"
@@ -104,7 +104,7 @@ jobs:
 
   e2e:
     name: e2e (${{ matrix.shard }}/4)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
