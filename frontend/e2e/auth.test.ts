@@ -29,8 +29,27 @@ test('a sign-in towards a page that does not exist lands on its 404', async ({ p
 		await page.waitForTimeout(250 * (attempt + 1));
 	}
 	await expect(page).toHaveURL('/nope');
-	await expect(page.getByText('This page does not exist.')).toBeVisible();
+	await expect(page.getByRole('heading', { name: "This page isn't in the book" })).toBeVisible();
 	await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+// A failed session load (the server unreachable) fails the root layout, which
+// SvelteKit would answer with its bare built-in page; ours offers a retry. An
+// unknown path takes another way through SvelteKit (+layout.ts), so both.
+test('an unreachable server shows the error page, and trying again recovers', async ({ page }) => {
+	await pinLocale(page);
+	await login(page);
+	await page.route('**/api/v1/auth/me', (route) => route.abort());
+	for (const path of ['/', '/nope']) {
+		await page.goto(path);
+		await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible();
+	}
+	await page.unroute('**/api/v1/auth/me');
+	await page.getByRole('button', { name: 'Try again' }).click();
+	await expect(page.getByRole('heading', { name: "This page isn't in the book" })).toBeVisible();
+	await page.getByRole('link', { name: 'Back to recipes' }).click();
+	await expect(page.getByRole('heading', { name: 'Something went wrong' })).toHaveCount(0);
+	await expect(page).toHaveURL('/');
 });
 
 test('rejects a wrong password', async ({ page }) => {

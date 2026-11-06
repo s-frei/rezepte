@@ -39,7 +39,10 @@
 	// A public share has no session and no household to show a nav for -
 	// its own page owns the whole viewport, wordmark and footer included.
 	const isPublicShareRoute = $derived(page.url.pathname.startsWith('/s/'));
-	const bare = $derived(isLoginRoute || isFullscreenRoute || isPublicShareRoute);
+	// The error page for a failed session load (the server unreachable, say)
+	// has no account to show a nav for.
+	const isSessionError = $derived(page.error !== null && !session.user);
+	const bare = $derived(isLoginRoute || isFullscreenRoute || isPublicShareRoute || isSessionError);
 
 	// app.html ships a static lang attribute; the real locale is only known
 	// once Paraglide has resolved it. Screen readers and spell checking read

@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { horizontal, manifest, parseWordmark } from './brand-export';
-import { BOOK, EDGE, GROUND, INK } from './brand-palette';
+import { horizontal, manifest, parseWordmark, POSE_SIZE, POSES } from './brand-export';
+import { BOOK, EDGE, GROUND, INK, PAGE } from './brand-palette';
 
 // brand:check never reads the mascot master: it sits in Git LFS, which CI
 // does not fetch. It checks the committed outputs instead.
@@ -165,6 +165,26 @@ test('the login backdrop is the kitchen scene at 2560px', async () => {
 	expect(width).toBe(2560);
 	// The scene's 21:9, which the login's crop positions rely on.
 	expect(Math.round((width! / height!) * 100)).toBe(236);
+});
+
+test('the error page poses are square at twice their shown size, on the page', async () => {
+	for (const name of POSES) {
+		const img = await sharp(
+			Buffer.from(await Bun.file(new URL(`rezepte-mascot-${name}.webp`, lockups)).arrayBuffer())
+		)
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		expect([img.info.width, img.info.height]).toEqual([POSE_SIZE, POSE_SIZE]);
+		// The ground was moved onto the page; WebP keeps it within a few steps.
+		const [r, g, b] = [...img.data.subarray(0, 3)];
+		const page = [1, 3, 5].map((i) => parseInt(PAGE.slice(i, i + 2), 16));
+		expect(Math.hypot(r - page[0], g - page[1], b - page[2])).toBeLessThan(12);
+	}
+});
+
+test('the poses sit on the app background', async () => {
+	const css = await Bun.file(new URL('../src/app.css', import.meta.url)).text();
+	expect(css).toContain(`--color-background: ${PAGE};`);
 });
 
 test('favicon.ico is an icon file with a 32px image', async () => {

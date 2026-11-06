@@ -4,6 +4,10 @@
 
 /** The mascot's own cream ground, the lockup box and the icons' background. */
 export const GROUND = '#f9e5cd';
+/** The app's light background (`--color-background` in app.css): the error
+ * page poses are illustrations, not the logo, and sit on it rather than on
+ * the logo's own ground. */
+export const PAGE = '#f4ede2';
 /** The hairline around the lockup box, the app's light border color. */
 export const EDGE = '#e3d7c3';
 /** The wordmark. */

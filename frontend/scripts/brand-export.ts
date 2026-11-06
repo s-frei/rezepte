@@ -11,7 +11,7 @@ import { generateAssets } from '@vite-pwa/assets-generator/api/generate-assets';
 import { instructions } from '@vite-pwa/assets-generator/api/instructions';
 import { readFileSync } from 'node:fs';
 import sharp from 'sharp';
-import { EDGE, GROUND } from './brand-palette';
+import { EDGE, GROUND, PAGE } from './brand-palette';
 
 const brand = new URL('../../assets/brand/', import.meta.url);
 const lockups = new URL('lockups/', brand);
@@ -133,6 +133,48 @@ async function kitchen(): Promise<Buffer> {
 	return sharp(master).resize({ width: 2560 }).webp({ quality: 78, effort: 6 }).toBuffer();
 }
 
+// The error page's poses: each painting square, at twice the 320px the page
+// shows it at, its ground moved onto the app's background so the box around
+// it melts into the page and only its hairline shows.
+export const POSES = ['not-found', 'error'] as const;
+export const POSE_SIZE = 640;
+
+async function pose(name: string): Promise<Buffer> {
+	const master = await readLfs(`mascot/rezepte-mascot-${name}-original.jpg`);
+	const { data, info } = await sharp(master)
+		.resize({ width: POSE_SIZE })
+		.removeAlpha()
+		.raw()
+		.toBuffer({ resolveWithObject: true });
+	return sharp(reground(data, info.width, PAGE), {
+		raw: { width: info.width, height: info.height, channels: 3 }
+	})
+		.webp({ quality: 80, effort: 6 })
+		.toBuffer();
+}
+
+/**
+ * Moves a painting's ground onto `ground`: every pixel close to the color
+ * of its corners shifts towards the target, the closer the further, so the
+ * soft edges and floor shadows go along and the figure stays as painted.
+ * The generator paints each pose on a slightly different cream.
+ */
+export function reground(rgb: Buffer, width: number, ground: string, reach = 48): Buffer {
+	const height = rgb.length / 3 / width;
+	const corners = [0, width - 1, (height - 1) * width, height * width - 1];
+	const from = [0, 1, 2].map(
+		(c) => corners.reduce((sum, i) => sum + rgb[i * 3 + c], 0) / corners.length
+	);
+	const to = [1, 3, 5].map((i) => parseInt(ground.slice(i, i + 2), 16));
+	const out = Buffer.from(rgb);
+	for (let i = 0; i < rgb.length; i += 3) {
+		const d = Math.hypot(rgb[i] - from[0], rgb[i + 1] - from[1], rgb[i + 2] - from[2]);
+		const w = Math.max(0, 1 - d / reach);
+		for (let c = 0; c < 3; c++) out[i + c] = Math.round(rgb[i + c] + (to[c] - from[c]) * w);
+	}
+	return out;
+}
+
 async function webp(master: Buffer, height: number): Promise<Buffer> {
 	return sharp(master)
 		.resize({ height })
@@ -212,6 +254,9 @@ async function main() {
 	);
 	await Bun.write(new URL('rezepte-mascot.webp', lockups), await webp(master, 144));
 	await Bun.write(new URL('rezepte-kitchen.webp', lockups), await kitchen());
+	for (const name of POSES) {
+		await Bun.write(new URL(`rezepte-mascot-${name}.webp`, lockups), await pose(name));
+	}
 
 	const book = await Bun.file(new URL('icon/rezepte-book.svg', brand)).text();
 	await Bun.write(new URL('favicon.svg', statics), book);
