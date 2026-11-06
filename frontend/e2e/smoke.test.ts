@@ -23,7 +23,10 @@ test('serves the app shell for deep links', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/recipes/some-deep-link');
-	await expect(page.getByRole('heading', { name: 'Rezepte' })).toBeVisible();
+	// The SPA answers, not the server's 404: the shell's header is there, and
+	// the app's own page says the recipe is missing.
+	await expect(page.getByRole('banner').getByRole('link', { name: 'Rezepte' })).toBeVisible();
+	await expect(page.getByText('Error 404')).toBeVisible();
 });
 
 test('immutable assets are cached', async ({ request }) => {
