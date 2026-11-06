@@ -65,7 +65,14 @@ test('editor-ingredients', async ({ page }, testInfo) => {
 test('editor-images', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(`${DETAIL}/edit`);
-	await page.getByRole('heading', { name: 'Photos' }).scrollIntoViewIfNeeded();
+	// The section at the top of the band RecipeForm's observer counts as
+	// current (80px under the top, 128px on a phone), so the sidebar and the
+	// running head name Photos; scrolled only into view, the heading sat at
+	// the bottom edge and the picture showed Basics.
+	const gap = testInfo.project.name.startsWith('mobile') ? 128 : 80;
+	await page
+		.locator('#editor-section-images')
+		.evaluate((el, gap) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - gap), gap);
 	await shot(page, 'editor-images');
 });
 
