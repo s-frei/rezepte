@@ -25,7 +25,7 @@ Keep every value in double quotes, as the draft writes them: unquoted YAML cuts 
 - `title` - `"vX.Y.Z — "` and a headline naming the release's biggest visible change, phrased as an outcome: `"v1.1.0 — Steps point at their ingredients"`.
 - `description` - one sentence covering the release. It also becomes the tag message and the summary of the GitHub release, so it carries no links and stands on its own.
 - `date` - the day `release:start` ran; move it if the release slips.
-- `upgrade` - only when something is breaking, and then required. One line, imperative, concrete, built from the `Breaking:` lines: what to change, where. Several actions are separated by semicolons. Only backticks render as markup on the page, so no links here; the body explains and links.
+- `upgrade` - only when something is breaking, and then required. One line, imperative, concrete, built from the `Breaking:` lines: what to change, where. Several actions are separated by semicolons. Only backticks render as markup on the page, so no links here; the body explains and links. `release:finish` asks for the field whenever a subject carries `!`, because it reads subjects, not judgment: when the maintainer decides such a change breaks nothing anyone runs, the release stays minor, `upgrade` says so - `"Nothing breaks coming from 1.3.1; back up your data directory, then pull and start …"`, as v1.3.0 and v1.4.0 do - and the change is described under `## API` as what is different now, never as breaking.
 
 ## Write the body
 
