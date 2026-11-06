@@ -22,6 +22,8 @@ export type PublicRecipe = {
 	coverImageId: string | null;
 	/** Whether the page names Rezepte at its foot - the owner's setting, since a stranger has no session to read it with. */
 	attribution: boolean;
+	/** Who shared it, only while the owner lets public pages name them: a name, a color and, when they have one, their picture at the share-scoped `/public-images/{token}/sharer.jpg`. */
+	sharedBy?: { displayName: string; color: string; avatarUrl?: string };
 };
 
 /**

@@ -1,76 +1,151 @@
 <script lang="ts">
+	import KeyRound from '@lucide/svelte/icons/key-round';
+	import Languages from '@lucide/svelte/icons/languages';
+	import LogIn from '@lucide/svelte/icons/log-in';
+	import Mail from '@lucide/svelte/icons/mail';
+	import SunMoon from '@lucide/svelte/icons/sun-moon';
 	import { onDestroy, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import {
-		listColorUsage,
+		me,
 		removeOwnAvatar,
+		resendConfirmation,
 		setOwnAvatar,
-		updateOwnProfile,
-		type ColorUsage
+		updateOwnProfile
 	} from '#lib/api/auth.js';
-	import { isSignedOut } from '#lib/api/client.js';
-	import { getOidc, type OidcInfo } from '#lib/api/oidc.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { getOidc, getOwnIdentity, unlinkOwnIdentity, type OidcInfo } from '#lib/api/oidc.js';
+	import { listPeople, type PersonEntry } from '#lib/api/users.js';
 	import { session } from '#lib/auth.svelte.js';
-	import AvatarControl from '#lib/components/settings/AvatarControl.svelte';
-	import ColorPicker from '#lib/components/settings/ColorPicker.svelte';
 	import AboutCard from '#lib/components/settings/AboutCard.svelte';
 	import AppCard from '#lib/components/settings/AppCard.svelte';
+	import ColorPicker from '#lib/components/settings/ColorPicker.svelte';
+	import EmailDialog from '#lib/components/settings/EmailDialog.svelte';
 	import HelpCard from '#lib/components/settings/HelpCard.svelte';
 	import LanguageControl from '#lib/components/settings/LanguageControl.svelte';
-	import PasswordForm from '#lib/components/settings/PasswordForm.svelte';
-	import ProfileForm from '#lib/components/settings/ProfileForm.svelte';
+	import PasswordDialog from '#lib/components/settings/PasswordDialog.svelte';
+	import ProfileHead from '#lib/components/settings/ProfileHead.svelte';
+	import SettingsGroup from '#lib/components/settings/SettingsGroup.svelte';
 	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
-	import SignInCard from '#lib/components/settings/SignInCard.svelte';
+	import SettingsRow from '#lib/components/settings/SettingsRow.svelte';
 	import ThemeControl from '#lib/components/settings/ThemeControl.svelte';
+	import Button from '#lib/components/ui/Button.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import { formatDate } from '#lib/recipe/format.js';
 	import { roleLabel } from '#lib/roles.js';
 	import { USER_COLORS, type UserColor } from '#lib/user/color.js';
 
-	const card = 'rounded-2xl bg-surface p-6 md:p-7';
-	const title = 'mb-4 font-display text-heading font-medium';
-
 	let color = $state<UserColor>(session.user?.color ?? USER_COLORS[0]);
-	let usage = $state<ColorUsage[]>([]);
-	// Whether the instance offers a sign-in provider; the Sign-in card only
+	let people = $state<PersonEntry[]>([]);
+	// Whether the instance offers a sign-in provider; the sign-in row only
 	// exists when it does, and a failed lookup leaves it out.
 	let oidc = $state<OidcInfo | null>(null);
+	// When the own account was connected to the provider; null while it is not.
+	let linkedAt = $state<string | null>(null);
+	let identityLoaded = $state(false);
+	let unlinking = $state(false);
+	let emailOpen = $state(false);
+	let passwordOpen = $state(false);
 
-	// Advisory: the counts only mark a color somebody else already holds, so
-	// a failed load leaves the palette unmarked rather than the picker locked.
-	async function loadUsage() {
-		try {
-			usage = await listColorUsage();
-		} catch {
-			usage = [];
-		}
-	}
+	const user = $derived(session.user);
+	const hasPassword = $derived(!!user?.hasPassword);
 
 	onMount(() => {
-		void loadUsage();
+		// Advisory: the list only names who else wears a color, so a failed
+		// load leaves the line saying nobody does rather than the picker locked.
+		listPeople().then(
+			(list) => (people = list),
+			() => (people = [])
+		);
 		getOidc().then(
-			(info) => (oidc = info),
+			(info) => {
+				oidc = info;
+				if (info.enabled) void loadIdentity(info.name);
+			},
 			() => (oidc = null)
 		);
 	});
 
+	async function loadIdentity(name: string) {
+		// The provider flow comes back to /settings?oidc=...: say how it went
+		// once, then drop the query so a reload does not say it again.
+		const result = page.url.searchParams.get('oidc');
+		if (result === 'linked') toast.success(m.oidc_linked({ name }));
+		else if (result === 'taken') toast.error(m.oidc_taken({ name }));
+		else if (result === 'failed') toast.error(m.oidc_failed({ name }));
+		if (result) {
+			void goto(resolve('/settings'), { replaceState: true });
+		}
+		try {
+			linkedAt = (await getOwnIdentity())?.linkedAt ?? null;
+		} catch {
+			// Unknown reads as not connected: connecting an identity the
+			// account already has is harmless, the service treats it as done.
+			linkedAt = null;
+		} finally {
+			identityLoaded = true;
+		}
+	}
+
+	async function disconnect() {
+		unlinking = true;
+		try {
+			await unlinkOwnIdentity();
+			linkedAt = null;
+		} catch (e) {
+			// Without a password the service refuses (409): the account would
+			// be locked out. The button is off then too; this is the race.
+			if (e instanceof ApiError && e.status === 409) {
+				toast.error(m.settings_signin_need_password());
+			} else if (!isSignedOut(e)) {
+				toast.error(m.users_update_error());
+			}
+		} finally {
+			unlinking = false;
+		}
+	}
+
+	async function rename(name: string) {
+		// Straight into the shared session, so the top bar, the recipe cards
+		// and the head all change at once.
+		session.user = await updateOwnProfile({ displayName: name });
+		toast.success(m.settings_profile_saved());
+	}
+
+	async function saveEmail(email: string) {
+		session.user = await updateOwnProfile({ email });
+	}
+
+	/** The dialog says how it went; this keeps the session's pending flag true to the service. */
+	async function resend() {
+		try {
+			await resendConfirmation();
+			if (session.user) session.user = { ...session.user, emailConfirmationPending: true };
+		} catch (failure) {
+			if (failure instanceof ApiError && failure.status === 409) {
+				// Confirmed in another tab, or mail turned off: catch up.
+				session.user = await me().catch(() => session.user);
+			} else if (failure instanceof ApiError && failure.status === 502) {
+				// The service drops a link whose mail failed.
+				if (session.user) session.user = { ...session.user, emailConfirmationPending: false };
+			}
+			throw failure;
+		}
+	}
+
 	/**
-	 * Picking a color is the save. There is nothing else to fill in and no
-	 * second field to wait for, so a swatch that needed a separate button
-	 * would read as not having worked. The name below keeps its button
-	 * because a name is only finished when the person stops typing.
-	 *
-	 * This runs through a function binding rather than an effect watching
-	 * `color`: the write belongs to the act of picking, not to the value
-	 * happening to differ from the session's.
+	 * Picking a color is the save: there is nothing else to fill in, so a
+	 * swatch that needed a separate button would read as not having worked.
 	 *
 	 * `RadioGroup.Root` is a WAI-ARIA radio group, so arrow keys *move*
-	 * selection rather than just focus it - a run across the palette calls
-	 * `pick` once per key. The save itself is trailing-edge debounced so
-	 * that run turns into one request for the color the person landed on,
-	 * not one per key. `saveSeq` guards the response side of the same race:
-	 * it names the most recent pick, and a save whose answer comes back
-	 * after a newer pick has already fired is dropped instead of
-	 * overwriting `session.user` with a stale color.
+	 * selection - a run across the palette calls `pick` once per key. The
+	 * save is trailing-edge debounced so that run turns into one request for
+	 * the color the person landed on. `saveSeq` names the most recent pick,
+	 * and a save whose answer comes back after a newer pick has fired is
+	 * dropped instead of overwriting `session.user` with a stale color.
 	 */
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	let saveSeq = 0;
@@ -90,25 +165,15 @@
 	async function saveColor(picked: UserColor, seq: number) {
 		try {
 			const saved = await updateOwnProfile({ color: picked });
-			if (seq !== saveSeq) {
-				// A later pick has already replaced this one; its own save owns
-				// `session.user` and the toast from here on.
-				return;
-			}
+			if (seq !== saveSeq) return;
 			session.user = saved;
 			toast.success(m.settings_profile_saved());
-			// The old color is free again and the new one is taken; both
-			// marks are wrong until the counts come back.
-			await loadUsage();
 		} catch (failure) {
-			if (seq !== saveSeq) {
-				return;
-			}
+			if (seq !== saveSeq) return;
 			// Back to what the server still has, so the picker never shows a
 			// color that was never stored.
 			color = session.user?.color ?? color;
 			if (!isSignedOut(failure)) {
-				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.settings_profile_error());
 			}
 		}
@@ -125,103 +190,151 @@
 <svelte:head><title>{m.settings_title()} · {m.app_name()}</title></svelte:head>
 
 <SettingsLayout active="profile">
-	<section class={card} aria-labelledby="settings-profile">
-		<h2 id="settings-profile" class={title}>{m.settings_nav_profile()}</h2>
-		<!-- The avatar is the same circle the recipe cards paint. Without a
-		     picture it shows the chosen color at size, so a pick can be judged
-		     here instead of on the overview; the color picker's swatches show
-		     the color whether or not a picture is set. -->
-		{#if session.user}
-			<AvatarControl
-				person={session.user}
+	<!--
+		One card, sorted by what people come to do: the head is how the
+		household sees you (photo, name, color, each edited in place), then the
+		account, then the choices that only change how the app looks to you.
+		The head reads the color the picker holds rather than the session's,
+		so the band follows a pick before its debounced save lands.
+	-->
+	{#if user}
+		<section aria-label={m.settings_nav_profile()} class="overflow-hidden rounded-2xl bg-surface">
+			<ProfileHead
+				person={{ ...user, color }}
+				roleLabel={roleLabel(user.role)}
+				editable
 				upload={setOwnAvatar}
-				remove={removeOwnAvatar}
-				onchange={(avatarId) => {
+				removeAvatar={removeOwnAvatar}
+				onavatar={(avatarId) => {
 					if (session.user) session.user = { ...session.user, avatarId };
 				}}
+				onrename={rename}
 			>
-				<div>
-					<p class="font-display text-heading font-medium">{session.user.displayName}</p>
-					<p class="text-caption text-text-muted">
-						{m.nav_user_menu_signed_in({
-							role: roleLabel(session.user.role),
-							username: session.user.username
-						})}
-					</p>
-				</div>
-			</AvatarControl>
-		{/if}
+				{#snippet colors()}
+					<ColorPicker
+						bind:value={() => color, pick}
+						{people}
+						selfId={user.id}
+						label={m.settings_profile_color_label()}
+						variant="head"
+					/>
+				{/snippet}
+			</ProfileHead>
 
-		<!--
-			The order of this card is the avatar's doing. The avatar above is the
-			only place the chosen color appears at size, so the picker sits
-			directly under it and a pick can be judged where it lands. The login
-			name follows as the other thing about the account that simply is. The
-			one editable field with a button comes last, so the button ends the
-			card instead of splitting it in half - which is what made it read as
-			misplaced when the name sat on top.
+			<div class="space-y-8 px-5 pt-8 pb-3 md:px-7 md:pb-4">
+				<SettingsGroup label={m.profile_group_account()}>
+					<SettingsRow icon={Mail} label={m.settings_profile_email_label()}>
+						{#snippet value()}
+							{#if user.email}
+								<span class="block">{user.email}</span>
+								{#if user.emailVerified}
+									<span class="block font-semibold text-success-foreground">
+										{m.person_email_confirmed()}
+									</span>
+								{:else}
+									<!-- The person page's words, short: the address is right above. -->
+									<span class="block">
+										{user.emailConfirmationPending
+											? m.profile_email_pending()
+											: m.person_email_unconfirmed()}
+									</span>
+								{/if}
+							{:else}
+								{m.profile_email_none()}
+							{/if}
+						{/snippet}
+						{#snippet control()}
+							<Button
+								variant="quiet"
+								size="sm"
+								label={m.profile_email_change()}
+								onclick={() => (emailOpen = true)}
+							>
+								{m.profile_change()}
+							</Button>
+						{/snippet}
+					</SettingsRow>
+					<SettingsRow icon={KeyRound} label={m.profile_password_label()}>
+						{#snippet value()}
+							{hasPassword ? m.profile_password_hint() : m.profile_password_none()}
+						{/snippet}
+						{#snippet control()}
+							<Button
+								variant="quiet"
+								size="sm"
+								label={hasPassword ? m.settings_password_title() : m.settings_password_set_title()}
+								onclick={() => (passwordOpen = true)}
+							>
+								{hasPassword ? m.profile_change() : m.profile_password_set()}
+							</Button>
+						{/snippet}
+					</SettingsRow>
+					{#if oidc?.enabled && identityLoaded}
+						{@const name = oidc.name}
+						<SettingsRow icon={LogIn} label={m.settings_signin_title()}>
+							{#snippet value()}
+								{#if linkedAt}
+									{m.settings_signin_linked({ name, date: formatDate(linkedAt) })}
+									{#if !hasPassword}
+										<span class="block">{m.settings_signin_need_password()}</span>
+									{/if}
+								{:else}
+									{m.settings_signin_unlinked({ name })}
+								{/if}
+							{/snippet}
+							{#snippet control()}
+								{#if linkedAt}
+									<Button
+										variant="quiet"
+										size="sm"
+										label={m.profile_signin_disconnect_label({ name })}
+										disabled={unlinking || !hasPassword}
+										onclick={disconnect}
+									>
+										{m.settings_signin_disconnect()}
+									</Button>
+								{:else}
+									<!-- A real form post: the browser has to follow the
+									     service's 303 to the provider. -->
+									<form method="POST" action="/api/v1/auth/oidc/start">
+										<input type="hidden" name="intent" value="link" />
+										<Button
+											type="submit"
+											variant="quiet"
+											size="sm"
+											label={m.profile_signin_connect_label({ name })}
+										>
+											{m.profile_signin_connect()}
+										</Button>
+									</form>
+								{/if}
+							{/snippet}
+						</SettingsRow>
+					{/if}
+				</SettingsGroup>
 
-			Language sits with the color rather than in a card of its own: both
-			are choices that take effect the moment they are made, and a setting
-			people reach for once has no business below the fold on a page that
-			is mostly things they never touch.
-		-->
-		<div class="mt-6 space-y-6 border-t border-border pt-6">
-			<ColorPicker
-				bind:value={() => color, pick}
-				{usage}
-				label={m.settings_profile_color_label()}
-			/>
-
-			<LanguageControl />
-
-			<!--
-				A fact, not a field: the login name cannot be changed here, and a
-				disabled input would invite the click that proves it. A
-				description list says the same thing in markup, and the label
-				keeps the column the form below it sets.
-
-				The value sits in the filled block this app already uses for a
-				value you read rather than write (the token dialog), but sized to
-				its content instead of to the column. That width is what carries
-				the difference: a field always spans its column, so something
-				that hugs three characters cannot be one, while bare text on the
-				card had no form at all and read as a stray paragraph.
-			-->
-			<dl>
-				<dt class="text-caption font-semibold">{m.settings_profile_username_label()}</dt>
-				<dd class="mt-1.5">
-					<span class="inline-block rounded-md bg-background px-3 py-1.5 text-body">
-						{session.user?.username}
-					</span>
-					<span class="mt-1.5 block text-micro text-text-muted">
-						{m.settings_profile_username_hint()}
-					</span>
-				</dd>
-			</dl>
-
-			<ProfileForm />
-		</div>
-	</section>
-
-	{#if oidc?.enabled}
-		<section class={card} aria-labelledby="settings-signin">
-			<h2 id="settings-signin" class={title}>{m.settings_signin_title()}</h2>
-			<SignInCard name={oidc.name} />
+				<SettingsGroup label={m.profile_group_preferences()}>
+					<SettingsRow icon={Languages} label={m.settings_language_title()}>
+						{#snippet value()}{m.profile_language_hint()}{/snippet}
+						{#snippet control()}<LanguageControl />{/snippet}
+					</SettingsRow>
+					<SettingsRow icon={SunMoon} label={m.settings_theme_title()} stack>
+						{#snippet control()}<ThemeControl size="sm" />{/snippet}
+					</SettingsRow>
+				</SettingsGroup>
+			</div>
 		</section>
+
+		<EmailDialog
+			bind:open={emailOpen}
+			email={user.email}
+			emailVerified={user.emailVerified}
+			pending={!!user.emailConfirmationPending}
+			save={saveEmail}
+			{resend}
+		/>
+		<PasswordDialog bind:open={passwordOpen} />
 	{/if}
-
-	<section class={card} aria-labelledby="settings-password">
-		<h2 id="settings-password" class={title}>
-			{session.user?.hasPassword ? m.settings_password_title() : m.settings_password_set_title()}
-		</h2>
-		<PasswordForm />
-	</section>
-
-	<section class={card} aria-labelledby="settings-theme">
-		<h2 id="settings-theme" class={title}>{m.settings_theme_title()}</h2>
-		<ThemeControl />
-	</section>
 
 	<AppCard />
 	<HelpCard />

@@ -5,7 +5,7 @@ import { configureMail, isMobile, offerInstall, prepare, shot, turnMailOff } fro
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings');
-	await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
 	await shot(page, 'settings');
 });
 
@@ -77,19 +77,16 @@ test('import-export-import', async ({ page }, testInfo) => {
 });
 
 // The screenshot instance always has OIDC configured (docs/user/mise.toml),
-// so the card is there, unconnected, with the neutral provider name.
+// so the profile's sign-in row is there, unconnected, with the neutral
+// provider name.
 test('settings-signin', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings');
-	const button = page.getByRole('button', {
-		name: 'Continue with single sign-on'
-	});
+	const button = page.getByRole('button', { name: 'Connect single sign-on' });
 	await expect(button).toBeVisible();
 	// Centered, so neither the phone's sticky header nor its bottom navigation
-	// covers the card.
-	await page
-		.getByRole('heading', { name: 'Sign-in' })
-		.evaluate((el) => el.closest('section')?.scrollIntoView({ block: 'center' }));
+	// covers the row.
+	await button.evaluate((el) => el.scrollIntoView({ block: 'center' }));
 	await shot(page, 'settings-signin');
 });
 
@@ -160,12 +157,23 @@ test('users', async ({ page }, testInfo) => {
 	await shot(page, 'users');
 });
 
+// The owner on a member's page: the head in Jonas' color, his account and
+// his rights. Jonas has no picture in the demo, so the initial shows.
+test('person', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/settings/users/jonas');
+	await expect(page.getByRole('button', { name: "jonas's role" })).toBeVisible();
+	await shot(page, 'person');
+});
+
 test('user-create', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
 	const dialog = page.getByRole('dialog');
-	await expect(dialog).toBeVisible();
+	// The dialog focuses Username once it has opened; filling before that
+	// let the focus land mid-typing and the address went into Username.
+	await expect(dialog.getByLabel('Username')).toBeFocused();
 	// Filled, so the picture shows what the address field is for.
 	await dialog.getByLabel(/^Email/).fill('lena@example.org');
 	await shot(page, 'user-create');
@@ -187,6 +195,7 @@ test('setup-link-dialog', async ({ page }, testInfo) => {
 	});
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
+	await expect(page.getByLabel('Username')).toBeFocused();
 	const username = `invited-${testInfo.project.name}`;
 	await page.getByLabel('Username').fill(username);
 	await page
@@ -252,16 +261,15 @@ test('settings-recipe-editing', async ({ page }, testInfo) => {
 	await shot(page, 'settings-recipe-editing');
 });
 
-// Mila has an address, so "Send by mail" opens prefilled. The action is in
-// the card's "..." menu on every screen.
+// Mila has an address, so "Send by mail" opens prefilled. The action is the
+// setup-link row's on her page.
 test('setup-link-send', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
-	await page.goto('/settings/users');
+	await page.goto('/settings/users/mila');
 	try {
 		await configureMail(page);
 		await page.reload();
-		await page.getByRole('button', { name: 'More actions for mila' }).click();
-		await page.getByRole('menuitem', { name: 'Setup link for mila' }).click();
+		await page.getByRole('button', { name: 'Create link' }).click();
 		const dialog = page.getByRole('dialog', { name: /^Setup link for/ });
 		await expect(dialog).toBeVisible();
 		await expect(dialog.getByLabel(/^Email/)).not.toHaveValue('');
@@ -291,9 +299,13 @@ test('profile-email-unconfirmed', async ({ page }, testInfo) => {
 			});
 		});
 		await page.reload();
-		const line = page.getByText(/^Not confirmed yet\. Confirmation mail sent to/);
-		await expect(line).toBeVisible();
-		await line.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+		// The row names the state; its dialog carries "Send again".
+		await expect(
+			page.getByText('not confirmed yet, confirmation mail sent', { exact: true })
+		).toBeVisible();
+		await page.getByRole('button', { name: 'Change email' }).click();
+		const dialog = page.getByRole('dialog', { name: 'Email address' });
+		await expect(dialog.getByRole('button', { name: 'Send again' })).toBeVisible();
 		await shot(page, 'profile-email-unconfirmed');
 	} finally {
 		await page.unroute('**/api/v1/auth/me');

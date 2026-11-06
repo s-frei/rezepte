@@ -1,11 +1,14 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
+	import { untrack } from 'svelte';
 	import { Dialog, RadioGroup } from 'bits-ui';
 	import Languages from '@lucide/svelte/icons/languages';
 	import { toast } from 'svelte-sonner';
-	import type { ColorUsage, Locale } from '#lib/api/auth.js';
+	import type { Locale } from '#lib/api/auth.js';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		createUser,
+		type PersonEntry,
 		type SetupLinkInfo,
 		type UserAccount,
 		type UserRole
@@ -30,12 +33,13 @@
 
 	let {
 		open = $bindable(false),
-		usage,
+		people,
 		mailEnabled = false,
 		oncreated
 	}: {
 		open?: boolean;
-		usage: ColorUsage[];
+		/** Everyone, for the preselected color and the picker's holders line. */
+		people: PersonEntry[];
 		/** Whether Rezepte sends mail: the setup link then goes to the address given. */
 		mailEnabled?: boolean;
 		oncreated: (user: UserAccount, setupLink: SetupLinkInfo | null) => void;
@@ -98,7 +102,7 @@
 			password = '';
 			repeat = '';
 			role = 'user';
-			color = leastUsedColor(usage);
+			color = leastUsedColor(untrack(() => people));
 			locale = getLocale();
 			errors = {};
 		}
@@ -216,7 +220,7 @@
 					oninput={() => (errors = withoutErrors(errors, ['email']))}
 					error={errors.email ?? null}
 				/>
-				<ColorPicker bind:value={color} {usage} label={m.users_field_color()} />
+				<ColorPicker bind:value={color} {people} selfId="" label={m.users_field_color()} />
 				<div>
 					<span class="block text-caption font-semibold">{m.users_field_language()}</span>
 					<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.users_field_language_hint()}</p>
@@ -324,13 +328,13 @@
 				{/if}
 			</div>
 		</div>
-		<div class="flex justify-end gap-3 pt-2">
+		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>
 				{mode === 'link' && mailEnabled && email.trim()
 					? m.users_create_submit_and_send()
 					: m.users_create_submit()}
 			</Button>
-		</div>
+		</DialogActions>
 	</form>
 </BaseDialog>

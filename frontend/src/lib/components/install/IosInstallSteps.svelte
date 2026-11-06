@@ -4,7 +4,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 
 	// Each sentence is translated whole and split where Safari's button goes,
-	// so each language keeps its own word order (as SignInCard does).
+	// so each language keeps its own word order (as the profile page does).
 	const share = $derived(m.install_ios_step_share({ button: '\u0000' }).split('\u0000'));
 	const confirm = $derived(m.install_ios_step_confirm({ button: '\u0000' }).split('\u0000'));
 	const step = 'flex items-center gap-3 text-body';

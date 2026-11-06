@@ -7,6 +7,7 @@ import type {
 } from '#lib/api/shopping.js';
 import { formatQuantity } from '#lib/recipe/format.js';
 import { dimensionOf, fromBase, toBase } from '#lib/recipe/measures.js';
+import { holderNames } from '#lib/user/holders.js';
 import { DEPARTMENTS } from './departments';
 import type { ListView } from './view.svelte';
 
@@ -16,9 +17,13 @@ export type Source = {
 	amount: string;
 	/** Title of the entry the item came from; null for a free item. */
 	recipe: string | null;
-	addedBy: string | null;
-	/** Account id behind `addedBy`, so the page can say "by you". */
-	addedById: string | null;
+	/** Who typed a free item in, so the row can show their mark and the page say "by you". */
+	addedBy: ListPerson | null;
+	/**
+	 * `addedBy` the way the household calls them: the first name, the full
+	 * name when two people on the list share it (`holderNames`).
+	 */
+	addedByName: string | null;
 	note: string | null;
 	/** A free item whose adder's account is gone. */
 	formerMember: boolean;
@@ -84,7 +89,19 @@ function sumByUnit(parts: { quantity: number | null; unit: string | null }[]) {
 	});
 }
 
+/** Each person on the list (and each adder since gone from it) by `holderNames`, keyed by id. */
+function namesOf(list: ShoppingList): Map<string, string> {
+	const people = new Map<string, ListPerson>();
+	for (const p of [list.owner, ...list.members, ...list.items.map((i) => i.addedBy)]) {
+		if (p && !people.has(p.id)) people.set(p.id, p);
+	}
+	const all = [...people.values()];
+	const names = holderNames(all);
+	return new Map(all.map((p, i) => [p.id, names[i]]));
+}
+
 function rowsOf(list: ShoppingList, items: ShoppingItem[]): Row[] {
+	const names = namesOf(list);
 	const titles = new Map(list.entries.map((e) => [e.id, e.title]));
 	// The same recipe added twice is one origin: its lines add up instead of repeating.
 	const recipeOf = new Map(list.entries.map((e) => [e.id, e.recipeId ?? e.id]));
@@ -131,8 +148,8 @@ function rowsOf(list: ShoppingList, items: ShoppingItem[]): Row[] {
 				itemId: first.id,
 				amount: amountText(sum.quantity, sum.unit),
 				recipe: first.entryId ? (titles.get(first.entryId) ?? null) : null,
-				addedBy: first.addedBy?.displayName ?? null,
-				addedById: first.addedBy?.id ?? null,
+				addedBy: first.addedBy,
+				addedByName: first.addedBy ? (names.get(first.addedBy.id) ?? null) : null,
 				note: notes.length > 0 ? notes.join(', ') : null,
 				formerMember: first.entryId === null && first.addedBy === null,
 				checked: !row.checked && group.every((i) => i.checked)

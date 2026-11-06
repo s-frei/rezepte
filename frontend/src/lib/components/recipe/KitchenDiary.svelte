@@ -20,14 +20,17 @@
 		type Comment
 	} from '#lib/api/comments.js';
 	import { MAX_IMAGES } from '#lib/api/recipes.js';
+	import { session } from '#lib/auth.svelte.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { uploadErrorMessage } from '#lib/images/pick.js';
 	import { refusalOr } from '#lib/recipe/access.js';
 	import { groupByDay, sendable } from '#lib/recipe/diary.js';
 	import { revokePreviews, stagePhotos, unstage, type PendingPhoto } from '#lib/recipe/photos.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { userComposerClass } from '#lib/user/color.js';
 	import DiaryEntry from './DiaryEntry.svelte';
 	import DiaryField from './DiaryField.svelte';
 	import DiaryPhotos from './DiaryPhotos.svelte';
@@ -288,56 +291,74 @@
 	<p class="sr-only" aria-live="polite">{announcement}</p>
 
 	<!-- One notepad: the field and its send button share the box, which
-	     carries the field's focus ring. -->
+	     carries the field's focus ring. The writer's mark stands at its left
+	     and, focused, the box takes their paper: it looks like the entry it
+	     will become. Send stays primary - the color marks a person, never an
+	     action. -->
 	<form class="mt-5" onsubmit={send}>
-		<!-- With photos the collage runs nearly edge to edge and the text starts flush under it. -->
-		<div
-			class="flex flex-wrap items-end gap-x-2 gap-y-1 rounded-3xl border border-border bg-surface-elevated shadow-card has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary {photos.length
-				? 'p-2.5 pb-1.5'
-				: 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
-		>
-			<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
-			<DiaryPhotos bind:photos {busy} {title} hint={false} />
-			<DiaryField
-				bind:value={draft}
-				bind:element={composer}
-				readonly={busy}
-				label={photos.length ? m.diary_placeholder_photo() : m.diary_placeholder()}
-				describedby={fine ? hintId : undefined}
-				plain
-				class={photos.length ? 'pl-1.5' : ''}
-			/>
-			<!-- A round icon on a phone, the icon and its word from md; while
-			     photos go up it spins, and the collage shows each one's state. -->
-			<Button
-				type="submit"
-				size="sm"
-				disabled={blocked}
-				class="shrink-0 whitespace-nowrap max-md:size-10 max-md:px-0"
-			>
-				{#if progress}
-					<LoaderCircle
-						class="size-[18px] animate-spin motion-reduce:animate-none"
-						aria-hidden="true"
-					/>
-				{:else}
-					<Send class="size-[18px]" aria-hidden="true" />
-				{/if}
-				<span class="max-md:sr-only">
-					{progress
-						? m.diary_sending_photo({ n: progress.n, count: progress.count })
-						: m.diary_add()}
+		<div class="flex items-end gap-2.5">
+			<!-- From 400px: on a narrower phone its 38px broke the placeholder
+			     onto a second line, and the paper alone says whose it is. -->
+			{#if session.user}
+				<span class="mb-3 hidden shrink-0 min-[25rem]:block md:mb-3.5">
+					<PersonMark person={session.user} size="sm" />
 				</span>
-			</Button>
+			{/if}
+			<!-- With photos the collage runs nearly edge to edge and the text starts flush under it. -->
+			<div
+				class="flex min-w-0 flex-1 flex-wrap items-end gap-x-2 gap-y-1 rounded-3xl border border-border bg-surface-elevated shadow-card transition-colors has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary {userComposerClass(
+					session.user?.color
+				)} {photos.length ? 'p-2.5 pb-1.5' : 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
+			>
+				<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
+				<DiaryPhotos bind:photos {busy} {title} hint={false} />
+				<DiaryField
+					bind:value={draft}
+					bind:element={composer}
+					readonly={busy}
+					label={photos.length ? m.diary_placeholder_photo() : m.diary_placeholder()}
+					describedby={fine ? hintId : undefined}
+					plain
+					class={photos.length ? 'pl-1.5' : ''}
+				/>
+				<!-- A round icon on a phone, the icon and its word from md; while
+			     photos go up it spins, and the collage shows each one's state. -->
+				<Button
+					type="submit"
+					size="sm"
+					disabled={blocked}
+					class="shrink-0 whitespace-nowrap max-md:size-10 max-md:px-0"
+				>
+					{#if progress}
+						<LoaderCircle
+							class="size-[18px] animate-spin motion-reduce:animate-none"
+							aria-hidden="true"
+						/>
+					{:else}
+						<Send class="size-[18px]" aria-hidden="true" />
+					{/if}
+					<span class="max-md:sr-only">
+						{progress
+							? m.diary_sending_photo({ n: progress.n, count: progress.count })
+							: m.diary_add()}
+					</span>
+				</Button>
+			</div>
 		</div>
 		{#if failedAt >= 0 && !busy}
-			<p role="alert" class="mt-2 ml-4 flex gap-1.5 text-body-sm text-destructive md:ml-4.5">
+			<p
+				role="alert"
+				class="mt-2 ml-4 flex gap-1.5 text-body-sm text-destructive min-[25rem]:ml-13.5 md:ml-14"
+			>
 				<CircleAlert class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
 				{failedText(failedAt + 1)}
 			</p>
 		{/if}
 		<!-- Only true with a keyboard and mouse: on a touch screen Enter breaks the line. -->
-		<p id={hintId} class="mt-2 ml-4 hidden text-micro text-text-muted md:ml-4.5 pointer-fine:block">
+		<p
+			id={hintId}
+			class="mt-2 ml-4 hidden text-micro text-text-muted min-[25rem]:ml-13.5 md:ml-14 pointer-fine:block"
+		>
 			{m.diary_hint()}
 		</p>
 	</form>

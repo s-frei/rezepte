@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import MailQuestionMark from '@lucide/svelte/icons/mail-question-mark';
 	import { Dialog, RadioGroup } from 'bits-ui';
 	import { ApiError } from '#lib/api/client.js';
@@ -110,14 +111,14 @@
 			{/if}
 			{@render option('self', m.setup_link_choice_self())}
 		</RadioGroup.Root>
-		<div class="mt-6 flex justify-end gap-2.5 border-t border-border pt-4">
+		<DialogActions class="mt-6 border-t border-border pt-4">
 			<Button variant="ghost" disabled={busy} onclick={() => (open = false)}>
 				{m.common_cancel()}
 			</Button>
 			<Button type="submit" disabled={busy || (mode === 'mail' && !address.trim())}>
 				{mode === 'mail' ? m.setup_link_send() : m.setup_link_show()}
 			</Button>
-		</div>
+		</DialogActions>
 	</form>
 </BaseDialog>
 

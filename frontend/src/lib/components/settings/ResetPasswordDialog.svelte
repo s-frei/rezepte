@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -20,7 +21,16 @@
 	// `{#if user}` tore it down the moment the page dropped its target, so the
 	// close transition never played. The page keeps the target until the next
 	// open, which also keeps the title in place while the dialog animates out.
-	let { open = $bindable(false), user }: { open?: boolean; user: PersonEntry | null } = $props();
+	let {
+		open = $bindable(false),
+		user,
+		onreset
+	}: {
+		open?: boolean;
+		user: PersonEntry | null;
+		/** The password is stored; the caller shows that the account has one. */
+		onreset: (user: PersonEntry) => void;
+	} = $props();
 
 	let password = $state('');
 	// Typed twice, like the own password change: the admin passes this one on
@@ -50,6 +60,7 @@
 		saving = true;
 		try {
 			await updateUser(user.id, { password });
+			onreset(user);
 			toast.success(m.users_password_reset());
 			open = false;
 		} catch (failure) {
@@ -96,9 +107,9 @@
 			oninput={() => (errors = withoutErrors(errors, ['repeat']))}
 			error={errors.repeat ?? null}
 		/>
-		<div class="flex justify-end gap-3 pt-2">
+		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.users_reset_submit()}</Button>
-		</div>
+		</DialogActions>
 	</form>
 </BaseDialog>

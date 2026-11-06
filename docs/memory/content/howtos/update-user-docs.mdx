@@ -40,6 +40,8 @@ description: What to edit and regenerate when a UI or API change lands
   <Step>
 
     ### Review changed PNGs
+    A spec that types into a dialog waits until the dialog has put focus where it wants it (`await expect(field).toBeFocused()`) before the first `fill`: "Add account" focuses Username only once it has opened, and filling earlier sent the address into Username in some runs - a picture that looks right at a glance and names an account `invited-mobile-darklena@example.org`.
+
     Read the changed files under `docs/user/public/screenshots/`, `docs/user/public/heroes/` and `assets/readme/` with the Read tool (agents: this is how you check a screenshot - never a browser extension, see [Verify UI with Playwright](/howtos/verify-ui)) and compare against the design system before committing. The screenshot suite retries a test once (the reason is in `docs/user/playwright.config.ts`) and loses one more often while another worktree's e2e runs, so a PNG can change for no reason of yours - read each diff rather than committing the batch.
 
   </Step>

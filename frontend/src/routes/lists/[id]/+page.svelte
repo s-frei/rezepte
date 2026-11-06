@@ -212,7 +212,7 @@
 					aria-haspopup="dialog"
 					aria-label={m.list_people_show({ count: people.length })}
 					onclick={() => (peopleOpen = true)}
-					class="rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					class="relative rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-2"
 				>
 					<PeopleStack {people} />
 				</button>
@@ -335,15 +335,17 @@
 
 					{#if done.length > 0}
 						<section class="mt-5">
-							<div class="flex items-center justify-between gap-2">
+							<div class="flex flex-wrap items-center justify-between gap-x-2">
 								<h2 class="font-display text-body-lg font-medium text-text-muted italic">
 									{m.list_done_heading({ count: done.length })}
 								</h2>
-								<!-- A 44px target grown upward: the first done row's target starts right below. -->
+								<!-- A 44px target grown upward: the first done row's target starts right below.
+								     Its padding is given back on the right, so its text ends where the
+								     counts above end; with 200% text it wraps to its own line, at the end. -->
 								<button
 									type="button"
 									onclick={() => lst.apply(clearChecked(list.id))}
-									class="relative h-8 rounded-pill px-1 text-body-sm font-semibold text-primary transition after:absolute after:inset-x-0 after:-top-[13px] after:bottom-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+									class="relative -mr-1 ml-auto h-8 rounded-pill px-1 text-body-sm font-semibold whitespace-nowrap text-primary transition after:absolute after:inset-x-0 after:-top-[13px] after:bottom-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 								>
 									{m.list_clear_checked()}
 								</button>

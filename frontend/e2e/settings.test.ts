@@ -7,7 +7,10 @@ import {
 	loadFixture,
 	login,
 	search,
-	uniqueToken
+	setCover,
+	tinyPng,
+	uniqueToken,
+	uploadImage
 } from './helpers';
 
 // Follows the conventions of recipes.test.ts: unique usernames per test,
@@ -26,14 +29,18 @@ function personRow(page: Page, username: string): Locator {
 }
 
 /**
- * Opens the card's "..." menu, where reset password, setup link and delete
- * live on every screen. Its content portals onto the page rather than into
- * the card, so callers look for `menuitem`s on the page.
+ * Opens a person's page from their card, the one way to their account's
+ * actions: the card is one link.
  */
-async function openActionMenu(page: Page, username: string): Promise<void> {
-	await personRow(page, username)
-		.getByRole('button', { name: `More actions for ${username}` })
-		.click();
+async function openPerson(page: Page, username: string): Promise<void> {
+	await personRow(page, username).getByRole('link').click();
+	await expect(page).toHaveURL(`/settings/users/${username}`);
+}
+
+/** Opens the own password dialog from its row on the profile page. */
+async function openPasswordDialog(page: Page): Promise<void> {
+	await page.getByRole('button', { name: 'Change password' }).click();
+	await expect(page.getByRole('dialog', { name: 'Change password' })).toBeVisible();
 }
 
 test('a member changes the own password and logs in with it', async ({ page }) => {
@@ -46,10 +53,11 @@ test('a member changes the own password and logs in with it', async ({ page }) =
 	await login(page, username);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
+	await openPasswordDialog(page);
 	await page.getByLabel('Current password').fill(devPassword(username));
 	await page.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
 	await page.getByLabel('Repeat the new password').fill(devPasswordNext(username));
-	await page.getByRole('button', { name: 'Save password' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByText('Password changed')).toBeVisible();
 
 	await page.context().clearCookies();
@@ -63,12 +71,13 @@ test('a wrong current password shows an inline error', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
+	await openPasswordDialog(page);
 	await page.getByLabel('Current password').fill('definitely-wrong');
 	// The instance owner, whose own password this test never changes - it is
 	// rejected on the current one.
 	await page.getByLabel('New password', { exact: true }).fill(devPasswordNext('admin'));
 	await page.getByLabel('Repeat the new password').fill(devPasswordNext('admin'));
-	await page.getByRole('button', { name: 'Save password' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.getByText('The current password is wrong')).toBeVisible();
 });
 
@@ -76,12 +85,13 @@ test('the own password change refuses a new password typed differently twice', a
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
+	await openPasswordDialog(page);
 	// Stopped before the API, so the owner's password is never at risk here.
 	await page.getByLabel('Current password').fill(devPassword('admin'));
 	await page.getByLabel('New password', { exact: true }).fill(devPasswordNext('admin'));
 	const repeat = page.getByLabel('Repeat the new password');
 	await repeat.fill(`${devPasswordNext('admin')}x`);
-	await page.getByRole('button', { name: 'Save password' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(page.getByText('The passwords do not match')).toBeVisible();
 	await repeat.fill(devPasswordNext('admin'));
@@ -92,12 +102,13 @@ test('fixing the first password field clears the mismatch too', async ({ page })
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
+	await openPasswordDialog(page);
 	await page.getByLabel('Current password').fill(devPassword('admin'));
 	const next = page.getByLabel('New password', { exact: true });
 	const repeat = page.getByLabel('Repeat the new password');
 	await next.fill(`${devPasswordNext('admin')}x`);
 	await repeat.fill(devPasswordNext('admin'));
-	await page.getByRole('button', { name: 'Save password' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(repeat).toHaveAttribute('aria-invalid', 'true');
 
 	// The mismatch is about the pair, so retyping either half answers it.
@@ -109,6 +120,7 @@ test('the new password is rated as it is typed, and only advised on', async ({ p
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
+	await openPasswordDialog(page);
 	const next = page.getByLabel('New password', { exact: true });
 	await next.fill('password1');
 	await expect(page.getByText('Strength: very weak')).toBeVisible();
@@ -141,10 +153,9 @@ test('a member sees everyone, read-only', async ({ page }) => {
 		page.getByText('Everyone with an account here. Admins manage accounts.')
 	).toBeVisible();
 
-	// Nothing to act on: no way to add an account, and not one control on
-	// any card - no role select, no pencil, no "...", no details chevron.
-	// The one button a card keeps is its circle, which only shows who that
-	// person is. The counts are there for everyone.
+	// Nothing to act on: no way to add an account, and no card but the own
+	// one leads anywhere. The one button a card keeps is its circle, which
+	// only shows who that person is. The counts are there for everyone.
 	await expect(page.getByRole('button', { name: 'Add account' })).toHaveCount(0);
 	await expect(people(page).getByRole('button', { name: /^(?!About )/ })).toHaveCount(0);
 	await expect(people(page).getByRole('button', { name: `About ${adminName}` })).toBeVisible();
@@ -153,13 +164,39 @@ test('a member sees everyone, read-only', async ({ page }) => {
 	await expect(page.getByText(/What is on a list only the people/)).toBeVisible();
 	// An address and its state are an admin's business: not even the symbol.
 	await expect(people(page)).not.toContainText('Address');
-	// The one link is the own card's pencil, to the own profile.
+});
+
+test('a member sees the list without links', async ({ page }) => {
+	const username = `m${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, role: 'user' });
+	await createUser(page, { username: `n${uniqueToken()}`, role: 'user' });
+	await page.context().clearCookies();
+	await login(page, username);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/users');
+
+	await expect(personRow(page, 'admin')).toBeVisible();
+	await expect(people(page).locator('a[href^="/settings/users/"]')).toHaveCount(0);
 	await expect(people(page).getByRole('link')).toHaveCount(1);
-	await personRow(page, username).getByRole('link', { name: 'Open your profile' }).click();
+});
+
+test('the own card leads to the profile page', async ({ page }) => {
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.goto('/settings/users');
+
+	const own = personRow(page, 'admin');
+	await expect(own).toContainText('you');
+	await expect(own.getByRole('link')).toHaveAttribute('href', '/settings');
+	await own.getByRole('link').click();
 	await expect(page).toHaveURL('/settings');
 });
 
-test('an admin opens a card for the address and keeps its controls', async ({ page }) => {
+test("an admin reads a member's counts on the card and the rest on their page", async ({
+	page
+}) => {
 	const username = `d${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -175,19 +212,54 @@ test('an admin opens a card for the address and keeps its controls', async ({ pa
 
 	const row = personRow(page, username);
 	await expect(row).toContainText('No shopping list');
-	await expect(row).toContainText('1 recipe');
-	const chevron = row.getByRole('button', { name: `Show details for ${username}` });
-	await expect(chevron).toHaveAttribute('aria-expanded', 'false');
-	await chevron.click();
-	await expect(row.getByRole('button', { name: `Hide details for ${username}` })).toHaveAttribute(
-		'aria-expanded',
-		'true'
-	);
-	// The details take the counts' place; the role, pencil and menu stay.
-	await expect(row.getByText(`${username}@example.com`)).toBeVisible();
-	await expect(row.getByText(`latest “Soup ${username}”`)).toBeVisible();
-	await expect(row.getByRole('button', { name: `${username}'s role` })).toBeVisible();
-	await expect(row.getByRole('button', { name: `More actions for ${username}` })).toBeVisible();
+	// The newest recipe's cover and title, and how many there are.
+	await expect(row.locator('[data-thumb]')).toHaveCount(1);
+	await expect(row).toContainText(`Soup ${username}`);
+	await expect(row).toContainText('So far the only recipe');
+	// The whole card is one link to the person's page, with no controls inside.
+	await expect(row.getByRole('link')).toHaveCount(1);
+	await expect(row.getByRole('link')).toHaveAttribute('href', `/settings/users/${username}`);
+	await expect(row.getByRole('button')).toHaveCount(0);
+	await expect(row.getByRole('combobox')).toHaveCount(0);
+	await openPerson(page, username);
+	const card = page.getByRole('region', { name: username, exact: true });
+	await expect(card.getByText(`${username}@example.com`)).toBeVisible();
+	const overview = card.getByRole('group', { name: 'Overview' });
+	await expect(overview).toContainText('1 recipe');
+	await expect(overview).toContainText(`latest “Soup ${username}”`);
+	await expect(overview).toContainText('No shopping list');
+	await expect(card.getByRole('button', { name: `${username}'s role` })).toBeVisible();
+});
+
+test('the card shows the four newest covers, newest first, and no recipes calmly', async ({
+	page
+}) => {
+	const cook = `c${uniqueToken()}`;
+	const idle = `i${uniqueToken()}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username: cook, role: 'user' });
+	await createUser(page, { username: idle, role: 'user' });
+	await page.context().clearCookies();
+	await login(page, cook);
+	const fixture = loadFixture(0);
+	for (const n of [1, 2, 3, 4, 5]) {
+		fixture.title = `Dish ${n} ${cook}`;
+		const recipe = await createRecipe(page, fixture);
+		if (n === 5)
+			await setCover(page, recipe.id, (await uploadImage(page, recipe.id, tinyPng())).id);
+	}
+	await page.goto('/settings/users');
+
+	const row = personRow(page, cook);
+	const thumbs = row.locator('[data-thumb]');
+	await expect(thumbs).toHaveCount(4);
+	// The newest has a photo, an image the title beside it names.
+	await expect(thumbs.first()).toHaveAttribute('alt', '');
+	await expect(row).toContainText(`Dish 5 ${cook}`);
+	await expect(row).toContainText('The newest of 5 recipes');
+	await expect(personRow(page, idle)).toContainText('No recipes yet');
+	await expect(personRow(page, idle).locator('[data-thumb]')).toHaveCount(0);
 });
 
 test('the owner creates, promotes, resets and deletes a user', async ({ page }) => {
@@ -208,39 +280,30 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
 	await expect(people(page).getByRole('list', { name: 'Members' })).toContainText(username);
 
-	// Promoting moves them under "Admins". The role is a select on the card -
-	// Bits UI renders its trigger as a plain <button> named "<name>'s role".
-	// Moving to another group re-creates the card, and neither the control
-	// just used nor the keyboard focus may get lost on the way.
-	await personRow(page, username)
-		.getByRole('button', { name: `${username}'s role` })
-		.click();
+	// The role is a select on the person's page - Bits UI renders its
+	// trigger as a plain <button> named "<name>'s role".
+	await openPerson(page, username);
+	const card = page.getByRole('region', { name: username, exact: true });
+	await card.getByRole('button', { name: `${username}'s role` }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
 	await expect(page.getByText(`${username} is now Admin`)).toBeVisible();
-	await expect(
-		personRow(page, username).getByRole('button', { name: `${username}'s role` })
-	).toBeFocused();
-	await expect(people(page).getByRole('list', { name: 'Admins' })).toContainText(username);
+	await expect(card.getByRole('button', { name: `${username}'s role` })).toBeFocused();
 
-	// The visible words are part of every name, so what a voice-control
-	// user reads is what they can say.
-	await openActionMenu(page, username);
-	await page.getByRole('menuitem', { name: 'Reset password' }).click();
+	await card.getByRole('button', { name: `Reset ${username}'s password` }).click();
 	const reset = page.getByRole('dialog', { name: `Reset ${username}'s password` });
 	await reset.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
 	await reset.getByLabel('Repeat the new password').fill(devPasswordNext(username));
 	await reset.getByRole('button', { name: 'Reset', exact: true }).click();
 	await expect(page.getByText('Password reset')).toBeVisible();
 
-	await openActionMenu(page, username);
-	await page.getByRole('menuitem', { name: `Delete ${username}` }).click();
+	await card.getByRole('button', { name: 'Delete account', exact: true }).click();
 	await page
 		.getByRole('dialog', { name: 'Delete account?' })
 		.getByRole('button', { name: 'Delete' })
 		.click();
+	await expect(page).toHaveURL('/settings/users');
+	await expect(people(page).getByRole('list', { name: 'Admins' })).toBeVisible();
 	await expect(personRow(page, username)).toHaveCount(0);
-	// The row focus would return to is gone; the card's heading takes it.
-	await expect(people(page).getByRole('heading', { name: 'People', level: 2 })).toBeFocused();
 });
 
 test('a reset password has to be typed the same twice', async ({ page }) => {
@@ -248,10 +311,9 @@ test('a reset password has to be typed the same twice', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
-	await page.goto('/settings/users');
+	await page.goto(`/settings/users/${username}`);
 
-	await openActionMenu(page, username);
-	await page.getByRole('menuitem', { name: 'Reset password' }).click();
+	await page.getByRole('button', { name: `Reset ${username}'s password` }).click();
 	const dialog = page.getByRole('dialog', { name: `Reset ${username}'s password` });
 	const repeat = dialog.getByLabel('Repeat the new password');
 
@@ -298,6 +360,7 @@ test('every field that sets a password says how long it has to be', async ({ pag
 	await createUser(page, { username, role: 'user' });
 
 	await page.goto('/settings');
+	await openPasswordDialog(page);
 	await expect(page.getByLabel('New password', { exact: true })).toHaveAccessibleDescription(
 		'At least 8 characters'
 	);
@@ -312,8 +375,8 @@ test('every field that sets a password says how long it has to be', async ({ pag
 	await page.keyboard.press('Escape');
 	await expect(add).toBeHidden();
 
-	await openActionMenu(page, username);
-	await page.getByRole('menuitem', { name: 'Reset password' }).click();
+	await page.goto(`/settings/users/${username}`);
+	await page.getByRole('button', { name: `Reset ${username}'s password` }).click();
 	await expect(
 		page
 			.getByRole('dialog', { name: `Reset ${username}'s password` })
@@ -328,14 +391,17 @@ test('a role change is undone from its toast', async ({ page }) => {
 	await createUser(page, { username, role: 'user' });
 	await page.goto('/settings/users');
 
-	await personRow(page, username)
-		.getByRole('button', { name: `${username}'s role` })
-		.click();
+	await openPerson(page, username);
+	await page.getByRole('button', { name: `${username}'s role` }).click();
 	await page.getByRole('option', { name: 'Admin' }).click();
-	await expect(people(page).getByRole('list', { name: 'Admins' })).toContainText(username);
+	await expect(page.getByText(`${username} is now Admin`)).toBeVisible();
 
 	await page.getByRole('button', { name: 'Undo' }).click();
 	await expect(page.getByText(`${username} is now Member`)).toBeVisible();
+	await page
+		.getByRole('navigation', { name: 'Path' })
+		.getByRole('link', { name: 'People' })
+		.click();
 	await expect(people(page).getByRole('list', { name: 'Members' })).toContainText(username);
 });
 
@@ -368,21 +434,23 @@ test('a second admin cannot touch the instance owner', async ({ page }) => {
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
-	// The owner's card offers nothing to act on: the "Owner" chip where the
-	// role select would be, no pencil, no menu. Only the circle, which shows
-	// who they are, and the chevron to the details.
+	// The owner's card leads nowhere: there is nothing on it to act on. Its
+	// circle still opens who the person is.
 	await expect(people(page).getByRole('list', { name: 'Owner' })).toContainText('admin');
 	const owner = personRow(page, 'admin');
-	await expect(owner.getByRole('button', { name: /^(?!About |Show details )/ })).toHaveCount(0);
+	await expect(owner.getByRole('link')).toHaveCount(0);
+	await expect(owner.getByRole('button')).toHaveCount(1);
 	await expect(owner.getByText('Owner', { exact: true })).toBeVisible();
 });
 
 test('a plain admin manages a member but cannot change their role', async ({ page }) => {
 	const admin = `a${uniqueToken()}`;
+	const other = `o${uniqueToken()}`;
 	const member = `m${uniqueToken()}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await createUser(page, { username: admin, role: 'admin' });
+	await createUser(page, { username: other, role: 'admin' });
 	await createUser(page, { username: member, role: 'user' });
 
 	await page.context().clearCookies();
@@ -390,13 +458,14 @@ test('a plain admin manages a member but cannot change their role', async ({ pag
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
+	// Another admin is the owner's to manage: their card leads nowhere.
+	await expect(personRow(page, other).getByRole('link')).toHaveCount(0);
 	// Changing a role is the owner's alone, so there is no role control -
 	// while delete and reset stay this admin's to use.
-	await expect(
-		personRow(page, member).getByRole('button', { name: `${member}'s role` })
-	).toHaveCount(0);
-	await openActionMenu(page, member);
-	await expect(page.getByRole('menuitem', { name: `Delete ${member}` })).toBeVisible();
+	await openPerson(page, member);
+	await expect(page.getByRole('button', { name: `${member}'s role` })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Delete account', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: `Reset ${member}'s password` })).toBeVisible();
 });
 
 test('only the owner can hand out the admin role', async ({ page }) => {
@@ -513,7 +582,7 @@ test('a member renames themselves and picks a color, and their cards follow', as
 	const displayName = `Sam ${token}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
-	await createUser(page, { username, role: 'user' });
+	await createUser(page, { username, role: 'user', color: 'amber' });
 
 	await page.context().clearCookies();
 	await login(page, username);
@@ -521,17 +590,19 @@ test('a member renames themselves and picks a color, and their cards follow', as
 	await createRecipe(page, { ...loadFixture(0), title: `Color test ${token}` });
 
 	await page.goto('/settings');
+	// The pencil turns the name into a field in place.
+	await page.getByRole('button', { name: 'Change name' }).click();
 	await page.getByLabel('Display name').fill(displayName);
-	await page.getByRole('button', { name: 'Save profile' }).click();
-	await expect(page.getByText('Profile saved')).toBeVisible();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('heading', { name: displayName, level: 2 })).toBeVisible();
 
-	// Picking a swatch is the save, and it raises a second toast carrying the
-	// same words - which would make the locator above ambiguous. So the round
-	// trip is read off the profile card's own avatar instead: it follows the
-	// session, which only changes once the server has answered.
+	// Picking a swatch is the save, after a short debounce; the band follows
+	// the pick at once, so the round trip is read off the request instead.
+	const saved = page.waitForResponse(
+		(r) => r.url().endsWith('/api/v1/auth/me/profile') && r.request().method() === 'PATCH'
+	);
 	await page.getByRole('radio', { name: 'Sage' }).click();
-	const avatar = page.locator('section[aria-labelledby="settings-profile"] span.size-24');
-	await expect(avatar).toHaveClass(/bg-user-sage/);
+	expect((await saved).ok()).toBe(true);
 
 	// The recipe was written before the rename, and its card carries the name
 	// and the color the account holds now: both are joined from `users` on
@@ -543,46 +614,130 @@ test('a member renames themselves and picks a color, and their cards follow', as
 	await expect(circle).toHaveText('S');
 });
 
-test("an admin changes a member's address but not their name, the owner can", async ({
-	page,
-	isMobile
+test('the profile page shows who else wears the own color', async ({ page }) => {
+	const token = uniqueToken();
+	const member = `amb${token}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username: member, role: 'user', color: 'amber' });
+	// Unique, because every test shares one database: others may wear amber
+	// too, so the visible line may count Sofia among "N more". The
+	// screen-reader list names everyone in full.
+	const sofia = `Sofia Safran ${token}`;
+	await createUser(page, {
+		username: `sof${token}`,
+		role: 'user',
+		displayName: sofia,
+		color: 'amber'
+	});
+
+	await page.context().clearCookies();
+	await login(page, member);
+	await page.goto('/settings');
+	await expect(
+		page.getByRole('radiogroup', { name: 'Color', exact: true })
+	).toHaveAccessibleDescription(new RegExp(`Amber.*also .*${sofia}`));
+	await expect(page.getByText('Sharing a color is fine.')).toBeVisible();
+});
+
+test('a 64-character display name fits the profile head on a 320px phone', async ({ page }) => {
+	const username = `long${uniqueToken()}`;
+	const displayName = 'Konstantin '.repeat(6).slice(0, 64);
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, role: 'user', displayName });
+	await page.context().clearCookies();
+	await page.setViewportSize({ width: 320, height: 780 });
+	await login(page, username);
+	await page.goto('/settings');
+
+	await expect(page.getByRole('heading', { name: displayName.trim(), level: 2 })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Change name' })).toBeInViewport();
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
+test('the e-mail row says when there is no address and offers the resend for an unconfirmed one', async ({
+	page
 }) => {
+	const token = uniqueToken();
+	const bare = `bare${token}`;
+	const unconfirmed = `unc${token}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username: bare, role: 'user' });
+	await createUser(page, {
+		username: unconfirmed,
+		role: 'user',
+		email: `${unconfirmed}@example.com`
+	});
+
+	await page.context().clearCookies();
+	await login(page, bare);
+	await page.goto('/settings');
+	const account = page.getByRole('group', { name: 'Your account' });
+	await expect(account.getByText('none', { exact: true })).toBeVisible();
+
+	await page.context().clearCookies();
+	await login(page, unconfirmed);
+	// Mail is off on the e2e instance, so the resend is answered here: the
+	// dialog offers it only while mail can go out.
+	await page.route('**/api/v1/auth/password', (route) =>
+		route.request().method() === 'GET'
+			? route.fulfill({ json: { available: true } })
+			: route.continue()
+	);
+	let resent = false;
+	await page.route('**/api/v1/auth/me/email/confirmation', (route) => {
+		resent = true;
+		return route.fulfill({ status: 204 });
+	});
+	await page.goto('/settings');
+	await expect(account.getByText(`${unconfirmed}@example.com`, { exact: true })).toBeVisible();
+	// With mail on the account was created with a confirmation mail already
+	// out, and the line says so.
+	await expect(account.getByText(/^not confirmed yet(, confirmation mail sent)?$/)).toBeVisible();
+	await account.getByRole('button', { name: 'Change email' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Email address' });
+	// With mail on (mail.test.ts turns it on for the shared instance) the
+	// account was created with a confirmation mail already open.
+	await dialog.getByRole('button', { name: /^(Send confirmation mail|Send again)$/ }).click();
+	// The row follows: a link is open now.
+	await expect(account).toContainText('not confirmed yet, confirmation mail sent');
+	expect(resent).toBe(true);
+});
+
+test("an admin changes a member's address but not their name, the owner can", async ({ page }) => {
 	const token = uniqueToken();
 	const member = `ren${token}`;
 	const admin = `adm${token}`;
 	const displayName = `Renamed ${token}`;
 	await login(page);
 	await expect(page).toHaveURL('/');
-	await createUser(page, { username: member, role: 'user' });
+	// Not teal, so picking Teal below is a change whatever the least worn color is.
+	await createUser(page, { username: member, role: 'user', color: 'rose' });
 	await createUser(page, { username: admin, role: 'admin' });
 
 	// Managing a member is administration and takes in their address;
-	// renaming them is not, so an admin who is not the owner gets the dialog
-	// with the address alone. The refusal underneath it has no path through
-	// the UI and is covered by the Go handler test.
+	// renaming them is not, so an admin who is not the owner gets the
+	// address row and a head without a pencil. The refusal underneath it has
+	// no path through the UI and is covered by the Go handler test.
 	await page.context().clearCookies();
 	await login(page, admin);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
-	await personRow(page, member).getByRole('button', { name: 'Edit profile' }).click();
-	const emailDialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
-	await expect(emailDialog.getByLabel('Display name')).toHaveCount(0);
+	await openPerson(page, member);
+	await expect(page.getByRole('button', { name: 'Change name' })).toHaveCount(0);
+	await page.getByRole('button', { name: `Change ${member}'s email` }).click();
+	const emailDialog = page.getByRole('dialog', { name: 'Email address' });
 	await emailDialog.getByLabel('Email').fill(`${member}@example.com`);
 	await emailDialog.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Profile saved')).toBeVisible();
+	await expect(page.getByText('Email address saved')).toBeVisible();
 	await expect(emailDialog).toBeHidden();
-	// The new address is unconfirmed at once, without a reload: the symbol's
-	// tooltip button from md, its spoken words on a phone.
-	if (isMobile) {
-		await expect(personRow(page, member)).toContainText('Address not confirmed yet');
-	} else {
-		await expect(
-			personRow(page, member).getByRole('button', { name: 'Address not confirmed yet' })
-		).toBeVisible();
-	}
-	await openActionMenu(page, member);
-	await expect(page.getByRole('menuitem', { name: `Delete ${member}` })).toBeVisible();
-	await page.keyboard.press('Escape');
+	// The new address is unconfirmed at once, on the page and on the card,
+	// without a reload.
+	await expect(page.getByText('not confirmed yet', { exact: true })).toBeVisible();
+	await page.goBack();
+	await expect(personRow(page, member)).toContainText('Address not confirmed yet');
 
 	// The `admin` the e2e task seeds is the instance owner, and renaming
 	// somebody else is theirs alone.
@@ -590,12 +745,20 @@ test("an admin changes a member's address but not their name, the owner can", as
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
-	await personRow(page, member).getByRole('button', { name: 'Edit profile' }).click();
-	const dialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
-	await dialog.getByLabel('Display name').fill(displayName);
-	await dialog.getByRole('radio', { name: 'Teal' }).click();
-	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Profile saved')).toBeVisible();
+	await openPerson(page, member);
+	await page.getByRole('button', { name: 'Change name' }).click();
+	await page.getByLabel('Display name').fill(displayName);
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText(`Renamed to ${displayName}`)).toBeVisible();
+	// The color is saved 400ms after the last pick; wait for that write
+	// instead of racing the toast's own timeout on a loaded machine.
+	const saved = page.waitForResponse(
+		(r) => r.request().method() === 'PATCH' && r.url().includes('/api/v1/users/')
+	);
+	await page.getByRole('radio', { name: 'Teal' }).click();
+	expect((await saved).ok()).toBe(true);
+	await expect(page.getByText(`${displayName} now wears Teal`)).toBeVisible();
+	await page.goBack();
 	const row = personRow(page, member);
 	await expect(row).toContainText(displayName);
 	await expect(row.locator('span.size-9')).toHaveClass(/bg-user-teal/);
@@ -663,6 +826,27 @@ test('a phone reaches the settings pages and sign-out through the contents sheet
 	await page.getByRole('button', { name: 'API, open contents' }).click();
 	await sheet.getByRole('button', { name: 'Sign out' }).click();
 	await expect(page).toHaveURL(/\/login/);
+});
+
+test('the add-account dialog names who already wears the picked color', async ({ page }) => {
+	const username = `f${uniqueToken()}`;
+	// Unique, because every test shares one database: other people may wear
+	// rose too, so the visible line may count Finn among "N more". The
+	// screen-reader list names everyone in full.
+	const displayName = `Finn Fenchel ${username}`;
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username, role: 'user', displayName, color: 'rose' });
+	await page.goto('/settings/users');
+	await page.getByRole('button', { name: 'Add account' }).click();
+
+	const dialog = page.getByRole('dialog', { name: 'Add account' });
+	await dialog.getByRole('radio', { name: 'Rose' }).click();
+	await expect(
+		dialog.getByRole('radiogroup', { name: 'Color', exact: true })
+	).toHaveAccessibleDescription(new RegExp(`Rose.*also .*${displayName}`));
+	await expect(dialog).toContainText('also ');
+	await expect(dialog).toContainText('Sharing a color is fine.');
 });
 
 test('the add-account dialog fits a short phone screen and scrolls', async ({ page }) => {

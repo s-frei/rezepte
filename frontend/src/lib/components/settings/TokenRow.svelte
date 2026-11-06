@@ -8,7 +8,6 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { formatDate } from '#lib/recipe/format.js';
 	import { accessLevels, isExpired } from '#lib/settings/token-access.js';
-	import { userColorEdge } from '#lib/user/color.js';
 
 	let {
 		token,
@@ -52,17 +51,16 @@
 </script>
 
 <!--
-	A key tag on the household's key board: the left edge is the issuer's
-	color, the bar below the name is how much of the token's life has passed,
+	A key tag on the household's key board: a neutral left edge (a person's
+	color never marks what they own; the issuer is their mark and name), the
+	bar below the name is how much of the token's life has passed,
 	and each plaque is one area's access ladder. An expired tag is faded and
 	stamped across its spent bar; the stamp is decoration, the same fact is
 	spoken by the hidden line next to the bar.
 -->
 <li
 	transition:slide={{ duration: motion, easing: cubicOut }}
-	class="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-l-md rounded-r-2xl border border-l-[6px] border-border bg-surface-elevated py-4 pr-4 pl-8 md:pr-5 md:pl-10 {userColorEdge(
-		token.ownerColor
-	)}"
+	class="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-l-md rounded-r-2xl border border-l-[6px] border-border bg-surface-elevated py-4 pr-4 pl-8 md:pr-5 md:pl-10"
 >
 	<span
 		aria-hidden="true"

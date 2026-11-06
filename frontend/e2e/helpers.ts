@@ -380,6 +380,8 @@ export async function createUser(
 		role: 'admin' | 'user';
 		locale?: 'en' | 'de';
 		email?: string;
+		displayName?: string;
+		color?: string;
 	}
 ): Promise<UserAccount> {
 	const origin = new URL(page.url()).origin;
@@ -439,6 +441,15 @@ export async function setPublicShareAttribution(page: Page, on: boolean): Promis
 	const response = await page.request.patch('/api/v1/settings', {
 		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { publicShareAttribution: on }
+	});
+	expect(response.ok()).toBeTruthy();
+}
+
+export async function setPublicShareSharer(page: Page, on: boolean): Promise<void> {
+	const origin = new URL(page.url()).origin;
+	const response = await page.request.patch('/api/v1/settings', {
+		headers: { Origin: origin, 'Content-Type': 'application/json' },
+		data: { publicShareSharer: on }
 	});
 	expect(response.ok()).toBeTruthy();
 }
@@ -636,4 +647,9 @@ export async function longPress(
 		const w = window as unknown as { prevented: string[]; unprevented: string[]; lifted: boolean };
 		return { selection: String(getSelection()), ...w };
 	});
+}
+
+/** Opens a person's page from their card in the people list: the card is one link. */
+export async function openFromPeopleList(row: Locator): Promise<void> {
+	await row.getByRole('link').click();
 }

@@ -43,7 +43,7 @@ export function compareUsernames(a: string, b: string): number {
 }
 
 /** Display name first, what the row shows; the username and the id keep the order total. */
-function compareByName(a: PersonEntry, b: PersonEntry): number {
+export function compareByName(a: PersonEntry, b: PersonEntry): number {
 	const compare = nameCollator().compare;
 	return (
 		compare(a.displayName, b.displayName) ||

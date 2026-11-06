@@ -21,6 +21,7 @@
 		variant = 'field',
 		icon,
 		placeholder = '',
+		align = 'start',
 		onchange,
 		class: className = ''
 	}: {
@@ -46,6 +47,12 @@
 		icon?: Snippet;
 		/** Muted text of the trigger while nothing is chosen. */
 		placeholder?: string;
+		/**
+		 * Which trigger edge the open list lines up with. `end` is for a
+		 * trigger at the right end of a `SettingsRow`: aligned on its start,
+		 * a list wider than the pill grows rightward past the card's edge.
+		 */
+		align?: 'start' | 'end';
 		/** Fires when the user picks an option (not on programmatic changes). */
 		onchange?: (value: string) => void;
 		/**
@@ -78,8 +85,13 @@
 		/\btext-(label|micro|caption|body-sm|body-lg|body|card|heading-lg|heading|display-sm|display-md|display-lg|display-xl)\b/;
 	const FONT_WEIGHT_RE =
 		/\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
+	// The height steps aside the same way, for a pill set in a settings row
+	// beside 36px buttons.
+	const height = $derived(/\bh-/.test(className) ? '' : variant === 'pill' ? 'h-8' : 'h-11');
 	const shape = $derived(
-		variant === 'pill' ? 'h-8 rounded-pill px-3' : 'h-11 rounded-md border border-border px-4'
+		variant === 'pill'
+			? `${height} rounded-pill px-3`
+			: `${height} rounded-md border border-border px-4`
 	);
 	const size = $derived(
 		FONT_SIZE_RE.test(className) ? '' : variant === 'pill' ? 'text-caption' : 'text-body-sm'
@@ -102,7 +114,7 @@
 	</BitsSelect.Trigger>
 	<BitsSelect.Portal>
 		<!--
-			align="start" rather than the floating default: a trigger stretched
+			align="start" by default rather than the floating default: a trigger stretched
 			by its container (the create-token form makes it form-wide) would
 			otherwise center the list on the full width while the visible label
 			sits at the left edge, putting the list beside the control it
@@ -128,8 +140,9 @@
 		-->
 		<BitsSelect.Content
 			preventScroll={false}
-			align="start"
+			{align}
 			sideOffset={6}
+			collisionPadding={16}
 			class="z-50 min-w-[var(--bits-floating-anchor-width)] origin-(--bits-floating-transform-origin) rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog motion-safe:animate-drop motion-reduce:animate-appear"
 		>
 			{#each options as option (option.value)}

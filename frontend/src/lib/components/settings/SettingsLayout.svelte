@@ -88,7 +88,11 @@
 {#snippet noActions()}{/snippet}
 
 <div class="pt-6 pb-8 md:pt-10">
-	<h1 class="font-display text-display-sm font-medium md:text-display-lg">{m.settings_title()}</h1>
+	<h1
+		class="font-display text-display-sm font-medium wrap-break-word hyphens-auto md:text-display-lg"
+	>
+		{m.settings_title()}
+	</h1>
 
 	<!-- Mobile: the running head names the page; its contents sheet lists
 	     the others and signing out. Pages, not a scroll, so no hairline. -->

@@ -24,14 +24,25 @@
 	out rather than derived, because a `translate-x-full` here would move the
 	thumb its own width and stop 2px short of the end. The thumb springs a
 	hair past its stop and settles, like a toggle that clicks into place.
+
+	The button around the track is the hit area: as tall as a settings row's
+	other controls (36px from md, 44px below) and 8px wider on each side,
+	given back by negative margins so the track stays where it was drawn:
+	sideways all of it, vertically all but a 22px line, so in a top-aligned
+	row the track sits on its title's first line instead of 10px below it.
+	The focus outline stays on the track.
 -->
 <BitsSwitch.Root
 	{checked}
 	onCheckedChange={onchange}
 	aria-label={label}
-	class="inline-flex h-4 w-7 shrink-0 items-center rounded-pill bg-border px-0.5 transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[state=checked]:bg-primary"
+	class="group -mx-2 -my-[11px] inline-flex h-11 shrink-0 items-center px-2 outline-none md:-my-[7px] md:h-9"
 >
-	<BitsSwitch.Thumb
-		class="block size-3 rounded-full bg-surface-elevated shadow-card transition-transform duration-200 ease-spring data-[state=checked]:translate-x-3 motion-reduce:transition-none"
-	/>
+	<span
+		class="inline-flex h-4 w-7 items-center rounded-pill bg-border px-0.5 transition group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-primary group-data-[state=checked]:bg-primary"
+	>
+		<BitsSwitch.Thumb
+			class="block size-3 rounded-full bg-surface-elevated shadow-card transition-transform duration-200 ease-spring data-[state=checked]:translate-x-3 motion-reduce:transition-none"
+		/>
+	</span>
 </BitsSwitch.Root>

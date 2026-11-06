@@ -1,9 +1,11 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import type { ResolvedPathname } from '$app/types';
 	import { Button as BitsButton } from 'bits-ui';
 
-	type Variant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'destructive';
+	type Variant =
+		'primary' | 'secondary' | 'accent' | 'ghost' | 'quiet' | 'destructive' | 'destructive-quiet';
 	type Size = 'sm' | 'md' | 'lg';
 
 	let {
@@ -18,8 +20,13 @@
 		current = false,
 		onclick,
 		class: className = '',
-		children
-	}: {
+		children,
+		// A trigger's `child` props, for the `<button>`.
+		...rest
+	}: Omit<
+		HTMLButtonAttributes,
+		'type' | 'disabled' | 'title' | 'onclick' | 'class' | 'children'
+	> & {
 		variant?: Variant;
 		size?: Size;
 		type?: 'button' | 'submit' | 'reset';
@@ -49,7 +56,11 @@
 		secondary: 'border border-border bg-surface text-text',
 		accent: 'bg-accent text-accent-foreground',
 		ghost: 'bg-transparent text-text-muted hover:bg-surface',
-		destructive: 'bg-destructive text-destructive-foreground'
+		// The one control at a settings row's end: a pill on the paper, no border.
+		quiet: 'bg-background text-text',
+		destructive: 'bg-destructive text-destructive-foreground',
+		// The quiet pill of a destructive settings row: delete, disconnect.
+		'destructive-quiet': 'bg-destructive-soft text-destructive'
 	};
 
 	// `sm` is 36px, for a button inside a field's box.
@@ -89,6 +100,7 @@
 	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
 	<BitsButton.Root
+		{...rest}
 		{type}
 		{disabled}
 		aria-busy={busy || undefined}

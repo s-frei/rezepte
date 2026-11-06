@@ -79,7 +79,8 @@ test('the pill follows an open sheet and returns', async ({ page }) => {
 test('the bar steps aside while a field has focus', async ({ page }) => {
 	await login(page);
 	await page.goto('/settings');
-	const field = page.locator('main input[type=password]').first();
+	await page.getByRole('button', { name: 'Change name' }).click();
+	const field = page.getByLabel('Display name');
 	// The software keyboard comes up with the field; the bar would cover it.
 	await field.focus();
 	await expect(bottomNav(page)).toBeHidden();
@@ -91,7 +92,7 @@ test('a page restored below the fold starts docked', async ({ page }) => {
 	await login(page);
 	await page.goto('/settings');
 	// The page has to be long enough to scroll before the scroll can land.
-	await expect(page.locator('main input[type=password]').first()).toBeVisible();
+	await expect(page.getByRole('radiogroup', { name: 'Color', exact: true })).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, 900));
 	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(120);
 	await expect(bar(page)).toHaveAttribute('data-docked', '');

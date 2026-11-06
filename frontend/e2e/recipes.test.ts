@@ -1031,9 +1031,27 @@ test('the colophon names the author, and the editor once somebody else edits', a
 	await createUser(page, { username: editor, role: 'user' });
 
 	await page.goto(`/recipes/${recipe.slug}`);
-	await expect(page.getByText(`Added by admin on`)).toBeVisible();
+	// Each person is their mark and name in one control (the mark is
+	// decoration), which opens their card - a popover, on a phone a sheet.
+	const colophon = page.locator('footer').filter({ hasText: 'Added by' });
+	const author = colophon.getByRole('button', { name: 'admin', exact: true });
+	await expect(author).toBeVisible();
+	await expect(author.locator('.rounded-full[aria-hidden="true"]')).toHaveCount(1);
+	// The caption line is 20px tall; the control answers on 44px around it.
+	const reach = await author.evaluate((button) => {
+		button.scrollIntoView({ block: 'center' });
+		const box = button.getBoundingClientRect();
+		const x = box.x + box.width / 2;
+		const y = box.y + box.height / 2;
+		return [-21, 21].map((dy) => button.contains(document.elementFromPoint(x, y + dy)));
+	});
+	expect(reach).toEqual([true, true]);
 	// Nobody has edited it, so the second line would only repeat the first.
 	await expect(page.getByText('Last edited by')).toBeHidden();
+	await author.click();
+	await expect(page.getByText('@admin', { exact: false })).toBeVisible();
+	await expect(page.getByRole('link', { name: /Recipes by admin$/ })).toBeVisible();
+	await page.keyboard.press('Escape');
 
 	// The detail page replaces the top bar's actions and hides the phone's
 	// bottom nav, so the sign-out menu is only reachable from the overview.
@@ -1048,9 +1066,10 @@ test('the colophon names the author, and the editor once somebody else edits', a
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
-	await expect(page.getByText(`Last edited by ${editor} on`)).toBeVisible();
+	await expect(colophon.getByText('Last edited by')).toBeVisible();
+	await expect(colophon.getByRole('button', { name: editor, exact: true })).toBeVisible();
 	// The author line survives the edit - it is not "last touched by".
-	await expect(page.getByText('Added by admin on')).toBeVisible();
+	await expect(colophon.getByRole('button', { name: 'admin', exact: true })).toBeVisible();
 });
 
 test('the initials on a card name their people without opening the recipe', async ({ page }) => {
@@ -1111,6 +1130,89 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
 	await panel.getByRole('button', { name: new RegExp(`^${writer}`) }).click();
 	await expect(page).not.toHaveURL(/author=/);
 	await expect(cards(page)).toHaveCount(2);
+});
+
+// Narrowed to one person, the grid is headed by a band in their color: their
+// face and name, "Your recipes" for the viewer. On a phone it stands in for
+// the person's chip and carries its ×; desktop keeps the chip.
+test("heads one author's recipes with a band of their own", async ({ page }, testInfo) => {
+	const token = uniqueToken();
+	const writer = `mia${token}`.slice(0, 20);
+	const name = `Mia ${token}`;
+	await createUser(page, { username: writer, role: 'user', displayName: name });
+	await page.goto('/');
+	await signOut(page, testInfo);
+	await login(page, writer);
+	await expect(page).toHaveURL('/');
+	await createRecipe(page, { ...loadFixture(8), title: `Band ${token}` });
+
+	await page.goto(`/?author=${writer}`);
+	await expect(page.getByRole('heading', { level: 2, name: 'Your recipes' })).toBeVisible();
+
+	await page.goto('/');
+	await signOut(page, testInfo);
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await page.goto(`/?author=${writer}`);
+	const band = page.getByRole('heading', { level: 2, name: `Recipes by ${name}` });
+	await expect(band).toBeVisible();
+	await expect(cards(page)).toHaveText([`Band ${token}`]);
+	// "1 found" in the running head already says it; the band does not repeat it.
+	await expect(page.getByText('1 recipe', { exact: true })).toBeHidden();
+	const remove = page.getByRole('button', { name: `Remove filter ${name}` });
+	await expect(remove).toHaveCount(1);
+
+	await page.setViewportSize({ width: 360, height: 780 });
+	await expect(band).toBeVisible();
+	await expect(page.locator('h2').getByText(name, { exact: true })).toBeVisible();
+	await expect(page.getByText('1 recipe', { exact: true })).toBeVisible();
+	// The band's × is the only one: the chip row has no person in it.
+	await expect(remove).toHaveCount(1);
+
+	// At 200% text the name wraps in the band rather than being cut, and
+	// nothing leaves the page.
+	await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+	const fit = await page.locator('h2', { hasText: name }).evaluate((heading) => {
+		const box = heading.getBoundingClientRect();
+		return {
+			cut: heading.scrollWidth > heading.clientWidth,
+			width: box.width,
+			page: document.documentElement.scrollWidth - window.innerWidth
+		};
+	});
+	expect(fit.cut).toBe(false);
+	// The insets of the photo and the × left it 60px before.
+	expect(fit.width).toBeGreaterThan(120);
+	expect(fit.page).toBeLessThanOrEqual(0);
+	await page.evaluate(() => (document.documentElement.style.fontSize = ''));
+
+	await remove.click();
+	await expect(page).not.toHaveURL(/author=/);
+	await expect(band).toHaveCount(0);
+	// The focus does not fall to <body> with the band, for a tap neither.
+	await expect(page.getByRole('button', { name: 'Filters' })).toBeFocused();
+});
+
+// A link to someone who has not written a recipe yet (from the people list)
+// still names them: the band, "0 recipes" and the empty grid; desktop's chip
+// by their display name, not their login name.
+test('heads an author without recipes with their band', async ({ page }) => {
+	const token = uniqueToken();
+	const writer = `new${token}`.slice(0, 20);
+	const name = `Neu ${token}`;
+	await createUser(page, { username: writer, role: 'user', displayName: name });
+
+	await page.setViewportSize({ width: 360, height: 780 });
+	await page.goto(`/?author=${writer}`);
+	await expect(page.locator('h2').getByText(name, { exact: true })).toBeVisible();
+	await expect(page.getByText('0 recipes', { exact: true })).toBeVisible();
+	await expect(cards(page)).toHaveCount(0);
+
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await expect(page.getByRole('heading', { level: 2, name: `Recipes by ${name}` })).toBeVisible();
+	await expect(page.getByRole('button', { name: `Remove filter ${name}` })).toBeVisible();
+	await expect(page.getByRole('button', { name: `Remove filter ${writer}` })).toHaveCount(0);
 });
 
 // A word in a step shows the quantity of the ingredient it names. These two
@@ -1977,7 +2079,8 @@ test("folds the panel's filters only when the row runs out of room", async ({ pa
 	await expect(page.getByRole('button', { name: /^\d active/ })).toHaveCount(0);
 
 	const tag = uniqueToken();
-	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${tag}`);
+	// No author: on a phone their band, not a chip, says who (see the band's test).
+	await page.goto(`/?maxMinutes=90&favorites=true&tags=${tag},${uniqueToken()}`);
 	// The tags fold in with the filters, and the bar counts them too.
 	const folded = page.getByRole('button', { name: /^4 active/ });
 	await expect(folded).toBeVisible();
@@ -1996,11 +2099,11 @@ test("folds the panel's filters only when the row runs out of room", async ({ pa
 // bar does not show.
 test('clears every filter from the folded bar', async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 780 });
-	await page.goto(`/?q=zz&maxMinutes=90&author=admin&tags=${uniqueToken()}&sort=title`);
+	await page.goto(`/?q=zz&maxMinutes=90&favorites=true&tags=${uniqueToken()}&sort=title`);
 	// Three filters - the order is not counted as one.
 	await expect(page.getByRole('button', { name: /^3 active/ })).toBeVisible();
 	await page.getByRole('button', { name: 'Clear filters and tags' }).click();
-	await expect(page).not.toHaveURL(/maxMinutes=|author=|tags=/);
+	await expect(page).not.toHaveURL(/maxMinutes=|favorites=|tags=/);
 	await expect(page).toHaveURL(/sort=title/);
 	await expect(page).toHaveURL(/q=zz/);
 	await expect(page.getByRole('button', { name: /active/ })).toHaveCount(0);
@@ -2056,7 +2159,7 @@ test('keeps the keyboard in the chip row when a filter is removed', async ({ pag
 	// Unfolding hands the focus to the first chip it reveals, folding back to
 	// the folded chip.
 	await page.setViewportSize({ width: 360, height: 780 });
-	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&tags=${uniqueToken()}`);
+	await page.goto(`/?maxMinutes=90&favorites=true&tags=${uniqueToken()},${uniqueToken()}`);
 	const folded = page.getByRole('button', { name: /^4 active/ });
 	await folded.focus();
 	await page.keyboard.press('Enter');
@@ -2067,7 +2170,7 @@ test('keeps the keyboard in the chip row when a filter is removed', async ({ pag
 
 	// "All" leaves only the order's chip, and the focus on its label - not on
 	// its ×, which a second Enter would take the order away with.
-	await page.goto(`/?maxMinutes=90&favorites=true&author=admin&sort=title`);
+	await page.goto(`/?maxMinutes=90&favorites=true&tags=${uniqueToken()}&sort=title`);
 	await page.getByRole('button', { name: 'Clear filters and tags' }).focus();
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('button', { name: 'A–Z', exact: true })).toBeFocused();

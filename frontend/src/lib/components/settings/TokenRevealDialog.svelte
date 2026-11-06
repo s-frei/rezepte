@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog, Tabs } from 'bits-ui';
 	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import { toast } from 'svelte-sonner';
@@ -99,7 +100,7 @@
 		</section>
 	{/if}
 
-	<div class="mt-6 flex justify-end">
+	<DialogActions class="mt-6">
 		<Button onclick={() => (open = false)}>{m.tokens_reveal_done()}</Button>
-	</div>
+	</DialogActions>
 </BaseDialog>

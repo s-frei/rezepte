@@ -3,7 +3,12 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { getPasswordReset, inspectSetupLink, redeemSetupLink } from '#lib/api/auth.js';
+	import {
+		getPasswordReset,
+		inspectSetupLink,
+		redeemSetupLink,
+		type InvitedAccount
+	} from '#lib/api/auth.js';
 	import { ApiError } from '#lib/api/client.js';
 	import { getOidc, type OidcInfo } from '#lib/api/oidc.js';
 	import AuthScene from '#lib/components/auth/AuthScene.svelte';
@@ -12,6 +17,8 @@
 	import PasswordStrength from '#lib/components/settings/PasswordStrength.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import { userColorLabel } from '#lib/user/color-label.js';
 	import { withoutErrors } from '#lib/form-errors.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import {
@@ -39,6 +46,8 @@
 	let username = $state('');
 	let displayName = $state('');
 	let purpose = $state<'setup' | 'reset'>('setup');
+	let color = $state('');
+	let inviter = $state<InvitedAccount['inviter']>();
 	const reset = $derived(purpose === 'reset');
 	let loading = $state(true);
 	let invalid = $state(false);
@@ -73,6 +82,8 @@
 			username = info.username;
 			displayName = info.displayName;
 			purpose = info.purpose;
+			color = info.color;
+			inviter = info.inviter;
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 404) {
 				// Unknown, used or expired - one message for all three, so
@@ -200,6 +211,29 @@
 			</h1>
 			{#if reset}
 				<p class="text-body text-text-muted">{m.welcome_reset_text()}</p>
+			{:else}
+				{#if inviter}
+					<!-- Initial and color only: whoever holds the link has no session. -->
+					<p class="-mt-2 flex items-center gap-2 text-caption text-text-muted">
+						<PersonMark person={{ id: '', ...inviter }} size="xs" />
+						{m.welcome_invited_by({ name: inviter.displayName })}
+					</p>
+				{/if}
+				<section
+					aria-labelledby="welcome-seen-as"
+					class="flex items-center gap-4 rounded-2xl border border-border p-4"
+				>
+					<PersonMark person={{ id: '', displayName, color }} size="card" />
+					<div class="min-w-0">
+						<h2 id="welcome-seen-as" class="text-caption text-text-muted">
+							{m.welcome_seen_as()}
+						</h2>
+						<p class="font-display text-card font-medium break-words">{displayName}</p>
+						<p class="mt-0.5 text-caption text-text-muted">
+							{m.welcome_your_color({ color: userColorLabel(color) })}
+						</p>
+					</div>
+				</section>
 			{/if}
 			{#if session.user && session.user.username !== username}
 				<!-- Another account is signed in on this browser: the link is

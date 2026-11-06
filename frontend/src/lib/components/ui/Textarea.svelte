@@ -18,7 +18,7 @@
 	} & Omit<HTMLTextareaAttributes, 'id' | 'value' | 'class'> = $props();
 
 	const classes = $derived(
-		`min-h-11 w-full resize-y rounded-md border bg-surface-elevated px-4 py-2.5 text-body transition outline-none focus:border-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${className}`
+		`min-h-11 w-full resize-y rounded-md border bg-surface-elevated px-4 py-2.5 text-body transition focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${className}`
 	);
 </script>
 

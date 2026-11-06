@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from './DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import type { Snippet } from 'svelte';
 	import { m } from '#lib/paraglide/messages.js';
@@ -36,10 +37,10 @@
 	<Dialog.Title class="font-display text-heading font-medium">{title}</Dialog.Title>
 	<Dialog.Description class="mt-2 text-body text-text-muted">{text}</Dialog.Description>
 	{@render children?.()}
-	<div class="mt-6 flex justify-end gap-3">
+	<DialogActions class="mt-6">
 		<Button variant="ghost" onclick={() => (open = false)}>{cancelLabel}</Button>
 		<Button variant={destructive ? 'destructive' : 'primary'} onclick={confirm}>
 			{confirmLabel}
 		</Button>
-	</div>
+	</DialogActions>
 </BaseDialog>

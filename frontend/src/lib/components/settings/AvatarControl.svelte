@@ -1,9 +1,10 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import Camera from '@lucide/svelte/icons/camera';
+	import { DropdownMenu } from 'bits-ui';
+	import { tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import { MAX_IMAGE_BYTES } from '#lib/api/recipes.js';
-	import Button from '#lib/components/ui/Button.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { Crop } from '#lib/user/crop.js';
@@ -13,22 +14,23 @@
 		person,
 		upload,
 		remove,
-		onchange,
-		children
+		onchange
 	}: {
 		person: { id: string; displayName: string; color: string; avatarId: string | null };
 		/** Sends the file and crop; resolves to the new avatar id. */
 		upload: (file: File, crop: Crop) => Promise<{ avatarId: string }>;
 		remove: () => Promise<void>;
 		onchange: (avatarId: string | null) => void;
-		/** Name and role, set between the picture and its buttons. */
-		children?: Snippet;
 	} = $props();
 
 	let input = $state<HTMLInputElement>();
 	let file = $state<File | null>(null);
 	let cropOpen = $state(false);
 	let busy = $state(false);
+	let badge = $state<HTMLSpanElement>();
+
+	const item =
+		'flex h-10 items-center rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background';
 
 	function picked(event: Event) {
 		const target = event.currentTarget as HTMLInputElement;
@@ -51,6 +53,17 @@
 		return m.avatar_error();
 	}
 
+	// Adding or removing a photo swaps the badge between a plain button and
+	// a menu trigger, and focus would fall to the top of the page with the
+	// old one. The crop dialog hands focus back after its close transition,
+	// to the button that is gone by then, so the save waits that out.
+	async function refocus(wait = 0) {
+		await tick();
+		// ponytail: waits out the dialog's 200ms close; a dialog close event would be exact.
+		if (wait) await new Promise((r) => setTimeout(r, wait));
+		badge?.querySelector('button')?.focus();
+	}
+
 	async function save(crop: Crop) {
 		if (!file) return;
 		busy = true;
@@ -59,6 +72,7 @@
 			onchange(avatarId);
 			cropOpen = false;
 			toast.success(m.avatar_saved());
+			void refocus(300);
 		} catch (error) {
 			if (!isSignedOut(error)) toast.error(message(error));
 		} finally {
@@ -72,6 +86,7 @@
 			await remove();
 			onchange(null);
 			toast.success(m.avatar_removed());
+			void refocus();
 		} catch (error) {
 			if (!isSignedOut(error)) toast.error(m.avatar_error_remove());
 		} finally {
@@ -80,22 +95,55 @@
 	}
 </script>
 
-<div class="flex flex-col items-center gap-3 text-center">
-	<PersonMark {person} size="profile" />
-	{@render children?.()}
-	<div class="flex flex-wrap justify-center gap-2">
-		<Button
-			variant="secondary"
-			class="whitespace-nowrap"
-			disabled={busy}
-			onclick={() => input?.click()}
-		>
-			{person.avatarId ? m.avatar_change() : m.avatar_add()}
-		</Button>
+<!--
+	The photo with a camera badge on its edge, 34px drawn and 44px to hit
+	(its `::after`). With a photo the badge opens a small menu (change or
+	remove); without one there is only one thing to do, so the badge goes
+	straight to the file picker.
+-->
+<div class="relative inline-flex shrink-0">
+	<PersonMark {person} size="profile" class="ring-4 ring-surface" />
+	<span bind:this={badge} class="absolute -right-0.5 -bottom-0.5">
 		{#if person.avatarId}
-			<Button variant="ghost" disabled={busy} onclick={clear}>{m.avatar_remove()}</Button>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					aria-label={m.avatar_change()}
+					title={m.avatar_change()}
+					disabled={busy}
+					class="relative inline-flex size-[34px] items-center justify-center rounded-full bg-surface hover-tint text-text shadow-card ring-1 ring-border transition after:absolute after:-inset-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+				>
+					<Camera class="size-4" aria-hidden="true" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Portal>
+					<DropdownMenu.Content
+						preventScroll={false}
+						sideOffset={8}
+						collisionPadding={16}
+						align="start"
+						class="w-48 max-w-[calc(100vw-2rem)] rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
+					>
+						<DropdownMenu.Item onSelect={() => input?.click()} class={item}>
+							{m.avatar_change()}
+						</DropdownMenu.Item>
+						<DropdownMenu.Item onSelect={clear} class={item}>
+							{m.avatar_remove()}
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Portal>
+			</DropdownMenu.Root>
+		{:else}
+			<button
+				type="button"
+				aria-label={m.avatar_add()}
+				title={m.avatar_add()}
+				disabled={busy}
+				onclick={() => input?.click()}
+				class="relative inline-flex size-[34px] items-center justify-center rounded-full bg-surface hover-tint text-text shadow-card ring-1 ring-border transition after:absolute after:-inset-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+			>
+				<Camera class="size-4" aria-hidden="true" />
+			</button>
 		{/if}
-	</div>
+	</span>
 	<input
 		bind:this={input}
 		type="file"

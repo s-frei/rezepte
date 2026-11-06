@@ -959,3 +959,33 @@ test('?tab=comments scrolls to the comments', async ({ page }) => {
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 });
+
+test("the composer, focused, is the writer's own paper beside their mark", async ({ page }) => {
+	await login(page);
+	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { color: string };
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Paper ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+	await diaryTab(page).click();
+	const field = diary(page).getByRole('textbox', { name: 'What did you notice?' });
+	// The box that carries the field and the send button.
+	const box = field.locator('xpath=ancestor::div[contains(@class, "rounded-3xl")][1]');
+	const paper = () =>
+		box.evaluate((el, color) => {
+			const probe = document.createElement('span');
+			probe.style.backgroundColor = `var(--color-user-${color})`;
+			document.body.append(probe);
+			const want = getComputedStyle(probe).backgroundColor;
+			probe.remove();
+			return getComputedStyle(el).backgroundColor === want;
+		}, me.color);
+	// The mark, its letter or picture, stands left of the box.
+	const mark = box.locator('xpath=preceding-sibling::span//span[@aria-hidden="true"]');
+	await expect(mark).toBeVisible();
+	expect((await mark.boundingBox())!.x).toBeLessThan((await box.boundingBox())!.x);
+	expect(await paper()).toBe(false);
+	await field.focus();
+	await expect.poll(paper).toBe(true);
+	// Sending stays the action color.
+	await field.fill('Less salt next time');
+	await expect(diary(page).getByRole('button', { name: 'Send' })).toHaveClass(/bg-primary/);
+});

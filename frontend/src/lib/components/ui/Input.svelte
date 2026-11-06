@@ -78,8 +78,13 @@
 	// start underneath it.
 	let prefixWidth = $state(0);
 
+	// The app's focus outline, as on every other control; the floating
+	// field keeps its own soft ring (see the styles below).
+	const FOCUS =
+		'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+
 	const classes = $derived(
-		`${floating ? 'h-14.5 border-border pt-5.5 pb-1.5' : `h-11 transition ${error ? 'border-[1.5px] border-destructive' : 'border-border'}`} w-full rounded-md border bg-surface-elevated px-4 text-body outline-none focus:border-primary ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
+		`${floating ? 'h-14.5 border-border pt-5.5 pb-1.5 outline-none' : `h-11 transition ${FOCUS} ${error ? 'border-[1.5px] border-destructive' : 'border-border'}`} w-full rounded-md border bg-surface-elevated px-4 text-body focus:border-primary ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
 	);
 
 	// Prefix and suffix are part of what the field means ("30" is 30 minutes,

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { toast } from 'svelte-sonner';
 	import { changePassword } from '#lib/api/auth.js';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -14,6 +15,15 @@
 		type PasswordErrors
 	} from '#lib/settings/password.js';
 	import PasswordStrength from './PasswordStrength.svelte';
+
+	let {
+		ondone,
+		oncancel
+	}: {
+		/** After a saved change, for the dialog to close itself. */
+		ondone: () => void;
+		oncancel: () => void;
+	} = $props();
 
 	let current = $state('');
 	let next = $state('');
@@ -44,6 +54,7 @@
 			current = '';
 			next = '';
 			repeat = '';
+			ondone();
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 422) {
 				errors = passwordErrorsFromApi(error.errors);
@@ -109,7 +120,10 @@
 		oninput={() => (errors = withoutErrors(errors, ['repeat']))}
 		error={errors.repeat ?? null}
 	/>
-	<div class="flex justify-end">
-		<Button type="submit" disabled={saving}>{m.settings_password_save()}</Button>
-	</div>
+	<!-- The dialog's title already names the password, and a longer label
+	     would wrap beside the cancel button on a phone. -->
+	<DialogActions class="pt-2">
+		<Button variant="ghost" onclick={oncancel}>{m.common_cancel()}</Button>
+		<Button type="submit" disabled={saving}>{m.common_save()}</Button>
+	</DialogActions>
 </form>

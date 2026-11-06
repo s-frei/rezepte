@@ -22,6 +22,7 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { startChime, stopChime, unlockAudio } from '#lib/recipe/chime.js';
 	import { timers } from '#lib/recipe/timers.svelte.js';
+	import { tintThemeColor } from '#lib/user/theme-color.js';
 
 	let { children }: { children: Snippet } = $props();
 
@@ -55,6 +56,14 @@
 	$effect(() => {
 		void session.user;
 		document.documentElement.lang = getLocale();
+	});
+
+	// The browser's bar wears the signed-in person's own color - their app,
+	// on a shared tablet the first sign of whose. Pages without a household
+	// (sign-in, a public share) keep the app's ground.
+	$effect(() => {
+		const color = isLoginRoute || isPublicShareRoute ? null : (session.user?.color ?? null);
+		tintThemeColor(document.querySelectorAll('meta[name="theme-color"]'), color);
 	});
 
 	// The chime rings while any timer rings. A timer that starts ringing after

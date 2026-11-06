@@ -41,9 +41,9 @@ The tests' fake provider (`fakeidp_test.go`) holds the flow to what a real one c
 
 - The login page puts the button under the password form and reads `?oidc=unlinked|failed` into an alert.
 - `/welcome` puts the button, with the in-memory setup token, above the password form. A flow that comes back there has lost the token (the service redirects without a fragment), so `?oidc=failed|taken` shows the reason and asks the person to open their link again.
-- The profile's `SignInCard.svelte` connects or disconnects and turns `?oidc=linked|taken|failed` into a toast before dropping the query.
+- The profile page's sign-in row (`routes/settings/+page.svelte`) connects or disconnects and turns `?oidc=linked|taken|failed` into a toast before dropping the query.
 - The admin's people list learns which accounts are connected from `hasIdentity` on `list-users`, filled by one `ListLinkedUserIDs` query for the issuer in force, which `userapi.Register` asks a function for on every request (`oidc.Settings.Provider` in `cmd/rezepte`; empty, and `hasIdentity` always false, with OIDC off). An identity left behind at an earlier provider does not count, so a row never offers a disconnect that would answer `404`. [Users and authentication](/features/users-and-auth) owns what the row shows for it.
-- "Disconnect …" is offered on rows the admin may manage (`rowPermissions(...).manageAccount`) and asks first in a `ConfirmDialog`, as deleting does: it signs the person out everywhere, and without a password they need a setup link to get back in. It then calls `unlink-user-identity` and clears the row's `hasIdentity`.
+- "Disconnect …" is a row on the person page of an account the admin may manage (`rowPermissions(...).manageAccount`) and asks first in a `ConfirmDialog`, as deleting does: it signs the person out everywhere, and without a password they need a setup link to get back in. It then calls `unlink-user-identity` and clears the account's `hasIdentity`, which takes the row away.
 
 ## Why it is this way
 

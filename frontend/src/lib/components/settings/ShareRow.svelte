@@ -13,14 +13,11 @@
 	import { formatDate } from '#lib/recipe/format.js';
 	import { copyLink } from '#lib/recipe/share.svelte.js';
 	import { shareStatusLabel } from '#lib/recipe/share-status.js';
-	import { userColorEdge } from '#lib/user/color.js';
 
 	let {
 		share,
 		/** The admin "everyone" view: names who created each link. */
 		showCreator = false,
-		/** The edge color when the API sends no creator - the viewer's own list. */
-		ownColor,
 		/** Whether the household switch is off, which is then why a link is paused. */
 		sharingOff = false,
 		/** Rejects (and leaves the row in place) when the API refused. */
@@ -30,7 +27,6 @@
 	}: {
 		share: PublicShare;
 		showCreator?: boolean;
-		ownColor?: string;
 		sharingOff?: boolean;
 		onrevoke: (share: PublicShare) => Promise<void>;
 		motion?: number;
@@ -61,17 +57,15 @@
 </script>
 
 <!--
-	The same key tag as an API token: the edge is the creator's color, the bar
-	is how much of the link's life has passed. A dormant link - paused or
+	The same key tag as an API token: a neutral edge, the bar below is how
+	much of the link's life has passed. A dormant link - paused or
 	limited, both reversible - keeps its dates readable and carries a stamp
 	beside the sentence that says why; an expired link is gone from the list
 	altogether, so there is no stamp for that.
 -->
 <li
 	transition:slide={{ duration: motion, easing: cubicOut }}
-	class="relative grid min-w-0 grid-cols-[minmax(0,1fr)] rounded-l-md rounded-r-2xl border border-l-[6px] border-border bg-surface-elevated py-4 pr-4 pl-8 md:pr-5 md:pl-10 {userColorEdge(
-		share.createdBy?.color ?? ownColor
-	)}"
+	class="relative grid min-w-0 grid-cols-[minmax(0,1fr)] rounded-l-md rounded-r-2xl border border-l-[6px] border-border bg-surface-elevated py-4 pr-4 pl-8 md:pr-5 md:pl-10"
 >
 	<span
 		aria-hidden="true"

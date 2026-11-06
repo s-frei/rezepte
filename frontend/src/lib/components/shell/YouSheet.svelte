@@ -60,7 +60,7 @@
 					</div>
 				</div>
 				<div class="mt-3.5">
-					<ThemeControl hint={false} />
+					<ThemeControl />
 				</div>
 			</div>
 			<div class="-mx-3 pt-2">

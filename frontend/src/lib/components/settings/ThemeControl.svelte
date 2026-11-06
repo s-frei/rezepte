@@ -19,16 +19,18 @@
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import { setTheme, theme } from '#lib/theme.svelte.js';
 
-	/** The settings card explains "System"; the You sheet has no room for it. */
-	let { hint = true }: { hint?: boolean } = $props();
+	let {
+		size = 'md'
+	}: {
+		/** `sm` for a `SettingsRow`, whose controls share one height. */
+		size?: 'md' | 'sm';
+	} = $props();
 </script>
 
-{#if hint}
-	<p class="mb-3 text-body-sm text-text-muted">{m.settings_theme_hint()}</p>
-{/if}
 <SegmentedControl
 	value={theme.value}
 	options={themeOptions()}
 	label={m.settings_theme_label()}
+	{size}
 	onchange={(next) => setTheme(next)}
 />

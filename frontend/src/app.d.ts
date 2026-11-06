@@ -12,6 +12,9 @@ declare global {
 			// A recipe opened from the overview: its back button steps back
 			// to that overview, filters and place in the list included.
 			fromOverview?: boolean;
+			// Who just signed out, for /login's one-time "Signed out: Mila".
+			// Name and color only: the login page is public, so never a photo.
+			signedOut?: { displayName: string; color: string };
 		}
 		// interface Platform {}
 	}

@@ -63,6 +63,8 @@
 	name over a hairline of reading progress; over pages (settings) the name
 	alone looked like a heading, so it is a field - surface, border, the
 	page's icon, the chevron at the far end - that separates by itself.
+	The field's name wraps rather than ending in "…": with 200% text a
+	page name like "Benutzer" no longer fits a phone's line.
 -->
 <div
 	class="sticky z-30 -mx-5 bg-background/90 backdrop-blur md:hidden {field
@@ -76,7 +78,7 @@
 		aria-expanded={expanded}
 		aria-label={m.nav_contents_open({ current: label })}
 		class="flex w-full items-center text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {field
-			? 'h-12 gap-2.5 rounded-xl border border-border bg-surface px-3.5'
+			? 'min-h-12 gap-2.5 rounded-xl border border-border bg-surface px-3.5 py-1.5'
 			: 'h-12 gap-1.5 px-5'}"
 	>
 		{#if field && Icon}
@@ -87,9 +89,9 @@
 		<span class="grid min-w-0">
 			{#key label}
 				<span
-					class="col-start-1 row-start-1 truncate font-display font-medium {field
-						? 'text-body-lg'
-						: 'text-card'}"
+					class="col-start-1 row-start-1 font-display font-medium {field
+						? 'text-body-lg wrap-break-word hyphens-auto'
+						: 'truncate text-card'}"
 					transition:fade={{ duration }}
 				>
 					{label}

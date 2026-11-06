@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -190,9 +191,9 @@
 				class="w-full bg-surface-elevated"
 			/>
 		</div>
-		<div class="flex justify-end gap-3 pt-2">
+		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.tokens_create_submit()}</Button>
-		</div>
+		</DialogActions>
 	</form>
 </BaseDialog>

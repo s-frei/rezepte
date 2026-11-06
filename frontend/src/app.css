@@ -270,7 +270,7 @@
 	--color-primary-foreground: #1c1612;
 	--color-accent: #3f2f1e;
 	--color-accent-foreground: #f0c391;
-	--color-destructive: #e5674f;
+	--color-destructive: #e86f58;
 	--color-destructive-foreground: #1c1612;
 	--color-destructive-soft: #3d2320;
 	--color-success-soft: #25341f;
@@ -280,6 +280,7 @@
 	--color-inverse-muted: #6f6255;
 	--color-skeleton: #2f2822;
 	--color-handle: #5a4d40;
+	--color-overlay: rgb(0 0 0 / 0.6);
 	--color-tint-1: #3f2f1e;
 	--color-tint-2: #33301f;
 	--color-tint-3: #3d2a22;
@@ -322,7 +323,7 @@
 		--color-primary-foreground: #1c1612;
 		--color-accent: #3f2f1e;
 		--color-accent-foreground: #f0c391;
-		--color-destructive: #e5674f;
+		--color-destructive: #e86f58;
 		--color-destructive-foreground: #1c1612;
 		--color-destructive-soft: #3d2320;
 		--color-success-soft: #25341f;
@@ -332,6 +333,7 @@
 		--color-inverse-muted: #6f6255;
 		--color-skeleton: #2f2822;
 		--color-handle: #5a4d40;
+		--color-overlay: rgb(0 0 0 / 0.6);
 		--color-tint-1: #3f2f1e;
 		--color-tint-2: #33301f;
 		--color-tint-3: #3d2a22;
@@ -570,6 +572,25 @@
 
 	* {
 		scrollbar-width: thin;
+	}
+
+	/* A menu or popover never runs past the window, whatever width its
+	   caller gave it in rem: at 200% text the recipe page's 26rem menu was
+	   416px on a 360px phone, the page grew under it, a phone's layout
+	   viewport grew with it, the fixed header reflowed and moved the "..."
+	   button out from under the finger, and the tap's click opened the
+	   photo behind it. In the base layer, so a caller's own `max-w-*` wins. */
+	[data-dropdown-menu-content],
+	[data-popover-content],
+	[data-select-content] {
+		max-width: calc(100vw - 2rem);
+	}
+
+	/* A menu opened by a tap focuses its own box, and the browser drew its
+	   default ring around the whole menu. The keyboard lands on an item,
+	   which carries its own focus style. */
+	[data-dropdown-menu-content] {
+		outline: none;
 	}
 }
 

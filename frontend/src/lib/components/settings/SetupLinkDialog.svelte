@@ -87,20 +87,27 @@
 			{m.setup_link_dialog_hint()}
 		</Dialog.Description>
 	{/if}
-	<div class="{sent ? 'mt-2' : 'mt-5'} flex items-start gap-2 rounded-md bg-surface-elevated p-3">
+	<div
+		class="{sent
+			? 'mt-2'
+			: 'mt-5'} flex flex-wrap items-start gap-2 rounded-md bg-surface-elevated p-3"
+	>
 		<!-- A textarea, not a single-line input: the URL is longer than the
 		     dialog is wide, and wrapping it beats a field that scrolls its
 		     content out of view - the same reason TokenRevealDialog's token
 		     sits in a wrapped <code> block. readonly rather than disabled, so
-		     it still gets an accessible name and can be selected by hand. -->
+		     it still gets an accessible name and can be selected by hand.
+		     Where the row cannot hold both (200% text on a phone), the copy
+		     button goes under the link instead of squeezing it to nothing and
+		     breaking its own label. -->
 		<textarea
 			readonly
 			rows="4"
 			value={url}
 			aria-label={m.setup_link_dialog_title({ name: displayName })}
-			class="[field-sizing:content] min-w-0 flex-1 resize-none bg-transparent font-mono text-body-sm break-all outline-none"
+			class="[field-sizing:content] min-w-0 flex-1 basis-32 resize-none bg-transparent font-mono text-body-sm break-all outline-none"
 			onclick={(event) => event.currentTarget.select()}></textarea>
-		<Button variant="ghost" onclick={() => void copy()}>
+		<Button variant="ghost" class="shrink-0 whitespace-nowrap" onclick={() => void copy()}>
 			<CopyIcon bind:this={copyIcon} class="size-4" />
 			{m.tokens_reveal_copy()}
 		</Button>

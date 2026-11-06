@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog, Slider } from 'bits-ui';
 	import { SvelteMap } from 'svelte/reactivity';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
@@ -191,8 +192,8 @@
 			/>
 		</span>
 	</Slider.Root>
-	<div class="flex justify-end gap-3 pt-5">
+	<DialogActions class="pt-5">
 		<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 		<Button onclick={confirm} disabled={busy || !natural}>{m.common_save()}</Button>
-	</div>
+	</DialogActions>
 </BaseDialog>

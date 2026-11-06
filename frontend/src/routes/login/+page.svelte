@@ -14,10 +14,15 @@
 	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// Set by signOut for this one visit; empty after a reload. No avatarId:
+	// this page is public, so the mark is the initial on its color.
+	const signedOut = $derived(page.state.signedOut);
 
 	let username = $state('');
 	let password = $state('');
@@ -137,6 +142,24 @@
 		<h1 class="sr-only font-display text-heading font-medium lg:not-sr-only">
 			{m.login_title()}
 		</h1>
+
+		{#if signedOut}
+			<p
+				role="status"
+				class="-mt-1 flex items-center justify-center gap-2 text-center text-caption font-semibold text-text-muted"
+			>
+				<PersonMark
+					person={{
+						id: '',
+						avatarId: null,
+						displayName: signedOut.displayName,
+						color: signedOut.color
+					}}
+					size="xs"
+				/>
+				{m.login_signed_out({ name: signedOut.displayName })}
+			</p>
+		{/if}
 
 		<!-- The page has one job, so it starts in its first field. It has to
 		     be the attribute: SvelteKit moves focus to <body> after every

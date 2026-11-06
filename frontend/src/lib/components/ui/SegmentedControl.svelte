@@ -12,6 +12,7 @@
 		options,
 		label,
 		disabled = false,
+		size = 'md',
 		onchange
 	}: {
 		value: T;
@@ -23,6 +24,8 @@
 		 * in the tab order and every click and arrow key is dropped.
 		 */
 		disabled?: boolean;
+		/** `sm` is 36px tall, the one height of a `SettingsRow` control. */
+		size?: 'md' | 'sm';
 		/** Fires after the user picks a different segment. */
 		onchange?: (value: T) => void;
 	} = $props();
@@ -33,12 +36,14 @@
 	// The checked segment's place in the group. The segments differ in width
 	// (their labels, and the icons from 280px of container width), so the
 	// pill is measured rather than moved by a fraction like the bottom nav's.
-	let pill = $state<{ x: number; w: number } | null>(null);
+	let pill = $state<{ x: number; y: number; w: number; h: number } | null>(null);
 	const glide = $derived(prefersReducedMotion.current ? 0 : 300);
 
 	function measure() {
 		const button = buttons[options.findIndex((option) => option.value === value)];
-		pill = button ? { x: button.offsetLeft, w: button.offsetWidth } : null;
+		pill = button
+			? { x: button.offsetLeft, y: button.offsetTop, w: button.offsetWidth, h: button.offsetHeight }
+			: null;
 	}
 
 	// Measured on mount, on an outside change of `value` and on every resize,
@@ -69,8 +74,8 @@
 			const easing = getComputedStyle(pillEl).getPropertyValue('--ease-glide').trim() || 'ease';
 			pillEl.animate(
 				[
-					{ translate: `${from.x}px`, width: `${from.w}px` },
-					{ translate: `${pill.x}px`, width: `${pill.w}px` }
+					{ translate: `${from.x}px ${from.y}px`, width: `${from.w}px`, height: `${from.h}px` },
+					{ translate: `${pill.x}px ${pill.y}px`, width: `${pill.w}px`, height: `${pill.h}px` }
 				],
 				{ duration: glide, easing }
 			);
@@ -104,7 +109,10 @@
 	control was a constant 297px and overflowed its card on anything narrower
 	than 390px (and on wider screens once the reader scales up their system
 	font). Desktop keeps the content width, and the control does not shrink
-	beside text in a row.
+	beside text in a row. A label never truncates: when the segments no
+	longer fit side by side (200% text on a phone) they wrap onto a second
+	line, and the pill follows them there. The track's 24px corners read as
+	a pill at one line's height and stay a soft box at two.
 
 	The icons hang off a container query rather than a screen breakpoint,
 	because what decides whether they fit is the width of whatever box the
@@ -115,6 +123,8 @@
 	content-sized in rows, where an inline-size container would measure 0.
 -->
 <div class="shrink-0 max-md:@container">
+	<!-- On phones each segment's `::after` reaches over the track's 4px
+	     above and below it, so a 36px segment hits on 44px. -->
 	<!-- The checked look is one pill behind the labels that glides from the
 	     segment it left; on each segment, the background blinked across. -->
 	<div
@@ -122,14 +132,15 @@
 		role="radiogroup"
 		aria-label={label}
 		aria-disabled={disabled || undefined}
-		class="relative flex w-full rounded-pill bg-background p-1 md:inline-flex md:w-auto"
+		class="relative flex w-full flex-wrap rounded-3xl bg-background p-1 md:inline-flex md:w-auto"
 	>
 		<span
 			bind:this={pillEl}
 			aria-hidden="true"
-			class="absolute inset-y-1 left-0 rounded-pill bg-surface shadow-card {pill ? '' : 'hidden'}"
-			style:translate="{pill?.x ?? 0}px"
+			class="absolute top-0 left-0 rounded-pill bg-surface shadow-card {pill ? '' : 'hidden'}"
+			style:translate="{pill?.x ?? 0}px {pill?.y ?? 0}px"
 			style:width="{pill?.w ?? 0}px"
+			style:height="{pill?.h ?? 0}px"
 		></span>
 		{#each options as option, i (option.value)}
 			{@const checked = option.value === value}
@@ -143,7 +154,9 @@
 				tabindex={checked ? 0 : -1}
 				onclick={() => select(option.value)}
 				onkeydown={(event) => handleKey(event, i)}
-				class="relative inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-pill px-2 text-body-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:flex-none md:px-4 {checked
+				class="relative inline-flex {size === 'sm'
+					? 'h-7'
+					: 'h-9'} min-w-fit flex-1 items-center justify-center gap-2 rounded-pill px-2 text-body-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-1 md:flex-none md:px-4 {checked
 					? 'text-text'
 					: disabled
 						? 'text-text-muted'
@@ -155,7 +168,7 @@
 						aria-hidden="true"
 					/>
 				{/if}
-				<span class="truncate">{option.label}</span>
+				<span>{option.label}</span>
 			</button>
 		{/each}
 	</div>

@@ -191,6 +191,12 @@ test('a shared list is ticked by both, until the owner removes the member', asyn
 		await lists.getByRole('button', { name: 'Check off Kohle' }).click();
 		await expect(lists.getByRole('heading', { name: 'Done · 1' })).toBeVisible();
 
+		// In shopping mode she sees whose ticks these are: hers, beside the owner's face.
+		await lists.goto(`${listUrl}/shop`);
+		await expect(lists.getByRole('img', { name: `Checking off as ${mila}` })).toBeVisible();
+		await expect(lists.getByText(`Shared with ${owner}`, { exact: true })).toBeAttached();
+		await lists.goto(listUrl);
+
 		// The owner sees the tick, and who changed the list.
 		await page.goto(listUrl);
 		await expect(page.getByRole('heading', { name: 'Done · 1' })).toBeVisible();
@@ -293,12 +299,12 @@ test('a change by one member appears for the other without reload', async ({
 	const mila = `mil${token}`.slice(0, 20);
 	await login(page);
 	await createUser(page, { username: owner, role: 'user' });
-	await createUser(page, { username: mila, role: 'user' });
+	await createUser(page, { username: mila, role: 'user', displayName: 'Mila Majoran' });
 	await login(page, owner);
 
 	await newList(page, `Live ${token}`);
 	await addFree(page, 'Kohle');
-	const dialog = await shareWith(page, mila);
+	const dialog = await shareWith(page, 'Mila Majoran');
 	await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
 
 	const guest = await signedInAs(browser, mila);
@@ -318,7 +324,20 @@ test('a change by one member appears for the other without reload', async ({
 		await expect(page.getByRole('heading', { name: /^Done/ })).toHaveCount(0);
 		await expect(page.getByRole('heading', { name: 'Done · 1' })).toBeVisible({ timeout: 3000 });
 		// A shared list's done row shows who ticked it.
-		await expect(page.getByRole('img', { name: `Ticked by ${mila}` })).toBeVisible();
+		await expect(page.getByRole('img', { name: 'Ticked by Mila Majoran' })).toBeVisible();
+
+		// B types an item in; A sees whose it is: B's mark, then her first name.
+		await b.getByLabel('What do you need?').fill('Salz');
+		await b.getByRole('button', { name: 'Add', exact: true }).click();
+		const salz = page.getByRole('main').locator('li').filter({ hasText: 'Salz' });
+		const faces = salz.locator('.rounded-full[aria-hidden="true"]');
+		await expect(salz.getByText('by Mila', { exact: true })).toBeVisible({ timeout: 3000 });
+		await expect(faces).toHaveCount(1);
+		// A ticks it: the row keeps one face, the ticker's, and names the adder in words.
+		await page.getByRole('button', { name: 'Check off Salz' }).click();
+		await expect(salz.getByRole('img', { name: `Ticked by ${owner}` })).toBeVisible();
+		await expect(salz.getByText('by Mila', { exact: true })).toBeVisible();
+		await expect(faces).toHaveCount(1);
 
 		// A renames; B's heading follows.
 		await page.getByRole('button', { name: 'More actions' }).click();
@@ -350,6 +369,9 @@ test('shopping mode ticks and collapses done items', async ({ page }, testInfo) 
 	await shop.click();
 	await expect(page).toHaveURL(/\/lists\/[^/]+\/shop$/);
 	await expect(page.getByRole('main', { name: 'Shopping mode' })).toBeVisible();
+	// The head names the account the ticks go to; a list of one shares with no one.
+	await expect(page.getByRole('img', { name: `Checking off as ${person}` })).toBeVisible();
+	await expect(page.getByText(/^Shared with/)).toHaveCount(0);
 	// Nothing to type in the store: the list is kept before.
 	await expect(page.getByRole('textbox')).toHaveCount(0);
 

@@ -114,10 +114,11 @@ test('creating a token marks the name and clears its error on typing', async ({ 
 
 test('the password change marks nothing, every field is needed', async ({ page }) => {
 	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Change password' }).click();
 	const current = page.getByLabel('Current password');
 	await expect(page.locator('[data-required-mark]')).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Save password' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(current).toHaveAttribute('aria-invalid', 'true');
 	await current.fill('x');
 	await expect(current).not.toHaveAttribute('aria-invalid', 'true');

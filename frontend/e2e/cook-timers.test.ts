@@ -378,6 +378,7 @@ test('the player covers nothing', async ({ page }) => {
 
 	// The software keyboard is up: the player steps aside like the nav.
 	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Namen ändern' }).click();
 	await page.getByRole('textbox').first().focus();
 	await expect(player()).toBeHidden();
 });

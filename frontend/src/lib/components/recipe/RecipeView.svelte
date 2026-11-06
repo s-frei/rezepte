@@ -25,6 +25,7 @@
 		byline,
 		kicker,
 		belowMeta,
+		belowSource,
 		footer,
 		diary,
 		diaryCount = 0,
@@ -55,6 +56,9 @@
 		 * page's sticky "start cooking" call to action lives here: it needs the
 		 * slug-based cook route, which is not part of `RecipeContent`. */
 		belowMeta?: Snippet;
+		/** Rendered after the source line, closing the title block - the
+		 * public page's "Shared by" ribbon lives here. */
+		belowSource?: Snippet;
 		/** Rendered after the ingredients/steps - the detail page puts `RecipeColophon` here. */
 		footer?: Snippet;
 		/** The second tab of the steps column - the detail page puts the
@@ -155,6 +159,7 @@
 		<div class="mt-2 empty:hidden">
 			<SourceCredit name={recipe.sourceName} url={recipe.sourceUrl} />
 		</div>
+		{@render belowSource?.()}
 		<div class="mt-5">
 			<MetaPills prepMinutes={recipe.prepMinutes} cookMinutes={recipe.cookMinutes}>
 				<ServingsStepper value={servings.value} onchange={(next) => servings.set(next)} />
@@ -198,9 +203,11 @@
 
 <!-- Side by side from 840px, so the method keeps at least 420px for its text and
      tabs; stacked, the ingredients span the width and IngredientList sets them in
-     two columns from 600px. -->
+     two columns from 600px. One column below that is `minmax(0,1fr)`: an
+     implicit track grows to its widest unbreakable row, and at 200% text the
+     tabs widened it to 439px on a 360px phone. -->
 <div
-	class="mt-8 grid gap-8 min-[840px]:grid-cols-[minmax(300px,400px)_minmax(420px,1fr)] md:mt-10 md:gap-10"
+	class="mt-8 grid grid-cols-[minmax(0,1fr)] gap-8 min-[840px]:grid-cols-[minmax(300px,400px)_minmax(420px,1fr)] md:mt-10 md:gap-10"
 >
 	<section>
 		<!-- A contents-sheet leader ties the copy action to the heading of the list it copies. -->
@@ -254,7 +261,8 @@
 			     flow. Both panels stay mounted, so a half-written comment survives
 			     a look at the steps; each recipe opens on its steps, or on the
 			     diary when the caller asks. -->
-			<!-- The tabs stand in for the method's heading. `?tab=comments` scrolls
+			<!-- The tabs stand in for the method's heading, and wrap onto a second
+			     line when 200% text leaves no room for both side by side. `?tab=comments` scrolls
 			     to them (`recipe-diary`), clear of the phone's fixed 64px header. -->
 			<h2 class="sr-only">{m.recipe_steps()}</h2>
 			{#key recipe.id}
@@ -264,7 +272,7 @@
 				>
 					<Tabs.List
 						id="recipe-diary"
-						class="mb-5.5 flex scroll-mt-20 items-end gap-5 border-b border-border md:scroll-mt-8 md:gap-7.5"
+						class="mb-5.5 flex scroll-mt-20 flex-wrap items-end gap-x-5 gap-y-2 border-b border-border md:scroll-mt-8 md:gap-7.5"
 					>
 						<Tabs.Trigger value="steps" class={tabClass}>{m.recipe_steps()}</Tabs.Trigger>
 						<Tabs.Trigger value="diary" class={tabClass}>

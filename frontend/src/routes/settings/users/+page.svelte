@@ -1,104 +1,49 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import Lock from '@lucide/svelte/icons/lock';
 	import Plus from '@lucide/svelte/icons/plus';
-	import { toast } from 'svelte-sonner';
-	import { listColorUsage, type ColorUsage } from '#lib/api/auth.js';
-	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { isSignedOut } from '#lib/api/client.js';
 	import { getOidc } from '#lib/api/oidc.js';
 	import { getSettings } from '#lib/api/settings.js';
 	import {
-		deleteUser,
-		issueSetupLink,
 		listPeople,
 		listUsers,
-		revokeSetupLink,
-		unlinkUserIdentity,
-		updateUser,
 		type PersonEntry,
 		type SetupLinkInfo,
-		type UserAccount,
-		type UserRole
+		type UserAccount
 	} from '#lib/api/users.js';
 	import { session } from '#lib/auth.svelte.js';
 	import CreateUserDialog from '#lib/components/settings/CreateUserDialog.svelte';
 	import LinkPreviewsCard from '#lib/components/settings/LinkPreviewsCard.svelte';
 	import PublicSharingCard from '#lib/components/settings/PublicSharingCard.svelte';
 	import RecipeEditingCard from '#lib/components/settings/RecipeEditingCard.svelte';
-	import ResetPasswordDialog from '#lib/components/settings/ResetPasswordDialog.svelte';
-	import SendSetupLinkDialog from '#lib/components/settings/SendSetupLinkDialog.svelte';
 	import SettingsLayout from '#lib/components/settings/SettingsLayout.svelte';
 	import SetupLinkDialog from '#lib/components/settings/SetupLinkDialog.svelte';
 	import PeopleList from '#lib/components/settings/PeopleList.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
-	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import { isAdminRole, roleLabel } from '#lib/roles.js';
-	import { focusMenuTrigger, personRowId } from '#lib/settings/person-focus.js';
+	import { isAdminRole } from '#lib/roles.js';
 	import { rowMotion } from '#lib/settings/row-motion.svelte.js';
 
 	let users = $state<PersonEntry[]>([]);
 	const rows = rowMotion();
-	let usage = $state<ColorUsage[]>([]);
-	// Who may share publicly, by id. The people list leaves it out - it is an
-	// admin's business, not everyone's - so an admin reads it from the
-	// account list alongside; a member's view has no entries at all.
-	let sharing = $state<Record<string, boolean>>({});
-	// hasPassword, hasIdentity, the open setup link's expiry, the address
-	// with its state, when the account was made and its latest recipe, by id -
-	// an admin's business like `sharing`, and left out of a member's view the
-	// same way.
-	let setup = $state<
-		Record<
-			string,
-			{
-				hasPassword: boolean;
-				hasIdentity?: boolean;
-				setupLinkExpiresAt?: string;
-				email?: string;
-				emailVerified?: boolean;
-				createdAt?: string;
-				lastRecipeTitle?: string | null;
-			}
-		>
-	>({});
-	// The provider's name while this instance has one: the rows offer to
-	// disconnect it only then.
-	let provider = $state<string | undefined>(undefined);
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let createOpen = $state(false);
-	let resetOpen = $state(false);
-	let resetTarget = $state<PersonEntry | null>(null);
-	let deleteOpen = $state(false);
-	let deleteTarget = $state<PersonEntry | null>(null);
-	let unlinkOpen = $state(false);
-	let unlinkTarget = $state<PersonEntry | null>(null);
-	let setupLinkOpen = $state(false);
-	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
-	let setupLinkName = $state('');
-	// Whether Rezepte sends mail: Add account then mails the link, and a
-	// row's "Setup link" asks where to first.
-	let mailEnabled = $state(false);
-	let sendOpen = $state(false);
-	let sendTarget = $state<PersonEntry | null>(null);
 
 	// Every account reads this page; only an admin gets the controls, the
 	// pickers that need the color counts, and the household's editing card.
 	const isAdmin = $derived(isAdminRole(session.user?.role));
 
-	// Advisory, like on the profile page: the counts only mark a color in the
-	// pickers, so a failure leaves them unmarked instead of failing the page.
-	// Refreshed after every write that can move a color, because a stale
-	// count marks one nobody holds any more.
-	async function loadUsage() {
-		try {
-			usage = await listColorUsage();
-		} catch {
-			usage = [];
-		}
-	}
+	// The list keeps only what it shows about each account and the link a
+	// new account starts with; everything else happens on the person's page.
+	let setup = $state<Record<string, UserAccount>>({});
+	let provider = $state<string | undefined>(undefined);
+	let mailEnabled = $state(false);
+	let setupLinkOpen = $state(false);
+	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
+	let setupLinkName = $state('');
 
 	// An inline error with a retry button instead of a toast over an empty
 	// list: nobody can tell a failed load from "no one here", and a toast
@@ -109,25 +54,10 @@
 		try {
 			const [list, accounts] = await Promise.all([
 				listPeople(),
-				isAdmin ? listUsers() : Promise.resolve([]),
-				isAdmin ? loadUsage() : undefined
+				isAdmin ? listUsers() : Promise.resolve([])
 			]);
 			users = list;
-			sharing = Object.fromEntries(accounts.map((a) => [a.id, a.canSharePublicly]));
-			setup = Object.fromEntries(
-				accounts.map((a) => [
-					a.id,
-					{
-						hasPassword: a.hasPassword,
-						hasIdentity: a.hasIdentity,
-						setupLinkExpiresAt: a.setupLinkExpiresAt,
-						email: a.email,
-						emailVerified: a.emailVerified,
-						createdAt: a.createdAt,
-						lastRecipeTitle: a.lastRecipeTitle
-					}
-				])
-			);
+			setup = Object.fromEntries(accounts.map((a) => [a.id, a]));
 		} catch (error) {
 			// On a 401 the client is already navigating to the login page.
 			loadFailed = !isSignedOut(error);
@@ -157,46 +87,14 @@
 		}
 	}
 
-	// Merged, not swapped: a PATCH answer carries no list or recipe counts,
-	// and the card would drop to "none" until the next reload.
-	function replace(updated: PersonEntry) {
-		users = users.map((u) => (u.id === updated.id ? { ...u, ...updated } : u));
-	}
-
-	// A PATCH answer carries the address, and a changed one is unconfirmed:
-	// the row's symbol follows at once.
-	function profileSaved(updated: PersonEntry | UserAccount) {
-		replace(updated);
-		if ('email' in updated) {
-			const before = setup[updated.id];
-			setup = {
-				...setup,
-				[updated.id]: {
-					...before,
-					hasPassword: before?.hasPassword ?? false,
-					email: updated.email,
-					emailVerified: updated.emailVerified
-				}
-			};
-		}
-		void loadUsage();
-	}
-
 	function userCreated(user: UserAccount, setupLink: SetupLinkInfo | null) {
 		rows.play(() => (users = [...users, user]));
-		void loadUsage();
 		// Recorded either way: a password-mode create has one already
 		// (hasPassword true, no open link), and without this the new row
 		// reads "Not set up yet" until the next reload.
 		setup = {
 			...setup,
-			[user.id]: {
-				hasPassword: !setupLink,
-				setupLinkExpiresAt: setupLink?.expiresAt,
-				email: user.email,
-				emailVerified: user.emailVerified,
-				createdAt: user.createdAt
-			}
+			[user.id]: { ...user, hasPassword: !setupLink, setupLinkExpiresAt: setupLink?.expiresAt }
 		};
 		if (setupLink) {
 			setupLinkInfo = setupLink;
@@ -204,230 +102,26 @@
 			setupLinkOpen = true;
 		}
 	}
-
-	// Issuing replaces any open link, the same act as a password reset, so it
-	// needs no confirmation - the dialog that follows is confirmation enough.
-	// With mail on, a step first asks where the link goes.
-	async function askSetupLink(user: PersonEntry) {
-		if (mailEnabled) {
-			sendTarget = user;
-			sendOpen = true;
-			return;
-		}
-		await issueAndShow(user, { mail: false }).catch(() => {});
-	}
-
-	function linkError(error: unknown) {
-		if (error instanceof ApiError && error.status === 409) {
-			toast.error(m.users_owner_protected());
-		} else if (error instanceof ApiError && error.status === 403) {
-			toast.error(m.users_rank_required());
-		} else if (!isSignedOut(error)) {
-			toast.error(m.users_update_error());
-		}
-	}
-
-	const isBadAddress = (error: unknown) =>
-		error instanceof ApiError &&
-		error.status === 422 &&
-		error.errors.some((e) => e.location === 'body.email');
-
-	// Toasts a failure and rethrows it, so the send step knows to close. A
-	// refused address is the step's to show under its field instead.
-	async function issueAndShow(user: PersonEntry, opts: { mail: boolean; email?: string }) {
-		let link: SetupLinkInfo;
-		try {
-			link = await issueSetupLink(user.id, opts);
-		} catch (error) {
-			if (!isBadAddress(error)) linkError(error);
-			throw error;
-		}
-		const before = setup[user.id];
-		setup = {
-			...setup,
-			[user.id]: {
-				...before,
-				hasPassword: before?.hasPassword ?? false,
-				setupLinkExpiresAt: link.expiresAt,
-				// A changed address is unconfirmed until the link is redeemed;
-				// the service keeps a spelling that differs only in case.
-				...(opts.email !== undefined &&
-				opts.email.toLowerCase() !== (before?.email ?? '').toLowerCase()
-					? { email: opts.email, emailVerified: false }
-					: {})
-			}
-		};
-		setupLinkInfo = link;
-		setupLinkName = user.displayName;
-		// The result records whatever has focus as where to return it, so the
-		// step closes first and focus goes back to the row's trigger - the
-		// step's own Send button is gone by the time the result closes.
-		if (sendOpen) {
-			sendOpen = false;
-			await tick();
-			focusMenuTrigger(user.id);
-		}
-		setupLinkOpen = true;
-	}
-
-	// One call: the address is set and the link mailed there together.
-	async function sendTo(address: string) {
-		const user = sendTarget;
-		if (!user) return;
-		await issueAndShow(user, { mail: true, email: address });
-	}
-
-	// No confirmation: a revoked link is replaced in one click, and issuing a
-	// fresh one is right there if it was a mistake.
-	async function revokeLink(user: PersonEntry) {
-		try {
-			await revokeSetupLink(user.id);
-			toast.success(m.users_setup_link_revoked());
-			await load();
-		} catch (error) {
-			if (!isSignedOut(error)) {
-				toast.error(m.users_update_error());
-			}
-		}
-	}
-
-	// Confirmed first, like a delete: it signs the person out everywhere, and
-	// without a password they are locked out until they get a setup link.
-	function askUnlink(user: PersonEntry) {
-		unlinkTarget = user;
-		unlinkOpen = true;
-	}
-
-	async function unlinkIdentity() {
-		const user = unlinkTarget;
-		if (!user) return;
-		try {
-			await unlinkUserIdentity(user.id);
-			const entry = setup[user.id];
-			if (entry) setup = { ...setup, [user.id]: { ...entry, hasIdentity: false } };
-			toast.success(m.users_identity_unlinked({ name: provider ?? '', username: user.username }));
-		} catch (error) {
-			if (error instanceof ApiError && error.status === 409) {
-				toast.error(m.users_owner_protected());
-			} else if (error instanceof ApiError && error.status === 403) {
-				toast.error(m.users_rank_required());
-			} else if (!isSignedOut(error)) {
-				toast.error(m.users_update_error());
-			}
-		}
-	}
-
-	// A role takes effect with one tap and carries rights, so the toast names
-	// the new role and offers the way back: a stray tap costs a second tap,
-	// not a trip into the sheet to find the old role again.
-	async function changeRole(user: PersonEntry, role: UserRole) {
-		const previous = user.role;
-		try {
-			const updated = await updateUser(user.id, { role });
-			replace(updated);
-			toast.success(m.users_role_changed({ name: updated.displayName, role: roleLabel(role) }), {
-				action: {
-					label: m.common_undo(),
-					// changeRole raises its own toast on failure; the rethrow is
-					// only for the control that made the change.
-					onClick: () => changeRole(updated, previous).catch(() => {})
-				}
-			});
-		} catch (error) {
-			if (error instanceof ApiError && error.status === 409) {
-				toast.error(m.users_owner_protected());
-			} else if (error instanceof ApiError && error.status === 403) {
-				toast.error(m.users_rank_required());
-			} else if (!isSignedOut(error)) {
-				toast.error(m.users_update_error());
-			}
-			throw error; // lets the row or the sheet snap its control back
-		}
-	}
-
-	async function toggleShare(user: PersonEntry, on: boolean) {
-		try {
-			const updated = await updateUser(user.id, { canSharePublicly: on });
-			sharing = { ...sharing, [updated.id]: updated.canSharePublicly };
-			toast.success(
-				on
-					? m.users_share_enabled({ username: user.username })
-					: m.users_share_disabled({ username: user.username })
-			);
-		} catch (error) {
-			if (error instanceof ApiError && error.status === 403) {
-				toast.error(m.users_rank_required());
-			} else if (!isSignedOut(error)) {
-				toast.error(m.users_update_error());
-			}
-			throw error; // lets the row or the sheet snap its control back
-		}
-	}
-
-	function askReset(user: PersonEntry) {
-		resetTarget = user;
-		resetOpen = true;
-	}
-
-	function askDelete(user: PersonEntry) {
-		deleteTarget = user;
-		deleteOpen = true;
-	}
-
-	async function remove() {
-		const target = deleteTarget;
-		if (!target) return;
-		try {
-			await deleteUser(target.id);
-			rows.play(() => (users = users.filter((u) => u.id !== target.id)));
-			void loadUsage();
-			// The dialog hands focus back to the row it was opened from, and that
-			// row is gone now: without a new home focus falls to <body> and a
-			// screen reader starts over at the top. The card's heading is the
-			// nearest place that still stands. The row is still in the document
-			// while it closes, so focus inside it counts as lost too.
-			await tick();
-			const active = document.activeElement;
-			if (
-				!active ||
-				active === document.body ||
-				active.closest(`[id="${personRowId(target.id)}"]`)
-			) {
-				document.getElementById('settings-users')?.focus();
-			}
-			toast.success(m.users_deleted({ username: target.username }));
-		} catch (error) {
-			if (error instanceof ApiError && error.status === 409) {
-				toast.error(m.users_delete_conflict());
-			} else if (error instanceof ApiError && error.status === 403) {
-				toast.error(m.users_rank_required());
-			} else if (!isSignedOut(error)) {
-				toast.error(m.users_delete_error());
-			}
-		}
-	}
 </script>
 
 <svelte:head><title>{m.settings_nav_users()} · {m.app_name()}</title></svelte:head>
 
 <SettingsLayout active="users">
-	<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-users">
+	<section class="rounded-2xl bg-surface p-6 max-sm:px-4 md:p-7" aria-labelledby="settings-users">
 		<!-- Side by side the heading and the button need 306px, 4px more than a
 		     360px phone leaves inside this card, and the label wrapped into two
 		     lines. Below `md` the button gets its own full-width row instead. -->
 		<div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
-			<h2
-				id="settings-users"
-				tabindex="-1"
-				class="font-display text-heading font-medium outline-none"
-			>
+			<h2 id="settings-users" class="font-display text-heading font-medium">
 				{m.settings_nav_users()}
 			</h2>
 			{#if isAdmin}
+				<!-- Waits for the people: the form preselects the least worn color. -->
 				<Button
 					variant="accent"
+					disabled={loading}
 					onclick={() => (createOpen = true)}
-					class="w-full whitespace-nowrap md:w-auto"
+					class="w-full text-center md:w-auto md:whitespace-nowrap"
 				>
 					<Plus class="size-4" aria-hidden="true" />
 					{m.users_create()}
@@ -452,19 +146,8 @@
 				people={users}
 				meId={session.user?.id ?? ''}
 				actorRole={session.user?.role ?? 'user'}
-				{usage}
-				{sharing}
 				{setup}
 				{provider}
-				{mailEnabled}
-				onrole={changeRole}
-				onshare={toggleShare}
-				onreset={askReset}
-				onsetuplink={askSetupLink}
-				onrevokelink={revokeLink}
-				onunlink={askUnlink}
-				ondelete={askDelete}
-				onprofile={profileSaved}
 				motion={rows.duration}
 			/>
 			<p class="mt-5 flex items-start gap-1.5 text-micro text-text-muted">
@@ -483,37 +166,8 @@
 {#if isAdmin}
 	<!-- The new account is appended, not sorted in: PeopleList owns the display
 	     order and drops the row into its group. -->
-	<CreateUserDialog bind:open={createOpen} {usage} {mailEnabled} oncreated={userCreated} />
-	<!-- Stays mounted and keeps its target after closing so the close transition
-	     can play; `askReset` replaces the target on the next open. -->
-	<ResetPasswordDialog bind:open={resetOpen} user={resetTarget} />
-	<!-- Opens right after Add account closes (a fresh account with no
-	     password), or from a row's "Setup link" action. Stays mounted like
-	     the dialogs above. -->
+	<CreateUserDialog bind:open={createOpen} people={users} {mailEnabled} oncreated={userCreated} />
+	<!-- Opens right after Add account closes, for a fresh account with no
+	     password. Stays mounted so its close transition can play. -->
 	<SetupLinkDialog bind:open={setupLinkOpen} link={setupLinkInfo} displayName={setupLinkName} />
-	<!-- The row action's first step while mail is on. -->
-	<SendSetupLinkDialog
-		bind:open={sendOpen}
-		displayName={sendTarget?.displayName ?? ''}
-		email={sendTarget ? (setup[sendTarget.id]?.email ?? '') : ''}
-		emailVerified={sendTarget ? (setup[sendTarget.id]?.emailVerified ?? false) : false}
-		onsend={sendTo}
-		onshowonly={() => (sendTarget ? issueAndShow(sendTarget, { mail: false }) : Promise.resolve())}
-	/>
-	<ConfirmDialog
-		bind:open={deleteOpen}
-		title={m.users_delete_confirm_title()}
-		text={m.users_delete_confirm_text({ username: deleteTarget?.username ?? '' })}
-		confirmLabel={m.common_delete()}
-		destructive
-		onconfirm={remove}
-	/>
-	<ConfirmDialog
-		bind:open={unlinkOpen}
-		title={m.users_identity_unlink_confirm_title({ name: provider ?? '' })}
-		text={m.users_identity_unlink_confirm_text({ username: unlinkTarget?.username ?? '' })}
-		confirmLabel={m.users_identity_unlink({ name: provider ?? '' })}
-		destructive
-		onconfirm={unlinkIdentity}
-	/>
 {/if}

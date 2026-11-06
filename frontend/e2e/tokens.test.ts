@@ -174,6 +174,13 @@ test("an admin sees another admin's token only in the household view", async ({ 
 	await expect(tag).toBeVisible();
 	// The household view names the issuer on the tag...
 	await expect(tag).toContainText(issuer);
+	// ...by mark and name only: the tag's edge stays neutral, never the issuer's color.
+	expect(
+		await tag.evaluate((el) => {
+			const cs = getComputedStyle(el);
+			return cs.borderLeftColor === cs.borderTopColor;
+		})
+	).toBe(true);
 
 	// ...and narrows to one issuer by chip.
 	await list.getByRole('button', { name: new RegExp(`^${issuer}`) }).click();

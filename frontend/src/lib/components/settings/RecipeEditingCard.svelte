@@ -73,7 +73,7 @@
 		href={`${USER_GUIDE_URL}editing-rights/`}
 		target="_blank"
 		rel="noopener external"
-		class="mt-3 inline-flex h-10 items-center gap-1.5 rounded-pill text-body-sm text-text-muted underline decoration-border underline-offset-4 transition hover:text-text hover:decoration-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+		class="mt-3 inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-pill text-body-sm text-text-muted underline decoration-border underline-offset-4 transition hover:text-text hover:decoration-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
 		{m.settings_recipe_editing_guide()}
 		<ArrowUpRight aria-hidden="true" class="size-4" />

@@ -19,6 +19,8 @@ export type Settings = {
 	publicShareMaxDays: ShareLifetime;
 	/** Whether a public share page and a shared recipe card name Rezepte, with a link to the project, at their foot. */
 	publicShareAttribution: boolean;
+	/** Whether a public share page names the member who shared it: display name and an initial on their color. */
+	publicShareSharer: boolean;
 	/** Whether Rezepte can send mail; switches the Add account dialog. */
 	mailEnabled: boolean;
 	/** The hour, 0 to 23 in the server's time zone, of the daily new recipes mail. */

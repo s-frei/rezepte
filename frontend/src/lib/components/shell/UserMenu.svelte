@@ -35,8 +35,12 @@
 </script>
 
 <DropdownMenu.Root bind:open>
-	<DropdownMenu.Trigger aria-label={m.nav_user_menu()} class="rounded-full">
-		{#if user}<PersonMark person={user} size="lg" neutral />{/if}
+	<!-- The focus outline clears the avatar's own ring (2px gap, 1.5px line). -->
+	<DropdownMenu.Trigger
+		aria-label={m.nav_user_menu()}
+		class="rounded-full focus-visible:outline-2 focus-visible:outline-offset-[6px] focus-visible:outline-primary"
+	>
+		{#if user}<PersonMark person={user} size="lg" ringed />{/if}
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Portal>
 		<DropdownMenu.Content

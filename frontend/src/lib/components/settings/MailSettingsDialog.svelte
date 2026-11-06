@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -192,9 +193,9 @@
 			</div>
 		</div>
 		<div class="pt-2"><TestMailRow config={() => (portOk() ? input() : null)} bind:result /></div>
-		<div class="flex justify-end gap-2.5 border-t border-border pt-4">
+		<DialogActions class="border-t border-border pt-4">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" disabled={saving}>{m.common_save()}</Button>
-		</div>
+		</DialogActions>
 	</form>
 </BaseDialog>

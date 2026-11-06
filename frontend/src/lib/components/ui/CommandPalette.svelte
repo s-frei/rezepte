@@ -224,7 +224,7 @@
 						{#if phone.current}
 							<Dialog.Close
 								aria-label={m.common_close()}
-								class="flex w-full shrink-0 justify-center pt-2 pb-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+								class="flex h-11 w-full shrink-0 items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
 							>
 								<span class="h-1 w-9 rounded-pill bg-handle" aria-hidden="true"></span>
 							</Dialog.Close>

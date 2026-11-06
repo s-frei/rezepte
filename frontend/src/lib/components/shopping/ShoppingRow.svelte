@@ -7,8 +7,18 @@
 	export function sourceOrigin(source: Source, bySource = false): string | null {
 		if (source.recipe) return bySource ? null : source.recipe;
 		if (source.formerMember) return m.list_added_by_former();
-		if (source.addedById && source.addedById === session.user?.id) return m.list_added_by_you();
-		return source.addedBy ? m.list_added_by({ name: source.addedBy }) : null;
+		if (source.addedBy && source.addedBy.id === session.user?.id) return m.list_added_by_you();
+		return source.addedByName ? m.list_added_by({ name: source.addedByName }) : null;
+	}
+
+	/**
+	 * Whose mark goes before "by …": someone else who typed in an open row's
+	 * free item. Your own stay neutral, and a done row shows only the ticker's
+	 * face, so one row never holds two.
+	 */
+	function adderMark(source: Source, rowChecked: boolean) {
+		const by = source.addedBy;
+		return by && !source.recipe && !rowChecked && by.id !== session.user?.id ? by : null;
 	}
 </script>
 
@@ -48,6 +58,7 @@
 				id: s.itemId,
 				amount: s.amount,
 				origin: sourceOrigin(s, bySource),
+				adder: adderMark(s, row.checked),
 				checked: s.checked
 			}))
 			.filter((p) => p.amount || p.origin)
@@ -65,16 +76,17 @@
 	nowrap: only the origin may shrink to an ellipsis, the amount never. With
 	more than one pair the amounts added up per unit stand right of the name
 	(`total`). The dot is bound to the origin by
-	no-break spaces (`&nbsp;·&nbsp;`). The 22px circle sits on the name's 22.5px first line.
-	In the shopping mode (`shop`) the 30px circle
-	sits on the name's 24px first line, the circle's button stretches over the
+	no-break spaces (`&nbsp;·&nbsp;`). The circle is centered on the name's
+	first line, whatever its height (`1lh` of the name's type on the button,
+	so 200% text keeps it there): 22px on the list page, 30px in the
+	shopping mode (`shop`), where the circle's button stretches over the
 	whole row, so a tap on the name ticks too, and every row keeps its rule.
 	On the list page the circle's padding makes a 44px target, and the name's
 	button stretches (`::after`, phones only) over the text column and the row's padding,
 	so a tap on the amounts opens the sheet too; neither moves anything.
 -->
 <li
-	class="flex items-start border-b border-dashed border-border py-2.5 {flash || lingers
+	class="@container flex items-start border-b border-dashed border-border py-2.5 {flash || lingers
 		? '-mx-2 rounded-md px-2 motion-safe:animate-flash motion-reduce:bg-accent'
 		: ''} {shop ? 'relative min-h-15 gap-4' : 'gap-3 last:border-b-0'}"
 >
@@ -84,8 +96,8 @@
 		aria-label={m.list_tick({ name: row.name })}
 		onclick={() => onToggle(row)}
 		class="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-primary {shop
-			? '-mt-[3px] after:absolute after:inset-0 focus-visible:outline-offset-2'
-			: '-m-[11px] p-[11px] focus-visible:outline-offset-[-7px]'}"
+			? 'mt-[calc((1lh_-_30px)/2)] text-card leading-6 after:absolute after:inset-0 focus-visible:outline-offset-2'
+			: '-m-[11px] mt-[calc((1lh_-_22px)/2_-_11px)] p-[11px] text-body focus-visible:outline-offset-[-7px]'}"
 	>
 		<span
 			class="flex items-center justify-center rounded-full transition {shop
@@ -151,7 +163,14 @@
 									: 'text-primary'}">{pair.amount}</span
 							>
 						{/if}
-						{#if pair.origin}
+						{#if pair.origin && pair.adder}
+							<!-- The mark is decoration: "by Jonas" says who. -->
+							<span class="flex min-w-0 items-center">
+								{#if pair.amount}<span>&nbsp;·&nbsp;</span>{/if}
+								<PersonMark person={pair.adder} size="xs" class="-my-0.5 mr-1" />
+								<span class="truncate">{pair.origin}</span>
+							</span>
+						{:else if pair.origin}
 							<span class="min-w-0 truncate"
 								>{#if pair.amount}&nbsp;·&nbsp;{/if}{pair.origin}</span
 							>
@@ -166,7 +185,9 @@
 	</div>
 	{#if tickers.length > 0}
 		{@const label = m.list_checked_by({ names: tickers.map((p) => p.displayName).join(', ') })}
-		<!-- One ticker: mark and first name; several: their marks only. -->
+		<!-- One ticker: mark and first name; several: their marks only. Below a
+		     19rem row (a 360px phone, 200% text) the face alone, so the
+		     name does not squeeze the row's own lines; the label still says who. -->
 		<span
 			role="img"
 			aria-label={label}
@@ -183,7 +204,7 @@
 				{/each}
 			</span>
 			{#if tickers.length === 1}
-				<span aria-hidden="true" class="truncate"
+				<span aria-hidden="true" class="truncate @max-[19rem]:hidden"
 					>{tickers[0].id === session.user?.id
 						? m.list_ticker_you()
 						: tickers[0].displayName.split(' ')[0]}</span

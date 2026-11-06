@@ -62,7 +62,7 @@ describe('groupByDepartment', () => {
 				amount: '1 ½ kg',
 				recipe: 'Soup',
 				addedBy: null,
-				addedById: null,
+				addedByName: null,
 				note: null,
 				formerMember: false,
 				checked: false
@@ -72,7 +72,7 @@ describe('groupByDepartment', () => {
 				amount: '2',
 				recipe: 'Stew',
 				addedBy: null,
-				addedById: null,
+				addedByName: null,
 				note: 'diced',
 				formerMember: false,
 				checked: false
@@ -87,7 +87,7 @@ describe('groupByDepartment', () => {
 	});
 
 	it('carries addedBy on free items and orders departments', () => {
-		const by = { id: 'u', displayName: 'Mara', color: 'x', avatarId: null };
+		const by = { id: 'm', displayName: 'Mara', color: 'x', avatarId: null };
 		const g = groupByDepartment(
 			list([
 				item({ id: 'm', name: 'Milk', nameKey: 'milk', department: 'chilled' }),
@@ -106,10 +106,26 @@ describe('groupByDepartment', () => {
 		);
 		expect(all.map((d) => d.department)).toEqual(DEPARTMENTS);
 		expect(g[0].rows[0].sources[0]).toMatchObject({
-			addedBy: 'Mara',
-			addedById: 'u',
+			addedBy: by,
+			addedByName: 'Mara',
 			recipe: null
 		});
+	});
+
+	it('names an adder by first name, in full when two on the list share it', () => {
+		const anna = (id: string, displayName: string) => ({
+			id,
+			displayName,
+			color: 'sage',
+			avatarId: null
+		});
+		const l = list([
+			item({ id: 'a', addedBy: anna('a1', 'Anna Berg') }),
+			item({ id: 'b', nameKey: 'milk', name: 'Milk', addedBy: anna('a2', 'Anna Tal') }),
+			item({ id: 'c', nameKey: 'egg', name: 'Egg', addedBy: anna('j', 'Jonas Zimt') })
+		]);
+		const names = groupByDepartment(l)[0].rows.map((r) => r.sources[0].addedByName);
+		expect(names).toEqual(['Anna Berg', 'Anna Tal', 'Jonas']);
 	});
 
 	it('marks free items of a gone account', () => {

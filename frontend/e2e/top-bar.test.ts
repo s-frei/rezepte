@@ -77,3 +77,31 @@ for (const locale of ['en', 'de'] as const) {
 		).toBeVisible();
 	});
 }
+
+test('the own avatar wears the signed-in person’s color, ringed', async ({ page }) => {
+	const name = `bar${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await login(page, name);
+	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { color: string };
+	const mark = page.getByRole('button', { name: 'Account menu' }).locator('span').first();
+	const look = await mark.evaluate((el, color) => {
+		const resolve = (token: string) => {
+			const probe = document.createElement('span');
+			probe.style.color = `var(${token})`;
+			document.body.append(probe);
+			const value = getComputedStyle(probe).color;
+			probe.remove();
+			return value;
+		};
+		const cs = getComputedStyle(el);
+		return {
+			fill: cs.backgroundColor === resolve(`--color-user-${color}`),
+			ring:
+				cs.outlineStyle === 'solid' &&
+				cs.outlineColor === resolve(`--color-user-${color}-foreground`),
+			gap: cs.outlineOffset
+		};
+	}, me.color);
+	expect(look).toEqual({ fill: true, ring: true, gap: '2px' });
+});

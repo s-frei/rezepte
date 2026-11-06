@@ -49,9 +49,9 @@ test('connect Dex in the profile, then sign in with it', async ({ page }, testIn
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page, name);
 	await page.goto('/settings');
-	await page.getByRole('button', { name: 'Continue with Dex' }).click();
+	await page.getByRole('button', { name: 'Connect Dex' }).click();
 	await dexLogin(page, 'mila@example.com', 'mila1234');
-	// The toast says "Connected to Dex" too; the card's line is the lasting one.
+	// The toast says "Connected to Dex" too; the row's line is the lasting one.
 	await expect(page.getByText(/^Connected to Dex since/)).toBeVisible();
 
 	await signOut(page, testInfo);
@@ -113,21 +113,19 @@ test('an invited person sets up their account with Dex', async ({ page, browser 
 	expect(me.hasPassword).toBe(false);
 	await context.close();
 
-	// The admin disconnects the new account's identity, after confirming;
-	// without a password it is not set up any more. "Disconnect" is in the
-	// card's "..." menu on every screen.
-	await page.reload();
-	const row = page.getByRole('listitem').filter({ hasText: name });
-	const more = row.getByRole('button', { name: `More actions for ${name}` });
-	await more.click();
-	await page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` }).click();
+	// The admin disconnects the new account's identity on its page, after
+	// confirming; without a password it is not set up any more.
+	await page.goto(`/settings/users/${name}`);
+	await expect(page.getByText('Signs in with Dex')).toBeVisible();
+	await page.getByRole('button', { name: 'Disconnect Dex', exact: true }).click();
 	const confirm = page.getByRole('dialog', { name: 'Disconnect Dex?' });
 	await expect(confirm).toContainText(`${name} is signed out on every device`);
 	await confirm.getByRole('button', { name: 'Disconnect Dex' }).click();
 	await expect(page.getByText(`Dex disconnected from ${name}`)).toBeVisible();
-	await expect(more).toBeFocused();
-	await more.click();
-	await expect(page.getByRole('menuitem', { name: `Disconnect Dex from ${name}` })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Disconnect Dex', exact: true })).toHaveCount(0);
+	await expect(page.getByText('Not set up yet')).toBeVisible();
+	// The row is gone, so focus lands on the setup link's control.
+	await expect(page.getByRole('button', { name: 'Create link' })).toBeFocused();
 });
 
 // The Sign-in page against Dex, which the e2e task saved as the provider.
@@ -141,7 +139,7 @@ test('switching the provider warns with the number of connected accounts', async
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page, name);
 	await page.goto('/settings');
-	await page.getByRole('button', { name: 'Continue with Dex' }).click();
+	await page.getByRole('button', { name: 'Connect Dex' }).click();
 	await dexLogin(page, 'mila@example.com', 'mila1234');
 	await expect(page.getByText(/^Connected to Dex since/)).toBeVisible();
 	try {

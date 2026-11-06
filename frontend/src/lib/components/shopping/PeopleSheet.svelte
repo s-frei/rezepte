@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import { MediaQuery } from 'svelte/reactivity';
 	import type { ShoppingList } from '#lib/api/shopping.js';
@@ -52,6 +53,6 @@
 {:else}
 	<BaseDialog bind:open>
 		{@render body()}
-		<div class="mt-6 flex justify-end gap-2.5 border-t border-border pt-4">{@render footer()}</div>
+		<DialogActions class="mt-6 border-t border-border pt-4">{@render footer()}</DialogActions>
 	</BaseDialog>
 {/if}

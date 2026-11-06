@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Your profile, color and language, notifications, password, theme, installing the app, help, API and signing out
+description: Your profile with photo, name and color, your address, password and sign-in, language and theme, notifications, installing the app, help, API and signing out
 ---
 
 import { Audience } from '@/components/audience';
@@ -9,47 +9,47 @@ import { Audience } from '@/components/audience';
 
 ## Profile
 
-The card at the top of the page is how Rezepte shows you to the household. It opens with your circle — your photo if you added one, otherwise your initial in your color — above your display name and your role.
+The page opens with one card: how Rezepte shows you to the household at the top, then your account, then how you use the app.
 
-"Add photo" (or "Change photo" once you have one) opens a file picker for a JPEG, PNG or WebP of up to 10 MiB. The photo then appears in a round frame to place: drag it to move, use the slider, a pinch or the mouse wheel to zoom in to four times, or use the arrow keys to move and plus and minus to zoom. Confirm, and the round section you framed becomes your photo, here and wherever Rezepte shows you — on the recipes you added, in the list of people and in your person card (see [Tour of the app](/guide#person-cards)). The photo is cut from the file you chose, so to frame it differently, choose the file again. A photo, or a framed section, smaller than about 64 pixels is refused with a message. "Remove photo" takes it off and puts your initial back.
+### You: photo, name and color
+
+The band across the top is your color, with your initial set into it, and your photo sits on its edge — or, without one, your initial in your color. Under it are your display name and a line with your role and the login name you sign in with. The login name is shown, not editable, and it stays the same however often you rename yourself.
+
+The camera on the photo adds one: it opens a file picker for a JPEG, PNG or WebP of up to 10 MiB. Once you have a photo, the camera opens a small menu with "Change photo" and "Remove photo". A new photo appears in a round frame to place: drag it to move, use the slider, a pinch or the mouse wheel to zoom in to four times, or use the arrow keys to move and plus and minus to zoom. Confirm, and the round section you framed becomes your photo, here and wherever Rezepte shows you — on the recipes you added, in the list of people and in your person card (see [Tour of the app](/guide#person-cards)). The photo is cut from the file you chose, so to frame it differently, choose the file again. A photo, or a framed section, smaller than about 64 pixels is refused with a message. "Remove photo" puts your initial back.
 
 <Screenshot name="avatar-crop" caption="Framing a photo: the round window shows what the circles will show" />
 
 If a photo is missing or cannot be loaded, Rezepte shows your initial in your color instead. Your color and initial still identify you, so nobody has to recognize a face to know whose recipe it is.
 
-"Color" is your color: eight to choose from, and it marks you wherever the app names you. Tapping a swatch saves it right away, no button. A small dot marks a color somebody else already has — you can take it anyway, the dot is only there so a household can spread out across the palette. Your initial stays in the circle either way, so nobody has to tell two colors apart to know whose recipe it is.
+The pencil beside your name turns it into a field with "Save" and "Cancel". The display name is the name on your recipes, in the list of people and on the circles that sign a recipe card: up to 64 characters, and saving it empty puts your login name back. It does not have to be unique, so two people can both be "Mia".
 
-"Language" is "English" or "German", and picking one reloads the page into it. It is saved to your account rather than to this browser, so it follows you to any device you sign in from — the next login, anywhere, opens in that language. It changes the interface only; it never translates a recipe's own title, ingredients or steps, and it does not touch the language the recipes were written in. Missing your language? See [Add a language](/contributing/add-a-language).
+The eight circles under your name are the colors to choose from, and yours marks you wherever the app names you. Tapping one saves it right away, no button, and the band follows. The line under them says who else wears the chosen color — "also Sofia, Ida and Tom" — or that nobody else does. Sharing a color is fine: your initial stays in the circle either way.
 
-"Login name" is what you type to sign in. It is shown, not editable, and it stays the same however often you rename yourself.
+### Your account
 
-"Display name" is the name on your recipes, in the list of people and on the circles that sign a recipe card. Change it and press "Save profile"; up to 64 characters, and leaving it empty puts your login name back. It does not have to be unique, so two people can both be "Mia".
-
-"Email" is optional and never used to sign in. It is where Rezepte sends a link when you forget your password, but only once it is confirmed: after you save a new address, Rezepte mails a confirmation link to it (when mail is set up). Until you open it, the field says **Not confirmed yet** with **Send again**; once you have, it says **Confirmed**. **Send again** works once a minute, and saving the address counts as the first send. A link that was used already or has expired says so, with **Go to your profile** to come back here and send a new one, or **Sign in** first when you are signed out. An address your identity provider vouched for counts as confirmed. Leave the field empty or clear it again with "Save profile".
+**Email** shows your address, or "none". It is optional and never used to sign in. It is where Rezepte sends a link when you forget your password, but only once it is confirmed: after you save a new address with **Change**, Rezepte mails a confirmation link to it (when mail is set up). Until you open it, the row says **not confirmed yet**, and **Change** opens the address with **Send again** under it; once you have, the row says **confirmed**. **Send again** works once a minute, and saving the address counts as the first send. A link that was used already or has expired says so, with **Go to your profile** to come back here and send a new one, or **Sign in** first when you are signed out. An address your identity provider vouched for counts as confirmed. To remove the address, clear the field and save.
 
 <Screenshot name="profile-email-unconfirmed" caption="An address waiting for its confirmation" />
+
+**Password** opens a small dialog: enter the current password once, then the new password (8–128 characters) twice. Changing your password signs out every other device that was logged in as you; this device stays signed in. An account without a password yet says so, and the button reads **Set**.
+
+While you type the new password, a bar below it rates it from "very weak" to "strong". It knows the most common leaked passwords, keyboard runs like `qwertz` and your own names, so `anna1990` counts as weak for Anna. The rating is advice: any password of the right length can be saved. A password manager's generated password is the easy way to "strong".
+
+**Sign-in** is there only when your instance offers sign-in through an identity provider such as Google (the owner sets that up under Sign-in below, see [Single sign-on](/operations/single-sign-on)). **Connect** takes you to the provider and back; from then on the provider's button on the login page signs you in without a password. Once connected, the row says since when, and **Disconnect** undoes it and signs you out on your other devices — but only while your account also has a password, because without one you could no longer sign in at all. The row says so; set a password first.
+
+<Screenshot name="settings-signin" caption="The sign-in row, before the account is connected" />
+
+### How you use Rezepte
+
+**Language** is "English" or "German", and picking one reloads the page into it. It is saved to your account rather than to this browser, so it follows you to any device you sign in from. It changes the interface only; it never translates a recipe's own title, ingredients or steps. Missing your language? See [Add a language](/contributing/add-a-language).
+
+**Appearance** is "System", "Light" or "Dark"; "System" follows your device. The same choice sits in the account menu behind your initial at the top right, and on a phone in the "You" sheet. Unlike your language, the theme is stored in this browser only — it does not follow you to another device or browser.
 
 ## Notifications
 
 Under **Settings → Notifications** you choose what Rezepte tells you by mail, which arrives only once your email address is confirmed, and as a push notification to the devices you enable there, with a test for the device in your hand. The owner also sets there the hour the daily new recipes go out. See [Notifications](/guide/notifications).
 
 <Screenshot name="notifications" caption="The Notifications page: what comes by mail, with push below" />
-
-## Sign-in
-
-<Screenshot name="settings-signin" caption="The Sign-in card, before the account is connected" />
-
-This card is there only when your instance offers sign-in through an identity provider such as Google (the owner sets that up under Sign-in below, see [Single sign-on](/operations/single-sign-on)). "Continue with …" takes you to the provider and back; from then on the same button on the login page signs you in without a password. Once connected, the card says since when, and "Disconnect" undoes it and signs you out on your other devices — but only while your account also has a password, because without one you could no longer sign in at all. Set a password below first.
-
-## Change password
-
-Enter the current password once, then the new password (8–128 characters) twice. Changing your password signs out every other device that was logged in as you; this device stays signed in.
-
-While you type the new password, a bar below it rates it from "very weak" to "strong". It knows the most common leaked passwords, keyboard runs like `qwertz` and your own names, so `anna1990` counts as weak for Anna. The rating is advice: any password of the right length can be saved. A password manager's generated password is the easy way to "strong".
-
-## Appearance
-
-Choose "System", "Light" or "Dark". The same choice sits in the account menu behind your initial at the top right, and on a phone in the "You" sheet, so you do not need to open the settings for it. Unlike your language, the theme is stored in this browser only — it does not follow you to another device or browser.
 
 ## App
 

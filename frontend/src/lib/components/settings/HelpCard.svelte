@@ -20,24 +20,31 @@
 	href={USER_GUIDE_URL}
 	target="_blank"
 	rel="noopener external"
-	class="group flex items-center gap-4 rounded-2xl bg-surface p-6 transition hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:p-7"
+	class="group @container block rounded-2xl bg-surface p-6 transition hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:p-7"
 >
+	<!-- Below 30rem of card (every phone, and 200% text) the circle and the
+	     arrow go above the text, which then has the card's full width:
+	     beside them it squeezed to a word per line at 200%. -->
 	<span
-		aria-hidden="true"
-		class="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"
+		class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 @max-[30rem]:grid-cols-[minmax(0,1fr)_auto]"
 	>
-		<LifeBuoy class="size-6" />
-	</span>
-	<span class="min-w-0 flex-1">
-		<span class="block font-display text-heading font-medium">{m.settings_help_title()}</span>
-		<span class="mt-1 block max-w-[60ch] text-caption text-text-muted">
-			{m.settings_help_text()}
+		<span
+			aria-hidden="true"
+			class="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground"
+		>
+			<LifeBuoy class="size-6" />
 		</span>
-		<span class="sr-only">({m.settings_help_new_tab()})</span>
+		<span class="min-w-0 @max-[30rem]:col-span-2">
+			<span class="block font-display text-heading font-medium">{m.settings_help_title()}</span>
+			<span class="mt-1 block max-w-[60ch] text-caption text-text-muted">
+				{m.settings_help_text()}
+			</span>
+			<span class="sr-only">({m.settings_help_new_tab()})</span>
+		</span>
+		<ArrowUpRight
+			aria-hidden="true"
+			class="size-5 shrink-0 text-text-muted transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-text motion-reduce:transition-none @max-[30rem]:col-start-2 @max-[30rem]:row-start-1 @max-[30rem]:self-start"
+		/>
 	</span>
-	<ArrowUpRight
-		aria-hidden="true"
-		class="size-5 shrink-0 text-text-muted transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-text motion-reduce:transition-none"
-	/>
 </a>
 <!-- eslint-enable svelte/no-navigation-without-resolve -->

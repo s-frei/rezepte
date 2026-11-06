@@ -36,9 +36,6 @@ export type User = {
 	emailConfirmationPending?: boolean;
 };
 
-/** One palette color and how many accounts hold it. */
-export type ColorUsage = { color: UserColor; count: number };
-
 /** Sets the own picture; the server crops `crop` out of `file`. */
 export function setOwnAvatar(file: File, crop: Crop): Promise<{ avatarId: string }> {
 	return api<{ avatarId: string }>(`/auth/me/avatar${cropQuery(crop)}`, {
@@ -122,13 +119,17 @@ export function updateOwnProfile(patch: {
 }
 
 /**
- * The palette with a count per color, so the picker can mark one as taken.
- * Counts, not names: the picker only has to mark a color as taken.
+ * The account behind a setup link. `inviter` is the admin who issued it for
+ * someone else, absent for a reset; the page has no session, so it carries
+ * a name and a color and never a picture.
  */
-export async function listColorUsage(): Promise<ColorUsage[]> {
-	const page = await api<{ items: ColorUsage[] }>('/auth/me/colors');
-	return page.items;
-}
+export type InvitedAccount = {
+	username: string;
+	displayName: string;
+	color: string;
+	purpose: 'setup' | 'reset';
+	inviter?: { displayName: string; color: string };
+};
 
 /**
  * Looks up the account a setup link belongs to, without using it - what
@@ -136,9 +137,7 @@ export async function listColorUsage(): Promise<ColorUsage[]> {
  * Throws a 404 `ApiError` when the token is unknown, used or expired.
  * `reset` is a forgotten-password link: it only sets a password.
  */
-export function inspectSetupLink(
-	token: string
-): Promise<{ username: string; displayName: string; purpose: 'setup' | 'reset' }> {
+export function inspectSetupLink(token: string): Promise<InvitedAccount> {
 	return api('/auth/setup/inspect', { method: 'POST', body: JSON.stringify({ token }) });
 }
 

@@ -56,12 +56,16 @@
 					     create-user form is taller than a phone screen, and a centered
 					     box without a cap pushes its title and its buttons off both
 					     edges where nothing can scroll them back. `dvh` rather than
-					     `vh` so the cap follows the browser bar and the keyboard. -->
+					     `vh` so the cap follows the browser bar and the keyboard.
+					     A word longer than the line ("Einrichtungslink" at 200% text on
+					     a phone) breaks instead of scrolling the dialog sideways; the
+					     title (Dialog.Title is an h2) hyphenates, a button's label
+					     never does ("Ko-pie-ren"). -->
 					<div
 						{...props}
 						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
 							? 'max-w-[720px]'
-							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 shadow-dialog md:p-7"
+							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 wrap-break-word shadow-dialog md:p-7 [&_h2]:hyphens-auto"
 						transition:scale={{ duration, start: 0.95 }}
 					>
 						{@render children()}

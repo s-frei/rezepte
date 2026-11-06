@@ -5,6 +5,7 @@
 	import LinkIcon from '@lucide/svelte/icons/link';
 	import { onMount } from 'svelte';
 	import { listUsers, type UserAccount } from '#lib/api/users.js';
+	import FaceStack from '#lib/components/ui/FaceStack.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 
@@ -21,9 +22,6 @@
 		}
 	});
 
-	// Three faces and a count: more would push the summary off a phone.
-	const faces = $derived(accounts.slice(0, 3));
-	const more = $derived(accounts.length - faces.length);
 	const without = $derived(accounts.filter((user) => !user.hasPassword).length);
 </script>
 
@@ -78,23 +76,8 @@
 		>
 			<!-- Narrow, as on a phone, the faces share the top line with the chevron
 			     and the text gets the full width below; from 20rem they sit in one row. -->
-			<span class="flex">
-				{#each faces as person, index (person.id)}
-					<PersonMark
-						{person}
-						size="sm"
-						class="ring-2 ring-surface-elevated {index > 0 ? '-ml-2' : ''}"
-					/>
-				{/each}
-				{#if more > 0}
-					<!-- `relative` like PersonMark, so the count lies on top of the faces. -->
-					<span
-						aria-hidden="true"
-						class="relative -ml-2 flex size-7 items-center justify-center rounded-full border border-border bg-surface text-micro font-semibold text-text-muted ring-2 ring-surface-elevated"
-						>+{more}</span
-					>
-				{/if}
-			</span>
+			<!-- Four slots: more would push the summary off a phone. -->
+			<FaceStack people={accounts} slots={4} size="sm" ring="ring-surface-elevated" />
 			<span
 				class="col-span-2 row-start-2 min-w-0 text-body-sm font-semibold @xs:col-span-1 @xs:col-start-2 @xs:row-start-1"
 			>

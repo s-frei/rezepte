@@ -159,8 +159,13 @@
 	const cookTriggerClass =
 		'inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
+	// At 200% text the phone bar's three 40px circles are 80px each and no
+	// longer fit beside each other: there they give way, and stay circles.
+	// Its insets stop at 40px and 20px for the same reason.
+	const headerCircle = 'max-md:shrink max-md:h-auto max-md:aspect-square';
+
 	const menuTriggerClass =
-		'inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
+		'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-text transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
 
 	// The address "Copy link" and the share button hand out; see
 	// `#lib/recipe/share.svelte.ts`. One per recipe: re-created when the page
@@ -357,13 +362,13 @@
 -->
 	<div
 		class="fixed inset-x-0 top-0 z-40 flex gap-3 border-b transition-all md:hidden {scrolled
-			? 'h-16 items-center border-border bg-background/80 px-5 backdrop-blur'
-			: 'pointer-events-none h-28 items-start border-transparent px-10 pt-11'}"
+			? 'h-16 items-center border-border bg-background/80 px-[min(1.25rem,20px)] backdrop-blur'
+			: 'pointer-events-none h-28 items-start border-transparent px-[min(2.5rem,40px)] pt-11'}"
 	>
 		<IconButton
 			label={m.detail_back()}
 			onclick={goBack}
-			class="pointer-events-auto {scrolled ? '' : 'shadow-card'}"
+			class="pointer-events-auto {headerCircle} {scrolled ? '' : 'shadow-card'}"
 		>
 			<ArrowLeft class="size-5" aria-hidden="true" />
 		</IconButton>
@@ -376,14 +381,18 @@
 			{recipe?.title}
 		</p>
 		{#if scrolled}
-			<a href={cookHref} aria-label={m.detail_cook_mode()} class={cookTriggerClass}>
+			<a
+				href={cookHref}
+				aria-label={m.detail_cook_mode()}
+				class="{cookTriggerClass} {headerCircle}"
+			>
 				<ChefHat class="size-5" aria-hidden="true" />
 			</a>
 		{:else}
 			<IconButton
 				label={m.detail_share()}
 				onclick={() => (passOnOpen = true)}
-				class="pointer-events-auto shadow-card"
+				class="pointer-events-auto shadow-card {headerCircle}"
 			>
 				<Share2 class="size-5" aria-hidden="true" />
 			</IconButton>
@@ -391,7 +400,9 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
 				aria-label={m.detail_menu()}
-				class="{menuTriggerClass} pointer-events-auto {scrolled ? '' : 'shadow-card'}"
+				class="{menuTriggerClass} {headerCircle} pointer-events-auto {scrolled
+					? ''
+					: 'shadow-card'}"
 			>
 				<Ellipsis class="size-5" aria-hidden="true" />
 			</DropdownMenu.Trigger>

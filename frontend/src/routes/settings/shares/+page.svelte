@@ -290,7 +290,6 @@
 					<ShareRow
 						{share}
 						showCreator={isAdmin && everyone}
-						ownColor={session.user?.color}
 						sharingOff={sharingOn === false}
 						onrevoke={revoke}
 						motion={rows.duration}

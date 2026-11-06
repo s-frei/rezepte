@@ -6,7 +6,8 @@
 	// and so does pulling it down. The sheet follows the finger and closes
 	// when let go a quarter of its height down or flicked; short of that it
 	// springs back. The sheet is the handle's dialog, so callers pass nothing
-	// but how to close it.
+	// but how to close it. The button is 44px tall, a thumb's target, with
+	// the 4px grip in its middle; at its old 24px it was easy to miss.
 	let {
 		label,
 		onclose,
@@ -84,7 +85,7 @@
 		<button
 			{...props}
 			aria-label={label}
-			class="flex shrink-0 touch-none justify-center pt-2 pb-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {className}"
+			class="flex h-11 shrink-0 touch-none items-center justify-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {className}"
 			{onpointerdown}
 			{onpointermove}
 			{onpointerup}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { MediaQuery } from 'svelte/reactivity';
@@ -58,10 +59,10 @@
 			maxlength={80}
 			bind:value={name}
 		/>
-		<div class="flex justify-end gap-2.5">
+		<DialogActions>
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" busy={saving} disabled={!name.trim()}>{m.lists_new_create()}</Button>
-		</div>
+		</DialogActions>
 	</form>
 {/snippet}
 

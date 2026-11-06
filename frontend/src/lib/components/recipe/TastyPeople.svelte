@@ -52,10 +52,10 @@
 	{/if}
 {/snippet}
 
-{#snippet cards(compact: boolean)}
+{#snippet cards(compact: boolean, inverse = false)}
 	<ul class="mt-2 space-y-3">
 		{#each people as person (person.id)}
-			<li><PersonCard {person} {compact} onnavigate={() => (open = false)} /></li>
+			<li><PersonCard {person} {compact} {inverse} onnavigate={() => (open = false)} /></li>
 		{/each}
 	</ul>
 {/snippet}
@@ -100,7 +100,7 @@
 				class="z-50 max-w-72 rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
 			>
 				<p class="text-inverse-muted">{m.recipe_tasty_by()}</p>
-				{@render cards(true)}
+				{@render cards(true, true)}
 			</Popover.Content>
 		</Popover.Portal>
 	</Popover.Root>

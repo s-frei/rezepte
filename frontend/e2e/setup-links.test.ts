@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { devPassword, login, pinLocale, uniqueToken } from './helpers';
+import { devPassword, login, openFromPeopleList, pinLocale, uniqueToken } from './helpers';
 
 // "Add account" defaults to the "Send a setup link" mode (CreateUserDialog),
 // so these tests never touch the password fields the older account-creation
@@ -26,6 +26,15 @@ test('an invited person sets their own password through the setup link', async (
 	const invited = await (await browser.newContext()).newPage();
 	await invited.goto(url);
 	await expect(invited.getByRole('heading', { name: `Welcome, ${name}` })).toBeVisible();
+	// Their mark as the household will see it: initial on their color, with
+	// their name and the color's name; the inviter by initial and name. No
+	// picture anywhere: the page has no session.
+	const seenAs = invited.getByRole('region', { name: 'This is how the others see you' });
+	await expect(seenAs.getByText(name, { exact: true })).toBeVisible();
+	await expect(seenAs.getByText(/^Your color: \S+ – you can change it in Settings$/)).toBeVisible();
+	await expect(seenAs.getByText(name.charAt(0).toUpperCase(), { exact: true })).toBeAttached();
+	await expect(invited.getByText(/ invited you$/)).toBeVisible();
+	await expect(invited.locator('main img[src*="/avatars/"]')).toHaveCount(0);
 	await invited.getByLabel('New password', { exact: true }).fill(devPassword(name));
 	await invited.getByLabel('Repeat the new password').fill(devPassword(name));
 	await invited.getByRole('button', { name: 'Save and sign in' }).click();
@@ -46,14 +55,15 @@ test('an admin revokes an open setup link', async ({ page, browser }) => {
 	const url = await linkDialog.getByRole('textbox').inputValue();
 	await page.keyboard.press('Escape');
 
-	// The status note under the name is text only; "Revoke link" is an item
-	// in the card's "..." menu on every screen. Its accessible name carries
-	// the username (users_setup_link_revoke_aria), since a flat list otherwise
-	// has one identically-worded "Revoke link" per row.
+	// The card says the link is open; revoking it is the person page's.
 	const row = page.getByRole('listitem').filter({ hasText: name });
 	await expect(row.getByText(/Setup link open until/)).toBeVisible();
-	await row.getByRole('button', { name: `More actions for ${name}` }).click();
-	await page.getByRole('menuitem', { name: `Revoke setup link for ${name}` }).click();
+	await openFromPeopleList(row);
+	await page.getByRole('button', { name: 'Manage the setup link' }).click();
+	await page.getByRole('menuitem', { name: 'Revoke' }).click();
+	await expect(page.getByText('Setup link revoked')).toBeVisible();
+	await expect(page.getByText('Not set up yet')).toBeVisible();
+	await page.goBack();
 	await expect(row.getByText('Not set up yet')).toBeVisible();
 
 	const invited = await (await browser.newContext()).newPage();

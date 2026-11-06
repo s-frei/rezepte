@@ -34,23 +34,98 @@ export const USER_COLOR_CLASSES: Record<UserColor, string> = {
 };
 
 /**
- * The person's color as a left edge in its strong tone - an API token's tag
- * carries its issuer this way. Written out for the same reason as above.
+ * The same pair turned over, the strong tone as ground: a mark set on a
+ * ribbon in the person's own color (the public page's "Shared by"), where
+ * the plain pair would melt into it. Written out for the same reason.
  */
-const USER_COLOR_EDGES: Record<UserColor, string> = {
-	amber: 'border-l-user-amber-foreground',
-	clay: 'border-l-user-clay-foreground',
-	rose: 'border-l-user-rose-foreground',
-	plum: 'border-l-user-plum-foreground',
-	sage: 'border-l-user-sage-foreground',
-	olive: 'border-l-user-olive-foreground',
-	teal: 'border-l-user-teal-foreground',
-	slate: 'border-l-user-slate-foreground'
+const USER_COLOR_CLASSES_STRONG: Record<UserColor, string> = {
+	amber: 'bg-user-amber-foreground text-user-amber',
+	clay: 'bg-user-clay-foreground text-user-clay',
+	rose: 'bg-user-rose-foreground text-user-rose',
+	plum: 'bg-user-plum-foreground text-user-plum',
+	sage: 'bg-user-sage-foreground text-user-sage',
+	olive: 'bg-user-olive-foreground text-user-olive',
+	teal: 'bg-user-teal-foreground text-user-teal',
+	slate: 'bg-user-slate-foreground text-user-slate'
 };
 
-/** The edge class for a color from the API; neutral for an unknown one. */
-export function userColorEdge(color: string | null | undefined): string {
-	return isUserColor(color) ? USER_COLOR_EDGES[color] : 'border-l-border';
+/**
+ * The ring around a person's photo (`PersonMark`) and the top bar's own
+ * avatar: an outline in the pair's strong tone, which holds against the
+ * page and the surface in both themes. Written out for the same reason.
+ */
+const USER_RINGS: Record<UserColor, string> = {
+	amber: 'outline-user-amber-foreground',
+	clay: 'outline-user-clay-foreground',
+	rose: 'outline-user-rose-foreground',
+	plum: 'outline-user-plum-foreground',
+	sage: 'outline-user-sage-foreground',
+	olive: 'outline-user-olive-foreground',
+	teal: 'outline-user-teal-foreground',
+	slate: 'outline-user-slate-foreground'
+};
+
+/**
+ * The same ring on the `inverse` ground (the author popover): there the
+ * strong tone is the ground's own lightness, so the pair's base tone rings.
+ */
+const USER_RINGS_INVERSE: Record<UserColor, string> = {
+	amber: 'outline-user-amber',
+	clay: 'outline-user-clay',
+	rose: 'outline-user-rose',
+	plum: 'outline-user-plum',
+	sage: 'outline-user-sage',
+	olive: 'outline-user-olive',
+	teal: 'outline-user-teal',
+	slate: 'outline-user-slate'
+};
+
+/** The ring's outline color for a color from the API; muted for an unknown one. */
+export function userRingClass(color: string | null | undefined, inverse = false): string {
+	if (!isUserColor(color)) return inverse ? 'outline-inverse-muted' : 'outline-text-muted';
+	return (inverse ? USER_RINGS_INVERSE : USER_RINGS)[color];
+}
+
+/**
+ * The overview's dotted leader in the signed-in person's own tone - their
+ * app, tinted for them. At 55%: at full strength the dots outweighed the
+ * section name, and amber and clay read as the primary orange beside it.
+ * Written out for the same reason.
+ */
+const USER_LEADERS: Record<UserColor, string> = {
+	amber: 'border-user-amber-foreground/55',
+	clay: 'border-user-clay-foreground/55',
+	rose: 'border-user-rose-foreground/55',
+	plum: 'border-user-plum-foreground/55',
+	sage: 'border-user-sage-foreground/55',
+	olive: 'border-user-olive-foreground/55',
+	teal: 'border-user-teal-foreground/55',
+	slate: 'border-user-slate-foreground/55'
+};
+
+/** The leader's border color; the neutral handle for no one or an unknown color. */
+export function userLeaderClass(color: string | null | undefined): string {
+	return isUserColor(color) ? USER_LEADERS[color] : 'border-handle';
+}
+
+/**
+ * The comment composer, focused, in the writer's own paper - the tone their
+ * entry will be in once sent. Written out for the same reason.
+ */
+const USER_COMPOSERS: Record<UserColor, string> = {
+	amber: 'has-[textarea:focus-visible]:bg-user-amber',
+	clay: 'has-[textarea:focus-visible]:bg-user-clay',
+	rose: 'has-[textarea:focus-visible]:bg-user-rose',
+	plum: 'has-[textarea:focus-visible]:bg-user-plum',
+	sage: 'has-[textarea:focus-visible]:bg-user-sage',
+	olive: 'has-[textarea:focus-visible]:bg-user-olive',
+	teal: 'has-[textarea:focus-visible]:bg-user-teal',
+	slate: 'has-[textarea:focus-visible]:bg-user-slate'
+};
+
+/** The composer's focused paper; none (it stays `surface-elevated`) for an unknown color. */
+export function userComposerClass(color: string | null | undefined): string {
+	return isUserColor(color) ? USER_COMPOSERS[color] : '';
 }
 
 /** Neutral, for a color this build does not know. */
@@ -65,8 +140,9 @@ export function isUserColor(value: unknown): value is UserColor {
  * ninth color this build has no token for; that renders neutral rather than
  * transparent, which would leave a circle with no background at all.
  */
-export function userColorClasses(color: string | null | undefined): string {
-	return isUserColor(color) ? USER_COLOR_CLASSES[color] : NEUTRAL;
+export function userColorClasses(color: string | null | undefined, strong = false): string {
+	if (!isUserColor(color)) return NEUTRAL;
+	return (strong ? USER_COLOR_CLASSES_STRONG : USER_COLOR_CLASSES)[color];
 }
 
 /**
@@ -78,8 +154,9 @@ export function userColorClasses(color: string | null | undefined): string {
  * agree with it closely enough that the preselected swatch does not jump
  * once the request comes back.
  */
-export function leastUsedColor(usage: Array<{ color: UserColor; count: number }>): UserColor {
-	const counts = new Map(usage.map((entry) => [entry.color, entry.count]));
+export function leastUsedColor(people: Array<{ color: string }>): UserColor {
+	const counts = new Map<string, number>();
+	for (const p of people) counts.set(p.color, (counts.get(p.color) ?? 0) + 1);
 	let best: UserColor = USER_COLORS[0];
 	let bestCount = counts.get(best) ?? 0;
 	for (const color of USER_COLORS) {

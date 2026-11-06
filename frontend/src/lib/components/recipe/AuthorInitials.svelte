@@ -45,15 +45,15 @@
 </script>
 
 <!-- Two cards each carry their label above them; one card needs none. -->
-{#snippet cards(muted: string, compact: boolean)}
+{#snippet cards(muted: string, compact: boolean, inverse = false)}
 	<div class="space-y-3">
 		{#if edited}
 			<p class={muted}>{m.card_author({ user: createdBy.displayName })}</p>
 		{/if}
-		<PersonCard person={createdBy} {compact} onnavigate={() => (open = false)} />
+		<PersonCard person={createdBy} {compact} {inverse} onnavigate={() => (open = false)} />
 		{#if edited}
 			<p class={muted}>{m.card_editor({ user: updatedBy.displayName })}</p>
-			<PersonCard person={updatedBy} {compact} onnavigate={() => (open = false)} />
+			<PersonCard person={updatedBy} {compact} {inverse} onnavigate={() => (open = false)} />
 		{/if}
 	</div>
 {/snippet}
@@ -67,11 +67,7 @@
 	desktop card. -->
 {#snippet circles()}
 	{#each people as person, index (person.id)}
-		<PersonMark
-			{person}
-			size="xs-plus"
-			class="ring-2 ring-surface desk:size-7 {index > 0 ? '-ml-1.5' : ''}"
-		/>
+		<PersonMark {person} size="corner" class="ring-2 ring-surface {index > 0 ? '-ml-1.5' : ''}" />
 	{/each}
 	{#if fresh}
 		<span
@@ -145,7 +141,7 @@
 				collisionPadding={12}
 				class="z-50 w-[var(--bits-floating-anchor-width)] rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
 			>
-				{@render cards('text-inverse-muted', true)}
+				{@render cards('text-inverse-muted', true, true)}
 			</Popover.Content>
 		</Popover.Portal>
 	</Popover.Root>

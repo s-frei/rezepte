@@ -58,6 +58,14 @@ describe('parsePayload', () => {
 		expect(parsePayload(ORIGIN, old)).toEqual(comment);
 	});
 
+	it('keeps a face on this origin and drops any other', () => {
+		const icon = '/marks/u1.png?s=abc';
+		expect(parsePayload(ORIGIN, { ...comment, icon })).toEqual({ ...comment, icon });
+		for (const bad of ['https://evil.example/a.png', '//evil.example/a.png', 'data:x', 3]) {
+			expect(parsePayload(ORIGIN, { ...comment, icon: bad })).toEqual(comment);
+		}
+	});
+
 	it('rejects a url that leaves the app', () => {
 		expect(parsePayload(ORIGIN, { ...timer, url: 'https://evil.example/' })).toBeNull();
 		expect(parsePayload(ORIGIN, { ...timer, url: '//evil.example/' })).toBeNull();
@@ -118,6 +126,18 @@ describe('notificationOptions', () => {
 		expect(notificationOptions(test, { ...hidden, shownCount: 1 }).renotify).toBe(true);
 		expect(notificationOptions(comment, hidden).renotify).toBe(true);
 		expect(notificationOptions(timer, hidden).renotify).toBeUndefined();
+	});
+
+	it("shows the person's face, the app's logo without one, and the logo as badge", () => {
+		const icon = '/marks/u1.png?s=abc';
+		expect(notificationOptions({ ...comment, icon }, hidden)).toMatchObject({
+			icon,
+			badge: '/icon-192.png'
+		});
+		expect(notificationOptions(timer, hidden)).toMatchObject({
+			icon: '/icon-192.png',
+			badge: '/icon-192.png'
+		});
 	});
 
 	it('collapses a second comment into a count', () => {

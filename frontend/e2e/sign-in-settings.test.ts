@@ -147,8 +147,8 @@ test('turning off lists the connected accounts behind a summary', async ({ page 
 
 	const summary = confirm.getByRole('button', { name: /4 connected accounts/ });
 	await expect(summary).toContainText('1 needs a setup link');
-	// Three faces and a count of the rest.
-	await expect(summary).toContainText('+1');
+	// Four slots hold all four faces; a count only takes the last slot beyond that.
+	await expect(summary).not.toContainText('+');
 	await expect(confirm.getByText('Person ada')).toBeHidden();
 
 	await summary.click();

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog } from 'bits-ui';
 	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import Share2 from '@lucide/svelte/icons/share-2';
@@ -154,11 +155,11 @@
 				</Button>
 			{/if}
 		</div>
-		<div class="mt-6 flex justify-end">
+		<DialogActions class="mt-6">
 			<Button variant="destructive" onclick={() => (revokeOpen = true)}>
 				{m.public_share_revoke()}
 			</Button>
-		</div>
+		</DialogActions>
 	{:else}
 		<Dialog.Description class="mt-2 text-body text-text-muted">
 			{m.public_share_dialog_description()}
@@ -172,9 +173,9 @@
 				class="w-full bg-surface-elevated"
 			/>
 		</div>
-		<div class="mt-6 flex justify-end">
+		<DialogActions class="mt-6">
 			<Button onclick={create} disabled={creating}>{m.public_share_create()}</Button>
-		</div>
+		</DialogActions>
 	{/if}
 </BaseDialog>
 

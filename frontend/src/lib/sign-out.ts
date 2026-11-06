@@ -22,6 +22,11 @@ export async function signOut(): Promise<void> {
 	} catch {
 		// see above
 	}
+	const who = session.user;
 	session.user = null;
-	await goto(resolve('/login'));
+	// The login page says once who left (a shared kitchen tablet), from
+	// navigation state, so a reload and the URL carry nothing.
+	await goto(resolve('/login'), {
+		state: who ? { signedOut: { displayName: who.displayName, color: who.color } } : {}
+	});
 }

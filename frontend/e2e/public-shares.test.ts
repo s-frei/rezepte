@@ -7,10 +7,13 @@ import {
 	createUser,
 	loadFixture,
 	login,
+	openFromPeopleList,
 	openRecipeMenu,
 	type PublicShare,
 	setCanSharePublicly,
+	setOwnAvatarViaApi,
 	setPublicShareAttribution,
+	setPublicShareSharer,
 	setPublicShares,
 	tinyPng,
 	uniqueToken,
@@ -123,6 +126,45 @@ test('a signed-in member sees the same public page', async ({ page }, testInfo) 
 	}
 });
 
+// With the sharer switch off (the default) a public page shows nobody by
+// photo, and the browser's bar is the app's, not theirs. The one face a
+// public page may show is the sharer's, under that switch (below).
+test('a public page shows no one by photo, signed in or not', async ({
+	page,
+	browser
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	const name = `face${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'admin' });
+	try {
+		await setPublicShares(page, true);
+		await login(page, name);
+		await setOwnAvatarViaApi(page, tinyPng([30, 140, 90]));
+		const title = `Faceless ${uniqueToken()}`;
+		const recipe = await createRecipe(page, { ...loadFixture(1), title });
+		await addDiaryEntry(page, recipe.id, 'With my face on it');
+		const share = await createPublicShare(page, recipe.id);
+
+		const stranger = await browser.newContext();
+		try {
+			for (const viewer of [page, await stranger.newPage()]) {
+				await viewer.goto(share.path);
+				await expect(viewer.getByRole('heading', { level: 1, name: title })).toBeVisible();
+				await expect(viewer.locator('img[src*="/avatars/"]')).toHaveCount(0);
+				await expect(
+					viewer.locator('meta[name="theme-color"][data-scheme="light"]')
+				).toHaveAttribute('content', '#f4ede2');
+			}
+		} finally {
+			await stranger.close();
+		}
+	} finally {
+		await login(page);
+		await setPublicShares(page, false);
+	}
+});
+
 test('a recipe without photos, description or times', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
@@ -221,6 +263,77 @@ test('the owner stops public pages from naming Rezepte', async ({ page, browser 
 		}
 	} finally {
 		await setPublicShareAttribution(page, true);
+		await setPublicShares(page, false);
+	}
+});
+
+test('the owner lets public pages name who shared, with their photo', async ({
+	page,
+	browser
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Signed ${uniqueToken()}` });
+	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { displayName: string };
+	// A photo the stranger sees only while the switch is on, and only at
+	// the share's own address.
+	await setOwnAvatarViaApi(page, tinyPng([30, 140, 90]));
+
+	try {
+		await setPublicShares(page, true);
+		const share = await createPublicShare(page, recipe.id);
+		const strangerContext = await browser.newContext();
+		try {
+			const stranger = await strangerContext.newPage();
+			await stranger.goto(share.path);
+			await expect(stranger.getByRole('heading', { level: 1, name: recipe.title })).toBeVisible();
+			// Off by default: nobody is named, no face shown.
+			await expect(stranger.getByText(/^Shared by /)).toHaveCount(0);
+			await expect(stranger.locator('img[src$="/sharer.jpg"], img[src*="/avatars/"]')).toHaveCount(
+				0
+			);
+
+			await page.goto('/settings/users');
+			const sharer = page.getByRole('switch', { name: 'Name who shared it' });
+			await expect(sharer).not.toBeChecked();
+			await sharer.click();
+			await expect(sharer).toBeChecked();
+
+			await stranger.reload();
+			// The ribbon under the title block: the name in the line, the face
+			// beside it from the share's own address.
+			const ribbon = stranger
+				.getByRole('main')
+				.locator('p', { hasText: `Shared by ${me.displayName}` });
+			await expect(ribbon).toBeVisible();
+			await expect(ribbon.locator('b')).toHaveText(me.displayName);
+			const photo = ribbon.locator(`img[src="/public-images/${share.path.slice(3)}/sharer.jpg"]`);
+			await expect(photo).toBeVisible();
+			await expect
+				.poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalWidth))
+				.toBeGreaterThan(0);
+			await expect(stranger.locator('img[src*="/avatars/"]')).toHaveCount(0);
+
+			// Off again: name and photo go at once, the address with them.
+			await setPublicShareSharer(page, false);
+			await stranger.reload();
+			await expect(stranger.getByRole('heading', { level: 1, name: recipe.title })).toBeVisible();
+			await expect(stranger.getByText(/^Shared by /)).toHaveCount(0);
+			await expect(stranger.locator('img[src$="/sharer.jpg"], img[src*="/avatars/"]')).toHaveCount(
+				0
+			);
+			expect(
+				(await stranger.request.get(`/public-images/${share.path.slice(3)}/sharer.jpg`)).status()
+			).toBe(404);
+		} finally {
+			await strangerContext.close();
+		}
+	} finally {
+		await page.request.delete('/api/v1/auth/me/avatar', {
+			headers: { Origin: new URL(page.url()).origin }
+		});
+		await setPublicShareSharer(page, false);
 		await setPublicShares(page, false);
 	}
 });
@@ -517,6 +630,13 @@ test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
 			await expect(row).toBeVisible();
 			// An active link carries no stamp; only a paused or limited one does.
 			await expect(row).toContainText('Active');
+			// The card's edge is neutral, not its creator's color.
+			expect(
+				await row.evaluate((el) => {
+					const cs = getComputedStyle(el);
+					return cs.borderLeftColor === cs.borderTopColor;
+				})
+			).toBe(true);
 			await expect(row.getByRole('button', { name: 'Copy link' })).toBeVisible();
 
 			await row.getByRole('button', { name: 'Revoke' }).click();
@@ -774,15 +894,18 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 	// name across all of them.
 	const rowOf = (p: typeof page, username: string) =>
 		p.getByRole('listitem').filter({ hasText: username });
+	// A card the viewer may open is one link.
+	const openRow = (p: typeof page, username: string) =>
+		rowOf(p, username).getByRole('link').click();
 
-	// The owner reaches every row but their own, admins included.
+	// The owner reaches every row but their own, admins included: each of
+	// those cards leads to the person's page, where the switch is.
 	await page.goto('/settings/users');
-	await expect(
-		rowOf(page, otherAdmin).getByRole('button', { name: `More actions for ${otherAdmin}` })
-	).toBeVisible();
-	await expect(
-		rowOf(page, member).getByRole('button', { name: `More actions for ${member}` })
-	).toBeVisible();
+	await openRow(page, otherAdmin);
+	await expect(page.getByRole('switch', { name: 'May share publicly' })).toBeVisible();
+	await page.goBack();
+	await openRow(page, member);
+	await expect(page.getByRole('switch', { name: 'May share publicly' })).toBeVisible();
 
 	// An admin reaches plain members only - not another admin, not themselves.
 	const adminContext = await browser.newContext();
@@ -791,15 +914,10 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 		await login(adminPage, admin);
 		await expect(adminPage).toHaveURL('/');
 		await adminPage.goto('/settings/users');
-		await expect(
-			rowOf(adminPage, member).getByRole('button', { name: `More actions for ${member}` })
-		).toBeVisible();
-		await expect(
-			rowOf(adminPage, otherAdmin).getByRole('button', { name: `More actions for ${otherAdmin}` })
-		).toHaveCount(0);
-		await expect(
-			rowOf(adminPage, admin).getByRole('button', { name: `More actions for ${admin}` })
-		).toHaveCount(0);
+		await expect(rowOf(adminPage, otherAdmin).getByRole('link')).toHaveCount(0);
+		await expect(rowOf(adminPage, admin).getByRole('link')).toHaveAttribute('href', '/settings');
+		await openRow(adminPage, member);
+		await expect(adminPage.getByRole('switch', { name: 'May share publicly' })).toBeVisible();
 	} finally {
 		await adminContext.close();
 	}
@@ -834,13 +952,17 @@ test("withdrawing sharing pauses a member's links", async ({ page, browser }, te
 		await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 
 		await page.goto('/settings/users');
-		const row = page
-			.getByRole('list', { name: 'Members' })
-			.getByRole('listitem')
-			.filter({ hasText: username });
-		await row.getByRole('button', { name: `More actions for ${username}` }).click();
-		await page.getByRole('menuitemcheckbox', { name: 'May share publicly' }).click();
+		await openFromPeopleList(
+			page
+				.getByRole('list', { name: 'Members' })
+				.getByRole('listitem')
+				.filter({ hasText: username })
+		);
+		const may = page.getByRole('switch', { name: 'May share publicly' });
+		await expect(may).toBeChecked();
+		await may.click();
 		await expect(page.getByText(`${username} can no longer share publicly`)).toBeVisible();
+		await expect(may).not.toBeChecked();
 
 		await page.goto('/settings/shares');
 		await page.getByRole('switch', { name: 'Everyone in the household' }).click();
@@ -853,9 +975,8 @@ test("withdrawing sharing pauses a member's links", async ({ page, browser }, te
 		await page.goto(`/s/${shareToken}`);
 		await expect(page.getByText('This link is no longer available.')).toBeVisible();
 
-		await page.goto('/settings/users');
-		await row.getByRole('button', { name: `More actions for ${username}` }).click();
-		await page.getByRole('menuitemcheckbox', { name: 'May share publicly' }).click();
+		await page.goto(`/settings/users/${username}`);
+		await page.getByRole('switch', { name: 'May share publicly' }).click();
 		await expect(page.getByText(`${username} can now share publicly`)).toBeVisible();
 
 		await page.goto(`/s/${shareToken}`);

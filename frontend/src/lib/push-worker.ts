@@ -4,7 +4,9 @@
  * What the Go service pushes: a timer alarm (`kind: 'timer'`, `tag` is the
  * alarm's id) or a notification. `collapse` folds a second push with the
  * same tag into a count; `bodyMany` carries a literal `{count}`. An older
- * server also sent `collapse.bodyOne`, which is ignored.
+ * server also sent `collapse.bodyOne`, which is ignored. `icon` is the face
+ * of the person who caused it (a signed `/marks/…` path); without one the
+ * notification shows the app's icon.
  */
 export type PushPayload = {
 	kind: string;
@@ -12,8 +14,12 @@ export type PushPayload = {
 	body: string;
 	url: string;
 	tag: string;
+	icon?: string;
 	collapse?: { title: string; bodyMany: string };
 };
+
+/** The app's logo: the icon of a push without a person, and every push's badge. */
+const APP_ICON = '/icon-192.png';
 
 const isString = (v: unknown): v is string => typeof v === 'string';
 
@@ -29,13 +35,17 @@ export function parsePayload(origin: string, data: unknown): PushPayload | null 
 	if (typeof data !== 'object' || data === null) {
 		return null;
 	}
-	const { kind, title, body, url, tag, collapse } = data as Record<string, unknown>;
+	const { kind, title, body, url, tag, icon, collapse } = data as Record<string, unknown>;
 	if (![kind, title, body, url, tag].every(isString)) {
 		return null;
 	}
 	const p = { kind, title, body, url, tag } as PushPayload;
 	if (!insideApp(p.url, origin)) {
 		return null;
+	}
+	// A face that is not ours is dropped, not the push: the app's icon stands in.
+	if (isString(icon) && insideApp(icon, origin)) {
+		p.icon = icon;
 	}
 	if (collapse !== undefined) {
 		if (typeof collapse !== 'object' || collapse === null) {
@@ -72,7 +82,13 @@ export function notificationOptions(
 	title: string;
 	renotify?: boolean;
 } {
-	const base = { title: p.title, body: p.body, tag: p.tag, icon: '/icon-192.png' };
+	const base = {
+		title: p.title,
+		body: p.body,
+		tag: p.tag,
+		icon: p.icon ?? APP_ICON,
+		badge: APP_ICON
+	};
 	if (p.kind === 'timer') {
 		return {
 			...base,

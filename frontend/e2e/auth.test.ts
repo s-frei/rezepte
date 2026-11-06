@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test';
-import { devPassword, login, pinLocale, signOut } from './helpers';
+import {
+	createUser,
+	devPassword,
+	login,
+	pinLocale,
+	setOwnAvatarViaApi,
+	signOut,
+	tinyPng,
+	uniqueToken
+} from './helpers';
+import { USER_THEME_COLORS } from '../src/lib/user/theme-color';
 
 test('redirects anonymous users to login', async ({ page }) => {
 	await page.goto('/');
@@ -107,6 +117,7 @@ test('the password change names the account it belongs to', async ({ page }) => 
 	await login(page);
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Change password' }).click();
 	const account = page.locator('input[autocomplete="username"]');
 	await expect(account).toHaveValue('admin');
 	await expect(account).toBeHidden();
@@ -114,4 +125,45 @@ test('the password change names the account it belongs to', async ({ page }) => 
 		'autocomplete',
 		'new-password'
 	);
+});
+
+test("the browser's bar wears the signed-in person's color until sign-out", async ({
+	page
+}, testInfo) => {
+	const bar = (scheme: 'light' | 'dark') =>
+		page.locator(`meta[name="theme-color"][data-scheme="${scheme}"]`);
+	await page.goto('/login');
+	await expect(bar('light')).toHaveAttribute('content', '#f4ede2');
+
+	await login(page);
+	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as {
+		color: keyof typeof USER_THEME_COLORS;
+	};
+	await expect(bar('light')).toHaveAttribute('content', USER_THEME_COLORS[me.color].light);
+	await expect(bar('dark')).toHaveAttribute('content', USER_THEME_COLORS[me.color].dark);
+
+	await signOut(page, testInfo);
+	await expect(page).toHaveURL(/\/login/);
+	await expect(bar('light')).toHaveAttribute('content', '#f4ede2');
+	await expect(bar('dark')).toHaveAttribute('content', '#1c1612');
+});
+
+test('the login page says once who signed out, by initial and name', async ({ page }, testInfo) => {
+	const name = `bye${uniqueToken()}`.toLowerCase();
+	await login(page);
+	await createUser(page, { username: name, role: 'user' });
+	await login(page, name);
+	// A photo, which the public login page must not show.
+	await setOwnAvatarViaApi(page, tinyPng([30, 140, 90]));
+	await signOut(page, testInfo);
+	await expect(page).toHaveURL(/\/login/);
+	const notice = page.getByRole('status').filter({ hasText: `Signed out: ${name}` });
+	await expect(notice).toBeVisible();
+	await expect(notice.getByText(name.charAt(0).toUpperCase(), { exact: true })).toBeVisible();
+	await expect(notice.locator('img')).toHaveCount(0);
+	await expect(page.getByLabel('Username')).toHaveValue('');
+
+	await page.reload();
+	await expect(page.getByLabel('Username')).toBeVisible();
+	await expect(page.getByText(`Signed out: ${name}`)).toHaveCount(0);
 });

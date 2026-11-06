@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -85,8 +86,8 @@
 	<div class="mt-5 flex justify-center">
 		<ServingsStepper value={servings} onchange={(next) => (servings = next)} />
 	</div>
-	<div class="mt-6 flex justify-end gap-2.5">
+	<DialogActions class="mt-6">
 		<Button variant="ghost" onclick={() => (servingsOpen = false)}>{m.common_cancel()}</Button>
 		<Button onclick={save}>{m.common_save()}</Button>
-	</div>
+	</DialogActions>
 </BaseDialog>

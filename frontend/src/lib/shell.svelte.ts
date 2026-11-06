@@ -63,6 +63,7 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/settings/sign-in': 'you',
 	'/settings/transfer': 'you',
 	'/settings/users': 'you',
+	'/settings/users/[username]': 'you',
 	'/recipes/new': null,
 	'/recipes/[slug]': null,
 	'/recipes/[slug]/edit': null,

@@ -12,6 +12,8 @@ export type UserAccount = User & {
 	hasIdentity: boolean;
 	/** Title of the recipe the person created that changed most recently; null when none. */
 	lastRecipeTitle: string | null;
+	/** When the person last signed in, used a session or an API token (RFC 3339, up to an hour late); null when never; set only by listUsers. */
+	lastActiveAt: string | null;
 };
 
 export type UserRole = User['role'];
@@ -47,6 +49,16 @@ export type PersonEntry = Pick<
 	/** Set by list-people only; absent on the admin operations' UserAccount. */
 	recipeCount?: number;
 	listCount?: number;
+	/** Up to four recipes the person created, newest created first. */
+	latestRecipes?: LatestRecipe[];
+};
+
+/** One of a person's newest recipes: enough for its thumbnail and title. */
+export type LatestRecipe = {
+	id: string;
+	slug: string;
+	title: string;
+	coverImageId: string | null;
 };
 
 /** Every account, ordered by username; readable by any signed-in account. */

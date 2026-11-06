@@ -75,7 +75,7 @@ test('no hint without a captured prompt', async ({ page, isMobile }) => {
 	test.skip(isMobile, 'desktop Chromium shows only what a captured prompt offers');
 	await login(page);
 	await page.goto('/settings');
-	await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+	await expect(page.getByRole('radiogroup', { name: 'Color scheme' })).toBeVisible();
 	await expect(page.getByRole('region', { name: 'Rezepte as an app' })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Account menu' }).click();
 	await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeVisible();
@@ -101,7 +101,7 @@ test('no hint inside the app', async ({ page }) => {
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 	await expect(banner(page)).toHaveCount(0);
 	await page.goto('/settings');
-	await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+	await expect(page.getByRole('radiogroup', { name: 'Color scheme' })).toBeVisible();
 	await expect(page.getByRole('region', { name: 'Rezepte as an app' })).toHaveCount(0);
 });
 

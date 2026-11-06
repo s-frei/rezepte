@@ -18,6 +18,7 @@
 		type RecipeCard as RecipeCardData,
 		type Tag
 	} from '#lib/api/recipes.js';
+	import { listPeople, type PersonEntry } from '#lib/api/users.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import EmptyState from '#lib/components/ui/EmptyState.svelte';
 	import InstallBanner from '#lib/components/install/InstallBanner.svelte';
@@ -25,6 +26,7 @@
 	import Select from '#lib/components/ui/Select.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import ActiveFilters from '#lib/components/recipe/ActiveFilters.svelte';
+	import AuthorBand from '#lib/components/recipe/AuthorBand.svelte';
 	import CardSizeControl from '#lib/components/recipe/CardSizeControl.svelte';
 	import FilterPanel from '#lib/components/recipe/FilterPanel.svelte';
 	import RecipeCard from '#lib/components/recipe/RecipeCard.svelte';
@@ -45,6 +47,8 @@
 	import { applyRememberedSort, readSort, writeSort } from '#lib/recipe/sort-preference.js';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { session } from '#lib/auth.svelte.js';
+	import { userLeaderClass } from '#lib/user/color.js';
 	import type { PageProps, Snapshot } from './$types';
 
 	let { data }: PageProps = $props();
@@ -100,6 +104,33 @@
 	const tagOptions = $derived(chosenFirst(allTags));
 	const rowOptions = $derived(chosenFirst(textTags ?? allTags));
 	let authors = $state<Author[]>([]);
+	let authorsLoaded = $state(false);
+	/** Everyone with an account, fetched only for an author /authors does not know. */
+	let people = $state<PersonEntry[] | null>(null);
+	// A link to someone who has not written a recipe yet (from the people
+	// list or a person page): /authors lists only those who have, so the band
+	// and the chip would fall back to the bare login name.
+	$effect(() => {
+		if (!authorsLoaded || author === '' || people !== null) return;
+		if (authors.some((entry) => entry.username === author)) return;
+		people = [];
+		listPeople()
+			.then((result) => (people = result))
+			.catch(() => {
+				// Without it the chip names the login name, as for someone who left.
+			});
+	});
+	/** Narrowed to one known person: the band in their color heads the results. */
+	const bandPerson = $derived.by((): Author | undefined => {
+		const known = authors.find((entry) => entry.username === author);
+		if (known) return known;
+		const entry = people?.find((candidate) => candidate.username === author);
+		return entry && { ...entry, count: 0 };
+	});
+	/** The authors plus the band's person when they have no recipes, for the chips. */
+	const chipAuthors = $derived(
+		bandPerson && !authors.includes(bandPerson) ? [...authors, bandPerson] : authors
+	);
 
 	let filterOpen = $state(false);
 
@@ -167,8 +198,8 @@
 		tags.length + (maxMinutes > 0 ? 1 : 0) + (favoritesOnly ? 1 : 0) + (author !== '' ? 1 : 0)
 	);
 
-	function focusFilters() {
-		document.getElementById('overview-filters')?.focus();
+	function focusFilters(options?: FocusOptions) {
+		document.getElementById('overview-filters')?.focus(options);
 	}
 
 	// What both rows of active-filter chips get, the phone's and desktop's.
@@ -176,7 +207,7 @@
 		maxMinutes,
 		favoritesOnly,
 		author,
-		authors,
+		authors: chipAuthors,
 		onopen: () => (filterOpen = true),
 		onmaxminutes: setMaxMinutes,
 		onfavorites: setFavoritesOnly,
@@ -648,7 +679,10 @@
 	onMount(() => {
 		void fetchPage(pageNum, false);
 		void listAuthors()
-			.then((result) => (authors = result))
+			.then((result) => {
+				authors = result;
+				authorsLoaded = true;
+			})
 			.catch(() => {
 				// Without it the panel simply shows no author section.
 			});
@@ -679,9 +713,12 @@
 		<span aria-hidden="true" class="font-display text-body font-medium text-primary italic">
 			{m.nav_recipes()}
 		</span>
+		<!-- The leader in the signed-in person's own tone: their app. -->
 		<span
 			aria-hidden="true"
-			class="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted border-handle"
+			class="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted {userLeaderClass(
+				session.user?.color
+			)}"
 		></span>
 		<ResultCount count={total} {filtered} />
 		<!-- On a phone the cards-per-row switch takes the date's place: a
@@ -792,9 +829,11 @@
 				leading={filterCount > tags.length ? panelFilters : undefined}
 			/>
 		</div>
-		{#if filterCount > 0 || sort !== 'updated'}
+		<!-- On a phone the author band says who, and drops them with its ×. -->
+		{#if filterCount > (bandPerson ? 1 : 0) || sort !== 'updated'}
 			<ActiveFilters
 				{...filterProps}
+				author={bandPerson ? '' : author}
 				sortLabel={sort === 'updated'
 					? ''
 					: (sortOptions.find((option) => option.value === sort)?.label ?? '')}
@@ -814,6 +853,20 @@
 	</div>
 
 	<div bind:this={results} data-arrival={arrival || undefined} class="mt-7 md:mt-9">
+		{#if bandPerson}
+			<AuthorBand
+				person={bandPerson}
+				self={bandPerson.id === session.user?.id}
+				countShown={bandPerson.count !== total}
+				onclear={() => {
+					// The × goes with the band, and the focus with it to "Filters",
+					// for a tap too: left on <body>, a screen reader's next swipe
+					// started over at the top of the page.
+					setAuthor('');
+					focusFilters({ preventScroll: true });
+				}}
+			/>
+		{/if}
 		{#if showSkeleton}
 			<RecipeGrid>
 				{#each Array.from({ length: 8 }, (_, i) => i) as i (i)}

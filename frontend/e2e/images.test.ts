@@ -833,3 +833,28 @@ test('a long press on a photo selects nothing and opens no menu', async ({ page,
 	expect(selection).toBe('');
 	expect(unprevented).toEqual([]);
 });
+
+// The phone's "..." sits over the photo. At 200% text its menu was wider than
+// the screen: the page grew under it, the fixed bar reflowed, the button moved
+// out from under the finger and the tap's click opened the photo behind it.
+test('the more-actions tap opens the menu and not the photo', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'a tap over the phone gallery');
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Menu ${token}` });
+	await uploadImage(page, recipe.id, tinyPng([200, 120, 40]));
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await expect(page.getByRole('button', { name: 'Open photo 1 of 1' })).toBeVisible();
+	await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+	const more = page.getByRole('button', { name: 'More actions' });
+	// Squeezed by the large text, the bar's buttons stay circles.
+	const box = await more.boundingBox();
+	expect(Math.abs(box!.width - box!.height)).toBeLessThan(1);
+
+	await more.tap();
+	await expect(page.getByRole('menu')).toBeVisible();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+		page.viewportSize()!.width
+	);
+});

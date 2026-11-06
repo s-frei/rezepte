@@ -4,8 +4,7 @@
 	import { flushSync } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import wordmark from '$brand/lockups/rezepte-wordmark.svg?url';
-	import Lockup from '#lib/components/brand/Lockup.svelte';
+	import BrandTab from '#lib/components/brand/BrandTab.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { invitations } from '#lib/shopping/invitations.svelte.js';
@@ -64,26 +63,10 @@
 		: 'md:flex'}"
 >
 	<div class="flex min-w-0 items-center gap-4 self-stretch">
-		<!-- A tab hanging from the window's top edge, like the book's ribbon:
-		     card stock in both themes, where the lockup's cream box was the one
-		     light block on a dark page. -->
-		<a
-			href={resolve('/')}
-			aria-label={m.app_name()}
-			class="flex shrink-0 items-center gap-2 self-start rounded-b-2xl border border-t-0 border-border bg-surface pt-3.5 pr-3 pb-2.5 pl-3 shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:pr-4.5"
-		>
-			<Lockup variant="mark" class="h-10" />
-			<!-- Quoted: Vite inlines the small SVG as a data URI, whose parentheses
-			     break a bare url(). Nudged down: the "p" descender makes the
-			     centered box read high. Below lg the mascot stands alone: with
-			     the wordmark the bar left 27px between its parts at 800px, and
-			     "Recipes" sits right beside it in the segments anyway. -->
-			<span
-				aria-hidden="true"
-				style:mask-image={`url("${wordmark}")`}
-				class="block aspect-[386.8/94.6] h-6 translate-y-0.5 bg-accent-foreground mask-contain mask-center mask-no-repeat forced-color-adjust-none max-lg:hidden"
-			></span>
-		</a>
+		<!-- Below lg the mascot stands alone: with the wordmark the bar left
+		     27px between its parts at 800px, and "Recipes" sits right beside it
+		     in the segments anyway. -->
+		<BrandTab label={m.app_name()} href={resolve('/')} wordmarkClass="max-lg:hidden" />
 		{#if breadcrumb}
 			<!-- Beside the segments it only fits from lg. -->
 			<span class="truncate text-body-sm text-text-muted {showNav ? 'max-lg:hidden' : ''}">

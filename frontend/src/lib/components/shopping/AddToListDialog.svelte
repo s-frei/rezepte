@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
@@ -304,9 +305,9 @@
 	<BaseDialog bind:open>
 		<form onsubmit={submit}>
 			{@render body()}
-			<div class="mt-6 flex justify-end gap-2.5 border-t border-border pt-4">
+			<DialogActions class="mt-6 border-t border-border pt-4">
 				{@render footer()}
-			</div>
+			</DialogActions>
 		</form>
 	</BaseDialog>
 {/if}

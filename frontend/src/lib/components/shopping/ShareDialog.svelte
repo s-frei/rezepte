@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import X from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
@@ -146,8 +147,8 @@
 {:else}
 	<BaseDialog bind:open>
 		{@render body()}
-		<div class="mt-6 flex justify-end border-t border-border pt-4">
+		<DialogActions class="mt-6 border-t border-border pt-4">
 			<Button onclick={() => (open = false)}>{m.list_share_done()}</Button>
-		</div>
+		</DialogActions>
 	</BaseDialog>
 {/if}

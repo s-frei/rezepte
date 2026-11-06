@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Languages from '@lucide/svelte/icons/languages';
 	import { toast } from 'svelte-sonner';
 	import { updateOwnProfile } from '#lib/api/auth.js';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -57,27 +56,18 @@
 </script>
 
 <!--
-	Labeled like the color picker beside it, because it is a field of the
-	profile card rather than a card of its own: a short visible caption, the
-	control's accessible name carried separately.
-
-	The trigger keeps its intrinsic width instead of filling the column. A
-	language name is one word, and a control stretched across the card would
-	promise a form field that takes typing.
+	The pill select alone: the `SettingsRow` it sits in carries the label and
+	the hint. The trigger keeps its intrinsic width instead of filling the
+	row. A language name is one word, and a control stretched across the card
+	would promise a form field that takes typing.
 -->
-<div>
-	<span class="block text-caption font-semibold">{m.settings_language_title()}</span>
-	<p class="mt-1.5 mb-3 text-micro text-text-muted">{m.settings_language_hint()}</p>
-	<Select
-		value={current}
-		{options}
-		label={m.settings_language_label()}
-		disabled={saving}
-		onchange={choose}
-		class="bg-surface"
-	>
-		{#snippet icon()}
-			<Languages class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-		{/snippet}
-	</Select>
-</div>
+<Select
+	value={current}
+	{options}
+	label={m.settings_language_label()}
+	disabled={saving}
+	onchange={choose}
+	variant="pill"
+	align="end"
+	class="h-9 bg-background"
+/>

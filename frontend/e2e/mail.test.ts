@@ -104,7 +104,10 @@ test('an invited person sets up their account from the mail', async ({
 	expect(row.emailVerified).toBe(true);
 });
 
-test('sending the link from the row returns focus to its menu', async ({ page, request }) => {
+test('sending the link from the person page returns focus to its control', async ({
+	page,
+	request
+}) => {
 	await login(page);
 	const name = `focus${uniqueToken()}`;
 	const address = `${name}@example.com`;
@@ -114,10 +117,9 @@ test('sending the link from the row returns focus to its menu', async ({ page, r
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('dialog')).toBeHidden();
 
-	const users = await (await page.request.get('/api/v1/users')).json();
-	const id = users.items.find((u: { username: string }) => u.username === name).id;
-	await page.locator(`#person-${id}-menu`).click();
-	await page.getByRole('menuitem', { name: `Setup link for ${name}`, exact: true }).click();
+	await page.goto(`/settings/users/${name}`);
+	await page.getByRole('button', { name: 'Manage the setup link' }).click();
+	await page.getByRole('menuitem', { name: 'Create a new link' }).click();
 	const step = page.getByRole('dialog', { name: new RegExp(`^Setup link for ${name}`, 'i') });
 	await step.getByLabel('Email').fill(address);
 	await step.getByRole('button', { name: 'Send link' }).click();
@@ -127,7 +129,7 @@ test('sending the link from the row returns focus to its menu', async ({ page, r
 	expect((await latestMailTo(request, address)).subject).toContain('invited you to Rezepte');
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('dialog')).toBeHidden();
-	await expect(page.locator(`#person-${id}-menu`)).toBeFocused();
+	await expect(page.getByRole('button', { name: 'Manage the setup link' })).toBeFocused();
 });
 
 test('passing the link on by hand mails nothing', async ({ page, request }) => {
@@ -144,10 +146,9 @@ test('passing the link on by hand mails nothing', async ({ page, request }) => {
 	await page.keyboard.press('Escape');
 	await expect(page.getByRole('dialog')).toBeHidden();
 
-	const users = await (await page.request.get('/api/v1/users')).json();
-	const id = users.items.find((u: { username: string }) => u.username === name).id;
-	await page.locator(`#person-${id}-menu`).click();
-	await page.getByRole('menuitem', { name: `Setup link for ${name}`, exact: true }).click();
+	await page.goto(`/settings/users/${name}`);
+	await page.getByRole('button', { name: 'Manage the setup link' }).click();
+	await page.getByRole('menuitem', { name: 'Create a new link' }).click();
 	const step = page.getByRole('dialog', { name: new RegExp(`^Setup link for ${name}`, 'i') });
 	await step.getByRole('radio', { name: 'Pass it on myself' }).click();
 	await step.getByRole('button', { name: 'Show link' }).click();
@@ -173,6 +174,15 @@ test('a failed send still shows the link', async ({ page }) => {
 	await configure(page, mailpitSmtpPort);
 });
 
+/** Saves the own address through the profile's e-mail dialog. */
+async function saveOwnAddress(page: Page, address: string) {
+	await page.getByRole('button', { name: 'Change email' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Email address' });
+	await dialog.getByLabel('Email', { exact: true }).fill(address);
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	await expect(dialog).toBeHidden();
+}
+
 /**
  * A fresh account with a password that sets its address in the profile and
  * opens the confirmation link: the page ends signed in as it.
@@ -185,10 +195,10 @@ async function confirmedAccount(page: Page, request: APIRequestContext, prefix: 
 	await login(page, name);
 	const address = `${name}@example.com`;
 	await page.goto('/settings');
-	await page.getByLabel('Email', { exact: true }).fill(address);
-	await page.getByRole('button', { name: 'Save profile' }).click();
+	await saveOwnAddress(page, address);
+	// The row's short pending line; the dialog that names the address closed on save.
 	await expect(
-		page.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
+		page.getByText('not confirmed yet, confirmation mail sent', { exact: true })
 	).toBeVisible();
 	const mail = await latestMailTo(request, address);
 	expect(mail.subject).toBe('Confirm your email address for Rezepte');
@@ -217,15 +227,18 @@ test("an admin changes a member's address and the new one gets a confirmation", 
 	await createUser(page, { username: admin, role: 'admin' });
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page, admin);
-	await page.goto('/settings/users');
-	const row = page.getByRole('listitem').filter({ hasText: member });
-	await row.getByRole('button', { name: 'Edit profile' }).click();
-	const dialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
+	await page.goto(`/settings/users/${member}`);
+	await page.getByRole('button', { name: `Change ${member}'s email` }).click();
+	const dialog = page.getByRole('dialog', { name: 'Email address' });
 	const address = `${member}@example.com`;
 	await dialog.getByLabel('Email').fill(address);
 	await expect(dialog.getByText('A confirmation mail goes to the new address.')).toBeVisible();
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(row.getByRole('button', { name: 'Address not confirmed yet' })).toBeVisible();
+	await expect(
+		page.getByRole('region', { name: member, exact: true }).getByText('not confirmed yet', {
+			exact: true
+		})
+	).toBeVisible();
 	const mail = await latestMailTo(request, address);
 	expect(mail.subject).toBe('Confirm your email address for Rezepte');
 	expect(mail.text).toContain(admin);
@@ -234,12 +247,12 @@ test("an admin changes a member's address and the new one gets a confirmation", 
 test('a changed address is confirmed from its mail', async ({ page, request }) => {
 	const { name } = await confirmedAccount(page, request, 'conf');
 	await page.goto('/settings');
-	await expect(page.getByText('Confirmed', { exact: true })).toBeVisible();
+	await expect(page.getByText('confirmed', { exact: true })).toBeVisible();
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page);
 	await page.goto('/settings/users');
 	const row = page.getByRole('listitem').filter({ hasText: name });
-	await expect(row.getByRole('button', { name: 'Address confirmed' })).toHaveCount(1);
+	await expect(row.getByText('Address confirmed', { exact: true })).toHaveCount(1);
 });
 
 test('a forgotten password is reset by username', async ({ page, request }) => {
@@ -360,19 +373,20 @@ test('sending again right after saving waits, and the first link still works', a
 	await login(page, name);
 	const address = `${name}@example.com`;
 	await page.goto('/settings');
-	await page.getByLabel('Email', { exact: true }).fill(address);
-	await page.getByRole('button', { name: 'Save profile' }).click();
+	await saveOwnAddress(page, address);
 	await expect(
-		page.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
+		page.getByText('not confirmed yet, confirmation mail sent', { exact: true })
 	).toBeVisible();
 	const mail = await latestMailTo(request, address);
-	// The save's mail started the minute.
-	await page.getByRole('button', { name: 'Send again' }).click();
+	// The save's mail started the minute. "Send again" sits in the dialog.
+	await page.getByRole('button', { name: 'Change email' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Email address' });
+	await dialog.getByRole('button', { name: 'Send again' }).click();
 	await expect(
 		page.getByText('A mail just went out. Wait a minute before sending again.')
 	).toBeVisible();
 	await expect(
-		page.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
+		dialog.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
 	).toBeVisible();
 	expect(await mailCountTo(request, address)).toBe(1);
 
@@ -382,59 +396,24 @@ test('sending again right after saving waits, and the first link still works', a
 	await other.goto(linkIn(mail.text, '/confirm-email'));
 	await expect(other.getByText('Address confirmed', { exact: true })).toBeVisible();
 	await other.close();
-	await page.getByRole('button', { name: 'Send again' }).click();
-	await expect(page.getByText('Confirmed', { exact: true })).toBeVisible();
+	await dialog.getByRole('button', { name: 'Send again' }).click();
+	await expect(dialog.getByText('Confirmed', { exact: true })).toBeVisible();
 	await expect(page.getByText('could not be sent')).toHaveCount(0);
-});
-
-// The owner's PATCH writes the address before the name, so only checking
-// every field first keeps a refused name from leaving the address behind.
-test('a refused name keeps the old address too', async ({ page, request }) => {
-	await login(page);
-	const member = `refused${uniqueToken()}`;
-	await createUser(page, { username: member, role: 'user' });
-	const address = `${member}@example.com`;
-	await page.goto('/settings/users');
-	const row = page.getByRole('listitem').filter({ hasText: member });
-	await row.getByRole('button', { name: 'Edit profile' }).click();
-	const dialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
-	await dialog.getByLabel('Display name').fill('Bad\tName');
-	await dialog.getByLabel('Email').fill(address);
-	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Profile could not be saved.')).toBeVisible();
-	await page.reload();
-	await page
-		.getByRole('listitem')
-		.filter({ hasText: member })
-		.getByRole('button', { name: 'Edit profile' })
-		.click();
-	await expect(
-		page.getByRole('dialog', { name: `Edit ${member}'s profile` }).getByLabel('Email')
-	).toHaveValue('');
-	expect(await mailCountTo(request, address)).toBe(0);
 });
 
 test('an admin cannot save an address the service refuses', async ({ page }) => {
 	await login(page);
 	const member = `badaddr${uniqueToken()}`;
 	await createUser(page, { username: member, role: 'user' });
-	await page.goto('/settings/users');
-	const row = page.getByRole('listitem').filter({ hasText: member });
-	await row.getByRole('button', { name: 'Edit profile' }).click();
-	const dialog = page.getByRole('dialog', { name: `Edit ${member}'s profile` });
+	await page.goto(`/settings/users/${member}`);
+	await page.getByRole('button', { name: `Change ${member}'s email` }).click();
+	const dialog = page.getByRole('dialog', { name: 'Email address' });
 	// The browser lets the double dot through; the service does not.
 	await dialog.getByLabel('Email').fill(`a..b@example.com`);
 	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(dialog.getByText('That is not an email address')).toBeVisible();
 	await page.reload();
-	await expect(
-		page
-			.getByRole('listitem')
-			.filter({ hasText: member })
-			.getByRole('button', {
-				name: /^Address (not )?confirmed/
-			})
-	).toHaveCount(0);
+	await expect(page.getByText('No address')).toBeVisible();
 });
 
 test('a second request within five minutes mails nothing', async ({ page, request }) => {
@@ -616,10 +595,9 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 	await login(page, name);
 	const address = `${name}@example.com`;
 	await page.goto('/settings');
-	await page.getByLabel('Email', { exact: true }).fill(address);
-	await page.getByRole('button', { name: 'Save profile' }).click();
+	await saveOwnAddress(page, address);
 	await expect(
-		page.getByText(`Not confirmed yet. Confirmation mail sent to ${address}.`)
+		page.getByText('not confirmed yet, confirmation mail sent', { exact: true })
 	).toBeVisible();
 	await page.goto('/settings/notifications');
 	const byMail = page.getByRole('region', { name: 'By mail' });

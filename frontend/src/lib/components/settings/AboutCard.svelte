@@ -14,7 +14,7 @@
 	});
 
 	const link =
-		'inline-flex h-10 items-center justify-center gap-2 rounded-pill border border-border bg-surface-elevated px-4 text-body-sm font-semibold transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+		'inline-flex min-h-10 max-w-full min-w-0 flex-auto items-center justify-center gap-2 rounded-[1.25rem] border border-border bg-surface-elevated px-4 py-2 text-center text-body-sm font-semibold wrap-break-word hyphens-auto transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
 
 <!--
@@ -33,9 +33,15 @@
 			</p>
 		{/if}
 	</div>
-	<p class="mt-1 max-w-[60ch] text-caption text-text-muted">{m.settings_about_text()}</p>
+	<p class="mt-1 max-w-[60ch] text-caption wrap-break-word hyphens-auto text-text-muted">
+		{m.settings_about_text()}
+	</p>
 	<!-- eslint-disable svelte/no-navigation-without-resolve -->
-	<div class="mt-5 flex flex-wrap gap-3">
+	<!-- The links share the line and grow to fill it; with 200% text each
+	     takes a line of its own and a long word hyphenates inside it. The
+	     radius is half the 40px height, so one line is a pill and a wrapped
+	     label a rounded box rather than a blob. -->
+	<div class="mt-5 flex flex-wrap gap-3 sm:[&>a]:flex-none">
 		<a href={SOURCE_URL} target="_blank" rel="noopener external" class={link}>
 			{m.settings_about_source()}
 			<ArrowUpRight aria-hidden="true" class="size-4 text-text-muted" />

@@ -4,7 +4,10 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
 	import { onMount } from 'svelte';
+	import { session } from '#lib/auth.svelte.js';
 	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
+	import FaceStack from '#lib/components/ui/FaceStack.svelte';
+	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
 	import ViewSwitch from '#lib/components/shopping/ViewSwitch.svelte';
 	import { servingsUnit } from '#lib/recipe/format.js';
@@ -33,6 +36,10 @@
 	const { departments, recipes, done, openRows, doneRows } = $derived(
 		listViews(list, listView.current)
 	);
+	// Everyone on the list but the viewer, whose own face stands apart.
+	const others = $derived(
+		[list.owner, ...list.members].filter((person) => person.id !== session.user?.id)
+	);
 	const progress = $derived((doneRows / Math.max(1, openRows + doneRows)) * 100);
 	let doneOpen = $state(false);
 
@@ -60,21 +67,43 @@
 <main aria-label={m.list_shop_title()} class="flex h-dvh flex-col bg-surface text-text">
 	<header class="shrink-0 pt-4">
 		<div class={column}>
-			<div class="flex items-center gap-3">
+			<!-- Three columns, the outer two equal while they fit, so the name
+			     stays centered between the close button and the faces; the button sits
+			     on the title's first line however many lines the title takes. -->
+			<div class="grid grid-cols-[1fr_minmax(0,auto)_1fr] items-start gap-3">
 				<a
 					href={listHref(list.id)}
 					aria-label={m.list_shop_close()}
-					class="relative inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover-tint text-text transition after:absolute after:-inset-[3px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					class="relative mt-[calc((1lh_-_2.5rem)/2)] inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-background hover-tint text-card text-text transition after:absolute after:-inset-[3px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					<X class="size-5" aria-hidden="true" />
 				</a>
-				<div class="min-w-0 flex-1 text-center">
-					<h1 class="truncate font-display text-card font-medium">{list.name}</h1>
+				<div class="min-w-0 text-center">
+					<h1 class="line-clamp-2 font-display text-card font-medium wrap-break-word hyphens-auto">
+						{list.name}
+					</h1>
 					<p class="text-caption font-semibold text-text-muted">
 						{m.list_counts({ open: openRows, done: doneRows })}
 					</p>
 				</div>
-				<span class="w-10 shrink-0" aria-hidden="true"></span>
+				<!-- Under whose account the ticks go: the viewer's own face at the
+				     end, ringed like the top bar's, on a shared list the others'
+				     before it. Faces only, no color on the items. -->
+				<div class="mt-[calc((1lh_-_1.75rem)/2)] flex items-center justify-end gap-2.5 text-card">
+					{#if others.length > 0}
+						<FaceStack people={others} slots={3} size="sm" ring="ring-surface" />
+						<span class="sr-only"
+							>{m.lists_card_shared_with({
+								names: others.map((p) => p.displayName).join(', ')
+							})}</span
+						>
+					{/if}
+					{#if session.user}
+						<span role="img" aria-label={m.list_shop_as({ name: session.user.displayName })}>
+							<PersonMark person={session.user} size="sm" ringed />
+						</span>
+					{/if}
+				</div>
 			</div>
 			<div class="mt-3 h-1 overflow-hidden rounded-full bg-border" aria-hidden="true">
 				<div class="h-full rounded-full bg-primary transition-all" style:width="{progress}%"></div>

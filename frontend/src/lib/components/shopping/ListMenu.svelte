@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -118,10 +119,10 @@
 			maxlength={80}
 			bind:value={draft}
 		/>
-		<div class="flex justify-end gap-2.5">
+		<DialogActions>
 			<Button variant="ghost" onclick={() => (renameOpen = false)}>{m.common_cancel()}</Button>
 			<Button type="submit" busy={saving} disabled={!draft.trim()}>{m.common_save()}</Button>
-		</div>
+		</DialogActions>
 	</form>
 </BaseDialog>
 
