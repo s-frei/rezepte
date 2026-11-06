@@ -6,7 +6,6 @@ import {
 	loadFixture,
 	login,
 	longPress,
-	setRecipesLockedByDefault,
 	signOut,
 	tinyPng,
 	uniqueToken
@@ -831,108 +830,108 @@ test('an edit cannot be cancelled while it saves', async ({ page }) => {
 	expect(patches).toBe(1);
 });
 
-test('the author adds a comment photo to the recipe photos', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'the household lock is instance-wide');
+test('the author adds a comment photo to the recipe photos', async ({ page, browser }) => {
+	const token = uniqueToken();
+	const ben = `ben${token}`.slice(0, 20);
+	await login(page);
+	await expect(page).toHaveURL('/');
+	await createUser(page, { username: ben, role: 'user' });
+	// Open on purpose: editing-rights.test.ts locks the household for a
+	// while, and on Default the member below could then add no photo.
+	const recipe = await createRecipe(page, {
+		...loadFixture(1),
+		title: `Gallery ${token}`,
+		editPolicy: 'open'
+	});
+	const recipeImages = async () =>
+		(
+			(await (await page.request.get(`/api/v1/recipes/${recipe.id}`)).json()) as {
+				images: unknown[];
+			}
+		).images.length;
+	expect(await recipeImages()).toBe(0);
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	await diaryTab(page).click();
+	await diary(page)
+		.getByLabel('Add photos')
+		.setInputFiles(png('one.png', [200, 120, 40]));
+	await diary(page).getByPlaceholder('Something about your photo?').fill('Look at this');
+	await diary(page).getByRole('button', { name: 'Send' }).click();
+	await diary(page).getByRole('button', { name: 'Open photo 1 of 1' }).click();
+
+	const dialog = page.getByRole('dialog');
+	// Only the recipe reloads: the cover shows, the comments stay as they were.
+	let listed = 0;
+	page.on('request', (r) => {
+		if (r.url().includes('/comments?recipeId=')) listed++;
+	});
+	await dialog.getByRole('button', { name: 'Add to recipe photos' }).click();
+	await expect(page.getByText('Added to the recipe photos')).toBeVisible();
+	const done = dialog.getByRole('button', { name: 'In the recipe photos' });
+	await expect(done).toBeDisabled();
+	// The disabled button dropped the focus; Close took it.
+	await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
+	expect(await recipeImages()).toBe(1);
+	await page.keyboard.press('Escape');
+	await expect(page.getByRole('img', { name: `Cover photo of Gallery ${token}` })).toBeVisible();
+	expect(listed).toBe(0);
+
+	// A member who marked the recipe tasty adds a photo too: the reload of the
+	// photos keeps their circle.
+	const benContext = await browser.newContext();
 	try {
-		const token = uniqueToken();
-		const ben = `ben${token}`.slice(0, 20);
-		await login(page);
-		await expect(page).toHaveURL('/');
-		await createUser(page, { username: ben, role: 'user' });
-		const recipe = await createRecipe(page, { ...loadFixture(1), title: `Gallery ${token}` });
-		const recipeImages = async () =>
-			(
-				(await (await page.request.get(`/api/v1/recipes/${recipe.id}`)).json()) as {
-					images: unknown[];
-				}
-			).images.length;
-		expect(await recipeImages()).toBe(0);
-
-		await page.goto(`/recipes/${recipe.slug}`);
-		await diaryTab(page).click();
-		await diary(page)
-			.getByLabel('Add photos')
-			.setInputFiles(png('one.png', [200, 120, 40]));
-		await diary(page).getByPlaceholder('Something about your photo?').fill('Look at this');
-		await diary(page).getByRole('button', { name: 'Send' }).click();
-		await diary(page).getByRole('button', { name: 'Open photo 1 of 1' }).click();
-
-		const dialog = page.getByRole('dialog');
-		// Only the recipe reloads: the cover shows, the comments stay as they were.
-		let listed = 0;
-		page.on('request', (r) => {
-			if (r.url().includes('/comments?recipeId=')) listed++;
-		});
-		await dialog.getByRole('button', { name: 'Add to recipe photos' }).click();
-		await expect(page.getByText('Added to the recipe photos')).toBeVisible();
-		const done = dialog.getByRole('button', { name: 'In the recipe photos' });
-		await expect(done).toBeDisabled();
-		// The disabled button dropped the focus; Close took it.
-		await expect(dialog.getByRole('button', { name: 'Close' })).toBeFocused();
-		expect(await recipeImages()).toBe(1);
-		await page.keyboard.press('Escape');
-		await expect(page.getByRole('img', { name: `Cover photo of Gallery ${token}` })).toBeVisible();
-		expect(listed).toBe(0);
-
-		// A member who marked the recipe tasty adds a photo too: the reload of the
-		// photos keeps their circle.
-		const benContext = await browser.newContext();
-		try {
-			const benPage = await benContext.newPage();
-			await login(benPage, ben);
-			await expect(benPage).toHaveURL('/');
-			await addDiaryPhoto(benPage, recipe.id, 'Mine too', tinyPng([40, 120, 200]));
-			await benPage.goto(`/recipes/${recipe.slug}`);
-			await benPage.getByRole('button', { name: 'Tasty', exact: true, pressed: false }).click();
-			const circle = benPage.getByRole('button', { name: `Tasty for: ${ben}` });
-			await expect(circle).toBeVisible();
-			await benPage.getByRole('tab', { name: /^Comments/ }).click();
-			await diary(benPage)
-				.getByRole('listitem')
-				.filter({ hasText: 'Mine too' })
-				.getByRole('button', { name: 'Open photo 1 of 1' })
-				.click();
-			await benPage
-				.getByRole('dialog')
-				.getByRole('button', { name: 'Add to recipe photos' })
-				.click();
-			await expect(
-				benPage.getByRole('dialog').getByRole('button', { name: 'In the recipe photos' })
-			).toBeVisible();
-			await benPage.keyboard.press('Escape');
-			await expect(circle).toBeVisible();
-			await expect(
-				benPage.getByRole('button', { name: 'Tasty', exact: true, pressed: true })
-			).toBeVisible();
-		} finally {
-			await benContext.close();
-		}
-
-		// A member on a locked recipe may look, not add.
-		await setRecipesLockedByDefault(page, true);
-		const locked = await createRecipe(page, { ...loadFixture(1), title: `Locked ${token}` });
-		await addDiaryPhoto(page, locked.id, 'Nice', tinyPng());
-		const memberContext = await browser.newContext();
-		try {
-			const member = await memberContext.newPage();
-			await login(member, ben);
-			await expect(member).toHaveURL('/');
-			await member.goto(`/recipes/${locked.slug}`);
-			await member.getByRole('tab', { name: /^Comments/ }).click();
-			await expect(diary(member).getByText('Nice')).toBeVisible();
-			await diary(member).getByRole('button', { name: 'Open photo 1 of 1' }).click();
-			await expect(member.getByRole('dialog')).toBeVisible();
-			await expect(
-				member.getByRole('dialog').getByRole('button', { name: 'Add to recipe photos' })
-			).toHaveCount(0);
-		} finally {
-			await memberContext.close();
-		}
+		const benPage = await benContext.newPage();
+		await login(benPage, ben);
+		await expect(benPage).toHaveURL('/');
+		await addDiaryPhoto(benPage, recipe.id, 'Mine too', tinyPng([40, 120, 200]));
+		await benPage.goto(`/recipes/${recipe.slug}`);
+		await benPage.getByRole('button', { name: 'Tasty', exact: true, pressed: false }).click();
+		const circle = benPage.getByRole('button', { name: `Tasty for: ${ben}` });
+		await expect(circle).toBeVisible();
+		await benPage.getByRole('tab', { name: /^Comments/ }).click();
+		await diary(benPage)
+			.getByRole('listitem')
+			.filter({ hasText: 'Mine too' })
+			.getByRole('button', { name: 'Open photo 1 of 1' })
+			.click();
+		await benPage.getByRole('dialog').getByRole('button', { name: 'Add to recipe photos' }).click();
+		await expect(
+			benPage.getByRole('dialog').getByRole('button', { name: 'In the recipe photos' })
+		).toBeVisible();
+		await benPage.keyboard.press('Escape');
+		await expect(circle).toBeVisible();
+		await expect(
+			benPage.getByRole('button', { name: 'Tasty', exact: true, pressed: true })
+		).toBeVisible();
 	} finally {
-		await setRecipesLockedByDefault(page, false);
+		await benContext.close();
+	}
+
+	// A member on a locked recipe may look, not add. Locked on its own, not
+	// through the household default: that switch is the instance's, and
+	// flipping it here would trip editing-rights.test.ts running beside.
+	const locked = await createRecipe(page, {
+		...loadFixture(1),
+		title: `Locked ${token}`,
+		editPolicy: 'locked'
+	});
+	await addDiaryPhoto(page, locked.id, 'Nice', tinyPng());
+	const memberContext = await browser.newContext();
+	try {
+		const member = await memberContext.newPage();
+		await login(member, ben);
+		await expect(member).toHaveURL('/');
+		await member.goto(`/recipes/${locked.slug}`);
+		await member.getByRole('tab', { name: /^Comments/ }).click();
+		await expect(diary(member).getByText('Nice')).toBeVisible();
+		await diary(member).getByRole('button', { name: 'Open photo 1 of 1' }).click();
+		await expect(member.getByRole('dialog')).toBeVisible();
+		await expect(
+			member.getByRole('dialog').getByRole('button', { name: 'Add to recipe photos' })
+		).toHaveCount(0);
+	} finally {
+		await memberContext.close();
 	}
 });
 

@@ -128,7 +128,11 @@ test('a shopping list fills from a recipe and by hand', async ({ page }) => {
 	const card = page.getByRole('link', { name: new RegExp(`Woche ${token}`) });
 	const counts = (await card.getByText(/^\d+ open · \d+ done$/).textContent())!.trim();
 	await card.click();
-	await expect(page.getByText(counts, { exact: true })).toBeVisible();
+	// Wait for the list first, or the card still on screen answers for it.
+	// The page says its counts three ways (the phone's Shop button, that
+	// button's description, the desktop list card), all from the same rows.
+	await expect(page.getByRole('heading', { level: 1, name: `Woche ${token}` })).toBeVisible();
+	await expect(page.locator('#list-shop-counts')).toHaveText(counts);
 });
 
 /** A second browser, signed in as `name`. */
