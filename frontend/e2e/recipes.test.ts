@@ -2297,15 +2297,18 @@ function expectNoOverlap(boxes: Box[]) {
 }
 
 /** Waits until two reads of the layout agree: the masonry places a resize on the next frame. */
-async function settledBoxes(page: Page): Promise<Box[]> {
+async function settledBoxes(page: Page, timeout?: number): Promise<Box[]> {
 	let last = '';
 	await expect
-		.poll(async () => {
-			const now = JSON.stringify(await cardBoxes(page));
-			const same = now === last;
-			last = now;
-			return same;
-		})
+		.poll(
+			async () => {
+				const now = JSON.stringify(await cardBoxes(page));
+				const same = now === last;
+				last = now;
+				return same;
+			},
+			{ timeout }
+		)
 		.toBe(true);
 	return JSON.parse(last) as Box[];
 }
@@ -2427,9 +2430,13 @@ test('cards never overlap in a list taller than 10 000px', async ({ page }) => {
 		}
 	);
 
+	// 300 cards keep a phone WebKit busy for seconds on CI's four shared
+	// cores: with the 5s default the locator got two answers before it gave
+	// up. The test is about where the cards land, not how fast.
+	test.setTimeout(60_000);
 	await page.goto(`/?q=${token}`);
-	await expect(page.getByRole('main').locator('article')).toHaveCount(300);
-	const boxes = await settledBoxes(page);
+	await expect(page.getByRole('main').locator('article')).toHaveCount(300, { timeout: 20_000 });
+	const boxes = await settledBoxes(page, 20_000);
 	expect(Math.max(...boxes.map((box) => box.y + box.height))).toBeGreaterThan(10_000);
 	expectNoOverlap(boxes);
 });

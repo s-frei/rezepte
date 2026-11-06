@@ -122,6 +122,7 @@ export async function login(page: Page, username = 'admin', password = devPasswo
  * with a real button on phones, since the top bar is `md:` only - so the walk
  * depends on the project the test runs in. `locale` is the language the
  * signed-in account reads, for the one spec that signs a German account out.
+ * Returns once the app has reached /login, so the session is gone by then.
  */
 export async function signOut(
 	page: Page,
@@ -146,10 +147,14 @@ export async function signOut(
 		const nav = page.getByRole('navigation', { name: labels.nav });
 		await nav.getByRole('button', { name: labels.you, exact: true }).click();
 		await page.getByRole('dialog').getByRole('button', { name: labels.signOut }).click();
-		return;
+	} else {
+		await page.getByRole('button', { name: labels.accountMenu }).click();
+		await page.getByRole('menuitem', { name: labels.signOut }).click();
 	}
-	await page.getByRole('button', { name: labels.accountMenu }).click();
-	await page.getByRole('menuitem', { name: labels.signOut }).click();
+	// The app opens /login once the logout request has come back. Returning
+	// on the click left that request out while the next `login` began, and a
+	// test found itself on /login right after signing in.
+	await page.waitForURL((url) => url.pathname === '/login');
 }
 
 /**

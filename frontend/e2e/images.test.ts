@@ -469,8 +469,11 @@ test('a photo held at the window’s bottom edge scrolls the page and lands furt
 				.bottom < innerHeight
 	);
 	await page.waitForTimeout(150);
-	const moved = page.locator('#editor-section-images li[data-lifted]');
-	await to({ x: a.x, y: (await moved.evaluate((el) => el.getBoundingClientRect().top)) + 1 });
+	// Let go over the slot's middle, not its top edge: in the 300px window the
+	// slot's top sits within the 64px at the top that scroll the page up, so a
+	// release a few frames late - a busy runner's - had already scrolled it
+	// back a place.
+	await to(await center(page.locator('#editor-section-images li[data-lifted]')));
 	if (cdp) {
 		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 		await cdp.detach();

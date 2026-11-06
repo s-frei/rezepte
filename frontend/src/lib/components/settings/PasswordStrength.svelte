@@ -67,9 +67,12 @@
 				></span>
 			{/each}
 		</div>
+		<!-- min-h-lh holds the label's line from the first character: the label
+		     lands a pause after typing, and an empty line growing then pushed
+		     the save button out from under a click on its way. -->
 		<p
 			aria-live="polite"
-			class="text-micro {strength !== null && strength <= 1
+			class="min-h-lh text-micro {strength !== null && strength <= 1
 				? 'font-medium text-destructive'
 				: 'text-text-muted'}"
 		>
