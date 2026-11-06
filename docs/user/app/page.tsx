@@ -2,6 +2,7 @@ import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fragment, type CSSProperties } from 'react';
+import { CopyCommand } from '@/components/copy-command';
 import { baseOptions } from '@/lib/layout.shared';
 import { OG_SHARED, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from '@/lib/shared';
 
@@ -210,14 +211,17 @@ export default function Home() {
 							<div className="flex flex-wrap items-center gap-x-6 gap-y-5">
 								{/* Whole words only: where it has to wrap, it wraps at a space, never inside the image name, which
 								    is why the type shrinks on the narrowest phones rather than letting the name break. */}
-								<code className="min-w-0 flex-1 basis-[32rem] rounded-md border border-fd-border bg-fd-background px-3.5 py-3 font-mono text-[13px] leading-relaxed max-[359px]:text-[11px]">
-									{DEMO_COMMAND.split(' ').map((word, i) => (
-										<Fragment key={i}>
-											{i > 0 && ' '}
-											<span className="whitespace-nowrap">{word}</span>
-										</Fragment>
-									))}
-								</code>
+								<div className="flex min-w-0 flex-1 basis-[32rem] items-center gap-2 rounded-md border border-fd-border bg-fd-background py-1.5 ps-3.5 pe-1.5">
+									<code className="min-w-0 flex-1 py-1.5 font-mono text-[13px] leading-relaxed max-[359px]:text-[11px]">
+										{DEMO_COMMAND.split(' ').map((word, i) => (
+											<Fragment key={i}>
+												{i > 0 && ' '}
+												<span className="whitespace-nowrap">{word}</span>
+											</Fragment>
+										))}
+									</code>
+									<CopyCommand command={DEMO_COMMAND} />
+								</div>
 								<Link href="/getting-started/docker" className="rounded-full bg-fd-primary px-5 py-3 font-bold text-fd-primary-foreground">
 									Install guide →
 								</Link>
