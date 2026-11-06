@@ -25,32 +25,33 @@ Your family's and friends' recipes in one place, on your own server, without a c
 
 </div>
 
-*Rezepte* is German for "recipes". You run it once, invite your household and your friends with a link or by mail, and everyone writes down what they cook: ingredient groups, steps, photos, where the recipe comes from. Then you find it again by title, ingredient or tag, and cook from your phone at the stove. The interface is modern and made for the phone first: light and dark, a bottom bar under your thumb, <kbd>⌘</kbd><kbd>K</kbd> to jump anywhere, and an [app to install](https://getrezepte.app/guide/install-app/) on your home screen.
+*Rezepte* is German for "recipes". You run it once, invite your household and your friends with a link or by mail, and everyone writes down what they cook: ingredient groups, steps, photos, where the recipe comes from. Then you find it again by title, ingredient or tag, put its ingredients on a shopping list, and cook from your phone at the stove. The interface is modern and made for the phone first: light and dark, a bottom bar under your thumb, <kbd>⌘</kbd><kbd>K</kbd> to jump anywhere, and an [app to install](https://getrezepte.app/guide/install-app/) on your home screen.
 
 It runs as **one binary** with the web app built in, an SQLite database and your photos in a single data directory: no Node runtime, no database server, no external services.
 
 ## Try it
 
-Demo mode fills an empty instance with twelve sample recipes, most of them with AI-generated photos, so you can click through the real app without setting anything up:
+Demo mode fills an empty instance with twelve sample recipes, most of them with AI-generated photos, and a small household with comments and shared shopping lists, so you can click through the real app without setting anything up:
 
 ```bash
 docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
 ```
 
-Open <http://localhost:8060> and log in as **`demo`** / **`demo1234`**.
+Open <http://localhost:8060> and log in as **`demo`** / **`demo1234`**. The log prints the other logins too: sign in as **`mila`** / **`mila1234`** in a private window and tick an item on "Weekly shop", which you share with her, to see it change on both screens.
 
 > [!NOTE]
 > Nothing is kept: there is no volume, and `--rm` removes the container when it stops. To keep what you write, [run your own instance](#run-your-own-instance).
 
 ## Features
 
-- 🍳 **Cooking:** a full-screen [cook mode](https://getrezepte.app/guide/cook-mode/) for the phone at the stove, steps that show the amounts they use, [times in a step](https://getrezepte.app/guide/recipes/#mark-times-in-a-step) that start [a timer](https://getrezepte.app/guide/cook-mode/#run-timers) with a tap and ring until you turn it off, with a notification when the phone is locked, quantities [scaled to your servings](https://getrezepte.app/guide/servings/), and [a shopping list to copy](https://getrezepte.app/guide/servings/#copy-a-shopping-list) with everything you have not ticked off.
+- 🍳 **Cooking:** a full-screen [cook mode](https://getrezepte.app/guide/cook-mode/) for the phone at the stove, steps that show the amounts they use, [times in a step](https://getrezepte.app/guide/recipes/#mark-times-in-a-step) that start [a timer](https://getrezepte.app/guide/cook-mode/#run-timers) with a tap and ring until you turn it off, with a notification when the phone is locked, quantities [scaled to your servings](https://getrezepte.app/guide/servings/), and what you have not ticked off [copied as a list](https://getrezepte.app/guide/servings/#copy-a-shopping-list) for another app.
+- 🛒 **Shopping lists:** [lists](https://getrezepte.app/guide/shopping-lists/) filled from recipes at the servings you choose and by hand, sorted by store department, with the same ingredient from several recipes added up into one row. [Share a list](https://getrezepte.app/guide/shopping-lists/#share-a-list) with anyone on your instance and every open screen [follows along live](https://getrezepte.app/guide/shopping-lists/#live); in the store, [shopping mode](https://getrezepte.app/guide/shopping-lists/#shopping-mode) keeps the screen on and ticks a row with one tap.
 - 📱 **An app on your phone:** [install Rezepte](https://getrezepte.app/guide/install-app/) on the home screen or the desktop, no app store needed. It opens in its own window with [shortcuts](https://getrezepte.app/guide/install-app/#shortcuts) to the import, a new recipe and your favorites, and tells you when a timer is done, even with the phone locked. On Android, Windows and ChromeOS it joins the [share menu](https://getrezepte.app/guide/install-app/#share-to-rezepte): share a recipe link from another app or a chat, and it lands straight in the import.
-- 📖 **Collection:** [recipes](https://getrezepte.app/guide/recipes/) with ingredient groups, notes, times and their source (a book, a website or a person), [several photos each](https://getrezepte.app/guide/images/), [tags and search](https://getrezepte.app/guide/tags-and-search/) by ingredient, time or author, private favorites, [tasty marks](https://getrezepte.app/guide/recipes/#tasty) that show who liked what, and [comments](https://getrezepte.app/guide/comments/) with photos for what you learned cooking it.
+- 📖 **Collection:** [recipes](https://getrezepte.app/guide/recipes/) with ingredient groups, notes, times and their source (a book, a website or a person), [several photos each](https://getrezepte.app/guide/images/) in the order you drag them into, the first one the cover, [tags and search](https://getrezepte.app/guide/tags-and-search/) by ingredient, time or author, private favorites, [tasty marks](https://getrezepte.app/guide/recipes/#tasty) that show who liked what, and [comments](https://getrezepte.app/guide/comments/) with photos for what you learned cooking it.
 - 🔔 **Notifications:** [by mail, as a push, or both](https://getrezepte.app/guide/notifications/) when someone comments on a recipe you follow, finds yours tasty or accepts your invitation, and once a day about the recipes the others added. Every member [chooses what comes](https://getrezepte.app/guide/notifications/#choose-what-comes) on which channel, every notification mail has a one-click unsubscribe, and the owner gets a push when mail stops getting out.
-- 👥 **People:** [accounts and roles](https://getrezepte.app/guide/users/) with a one-time setup link, [sent by mail](https://getrezepte.app/guide/mail/) if you connect a mail server, and [Forgot password?](https://getrezepte.app/getting-started/first-login/#forgot-your-password) on the login page, [profile photos](https://getrezepte.app/guide/settings/#profile), [sign-in with Google or your own OIDC provider](https://getrezepte.app/operations/single-sign-on/) set up right in the app, and [sharing](https://getrezepte.app/guide/sharing/) as a household link, a public link that expires, or [an image for any messenger](https://getrezepte.app/guide/sharing/#pass-on-as-an-image).
+- 👥 **People:** [accounts and roles](https://getrezepte.app/guide/users/) with a one-time setup link, [sent by mail](https://getrezepte.app/guide/mail/) if you connect a mail server, and [Forgot password?](https://getrezepte.app/getting-started/first-login/#forgot-your-password) on the login page, everyone on a card with their newest recipes, a [profile](https://getrezepte.app/guide/settings/#profile) with your photo and a color that marks you across the app, [sign-in with Google or your own OIDC provider](https://getrezepte.app/operations/single-sign-on/) set up right in the app, and [sharing](https://getrezepte.app/guide/sharing/) as a household link, a public link that expires, or [an image for any messenger](https://getrezepte.app/guide/sharing/#pass-on-as-an-image).
 - 📥 **Import:** [paste a link or the recipe text](https://getrezepte.app/guide/importing/), or share a link into the installed app, and get a draft to check, with ingredients split into amounts, units and names, the photo and the source; anything Rezepte was unsure about is marked for you.
-- 🔌 **Your data:** [zip export and import](https://getrezepte.app/guide/import-export/) between instances, an [HTTP API](https://getrezepte.app/api/) with scoped [tokens](https://getrezepte.app/api/tokens/) and an OpenAPI reference, and an [MCP server](https://getrezepte.app/api/mcp/) for AI assistants.
+- 🔌 **Your data:** [zip export and import](https://getrezepte.app/guide/import-export/) between instances, an [HTTP API](https://getrezepte.app/api/) with an OpenAPI reference and [tokens](https://getrezepte.app/api/tokens/) that get their own level for recipes, accounts and shopping lists, and an [MCP server](https://getrezepte.app/api/mcp/) through which AI assistants read and edit your recipes and fill your shopping lists.
 
 English and German are built in, and every member picks their own. Missing your language? [Adding one](https://getrezepte.app/contributing/add-a-language/) takes four files and no programming.
 
@@ -59,15 +60,17 @@ English and German are built in, and every member picks their own. Missing your 
 
 <br>
 
-Connect Claude Code, Cursor, VS Code or any MCP client that sends a token header. The assistant gets fifteen tools, each limited by what the token allows:
+Connect Claude Code, Cursor, VS Code or any MCP client that sends a token header. The assistant gets twenty-two tools, each limited by what the token allows:
 
 | Token level | Tools |
 | --- | --- |
-| **Read** | search recipes, read a recipe and its comments, list the tags in use, look at a recipe's photos |
-| **Write** | create a recipe, edit a recipe, add photos from a link or from your computer, write a comment, star or unstar it, mark it tasty or take the mark back |
-| **Delete** | delete a recipe with its photos |
+| **Recipes: Read** | search recipes, read a recipe and its comments, list the tags in use, look at a recipe's photos |
+| **Recipes: Write** | create a recipe, edit a recipe, add photos from a link or from your computer, write a comment, star or unstar it, mark it tasty or take the mark back |
+| **Recipes: Delete** | delete a recipe with its photos |
+| **Shopping lists: Read** | list your shopping lists and read one |
+| **Shopping lists: Write** | create a list, put a recipe on it at the servings you name, add items, tick items off or remove them |
 
-Nothing touches accounts or passwords. Clients that only connect through OAuth, such as claude.ai's custom connectors, are not supported. → [Connect an AI assistant](https://getrezepte.app/api/mcp/)
+Nothing touches accounts or passwords, and sharing, renaming or deleting a list stays in the app. Clients that only connect through OAuth, such as claude.ai's custom connectors, are not supported. → [Connect an AI assistant](https://getrezepte.app/api/mcp/)
 
 </details>
 
@@ -81,7 +84,7 @@ They are mature apps, and Rezepte is younger and smaller. Here is what it does w
 - **Invitation only.** Nobody can register on their own, and nobody gets an account just by having one at your sign-in provider.
 - **Little to run.** No database server or runtime to look after, and an Apache 2.0 license.
 
-What it does not do yet: import from other apps, plan meals, add up a shopping list across recipes, convert units, or show nutrition. If you need those today, Mealie and Tandoor do them well.
+What it does not do yet: import from other apps, plan meals, convert units, or show nutrition. If you need those today, Mealie and Tandoor do them well.
 
 > [!TIP]
 > None of these are ruled out. The [roadmap](https://getrezepte.app/roadmap/) lists what is being considered, and I am open to anything that helps people cook. If you are missing something, [share the idea in Discussions](https://github.com/s-frei/rezepte/discussions/categories/ideas) and tell me what you need.
@@ -123,9 +126,9 @@ Open <http://localhost:8060> and log in as **`admin`** with the password you set
 > [!IMPORTANT]
 > `REZEPTE_ADMIN_PASSWORD` is read only on the very first start, to create the owner. Afterwards, change the password inside the app; the variable is read again only by `--reset-superadmin-password`.
 
-Before you invite anyone, put Rezepte behind a [reverse proxy with HTTPS](https://getrezepte.app/operations/reverse-proxy/): browsers keep the installable app, push notifications and timer alarms for a locked phone to secure addresses.
+Before you invite anyone, put Rezepte behind a [reverse proxy with HTTPS](https://getrezepte.app/operations/reverse-proxy/): browsers keep the installable app, push notifications, timer alarms for a locked phone and a screen that stays on in cook and shopping mode to secure addresses.
 
-`latest` is the newest stable release. Every version is on the [releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte). [Getting started](https://getrezepte.app/getting-started/) covers plain `docker run`, the binary with systemd, and every setting.
+`latest` is the newest stable release. Every version is on the [releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte); images and binaries both carry an SPDX SBOM for your vulnerability scanner. [Getting started](https://getrezepte.app/getting-started/) covers plain `docker run`, the binary with systemd, and every setting.
 
 ## Documentation
 
