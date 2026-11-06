@@ -10,6 +10,7 @@ Workflows live in `.github/workflows/` and are English like the rest of the repo
   - Every step carries a `name` in double quotes, written before `uses` or `run`.
   - Actions are pinned to a major tag (`@v7`), never to a branch, a patch tag or `@main`.
   - Tools come from `jdx/mise-action` and run as `mise run <task>`; no workflow installs a language itself.
+  - Every job that runs on a runner carries `timeout-minutes`, about three times its slowest normal run.
 
 </Callout>
 
@@ -33,6 +34,10 @@ A blank line separates steps, and indentation is two spaces per `.editorconfig`.
 A major tag is the pin. It keeps security and bug fixes arriving without a commit here, while the interface stays put - which a patch tag gives up and a branch never offers at all.
 
 Raising a major is therefore a deliberate change, and the inputs have to be read against the new version's `action.yml` before it lands: a major release is exactly where an input is renamed or dropped, and a removed input fails at run time rather than at parse time.
+
+## Timeouts
+
+GitHub's default job timeout is six hours, and a job that hangs - an apt mirror that stops answering while Playwright installs its system packages is the usual way - holds a release for all of it. Each job therefore states its own limit, about three times its slowest normal run, so a slow day still passes and a hang fails within half an hour and can be re-run with `gh run rerun --failed`. A job that calls a reusable workflow (`uses:`) cannot take `timeout-minutes`; the called workflow's jobs carry theirs. The `release` job's 30 includes the up to 20 minutes `release:publish` waits for the changelog page to go live. When a job's normal run grows - a new e2e spec, a new platform - its limit grows with it.
 
 ## Tools
 

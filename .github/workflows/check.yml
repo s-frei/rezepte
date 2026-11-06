@@ -12,6 +12,7 @@ jobs:
   # without touching this file.
   plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       gates: ${{ steps.gates.outputs.gates }}
     steps:
@@ -39,6 +40,7 @@ jobs:
     name: ${{ matrix.task }}
     needs: plan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +73,7 @@ jobs:
 
   generated:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: "Check out the repository"
         uses: actions/checkout@v7
@@ -102,6 +105,7 @@ jobs:
   e2e:
     name: e2e (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
