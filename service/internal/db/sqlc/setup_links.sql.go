@@ -83,6 +83,48 @@ func (q *Queries) GetOpenSetupLink(ctx context.Context, arg GetOpenSetupLinkPara
 	return i, err
 }
 
+const listMailedSetupLinks = `-- name: ListMailedSetupLinks :many
+SELECT user_id, sent_to, created_at, expires_at FROM setup_links
+WHERE purpose = 'setup' AND sent_to != '' AND expires_at > ?
+`
+
+type ListMailedSetupLinksRow struct {
+	UserID    string
+	SentTo    string
+	CreatedAt string
+	ExpiresAt string
+}
+
+// Open setup links that were mailed somewhere: redeeming one confirms the
+// address it went to, so the email row shows it instead of a confirmation.
+func (q *Queries) ListMailedSetupLinks(ctx context.Context, expiresAt string) ([]ListMailedSetupLinksRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMailedSetupLinks, expiresAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMailedSetupLinksRow{}
+	for rows.Next() {
+		var i ListMailedSetupLinksRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.SentTo,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSetupLinks = `-- name: ListOpenSetupLinks :many
 SELECT user_id, expires_at FROM setup_links WHERE purpose = 'setup' AND expires_at > ?
 `

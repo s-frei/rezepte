@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -79,7 +80,9 @@ func TestConfirmRefusesUnknownExpiredAndReplaced(t *testing.T) {
 	}
 }
 
-func TestDeleteExpiredSweepsConfirmations(t *testing.T) {
+// One row per account is kept past its expiry, so the email row can say the
+// link ran out; Confirm still refuses it.
+func TestDeleteExpiredKeepsConfirmations(t *testing.T) {
 	ctx := context.Background()
 	f := newSetupFixture(t)
 	withEmail(t, f, f.member, "anna@example.org")
@@ -90,9 +93,143 @@ func TestDeleteExpiredSweepsConfirmations(t *testing.T) {
 	if err := f.sessions.DeleteExpired(ctx); err != nil {
 		t.Fatal(err)
 	}
-	f.sessions.SetClock(func() time.Time { return now })
+	if st := mailStatus(t, f); st.Confirmation == nil {
+		t.Fatal("expired confirmation was swept")
+	}
 	if _, err := f.sessions.Confirm(ctx, token); !errors.Is(err, auth.ErrNoConfirmation) {
-		t.Fatalf("swept confirmation still works: %v", err)
+		t.Fatalf("expired confirmation still works: %v", err)
+	}
+}
+
+func mailStatus(t *testing.T, f setupFixture) auth.MailStatus {
+	t.Helper()
+	u, err := f.users.ByID(context.Background(), f.member.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := f.sessions.MailStatus(context.Background(), u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st
+}
+
+func TestMailStatusOpenConfirmation(t *testing.T) {
+	f := newSetupFixture(t)
+	now := time.Date(2026, 11, 8, 14, 3, 0, 0, time.UTC)
+	f.sessions.SetClock(func() time.Time { return now })
+	withEmail(t, f, f.member, "anna@example.org")
+	if _, err := f.sessions.IssueConfirmation(context.Background(), f.member.ID, "anna@example.org"); err != nil {
+		t.Fatal(err)
+	}
+	st := mailStatus(t, f)
+	if st.Confirmation == nil || !st.Confirmation.SentAt.Equal(now) || !st.Confirmation.ExpiresAt.Equal(now.Add(auth.ConfirmationTTL)) {
+		t.Fatalf("confirmation = %+v", st.Confirmation)
+	}
+	if st.SetupLink != nil {
+		t.Fatalf("setup link = %+v", st.SetupLink)
+	}
+}
+
+func TestMailStatusExpiredConfirmation(t *testing.T) {
+	f := newSetupFixture(t)
+	now := time.Date(2026, 11, 8, 14, 3, 0, 0, time.UTC)
+	f.sessions.SetClock(func() time.Time { return now })
+	withEmail(t, f, f.member, "anna@example.org")
+	_, _ = f.sessions.IssueConfirmation(context.Background(), f.member.ID, "anna@example.org")
+	f.sessions.SetClock(func() time.Time { return now.Add(auth.ConfirmationTTL + time.Hour) })
+	st := mailStatus(t, f)
+	if st.Confirmation == nil || !st.Confirmation.ExpiresAt.Before(now.Add(auth.ConfirmationTTL+time.Hour)) {
+		t.Fatalf("confirmation = %+v", st.Confirmation)
+	}
+}
+
+func TestMailStatusVerifiedIsEmpty(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	withEmail(t, f, f.member, "anna@example.org")
+	token, _ := f.sessions.IssueConfirmation(ctx, f.member.ID, "anna@example.org")
+	if _, err := f.sessions.Confirm(ctx, token); err != nil {
+		t.Fatal(err)
+	}
+	if st := mailStatus(t, f); st.Confirmation != nil || st.SetupLink != nil {
+		t.Fatalf("status = %+v", st)
+	}
+}
+
+func TestMailStatusAfterSwallowedSave(t *testing.T) {
+	f := newSetupFixture(t)
+	withEmail(t, f, f.member, "anna@example.org")
+	_, _ = f.sessions.IssueConfirmation(context.Background(), f.member.ID, "anna@example.org")
+	withEmail(t, f, f.member, "anna@other.org")
+	if st := mailStatus(t, f); st.Confirmation != nil {
+		t.Fatalf("confirmation for the old address shown: %+v", st.Confirmation)
+	}
+}
+
+func TestMailStatusSetupLinkForOtherAddress(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	now := time.Date(2026, 11, 8, 14, 3, 0, 0, time.UTC)
+	f.sessions.SetClock(func() time.Time { return now })
+	withEmail(t, f, f.member, "anna@example.org")
+	link, err := f.sessions.IssueSetupLink(ctx, f.admin, f.member.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Redeeming confirms only the address exactly as it was mailed to
+	// (VerifyEmailIfMatches), so a link to other letters is no setup link
+	// for this one: the row offers a confirmation instead.
+	if err := f.sessions.MarkSetupLinkSent(ctx, link.Token, "Anna@Example.org"); err != nil {
+		t.Fatal(err)
+	}
+	if st := mailStatus(t, f); st.SetupLink != nil {
+		t.Fatalf("setup link mailed to other letters shown: %+v", st.SetupLink)
+	}
+	if err := f.sessions.MarkSetupLinkSent(ctx, link.Token, "anna@example.org"); err != nil {
+		t.Fatal(err)
+	}
+	st := mailStatus(t, f)
+	if st.SetupLink == nil || !st.SetupLink.ExpiresAt.Equal(link.ExpiresAt) {
+		t.Fatalf("setup link mailed to the address: %+v", st.SetupLink)
+	}
+	withEmail(t, f, f.member, "anna@other.org")
+	if st := mailStatus(t, f); st.SetupLink != nil {
+		t.Fatalf("setup link mailed to the old address shown: %+v", st.SetupLink)
+	}
+}
+
+func TestMailStatusesMatchesMailStatus(t *testing.T) {
+	ctx := context.Background()
+	f := newSetupFixture(t)
+	withEmail(t, f, f.member, "anna@example.org")
+	_, _ = f.sessions.IssueConfirmation(ctx, f.member.ID, "anna@example.org")
+	withEmail(t, f, f.admin, "sam@example.org")
+	link, _ := f.sessions.IssueSetupLink(ctx, f.owner, f.admin.ID)
+	_ = f.sessions.MarkSetupLinkSent(ctx, link.Token, "sam@example.org")
+	var list []user.User
+	for _, id := range []string{f.owner.ID, f.admin.ID, f.member.ID} {
+		u, err := f.users.ByID(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		list = append(list, u)
+	}
+	all, err := f.sessions.MailStatuses(ctx, list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range list {
+		one, err := f.sessions.MailStatus(ctx, u)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(all[u.ID], one) {
+			t.Fatalf("%s: MailStatuses = %+v, MailStatus = %+v", u.Username, all[u.ID], one)
+		}
+	}
+	if all[f.member.ID].Confirmation == nil || all[f.admin.ID].SetupLink == nil {
+		t.Fatalf("statuses = %+v", all)
 	}
 }
 

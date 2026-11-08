@@ -30,3 +30,9 @@ DELETE FROM setup_links WHERE user_id = ?;
 
 -- name: ListOpenSetupLinks :many
 SELECT user_id, expires_at FROM setup_links WHERE purpose = 'setup' AND expires_at > ?;
+
+-- Open setup links that were mailed somewhere: redeeming one confirms the
+-- address it went to, so the email row shows it instead of a confirmation.
+-- name: ListMailedSetupLinks :many
+SELECT user_id, sent_to, created_at, expires_at FROM setup_links
+WHERE purpose = 'setup' AND sent_to != '' AND expires_at > ?;

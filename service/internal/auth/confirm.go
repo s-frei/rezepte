@@ -90,3 +90,87 @@ func (s *Service) ConfirmationPending(ctx context.Context, u user.User) (bool, e
 	}
 	return open, nil
 }
+
+// MailWindow is when a mail that confirms an address went out and until when
+// its link works.
+type MailWindow struct {
+	SentAt    time.Time `json:"sentAt" doc:"When the mail went out"`
+	ExpiresAt time.Time `json:"expiresAt" doc:"When its link stops working"`
+}
+
+// MailStatus is what the email row shows about an unconfirmed address: the
+// confirmation mailed to it, open or expired, and the open setup link mailed
+// to it, whose redeeming confirms it too. Both are nil for an empty or
+// confirmed address.
+type MailStatus struct {
+	Confirmation *MailWindow
+	SetupLink    *MailWindow
+}
+
+// MailStatus is MailStatuses for one account.
+func (s *Service) MailStatus(ctx context.Context, u user.User) (MailStatus, error) {
+	all, err := s.MailStatuses(ctx, []user.User{u})
+	return all[u.ID], err
+}
+
+// MailStatuses reads every account's mail windows in two queries; both
+// tables hold at most one row per account. Both count only for the address
+// exactly as stored, the way Confirm and the setup link's redeem
+// (VerifyEmailIfMatches) compare it: one that would not confirm it is no
+// mail for it.
+func (s *Service) MailStatuses(ctx context.Context, users []user.User) (map[string]MailStatus, error) {
+	confirmations, err := s.q.ListEmailConfirmations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list confirmations: %w", err)
+	}
+	links, err := s.q.ListMailedSetupLinks(ctx, db.FormatTime(s.now()))
+	if err != nil {
+		return nil, fmt.Errorf("list mailed setup links: %w", err)
+	}
+	byID := make(map[string]user.User, len(users))
+	for _, u := range users {
+		if u.Email != "" && !u.EmailVerified {
+			byID[u.ID] = u
+		}
+	}
+	out := make(map[string]MailStatus, len(byID))
+	for _, c := range confirmations {
+		u, ok := byID[c.UserID]
+		if !ok || c.Address != u.Email {
+			continue
+		}
+		w, err := mailWindow(c.CreatedAt, c.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		st := out[u.ID]
+		st.Confirmation = w
+		out[u.ID] = st
+	}
+	for _, l := range links {
+		u, ok := byID[l.UserID]
+		if !ok || l.SentTo != u.Email {
+			continue
+		}
+		w, err := mailWindow(l.CreatedAt, l.ExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		st := out[u.ID]
+		st.SetupLink = w
+		out[u.ID] = st
+	}
+	return out, nil
+}
+
+func mailWindow(sent, expires string) (*MailWindow, error) {
+	s, err := db.ParseTime(sent)
+	if err != nil {
+		return nil, fmt.Errorf("parse sent time: %w", err)
+	}
+	e, err := db.ParseTime(expires)
+	if err != nil {
+		return nil, fmt.Errorf("parse expiry: %w", err)
+	}
+	return &MailWindow{SentAt: s, ExpiresAt: e}, nil
+}

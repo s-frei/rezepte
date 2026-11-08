@@ -201,17 +201,15 @@ func (s *Service) DeleteUserSessionsExcept(ctx context.Context, userID, keepToke
 	return nil
 }
 
-// DeleteExpired removes sessions, setup links and address confirmations past
-// their expiry.
+// DeleteExpired removes sessions and setup links past their expiry. Address
+// confirmations stay: one row per account, kept so the email row can say
+// the link ran out; Confirm refuses an expired one anyway.
 func (s *Service) DeleteExpired(ctx context.Context) error {
 	if err := s.q.DeleteExpiredSessions(ctx, db.FormatTime(s.now())); err != nil {
 		return fmt.Errorf("delete expired sessions: %w", err)
 	}
 	if err := s.q.DeleteExpiredSetupLinks(ctx, db.FormatTime(s.now())); err != nil {
 		return fmt.Errorf("delete expired setup links: %w", err)
-	}
-	if err := s.q.DeleteExpiredEmailConfirmations(ctx, db.FormatTime(s.now())); err != nil {
-		return fmt.Errorf("delete expired confirmations: %w", err)
 	}
 	return nil
 }

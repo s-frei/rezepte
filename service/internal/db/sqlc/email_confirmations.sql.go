@@ -41,15 +41,6 @@ func (q *Queries) DeleteEmailConfirmation(ctx context.Context, id string) error 
 	return err
 }
 
-const deleteExpiredEmailConfirmations = `-- name: DeleteExpiredEmailConfirmations :exec
-DELETE FROM email_confirmations WHERE expires_at <= ?
-`
-
-func (q *Queries) DeleteExpiredEmailConfirmations(ctx context.Context, expiresAt string) error {
-	_, err := q.db.ExecContext(ctx, deleteExpiredEmailConfirmations, expiresAt)
-	return err
-}
-
 const hasOpenEmailConfirmation = `-- name: HasOpenEmailConfirmation :one
 SELECT EXISTS (
     SELECT 1 FROM email_confirmations WHERE user_id = ? AND address = ? AND expires_at > ?
@@ -69,6 +60,46 @@ func (q *Queries) HasOpenEmailConfirmation(ctx context.Context, arg HasOpenEmail
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const listEmailConfirmations = `-- name: ListEmailConfirmations :many
+SELECT user_id, address, created_at, expires_at FROM email_confirmations
+`
+
+type ListEmailConfirmationsRow struct {
+	UserID    string
+	Address   string
+	CreatedAt string
+	ExpiresAt string
+}
+
+// Every account's one confirmation, open or expired: what the email row shows.
+func (q *Queries) ListEmailConfirmations(ctx context.Context) ([]ListEmailConfirmationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listEmailConfirmations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEmailConfirmationsRow{}
+	for rows.Next() {
+		var i ListEmailConfirmationsRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Address,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const replaceEmailConfirmation = `-- name: ReplaceEmailConfirmation :exec
