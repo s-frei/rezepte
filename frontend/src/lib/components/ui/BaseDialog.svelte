@@ -60,15 +60,24 @@
 					     A word longer than the line ("Einrichtungslink" at 200% text on
 					     a phone) breaks instead of scrolling the dialog sideways; the
 					     title (Dialog.Title is an h2) hyphenates, a button's label
-					     never does ("Ko-pie-ren"). -->
+					     never does ("Ko-pie-ren").
+					     The rounded box clips and its contents scroll inside its
+					     padding, so a scrollbar runs on the straight part of the edge
+					     (as SearchBar's list): 12px down the 24px corner curves 3px
+					     in, which the 6px side clears. The padding is split between
+					     the two, 20px (28px from md) in all. -->
 					<div
 						{...props}
-						class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
+						class="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
 							? 'max-w-[720px]'
-							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 overflow-y-auto overscroll-contain rounded-3xl bg-surface p-5 wrap-break-word shadow-dialog md:p-7 [&_h2]:hyphens-auto"
+							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-surface px-1.5 py-3 shadow-dialog"
 						transition:scale={{ duration, start: 0.95 }}
 					>
-						{@render children()}
+						<div
+							class="min-h-0 overflow-y-auto overscroll-contain px-3.5 py-2 wrap-break-word md:px-[22px] md:py-4 [&_h2]:hyphens-auto"
+						>
+							{@render children()}
+						</div>
 					</div>
 				{/if}
 			{/snippet}

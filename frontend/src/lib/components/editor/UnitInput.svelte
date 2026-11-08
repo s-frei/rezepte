@@ -170,35 +170,41 @@
 		/>
 	</button>
 	{#if listboxOpen}
-		<ul
-			id="{id}-listbox"
-			role="listbox"
-			aria-label={m.editor_unit_suggestions()}
-			onpointerdown={(event) => {
-				// Keeps the focus in the field, so the list does not close
-				// under the finger. The pick waits for the click, which a swipe
-				// through the list never produces.
-				event.preventDefault();
-			}}
-			class="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-popover-border bg-popover p-1.5 shadow-dialog"
+		<!-- The frame is rounded and clips; the list scrolls inside its padding,
+		     so its scrollbar runs on the straight part of the edge (as SearchBar). -->
+		<div
+			class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog"
 		>
-			{#each options as unit, index (unit)}
-				<!-- The keys belong to the field, which drives the options through
-				     aria-activedescendant; the click is the pointer's way in. -->
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<li
-					id="{id}-option-{index}"
-					role="option"
-					aria-selected={index === highlighted}
-					onclick={() => pick(unit)}
-					class="flex h-10 cursor-pointer items-center rounded-sm px-3 text-body-sm {index ===
-					highlighted
-						? 'bg-background font-semibold'
-						: ''}"
-				>
-					{unit}
-				</li>
-			{/each}
-		</ul>
+			<ul
+				id="{id}-listbox"
+				role="listbox"
+				aria-label={m.editor_unit_suggestions()}
+				onpointerdown={(event) => {
+					// Keeps the focus in the field, so the list does not close
+					// under the finger. The pick waits for the click, which a swipe
+					// through the list never produces.
+					event.preventDefault();
+				}}
+				class="max-h-60 overflow-y-auto overscroll-contain"
+			>
+				{#each options as unit, index (unit)}
+					<!-- The keys belong to the field, which drives the options through
+					     aria-activedescendant; the click is the pointer's way in. -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<li
+						id="{id}-option-{index}"
+						role="option"
+						aria-selected={index === highlighted}
+						onclick={() => pick(unit)}
+						class="flex h-10 cursor-pointer items-center rounded-sm px-3 text-body-sm {index ===
+						highlighted
+							? 'bg-background font-semibold'
+							: ''}"
+					>
+						{unit}
+					</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 </div>

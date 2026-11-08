@@ -238,39 +238,42 @@
 					{allPicked() ? m.add_to_list_select_none() : m.add_to_list_select_all()}
 				</button>
 			</div>
-			<div
-				class="rounded-2xl border border-border bg-surface-elevated px-4 py-2 md:max-h-[40dvh] md:overflow-y-auto"
-			>
-				{#each groups as group, g (g)}
-					{#if group.name}
-						<h3
-							class="mt-3 mb-1 font-display text-[16px] font-medium text-primary italic first:mt-1"
-						>
-							{group.name}
-						</h3>
-					{/if}
-					{#each group.ingredients as ingredient, i (i)}
-						{@const key = pickKey(g, i)}
-						{@const on = picked.has(key)}
-						<label
-							class="flex min-h-11 cursor-pointer items-start gap-3 border-b border-dashed border-border py-2.5 text-body last:border-b-0 {on
-								? 'text-text'
-								: 'text-text-muted'}"
-						>
-							<span class="mt-[calc((1lh_-_20px)/2)] flex">
-								<Checkbox
-									bind:checked={() => on, (v) => (v ? picked.add(key) : picked.delete(key))}
-									label={ingredient.name}
-								/>
-							</span>
-							<span class="min-w-0 break-words">
-								{formatQuantityFor(ingredient.quantity, baseServings, chosen)}
-								{ingredient.unit ?? ''}
-								{ingredient.name}
-							</span>
-						</label>
+			<!-- The frame is rounded and clips; on a computer the ingredients scroll
+			     inside its padding, so the scrollbar runs on the straight part of the
+			     edge (as SearchBar's list). -->
+			<div class="overflow-hidden rounded-2xl border border-border bg-surface-elevated px-1.5 py-2">
+				<div class="px-2.5 md:max-h-[40dvh] md:overflow-y-auto md:overscroll-contain">
+					{#each groups as group, g (g)}
+						{#if group.name}
+							<h3
+								class="mt-3 mb-1 font-display text-[16px] font-medium text-primary italic first:mt-1"
+							>
+								{group.name}
+							</h3>
+						{/if}
+						{#each group.ingredients as ingredient, i (i)}
+							{@const key = pickKey(g, i)}
+							{@const on = picked.has(key)}
+							<label
+								class="flex min-h-11 cursor-pointer items-start gap-3 border-b border-dashed border-border py-2.5 text-body last:border-b-0 {on
+									? 'text-text'
+									: 'text-text-muted'}"
+							>
+								<span class="mt-[calc((1lh_-_20px)/2)] flex">
+									<Checkbox
+										bind:checked={() => on, (v) => (v ? picked.add(key) : picked.delete(key))}
+										label={ingredient.name}
+									/>
+								</span>
+								<span class="min-w-0 break-words">
+									{formatQuantityFor(ingredient.quantity, baseServings, chosen)}
+									{ingredient.unit ?? ''}
+									{ingredient.name}
+								</span>
+							</label>
+						{/each}
 					{/each}
-				{/each}
+				</div>
 			</div>
 			<p class="mt-2 text-caption text-text-muted">{m.add_to_list_hint()}</p>
 		</div>

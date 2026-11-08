@@ -80,13 +80,18 @@
 		<!-- Below `md` the panel on `user-teal`, the capsule's own color, only
 		     while expanded; from `md` the bare rows, two side by side, always -
 		     one alone as wide as the footer under it. Expanding unfolds it
-		     upward where the capsule was; the always-open rows stay still. -->
+		     upward where the capsule was; the always-open rows stay still.
+		     The rounded panel clips and the rows scroll inside its padding, so a
+		     scrollbar runs on the straight part of the edge (as SearchBar's
+		     list); from `md` the inner box is `contents` and the rows wrap in
+		     the panel itself. The head stays outside the scroll, so it stays in
+		     view and its button's focus ring has the panel's padding. -->
 		<div
 			class="{expanded
 				? 'flex max-md:origin-bottom max-md:motion-safe:animate-unfold'
-				: 'hidden'} max-h-[40dvh] w-full max-w-[392px] flex-col gap-2 overflow-y-auto rounded-3xl bg-user-teal px-2 pt-1.5 pb-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
+				: 'hidden'} max-h-[40dvh] w-full max-w-[392px] flex-col gap-2 overflow-hidden rounded-3xl bg-user-teal p-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
 		>
-			<div class="flex items-center justify-between pl-2.5 md:hidden">
+			<div class="-mt-0.5 flex items-center justify-between pl-2.5 md:hidden">
 				<p class="text-caption font-semibold text-time-foreground">
 					{list.length === 1 ? m.timer_count_one() : m.timer_count({ count: list.length })}
 				</p>
@@ -101,16 +106,18 @@
 					<ChevronDown class="size-[18px]" aria-hidden="true" />
 				</button>
 			</div>
-			{#each list as t (t.id)}
-				<div class={list.length === 1 ? 'md:w-full md:max-w-[392px]' : 'md:w-[calc(50%-4px)]'}>
-					<TimerRow
-						timer={t}
-						now={timers.now}
-						showRecipe={t.recipeId !== recipeId}
-						onopen={() => onopen(t)}
-					/>
-				</div>
-			{/each}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain md:contents">
+				{#each list as t (t.id)}
+					<div class={list.length === 1 ? 'md:w-full md:max-w-[392px]' : 'md:w-[calc(50%-4px)]'}>
+						<TimerRow
+							timer={t}
+							now={timers.now}
+							showRecipe={t.recipeId !== recipeId}
+							onopen={() => onopen(t)}
+						/>
+					</div>
+				{/each}
+			</div>
 		</div>
 		{#if pushUnavailable()}
 			<p data-push-unavailable class="text-center text-caption text-text-muted">

@@ -161,19 +161,23 @@
 				</button>
 			{/if}
 		</div>
+		<!-- The rounded panel clips; the rows scroll inside its padding, so a
+		     scrollbar runs on the straight part of the edge (as SearchBar's list). -->
 		<div
 			id="timer-panel"
 			class="{open
 				? 'flex origin-bottom motion-safe:animate-unfold'
-				: 'hidden'} max-h-[min(70dvh,560px)] flex-col gap-2 overflow-y-auto overscroll-contain rounded-3xl bg-user-teal p-2 shadow-lift md:w-[400px]"
+				: 'hidden'} max-h-[min(70dvh,560px)] flex-col overflow-hidden rounded-3xl bg-user-teal p-2 shadow-lift md:w-[400px]"
 		>
-			{#each list as t (t.id)}
-				{#if t.state === 'ringing'}
-					<TimerBanner timer={t} showRecipe />
-				{:else}
-					<TimerRow timer={t} now={timers.now} showRecipe link />
-				{/if}
-			{/each}
+			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain">
+				{#each list as t (t.id)}
+					{#if t.state === 'ringing'}
+						<TimerBanner timer={t} showRecipe />
+					{:else}
+						<TimerRow timer={t} now={timers.now} showRecipe link />
+					{/if}
+				{/each}
+			</div>
 		</div>
 	</div>
 {/if}
