@@ -12,6 +12,7 @@ import {
 	createRecipe,
 	loadFixture,
 	login,
+	openLinkTab,
 	openRecipeMenu,
 	tinyPng,
 	uniqueToken,
@@ -20,7 +21,8 @@ import {
 
 // The browsers under test may or may not offer a share sheet for files, and
 // a headless one cannot show it. Each test pins the behavior it needs:
-// `noShareSheet` takes file sharing away, so "Image" falls back to a download.
+// `noShareSheet` takes the share sheet away, so the phone's primary turns into
+// what the browser can do instead (Copy image, Copy link) and Save is the download.
 async function noShareSheet(page: Page) {
 	await page.addInitScript(() => {
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: undefined });
@@ -31,13 +33,16 @@ async function noShareSheet(page: Page) {
 const isPhone = (testInfo: TestInfo) => Boolean(testInfo.project.use.isMobile);
 
 /** Opens the pass-on sheet the way each viewport offers it first. */
-async function openPassOn(page: Page, testInfo: TestInfo): Promise<Locator> {
-	if (isPhone(testInfo)) {
-		await page.getByRole('button', { name: 'Share' }).click();
-	} else {
-		await page.getByRole('button', { name: 'Pass on' }).click();
-	}
+async function openSheet(page: Page, testInfo: TestInfo): Promise<Locator> {
+	await page.getByRole('button', { name: isPhone(testInfo) ? 'Share' : 'Pass on' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+	await expect(sheet).toBeVisible();
+	return sheet;
+}
+
+/** Opens the sheet on its Image tab, the first one, once the image is drawn. */
+async function openPassOn(page: Page, testInfo: TestInfo): Promise<Locator> {
+	const sheet = await openSheet(page, testInfo);
 	await expect(sheet.getByRole('img', { name: /^Recipe image:/ })).toBeVisible({ timeout: 20_000 });
 	return sheet;
 }
@@ -48,9 +53,9 @@ async function pngSize(download: Download): Promise<{ width: number; height: num
 	return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
-async function saveCard(page: Page, sheet: Locator, testInfo: TestInfo): Promise<Download> {
+async function saveCard(page: Page, sheet: Locator): Promise<Download> {
 	const downloading = page.waitForEvent('download');
-	await sheet.getByRole('button', { name: isPhone(testInfo) ? 'Image' : 'Save image' }).click();
+	await sheet.getByRole('button', { name: 'Save image', exact: true }).click();
 	return downloading;
 }
 
@@ -62,7 +67,7 @@ test('passes a recipe on as a card PNG', async ({ page }, testInfo) => {
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	const sheet = await openPassOn(page, testInfo);
-	const download = await saveCard(page, sheet, testInfo);
+	const download = await saveCard(page, sheet);
 	expect(download.suggestedFilename()).toBe(`${recipe.slug}.png`);
 	const { width, height } = await pngSize(download);
 	expect(width).toBeGreaterThanOrEqual(420);
@@ -94,7 +99,7 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 });
 
 test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
-	test.skip(!isPhone(testInfo), 'the phone sheet is where "Image" opens the share sheet');
+	test.skip(!isPhone(testInfo), 'the phone sheet is where "Share image" opens the share sheet');
 	await page.addInitScript(() => {
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
 		Object.defineProperty(Navigator.prototype, 'share', {
@@ -109,7 +114,7 @@ test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
 	await expect(sheet.getByText('Press and hold the image to share it.')).toHaveCount(0);
 	let downloaded = false;
 	page.on('download', () => (downloaded = true));
-	await sheet.getByRole('button', { name: 'Image' }).click();
+	await sheet.getByRole('button', { name: 'Share image', exact: true }).click();
 	// Longer than the sheet's 320ms send animation and a download's start.
 	await page.waitForTimeout(800);
 	await expect(sheet).toBeVisible();
@@ -117,8 +122,27 @@ test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
 	expect(downloaded).toBe(false);
 });
 
+test('a refused share sheet saves the image instead', async ({ page }, testInfo) => {
+	test.skip(!isPhone(testInfo), 'the phone sheet is where "Share image" opens the share sheet');
+	await page.addInitScript(() => {
+		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
+		Object.defineProperty(Navigator.prototype, 'share', {
+			value: () => Promise.reject(new DOMException('refused', 'NotAllowedError'))
+		});
+	});
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Refused ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	const downloading = page.waitForEvent('download');
+	await sheet.getByRole('button', { name: 'Share image', exact: true }).click();
+	expect((await downloading).suggestedFilename()).toBe(`${recipe.slug}.png`);
+	await expect(sheet).toBeHidden();
+});
+
 test('a second tap while the share sheet is up sends nothing more', async ({ page }, testInfo) => {
-	test.skip(!isPhone(testInfo), 'the phone sheet is where "Image" opens the share sheet');
+	test.skip(!isPhone(testInfo), 'the phone sheet is where "Share image" opens the share sheet');
 	// The first share stays open, as the system sheet does; a second call
 	// meanwhile is refused the way browsers refuse it.
 	await page.addInitScript(() => {
@@ -139,7 +163,7 @@ test('a second tap while the share sheet is up sends nothing more', async ({ pag
 	const sheet = await openPassOn(page, testInfo);
 	let downloaded = false;
 	page.on('download', () => (downloaded = true));
-	const card = sheet.getByRole('button', { name: 'Image' });
+	const card = sheet.getByRole('button', { name: 'Share image', exact: true });
 	await card.click();
 	await card.click({ force: true });
 	await page.waitForTimeout(800);
@@ -187,14 +211,14 @@ async function insecure(page: Page, { copyWorks = true } = {}) {
 }
 
 test('without https, Link still copies the link', async ({ page }, testInfo) => {
-	test.skip(!isPhone(testInfo), 'the phone sheet has Link');
+	test.skip(!isPhone(testInfo), 'the phone sheet turns Share link into Copy link');
 	await insecure(page);
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Http ${uniqueToken()}` });
 	await page.goto(`/recipes/${recipe.slug}`);
 
-	const sheet = await openPassOn(page, testInfo);
-	await sheet.getByRole('button', { name: 'Link' }).click();
+	const sheet = await openLinkTab(page);
+	await sheet.getByRole('button', { name: 'Copy link', exact: true }).click();
 	await expect(page.getByText('Link copied')).toBeVisible();
 	const copied = await page.evaluate(() => (window as unknown as { copied?: string }).copied);
 	expect(copied).toContain(`/recipes/${recipe.slug}`);
@@ -211,17 +235,32 @@ test('without https, the sheet says how to share the image', async ({ page }, te
 	await expect(sheet.getByText('Press and hold the image to share it.')).toBeVisible();
 });
 
+test('a narrow desktop window gets no press-and-hold hint', async ({ page }, testInfo) => {
+	test.skip(isPhone(testInfo), 'a mouse, not a finger');
+	await insecure(page);
+	await page.setViewportSize({ width: 360, height: 780 });
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Mouse ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openSheet(page, { project: { use: { isMobile: true } } } as TestInfo);
+	await expect(sheet.getByRole('img', { name: /^Recipe image:/ })).toBeVisible({ timeout: 20_000 });
+	await expect(sheet.getByText('Press and hold the image to share it.')).toHaveCount(0);
+	await expect(sheet.getByRole('button', { name: 'Save image', exact: true })).toBeVisible();
+});
+
 test('when nothing can copy, the text is shown instead', async ({ page }, testInfo) => {
-	test.skip(!isPhone(testInfo), 'the phone sheet has Link');
+	test.skip(!isPhone(testInfo), 'the phone sheet turns Share link into Copy link');
 	await insecure(page, { copyWorks: false });
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Show ${uniqueToken()}` });
 	await page.goto(`/recipes/${recipe.slug}`);
 
-	const sheet = await openPassOn(page, testInfo);
-	await sheet.getByRole('button', { name: 'Link' }).click();
-	await expect(page.getByText('Copying is not available here')).toBeVisible();
-	await expect(page.getByText(new RegExp(`/recipes/${recipe.slug}`))).toBeVisible();
+	const sheet = await openLinkTab(page);
+	await sheet.getByRole('button', { name: 'Copy link', exact: true }).click();
+	const toast = page.locator('[data-sonner-toast]');
+	await expect(toast.getByText('Copying is not available here')).toBeVisible();
+	await expect(toast.getByText(new RegExp(`/recipes/${recipe.slug}`))).toBeVisible();
 });
 
 test('says so when the image cannot be copied', async ({ page }, testInfo) => {
@@ -242,4 +281,82 @@ test('says so when the image cannot be copied', async ({ page }, testInfo) => {
 	const sheet = await openPassOn(page, testInfo);
 	await sheet.getByRole('button', { name: 'Copy image' }).click();
 	await expect(page.getByText('The image could not be copied.')).toBeVisible();
+});
+
+// From 768px each tab draws its own switch: an arrow key that switches the
+// tab keeps focus on the switch, not on Close, where Enter would close it.
+test('the tab switch keeps focus across tabs', async ({ page }, testInfo) => {
+	test.skip(isPhone(testInfo), 'the dialog is from 768px');
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Keys ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openSheet(page, testInfo);
+	await sheet.getByRole('radio', { name: 'Image', exact: true }).focus();
+	await page.keyboard.press('ArrowRight');
+	await expect(sheet.getByRole('radio', { name: 'Link', exact: true })).toBeFocused();
+	await page.keyboard.press('ArrowLeft');
+	await expect(sheet.getByRole('radio', { name: 'Image', exact: true })).toBeFocused();
+});
+
+test('the sheet remembers the last tab', async ({ page }, testInfo) => {
+	await noShareSheet(page);
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Tab ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	let sheet = await openSheet(page, testInfo);
+	await expect(sheet.getByRole('radio', { name: 'Image', exact: true })).toBeChecked();
+	await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+	// A fresh page: what remembers the tab is the device, not the open page.
+	await page.reload();
+
+	sheet = await openSheet(page, testInfo);
+	await expect(sheet.getByRole('radio', { name: 'Link', exact: true })).toBeChecked();
+	// The ticket, not its chip: with public sharing on (instance-wide, other
+	// files flip it) a phone's fit drops the chip first.
+	await expect(sheet.locator('[data-ticket]')).toBeVisible();
+});
+
+test('the Link tab without public sharing shows the household ticket', async ({ page }) => {
+	// Answered, not set: public sharing is instance-wide and public-shares.test.ts flips it.
+	await page.route('**/api/v1/settings', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({ response, json: { ...(await response.json()), publicShares: false } });
+	});
+	await noShareSheet(page);
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `House ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openLinkTab(page);
+	await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
+	// The ticket shows host and path: no scheme, no share link query.
+	const address = `[^/:\\s]+(:\\d+)?/recipes/${recipe.slug}`;
+	await expect(sheet.getByText(new RegExp(`^${address}$`))).toBeVisible();
+	// It is hidden from screen readers, so a line of its own reads both out.
+	await expect(sheet.getByText(new RegExp(`^${recipe.title}, ${address}$`))).toBeAttached();
+	await expect(sheet.getByRole('radio', { name: /For everyone/ })).toHaveCount(0);
+	await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
+	await expect(sheet.getByRole('button', { name: 'Share link', exact: true })).toHaveCount(0);
+});
+
+// A button says what it does: where the browser has no share sheet, the
+// phone's primary copies instead of promising to share and then downloading.
+test('without a share sheet the phone offers copying, not sharing', async ({ page }, testInfo) => {
+	test.skip(!isPhone(testInfo), 'the desktop dialog never promised to share');
+	await noShareSheet(page);
+	await login(page);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Honest ${uniqueToken()}` });
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openPassOn(page, testInfo);
+	await expect(sheet.getByRole('button', { name: 'Share image', exact: true })).toHaveCount(0);
+	await expect(sheet.getByRole('button', { name: 'Copy image', exact: true })).toBeVisible();
+	await expect(sheet.getByRole('button', { name: 'Save image', exact: true })).toBeVisible();
+	await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
+	await expect(sheet.getByRole('button', { name: 'Share link', exact: true })).toHaveCount(0);
+	await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toHaveCount(1);
 });

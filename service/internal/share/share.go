@@ -43,8 +43,8 @@ const (
 	// whichever caused it is switched back on, unless expired meanwhile.
 	StatusPaused Status = "paused"
 	// StatusLimited is dormant because a lowered instance maximum, counted
-	// from the link's creation, has passed. Reversible: raising the maximum
-	// again revives it.
+	// from the start of its current lifetime, has passed. Reversible: raising
+	// the maximum again revives it, and so does the creator re-timing it.
 	StatusLimited Status = "limited"
 )
 
@@ -71,18 +71,19 @@ type Share struct {
 	Recipe    RecipeRef `json:"recipe"`
 	Path      string    `json:"path" doc:"The public page's path, /s/{token}"`
 	CreatedAt time.Time `json:"createdAt"`
+	StartsAt  time.Time `json:"startsAt" doc:"When the current lifetime began: creation, or the last change of lifetime; the instance maximum counts from here"`
 	// ExpiresAt is the effective expiry - the earlier of the share's own
-	// expiry and the instance maximum counted from CreatedAt. nil means
+	// expiry and the instance maximum counted from StartsAt. nil means
 	// permanent.
-	ExpiresAt *time.Time `json:"expiresAt" nullable:"true" doc:"Effective expiry: the earlier of the link's own and the instance maximum counted from createdAt; null is permanent"`
-	Status    Status     `json:"status" enum:"active,paused,limited" doc:"active serves the recipe; paused and limited serve nothing until the owner or an admin allows it again"`
+	ExpiresAt *time.Time `json:"expiresAt" nullable:"true" doc:"Effective expiry: the earlier of the link's own and the instance maximum counted from startsAt; null is permanent"`
+	Status    Status     `json:"status" enum:"active,paused,limited" doc:"active serves the recipe; paused and limited serve nothing until the owner or an admin allows it again, and a limited link also comes back when its creator re-times it"`
 	// CreatedBy is only set when List is called by an admin with all=true;
 	// every other response omits it.
 	CreatedBy *Creator `json:"createdBy,omitempty" doc:"Who created the link; only in an admin's list of everyone's links"`
 }
 
 // evaluate decides a share's Status, its effective expiry (the earlier of
-// its own expiresAt and createdAt+maxDays), and whether it currently serves
+// its own expiresAt and startsAt+maxDays), and whether it currently serves
 // the recipe.
 //
 // instanceOn and creatorAllowed dormancy (paused) takes priority over
@@ -93,11 +94,11 @@ type Share struct {
 // otherwise unrestricted) is not a distinct status because it is terminal:
 // unlike paused or limited it does not reverse, and Sweep removes the row
 // before it would matter to a caller for long.
-func evaluate(createdAt time.Time, expiresAt *time.Time, instanceOn, creatorAllowed bool, maxDays *int, now time.Time) (Status, *time.Time, bool) {
+func evaluate(startsAt time.Time, expiresAt *time.Time, instanceOn, creatorAllowed bool, maxDays *int, now time.Time) (Status, *time.Time, bool) {
 	effective := expiresAt
 	limited := false
 	if maxDays != nil {
-		limit := createdAt.AddDate(0, 0, *maxDays)
+		limit := startsAt.AddDate(0, 0, *maxDays)
 		if effective == nil || limit.Before(*effective) {
 			effective = &limit
 		}

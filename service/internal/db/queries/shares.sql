@@ -1,6 +1,6 @@
 -- name: CreateShare :one
-INSERT INTO shares (id, token, recipe_id, created_by, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO shares (id, token, recipe_id, created_by, created_at, starts_at, expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 RETURNING *;
 
 -- The creator's can_share_publicly rides along so the share service can work
@@ -57,3 +57,12 @@ DELETE FROM shares;
 -- raising the maximum again must revive it, which a deleted row could not.
 -- name: DeleteExpiredShares :exec
 DELETE FROM shares WHERE expires_at IS NOT NULL AND expires_at < ?;
+
+-- Re-timing restarts the clock: the new lifetime and the owner's maximum both
+-- count from starts_at. Only the creator's own link that has not passed its
+-- own expiry matches (stored times are RFC3339 UTC text, so they compare as
+-- strings, as in DeleteExpiredShares); anything else updates no row.
+-- name: RetimeShare :one
+UPDATE shares SET starts_at = ?, expires_at = ?
+WHERE id = ? AND created_by = ? AND (expires_at IS NULL OR expires_at > sqlc.arg(now))
+RETURNING *;

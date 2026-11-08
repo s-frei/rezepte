@@ -93,6 +93,17 @@ func TestCreateRefusesLifetimeAboveTheMaximum(t *testing.T) {
 	}
 }
 
+func TestCreateSetsStartsAtToCreation(t *testing.T) {
+	e := setup(t)
+	got, err := e.shares.Create(context.Background(), e.member, e.recipe.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.StartsAt.Equal(got.CreatedAt) {
+		t.Errorf("StartsAt = %v, want CreatedAt %v", got.StartsAt, got.CreatedAt)
+	}
+}
+
 func TestCreateTwiceReturnsTheExistingShare(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()
@@ -201,7 +212,7 @@ func TestCreateFindsADirectlyInsertedRowAsExisting(t *testing.T) {
 	row, err := q.CreateShare(ctx, sqlc.CreateShareParams{
 		ID: "raced-share", Token: "raced-token-aaaaaaaaaaaaaa",
 		RecipeID: e.recipe.ID, CreatedBy: e.member.ID,
-		CreatedAt: db.FormatTime(e.clock),
+		CreatedAt: db.FormatTime(e.clock), StartsAt: db.FormatTime(e.clock),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -418,5 +429,118 @@ func TestSweepDeletesOwnExpiryButKeepsLimited(t *testing.T) {
 	}
 	if got.Status != share.StatusLimited {
 		t.Errorf("kept share status = %q, want %q", got.Status, share.StatusLimited)
+	}
+}
+
+func TestResolveRejectsAnEmptyStartsAt(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	row, err := sqlc.New(e.conn).CreateShare(ctx, sqlc.CreateShareParams{
+		ID: "no-start", Token: "no-start-token-aaaaaaaaaa",
+		RecipeID: e.recipe.ID, CreatedBy: e.member.ID,
+		CreatedAt: db.FormatTime(e.clock),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := e.shares.Resolve(ctx, row.Token); err == nil || ok {
+		t.Errorf("Resolve = ok %v, err %v; want an error for an empty starts_at", ok, err)
+	}
+}
+
+func TestRetimeRestartsTheLifetime(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	first, err := e.shares.Create(ctx, e.member, e.recipe.ID, intPtr(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.clock = e.clock.Add(3 * 24 * time.Hour).Truncate(time.Second)
+	got, err := e.shares.Retime(ctx, e.member, first.ID, intPtr(30))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.StartsAt.Equal(e.clock) || got.ExpiresAt == nil || !got.ExpiresAt.Equal(e.clock.AddDate(0, 0, 30)) || got.Path != first.Path {
+		t.Errorf("retimed = %+v, want start %v, expiry +30d, path %s", got, e.clock, first.Path)
+	}
+}
+
+func TestRetimeRevivesALimitedLink(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	first, err := e.shares.Create(ctx, e.member, e.recipe.ID, intPtr(365))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+		t.Fatal(err)
+	}
+	e.clock = e.clock.Add(31 * 24 * time.Hour).Truncate(time.Second)
+	if m, err := e.shares.Mine(ctx, e.member, e.recipe.ID); err != nil || m.Status != share.StatusLimited {
+		t.Fatalf("before: %+v, %v, want limited", m, err)
+	}
+	got, err := e.shares.Retime(ctx, e.member, first.ID, intPtr(30))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != share.StatusActive || got.ExpiresAt == nil || !got.ExpiresAt.Equal(e.clock.AddDate(0, 0, 30)) {
+		t.Errorf("retimed = %+v, want active, expiry +30d", got)
+	}
+}
+
+func TestRetimeRefusedWhenPaused(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	first, err := e.shares.Create(ctx, e.member, e.recipe.ID, intPtr(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.users.SetCanSharePublicly(ctx, e.owner, e.member.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.shares.Retime(ctx, e.member, first.ID, intPtr(7)); !errors.Is(err, share.ErrNotAllowed) {
+		t.Errorf("withdrawn right: err = %v, want ErrNotAllowed", err)
+	}
+	if _, err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.shares.Retime(ctx, e.member, first.ID, intPtr(7)); !errors.Is(err, share.ErrSharingOff) {
+		t.Errorf("sharing off: err = %v, want ErrSharingOff", err)
+	}
+}
+
+func TestRetimeAboveTheMaximum(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	first, err := e.shares.Create(ctx, e.member, e.recipe.ID, intPtr(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+		t.Fatal(err)
+	}
+	for _, days := range []*int{intPtr(365), nil, intPtr(2)} {
+		if _, err := e.shares.Retime(ctx, e.member, first.ID, days); !errors.Is(err, share.ErrLifetime) {
+			t.Errorf("days %v: err = %v, want ErrLifetime", days, err)
+		}
+	}
+}
+
+func TestRetimeOfAnothersShare(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	theirs, err := e.shares.Create(ctx, e.member, e.recipe.ID, intPtr(7))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.shares.Retime(ctx, e.owner, theirs.ID, intPtr(7)); !errors.Is(err, share.ErrNotFound) {
+		t.Errorf("another's share: err = %v, want ErrNotFound", err)
+	}
+	if _, err := e.shares.Retime(ctx, e.member, "nope", intPtr(7)); !errors.Is(err, share.ErrNotFound) {
+		t.Errorf("unknown id: err = %v, want ErrNotFound", err)
+	}
+	e.clock = e.clock.Add(8 * 24 * time.Hour)
+	if _, err := e.shares.Retime(ctx, e.member, theirs.ID, intPtr(7)); !errors.Is(err, share.ErrNotFound) {
+		t.Errorf("own-expired: err = %v, want ErrNotFound", err)
 	}
 }

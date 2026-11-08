@@ -7,13 +7,16 @@
 	import Scissors from '@lucide/svelte/icons/scissors';
 	import Share from '@lucide/svelte/icons/share';
 	import X from '@lucide/svelte/icons/x';
+	import { tick, untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import type { Recipe } from '#lib/api/recipes.js';
+	import type { PublicShare, ShareLifetime } from '#lib/api/shares.js';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
 	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
+	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { formatServings } from '#lib/recipe/format.js';
 	import { createServings } from '#lib/recipe/servings.svelte.js';
@@ -21,41 +24,104 @@
 		canCopyImage,
 		canShareFiles,
 		copyImage,
-		copyLink,
 		downloadImage,
-		shareImage,
-		shareLink
+		shareImage
 	} from '#lib/recipe/share.svelte.js';
 	import { renderShareImage } from '#lib/recipe/share-image.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import ShareCard from './ShareCard.svelte';
+	import ShareLinkPanel from './ShareLinkPanel.svelte';
 
-	// Passing a recipe on: as a link, or as the recipe card - a picture of
-	// the whole recipe. The card is drawn as soon as the sheet opens and
-	// every picture action waits for it, so a tap never spends Safari's user
-	// activation on a picture that is not there yet. The preview is the
-	// drawn picture itself, not a second rendering of it.
+	type Tab = 'image' | 'link';
+
+	// Passing a recipe on, in two tabs: as the recipe card - a picture of the
+	// whole recipe - or as a link, drawn as a ticket. The card is drawn as
+	// soon as the sheet opens, whichever tab shows, and every picture action
+	// waits for it, so a tap never spends Safari's user activation on a
+	// picture that is not there yet. The preview is the drawn picture itself,
+	// not a second rendering of it. The Link tab is `ShareLinkPanel`.
 	let {
 		open = $bindable(false),
 		recipe,
 		attribution,
-		linkUrl
+		linkUrl,
+		share = $bindable(null),
+		canCreateShare,
+		defaultDays,
+		maxDays,
+		initialTab
 	}: {
 		open?: boolean;
 		recipe: Recipe;
 		/** The household's "name Rezepte when sharing" setting. */
 		attribution: boolean;
-		/** The address "Link" hands out - the page's `ShareLink`, read at tap time. */
+		/** The household address - the page's `ShareLink`, read at tap time. */
 		linkUrl: () => string;
+		/** The member's own public link to this recipe. */
+		share?: PublicShare | null;
+		/** Public sharing is on and this member may use it. */
+		canCreateShare: boolean;
+		defaultDays: ShareLifetime;
+		maxDays: ShareLifetime;
+		/** The tab to open on; without one, the tab this device used last. */
+		initialTab?: Tab;
 	} = $props();
 
 	const phone = new MediaQuery('max-width: 767.98px');
+	// Press and hold is a touch gesture: a narrow desktop window gets the
+	// phone sheet, but nothing to hold.
+	const touch = new MediaQuery('pointer: coarse');
 	// Read afresh on every opening: the page's stepper stores its choice.
 	const servings = $derived(
 		open ? createServings(recipe.id, recipe.servings).value : recipe.servings
 	);
 	const fileName = $derived(`${recipe.slug}.png`);
 	const label = 'text-label font-bold tracking-[0.08em] text-text-muted uppercase';
+
+	const TAB_KEY = 'rezepte-share-tab';
+	const tabs = [
+		{ value: 'image' as const, label: m.share_tab_image(), icon: ImageIcon },
+		{ value: 'link' as const, label: m.share_tab_link(), icon: Link }
+	];
+
+	function rememberedTab(): Tab {
+		try {
+			return localStorage.getItem(TAB_KEY) === 'link' ? 'link' : 'image';
+		} catch {
+			return 'image';
+		}
+	}
+
+	function remember(next: Tab) {
+		try {
+			localStorage.setItem(TAB_KEY, next);
+		} catch {
+			// Storage refused (private mode): the next opening starts on the image.
+		}
+	}
+
+	// Decided as the sheet opens - the page's choice, else the tab this
+	// device used last - then the switch's. Only `open` is tracked, and on
+	// closing the derived gives back the tab on screen, so the sheet keeps
+	// it while it slides away.
+	let onScreen: Tab = 'image';
+	let tab: Tab = $derived.by(() => {
+		if (open) onScreen = untrack(() => initialTab ?? rememberedTab());
+		return onScreen;
+	});
+
+	// From 768px each tab draws its own switch, so the one a key or a click
+	// just focused goes with its tab: focus follows to the new tab's switch,
+	// or it fell to the dialog's Close and the next Enter closed the dialog.
+	async function pickTab(next: Tab) {
+		const group = `[aria-label="${m.share_tabs_label()}"]`;
+		const held = Boolean(document.activeElement?.closest(group));
+		onScreen = next;
+		remember(next);
+		if (!held) return;
+		await tick();
+		document.querySelector<HTMLElement>(`[role=dialog] ${group} [aria-checked="true"]`)?.focus();
+	}
 
 	let blob = $state<Blob | null>(null);
 	let preview = $state<string | null>(null);
@@ -100,10 +166,20 @@
 		setTimeout(() => (open = false), prefersReducedMotion.current ? 0 : 320);
 	}
 
-	function sendLink() {
-		return shareLink(recipe.title, linkUrl());
+	function saveCard() {
+		if (blob) downloadImage(blob, fileName);
 	}
 </script>
+
+{#snippet switcher()}
+	<SegmentedControl
+		bind:value={tab}
+		options={tabs}
+		label={m.share_tabs_label()}
+		track="surface"
+		onchange={pickTab}
+	/>
+{/snippet}
 
 {#snippet card(frame: string)}
 	<div
@@ -145,39 +221,103 @@
 	{/key}
 {/if}
 
+{#snippet heading()}
+	<Dialog.Title class={label}>{m.share_sheet_title()}</Dialog.Title>
+	<p class="mt-1.5 font-display text-heading font-medium">{recipe.title}</p>
+{/snippet}
+
+{#snippet panel(onPhone: boolean)}
+	<ShareLinkPanel
+		{recipe}
+		{linkUrl}
+		bind:share
+		{canCreateShare}
+		{defaultDays}
+		{maxDays}
+		phone={onPhone}
+		shown={tab === 'link'}
+		{switcher}
+		{heading}
+	/>
+{/snippet}
+
 {#if phone.current}
-	<BottomSheet bind:open closeLabel={m.share_sheet_close()}>
-		<Dialog.Title class="px-5 text-center {label}">{m.share_sheet_title()}</Dialog.Title>
-		{@render card('h-[340px]')}
-		{#if !canShareFiles()}
-			<!-- No share sheet for files (plain http is not a secure context):
-			     the phone's own long-press menu on the preview still shares it. -->
-			<p class="px-5 pb-3 text-center text-caption text-text-muted">{m.share_hold_hint()}</p>
-		{/if}
-		<div class="relative border-t-2 border-dashed border-handle" aria-hidden="true">
-			<Scissors
-				class="absolute -top-2.5 left-5 size-5 -rotate-90 bg-background px-0.5 text-text-muted"
-			/>
-		</div>
-		<div class="flex gap-2.5 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-			<Button variant="secondary" size="lg" class="flex-1" onclick={sendLink}>
-				<Link class="size-4" aria-hidden="true" />
-				{m.share_link()}
-			</Button>
-			<Button
-				variant="primary"
-				size="lg"
-				class="flex-1 shadow-cta"
-				disabled={!blob || sending}
-				onclick={sendCard}
+	<BottomSheet bind:open tall closeLabel={m.share_sheet_close()}>
+		<Dialog.Title class="sr-only">{m.share_sheet_title()}</Dialog.Title>
+		<div class="px-5 pb-1">{@render switcher()}</div>
+		<!-- Both tabs are laid out in one cell, the other one invisible, so the
+		     sheet keeps the taller one's height and neither the switch nor the
+		     buttons move on a switch. The cell gives way below the sheet's cap:
+		     the card's frame scrolls, the Link tab's preview steps down. -->
+		<div class="grid min-h-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">
+			<div
+				class="col-start-1 row-start-1 flex min-h-0 flex-col {tab === 'image' ? '' : 'invisible'}"
 			>
-				<ImageIcon class="size-4" aria-hidden="true" />
-				{m.share_card()}
-			</Button>
+				{@render card('h-[340px] flex-auto')}
+				{#if !canShareFiles() && touch.current}
+					<!-- No share sheet for files (plain http is not a secure context):
+					     the phone's own long-press menu on the preview still shares it. -->
+					<p class="px-5 pb-3 text-center text-caption text-text-muted">{m.share_hold_hint()}</p>
+				{/if}
+				<div class="relative border-t-2 border-dashed border-handle" aria-hidden="true">
+					<Scissors
+						class="absolute -top-2.5 left-5 size-5 -rotate-90 bg-background px-0.5 text-text-muted"
+					/>
+				</div>
+				<!-- The primary says what this browser will do: share where there is a
+				     share sheet for files, else copy where the clipboard takes an
+				     image, else save - and Save stays beside it while it is not Save. -->
+				<div class="flex gap-2.5 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+					{#if canShareFiles()}
+						<Button
+							size="lg"
+							class="flex-1 px-3! whitespace-nowrap shadow-cta"
+							disabled={!blob || sending}
+							onclick={sendCard}
+						>
+							<Share class="size-4" aria-hidden="true" />
+							{m.share_share_image()}
+						</Button>
+					{:else if canCopyImage()}
+						<Button
+							size="lg"
+							class="flex-1 px-3! whitespace-nowrap shadow-cta"
+							disabled={!blob}
+							onclick={() => blob && copyImage(blob)}
+						>
+							<ClipboardCopy class="size-4" aria-hidden="true" />
+							{m.share_copy_image()}
+						</Button>
+					{/if}
+					{#if canShareFiles() || canCopyImage()}
+						<Button
+							variant="secondary"
+							size="lg"
+							class="aspect-square shrink-0 px-0!"
+							label={m.share_save_image()}
+							disabled={!blob}
+							onclick={saveCard}
+						>
+							<Download class="size-5" aria-hidden="true" />
+						</Button>
+					{:else}
+						<Button
+							size="lg"
+							class="flex-1 px-3! whitespace-nowrap shadow-cta"
+							disabled={!blob}
+							onclick={saveCard}
+						>
+							<Download class="size-4" aria-hidden="true" />
+							{m.share_save_image()}
+						</Button>
+					{/if}
+				</div>
+			</div>
+			{@render panel(true)}
 		</div>
 	</BottomSheet>
 {:else}
-	<BaseDialog bind:open wide>
+	<BaseDialog bind:open wide bleed>
 		<Dialog.Close
 			aria-label={m.share_sheet_close()}
 			class="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full text-text-muted transition hover:bg-background focus-visible:outline-2 focus-visible:outline-primary"
@@ -185,48 +325,63 @@
 			<X class="size-5" aria-hidden="true" />
 		</Dialog.Close>
 		<div class="grid grid-cols-[300px_1fr] gap-7">
-			<div class="-my-7 -ml-7 bg-background">{@render card('h-[480px]')}</div>
-			<div class="flex flex-col py-1">
-				<Dialog.Title class={label}>{m.share_sheet_title()}</Dialog.Title>
-				<p class="mt-1.5 font-display text-heading font-medium">{recipe.title}</p>
-				<p class="mt-1 text-body-sm text-text-muted">
-					{m.share_dialog_hint({ servings: formatServings(servings) })}
-				</p>
-				<p class="mt-5 mb-2 {label}">{m.share_card()}</p>
-				<div class="flex flex-col gap-1.5">
-					{#if canCopyImage()}
-						<Button class="justify-start!" disabled={!blob} onclick={() => blob && copyImage(blob)}>
-							<ClipboardCopy class="size-4" aria-hidden="true" />
-							{m.share_copy_image()}
-						</Button>
-					{/if}
-					<Button
-						variant="secondary"
-						class="justify-start!"
-						disabled={!blob}
-						onclick={() => blob && downloadImage(blob, fileName)}
-					>
-						<Download class="size-4" aria-hidden="true" />
-						{m.share_save_image()}
-					</Button>
-					{#if canShareFiles()}
+			{#if tab === 'image'}
+				<!-- At least as tall as the card's frame was alone, so switching tabs
+				     keeps the dialog's size under a one-line title (a longer one
+				     grows the Link tab's column a little); the card scrolls in what
+				     is left. -->
+				<div class="-my-7 -ml-7 flex min-h-[480px] flex-col bg-background">
+					<div class="px-5.5 pt-7 pb-1.5">{@render switcher()}</div>
+					<div class="relative flex-1">{@render card('absolute inset-0')}</div>
+				</div>
+				<div class="flex flex-col py-1">
+					{@render heading()}
+					<p class="mt-1 text-body-sm text-text-muted">
+						{m.share_dialog_hint({ servings: formatServings(servings) })}
+					</p>
+					<div class="mt-5 flex flex-col gap-1.5">
+						{#if canCopyImage()}
+							<Button
+								class="justify-start!"
+								disabled={!blob}
+								onclick={() => blob && copyImage(blob)}
+							>
+								<ClipboardCopy class="size-4" aria-hidden="true" />
+								{m.share_copy_image()}
+							</Button>
+						{/if}
+						<!-- The primary while nothing copies an image (plain http, older
+						     Firefox), so the dialog always leads with one action. -->
 						<Button
-							variant="secondary"
+							variant={canCopyImage() ? 'secondary' : 'primary'}
 							class="justify-start!"
-							disabled={!blob || sending}
-							onclick={sendCard}
+							disabled={!blob}
+							onclick={saveCard}
 						>
-							<Share class="size-4" aria-hidden="true" />
-							{m.share_share()}
+							<Download class="size-4" aria-hidden="true" />
+							{m.share_save_image()}
 						</Button>
+						{#if canShareFiles()}
+							<Button
+								variant="secondary"
+								class="justify-start!"
+								disabled={!blob || sending}
+								onclick={sendCard}
+							>
+								<Share class="size-4" aria-hidden="true" />
+								{m.share_share()}
+							</Button>
+						{/if}
+					</div>
+					{#if !canShareFiles() && touch.current}
+						<!-- A tablet over plain http gets the dialog, and its own long-press
+						     menu on the preview still shares the image. -->
+						<p class="mt-3 text-caption text-text-muted">{m.share_hold_hint()}</p>
 					{/if}
 				</div>
-				<p class="mt-5 mb-2 {label}">{m.share_link()}</p>
-				<Button variant="secondary" class="justify-start!" onclick={() => copyLink(linkUrl())}>
-					<Link class="size-4" aria-hidden="true" />
-					{m.detail_copy_link()}
-				</Button>
-			</div>
+			{/if}
+			<!-- Kept on both tabs, so a choice made on Link outlasts a look at the image. -->
+			{@render panel(false)}
 		</div>
 	</BaseDialog>
 {/if}

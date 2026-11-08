@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
 	addDiaryEntry,
 	addDiaryPhoto,
@@ -8,6 +8,7 @@ import {
 	loadFixture,
 	login,
 	openFromPeopleList,
+	openLinkTab,
 	openRecipeMenu,
 	type PublicShare,
 	setCanSharePublicly,
@@ -389,8 +390,40 @@ test('a public link that answers with a malformed body', async ({ page }) => {
 	await expect(page.getByText('This link is no longer available.')).toBeVisible();
 });
 
-test('a member creates, copies and revokes a public link', async ({ page }, testInfo) => {
+// Stands in for the share sheet, recording each address it was handed.
+async function recordShares(page: Page) {
+	await page.addInitScript(() => {
+		const shared: string[] = [];
+		(window as unknown as { shared: string[] }).shared = shared;
+		Object.defineProperty(Navigator.prototype, 'share', {
+			value: (data: ShareData) => {
+				shared.push(data.url ?? '');
+				return Promise.resolve();
+			}
+		});
+	});
+}
+
+const sharedUrls = (page: Page) =>
+	page.evaluate(() => (window as unknown as { shared: string[] }).shared);
+
+// The date the chip and the row show: day and short month, the year only
+// when it is not this one.
+function shortDate(iso: string): string {
+	const date = new Date(iso);
+	const sameYear = date.getFullYear() === new Date().getFullYear();
+	return date
+		.toLocaleDateString('en', {
+			day: 'numeric',
+			month: 'short',
+			year: sameYear ? undefined : 'numeric'
+		})
+		.replaceAll(' ', '\u00a0');
+}
+
+test('a member creates, shares, re-times and revokes a public link', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await recordShares(page);
 	await login(page);
 	await expect(page).toHaveURL('/');
 	const title = `Shareable ${uniqueToken()}`;
@@ -398,58 +431,134 @@ test('a member creates, copies and revokes a public link', async ({ page }, test
 
 	try {
 		await setPublicShares(page, true, 7, null);
+		// The phone's sheet, where "Share link" hands the link to the share
+		// sheet; tall enough that the preview keeps its chip.
+		await page.setViewportSize({ width: 360, height: 900 });
 		await page.goto(`/recipes/${recipe.slug}`);
 
-		await openRecipeMenu(page);
-		await page.getByRole('menuitem', { name: 'Share publicly…' }).click();
-
-		const dialog = page.getByRole('dialog', { name: 'Your public link' });
-		await expect(
-			dialog.getByText(
-				'Anyone with this link sees the recipe without signing in, until you revoke it or it expires.'
-			)
-		).toBeVisible();
+		const sheet = await openLinkTab(page);
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+		// The household row unfolds its own detail: who opens it, and the way
+		// to the people; picking the public row folds it away.
+		const household = sheet.getByText('Anyone with an account here. Never expires.');
+		await expect(household).toBeVisible();
+		await expect(sheet.getByRole('link', { name: 'People' })).toHaveAttribute(
+			'href',
+			'/settings/users'
+		);
+		await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
+		await expect(household).toHaveCount(0);
+		// The arrow keys keep to the audience: the lifetime bar inside the
+		// public row has radios of its own, which they once stepped into.
+		await page.keyboard.press('ArrowDown');
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeFocused();
+		await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
 		// The household's default lifetime (7 days) comes preselected.
-		await expect(dialog.getByRole('button', { name: 'Lifetime' })).toContainText('7 days');
+		await expect(
+			sheet.getByRole('radiogroup', { name: 'Lifetime' }).getByRole('radio', { name: '7 days' })
+		).toBeChecked();
 
-		await dialog.getByRole('button', { name: 'Create public link' }).click();
+		// Creating is its own tap and hands nothing on yet.
+		await sheet.getByRole('button', { name: 'Create public link' }).click();
+		const shareLink = sheet.getByRole('button', { name: 'Share link', exact: true });
+		await expect(shareLink).toBeEnabled();
+		// Focus stays on the primary, which now hands the link on.
+		await expect(shareLink).toBeFocused();
+		expect(await sharedUrls(page)).toEqual([]);
+		await shareLink.click();
+		await expect.poll(() => sharedUrls(page)).toHaveLength(1);
+		const [url] = await sharedUrls(page);
+		expect(url).toMatch(/\/s\/[^/]+$/);
+		const token = url.split('/s/')[1];
 
-		const linkLine = dialog.getByText(/\/s\//);
-		await expect(linkLine).toBeVisible();
-		const linkText = (await linkLine.textContent()) ?? '';
-		const token = linkText.split('/s/')[1];
-		expect(token?.length).toBeGreaterThan(0);
+		// Every cell now restarts the link from today, at the same address.
+		const patched = page.waitForResponse(
+			(response) =>
+				response.request().method() === 'PATCH' && response.url().includes('/api/v1/shares/')
+		);
+		await sheet.getByRole('button', { name: '30 days' }).click();
+		const retimed = (await (await patched).json()) as PublicShare;
+		expect(retimed.path).toBe(`/s/${token}`);
+		await expect(sheet.getByRole('button', { name: '30 days' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		const until = shortDate(retimed.expiresAt!);
+		await expect(sheet.getByText(`Accessible to everyone · until ${until}`)).toBeVisible();
+		await expect(sheet.getByText(`Opens without an account, until ${until}`)).toBeVisible();
 
 		await page.keyboard.press('Escape');
-		await expect(dialog).toBeHidden();
+		await expect(sheet).toBeHidden();
+		await expect(page.getByRole('button', { name: 'Shared publicly' })).toBeVisible();
 
-		// The marker in the tag row and the colophon line both open the same
-		// dialog; the colophon says how long the link runs.
-		const marker = page.getByRole('button', { name: 'Shared publicly' });
-		await expect(marker).toBeVisible();
-		const colophon = page.locator('footer').filter({ hasText: 'Shared publicly by you until' });
-		await expect(colophon).toBeVisible();
-		await colophon.getByRole('button', { name: 'Manage link' }).click();
-		await expect(dialog).toBeVisible();
+		// Revoking lives in the row, behind the existing confirmation.
+		await page.getByRole('button', { name: 'Shared publicly' }).click();
+		await expect(sheet.getByRole('radio', { name: 'For everyone with the link' })).toBeChecked();
+		await expect(sheet.getByRole('link', { name: 'Shared links' })).toHaveAttribute(
+			'href',
+			'/settings/shares'
+		);
+		await sheet.getByRole('button', { name: 'Revoke' }).click();
+		await page
+			.getByRole('dialog', { name: 'Revoke public link?' })
+			.getByRole('button', { name: 'Revoke' })
+			.click();
+		await expect(page.getByText('Public link revoked')).toBeVisible();
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+		// The Revoke button is gone: focus lands on the choice that is left.
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeFocused();
+		await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
+
 		await page.keyboard.press('Escape');
-		await expect(dialog).toBeHidden();
-
-		await openRecipeMenu(page);
-		await expect(page.getByRole('menuitem', { name: 'Public link…' })).toBeVisible();
-		await expect(page.getByRole('menuitem', { name: 'Share publicly…' })).toHaveCount(0);
-		await page.keyboard.press('Escape');
-
-		await marker.click();
-		await expect(dialog).toBeVisible();
-		await dialog.getByRole('button', { name: 'Revoke' }).click();
-		const confirmDialog = page.getByRole('dialog', { name: 'Revoke public link?' });
-		await confirmDialog.getByRole('button', { name: 'Revoke' }).click();
-
 		await expect(page.getByRole('button', { name: 'Shared publicly' })).toHaveCount(0);
 		await expect(page.getByText('Shared publicly by you until')).toHaveCount(0);
 
 		await page.goto(`/s/${token}`);
 		await expect(page.getByText('This link is no longer available.')).toBeVisible();
+
+		// The dialog's primary takes over from Create the same way.
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto(`/recipes/${recipe.slug}`);
+		const dialog = await openLinkTab(page);
+		await dialog.getByRole('radio', { name: 'For everyone with the link' }).click();
+		await dialog.getByRole('button', { name: 'Create public link' }).click();
+		await expect(dialog.getByRole('button', { name: 'Copy link', exact: true })).toBeFocused();
+	} finally {
+		await setPublicShares(page, false);
+	}
+});
+
+test('the marker and the colophon open the Link tab', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Marker ${uniqueToken()}` });
+
+	try {
+		await setPublicShares(page, true);
+		await createPublicShare(page, recipe.id, 30);
+		await page.goto(`/recipes/${recipe.slug}`);
+
+		// The menu has no public-link item of its own any more.
+		await openRecipeMenu(page);
+		await expect(page.getByRole('menuitem', { name: /publicly|Public link/ })).toHaveCount(0);
+		await page.keyboard.press('Escape');
+
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		await page.getByRole('button', { name: 'Shared publicly' }).click();
+		await expect(sheet.getByRole('radio', { name: 'Link', exact: true })).toBeChecked();
+		await expect(sheet.getByRole('radio', { name: 'For everyone with the link' })).toBeChecked();
+		await page.keyboard.press('Escape');
+		await expect(sheet).toBeHidden();
+
+		await page.locator('footer').getByRole('button', { name: 'Manage link' }).click();
+		await expect(sheet.getByRole('radio', { name: 'Link', exact: true })).toBeChecked();
+		await page.keyboard.press('Escape');
+		await expect(sheet).toBeHidden();
+
+		// "Pass on" opens on the tab this device picked last, which is none yet.
+		await page.getByRole('button', { name: 'Pass on' }).click();
+		await expect(sheet.getByRole('radio', { name: 'Image', exact: true })).toBeChecked();
 	} finally {
 		await setPublicShares(page, false);
 	}
@@ -467,16 +576,14 @@ test('a refused link says whether sharing is off or the right withdrawn', async 
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Refused ${token}` });
 	const member = await createUser(page, { username, role: 'user' });
 
-	// The dialog is opened while sharing is allowed and the refusal happens
+	// The sheet is opened while sharing is allowed and the refusal happens
 	// behind its back, the way a second tab or another admin would cause it.
 	async function refuse(on: typeof page, change: () => Promise<unknown>, toast: string) {
 		await on.goto(`/recipes/${recipe.slug}`);
-		await openRecipeMenu(on);
-		await on.getByRole('menuitem', { name: 'Share publicly…' }).click();
-		const dialog = on.getByRole('dialog', { name: 'Your public link' });
-		await expect(dialog).toBeVisible();
+		const sheet = await openLinkTab(on);
+		await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
 		await change();
-		await dialog.getByRole('button', { name: 'Create public link' }).click();
+		await sheet.getByRole('button', { name: 'Create public link' }).click();
 		await expect(on.getByText(toast)).toBeVisible();
 	}
 
@@ -497,7 +604,7 @@ test('a refused link says whether sharing is off or the right withdrawn', async 
 			await refuse(
 				memberPage,
 				() => setCanSharePublicly(page, member.id, false),
-				"You don't have permission to create public links."
+				'You may not share recipes publicly.'
 			);
 		} finally {
 			await memberContext.close();
@@ -508,7 +615,10 @@ test('a refused link says whether sharing is off or the right withdrawn', async 
 	}
 });
 
-test('a member without the right sees no menu item', async ({ page, browser }, testInfo) => {
+test('a member without the right is offered the household link only', async ({
+	page,
+	browser
+}, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -527,9 +637,9 @@ test('a member without the right sees no menu item', async ({ page, browser }, t
 			await login(memberPage, username);
 			await expect(memberPage).toHaveURL('/');
 			await memberPage.goto(`/recipes/${recipe.slug}`);
-			await openRecipeMenu(memberPage);
-			await expect(memberPage.getByRole('menuitem', { name: 'Share publicly…' })).toHaveCount(0);
-			await expect(memberPage.getByRole('menuitem', { name: 'Public link…' })).toHaveCount(0);
+			const sheet = await openLinkTab(memberPage);
+			await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
+			await expect(sheet.getByRole('radio', { name: /For everyone/ })).toHaveCount(0);
 		} finally {
 			await memberContext.close();
 		}
@@ -539,7 +649,9 @@ test('a member without the right sees no menu item', async ({ page, browser }, t
 	}
 });
 
-test('with public sharing off there is no menu item', async ({ page }, testInfo) => {
+test('with public sharing off the Link tab offers the household link only', async ({
+	page
+}, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -548,9 +660,346 @@ test('with public sharing off there is no menu item', async ({ page }, testInfo)
 
 	await setPublicShares(page, false);
 	await page.goto(`/recipes/${recipe.slug}`);
-	await openRecipeMenu(page);
-	await expect(page.getByRole('menuitem', { name: 'Share publicly…' })).toHaveCount(0);
-	await expect(page.getByRole('menuitem', { name: 'Public link…' })).toHaveCount(0);
+	const sheet = await openLinkTab(page);
+	await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
+	await expect(sheet.getByRole('radio', { name: /For everyone/ })).toHaveCount(0);
+});
+
+test('a limited link starts again from the lifetime picked', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Limited ${uniqueToken()}` });
+
+	try {
+		await setPublicShares(page, true);
+		await createPublicShare(page, recipe.id, 7);
+		// A link is limited once the owner's maximum has run out since its
+		// start, days from now: the page is told so instead.
+		await page.route('**/api/v1/shares/by-recipe/*', async (route) => {
+			const response = await route.fetch();
+			const { share } = (await response.json()) as { share: PublicShare };
+			await route.fulfill({ response, json: { share: { ...share, status: 'limited' } } });
+		});
+		await page.goto(`/recipes/${recipe.slug}`);
+
+		await page.getByRole('button', { name: 'Shared publicly' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+		await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
+		await expect(sheet.getByText('Your public link is limited by the maximum')).toBeVisible();
+		await expect(sheet.getByText('Pick a lifetime to start it again.')).toBeVisible();
+		const copy = sheet.getByRole('button', { name: 'Copy link', exact: true });
+		await expect(copy).toBeDisabled();
+		await expect(sheet.getByRole('group', { name: 'Lifetime' })).not.toHaveAttribute(
+			'aria-disabled',
+			'true'
+		);
+
+		await sheet.getByRole('button', { name: '30 days' }).click();
+		await expect(copy).toBeEnabled();
+		await expect(sheet.getByText(/^Opens without an account, until /)).toBeVisible();
+	} finally {
+		await setPublicShares(page, false);
+	}
+});
+
+test('a re-time the service refuses keeps the link, or drops a gone one', async ({
+	page
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Retime ${uniqueToken()}` });
+
+	try {
+		await setPublicShares(page, true);
+		await createPublicShare(page, recipe.id, 7);
+		let answer: { status: number; json: object } = {
+			status: 422,
+			json: { title: 'Unprocessable Entity', status: 422, errors: [{ location: 'body.days' }] }
+		};
+		await page.route('**/api/v1/shares/*', (route) =>
+			route.request().method() === 'PATCH'
+				? route.fulfill({ status: answer.status, json: answer.json })
+				: route.fallback()
+		);
+		await page.goto(`/recipes/${recipe.slug}`);
+		await page.getByRole('button', { name: 'Shared publicly' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		const everyone = sheet.getByRole('radio', { name: 'For everyone with the link' });
+		await expect(everyone).toBeChecked();
+
+		// Above a maximum lowered meanwhile: the link stays as it was.
+		await sheet.getByRole('button', { name: '30 days' }).click();
+		await expect(page.getByText('That lifetime is longer than the maximum allowed.')).toBeVisible();
+		await expect(everyone).toBeChecked();
+		await expect(sheet.getByRole('button', { name: '7 days' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+
+		// Revoked meanwhile, in another tab: the sheet falls back to the household.
+		answer = { status: 404, json: { title: 'Not Found', status: 404 } };
+		await sheet.getByRole('button', { name: '30 days' }).click();
+		await expect(page.getByText('The lifetime could not be changed.')).toBeVisible();
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeFocused();
+		await expect(sheet.getByText('Opens without an account', { exact: true })).toBeVisible();
+
+		// The right withdrawn meanwhile: the link is paused, nothing hands it on.
+		answer = { status: 403, json: { title: 'Forbidden', status: 403, reason: 'not-allowed' } };
+		await page.goto(`/recipes/${recipe.slug}`);
+		await page.getByRole('button', { name: 'Shared publicly' }).click();
+		await expect(everyone).toBeChecked();
+		await sheet.getByRole('button', { name: '30 days' }).click();
+		await expect(page.getByText('You may not share recipes publicly.')).toBeVisible();
+		await expect(everyone).toBeChecked();
+		await expect(sheet.getByText('Your public link is paused')).toBeVisible();
+		await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeDisabled();
+		await expect(sheet.getByRole('group', { name: 'Lifetime' })).toHaveAttribute(
+			'aria-disabled',
+			'true'
+		);
+	} finally {
+		await setPublicShares(page, false);
+	}
+});
+
+test('revoking a link that is already gone lets go of it', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await recordShares(page);
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Gone ${uniqueToken()}` });
+
+	try {
+		await setPublicShares(page, true);
+		await createPublicShare(page, recipe.id, 7);
+		// Revoked meanwhile, in another tab: the service no longer knows it.
+		await page.route('**/api/v1/shares/*', (route) =>
+			route.request().method() === 'DELETE'
+				? route.fulfill({ status: 404, json: { title: 'Not Found', status: 404 } })
+				: route.fallback()
+		);
+		await page.setViewportSize({ width: 360, height: 900 });
+		await page.goto(`/recipes/${recipe.slug}`);
+
+		await page.getByRole('button', { name: 'Shared publicly' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		await expect(sheet.getByRole('radio', { name: 'For everyone with the link' })).toBeChecked();
+		await sheet.getByRole('button', { name: 'Revoke' }).click();
+		await page
+			.getByRole('dialog', { name: 'Revoke public link?' })
+			.getByRole('button', { name: 'Revoke' })
+			.click();
+
+		await expect(page.getByText('Public link revoked')).toBeVisible();
+		await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+		await expect(sheet.getByText('Opens without an account', { exact: true })).toBeVisible();
+		// Nothing in the sheet shows or hands out the dead address any more.
+		await expect(sheet.getByText(/\/s\//)).toHaveCount(0);
+		await sheet.getByRole('button', { name: 'Share link', exact: true }).click();
+		await expect.poll(() => sharedUrls(page)).toHaveLength(1);
+		const [url] = await sharedUrls(page);
+		expect(url).toContain(`/recipes/${recipe.slug}`);
+		expect(url).not.toContain('/s/');
+	} finally {
+		await setPublicShares(page, false);
+	}
+});
+
+// The preview gives way on small phones: the buttons stay on screen, the
+// sheet itself never scrolls, and the region above the buttons steps its
+// preview down until it fits, shrinking the ticket rather than dropping it.
+test('the sheet fits small screens', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await recordShares(page);
+	await login(page);
+	await expect(page).toHaveURL('/');
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: 'Fit check' });
+	await uploadImage(page, recipe.id, tinyPng([60, 140, 70], 320, 240));
+
+	try {
+		await setPublicShares(page, true);
+		await createPublicShare(page, recipe.id, null);
+		let last = -1;
+		for (const viewport of [
+			{ width: 360, height: 780 },
+			{ width: 360, height: 640 },
+			{ width: 320, height: 568 },
+			// 150 % zoom on a 360px phone.
+			{ width: 240, height: 520 }
+		]) {
+			await page.setViewportSize(viewport);
+			await page.goto(`/recipes/${recipe.slug}`);
+			await page.getByRole('button', { name: 'Shared publicly' }).click();
+			const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+			const shareLink = sheet.getByRole('button', { name: 'Share link', exact: true });
+			await expect(shareLink).toBeVisible();
+			const box = (await shareLink.boundingBox())!;
+			expect(box.y).toBeGreaterThanOrEqual(0);
+			expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+			expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+			expect(await sheet.evaluate((dialog) => dialog.scrollHeight - dialog.clientHeight)).toBe(0);
+			const region = sheet.locator('[data-fit]');
+			// The ticket shrinks at the last step but never goes, nor runs past
+			// the sheet's sides.
+			const ticket = sheet.locator('[data-ticket]');
+			await expect(ticket).toBeVisible();
+			const within = async () => {
+				const edges = (await ticket.boundingBox())!;
+				expect(edges.x).toBeGreaterThanOrEqual(0);
+				expect(edges.x + edges.width).toBeLessThanOrEqual(viewport.width);
+			};
+			await within();
+			// The hidden ticket's recipe and address stay for screen readers.
+			await expect(region.locator('p.sr-only', { hasText: 'Fit check' })).toHaveCount(1);
+			// Nothing clipped under the buttons - unless the ticket is down to its
+			// smallest, where the region scrolls as the last resort (320x568 in
+			// English, whose public row wraps to three lines). Polled: the fit
+			// runs a frame or two after the sheet is up.
+			await expect
+				.poll(() =>
+					region.evaluate((r) => {
+						const ticket = r.querySelector<HTMLElement>('[data-ticket]');
+						const zoom = Number(ticket?.style.zoom || 1);
+						return r.scrollHeight - r.clientHeight <= 1 || zoom <= 0.6;
+					})
+				)
+				.toBe(true);
+			// Smaller screens take the same step or a later one.
+			const step = Number((await region.getAttribute('data-fit')) || 0);
+			expect(step).toBeGreaterThanOrEqual(last);
+			// The roomiest keeps its photo: a fit that over-steps fails here.
+			if (last < 0) expect(step).toBeLessThan(3);
+			last = step;
+			// The household shows the public one's ticket, within the sheet too.
+			await sheet.getByRole('radio', { name: 'For the household' }).click();
+			await within();
+		}
+		// The smallest needs a step: the fit logic ran.
+		expect(last).toBeGreaterThan(0);
+	} finally {
+		await setPublicShares(page, false);
+	}
+});
+
+// The tabs share one height on a phone: whatever the Link tab holds, the
+// switch above and the buttons below never move on a switch, nor on a pick
+// of the audience. Answered, not set: public sharing is instance-wide and
+// this runs beside the rest.
+test('the switch and the buttons stay put across the tabs', async ({ page }, testInfo) => {
+	test.skip(!testInfo.project.use.isMobile, 'the phone sheet keeps one height');
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	// Short enough that the public rows cost the preview a fit step, and
+	// narrow enough that a detail one line taller than the other shows.
+	await page.setViewportSize({ width: 300, height: 640 });
+	// A share sheet for files and links, so both tabs lead with Share.
+	await page.addInitScript(() => {
+		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
+		Object.defineProperty(Navigator.prototype, 'share', { value: () => Promise.resolve() });
+	});
+	let publicShares = false;
+	let share: object | null = null;
+	await page.route('**/api/v1/settings', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({ response, json: { ...(await response.json()), publicShares } });
+	});
+	await page.route('**/api/v1/shares/by-recipe/*', (route) => route.fulfill({ json: { share } }));
+	await login(page);
+	const title = `Steady ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(0), title });
+	const now = Date.now();
+	const active = {
+		id: 'steady',
+		recipe: { id: recipe.id, slug: recipe.slug, title },
+		path: '/s/steadytoken',
+		createdAt: new Date(now).toISOString(),
+		startsAt: new Date(now).toISOString(),
+		expiresAt: new Date(now + 7 * 86_400_000).toISOString(),
+		status: 'active'
+	};
+
+	for (const [name, on, link] of [
+		['household only', false, null],
+		['with the choice', true, null],
+		['with a public link', true, active]
+	] as const) {
+		publicShares = on;
+		share = link;
+		await page.goto(`/recipes/${recipe.slug}`);
+		await page.getByRole('button', { name: 'Share', exact: true }).click();
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		const where = async (button: string) => {
+			await expect(sheet.getByRole('button', { name: button, exact: true })).toBeVisible();
+			const tabs = await sheet.getByRole('radiogroup', { name: 'Pass on as' }).boundingBox();
+			const primary = await sheet.getByRole('button', { name: button, exact: true }).boundingBox();
+			return { tabs: Math.round(tabs!.y), buttons: Math.round(primary!.y) };
+		};
+		await sheet.getByRole('radio', { name: 'Image', exact: true }).click();
+		const image = await where('Share image');
+		await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
+		if (link) {
+			await expect(sheet.getByRole('radio', { name: 'For everyone with the link' })).toBeChecked();
+		}
+		expect(await where('Share link'), name).toEqual(image);
+		if (on) {
+			// Each row's detail is as tall as the other's, so the sheet keeps its
+			// height and both audiences show the ticket at one step.
+			const ticket = sheet.locator('[data-ticket]');
+			const size = async () => {
+				const box = (await ticket.boundingBox())!;
+				return `${Math.round(box.width)}x${Math.round(box.height)}`;
+			};
+			const before = await size();
+			const other = link ? 'For the household' : 'For everyone with the link';
+			await sheet.getByRole('radio', { name: other }).click();
+			await expect(sheet.getByRole('radio', { name: other })).toBeChecked();
+			const primary = !link ? 'Create public link' : 'Share link';
+			await expect
+				.poll(async () => JSON.stringify(await where(primary)), { message: `${name}, ${other}` })
+				.toBe(JSON.stringify(image));
+			await expect.poll(size, { message: `${name}, ${other}` }).toBe(before);
+		}
+		await page.keyboard.press('Escape');
+		await expect(sheet).toBeHidden();
+	}
+});
+
+// The dialog keeps its size too when the audience changes: a centered box
+// that grew would move both its edges.
+test('the dialog keeps its size when the audience changes', async ({ page }, testInfo) => {
+	test.skip(Boolean(testInfo.project.use.isMobile), 'the dialog is from 768px');
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.route('**/api/v1/settings', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({ response, json: { ...(await response.json()), publicShares: true } });
+	});
+	await page.route('**/api/v1/shares/by-recipe/*', (route) =>
+		route.fulfill({ json: { share: null } })
+	);
+	await login(page);
+	// A title over three lines makes the column taller than the preview, so a
+	// detail taller than the other would grow the dialog.
+	const recipe = await createRecipe(page, {
+		...loadFixture(0),
+		title: `Sized ${uniqueToken()}, a recipe whose title runs on over three lines of the dialog`
+	});
+	await page.goto(`/recipes/${recipe.slug}`);
+
+	const sheet = await openLinkTab(page);
+	const size = async () => {
+		const box = (await sheet.boundingBox())!;
+		return JSON.stringify([Math.round(box.y), Math.round(box.height)]);
+	};
+	await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+	await page.waitForTimeout(100);
+	const household = await size();
+	await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
+	await expect(sheet.getByRole('button', { name: 'Create public link' })).toBeVisible();
+	await expect.poll(size).toBe(household);
 });
 
 test('the owner switches public sharing and its lifetimes', async ({ page }, testInfo) => {
@@ -823,7 +1272,7 @@ test('shared links narrows by status and explains why links are off', async ({
 	}
 });
 
-test('a member whose right is withdrawn sees why their link is paused', async ({
+test('a paused link opens on the household and cannot be shared', async ({
 	page,
 	browser
 }, testInfo) => {
@@ -854,6 +1303,22 @@ test('a member whose right is withdrawn sees why their link is paused', async ({
 			await expect(
 				memberPage.locator('footer').filter({ hasText: 'Your public link is paused' })
 			).toBeVisible();
+
+			// The sheet opens on the household; the public row says why and
+			// keeps Revoke and Shared links, while nothing hands the link on.
+			await memberPage.getByRole('button', { name: 'Shared publicly' }).click();
+			const sheet = memberPage.getByRole('dialog', { name: 'Pass on recipe' });
+			await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
+			await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
+			await expect(sheet.getByText('Your public link is paused')).toBeVisible();
+			await expect(sheet.getByRole('group', { name: 'Lifetime' })).toHaveAttribute(
+				'aria-disabled',
+				'true'
+			);
+			await expect(sheet.getByRole('button', { name: 'Copy link', exact: true })).toBeDisabled();
+			await expect(sheet.getByRole('button', { name: 'Revoke' })).toBeVisible();
+			await expect(sheet.getByRole('link', { name: 'Shared links' })).toBeVisible();
+			await memberPage.keyboard.press('Escape');
 
 			// Shared links says it too, above the list.
 			await memberPage.goto('/settings/shares');

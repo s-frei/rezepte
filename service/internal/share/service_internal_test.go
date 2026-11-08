@@ -46,7 +46,7 @@ func TestIsUniqueViolationOnARealDuplicateInsert(t *testing.T) {
 	now := db.FormatTime(time.Now().UTC())
 	if _, err := q.CreateShare(ctx, sqlc.CreateShareParams{
 		ID: uuid.NewV7().String(), Token: "token-one-aaaaaaaaaaaa",
-		RecipeID: r.ID, CreatedBy: member.ID, CreatedAt: now,
+		RecipeID: r.ID, CreatedBy: member.ID, CreatedAt: now, StartsAt: now,
 	}); err != nil {
 		t.Fatalf("first insert: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestIsUniqueViolationOnARealDuplicateInsert(t *testing.T) {
 		// the composite UNIQUE(recipe_id, created_by) is what must fail,
 		// not the primary key or token's own UNIQUE column.
 		ID: uuid.NewV7().String(), Token: "token-two-aaaaaaaaaaaa",
-		RecipeID: r.ID, CreatedBy: member.ID, CreatedAt: now,
+		RecipeID: r.ID, CreatedBy: member.ID, CreatedAt: now, StartsAt: now,
 	})
 	if err == nil {
 		t.Fatal("second insert for the same recipe and creator: want an error")

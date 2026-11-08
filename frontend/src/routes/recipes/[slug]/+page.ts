@@ -5,13 +5,13 @@ import { loadRecipeBySlug } from '#lib/recipe/load.js';
 import type { PageLoad } from './$types';
 
 /**
- * Loads the recipe for this slug, plus what the public-share dialog needs
- * to decide its own visibility: the household's settings (is sharing on,
- * what lifetimes) and the caller's own link for this recipe, if any.
+ * Loads the recipe for this slug, plus what the pass-on sheet's public link
+ * needs: the household's settings (is sharing on, what lifetimes) and the
+ * caller's own link for this recipe, if any.
  *
  * Settings, the share and the comments all fail soft (`null`) rather than failing the
  * whole page - a recipe is still worth showing without them, just without
- * the "Share publicly…" menu item. Runs in the browser only (`ssr =
+ * the public link. Runs in the browser only (`ssr =
  * false` is set for the whole app in the root layout), so this is a plain
  * client fetch rather than something SvelteKit needs to serialize across
  * the network.

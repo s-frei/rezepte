@@ -24,7 +24,6 @@
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import KitchenDiary from '#lib/components/recipe/KitchenDiary.svelte';
 	import FavoriteStar from '#lib/components/recipe/FavoriteStar.svelte';
-	import PublicShareDialog from '#lib/components/recipe/PublicShareDialog.svelte';
 	import RecipeColophon from '#lib/components/recipe/RecipeColophon.svelte';
 	import RecipeView from '#lib/components/recipe/RecipeView.svelte';
 	import ShareSheet from '#lib/components/recipe/ShareSheet.svelte';
@@ -91,21 +90,20 @@
 
 	// The caller's own public link, if any. A *writable* $derived: reading it
 	// tracks `data.share` (so navigating to another recipe resets it), but
-	// `PublicShareDialog` also reassigns it in place on create/revoke, which
-	// overrides that until `data.share` itself changes again - exactly what
-	// lets the menu item, the tag-row marker and the colophon line below update
+	// the pass-on sheet also reassigns it in place on create, re-time and
+	// revoke, which overrides that until `data.share` itself changes again -
+	// exactly what lets the tag-row marker and the colophon line below update
 	// without a reload.
 	let share: PublicShare | null = $derived(data.share);
-	let shareDialogOpen = $state(false);
 	let passOnOpen = $state(false);
-	// Public sharing is on and this member may use it.
-	// With an existing link the menu item and the marker show regardless of
-	// either: they open the dialog, which shows the link as paused if either
-	// has since gone off, with Revoke still available.
+	// The sheet's tab on opening; unset, it opens on the tab this device used last.
+	let passOnTab = $state<'image' | 'link'>();
+	// Public sharing is on and this member may use it. With an existing link
+	// the sheet offers it regardless, shown as paused if either has since
+	// gone off, with Revoke still available.
 	const canCreateShare = $derived(
 		Boolean(settings?.publicShares) && Boolean(session.user?.canSharePublicly)
 	);
-	const showShareMenuItem = $derived(canCreateShare || share !== null);
 
 	// The recipe's comments, here rather than in `KitchenDiary` so the
 	// tab can count them. Writable deriveds: a new load reseeds both.
@@ -145,6 +143,18 @@
 	// the bar fills in exactly when it stops sitting on the image.
 	let scrollY = $state(0);
 	const scrolled = $derived(scrollY > 220);
+
+	function passOn() {
+		passOnTab = undefined;
+		passOnOpen = true;
+	}
+
+	// The marker and the colophon line are about the public link: they open
+	// the sheet on its Link tab.
+	function manageShare() {
+		passOnTab = 'link';
+		passOnOpen = true;
+	}
 
 	function openLightbox(index: number) {
 		lightboxIndex = index;
@@ -283,21 +293,12 @@
 		{m.detail_copy_link()}
 	</DropdownMenu.Item>
 	<DropdownMenu.Item
-		onSelect={() => (passOnOpen = true)}
+		onSelect={passOn}
 		class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
 	>
 		<Share2 class="size-4" aria-hidden="true" />
 		{m.share_pass_on()}
 	</DropdownMenu.Item>
-	{#if showShareMenuItem}
-		<DropdownMenu.Item
-			onSelect={() => (shareDialogOpen = true)}
-			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
-		>
-			<Globe class="size-4" aria-hidden="true" />
-			{share ? m.public_share_menu_manage() : m.public_share_menu_create()}
-		</DropdownMenu.Item>
-	{/if}
 	{#if recipe?.canDelete}
 		<!-- The one destructive item sits apart from the rest. -->
 		<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
@@ -317,7 +318,7 @@
 			{m.detail_edit()}
 		</Button>
 	{/if}
-	<Button variant="secondary" onclick={() => (passOnOpen = true)}>
+	<Button variant="secondary" onclick={passOn}>
 		<Share2 class="size-4" aria-hidden="true" />
 		{m.share_pass_on()}
 	</Button>
@@ -391,10 +392,12 @@
 		{:else}
 			<IconButton
 				label={m.detail_share()}
-				onclick={() => (passOnOpen = true)}
+				onclick={passOn}
 				class="pointer-events-auto shadow-card {headerCircle}"
 			>
-				<Share2 class="size-5" aria-hidden="true" />
+				<!-- Centered by its box, the glyph still leans right: two of its
+				     three dots sit there. A pixel left centers it to the eye. -->
+				<Share2 class="size-5 -translate-x-px" aria-hidden="true" />
 			</IconButton>
 		{/if}
 		<DropdownMenu.Root>
@@ -484,7 +487,7 @@
 				{#if share}
 					<button
 						type="button"
-						onclick={() => (shareDialogOpen = true)}
+						onclick={manageShare}
 						class="inline-flex items-center gap-1.5 rounded-pill border px-3 py-0.5 text-caption font-semibold transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {share.status ===
 						'active'
 							? 'border-primary text-primary'
@@ -509,7 +512,7 @@
 				</Button>
 			{/snippet}
 			{#snippet footer()}
-				<RecipeColophon {recipe} {share} onmanageshare={() => (shareDialogOpen = true)} />
+				<RecipeColophon {recipe} {share} onmanageshare={manageShare} />
 			{/snippet}
 		</RecipeView>
 	</article>
@@ -523,20 +526,16 @@
 		onconfirm={handleDelete}
 	/>
 
-	<PublicShareDialog
-		bind:open={shareDialogOpen}
-		recipeId={recipe.id}
-		recipeTitle={recipe.title}
-		defaultDays={settings?.publicShareDefaultDays ?? null}
-		maxDays={settings?.publicShareMaxDays ?? null}
-		bind:share
-	/>
-
 	<ShareSheet
 		bind:open={passOnOpen}
 		{recipe}
 		attribution={settings?.publicShareAttribution ?? true}
 		linkUrl={() => shareable?.url ?? location.href}
+		bind:share
+		{canCreateShare}
+		defaultDays={settings?.publicShareDefaultDays ?? null}
+		maxDays={settings?.publicShareMaxDays ?? null}
+		initialTab={passOnTab}
 	/>
 
 	<Lightbox

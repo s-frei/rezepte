@@ -130,6 +130,11 @@ export async function shareLink(title: string, url: string): Promise<void> {
 	}
 }
 
+/** Whether this browser has a share sheet for links at all (none over plain http, none in most desktop browsers). */
+export function canShareLink(): boolean {
+	return typeof navigator.share === 'function';
+}
+
 /** Whether this browser's share sheet takes files - Safari and Chrome on phones and macOS. */
 export function canShareFiles(): boolean {
 	if (typeof navigator.canShare !== 'function') {

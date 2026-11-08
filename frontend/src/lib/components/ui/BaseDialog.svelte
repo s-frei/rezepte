@@ -11,6 +11,7 @@
 		open = $bindable(false),
 		dismissible = true,
 		wide = false,
+		bleed = false,
 		children
 	}: {
 		open?: boolean;
@@ -25,6 +26,13 @@
 		 * actions, the add-account form its two columns side by side.
 		 */
 		wide?: boolean;
+		/**
+		 * All of the padding inside the scroller, none around it, so content
+		 * can bleed to the rounded edge with `-m-7` (the pass-on dialog's
+		 * preview panel). The price: a scrollbar, should one appear, runs
+		 * along the edge instead of inside it.
+		 */
+		bleed?: boolean;
 		children: Snippet;
 	} = $props();
 
@@ -70,11 +78,15 @@
 						{...props}
 						class="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
 							? 'max-w-[720px]'
-							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-surface px-1.5 py-3 shadow-dialog"
+							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-surface shadow-dialog {bleed
+							? ''
+							: 'px-1.5 py-3'}"
 						transition:scale={{ duration, start: 0.95 }}
 					>
 						<div
-							class="min-h-0 overflow-y-auto overscroll-contain px-3.5 py-2 wrap-break-word md:px-[22px] md:py-4 [&_h2]:hyphens-auto"
+							class="min-h-0 overflow-y-auto overscroll-contain wrap-break-word [&_h2]:hyphens-auto {bleed
+								? 'p-7'
+								: 'px-3.5 py-2 md:px-[22px] md:py-4'}"
 						>
 							{@render children()}
 						</div>

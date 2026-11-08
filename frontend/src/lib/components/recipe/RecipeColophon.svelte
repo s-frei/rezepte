@@ -21,7 +21,7 @@
 	}: {
 		recipe: Pick<Recipe, 'createdBy' | 'createdAt' | 'updatedBy' | 'updatedAt' | 'locked'>;
 		/** The viewer's own public link to this recipe, if any: its line says
-		 * how long it runs, or why it does not, and opens the dialog. */
+		 * how long it runs, or why it does not, and opens the pass-on sheet. */
 		share?: PublicShare | null;
 		onmanageshare?: () => void;
 	} = $props();

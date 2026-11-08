@@ -15,6 +15,7 @@
 		closeLabel,
 		onOpenAutoFocus,
 		onCloseAutoFocus,
+		tall = false,
 		children
 	}: {
 		open?: boolean;
@@ -24,6 +25,12 @@
 		onOpenAutoFocus?: (event: Event) => void;
 		/** Forwarded to Bits UI: where focus goes once the sheet has closed. */
 		onCloseAutoFocus?: (event: Event) => void;
+		/**
+		 * Up to 92dvh instead of 80dvh, for a sheet whose content is the
+		 * point of opening it (the pass-on sheet): Safari's bars leave an
+		 * iPhone about 660px, and 80dvh of that dropped the pass-on ticket.
+		 */
+		tall?: boolean;
 		children: Snippet;
 	} = $props();
 
@@ -49,7 +56,9 @@
 				{#if isOpen}
 					<div
 						{...props}
-						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[80dvh] w-full max-w-[640px] flex-col rounded-t-3xl bg-background shadow-sheet outline-none"
+						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex {tall
+							? 'max-h-[92dvh]'
+							: 'max-h-[80dvh]'} w-full max-w-[640px] flex-col rounded-t-3xl bg-background shadow-sheet outline-none"
 						transition:fly={{ duration, y: 200 }}
 					>
 						<SheetHandle label={closeLabel} onclose={() => (open = false)} />

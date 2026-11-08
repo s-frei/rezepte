@@ -2551,7 +2551,7 @@
                 "description": "Who created the link; only in an admin's list of everyone's links"
               },
               "expiresAt": {
-                "description": "Effective expiry: the earlier of the link's own and the instance maximum counted from createdAt; null is permanent",
+                "description": "Effective expiry: the earlier of the link's own and the instance maximum counted from startsAt; null is permanent",
                 "format": "date-time",
                 "type": [
                   "string",
@@ -2568,8 +2568,13 @@
               "recipe": {
                 "$ref": "#/components/schemas/RecipeRef"
               },
+              "startsAt": {
+                "description": "When the current lifetime began: creation, or the last change of lifetime; the instance maximum counts from here",
+                "format": "date-time",
+                "type": "string"
+              },
               "status": {
-                "description": "active serves the recipe; paused and limited serve nothing until the owner or an admin allows it again",
+                "description": "active serves the recipe; paused and limited serve nothing until the owner or an admin allows it again, and a limited link also comes back when its creator re-times it",
                 "enum": [
                   "active",
                   "paused",
@@ -2583,6 +2588,7 @@
               "recipe",
               "path",
               "createdAt",
+              "startsAt",
               "expiresAt",
               "status"
             ],
@@ -3267,6 +3273,38 @@
         ],
         "type": "object"
       },
+      "RetimeShareInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/RetimeShareInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "days": {
+            "description": "How many days the link lasts from now; null makes it permanent. Must not exceed publicShareMaxDays (null exceeds any maximum).",
+            "enum": [
+              1,
+              7,
+              30,
+              365
+            ],
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "type": "object"
+      },
       "ServingsBody": {
         "additionalProperties": false,
         "properties": {
@@ -3524,7 +3562,7 @@
             "description": "Who created the link; only in an admin's list of everyone's links"
           },
           "expiresAt": {
-            "description": "Effective expiry: the earlier of the link's own and the instance maximum counted from createdAt; null is permanent",
+            "description": "Effective expiry: the earlier of the link's own and the instance maximum counted from startsAt; null is permanent",
             "format": "date-time",
             "type": [
               "string",
@@ -3541,8 +3579,13 @@
           "recipe": {
             "$ref": "#/components/schemas/RecipeRef"
           },
+          "startsAt": {
+            "description": "When the current lifetime began: creation, or the last change of lifetime; the instance maximum counts from here",
+            "format": "date-time",
+            "type": "string"
+          },
           "status": {
-            "description": "active serves the recipe; paused and limited serve nothing until the owner or an admin allows it again",
+            "description": "active serves the recipe; paused and limited serve nothing until the owner or an admin allows it again, and a limited link also comes back when its creator re-times it",
             "enum": [
               "active",
               "paused",
@@ -3556,6 +3599,7 @@
           "recipe",
           "path",
           "createdAt",
+          "startsAt",
           "expiresAt",
           "status"
         ],
@@ -9568,6 +9612,103 @@
           }
         ],
         "summary": "Revoke a public link",
+        "tags": [
+          "shares"
+        ]
+      },
+      "patch": {
+        "description": "Restarts the caller's own link's lifetime from now, the owner's maximum included, so a limited link comes back. A paused link cannot be re-timed.",
+        "operationId": "retime-share",
+        "parameters": [
+          {
+            "description": "Share id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Share id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetimeShareInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Share"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefusedError"
+                }
+              }
+            },
+            "description": "Public sharing is off, or the caller may not share publicly; reason says which"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Re-time a public link",
         "tags": [
           "shares"
         ]

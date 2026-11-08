@@ -50,6 +50,17 @@ func refused(err error, reason string) *RefusedError {
 	}
 }
 
+// refusedResponse documents the 403 RefusedError that create-public-share and
+// retime-share both answer with.
+func refusedResponse(registry huma.Registry) *huma.Response {
+	return &huma.Response{
+		Description: "Public sharing is off, or the caller may not share publicly; reason says which",
+		Content: map[string]*huma.MediaType{
+			"application/problem+json": {Schema: registry.Schema(reflect.TypeFor[RefusedError](), true, "")},
+		},
+	}
+}
+
 type shareOutput struct {
 	Body Share
 }
@@ -105,6 +116,13 @@ type revokeShareInput struct {
 	ID string `path:"id" doc:"Share id"`
 }
 
+type retimeShareInput struct {
+	ID   string `path:"id" doc:"Share id"`
+	Body struct {
+		Days *int `json:"days" enum:"1,7,30,365" nullable:"true" doc:"How many days the link lasts from now; null makes it permanent. Must not exceed publicShareMaxDays (null exceeds any maximum)."`
+	}
+}
+
 type noContent struct{}
 
 // Register installs the five operations members manage their public links
@@ -128,12 +146,7 @@ func Register(api huma.API, svc *Service) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{401, 404, 422},
 		Responses: map[string]*huma.Response{
-			"403": {
-				Description: "Public sharing is off, or the caller may not share publicly; reason says which",
-				Content: map[string]*huma.MediaType{
-					"application/problem+json": {Schema: registry.Schema(reflect.TypeFor[RefusedError](), true, "")},
-				},
-			},
+			"403": refusedResponse(registry),
 			"409": {
 				Description: "The caller already has a public link for this recipe; the problem document carries it as share",
 				Content: map[string]*huma.MediaType{
@@ -247,6 +260,43 @@ func Register(api huma.API, svc *Service) {
 			return nil, err
 		}
 		return &noContent{}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "retime-share",
+		Method:      http.MethodPatch,
+		Path:        "/api/v1/shares/{id}",
+		Summary:     "Re-time a public link",
+		Description: "Restarts the caller's own link's lifetime from now, the owner's maximum included, so a limited link comes back. A paused link cannot be re-timed.",
+		Tags:        []string{"shares"},
+		Security:    auth.SessionSecurity,
+		Errors:      []int{401, 404, 422},
+		Responses: map[string]*huma.Response{
+			"403": refusedResponse(registry),
+		},
+	}, func(ctx context.Context, in *retimeShareInput) (*shareOutput, error) {
+		u, err := auth.CurrentUser(ctx)
+		if err != nil {
+			return nil, err
+		}
+		sh, err := svc.Retime(ctx, u, in.ID, in.Body.Days)
+		switch {
+		case errors.Is(err, ErrSharingOff):
+			return nil, refused(err, ReasonSharingOff)
+		case errors.Is(err, ErrNotAllowed):
+			return nil, refused(err, ReasonNotAllowed)
+		case errors.Is(err, ErrLifetime):
+			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
+				Location: "body.days",
+				Message:  "lifetime exceeds the maximum",
+				Value:    in.Body.Days,
+			})
+		case errors.Is(err, ErrNotFound):
+			return nil, huma.Error404NotFound("share not found")
+		case err != nil:
+			return nil, err
+		}
+		return &shareOutput{Body: sh}, nil
 	})
 
 	huma.Register(api, huma.Operation{

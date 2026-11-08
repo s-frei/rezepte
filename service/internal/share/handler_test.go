@@ -206,6 +206,7 @@ func TestShareOperationsAreSessionOnly(t *testing.T) {
 		{http.MethodGet, "/api/v1/shares", ""},
 		{http.MethodGet, "/api/v1/shares?all=true", ""},
 		{http.MethodDelete, "/api/v1/shares/x", ""},
+		{http.MethodPatch, "/api/v1/shares/x", `{"days":7}`},
 		{http.MethodDelete, "/api/v1/shares", ""},
 	}
 	for _, op := range ops {
@@ -417,5 +418,34 @@ func TestRevokeShares(t *testing.T) {
 	}
 	if list := decode[struct{ Items []share.Share }](t, s.do(http.MethodGet, "/api/v1/shares?all=true", "", adam)); len(list.Items) != 0 {
 		t.Errorf("after revoke all: %+v", list.Items)
+	}
+}
+
+func TestRetimeShare(t *testing.T) {
+	s := newStack(t)
+	mia := s.login(t, s.member)
+	made := s.create(t, mia, s.recipe.ID, `{"days":7}`)
+	path := "/api/v1/shares/" + made.ID
+
+	rec := s.do(http.MethodPatch, path, `{"days":null}`, mia)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("retime: %d %s", rec.Code, rec.Body.String())
+	}
+	got := decode[share.Share](t, rec)
+	if got.ID != made.ID || got.Path != made.Path || got.ExpiresAt != nil || got.StartsAt.Before(made.StartsAt) {
+		t.Errorf("retimed = %+v, want the same link, permanent, started no earlier than %v", got, made.StartsAt)
+	}
+	if rec := s.do(http.MethodPatch, path, `{"days":2}`, mia); rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("days 2: %d, want 422", rec.Code)
+	}
+	if rec := s.do(http.MethodPatch, "/api/v1/shares/nope", `{"days":7}`, mia); rec.Code != http.StatusNotFound {
+		t.Errorf("unknown id: %d, want 404", rec.Code)
+	}
+	if _, err := s.users.SetCanSharePublicly(context.Background(), s.owner, s.member.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	rec = s.do(http.MethodPatch, path, `{"days":7}`, mia)
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"reason":"not-allowed"`) {
+		t.Errorf("withdrawn right: %d %s, want 403 not-allowed", rec.Code, rec.Body.String())
 	}
 }

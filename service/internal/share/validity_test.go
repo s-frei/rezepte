@@ -8,6 +8,7 @@ import (
 func TestEvaluate(t *testing.T) {
 	now := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
 	createdAt := now.Add(-24 * time.Hour)
+	startsAt5 := now.AddDate(0, 0, -5)
 	future := now.Add(24 * time.Hour)
 	past := now.Add(-time.Hour)
 	days30 := 30
@@ -15,7 +16,7 @@ func TestEvaluate(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		createdAt  time.Time
+		startsAt   time.Time
 		expiresAt  *time.Time
 		instanceOn bool
 		allowed    bool
@@ -26,7 +27,7 @@ func TestEvaluate(t *testing.T) {
 	}{
 		{
 			name:       "on, allowed, permanent",
-			createdAt:  createdAt,
+			startsAt:   createdAt,
 			expiresAt:  nil,
 			instanceOn: true,
 			allowed:    true,
@@ -37,7 +38,7 @@ func TestEvaluate(t *testing.T) {
 		},
 		{
 			name:       "instance off",
-			createdAt:  createdAt,
+			startsAt:   createdAt,
 			expiresAt:  nil,
 			instanceOn: false,
 			allowed:    true,
@@ -48,7 +49,7 @@ func TestEvaluate(t *testing.T) {
 		},
 		{
 			name:       "creator withdrawn",
-			createdAt:  createdAt,
+			startsAt:   createdAt,
 			expiresAt:  nil,
 			instanceOn: true,
 			allowed:    false,
@@ -59,7 +60,7 @@ func TestEvaluate(t *testing.T) {
 		},
 		{
 			name:       "own expiry past",
-			createdAt:  createdAt,
+			startsAt:   createdAt,
 			expiresAt:  &past,
 			instanceOn: true,
 			allowed:    true,
@@ -70,7 +71,7 @@ func TestEvaluate(t *testing.T) {
 		},
 		{
 			name:       "limited by a lowered maximum",
-			createdAt:  createdFortyDaysAgo,
+			startsAt:   createdFortyDaysAgo,
 			expiresAt:  nil,
 			instanceOn: true,
 			allowed:    true,
@@ -81,7 +82,7 @@ func TestEvaluate(t *testing.T) {
 		},
 		{
 			name:       "the maximum lifted again reverses the limit",
-			createdAt:  createdFortyDaysAgo,
+			startsAt:   createdFortyDaysAgo,
 			expiresAt:  nil,
 			instanceOn: true,
 			allowed:    true,
@@ -91,8 +92,19 @@ func TestEvaluate(t *testing.T) {
 			wantServe:  true,
 		},
 		{
+			name:       "the maximum counts from startsAt",
+			startsAt:   startsAt5,
+			expiresAt:  nil,
+			instanceOn: true,
+			allowed:    true,
+			maxDays:    &days30,
+			wantStatus: StatusActive,
+			wantExpiry: ptrTime(startsAt5.AddDate(0, 0, 30)),
+			wantServe:  true,
+		},
+		{
 			name:       "effective expiry is the earlier of both",
-			createdAt:  createdAt,
+			startsAt:   createdAt,
 			expiresAt:  &future,
 			instanceOn: true,
 			allowed:    true,
@@ -105,7 +117,7 @@ func TestEvaluate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, expiry, serving := evaluate(tt.createdAt, tt.expiresAt, tt.instanceOn, tt.allowed, tt.maxDays, now)
+			status, expiry, serving := evaluate(tt.startsAt, tt.expiresAt, tt.instanceOn, tt.allowed, tt.maxDays, now)
 			if status != tt.wantStatus {
 				t.Errorf("status = %q, want %q", status, tt.wantStatus)
 			}

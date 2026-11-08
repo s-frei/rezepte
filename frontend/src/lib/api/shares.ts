@@ -19,8 +19,10 @@ export type PublicShare = {
 	/** The public page's path, `/s/<token>`. */
 	path: string;
 	createdAt: string;
+	/** When the current lifetime began: creation, or the last change of lifetime. */
+	startsAt: string;
 	/** Effective expiry: the earlier of the link's own and the instance
-	 * maximum counted from `createdAt`. `null` is permanent. */
+	 * maximum counted from `startsAt`. `null` is permanent. */
 	expiresAt: string | null;
 	status: ShareStatus;
 	createdBy?: ShareCreator;
@@ -52,6 +54,19 @@ export async function getMyPublicShare(recipeId: string): Promise<PublicShare | 
 export async function listShares(all = false): Promise<PublicShare[]> {
 	const page = await api<{ items: PublicShare[] }>(`/shares${all ? '?all=true' : ''}`);
 	return page.items;
+}
+
+/**
+ * Restarts a link's lifetime from now, the instance maximum included, so a
+ * limited link comes back. Throws `ApiError` with status 403 when the link
+ * is paused (`body.reason`, `ShareRefusal`), 404 when it is not the
+ * caller's, and 422 at `body.days` when `days` exceeds the instance maximum.
+ */
+export function retimeShare(id: string, days: ShareLifetime): Promise<PublicShare> {
+	return api<PublicShare>(`/shares/${id}`, {
+		method: 'PATCH',
+		body: JSON.stringify({ days })
+	});
 }
 
 /** Revokes one link: the caller's own, or any as an admin. */

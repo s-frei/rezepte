@@ -7,6 +7,7 @@
     "list-shares",
     "revoke-all-shares",
     "get-my-public-share",
+    "retime-share",
     "revoke-share"
   ]
 }

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { prepare, shot } from './helpers';
+import { FIXED_TIME, prepare, shot } from './helpers';
 
 // The demo gives its admin and its two signed-in members (mila, jonas)
 // public links of their own - its third member, noah, has no password and
@@ -27,14 +27,49 @@ test.afterEach(async ({ page }) => {
 	await setPublicShares(page, false);
 });
 
-test('public-link-create', async ({ page }) => {
-	// A recipe nobody has shared, so the dialog offers the lifetime.
+test('public-link-sheet', async ({ page }, testInfo) => {
+	// A recipe nobody has shared: create its link from the Link tab, so the
+	// picture shows the ticket with its remaining time.
 	await page.goto('/recipes/macaroni-cheese');
-	await page.getByRole('button', { name: 'More actions' }).click();
-	await page.getByRole('menuitem', { name: 'Share publicly…' }).click();
-	const dialog = page.getByRole('dialog', { name: 'Your public link' });
-	await expect(dialog.getByRole('button', { name: 'Create public link' })).toBeVisible();
-	await shot(page, 'public-link-create');
+	if (testInfo.project.use.isMobile) {
+		await page.getByRole('button', { name: 'Share', exact: true }).click();
+	} else {
+		await page.getByRole('button', { name: 'Pass on', exact: true }).click();
+	}
+	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+	// The page's clock is frozen, the instance's is not: the new link's dates
+	// are moved onto the frozen day, or the stub would count the days from
+	// it to an expiry set from today.
+	await page.route('**/api/v1/recipes/*/public-share', async (route) => {
+		const response = await route.fetch();
+		const body = await response.json();
+		const day = 86_400_000;
+		const start = FIXED_TIME.toISOString();
+		await route.fulfill({
+			response,
+			json: {
+				...body,
+				createdAt: start,
+				startsAt: start,
+				expiresAt: new Date(FIXED_TIME.getTime() + 7 * day).toISOString()
+			}
+		});
+	});
+	await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
+	await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
+	const created = page.waitForResponse(
+		(r) => r.url().endsWith('/public-share') && r.request().method() === 'POST'
+	);
+	await sheet.getByRole('button', { name: 'Create public link' }).click();
+	const share = (await (await created).json()) as { id: string };
+	try {
+		await expect(sheet.getByRole('button', { name: 'Revoke' })).toBeVisible();
+		await shot(page, 'public-link-sheet');
+	} finally {
+		// The other pictures expect this recipe unshared.
+		const origin = new URL(page.url()).origin;
+		await page.request.delete(`/api/v1/shares/${share.id}`, { headers: { Origin: origin } });
+	}
 });
 
 test('shared-links', async ({ page }) => {

@@ -68,6 +68,7 @@ erDiagram
     text token UK "16 random bytes, base64url, plain text"
     text recipe_id FK
     text created_by FK
+    text starts_at "current lifetime began; the instance maximum counts from here"
     text expires_at "nullable, null is permanent"
   }
   sessions {

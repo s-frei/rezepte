@@ -281,6 +281,20 @@ export async function openRecipeMenu(page: Page) {
 }
 
 /**
+ * Opens the pass-on sheet on its Link tab. A phone (below 768px) opens it
+ * from "Share", where its primary is "Share link" with a share sheet and
+ * "Copy link" without one; from 768px it is the dialog behind "Pass on",
+ * whose primary is "Copy link".
+ */
+export async function openLinkTab(page: Page): Promise<Locator> {
+	const phone = (page.viewportSize()?.width ?? 1280) < 768;
+	await page.getByRole('button', { name: phone ? 'Share' : 'Pass on', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+	await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
+	return sheet;
+}
+
+/**
  * A valid RGB PNG, 64×64 unless told otherwise, built in-process (signature,
  * IHDR, one deflated IDAT, IEND), so the suite needs no binary fixtures.
  * `tint` picks the color so two uploads are distinguishable in a screenshot.

@@ -10,9 +10,9 @@ import (
 )
 
 const createShare = `-- name: CreateShare :one
-INSERT INTO shares (id, token, recipe_id, created_by, created_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?)
-RETURNING id, token, recipe_id, created_by, created_at, expires_at
+INSERT INTO shares (id, token, recipe_id, created_by, created_at, starts_at, expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+RETURNING id, token, recipe_id, created_by, created_at, expires_at, starts_at
 `
 
 type CreateShareParams struct {
@@ -21,6 +21,7 @@ type CreateShareParams struct {
 	RecipeID  string
 	CreatedBy string
 	CreatedAt string
+	StartsAt  string
 	ExpiresAt *string
 }
 
@@ -31,6 +32,7 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		arg.RecipeID,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.StartsAt,
 		arg.ExpiresAt,
 	)
 	var i Share
@@ -41,6 +43,7 @@ func (q *Queries) CreateShare(ctx context.Context, arg CreateShareParams) (Share
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.StartsAt,
 	)
 	return i, err
 }
@@ -100,7 +103,7 @@ func (q *Queries) DeleteShareByCreator(ctx context.Context, arg DeleteShareByCre
 }
 
 const getShareByRecipeAndCreator = `-- name: GetShareByRecipeAndCreator :one
-SELECT id, token, recipe_id, created_by, created_at, expires_at FROM shares WHERE recipe_id = ? AND created_by = ?
+SELECT id, token, recipe_id, created_by, created_at, expires_at, starts_at FROM shares WHERE recipe_id = ? AND created_by = ?
 `
 
 type GetShareByRecipeAndCreatorParams struct {
@@ -118,12 +121,13 @@ func (q *Queries) GetShareByRecipeAndCreator(ctx context.Context, arg GetShareBy
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.StartsAt,
 	)
 	return i, err
 }
 
 const getShareByToken = `-- name: GetShareByToken :one
-SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at, u.can_share_publicly AS creator_can_share_publicly
+SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at, s.starts_at, u.can_share_publicly AS creator_can_share_publicly
 FROM shares s
 JOIN users u ON u.id = s.created_by
 WHERE s.token = ?
@@ -136,6 +140,7 @@ type GetShareByTokenRow struct {
 	CreatedBy               string
 	CreatedAt               string
 	ExpiresAt               *string
+	StartsAt                string
 	CreatorCanSharePublicly bool
 }
 
@@ -151,13 +156,14 @@ func (q *Queries) GetShareByToken(ctx context.Context, token string) (GetShareBy
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.StartsAt,
 		&i.CreatorCanSharePublicly,
 	)
 	return i, err
 }
 
 const listAllShares = `-- name: ListAllShares :many
-SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at,
+SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at, s.starts_at,
        r.slug AS recipe_slug, r.title AS recipe_title,
        u.display_name AS creator_display_name, u.color AS creator_color,
        u.can_share_publicly AS creator_can_share_publicly
@@ -174,6 +180,7 @@ type ListAllSharesRow struct {
 	CreatedBy               string
 	CreatedAt               string
 	ExpiresAt               *string
+	StartsAt                string
 	RecipeSlug              string
 	RecipeTitle             string
 	CreatorDisplayName      string
@@ -199,6 +206,7 @@ func (q *Queries) ListAllShares(ctx context.Context) ([]ListAllSharesRow, error)
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.StartsAt,
 			&i.RecipeSlug,
 			&i.RecipeTitle,
 			&i.CreatorDisplayName,
@@ -219,7 +227,7 @@ func (q *Queries) ListAllShares(ctx context.Context) ([]ListAllSharesRow, error)
 }
 
 const listSharesByCreator = `-- name: ListSharesByCreator :many
-SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at,
+SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at, s.starts_at,
        r.slug AS recipe_slug, r.title AS recipe_title,
        u.display_name AS creator_display_name, u.color AS creator_color,
        u.can_share_publicly AS creator_can_share_publicly
@@ -237,6 +245,7 @@ type ListSharesByCreatorRow struct {
 	CreatedBy               string
 	CreatedAt               string
 	ExpiresAt               *string
+	StartsAt                string
 	RecipeSlug              string
 	RecipeTitle             string
 	CreatorDisplayName      string
@@ -262,6 +271,7 @@ func (q *Queries) ListSharesByCreator(ctx context.Context, createdBy string) ([]
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.StartsAt,
 			&i.RecipeSlug,
 			&i.RecipeTitle,
 			&i.CreatorDisplayName,
@@ -279,4 +289,43 @@ func (q *Queries) ListSharesByCreator(ctx context.Context, createdBy string) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const retimeShare = `-- name: RetimeShare :one
+UPDATE shares SET starts_at = ?, expires_at = ?
+WHERE id = ? AND created_by = ? AND (expires_at IS NULL OR expires_at > ?5)
+RETURNING id, token, recipe_id, created_by, created_at, expires_at, starts_at
+`
+
+type RetimeShareParams struct {
+	StartsAt  string
+	ExpiresAt *string
+	ID        string
+	CreatedBy string
+	Now       *string
+}
+
+// Re-timing restarts the clock: the new lifetime and the owner's maximum both
+// count from starts_at. Only the creator's own link that has not passed its
+// own expiry matches (stored times are RFC3339 UTC text, so they compare as
+// strings, as in DeleteExpiredShares); anything else updates no row.
+func (q *Queries) RetimeShare(ctx context.Context, arg RetimeShareParams) (Share, error) {
+	row := q.db.QueryRowContext(ctx, retimeShare,
+		arg.StartsAt,
+		arg.ExpiresAt,
+		arg.ID,
+		arg.CreatedBy,
+		arg.Now,
+	)
+	var i Share
+	err := row.Scan(
+		&i.ID,
+		&i.Token,
+		&i.RecipeID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.StartsAt,
+	)
+	return i, err
 }

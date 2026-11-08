@@ -90,7 +90,7 @@
 	</div>
 
 	<div class="mt-3">
-		<LifetimeBar item={share} faded={dormant} />
+		<LifetimeBar item={{ ...share, createdAt: share.startsAt }} faded={dormant} />
 		<p class="sr-only">
 			{m.settings_shares_created({ date: formatDate(share.createdAt) })}.
 			{share.expiresAt

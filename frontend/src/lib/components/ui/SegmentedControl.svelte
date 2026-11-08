@@ -13,6 +13,7 @@
 		label,
 		disabled = false,
 		size = 'md',
+		track = 'background',
 		onchange
 	}: {
 		value: T;
@@ -26,6 +27,17 @@
 		disabled?: boolean;
 		/** `sm` is 36px tall, the one height of a `SettingsRow` control. */
 		size?: 'md' | 'sm';
+		/**
+		 * The ground the track reads on: `background` is a `bg-background`
+		 * track for a `surface` panel; `surface` heads a `bg-background`
+		 * sheet: a bordered `bg-surface` track with the checked segment in
+		 * `primary` - the choice a whole sheet hangs on, so it has to read at
+		 * a glance in the dark too. Phones keep the 36px segments (the sheet's
+		 * fit steps count on every pixel there; the 44px hit area comes from
+		 * `::after` as for every track), `md` grows them to 44px in body type.
+		 * It fills its box from `md` too, the segments sharing it equally.
+		 */
+		track?: 'background' | 'surface';
 		/** Fires after the user picks a different segment. */
 		onchange?: (value: T) => void;
 	} = $props();
@@ -38,6 +50,7 @@
 	// pill is measured rather than moved by a fraction like the bottom nav's.
 	let pill = $state<{ x: number; y: number; w: number; h: number } | null>(null);
 	const glide = $derived(prefersReducedMotion.current ? 0 : 300);
+	const onSurface = $derived(track === 'surface');
 
 	function measure() {
 		const button = buttons[options.findIndex((option) => option.value === value)];
@@ -132,12 +145,16 @@
 		role="radiogroup"
 		aria-label={label}
 		aria-disabled={disabled || undefined}
-		class="relative flex w-full flex-wrap rounded-3xl bg-background p-1 md:inline-flex md:w-auto"
+		class="relative flex w-full flex-wrap rounded-3xl p-1 {onSurface
+			? 'border border-handle bg-surface md:border-[1.5px]'
+			: 'bg-background md:inline-flex md:w-auto'}"
 	>
 		<span
 			bind:this={pillEl}
 			aria-hidden="true"
-			class="absolute top-0 left-0 rounded-pill bg-surface shadow-card {pill ? '' : 'hidden'}"
+			class="absolute top-0 left-0 rounded-pill {onSurface
+				? 'bg-primary shadow-cta'
+				: 'bg-surface shadow-card'} {pill ? '' : 'hidden'}"
 			style:translate="{pill?.x ?? 0}px {pill?.y ?? 0}px"
 			style:width="{pill?.w ?? 0}px"
 			style:height="{pill?.h ?? 0}px"
@@ -154,17 +171,25 @@
 				tabindex={checked ? 0 : -1}
 				onclick={() => select(option.value)}
 				onkeydown={(event) => handleKey(event, i)}
-				class="relative inline-flex {size === 'sm'
-					? 'h-7'
-					: 'h-9'} min-w-fit flex-1 items-center justify-center gap-2 rounded-pill px-2 text-body-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-1 md:flex-none md:px-4 {checked
-					? 'text-text'
+				class="relative inline-flex {onSurface
+					? 'h-9 text-body-sm md:h-11 md:text-body'
+					: size === 'sm'
+						? 'h-7 text-body-sm'
+						: 'h-9 text-body-sm'} min-w-fit flex-1 items-center justify-center gap-2 rounded-pill px-2 font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-1 {onSurface
+					? 'duration-300 ease-glide motion-reduce:duration-0'
+					: 'md:flex-none md:px-4'} {checked
+					? onSurface
+						? 'text-primary-foreground'
+						: 'text-text'
 					: disabled
 						? 'text-text-muted'
 						: 'text-text-muted hover:text-text'}"
 			>
 				{#if Icon}
 					<Icon
-						class="size-4 shrink-0 {options.length > 2 ? 'hidden md:block @min-[280px]:block' : ''}"
+						class="{onSurface ? 'size-4 md:size-4.5' : 'size-4'} shrink-0 {options.length > 2
+							? 'hidden md:block @min-[280px]:block'
+							: ''}"
 						aria-hidden="true"
 					/>
 				{/if}

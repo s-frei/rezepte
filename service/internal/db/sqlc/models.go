@@ -191,6 +191,7 @@ type Share struct {
 	CreatedBy string
 	CreatedAt string
 	ExpiresAt *string
+	StartsAt  string
 }
 
 type ShoppingDepartmentOverride struct {

@@ -10,5 +10,6 @@ description: 'Public links to recipes: creating, listing and revoking them. Sess
 <Card href="/api/reference/shares/list-shares" title="List public links" description="The caller's own public links, newest first. With all=true, an admin gets everyone's, each with its creator." />
 <Card href="/api/reference/shares/revoke-all-shares" title="Revoke every public link" description="Every public link in the household, whoever created it. Admins only." />
 <Card href="/api/reference/shares/get-my-public-share" title="Get the caller's public link to a recipe" description="200 with share: null when the caller has no live public link for this recipe, or the recipe is unknown - not an error, so a page can call this on every view." />
+<Card href="/api/reference/shares/retime-share" title="Re-time a public link" description="Restarts the caller's own link's lifetime from now, the owner's maximum included, so a limited link comes back. A paused link cannot be re-timed." />
 <Card href="/api/reference/shares/revoke-share" title="Revoke a public link" description="The caller's own link, or anyone's as an admin. The link stops working at once." />
 </Cards>

@@ -41,6 +41,45 @@ func NewService(conn *sql.DB, st *settings.Service, users *user.Service) *Servic
 // SetClock overrides the time source. Intended for tests.
 func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
+// permitted reads the settings and the actor's account, refusing unless
+// public sharing is on and the actor may use it; Create and Retime both
+// start here.
+func (s *Service) permitted(ctx context.Context, actor user.User) (settings.Settings, user.User, error) {
+	st, err := s.settings.Get(ctx)
+	if err != nil {
+		return settings.Settings{}, user.User{}, fmt.Errorf("get settings: %w", err)
+	}
+	if !st.PublicShares {
+		return settings.Settings{}, user.User{}, ErrSharingOff
+	}
+	creator, err := s.users.ByID(ctx, actor.ID)
+	if err != nil {
+		return settings.Settings{}, user.User{}, fmt.Errorf("get creator %s: %w", actor.ID, err)
+	}
+	if !creator.CanSharePublicly {
+		return settings.Settings{}, user.User{}, ErrNotAllowed
+	}
+	return st, creator, nil
+}
+
+// lifetimeAllowed reports whether days (nil for no end) is one of the
+// offered lifetimes and within the owner's maximum.
+func lifetimeAllowed(days *int, st settings.Settings) bool {
+	if days != nil && !slices.Contains(settings.ShareLifetimes, *days) {
+		return false
+	}
+	return st.PublicShareMaxDays == nil || (days != nil && *days <= *st.PublicShareMaxDays)
+}
+
+// expiry is when a link given days from now ends, as stored; nil for no end.
+func expiry(now time.Time, days *int) *string {
+	if days == nil {
+		return nil
+	}
+	e := db.FormatTime(now.AddDate(0, 0, *days))
+	return &e
+}
+
 // Create opens a public link to recipeID for actor. actor's CanSharePublicly
 // is re-read from the database rather than trusted from the argument, since
 // this is the write that authorization actually gates.
@@ -58,19 +97,9 @@ func (s *Service) SetClock(now func() time.Time) { s.now = now }
 // ErrLifetime when it is neither, or when it exceeds the instance maximum
 // (a nil days exceeds any non-nil maximum).
 func (s *Service) Create(ctx context.Context, actor user.User, recipeID string, days *int) (Share, error) {
-	st, err := s.settings.Get(ctx)
+	st, creator, err := s.permitted(ctx, actor)
 	if err != nil {
-		return Share{}, fmt.Errorf("get settings: %w", err)
-	}
-	if !st.PublicShares {
-		return Share{}, ErrSharingOff
-	}
-	creator, err := s.users.ByID(ctx, actor.ID)
-	if err != nil {
-		return Share{}, fmt.Errorf("get creator %s: %w", actor.ID, err)
-	}
-	if !creator.CanSharePublicly {
-		return Share{}, ErrNotAllowed
+		return Share{}, err
 	}
 
 	now := s.now()
@@ -93,10 +122,7 @@ func (s *Service) Create(ctx context.Context, actor user.User, recipeID string, 
 		return share, ErrExists
 	}
 
-	if days != nil && !slices.Contains(settings.ShareLifetimes, *days) {
-		return Share{}, ErrLifetime
-	}
-	if st.PublicShareMaxDays != nil && (days == nil || *days > *st.PublicShareMaxDays) {
+	if !lifetimeAllowed(days, st) {
 		return Share{}, ErrLifetime
 	}
 	recipeRow, err := s.q.GetRecipe(ctx, recipeID)
@@ -107,17 +133,14 @@ func (s *Service) Create(ctx context.Context, actor user.User, recipeID string, 
 		return Share{}, fmt.Errorf("get recipe %s: %w", recipeID, err)
 	}
 	token := newToken()
-	var expiresAt *string
-	if days != nil {
-		e := db.FormatTime(now.AddDate(0, 0, *days))
-		expiresAt = &e
-	}
+	expiresAt := expiry(now, days)
 	params := sqlc.CreateShareParams{
 		ID:        uuid.NewV7().String(),
 		Token:     token,
 		RecipeID:  recipeID,
 		CreatedBy: actor.ID,
 		CreatedAt: db.FormatTime(now),
+		StartsAt:  db.FormatTime(now),
 		ExpiresAt: expiresAt,
 	}
 	row, err := s.q.CreateShare(ctx, params)
@@ -144,6 +167,38 @@ func (s *Service) Create(ctx context.Context, actor user.User, recipeID string, 
 		if err != nil {
 			return Share{}, fmt.Errorf("insert share after clearing an expired one: %w", err)
 		}
+	}
+	return s.buildShare(row, recipeRow.Slug, recipeRow.Title, st, creator.CanSharePublicly, nil, now)
+}
+
+// Retime restarts the lifetime of actor's own share id from now: starts_at is
+// now and expires_at is now plus days (nil is permanent). The owner's maximum
+// counts from the new start too, so re-timing revives a limited link. The
+// checks run in Create's order; a paused link cannot be re-timed. An id that
+// is unknown, somebody else's or already past its own expiry is ErrNotFound.
+func (s *Service) Retime(ctx context.Context, actor user.User, id string, days *int) (Share, error) {
+	st, creator, err := s.permitted(ctx, actor)
+	if err != nil {
+		return Share{}, err
+	}
+	if !lifetimeAllowed(days, st) {
+		return Share{}, ErrLifetime
+	}
+	now := s.now()
+	expiresAt := expiry(now, days)
+	formatted := db.FormatTime(now)
+	row, err := s.q.RetimeShare(ctx, sqlc.RetimeShareParams{
+		StartsAt: formatted, ExpiresAt: expiresAt, ID: id, CreatedBy: actor.ID, Now: &formatted,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return Share{}, ErrNotFound
+	}
+	if err != nil {
+		return Share{}, fmt.Errorf("retime share %s: %w", id, err)
+	}
+	recipeRow, err := s.q.GetRecipe(ctx, row.RecipeID)
+	if err != nil {
+		return Share{}, fmt.Errorf("get recipe %s: %w", row.RecipeID, err)
 	}
 	return s.buildShare(row, recipeRow.Slug, recipeRow.Title, st, creator.CanSharePublicly, nil, now)
 }
@@ -251,7 +306,7 @@ func (s *Service) List(ctx context.Context, actor user.User, all bool) ([]Share,
 			creator = &Creator{ID: row.CreatedBy, DisplayName: row.CreatorDisplayName, Color: row.CreatorColor}
 		}
 		share, err := s.buildShare(
-			sqlc.Share{ID: row.ID, Token: row.Token, RecipeID: row.RecipeID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, ExpiresAt: row.ExpiresAt},
+			sqlc.Share{ID: row.ID, Token: row.Token, RecipeID: row.RecipeID, CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, StartsAt: row.StartsAt, ExpiresAt: row.ExpiresAt},
 			row.RecipeSlug, row.RecipeTitle, st, row.CreatorCanSharePublicly, creator, now,
 		)
 		if err != nil {
@@ -313,11 +368,11 @@ func (s *Service) Resolve(ctx context.Context, token string) (string, bool, erro
 	if err != nil {
 		return "", false, fmt.Errorf("get settings: %w", err)
 	}
-	createdAt, expiresAt, err := parseTimes(row.CreatedAt, row.ExpiresAt)
+	_, startsAt, expiresAt, err := parseTimes(row.CreatedAt, row.StartsAt, row.ExpiresAt)
 	if err != nil {
 		return "", false, err
 	}
-	_, _, serving := evaluate(createdAt, expiresAt, st.PublicShares, row.CreatorCanSharePublicly, st.PublicShareMaxDays, s.now())
+	_, _, serving := evaluate(startsAt, expiresAt, st.PublicShares, row.CreatorCanSharePublicly, st.PublicShareMaxDays, s.now())
 	if !serving {
 		return "", false, nil
 	}
@@ -339,36 +394,40 @@ func (s *Service) Sweep(ctx context.Context, now time.Time) error {
 // validity rule (evaluate) against st and creatorAllowed to fill Status and
 // the effective ExpiresAt.
 func (s *Service) buildShare(row sqlc.Share, recipeSlug, recipeTitle string, st settings.Settings, creatorAllowed bool, createdBy *Creator, now time.Time) (Share, error) {
-	createdAt, expiresAt, err := parseTimes(row.CreatedAt, row.ExpiresAt)
+	createdAt, startsAt, expiresAt, err := parseTimes(row.CreatedAt, row.StartsAt, row.ExpiresAt)
 	if err != nil {
 		return Share{}, err
 	}
-	status, effective, _ := evaluate(createdAt, expiresAt, st.PublicShares, creatorAllowed, st.PublicShareMaxDays, now)
+	status, effective, _ := evaluate(startsAt, expiresAt, st.PublicShares, creatorAllowed, st.PublicShareMaxDays, now)
 	return Share{
 		ID:        row.ID,
 		Recipe:    RecipeRef{ID: row.RecipeID, Slug: recipeSlug, Title: recipeTitle},
 		Path:      "/s/" + row.Token,
 		CreatedAt: createdAt,
+		StartsAt:  startsAt,
 		ExpiresAt: effective,
 		Status:    status,
 		CreatedBy: createdBy,
 	}, nil
 }
 
-// parseTimes parses a share row's stored timestamps.
-func parseTimes(createdAt string, expiresAt *string) (time.Time, *time.Time, error) {
-	created, err := db.ParseTime(createdAt)
-	if err != nil {
-		return time.Time{}, nil, err
+// parseTimes parses a share row's stored timestamps. An empty startsAt is an
+// error: migration 0027 backfills every real row.
+func parseTimes(createdAt, startsAt string, expiresAt *string) (created, starts time.Time, expires *time.Time, err error) {
+	if created, err = db.ParseTime(createdAt); err != nil {
+		return
 	}
-	if expiresAt == nil {
-		return created, nil, nil
+	if starts, err = db.ParseTime(startsAt); err != nil {
+		return
 	}
-	expires, err := db.ParseTime(*expiresAt)
-	if err != nil {
-		return time.Time{}, nil, err
+	if expiresAt != nil {
+		var e time.Time
+		if e, err = db.ParseTime(*expiresAt); err != nil {
+			return
+		}
+		expires = &e
 	}
-	return created, &expires, nil
+	return
 }
 
 // ownExpired reports whether a share's own expiry has passed. Unlike being
