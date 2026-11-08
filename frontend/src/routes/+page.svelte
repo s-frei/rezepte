@@ -21,6 +21,8 @@
 	import { listPeople, type PersonEntry } from '#lib/api/users.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import EmptyState from '#lib/components/ui/EmptyState.svelte';
+	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
+	import firstRecipeArt from '$brand/lockups/rezepte-mascot-first-recipe.webp?url';
 	import InstallBanner from '#lib/components/install/InstallBanner.svelte';
 	import PushBanner from '#lib/components/install/PushBanner.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
@@ -881,15 +883,37 @@
 				{/each}
 			</RecipeGrid>
 		{:else if isEmpty}
-			<EmptyState title={m.overview_empty_title()} text={m.overview_empty_text()}>
-				<Button variant="primary" href={resolve('/recipes/new')}>
-					<Plus class="size-4" aria-hidden="true" />
-					{m.overview_new_recipe()}
-				</Button>
-				<Button variant="secondary" onclick={() => (importDialog.open = true)}>
+			<NoteEmptyState
+				art={firstRecipeArt}
+				title={m.overview_empty_title()}
+				steps={[
+					[m.overview_empty_step_write(), m.overview_empty_step_write_hint()],
+					[m.overview_empty_step_import(), m.overview_empty_step_import_hint()],
+					[m.overview_empty_step_cook(), m.overview_empty_step_cook_hint()]
+				]}
+			>
+				<Button
+					variant="secondary"
+					size="lg"
+					onclick={() => (importDialog.open = true)}
+					class="h-12! whitespace-nowrap max-md:px-3"
+				>
 					{m.overview_import()}
 				</Button>
-			</EmptyState>
+				<Button
+					variant="primary"
+					size="lg"
+					href={resolve('/recipes/new')}
+					class="group h-12! whitespace-nowrap shadow-cta max-md:px-3"
+				>
+					<Plus
+						aria-hidden="true"
+						strokeWidth={2.5}
+						class="size-5 transition-transform duration-300 ease-spring group-hover:rotate-90 motion-reduce:transition-none"
+					/>
+					{m.overview_new_recipe()}
+				</Button>
+			</NoteEmptyState>
 		{:else if isNoResults}
 			<!-- Only a typed term gets quoted back. Tags, time and favorites
 			     narrow the list just as well, but naming them in the same

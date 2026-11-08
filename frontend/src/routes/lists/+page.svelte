@@ -15,9 +15,11 @@
 	import NewListDialog from '#lib/components/shopping/NewListDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import EmptyState from '#lib/components/ui/EmptyState.svelte';
+	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
 	import IconButton from '#lib/components/ui/IconButton.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import shoppingArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import { shell } from '#lib/shell.svelte.js';
 
 	let lists = $state<ShoppingSummary[]>();
@@ -87,12 +89,29 @@
 			<Skeleton class="h-36 rounded-2xl" />
 		</div>
 	{:else if lists.length === 0 && invited.length === 0}
-		<EmptyState title={m.lists_empty_title()} text={m.lists_empty_text()}>
-			<Button variant="primary" onclick={() => (newOpen = true)}>
-				<Plus class="size-4" aria-hidden="true" />
+		<NoteEmptyState
+			art={shoppingArt}
+			title={m.lists_empty_title()}
+			steps={[
+				[m.lists_empty_step_create(), m.lists_empty_step_create_hint()],
+				[m.lists_empty_step_recipes(), m.lists_empty_step_recipes_hint()],
+				[m.lists_empty_step_share(), m.lists_empty_step_share_hint()]
+			]}
+		>
+			<Button
+				variant="primary"
+				size="lg"
+				onclick={() => (newOpen = true)}
+				class="group shadow-cta md:h-12"
+			>
+				<Plus
+					aria-hidden="true"
+					strokeWidth={2.5}
+					class="size-5 transition-transform duration-300 ease-spring group-hover:rotate-90 motion-reduce:transition-none"
+				/>
 				{m.lists_new()}
 			</Button>
-		</EmptyState>
+		</NoteEmptyState>
 	{:else}
 		{#if invited.length > 0}
 			<div class="flex flex-col gap-3">

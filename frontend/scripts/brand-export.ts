@@ -133,10 +133,12 @@ async function kitchen(): Promise<Buffer> {
 	return sharp(master).resize({ width: 2560 }).webp({ quality: 78, effort: 6 }).toBuffer();
 }
 
-// The error page's poses: each painting square, at twice the 320px the page
-// shows it at, its ground moved onto the app's background so the box around
-// it melts into the page and only its hairline shows.
-export const POSES = ['not-found', 'error'] as const;
+// The mascot's poses (the error page's two, one each for the empty shopping
+// lists and the empty recipe overview):
+// each painting square, at twice the 320px a page shows it at, its ground
+// moved onto the app's background so the box around it melts into the page
+// and only its hairline shows.
+export const POSES = ['not-found', 'error', 'shopping', 'first-recipe'] as const;
 export const POSE_SIZE = 640;
 
 async function pose(name: string): Promise<Buffer> {

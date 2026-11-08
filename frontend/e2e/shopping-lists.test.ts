@@ -27,6 +27,24 @@ async function addFree(page: Page, text: string) {
 	await expect(page.getByLabel('What do you need?')).toHaveValue('');
 }
 
+test('a person without lists sees the steps, and the button starts one', async ({ page }) => {
+	const person = `empty${uniqueToken()}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: person, role: 'user' });
+	await login(page, person);
+	await page.goto('/lists');
+
+	await expect(page.getByRole('heading', { level: 2, name: 'No shopping list yet' })).toBeVisible();
+	const steps = page.getByRole('list').filter({ hasText: 'Add recipes' });
+	await expect(steps.getByRole('listitem')).toHaveText([
+		/Start a list/,
+		/Add recipes/,
+		/Fill in and share/
+	]);
+	await page.getByRole('button', { name: 'New list' }).click();
+	await expect(page.getByRole('dialog').getByLabel('Name')).toBeVisible();
+});
+
 test('a shopping list fills from a recipe and by hand', async ({ page }) => {
 	const token = uniqueToken();
 	const person = `shop${token}`.slice(0, 20);

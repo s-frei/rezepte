@@ -44,10 +44,17 @@ test('shows the empty state while nothing is stored', async ({ page }) => {
 	await page.goto('/');
 
 	await expect(page.getByRole('heading', { name: 'No recipes yet' })).toBeVisible();
-	await expect(page.getByText('Get started and save your first recipe.')).toBeVisible();
+	const steps = page.getByRole('list').filter({ hasText: 'Or bring one in' });
+	await expect(steps.getByRole('listitem')).toHaveText([
+		/Write a recipe/,
+		/Or bring one in/,
+		/Cook together/
+	]);
 	// Scoped to the content area: on desktop the top bar carries the same call
 	// to action.
 	await expect(page.getByRole('main').getByRole('link', { name: 'New recipe' })).toBeVisible();
+	await page.getByRole('main').getByRole('button', { name: 'Import' }).click();
+	await expect(page.getByRole('dialog').getByLabel('Link or recipe text')).toBeVisible();
 });
 
 test('creates a recipe through the editor', async ({ page }) => {

@@ -72,6 +72,8 @@ A recipe is an aggregate, not a row: one `recipes` row plus ordered ingredient g
 
 **Six hand-written statements.** Two files in `service/internal/db/sqlc/` hold SQL that sqlc does not generate, written against the same `DBTX` abstraction it generates everywhere else. `fts.go` holds `GetRecipeRowID`, `DeleteFTS` and `InsertFTS`: sqlc's SQLite engine resolves the implicit `rowid` pseudo-column only through the FTS5 table-valued call form, and as a plain column reference — in a SELECT list, an INSERT column list or a WHERE equality — it is rejected on real and virtual tables alike. `recipe_list.go` holds `ListRecipes`, `CountRecipes` and `ListTagCounts`, because which conditions and which order they need depends on the request, and sqlc generates fixed statements.
 
+**An instance without recipes says how to begin.** With no recipe stored and no filter on, the overview shows a `NoteEmptyState` ([Design system](/architecture/design-system#components)) with the mascot opening its own cover (`rezepte-mascot-first-recipe.webp`), the steps write, bring one in, cook together, and "Import" and "New recipe" at the note's end. `shows the empty state while nothing is stored` in `frontend/e2e/recipes.test.ts` pins the API to an empty list, as the suite shares one instance.
+
 ## Why it is this way
 
 The editor always submits the whole form, so there is nothing to diff: a partial update would have to reconstruct the submitted document anyway. Rewriting the whole document instead removes an entire class of position and ordering bugs, because positions are never patched, only re-derived from the order the client sent.

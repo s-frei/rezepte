@@ -55,3 +55,25 @@ A first edit, then the spoon removed from it:
 ### `rezepte-mascot-error-original.jpg`
 
 > Edit this illustration and keep the same cookbook character: same book, same amber-brown cover, same sage-green ribbon bookmark, same cream pages, same face style, same vintage-cookbook gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing (full figure, centered, about 80% of the square). New scene: something just exploded on the stove. The book sits on the floor after being blown backwards, its top edge and the upper part of its cover blackened with soot, the page edges slightly singed and curled, a few wisps of grey smoke rising from its top; the sage ribbon is frizzled at the end. Beside it a small copper saucepan lies on its side, blackened inside, a thin curl of smoke coming out. The wooden spoon is still in one hand, its tip charred black. Face: soot smudges across the cover around the eyes, blinking, dazed, a sheepish lopsided grin with raised eyebrows, "oops, that went wrong", funny, not hurt, not scary, no fire, no flames, no blush, no sparkle highlights. Soft contact shadows. No text, no symbols, no motion lines.
+
+## The empty shopping lists pose
+
+### `rezepte-mascot-shopping-original.jpg`
+
+For the shopping lists overview while a person has no list yet (`NoteEmptyState` on `/lists`). An edit of `rezepte-mascot-original.jpg` with the same settings (`maintainCharacterConsistency: true`), generator model `gemini-nano-banana-2.1`, shown with its ground as a card like the error poses.
+
+**purpose**: Brand mascot pose for a recipe app's empty shopping-lists page
+
+> Edit this illustration and keep the same cookbook character: same book, same amber-brown cover, same sage-green ribbon bookmark, same cream pages, same face style, same vintage-cookbook gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing (full figure, centered, about 80% of the square). Change only the pose and props: the character carries a small empty woven wicker shopping basket over one arm, and with the other hand holds up a short blank slip of cream paper and a little pencil, as if about to write down what to buy. Expression: cheerful, eager, one eyebrow slightly raised, a warm lopsided grin, "let's see what we need". The basket is empty. No wooden spoon. No text, no letters or scribbles on the paper, no symbols, no blush, no sparkle highlights. Soft contact shadow.
+
+## The empty recipe overview pose
+
+### `rezepte-mascot-first-recipe-original.jpg`
+
+For the recipe overview while the instance holds no recipe (`NoteEmptyState` on `/`). Two edits with the same settings (`maintainCharacterConsistency: true`), generator model `gemini-nano-banana-2.1`: the first of `rezepte-mascot-original.jpg`, the second of the first's result. A first try opened the book wide and moved the face onto the blank pages; the face belongs on the cover, so the cover only opens at a corner.
+
+**purpose**: Brand mascot pose for a recipe app's empty recipe overview (no recipes yet)
+
+> Edit this illustration and keep the same cookbook character exactly: same book, same amber-brown cover with the SAME FACE ON THE FRONT COVER (eyes, brows, lopsided grin stay on the brown cover), same sage-green ribbon bookmark, same cream pages, same vintage-cookbook gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing (full figure, centered, about 80% of the square). Change only the pose and props: the character stands upright facing us and with one hand lifts the edge of its front cover a little away from the page block, like opening a door a crack, so a few blank cream pages are visible on the side; with the other hand it holds up a little pencil, inviting someone to write the first recipe. The wooden spoon is tucked under that arm. Expression: eager and welcoming, eyebrows raised, warm lopsided grin. The pages are blank. No text, no letters, no scribbles, no symbols, no blush, no sparkle highlights. Soft contact shadow.
+
+> Edit this illustration and keep everything else exactly the same: same cookbook character, same face on the front cover, same expression, same raised right hand holding the little pencil, same lifted lower-right corner of the cover showing blank cream pages, same sage-green ribbon, same colors, same vintage gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing. Two changes only: (1) remove the wooden spoon completely; (2) the other arm now reaches across in front of the body and its hand holds the lifted lower-right corner of its own cover, clearly peeling the cover open by itself so the blank pages beneath are visible. Only that one corner is open; the left side of the book stays closed. The pages are blank. No text, no letters, no scribbles, no symbols, no blush, no sparkle highlights.
