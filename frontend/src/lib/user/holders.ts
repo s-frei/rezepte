@@ -31,19 +31,20 @@ export function holderNames(holders: Pick<PersonEntry, 'displayName'>[]): string
 	);
 }
 
-const list = (names: string[]) =>
+/** Names joined the way the locale says "A, B and C". */
+export const joinNames = (names: string[]) =>
 	new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(names);
 
 /** The visible sentence after the color's name: up to three names, then a count. */
 export function holdersText(holders: PersonEntry[]): string {
 	const names = holderNames(holders);
 	if (names.length === 0) return m.color_holders_none();
-	if (names.length <= 3) return m.color_holders_some({ names: list(names) });
+	if (names.length <= 3) return m.color_holders_some({ names: joinNames(names) });
 	return m.color_holders_more({ names: `${names[0]}, ${names[1]}`, count: names.length - 2 });
 }
 
 /** The same sentence for screen readers: every holder, by full display name. */
 export function holdersFullText(holders: PersonEntry[]): string {
 	if (holders.length === 0) return m.color_holders_none();
-	return m.color_holders_some({ names: list(holders.map((p) => p.displayName.trim())) });
+	return m.color_holders_some({ names: joinNames(holders.map((p) => p.displayName.trim())) });
 }

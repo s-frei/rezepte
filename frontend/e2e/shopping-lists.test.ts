@@ -147,11 +147,117 @@ async function signedInAs(browser: Browser, name: string) {
 async function shareWith(page: Page, name: string) {
 	await page.getByRole('button', { name: 'Share', exact: true }).first().click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByRole('button', { name: 'Invite someone' }).click();
-	await page.getByRole('option', { name }).click();
+	await dialog.getByRole('combobox', { name: 'Invite people' }).click();
+	await dialog.getByRole('option', { name }).click();
+	await dialog.getByRole('button', { name: 'Invite 1 person' }).click();
 	await expect(dialog.getByText('Waiting for an answer')).toBeVisible();
 	return dialog;
 }
+
+test('people are picked first and invited together; closing drops the pick', async ({ page }) => {
+	const token = uniqueToken();
+	const owner = `own${token}`.slice(0, 20);
+	const [a, b, c] = ['a', 'b', 'c'].map((s) => `in${s}${token}`.slice(0, 20));
+	await login(page);
+	await createUser(page, { username: owner, role: 'user' });
+	// Two people with one first name tell apart by their username.
+	await createUser(page, { username: a, role: 'user', displayName: `Mila ${token}` });
+	await createUser(page, { username: b, role: 'user', displayName: `Mila ${token}` });
+	await createUser(page, { username: c, role: 'user', displayName: `Jonas ${token}` });
+	await login(page, owner);
+	await newList(page, `Grill ${token}`);
+
+	await page.getByRole('button', { name: 'Share', exact: true }).first().click();
+	const dialog = page.getByRole('dialog');
+	const search = dialog.getByRole('combobox', { name: 'Invite people' });
+	await search.click();
+	// Suggested without typing; typing filters by name and username.
+	await expect(dialog.getByRole('option', { name: `@${c}` })).toBeVisible();
+	await search.fill(a);
+	await expect(dialog.getByRole('option')).toHaveCount(1);
+	await dialog.getByRole('option', { name: `@${a}` }).click();
+	await search.fill(`jonas ${token}`);
+	await dialog.getByRole('option', { name: `@${c}` }).click();
+	// Backspace in the empty field takes the last pick off again.
+	await search.press('Backspace');
+	await expect(dialog.getByRole('button', { name: /off the selection$/ })).toHaveCount(1);
+	await search.fill(`jonas ${token}`);
+	await dialog.getByRole('option', { name: `@${c}` }).click();
+
+	// Picking sends nothing yet.
+	await expect(dialog.getByText('Waiting for an answer')).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Invite 2 people' }).click();
+	await expect(dialog.getByRole('status')).toHaveText(
+		`Invited: Mila ${token} and Jonas ${token}. Notifications are on their way.`
+	);
+	await expect(dialog.getByText('Waiting for an answer')).toHaveCount(2);
+	await expect(dialog.getByRole('button', { name: /^Invite \d/ })).toHaveCount(0);
+
+	// The invited ones are no longer suggested; picked and closed, nobody is invited.
+	// Other tests' accounts share the instance, so this looks at these three only.
+	await search.click();
+	await expect(dialog.getByRole('option', { name: `@${a}` })).toHaveCount(0);
+	await expect(dialog.getByRole('option', { name: `@${c}` })).toHaveCount(0);
+	await dialog.getByRole('option', { name: `@${b}` }).click();
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+	await expect(dialog).toHaveCount(0);
+	await page.getByRole('button', { name: 'Share', exact: true }).first().click();
+	await expect(page.getByRole('dialog').getByText('Waiting for an answer')).toHaveCount(2);
+	await expect(page.getByRole('dialog').getByRole('button', { name: /^Remove / })).toHaveCount(2);
+	// Reopened, the pick from before is gone.
+	await expect(
+		page.getByRole('dialog').getByRole('button', { name: /off the selection$/ })
+	).toHaveCount(0);
+});
+
+test('a failed invitation keeps its pick to try again', async ({ page }) => {
+	const token = uniqueToken();
+	const owner = `own${token}`.slice(0, 20);
+	const [a, b] = ['a', 'b'].map((s) => `fl${s}${token}`.slice(0, 20));
+	await login(page);
+	await createUser(page, { username: owner, role: 'user' });
+	await createUser(page, { username: a, role: 'user', displayName: `Ada ${token}` });
+	const bea = await createUser(page, { username: b, role: 'user', displayName: `Bea ${token}` });
+	await login(page, owner);
+	await newList(page, `Fest ${token}`);
+
+	// Bea's invitation fails once; Ada's goes through.
+	let failOnce = true;
+	await page.route('**/api/v1/shopping-lists/*/invitations', async (route) => {
+		const body = route.request().postDataJSON() as { userId: string };
+		if (failOnce && body.userId === bea.id) {
+			failOnce = false;
+			await route.fulfill({ status: 500, body: '{}' });
+		} else await route.continue();
+	});
+
+	await page.getByRole('button', { name: 'Share', exact: true }).first().click();
+	const dialog = page.getByRole('dialog');
+	const search = dialog.getByRole('combobox', { name: 'Invite people' });
+	await search.click();
+	await search.fill(a);
+	await dialog.getByRole('option', { name: `@${a}` }).click();
+	await search.fill(b);
+	await dialog.getByRole('option', { name: `@${b}` }).click();
+	await dialog.getByRole('button', { name: 'Invite 2 people' }).click();
+
+	await expect(dialog.getByRole('status')).toHaveText(
+		`Could not invite Bea ${token}. They are still picked - try again.`
+	);
+	await expect(dialog.getByText('Waiting for an answer')).toHaveCount(1);
+	await expect(dialog.getByText('Not invited')).toHaveCount(1);
+	await expect(
+		dialog.getByRole('button', { name: `Take Bea ${token} off the selection` })
+	).toBeVisible();
+
+	await dialog.getByRole('button', { name: 'Invite 1 person' }).click();
+	await expect(dialog.getByRole('status')).toHaveText(
+		`Invited: Bea ${token}. A notification is on its way.`
+	);
+	await expect(dialog.getByText('Waiting for an answer')).toHaveCount(2);
+	await expect(dialog.getByRole('button', { name: /off the selection$/ })).toHaveCount(0);
+});
 
 test('a shared list is ticked by both, until the owner removes the member', async ({
 	page,
@@ -304,7 +410,7 @@ test('a change by one member appears for the other without reload', async ({
 
 	await newList(page, `Live ${token}`);
 	await addFree(page, 'Kohle');
-	const dialog = await shareWith(page, 'Mila Majoran');
+	const dialog = await shareWith(page, `@${mila}`);
 	await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
 
 	const guest = await signedInAs(browser, mila);
