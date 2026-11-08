@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { m } from '#lib/paraglide/messages.js';
-	import { formatDate } from '#lib/recipe/format.js';
+	import { formatDate, formatDay } from '#lib/recipe/format.js';
 	import { lifetime, type Lifespan } from '#lib/settings/token-access.js';
 
 	// How much of something's life has passed - an API token's, a shared
@@ -8,7 +8,19 @@
 	// the last use, when there is one, as a dot. Without an expiry the bar
 	// stays open past today. Purely visual: the caller states the same dates
 	// in words for assistive technology.
-	let { item, faded = false }: { item: Lifespan; faded?: boolean } = $props();
+	let {
+		item,
+		faded = false,
+		compact = false
+	}: {
+		item: Lifespan;
+		faded?: boolean;
+		/** Day and month only, for a span of days in a narrow place (an address's link); a spent bar keeps its end date. */
+		compact?: boolean;
+	} = $props();
+
+	const date = (iso: string) =>
+		compact ? formatDay(new Date(iso), { weekday: false }) : formatDate(iso);
 
 	const life = $derived(lifetime(item));
 	const percent = (fraction: number) => `${fraction * 100}%`;
@@ -52,11 +64,11 @@
 	<div
 		class="mt-1.5 flex flex-wrap justify-between gap-x-3 text-micro text-text-muted tabular-nums"
 	>
-		<span>{formatDate(item.createdAt)}</span>
+		<span>{date(item.createdAt)}</span>
 		{#if life.kind === 'open'}
 			<span class="ml-auto">{m.lifetime_open_end()}</span>
-		{:else if life.kind === 'running' && item.expiresAt != null}
-			<span class="ml-auto">{formatDate(item.expiresAt)}</span>
+		{:else if (life.kind === 'running' || compact) && item.expiresAt != null}
+			<span class="ml-auto">{date(item.expiresAt)}</span>
 		{/if}
 	</div>
 </div>

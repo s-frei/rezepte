@@ -2,7 +2,6 @@
 	import KeyRound from '@lucide/svelte/icons/key-round';
 	import Languages from '@lucide/svelte/icons/languages';
 	import LogIn from '@lucide/svelte/icons/log-in';
-	import Mail from '@lucide/svelte/icons/mail';
 	import SunMoon from '@lucide/svelte/icons/sun-moon';
 	import { onDestroy, onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -18,12 +17,14 @@
 	} from '#lib/api/auth.js';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import { getOidc, getOwnIdentity, unlinkOwnIdentity, type OidcInfo } from '#lib/api/oidc.js';
+	import { getSettings } from '#lib/api/settings.js';
 	import { listPeople, type PersonEntry } from '#lib/api/users.js';
 	import { session } from '#lib/auth.svelte.js';
 	import AboutCard from '#lib/components/settings/AboutCard.svelte';
 	import AppCard from '#lib/components/settings/AppCard.svelte';
 	import ColorPicker from '#lib/components/settings/ColorPicker.svelte';
 	import EmailDialog from '#lib/components/settings/EmailDialog.svelte';
+	import EmailRow from '#lib/components/settings/EmailRow.svelte';
 	import HelpCard from '#lib/components/settings/HelpCard.svelte';
 	import LanguageControl from '#lib/components/settings/LanguageControl.svelte';
 	import PasswordDialog from '#lib/components/settings/PasswordDialog.svelte';
@@ -48,6 +49,10 @@
 	let identityLoaded = $state(false);
 	let unlinking = $state(false);
 	let emailOpen = $state(false);
+	// Whether Rezepte sends mail: the email row offers a send only then. Null
+	// until known, or when the settings could not be read: the row then says
+	// nothing about mail rather than the wrong thing.
+	let mailOn = $state<boolean | null>(null);
 	let passwordOpen = $state(false);
 
 	const user = $derived(session.user);
@@ -59,6 +64,10 @@
 		listPeople().then(
 			(list) => (people = list),
 			() => (people = [])
+		);
+		getSettings().then(
+			(settings) => (mailOn = settings.mailEnabled),
+			() => (mailOn = null)
 		);
 		getOidc().then(
 			(info) => {
@@ -116,24 +125,14 @@
 	}
 
 	async function saveEmail(email: string) {
-		session.user = await updateOwnProfile({ email });
+		const saved = await updateOwnProfile({ email });
+		session.user = saved;
+		return saved;
 	}
 
-	/** The dialog says how it went; this keeps the session's pending flag true to the service. */
-	async function resend() {
-		try {
-			await resendConfirmation();
-			if (session.user) session.user = { ...session.user, emailConfirmationPending: true };
-		} catch (failure) {
-			if (failure instanceof ApiError && failure.status === 409) {
-				// Confirmed in another tab, or mail turned off: catch up.
-				session.user = await me().catch(() => session.user);
-			} else if (failure instanceof ApiError && failure.status === 502) {
-				// The service drops a link whose mail failed.
-				if (session.user) session.user = { ...session.user, emailConfirmationPending: false };
-			}
-			throw failure;
-		}
+	/** The row rereads the account after a send, so its bar restarts. */
+	async function reloadUser() {
+		session.user = await me().catch(() => session.user);
 	}
 
 	/**
@@ -223,26 +222,16 @@
 
 			<div class="space-y-8 px-5 pt-8 pb-3 md:px-7 md:pb-4">
 				<SettingsGroup label={m.profile_group_account()}>
-					<SettingsRow icon={Mail} label={m.settings_profile_email_label()}>
-						{#snippet value()}
-							{#if user.email}
-								<span class="block">{user.email}</span>
-								{#if user.emailVerified}
-									<span class="block font-semibold text-success-foreground">
-										{m.person_email_confirmed()}
-									</span>
-								{:else}
-									<!-- The person page's words, short: the address is right above. -->
-									<span class="block">
-										{user.emailConfirmationPending
-											? m.profile_email_pending()
-											: m.person_email_unconfirmed()}
-									</span>
-								{/if}
-							{:else}
-								{m.profile_email_none()}
-							{/if}
-						{/snippet}
+					<EmailRow
+						email={user.email}
+						emailVerified={user.emailVerified}
+						emailConfirmation={user.emailConfirmation}
+						emailSetupLink={user.emailSetupLink}
+						{mailOn}
+						resend={resendConfirmation}
+						onchanged={reloadUser}
+						none={m.profile_email_none()}
+					>
 						{#snippet control()}
 							<Button
 								variant="quiet"
@@ -253,7 +242,7 @@
 								{m.profile_change()}
 							</Button>
 						{/snippet}
-					</SettingsRow>
+					</EmailRow>
 					<SettingsRow icon={KeyRound} label={m.profile_password_label()}>
 						{#snippet value()}
 							{hasPassword ? m.profile_password_hint() : m.profile_password_none()}
@@ -328,10 +317,9 @@
 		<EmailDialog
 			bind:open={emailOpen}
 			email={user.email}
-			emailVerified={user.emailVerified}
-			pending={!!user.emailConfirmationPending}
+			sentAt={user.emailConfirmation?.sentAt}
+			{mailOn}
 			save={saveEmail}
-			{resend}
 		/>
 		<PasswordDialog bind:open={passwordOpen} />
 	{/if}

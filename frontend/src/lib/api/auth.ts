@@ -34,7 +34,14 @@ export type User = {
 	 * its link is still open. Only the own-account responses carry it.
 	 */
 	emailConfirmationPending?: boolean;
+	/** The confirmation mailed to the current, unconfirmed address, open or expired; absent when none. */
+	emailConfirmation?: MailWindow;
+	/** The open setup link mailed to the current address, whose redeeming confirms it; absent when none. */
+	emailSetupLink?: MailWindow;
 };
+
+/** When a mail that confirms an address went out and until when its link works (RFC 3339). */
+export type MailWindow = { sentAt: string; expiresAt: string };
 
 /** Sets the own picture; the server crops `crop` out of `file`. */
 export function setOwnAvatar(file: File, crop: Crop): Promise<{ avatarId: string }> {

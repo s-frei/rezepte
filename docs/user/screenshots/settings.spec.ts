@@ -287,6 +287,10 @@ test('profile-email-unconfirmed', async ({ page }, testInfo) => {
 	await page.goto('/settings');
 	await configureMail(page);
 	try {
+		// A confirmation that went out yesterday and is good for six more days.
+		const day = 24 * 60 * 60 * 1000;
+		const sentAt = new Date(Date.now() - day).toISOString();
+		const expiresAt = new Date(Date.now() + 6 * day).toISOString();
 		await page.route('**/api/v1/auth/me', async (route) => {
 			const response = await route.fetch();
 			await route.fulfill({
@@ -294,24 +298,23 @@ test('profile-email-unconfirmed', async ({ page }, testInfo) => {
 				json: {
 					...(await response.json()),
 					emailVerified: false,
-					emailConfirmationPending: true
+					emailConfirmationPending: true,
+					emailConfirmation: { sentAt, expiresAt }
 				}
 			});
 		});
 		await page.reload();
-		// The row names the state; its dialog carries "Send again".
-		await expect(
-			page.getByText('not confirmed yet, confirmation mail sent', { exact: true })
-		).toBeVisible();
-		await page.getByRole('button', { name: 'Change email' }).click();
-		const dialog = page.getByRole('dialog', { name: 'Email address' });
-		await expect(dialog.getByRole('button', { name: 'Send again' })).toBeVisible();
+		// The row names the state, what went out and until when, and the resend.
+		const account = page.getByRole('group', { name: 'Your account' });
+		await expect(account.getByText('unconfirmed', { exact: true })).toBeVisible();
+		await expect(account.getByRole('button', { name: 'Send again' })).toBeVisible();
 		await shot(page, 'profile-email-unconfirmed');
 	} finally {
 		await page.unroute('**/api/v1/auth/me');
 		await turnMailOff(page);
 	}
 });
+
 
 // The page as it reads with mail on: its top, the mail half. Mail is
 // instance-wide and other shots switch it, so the settings call is answered

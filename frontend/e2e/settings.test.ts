@@ -656,7 +656,7 @@ test('a 64-character display name fits the profile head on a 320px phone', async
 	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
 
-test('the e-mail row says when there is no address and offers the resend for an unconfirmed one', async ({
+test('the e-mail row says when there is no address and offers a send for an unconfirmed one', async ({
 	page
 }) => {
 	const token = uniqueToken();
@@ -679,13 +679,13 @@ test('the e-mail row says when there is no address and offers the resend for an 
 
 	await page.context().clearCookies();
 	await login(page, unconfirmed);
-	// Mail is off on the e2e instance, so the resend is answered here: the
-	// dialog offers it only while mail can go out.
-	await page.route('**/api/v1/auth/password', (route) =>
-		route.request().method() === 'GET'
-			? route.fulfill({ json: { available: true } })
-			: route.continue()
-	);
+	// Mail is on or off on the shared instance; the row offers a send only
+	// while it is on, so it is on here, and the send itself is answered here.
+	await page.route('**/api/v1/settings', async (route) => {
+		if (route.request().method() !== 'GET') return route.continue();
+		const response = await route.fetch();
+		return route.fulfill({ response, json: { ...(await response.json()), mailEnabled: true } });
+	});
 	let resent = false;
 	await page.route('**/api/v1/auth/me/email/confirmation', (route) => {
 		resent = true;
@@ -693,16 +693,13 @@ test('the e-mail row says when there is no address and offers the resend for an 
 	});
 	await page.goto('/settings');
 	await expect(account.getByText(`${unconfirmed}@example.com`, { exact: true })).toBeVisible();
-	// With mail on the account was created with a confirmation mail already
-	// out, and the line says so.
-	await expect(account.getByText(/^not confirmed yet(, confirmation mail sent)?$/)).toBeVisible();
-	await account.getByRole('button', { name: 'Change email' }).click();
-	const dialog = page.getByRole('dialog', { name: 'Email address' });
-	// With mail on (mail.test.ts turns it on for the shared instance) the
-	// account was created with a confirmation mail already open.
-	await dialog.getByRole('button', { name: /^(Send confirmation mail|Send again)$/ }).click();
-	// The row follows: a link is open now.
-	await expect(account).toContainText('not confirmed yet, confirmation mail sent');
+	await expect(account.getByText('unconfirmed', { exact: true })).toBeVisible();
+	// With mail on the account was created with a confirmation already out
+	// ("Send again"); with it off, none went ("Send").
+	await account.getByRole('button', { name: /^(Send|Send again)$/ }).click();
+	await expect(
+		page.getByText(`Confirmation mail sent to ${unconfirmed}@example.com`)
+	).toBeVisible();
 	expect(resent).toBe(true);
 });
 
@@ -730,12 +727,15 @@ test("an admin changes a member's address but not their name, the owner can", as
 	await page.getByRole('button', { name: `Change ${member}'s email` }).click();
 	const emailDialog = page.getByRole('dialog', { name: 'Email address' });
 	await emailDialog.getByLabel('Email').fill(`${member}@example.com`);
-	await emailDialog.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.getByText('Email address saved')).toBeVisible();
+	// Mail is on or off on the shared instance, depending on which file ran first.
+	await emailDialog.getByRole('button', { name: /^Save( and send mail)?$/ }).click();
+	await expect(
+		page.getByText(/^(Email address saved|Saved\. Confirmation mail sent to .*)$/)
+	).toBeVisible();
 	await expect(emailDialog).toBeHidden();
 	// The new address is unconfirmed at once, on the page and on the card,
 	// without a reload.
-	await expect(page.getByText('not confirmed yet', { exact: true })).toBeVisible();
+	await expect(page.getByText('unconfirmed', { exact: true })).toBeVisible();
 	await page.goBack();
 	await expect(personRow(page, member)).toContainText('Address not confirmed yet');
 

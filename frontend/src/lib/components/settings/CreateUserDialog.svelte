@@ -16,6 +16,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
+	import MailNotice from '#lib/components/settings/MailNotice.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
 	import { languageOptions } from '#lib/i18n/languages.js';
@@ -55,6 +56,8 @@
 	// Profile, not sign-in: it sits with the person in either mode, and is
 	// where the setup link goes once mail is on.
 	let email = $state('');
+	// Creating mails the address: the setup link, or a confirmation beside a password.
+	const mails = $derived(!!mailEnabled && email.trim() !== '');
 	let password = $state('');
 	// Typed twice, like the reset and the own change: the admin hands this
 	// password on, and a typo nobody saw would lock the new member out.
@@ -213,7 +216,7 @@
 					id="new-user-email"
 					type="email"
 					label="{m.users_field_email()} · {m.users_field_optional()}"
-					hint={m.users_field_email_hint()}
+					hint={mails ? undefined : m.users_field_email_hint()}
 					autocomplete="off"
 					maxlength={254}
 					bind:value={email}
@@ -328,12 +331,27 @@
 				{/if}
 			</div>
 		</div>
+		{#if mails}
+			<MailNotice
+				id="new-user-notice"
+				text={mode === 'link'
+					? m.users_create_notice_link({ address: '\0' })
+					: m.users_create_notice_confirm({ address: '\0' })}
+				address={email.trim()}
+			/>
+		{/if}
 		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={saving}>
-				{mode === 'link' && mailEnabled && email.trim()
-					? m.users_create_submit_and_send()
-					: m.users_create_submit()}
+			<Button
+				type="submit"
+				disabled={saving}
+				aria-describedby={mails ? 'new-user-notice' : undefined}
+			>
+				{!mails
+					? m.users_create_submit()
+					: mode === 'link'
+						? m.users_create_submit_and_send()
+						: m.users_create_submit_and_mail()}
 			</Button>
 		</DialogActions>
 	</form>

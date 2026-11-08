@@ -158,3 +158,12 @@ export function setUserAvatar(id: string, file: File, crop: Crop): Promise<{ ava
 export function removeUserAvatar(id: string): Promise<void> {
 	return api<void>(`/users/${encodeURIComponent(id)}/avatar`, { method: 'DELETE' });
 }
+
+/**
+ * Mails another account's address a new confirmation link that names the
+ * caller; the own address goes through `resendConfirmation`. 429 within the
+ * account's minute, 409 when there is nothing to confirm or mail is off.
+ */
+export function resendUserEmailConfirmation(id: string): Promise<void> {
+	return api<void>(`/users/${encodeURIComponent(id)}/email/confirmation`, { method: 'POST' });
+}

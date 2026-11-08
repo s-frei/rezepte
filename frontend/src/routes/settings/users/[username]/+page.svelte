@@ -10,7 +10,6 @@
 	import Globe from '@lucide/svelte/icons/globe';
 	import KeyRound from '@lucide/svelte/icons/key-round';
 	import Link from '@lucide/svelte/icons/link';
-	import Mail from '@lucide/svelte/icons/mail';
 	import Shield from '@lucide/svelte/icons/shield';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -26,6 +25,7 @@
 		listPeople,
 		listUsers,
 		removeUserAvatar,
+		resendUserEmailConfirmation,
 		revokeSetupLink,
 		setUserAvatar,
 		unlinkUserIdentity,
@@ -37,6 +37,7 @@
 	} from '#lib/api/users.js';
 	import ColorPicker from '#lib/components/settings/ColorPicker.svelte';
 	import EmailDialog from '#lib/components/settings/EmailDialog.svelte';
+	import EmailRow from '#lib/components/settings/EmailRow.svelte';
 	import ProfileHead from '#lib/components/settings/ProfileHead.svelte';
 	import ResetPasswordDialog from '#lib/components/settings/ResetPasswordDialog.svelte';
 	import SendSetupLinkDialog from '#lib/components/settings/SendSetupLinkDialog.svelte';
@@ -203,7 +204,12 @@
 	 */
 	function profileSaved(updated: UserAccount) {
 		replace(updated);
-		patchAccount(updated.id, { email: updated.email, emailVerified: updated.emailVerified });
+		patchAccount(updated.id, {
+			email: updated.email,
+			emailVerified: updated.emailVerified,
+			emailConfirmation: updated.emailConfirmation,
+			emailSetupLink: updated.emailSetupLink
+		});
 	}
 
 	/**
@@ -323,8 +329,10 @@
 	}
 
 	async function saveEmail(email: string) {
-		if (!person) return;
-		profileSaved(await updateUser(person.id, { email }));
+		if (!person) return {};
+		const saved = await updateUser(person.id, { email });
+		profileSaved(saved);
+		return saved;
 	}
 
 	const isBadAddress = (error: unknown) =>
@@ -366,6 +374,9 @@
 				: {})
 		});
 		setupLinkInfo = link;
+		// Which mail the address got changed with the link; the email row
+		// reads it from the account.
+		void load(true);
 		// The step closes a tick before the result opens: two dialogs flipped
 		// in one update leave both open, the step stuck behind the result.
 		if (sendOpen) {
@@ -564,21 +575,16 @@
 
 				{#if permissions.manageAccount}
 					<SettingsGroup label={m.person_group_account()}>
-						<SettingsRow icon={Mail} label={m.users_field_email()}>
-							{#snippet value()}
-								{#if setup?.email}
-									<span class="block">{setup.email}</span>
-									{#if setup.emailVerified}
-										<span class="block font-semibold text-success-foreground">
-											{m.person_email_confirmed()}
-										</span>
-									{:else}
-										<span class="block">{m.person_email_unconfirmed()}</span>
-									{/if}
-								{:else}
-									{m.users_detail_email_none()}
-								{/if}
-							{/snippet}
+						<EmailRow
+							email={setup?.email ?? ''}
+							emailVerified={setup?.emailVerified ?? false}
+							emailConfirmation={setup?.emailConfirmation}
+							emailSetupLink={setup?.emailSetupLink}
+							mailOn={mailEnabled}
+							resend={() => resendUserEmailConfirmation(person.id)}
+							onchanged={() => void load(true)}
+							none={m.users_detail_email_none()}
+						>
 							{#snippet control()}
 								<Button
 									variant="quiet"
@@ -589,7 +595,7 @@
 									{m.person_change()}
 								</Button>
 							{/snippet}
-						</SettingsRow>
+						</EmailRow>
 						<SettingsRow icon={KeyRound} label={m.person_password()}>
 							{#snippet value()}{m.person_reset_hint({ name: firstName })}{/snippet}
 							{#snippet control()}
@@ -725,7 +731,9 @@
 	<EmailDialog
 		bind:open={emailOpen}
 		email={setup?.email ?? ''}
-		emailVerified={setup?.emailVerified ?? false}
+		sentAt={setup?.emailConfirmation?.sentAt}
+		name={firstName}
+		mailOn={mailEnabled}
 		save={saveEmail}
 		onerror={refused}
 	/>

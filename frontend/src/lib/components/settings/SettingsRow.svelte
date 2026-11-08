@@ -6,7 +6,9 @@
 		icon: Icon,
 		label,
 		value,
+		badge,
 		control,
+		below,
 		tone = 'default',
 		stack = false
 	}: {
@@ -14,8 +16,12 @@
 		label: string;
 		/** The value or a short hint, in caption muted under the label. */
 		value?: Snippet;
+		/** A short status after the label, on its line. */
+		badge?: Snippet;
 		/** One quiet control at the row's end. */
 		control?: Snippet;
+		/** Detail under the row's text, the width of the row; under the label column above 420px. */
+		below?: Snippet;
 		/** `attention` marks a fact worth a second look (a dormant account), never an error. */
 		tone?: 'default' | 'danger' | 'attention';
 		/** The control takes its own full-width line on phones (the theme row). */
@@ -58,7 +64,7 @@
 				>
 					<Icon class="size-3.5" aria-hidden="true" />
 				</span>
-			{/if}{label}
+			{/if}{label}{#if badge}{@render badge()}{/if}
 		</span>
 		{#if value}
 			<span class="text-caption wrap-break-word text-text-muted">{@render value()}</span>
@@ -77,5 +83,9 @@
 		>
 			{@render control()}
 		</div>
+	{/if}
+	{#if below}
+		<!-- 38px tile + the 14px gap: in line with the label above 420px, where the tile shows. -->
+		<div class="basis-full min-[421px]:pl-[52px]">{@render below()}</div>
 	{/if}
 </div>
