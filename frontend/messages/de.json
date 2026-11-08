@@ -1395,6 +1395,7 @@
 	"lists_empty_step_share_hint": "Fehlendes eintippen, mit allen hier teilen.",
 	"lists_card_counts": "{open} offen · {done} erledigt",
 	"lists_card_only_you": "Nur du",
+	"lists_card_open": "Öffnen",
 	"lists_card_changed": "Geändert {when}",
 	"lists_shared_with_me": "Mit dir geteilt",
 	"lists_invite_title": "{name} lädt dich zu „{list}“ ein",

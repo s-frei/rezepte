@@ -1395,6 +1395,7 @@
 	"lists_empty_step_share_hint": "Type in what else is missing, share it with everyone here.",
 	"lists_card_counts": "{open} open · {done} done",
 	"lists_card_only_you": "Only you",
+	"lists_card_open": "Open",
 	"lists_card_changed": "Changed {when}",
 	"lists_shared_with_me": "Shared with you",
 	"lists_invite_title": "{name} invites you to “{list}”",

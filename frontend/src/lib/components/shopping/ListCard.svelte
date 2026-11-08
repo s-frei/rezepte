@@ -5,6 +5,7 @@
 	import { listHref } from '#lib/shopping/href.js';
 	import { relativeTime } from '#lib/shopping/relative.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 
 	let { list }: { list: ShoppingSummary } = $props();
 
@@ -37,10 +38,14 @@
 
 <a
 	href={listHref(list.id)}
-	class="block rounded-2xl bg-surface hover-tint px-5 py-4.5 shadow-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+	class="group block rounded-2xl bg-surface px-5 py-4.5 shadow-card transition-[translate,scale,box-shadow,background-color] duration-160 ease-out hover:shadow-lift hover:delay-60 hover:duration-420 hover:ease-spring focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.985] motion-safe:hover:-translate-y-1 motion-reduce:transition-none dark:hover:bg-surface-elevated"
 >
 	<div class="flex items-start justify-between gap-3">
-		<h3 class="min-w-0 font-display text-card font-medium">{list.name}</h3>
+		<h3
+			class="min-w-0 font-display text-card font-medium transition-colors group-hover:text-primary"
+		>
+			{list.name}
+		</h3>
 		{#if people.length > 1}<PeopleStack {people} />{/if}
 	</div>
 	<p class="mt-0.5 text-caption text-text-muted">
@@ -69,7 +74,14 @@
 	>
 		<div class="h-full rounded-pill bg-primary" style:width="{percent}%"></div>
 	</div>
-	<p class="mt-2 text-caption text-text-muted">
-		{who} · {changed}
-	</p>
+	<div class="mt-2 flex items-end gap-3 text-caption">
+		<p class="min-w-0 text-text-muted">{who} · {changed}</p>
+		<!-- A pointer's hint only: the whole card is the link, and touch never shows it. -->
+		<span
+			aria-hidden="true"
+			class="ml-auto hidden shrink-0 -translate-x-1.5 items-center gap-1 font-semibold whitespace-nowrap text-primary opacity-0 transition-[opacity,translate] duration-420 ease-spring group-hover:translate-x-0 group-hover:opacity-100 motion-reduce:transition-none pointer-fine:inline-flex"
+		>
+			{m.lists_card_open()}<ArrowRight class="size-3.5" />
+		</span>
+	</div>
 </a>
