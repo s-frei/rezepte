@@ -624,3 +624,21 @@ func TestInspectSetupLinkNamesTheInviter(t *testing.T) {
 		t.Errorf("inspect names a picture: %s", rec.Body)
 	}
 }
+
+// TestMeCarriesTheMailWindows pins what the profile's email row reads.
+func TestMeCarriesTheMailWindows(t *testing.T) {
+	h, sessions, users := newHandlerWithSessions(t)
+	c := login(t, h)
+	if rec := do(h, http.MethodGet, "/api/v1/auth/me", "", c); strings.Contains(rec.Body.String(), `"emailConfirmation"`) || strings.Contains(rec.Body.String(), `"emailSetupLink"`) {
+		t.Fatalf("no address: %s", rec.Body.String())
+	}
+	do(h, http.MethodPatch, "/api/v1/auth/me/profile", `{"email":"sam@example.com"}`, c)
+	sam, _ := users.ByUsername(context.Background(), "sam")
+	if _, err := sessions.IssueConfirmation(context.Background(), sam.ID, "sam@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	rec := do(h, http.MethodGet, "/api/v1/auth/me", "", c)
+	if !strings.Contains(rec.Body.String(), `"emailConfirmation":{"sentAt":`) {
+		t.Fatalf("open confirmation: %s", rec.Body.String())
+	}
+}

@@ -31,7 +31,9 @@ type UserResponse struct {
 	HasPassword      bool    `json:"hasPassword" doc:"False for an account that signs in only through a setup link or an identity provider"`
 	// EmailConfirmationPending is read from the open confirmation links, not
 	// the users row, so toResponse leaves it false and respond fills it.
-	EmailConfirmationPending bool `json:"emailConfirmationPending" doc:"Whether a confirmation mail went to the current, unconfirmed address and its link is still open"`
+	EmailConfirmationPending bool        `json:"emailConfirmationPending" doc:"Whether a confirmation mail went to the current, unconfirmed address and its link is still open"`
+	EmailConfirmation        *MailWindow `json:"emailConfirmation,omitempty" doc:"The confirmation mailed to the current, unconfirmed address, open or expired; absent when none"`
+	EmailSetupLink           *MailWindow `json:"emailSetupLink,omitempty" doc:"The open setup link mailed to the current address, whose redeeming confirms it; absent when none"`
 }
 
 type loginInput struct {
@@ -612,6 +614,11 @@ func respond(ctx context.Context, svc *Service, u user.User) UserResponse {
 		slog.WarnContext(ctx, "auth: confirmation lookup failed", "user", u.ID, "err", err)
 	}
 	r.EmailConfirmationPending = pending
+	st, err := svc.MailStatus(ctx, u)
+	if err != nil {
+		slog.WarnContext(ctx, "auth: mail status lookup failed", "user", u.ID, "err", err)
+	}
+	r.EmailConfirmation, r.EmailSetupLink = st.Confirmation, st.SetupLink
 	return r
 }
 

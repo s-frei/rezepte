@@ -987,6 +987,14 @@
             "description": "Profile address; where setup links are mailed. Empty means none",
             "type": "string"
           },
+          "emailConfirmation": {
+            "$ref": "#/components/schemas/MailWindow",
+            "description": "The confirmation mailed to the current, unconfirmed address, open or expired; absent when none"
+          },
+          "emailSetupLink": {
+            "$ref": "#/components/schemas/MailWindow",
+            "description": "The open setup link mailed to the current address, whose redeeming confirms it; absent when none"
+          },
           "emailVerified": {
             "description": "True once a provider vouched for it or the person redeemed a link mailed to it",
             "type": "boolean"
@@ -2462,6 +2470,26 @@
           "from",
           "fromName",
           "publicUrlMissing"
+        ],
+        "type": "object"
+      },
+      "MailWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "description": "When its link stops working",
+            "format": "date-time",
+            "type": "string"
+          },
+          "sentAt": {
+            "description": "When the mail went out",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sentAt",
+          "expiresAt"
         ],
         "type": "object"
       },
@@ -4309,6 +4337,14 @@
             "description": "Profile address; where setup links are mailed. Empty means none",
             "type": "string"
           },
+          "emailConfirmation": {
+            "$ref": "#/components/schemas/MailWindow",
+            "description": "The confirmation mailed to the current, unconfirmed address, open or expired; absent when none"
+          },
+          "emailSetupLink": {
+            "$ref": "#/components/schemas/MailWindow",
+            "description": "The open setup link mailed to the current address, whose redeeming confirms it; absent when none"
+          },
           "emailVerified": {
             "description": "True once a provider vouched for it or the person redeemed a link mailed to it",
             "type": "boolean"
@@ -4458,9 +4494,17 @@
             "description": "The account's email address; empty when none. Never used to sign in.",
             "type": "string"
           },
+          "emailConfirmation": {
+            "$ref": "#/components/schemas/MailWindow",
+            "description": "The confirmation mailed to the current, unconfirmed address, open or expired; absent when none"
+          },
           "emailConfirmationPending": {
             "description": "Whether a confirmation mail went to the current, unconfirmed address and its link is still open",
             "type": "boolean"
+          },
+          "emailSetupLink": {
+            "$ref": "#/components/schemas/MailWindow",
+            "description": "The open setup link mailed to the current address, whose redeeming confirms it; absent when none"
           },
           "emailVerified": {
             "description": "Whether the address is confirmed: an identity provider vouched for it, or the person opened a link mailed to it",

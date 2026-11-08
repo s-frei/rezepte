@@ -30,16 +30,18 @@ type UserAccount struct {
 	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
 	// CanSharePublicly is an admin's per-person switch; see share.
-	CanSharePublicly   bool       `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
-	CreatedAt          time.Time  `json:"createdAt" doc:"When the account was created"`
-	AvatarID           *string    `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
-	HasPassword        bool       `json:"hasPassword" doc:"False until the person sets one through a setup link or their profile"`
-	SetupLinkExpiresAt *time.Time `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
-	Email              string     `json:"email" doc:"Profile address; where setup links are mailed. Empty means none"`
-	EmailVerified      bool       `json:"emailVerified" doc:"True once a provider vouched for it or the person redeemed a link mailed to it"`
-	LastRecipeTitle    *string    `json:"lastRecipeTitle" nullable:"true" doc:"Title of the recipe this person created that changed most recently; null when they created none; set only by list-users"`
-	LastActiveAt       *time.Time `json:"lastActiveAt" nullable:"true" doc:"When this person last signed in, used a session or an API token, up to an hour late; null when never recorded; set only by list-users"`
-	HasIdentity        bool       `json:"hasIdentity" doc:"Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users"`
+	CanSharePublicly   bool             `json:"canSharePublicly" doc:"Whether this person may create public links; their existing links pause while it is off"`
+	CreatedAt          time.Time        `json:"createdAt" doc:"When the account was created"`
+	AvatarID           *string          `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
+	HasPassword        bool             `json:"hasPassword" doc:"False until the person sets one through a setup link or their profile"`
+	SetupLinkExpiresAt *time.Time       `json:"setupLinkExpiresAt,omitempty" doc:"When the open setup link expires; absent when none is open"`
+	Email              string           `json:"email" doc:"Profile address; where setup links are mailed. Empty means none"`
+	EmailVerified      bool             `json:"emailVerified" doc:"True once a provider vouched for it or the person redeemed a link mailed to it"`
+	EmailConfirmation  *auth.MailWindow `json:"emailConfirmation,omitempty" doc:"The confirmation mailed to the current, unconfirmed address, open or expired; absent when none"`
+	EmailSetupLink     *auth.MailWindow `json:"emailSetupLink,omitempty" doc:"The open setup link mailed to the current address, whose redeeming confirms it; absent when none"`
+	LastRecipeTitle    *string          `json:"lastRecipeTitle" nullable:"true" doc:"Title of the recipe this person created that changed most recently; null when they created none; set only by list-users"`
+	LastActiveAt       *time.Time       `json:"lastActiveAt" nullable:"true" doc:"When this person last signed in, used a session or an API token, up to an hour late; null when never recorded; set only by list-users"`
+	HasIdentity        bool             `json:"hasIdentity" doc:"Whether the person has connected an account at the configured identity provider; false while none is configured; set only by list-users"`
 }
 
 // setupLinkBody is a freshly issued setup link, shown once.
@@ -190,6 +192,17 @@ func rankError(err error) error {
 		return huma.Error403Forbidden("superadmin role required")
 	}
 	return nil
+}
+
+// withMailStatus adds u's mail windows, read after any send of the request.
+// A failed lookup only leaves them out: the row then offers to send a mail
+// rather than claiming one went.
+func withMailStatus(ctx context.Context, sessions *auth.Service, out *UserAccount, u user.User) {
+	st, err := sessions.MailStatus(ctx, u)
+	if err != nil {
+		slog.WarnContext(ctx, "userapi: mail status lookup failed", "user", u.ID, "err", err)
+	}
+	out.EmailConfirmation, out.EmailSetupLink = st.Confirmation, st.SetupLink
 }
 
 func toResponse(u user.User) UserAccount {
@@ -385,6 +398,10 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
+		statuses, err := sessions.MailStatuses(ctx, list)
+		if err != nil {
+			return nil, err
+		}
 		open, err := sessions.OpenSetupLinks(ctx)
 		if err != nil {
 			return nil, err
@@ -414,6 +431,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			if expires, ok := open[u.ID]; ok {
 				item.SetupLinkExpiresAt = &expires
 			}
+			item.EmailConfirmation, item.EmailSetupLink = statuses[u.ID].Confirmation, statuses[u.ID].SetupLink
 			items = append(items, item)
 		}
 		return &listOutput{Body: UserAccountList{Items: items}}, nil
@@ -511,6 +529,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			out.Body.SetupLink = &body
 			out.Body.SetupLinkExpiresAt = &link.ExpiresAt
 		}
+		withMailStatus(ctx, sessions, &out.Body.UserAccount, u)
 		return out, nil
 	})
 	auth.DeclareRetryAfter(api, http.MethodPost, "/api/v1/users", http.StatusServiceUnavailable)
@@ -731,7 +750,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, err
 			}
 		}
-		return &userOutput{Body: toResponse(u)}, nil
+		out := &userOutput{Body: toResponse(u)}
+		withMailStatus(ctx, sessions, &out.Body, u)
+		return out, nil
 	})
 	auth.DeclareRetryAfter(api, http.MethodPatch, "/api/v1/users/{id}", http.StatusServiceUnavailable)
 

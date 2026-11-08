@@ -1456,3 +1456,27 @@ func TestPeopleCarryCounts(t *testing.T) {
 		t.Fatalf("no null lastActiveAt in %s", rec.Body.String())
 	}
 }
+
+func TestAccountsCarryTheMailWindows(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	doReq(h, "POST", "/api/v1/users", `{"username":"lena","role":"user","email":"lena@example.org"}`, c)
+	rec := doReq(h, "POST", "/api/v1/users", `{"username":"ida","password":"ida12345","role":"user","email":"ida@example.org"}`, c)
+	if !strings.Contains(rec.Body.String(), `"emailConfirmation":{"sentAt":`) {
+		t.Fatalf("create with a password: %s", rec.Body)
+	}
+	lena := userNamed(t, h, c, "lena")
+	if lena.EmailSetupLink == nil || lena.EmailConfirmation != nil {
+		t.Fatalf("lena = setup %+v, confirmation %+v", lena.EmailSetupLink, lena.EmailConfirmation)
+	}
+	ida := userNamed(t, h, c, "ida")
+	if ida.EmailConfirmation == nil || ida.EmailSetupLink != nil {
+		t.Fatalf("ida = setup %+v, confirmation %+v", ida.EmailSetupLink, ida.EmailConfirmation)
+	}
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	rec = doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@example.org"}`, c)
+	if !strings.Contains(rec.Body.String(), `"emailConfirmation":{"sentAt":`) {
+		t.Fatalf("patch: %s", rec.Body)
+	}
+}
