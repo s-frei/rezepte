@@ -1376,6 +1376,37 @@ test('keeps a picked name apart from the word the @ was typed before', async ({ 
 	await expect(page.getByText('(100 g)', { exact: true })).toBeVisible();
 });
 
+test('offers every ingredient in the @ picker and scrolls to the row the arrows reach', async ({
+	page
+}) => {
+	const token = uniqueToken();
+	const names = Array.from({ length: 12 }, (_, at) => `Zutat ${at + 1}`);
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Viele ${token}`,
+		ingredientGroups: [
+			{
+				name: null,
+				ingredients: names.map((name) => ({ quantity: null, unit: null, name, note: null }))
+			}
+		],
+		steps: [{ text: 'Alles verrühren.', references: [], times: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	await step.click();
+	await page.keyboard.press('End');
+	await page.keyboard.type(' @');
+
+	// The list scrolls, so it holds every row rather than the first few.
+	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
+	await expect(picker.getByRole('option')).toHaveText(names);
+	// ArrowUp wraps to the last row, which starts below the fold.
+	await page.keyboard.press('ArrowUp');
+	await expect(picker.getByRole('option', { name: 'Zutat 12' })).toBeInViewport();
+});
+
 test('closes the @ picker on a press outside it, and a fresh @ opens it again', async ({
 	page
 }) => {

@@ -72,9 +72,6 @@
 		ondismiss: (word: string) => void;
 	} = $props();
 
-	/** At most this many rows in the picker; the query narrows it further. */
-	const PICKER_ROWS = 8;
-
 	/**
 	 * This step's suggestion plugin. One per component instance, so `Escape`
 	 * can dismiss exactly this picker; every step has its own editor state, so
@@ -169,6 +166,13 @@
 	let manualQuery = $state('');
 	let queryField = $state<HTMLInputElement | null>(null);
 	let pickerBox = $state<HTMLElement | null>(null);
+	/** The list scrolls, so the arrow keys have to bring the row they reach into view. */
+	$effect(() => {
+		if (!picker) return;
+		pickerBox
+			?.querySelector(`#ref-picker-${step.id}-${picker.active}`)
+			?.scrollIntoView({ block: 'nearest' });
+	});
 	/** Said in the live region when there was no word to link. */
 	let notice = $state('');
 	/** Whether focus is anywhere in this step; the link button is offered only then. */
@@ -472,7 +476,7 @@
 		notice = '';
 		manualQuery = '';
 		picker = {
-			items: matchEntries(entries, '').slice(0, PICKER_ROWS),
+			items: matchEntries(entries, ''),
 			active: 0,
 			command: (entry) => linkWord(word, entry),
 			word
@@ -486,7 +490,7 @@
 		manualQuery = query;
 		const open = picker;
 		if (open === null) return;
-		open.items = matchEntries(entries, query).slice(0, PICKER_ROWS);
+		open.items = matchEntries(entries, query);
 		open.active = Math.min(open.active, Math.max(0, open.items.length - 1));
 	}
 
@@ -578,7 +582,7 @@
 				editor: instance,
 				pluginKey: PICKER_KEY,
 				char: '@',
-				items: ({ query }) => untrack(() => matchEntries(entries, query)).slice(0, PICKER_ROWS),
+				items: ({ query }) => untrack(() => matchEntries(entries, query)),
 				/**
 				 * Replaces `@Zuc` with the plain word and records the link. No
 				 * mention node and no mark: the field stores a plain string, so
