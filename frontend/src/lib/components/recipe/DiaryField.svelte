@@ -69,7 +69,7 @@
 		aria-describedby={[describedby, over > 0 && overId].filter(Boolean).join(' ') || undefined}
 		aria-invalid={over > 0}
 		class="block field-sizing-content max-h-[calc(6*26px+14px)] w-full min-w-0 resize-none font-display text-card-sm leading-[26px] wrap-anywhere text-text italic placeholder:text-text-muted {plain
-			? 'bg-transparent py-[3px] outline-none md:py-1'
+			? 'bg-transparent py-[7px] outline-none'
 			: 'min-h-10 rounded-2xl border border-border bg-surface-elevated diary-paper px-4 pt-1.5 pb-2 focus-visible:outline-2 focus-visible:outline-primary'}"
 	></textarea>
 </label>
