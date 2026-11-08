@@ -164,6 +164,10 @@ type deleteInput struct {
 
 type deleteOutput struct{}
 
+type resendInput struct {
+	ID string `path:"id"`
+}
+
 // requireAdmin returns the calling user or a 401/403 huma error. Every
 // operation in this package calls it first; there is no permission table,
 // the rank of the session's user against the rank of the target is the whole
@@ -594,6 +598,38 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		}
 		return &setupLinkOutput{Body: body}, nil
 	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "resend-user-email-confirmation",
+		Method:        http.MethodPost,
+		Path:          "/api/v1/users/{id}/email/confirmation",
+		Summary:       "Mail a new confirmation link for another user's address",
+		Description:   "The mail names the admin. Shares the account's one-minute limit with the holder's own resend-email-confirmation, which is the operation for one's own address. 409 when there is no unconfirmed address, mail is off, the target is oneself or the superadmin.",
+		Tags:          []string{"users"},
+		Security:      auth.SessionSecurity,
+		DefaultStatus: http.StatusNoContent,
+		Errors:        []int{401, 403, 404, 409, 429, 502},
+	}, func(ctx context.Context, in *resendInput) (*struct{}, error) {
+		actor, err := requireAdmin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		target, err := users.ByID(ctx, in.ID)
+		if errors.Is(err, user.ErrNotFound) {
+			return nil, huma.Error404NotFound("user not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		if target.ID == actor.ID {
+			return nil, huma.Error409Conflict("use resend-email-confirmation for your own address")
+		}
+		if mapped := rankError(user.CanManage(actor.Role, target.Role)); mapped != nil {
+			return nil, mapped
+		}
+		return nil, auth.ResendError(sessions.ResendConfirmation(ctx, target, adminName(actor, target)))
+	})
+	auth.DeclareRetryAfter(api, http.MethodPost, "/api/v1/users/{id}/email/confirmation", http.StatusTooManyRequests)
 
 	huma.Register(api, huma.Operation{
 		OperationID:   "revoke-setup-link",

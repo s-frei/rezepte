@@ -441,23 +441,27 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if !ok {
 			return nil, huma.Error401Unauthorized("authentication required")
 		}
-		err := svc.ResendConfirmation(ctx, u)
-		var throttled *ThrottledError
-		switch {
-		case errors.Is(err, ErrNothingToConfirm):
-			return nil, huma.Error409Conflict("no unconfirmed address")
-		case errors.Is(err, mail.ErrDisabled):
-			return nil, huma.Error409Conflict("mail is not configured")
-		case errors.As(err, &throttled):
-			return nil, tooManyRequests("a confirmation mail was sent a moment ago", throttled.RetryAfter)
-		case errors.Is(err, mail.ErrSend):
-			return nil, huma.Error502BadGateway("the confirmation mail could not be sent")
-		case err != nil:
-			return nil, err
-		}
-		return nil, nil
+		return nil, ResendError(svc.ResendConfirmation(ctx, u, ""))
 	})
 	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/me/email/confirmation", http.StatusTooManyRequests)
+}
+
+// ResendError maps what a resend of a confirmation returns to its answer:
+// 409 when there is nothing to confirm or mail is off, 429 with Retry-After
+// inside the account's minute, 502 for a failed send.
+func ResendError(err error) error {
+	var throttled *ThrottledError
+	switch {
+	case errors.Is(err, ErrNothingToConfirm):
+		return huma.Error409Conflict("no unconfirmed address")
+	case errors.Is(err, mail.ErrDisabled):
+		return huma.Error409Conflict("mail is not configured")
+	case errors.As(err, &throttled):
+		return tooManyRequests("a confirmation mail was sent a moment ago", throttled.RetryAfter)
+	case errors.Is(err, mail.ErrSend):
+		return huma.Error502BadGateway("the confirmation mail could not be sent")
+	}
+	return err
 }
 
 // DeclareRetryAfter adds the Retry-After header, in whole seconds, to the

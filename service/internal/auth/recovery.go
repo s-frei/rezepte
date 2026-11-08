@@ -159,9 +159,11 @@ func (s *Service) ConfirmNewAddress(ctx context.Context, before, after user.User
 	mail.LogUnsent(ctx, "confirmation mail failed", after.ID, err)
 }
 
-// ResendConfirmation is the profile's "Send again": at most one per account
-// per minute (a *ThrottledError says how long to wait).
-func (s *Service) ResendConfirmation(ctx context.Context, u user.User) error {
+// ResendConfirmation is "Send again", the holder's own or an admin's on the
+// person page, whose name by carries (empty for the holder): at most one per
+// account per minute, shared by both (a *ThrottledError says how long to
+// wait).
+func (s *Service) ResendConfirmation(ctx context.Context, u user.User, by string) error {
 	if u.Email == "" || u.EmailVerified {
 		return ErrNothingToConfirm
 	}
@@ -171,7 +173,7 @@ func (s *Service) ResendConfirmation(ctx context.Context, u user.User) error {
 	if wait, ok := s.confirmCooldown.allow(u.ID, s.now()); !ok {
 		return &ThrottledError{RetryAfter: wait}
 	}
-	return s.sendConfirmation(ctx, u, "")
+	return s.sendConfirmation(ctx, u, by)
 }
 
 func (s *Service) sendConfirmation(ctx context.Context, u user.User, by string) error {

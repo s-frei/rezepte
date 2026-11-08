@@ -287,25 +287,25 @@ func TestResendConfirmation(t *testing.T) {
 	ctx := context.Background()
 	f := newRecoveryFixture(t)
 	lea := f.byName["lea"]
-	if err := f.sessions.ResendConfirmation(ctx, lea); err != nil {
+	if err := f.sessions.ResendConfirmation(ctx, lea, ""); err != nil {
 		t.Fatal(err)
 	}
 	var throttled *auth.ThrottledError
-	if err := f.sessions.ResendConfirmation(ctx, lea); !errors.As(err, &throttled) || throttled.RetryAfter != time.Minute {
+	if err := f.sessions.ResendConfirmation(ctx, lea, ""); !errors.As(err, &throttled) || throttled.RetryAfter != time.Minute {
 		t.Fatalf("second within a minute: %v", err)
 	}
 	f.clock = f.clock.Add(time.Minute)
-	if err := f.sessions.ResendConfirmation(ctx, lea); err != nil {
+	if err := f.sessions.ResendConfirmation(ctx, lea, ""); err != nil {
 		t.Fatalf("after a minute: %v", err)
 	}
-	if err := f.sessions.ResendConfirmation(ctx, f.byName["mila"]); !errors.Is(err, auth.ErrNothingToConfirm) {
+	if err := f.sessions.ResendConfirmation(ctx, f.byName["mila"], ""); !errors.Is(err, auth.ErrNothingToConfirm) {
 		t.Fatalf("confirmed: %v", err)
 	}
-	if err := f.sessions.ResendConfirmation(ctx, f.byName["noah"]); !errors.Is(err, auth.ErrNothingToConfirm) {
+	if err := f.sessions.ResendConfirmation(ctx, f.byName["noah"], ""); !errors.Is(err, auth.ErrNothingToConfirm) {
 		t.Fatalf("no address: %v", err)
 	}
 	f.mailer.off = true
-	if err := f.sessions.ResendConfirmation(ctx, lea); !errors.Is(err, mail.ErrDisabled) {
+	if err := f.sessions.ResendConfirmation(ctx, lea, ""); !errors.Is(err, mail.ErrDisabled) {
 		t.Fatalf("mail off: %v", err)
 	}
 }
@@ -580,7 +580,7 @@ func TestOwnAddressChangeSharesTheResendMinute(t *testing.T) {
 	}
 	change("lea@one.org", "")
 	var throttled *auth.ThrottledError
-	if err := f.sessions.ResendConfirmation(ctx, f.byName["lea"]); !errors.As(err, &throttled) {
+	if err := f.sessions.ResendConfirmation(ctx, f.byName["lea"], ""); !errors.As(err, &throttled) {
 		t.Fatalf("resend right after the save: %v", err)
 	}
 	after := change("lea@two.org", "")
@@ -609,11 +609,11 @@ func TestFailedSendKeepsTheMinute(t *testing.T) {
 	}
 	f.mailer.fail = true
 	f.sessions.ConfirmChangedAddress(ctx, lea, after, "")
-	if err := f.sessions.ResendConfirmation(ctx, after); !errors.Is(err, mail.ErrSend) {
+	if err := f.sessions.ResendConfirmation(ctx, after, ""); !errors.Is(err, mail.ErrSend) {
 		t.Fatalf("resend after a failed save: %v", err)
 	}
 	f.mailer.fail = false
-	if err := f.sessions.ResendConfirmation(ctx, after); err != nil {
+	if err := f.sessions.ResendConfirmation(ctx, after, ""); err != nil {
 		t.Fatalf("resend after a failed resend: %v", err)
 	}
 	if sent := f.mailer.drain(); len(sent) != 1 {
@@ -642,7 +642,7 @@ func TestFailedSendDropsOnlyItsOwnConfirmation(t *testing.T) {
 			t.Error(err)
 		}
 	}}, nil)
-	if err := f.sessions.ResendConfirmation(ctx, lea); !errors.Is(err, mail.ErrSend) {
+	if err := f.sessions.ResendConfirmation(ctx, lea, ""); !errors.Is(err, mail.ErrSend) {
 		t.Fatalf("resend: %v", err)
 	}
 	if pending, err := f.sessions.ConfirmationPending(ctx, lea); err != nil || !pending {

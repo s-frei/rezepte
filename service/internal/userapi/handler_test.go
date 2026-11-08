@@ -1480,3 +1480,90 @@ func TestAccountsCarryTheMailWindows(t *testing.T) {
 		t.Fatalf("patch: %s", rec.Body)
 	}
 }
+
+func resendFor(h http.Handler, id string, c *http.Cookie) *httptest.ResponseRecorder {
+	return doReq(h, http.MethodPost, "/api/v1/users/"+id+"/email/confirmation", ``, c)
+}
+
+func TestResendUserConfirmationMailsAndNamesAdmin(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@example.org"}`, c)
+	if rec := resendFor(h, kim.ID, c); rec.Code != http.StatusNoContent {
+		t.Fatalf("resend = %d %s", rec.Code, rec.Body)
+	}
+	if len(m.confirms) != 2 || m.confirms[1].To != "kim@example.org" || m.confirms[1].Admin != "sam" {
+		t.Fatalf("confirms = %+v", m.confirms)
+	}
+}
+
+func TestResendUserConfirmationThrottled(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	doReq(h, "PATCH", "/api/v1/users/"+kim.ID, `{"email":"kim@example.org"}`, c)
+	resendFor(h, kim.ID, c)
+	rec := resendFor(h, kim.ID, c)
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Fatalf("second resend = %d, Retry-After %q", rec.Code, rec.Header().Get("Retry-After"))
+	}
+	if len(m.confirms) != 2 {
+		t.Fatalf("confirms = %d, want 2", len(m.confirms))
+	}
+}
+
+func TestResendUserConfirmationRefusesRankAndSelf(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	owner, _ := users.ByUsername(context.Background(), "owner")
+	sam, _ := users.ByUsername(context.Background(), "sam")
+	if rec := resendFor(h, owner.ID, c); rec.Code != http.StatusConflict {
+		t.Fatalf("owner = %d", rec.Code)
+	}
+	if rec := resendFor(h, sam.ID, c); rec.Code != http.StatusConflict {
+		t.Fatalf("self = %d", rec.Code)
+	}
+	if rec := resendFor(h, "nope", c); rec.Code != http.StatusNotFound {
+		t.Fatalf("unknown = %d", rec.Code)
+	}
+	if len(m.confirms) != 0 {
+		t.Fatalf("confirms = %+v", m.confirms)
+	}
+}
+
+func TestResendUserConfirmationNothingToConfirm(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	c := loginAs(t, h, "sam", "pw")
+	kim, _ := users.ByUsername(context.Background(), "kim")
+	if rec := resendFor(h, kim.ID, c); rec.Code != http.StatusConflict {
+		t.Fatalf("no address = %d", rec.Code)
+	}
+}
+
+func TestResendUserConfirmationIsSessionOnly(t *testing.T) {
+	e := newTokenEnv(t, []string{"users:write"})
+	if rec := e.do(http.MethodPost, "/api/v1/users/x/email/confirmation", ``); rec.Code != http.StatusUnauthorized && rec.Code != http.StatusForbidden {
+		t.Fatalf("token = %d", rec.Code)
+	}
+}
+
+func TestResendUserConfirmationRefusesAPlainAdminOnAnAdmin(t *testing.T) {
+	m := &fakeMailer{enabled: true}
+	h, users := newStackWithMailer(t, map[string]string{}, m)
+	owner := loginAs(t, h, "owner", "pw")
+	doReq(h, "POST", "/api/v1/users", `{"username":"ada","password":"ada12345","role":"admin","email":"ada@example.org"}`, owner)
+	ada, _ := users.ByUsername(context.Background(), "ada")
+	c := loginAs(t, h, "sam", "pw")
+	if rec := resendFor(h, ada.ID, c); rec.Code != http.StatusForbidden {
+		t.Fatalf("admin on admin = %d", rec.Code)
+	}
+	kim := loginAs(t, h, "kim", "pw")
+	if rec := resendFor(h, ada.ID, kim); rec.Code != http.StatusForbidden {
+		t.Fatalf("member = %d", rec.Code)
+	}
+}
