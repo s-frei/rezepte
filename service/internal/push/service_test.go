@@ -158,7 +158,10 @@ func TestSubscribeRejectsBadKeys(t *testing.T) {
 	}
 }
 
-func TestSubscribeMovesEndpointToNewUser(t *testing.T) {
+// A switch on the device moves its endpoint, and the timer running there
+// keeps its alarm: it still rings, now cancellable by whoever is signed in.
+// The move does not count against bob's quota; the device is not a new one.
+func TestSubscribeMovesEndpointWithItsAlarms(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
@@ -171,15 +174,20 @@ func TestSubscribeMovesEndpointToNewUser(t *testing.T) {
 	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(time.Minute))); err != nil {
 		t.Fatal(err)
 	}
+	for i := range maxSubscriptions {
+		if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), r.sub(p.URL+"/bob/"+string(rune('a'+i)))); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := f.svc.Subscribe(ctx, f.bob, sess(f.bob), r.sub(ep)); err != nil {
-		t.Fatal(err)
+		t.Fatalf("move to bob at his quota: %v", err)
 	}
 	if _, err := f.svc.Schedule(ctx, f.alice, alarm(ep, now.Add(time.Minute))); !errors.Is(err, ErrUnknownSubscription) {
 		t.Fatalf("alice still owns the endpoint: %v", err)
 	}
 	f.svc.RunDue(ctx, now.Add(2*time.Minute))
-	if len(p.got) != 0 {
-		t.Fatal("alice's alarm was sent to bob's device")
+	if got := p.paths(); len(got) != 1 || got[0] != "/push/1" {
+		t.Fatalf("pushes %v, want alice's alarm on the device", got)
 	}
 	if _, err := f.svc.Schedule(ctx, f.bob, alarm(ep, now.Add(time.Minute))); err != nil {
 		t.Fatalf("bob: %v", err)

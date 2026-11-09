@@ -93,7 +93,7 @@ func newStack(t *testing.T) *stack {
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
 		httpserver.WithLinkPreview(s.shares.ForRequest),
 		httpserver.WithShellHeaders(share.ShellHeaders))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	share.Register(srv.API(), s.shares)
 	s.avatars = avatar.NewService(conn, filepath.Join(t.TempDir(), "avatars"), s.images)
 	share.RegisterPublic(srv.API(), s.shares, s.recipes, s.images, s.avatars)

@@ -140,7 +140,7 @@ func newStackFull(t *testing.T, environment map[string]string, mailer *fakeMaile
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), issuer, mailer, counts)
 	return srv.Handler(), users
 }
@@ -179,7 +179,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), nil, &fakeMailer{}, nil)
 	raw, _, err := tokens.Create(context.Background(), samID, "t", scopes, nil)
 	if err != nil {

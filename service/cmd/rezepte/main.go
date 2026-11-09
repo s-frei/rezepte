@@ -229,8 +229,9 @@ func run() error {
 		return err
 	}
 	shares := share.NewService(conn, instance, users)
-	// Link previews and unsubscribe links share the instance key; sign
-	// labels keep one's token from verifying as the other's.
+	// Link previews, unsubscribe links and the accounts of a device share
+	// the instance key; sign labels keep one's token from verifying as
+	// another's.
 	signingKey, err := instance.LinkPreviewKey(ctx)
 	if err != nil {
 		return err
@@ -269,8 +270,10 @@ func run() error {
 		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
 		httpserver.WithShellHeaders(share.ShellHeaders),
 		httpserver.WithVersion(version))
-	auth.Register(srv.API(), sessions, cfg.SecureCookies)
-	oidc.Register(srv.API(), oidc.New(oidcSettings, sessions, users, cfg.SecureCookies))
+	device := auth.NewDevice(signingKey)
+	auth.Register(srv.API(), sessions, device, cfg.SecureCookies)
+	auth.RegisterDevice(srv.API(), sessions, device, cfg.SecureCookies)
+	oidc.Register(srv.API(), oidc.New(oidcSettings, sessions, users, device, cfg.SecureCookies))
 	recipes := recipe.NewService(conn, imageDir)
 	recipes.SetCommentNotifier(notifications)
 	recipes.SetTastyNotifier(notifications)

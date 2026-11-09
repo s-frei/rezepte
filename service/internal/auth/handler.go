@@ -37,7 +37,9 @@ type UserResponse struct {
 }
 
 type loginInput struct {
-	Body struct {
+	Session  string `cookie:"rezepte_session"`
+	Accounts string `cookie:"rezepte_accounts"`
+	Body     struct {
 		Username string `json:"username" minLength:"1" maxLength:"64"`
 		Password string `json:"password" minLength:"1" maxLength:"1024"`
 	}
@@ -48,10 +50,13 @@ type loginOutput struct {
 	Body      UserResponse
 }
 
+// logoutInput is the two cookies, also what list-device-accounts reads.
 type logoutInput struct {
-	Cookie string `cookie:"rezepte_session"`
+	Session  string `cookie:"rezepte_session"`
+	Accounts string `cookie:"rezepte_accounts"`
 }
 
+// logoutOutput sets cookies only, also what remove-device-account answers.
 type logoutOutput struct {
 	SetCookie []http.Cookie `header:"Set-Cookie"`
 }
@@ -151,7 +156,9 @@ type SetupRedemption struct {
 }
 
 type redeemSetupInput struct {
-	Body SetupRedemption
+	Session  string `cookie:"rezepte_session"`
+	Accounts string `cookie:"rezepte_accounts"`
+	Body     SetupRedemption
 }
 
 type redeemSetupOutput struct {
@@ -160,6 +167,8 @@ type redeemSetupOutput struct {
 }
 
 // Register installs the login, logout, me and change-password operations.
+// Login, logout and redeeming a setup link keep the device's other accounts
+// in the accounts cookie device writes (see RegisterDevice).
 //
 // The session security scheme itself is not declared here: it comes from
 // SecuritySchemes, installed through httpserver.WithSecuritySchemes, which
@@ -170,7 +179,7 @@ type redeemSetupOutput struct {
 // which applies it before this package (or any other) can register an
 // operation. That ordering is structural, not a calling-convention
 // requirement of this function.
-func Register(api huma.API, svc *Service, secureCookies bool) {
+func Register(api huma.API, svc *Service, device *Device, secureCookies bool) {
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      http.MethodPost,
@@ -193,10 +202,15 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
+		accounts, err := device.SignedIn(ctx, svc, in.Session, device.Parse(in.Accounts), DeviceEntry{UserID: sess.User.ID, Token: sess.Token}, secureCookies)
+		if err != nil {
+			return nil, err
+		}
 		return &loginOutput{
 			SetCookie: []http.Cookie{
 				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
 				LocaleCookie(sess.User.Locale, secureCookies),
+				accounts,
 			},
 			Body: respond(ctx, svc, sess.User),
 		}, nil
@@ -212,13 +226,30 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		Security:      SessionSecurity,
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, in *logoutInput) (*logoutOutput, error) {
-		if err := svc.Logout(ctx, in.Cookie); err != nil {
+		if err := svc.Logout(ctx, in.Session); err != nil {
 			return nil, err
+		}
+		// With others on the device the person stays, first and with their
+		// dead token, so the switcher shows them as signed out.
+		accounts := device.Cookie(nil, secureCookies)
+		// Only the session cookie that authenticated this request is the
+		// leaving person's token.
+		id, viaSession := SessionIDFrom(ctx)
+		if u, ok := UserFrom(ctx); ok && viaSession && in.Session != "" && id == hashToken(in.Session) {
+			entries := device.Parse(in.Accounts)
+			next := Handover(entries, &DeviceEntry{UserID: u.ID, Token: in.Session}, "")
+			if err := endDropped(ctx, svc, entries, next); err != nil {
+				return nil, err
+			}
+			if len(next) > 1 {
+				accounts = device.Cookie(next, secureCookies)
+			}
 		}
 		return &logoutOutput{
 			SetCookie: []http.Cookie{
 				expiredSessionCookie(secureCookies),
 				expiredLocaleCookie(secureCookies),
+				accounts,
 			},
 		}, nil
 	})
@@ -361,10 +392,15 @@ func Register(api huma.API, svc *Service, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
+		accounts, err := device.SignedIn(ctx, svc, in.Session, device.Parse(in.Accounts), DeviceEntry{UserID: sess.User.ID, Token: sess.Token}, secureCookies)
+		if err != nil {
+			return nil, err
+		}
 		return &redeemSetupOutput{
 			SetCookie: []http.Cookie{
 				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
 				LocaleCookie(sess.User.Locale, secureCookies),
+				accounts,
 			},
 			Body: respond(ctx, svc, sess.User),
 		}, nil

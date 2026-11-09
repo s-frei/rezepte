@@ -3,6 +3,8 @@
   "description": "Signing in, signing out and reading the current session.",
   "pages": [
     "index",
+    "list-device-accounts",
+    "remove-device-account",
     "confirm-email",
     "login",
     "logout",
@@ -22,6 +24,7 @@
     "password-reset-config",
     "forgot-password",
     "inspect-setup-link",
-    "redeem-setup-link"
+    "redeem-setup-link",
+    "switch-account"
   ]
 }

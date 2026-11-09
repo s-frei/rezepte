@@ -37,7 +37,7 @@ func newHandler(t *testing.T) http.Handler {
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	tokenapi.Register(srv.API(), tokens)
 	return srv.Handler()
 }

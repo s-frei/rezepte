@@ -38,7 +38,9 @@ func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service, *user.Se
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
-	auth.Register(srv.API(), sessions, false)
+	device := auth.NewDevice(deviceKey)
+	auth.Register(srv.API(), sessions, device, false)
+	auth.RegisterDevice(srv.API(), sessions, device, false)
 	return srv.Handler(), sessions, users
 }
 
@@ -48,13 +50,15 @@ func newHandler(t *testing.T) http.Handler {
 	return h
 }
 
-func do(h http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+func do(h http.Handler, method, path, body string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Host = "localhost:8060"
 	req.Header.Set("Origin", "http://localhost:8060")
-	if cookie != nil {
-		req.AddCookie(cookie)
+	for _, c := range cookies {
+		if c != nil {
+			req.AddCookie(c)
+		}
 	}
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -260,7 +264,7 @@ func TestEveryProtectedOperationRejectsAnonymous(t *testing.T) {
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	h := srv.Handler()
 
 	tested := 0

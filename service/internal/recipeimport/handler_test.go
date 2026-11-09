@@ -49,7 +49,7 @@ func newHandler(t *testing.T, allow func(netip.Addr) bool) harness {
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	recipes := recipe.NewService(conn, t.TempDir())
 	recipe.Register(srv.API(), recipes)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, "test", allow))

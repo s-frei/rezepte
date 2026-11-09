@@ -42,6 +42,7 @@ type Login struct {
 	settings  *Settings
 	sessions  *auth.Service
 	users     *user.Service
+	device    *auth.Device
 	secure    bool
 	cookieKey []byte // HMAC key for the flow cookie, per process
 	client    *http.Client
@@ -87,11 +88,11 @@ type flow struct {
 // contact the provider: discovery runs on the first start, so an unreachable
 // provider never stops Rezepte from starting, and password login keeps
 // working without it.
-func New(settings *Settings, sessions *auth.Service, users *user.Service, secureCookies bool) *Login {
+func New(settings *Settings, sessions *auth.Service, users *user.Service, device *auth.Device, secureCookies bool) *Login {
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
 	return &Login{
-		settings: settings, sessions: sessions, users: users, secure: secureCookies, cookieKey: key,
+		settings: settings, sessions: sessions, users: users, device: device, secure: secureCookies, cookieKey: key,
 		client: &http.Client{Timeout: 10 * time.Second},
 		logger: slog.Default(),
 	}
@@ -180,7 +181,18 @@ func (l *Login) start(cfg Config, w http.ResponseWriter, r *http.Request) {
 	}
 	f.State, f.Nonce, f.Verifier = rand.Text(), rand.Text(), oauth2.GenerateVerifier()
 	f.Expires = time.Now().Add(flowTTL)
-	authURL := oauth(cfg, p).AuthCodeURL(f.State, oauth2.S256ChallengeOption(f.Verifier), gooidc.Nonce(f.Nonce))
+	opts := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(f.Verifier), gooidc.Nonce(f.Nonce)}
+	// Someone signs in on a device someone else uses - on top of a valid
+	// session, or after a sign-out that left people on the device - whom a
+	// provider that remembers the first must let pick.
+	active, err := l.sessions.ActiveUserID(ctx, cookie(r, auth.CookieName))
+	if err != nil {
+		l.logger.Debug("oidc: peek session", "err", err)
+	}
+	if f.Intent != intentLink && (active != "" || len(l.device.Parse(cookie(r, auth.AccountsCookieName))) > 0) {
+		opts = append(opts, oauth2.SetAuthURLParam("prompt", "select_account"))
+	}
+	authURL := oauth(cfg, p).AuthCodeURL(f.State, opts...)
 	c := l.flowCookie(l.seal(f), int(flowTTL.Seconds()))
 	http.SetCookie(w, &c)
 	redirect(w, r, authURL)
@@ -369,18 +381,36 @@ func (l *Login) setup(w http.ResponseWriter, r *http.Request, f flow, idt *gooid
 	redirect(w, r, "/")
 }
 
+// cookie is the value of r's cookie name, empty when it has none.
+func cookie(r *http.Request, name string) string {
+	c, err := r.Cookie(name)
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
 // signIn opens a session for u and sets the cookies exactly as password
-// login does. It reports false after answering with a failure.
+// login does, the device's accounts cookie included. It reports false after
+// answering with a failure.
 func (l *Login) signIn(w http.ResponseWriter, r *http.Request, intent string, u user.User) bool {
-	sess, err := l.sessions.StartSession(r.Context(), u)
+	ctx := r.Context()
+	sess, err := l.sessions.StartSession(ctx, u)
 	if err != nil {
 		l.fail(w, r, intent, "start session", err)
+		return false
+	}
+	entries := l.device.Parse(cookie(r, auth.AccountsCookieName))
+	ac, err := l.device.SignedIn(ctx, l.sessions, cookie(r, auth.CookieName), entries, auth.DeviceEntry{UserID: u.ID, Token: sess.Token}, l.secure)
+	if err != nil {
+		l.fail(w, r, intent, "hand over the device's accounts", err)
 		return false
 	}
 	sc := auth.SessionCookie(sess.Token, sess.ExpiresAt, l.secure)
 	lc := auth.LocaleCookie(u.Locale, l.secure)
 	http.SetCookie(w, &sc)
 	http.SetCookie(w, &lc)
+	http.SetCookie(w, &ac)
 	return true
 }
 

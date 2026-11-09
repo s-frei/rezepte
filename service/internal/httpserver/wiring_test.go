@@ -81,7 +81,7 @@ func newFullApp(t *testing.T) fullApp {
 		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
 		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
 		httpserver.WithShellHeaders(share.ShellHeaders))
-	auth.Register(srv.API(), sessions, cfg.SecureCookies)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
 	shoppingSvc := shopping.NewService(conn)

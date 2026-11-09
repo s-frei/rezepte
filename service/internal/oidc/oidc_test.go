@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -76,7 +77,7 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 	srv := httpserver.New(appCfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	envCfg := oidc.Config{PublicURL: publicURL}
 	if cfg != nil {
 		envCfg = *cfg
@@ -84,7 +85,7 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 	settings := oidc.NewSettings(conn, envCfg)
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())),
 		func(ctx context.Context) string { return settings.Provider(ctx).Issuer }, nil, nil)
-	oidc.Register(srv.API(), oidc.New(settings, sessions, users, false))
+	oidc.Register(srv.API(), oidc.New(settings, sessions, users, auth.NewDevice(make([]byte, 32)), false))
 	oidc.RegisterSettings(srv.API(), settings)
 	return &env{h: srv.Handler(), users: users, sessions: sessions, tokens: tokens, settings: settings, sam: sam, anna: anna}
 }
@@ -922,4 +923,76 @@ func TestProviderRediscoveredAfterSwitch(t *testing.T) {
 	}
 	e.link(t, e.anna, "sub-anna-2")
 	wantRedirect(t, e.run(t, "login", nil, nil, idClaims{Subject: "sub-anna-2"}), "/")
+}
+
+func TestAddFlowAsksForAccountPicker(t *testing.T) {
+	e := newEnv(t)
+	authorize, _ := flow(t, e.h, "login", nil, e.passwordLogin(t))
+	if got := mustParse(t, authorize).Query().Get("prompt"); got != "select_account" {
+		t.Fatalf("prompt = %q with a session, want select_account (%s)", got, authorize)
+	}
+	authorize, _ = flow(t, e.h, "login", nil, nil)
+	if mustParse(t, authorize).Query().Has("prompt") {
+		t.Fatalf("prompt without a session: %s", authorize)
+	}
+}
+
+// TestAddFlowWithNobodyActiveAsksForAccountPicker: after a sign-out with
+// others on the device nobody is active, but the provider may still
+// remember the person who left; the accounts cookie alone asks for the picker.
+func TestAddFlowWithNobodyActiveAsksForAccountPicker(t *testing.T) {
+	e := newEnv(t)
+	login := api(e.h, http.MethodPost, "/api/v1/auth/login", `{"username":"sam","password":"pw"}`)
+	accounts := cookieNamed(login, auth.AccountsCookieName)
+	if accounts == nil {
+		t.Fatal("login wrote no accounts cookie")
+	}
+	logout := api(e.h, http.MethodPost, "/api/v1/auth/logout", "", cookieNamed(login, auth.CookieName), accounts)
+	if logout.Code != http.StatusNoContent {
+		t.Fatalf("logout: %d", logout.Code)
+	}
+	authorize, _ := flow(t, e.h, "login", nil, accounts)
+	if got := mustParse(t, authorize).Query().Get("prompt"); got != "select_account" {
+		t.Fatalf("prompt = %q with only the accounts cookie, want select_account (%s)", got, authorize)
+	}
+	forged := &http.Cookie{Name: auth.AccountsCookieName, Value: "u.t.sig"}
+	authorize, _ = flow(t, e.h, "login", nil, forged)
+	if mustParse(t, authorize).Query().Has("prompt") {
+		t.Fatalf("prompt with a forged accounts cookie: %s", authorize)
+	}
+}
+
+func TestOIDCLoginKeepsThePreviousPerson(t *testing.T) {
+	e := newEnv(t)
+	e.link(t, e.anna, "sub-anna")
+	rec := e.run(t, "login", nil, e.passwordLogin(t), idClaims{Subject: "sub-anna"})
+	wantRedirect(t, rec, "/")
+	wantAccounts(t, rec, e.anna.ID, e.sam.ID)
+}
+
+func TestOIDCSetupKeepsThePreviousPerson(t *testing.T) {
+	e := newEnv(t)
+	link, err := e.sessions.IssueSetupLink(context.Background(), e.sam, e.anna.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := e.run(t, "setup", url.Values{"setup": {link.Token}}, e.passwordLogin(t), idClaims{Subject: "sub-anna"})
+	wantRedirect(t, rec, "/")
+	wantAccounts(t, rec, e.anna.ID, e.sam.ID)
+}
+
+// wantAccounts checks the accounts cookie rec set lists ids, in order.
+func wantAccounts(t *testing.T, rec *httptest.ResponseRecorder, ids ...string) {
+	t.Helper()
+	c := cookieNamed(rec, auth.AccountsCookieName)
+	if c == nil {
+		t.Fatal("no accounts cookie")
+	}
+	var got []string
+	for _, e := range auth.NewDevice(make([]byte, 32)).Parse(c.Value) {
+		got = append(got, e.UserID)
+	}
+	if !slices.Equal(got, ids) {
+		t.Fatalf("accounts cookie lists %v, want %v", got, ids)
+	}
 }

@@ -22,6 +22,9 @@ DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?;
 -- name: DeletePushSubscriptionByEndpoint :exec
 DELETE FROM push_subscriptions WHERE endpoint = ?;
 
+-- name: PushEndpointExists :one
+SELECT EXISTS (SELECT 1 FROM push_subscriptions WHERE endpoint = ?);
+
 -- name: CountPushSubscriptionsByUser :one
 SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ?;
 

@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-func newServices(t *testing.T) (*auth.Service, *user.Service) { //nolint:unparam // helper mirrors brief signature; second value documents the seeded user.Service for future tests
+func newServices(t *testing.T) (*auth.Service, *user.Service) {
 	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
@@ -248,5 +249,81 @@ func TestLastActiveFollowsLoginAndUse(t *testing.T) {
 	}
 	if got := lastActive(t, users); got == nil || !got.Equal(clock) {
 		t.Fatalf("after renewal: %v, want %v", got, clock)
+	}
+}
+
+func TestPeekDoesNotRenew(t *testing.T) {
+	ctx := context.Background()
+	svc, users := newServices(t)
+	start := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	clock := start
+	svc.SetClock(func() time.Time { return clock })
+	sess, err := svc.Login(ctx, "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lastActive := func() time.Time {
+		u, err := users.ByID(ctx, sess.User.ID)
+		if err != nil || u.LastActiveAt == nil {
+			t.Fatalf("ByID: %+v, %v", u, err)
+		}
+		return *u.LastActiveAt
+	}
+	active := lastActive()
+
+	clock = start.Add(10 * 24 * time.Hour)
+	p, err := svc.Peek(ctx, sess.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.Valid || p.UserID != sess.User.ID || !p.LastSeen.Equal(start) {
+		t.Fatalf("Peek after 10 days = %+v, want valid, last seen %v", p, start)
+	}
+	if got := lastActive(); !got.Equal(active) {
+		t.Fatalf("last active moved from %v to %v", active, got)
+	}
+
+	// Had the peek at day 10 renewed, the session would live to day 40.
+	clock = start.Add(31 * 24 * time.Hour)
+	p, err = svc.Peek(ctx, sess.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Valid {
+		t.Fatalf("Peek after 31 days = %+v, want expired", p)
+	}
+	// Still read from the row, so the peek deleted nothing.
+	if p, _ = svc.Peek(ctx, sess.Token); p.UserID != sess.User.ID || !p.LastSeen.Equal(start) {
+		t.Fatalf("second Peek after 31 days = %+v, want the row still there", p)
+	}
+
+	if p, err := svc.Peek(ctx, "bogus"); err != nil || p.Valid || p.UserID != "" {
+		t.Fatalf("Peek(bogus) = %+v, %v", p, err)
+	}
+}
+
+// A session row that cannot be read says which value broke, under the
+// parse error it wraps.
+func TestUnreadableExpiryIsWrapped(t *testing.T) {
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	if _, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin}); err != nil {
+		t.Fatal(err)
+	}
+	svc := auth.NewService(conn, users)
+	sess, err := svc.Login(ctx, "sam", "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.ExecContext(ctx, "UPDATE sessions SET expires_at = 'soon'"); err != nil {
+		t.Fatal(err)
+	}
+	var perr *time.ParseError
+	if _, err := svc.Peek(ctx, sess.Token); !errors.As(err, &perr) || !strings.Contains(err.Error(), "session expiry") {
+		t.Errorf("Peek: %v", err)
+	}
+	if _, err := svc.Authenticate(ctx, sess.Token); !errors.As(err, &perr) || !strings.Contains(err.Error(), "session expiry") {
+		t.Errorf("Authenticate: %v", err)
 	}
 }

@@ -48,7 +48,7 @@ func newStack(t *testing.T) (http.Handler, *auth.TokenService, string, string) {
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
 		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	dir := filepath.Join(t.TempDir(), "images")
 	recipe.Register(srv.API(), recipe.NewService(conn, dir))
 	images := image.NewService(conn, dir)

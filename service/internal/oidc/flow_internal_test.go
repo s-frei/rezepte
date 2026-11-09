@@ -18,7 +18,7 @@ import (
 )
 
 func TestFlowCookieSeal(t *testing.T) {
-	l := New(NewSettings(nil, Config{}), nil, nil, false)
+	l := New(NewSettings(nil, Config{}), nil, nil, nil, false)
 	f := flow{State: "s", Intent: intentLink, UserID: "u1", Expires: time.Now().Add(time.Minute)}
 
 	if got, ok := l.open(l.seal(f)); !ok || got.UserID != "u1" || got.State != "s" {
@@ -35,7 +35,7 @@ func TestFlowCookieSeal(t *testing.T) {
 	}
 
 	// Another process's key (a restart) does not open it.
-	if _, ok := New(NewSettings(nil, Config{}), nil, nil, false).open(sealed); ok {
+	if _, ok := New(NewSettings(nil, Config{}), nil, nil, nil, false).open(sealed); ok {
 		t.Fatal("opened with another key")
 	}
 
@@ -81,7 +81,7 @@ func TestIdentitiesKeyedByConfiguredIssuer(t *testing.T) {
 	users := user.NewService(conn, "")
 	sessions := auth.NewService(conn, users)
 	const issuer = "https://accounts.google.com"
-	l := New(NewSettings(conn, Config{PublicURL: "http://localhost:8060", Issuer: issuer}), sessions, users, false)
+	l := New(NewSettings(conn, Config{PublicURL: "http://localhost:8060", Issuer: issuer}), sessions, users, auth.NewDevice(make([]byte, 32)), false)
 	l.logger = slog.New(slog.DiscardHandler)
 	sam, err := users.Create(ctx, user.CreateParams{Username: "sam", Password: "pw", Role: user.RoleAdmin})
 	if err != nil {
@@ -144,7 +144,7 @@ func TestFlowCookieSecure(t *testing.T) {
 		{"http://localhost:8060", false, false},
 		{"http://localhost:8060", true, true},
 	} {
-		l := New(NewSettings(nil, Config{PublicURL: tc.publicURL}), nil, nil, tc.secure)
+		l := New(NewSettings(nil, Config{PublicURL: tc.publicURL}), nil, nil, nil, tc.secure)
 		for _, c := range []http.Cookie{l.flowCookie("v", 60), l.flowCookie("", -1)} {
 			if c.Secure != tc.want {
 				t.Errorf("%s, secure cookies %v: Secure = %v, want %v", tc.publicURL, tc.secure, c.Secure, tc.want)

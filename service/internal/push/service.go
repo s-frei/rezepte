@@ -195,8 +195,10 @@ func (s *Service) PublicKey(ctx context.Context) (string, error) {
 }
 
 // Subscribe stores sub for userID's session sessionID, with which it ends.
-// An endpoint another account had moves to this one, without that account's
-// alarms; one of the same account moves to sessionID.
+// An endpoint already stored, this account's or another's, moves to userID
+// and sessionID in place, so the device's alarms stay: a timer started
+// before a switch on the device still rings. Only a new endpoint counts
+// against the quota.
 func (s *Service) Subscribe(ctx context.Context, userID, sessionID string, sub Subscription) error {
 	if err := s.checkEndpoint(sub.Endpoint); err != nil {
 		return err
@@ -205,8 +207,11 @@ func (s *Service) Subscribe(ctx context.Context, userID, sessionID string, sub S
 		return ErrInvalid
 	}
 	return db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
-		_, err := q.GetPushSubscriptionForUser(ctx, sqlc.GetPushSubscriptionForUserParams{UserID: userID, Endpoint: sub.Endpoint})
-		if errors.Is(err, sql.ErrNoRows) {
+		known, err := q.PushEndpointExists(ctx, sub.Endpoint)
+		if err != nil {
+			return fmt.Errorf("look up endpoint: %w", err)
+		}
+		if !known {
 			n, err := q.CountPushSubscriptionsByUser(ctx, userID)
 			if err != nil {
 				return fmt.Errorf("count subscriptions: %w", err)
@@ -214,11 +219,6 @@ func (s *Service) Subscribe(ctx context.Context, userID, sessionID string, sub S
 			if n >= maxSubscriptions {
 				return ErrTooMany
 			}
-			if err := q.DeletePushSubscriptionByEndpoint(ctx, sub.Endpoint); err != nil {
-				return fmt.Errorf("release endpoint: %w", err)
-			}
-		} else if err != nil {
-			return fmt.Errorf("get subscription: %w", err)
 		}
 		err = q.UpsertPushSubscription(ctx, sqlc.UpsertPushSubscriptionParams{
 			ID: uuid.NewV7().String(), UserID: userID, SessionID: sessionID, Endpoint: sub.Endpoint,

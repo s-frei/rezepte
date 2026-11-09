@@ -251,6 +251,17 @@ func (q *Queries) ListPushSubscriptionsOfUser(ctx context.Context, arg ListPushS
 	return items, nil
 }
 
+const pushEndpointExists = `-- name: PushEndpointExists :one
+SELECT EXISTS (SELECT 1 FROM push_subscriptions WHERE endpoint = ?)
+`
+
+func (q *Queries) PushEndpointExists(ctx context.Context, endpoint string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, pushEndpointExists, endpoint)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const setVapidKeyIfMissing = `-- name: SetVapidKeyIfMissing :exec
 UPDATE instance_settings SET vapid_key = ? WHERE id = 1 AND vapid_key IS NULL
 `

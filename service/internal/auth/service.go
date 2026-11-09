@@ -140,7 +140,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Verified, err
 	}
 	expires, err := db.ParseTime(row.ExpiresAt)
 	if err != nil {
-		return Verified{}, err
+		return Verified{}, fmt.Errorf("parse session expiry: %w", err)
 	}
 	now := s.now()
 	if !now.Before(expires) {
@@ -175,6 +175,35 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Verified, err
 		}
 	}
 	return Verified{User: u, SessionID: row.ID, ExpiresAt: expires, Renewed: renewed}, nil
+}
+
+// Peeked is what Peek reads from a session row. UserID is empty and Valid
+// false when there is no row; an expired row keeps its UserID and LastSeen.
+type Peeked struct {
+	UserID string
+	// LastSeen is the session's last renewal or its start: expires_at minus
+	// SessionTTL, so it lags real use by up to renewAfter.
+	LastSeen time.Time
+	Valid    bool
+}
+
+// Peek looks a session up without using it: it never renews it, never
+// records activity and never deletes an expired row. The accounts on a
+// device are checked this way, so listing them keeps nobody signed in and
+// makes nobody look active.
+func (s *Service) Peek(ctx context.Context, token string) (Peeked, error) {
+	row, err := s.q.GetSession(ctx, hashToken(token))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Peeked{}, nil
+	}
+	if err != nil {
+		return Peeked{}, fmt.Errorf("get session: %w", err)
+	}
+	expires, err := db.ParseTime(row.ExpiresAt)
+	if err != nil {
+		return Peeked{}, fmt.Errorf("parse session expiry: %w", err)
+	}
+	return Peeked{UserID: row.UserID, LastSeen: expires.Add(-SessionTTL), Valid: s.now().Before(expires)}, nil
 }
 
 // Logout deletes the session. Unknown tokens are not an error.

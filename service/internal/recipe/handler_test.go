@@ -47,7 +47,7 @@ func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	recipe.Register(srv.API(), recipe.NewService(conn, ""))
 	return srv.Handler(), conn
 }
@@ -120,7 +120,7 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	tokens := auth.NewTokenService(conn, users)
 	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
 		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
-	auth.Register(srv.API(), sessions, false)
+	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	recipe.Register(srv.API(), recipe.NewService(conn, ""))
 	raw, _, err := tokens.Create(context.Background(), sam.ID, "t", scopes, nil)
 	if err != nil {
