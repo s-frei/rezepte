@@ -2,7 +2,6 @@
 #MISE description="Create a worktree off develop with its own port offset"
 #USAGE arg "[name]" help="Directory name under .worktrees/, and the branch feat/<name> unless a branch is given; omit it inside a worktree made some other way to give that one an offset"
 #USAGE arg "[branch]" help="Branch to create instead of feat/<name>; release:start passes release/vX.Y.Z"
-#USAGE flag "--move" help="Inside Herdr, move the calling pane into the new worktree's workspace instead of leaving it where it is"
 # Creates a worktree for feature work and gives it its own port offset, so
 # two agents can run their stacks at once. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.
@@ -125,20 +124,12 @@ mise trust --quiet "$DIR" >/dev/null 2>&1 || true
 echo "worktree:new: $DIR on $(git -C "$DIR" branch --show-current)"
 (cd "$DIR" && mise run ports)
 
-# Inside Herdr, open the new worktree as a workspace next to the repo's own.
-# Herdr is optional: without it (or outside a Herdr pane) this is skipped, and
-# a Herdr failure never fails the worktree that already exists.
-if [ -n "$NAME" ] && [ "${HERDR_ENV:-}" = 1 ] && command -v herdr >/dev/null 2>&1; then
-	if opened="$(herdr worktree open --cwd "$ROOT" --path "$DIR" --label "$NAME" --no-focus)"; then
-		# --move: the calling pane - usually the agent that ran this - takes the
-		# place of the fresh shell Herdr opened there, and focus follows it.
-		if [ "${usage_move:-}" = true ] && [ -n "${HERDR_PANE_ID:-}" ]; then
-			read -r tab shell < <(echo "$opened" | bun -e 'const p = (await Bun.stdin.json()).result.root_pane; console.log(p.tab_id, p.pane_id)')
-			herdr pane move "$HERDR_PANE_ID" --tab "$tab" --split right --focus >/dev/null &&
-				herdr pane close "$shell" >/dev/null ||
-				echo "worktree:new: could not move this pane into $NAME's Herdr workspace" >&2
-		fi
-	else
-		echo "worktree:new: could not open $DIR in Herdr; the worktree is ready anyway" >&2
-	fi
+# A task of one's own opens the worktree wherever one works - a terminal
+# multiplexer, an editor. It lives in the main checkout's gitignored
+# mise.local.toml, so it is looked up there: a worktree's own config is a
+# monorepo root of its own and does not see it. It runs last and only warns,
+# because the worktree is already there.
+if [ -n "$NAME" ] && mise -C "$ROOT" tasks info worktree:after-new >/dev/null 2>&1; then
+	WORKTREE_DIR="$DIR" WORKTREE_NAME="$NAME" mise -C "$ROOT" run -q worktree:after-new ||
+		echo "worktree:new: worktree:after-new failed; the worktree is ready anyway" >&2
 fi
