@@ -1,4 +1,4 @@
-import { ApiError, redirectToLogin, type Problem } from './client';
+import { ApiError, redirectSignedOut, type Problem } from './client';
 
 const BASE = '/api/v1';
 
@@ -34,13 +34,7 @@ export function uploadWithProgress<T>(
 				resolve(parsed as T);
 				return;
 			}
-			if (
-				xhr.status === 401 &&
-				typeof window !== 'undefined' &&
-				window.location.pathname !== '/login'
-			) {
-				redirectToLogin();
-			}
+			if (xhr.status === 401 && typeof window !== 'undefined') void redirectSignedOut();
 			reject(new ApiError(xhr.status, parsed as Problem));
 		};
 		xhr.onerror = () => reject(new ApiError(0, { title: 'Network error' }));

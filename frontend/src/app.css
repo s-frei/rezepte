@@ -106,6 +106,9 @@
 	   --radius-pill: a radius only animates smoothly between two real
 	   values, and the bar morphs between this and its docked 3xl top. */
 	--radius-dock: 32px;
+	/* The index cards on "Who's cooking?" (`AccountCard`), between 2xl and
+	   3xl; the view transition into the splash starts from it. */
+	--radius-index-card: 22px;
 
 	--shadow-card: 0 1px 2px rgb(80 50 20 / 0.06), 0 8px 24px -12px rgb(80 50 20 / 0.18);
 	--shadow-cover: 0 12px 32px -16px rgb(80 50 20 / 0.3);
@@ -861,6 +864,61 @@ html[data-sign-in='reduced']::view-transition-new(root) {
 [data-arrival] [data-card] {
 	animation-duration: 360ms;
 	animation-delay: calc(270ms + min(var(--rise), 7) * 40ms);
+}
+
+/*
+ * The arrival after a switch (#lib/arrival.ts), about 650ms once the app is
+ * on screen: the splash's ground, which app.html painted over the reload
+ * (`html[data-arrival]::after`), closes as a circle into the person's
+ * avatar (`--arrival-at`, from a radius that reaches every corner), quick at
+ * first and settling, and the avatar pops as it lands. The overview's cards
+ * rise meanwhile, on the sign-in's timing above. With no avatar on screen
+ * the ground only fades.
+ */
+html[data-arrival='closing']::after {
+	animation: arrival-close 450ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+html[data-arrival='fading']::after {
+	animation: arrival-fade 300ms ease-out both;
+}
+
+/* The canvas wears the paint too (app.html), for the scrollbar's gutter the
+   fixed panel cannot cover; it turns back with the panel. */
+html[data-arrival='closing'],
+html[data-arrival='fading'] {
+	animation: arrival-ground 300ms ease-out both;
+}
+
+html[data-arrival='closing'] [data-arrival-target] {
+	animation: arrival-pop 320ms 370ms var(--ease-spring) both;
+}
+
+@keyframes arrival-close {
+	from {
+		clip-path: circle(var(--arrival-r) at var(--arrival-at));
+	}
+	to {
+		clip-path: circle(0 at var(--arrival-at));
+	}
+}
+
+@keyframes arrival-ground {
+	to {
+		background-color: var(--color-background);
+	}
+}
+
+@keyframes arrival-fade {
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes arrival-pop {
+	40% {
+		scale: 1.18;
+	}
 }
 
 /*

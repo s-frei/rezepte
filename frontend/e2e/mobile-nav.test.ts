@@ -151,6 +151,8 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 	await expect(sheet).toBeVisible();
 	await expect(sheet.getByText('Owner, signed in as admin')).toBeVisible();
 	await expect(sheet.getByRole('link')).toHaveText([
+		// Nobody else on this device yet, so the switch row offers adding.
+		'Sign in another person',
 		'Profile',
 		'Notifications',
 		'Shared links',

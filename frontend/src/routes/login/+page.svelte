@@ -2,14 +2,14 @@
 	import { onMount } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { goto } from '$app/navigation';
-	import { match, resolve } from '$app/paths';
+	import { afterNavigate, goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import type { Path } from '$app/types';
 	import { login, safeNext } from '#lib/api/auth.js';
 	import { ApiError } from '#lib/api/client.js';
 	import type { OidcInfo } from '#lib/api/oidc.js';
 	import { session } from '#lib/auth.svelte.js';
+	import { announceSession } from '#lib/session-broadcast.js';
 	import AuthScene from '#lib/components/auth/AuthScene.svelte';
 	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -24,7 +24,24 @@
 	// this page is public, so the mark is the initial on its color.
 	const signedOut = $derived(page.state.signedOut);
 
-	let username = $state('');
+	// `?add=1`: signing in another person from "Who's cooking?". The name
+	// comes along in the query to prefill (it is no secret on this device).
+	const adding = $derived(page.url.searchParams.get('add') === '1');
+	// Where the sign-in goes on to, in both modes: a deep link or push tap
+	// that found the session gone, by way of "Who's cooking?" or not.
+	const next = $derived(page.url.searchParams.get('next'));
+	// Back to "Who's cooking?" is a step back when that is where it came
+	// from, so its × still returns to the app rather than to this page.
+	let fromSwitch = $state(false);
+	afterNavigate(({ from }) => (fromSwitch = from?.route.id === '/switch'));
+
+	function backToSwitch(event: MouseEvent) {
+		if (!fromSwitch || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey)
+			return;
+		event.preventDefault();
+		history.back();
+	}
+	let username = $state(page.url.searchParams.get('username') ?? '');
 	let password = $state('');
 	let error = $state<string | null>(null);
 	// Which fields a refused sign-in marked; typing into one clears it, and
@@ -94,16 +111,11 @@
 		submitting = true;
 		try {
 			session.user = await login(username, password);
-			const next = safeNext(page.url.searchParams.get('next'));
-			// A target without a client route - the Scalar docs page under
-			// /api/, served by the Go binary, or a path that no longer exists -
-			// needs a real navigation: SvelteKit 3's goto rejects it, and the
-			// rejection read as a failed sign-in.
-			if (await match(new URL(next, location.origin))) {
-				await goto(resolve(next.slice(1) as Path));
-			} else {
-				window.location.assign(next);
-			}
+			announceSession(session.user.id);
+			// A full load, so nothing of the previous person survives; it also
+			// reaches a target without a client route (the Scalar docs under
+			// /api/, a path that no longer exists).
+			window.location.assign(safeNext(next));
 		} catch (e) {
 			error = loginError(e);
 			const refused = e instanceof ApiError && e.status === 401;
@@ -132,7 +144,9 @@
 	}
 </script>
 
-<svelte:head><title>{m.login_title()} · {m.app_name()}</title></svelte:head>
+<svelte:head
+	><title>{adding ? m.login_add_title() : m.login_title()} · {m.app_name()}</title></svelte:head
+>
 
 <!-- The card holds two forms side by side rather than one: the provider
      button is a form of its own (a real POST the browser follows to the
@@ -140,7 +154,7 @@
 <AuthScene bind:this={scene} lead={m.login_welcome()}>
 	<form onsubmit={submit} class="flex flex-col gap-5">
 		<h1 class="sr-only font-display text-heading font-medium lg:not-sr-only">
-			{m.login_title()}
+			{adding ? m.login_add_title() : m.login_title()}
 		</h1>
 
 		{#if signedOut}
@@ -170,7 +184,7 @@
 			name="username"
 			label={m.login_username()}
 			floating
-			autofocus
+			autofocus={!username}
 			autocomplete="username"
 			autocapitalize="none"
 			spellcheck="false"
@@ -185,6 +199,7 @@
 			type="password"
 			label={m.login_password()}
 			floating
+			autofocus={!!username}
 			autocomplete="current-password"
 			bind:value={password}
 			oninput={() => clear('password')}
@@ -202,6 +217,15 @@
 		</Button>
 
 		<!-- Last in the DOM so Tab runs username, password, submit, link. -->
+		{#if adding}
+			<a
+				href={next ? `${resolve('/switch')}?next=${encodeURIComponent(next)}` : resolve('/switch')}
+				onclick={backToSwitch}
+				class="self-center text-caption font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			>
+				{m.login_add_back()}
+			</a>
+		{/if}
 		{#if resetAvailable}
 			<a
 				href={resolve('/forgot-password')}
@@ -222,10 +246,6 @@
 		{#if oidcNotice}
 			<p role="alert" class="text-caption font-medium text-destructive">{oidcNotice}</p>
 		{/if}
-		<ProviderButton
-			intent="login"
-			name={oidc.name}
-			next={page.url.searchParams.get('next') ?? ''}
-		/>
+		<ProviderButton intent="login" name={oidc.name} next={next ?? ''} />
 	{/if}
 </AuthScene>

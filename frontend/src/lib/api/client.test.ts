@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { goto } from '$app/navigation';
 import { session } from '#lib/auth.svelte.js';
-import { api, ApiError, isSignedOut } from './client';
+import { api, ApiError, isSignedOut, redirectSignedOut } from './client';
 
 vi.mock('$app/navigation', () => ({ goto: vi.fn() }));
 // kit's resolve: a route id starts with '/', a plain path does not.
 vi.mock('$app/paths', () => ({
 	resolve: (path: string) => (path.startsWith('/') ? path : `/${path}`)
+}));
+
+// The device's accounts decide the target; here nobody else is known, or Mila.
+const known = vi.hoisted(() => ({ others: false }));
+vi.mock('#lib/device-accounts.js', () => ({
+	signedOutTarget: async (next: string) =>
+		`${known.others ? '/switch' : '/login'}?next=${encodeURIComponent(next)}`
 }));
 
 function mockFetch(status: number, body: unknown, contentType = 'application/json') {
@@ -107,6 +114,7 @@ describe('api central 401 handling', () => {
 	afterEach(() => {
 		mockedGoto.mockClear();
 		session.user = null;
+		known.others = false;
 	});
 
 	it('clears the session and redirects to /login with a next param', async () => {
@@ -129,9 +137,51 @@ describe('api central 401 handling', () => {
 		await expect(api('/recipes')).rejects.toBeInstanceOf(ApiError);
 
 		expect(session.user).toBeNull();
-		expect(mockedGoto).toHaveBeenCalledWith(
-			'/login?next=' + encodeURIComponent('/recipes?tag=soup')
+		await vi.waitFor(() =>
+			expect(mockedGoto).toHaveBeenCalledWith(
+				'/login?next=' + encodeURIComponent('/recipes?tag=soup')
+			)
 		);
+	});
+
+	it('goes to the picker instead while the device knows someone else', async () => {
+		stubBrowser('/lists');
+		known.others = true;
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/lists')).rejects.toBeInstanceOf(ApiError);
+
+		await vi.waitFor(() =>
+			expect(mockedGoto).toHaveBeenCalledWith('/switch?next=' + encodeURIComponent('/lists'))
+		);
+	});
+
+	it('navigates once when several calls find the session gone together', async () => {
+		stubBrowser('/lists');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await Promise.allSettled([api('/lists'), api('/recipes'), api('/tags')]);
+
+		await vi.waitFor(() => expect(mockedGoto).toHaveBeenCalled());
+		expect(mockedGoto).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not redirect on the picker, which handles its own 401s', async () => {
+		stubBrowser('/switch');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(redirectSignedOut()).resolves.toBeUndefined();
+
+		expect(mockedGoto).not.toHaveBeenCalled();
+	});
+
+	it('does not redirect for logout, which navigates itself', async () => {
+		stubBrowser('/settings');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/auth/logout', { method: 'POST' })).rejects.toBeInstanceOf(ApiError);
+
+		expect(mockedGoto).not.toHaveBeenCalled();
 	});
 
 	it('does not redirect for the login call itself', async () => {
@@ -174,7 +224,9 @@ describe('api central 401 handling', () => {
 		).rejects.toBeInstanceOf(ApiError);
 
 		expect(session.user).toBeNull();
-		expect(mockedGoto).toHaveBeenCalledWith('/login?next=' + encodeURIComponent('/settings'));
+		await vi.waitFor(() =>
+			expect(mockedGoto).toHaveBeenCalledWith('/login?next=' + encodeURIComponent('/settings'))
+		);
 	});
 
 	it('does not redirect when already on the login page', async () => {

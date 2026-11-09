@@ -144,6 +144,7 @@
 			aria-expanded={youOpen}
 			aria-current={place === 'you' ? 'true' : undefined}
 			data-current={current === 'you' ? '' : undefined}
+			data-arrival-target
 			onclick={() => (youOpen = true)}
 			class="{item} {itemState('you')}"
 		>

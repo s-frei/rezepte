@@ -68,6 +68,37 @@ export function me(): Promise<User> {
 	return api<User>('/auth/me');
 }
 
+/**
+ * Another account signed in on this device ("Wer kocht?"). The active
+ * account is never in the list; `expired` marks one whose session ran out or
+ * was ended, which needs its password once more.
+ */
+export type DeviceAccount = {
+	id: string;
+	username: string;
+	displayName: string;
+	color: UserColor;
+	avatarId: string | null;
+	expired: boolean;
+	/** When this account was last used on this device (RFC 3339). */
+	lastSeenAt: string;
+};
+
+/** The device's other accounts; works with nobody active, too. */
+export function listDeviceAccounts(): Promise<DeviceAccount[]> {
+	return api<DeviceAccount[]>('/auth/accounts');
+}
+
+/** Makes userId the active account. 409: its session expired; 404: not on this device. */
+export function switchAccount(userId: string): Promise<User> {
+	return api<User>('/auth/switch', { method: 'POST', body: JSON.stringify({ userId }) });
+}
+
+/** Removes userId from this device and ends its session there. */
+export function removeDeviceAccount(userId: string): Promise<void> {
+	return api<void>(`/auth/accounts/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+
 /** Returns a safe in-app path to continue to after login. */
 export function safeNext(next: string | null): string {
 	if (!next) {

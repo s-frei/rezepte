@@ -32,7 +32,8 @@ export const authPages = [
 	'/welcome',
 	'/forgot-password',
 	'/confirm-email',
-	'/unsubscribe'
+	'/unsubscribe',
+	'/switch'
 ];
 
 /**

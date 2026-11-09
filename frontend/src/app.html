@@ -40,6 +40,25 @@
 					}
 				} catch (_) {}
 			})();
+			// After a switch (#lib/arrival.ts): the splash's ground, painted
+			// before the first frame so the reload shows no blank page, until the
+			// app closes it into the avatar. One-shot, so a later reload shows
+			// nothing; cleared after 2s if the app never takes it over.
+			(function () {
+				try {
+					var paint = sessionStorage.getItem('rezepte-arrival');
+					sessionStorage.removeItem('rezepte-arrival');
+					if (!paint || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+					var root = document.documentElement;
+					root.style.setProperty('--arrival-paint', paint);
+					root.setAttribute('data-arrival', '');
+					setTimeout(function () {
+						if (root.getAttribute('data-arrival') !== '') return;
+						root.removeAttribute('data-arrival');
+						root.style.removeProperty('--arrival-paint');
+					}, 2000);
+				} catch (_) {}
+			})();
 			// Chromium can fire beforeinstallprompt before SvelteKit has loaded
 			// the app's modules, which arrive by dynamic import; kept here until
 			// src/lib/install.svelte.ts takes it over.
@@ -48,6 +67,28 @@
 				window.__installPrompt = event;
 			});
 		</script>
+
+		<!--
+			The arrival's panel, here rather than in app.css: the fallback page
+			links no stylesheet, app.css comes with the bundle. Its closing is
+			in app.css.
+		-->
+		<style>
+			html[data-arrival]::after {
+				content: '';
+				position: fixed;
+				inset: 0;
+				z-index: 2147483647;
+				pointer-events: none;
+				background: var(--arrival-paint);
+			}
+			/* A fixed panel stops short of the scrollbar's gutter (app.css
+			   keeps it on every page), which showed the page's ground as a
+			   light strip down the right edge: the canvas wears the paint too. */
+			html[data-arrival] {
+				background-color: var(--arrival-paint);
+			}
+		</style>
 
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 

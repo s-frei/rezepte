@@ -15,6 +15,7 @@
 	import { isTheme } from '#lib/theme.js';
 	import { setTheme, theme } from '#lib/theme.svelte.js';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import SwitchEntry from './SwitchEntry.svelte';
 
 	/** The desktop top bar's avatar menu; a phone reaches the same through the bottom nav's "You". */
 	let { open = $bindable(false) }: { open?: boolean } = $props();
@@ -36,7 +37,9 @@
 
 <DropdownMenu.Root bind:open>
 	<!-- The focus outline clears the avatar's own ring (2px gap, 1.5px line). -->
+	<!-- `data-arrival-target`: where a switch's arrival closes (#lib/arrival.ts). -->
 	<DropdownMenu.Trigger
+		data-arrival-target
 		aria-label={m.nav_user_menu()}
 		class="rounded-full focus-visible:outline-2 focus-visible:outline-offset-[6px] focus-visible:outline-primary"
 	>
@@ -64,6 +67,9 @@
 				</div>
 				<DropdownMenu.Separator class="mx-3 mb-1.5 h-px bg-popover-border" />
 			{/if}
+			<DropdownMenu.Item onSelect={() => void goto(resolve('/switch'))} class="{row} text-text">
+				<SwitchEntry {open} markSize="xs" />
+			</DropdownMenu.Item>
 			<!-- Only while this browser can install; it leaves with the install. -->
 			{#if offer()}
 				<DropdownMenu.Item onSelect={() => void startInstall()} class="{row} text-primary">

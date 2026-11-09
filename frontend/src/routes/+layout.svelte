@@ -17,8 +17,10 @@
 	import { palette } from '#lib/palette.svelte.js';
 	import { navPlace } from '#lib/shell.svelte.js';
 	import { pageTransition } from '#lib/page-transition.js';
+	import { arrive } from '#lib/arrival.js';
 	import { listenForLaunches } from '#lib/launch.js';
 	import { listenForPushToasts } from '#lib/push-toast.js';
+	import { followSession } from '#lib/session-broadcast.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { startChime, stopChime, unlockAudio } from '#lib/recipe/chime.js';
 	import { timers } from '#lib/recipe/timers.svelte.js';
@@ -90,8 +92,14 @@
 		}
 	}
 
+	// After a switch the reload opens under the splash's ground (app.html),
+	// which closes into the avatar now that the app is there.
+	onMount(() => void arrive());
 	onMount(listenForLaunches);
 	onMount(listenForPushToasts);
+	// Another tab switched, signed in or out: the cookie is no longer this
+	// tab's person (#lib/session-broadcast.ts).
+	onMount(() => followSession(() => session.user?.id ?? null));
 	onNavigate(pageTransition);
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -110,7 +118,13 @@
 	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} onpointerdown={handlePointerdown} />
+<!-- A page the back-forward cache restores shows whoever was signed in when
+	 it was left, maybe the person before a switch: it loads again instead. -->
+<svelte:window
+	onkeydown={handleKeydown}
+	onpointerdown={handlePointerdown}
+	onpageshow={(e) => e.persisted && location.reload()}
+/>
 
 <!-- `min-h-dvh`, not `min-h-screen`: on mobile browsers `100vh` is taller than
      the visible viewport, so the wrapper would outgrow the `h-dvh` cooking

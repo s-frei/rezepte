@@ -33,7 +33,7 @@ function cover(route: string | null | undefined, slug: string): HTMLElement | nu
 	return null;
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Waits for the new page's photo to be there and painted: the overview

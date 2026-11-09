@@ -177,6 +177,19 @@ export function reground(rgb: Buffer, width: number, ground: string, reach = 48)
 	return out;
 }
 
+// The cut-out poses, against the page's own ground in both themes rather
+// than as a card: the chef's-hat pose on "Who's cooking?". Each master is
+// cut out like `rezepte-mascot.png` (prompts.md); the output drops the pose's
+// qualifier.
+export const CUTOUTS = { switch: 'switch-hat' } as const;
+
+async function cutout(name: string): Promise<Buffer> {
+	return sharp(await readLfs(`mascot/rezepte-mascot-${name}.png`))
+		.resize({ width: POSE_SIZE, height: POSE_SIZE, fit: 'inside' })
+		.webp({ quality: 82, alphaQuality: 90, effort: 6 })
+		.toBuffer();
+}
+
 async function webp(master: Buffer, height: number): Promise<Buffer> {
 	return sharp(master)
 		.resize({ height })
@@ -258,6 +271,9 @@ async function main() {
 	await Bun.write(new URL('rezepte-kitchen.webp', lockups), await kitchen());
 	for (const name of POSES) {
 		await Bun.write(new URL(`rezepte-mascot-${name}.webp`, lockups), await pose(name));
+	}
+	for (const [name, master] of Object.entries(CUTOUTS)) {
+		await Bun.write(new URL(`rezepte-mascot-${name}.webp`, lockups), await cutout(master));
 	}
 
 	const book = await Bun.file(new URL('icon/rezepte-book.svg', brand)).text();

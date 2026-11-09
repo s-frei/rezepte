@@ -73,7 +73,8 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/welcome': null,
 	'/forgot-password': null,
 	'/confirm-email': null,
-	'/unsubscribe': null
+	'/unsubscribe': null,
+	'/switch': null
 };
 
 /**

@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { ApiError } from '#lib/api/client.js';
 import { me } from '#lib/api/auth.js';
+import { signedOutTarget } from '#lib/device-accounts.js';
 import { adoptAccountLocale, authPages, session } from '#lib/auth.svelte.js';
 import type { LayoutLoad } from './$types';
 
@@ -40,7 +41,7 @@ export const load: LayoutLoad = async ({ url, route }) => {
 	} catch (e) {
 		if (e instanceof ApiError && e.status === 401) {
 			if (authPages.includes(url.pathname)) return { user: null };
-			redirect(302, `/login?next=${encodeURIComponent(url.pathname + url.search)}`);
+			redirect(302, await signedOutTarget(url.pathname + url.search));
 		}
 		if (route.id === null) return { user: null, unreachable: true };
 		failed = true;

@@ -3,6 +3,7 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import { Dialog } from 'bits-ui';
 	import { afterNavigate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { session } from '#lib/auth.svelte.js';
 	import ThemeControl from '#lib/components/settings/ThemeControl.svelte';
 	import { byGroup } from '#lib/components/nav/contents.js';
@@ -14,6 +15,7 @@
 	import { settingsPages } from '#lib/settings/pages.js';
 	import { signOut } from '#lib/sign-out.js';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import SwitchEntry from './SwitchEntry.svelte';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
@@ -64,6 +66,9 @@
 				</div>
 			</div>
 			<div class="-mx-3 pt-2">
+				<a href={resolve('/switch')} class={row}>
+					<SwitchEntry {open} markSize="sm" />
+				</a>
 				{#if offer()}
 					<button
 						type="button"

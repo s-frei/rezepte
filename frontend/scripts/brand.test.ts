@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { horizontal, manifest, parseWordmark, POSE_SIZE, POSES } from './brand-export';
+import { CUTOUTS, horizontal, manifest, parseWordmark, POSE_SIZE, POSES } from './brand-export';
 import { BOOK, EDGE, GROUND, INK, PAGE } from './brand-palette';
 
 // brand:check never reads the mascot master: it sits in Git LFS, which CI
@@ -179,6 +179,19 @@ test('the error page poses are square at twice their shown size, on the page', a
 		const [r, g, b] = [...img.data.subarray(0, 3)];
 		const page = [1, 3, 5].map((i) => parseInt(PAGE.slice(i, i + 2), 16));
 		expect(Math.hypot(r - page[0], g - page[1], b - page[2])).toBeLessThan(12);
+	}
+});
+
+test('the cut-out poses are trimmed to their figure on a clear ground', async () => {
+	for (const name of Object.keys(CUTOUTS)) {
+		const img = await sharp(
+			Buffer.from(await Bun.file(new URL(`rezepte-mascot-${name}.webp`, lockups)).arrayBuffer())
+		)
+			.ensureAlpha()
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+		expect(Math.max(img.info.width, img.info.height)).toBe(POSE_SIZE);
+		expect(img.data[3]).toBe(0); // the top-left corner is ground, cleared
 	}
 });
 

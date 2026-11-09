@@ -77,3 +77,22 @@ For the recipe overview while the instance holds no recipe (`NoteEmptyState` on 
 > Edit this illustration and keep the same cookbook character exactly: same book, same amber-brown cover with the SAME FACE ON THE FRONT COVER (eyes, brows, lopsided grin stay on the brown cover), same sage-green ribbon bookmark, same cream pages, same vintage-cookbook gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing (full figure, centered, about 80% of the square). Change only the pose and props: the character stands upright facing us and with one hand lifts the edge of its front cover a little away from the page block, like opening a door a crack, so a few blank cream pages are visible on the side; with the other hand it holds up a little pencil, inviting someone to write the first recipe. The wooden spoon is tucked under that arm. Expression: eager and welcoming, eyebrows raised, warm lopsided grin. The pages are blank. No text, no letters, no scribbles, no symbols, no blush, no sparkle highlights. Soft contact shadow.
 
 > Edit this illustration and keep everything else exactly the same: same cookbook character, same face on the front cover, same expression, same raised right hand holding the little pencil, same lifted lower-right corner of the cover showing blank cream pages, same sage-green ribbon, same colors, same vintage gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing. Two changes only: (1) remove the wooden spoon completely; (2) the other arm now reaches across in front of the body and its hand holds the lifted lower-right corner of its own cover, clearly peeling the cover open by itself so the blank pages beneath are visible. Only that one corner is open; the left side of the book stays closed. The pages are blank. No text, no letters, no scribbles, no symbols, no blush, no sparkle highlights.
+
+## The "Who's cooking?" pose
+
+### `rezepte-mascot-switch-hat-original.jpg`
+
+For the header of "Who's cooking?" (`/switch`), where the people on a shared device pick who cooks: the book hands over the chef's hat. An edit of `rezepte-mascot-original.jpg` (`inputImagePaths`), `generate_image` of `mcp-image` 0.14, provider `gemini` (the server answered with model `gemini-nano-banana-2.1`), `aspectRatio` `1:1`, `imageSize` `2K`, `category` `illustration`, `maintainCharacterConsistency: true`. Unlike the card poses it is cut out like the master, since it stands on the page's ground in both themes: `rezepte-mascot-switch-hat.png` (Git LFS) is the painting with its ground flood-filled away from the four corners and trimmed, made once with ImageMagick:
+
+```sh
+magick rezepte-mascot-switch-hat-original.jpg -alpha set -fuzz 9% -fill none \
+  -draw "color 0,0 floodfill" -draw "color 2047,0 floodfill" \
+  -draw "color 0,2047 floodfill" -draw "color 2047,2047 floodfill" \
+  -trim +repage rezepte-mascot-switch-hat.png
+```
+
+`mise run //frontend:brand:export` writes it as `../lockups/rezepte-mascot-switch.webp`, 640 px on its longer side. An earlier attempt with two wooden spoons was turned down by the owner as confusing.
+
+**purpose**: Brand mascot pose for a recipe app's account switcher screen ("Who's cooking?"), handing the chef's hat to the next household member
+
+> Edit this illustration and keep the same cookbook character, same face and friendly lopsided grin, same colors (amber-brown cover, sage-green ribbon, cream pages), same gouache style with subtle dark ink outline, same flat cream background #f4ede2, same framing. New pose: no wooden spoon at all. With both hands the character holds out a classic white pleated chef's hat (toque) toward the viewer, leaning slightly forward, as if handing the chef's hat over to the next cook: "your turn". Warm, inviting, clearly readable at small size. Full figure, centered, fills about 80% of the square. Absolutely nothing else in the image. No text.

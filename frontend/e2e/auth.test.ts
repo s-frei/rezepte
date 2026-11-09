@@ -148,10 +148,20 @@ test("the browser's bar wears the signed-in person's color until sign-out", asyn
 	await expect(bar('dark')).toHaveAttribute('content', '#1c1612');
 });
 
-test('the login page says once who signed out, by initial and name', async ({ page }, testInfo) => {
+test('the login page says once who signed out, by initial and name', async ({
+	page,
+	browser,
+	baseURL
+}, testInfo) => {
 	const name = `bye${uniqueToken()}`.toLowerCase();
-	await login(page);
-	await createUser(page, { username: name, role: 'user' });
+	// The account is made from a browser of its own: signing admin in on this
+	// page too would leave admin on the device, and sign-out would then lead
+	// to the picker instead of the login.
+	const owner = await browser.newContext({ baseURL });
+	const ownerPage = await owner.newPage();
+	await login(ownerPage);
+	await createUser(ownerPage, { username: name, role: 'user' });
+	await owner.close();
 	await login(page, name);
 	// A photo, which the public login page must not show.
 	await setOwnAvatarViaApi(page, tinyPng([30, 140, 90]));

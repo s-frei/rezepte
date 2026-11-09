@@ -142,7 +142,7 @@
 	// place; a fresh list (a filter, a reload) has none.
 	let appendedFrom = $state(Infinity);
 	// Set for the first list after a sign-in (`signIn` in
-	// #lib/page-transition.ts): every card rises then, on the arrival's own
+	// #lib/page-transition.ts) or a switch (#lib/arrival.ts): every card rises then, on the arrival's own
 	// timing (`data-arrival` in app.css).
 	let arrival = $state(false);
 	let riseTimer: ReturnType<typeof setTimeout> | undefined;
@@ -352,7 +352,10 @@
 				if (controller !== abortController) {
 					return;
 				}
-				arrival = !listed && 'signIn' in document.documentElement.dataset;
+				arrival =
+					!listed &&
+					('signIn' in document.documentElement.dataset ||
+						'arrival' in document.documentElement.dataset);
 				appendedFrom = arrival ? 0 : append ? items.length : Infinity;
 				// Once they have risen the cards drop the rise again: kept, it
 				// played anew whenever the grid laid them out afresh (a card

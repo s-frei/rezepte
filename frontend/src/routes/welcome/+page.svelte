@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import {
@@ -21,6 +20,7 @@
 	import { userColorLabel } from '#lib/user/color-label.js';
 	import { withoutErrors } from '#lib/form-errors.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { announceSession } from '#lib/session-broadcast.js';
 	import {
 		PASSWORD_MIN,
 		passwordErrorsFromApi,
@@ -137,7 +137,9 @@
 		submitting = true;
 		try {
 			session.user = await redeemSetupLink(token, password);
-			await goto(resolve('/'));
+			announceSession(session.user.id);
+			// A full load, so nothing of a previous person on this device survives.
+			window.location.assign('/');
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 404) {
 				// Used by another tab, or simply expired, while this one sat open.

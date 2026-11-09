@@ -3,6 +3,7 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { resolvePath } from '#lib/paths.js';
 	import type { Path, ResolvedPathname } from '$app/types';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '#lib/api/client.js';
@@ -396,7 +397,7 @@
 		// already an internal path - the cast only says so to `resolve`, the
 		// same way the login page treats its `next` param.
 		const href = target
-			? resolve(`${target.pathname.slice(1)}${target.search}${target.hash}` as Path)
+			? resolvePath(`${target.pathname.slice(1)}${target.search}${target.hash}` as Path)
 			: cancelHref;
 		await flushImages();
 		void goto(href);

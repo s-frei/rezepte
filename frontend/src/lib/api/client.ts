@@ -1,10 +1,13 @@
 import { goto } from '$app/navigation';
-import { resolve } from '$app/paths';
+import type { Path } from '$app/types';
 import { session } from '#lib/auth.svelte.js';
+import { signedOutTarget } from '#lib/device-accounts.js';
+import { resolvePath } from '#lib/paths.js';
 
 const BASE = '/api/v1';
 const LOGIN_PATH = '/api/v1/auth/login';
 const ME_PATH = '/api/v1/auth/me';
+const LOGOUT_PATH = '/api/v1/auth/logout';
 
 export type FieldError = { location: string; message: string };
 
@@ -43,7 +46,7 @@ export class ApiError extends Error {
 
 /**
  * True when a call failed with the 401 that `api()` already turned into a
- * redirect to the login page. Callers use it to skip their own error toast:
+ * redirect to "Who's cooking?" or the login page. Callers use it to skip their own error toast:
  * the browser is leaving the page anyway.
  */
 export function isSignedOut(error: unknown): boolean {
@@ -51,16 +54,24 @@ export function isSignedOut(error: unknown): boolean {
 }
 
 /**
- * Clears the session and sends the browser to the login page with a `next`
- * param pointing back at the page that got the 401. Only ever called from a
- * browser context (see the `typeof window` guard at the call site) so tests
- * running in Node never hit this.
+ * Clears the session and sends the browser where a signed-out moment goes
+ * (signedOutTarget: "Who's cooking?" or the login page), with a `next` param
+ * pointing back at the page that got the 401. Not from those two pages,
+ * which handle a 401 themselves. Several calls failing together leave once:
+ * the first one asks for the target and navigates, the rest wait for it.
  */
-export function redirectToLogin(): void {
-	session.user = null;
-	const next = encodeURIComponent(window.location.pathname + window.location.search);
-	void goto(resolve(`login?next=${next}`));
+export function redirectSignedOut(): Promise<void> {
+	const { pathname, search } = window.location;
+	if (pathname === '/login' || pathname === '/switch') return Promise.resolve();
+	leaving ??= (async () => {
+		session.user = null;
+		const target = await signedOutTarget(pathname + search);
+		await goto(resolvePath(target as Path));
+	})().finally(() => (leaving = null));
+	return leaving;
 }
+
+let leaving: Promise<void> | null = null;
 
 /** Calls the JSON API. Resolves with the parsed body, or undefined for empty responses. */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -78,8 +89,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	if (!res.ok) {
 		const problem = await res.json().catch(() => ({}) as Problem);
 		// Central 401 handling: any call other than login itself signing the
-		// user out server-side (session expired, cookie cleared, ...) drops
-		// the client back to the login page instead of leaving every caller
+		// user out server-side (session expired, cookie cleared, ...) sends
+		// the client where a signed-out moment goes instead of leaving every caller
 		// to check res.status === 401 individually.
 		//
 		// /auth/login is excluded because a 401 there just means "wrong
@@ -91,6 +102,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 		// warns against calling `goto` from `load`) and can leave the app on
 		// the wrong URL.
 		//
+		// POST /auth/logout is excluded because signOut() navigates itself,
+		// exactly once; a 401 from an already ended session must not race it.
+		//
 		// The method is part of that exclusion: PATCH /auth/me (the password
 		// change) runs from a page, not from `load`, so an expired session
 		// there has to redirect like every other 401 - otherwise the form
@@ -98,11 +112,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 		if (
 			res.status === 401 &&
 			url !== LOGIN_PATH &&
+			url !== LOGOUT_PATH &&
 			!(url === ME_PATH && method === 'GET') &&
-			typeof window !== 'undefined' &&
-			window.location.pathname !== '/login'
+			typeof window !== 'undefined'
 		) {
-			redirectToLogin();
+			void redirectSignedOut();
 		}
 		throw new ApiError(res.status, problem);
 	}
