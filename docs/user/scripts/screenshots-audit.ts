@@ -28,9 +28,23 @@ for (const f of walk('content', '.mdx')) {
 for (const m of readFileSync('app/page.tsx', 'utf8').matchAll(/\bshot: '([^']+)'/g)) {
 	referenced.set(m[1], [...(referenced.get(m[1]) ?? []), 'app/page.tsx']);
 }
-const tested = new Set<string>();
+// A test that skips one project (`test.skip(!isMobile(testInfo), …)` for a
+// phone-only screen, `test.skip(isMobile(testInfo), …)` for a desktop-only
+// one) never writes the other project's PNGs, so they are not expected.
+// Only these two exact skips narrow the set; anything else expects all four.
+const tested = new Map<string, string[]>();
 for (const f of walk('screenshots', '.spec.ts')) {
-	for (const m of readFileSync(f, 'utf8').matchAll(/test\('([^']+)'/g)) tested.add(m[1]);
+	const src = readFileSync(f, 'utf8');
+	const tests = [...src.matchAll(/test\('([^']+)'/g)];
+	tests.forEach((m, i) => {
+		const body = src.slice(m.index, tests[i + 1]?.index ?? src.length);
+		const only = /test\.skip\(\s*!isMobile\(/.test(body)
+			? 'mobile'
+			: /test\.skip\(\s*isMobile\(/.test(body)
+				? 'desktop'
+				: null;
+		tested.set(m[1], only ? VARIANTS.filter((v) => v.startsWith(only)) : VARIANTS);
+	});
 }
 const pngs = new Set(readdirSync('public/screenshots').filter((f) => f.endsWith('.png')));
 
@@ -46,8 +60,10 @@ for (const [name, files] of referenced) {
 	}
 }
 let missing = 0;
-for (const name of tested) {
-	for (const v of VARIANTS) if (!pngs.has(`${name}-${v}.png`)) missing++;
+let expected = 0;
+for (const [name, variants] of tested) {
+	expected += variants.length;
+	for (const v of variants) if (!pngs.has(`${name}-${v}.png`)) missing++;
 	if (!referenced.has(name)) console.warn(`test('${name}') is not referenced by any page`);
 }
 for (const png of pngs) {
@@ -56,7 +72,7 @@ for (const png of pngs) {
 }
 if (missing > 0)
 	console.warn(
-		`${missing} of ${tested.size * VARIANTS.length} screenshot files are missing; pages show placeholder frames (run: mise run //docs/user:screenshots)`
+		`${missing} of ${expected} screenshot files are missing; pages show placeholder frames (run: mise run //docs/user:screenshots)`
 	);
 if (failed) process.exit(1);
 console.log(`screenshots: ${referenced.size} referenced, ${tested.size} tested, ${pngs.size} files on disk`);
