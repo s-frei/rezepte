@@ -3,7 +3,11 @@ import Document from '@tiptap/extension-document';
 import Paragraph from '@tiptap/extension-paragraph';
 import Text from '@tiptap/extension-text';
 import { Placeholder, UndoRedo } from '@tiptap/extensions';
-import type { Plugin } from '@tiptap/pm/state';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import type { StepTime } from '#lib/api/recipes.js';
+import type { FormRef } from './form';
+import { firstWordMatch } from './references';
 
 /**
  * The document a step's editor works on: paragraphs of plain text, nothing
@@ -16,7 +20,69 @@ import type { Plugin } from '@tiptap/pm/state';
  * stronger guarantee than a toolbar that does not offer them, because it also
  * covers pasting from a word processor and the browser's own Cmd+B.
  */
-const STEP_NODES = [Document, Paragraph, Text];
+const STEP_NODES = [
+	/**
+	 * The document carries what a step's words are, beside its text: the
+	 * links and the times. Held here rather than only in the form, every
+	 * change to them is a transaction like any edit, so the editor's undo
+	 * history covers accepting and removing as well as typing, and deleting a word can take its link along in the
+	 * same undo step (`dropAbsent`). None of them is rendered: the document's
+	 * text is all the editor shows, the decorations draw the rest.
+	 */
+	Document.extend({
+		addAttributes() {
+			return {
+				references: { default: [], rendered: false },
+				times: { default: [], rendered: false }
+			};
+		}
+	}),
+	Paragraph,
+	Text
+];
+
+/** What a step's words are, as the document carries it. */
+export type StepWords = { references: FormRef[]; times: StepTime[] };
+
+export const STEP_WORDS = ['references', 'times'] as const;
+
+export function wordsOf(doc: ProseMirrorNode): StepWords {
+	const { references, times } = doc.attrs as StepWords;
+	return { references, times };
+}
+
+/** The document's text, the way `stepText` reads it off an editor. */
+function docText(doc: ProseMirrorNode): string {
+	return doc.textBetween(0, doc.content.size, '\n');
+}
+
+/**
+ * Drops whatever names a word the text no longer holds: a link or a time. Deleting a linked word ends its link - typing the word
+ * again starts from scratch, with at most a proposal - and as an appended
+ * transaction it joins the edit's own undo step, so Cmd+Z brings the word and
+ * its link back together.
+ */
+export function dropAbsent(): Plugin {
+	return new Plugin({
+		key: new PluginKey('stepWordsDropAbsent'),
+		appendTransaction(transactions, _before, state) {
+			if (!transactions.some((tr) => tr.docChanged)) return null;
+			const text = docText(state.doc);
+			const has = (word: string) => firstWordMatch(text, word) !== null;
+			const words = wordsOf(state.doc);
+			const kept: StepWords = {
+				references: words.references.filter((ref) => has(ref.word)),
+				times: words.times.filter((time) => has(time.phrase))
+			};
+			let tr = null;
+			for (const key of STEP_WORDS) {
+				if (kept[key].length !== words[key].length)
+					tr = (tr ?? state.tr).setDocAttribute(key, kept[key]);
+			}
+			return tr;
+		}
+	});
+}
 
 /**
  * Every extension a step's editor loads, built here rather than in the
@@ -60,9 +126,10 @@ export function referenceExtension(plugins: (editor: Editor) => Plugin[]): Exten
  * author never touched, rewritten by opening the editor. Every line becomes
  * one paragraph, and `stepText` below joins them back with the same `\n`.
  */
-export function textToDoc(text: string): JSONContent {
+export function textToDoc(text: string, words?: StepWords): JSONContent {
 	return {
 		type: 'doc',
+		...(words ? { attrs: words } : {}),
 		content: text
 			.split('\n')
 			.map((line) =>

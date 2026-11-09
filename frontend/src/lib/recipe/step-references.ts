@@ -1,6 +1,13 @@
 import type { IngredientGroup } from '#lib/api/recipes.js';
-import { blankToNull, parseNumber, type FormGroup, type FormRef, type FormStep } from './form';
-import { firstWordMatch, isWordChar, suggestReferences } from './references';
+import {
+	blankToNull,
+	parseNumber,
+	presentReferences,
+	type FormGroup,
+	type FormRef,
+	type FormStep
+} from './form';
+import { firstWordMatch, isWordChar, laterWordMatches, matchStep } from './references';
 import { formatQuantity } from './format';
 import { addTime, pendingTimes } from './step-times';
 
@@ -25,9 +32,6 @@ export type PickerEntry = {
 	amount: string;
 };
 
-/** Words the author has dismissed, keyed by step id. Never persisted. */
-export type DismissedWords = Record<string, string[]>;
-
 /** One ingredient row, shaped the way the API will see it, id still attached. */
 type ShapedRow = {
 	/** `FormIngredient.id`, which is what a reference is anchored to. */
@@ -37,7 +41,7 @@ type ShapedRow = {
 	name: string;
 };
 
-type ShapedGroup = { name: string | null; rows: ShapedRow[] };
+type ShapedGroup = { id: string; name: string | null; rows: ShapedRow[] };
 
 /**
  * The form's groups as resolution will see them: every string trimmed, blanks
@@ -56,6 +60,7 @@ type ShapedGroup = { name: string | null; rows: ShapedRow[] };
 function shapeGroups(groups: FormGroup[]): ShapedGroup[] {
 	return groups
 		.map((group) => ({
+			id: group.id,
 			name: blankToNull(group.name),
 			rows: group.ingredients
 				.filter((row) => row.name.trim() !== '')
@@ -114,6 +119,36 @@ export function pickerEntries(groups: FormGroup[]): PickerEntry[] {
 	return out;
 }
 
+/** What `findDuplicates` finds; see there. */
+export type Duplicates = {
+	/** Each group named like one above it, by id, with that shared name (null: unnamed). */
+	groups: Map<string, string | null>;
+	/** Every row whose name occurs more than once in its group, by id. */
+	rows: Set<string>;
+};
+
+/**
+ * The names that make rows unlinkable, by the rule `pickerEntries` leaves them
+ * out by. A repeated group name is reported at the later groups only - the
+ * first one is fine as it is, the next one needs a name of its own - while a
+ * repeated ingredient name is reported at every row carrying it, since any of
+ * them could be the one to rename.
+ */
+export function findDuplicates(groups: FormGroup[]): Duplicates {
+	const found: Duplicates = { groups: new Map(), rows: new Set() };
+	const seen = new Set<string>();
+	for (const group of shapeGroups(groups)) {
+		const key = group.name ?? '';
+		if (seen.has(key)) found.groups.set(group.id, group.name);
+		seen.add(key);
+		const names = tally(group.rows.map((row) => row.name));
+		for (const row of group.rows) {
+			if ((names.get(row.name) ?? 0) > 1) found.rows.add(row.id);
+		}
+	}
+	return found;
+}
+
 function tally(values: string[]): Map<string, number> {
 	const counts = new Map<string, number>();
 	for (const value of values) {
@@ -126,7 +161,10 @@ function tally(values: string[]): Map<string, number> {
  * The picker's rows for a query: the ones whose name contains it, the ones
  * starting with it first. Matching on the whole name rather than its head noun
  * is deliberate - the author is typing to find a row in their own list, not
- * feeding the matcher.
+ * feeding the matcher. Rows of one name stand together, where the first of
+ * them would, so "Salz" for the meatballs and "Salz" for the sauce are told
+ * apart side by side rather than with "Sahne" between them. An empty query
+ * keeps the recipe's order, which reads like the ingredient list.
  */
 export function matchEntries(entries: PickerEntry[], query: string): PickerEntry[] {
 	const q = query.trim().toLowerCase();
@@ -138,7 +176,32 @@ export function matchEntries(entries: PickerEntry[], query: string): PickerEntry
 		if (name.startsWith(q)) starts.push(entry);
 		else if (name.includes(q)) contains.push(entry);
 	}
-	return [...starts, ...contains];
+	const ranked = [...starts, ...contains];
+	const key = (entry: PickerEntry) => entry.name.trim().toLowerCase();
+	const seen = new Set<string>();
+	return ranked.flatMap((entry) => {
+		if (seen.has(key(entry))) return [];
+		seen.add(key(entry));
+		return ranked.filter((other) => key(other) === key(entry));
+	});
+}
+
+/**
+ * Where `query` stands in `name`, the part the picker sets bold: before,
+ * the matched letters as they are written, after. Null without a match.
+ */
+export function matchedPart(
+	name: string,
+	query: string
+): { before: string; hit: string; after: string } | null {
+	const q = query.trim().toLowerCase();
+	const at = q === '' ? -1 : name.toLowerCase().indexOf(q);
+	if (at < 0) return null;
+	return {
+		before: name.slice(0, at),
+		hit: name.slice(at, at + q.length),
+		after: name.slice(at + q.length)
+	};
 }
 
 /**
@@ -247,77 +310,166 @@ export function wordAtCaret(text: string, words: string[], caret: number): strin
 }
 
 /**
- * The matcher's proposals for one step that the author has neither confirmed
- * nor dismissed. A word already carrying a reference is never proposed again:
+ * The marked word whose later occurrence the caret stands strictly inside, or
+ * null. A word is linked at its first occurrence only, so this is where the
+ * editor explains that rather than offering a second link.
+ */
+export function repeatAtCaret(text: string, words: string[], caret: number): string | null {
+	for (const word of words) {
+		if (laterWordMatches(text, word).some((hit) => hit.from < caret && caret < hit.to)) {
+			return word;
+		}
+	}
+	return null;
+}
+
+/**
+ * The matcher's proposals for one step that are not links yet. Nothing turns
+ * a proposal down for good: "Dismiss" only closes its card, and the word stays
+ * proposed until it is accepted. A word already carrying a reference is never proposed again:
  * the API allows one reference per word per step.
  *
  * Everything the matcher returns has to be found in the same list the picker
  * offers, which is also where a proposal picks up the client id that anchors
- * it. `acceptAll` turns every open proposal into a real reference on save, so a
- * proposal the API cannot resolve would fail the save with a message about the
- * ingredient list, shown under a step, for a link the author never made. This
+ * it. "Accept all" turns every open proposal into a real reference at once, so
+ * a proposal the API cannot resolve would fail the next save with a message
+ * about the ingredient list, shown under a step the author never looked at. This
  * is the structural guarantee that nothing unusable is ever offered; the
  * matcher itself already declines to propose such a row, and these two are
  * deliberately belt and braces.
  */
-export function pendingFor(
+export function pendingFor(step: FormStep, groups: FormGroup[]): FormRef[] {
+	return proposals(step, groups).pending;
+}
+
+/**
+ * A word that names one ingredient in several groups, with a row to link
+ * for each. `guess` is the row the rest of the sentence points at - the
+ * group most of the step's other links and proposals come from, when one
+ * group leads - and `because` the words that point there. A guessed choice
+ * is an ordinary proposal as well: `pendingFor` holds its guess, so "Accept
+ * all" takes it. Without a guess the word waits for the author's pick, and
+ * "Accept all" leaves it alone.
+ */
+export type Choice = { word: string; options: FormRef[]; guess: FormRef | null; because: string[] };
+
+export function choicesFor(step: FormStep, groups: FormGroup[]): Choice[] {
+	return proposals(step, groups).choices;
+}
+
+/** A choice's options as the author meets them: the guess first, then recipe order. */
+export function guessFirst(choice: Choice): FormRef[] {
+	const rest = choice.options.filter((option) => option !== choice.guess);
+	return choice.guess ? [choice.guess, ...rest] : rest;
+}
+
+/**
+ * `pendingFor` and `choicesFor` in one pass, for a caller that needs both:
+ * the matcher runs once.
+ */
+export function proposals(
 	step: FormStep,
-	groups: FormGroup[],
-	dismissed: string[] = []
-): FormRef[] {
+	groups: FormGroup[]
+): { pending: FormRef[]; choices: Choice[] } {
 	const confirmed = new Set(step.references.map((ref) => ref.word));
-	const refused = new Set(dismissed);
 	const entries = pickerEntries(groups);
-	const out: FormRef[] = [];
-	for (const ref of suggestReferences(step.text, toIngredientGroups(groups))) {
-		if (confirmed.has(ref.word) || refused.has(ref.word)) continue;
+	const toRef = (word: string, entry: PickerEntry): FormRef => ({
+		word,
+		ingredientId: entry.ingredientId,
+		groupName: entry.group,
+		ingredientName: entry.name
+	});
+	const open = (word: string) => !confirmed.has(word);
+	const matched = matchStep(step.text, toIngredientGroups(groups));
+
+	const pending: FormRef[] = [];
+	for (const ref of matched.refs) {
+		if (!open(ref.word)) continue;
 		const entry = entryByName(entries, ref.groupName, ref.ingredientName);
 		// Not in the picker's list means the API could not resolve it either;
 		// this is the second of the two gates the doc comment describes.
 		if (entry === undefined) continue;
-		out.push({
-			word: ref.word,
-			ingredientId: entry.ingredientId,
-			groupName: entry.group,
-			ingredientName: entry.name
+		pending.push(toRef(ref.word, entry));
+	}
+
+	// The sentence's other ingredients, by the group they come from: the
+	// step's links whose word is in the text, and the plain proposals.
+	const context = [
+		...presentReferences(step.references, step.text).flatMap((ref) => {
+			const entry = entryFor(entries, ref);
+			return entry ? [{ word: ref.word, group: entry.group }] : [];
+		}),
+		...matched.refs
+			.filter((ref) => !confirmed.has(ref.word))
+			.filter((ref) => entryByName(entries, ref.groupName, ref.ingredientName) !== undefined)
+			.map((ref) => ({ word: ref.word, group: ref.groupName }))
+	];
+
+	const choices: Choice[] = [];
+	for (const { word, candidates } of matched.ambiguous) {
+		if (!open(word)) continue;
+		const found = candidates.map((c) => entryByName(entries, c.groupName, c.ingredientName));
+		if (found.some((entry) => entry === undefined)) continue;
+		const options = (found as PickerEntry[]).map((entry) => toRef(word, entry));
+		const votes = options.map((option) =>
+			context.filter((c) => c.group === option.groupName).map((c) => c.word)
+		);
+		const most = Math.max(...votes.map((v) => v.length));
+		const leaders = votes.filter((v) => v.length === most);
+		const at = most > 0 && leaders.length === 1 ? votes.findIndex((v) => v.length === most) : -1;
+		choices.push({
+			word,
+			options,
+			guess: at < 0 ? null : options[at],
+			because: at < 0 ? [] : votes[at]
 		});
 	}
-	return out;
+	for (const choice of choices) if (choice.guess) pending.push(choice.guess);
+	return { pending, choices };
 }
 
 /** How many proposals, ingredient links and times, are open across the whole recipe. */
-export function countPending(
-	steps: FormStep[],
-	groups: FormGroup[],
-	dismissed: DismissedWords = {}
-): number {
+export function countPending(steps: FormStep[], groups: FormGroup[]): number {
 	return steps.reduce(
-		(total, step) =>
-			total +
-			pendingFor(step, groups, dismissed[step.id] ?? []).length +
-			pendingTimes(step, dismissed[step.id] ?? []).length,
+		(total, step) => total + pendingFor(step, groups).length + pendingTimes(step).length,
 		0
 	);
 }
 
 /**
- * Confirms every open proposal, links and times, in place. The save button says it will do
- * this, and "Accept now" does it on demand; both go through here so the
- * two can never disagree.
+ * The words "Accept all" will not link: each names an ingredient in several
+ * groups and the sentence does not point at one. Numbered from 1, as the steps read.
  */
-export function acceptAll(
+export function waitingChoices(
 	steps: FormStep[],
-	groups: FormGroup[],
-	dismissed: DismissedWords = {}
-): void {
+	groups: FormGroup[]
+): { word: string; step: number }[] {
+	return steps.flatMap((step, index) =>
+		choicesFor(step, groups)
+			.filter((choice) => choice.guess === null)
+			.map((choice) => ({ word: choice.word, step: index + 1 }))
+	);
+}
+
+/**
+ * Confirms every open proposal, links and times, in place: "Accept all" above
+ * the steps. A save takes none of them, so only what the author accepted is
+ * ever linked. Returns how many it took: a time that overlaps a word just
+ * linked is no longer open by then, so this can be fewer than `countPending`.
+ */
+export function acceptAll(steps: FormStep[], groups: FormGroup[]): number {
+	let taken = 0;
 	for (const step of steps) {
-		for (const ref of pendingFor(step, groups, dismissed[step.id] ?? [])) {
+		for (const ref of pendingFor(step, groups)) {
 			step.references = addReference(step.references, ref);
+			taken++;
 		}
-		for (const time of pendingTimes(step, dismissed[step.id] ?? [])) {
+		for (const time of pendingTimes(step)) {
 			step.times = addTime(step.times, time, step.text);
+			taken++;
 		}
 	}
+	return taken;
 }
 
 /**

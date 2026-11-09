@@ -4,17 +4,22 @@ import { firstWordMatch } from './references';
 import {
 	acceptAll,
 	addReference,
+	choicesFor,
 	countPending,
 	entryLabel,
+	findDuplicates,
 	fitsWordLimit,
 	isResolved,
 	matchEntries,
+	matchedPart,
 	pendingFor,
 	pickerEntries,
 	refLabel,
 	refView,
 	removeReference,
+	repeatAtCaret,
 	toIngredientGroups,
+	waitingChoices,
 	wordAt,
 	wordAtCaret
 } from './step-references';
@@ -71,6 +76,98 @@ describe('toIngredientGroups', () => {
 	});
 });
 
+describe('choicesFor', () => {
+	const SAUCE = [
+		group('Klopse', ['500', 'g', 'Hackfleisch'], ['1', 'Prise', 'Salz']),
+		group('Kapernsauce', ['200', 'ml', 'Sahne'], ['2', 'EL', 'Kapern'], ['1', 'Prise', 'Salz'])
+	];
+	const labels = (refs: FormRef[]) => refs.map((ref) => refLabel(ref, pickerEntries(SAUCE)));
+
+	it('guesses the group the rest of the sentence comes from, and Accept all takes it', () => {
+		const s = step('Sahne und Kapern einrühren, mit Salz abschmecken.');
+		const [choice] = choicesFor(s, SAUCE);
+		expect(choice.word).toBe('Salz');
+		expect(labels(choice.options)).toEqual([
+			'Salz · 1 Prise · Klopse',
+			'Salz · 1 Prise · Kapernsauce'
+		]);
+		expect(labels([choice.guess!])).toEqual(['Salz · 1 Prise · Kapernsauce']);
+		expect(choice.because).toEqual(['Sahne', 'Kapern']);
+		expect(labels(pendingFor(s, SAUCE))).toContain('Salz · 1 Prise · Kapernsauce');
+		expect(waitingChoices([s], SAUCE)).toEqual([]);
+	});
+
+	it('counts a stored link as much as a proposal', () => {
+		const s = step('Hackfleisch mit Salz würzen.', [
+			ref('Hackfleisch', 'Klopse-0', 'Klopse', 'Hackfleisch')
+		]);
+		expect(labels([choicesFor(s, SAUCE)[0].guess!])).toEqual(['Salz · 1 Prise · Klopse']);
+	});
+
+	it('waits for the author when the sentence does not lead to one group', () => {
+		for (const text of ['Mit Salz abschmecken.', 'Hackfleisch und Sahne mit Salz verrühren.']) {
+			const s = step(text);
+			expect(choicesFor(s, SAUCE)[0].guess).toBeNull();
+			expect(pendingFor(s, SAUCE).map((p) => p.word)).not.toContain('Salz');
+			expect(waitingChoices([step('Zwiebel schneiden.'), s], SAUCE)).toEqual([
+				{ word: 'Salz', step: 2 }
+			]);
+		}
+	});
+
+	it('offers nothing for an already linked word', () => {
+		const linked = step('Mit Salz abschmecken.', [ref('Salz', 'Klopse-1', 'Klopse', 'Salz')]);
+		expect(choicesFor(linked, SAUCE)).toEqual([]);
+	});
+
+	it('leaves a word alone when one of its groups cannot be singled out', () => {
+		const twice = [...SAUCE, { ...group('Klopse', ['1', '', 'Ei']), id: 'again' }];
+		expect(choicesFor(step('Mit Salz abschmecken.'), twice)).toEqual([]);
+	});
+});
+
+describe('repeatAtCaret', () => {
+	const text = 'Quark verrühren. Den Quark kühlen.';
+	it('finds the caret in a later occurrence only', () => {
+		expect(repeatAtCaret(text, ['Quark'], text.lastIndexOf('Quark') + 2)).toBe('Quark');
+		expect(repeatAtCaret(text, ['Quark'], 2)).toBeNull();
+		expect(repeatAtCaret(text, ['Quark'], text.lastIndexOf('Quark'))).toBeNull();
+	});
+});
+
+describe('findDuplicates', () => {
+	/** `group()` keys a group by its name; two of one name need ids of their own. */
+	const as = (id: string, g: FormGroup): FormGroup => ({ ...g, id });
+
+	it('reports a repeated group name at the later group, and every row of a repeated name', () => {
+		const found = findDuplicates([
+			group('Teig', ['1', '', 'Ei']),
+			as('second', group(' Teig ', ['2', '', 'Mehl'])),
+			group('Füllung', ['1', '', 'Quark'], ['2', '', ' Quark '], ['1', 'Prise', 'Salz'])
+		]);
+		expect([...found.groups]).toEqual([['second', 'Teig']]);
+		expect([...found.rows]).toEqual(['Füllung-0', 'Füllung-1']);
+	});
+
+	it('names a second unnamed group, but not one still empty', () => {
+		// "Add group" puts an empty unnamed one in, and `toInput` drops it: it
+		// is no clash until it holds a row.
+		const empty = findDuplicates([group('', ['1', '', 'Ei']), as('new', group('', ['', '', '']))]);
+		expect(empty.groups.size).toBe(0);
+		const filled = findDuplicates([
+			group('', ['1', '', 'Ei']),
+			as('new', group('', ['', '', 'Mehl']))
+		]);
+		expect([...filled.groups]).toEqual([['new', null]]);
+	});
+
+	it('finds nothing where the picker offers every row', () => {
+		const found = findDuplicates(AMBIGUOUS);
+		expect(found.groups.size + found.rows.size).toBe(0);
+		expect(pickerEntries(AMBIGUOUS)).toHaveLength(2);
+	});
+});
+
 describe('pickerEntries', () => {
 	it('offers the same name once per group, so the two can be told apart', () => {
 		expect(pickerEntries(AMBIGUOUS).map(entryLabel)).toEqual([
@@ -117,6 +214,29 @@ describe('matchEntries', () => {
 	it('returns everything for an empty query', () => {
 		const entries = pickerEntries(AMBIGUOUS);
 		expect(matchEntries(entries, '')).toHaveLength(2);
+	});
+
+	it('keeps rows of one name together, where the first of them stands', () => {
+		const entries = pickerEntries([
+			group('Klopse', ['1', 'TL', 'Salz'], ['1', '', 'Sahne']),
+			group('Sauce', ['1', 'Prise', 'Salz'])
+		]);
+		expect(matchEntries(entries, 'sa').map(entryLabel)).toEqual([
+			'Salz · 1 TL · Klopse',
+			'Salz · 1 Prise · Sauce',
+			'Sahne · 1 · Klopse'
+		]);
+	});
+});
+
+describe('matchedPart', () => {
+	it('finds the query in the name, keeping how the name writes it', () => {
+		expect(matchedPart('Rohrzucker', 'ZUCK')).toEqual({ before: 'Rohr', hit: 'zuck', after: 'er' });
+	});
+
+	it('is null without a query or a match', () => {
+		expect(matchedPart('Salz', '')).toBeNull();
+		expect(matchedPart('Salz', 'mehl')).toBeNull();
 	});
 });
 
@@ -233,16 +353,8 @@ describe('pendingFor', () => {
 		expect(pendingFor(linked, groups).map((proposal) => proposal.word)).toEqual(['Mehl']);
 	});
 
-	it('does not propose a word that was turned down', () => {
-		expect(
-			pendingFor(step('Zucker und Mehl verrühren.'), groups, ['Mehl']).map(
-				(proposal) => proposal.word
-			)
-		).toEqual(['Zucker']);
-	});
-
-	// Guard on the invariant rather than on one implementation of it: a save
-	// turns every open proposal into a real reference, so a proposal the API
+	// Guard on the invariant rather than on one implementation of it: "Accept
+	// all" turns every open proposal into a real reference, so a proposal the API
 	// cannot resolve would fail the save with an error about the ingredient
 	// list, under a step, for a link the author never made. Two unnamed groups
 	// is an ordinary state to be in halfway through writing a recipe.
@@ -260,14 +372,13 @@ describe('pendingFor', () => {
 });
 
 describe('countPending', () => {
-	it('adds up the open proposals of every step, minus the dismissed ones', () => {
+	it('adds up the open proposals of every step', () => {
 		const groups = [group('', ['100', 'g', 'Zucker'], ['200', 'g', 'Mehl'])];
 		const steps: FormStep[] = [
 			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [] },
 			{ id: 'b', text: 'Mehl sieben.', references: [], times: [] }
 		];
 		expect(countPending(steps, groups)).toBe(3);
-		expect(countPending(steps, groups, { b: ['Mehl'] })).toBe(2);
 	});
 });
 
@@ -284,13 +395,16 @@ describe('times among the proposals', () => {
 });
 
 describe('acceptAll', () => {
-	it('confirms every open proposal and leaves the dismissed ones alone', () => {
+	it('confirms every open proposal', () => {
 		const groups = [group('', ['100', 'g', 'Zucker'], ['200', 'g', 'Mehl'])];
 		const steps: FormStep[] = [
 			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [] }
 		];
-		acceptAll(steps, groups, { a: ['Mehl'] });
-		expect(steps[0].references).toEqual([ref('Zucker', '-0', null, 'Zucker')]);
+		acceptAll(steps, groups);
+		expect(steps[0].references).toEqual([
+			ref('Zucker', '-0', null, 'Zucker'),
+			ref('Mehl', '-1', null, 'Mehl')
+		]);
 	});
 });
 

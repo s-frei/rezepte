@@ -67,6 +67,7 @@
 	page name like "Benutzer" no longer fits a phone's line.
 -->
 <div
+	data-covers-top
 	class="sticky z-30 -mx-5 bg-background/90 backdrop-blur md:hidden {field
 		? 'px-5 pt-1 pb-2.5'
 		: ''} {className}"

@@ -3,16 +3,24 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Timer from '@lucide/svelte/icons/timer';
+	import TimerOff from '@lucide/svelte/icons/timer-off';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import X from '@lucide/svelte/icons/x';
+	import Unlink from '@lucide/svelte/icons/unlink';
+	import { tick } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { slide } from 'svelte/transition';
 	import type { StepTime } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { FormRef } from '#lib/recipe/form.js';
-	import { refLabel, refView, type PickerEntry } from '#lib/recipe/step-references.js';
-	import { ACTION, ROW } from './link-list';
+	import {
+		guessFirst,
+		refLabel,
+		refView,
+		type Choice,
+		type PickerEntry
+	} from '#lib/recipe/step-references.js';
+	import { ACCEPT, ACTION, ACTIONS, CELL, REMOVE, LIST, ROW } from './link-list';
 	import { formatDuration } from '#lib/recipe/times.js';
 
 	/**
@@ -30,6 +38,7 @@
 		stepId,
 		links,
 		pending,
+		choices,
 		times,
 		pendingTimes,
 		entries,
@@ -38,7 +47,6 @@
 		onmarktime,
 		onunlink,
 		onaccept,
-		ondismiss,
 		onaccepttime,
 		onremovetime
 	}: {
@@ -47,6 +55,8 @@
 		links: FormRef[];
 		/** The matcher's open proposals for the step, in the same order. */
 		pending: FormRef[];
+		/** Words naming an ingredient in several groups, each listed with every option, in text order. */
+		choices: Choice[];
 		/** The step's stored times whose phrase is in the text, in text order. */
 		times: StepTime[];
 		/** The detector's open time proposals, in the same order. */
@@ -58,19 +68,42 @@
 		onmarktime: () => void;
 		onunlink: (word: string) => void;
 		onaccept: (ref: FormRef) => void;
-		/** Turns down a link proposal or a time proposal, by its word or phrase. */
-		ondismiss: (word: string) => void;
 		onaccepttime: (time: StepTime) => void;
 		onremovetime: (phrase: string) => void;
 	} = $props();
 
 	let open = $state(false);
+	let toggle = $state<HTMLButtonElement | null>(null);
+	let list = $state<HTMLElement | null>(null);
+	/** What the last button in the list did, for a screen reader. */
+	let said = $state('');
+
+	/**
+	 * Runs a row's button and says what it did. The row it was in goes - an
+	 * accepted one moves up among the links, a removed one turns back into a
+	 * proposal - so focus would fall to the page. It goes to the button now in
+	 * the same place, so a run of accepts needs no walk back down the list;
+	 * past the list's end to its last button, and with the list empty to the
+	 * summary line.
+	 */
+	function act(run: () => void, message: string) {
+		const buttons = () => [...(list?.querySelectorAll<HTMLElement>('button') ?? [])];
+		const at = buttons().indexOf(document.activeElement as HTMLElement);
+		run();
+		said = message;
+		void tick().then(() => {
+			const now = buttons();
+			(now[Math.min(Math.max(at, 0), now.length - 1)] ?? toggle)?.focus();
+		});
+	}
 	const SLIDE_DURATION = $derived(prefersReducedMotion.current ? 0 : 180);
 
 	const broken = $derived(links.filter((ref) => !refView(ref, entries).resolved));
 	const working = $derived(links.filter((ref) => refView(ref, entries).resolved));
-	const suggested = $derived(pending.length + pendingTimes.length);
-	const listed = $derived(working.length + times.length + suggested);
+	/** A choice with a guess is a proposal like any other; one without waits for a pick. */
+	const waiting = $derived(choices.filter((choice) => choice.guess === null).length);
+	const suggested = $derived(pending.length + choices.length - waiting + pendingTimes.length);
+	const listed = $derived(working.length + times.length + suggested + waiting);
 
 	const summary = $derived(
 		[
@@ -84,12 +117,45 @@
 				? m.editor_reference_summary_suggestions_one()
 				: suggested > 1
 					? m.editor_reference_summary_suggestions({ count: suggested })
+					: '',
+			waiting === 1
+				? m.editor_reference_summary_waiting_one()
+				: waiting > 1
+					? m.editor_reference_summary_waiting({ count: waiting })
 					: ''
 		]
 			.filter((part) => part !== '')
 			.join(', ')
 	);
 </script>
+
+{#snippet proposal(ref: FormRef)}
+	{@const view = refView(ref, entries)}
+	{@const label = refLabel(ref, entries)}
+	<!-- A proposal is marked as in the sentence: its name carries the dotted
+	     line, and nothing else in the row is colored. -->
+	<li class={ROW}>
+		<span class={CELL}>
+			<!-- Name and group wrap as whole words, so a large text size breaks
+			     between them rather than inside the line. -->
+			<span class="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+				<span class="ref-suggestion font-medium">{view.name}</span>
+				{#if view.group}<span class="text-caption text-text-muted">{view.group}</span>{/if}
+			</span>
+			<span class="text-caption whitespace-nowrap text-text-muted tabular-nums">{view.amount}</span>
+		</span>
+		<span class={ACTIONS}>
+			<button
+				type="button"
+				onclick={() => act(() => onaccept(ref), m.editor_announce_accepted({ label }))}
+				aria-label={m.editor_reference_accept({ label })}
+				class="{ACTION} {ACCEPT}"
+			>
+				<Check class="size-4" aria-hidden="true" />
+			</button>
+		</span>
+	</li>
+{/snippet}
 
 {#if broken.length > 0}
 	<!--
@@ -105,14 +171,20 @@
 					<span class="font-medium">{m.editor_reference_unresolved()}:</span>
 					{view.name}{#if view.group}&nbsp;({view.group}){/if}
 				</span>
-				<button
-					type="button"
-					onclick={() => onunlink(ref.word)}
-					aria-label={m.editor_reference_remove({ label: refLabel(ref, entries) })}
-					class="-my-1.5 ml-auto flex size-8 shrink-0 items-center justify-center rounded-pill transition hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-				>
-					<X class="size-3.5" aria-hidden="true" />
-				</button>
+				<span class="{ACTIONS} ml-auto">
+					<button
+						type="button"
+						onclick={() =>
+							act(
+								() => onunlink(ref.word),
+								m.editor_announce_removed({ label: refLabel(ref, entries) })
+							)}
+						aria-label={m.editor_reference_remove({ label: refLabel(ref, entries) })}
+						class="{ACTION} {REMOVE}"
+					>
+						<Unlink class="size-4" aria-hidden="true" />
+					</button>
+				</span>
 			</li>
 		{/each}
 	</ul>
@@ -152,12 +224,15 @@
 				next line of a phone, and the click would land beside it.
 			-->
 			<button
+				bind:this={toggle}
+				id="step-links-toggle-{stepId}"
 				type="button"
 				aria-expanded={open}
 				aria-controls="step-links-{stepId}"
 				onmousedown={(event) => event.preventDefault()}
 				onclick={() => (open = !open)}
-				class="-mr-1 ml-auto flex items-center gap-1 rounded-pill px-1 py-1 text-caption transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {suggested >
+				class="-mr-1 ml-auto flex items-center gap-1 rounded-pill px-1 py-1 text-caption transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {suggested +
+					waiting >
 				0
 					? 'text-primary'
 					: 'text-text-muted'}"
@@ -176,103 +251,145 @@
 
 {#if open && listed > 0}
 	<ul
+		bind:this={list}
 		transition:slide={{ duration: SLIDE_DURATION, easing: cubicOut }}
 		id="step-links-{stepId}"
 		aria-label={m.editor_reference_links()}
-		class="mb-1 list-none divide-y divide-dashed divide-border border-t border-dashed border-border"
+		class="{LIST} mt-1 mb-2"
 	>
 		{#each working as ref (ref.word)}
 			{@const view = refView(ref, entries)}
 			<li class={ROW}>
-				<span class="min-w-0">
-					<span class="font-medium">{view.name}</span>
-					{#if view.group}<span class="text-caption text-text-muted">&nbsp;{view.group}</span>{/if}
+				<span class={CELL}>
+					<span class="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+						<span class="font-medium">{view.name}</span>
+						{#if view.group}<span class="text-caption text-text-muted">{view.group}</span>{/if}
+					</span>
+					<span class="text-caption whitespace-nowrap text-text-muted tabular-nums"
+						>{view.amount}</span
+					>
 				</span>
-				<span class="text-caption text-text-muted tabular-nums">{view.amount}</span>
-				<button
-					type="button"
-					onclick={() => onunlink(ref.word)}
-					aria-label={m.editor_reference_remove({ label: refLabel(ref, entries) })}
-					class="{ACTION} hover:text-destructive"
-				>
-					<X class="size-3.5" aria-hidden="true" />
-				</button>
+				<span class={ACTIONS}>
+					<button
+						type="button"
+						onclick={() =>
+							act(
+								() => onunlink(ref.word),
+								m.editor_announce_removed({ label: refLabel(ref, entries) })
+							)}
+						aria-label={m.editor_reference_remove({ label: refLabel(ref, entries) })}
+						class="{ACTION} {REMOVE}"
+					>
+						<Unlink class="size-4" aria-hidden="true" />
+					</button>
+				</span>
 			</li>
 		{/each}
 		{#each pending as ref (ref.word)}
-			{@const view = refView(ref, entries)}
-			{@const label = refLabel(ref, entries)}
-			<!-- A proposal reads in the color of its dotted underline. -->
-			<li class={ROW}>
-				<span class="min-w-0 text-primary">
-					<span class="font-medium">{view.name}</span>
-					{#if view.group}<span class="text-caption">&nbsp;{view.group}</span>{/if}
-				</span>
-				<span class="text-caption text-primary tabular-nums">{view.amount}</span>
-				<span class="flex">
-					<button
-						type="button"
-						onclick={() => onaccept(ref)}
-						aria-label={m.editor_reference_accept({ label })}
-						class="{ACTION} hover:text-primary"
-					>
-						<Check class="size-3.5" aria-hidden="true" />
-					</button>
-					<button
-						type="button"
-						onclick={() => ondismiss(ref.word)}
-						aria-label={m.editor_reference_dismiss({ label })}
-						class="{ACTION} hover:text-destructive"
-					>
-						<X class="size-3.5" aria-hidden="true" />
-					</button>
-				</span>
+			{@render proposal(ref)}
+		{/each}
+		{#each choices as choice (choice.word)}
+			<!--
+				The word once, on a line of its own, then every group it could mean
+				hung from it on a guide line, each with its own "Accept", the guess
+				first: one row, so the hairlines frame the whole choice.
+			-->
+			<li class="px-3.5 py-2 text-body-sm">
+				<p class="flex flex-wrap items-baseline gap-x-1.5">
+					<span class="ref-suggestion font-medium">{choice.word}</span>
+					<span class="text-caption text-text-muted">
+						{choice.guess === null
+							? m.editor_reference_choice_waiting()
+							: m.editor_reference_choice_options({ count: choice.options.length })}
+					</span>
+				</p>
+				<ul class="mt-1 ml-1 list-none border-l-2 border-border">
+					{#each guessFirst(choice) as ref (ref.ingredientId)}
+						{@const view = refView(ref, entries)}
+						{@const label = refLabel(ref, entries)}
+						<li class="grid min-h-11 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 pl-3">
+							<span class={CELL}>
+								<span class="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+									<span class="font-medium"
+										>{ref.groupName ?? m.editor_reference_choice_no_group()}</span
+									>
+									{#if view.name !== choice.word}<span class="text-caption text-text-muted"
+											>{view.name}</span
+										>{/if}
+								</span>
+								<span class="text-caption whitespace-nowrap text-text-muted tabular-nums"
+									>{view.amount}</span
+								>
+							</span>
+							<span class={ACTIONS}>
+								<button
+									type="button"
+									onclick={() => act(() => onaccept(ref), m.editor_announce_accepted({ label }))}
+									aria-label={m.editor_reference_accept({ label })}
+									class="{ACTION} {ACCEPT}"
+								>
+									<Check class="size-4" aria-hidden="true" />
+								</button>
+							</span>
+						</li>
+					{/each}
+				</ul>
 			</li>
 		{/each}
 		{#each times as time (time.phrase)}
 			<li class={ROW}>
-				<span class="flex min-w-0 items-center gap-1.5">
-					<Timer class="size-3.5 shrink-0 text-time-foreground" aria-hidden="true" />
-					<span class="font-medium">{time.phrase}</span>
+				<span class={CELL}>
+					<span class="flex min-w-0 items-center gap-1.5">
+						<Timer class="size-3.5 shrink-0 text-time-foreground" aria-hidden="true" />
+						<span class="font-medium">{time.phrase}</span>
+					</span>
+					<span class="text-caption whitespace-nowrap text-text-muted tabular-nums"
+						>{formatDuration(time)}</span
+					>
 				</span>
-				<span class="text-caption text-text-muted tabular-nums">{formatDuration(time)}</span>
-				<button
-					type="button"
-					onclick={() => onremovetime(time.phrase)}
-					aria-label={m.editor_time_remove({ phrase: time.phrase })}
-					class="{ACTION} hover:text-destructive"
-				>
-					<X class="size-3.5" aria-hidden="true" />
-				</button>
+				<span class={ACTIONS}>
+					<button
+						type="button"
+						onclick={() =>
+							act(
+								() => onremovetime(time.phrase),
+								m.editor_announce_removed({ label: time.phrase })
+							)}
+						aria-label={m.editor_time_remove({ phrase: time.phrase })}
+						class="{ACTION} {REMOVE}"
+					>
+						<TimerOff class="size-4" aria-hidden="true" />
+					</button>
+				</span>
 			</li>
 		{/each}
 		{#each pendingTimes as time (time.phrase)}
-			<!-- A proposed time reads in the color of its dotted underline, like a proposed link. -->
+			<!-- A proposed time is marked as in the sentence: the dotted line under it. -->
 			<li class={ROW}>
-				<span class="flex min-w-0 items-center gap-1.5 text-time-foreground">
-					<Timer class="size-3.5 shrink-0" aria-hidden="true" />
-					<span class="font-medium">{time.phrase}</span>
+				<span class={CELL}>
+					<span class="flex min-w-0 items-center gap-1.5">
+						<Timer class="size-3.5 shrink-0 text-time-foreground" aria-hidden="true" />
+						<span class="time-proposal font-medium">{time.phrase}</span>
+					</span>
+					<span class="text-caption whitespace-nowrap text-text-muted tabular-nums"
+						>{formatDuration(time)}</span
+					>
 				</span>
-				<span class="text-caption text-time-foreground tabular-nums">{formatDuration(time)}</span>
-				<span class="flex">
+				<span class={ACTIONS}>
 					<button
 						type="button"
-						onclick={() => onaccepttime(time)}
+						onclick={() =>
+							act(() => onaccepttime(time), m.editor_announce_accepted({ label: time.phrase }))}
 						aria-label={m.editor_time_accept({ phrase: time.phrase })}
-						class="{ACTION} hover:text-primary"
+						class="{ACTION} {ACCEPT}"
 					>
-						<Check class="size-3.5" aria-hidden="true" />
-					</button>
-					<button
-						type="button"
-						onclick={() => ondismiss(time.phrase)}
-						aria-label={m.editor_time_dismiss({ phrase: time.phrase })}
-						class="{ACTION} hover:text-destructive"
-					>
-						<X class="size-3.5" aria-hidden="true" />
+						<Check class="size-4" aria-hidden="true" />
 					</button>
 				</span>
 			</li>
 		{/each}
 	</ul>
 {/if}
+
+<!-- What the list's last button did; the rows themselves go when they are acted on. -->
+<p role="status" class="sr-only">{said}</p>

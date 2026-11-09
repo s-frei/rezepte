@@ -38,7 +38,6 @@
 	import { applyDndAriaStrings } from '#lib/recipe/dnd.js';
 	import { takeDraft, type ImportedDraft } from '#lib/recipe/draft.js';
 	import { currentSection, isAtBottom, nextBand, stillPinned } from '#lib/recipe/section-spy.js';
-	import { acceptAll, type DismissedWords } from '#lib/recipe/step-references.js';
 	import { shell } from '#lib/shell.svelte.js';
 	import BasicsSection from './BasicsSection.svelte';
 	import EditingSection from './EditingSection.svelte';
@@ -85,13 +84,9 @@
 	// Files the images section has queued for a not-yet-created recipe; the
 	// `save` callback uploads them once the recipe exists.
 	let pendingFiles = $state<File[]>(untrack(() => (imported?.photo ? [imported.photo] : [])));
-	// An import's keywords that would be new tags; like `dismissed`, not part of
+	// An import's keywords that would be new tags; not part of
 	// `form`, since only the accepted ones are saved.
 	let suggestedTags = $state<string[]>(untrack(() => imported?.draft.suggestedTags ?? []));
-	// Proposals the author turned down, keyed by step id. Deliberately not part
-	// of `form`: turning one down changes nothing that is saved, so it must not
-	// make the form dirty, and it has no business surviving the page.
-	let dismissed = $state<DismissedWords>({});
 
 	// Not `$state`: they steer a navigation that is already under way, and
 	// nothing renders from them.
@@ -347,10 +342,9 @@
 			return;
 		}
 
-		// What the button's label promises: every proposal still on screen
-		// becomes a real reference, so the payload carries what the author saw.
-		acceptAll(form.steps, form.ingredientGroups, dismissed);
-
+		// Open proposals are not taken: only what the author accepted is
+		// linked, so nothing unreviewed reaches a cook. They come back as
+		// proposals the next time the recipe is edited.
 		saving = true;
 		try {
 			const recipe = await save(toInput(form), pendingFiles);
@@ -580,12 +574,7 @@
 						{errors.steps}
 					</p>
 				{/if}
-				<StepEditor
-					bind:steps={form.steps}
-					groups={form.ingredientGroups}
-					bind:dismissed
-					{errors}
-				/>
+				<StepEditor bind:steps={form.steps} groups={form.ingredientGroups} {errors} />
 			</section>
 
 			<section id="editor-section-editing" class={sectionCard}>

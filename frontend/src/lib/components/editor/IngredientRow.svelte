@@ -1,6 +1,7 @@
 <script lang="ts">
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Unlink from '@lucide/svelte/icons/unlink';
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle } from 'svelte-dnd-action';
 	import { m } from '#lib/paraglide/messages.js';
@@ -11,6 +12,7 @@
 		row = $bindable(),
 		quantityError = null,
 		nameError = null,
+		duplicate = false,
 		onenter,
 		onbackspace,
 		onremove
@@ -19,6 +21,8 @@
 		row: FormIngredient;
 		quantityError?: string | null;
 		nameError?: string | null;
+		/** The name occurs again in this group, so no step can link to the row. */
+		duplicate?: boolean;
 		/** Enter in the name or note field: add a row below and focus it. */
 		onenter: () => void;
 		/** Backspace in an otherwise empty row: remove it. */
@@ -33,6 +37,15 @@
 	const fieldClasses =
 		'h-11 w-full min-w-0 rounded-md border border-border bg-surface-elevated px-3 text-body outline-none transition placeholder:text-text-muted focus:border-primary md:h-10 md:text-body-sm';
 	const errorClasses = 'border-[1.5px] border-destructive';
+
+	const describedBy = $derived(
+		[
+			nameError && `ingredient-name-error-${row.id}`,
+			duplicate && `ingredient-name-duplicate-${row.id}`
+		]
+			.filter(Boolean)
+			.join(' ') || undefined
+	);
 
 	/** An edit is the member's answer to an import's "please check". */
 	function clearHint() {
@@ -103,7 +116,8 @@
 				aria-label={m.editor_ingredient_name()}
 				aria-invalid={nameError ? 'true' : undefined}
 				data-error-key="name:{row.id} ingredientGroups"
-				aria-describedby={nameError ? `ingredient-name-error-${row.id}` : undefined}
+				aria-describedby={describedBy}
+				data-name-of={row.id}
 				placeholder={m.editor_ingredient_name()}
 				class="{fieldClasses} order-first col-span-2 md:order-none md:col-span-1 {nameError
 					? errorClasses
@@ -148,6 +162,15 @@
 			class="mt-1 pl-5 text-micro font-medium text-destructive motion-safe:animate-error-in md:pl-7"
 		>
 			{nameError}
+		</p>
+	{/if}
+	{#if duplicate}
+		<p
+			id="ingredient-name-duplicate-{row.id}"
+			class="mt-1 flex items-center gap-1.5 pl-5 text-micro text-text-muted md:pl-7"
+		>
+			<Unlink class="size-3.5 shrink-0" aria-hidden="true" />
+			{m.editor_ingredient_duplicate()}
 		</p>
 	{/if}
 	{#if row.source !== undefined}

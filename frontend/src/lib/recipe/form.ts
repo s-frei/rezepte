@@ -11,6 +11,7 @@ import {
 import { m } from '#lib/paraglide/messages.js';
 import { getLocale } from '#lib/paraglide/runtime.js';
 import { wordPattern } from './references';
+import { findDuplicates } from './step-references';
 import { presentTimes } from './step-times';
 
 /**
@@ -332,13 +333,9 @@ function pointsAtDeletedRow(groups: FormGroup[], ref: FormRef): boolean {
 /**
  * The references whose word still stands in `text`.
  *
- * Editing a step never throws a link away: one whose word has been typed over
- * or cut stays on the step, only out of sight, so undoing the edit or pasting
- * the sentence back brings the link back with the word. The editor's history
- * covers the text alone, and a link removed on every keystroke would be gone
- * for good by the time Cmd+Z restored its word. What is out of sight is left
- * out of everything that counts - the chips, `validate` and the payload - so a
- * save never carries a link to a word the API cannot find.
+ * The step editor already drops a link with its word (`dropAbsent` in
+ * `step-doc.ts`, in the same undo step), so this is a guard: whatever reaches
+ * the chips, `validate` and the payload names a word the API can find.
  */
 export function presentReferences(refs: FormRef[], text: string): FormRef[] {
 	return refs.filter((ref) => wordPattern(ref.word).test(text));
@@ -463,8 +460,22 @@ export function validate(form: RecipeForm): FieldErrors {
 		errors.sourceUrl = m.editor_validation_source_url();
 	}
 
+	// Two groups by one name (two unnamed ones included) make every row in
+	// them unlinkable, and that is almost always a slip, so it stops the save.
+	// The same name twice inside one group does not: an import flattens
+	// "for the dough" and "for the crumble" into one group, and the editor
+	// only points those rows out. Each group's error goes in before its rows',
+	// so a save scrolls to whichever comes first on the page.
+	const clashes = findDuplicates(form.ingredientGroups).groups;
 	let namedRows = 0;
 	for (const group of form.ingredientGroups) {
+		const clash = clashes.get(group.id);
+		if (clash !== undefined) {
+			errors[`group:${group.id}`] =
+				clash === null
+					? m.editor_validation_group_unnamed_twice()
+					: m.editor_validation_group_duplicate({ name: clash });
+		}
 		for (const row of group.ingredients) {
 			if (!isFilledRow(row)) {
 				continue;
@@ -495,6 +506,11 @@ export function validate(form: RecipeForm): FieldErrors {
 	// Blank steps are skipped for the same reason `toInput` drops them: they
 	// are not submitted, so an error under one would block a save over
 	// something nobody is saving.
+	//
+	// A link into a row whose name its group now holds twice is caught the
+	// same way: the server could not tell the two apart and would refuse the
+	// whole save.
+	const repeated = findDuplicates(form.ingredientGroups).rows;
 	for (const step of form.steps) {
 		if (isBlank(step.text)) {
 			continue;
@@ -502,6 +518,8 @@ export function validate(form: RecipeForm): FieldErrors {
 		const present = presentReferences(step.references, step.text);
 		if (present.some((ref) => pointsAtDeletedRow(form.ingredientGroups, ref))) {
 			errors[`step:${step.id}`] = m.editor_validation_reference_deleted();
+		} else if (present.some((ref) => ref.ingredientId !== null && repeated.has(ref.ingredientId))) {
+			errors[`step:${step.id}`] = m.editor_validation_reference_duplicate();
 		}
 	}
 
@@ -604,7 +622,7 @@ function fieldRank(field: string): number {
 	if (index >= 0) {
 		return index;
 	}
-	if (field.startsWith('quantity:') || field.startsWith('name:')) {
+	if (field.startsWith('group:') || field.startsWith('quantity:') || field.startsWith('name:')) {
 		return FIELD_ORDER.indexOf('ingredientGroups');
 	}
 	if (field.startsWith('step:')) {
@@ -615,6 +633,9 @@ function fieldRank(field: string): number {
 
 /** The id of the element to focus/scroll to for a given error field. */
 export function anchorId(field: string): string {
+	if (field.startsWith('group:')) {
+		return `ingredient-group-name-${field.slice('group:'.length)}`;
+	}
 	if (field.startsWith('quantity:')) {
 		return `ingredient-quantity-${field.slice('quantity:'.length)}`;
 	}

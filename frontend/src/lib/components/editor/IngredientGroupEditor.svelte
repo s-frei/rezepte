@@ -13,6 +13,7 @@
 		type FormGroup,
 		type FormIngredient
 	} from '#lib/recipe/form.js';
+	import { findDuplicates } from '#lib/recipe/step-references.js';
 	import IngredientRow from './IngredientRow.svelte';
 	import { collapse, fresh, reveal } from './motion';
 
@@ -30,6 +31,45 @@
 	const toCheck = $derived(
 		groups.flatMap((g) => g.ingredients).filter((r) => r.source !== undefined).length
 	);
+
+	/**
+	 * The name field being typed in, with the name it had when it took focus.
+	 * A clash is shown only when it holds both with that name and with the
+	 * one typed so far: a second group on its way to "Klopse in Soße" passes
+	 * through "Klopse" without an error flashing at it, while typing a clash
+	 * away clears it at once. Leaving the field settles the name, and so does a
+	 * save: its errors (`group:<id>`) show even with the caret still inside.
+	 */
+	let editing = $state<{ id: string; name: string } | null>(null);
+
+	/** What clashes right now, the field being typed in included. */
+	const now = $derived(findDuplicates(groups));
+
+	const duplicates = $derived.by(() => {
+		const held = editing;
+		if (held === null) return now;
+		const name = (item: { id: string; name: string }) =>
+			item.id === held.id ? held.name : item.name;
+		const before = findDuplicates(
+			groups.map((group) => ({
+				...group,
+				name: name(group),
+				ingredients: group.ingredients.map((row) => ({ ...row, name: name(row) }))
+			}))
+		);
+		return {
+			groups: new Map([...now.groups].filter(([id]) => before.groups.has(id))),
+			rows: new Set([...now.rows].filter((id) => before.rows.has(id)))
+		};
+	});
+
+	/** Name fields carry `data-name-of` with the id of their group or row. */
+	function startEditing(event: FocusEvent) {
+		const field = event.target;
+		if (field instanceof HTMLInputElement && field.dataset.nameOf) {
+			editing = { id: field.dataset.nameOf, name: field.value };
+		}
+	}
 
 	/** Moves the caret into a freshly added row once it is in the DOM. */
 	async function focusRow(id: string) {
@@ -114,7 +154,7 @@
 	}
 </script>
 
-<div class="space-y-6">
+<div class="space-y-6" onfocusin={startEditing} onfocusout={() => (editing = null)}>
 	{#if toCheck > 0}
 		<p class="text-caption text-primary">
 			{toCheck === 1
@@ -123,6 +163,19 @@
 		</p>
 	{/if}
 	{#each groups as group, groupIndex (group.id)}
+		<!-- A save's error shows with the caret still in the field, but only
+		     while the clash it reports is there: fixed anywhere, it goes. -->
+		{@const clash =
+			now.groups.has(group.id) &&
+			(duplicates.groups.has(group.id) || errors[`group:${group.id}`] !== undefined)
+				? now.groups.get(group.id)
+				: undefined}
+		{@const groupError =
+			clash === undefined
+				? null
+				: clash === null
+					? m.editor_validation_group_unnamed_twice()
+					: m.editor_validation_group_duplicate({ name: clash })}
 		<div
 			id="ingredient-group-{group.id}"
 			in:reveal={{ fresh: fresh.has(group.id) }}
@@ -136,13 +189,34 @@
 			-->
 			<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 				<input
+					id="ingredient-group-name-{group.id}"
 					bind:value={group.name}
 					type="text"
 					autocomplete="off"
 					aria-label={m.editor_ingredient_group_rename()}
+					aria-invalid={groupError ? 'true' : undefined}
+					aria-describedby={groupError ? `ingredient-group-error-${group.id}` : undefined}
+					data-name-of={group.id}
+					data-error-key="group:{group.id}"
 					placeholder={m.editor_group_name_placeholder()}
-					class="w-full min-w-0 border-b border-transparent bg-transparent pb-1 font-display text-body-lg font-medium text-primary italic transition outline-none placeholder:text-text-muted placeholder:not-italic focus:border-border md:w-auto md:flex-1"
+					class="w-full min-w-0 border-b {groupError
+						? 'border-destructive focus:border-destructive'
+						: 'border-transparent focus:border-border'} bg-transparent pb-1 font-display text-body-lg font-medium text-primary italic transition outline-none placeholder:text-text-muted placeholder:not-italic md:w-auto md:flex-1"
 				/>
+				<!-- Under the field on phones, where it has the line to itself;
+				     after the count and "Entfernen" on desktop, so the row
+				     above keeps its single line. -->
+				<!-- Said as it appears: it shows once the field is left, where a
+				     description of that field is no longer read. -->
+				<p class="sr-only" aria-live="polite">{groupError ?? ''}</p>
+				{#if groupError}
+					<p
+						id="ingredient-group-error-{group.id}"
+						class="w-full text-micro font-medium text-destructive motion-safe:animate-error-in md:order-last"
+					>
+						{groupError}
+					</p>
+				{/if}
 				<!-- The catalog has no plural variants, so the singular is its
 				     own message rather than "1 ingredients". -->
 				<span class="shrink-0 text-caption text-text-muted">
@@ -193,6 +267,7 @@
 							bind:row={group.ingredients[rowIndex]}
 							quantityError={errors[`quantity:${row.id}`] ?? null}
 							nameError={errors[`name:${row.id}`] ?? null}
+							duplicate={duplicates.rows.has(row.id)}
 							onenter={() => addRow(group, rowIndex + 1)}
 							onbackspace={() => collapseRow(group, rowIndex)}
 							onremove={() => removeRow(group, rowIndex)}

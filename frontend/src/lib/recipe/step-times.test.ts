@@ -19,12 +19,11 @@ const step = (text: string, times = [] as FormStep['times']): FormStep => ({
 });
 
 describe('pendingTimes', () => {
-	test('suggests what is not stored or dismissed', () => {
+	test('suggests what is not stored', () => {
 		const s = step('20 Minuten ruhen, dann 1 Stunde kühlen.', [
 			{ phrase: '20 Minuten', seconds: 1200 }
 		]);
 		expect(pendingTimes(s).map((t) => t.phrase)).toEqual(['1 Stunde']);
-		expect(pendingTimes(s, ['1 Stunde'])).toEqual([]);
 	});
 
 	test('yields each phrase once, so a keyed list never repeats a key', () => {

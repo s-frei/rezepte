@@ -33,6 +33,17 @@ export function firstWordMatch(text: string, word: string): { from: number; to: 
 }
 
 /**
+ * Every occurrence of `word` after the first. Only the first carries a
+ * reference and its quantity; the editor draws these fainter, so the author
+ * sees the word is known without reading it as a second amount.
+ */
+export function laterWordMatches(text: string, word: string): { from: number; to: number }[] {
+	const pattern = wordPattern(word);
+	const all = [...text.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))];
+	return all.slice(1).map((match) => ({ from: match.index, to: match.index + match[0].length }));
+}
+
+/**
  * Whether one character is part of a word, by the very class `wordPattern`
  * draws its boundaries with. Exported for the editor, which grows a selection
  * out to whole words before anchoring a reference to it: a word that ended
@@ -169,8 +180,9 @@ function head(name: string): string {
  * `NOT_INGREDIENTS` - that list exists solely to stop the compound-overlap
  * branch from proposing an intermediate product or a cooking medium. When a
  * name is ambiguous within the recipe (the same ingredient name in two
- * groups), this stays silent - that is precisely the case only the author
- * can decide.
+ * groups), this proposes nothing - that is precisely the case only the author
+ * can decide, so `matchStep` reports the word with its candidates instead and
+ * the editor puts them side by side.
  *
  * A row in a group the service cannot single out is never proposed either.
  * `findGroup` in `service/internal/recipe/references.go` refuses a reference
@@ -181,6 +193,27 @@ function head(name: string): string {
  * quietly resolving to whichever of the two happens to be saveable.
  */
 export function suggestReferences(text: string, groups: IngredientGroup[]): IngredientRef[] {
+	return matchStep(text, groups).refs;
+}
+
+/** A word that names the same ingredient in more than one group. */
+export type AmbiguousWord = {
+	word: string;
+	candidates: { groupName: string | null; ingredientName: string }[];
+};
+
+/**
+ * The matcher's whole answer for a step: the proposals `suggestReferences`
+ * returns, and the words it stays silent on because they name an ingredient
+ * in several groups. Those only the author can decide, so the editor offers
+ * the candidates side by side instead of guessing one into a proposal; an
+ * ambiguity touching a group the service cannot single out is left out, as
+ * a proposal into one would be.
+ */
+export function matchStep(
+	text: string,
+	groups: IngredientGroup[]
+): { refs: IngredientRef[]; ambiguous: AmbiguousWord[] } {
 	const groupCount = new Map<string, number>();
 	for (const g of groups) {
 		const key = g.name ?? '';
@@ -194,6 +227,7 @@ export function suggestReferences(text: string, groups: IngredientGroup[]): Ingr
 		}))
 	);
 	const out: IngredientRef[] = [];
+	const ambiguous: AmbiguousWord[] = [];
 	const taken = new Set<string>();
 
 	for (const found of text.matchAll(new RegExp(`[${WORD_CHAR_CLASS}]+`, 'gu'))) {
@@ -209,7 +243,15 @@ export function suggestReferences(text: string, groups: IngredientGroup[]): Ingr
 				taken.add(word);
 				out.push({ word, groupName: exact[0].group, ingredientName: exact[0].name });
 			}
-			// exact.length > 1: the name is ambiguous in this recipe - stay silent.
+			// exact.length > 1: the name is ambiguous in this recipe - no
+			// proposal, but the author is offered the candidates.
+			if (exact.length > 1 && exact.every((e) => e.usable) && !taken.has(word)) {
+				taken.add(word);
+				ambiguous.push({
+					word,
+					candidates: exact.map((e) => ({ groupName: e.group, ingredientName: e.name }))
+				});
+			}
 			continue;
 		}
 
@@ -233,5 +275,5 @@ export function suggestReferences(text: string, groups: IngredientGroup[]): Ingr
 		taken.add(word);
 		out.push({ word, groupName: compound[0].group, ingredientName: compound[0].name });
 	}
-	return out;
+	return { refs: out, ambiguous };
 }

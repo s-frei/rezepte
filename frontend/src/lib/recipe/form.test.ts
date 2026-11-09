@@ -548,6 +548,19 @@ describe('a reference whose word has been edited away', () => {
 	});
 });
 
+describe('a reference into a row whose name its group holds twice', () => {
+	it('is reported by validate against the step it sits in', () => {
+		// The server could not tell the two rows apart and would refuse the
+		// whole save; the step says why first.
+		const form = fromRecipe(ambiguousInput());
+		const twin = { ...newIngredient(), quantity: '1', unit: 'EL', name: 'Zucker' };
+		form.ingredientGroups[1].ingredients.push(twin);
+		expect(validate(form)[`step:${form.steps[0].id}`]).toBe(
+			'This link points at an ingredient whose name is in its group twice'
+		);
+	});
+});
+
 describe('a reference whose row is deleted while the recipe is open', () => {
 	/** Deletes the custard and gives its name to the compote. */
 	function stealTheName(form: RecipeForm): RecipeForm {
@@ -629,6 +642,30 @@ describe('a reference whose row is deleted while the recipe is open', () => {
 describe('validate', () => {
 	it('accepts a complete form', () => {
 		expect(validate(validForm())).toEqual({});
+	});
+
+	it('stops a save over two groups of one name, not over one name twice in a group', () => {
+		const ing = (id: string, name: string) => ({ id, quantity: '1', unit: '', name, note: '' });
+		const form = validForm({
+			ingredientGroups: [
+				{ id: 'a', name: 'Teig', ingredients: [ing('a1', 'Zucker'), ing('a2', 'Zucker')] },
+				{ id: 'b', name: 'Teig', ingredients: [ing('b1', 'Mehl')] }
+			]
+		});
+		const errors = validate(form);
+		expect(errors).toEqual({
+			'group:b': 'Same name as the group “Teig” above. Give it a name of its own.'
+		});
+		expect(firstErrorField({ title: 'x', 'group:b': 'y' })).toBe('title');
+		// A row error further down never wins over the clash above it.
+		const below = validForm({
+			ingredientGroups: [
+				...form.ingredientGroups,
+				{ id: 'c', name: 'Guss', ingredients: [{ ...ing('c1', 'Milch'), quantity: 'viel' }] }
+			]
+		});
+		expect(firstErrorField(validate(below))).toBe('group:b');
+		expect(anchorId('group:b')).toBe('ingredient-group-name-b');
 	});
 
 	it('requires a title', () => {

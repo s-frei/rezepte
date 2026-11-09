@@ -615,6 +615,35 @@ export async function selectInStep(step: Locator, word: string, what: 'word' | '
 }
 
 /**
+ * Whether the step editor has the phone's layout: below `md` a marked word's
+ * card is a bottom sheet that a tap opens, never a card at the caret.
+ */
+export async function phoneLayout(page: Page): Promise<boolean> {
+	return page.evaluate(() => !matchMedia('(min-width: 48rem)').matches);
+}
+
+/**
+ * Opens the card of the marked `word` in `step` the way the layout does: a
+ * tap on a phone, which gets a sheet (a dialog), elsewhere the caret put
+ * strictly inside the word at `inside`, which gets a card (a group). Returns
+ * the card, found by its accessible `name`.
+ */
+export async function openWordCard(
+	page: Page,
+	step: Locator,
+	word: string,
+	inside: string,
+	name: string
+): Promise<Locator> {
+	if (await phoneLayout(page)) {
+		await step.locator(`[data-ref-word="${word}"]`).tap();
+		return page.getByRole('dialog', { name });
+	}
+	await selectInStep(step, inside, 'caret');
+	return page.getByRole('group', { name });
+}
+
+/**
  * Holds a finger on `target` for 1.2s through Chrome's own gesture pipeline,
  * so its long-press fires (selection, context menu) as on a phone. Raw
  * `Input.dispatchTouchEvent` sequences never trigger it. Returns what got

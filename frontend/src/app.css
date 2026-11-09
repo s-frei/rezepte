@@ -1027,6 +1027,34 @@ button:not(:disabled),
 	border-bottom: 2px dotted var(--color-primary);
 }
 
+/* A linked or proposed word's later occurrences: recognized, but the quantity
+ * stays with the first one, so the line is thin and faint. */
+.ref-repeat {
+	border-bottom: 1px dotted var(--color-text-muted);
+}
+
+/* A marked word or time never breaks across lines: a time split as "15" at
+   a line's end and "Minuten" on the next read as two, and its underline or
+   frame broke with it. `pre` keeps the spaces the editor's `pre-wrap` keeps,
+   and the whole mark moves to the next line when it does not fit. In the
+   editor only: the list under a step wraps a long name as it must. */
+.step-editable
+	:is(.ref-confirmed, .ref-broken, .ref-suggestion, .ref-repeat, .time-link, .time-proposal) {
+	white-space: pre;
+}
+
+/* The word a phone's sheet is about, among the other marks of its step:
+   framed in its own color, so the fourth "Salz" reads as the one in hand. */
+.ref-active {
+	border-radius: var(--radius-word);
+	box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.time-link.ref-active,
+.time-proposal.ref-active {
+	box-shadow: 0 0 0 2px var(--color-time-foreground);
+}
+
 /*
  * A step's durations, drawn the same two ways in their own color: a stored
  * time solid, a proposal dotted.

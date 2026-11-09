@@ -85,6 +85,10 @@ Check it at 360px, with the longest realistic value of whatever the change adds 
 
 Layout variants are compared on the real page too: inject each one into the running demo with `page.evaluate` in a [probe](#running-a-probe) and screenshot it at 1280px, 360px and 320px. A mockup built by hand misses the app's own type and spacing, and with them the phone breakage the comparison is for.
 
+## Scrollbars are hidden in screenshots
+
+Playwright starts Chromium with `--hide-scrollbars`, so no probe screenshot shows a scrollbar, and a macOS headless run shows only thin overlay ones even without that flag. A scrollbar that takes room - Windows, or macOS set to always show them - is what runs square over a rounded popup's border when the element that scrolls is not the one that rounds. For anything that scrolls inside a rounded frame, launch with `ignoreDefaultArgs: ['--hide-scrollbars']` and force a wide one in the page: `* { scrollbar-color: auto !important; scrollbar-width: auto !important } ::-webkit-scrollbar { width: 15px; background: red }` (the app's own `scrollbar-color` otherwise wins over `::-webkit-scrollbar`). The fix that holds: the frame clips (`overflow-hidden` with its radius), and the body inside it scrolls.
+
 ## A test that has never run is not a test
 
 Run a suite the moment you write it. A test that has never executed is not evidence of anything - it asserts against the UI its author imagined, and the first real run is where you find out. When a locator and the app disagree, establish which of the two is wrong before "fixing" either; a green suite bought by loosening a locator tests nothing.

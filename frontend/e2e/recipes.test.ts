@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import type { Editor } from '@tiptap/core';
 import {
 	createRecipe,
 	createUser,
@@ -8,6 +9,8 @@ import {
 	openRecipeMenu,
 	search,
 	searchField,
+	openWordCard,
+	phoneLayout,
 	selectInStep,
 	signOut,
 	tinyPng,
@@ -1282,10 +1285,10 @@ test('accepts the matcher’s ingredient links and leaves the text as written', 
 	expect(await step.innerText()).toBe(REFERENCE_STEP);
 
 	// One proposal: "Saft". "Zucker" is not proposed, because it names a row in
-	// two groups and only the author can say which one is meant. The banner
-	// beside the proposals is what says a save will take them; the save button
-	// itself stays a plain "Save".
-	const banner = page.getByText('Saving accepts 1 suggestion');
+	// two groups and only the author can say which one is meant. The row above
+	// the steps counts what is open; a save takes none of it, and the save
+	// button stays a plain "Save".
+	const banner = page.getByText('1 suggestion open');
 	await expect(banner).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveText('Save');
 
@@ -1294,7 +1297,10 @@ test('accepts the matcher’s ingredient links and leaves the text as written', 
 	const marked = page.locator('[data-ref-word="Saft"]');
 	await expect(marked).toHaveClass('ref-suggestion');
 
-	await page.getByRole('button', { name: 'Accept now' }).click();
+	// Only the row's circle takes them all; its label is no button.
+	await banner.click();
+	await expect(marked).toHaveClass('ref-suggestion');
+	await page.getByRole('button', { name: 'Accept all' }).click();
 	// Accepting runs no keystroke through the editor, so the underline only
 	// turns solid if the state change is pushed into ProseMirror. This is the
 	// assertion that holds that bridge in place.
@@ -1339,8 +1345,10 @@ test('links the right one of two same-named ingredients with the @ picker', asyn
 	// the ambiguity decidable at the moment of choosing.
 	const picker = page.getByRole('listbox', { name: 'Link ingredient' });
 	await expect(picker.getByRole('option')).toHaveCount(2);
-	await expect(picker.getByRole('option').first()).toHaveText('Zucker · 100 g · Grütze');
-	await expect(picker.getByRole('option').last()).toHaveText('Zucker · 50 g · Vanillesoße');
+	await expect(picker.getByRole('option').first()).toHaveAccessibleName('Zucker · 100 g · Grütze');
+	await expect(picker.getByRole('option').last()).toHaveAccessibleName(
+		'Zucker · 50 g · Vanillesoße'
+	);
 
 	// Take the second one, the 50 g from the custard.
 	await page.keyboard.press('ArrowDown');
@@ -1348,6 +1356,16 @@ test('links the right one of two same-named ingredients with the @ picker', asyn
 	// The plain word lands in the text; nothing else does.
 	expect(await step.innerText()).toBe('Alles verrühren. Saft dazugeben. Zucker');
 	await showLinks(page);
+	await expect(
+		page.getByRole('button', { name: 'Remove link "Zucker · 50 g · Vanillesoße"' })
+	).toBeVisible();
+
+	// The pick is one undo step: the word and its link go together, and come back together.
+	await selectInStep(step, 'Saft', 'caret');
+	await page.keyboard.press('ControlOrMeta+z');
+	expect(await step.innerText()).not.toContain('Zucker');
+	await page.keyboard.press('ControlOrMeta+Shift+z');
+	expect(await step.innerText()).toBe('Alles verrühren. Saft dazugeben. Zucker');
 	await expect(
 		page.getByRole('button', { name: 'Remove link "Zucker · 50 g · Vanillesoße"' })
 	).toBeVisible();
@@ -1414,6 +1432,71 @@ test('offers every ingredient in the @ picker and scrolls to the row the arrows 
 	await expect(picker.getByRole('option', { name: 'Zutat 12' })).toBeInViewport();
 });
 
+test('points out a repeated name once its field is left, and stops a save over two groups of one name', async ({
+	page
+}) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Kuchen ${token}`,
+		ingredientGroups: [
+			{
+				name: 'Teig',
+				ingredients: [
+					{ quantity: 100, unit: 'g', name: 'Zucker', note: null },
+					{ quantity: 200, unit: 'g', name: 'Mehl', note: null }
+				]
+			},
+			{ name: 'Streusel', ingredients: [{ quantity: 80, unit: 'g', name: 'Butter', note: null }] }
+		],
+		steps: [{ text: 'Alles verrühren.', references: [], times: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const groupName = page.getByRole('textbox', { name: 'Rename group' }).last();
+	// The visible line; a live region beside it says the same to a screen reader.
+	const groupError = page.locator('[id^="ingredient-group-error-"]', {
+		hasText: 'Same name as the group “Teig” above. Give it a name of its own.'
+	});
+
+	// Nothing while the name is being typed, even when it passes a clash.
+	await groupName.fill('');
+	await groupName.pressSequentially('Teig');
+	await expect(groupError).toHaveCount(0);
+	await page.getByRole('textbox', { name: 'Title' }).click();
+	await expect(groupError).toBeVisible();
+	await expect(groupName).toHaveAttribute('aria-invalid', 'true');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(groupName).toBeFocused();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}/edit`);
+
+	// Renaming the other group fixes the clash as well, and the error the
+	// save left behind goes with it.
+	const firstName = page.getByRole('textbox', { name: 'Rename group' }).first();
+	await firstName.fill('Boden');
+	await expect(groupError).toHaveCount(0);
+	await firstName.fill('Teig');
+	await page.getByRole('textbox', { name: 'Title' }).click();
+	await expect(groupError).toBeVisible();
+
+	// Typing the clash away clears it without leaving the field.
+	await groupName.click();
+	await groupName.press('End');
+	await groupName.pressSequentially(' oben');
+	await expect(groupError).toHaveCount(0);
+
+	// The same name twice in one group is pointed out at both rows, and saves.
+	const hint = page.getByText("Duplicate – can't be linked");
+	await page.locator('input[id^="ingredient-name-"]').nth(1).fill('Zucker');
+	await expect(hint).toHaveCount(0);
+	await page.getByRole('textbox', { name: 'Title' }).click();
+	await expect(hint).toHaveCount(2);
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+});
+
 test('closes the @ picker on a press outside it, and a fresh @ opens it again', async ({
 	page
 }) => {
@@ -1470,21 +1553,30 @@ test('shows a link in a card at its word, and folds the list away', async ({ pag
 	});
 	await expect(remove).toHaveCount(0);
 
-	// The caret in the word brings up the card: what the word points at, and
-	// without the group - "Saft" is in one group only, so it would say nothing.
-	await page.locator('[data-ref-word="Saft"]').click();
-	const card = page.getByRole('group', { name: 'Link for "Saft"' });
+	// The caret in the word brings up the card (a tap, the sheet, on a phone):
+	// what the word points at, and without the group - "Saft" is in one group
+	// only, so it would say nothing.
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	const card = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
 	await expect(card).toContainText('Saft');
 	await expect(card).toContainText('400 ml');
 	await expect(card).not.toContainText('Grütze');
 
-	// Taking the link off there takes it off for good, and the caret stays in
-	// the step.
+	// Taking the link off there makes the word a proposal again. At the caret
+	// the card turns into the proposal's and the caret stays in the step; a
+	// phone's sheet closes. A save takes no proposal, so it stays off.
 	await card.getByRole('button', { name: 'Remove' }).click();
-	await expect(card).toHaveCount(0);
-	await expect(page.locator('[data-ref-word="Saft"]')).toHaveCount(0);
-	await expect(summary).toHaveCount(0);
-	await expect(page.getByRole('textbox', { name: 'Step 1', exact: true })).toBeFocused();
+	await expect(page.locator('[data-ref-word="Saft"]')).toHaveClass('ref-suggestion');
+	await expect(page.getByRole('button', { name: '1 suggestion', exact: true })).toBeVisible();
+	if (await phoneLayout(page)) {
+		await expect(card).toHaveCount(0);
+	} else {
+		await expect(card.getByRole('button', { name: 'Accept' })).toBeVisible();
+		await expect(step).toBeFocused();
+	}
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	await expect(page.getByText('(400 ml)', { exact: true })).toHaveCount(0);
 });
 
 test('takes a proposal from the card at its word', async ({ page }) => {
@@ -1498,16 +1590,221 @@ test('takes a proposal from the card at its word', async ({ page }) => {
 	await page.goto(`/recipes/${recipe.slug}/edit`);
 	const marked = page.locator('[data-ref-word="Saft"]');
 	await expect(marked).toHaveClass('ref-suggestion');
-	await expect(page.getByRole('button', { name: '1 suggestion' })).toBeVisible();
+	await expect(page.getByRole('button', { name: '1 suggestion', exact: true })).toBeVisible();
 
-	await marked.click();
-	const card = page.getByRole('group', { name: 'Link for "Saft"' });
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	const card = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+	// A phone's tap takes the keyboard away: the sheet needs the room.
+	if (await phoneLayout(page)) await expect(step).not.toBeFocused();
 	await card.getByRole('button', { name: 'Accept' }).click();
 
-	// The same card now shows the link it has become.
+	// The card closes with the accept; back on the word, it shows the link.
 	await expect(marked).toHaveClass('ref-confirmed');
-	await expect(card.getByRole('button', { name: 'Change' })).toBeVisible();
+	await expect(card).toHaveCount(0);
+	await selectInStep(step, 'aufkochen', 'caret');
+	const again = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+	await expect(again.getByRole('button', { name: 'Change' })).toBeVisible();
+
+	const caretAt = () =>
+		step.evaluate(
+			(field) => (field as HTMLElement & { editor: Editor }).editor.state.selection.from
+		);
+	if (await phoneLayout(page)) {
+		// The sheet's keyboard button goes back to writing, the caret at the
+		// end of the word ("Den Saft" ends at 9, the paragraph opening at 0).
+		await again.getByRole('button', { name: 'Edit the word' }).click();
+		await expect(again).toHaveCount(0);
+		await expect(step).toBeFocused();
+		expect(await caretAt()).toBe(9);
+		// A caret in the word opens nothing on a phone: only a tap does.
+		await selectInStep(step, 'aft', 'caret');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+		await expect(page.getByRole('group', { name: 'Link for "Saft"' })).toHaveCount(0);
+		// The step stays bright under the dim and takes a tap, which closes the
+		// sheet and writes where it landed.
+		const third = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+		await step.tap({ position: { x: 8, y: 8 } });
+		await expect(third).toHaveCount(0);
+		await expect(step).toBeFocused();
+		expect(await caretAt()).toBe(1);
+	} else {
+		// Escape closes the card at the caret, until the caret moves.
+		await page.keyboard.press('Escape');
+		await expect(again).toHaveCount(0);
+		await selectInStep(step, 'aufkochen', 'caret');
+		await selectInStep(step, 'aft', 'caret');
+		await expect(again).toBeVisible();
+	}
 	await expect(page.getByRole('button', { name: '1 linked' })).toBeVisible();
+});
+
+test('offers every group of a name that occurs in two, guessing from the sentence', async ({
+	page
+}) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Klopse ${token}`,
+		ingredientGroups: [
+			{
+				name: 'Klopse',
+				ingredients: [
+					{ quantity: 500, unit: 'g', name: 'Hackfleisch', note: null },
+					{ quantity: 1, unit: 'TL', name: 'Salz', note: null }
+				]
+			},
+			{
+				name: 'Kapernsauce',
+				ingredients: [
+					{ quantity: 200, unit: 'ml', name: 'Sahne', note: null },
+					{ quantity: 1, unit: 'Prise', name: 'Salz', note: null }
+				]
+			}
+		],
+		steps: [
+			{ text: 'Mit Sahne verrühren und mit Salz abschmecken.', references: [], times: [] },
+			{ text: 'Mit Salz würzen.', references: [], times: [] }
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const first = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	const second = page.getByRole('textbox', { name: 'Step 2', exact: true });
+	await expect(first.locator('[data-ref-word="Salz"]')).toHaveClass('ref-suggestion');
+	await expect(second.locator('[data-ref-word="Salz"]')).toHaveClass('ref-suggestion');
+
+	// Step 1's other ingredient comes from the sauce, so that is the guess and
+	// "Accept all" would take it; step 2 gives nothing away and waits.
+	await expect(page.getByText('2 suggestions open')).toBeVisible();
+	await expect(page.getByText('"Salz" in step 2 is waiting for your choice')).toBeVisible();
+
+	const card = await openWordCard(page, first, 'Salz', 'al', 'Link for "Salz"');
+	const options = card.getByRole('radio');
+	await expect(options).toHaveText([/Kapernsauce.*goes with Sahne/, /Klopse/]);
+	// The guess is picked already; a tap only picks, "Accept" links.
+	await expect(card.getByRole('radio', { name: 'Salz · 1 Prise · Kapernsauce' })).toBeChecked();
+
+	// The author knows better: the meatballs' salt.
+	await card.getByRole('radio', { name: 'Salz · 1 TL · Klopse' }).click();
+	await expect(first.locator('[data-ref-word="Salz"]')).toHaveClass(/\bref-suggestion\b/);
+	// On a phone the word the sheet is about is framed in the step.
+	if (await phoneLayout(page)) {
+		await expect(first.locator('[data-ref-word="Salz"]')).toHaveClass(/\bref-active\b/);
+		await expect(second.locator('[data-ref-word="Salz"]')).not.toHaveClass(/\bref-active\b/);
+	}
+	await card.getByRole('button', { name: 'Accept', exact: true }).click();
+	await expect(first.locator('[data-ref-word="Salz"]')).toHaveClass('ref-confirmed');
+
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
+	// Linked as chosen; the waiting word in step 2 stayed a plain word.
+	await expect(page.getByText('(1 TL)', { exact: true })).toHaveCount(1);
+	await expect(page.getByText('(1 Prise)', { exact: true })).toHaveCount(0);
+});
+
+test('names ingredient and group in the choice, and explains a repeated word', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Brot ${token}`,
+		ingredientGroups: [
+			{
+				name: 'Teig',
+				ingredients: [
+					{ quantity: 1, unit: 'TL', name: 'feines Salz', note: null },
+					{ quantity: 1, unit: 'EL', name: 'grobes Salz', note: null },
+					{ quantity: 250, unit: 'g', name: 'Quark', note: null }
+				]
+			}
+		],
+		steps: [
+			{ text: 'Mit Salz würzen.', references: [], times: [] },
+			{ text: 'Quark verrühren. Den Quark kühlen.', references: [], times: [] }
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	// The head noun matched two rows of one group: the card names each.
+	const card = await openWordCard(
+		page,
+		page.getByRole('textbox', { name: 'Step 1', exact: true }),
+		'Salz',
+		'al',
+		'Link for "Salz"'
+	);
+	await expect(card.getByText('2 options')).toBeVisible();
+	// They share the group, so the ingredient is what each row is titled by,
+	// and with no guess "Accept" waits for a pick.
+	await expect(card.getByRole('radio')).toHaveText([/feines Salz.*Teig/, /grobes Salz.*Teig/]);
+	await expect(card.getByRole('button', { name: 'Accept', exact: true })).toBeDisabled();
+
+	// Only the first "Quark" is linked; the second is drawn faintly and says why.
+	const second = page.getByRole('textbox', { name: 'Step 2', exact: true });
+	await expect(second.locator('[data-ref-word="Quark"]')).toHaveClass('ref-suggestion');
+	await expect(second.locator('.ref-repeat')).toHaveText('Quark');
+	const repeat = 'Only the first "Quark" in a step is linked; the quantity shows there.';
+	if (await phoneLayout(page)) {
+		// On a phone a tap on it opens the same note as a sheet, once the
+		// choice's sheet is closed by its handle.
+		await card.getByRole('button', { name: 'Close' }).click();
+		await second.locator('.ref-repeat').tap();
+		await expect(page.getByRole('dialog', { name: 'Link for "Quark"' })).toContainText(repeat);
+		return;
+	}
+	await second.evaluate((field) => {
+		const { editor } = field as HTMLElement & {
+			editor: {
+				chain: () => { focus: () => { setTextSelection: (at: number) => { run: () => void } } };
+			};
+		};
+		const at = (field.textContent ?? '').lastIndexOf('Quark') + 2;
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(at + 1)
+			.run();
+	});
+	await expect(page.getByRole('group', { name: 'Link for "Quark"' })).toContainText(repeat);
+	// "Link word" there would quietly re-link the first one, so it says so instead.
+	await page.getByRole('button', { name: 'Link word' }).click();
+	await expect(page.getByRole('listbox', { name: 'Link ingredient' })).toHaveCount(0);
+	await expect(page.getByRole('status').filter({ hasText: repeat })).toHaveCount(1);
+});
+
+test('lists a choice with an accept per group, and says what a list button did', async ({
+	page
+}) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Liste ${token}`,
+		ingredientGroups: [
+			{ name: 'Teig', ingredients: [{ quantity: 1, unit: 'TL', name: 'Salz', note: null }] },
+			{ name: 'Guss', ingredients: [{ quantity: 1, unit: 'Prise', name: 'Salz', note: null }] }
+		],
+		steps: [{ text: 'Mit Salz abschmecken.', references: [], times: [] }]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	// Nothing in the sentence points at a group: the line counts it as waiting.
+	const summary = page.getByRole('button', { name: '1 waiting' });
+	await expect(summary).toBeVisible();
+	await summary.click();
+
+	// The word once, then each group with its own "Accept"; nothing to dismiss.
+	const list = page.getByRole('list', { name: 'Linked ingredients' });
+	await expect(list.getByRole('button', { name: /^Dismiss/ })).toHaveCount(0);
+	await expect(list.getByRole('button', { name: /^Accept/ })).toHaveCount(2);
+
+	await list.getByRole('button', { name: 'Accept "Salz · 1 Prise · Guss"' }).click();
+	await expect(
+		page.getByRole('status').filter({ hasText: 'Accepted: Salz · 1 Prise · Guss' })
+	).toHaveCount(1);
+	// The row went; focus did not fall to the page but stayed in the list,
+	// on the button now in its place - here the new link's.
+	await expect(
+		list.getByRole('button', { name: 'Remove link "Salz · 1 Prise · Guss"' })
+	).toBeFocused();
 });
 
 test('brings a link back when the edit that removed its word is undone', async ({ page }) => {
@@ -1530,13 +1827,12 @@ test('brings a link back when the edit that removed its word is undone', async (
 	await showLinks(page);
 	await expect(chip).toBeVisible();
 
-	// The word goes, and the link is out of sight with it...
+	// The word goes, and its link with it, in one undo step...
 	await selectWord(step, 'Saft');
 	await page.keyboard.press('Backspace');
 	await expect(chip).toHaveCount(0);
 
-	// ...but not gone: the editor's history holds only the text, and the link
-	// comes back with the word it belongs to.
+	// ...so Cmd+Z brings back the word and the link it carried.
 	await page.keyboard.press('ControlOrMeta+z');
 	expect(await step.innerText()).toBe('Den Saft aufkochen.');
 	await showLinks(page);
@@ -1546,6 +1842,54 @@ test('brings a link back when the edit that removed its word is undone', async (
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 	await expect(page.getByText('(400 ml)', { exact: true })).toBeVisible();
+});
+
+test('ends a link with its word, and undoes link actions', async ({ page }) => {
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Regeln ${token}`,
+		steps: [
+			{
+				text: 'Den Saft aufkochen.',
+				references: [{ word: 'Saft', groupName: 'Grütze', ingredientName: 'Saft' }],
+				times: []
+			}
+		]
+	});
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
+	const saft = page.locator('[data-ref-word="Saft"]');
+	await expect(saft).toHaveClass('ref-confirmed');
+
+	// Deleted and typed again, the word is new: proposed, never linked by itself.
+	await selectWord(step, 'Saft');
+	await page.keyboard.press('Backspace');
+	await page.keyboard.type('Saft');
+	await expect(saft).toHaveClass('ref-suggestion');
+
+	// Accepting is an undo step of its own. The caret is put in the word
+	// rather than clicked there: clicks this quick on one spot would add up
+	// to a triple click, which selects the whole step.
+	const card = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+	await card.getByRole('button', { name: 'Accept', exact: true }).click();
+	await expect(saft).toHaveClass('ref-confirmed');
+	// Undo is the step's: back in it first, which a phone's sheet left.
+	await selectInStep(step, 'aufkochen', 'caret');
+	await page.keyboard.press('ControlOrMeta+z');
+	await expect(saft).toHaveClass('ref-suggestion');
+	expect(await step.innerText()).toBe('Den Saft aufkochen.');
+
+	// "Dismiss" only closes the card: the word stays proposed, as if the
+	// recipe were opened again, and the card is back once the caret returns.
+	const dismissed = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+	await dismissed.getByRole('button', { name: 'Dismiss', exact: true }).click();
+	await expect(dismissed).toHaveCount(0);
+	await expect(saft).toHaveClass('ref-suggestion');
+	await selectInStep(step, 'aufkochen', 'caret');
+	const back = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+	await expect(back.getByRole('button', { name: 'Accept', exact: true })).toBeVisible();
 });
 
 test('saves a step whose linked word was deleted, without the link', async ({ page }) => {
@@ -1567,8 +1911,7 @@ test('saves a step whose linked word was deleted, without the link', async ({ pa
 	await selectWord(step, 'Saft');
 	await page.keyboard.type('Sud');
 
-	// The link stayed on the step while the word was gone; the save leaves it
-	// out instead of sending a word the API cannot find.
+	// Replacing the word ends its link; the save sends none.
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 	await expect(page.getByText('Den Sud aufkochen.')).toBeVisible();
@@ -1902,9 +2245,12 @@ test('the contents sheet jumps to a section and the running head keeps it', asyn
 	// moving - what a late observer callback amounts to - must not move it.
 	await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
 	await expect(steps).toBeVisible();
-	// The reader scrolling again hands the head back to the scroll position.
+	// The reader scrolling again hands the head back to the scroll position:
+	// it lets go of the jump's section. Which one it then names depends on
+	// how tall the sections above are, so the test does not pin it.
 	await page.mouse.wheel(0, -400);
-	await expect(page.getByRole('button', { name: 'Ingredients, open contents' })).toBeVisible();
+	await expect(steps).toBeHidden();
+	await expect(page.getByRole('button', { name: /, open contents$/ })).toBeVisible();
 });
 
 test('opens the full unit list on every tap, even over a chosen unit', async ({ page }) => {

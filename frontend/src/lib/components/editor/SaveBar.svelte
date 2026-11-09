@@ -71,6 +71,7 @@
 	when there are none.
 -->
 <div
+	data-covers-top
 	class="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-5 backdrop-blur md:hidden"
 >
 	<Button variant="ghost" disabled={saving} onclick={oncancel}>

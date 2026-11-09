@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { createRecipe, login, selectInStep, uniqueToken } from './helpers';
+import {
+	createRecipe,
+	login,
+	openWordCard,
+	phoneLayout,
+	selectInStep,
+	uniqueToken
+} from './helpers';
 
 // Also run under WebKit (see playwright.config.ts): Safari focuses no button
 // on click, and the "Mark as time" popover has to survive that.
@@ -22,7 +29,7 @@ const RECIPE = {
 	]
 };
 
-test('step times: accepts, dismisses and renders them', async ({ page, browserName }) => {
+test('step times: accepts, leaves open and renders them', async ({ page, browserName }) => {
 	const recipe = await createRecipe(page, {
 		...RECIPE,
 		title: `Zeiten ${uniqueToken()}`,
@@ -39,30 +46,48 @@ test('step times: accepts, dismisses and renders them', async ({ page, browserNa
 	const fifteen = page.locator('[data-ref-word="15 minutes"]');
 	const ten = page.locator('[data-ref-word="10 min"]');
 	await expect(fifteen).toHaveClass('time-proposal');
-	await expect(page.getByText('Saving accepts 3 suggestions')).toBeVisible();
+	// A time never breaks across lines in the editor, its underline with it.
+	await expect(fifteen).toHaveCSS('white-space', 'pre');
+	await expect(page.getByText('3 suggestions open')).toBeVisible();
 
-	// The caret inside a proposed time brings up its card.
-	await selectInStep(step1, '5 minutes', 'caret');
-	const card = page.getByRole('group', { name: 'Time "15 minutes"' });
+	// The caret inside a proposed time brings up its card (a tap, on a phone).
+	const card = await openWordCard(page, step1, '15 minutes', '5 minutes', 'Time "15 minutes"');
 	await expect(card).toContainText('15 min');
 	await card.getByRole('button', { name: 'Accept' }).click();
 	await expect(fifteen).toHaveClass('time-link');
-	await expect(card.getByRole('button', { name: 'Remove' })).toBeVisible();
+	await expect(card).toHaveCount(0);
+	await selectInStep(step1, 'Simmer', 'caret');
+	const stored = await openWordCard(page, step1, '15 minutes', '5 minutes', 'Time "15 minutes"');
+	await expect(stored.getByRole('button', { name: 'Remove' })).toBeVisible();
 
-	await selectInStep(step2, '0 min', 'caret');
-	await page
-		.getByRole('group', { name: 'Time "10 min"' })
-		.getByRole('button', { name: 'Dismiss' })
-		.click();
-	await expect(ten).toHaveCount(0);
-	// "20 to 25 minutes" stays open, and the save takes it.
-	await expect(page.getByText('Saving accepts 1 suggestion')).toBeVisible();
+	// "Dismiss" only closes the card; the time stays proposed.
+	// A phone's sheet closes by its handle, as a thumb would close it.
+	if (await phoneLayout(page)) {
+		await stored.getByRole('button', { name: 'Close' }).click();
+		// With a sheet up, a tap on another word of the step swaps what the
+		// sheet shows: the same sheet stays, nothing closes and opens again.
+		const range = await openWordCard(
+			page,
+			step2,
+			'20 to 25 minutes',
+			'0 to 25',
+			'Time "20 to 25 minutes"'
+		);
+		await range.evaluate((sheet) => sheet.setAttribute('data-kept', ''));
+	}
+	const tenCard = await openWordCard(page, step2, '10 min', '0 min', 'Time "10 min"');
+	if (await phoneLayout(page)) await expect(tenCard).toHaveAttribute('data-kept', '');
+	await tenCard.getByRole('button', { name: 'Dismiss' }).click();
+	await expect(tenCard).toHaveCount(0);
+	await expect(ten).toHaveClass('time-proposal');
+	// The open ones stay open through a save: only what was accepted is stored.
+	await expect(page.getByText('2 suggestions open')).toBeVisible();
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 	const time = (phrase: string) => page.locator('[data-time]', { hasText: phrase });
 	await expect(time('15 minutes')).toBeVisible();
-	await expect(time('20 to 25 minutes')).toBeVisible();
+	await expect(time('20 to 25 minutes')).toHaveCount(0);
 	await expect(time('10 min')).toHaveCount(0);
 	await expect(page.getByRole('main')).toContainText('then bake 10 min.');
 
@@ -91,7 +116,8 @@ test('step times: accepts, dismisses and renders them', async ({ page, browserNa
 	// A press outside closes it and leaves focus where the press put it.
 	await page.getByRole('button', { name: 'Mark as time' }).click();
 	await expect(popover).toBeVisible();
-	await step2.click();
+	// The field's corner: the popover hangs under the selection, over its middle.
+	await step2.click({ position: { x: 8, y: 8 } });
 	await expect(popover).toHaveCount(0);
 	await expect(step2).toBeFocused();
 	// Focused without a click: Chromium places a click's caret late when focus

@@ -155,7 +155,7 @@ test('editor-times', async ({ page }, testInfo) => {
 	await page.goto('/recipes/new');
 	const step = page.getByRole('textbox', { name: 'Step 1', exact: true });
 	await step.fill('Bake for 25 to 30 minutes until golden.');
-	await expect(page.getByText('Saving accepts 1 suggestion')).toBeVisible();
+	await expect(page.getByText('1 suggestion open')).toBeVisible();
 	await step.scrollIntoViewIfNeeded();
 	await shot(page, 'editor-times');
 });

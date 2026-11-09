@@ -15,6 +15,8 @@ The other limits are huma schema tags on `StepTime` and `Step.Times`, checked be
 
 **Storage is one table.** Migration `0013_step_times.sql` creates `step_times`, keyed by `(step_id, phrase)` and cascading with `DeleteStepsByRecipe`, which every save runs. `writeChildren` inserts inside the save's transaction and reading assembles `Step.Times` beside `Step.References`. See [Data model](/architecture/data-model).
 
+In the step editor a marked time, like any marked word, never breaks across lines (`white-space: pre` on the marks inside `.step-editable` in `app.css`): "15" at a line's end and "Minuten" on the next read as two, and the underline or frame broke with it. The whole mark moves to the next line instead; the list under a step is left out, where a long ingredient name has to wrap.
+
 **Rendering looks stored times up and detects nothing.** `segmentStep` splits a step's text at the first occurrence of each stored reference word and phrase; if two overlap the earlier one wins. `StepText.svelte` draws a time as one unbreakable mark with a `data-time` attribute the e2e tests find it by; its comments carry the wrapping, sizing and hyphenation constraints, and the visible text is the accessible text. The color is the `time-foreground` token in [Design system](/architecture/design-system). Cook mode shows nothing beyond that.
 
 **The detector runs only in the editor.** `suggestTimes` in `times.ts` finds a number plus a unit (`90 Minuten`, `2,5 Stunden`, `½ Stunde`), a range (`20-25 min`, `20 bis 25 Minuten`) and a compound (`1 Std. 30 Min.`, `1 hour 30 minutes`), and leaves `2 Eier`, `180 °C`, `3 EL` and a bare number alone. `times.ts` points here for its rules:
@@ -27,14 +29,14 @@ The other limits are huma schema tags on `StepTime` and `Step.Times`, checked be
 
 **The editor reuses the reference machinery.** `step-times.ts` holds the bookkeeping, and `StepField.svelte` and `StepLinks.svelte` draw times beside links, the folded list again being the keyboard and screen-reader path.
 
-- `presentTimes` is what the text still carries. `pendingTimes` is the detector's proposals that are neither stored nor dismissed and overlap no linked word and no stored time - except a stored time they wholly contain: a stored "20 Minuten" since written out to "1 Stunde 20 Minuten" lets the whole be proposed, and `addTime` replaces every stored time inside the one it adds. `isMarked` and `removeTime` complete it.
+- `presentTimes` is what the text still carries. `pendingTimes` is the detector's proposals that are not stored and overlap no linked word and no stored time - except a stored time they wholly contain: a stored "20 Minuten" since written out to "1 Stunde 20 Minuten" lets the whole be proposed, and `addTime` replaces every stored time inside the one it adds. `isMarked` and `removeTime` complete it.
 - With the caret inside a proposal that contains a stored time, the card shows the proposal (`caretTimePhrases`), since it is the actionable one.
 - "Mark as time" is refused for a selection with no number, over 60 characters, or overlapping an existing mark; "Link word" refuses a word inside a stored or proposed time. A number out of range for the chosen unit only disables "Set", since another unit may fit.
 - Its popover is a Bits UI `Popover` with no trigger, anchored through `customAnchor`, without a portal or focus trap so Tab walks on through the page. Bits UI also reports a close when a reopen replaces the last focus scope, so the focus hand-back fires only while the popover is closed. The step-times e2e runs in WebKit too, because Safari focuses no button on click.
 - A refusal's reason is spoken by a `role="status"` line and its visible copy is `aria-hidden`, so nothing is read twice.
 - `formatDuration` builds on `formatMinutes` and its `duration_*` catalog keys plus `duration_seconds`.
-- Saving accepts open time suggestions together with reference suggestions, and the count beside the save covers both.
-- `FormStep.times` is carried by `fromRecipe` and `toInput`; a stored time whose phrase an edit removed stays on the step out of sight and `toInput` drops it, the `presentReferences` rule, so undo brings it back.
+- A save accepts no time suggestion, as it accepts no reference suggestion; "Accept all" takes both, and the count of open suggestions above the steps covers both. Removing a stored time makes it a proposal again.
+- `FormStep.times` is carried by `fromRecipe` and `toInput`; a stored time ends with its phrase and comes back with it on undo, by the same document attributes and `dropAbsent` that carry references ([Ingredient references](/features/ingredient-references)).
 
 ## Why it is this way
 
@@ -46,7 +48,7 @@ There is no control character like `@` for ingredients: there is nothing to pick
 
 Only text with a number counts. "über Nacht" and "einige Minuten" have no duration a timer could run on, and a marked time that cannot be counted would mislead.
 
-The author can always refuse: dismiss a proposal, remove a stored time from the card or the list.
+The author can always refuse: leave a proposal open (no save takes it), remove a stored time from the card or the list.
 
 ## Rejected
 

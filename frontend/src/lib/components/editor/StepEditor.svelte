@@ -2,6 +2,7 @@
 	import { flip } from 'svelte/animate';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { tick } from 'svelte';
+	import Check from '@lucide/svelte/icons/check';
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
@@ -12,34 +13,30 @@
 	import {
 		acceptAll,
 		countPending,
-		pickerEntries,
-		type DismissedWords
+		waitingChoices,
+		pickerEntries
 	} from '#lib/recipe/step-references.js';
+	import { ACCEPT, ACTION, LIST, ROW } from './link-list';
 	import StepField from './StepField.svelte';
 	import { collapse, fresh, reveal } from './motion';
 
 	let {
 		steps = $bindable([]),
 		groups,
-		dismissed = $bindable({}),
 		errors = {}
 	}: {
 		steps?: FormStep[];
 		/** The recipe's ingredient groups; every link points into one of them. */
 		groups: FormGroup[];
-		/**
-		 * Proposals the author turned down, keyed by step id. Bound, because
-		 * the save button in `RecipeForm` counts what is still open and has to
-		 * see the same set.
-		 */
-		dismissed?: DismissedWords;
 		errors?: FieldErrors;
 	} = $props();
 
 	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
 
 	const entries = $derived(pickerEntries(groups));
-	const pendingCount = $derived(countPending(steps, groups, dismissed));
+	const pendingCount = $derived(countPending(steps, groups));
+	/** Words naming an ingredient in several groups that no save will link. */
+	const waiting = $derived(waitingChoices(steps, groups));
 
 	async function addStep(index = steps.length) {
 		const step = newStep();
@@ -68,13 +65,6 @@
 		const current = steps.findIndex((s) => s.id === step.id);
 		if (current === -1) return;
 		steps.splice(current, 1);
-		// The dismissals went with that step, and ids are never reused, so
-		// keeping them would only grow a map nothing reads again.
-		if (step.id in dismissed) {
-			dismissed = Object.fromEntries(
-				Object.entries(dismissed).filter(([stepId]) => stepId !== step.id)
-			);
-		}
 		if (steps.length === 0) {
 			steps.push(newStep());
 			await tick();
@@ -86,52 +76,72 @@
 		steps = event.detail.items;
 	}
 
-	/** Turns one proposal down for one step; it stays down for this session. */
-	function dismiss(stepId: string, word: string) {
-		const words = dismissed[stepId] ?? [];
-		if (words.includes(word)) return;
-		dismissed = { ...dismissed, [stepId]: [...words, word] };
+	/** What "Accept all" did, for a screen reader. */
+	let said = $state('');
+
+	/**
+	 * Takes every open proposal and says how many. The button goes with them,
+	 * so focus moves to the box it was in while that stays for a waiting
+	 * word, else to the first step's list toggle - not into a step, which
+	 * would raise a phone's keyboard and open the card of a word at its start.
+	 */
+	function acceptEverything() {
+		const count = acceptAll(steps, groups);
+		said = m.editor_reference_accepted_all({ count });
+		void tick().then(() =>
+			(
+				document.getElementById('accept-all-box') ??
+				document.getElementById(`step-links-toggle-${steps[0]?.id}`)
+			)?.focus()
+		);
 	}
 </script>
 
 <div class="space-y-3">
-	{#if pendingCount > 0}
+	<p role="status" class="sr-only">{said}</p>
+	{#if pendingCount > 0 || waiting.length > 0}
 		<!--
-			The one place the matcher's work is visible as a whole, and the only
-			place that says what saving will do with it: the sentence belongs
-			beside the proposals it is about, where the author already is while
-			reviewing them, and it costs nothing on a screen that has none.
-
-			The sentence and the button deliberately say different things. The
-			proposals are taken on save either way; the button only takes them
-			now, so the links can be looked over - and single ones removed -
-			before the recipe is written.
-
-			Stacked on a phone and a row from `sm:` up: the sentence and the
-			button together are wider than a narrow screen, and a wrapped row
-			would leave a word of the sentence stranded beside the button.
-
-			Stacked, the sentence carries `pl-5` so its first letter lands under
-			the button's: the button's box starts at the same content edge, but
-			its own `px-5` insets the label 20px further, and 20px is exactly
-			what this adds on top of the container's `px-3`. It is dropped again
-			from `sm:` up, where the two sit on one row and the question does
-			not arise. Padding the text is the fix rather than pulling the
-			button left, which would take it past the container's own edge -
-			and rather than taking padding off `Button`, which the whole app
-			shares.
+			The one place the matcher's work is visible as a whole, drawn as a
+			row of the lists under the steps: the same surface, the same filled
+			circle that takes one proposal there takes them all here. From `md:`
+			up it repeats the step rows' grid, so it spans the fields' column and
+			its circle heads the column of circles below it. Only its circle is
+			the button, as on every row there; a save takes no proposal, so this
+			is the one way to take them all at once.
 		-->
-		<div
-			class="flex flex-col items-start gap-2 rounded-md border border-dashed border-primary px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-		>
-			<p class="pl-5 text-body-sm text-primary sm:pl-0">
-				{pendingCount === 1
-					? m.editor_reference_save_takes_one()
-					: m.editor_reference_save_takes({ count: pendingCount })}
-			</p>
-			<Button variant="ghost" onclick={() => acceptAll(steps, groups, dismissed)}>
-				{m.editor_reference_accept_now()}
-			</Button>
+		<div class="md:grid md:grid-cols-[20px_32px_1fr_28px] md:gap-x-2">
+			<div id="accept-all-box" tabindex="-1" class="{LIST} outline-none md:col-start-3">
+				{#if pendingCount > 0}
+					<div class={ROW}>
+						<span class="flex min-w-0 flex-col">
+							<span class="font-medium text-primary">{m.editor_reference_accept_all()}</span>
+							<span id="accept-all-count" class="text-caption text-text-muted">
+								{pendingCount === 1
+									? m.editor_reference_open_one()
+									: m.editor_reference_open({ count: pendingCount })}
+							</span>
+						</span>
+						<!-- Only the circle takes, as in the lists below: the row is its label. -->
+						<button
+							type="button"
+							onclick={acceptEverything}
+							aria-label={m.editor_reference_accept_all()}
+							aria-describedby="accept-all-count"
+							class="{ACTION} {ACCEPT}"
+						>
+							<Check class="size-4" aria-hidden="true" />
+						</button>
+					</div>
+				{/if}
+				<!-- A save leaves these unlinked, so the note says they wait rather than counting them in. -->
+				{#if waiting.length > 0}
+					<p class="px-3.5 py-2 text-caption text-text-muted md:py-2.5">
+						{waiting.length === 1
+							? m.editor_reference_waiting_one(waiting[0])
+							: m.editor_reference_waiting({ count: waiting.length })}
+					</p>
+				{/if}
+			</div>
 		</div>
 	{/if}
 
@@ -178,15 +188,7 @@
 					{index + 1}
 				</span>
 				<div class="col-span-4 min-w-0 md:col-span-1 md:col-start-3 md:row-start-1">
-					<StepField
-						{step}
-						{index}
-						{entries}
-						{groups}
-						dismissed={dismissed[step.id] ?? []}
-						error={errors[`step:${step.id}`]}
-						ondismiss={(word) => dismiss(step.id, word)}
-					/>
+					<StepField {step} {index} {entries} {groups} error={errors[`step:${step.id}`]} />
 				</div>
 				<button
 					type="button"

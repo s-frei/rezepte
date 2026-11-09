@@ -4,9 +4,9 @@ import { firstWordMatch } from './references';
 import { suggestTimes } from './times';
 
 /**
- * A step's times that the text still carries. An edit that removes a phrase
- * hides its time rather than deleting it, so undo brings it back; `toInput`
- * sends only what this returns.
+ * A step's times that the text still carries. Editing a phrase away drops
+ * its time (`dropAbsent` in `step-doc.ts`); this keeps out one loaded with a
+ * phrase the text lacks, and `toInput` sends only what it returns.
  */
 export function presentTimes(times: StepTime[], text: string): StepTime[] {
 	return times.filter((time) => firstWordMatch(text, time.phrase) !== null);
@@ -39,14 +39,13 @@ export function isMarked(step: FormStep, phrase: string): boolean {
 }
 
 /**
- * The detector's proposals the author has neither stored nor dismissed. A
+ * The detector's proposals that are not stored yet. A
  * proposal overlapping a linked word or a stored time is skipped, unless it
  * wholly contains that time: "1 Stunde 20 Minuten" written around a stored
  * "20 Minuten" is proposed, and accepting it replaces the shorter one (see
- * `addTime`). Dismissed phrases share the list of dismissed reference words: a
- * phrase holds a number, a word practically never.
+ * `addTime`).
  */
-export function pendingTimes(step: FormStep, dismissed: string[] = []): StepTime[] {
+export function pendingTimes(step: FormStep): StepTime[] {
 	const refs = spans(
 		step.text,
 		step.references.map((ref) => ref.word)
@@ -56,7 +55,6 @@ export function pendingTimes(step: FormStep, dismissed: string[] = []): StepTime
 		step.times.map((time) => time.phrase)
 	);
 	return suggestTimes(step.text).filter((time) => {
-		if (dismissed.includes(time.phrase)) return false;
 		const hit = firstWordMatch(step.text, time.phrase);
 		if (hit === null || refs.some((span) => overlaps(hit, span))) return false;
 		return stored.every(

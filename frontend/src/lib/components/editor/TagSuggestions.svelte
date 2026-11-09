@@ -8,7 +8,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { MAX_TAGS } from '#lib/recipe/form.js';
 	import { acceptSuggestion } from '#lib/recipe/tag-suggestions-import.js';
-	import { ACTION, ROW, TOGGLE } from './link-list';
+	import { ACCEPT, ACTION, ACTIONS, REMOVE, LIST, ROW, TOGGLE } from './link-list';
 
 	/**
 	 * An import's keywords that would be new tags, under the tag field the way
@@ -62,29 +62,31 @@
 			transition:slide={{ duration: SLIDE_DURATION, easing: cubicOut }}
 			id="tag-suggestions"
 			aria-label={m.editor_tag_suggestions_list()}
-			class="list-none divide-y divide-dashed divide-border border-t border-dashed border-border"
+			class="{LIST} mt-1"
 		>
 			{#each suggestions as tag (tag)}
 				<li class={ROW}>
 					<span class="min-w-0 break-words">{tag}</span>
-					<button
-						type="button"
-						onclick={() => accept(tag)}
-						disabled={atLimit}
-						aria-label={m.editor_tag_suggestion_accept({ tag })}
-						title={atLimit ? m.editor_tag_limit_reached({ count: MAX_TAGS }) : undefined}
-						class="flex size-8 items-center justify-center rounded-pill text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-40"
-					>
-						<Check class="size-4" aria-hidden="true" />
-					</button>
-					<button
-						type="button"
-						onclick={() => (suggestions = suggestions.filter((s) => s !== tag))}
-						aria-label={m.editor_tag_suggestion_dismiss({ tag })}
-						class="{ACTION} hover:text-destructive"
-					>
-						<X class="size-4" aria-hidden="true" />
-					</button>
+					<span class={ACTIONS}>
+						<button
+							type="button"
+							onclick={() => accept(tag)}
+							disabled={atLimit}
+							aria-label={m.editor_tag_suggestion_accept({ tag })}
+							title={atLimit ? m.editor_tag_limit_reached({ count: MAX_TAGS }) : undefined}
+							class="{ACTION} {ACCEPT}"
+						>
+							<Check class="size-4" aria-hidden="true" />
+						</button>
+						<button
+							type="button"
+							onclick={() => (suggestions = suggestions.filter((s) => s !== tag))}
+							aria-label={m.editor_tag_suggestion_dismiss({ tag })}
+							class="{ACTION} {REMOVE}"
+						>
+							<X class="size-4" aria-hidden="true" />
+						</button>
+					</span>
 				</li>
 			{/each}
 		</ul>
