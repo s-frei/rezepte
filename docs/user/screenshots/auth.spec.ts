@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { configureMail, prepare, shot, turnMailOff } from './helpers';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { configureMail, devPassword, prepare, shot, turnMailOff } from './helpers';
 
 test('login', async ({ page }, testInfo) => {
 	await prepare(page, testInfo);
@@ -74,4 +74,35 @@ test('forgot-password', async ({ page }, testInfo) => {
 	// The click leaves the pointer where the link was, over the send button.
 	await page.mouse.move(0, 0);
 	await shot(page, 'forgot-password');
+});
+
+// Two people on one device: the demo admin signs in through the form, then
+// mila signs in over the API in the same context, so the device cookie lists
+// both and mila is the one cooking. Both sessions are ordinary ones that end
+// with the context.
+async function twoPeople(page: Page, testInfo: TestInfo) {
+	await prepare(page, testInfo, { login: true });
+	const res = await page.request.post('/api/v1/auth/login', {
+		data: { username: 'mila', password: devPassword('mila') }
+	});
+	expect(res.ok()).toBe(true);
+	await page.goto('/switch');
+	await expect(page.getByRole('heading', { name: "Who's cooking?" })).toBeVisible();
+	await expect(page.getByText('Cooking now')).toBeVisible();
+	// The cards fan out of a pile; the shot waits for the last one.
+	await expect(page.getByRole('link', { name: 'Add a person' })).toBeVisible();
+	await page.mouse.move(0, 0);
+}
+
+test('switch', async ({ page }, testInfo) => {
+	await twoPeople(page, testInfo);
+	await shot(page, 'switch');
+});
+
+test('switch-edit', async ({ page }, testInfo) => {
+	await twoPeople(page, testInfo);
+	await page.getByRole('button', { name: 'Edit' }).click();
+	await expect(page.getByRole('button', { name: /^Remove / })).toBeVisible();
+	await page.mouse.move(0, 0);
+	await shot(page, 'switch-edit');
 });
