@@ -19,7 +19,7 @@ describe('parseArgs', () => {
 describe('finishSteps', () => {
 	const steps = finishSteps({
 		root: '/repo',
-		here: '/repo/.claude/worktrees/release-v2.0.0',
+		here: '/repo/.worktrees/release-v2.0.0',
 		branch: 'release/v2.0.0',
 		version: 'v2.0.0',
 		description: 'The old API is gone.'
@@ -30,7 +30,7 @@ describe('finishSteps', () => {
 			['merge', '--ff-only', '--quiet', 'release/v2.0.0'],
 			['fetch', '.', 'develop:main'],
 			['tag', '-s', 'v2.0.0', '-m', 'The old API is gone.', 'main'],
-			['worktree', 'remove', '/repo/.claude/worktrees/release-v2.0.0'],
+			['worktree', 'remove', '/repo/.worktrees/release-v2.0.0'],
 			['branch', '-d', 'release/v2.0.0']
 		]);
 		expect(new Set(steps.map((s) => s.cwd))).toEqual(new Set(['/repo']));

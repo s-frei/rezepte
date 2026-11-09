@@ -60,7 +60,7 @@ if (smaller) console.warn(`release: warning: ${smaller}`);
 
 const name = `release-${version}`;
 const branch = `release/${version}`;
-const dir = path.join(root, '.claude', 'worktrees', name);
+const dir = path.join(root, '.worktrees', name);
 
 // A release's page covers everything since the last release, candidates
 // included; a candidate's page only what came since the nearest tag.

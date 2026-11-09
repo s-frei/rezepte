@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Remove a worktree made by worktree:new, and its branch once merged"
-#USAGE arg "<name>" help="Directory name under .claude/worktrees/"
+#USAGE arg "<name>" help="Directory name under .worktrees/"
 #USAGE flag "--close" help="Inside Herdr, close the worktree's workspace and its panes without asking"
 # The counterpart to worktree:new. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.
@@ -9,7 +9,7 @@ set -euo pipefail
 NAME="$usage_name"
 # Same anchor as worktree:new: the main checkout, wherever this runs from.
 ROOT="$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")"
-DIR="$ROOT/.claude/worktrees/$NAME"
+DIR="$ROOT/.worktrees/$NAME"
 
 if ! git -C "$ROOT" worktree list --porcelain | grep -qxF "worktree $DIR"; then
 	echo "worktree:remove: $DIR is not a worktree" >&2

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Create a worktree off develop with its own port offset"
-#USAGE arg "[name]" help="Directory name under .claude/worktrees/, and the branch feat/<name> unless a branch is given; omit it inside a worktree made some other way to give that one an offset"
+#USAGE arg "[name]" help="Directory name under .worktrees/, and the branch feat/<name> unless a branch is given; omit it inside a worktree made some other way to give that one an offset"
 #USAGE arg "[branch]" help="Branch to create instead of feat/<name>; release:start passes release/vX.Y.Z"
 #USAGE flag "--move" help="Inside Herdr, move the calling pane into the new worktree's workspace instead of leaving it where it is"
 # Creates a worktree for feature work and gives it its own port offset, so
@@ -36,7 +36,7 @@ fi
 # parent instead.
 ROOT="$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")"
 if [ -n "$NAME" ]; then
-	DIR="$ROOT/.claude/worktrees/$NAME"
+	DIR="$ROOT/.worktrees/$NAME"
 	# Feature work gets feat/<name>; release:start passes release/vX.Y.Z.
 	BRANCH="${usage_branch:-feat/$NAME}"
 
