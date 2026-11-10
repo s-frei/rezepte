@@ -39,7 +39,7 @@ function group(name: string, ...rows: [string, string, string][]): FormGroup {
 }
 
 function step(text: string, references: FormRef[] = []): FormStep {
-	return { id: 's1', text, references, times: [] };
+	return { id: 's1', text, references, times: [], photos: [] };
 }
 
 /** A reference anchored to the row `group()` gave that id. */
@@ -375,22 +375,34 @@ describe('countPending', () => {
 	it('adds up the open proposals of every step', () => {
 		const groups = [group('', ['100', 'g', 'Zucker'], ['200', 'g', 'Mehl'])];
 		const steps: FormStep[] = [
-			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [] },
-			{ id: 'b', text: 'Mehl sieben.', references: [], times: [] }
+			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [], photos: [] },
+			{ id: 'b', text: 'Mehl sieben.', references: [], times: [], photos: [] }
 		];
-		expect(countPending(steps, groups)).toBe(3);
+		expect(countPending(steps, groups, [])).toBe(3);
 	});
 });
 
 describe('times among the proposals', () => {
 	const groups = [group('', ['100', 'g', 'Zwiebel'])];
 	it('countPending counts a time beside a link', () => {
-		expect(countPending([step('Zwiebel 10 Minuten dünsten.')], groups)).toBe(2);
+		expect(countPending([step('Zwiebel 10 Minuten dünsten.')], groups, [])).toBe(2);
 	});
 	it('acceptAll stores the time', () => {
 		const steps = [step('Zwiebel 10 Minuten dünsten.')];
-		acceptAll(steps, groups);
+		acceptAll(steps, groups, []);
 		expect(steps[0].times).toEqual([{ phrase: '10 Minuten', seconds: 600 }]);
+	});
+	it('a time inside a shown photo link is neither counted nor accepted; a hidden one is no bar', () => {
+		const linked = (): FormStep => ({
+			...step('Den Teig 10 Minuten ruhen lassen.'),
+			photos: [{ phrase: 'Teig 10 Minuten ruhen', imageKey: 'p1' }]
+		});
+		const tile = { key: 'p1', id: 'p1', thumb: '', detail: '' };
+		expect(countPending([linked()], groups, [tile])).toBe(0);
+		const steps = [linked()];
+		expect(acceptAll(steps, groups, [tile])).toBe(0);
+		expect(steps[0].times).toEqual([]);
+		expect(countPending([linked()], groups, [])).toBe(1);
 	});
 });
 
@@ -398,9 +410,9 @@ describe('acceptAll', () => {
 	it('confirms every open proposal', () => {
 		const groups = [group('', ['100', 'g', 'Zucker'], ['200', 'g', 'Mehl'])];
 		const steps: FormStep[] = [
-			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [] }
+			{ id: 'a', text: 'Zucker und Mehl verrühren.', references: [], times: [], photos: [] }
 		];
-		acceptAll(steps, groups);
+		acceptAll(steps, groups, []);
 		expect(steps[0].references).toEqual([
 			ref('Zucker', '-0', null, 'Zucker'),
 			ref('Mehl', '-1', null, 'Mehl')

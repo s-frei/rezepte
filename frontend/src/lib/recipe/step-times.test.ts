@@ -15,7 +15,8 @@ const step = (text: string, times = [] as FormStep['times']): FormStep => ({
 	id: 's1',
 	text,
 	references: [],
-	times
+	times,
+	photos: []
 });
 
 describe('pendingTimes', () => {
@@ -60,6 +61,16 @@ describe('pendingTimes', () => {
 			})
 		).toEqual([]);
 	});
+
+	test('skips a proposal inside or overlapping a photo link, which the server would refuse', () => {
+		const s = (phrase: string): FormStep => ({
+			...step('Den Teig 20 Minuten ruhen, dann 1 Stunde kühlen.'),
+			photos: [{ phrase, imageKey: 'p1' }]
+		});
+		expect(pendingTimes(s('Teig 20 Minuten ruhen')).map((t) => t.phrase)).toEqual(['1 Stunde']);
+		expect(pendingTimes(s('Minuten ruhen')).map((t) => t.phrase)).toEqual(['1 Stunde']);
+		expect(pendingTimes(s('Teig')).map((t) => t.phrase)).toEqual(['20 Minuten', '1 Stunde']);
+	});
 });
 
 test('overlapsAny: a word inside a time overlaps it, one beside it does not', () => {
@@ -81,6 +92,12 @@ describe('isMarked', () => {
 	});
 	test('a stretch clear of every mark is not', () => {
 		expect(isMarked(s, '2 Lieder')).toBe(false);
+	});
+	test('a stretch inside or overlapping a photo link is marked', () => {
+		const photo = { ...s, photos: [{ phrase: 'Lieder warten', imageKey: 'p1' }] };
+		expect(isMarked(photo, 'Lieder')).toBe(true);
+		expect(isMarked(photo, '2 Lieder')).toBe(true);
+		expect(isMarked(photo, 'dann')).toBe(false);
 	});
 });
 

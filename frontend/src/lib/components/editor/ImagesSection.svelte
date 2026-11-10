@@ -38,6 +38,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { refusalOr } from '#lib/recipe/access.js';
 	import { newId } from '#lib/recipe/form.js';
+	import type { PhotoTile, QueuedPhoto } from '#lib/recipe/step-photos.js';
 	import { flip } from '#lib/sortable/flip.js';
 	import { moveItem } from '#lib/sortable/order.js';
 	import { sortable } from '#lib/sortable/sortable.svelte.js';
@@ -48,6 +49,9 @@
 		title,
 		initialImages = [],
 		pending = $bindable([]),
+		// Only written here, for the parent's `bind:visible`.
+		// eslint-disable-next-line no-useless-assignment
+		visible = $bindable(),
 		oncount
 	}: {
 		/** Set for an existing recipe: every action calls the API at once. Unset: files are queued into `pending`. */
@@ -56,8 +60,18 @@
 		title: string;
 		/** In their stored order: the first one is the cover. */
 		initialImages?: Image[];
-		/** New-recipe mode only: the queued files, in the order shown (the first becomes the cover). */
-		pending?: File[];
+		/**
+		 * New-recipe mode only: the queued files, in the order shown (the first
+		 * becomes the cover), each with its tile's key, which a step's photo
+		 * link holds until the upload gives it an id.
+		 */
+		pending?: QueuedPhoto[];
+		/**
+		 * The photos a step may link to, in the order shown: stored, queued and
+		 * uploading ones. A removed one waiting for its undo toast and a failed
+		 * upload are left out, so the steps' links to them hide at once.
+		 */
+		visible?: PhotoTile[];
 		/** Told how many photos the section holds whenever that changes. */
 		oncount?: (count: number) => void;
 	} = $props();
@@ -97,10 +111,13 @@
 	// svelte-ignore state_referenced_locally
 	let tiles = $state<Tile[]>(
 		recipeId === undefined
-			? pending.map((file) => {
-					const key = newId();
-					return { key, id: key, url: URL.createObjectURL(file), file, ...rest };
-				})
+			? pending.map(({ key, file }) => ({
+					key,
+					id: key,
+					url: URL.createObjectURL(file),
+					file,
+					...rest
+				}))
 			: initialImages.map((image) => storedTile(image))
 	);
 	// The order the server holds, by tile key: a failed save goes back to it.
@@ -114,6 +131,21 @@
 
 	$effect.pre(() => {
 		oncount?.(tiles.length);
+	});
+
+	$effect.pre(() => {
+		visible = tiles
+			.filter((tile) => tile.state !== 'failed')
+			.map((tile) => {
+				// A file not yet on the server is shown from its object URL.
+				const id = tile.file ? null : tile.id;
+				return {
+					key: tile.key,
+					id,
+					thumb: tile.url,
+					detail: id === null ? tile.url : imageUrl(recipeId as string, id, 'detail')
+				};
+			});
 	});
 
 	const queued = $derived(recipeId === undefined);
@@ -159,7 +191,7 @@
 
 	function syncPending() {
 		if (queued) {
-			pending = tiles.flatMap((tile) => (tile.file ? [tile.file] : []));
+			pending = tiles.flatMap((tile) => (tile.file ? [{ key: tile.key, file: tile.file }] : []));
 		}
 	}
 
@@ -364,54 +396,75 @@
 	// ahead of the delete still names them (the server holds them till then).
 	const deleting = new SvelteSet<string>();
 
-	function flushDelete(key: string, unloading = false) {
+	/** Sends the delete of `key`; resolves false when the server kept the photo. */
+	function flushDelete(key: string, unloading = false): Promise<boolean> {
 		const tile = pendingDeletes.get(key);
-		if (!tile || (deleting.has(key) && !unloading)) return;
+		if (!tile || (deleting.has(key) && !unloading)) return Promise.resolve(true);
 		const toastId = toastIds.get(key);
 		toastIds.delete(key);
 		if (toastId !== undefined) toast.dismiss(toastId);
 		if (!onServer(tile)) {
 			pendingDeletes.delete(key);
 			revoke(tile);
-			return;
+			return Promise.resolve(true);
 		}
 		const id = recipeId as string;
 		if (unloading) {
 			pendingDeletes.delete(key);
 			void deleteImage(id, tile.id, { keepalive: true }).catch(() => {});
-			return;
+			return Promise.resolve(true);
 		}
 		deleting.add(key);
-		serial(async () => {
+		return serial(async () => {
 			await deleteImage(id, tile.id);
 			pendingDeletes.delete(key);
 			savedKeys = savedKeys.filter((k) => k !== key);
 		})
-			.catch((error) => {
-				// Still on the server: show it again where the server keeps it,
-				// behind the stored tiles it ranks after there.
-				pendingDeletes.delete(key);
-				const rank = savedKeys.indexOf(key);
-				const at = tiles.filter((t) => onServer(t) && savedKeys.indexOf(t.key) < rank).length;
-				void flip(grid, () => (tiles = tiles.toSpliced(at, 0, tile)));
-				toast.error(refusalOr(error, m.images_delete_error()));
-			})
+			.then(
+				() => true,
+				(error) => {
+					// Still on the server: show it again where the server keeps it,
+					// behind the stored tiles it ranks after there.
+					pendingDeletes.delete(key);
+					const rank = savedKeys.indexOf(key);
+					const at = tiles.filter((t) => onServer(t) && savedKeys.indexOf(t.key) < rank).length;
+					void flip(grid, () => (tiles = tiles.toSpliced(at, 0, tile)));
+					toast.error(refusalOr(error, m.images_delete_error()));
+					return false;
+				}
+			)
 			.finally(() => deleting.delete(key));
 	}
 
 	function flushDeletes(unloading = false) {
-		for (const key of [...pendingDeletes.keys()]) flushDelete(key, unloading);
+		for (const key of [...pendingDeletes.keys()]) void flushDelete(key, unloading);
 	}
 
 	/**
 	 * Sends every pending delete and resolves once the queue has settled, so
-	 * the page loaded next no longer shows them. Await it before leaving.
+	 * the page loaded next no longer shows them, with the keys of the photos
+	 * the server kept. Await it before leaving.
 	 */
-	export async function flush(): Promise<void> {
-		flushDeletes();
+	export async function flush(): Promise<string[]> {
+		const keys = [...pendingDeletes.keys()];
+		const done = await Promise.all(keys.map((key) => flushDelete(key)));
+		await settle();
+		return keys.filter((_, at) => !done[at]);
+	}
+
+	/**
+	 * Resolves once the uploads have settled, leaving pending deletes to
+	 * their undo toast: Save waits on this, and flushes only once saved.
+	 */
+	export async function settle(): Promise<void> {
 		// Uploads join the queue one by one: the chain holds those not in it yet.
 		await chain;
 		await lock;
+	}
+
+	/** The keys of the photos whose upload failed, waiting for a retry or removal. */
+	export function failedKeys(): Set<string> {
+		return new Set(tiles.filter((tile) => tile.state === 'failed').map((tile) => tile.key));
 	}
 
 	function view(index: number) {

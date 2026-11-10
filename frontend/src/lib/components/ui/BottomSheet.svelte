@@ -1,7 +1,96 @@
+<script lang="ts" module>
+	import { prefersReducedMotion } from 'svelte/motion';
+
+	/** How far the spotlight's hole stands out from the step, on every side. */
+	const SPOTLIGHT_MARGIN = 10;
+
+	/**
+	 * Where the screen stops being visible at the top: the bottom edge of the
+	 * bars pinned there (`data-covers-top`: the phone's `EditorBar`, the
+	 * detail page's top bar, a running head), or 0 where none is. A value
+	 * caps the bar's cover at that many rem: the detail page's bar counts as
+	 * filled in even before a scroll fills it, as a reveal's own scroll may.
+	 */
+	export function coveredTop(): number {
+		const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+		const bars = [...document.querySelectorAll<HTMLElement>('[data-covers-top]')]
+			.map((bar) => {
+				const box = bar.getBoundingClientRect();
+				const cap = parseFloat(bar.dataset.coversTop ?? '') * rem;
+				return { top: box.top, bottom: cap ? Math.min(box.bottom, box.top + cap) : box.bottom };
+			})
+			.filter((box) => box.bottom > box.top)
+			.sort((a, b) => a.top - b.top);
+		let edge = 0;
+		// Only a bar that starts where the one above it ends is pinned there.
+		for (const box of bars) if (box.top <= edge + 1) edge = Math.max(edge, box.bottom);
+		return edge;
+	}
+
+	/** The scroll box `element` sits in below the page, if any: cook mode's step. */
+	export function scrollBox(element: HTMLElement): HTMLElement | null {
+		for (let at = element.parentElement; at && at !== document.body; at = at.parentElement) {
+			if (/auto|scroll/.test(getComputedStyle(at).overflowY)) return at;
+		}
+		return null;
+	}
+
+	/** What `revealAbove` padded at its bottom, cleared again when the sheet closes. */
+	let padded: HTMLElement | null = null;
+
+	/**
+	 * Keeps a phone sheet's subject in sight above it: the lines `lines`
+	 * measures of `anchor` (its first line's top, its last line's bottom)
+	 * scroll until the last ends `gap` above the sheet's resting top - the
+	 * sheet is still flying in. Never so far that the first line goes under
+	 * the bars pinned to the top (`coveredTop`) or past its scroll box's top:
+	 * a step too tall for the room shows the phrase's lines and lets its own
+	 * top go behind the bar. The page scrolls, padded at its end when it is
+	 * too short to, unless `anchor` sits in a scroll box of its own (cook
+	 * mode, whose step is centered and rarely overflows): that box is padded
+	 * by what the sheet covers of it, which re-centers the step above the
+	 * sheet or lets it scroll there. The padding goes when the sheet closes.
+	 */
+	export function revealAbove(
+		sheet: HTMLElement,
+		anchor: HTMLElement,
+		lines: () => { top: number; bottom: number },
+		gap = 12
+	) {
+		const viewport = window.visualViewport;
+		const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+		const top = bottom - sheet.offsetHeight - gap;
+		const scroller = scrollBox(anchor);
+		if (scroller) {
+			const covered = scroller.getBoundingClientRect().bottom - top;
+			if (covered > 0) pad(scroller, covered, false);
+		}
+		const { top: first, bottom: last } = lines();
+		const ceiling = scroller ? scroller.getBoundingClientRect().top : coveredTop() + gap;
+		const below = Math.min(last - top, first - ceiling);
+		if (below <= 0) return;
+		const behavior = prefersReducedMotion.current ? 'auto' : 'smooth';
+		if (scroller) {
+			scroller.scrollBy({ top: below, behavior });
+			return;
+		}
+		// A step near the end of a short page: the page grows by what it lacks.
+		const room = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+		if (below > room) pad(document.body, below - room, true);
+		window.scrollBy({ top: below, behavior });
+	}
+
+	/** Sets `element`'s bottom padding to `px`, or adds `px` to what it has. */
+	function pad(element: HTMLElement, px: number, add: boolean) {
+		const has = add ? parseFloat(getComputedStyle(element).paddingBottom) || 0 : 0;
+		element.style.paddingBottom = `${has + px}px`;
+		padded = element;
+	}
+</script>
+
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import type { Snippet } from 'svelte';
-	import { prefersReducedMotion } from 'svelte/motion';
 	import { fade, fly } from 'svelte/transition';
 	import SheetHandle from './SheetHandle.svelte';
 
@@ -15,6 +104,7 @@
 		closeLabel,
 		onOpenAutoFocus,
 		onCloseAutoFocus,
+		onInteractOutside,
 		tall = false,
 		spotlight = null,
 		children
@@ -26,6 +116,8 @@
 		onOpenAutoFocus?: (event: Event) => void;
 		/** Forwarded to Bits UI: where focus goes once the sheet has closed. */
 		onCloseAutoFocus?: (event: Event) => void;
+		/** Forwarded to Bits UI: a press outside the sheet, prevented to keep it open. */
+		onInteractOutside?: (event: Event) => void;
 		/**
 		 * Up to 92dvh instead of 80dvh, for a sheet whose content is the
 		 * point of opening it (the pass-on sheet): Safari's bars leave an
@@ -40,8 +132,7 @@
 		 * first (the step editor at `touchend`). The elements marked
 		 * `data-spotlight-with` in its nearest `data-spotlight-scope` - a
 		 * step's number pill and x, which stick out over its top border - are
-		 * left out too where they stick out, in their own shape, so the hole
-		 * never cuts through them.
+		 * left out with it, the hole standing clear of all of them.
 		 */
 		spotlight?: HTMLElement | null;
 		children: Snippet;
@@ -51,54 +142,85 @@
 	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
 	/**
-	 * The dim with holes where `spotlight` and its `data-spotlight-with`
-	 * elements are: a clip path, so the holes are clipped out of the hit test
-	 * too and a tap there reaches the element. A marked element's hole is only
-	 * its part above the spotlight's top, so no two holes overlap: in one
-	 * path an overlap fills back in under either fill rule. Each hole is a
-	 * rounded rectangle cut off flat at `cut`, all drawn the same way round.
-	 * Followed on scroll and resize, since the page under the sheet scrolls.
+	 * The dim with a hole where `spotlight` is: a clip path, so the hole is
+	 * clipped out of the hit test too and a tap there reaches the element.
+	 * The hole takes in its `data-spotlight-with` elements, stands
+	 * `SPOTLIGHT_MARGIN` out from all of them and rounds its corners
+	 * concentric with the spotlight's. It shows only what shows of the
+	 * spotlight: cut flat, square-cornered, at the edges of a box that clips
+	 * it (cook mode's step) and at the bars pinned to the top
+	 * (`coveredTop`), so a step scrolled under the editor's bar stays behind
+	 * the bar. Followed on scroll and resize, since the page under the sheet
+	 * scrolls.
 	 */
 	let hole = $state<string | undefined>(undefined);
-	function cutout(element: Element, cut = Infinity) {
-		const { left, right, top, bottom: end, width, height } = element.getBoundingClientRect();
-		const bottom = Math.min(cut, end);
-		if (bottom <= top) {
-			return '';
-		}
-		const k = Math.min(
-			parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0,
-			height / 2,
-			width / 2
-		);
-		const arc = (x: number, y: number) => `A${k} ${k} 0 0 0 ${x} ${y}`;
-		let sides;
-		if (bottom === end) {
-			sides = `${arc(left, top + k)}V${bottom - k}${arc(left + k, bottom)}H${right - k}${arc(right, bottom - k)}V${top + k}`;
-		} else if (bottom >= top + k) {
-			sides = `${arc(left, top + k)}V${bottom}H${right}V${top + k}`;
-		} else {
-			// Cut through the top corners: from where the cut meets each arc.
-			const inset = k - Math.sqrt(k * k - (top + k - bottom) ** 2);
-			sides = `${arc(left + inset, bottom)}H${right - inset}`;
-		}
-		return `M${right - k} ${top}H${left + k}${sides}${arc(right - k, top)}Z`;
-	}
 	function measure() {
 		if (!spotlight) {
 			hole = undefined;
 			return;
 		}
-		const cut = spotlight.getBoundingClientRect().top;
 		const scope = spotlight.closest('[data-spotlight-scope]');
-		const marked = [...(scope?.querySelectorAll('[data-spotlight-with]') ?? [])];
+		const boxes = [spotlight, ...(scope?.querySelectorAll('[data-spotlight-with]') ?? [])].map(
+			(element) => element.getBoundingClientRect()
+		);
+		const out = {
+			left: Math.min(...boxes.map((box) => box.left)) - SPOTLIGHT_MARGIN,
+			top: Math.min(...boxes.map((box) => box.top)) - SPOTLIGHT_MARGIN,
+			right: Math.max(...boxes.map((box) => box.right)) + SPOTLIGHT_MARGIN,
+			bottom: Math.max(...boxes.map((box) => box.bottom)) + SPOTLIGHT_MARGIN
+		};
+		const view = { left: -1e5, top: coveredTop(), right: 1e5, bottom: 1e5 };
+		for (let at = spotlight.parentElement; at && at !== document.body; at = at.parentElement) {
+			const style = getComputedStyle(at);
+			const box = at.getBoundingClientRect();
+			if (style.overflowX !== 'visible') {
+				view.left = Math.max(view.left, box.left);
+				view.right = Math.min(view.right, box.right);
+			}
+			if (style.overflowY !== 'visible') {
+				view.top = Math.max(view.top, box.top);
+				view.bottom = Math.min(view.bottom, box.bottom);
+			}
+		}
+		const left = Math.max(out.left, view.left);
+		const top = Math.max(out.top, view.top);
+		const right = Math.min(out.right, view.right);
+		const bottom = Math.min(out.bottom, view.bottom);
 		// The outer edge reaches far past any screen: a zoomed page's
 		// innerWidth is smaller than the dim, which would then cover only its
 		// top left.
+		const dim = 'M-1e5 -1e5H1e5V1e5H-1e5Z';
+		if (right <= left || bottom <= top) {
+			hole = `path("${dim}")`;
+			return;
+		}
+		const k = Math.min(
+			(parseFloat(getComputedStyle(spotlight).borderTopLeftRadius) || 0) + SPOTLIGHT_MARGIN,
+			(bottom - top) / 2,
+			(right - left) / 2
+		);
+		// A corner on a cut edge is square: the step goes on past it.
+		const r = (x: boolean, y: boolean) => (x || y ? 0 : k);
+		const tl = r(left > out.left, top > out.top);
+		const tr = r(right < out.right, top > out.top);
+		const br = r(right < out.right, bottom < out.bottom);
+		const bl = r(left > out.left, bottom < out.bottom);
+		const arc = (k: number, x: number, y: number) => `A${k} ${k} 0 0 0 ${x} ${y}`;
+		// Drawn the other way round from the dim, so it is a hole under `nonzero`.
 		hole =
-			`path("M-1e5 -1e5H1e5V1e5H-1e5Z ${cutout(spotlight)} ` +
-			`${marked.map((element) => cutout(element, cut)).join(' ')}")`;
+			`path("${dim} M${right - tr} ${top}H${left + tl}${arc(tl, left, top + tl)}` +
+			`V${bottom - bl}${arc(bl, left + bl, bottom)}H${right - br}${arc(br, right, bottom - br)}` +
+			`V${top + tr}${arc(tr, right - tr, top)}Z")`;
 	}
+	// Whatever `revealAbove` padded while this sheet was open goes with it.
+	$effect(() => {
+		if (!open) return;
+		return () => {
+			if (padded) padded.style.paddingBottom = '';
+			padded = null;
+		};
+	});
+
 	$effect(() => {
 		if (!open || !spotlight) return;
 		measure();
@@ -125,7 +247,13 @@
 				{/if}
 			{/snippet}
 		</Dialog.Overlay>
-		<Dialog.Content forceMount preventScroll={false} {onOpenAutoFocus} {onCloseAutoFocus}>
+		<Dialog.Content
+			forceMount
+			preventScroll={false}
+			{onOpenAutoFocus}
+			{onCloseAutoFocus}
+			{onInteractOutside}
+		>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
 					<div

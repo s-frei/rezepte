@@ -159,3 +159,45 @@ test('editor-times', async ({ page }, testInfo) => {
 	await step.scrollIntoViewIfNeeded();
 	await shot(page, 'editor-times');
 });
+
+// The demo links Sausage Rolls step 4's phrase to the recipe's third photo.
+const PHOTO_RECIPE = '/recipes/sausage-rolls';
+const PHOTO_PHRASE = 'brush the tops with the remaining egg';
+
+test('editor-step-photo', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto(`${PHOTO_RECIPE}/edit`);
+	const step = page.getByRole('textbox', { name: 'Step 4', exact: true });
+	// High in the window, so the desktop picker has room to hang below the
+	// step's "Link photo" instead of flipping up over the step.
+	await step.evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 160));
+	await step.click();
+	// The phrase selected through the editor, as frontend/e2e's selectInStep
+	// does: a linked egg and the photo link split its text into several nodes,
+	// but positions run on across them.
+	await step.evaluate((field, wanted) => {
+		const walker = document.createTreeWalker(field, NodeFilter.SHOW_TEXT);
+		let text = walker.nextNode();
+		while (text && !text.textContent?.includes('brush')) text = walker.nextNode();
+		if (!text) throw new Error('the phrase is not in step 4');
+		const { editor } = field as any;
+		const from = editor.view.posAtDOM(text, text.textContent!.indexOf('brush'));
+		editor.chain().focus().setTextSelection({ from, to: from + wanted.length }).run();
+	}, PHOTO_PHRASE);
+	// "Photo" on a phone, "Link photo" elsewhere.
+	await page.getByRole('button', { name: /^(Link photo|Photo)$/ }).click();
+	// It opens on the photo the phrase links to now.
+	await expect(page.getByRole('button', { name: 'Link photo 3', exact: true })).toBeVisible();
+	await shot(page, 'editor-step-photo');
+});
+
+test('recipe-step-photo', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto(PHOTO_RECIPE);
+	const phrase = page.locator('[data-step-photo]');
+	// Centered first, so the card at the phrase has room below it.
+	await phrase.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+	await phrase.click();
+	await expect(page.getByRole('dialog').getByText('Photo 3 of 3')).toBeVisible();
+	await shot(page, 'recipe-step-photo');
+});

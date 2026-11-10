@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { generateText, getSchema } from '@tiptap/core';
-import { referenceExtension, stepExtensions, textToDoc } from './step-doc';
+import { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { EditorState, type Transaction } from '@tiptap/pm/state';
+import { dropAbsent, referenceExtension, stepExtensions, textToDoc, wordsOf } from './step-doc';
 
 /**
  * The extensions a step's editor really runs on - the placeholder text and the
@@ -51,5 +53,44 @@ describe('stepExtensions', () => {
 		const schema = getSchema(EXTENSIONS);
 		expect(Object.keys(schema.marks)).toEqual([]);
 		expect(Object.keys(schema.nodes).sort()).toEqual(['doc', 'paragraph', 'text']);
+	});
+});
+
+describe('dropAbsent', () => {
+	const schema = getSchema(EXTENSIONS);
+	const words = {
+		references: [{ word: 'Teig', ingredientId: 'r1', groupName: null, ingredientName: 'Teig' }],
+		times: [],
+		photos: [{ phrase: 'Salzwasser schaben', imageKey: 'img-3' }]
+	};
+
+	/** The step's document with its words, after `edit` ran through the plugin. */
+	function after(edit: (state: EditorState) => Transaction): EditorState {
+		const state = EditorState.create({
+			doc: ProseMirrorNode.fromJSON(
+				schema,
+				textToDoc('Teig ins kochende Salzwasser schaben.', words)
+			),
+			plugins: [dropAbsent()]
+		});
+		return state.apply(edit(state));
+	}
+
+	/** Deletes the first occurrence of `text` from the document's only paragraph. */
+	const remove = (text: string) => (state: EditorState) => {
+		const from = state.doc.textContent.indexOf(text) + 1;
+		return state.tr.delete(from, from + text.length);
+	};
+
+	it('drops a photo link whose phrase was edited away', () => {
+		const state = after(remove(' schaben'));
+		expect(wordsOf(state.doc).photos).toEqual([]);
+		expect(wordsOf(state.doc).references).toEqual(words.references);
+	});
+
+	it('keeps a photo link whose phrase is still in the text', () => {
+		const state = after(remove('Teig '));
+		expect(wordsOf(state.doc).photos).toEqual(words.photos);
+		expect(wordsOf(state.doc).references).toEqual([]);
 	});
 });

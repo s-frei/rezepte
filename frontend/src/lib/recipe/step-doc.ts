@@ -6,7 +6,7 @@ import { Placeholder, UndoRedo } from '@tiptap/extensions';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { StepTime } from '#lib/api/recipes.js';
-import type { FormRef } from './form';
+import type { FormPhoto, FormRef } from './form';
 import { firstWordMatch } from './references';
 
 /**
@@ -23,7 +23,7 @@ import { firstWordMatch } from './references';
 const STEP_NODES = [
 	/**
 	 * The document carries what a step's words are, beside its text: the
-	 * links and the times. Held here rather than only in the form, every
+	 * links, the times and the photo links. Held here rather than only in the form, every
 	 * change to them is a transaction like any edit, so the editor's undo
 	 * history covers accepting and removing as well as typing, and deleting a word can take its link along in the
 	 * same undo step (`dropAbsent`). None of them is rendered: the document's
@@ -33,7 +33,8 @@ const STEP_NODES = [
 		addAttributes() {
 			return {
 				references: { default: [], rendered: false },
-				times: { default: [], rendered: false }
+				times: { default: [], rendered: false },
+				photos: { default: [], rendered: false }
 			};
 		}
 	}),
@@ -42,13 +43,13 @@ const STEP_NODES = [
 ];
 
 /** What a step's words are, as the document carries it. */
-export type StepWords = { references: FormRef[]; times: StepTime[] };
+export type StepWords = { references: FormRef[]; times: StepTime[]; photos: FormPhoto[] };
 
-export const STEP_WORDS = ['references', 'times'] as const;
+export const STEP_WORDS = ['references', 'times', 'photos'] as const;
 
 export function wordsOf(doc: ProseMirrorNode): StepWords {
-	const { references, times } = doc.attrs as StepWords;
-	return { references, times };
+	const { references, times, photos } = doc.attrs as StepWords;
+	return { references, times, photos };
 }
 
 /** The document's text, the way `stepText` reads it off an editor. */
@@ -57,7 +58,8 @@ function docText(doc: ProseMirrorNode): string {
 }
 
 /**
- * Drops whatever names a word the text no longer holds: a link or a time. Deleting a linked word ends its link - typing the word
+ * Drops whatever names a word the text no longer holds: a link, a time or a
+ * photo link. Deleting a linked word ends its link - typing the word
  * again starts from scratch, with at most a proposal - and as an appended
  * transaction it joins the edit's own undo step, so Cmd+Z brings the word and
  * its link back together.
@@ -72,7 +74,8 @@ export function dropAbsent(): Plugin {
 			const words = wordsOf(state.doc);
 			const kept: StepWords = {
 				references: words.references.filter((ref) => has(ref.word)),
-				times: words.times.filter((time) => has(time.phrase))
+				times: words.times.filter((time) => has(time.phrase)),
+				photos: words.photos.filter((photo) => has(photo.phrase))
 			};
 			let tr = null;
 			for (const key of STEP_WORDS) {

@@ -1,17 +1,20 @@
 <script lang="ts">
-	import type { IngredientGroup, Step } from '#lib/api/recipes.js';
+	import type { IngredientGroup, Step, StepPhoto } from '#lib/api/recipes.js';
 	import StepText from './StepText.svelte';
 
 	let {
 		steps,
 		groups,
 		servings,
-		baseServings
+		baseServings,
+		onphoto
 	}: {
 		steps: Step[];
 		groups: IngredientGroup[];
 		servings: number;
 		baseServings: number;
+		/** A photo phrase was activated: its photo, the phrase, and the 1-based number of its step. */
+		onphoto?: (photo: StepPhoto, trigger: HTMLElement, stepNumber: number) => void;
 	} = $props();
 </script>
 
@@ -27,7 +30,13 @@
 			<!-- A step reads in one sweep: the measure stops near 68 characters
 			     however wide the method column grows. -->
 			<p class="max-w-[68ch] pt-1 text-[16px] leading-[1.6] text-text">
-				<StepText {step} {groups} {servings} {baseServings} />
+				<StepText
+					{step}
+					{groups}
+					{servings}
+					{baseServings}
+					onphoto={onphoto && ((photo, trigger) => onphoto(photo, trigger, index + 1))}
+				/>
 			</p>
 		</li>
 	{/each}

@@ -62,6 +62,18 @@ description: Create, edit, delete, favorite and mark recipes tasty
     To mark one the app missed, or one in another language, select it and click "Mark as time", choose "Seconds", "Minutes" or "Hours" — the window shows the duration it will mark — and click "Set". A selection without a number, one that is too long, or one that is already marked is not taken; a line under the buttons says why. Recipes you saved earlier get times the next time you save them in the editor.
 
   </Step>
+
+  <Step>
+
+    ### Link a photo in a step
+
+    A word or phrase of a step can open one of the recipe's own photos, so "brush the tops with the remaining egg" shows how far to brush. Select the words (or put the caret in a single word) and click "Link photo" — "Photo" on a phone; the button is there once the recipe has a photo. The window shows the photo large with a strip of all the recipe's photos below it: click one in the strip, or swipe the large one, then click "Link photo 3" (the number is the photo's place in the recipe). Linked words get a dotted underline; the line under the step lists them along with its links and times, and that is where you remove one.
+
+    <Screenshot name="editor-step-photo" mobile caption="Picking the photo for a phrase" />
+
+    One photo per phrase: choosing "Link photo" on a linked phrase opens on its photo, and picking another replaces it. You can link a photo while you create a recipe, before its photos have finished uploading; the link is saved with the recipe. Reordering the photos keeps every link on its photo, and deleting a photo removes its links — the words stay in the step as plain text. A phrase can't overlap a marked time, and a time is not suggested inside a linked phrase.
+
+  </Step>
   <Step>
 
     ### Decide who may edit it
@@ -91,6 +103,10 @@ description: Create, edit, delete, favorite and mark recipes tasty
 The page arranges itself by the width of your screen. From 840 px wide, the ingredients sit beside the method; on a narrower screen they come first and the method follows below. On a tablet between 600 and 840 px, an ingredient list of six rows or more (group names counted) splits into two columns, so the card does not leave half its width empty.
 
 Servings and times show as pills at the top. Ingredients list with checkboxes for checking items off while shopping or cooking; the steps follow under "Method". The "Shopping list" stub at the end of the ingredients copies everything you have not checked off or, with its basket, puts it on one of your [shopping lists](/guide/shopping-lists); "copy" beside the "Ingredients" heading copies the whole list (see [Copy a shopping list](/guide/servings#copy-a-shopping-list)). A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode).
+
+A phrase linked to a photo has a small image icon in front of it and a dotted underline. Click it to see the photo right at the step, with its place among the recipe's photos ("Photo 3 of 3"); "View large" opens it full size, and `Escape` or a click elsewhere closes it. On a phone the photo opens at the bottom of the screen, with the step still in view above it.
+
+<Screenshot name="recipe-step-photo" caption="A step's photo opened on the detail page" />
 
 "Edit" opens the editor. The "More actions" menu (`…`) holds "Edit" as well, "Copy link", which copies the recipe's address to share, and "Delete", which deletes the recipe after confirming. "Pass on" (the share button next to the menu on a phone) offers the recipe as an image or as a link, for the household or, where the owner allows it, for everyone (see [Sharing recipes](/guide/sharing)). Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you (see [Editing rights](/guide/editing-rights)).
 
@@ -126,7 +142,8 @@ You mark a recipe on its page, next to the star, and on a wider screen also with
     - Link: an `http://` or `https://` address, up to 500 characters
     - Tags: up to 20, each up to 40 characters
     - Ingredient groups: 1–20, each with up to 100 ingredients
-    - Steps: up to 50, each up to 2000 characters, each with up to 30 linked ingredients and up to 20 times
+    - Steps: up to 50, each up to 2000 characters, each with up to 30 linked ingredients, up to 20 times and up to 20 photo links
+    - A photo link: one photo per phrase, up to 120 characters of text
     - A marked time: up to 60 characters of text, and at most one week
   </Accordion>
   <Accordion title="What is a slug?">

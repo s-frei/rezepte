@@ -11,6 +11,7 @@ import {
 import { m } from '#lib/paraglide/messages.js';
 import { getLocale } from '#lib/paraglide/runtime.js';
 import { wordPattern } from './references';
+import { photoBlocker, presentPhotos, resolvePhotos } from './step-photos';
 import { findDuplicates } from './step-references';
 import { presentTimes } from './step-times';
 
@@ -61,11 +62,20 @@ export type FormRef = {
 	ingredientName: string;
 };
 
+/**
+ * A photo link while it is being edited: anchored to the `ImagesSection` tile
+ * by its key, which is the image id for a stored photo and a client id for a
+ * queued or uploading one, and which stays when the upload lands. `toInput`
+ * turns it into the server's image id.
+ */
+export type FormPhoto = { phrase: string; imageKey: string };
+
 export type FormStep = {
 	id: string;
 	text: string;
 	references: FormRef[];
 	times: StepTime[];
+	photos: FormPhoto[];
 };
 
 export type RecipeForm = {
@@ -131,7 +141,7 @@ export function newGroup(): FormGroup {
 
 /** A blank step. */
 export function newStep(): FormStep {
-	return { id: newId(), text: '', references: [], times: [] };
+	return { id: newId(), text: '', references: [], times: [], photos: [] };
 }
 
 /** True when a string is empty or only whitespace. */
@@ -247,7 +257,9 @@ export function fromRecipe(recipe: RecipeInput): RecipeForm {
 		})),
 		// Copied, not shared: an imported draft arrives as reactive state,
 		// which `structuredClone` in the editor cannot clone.
-		times: step.times.map((time) => ({ ...time }))
+		times: step.times.map((time) => ({ ...time })),
+		// A stored photo's tile is keyed by its image id.
+		photos: (step.photos ?? []).map((photo) => ({ phrase: photo.phrase, imageKey: photo.imageId }))
 	}));
 
 	return {
@@ -382,12 +394,13 @@ export function emptyForm(): RecipeForm {
 /**
  * Converts the form back into the API payload: strips the client-side ids,
  * drops fully empty ingredient rows and empty steps, trims every string and
- * turns the ones that stay empty into `null`.
+ * turns the ones that stay empty into `null`. A photo link's tile key becomes
+ * its image id through `photoIds` (`resolvePhotos`).
  *
  * Assumes `validate` passed - a blank `servings` becomes `0`, which the API
  * rejects, rather than being silently replaced with a made-up default.
  */
-export function toInput(form: RecipeForm): RecipeInput {
+export function toInput(form: RecipeForm, photoIds?: Map<string, string>): RecipeInput {
 	const servings = parseNumber(form.servings);
 	const groups: IngredientGroup[] = form.ingredientGroups
 		.map((group) => ({
@@ -421,10 +434,56 @@ export function toInput(form: RecipeForm): RecipeInput {
 				references: presentReferences(step.references, step.text).flatMap(
 					(ref) => refToInput(form.ingredientGroups, ref) ?? []
 				),
-				times: presentTimes(step.times, step.text)
+				times: presentTimes(step.times, step.text),
+				...resolvePhotos(
+					{
+						photos: presentPhotos(step.photos, step.text).map((photo) => ({
+							phrase: photo.phrase,
+							imageId: photo.imageKey
+						}))
+					},
+					photoIds
+				)
 			})),
 		editPolicy: form.editPolicy
 	};
+}
+
+/**
+ * The steps whose photo links overlap a stored time or each other, keyed
+ * `step:<id>`, counting only the links and times `toInput` will send with
+ * `photoIds`, and the steps linking a photo in `failed` (an upload that
+ * failed or has not finished). "Link photo" refuses an overlap, but only
+ * against the marks that show: link a phrase over one whose photo is
+ * removed, undo the removal, and both are back. The server would refuse the
+ * save in English; this says so under the step first.
+ */
+export function photoErrors(
+	form: RecipeForm,
+	photoIds: Map<string, string>,
+	failed = new Set<string>()
+): FieldErrors {
+	const errors: FieldErrors = {};
+	for (const step of form.steps) {
+		if (isBlank(step.text)) continue;
+		const present = presentPhotos(step.photos, step.text);
+		if (present.some((photo) => failed.has(photo.imageKey))) {
+			errors[`step:${step.id}`] = m.editor_photo_upload_failed();
+			continue;
+		}
+		// The times `toInput` sends: a removal hid a photo's link, its time
+		// proposal came back and was accepted, or an edit moved a time's first
+		// occurrence into a photo phrase.
+		const sent = {
+			...step,
+			times: presentTimes(step.times, step.text),
+			photos: present.filter((photo) => photoIds.has(photo.imageKey))
+		};
+		const blockers = sent.photos.map((photo) => photoBlocker(sent, photo.phrase));
+		if (blockers.includes('time')) errors[`step:${step.id}`] = m.editor_photo_in_time();
+		else if (blockers.includes('photo')) errors[`step:${step.id}`] = m.editor_photo_overlap();
+	}
+	return errors;
 }
 
 function minutesOrNull(value: string): number | null {

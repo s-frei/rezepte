@@ -410,3 +410,99 @@ describe('segmentStep times', () => {
 		expect(segmentStep(step, [], 2, 2)).toEqual([{ text: 'Schmoren.' }]);
 	});
 });
+
+describe('segmentStep photo phrases', () => {
+	const text = 'Teig durch eine Spätzlepresse oder vom Brett ins kochende Salzwasser schaben.';
+	const phrase = 'vom Brett ins kochende Salzwasser schaben';
+	const photo = { phrase, imageId: 'img1' };
+	const base = { text, references: [], times: [], photos: [photo] };
+
+	it('marks the phrase as one segment carrying the photo', () => {
+		expect(segmentStep(base, groups, 4, 4)).toEqual([
+			{ text: 'Teig durch eine Spätzlepresse oder ' },
+			{ text: phrase, photo },
+			{ text: '.' }
+		]);
+	});
+
+	it('keeps a referenced ingredient inside the phrase, with its quantity and the photo', () => {
+		const out = segmentStep(
+			{
+				text: 'Saft mit Zucker aufkochen.',
+				references: [{ word: 'Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }],
+				times: [],
+				photos: [{ phrase: 'mit Zucker aufkochen', imageId: 'img1' }]
+			},
+			groups,
+			4,
+			4
+		);
+		expect(out).toEqual([
+			{ text: 'Saft ' },
+			{ text: 'mit ', photo: { phrase: 'mit Zucker aufkochen', imageId: 'img1' } },
+			{
+				text: 'Zucker',
+				quantity: '100 g',
+				photo: { phrase: 'mit Zucker aufkochen', imageId: 'img1' }
+			},
+			{ text: ' aufkochen', photo: { phrase: 'mit Zucker aufkochen', imageId: 'img1' } },
+			{ text: '.' }
+		]);
+	});
+
+	it("puts a split reference's quantity after its last part", () => {
+		const step = (phrase: string) =>
+			segmentStep(
+				{
+					text: 'Saft mit Zucker aufkochen.',
+					references: [{ word: 'mit Zucker', groupName: 'Grütze', ingredientName: 'Zucker' }],
+					times: [],
+					photos: [{ phrase, imageId: 'img1' }]
+				},
+				groups,
+				4,
+				4
+			).map(({ text, quantity }) => [text, quantity]);
+		// The phrase ends inside the reference: the amount follows the word, outside the trigger.
+		expect(step('Saft mit')).toEqual([
+			['Saft ', undefined],
+			['mit', undefined],
+			[' Zucker', '100 g'],
+			[' aufkochen.', undefined]
+		]);
+		// The phrase starts inside it: the amount stays in the trigger, after the word.
+		expect(step('Zucker aufkochen')).toEqual([
+			['Saft ', undefined],
+			['mit ', undefined],
+			['Zucker', '100 g'],
+			[' aufkochen', undefined],
+			['.', undefined]
+		]);
+	});
+
+	it('ignores a phrase that is not in the text', () => {
+		const out = segmentStep(
+			{ ...base, photos: [{ phrase: 'nowhere', imageId: 'x' }] },
+			groups,
+			4,
+			4
+		);
+		expect(out).toEqual([{ text }]);
+	});
+
+	it('marks the first occurrence only', () => {
+		const out = segmentStep(
+			{
+				text: 'Rühren, dann rühren.',
+				references: [],
+				times: [],
+				photos: [{ phrase: 'rühren', imageId: 'x' }]
+			},
+			groups,
+			4,
+			4
+		);
+		expect(out.filter((s) => s.photo)).toHaveLength(1);
+		expect(out[0]).toEqual({ text: 'Rühren, dann ' });
+	});
+});

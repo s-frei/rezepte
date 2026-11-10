@@ -4,10 +4,18 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
-	import { createRecipe, emptyInput, uploadImage, type RecipeInput } from '#lib/api/recipes.js';
+	import {
+		createRecipe,
+		emptyInput,
+		updateRecipe,
+		uploadImage,
+		type Recipe,
+		type RecipeInput
+	} from '#lib/api/recipes.js';
 	import RecipeForm from '#lib/components/editor/RecipeForm.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { takeDraft, type ImportedDraft } from '#lib/recipe/draft.js';
+	import { resolvePhotos, type QueuedPhoto } from '#lib/recipe/step-photos.js';
 
 	// `?title=` prefills the title and nothing else, for "Als neues Rezept" on
 	// the overview's no-results state: someone searched for a dish, found
@@ -50,25 +58,58 @@
 		announce(next);
 	});
 
+	// Set when the links could not be set: the save opens the new recipe's editor.
+	let relink = false;
+	const savedHref = (recipe: Recipe) =>
+		relink
+			? resolve('/recipes/[slug]/edit', { slug: recipe.slug })
+			: resolve('/recipes/[slug]', { slug: recipe.slug });
+
 	/**
 	 * Creates the recipe, then uploads the queued images one by one. A failed
 	 * upload is reported but never undoes the recipe - the user lands on the
 	 * detail page and can retry from the editor.
+	 *
+	 * A step's photo link names a queued photo by its key, which only the
+	 * upload turns into an id: the recipe is created without the links, and
+	 * once the photos are up one update sets them, a link to a photo whose
+	 * upload failed left out - and then the author lands in the editor too.
 	 */
-	async function save(input: RecipeInput, pendingFiles: File[]) {
-		const recipe = await createRecipe(input);
-		let failed = 0;
-		for (const file of pendingFiles) {
+	async function save(input: RecipeInput, pending: QueuedPhoto[]) {
+		relink = false;
+		const withPhotos = (ids: Map<string, string>) =>
+			input.steps.map((step) => resolvePhotos(step, ids));
+		let recipe = await createRecipe({ ...input, steps: withPhotos(new Map()) });
+		const uploaded: [string, string][] = [];
+		const failed: string[] = [];
+		for (const { key, file } of pending) {
 			try {
-				await uploadImage(recipe.id, file);
+				uploaded.push([key, (await uploadImage(recipe.id, file)).id]);
 			} catch {
-				failed += 1;
+				failed.push(key);
 			}
 		}
-		if (failed === 1) {
+		const ids = new Map(uploaded);
+		const linked = input.steps.flatMap((step) => step.photos ?? []);
+		if (linked.some((photo) => failed.includes(photo.imageId))) {
+			relink = true;
+			toast.error(m.editor_photo_links_failed());
+		}
+		if (linked.some((photo) => ids.has(photo.imageId))) {
+			// The recipe stands either way: thrown, the author would stay here
+			// and the next Save would create it, photos and all, a second time.
+			try {
+				recipe = await updateRecipe(recipe.id, { ...input, steps: withPhotos(ids) });
+			} catch {
+				// Its editor, not its page: the author relinks there and saves.
+				if (!relink) toast.error(m.editor_photo_links_failed());
+				relink = true;
+			}
+		}
+		if (failed.length === 1) {
 			toast.error(m.images_upload_error());
-		} else if (failed > 1) {
-			toast.error(m.images_upload_error_count({ count: failed }));
+		} else if (failed.length > 1) {
+			toast.error(m.images_upload_error_count({ count: failed.length }));
 		}
 		return recipe;
 	}
@@ -85,5 +126,6 @@
 		heading={m.overview_new_recipe()}
 		cancelHref={resolve('/')}
 		{save}
+		{savedHref}
 	/>
 {/key}

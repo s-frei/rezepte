@@ -1,7 +1,10 @@
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ImageIcon from '@lucide/svelte/icons/image';
+	import ImageOff from '@lucide/svelte/icons/image-off';
 	import Link2 from '@lucide/svelte/icons/link-2';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import Timer from '@lucide/svelte/icons/timer';
 	import TimerOff from '@lucide/svelte/icons/timer-off';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -13,6 +16,7 @@
 	import type { StepTime } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { FormRef } from '#lib/recipe/form.js';
+	import type { PhotoTile } from '#lib/recipe/step-photos.js';
 	import {
 		guessFirst,
 		refLabel,
@@ -48,7 +52,12 @@
 		onunlink,
 		onaccept,
 		onaccepttime,
-		onremovetime
+		onremovetime,
+		photos,
+		canLinkPhoto,
+		onlinkphoto,
+		onchangephoto,
+		onremovephoto
 	}: {
 		stepId: string;
 		/** The step's links whose word is in the text, in the order they appear there. */
@@ -70,6 +79,14 @@
 		onaccept: (ref: FormRef) => void;
 		onaccepttime: (time: StepTime) => void;
 		onremovetime: (phrase: string) => void;
+		/** The step's photo links with the photo each shows, in text order. */
+		photos: { phrase: string; tile: PhotoTile }[];
+		/** Whether the recipe has a photo to link; "Link photo" is offered only then. */
+		canLinkPhoto: boolean;
+		/** The buttons open the picker below themselves, so they hand themselves over. */
+		onlinkphoto: (trigger: HTMLElement) => void;
+		onchangephoto: (phrase: string, trigger: HTMLElement) => void;
+		onremovephoto: (phrase: string) => void;
 	} = $props();
 
 	let open = $state(false);
@@ -103,11 +120,13 @@
 	/** A choice with a guess is a proposal like any other; one without waits for a pick. */
 	const waiting = $derived(choices.filter((choice) => choice.guess === null).length);
 	const suggested = $derived(pending.length + choices.length - waiting + pendingTimes.length);
-	const listed = $derived(working.length + times.length + suggested + waiting);
+	const listed = $derived(working.length + photos.length + times.length + suggested + waiting);
 
 	const summary = $derived(
 		[
-			working.length > 0 ? m.editor_reference_summary_links({ count: working.length }) : '',
+			working.length + photos.length > 0
+				? m.editor_reference_summary_links({ count: working.length + photos.length })
+				: '',
 			times.length === 1
 				? m.editor_time_summary_one()
 				: times.length > 1
@@ -128,6 +147,17 @@
 			.join(', ')
 	);
 </script>
+
+<!--
+	An action's label, one word below `md:`: the three full labels took two
+	lines of a phone. The short word stands within the full label, which stays
+	the button's name for a screen reader.
+-->
+{#snippet actionLabel(full: string, short: string)}
+	<span class="max-md:hidden">{full}</span>
+	<span class="md:hidden" aria-hidden="true">{short}</span>
+	<span class="sr-only md:hidden">{full}</span>
+{/snippet}
 
 {#snippet proposal(ref: FormRef)}
 	{@const view = refView(ref, entries)}
@@ -206,7 +236,7 @@
 				class="relative -ml-1 flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				<Link2 class="size-3.5" aria-hidden="true" />
-				{m.editor_reference_link_word()}
+				{@render actionLabel(m.editor_reference_link_word(), m.editor_reference_link_word_short())}
 			</button>
 			<button
 				type="button"
@@ -215,8 +245,19 @@
 				class="relative flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-time-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				<Timer class="size-3.5" aria-hidden="true" />
-				{m.editor_time_mark()}
+				{@render actionLabel(m.editor_time_mark(), m.editor_time_mark_short())}
 			</button>
+			{#if canLinkPhoto}
+				<button
+					type="button"
+					onmousedown={(event) => event.preventDefault()}
+					onclick={(event) => onlinkphoto(event.currentTarget)}
+					class="relative flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				>
+					<ImageIcon class="size-3.5" aria-hidden="true" />
+					{@render actionLabel(m.editor_photo_link(), m.editor_photo_link_short())}
+				</button>
+			{/if}
 		{/if}
 		{#if listed > 0}
 			<!--
@@ -282,6 +323,34 @@
 						class="{ACTION} {REMOVE}"
 					>
 						<Unlink class="size-4" aria-hidden="true" />
+					</button>
+				</span>
+			</li>
+		{/each}
+		{#each photos as { phrase, tile }, at (phrase)}
+			<li class={ROW}>
+				<span class="flex min-w-0 items-center gap-2.5">
+					<img src={tile.thumb} alt="" class="size-8 shrink-0 rounded-word object-cover" />
+					<span id="step-photo-{stepId}-{at}" class="min-w-0 font-medium">{phrase}</span>
+				</span>
+				<span class={ACTIONS}>
+					<button
+						type="button"
+						onclick={(event) => onchangephoto(phrase, event.currentTarget)}
+						aria-label={m.editor_reference_change()}
+						aria-describedby="step-photo-{stepId}-{at}"
+						class="{ACTION} {ACCEPT}"
+					>
+						<Pencil class="size-4" aria-hidden="true" />
+					</button>
+					<button
+						type="button"
+						onclick={() =>
+							act(() => onremovephoto(phrase), m.editor_announce_removed({ label: phrase }))}
+						aria-label={m.editor_photo_remove({ phrase })}
+						class="{ACTION} {REMOVE}"
+					>
+						<ImageOff class="size-4" aria-hidden="true" />
 					</button>
 				</span>
 			</li>

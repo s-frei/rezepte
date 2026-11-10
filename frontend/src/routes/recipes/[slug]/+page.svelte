@@ -360,9 +360,12 @@
 	for the gallery, hence `pointer-events-none` on the empty middle. The
 	hairline is there in both states and only changes color: a border that
 	comes and goes animates its width in `currentColor`, a dark line that
-	outlasts the background.
+	outlasts the background. It covers the top (`data-covers-top`) at its
+	filled height of 4rem, also before it fills: a step's photo sheet keeps
+	the step's light below it, and the sheet's reveal scroll may fill it.
 -->
 	<div
+		data-covers-top="4"
 		class="fixed inset-x-0 top-0 z-40 flex gap-3 border-b transition-all md:hidden {scrolled
 			? 'h-16 items-center border-border bg-background/80 px-[min(1.25rem,20px)] backdrop-blur'
 			: 'pointer-events-none h-28 items-start border-transparent px-[min(2.5rem,40px)] pt-11'}"

@@ -2,7 +2,12 @@
 	import type { Snippet } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { Tabs } from 'bits-ui';
-	import type { ImageVariant, RecipeContent } from '#lib/api/recipes.js';
+	import {
+		imageUrl,
+		type ImageVariant,
+		type RecipeContent,
+		type StepPhoto
+	} from '#lib/api/recipes.js';
 	import TagChip from '#lib/components/ui/TagChip.svelte';
 	import ImageGallery from './ImageGallery.svelte';
 	import IngredientList from './IngredientList.svelte';
@@ -11,6 +16,7 @@
 	import SourceCredit from './SourceCredit.svelte';
 	import ServingsStepper from './ServingsStepper.svelte';
 	import StepList from './StepList.svelte';
+	import StepPhotoPreview from './StepPhotoPreview.svelte';
 	import { fullList } from '#lib/recipe/ingredient-text.js';
 	import { createServings } from '#lib/recipe/servings.svelte.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
@@ -85,6 +91,10 @@
 	// binding.
 	const servings = $derived(createServings(recipe.id, recipe.servings));
 	let copyIcon = $state<CopyIcon>();
+
+	// The photo a step's phrase opened, into the caller's lightbox from there.
+	let photo = $state<{ photo: StepPhoto; anchor: HTMLElement; step: number } | null>(null);
+	let photoOpen = $state(false);
 </script>
 
 <div class="mb-6 h-[260px] overflow-hidden rounded-3xl bg-surface p-3 md:hidden">
@@ -254,6 +264,10 @@
 				groups={recipe.ingredientGroups}
 				servings={servings.value}
 				baseServings={servings.base}
+				onphoto={(next, anchor, step) => {
+					photo = { photo: next, anchor, step };
+					photoOpen = true;
+				}}
 			/>
 		{/snippet}
 		{#if diary}
@@ -310,3 +324,13 @@
 {#if footer}
 	{@render footer()}
 {/if}
+
+<StepPhotoPreview
+	bind:open={photoOpen}
+	photo={photo?.photo ?? null}
+	anchor={photo?.anchor ?? null}
+	images={recipe.images}
+	src={imageSrc ?? ((id, variant) => imageUrl(recipe.id, id, variant))}
+	stepNumber={photo?.step ?? 1}
+	onenlarge={onopenimage}
+/>

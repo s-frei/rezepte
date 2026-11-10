@@ -9,6 +9,7 @@ import {
 } from './form';
 import { firstWordMatch, isWordChar, laterWordMatches, matchStep } from './references';
 import { formatQuantity } from './format';
+import { withShownPhotos, type PhotoTile } from './step-photos';
 import { addTime, pendingTimes } from './step-times';
 
 /**
@@ -429,9 +430,10 @@ export function proposals(
 }
 
 /** How many proposals, ingredient links and times, are open across the whole recipe. */
-export function countPending(steps: FormStep[], groups: FormGroup[]): number {
+export function countPending(steps: FormStep[], groups: FormGroup[], tiles: PhotoTile[]): number {
 	return steps.reduce(
-		(total, step) => total + pendingFor(step, groups).length + pendingTimes(step).length,
+		(total, step) =>
+			total + pendingFor(step, groups).length + pendingTimes(withShownPhotos(step, tiles)).length,
 		0
 	);
 }
@@ -457,14 +459,14 @@ export function waitingChoices(
  * ever linked. Returns how many it took: a time that overlaps a word just
  * linked is no longer open by then, so this can be fewer than `countPending`.
  */
-export function acceptAll(steps: FormStep[], groups: FormGroup[]): number {
+export function acceptAll(steps: FormStep[], groups: FormGroup[], tiles: PhotoTile[]): number {
 	let taken = 0;
 	for (const step of steps) {
 		for (const ref of pendingFor(step, groups)) {
 			step.references = addReference(step.references, ref);
 			taken++;
 		}
-		for (const time of pendingTimes(step)) {
+		for (const time of pendingTimes(withShownPhotos(step, tiles))) {
 			step.times = addTime(step.times, time, step.text);
 			taken++;
 		}

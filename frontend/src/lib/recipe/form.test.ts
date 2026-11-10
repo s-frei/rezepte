@@ -17,6 +17,7 @@ import {
 	newStep,
 	normaliseTag,
 	parseNumber,
+	photoErrors,
 	presentReferences,
 	sectionOfError,
 	sectionsWithErrors,
@@ -384,7 +385,7 @@ describe('toInput', () => {
 	it('drops empty steps', () => {
 		const form = validForm();
 		form.steps.push(newStep());
-		form.steps.push({ id: 'x', text: '   ', references: [], times: [] });
+		form.steps.push({ id: 'x', text: '   ', references: [], times: [], photos: [] });
 		expect(toInput(form).steps).toEqual([
 			{ text: 'Mehl mischen.', references: [], times: [] },
 			{ text: 'Backen.', references: [], times: [] }
@@ -1034,5 +1035,125 @@ describe('section errors', () => {
 		expect(
 			errorAnchors({ 'step:s1': 'a', title: 'b', 'name:r1': 'c', ingredientGroups: 'd' })
 		).toEqual(['editor-title', 'ingredient-name-r1', 'editor-section-ingredients', 'step-s1']);
+	});
+});
+
+describe('step photos', () => {
+	/** Step 2 of the Käsespätzle, its phrase linked to the photo `img-3`. */
+	function photoInput(): RecipeInput {
+		return baseInput({
+			steps: [
+				{
+					text: 'Teig vom Brett ins kochende Salzwasser schaben.',
+					references: [],
+					times: [],
+					photos: [{ phrase: 'Salzwasser schaben', imageId: 'img-3' }]
+				}
+			]
+		});
+	}
+
+	it('anchors a stored link to the photo tile keyed by its image id', () => {
+		expect(fromRecipe(photoInput()).steps[0].photos).toEqual([
+			{ phrase: 'Salzwasser schaben', imageKey: 'img-3' }
+		]);
+	});
+
+	it('reads a step without photos as one without links', () => {
+		expect(fromRecipe(baseInput()).steps[0].photos).toEqual([]);
+	});
+
+	it('sends the key as the image id without a map', () => {
+		expect(toInput(fromRecipe(photoInput())).steps).toEqual(photoInput().steps);
+	});
+
+	it('resolves each key through the map, and drops a link whose key it lacks', () => {
+		const form = fromRecipe(photoInput());
+		form.steps[0].photos.push({ phrase: 'Teig', imageKey: 'f-queued' });
+		const ids = new Map([['f-queued', 'img-9']]);
+		expect(toInput(form, ids).steps[0].photos).toEqual([{ phrase: 'Teig', imageId: 'img-9' }]);
+	});
+
+	it('sends no link whose phrase left the text', () => {
+		const form = fromRecipe(photoInput());
+		form.steps[0].text = 'Teig ins Wasser geben.';
+		expect(toInput(form).steps[0].photos ?? []).toEqual([]);
+	});
+});
+
+describe('photoErrors', () => {
+	/** Two links whose phrases overlap, as an undone photo removal can leave them. */
+	function overlapping(): RecipeForm {
+		const form = validForm();
+		form.steps[0].text = 'Teig ins kochende Salzwasser schaben.';
+		form.steps[0].photos = [
+			{ phrase: 'kochende Salzwasser', imageKey: 'img-1' },
+			{ phrase: 'Salzwasser schaben', imageKey: 'img-2' }
+		];
+		return form;
+	}
+
+	it('refuses overlapping links under their step', () => {
+		const form = overlapping();
+		const ids = new Map([
+			['img-1', 'img-1'],
+			['img-2', 'img-2']
+		]);
+		expect(photoErrors(form, ids)).toEqual({
+			[`step:${form.steps[0].id}`]: 'This phrase overlaps another photo link'
+		});
+	});
+
+	it('stays under its step while the form is checked again', () => {
+		const form = overlapping();
+		const errors = photoErrors(
+			form,
+			new Map([
+				['img-1', 'img-1'],
+				['img-2', 'img-2']
+			])
+		);
+		expect(currentErrors(errors, form)).toBe(errors);
+	});
+
+	it('ignores a link that will not be sent', () => {
+		expect(photoErrors(overlapping(), new Map([['img-1', 'img-1']]))).toEqual({});
+	});
+
+	it('refuses a time accepted while the linked photo was hidden', () => {
+		// Linked, the photo removed (its link hidden, so "10 Minuten" was
+		// proposed and accepted), then the removal undone.
+		const form = validForm();
+		form.steps[0].text = 'Teig 10 Minuten gehen lassen.';
+		form.steps[0].photos = [{ phrase: 'Teig 10 Minuten gehen', imageKey: 'img-1' }];
+		form.steps[0].times = [{ phrase: '10 Minuten', seconds: 600 }];
+		expect(photoErrors(form, new Map([['img-1', 'img-1']]))).toEqual({
+			[`step:${form.steps[0].id}`]: 'This phrase overlaps a time'
+		});
+		expect(photoErrors(form, new Map())).toEqual({});
+	});
+
+	it('refuses a link to a photo whose upload failed', () => {
+		const form = validForm();
+		form.steps[0].text = 'Teig ins Salzwasser schaben.';
+		form.steps[0].photos = [{ phrase: 'schaben', imageKey: 'tile-1' }];
+		expect(photoErrors(form, new Map(), new Set(['tile-1']))).toEqual({
+			[`step:${form.steps[0].id}`]:
+				'The linked photo could not be uploaded. Retry it under Photos or remove it.'
+		});
+		expect(photoErrors(form, new Map(), new Set(['tile-2']))).toEqual({});
+	});
+
+	it('refuses a time whose first occurrence moved into a photo phrase', () => {
+		const form = validForm();
+		form.steps[0].text = '10 Minuten backen. Kruste nach 10 Minuten prüfen.';
+		form.steps[0].photos = [{ phrase: 'Kruste nach 10 Minuten', imageKey: 'img-1' }];
+		form.steps[0].times = [{ phrase: '10 Minuten', seconds: 600 }];
+		const ids = new Map([['img-1', 'img-1']]);
+		expect(photoErrors(form, ids)).toEqual({});
+		form.steps[0].text = 'Kruste nach 10 Minuten prüfen.';
+		expect(photoErrors(form, ids)).toEqual({
+			[`step:${form.steps[0].id}`]: 'This phrase overlaps a time'
+		});
 	});
 });

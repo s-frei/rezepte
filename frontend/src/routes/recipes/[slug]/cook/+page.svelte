@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { innerHeight, innerWidth } from 'svelte/reactivity/window';
 	import { fade, fly } from 'svelte/transition';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -13,10 +14,13 @@
 	import CookProgress from '#lib/components/cook/CookProgress.svelte';
 	import IngredientSheet from '#lib/components/cook/IngredientSheet.svelte';
 	import TypeSpecimen from '#lib/components/cook/TypeSpecimen.svelte';
+	import StepPhotoPreview from '#lib/components/recipe/StepPhotoPreview.svelte';
+	import StepPhotoRow from '#lib/components/recipe/StepPhotoRow.svelte';
 	import StepText from '#lib/components/recipe/StepText.svelte';
 	import TimerBanner from '#lib/components/timer/TimerBanner.svelte';
 	import TimerDock from '#lib/components/timer/TimerDock.svelte';
 	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import { createServings } from '#lib/recipe/servings.svelte.js';
 	import { swipeDirection } from '#lib/recipe/swipe.js';
 	import { DEFAULT_TYPE_SIZE, TYPE_SIZE_CLASSES, type TypeSize } from '#lib/recipe/type-size.js';
@@ -24,9 +28,10 @@
 	import { unlockAudio } from '#lib/recipe/chime.js';
 	import { clampStep, cookPath, timerId, type Timer } from '#lib/recipe/timers.js';
 	import { timers } from '#lib/recipe/timers.svelte.js';
-	import type { StepTime } from '#lib/api/recipes.js';
+	import { imageUrl, type StepPhoto, type StepTime } from '#lib/api/recipes.js';
 	import { back } from '#lib/page-transition.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { phone } from '#lib/ui/phone.svelte.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -88,7 +93,10 @@
 				return;
 			}
 			scrolls = node.scrollHeight > node.clientHeight + 1;
-			if (scrolls) {
+			// Not while a photo reshapes the step for a moment: the sheet pads
+			// it (`revealAbove`), the panel narrows it, and the latch would keep
+			// the title away once they are gone.
+			if (scrolls && !photoOpen && !side) {
 				longFor = `${index}:${typeSize}`;
 			}
 			atTop = node.scrollTop <= 1;
@@ -123,6 +131,8 @@
 	});
 
 	async function openReading() {
+		// Text, type size and timers only.
+		side = null;
 		reading = true;
 		await tick();
 		document.querySelector<HTMLElement>('[data-reading-close] button')?.focus();
@@ -143,6 +153,7 @@
 		}
 		reading = false;
 		focusWholeStep = false;
+		side = null;
 		direction = next > index ? 1 : -1;
 		index = next;
 		showStep(next);
@@ -159,6 +170,7 @@
 		// A timer of another recipe reuses this page: take its step.
 		if (from?.route.id === '/recipes/[slug]/cook') {
 			index = stepFromUrl();
+			side = null;
 		}
 		cameFromDetail = from?.route.id === '/recipes/[slug]';
 		if (count > 0 && stepParam() !== String(index + 1)) {
@@ -207,6 +219,93 @@
 		}
 	}
 
+	let photo = $state<StepPhoto | null>(null);
+	let photoAnchor = $state<HTMLElement | null>(null);
+	let photoOpen = $state(false);
+	let lightboxOpen = $state(false);
+	let lightboxIndex = $state(0);
+
+	// On a large screen the photo opens beside the step, inside the stage,
+	// so it never covers the footer or the ingredient bar; anywhere else (or
+	// at a type size that leaves the text too narrow) it opens as the sheet.
+	let side = $state<{ photo: StepPhoto; anchor: HTMLElement; width: number } | null>(null);
+
+	const SIDE_GAP = 48; // gap-12 between text and photo
+	const SIDE_ROW = 52; // "Photo n of m · View large" under the photo
+
+	/**
+	 * The photo's width when it fits beside the step, else null: a window of
+	 * 64rem and up without a phone's coarse pointer, a photo of at least 22rem
+	 * (at most 36rem, 45% of the row, and as tall as the stage allows at 4:3),
+	 * and the text keeping 14em of its own type size, about 28 characters.
+	 */
+	function sideWidth(anchor: HTMLElement): number | null {
+		const section = anchor.closest<HTMLElement>('section[data-step]');
+		const text = anchor.closest('p');
+		if (phone.value || window.innerWidth < 1024 || !section || !text) return null;
+		const box = getComputedStyle(section);
+		const row = section.clientWidth - parseFloat(box.paddingLeft) - parseFloat(box.paddingRight);
+		const title = section.querySelector('h1');
+		const height =
+			section.clientHeight -
+			parseFloat(box.paddingTop) -
+			parseFloat(box.paddingBottom) -
+			(title ? title.offsetHeight + 16 : 0) -
+			SIDE_ROW;
+		const width = Math.floor(Math.min(576, row * 0.45, (height * 4) / 3));
+		const em = parseFloat(getComputedStyle(text).fontSize);
+		return width >= 352 && row - SIDE_GAP - width >= 14 * em ? width : null;
+	}
+
+	function closeSide(focus = true) {
+		const anchor = side?.anchor;
+		side = null;
+		if (focus && anchor?.isConnected) anchor.focus();
+	}
+
+	function openStepPhoto(next: StepPhoto, trigger: HTMLElement) {
+		if (side?.photo.phrase === next.phrase) {
+			closeSide();
+			return;
+		}
+		const width = sideWidth(trigger);
+		if (width) {
+			side = { photo: next, anchor: trigger, width };
+			return;
+		}
+		side = null;
+		photo = next;
+		photoAnchor = trigger;
+		photoOpen = true;
+	}
+
+	// A resized window or another type size measures again; a photo that no
+	// longer fits beside the step closes.
+	$effect(() => {
+		void typeSize;
+		void innerWidth.current;
+		void innerHeight.current;
+		const current = untrack(() => side);
+		if (!current) return;
+		void tick().then(() => {
+			if (side !== current) return;
+			const width = sideWidth(current.anchor);
+			if (width) current.width = width;
+			// Focus back to the phrase only from inside the panel, never off
+			// whatever else the cook was on.
+			else closeSide(document.activeElement?.closest('[data-step-photo-panel]') != null);
+		});
+	});
+
+	const sideIndex = $derived(
+		side ? recipe.images.findIndex((image) => image.id === side!.photo.imageId) : -1
+	);
+
+	function enlarge(index: number) {
+		lightboxIndex = index;
+		lightboxOpen = true;
+	}
+
 	function onkeydown(event: KeyboardEvent) {
 		// The sheet's own listener may already have handled the key (Escape).
 		if (event.defaultPrevented) {
@@ -220,7 +319,13 @@
 		// The open sheet owns the keyboard: it closes itself on Escape instead
 		// of leaving cook mode, and the arrows must not page steps the cook
 		// cannot see. The open specimen owns the arrows for its radio group.
-		if (sheetOpen || specimenOpen) {
+		if (sheetOpen || specimenOpen || photoOpen || lightboxOpen) {
+			return;
+		}
+		// The photo beside the step closes on Escape; the arrows still page.
+		if (side && event.key === 'Escape') {
+			event.preventDefault();
+			closeSide();
 			return;
 		}
 		// The reading view pages nothing; Escape takes the cook back to the step.
@@ -406,20 +511,56 @@
 						     room. Browsers without `hyphenate-limit-chars` hyphenate
 						     every word instead. `w-full`: shrunk to its text, Chromium
 						     sizes the step to "word(quantity)" unhyphenated and clips it. -->
-						<p
-							class="w-full max-w-[640px] font-display {TYPE_SIZE_CLASSES[
-								typeSize
-							]} leading-[1.3] font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4]"
-						>
-							<StepText
-								step={recipe.steps[index]}
-								groups={recipe.ingredientGroups}
-								servings={servings.value}
-								baseServings={servings.base}
-								onstarttime={startTime}
-								{activeTimer}
-							/>
-						</p>
+						<div class="flex w-full items-center justify-center gap-12">
+							<p
+								class="w-full max-w-[640px] font-display {TYPE_SIZE_CLASSES[
+									typeSize
+								]} leading-[1.3] font-medium wrap-break-word hyphens-auto [hyphenate-limit-chars:12_4_4] {side
+									? 'min-w-0 flex-1 text-left'
+									: ''}"
+							>
+								<StepText
+									step={recipe.steps[index]}
+									groups={recipe.ingredientGroups}
+									servings={servings.value}
+									baseServings={servings.base}
+									onstarttime={startTime}
+									{activeTimer}
+									onphoto={openStepPhoto}
+								/>
+							</p>
+							{#if side}
+								<div
+									role="dialog"
+									aria-label={m.step_photo_caption({ step: index + 1, phrase: side.photo.phrase })}
+									data-step-photo-panel
+									class="relative shrink-0"
+									style:width="{side.width}px"
+									in:fly={{ x: 24, duration }}
+									{@attach (node) => node.querySelector('button')?.focus()}
+								>
+									<IconButton
+										label={m.step_photo_close()}
+										onclick={() => closeSide()}
+										class="absolute top-3 right-3 z-10 border-transparent bg-surface shadow-card"
+									>
+										<X class="size-5" aria-hidden="true" />
+									</IconButton>
+									<img
+										src={imageUrl(recipe.id, side.photo.imageId, 'detail')}
+										alt={side.photo.phrase}
+										class="aspect-[4/3] w-full rounded-3xl object-cover shadow-cover"
+									/>
+									<div class="mt-3 flex items-center justify-between gap-3 text-body-sm">
+										<StepPhotoRow
+											index={sideIndex}
+											count={recipe.images.length}
+											onenlarge={enlarge}
+										/>
+									</div>
+								</div>
+							{/if}
+						</div>
 					</section>
 				{/key}
 				{#if scrolls && !reading}
@@ -477,4 +618,22 @@
 	{#if !reading}
 		<IngredientSheet bind:open={sheetOpen} {recipe} {servings} wakeLockActive={wakeLock.active} />
 	{/if}
+
+	<StepPhotoPreview
+		bind:open={photoOpen}
+		sheet
+		{photo}
+		anchor={photoAnchor}
+		images={recipe.images}
+		src={(id, variant) => imageUrl(recipe.id, id, variant)}
+		stepNumber={index + 1}
+		onenlarge={enlarge}
+	/>
+	<Lightbox
+		bind:open={lightboxOpen}
+		bind:index={lightboxIndex}
+		recipeId={recipe.id}
+		title={recipe.title}
+		images={recipe.images}
+	/>
 </div>

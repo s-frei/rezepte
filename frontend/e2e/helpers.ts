@@ -696,3 +696,68 @@ export async function longPress(
 export async function openFromPeopleList(row: Locator): Promise<void> {
 	await row.getByRole('link').click();
 }
+
+/**
+ * The open phone sheet's dim leaves `subject` lit: its hole (the overlay's
+ * clip path, after the outer rectangle) stands `margin` clear of the subject
+ * and of its `data-spotlight-with` elements, except where the bars pinned to
+ * the top (`data-covers-top`) cut it, and never reaches into those bars.
+ * Polled, as the page scrolls smoothly under the sheet; the result names
+ * every edge that is off.
+ */
+export async function expectSpotlight(subject: Locator, margin = 8) {
+	await expect
+		.poll(() =>
+			subject.evaluate((element, margin) => {
+				const overlay = document.querySelector('[data-dialog-overlay]');
+				if (!overlay) return ['no overlay'];
+				const hole = getComputedStyle(overlay).clipPath.split('Z')[1] ?? '';
+				const tokens = hole.match(/[MHVA]|-?[\d.]+(?:e[-+]?\d+)?/g) ?? [];
+				const xs: number[] = [];
+				const ys: number[] = [];
+				for (let i = 0; i < tokens.length; i++) {
+					const take = () => Number(tokens[++i]);
+					if (tokens[i] === 'H') xs.push(take());
+					else if (tokens[i] === 'V') ys.push(take());
+					else if (tokens[i] === 'M' || tokens[i] === 'A') {
+						// An arc's radii, rotation and flags come before its end point.
+						if (tokens[i] === 'A') i += 5;
+						xs.push(take());
+						ys.push(take());
+					}
+				}
+				if (xs.length === 0) return ['no hole'];
+				const scope = element.closest('[data-spotlight-scope]');
+				const boxes = [element, ...(scope?.querySelectorAll('[data-spotlight-with]') ?? [])].map(
+					(part) => part.getBoundingClientRect()
+				);
+				const lit = {
+					left: Math.min(...boxes.map((box) => box.left)),
+					top: Math.min(...boxes.map((box) => box.top)),
+					right: Math.max(...boxes.map((box) => box.right)),
+					bottom: Math.max(...boxes.map((box) => box.bottom))
+				};
+				// The same rule as `coveredTop` in BottomSheet.svelte: a bar's `data-covers-top`
+				// caps it in rem, and only bars pinned one below the other count.
+				const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+				const bars = [...document.querySelectorAll<HTMLElement>('[data-covers-top]')]
+					.map((bar) => {
+						const box = bar.getBoundingClientRect();
+						const cap = parseFloat(bar.dataset.coversTop ?? '') * rem;
+						return { top: box.top, bottom: cap ? Math.min(box.bottom, box.top + cap) : box.bottom };
+					})
+					.filter((box) => box.bottom > box.top)
+					.sort((a, b) => a.top - b.top);
+				let covered = 0;
+				for (const box of bars) if (box.top <= covered + 1) covered = Math.max(covered, box.bottom);
+				const off: string[] = [];
+				if (Math.min(...ys) < covered - 0.5) off.push('hole reaches into the top bar');
+				if (Math.min(...ys) > Math.max(lit.top - margin, covered) + 0.5) off.push('top');
+				if (Math.max(...ys) < lit.bottom + margin - 0.5) off.push('bottom');
+				if (Math.min(...xs) > lit.left - margin + 0.5) off.push('left');
+				if (Math.max(...xs) < lit.right + margin - 0.5) off.push('right');
+				return off;
+			}, margin)
+		)
+		.toEqual([]);
+}

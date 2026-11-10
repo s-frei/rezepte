@@ -10,6 +10,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { applyDrag, isShadow, liftDragged, pickUp, slotHeight } from '#lib/recipe/dnd.js';
 	import { newStep, type FieldErrors, type FormGroup, type FormStep } from '#lib/recipe/form.js';
+	import type { PhotoTile } from '#lib/recipe/step-photos.js';
 	import {
 		acceptAll,
 		countPending,
@@ -25,18 +26,21 @@
 	let {
 		steps = $bindable([]),
 		groups,
+		tiles,
 		errors = {}
 	}: {
 		steps?: FormStep[];
 		/** The recipe's ingredient groups; every link points into one of them. */
 		groups: FormGroup[];
+		/** The recipe's photos a step's words may link to, as the images section shows them. */
+		tiles: PhotoTile[];
 		errors?: FieldErrors;
 	} = $props();
 
 	const FLIP_DURATION = $derived(prefersReducedMotion.current ? 0 : 150);
 
 	const entries = $derived(pickerEntries(groups));
-	const pendingCount = $derived(countPending(steps, groups));
+	const pendingCount = $derived(countPending(steps, groups, tiles));
 	/** Words naming an ingredient in several groups that no save will link. */
 	const waiting = $derived(waitingChoices(steps, groups));
 
@@ -114,7 +118,7 @@
 	 * would raise a phone's keyboard and open the card of a word at its start.
 	 */
 	function acceptEverything() {
-		const count = acceptAll(steps, groups);
+		const count = acceptAll(steps, groups, tiles);
 		void announce(m.editor_reference_accepted_all({ count }));
 		void tick().then(() =>
 			(
@@ -268,6 +272,7 @@
 						{index}
 						{entries}
 						{groups}
+						{tiles}
 						error={errors[`step:${step.id}`]}
 					/>
 					{#if errors[`step:${step.id}`]}

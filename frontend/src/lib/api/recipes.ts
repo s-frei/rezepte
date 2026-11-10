@@ -75,7 +75,14 @@ export type IngredientGroup = {
 export type IngredientRef = { word: string; groupName: string | null; ingredientName: string };
 
 export type StepTime = { phrase: string; seconds: number; maxSeconds?: number };
-export type Step = { text: string; references: IngredientRef[]; times: StepTime[] };
+/** A phrase of a step's text that opens one of the recipe's photos. */
+export type StepPhoto = { phrase: string; imageId: string };
+export type Step = {
+	text: string;
+	references: IngredientRef[];
+	times: StepTime[];
+	photos?: StepPhoto[];
+};
 
 /** Who besides the author and admins may edit; `default` follows the household setting. */
 export type EditPolicy = 'default' | 'open' | 'locked';

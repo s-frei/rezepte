@@ -1099,10 +1099,14 @@ body {
 }
 
 /* The word a phone's sheet is about, among the other marks of its step:
-   framed in its own color, so the fourth "Salz" reads as the one in hand. */
+   framed in its own color, so the fourth "Salz" reads as the one in hand.
+   The phrase the photo picker is open for wears it too, and may wrap: each
+   line gets a whole frame. */
 .ref-active {
 	border-radius: var(--radius-word);
 	box-shadow: 0 0 0 2px var(--color-primary);
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
 }
 
 .time-link.ref-active,
@@ -1120,6 +1124,37 @@ body {
 
 .time-proposal {
 	border-bottom: 2px dotted var(--color-time-foreground);
+}
+
+/*
+ * A phrase linked to one of the recipe's photos, in the reading view's look:
+ * semibold with a dotted line in the muted ink, never the primary of an
+ * ingredient's quantity. Unlike the marks above it wraps, since a phrase can
+ * run over several lines. The line is one repeating background on the phrase's
+ * own box, not a text-decoration: a decoration restarts its dot phase in every
+ * text run (icon, first word, the rest), so two dots met at each seam. A
+ * background spans the icon and the words in one rhythm; `round` fits whole
+ * dots so the spacing is even, and the line follows every wrapped line.
+ */
+.photo-link {
+	--photo-dot: var(--color-text-muted);
+	font-weight: 600;
+	background: radial-gradient(circle closest-side, var(--photo-dot) 92%, transparent) 0 100% / 0.2em
+		0.1em round no-repeat;
+	padding-bottom: 0.04em;
+}
+/* Only where hovering is real: a tap leaves `:hover` stuck on a touch screen. */
+@media (hover: hover) {
+	.photo-link:hover {
+		--photo-dot: var(--color-primary);
+	}
+}
+/* Print has nothing to press: the phrase is plain text there. */
+@media print {
+	.photo-link {
+		background: none;
+		font-weight: inherit;
+	}
 }
 
 /*

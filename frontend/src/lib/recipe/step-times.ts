@@ -30,26 +30,33 @@ export function overlapsAny(text: string, phrase: string, words: string[]): bool
 	return hit !== null && spans(text, words).some((span) => overlaps(hit, span));
 }
 
-/** Whether `phrase` overlaps a stored time or a linked ingredient word. */
+/**
+ * Whether `phrase` overlaps a stored time, a linked ingredient word or a photo
+ * link. The caller passes the step with the photo links that show: one to a
+ * photo hidden for its undo is not sent, so it is not in the way.
+ */
 export function isMarked(step: FormStep, phrase: string): boolean {
 	return overlapsAny(step.text, phrase, [
 		...step.times.map((time) => time.phrase),
-		...step.references.map((ref) => ref.word)
+		...step.references.map((ref) => ref.word),
+		...step.photos.map((photo) => photo.phrase)
 	]);
 }
 
 /**
- * The detector's proposals that are not stored yet. A
- * proposal overlapping a linked word or a stored time is skipped, unless it
+ * The detector's proposals that are not stored yet. A proposal overlapping a
+ * linked word or a photo link (the server refuses a time inside a photo's
+ * phrase; pass the links that show, as for `isMarked`) is skipped, and so is
+ * one overlapping a stored time, unless it
  * wholly contains that time: "1 Stunde 20 Minuten" written around a stored
  * "20 Minuten" is proposed, and accepting it replaces the shorter one (see
  * `addTime`).
  */
 export function pendingTimes(step: FormStep): StepTime[] {
-	const refs = spans(
-		step.text,
-		step.references.map((ref) => ref.word)
-	);
+	const refs = spans(step.text, [
+		...step.references.map((ref) => ref.word),
+		...step.photos.map((photo) => photo.phrase)
+	]);
 	const stored = spans(
 		step.text,
 		step.times.map((time) => time.phrase)

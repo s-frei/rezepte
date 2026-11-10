@@ -1,9 +1,10 @@
 <script lang="ts">
-	import type { IngredientGroup, Step, StepTime } from '#lib/api/recipes.js';
+	import type { IngredientGroup, Step, StepPhoto, StepTime } from '#lib/api/recipes.js';
+	import ImageIcon from '@lucide/svelte/icons/image';
 	import Timer from '@lucide/svelte/icons/timer';
 	import TimerRing from '#lib/components/timer/TimerRing.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import { segmentStep } from '#lib/recipe/references.js';
+	import { segmentStep, type Segment } from '#lib/recipe/references.js';
 	import { fraction, type Timer as CookTimer } from '#lib/recipe/timers.js';
 	import { timers } from '#lib/recipe/timers.svelte.js';
 
@@ -13,7 +14,8 @@
 		servings,
 		baseServings,
 		onstarttime,
-		activeTimer
+		activeTimer,
+		onphoto
 	}: {
 		step: Step;
 		groups: IngredientGroup[];
@@ -25,9 +27,26 @@
 		onstarttime?: (time: StepTime) => void;
 		/** Cook mode: the timer a time already runs, drawn as a live ring. */
 		activeTimer?: (time: StepTime) => CookTimer | undefined;
+		/** A photo phrase becomes a trigger that hands over its photo and itself; without it the phrase is plain text (share card, print). */
+		onphoto?: (photo: StepPhoto, trigger: HTMLElement) => void;
 	} = $props();
 
+	const uid = $props.id();
+
 	const segments = $derived(segmentStep(step, groups, servings, baseServings));
+
+	/**
+	 * The segments with each photo phrase gathered: consecutive segments that
+	 * carry the same photo are one trigger.
+	 */
+	const runs = $derived(
+		segments.reduce<{ photo?: StepPhoto; segments: Segment[] }[]>((acc, segment) => {
+			const last = acc[acc.length - 1];
+			if (segment.photo && last?.photo === segment.photo) last.segments.push(segment);
+			else acc.push({ photo: segment.photo, segments: [segment] });
+			return acc;
+		}, [])
+	);
 
 	const timeClass = 'max-w-full font-semibold hyphens-none text-time-foreground';
 
@@ -37,7 +56,7 @@
 	 */
 	const tieNumbers = (text: string) => text.replace(/(\p{N}) /gu, '$1\u00a0');
 
-	// No ARIA: the visible text is already the accessible text and reads
+	// No ARIA on the text: the visible text is already the accessible text and reads
 	// correctly as "Saft (400 ml) mit Zucker (100 g) aufkochen". A label would
 	// only get in the way. Sizes stay in em so the annotation grows with cook
 	// mode's display type. A quantity never breaks across lines: "(100" at the
@@ -59,6 +78,13 @@
 	// center, under the knob; lifted by half that, it reads as centered. The `::after` makes its target taller without
 	// moving a letter - only taller, since a sideways overhang would widen the
 	// step past its column.
+	// A photo trigger is named by a hidden "Show photo:" plus its own content,
+	// so its quantities are read too - an `aria-label` would replace them. It
+	// opens like a native button: Enter on keydown, Space on keyup (on keydown
+	// focus moved into the card and the keyup clicked "View large" there).
+	// Only the icon and the first letter are kept together: a whole first
+	// word in `nowrap` could no longer hyphenate and overflowed cook mode's
+	// column at its largest size.
 	// (Comment kept here, not as an HTML comment above the markup, so it never
 	// ships into the rendered DOM.)
 </script>
@@ -72,7 +98,7 @@
 			aria-hidden="true"
 		/>{/if}{/snippet}
 
-{#each segments as segment, index (index)}{#if segment.time && onstarttime}<button
+{#snippet piece(segment: Segment)}{#if segment.time && onstarttime}<button
 			type="button"
 			data-time
 			aria-label={m.timer_start({ phrase: segment.time.phrase })}
@@ -97,4 +123,37 @@
 			>{@render clock(segment.time, 'inline align-[-0.08em]')}{tieNumbers(segment.text)}</span
 		>{:else}{segment.text}{#if segment.quantity}<span
 				class="ml-[0.2em] font-semibold whitespace-nowrap text-primary">({segment.quantity})</span
-			>{/if}{/if}{/each}
+			>{/if}{/if}{/snippet}
+
+{#each runs as run, index (index)}{#if run.photo && onphoto}{@const photo =
+			run.photo}{@const first = run.segments[0]}{@const head = String.fromCodePoint(
+			first.text.codePointAt(0)!
+		)}<span hidden id="{uid}-{index}-label">{m.step_photo_show()}</span><span
+			role="button"
+			tabindex="0"
+			id="{uid}-{index}"
+			aria-labelledby="{uid}-{index}-label {uid}-{index}"
+			data-step-photo
+			onclick={(event) => onphoto(photo, event.currentTarget)}
+			onkeydown={(event) => {
+				if (event.key === ' ') event.preventDefault();
+				if (event.key !== 'Enter') return;
+				event.preventDefault();
+				onphoto(photo, event.currentTarget);
+			}}
+			onkeyup={(event) => {
+				if (event.key !== ' ') return;
+				event.preventDefault();
+				onphoto(photo, event.currentTarget);
+			}}
+			class="photo-link cursor-pointer text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			><span class="whitespace-nowrap"
+				><ImageIcon
+					class="mr-[0.25em] inline size-[0.8em] align-[-0.06em] text-text-muted print:hidden"
+					aria-hidden="true"
+				/>{head}</span
+			>{@render piece({
+				...first,
+				text: first.text.slice(head.length)
+			})}{#each run.segments.slice(1) as segment, at (at)}{@render piece(segment)}{/each}</span
+		>{:else}{#each run.segments as segment, at (at)}{@render piece(segment)}{/each}{/if}{/each}

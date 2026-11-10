@@ -1,8 +1,17 @@
-import type { IngredientGroup, IngredientRef, Step, StepTime } from '#lib/api/recipes.js';
+import type {
+	IngredientGroup,
+	IngredientRef,
+	Step,
+	StepPhoto,
+	StepTime
+} from '#lib/api/recipes.js';
 import { formatQuantityFor } from './scale';
 
-/** One piece of a step's text. `quantity` is present on a resolved reference, `time` on a stored step time. */
-export type Segment = { text: string; quantity?: string; time?: StepTime };
+/**
+ * One piece of a step's text. `quantity` is present on a resolved reference, `time` on a stored step time,
+ * `photo` on every piece inside a photo phrase (consecutive pieces with the same photo form one trigger).
+ */
+export type Segment = { text: string; quantity?: string; time?: StepTime; photo?: StepPhoto };
 
 /**
  * Unicode letters and digits, shared by every place in this file that needs
@@ -114,17 +123,60 @@ export function segmentStep(
 	}
 	hits.sort((a, b) => a.start - b.start);
 
-	const out: Segment[] = [];
+	const out: (Segment & { at: number })[] = [];
 	let cursor = 0;
 	for (const hit of hits) {
 		if (hit.start < cursor) continue; // overlapping hits: first one wins
-		if (hit.start > cursor) out.push({ text: step.text.slice(cursor, hit.start) });
+		if (hit.start > cursor) out.push({ text: step.text.slice(cursor, hit.start), at: cursor });
 		const text = step.text.slice(hit.start, hit.end);
-		out.push(hit.time ? { text, time: hit.time } : { text, quantity: hit.quantity });
+		out.push(
+			hit.time
+				? { text, time: hit.time, at: hit.start }
+				: { text, quantity: hit.quantity, at: hit.start }
+		);
 		cursor = hit.end;
 	}
-	if (cursor < step.text.length) out.push({ text: step.text.slice(cursor) });
-	return out;
+	if (cursor < step.text.length) out.push({ text: step.text.slice(cursor), at: cursor });
+
+	// Photo phrases are boundaries, not hits: they cut the pieces above and tag
+	// what lies inside, so a referenced word keeps its quantity. First occurrence
+	// only; a time is never cut, and phrases never overlap (the server refuses
+	// both).
+	const ranges: { start: number; end: number; photo: StepPhoto }[] = [];
+	for (const photo of step.photos ?? []) {
+		const match = wordPattern(photo.phrase).exec(step.text);
+		if (!match) continue;
+		const start = match.index;
+		const end = start + match[0].length;
+		ranges.push({ start, end, photo });
+	}
+	return out.flatMap(({ at, ...piece }): Segment[] => {
+		if (piece.time) return [piece];
+		const end = at + piece.text.length;
+		const cuts = ranges.filter((r) => r.start < end && r.end > at);
+		if (cuts.length === 0) return [piece];
+		const parts: Segment[] = [];
+		let from = at;
+		const push = (to: number, photo?: StepPhoto) => {
+			if (to <= from) return;
+			const text = piece.text.slice(from - at, to - at);
+			// The quantity belongs to the last part only: one amount, shown once,
+			// after the whole referenced word rather than between its halves.
+			const last = to === end;
+			parts.push({
+				text,
+				...(last && piece.quantity ? { quantity: piece.quantity } : {}),
+				...(photo ? { photo } : {})
+			});
+			from = to;
+		};
+		for (const r of cuts.sort((a, b) => a.start - b.start)) {
+			push(Math.max(r.start, at));
+			push(Math.min(r.end, end), r.photo);
+		}
+		push(end);
+		return parts;
+	});
 }
 
 /**

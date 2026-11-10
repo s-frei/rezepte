@@ -31,12 +31,15 @@
 		fromRecipe,
 		hasNamedIngredient,
 		isDirty,
+		newId,
+		photoErrors,
 		sectionsWithErrors,
 		toInput,
 		validate,
 		type FieldErrors
 	} from '#lib/recipe/form.js';
 	import { refusalOr } from '#lib/recipe/access.js';
+	import { photoIds, type PhotoTile, type QueuedPhoto } from '#lib/recipe/step-photos.js';
 	import { applyDndAriaStrings } from '#lib/recipe/dnd.js';
 	import { takeDraft, type ImportedDraft } from '#lib/recipe/draft.js';
 	import { currentSection, isAtBottom, nextBand, stillPinned } from '#lib/recipe/section-spy.js';
@@ -56,6 +59,7 @@
 		existing,
 		access,
 		save,
+		savedHref = (recipe) => resolve('/recipes/[slug]', { slug: recipe.slug }),
 		imported
 	}: {
 		/** Starting values - `emptyInput()` for a new recipe, the loaded recipe for an edit. */
@@ -67,8 +71,14 @@
 		existing?: { id: string; images: Image[] };
 		/** Set when editing an existing recipe; absent means the caller is creating it and is its author. */
 		access?: { canChangePolicy: boolean; isAuthor: boolean; authorName: string };
-		/** Performs the create or update call; `pendingFiles` is non-empty only for a new recipe with queued images. */
-		save: (input: RecipeInput, pendingFiles: File[]) => Promise<Recipe>;
+		/**
+		 * Performs the create or update call; `pendingFiles` is non-empty only
+		 * for a new recipe with queued images. A step's photo link to a queued
+		 * one carries that photo's `key` as its `imageId` until it is uploaded.
+		 */
+		save: (input: RecipeInput, pendingFiles: QueuedPhoto[]) => Promise<Recipe>;
+		/** Where a successful save goes; the recipe's page unless the caller says otherwise. */
+		savedHref?: (recipe: Recipe) => ResolvedPathname;
 		/** Set when the recipe comes from an import: hints, tag suggestions and the queued photo. */
 		imported?: ImportedDraft;
 	} = $props();
@@ -93,7 +103,9 @@
 	let discardForShare = $state(false);
 	// Files the images section has queued for a not-yet-created recipe; the
 	// `save` callback uploads them once the recipe exists.
-	let pendingFiles = $state<File[]>(untrack(() => (imported?.photo ? [imported.photo] : [])));
+	let pendingFiles = $state<QueuedPhoto[]>(
+		untrack(() => (imported?.photo ? [{ key: newId(), file: imported.photo }] : []))
+	);
 	// An import's keywords that would be new tags; not part of
 	// `form`, since only the accepted ones are saved.
 	let suggestedTags = $state<string[]>(untrack(() => imported?.draft.suggestedTags ?? []));
@@ -132,6 +144,8 @@
 	let photoCount = $state(0);
 	// Its pending deletes are sent before leaving, or the next page still shows them.
 	let images = $state<ImagesSection>();
+	// The photos a step may link to, as the images section shows them.
+	let photoTiles = $state<PhotoTile[]>([]);
 	// The counter's words around the count, which is set in bold.
 	const photoCounter = m.images_counter({ count: '\u0000', max: MAX_IMAGES }).split('\u0000');
 
@@ -429,16 +443,41 @@
 		// proposals the next time the recipe is edited.
 		saving = true;
 		try {
-			const recipe = await save(toInput(form), pendingFiles);
+			// Uploads still going up first, so every link names a photo the
+			// server holds. A removal waiting for its undo toast stays undoable
+			// until the save went through: its link is not sent anyway. A
+			// queued photo of a new recipe is named by its key, which `save`
+			// resolves once it is uploaded.
+			await images?.settle();
+			await tick();
+			const ids = photoIds(photoTiles, existing === undefined);
+			// A linked photo whose upload failed, or one a retry started after
+			// the wait, stops the save under its step, so the author can retry
+			// or remove it instead of losing the link unseen.
+			const unsent = new Set([
+				...(images?.failedKeys() ?? []),
+				...photoTiles.filter((tile) => !ids.has(tile.key)).map((tile) => tile.key)
+			]);
+			saveErrors = photoErrors(form, ids, unsent);
+			if (Object.keys(errors).length > 0) {
+				await reportErrors();
+				return;
+			}
+			const recipe = await save(toInput(form, ids), pendingFiles);
 			bypassGuard = true;
 			toast.success(m.editor_saved());
-			await images?.flush();
+			// A removed photo's link was left out of the save; a delete that
+			// then fails keeps the photo, and the author learns the link went.
+			const kept = (await images?.flush()) ?? [];
+			if (form.steps.some((step) => step.photos.some((photo) => kept.includes(photo.imageKey)))) {
+				toast.error(m.editor_photo_link_dropped());
+			}
 			// The page turns inert with it, so nothing is typed or pressed
 			// into a recipe that is already saved.
 			saving = false;
 			saved = true;
 			await new Promise((done) => setTimeout(done, SAVED_PAUSE));
-			await goto(resolve('/recipes/[slug]', { slug: recipe.slug }));
+			await goto(savedHref(recipe));
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 422) {
 				saveErrors = applyServerErrors(error.errors, form.steps);
@@ -650,6 +689,7 @@
 					title={form.title}
 					initialImages={existing?.images ?? []}
 					bind:pending={pendingFiles}
+					bind:visible={photoTiles}
 					oncount={(count) => (photoCount = count)}
 				/>
 			</section>
@@ -678,7 +718,12 @@
 				{#if errors.steps}
 					<FieldError message={errors.steps} class="mb-3" />
 				{/if}
-				<StepEditor bind:steps={form.steps} groups={form.ingredientGroups} {errors} />
+				<StepEditor
+					bind:steps={form.steps}
+					groups={form.ingredientGroups}
+					tiles={photoTiles}
+					{errors}
+				/>
 			</section>
 
 			<section id="editor-section-editing" class={sectionCard}>

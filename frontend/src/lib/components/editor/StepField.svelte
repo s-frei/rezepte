@@ -6,9 +6,7 @@
 	import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 	import Suggestion, { exitSuggestion, type SuggestionProps } from '@tiptap/suggestion';
 	import { Dialog, Popover, RadioGroup } from 'bits-ui';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import BottomSheet, { coveredTop, revealAbove } from '#lib/components/ui/BottomSheet.svelte';
 	import Check from '@lucide/svelte/icons/check';
 	import Info from '@lucide/svelte/icons/info';
 	import Keyboard from '@lucide/svelte/icons/keyboard';
@@ -69,17 +67,27 @@
 		manualTime,
 		type TimeUnit
 	} from '#lib/recipe/times.js';
+	import {
+		addPhoto,
+		photoBlocker,
+		removePhoto,
+		withShownPhotos,
+		type PhotoTile
+	} from '#lib/recipe/step-photos.js';
+	import { phone } from '#lib/ui/phone.svelte.js';
 	import { CELL } from './link-list';
 	import StepLinks from './StepLinks.svelte';
+	import StepPhotoPicker from './StepPhotoPicker.svelte';
 
 	let {
 		step = $bindable(),
 		index,
 		groups,
 		entries,
+		tiles,
 		error
 	}: {
-		/** The step being edited; its `text`, `references` and `times` are written in place. */
+		/** The step being edited; its `text`, `references`, `times` and `photos` are written in place. */
 		step: FormStep;
 		/** Position in the list, for the field's label. Changes when steps are reordered. */
 		index: number;
@@ -88,6 +96,8 @@
 		groups: FormGroup[];
 		/** Every ingredient the picker may offer, for the whole recipe. */
 		entries: PickerEntry[];
+		/** The recipe's photos a phrase may link to, as the images section shows them. */
+		tiles: PhotoTile[];
 		/** The server's message for this step, if it rejected it. */
 		error?: string;
 	} = $props();
@@ -230,20 +240,10 @@
 	let editing = $state(false);
 	/** The caret as an offset into the plain text, while the field has focus and nothing is selected. */
 	let caret = $state<number | null>(null);
-	/**
-	 * A touch screen with little room - a phone, upright below `md:` or on its
-	 * side under 32rem tall - gets the sheet; everything else the card at the
-	 * caret. By pointer as well as width: a narrow window with a mouse has no
-	 * taps to open a sheet with, and a phone on its side is wider than `md:`
-	 * but no roomier once the keyboard is up.
-	 */
-	const phone = new MediaQuery(
-		'(pointer: coarse) and ((max-width: 47.99rem) or (max-height: 32rem))'
-	);
 	// Turned between the two while a sheet was up: the sheet goes, rather than
 	// lingering as a framed word and coming back on the next turn.
 	$effect(() => {
-		if (!phone.current) sheet = null;
+		if (!phone.value) sheet = null;
 	});
 	/**
 	 * On a phone, the marked word a tap opened the sheet for, or its later
@@ -306,7 +306,6 @@
 	]);
 	/** Stored times whose phrase is in the text, the same rule `shown` follows for links. */
 	const shownTimes = $derived(presentTimes(step.times, step.text));
-	const pendingTimesList = $derived(pendingTimes(step));
 
 	/**
 	 * The links whose word stands in the text right now. Editing a word away
@@ -314,6 +313,22 @@
 	 * link loaded with a word the text lacks.
 	 */
 	const shown = $derived(presentReferences(step.references, step.text));
+
+	/**
+	 * The photo links whose phrase stands in the text and whose photo is among
+	 * the tiles. One to a photo removed while its undo toast is up stays in the
+	 * form, unseen, and is back when the removal is undone.
+	 */
+	const shownStep = $derived(withShownPhotos(step, tiles));
+	const shownPhotos = $derived(shownStep.photos);
+	/** Time proposals and "Mark as time" go around the photo links that show. */
+	const pendingTimesList = $derived(pendingTimes(shownStep));
+
+	/** The phrase "Link photo" is picking a photo for, while its picker is open. */
+	let photoPhrase = $state<string | null>(null);
+	/** The button the picker was opened from, and the point below it where the picker hangs. */
+	let photoTrigger: HTMLElement | null = null;
+	let photoAt = $state<{ left: number; top: number } | null>(null);
 
 	/** Links, times and proposals in the order their words appear, which is how the list reads them. */
 	function byPosition<T>(items: T[], word: (item: T) => string): T[] {
@@ -356,7 +371,7 @@
 		if (markedWord !== closed?.word) closed = null;
 	});
 	const cardWord = $derived(
-		phone.current
+		phone.value
 			? sheet !== null && !sheet.repeat
 				? sheet.word
 				: null
@@ -370,7 +385,7 @@
 	 * card says the link sits at the first occurrence, where the quantity is.
 	 */
 	const cardRepeat = $derived(
-		phone.current
+		phone.value
 			? sheet?.repeat
 				? sheet.word
 				: null
@@ -437,12 +452,15 @@
 			...proposed.map((word) => `ref-suggestion:${word}`),
 			...shownTimes.map((time) => `time-link:${time.phrase}`),
 			...pendingTimesList.map((time) => `time-proposal:${time.phrase}`),
-			`active:${sheet?.end ?? ''}`
+			...shownPhotos.map((photo) => `photo-link:${photo.phrase}`),
+			`active:${sheet?.end ?? ''}`,
+			`picking:${photoPhrase ?? ''}`
 		])
 	);
 
 	/**
-	 * Marks the referenced and the proposed words, and the stored and proposed times.
+	 * Marks the referenced and the proposed words, the stored and proposed
+	 * times, the photo phrases, and the phrase the photo picker is open for.
 	 *
 	 * Decorations are ProseMirror's way of styling a document WITHOUT changing
 	 * it: nothing here writes into the doc, so opening a recipe leaves the
@@ -470,6 +488,10 @@
 			for (const time of pendingTimesList) add(time.phrase, 'time-proposal');
 			return marked;
 		});
+		// A photo phrase may hold a linked word, so it is drawn on its own, around it.
+		const photos = untrack(() => shownPhotos.map((photo) => photo.phrase));
+		// The phrase the photo picker is open for, framed as a sheet's word is.
+		const picking = untrack(() => photoPhrase);
 		// The occurrence a phone's sheet is about, by where it ends.
 		const active = untrack(() => sheet?.end ?? null);
 		const lit = (end: number) => (end === active ? ' ref-active' : '');
@@ -478,6 +500,22 @@
 		doc.descendants((node, pos) => {
 			const text = node.text;
 			if (!node.isText || text === undefined) return;
+			const pick = picking === null ? null : firstWordMatch(text, picking);
+			if (pick !== null && !seen.includes('picking')) {
+				seen.push('picking');
+				decorations.push(
+					Decoration.inline(pos + pick.from, pos + pick.to, {
+						class: 'ref-active',
+						'data-photo-picking': ''
+					})
+				);
+			}
+			for (const phrase of photos) {
+				const hit = firstWordMatch(text, phrase);
+				if (hit === null || seen.includes(`photo:${phrase}`)) continue;
+				seen.push(`photo:${phrase}`);
+				decorations.push(Decoration.inline(pos + hit.from, pos + hit.to, { class: 'photo-link' }));
+			}
 			for (const { word, cls } of words) {
 				const hit = firstWordMatch(text, word);
 				if (hit === null) continue;
@@ -655,7 +693,7 @@
 			notice = m.editor_time_no_number();
 			return;
 		}
-		if (isMarked(step, phrase)) {
+		if (isMarked(shownStep, phrase)) {
 			notice = m.editor_time_already_marked();
 			return;
 		}
@@ -667,6 +705,97 @@
 		timeUnit = 'minutes';
 		timeClosedOutside = false;
 		timeAnchor = { getBoundingClientRect: () => selectionRect(view, from, to) ?? new DOMRect() };
+	}
+
+	/**
+	 * "Link photo": the selection, or the word at the caret, grown to whole
+	 * words the way "Link word" does, and refused where it overlaps a time or
+	 * another photo link. Nothing is written into the document until a photo
+	 * is picked.
+	 */
+	function openPhotoLink(trigger: HTMLElement) {
+		const view = editor?.view;
+		if (!view) return;
+		const { from, to } = view.state.selection;
+		const phrase = wordAt(step.text, plainOffset(view, from), plainOffset(view, to));
+		if (phrase === null || firstWordMatch(step.text, phrase) === null) {
+			notice = m.editor_reference_no_word();
+			return;
+		}
+		if (!fitsWordLimit(phrase)) {
+			notice = m.editor_reference_too_long();
+			return;
+		}
+		// Each line is a paragraph of its own, which the marking cannot cross.
+		if (phrase.includes('\n')) {
+			notice = m.editor_photo_one_line();
+			return;
+		}
+		// Against the links that show: one to a photo hidden for its undo is not in the way.
+		const blocker = photoBlocker(shownStep, phrase);
+		if (blocker !== null) {
+			notice = blocker === 'time' ? m.editor_photo_in_time() : m.editor_photo_overlap();
+			return;
+		}
+		openPhotoPicker(phrase, trigger);
+	}
+
+	/** Opens the picker for `phrase` below `trigger`; the list's "Change" comes in here. */
+	function openPhotoPicker(phrase: string, trigger: HTMLElement) {
+		// One popup at a time.
+		if (picker?.word === null && editor) exitSuggestion(editor.view, PICKER_KEY);
+		picker = null;
+		anchor = null;
+		timePhrase = null;
+		notice = '';
+		photoTrigger = trigger;
+		followPhoto();
+		photoPhrase = phrase;
+	}
+
+	/** The picker hangs below the button it was opened from, wherever the page has scrolled it. */
+	function followPhoto() {
+		const rect = photoTrigger?.isConnected ? photoTrigger.getBoundingClientRect() : null;
+		if (rect) photoAt = { left: rect.left, top: rect.bottom };
+	}
+
+	$effect(() => {
+		if (photoPhrase === null || phone.value) return;
+		window.addEventListener('scroll', followPhoto, true);
+		window.addEventListener('resize', followPhoto);
+		return () => {
+			window.removeEventListener('scroll', followPhoto, true);
+			window.removeEventListener('resize', followPhoto);
+		};
+	});
+
+	/**
+	 * Links the picked photo, replacing the phrase's link if it had one. The
+	 * form's change becomes one transaction (`closeHistory`, in the effect that
+	 * hands the form's words to the document), so Cmd+Z takes it back.
+	 */
+	function pickPhoto(key: string) {
+		const phrase = photoPhrase;
+		photoPhrase = null;
+		if (phrase === null) return;
+		step.photos = addPhoto(step.photos, { phrase, imageKey: key }, step.text);
+		backFromPhoto();
+	}
+
+	/**
+	 * Focus after the picker: back to the step on a desktop, to the step's
+	 * list toggle on a phone, where the step would raise the keyboard.
+	 */
+	function backFromPhoto() {
+		void tick().then(() => {
+			// A press outside that closed it has put focus where it wanted.
+			if (document.activeElement !== document.body && document.activeElement !== null) return;
+			if (phone.value) {
+				document.getElementById(`step-links-toggle-${step.id}`)?.focus({ preventScroll: true });
+			} else {
+				editor?.commands.focus();
+			}
+		});
 	}
 
 	function setTime() {
@@ -888,7 +1017,7 @@
 					// Escape closes the card at the caret, which no Tab reaches: it
 					// stays closed until the caret moves.
 					handleKeyDown: (_view, event) => {
-						if (event.key !== 'Escape' || phone.current || picker !== null) return false;
+						if (event.key !== 'Escape' || phone.value || picker !== null) return false;
 						if (cardMeta === null || caret === null || escapedAt !== null) return false;
 						escapedAt = caret;
 						return true;
@@ -969,7 +1098,8 @@
 	function stateWords(): StepWords {
 		return {
 			references: $state.snapshot(step.references),
-			times: $state.snapshot(step.times)
+			times: $state.snapshot(step.times),
+			photos: $state.snapshot(step.photos)
 		};
 	}
 
@@ -980,6 +1110,7 @@
 		const held = stateWords();
 		if (!same(held.references, words.references)) step.references = [...words.references];
 		if (!same(held.times, words.times)) step.times = [...words.times];
+		if (!same(held.photos, words.photos)) step.photos = [...words.photos];
 	}
 
 	/**
@@ -1190,7 +1321,7 @@
 	 * is too small. A phone's sheet places itself.
 	 */
 	function placeCard() {
-		if (phone.current) return;
+		if (phone.value) return;
 		const view = editor?.view;
 		const rect =
 			cardWord !== null
@@ -1221,22 +1352,6 @@
 			: { left, top: null, bottom: area.height - rect.top + PICKER_GAP, maxHeight };
 	}
 
-	/**
-	 * Where the screen stops being visible at the top: the bottom edge of the
-	 * bars pinned there (`data-covers-top`, the phone's `EditorBar`), or 0 where
-	 * none is.
-	 */
-	function coveredTop(): number {
-		const bars = [...document.querySelectorAll<HTMLElement>('[data-covers-top]')]
-			.map((bar) => bar.getBoundingClientRect())
-			.filter((box) => box.height > 0)
-			.sort((a, b) => a.top - b.top);
-		let edge = 0;
-		// Only a bar that starts where the one above it ends is pinned there.
-		for (const box of bars) if (box.top <= edge + 1) edge = Math.max(edge, box.bottom);
-		return edge;
-	}
-
 	// Once drawn, the card is placed again by its measured height.
 	$effect(() => {
 		if (cardBox) untrack(placeCard);
@@ -1245,7 +1360,7 @@
 	// Places the card once the decoration it points at has been drawn.
 	$effect(() => {
 		void decoratedWords;
-		if (phone.current || (cardWord === null && cardRepeat === null)) {
+		if (phone.value || (cardWord === null && cardRepeat === null)) {
 			cardAt = null;
 			return;
 		}
@@ -1253,7 +1368,7 @@
 	});
 
 	$effect(() => {
-		if (phone.current || (cardWord === null && cardRepeat === null)) return;
+		if (phone.value || (cardWord === null && cardRepeat === null)) return;
 		const viewport = window.visualViewport;
 		window.addEventListener('scroll', placeCard, true);
 		window.addEventListener('resize', placeCard);
@@ -1324,7 +1439,7 @@
 	function tapped(view: EditorView, event: TouchEvent): boolean {
 		const start = touch;
 		touch = null;
-		if (!phone.current || !start || start.moved || event.touches.length > 0) return false;
+		if (!phone.value || !start || start.moved || event.touches.length > 0) return false;
 		if (!event.cancelable || event.timeStamp - start.at > TAP_TIME) return false;
 		const mark = (event.target as Element | null)?.closest?.(MARKS);
 		if (!(mark instanceof HTMLElement)) {
@@ -1357,32 +1472,58 @@
 
 	/**
 	 * Scrolls the word the sheet is about clear of the sheet where the sheet
-	 * covers it, so the step stays in sight above it. The occurrence is found
-	 * by its position, the fourth "Salz" as much as the first. Run again once
-	 * the visual viewport settles: a keyboard still closing from the tap that
-	 * opened the sheet leaves the first measure short.
+	 * covers it, so the step stays in sight above it (`revealAbove`). The
+	 * occurrence is found by its position, the fourth "Salz" as much as the
+	 * first. Run again once the visual viewport settles: a keyboard still
+	 * closing from the tap that opened the sheet leaves the first measure short.
 	 */
 	function revealWord() {
-		const view = editor?.view;
 		const box = sheetBody?.closest<HTMLElement>('[role="dialog"]');
-		if (!view || !box || sheet === null) return;
-		const viewport = window.visualViewport;
-		const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
-		const top = bottom - box.offsetHeight - PICKER_MARGIN * 2;
-		const below = view.coordsAtPos(sheet.end).bottom - top;
-		if (below > 0) {
-			window.scrollBy({ top: below, behavior: prefersReducedMotion.current ? 'auto' : 'smooth' });
-		}
+		const view = editor?.view;
+		if (!box || !view || sheet === null) return;
+		const end = sheet.end;
+		revealAbove(
+			box,
+			view.dom,
+			() => ({ top: view.coordsAtPos(end).top, bottom: view.coordsAtPos(end, -1).bottom }),
+			PICKER_MARGIN * 2
+		);
 	}
 
-	/** Reveals the word now, and once more when the keyboard has gone. */
-	function revealSoon() {
-		revealWord();
+	/**
+	 * The phone's photo picker: the phrase it links scrolls clear of the
+	 * sheet, as a word does for its sheet, so the sentence stays in sight.
+	 * The phrase is marked in the step instead of selected (`decorate`): the
+	 * native selection's handles and menu would sit over the sheet. A later
+	 * run after a quick pick finds the picker closed and does nothing, or its
+	 * padding would outlive the sheet.
+	 */
+	function revealPhrase(box: HTMLElement) {
+		window.getSelection()?.removeAllRanges();
+		revealSoon(() => {
+			const view = editor?.view;
+			const marks = [...(view?.dom.querySelectorAll('[data-photo-picking]') ?? [])];
+			if (!view || marks.length === 0 || photoPhrase === null || !box.isConnected) return;
+			revealAbove(
+				box,
+				view.dom,
+				() => {
+					const rects = marks.flatMap((mark) => [...mark.getClientRects()]);
+					return { top: rects[0].top, bottom: rects.at(-1)!.bottom };
+				},
+				PICKER_MARGIN * 2
+			);
+		});
+	}
+
+	/** Reveals now, and once more when the keyboard has gone. */
+	function revealSoon(reveal = revealWord) {
+		reveal();
 		const viewport = window.visualViewport;
 		if (!viewport) return;
 		const again = () => {
 			viewport.removeEventListener('resize', again);
-			revealWord();
+			reveal();
 		};
 		viewport.addEventListener('resize', again);
 		setTimeout(() => viewport.removeEventListener('resize', again), 1000);
@@ -1465,6 +1606,35 @@
 		onaccept={accept}
 		onaccepttime={acceptTime}
 		onremovetime={unmarkTime}
+		photos={byPosition(shownPhotos, (photo) => photo.phrase).flatMap((photo) => {
+			const tile = tiles.find((candidate) => candidate.key === photo.imageKey);
+			return tile ? [{ phrase: photo.phrase, tile }] : [];
+		})}
+		canLinkPhoto={tiles.length > 0}
+		onlinkphoto={openPhotoLink}
+		onchangephoto={openPhotoPicker}
+		onremovephoto={(phrase) => (step.photos = removePhoto(step.photos, phrase))}
+	/>
+
+	<!-- In the step's own box, so focus in the desktop popup still counts as editing it. -->
+	<StepPhotoPicker
+		bind:open={
+			() => photoPhrase !== null,
+			(open) => {
+				if (!open && photoPhrase !== null) {
+					photoPhrase = null;
+					backFromPhoto();
+				}
+			}
+		}
+		phrase={photoPhrase ?? ''}
+		{tiles}
+		selected={step.photos.find((photo) => photo.phrase === photoPhrase)?.imageKey ?? null}
+		phone={phone.value}
+		spotlight={editor?.view.dom ?? null}
+		onreveal={revealPhrase}
+		anchor={photoAt}
+		onpick={pickPhoto}
 	/>
 
 	<!--
@@ -1494,7 +1664,7 @@
 	default there) and "Mark as time" (which passes `true`) are dialogs, and
 	their buttons take focus.
 -->
-{#snippet actionBar(actions: BarAction[], focusable = phone.current)}
+{#snippet actionBar(actions: BarAction[], focusable = phone.value)}
 	<div
 		class="sticky -bottom-(--pad) -mx-(--pad) mt-3 -mb-(--pad) grid auto-cols-fr grid-flow-col divide-x divide-border border-t border-border bg-inherit pb-(--foot)"
 	>
@@ -1531,10 +1701,11 @@
 	On a phone it is the app's bottom sheet instead, a dialog that takes
 	focus, with a heading over a hairline in place of the colored frame.
 	`--pad` is the action bar's bleed to the frame's edges, `--foot` the room
-	it keeps below for a phone's home indicator.
+	it keeps below its buttons, so they do not sit on the screen's edge (the
+	safe-area inset is 0: the viewport is not `viewport-fit=cover`).
 -->
 {#snippet cardFrame(label: string, heading: string, border: string, body: Snippet)}
-	{#if phone.current}
+	{#if phone.value}
 		<BottomSheet
 			bind:open={() => sheet !== null, (open) => !open && closeSheet()}
 			closeLabel={m.common_close()}
@@ -1572,7 +1743,7 @@
 			<div
 				bind:this={sheetBody}
 				tabindex="-1"
-				class="min-h-0 flex-1 overflow-y-auto bg-background px-5 pb-5 outline-none [--foot:env(safe-area-inset-bottom)] [--pad:1.25rem] [&_.text-primary]:text-accent-foreground"
+				class="min-h-0 flex-1 overflow-y-auto bg-background px-5 pb-5 outline-none [--foot:0.75rem] [--pad:1.25rem] [&_.text-primary]:text-accent-foreground"
 			>
 				<Dialog.Title class="sr-only">{label}</Dialog.Title>
 				{@render body()}
@@ -1663,9 +1834,9 @@
 					aria-describedby={option === choice.guess && choice.because.length > 0
 						? `choice-because-${step.id}`
 						: undefined}
-					tabindex={phone.current && (on || (chosen === null && at === 0)) ? 0 : -1}
+					tabindex={phone.value && (on || (chosen === null && at === 0)) ? 0 : -1}
 					onmousedown={(event) => {
-						if (!phone.current) event.preventDefault();
+						if (!phone.value) event.preventDefault();
 					}}
 					onclick={() => (picked = { word: choice.word, id: option.ingredientId })}
 					onkeydown={(event) => pickByArrow(event, choice.word, ordered, at)}
