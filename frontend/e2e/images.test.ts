@@ -68,8 +68,10 @@ test('opens the lightbox and walks through the images', async ({ page }) => {
 	await expect(dialog).toBeHidden();
 });
 
-test('swipes between the lightbox images', async ({ page, isMobile }) => {
-	test.skip(!isMobile, 'pointer swipe is exercised on the mobile project only');
+test('swipes between the lightbox images', async ({ page, isMobile, browserName }) => {
+	test.skip(!isMobile, 'swipe is exercised on the mobile projects only');
+	// Real touch through CDP: a mouse pointer ignores `touch-action`.
+	test.skip(browserName !== 'chromium', 'touch is dispatched through CDP, Chromium only');
 	const token = uniqueToken();
 	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Swipe ${token}` });
 	await uploadImage(page, recipe.id, tinyPng([200, 120, 40]));
@@ -86,11 +88,19 @@ test('swipes between the lightbox images', async ({ page, isMobile }) => {
 		throw new Error('swipe area has no bounding box');
 	}
 	const y = box.y + box.height / 2;
+	const cdp = await page.context().newCDPSession(page);
 	const drag = async (from: number, to: number) => {
-		await page.mouse.move(box.x + from, y);
-		await page.mouse.down();
-		await page.mouse.move(box.x + to, y, { steps: 4 });
-		await page.mouse.up();
+		await cdp.send('Input.dispatchTouchEvent', {
+			type: 'touchStart',
+			touchPoints: [{ x: box.x + from, y }]
+		});
+		for (let i = 1; i <= 4; i++) {
+			await cdp.send('Input.dispatchTouchEvent', {
+				type: 'touchMove',
+				touchPoints: [{ x: box.x + from + ((to - from) * i) / 4, y }]
+			});
+		}
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 	};
 
 	// Exactly the 50px threshold, leftwards: the next image.

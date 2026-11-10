@@ -380,10 +380,14 @@
 					<!-- `safe center`: a step taller than the view starts at the top
 					     and scrolls, instead of centering its first lines out of reach.
 					     The padding is the section's, not the group's, so the
-					     scrollbar sits at the screen edge rather than on the text. -->
+					     scrollbar sits at the screen edge rather than on the text.
+					     `touch-pan-y` again here, not only on the group: `overflow-y-auto`
+					     makes the section a scroll container, `touch-action` is not
+					     combined past one, and without it a phone takes the horizontal
+					     pan and cancels the pointer before the swipe is measured. -->
 					<section
 						data-step={index}
-						class="flex flex-col items-center justify-center-safe overflow-y-auto px-5 py-6 text-center [grid-area:1/1] md:px-8 {scrolls &&
+						class="flex touch-pan-y flex-col items-center justify-center-safe overflow-y-auto px-5 py-6 text-center [grid-area:1/1] md:px-8 {scrolls &&
 						!reading
 							? 'pb-16'
 							: ''}"

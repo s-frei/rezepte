@@ -171,10 +171,13 @@
 						     area really is a group of image plus prev/next buttons. -->
 						<!-- `select-none`: a mouse swipe across it would select, and the next
 						     press inside that selection drags it instead (Chromium on Linux
-						     and Windows), cancelling the pointer and with it the swipe. -->
+						     and Windows), cancelling the pointer and with it the swipe.
+						     `touch-pan-y touch-pinch-zoom`: left at `auto`, a phone takes a
+						     finger's horizontal pan itself and cancels the pointer before the
+						     swipe is measured; pinching the photo stays the browser's. -->
 						<div
 							role="group"
-							class="relative flex min-h-0 flex-1 items-center justify-center px-4 select-none md:px-20 {count >
+							class="relative flex min-h-0 flex-1 touch-pan-y touch-pinch-zoom items-center justify-center px-4 select-none md:px-20 {count >
 							1
 								? ''
 								: 'pb-4 md:pb-6'}"

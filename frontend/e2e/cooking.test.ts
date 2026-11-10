@@ -268,8 +268,11 @@ test('toggles the ingredient sheet and shares the servings with the recipe page'
 	await expect(page.getByRole('checkbox', { name: 'Salt' })).toBeChecked();
 });
 
-test('swipes between steps on touch', async ({ page, isMobile }) => {
-	test.skip(!isMobile, 'pointer swipe is exercised on the mobile project only');
+test('swipes between steps on touch', async ({ page, isMobile, browserName }) => {
+	test.skip(!isMobile, 'swipe is exercised on the mobile projects only');
+	// Real touch input needs CDP: a mouse pointer ignores `touch-action`, so a
+	// browser that takes the pan and cancels the pointer would still pass.
+	test.skip(browserName !== 'chromium', 'touch is dispatched through CDP, Chromium only');
 	const recipe = await createRecipe(page, scalingRecipe(`Swipe ${uniqueToken()}`));
 
 	await page.goto(`/recipes/${recipe.slug}/cook`);
@@ -279,19 +282,32 @@ test('swipes between steps on touch', async ({ page, isMobile }) => {
 		throw new Error('step text has no bounding box');
 	}
 	const y = box.y + box.height / 2;
+	const cdp = await page.context().newCDPSession(page);
+	async function swipe(fromX: number, toX: number) {
+		await cdp.send('Input.dispatchTouchEvent', {
+			type: 'touchStart',
+			touchPoints: [{ x: fromX, y }]
+		});
+		for (let i = 1; i <= 6; i++) {
+			await cdp.send('Input.dispatchTouchEvent', {
+				type: 'touchMove',
+				touchPoints: [{ x: fromX + ((toX - fromX) * i) / 6, y }]
+			});
+		}
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	}
+
 	// 120px leftwards: well past the 50px threshold.
-	await page.mouse.move(box.x + 200, y);
-	await page.mouse.down();
-	await page.mouse.move(box.x + 80, y, { steps: 6 });
-	await page.mouse.up();
+	await swipe(box.x + 200, box.x + 80);
 	await expect(page.getByText('Step 2 of 3')).toBeVisible();
 
 	// 20px is below the threshold and must not page.
-	await page.mouse.move(box.x + 100, y);
-	await page.mouse.down();
-	await page.mouse.move(box.x + 120, y, { steps: 2 });
-	await page.mouse.up();
+	await swipe(box.x + 100, box.x + 120);
 	await expect(page.getByText('Step 2 of 3')).toBeVisible();
+
+	// Rightwards pages back.
+	await swipe(box.x + 80, box.x + 200);
+	await expect(page.getByText('Step 1 of 3')).toBeVisible();
 });
 
 /** The computed font size of the paragraph that sets the current step. */
