@@ -259,7 +259,11 @@
 		fill: none;
 		stroke: var(--color-destructive);
 		stroke-width: 1.5px;
-		stroke-dasharray: 100;
+		/* One dash the path's length, then a gap longer than it: with a gap
+		   of exactly 100 the next dash starts right where the closed path
+		   ends, and pathLength's rounding lets a sliver of it show at the
+		   top-left start on high-density screens, red on a field at rest. */
+		stroke-dasharray: 100 101;
 		stroke-dashoffset: 100;
 	}
 
