@@ -69,7 +69,7 @@
 <div
 	data-covers-top
 	class="sticky z-30 -mx-5 bg-background/90 backdrop-blur md:hidden {field
-		? 'px-5 pt-1 pb-2.5'
+		? 'px-5 py-2'
 		: ''} {className}"
 >
 	<button
@@ -79,7 +79,7 @@
 		aria-expanded={expanded}
 		aria-label={m.nav_contents_open({ current: label })}
 		class="flex w-full items-center text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {field
-			? 'min-h-12 gap-2.5 rounded-xl border border-border bg-surface px-3.5 py-1.5'
+			? 'min-h-12 gap-2.5 rounded-xl border border-border bg-surface/80 px-3.5 py-1.5'
 			: 'h-12 gap-1.5 px-5'}"
 	>
 		{#if field && Icon}
@@ -100,7 +100,7 @@
 			{/key}
 		</span>
 		<ChevronDown
-			class="size-4 shrink-0 translate-y-px text-text-muted {field ? 'ml-auto' : ''}"
+			class="size-4 shrink-0 text-text-muted {field ? 'ml-auto' : 'translate-y-px'}"
 			aria-hidden="true"
 		/>
 	</button>
