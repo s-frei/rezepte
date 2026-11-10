@@ -1000,11 +1000,14 @@ body {
  * the favorite star - stopped signaling that it can be clicked while
  * links kept doing so. Restoring it once here beats a `cursor-pointer`
  * class on each of them, which is a line that gets forgotten on the next
- * button. Disabled ones keep the default: they cannot be clicked.
+ * button. Disabled ones keep the default: they cannot be clicked. In the
+ * base layer, so a `cursor-*` class (a drag handle's grab) still wins.
  */
-button:not(:disabled),
-[role='button']:not([aria-disabled='true']) {
-	cursor: pointer;
+@layer base {
+	button:not(:disabled),
+	[role='button']:not([aria-disabled='true']) {
+		cursor: pointer;
+	}
 }
 
 /*

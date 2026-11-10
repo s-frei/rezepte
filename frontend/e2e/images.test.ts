@@ -813,6 +813,41 @@ test('a cover whose delete fails comes back as the cover', async ({ page }) => {
 	await expect(tiles(page).first().getByText('Cover', { exact: true })).toBeVisible();
 });
 
+// Only a click opens a photo: the release that ends a drag, or a press held
+// until the photo lifted, puts it down instead.
+test('a photo opens on a click, not when a drag or a held press ends', async ({
+	page,
+	isMobile
+}) => {
+	await editorWithPhotos(page, 3);
+	const dialog = page.getByRole('dialog');
+
+	await drag(page, isMobile, tiles(page).nth(2), tiles(page).nth(1));
+	await page.waitForTimeout(400);
+	await expect(dialog).toBeHidden();
+
+	const at = await center(tiles(page).nth(1));
+	if (isMobile) {
+		const cdp = await page.context().newCDPSession(page);
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+		await page.waitForTimeout(400);
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await cdp.detach();
+	} else {
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		await page.waitForTimeout(300);
+		await page.mouse.up();
+	}
+	await page.waitForTimeout(400);
+	await expect(dialog).toBeHidden();
+
+	await (isMobile
+		? tiles(page).nth(1).locator('img').tap()
+		: tiles(page).nth(1).locator('img').click());
+	await expect(dialog).toBeVisible();
+});
+
 test('a press on a photo’s menu button never picks the photo up', async ({ page, isMobile }) => {
 	const { ids } = await editorWithPhotos(page, 3);
 	let saves = 0;

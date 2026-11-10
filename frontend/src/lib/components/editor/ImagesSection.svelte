@@ -541,7 +541,7 @@
 								? m.images_retry_photo({ number: index + 1 })
 								: m.images_show({ number: index + 1 })}
 							class="block size-full {tile.state === 'stored'
-								? 'cursor-grab'
+								? 'cursor-grab group-data-lifted:cursor-grabbing'
 								: ''} focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {radius}"
 						>
 							<img

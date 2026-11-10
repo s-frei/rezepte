@@ -1,6 +1,12 @@
 // Reorders a list's `[data-sortable-key]` children by pointer and keyboard.
-// A mouse drags after 4px; a finger lifts the item after a 250ms press (a
-// move of more than 8px before that is a scroll and lets go). While held,
+// A mouse lifts the item after a 120ms press, or at once when it moves more
+// than 4px, which starts the drag; let go unmoved, the item settles back.
+// Only a click that ends before the lift opens the item: once it has
+// lifted, the release puts it down, moved or not. A finger lifts the item
+// after a 250ms press (a move of more than 8px before that is a scroll and
+// lets go) and drags from there. The lift grows the item over 160ms, also
+// while it already follows the pointer, so the drag continues it without a
+// jump. While held,
 // the item stays in the list as the landing slot and its face follows the
 // pointer at the size it was picked up at, or with `faceFollowsSlot` at the
 // size of its slot, easing from one to the next; the slot under the pointer is
@@ -29,7 +35,8 @@
 // - `[data-resizing]` on an item while `flip` changes its size, and on the
 //   held item while its face eases to a new slot's size: hide what would
 //   stretch with it, such as a ×.
-// `[data-lifted]` marks the held item from the lift to the drop.
+// `[data-lifted]` marks the held item from the lift to the drop: a cursor
+// `grabbing` on it shows a mouse holding it.
 //
 // From the press to the release the list prevents `selectstart` and
 // `contextmenu`: the lifted item lets pointers through, so Chrome's own
@@ -55,6 +62,10 @@ export type SortableOptions = {
 };
 
 const LIFT = 1.06;
+/** How long a mouse press waits before it lifts, in ms: a plain click is over by then. */
+const PRESS = 120;
+/** How long the lift takes to grow the item, in ms. */
+const GROW = 160;
 /** How close to the window's top or bottom a held item scrolls the page, in px. */
 const EDGE = 64;
 
@@ -80,9 +91,12 @@ type Held = {
 	slotH: number;
 	resizing?: number;
 	scrolling?: number;
+	/** How far the lift has grown the item, from 0 to 1. */
+	k: number;
 	lifted: boolean;
+	/** Following the pointer: a finger from the lift, a mouse once it moves. */
+	dragging: boolean;
 	timer?: ReturnType<typeof setTimeout>;
-	liftAnim?: Animation;
 	/** The item it last swapped with: skipped until the pointer leaves it, or the two would trade back. */
 	over: string | null;
 };
@@ -117,8 +131,10 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	 * which never slides, turns them into screen coordinates.
 	 */
 	function restingAt(h: Held) {
-		// Whatever covers the list, such as a sticky bar, is not the list.
-		if (!node.contains(document.elementFromPoint(h.x, h.y))) return null;
+		// Whatever covers the list, such as a sticky bar, is not the list. A
+		// mouse's held item still takes pointers, for its cursor: it is skipped.
+		const top = document.elementsFromPoint(h.x, h.y).find((el) => !h.el.contains(el));
+		if (!top || !node.contains(top)) return null;
 		const slot = h.el.getBoundingClientRect();
 		for (const el of node.querySelectorAll<HTMLElement>('[data-sortable-key]')) {
 			const left = slot.left + el.offsetLeft - h.el.offsetLeft;
@@ -133,7 +149,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	function place(h: Held) {
 		h.face.style.transform = '';
 		const slot = h.face.getBoundingClientRect();
-		const s = scale();
+		const s = 1 + (scale() - 1) * h.k;
 		h.face.style.transform =
 			`translate(${h.x - h.fx * h.w * s - slot.left}px, ${h.y - h.fy * h.h * s - slot.top}px) ` +
 			`scale(${(h.w * s) / slot.width}, ${(h.h * s) / slot.height})`;
@@ -165,11 +181,11 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		h.resizing = requestAnimationFrame(step);
 	}
 
-	function lift(h: Held, touch: boolean) {
+	function lift(h: Held) {
 		h.lifted = true;
 		getSelection()?.removeAllRanges();
 		h.el.setAttribute('data-lifted', '');
-		Object.assign(h.el.style, { zIndex: '10', pointerEvents: 'none' });
+		h.el.style.zIndex = '10';
 		Object.assign(h.face.style, { transformOrigin: '0 0', boxShadow: 'var(--shadow-lift)' });
 		if (h.face !== h.el) h.el.setAttribute('data-sortable-slot', '');
 		if (h.face !== h.el && !opts.faceFollowsSlot) {
@@ -181,17 +197,30 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 				bottom: 'auto'
 			});
 		}
-		place(h);
+		if (prefersReducedMotion.current) {
+			h.k = 1;
+			place(h);
+			return;
+		}
+		// The grow runs in `place`, so a move mid-grow keeps it going.
+		h.face.animate([{ boxShadow: 'none' }, {}], { duration: GROW, easing: 'ease-out' });
+		const t0 = performance.now();
+		const step = (now: number) => {
+			if (held !== h) return;
+			const t = Math.min(1, (now - t0) / GROW);
+			h.k = 1 - (1 - t) ** 3;
+			place(h);
+			if (t < 1) requestAnimationFrame(step);
+		};
+		step(t0);
+	}
+
+	function drag(h: Held, touch: boolean) {
+		if (!h.lifted) lift(h);
+		h.dragging = true;
 		if (!touch) return;
+		h.el.style.pointerEvents = 'none';
 		navigator.vibrate?.(10);
-		if (!prefersReducedMotion.current)
-			h.liftAnim = h.face.animate(
-				[{ transform: 'none', boxShadow: 'none' }, { transform: h.face.style.transform }],
-				{
-					duration: 160,
-					easing: 'ease-out'
-				}
-			);
 	}
 
 	function release() {
@@ -234,11 +263,16 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 			h: r.height,
 			slotW: r.width,
 			slotH: r.height,
+			k: 0,
 			lifted: false,
+			dragging: false,
 			over: null
 		};
 		held = h;
-		if (e.pointerType !== 'mouse') h.timer = setTimeout(() => lift(h, true), 250);
+		h.timer =
+			e.pointerType === 'mouse'
+				? setTimeout(() => lift(h), PRESS)
+				: setTimeout(() => drag(h, true), 250);
 		addEventListener('keydown', keysWhileHeld, true);
 		addEventListener('pointermove', move);
 		addEventListener('pointerup', up);
@@ -249,7 +283,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 	// The page scrolling under a held item moves its slot and what is under
 	// the pointer, not the pointer.
 	function scroll() {
-		if (!held?.lifted) return;
+		if (!held?.dragging) return;
 		track(held);
 		place(held);
 	}
@@ -297,12 +331,13 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 		h.x = e.clientX;
 		h.y = e.clientY;
 		const distance = Math.hypot(h.x - h.x0, h.y - h.y0);
-		if (!h.lifted) {
-			if (e.pointerType === 'mouse' && distance > 4) lift(h, false);
-			else if (e.pointerType !== 'mouse' && distance > 8) release();
-			if (!h.lifted) return;
+		if (!h.dragging) {
+			if (e.pointerType === 'mouse' && distance > 4) {
+				clearTimeout(h.timer);
+				drag(h, false);
+			} else if (e.pointerType !== 'mouse' && !h.lifted && distance > 8) release();
+			if (!h.dragging) return;
 		}
-		h.liftAnim?.cancel();
 		track(h);
 		place(h);
 		autoscroll(h);
@@ -341,14 +376,15 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 					{ duration: SLIDE, easing: EASE }
 				);
 		glide.finished
-			.then(() => ring(el))
+			.then(() => h.dragging && ring(el))
 			.catch(() => {})
 			.finally(() => {
 				el.style.zIndex = '';
 				face.style.transformOrigin = '';
 			});
-		// The pointerup's own click would open the item that was just put down.
-		// Only that one: the next press or key starts a gesture of its own.
+		// The pointerup's own click would open the item that was just put down,
+		// dragged or only lifted. Only that one: the next press or key starts a
+		// gesture of its own.
 		if (e.type === 'pointerup') {
 			const swallow = (click: Event) => {
 				click.stopPropagation();
@@ -399,7 +435,7 @@ export const sortable: Action<HTMLElement, SortableOptions> = (node, initial) =>
 
 	// A lifted finger drags instead of scrolling the page.
 	const touchmove = (e: TouchEvent) => {
-		if (held?.lifted) e.preventDefault();
+		if (held?.dragging) e.preventDefault();
 	};
 	// A long press would open the image's menu or select the word nearest to
 	// it, on the list itself once the lifted item lets the press through; a

@@ -723,8 +723,10 @@ test('a held photo grows and shrinks with the cell it is over', async ({ page, i
 
 	const finger = await hold(page, isMobile, middle(large));
 	await finger.move({ x: middle(large).x + 10, y: middle(large).y });
-	const lifted = (await face.boundingBox())!;
-	expect(lifted.width).toBeCloseTo(large.width * 1.06, 0);
+	// The lift grows the photo over 160ms.
+	await expect
+		.poll(async () => (await face.boundingBox())!.width)
+		.toBeCloseTo(large.width * 1.06, 0);
 
 	// While it shrinks, its × would shrink with it: what the × showed as the shrinking began.
 	await composerPhotos(page).evaluate((ul) => {
