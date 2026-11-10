@@ -25,7 +25,7 @@ describe('Input marked required', () => {
 
 	it('hides the star from assistive tech, which already hears aria-required', () => {
 		expect(required({})).toMatch(
-			/<span[^>]*aria-hidden="true"[^>]*data-required-mark[^>]*>\*<\/span>/
+			/<span[^>]*aria-hidden="true"[^>]*data-required-mark[^>]*>(<!--[^>]*-->)*<span[^>]*>\*<\/span>/
 		);
 	});
 
@@ -39,10 +39,21 @@ describe('Input marked required', () => {
 		expect(required({ value: '   ' })).toMatch(/data-required-mark[^>]*data-state="empty"/);
 	});
 
-	it('quietens the star and drops the stroke once the field has content', () => {
+	it('turns the star into a check and drops the stroke once the field has content', () => {
 		const body = required({ value: 'Kürbissuppe' });
 		expect(body).toMatch(/data-required-mark[^>]*data-state="filled"/);
+		expect(body).toMatch(
+			/data-required-mark[^>]*>(<!--[^>]*-->)*<span[^>]*>(<!--[^>]*-->)*<svg[\s\S]*<span class="invisible">\*<\/span>/
+		);
 		expect(body).toMatch(/data-required-stroke[^>]*data-state="filled"/);
+	});
+
+	it('lets the form decide when a typed value is enough', () => {
+		const { body } = render(Input, {
+			props: { id: 's', label: 'Portionen', required: true, value: '0', satisfied: false }
+		});
+		expect(body).toMatch(/data-required-mark[^>]*data-state="empty"/);
+		expect(body).not.toContain('<svg');
 	});
 
 	it('lets the error win over the empty state', () => {
@@ -71,6 +82,32 @@ describe('Input with a prefix', () => {
 	it('draws no prefix when none is given', () => {
 		const { body } = render(Input, { props: { id: 'src', label: 'Source' } });
 		expect(body).not.toContain('src-prefix');
+	});
+});
+
+describe('Input with a counter', () => {
+	const counting = (value: string, hint?: string) =>
+		render(Input, { props: { id: 'n', label: 'Name', counter: 10, value, hint } }).body;
+
+	it('reserves no padding for the counter and shows none while the value is short', () => {
+		const body = counting('abc');
+		expect(body).not.toContain('pr-16');
+		expect(body).not.toContain('data-slot="counter"');
+	});
+
+	it('puts the counter on the line below the field, beside the hint', () => {
+		const body = counting('abcdefgh', 'Hint');
+		expect(body).toMatch(/<p id="n-hint"[^>]*>Hint<\/p>[\s\S]*data-slot="counter"/);
+		expect(body.indexOf('data-slot="counter"')).toBeGreaterThan(body.indexOf('</div>'));
+	});
+});
+
+describe('Input with an error', () => {
+	it('stays red while focused', () => {
+		const { body } = render(Input, { props: { id: 't', label: 'T', error: 'Nope' } });
+		expect(body).toContain('focus:border-destructive');
+		expect(body).toContain('focus-visible:outline-destructive');
+		expect(body).not.toContain('focus:border-primary');
 	});
 });
 

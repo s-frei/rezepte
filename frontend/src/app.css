@@ -24,6 +24,11 @@
 	--color-popover-border: #e3d7c3;
 	--color-text: #2b2118;
 	--color-text-muted: #756554;
+	/* A label written into a field's top border (the ingredient row): the
+	   muted text leaning toward the border it sits in. Mixed from the two
+	   tokens, so the dark blocks need no value of their own; 4.6:1 on the
+	   surface in light, 5.1:1 in dark. */
+	--color-field-label: color-mix(in srgb, var(--color-text-muted) 90%, var(--color-border));
 	--color-primary: #b45309;
 	--color-primary-foreground: #ffffff;
 	--color-accent: #f0dfc4;
@@ -210,6 +215,31 @@
 		}
 		to {
 			scale: 0.92 1;
+		}
+	}
+	/* The editor's save button the moment a save went through: its check
+	   draws itself (a path with `pathLength="1"` and `stroke-dasharray: 1`)
+	   while one ring spreads out of the button and fades. 8px, no more: on a
+	   360px phone a wider ring reaches the screen's edge. The editor waits
+	   for the ring before it moves on (`SAVED_PAUSE` in `RecipeForm`). */
+	--animate-saved-draw: saved-draw 240ms var(--ease-glide) both;
+	--animate-saved-ring: saved-ring 420ms var(--ease-glide) both;
+
+	@keyframes saved-draw {
+		from {
+			stroke-dashoffset: 1;
+		}
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	@keyframes saved-ring {
+		from {
+			box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success-foreground) 45%, transparent);
+		}
+		to {
+			box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-success-foreground) 0%, transparent);
 		}
 	}
 
@@ -403,6 +433,19 @@
  */
 @utility initial-centered {
 	padding-bottom: 0.174em;
+}
+
+/*
+ * Text inputs: 16px on phones, because iOS Safari zooms into any focused
+ * field below that, and the body size from md up.
+ */
+@utility text-input {
+	font-size: 16px;
+	line-height: 1.5;
+	@media (width >= 48rem) {
+		font-size: var(--text-body);
+		line-height: var(--text-body--line-height);
+	}
 }
 
 /*

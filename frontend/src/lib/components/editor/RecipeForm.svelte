@@ -5,6 +5,8 @@
 	import { resolve } from '$app/paths';
 	import { resolvePath } from '#lib/paths.js';
 	import type { Path, ResolvedPathname } from '$app/types';
+	import FieldError from '#lib/components/ui/FieldError.svelte';
+	import ErrorDot from '#lib/components/ui/ErrorDot.svelte';
 	import { toast } from 'svelte-sonner';
 	import { ApiError } from '#lib/api/client.js';
 	import {
@@ -16,20 +18,20 @@
 	} from '#lib/api/recipes.js';
 	import { session } from '#lib/auth.svelte.js';
 	import ContentsSheet from '#lib/components/nav/ContentsSheet.svelte';
-	import RunningHead from '#lib/components/nav/RunningHead.svelte';
 	import type { ContentsEntry } from '#lib/components/nav/contents.js';
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import RequiredMark, { requiredState } from '#lib/components/ui/RequiredMark.svelte';
 	import { withoutErrors } from '#lib/form-errors.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import {
-		anchorId,
 		applyReview,
 		applyServerErrors,
-		firstErrorField,
+		currentErrors,
+		errorAnchors,
 		fromRecipe,
 		hasNamedIngredient,
 		isDirty,
+		sectionsWithErrors,
 		toInput,
 		validate,
 		type FieldErrors
@@ -40,6 +42,7 @@
 	import { currentSection, isAtBottom, nextBand, stillPinned } from '#lib/recipe/section-spy.js';
 	import { shell } from '#lib/shell.svelte.js';
 	import BasicsSection from './BasicsSection.svelte';
+	import EditorBar from './EditorBar.svelte';
 	import EditingSection from './EditingSection.svelte';
 	import ImagesSection from './ImagesSection.svelte';
 	import IngredientGroupEditor from './IngredientGroupEditor.svelte';
@@ -76,8 +79,15 @@
 	// has typed, so that one-time read is marked with `untrack`.
 	const pristine = untrack(() => applyReview(fromRecipe(initial), imported?.draft.review ?? []));
 	let form = $state(structuredClone(pristine));
-	let errors = $state<FieldErrors>({});
+	// What the last save reported, less what has been typed away since.
+	let saveErrors = $state<FieldErrors>({});
+	// Of those, the ones that still hold: a link error leaves the moment its
+	// link, step or row is fixed, which no typing has to announce (see
+	// `currentErrors`). Everything on screen reads this one.
+	const errors = $derived(currentErrors(saveErrors, form));
 	let saving = $state(false);
+	// The save went through and the save button shows it (see `SAVED_PAUSE`).
+	let saved = $state(false);
 	let discardOpen = $state(false);
 	// The navigation held back is a Share → Rezepte, so the question names it.
 	let discardForShare = $state(false);
@@ -111,12 +121,12 @@
 	];
 	let activeSection = $state(sections[0].id);
 
-	// The phone's navigation: a running head naming `activeSection`, and the
+	// The phone's navigation: `EditorBar` naming `activeSection`, and the
 	// contents sheet it opens. The sheet's summaries read the live form, so
 	// it says what the recipe holds right now, not what it held on load.
 	let contentsOpen = $state(false);
-	// How far the reader is through `activeSection`, 0 to 1 - the running
-	// head's hairline. See `measureProgress`.
+	// How far the reader is through `activeSection`, 0 to 1 - the segments
+	// under the name in `EditorBar`. See `measureProgress`.
 	let sectionProgress = $state(0);
 	// Out of the images section, which owns the photos of a stored recipe.
 	let photoCount = $state(0);
@@ -130,6 +140,13 @@
 		open: m.editor_policy_open(),
 		locked: m.editor_policy_locked()
 	};
+
+	// Sections holding an error of the last save, by element id: their
+	// segment in `EditorBar`, their entry in the contents sheet and their rail
+	// button carry a destructive mark until the errors are edited away.
+	const errorIds = $derived(
+		new Set([...sectionsWithErrors(errors)].map((section) => `editor-section-${section}`))
+	);
 
 	const contents = $derived.by((): ContentsEntry[] => {
 		const title = form.title.trim();
@@ -148,14 +165,19 @@
 		return sections.map((section, i) => ({
 			...section,
 			summary: summaries[i],
-			placeholder: i === 0 && title === ''
+			placeholder: i === 0 && title === '',
+			error: errorIds.has(section.id)
 		}));
 	});
 
-	// Room for what is pinned over a section once it has been jumped to: the
-	// 64px save bar, and on a phone the 50px running head under it.
-	const sectionCard = 'scroll-mt-32 rounded-2xl bg-surface p-6 md:scroll-mt-24 md:p-7';
-	const sectionTitle = 'mb-4 font-display text-heading font-medium';
+	// Room for what is pinned over a section once it has been jumped to: on a
+	// phone the 60px `EditorBar` (its `scroll-padding-top` on the page) plus
+	// this breath, `PINNED` together. Tighter cards on a phone, where every
+	// pixel of width is a pixel of field.
+	const sectionCard = 'scroll-mt-4 rounded-2xl bg-surface p-3 md:scroll-mt-24 md:p-7';
+	const sectionTitle = 'mb-3 font-display text-heading font-medium md:mb-4';
+	// The bar's 60px and `scroll-mt-4`: where a section counts as read past on a phone.
+	const PINNED = 76;
 
 	// True while a smooth scroll started by a nav click is running. The
 	// sections it passes on the way would otherwise take the highlight away
@@ -186,11 +208,20 @@
 		}
 	}
 
-	function scrollToSection(id: string) {
+	/**
+	 * Names section `id` in the nav now and holds it there while a scroll
+	 * started by the app carries the page to it, so the sections passed on
+	 * the way - or one that only ends up in the spy band - do not take over.
+	 */
+	function steer(id: string) {
 		activeSection = id;
 		steering = true;
 		pinnedAt = null;
 		releaseSteeringAfter(300);
+	}
+
+	function scrollToSection(id: string) {
+		steer(id);
 		document.getElementById(id)?.scrollIntoView({
 			behavior: prefersReducedMotion.current ? 'auto' : 'smooth',
 			block: 'start'
@@ -201,7 +232,7 @@
 
 	/**
 	 * Sets `sectionProgress`: how much of the current section has passed
-	 * under the running head's bottom edge (128px down, see `sectionCard`).
+	 * under `EditorBar`'s bottom edge (`PINNED`, see `sectionCard`).
 	 * At the foot of the page every section is as read as it will get.
 	 */
 	function measureProgress() {
@@ -214,7 +245,7 @@
 			scrollY: window.scrollY,
 			scrollHeight: document.documentElement.scrollHeight
 		});
-		const passed = 128 - section.getBoundingClientRect().top;
+		const passed = PINNED - section.getBoundingClientRect().top;
 		sectionProgress = atBottom ? 1 : Math.min(1, Math.max(0, passed / section.offsetHeight));
 	}
 
@@ -258,9 +289,9 @@
 			},
 			// Only the band just under the top bar counts as "current", so the
 			// section the user is reading wins over the ones below it. On a
-			// phone that band starts under the running head too, or the last
-			// strip of a card hidden behind it would still name the head.
-			{ rootMargin: `-${phone ? 128 : 80}px 0px -60% 0px` }
+			// phone that band starts under `EditorBar`, or the last strip of a
+			// card hidden behind it would still name the bar.
+			{ rootMargin: `-${phone ? PINNED : 80}px 0px -60% 0px` }
 		);
 		for (const section of node.querySelectorAll('section[id]')) {
 			observer.observe(section);
@@ -291,19 +322,31 @@
 		};
 	}
 
-	async function revealFirstError() {
-		const field = firstErrorField(errors);
-		if (field === null) {
-			return;
-		}
+	// The anchor the last reveal went to, so "Next" in the toast goes on
+	// from there. Not `$state`: nothing renders from it.
+	let revealed: string | undefined;
+
+	/**
+	 * Scrolls the field with error anchor `id` into view and focuses it. The
+	 * nav is steered to the section holding it: a centered field can leave
+	 * another section in the spy band, and the bar would name that one while
+	 * the red segment is this one's. A section-level error's anchor is the
+	 * section itself, which goes to the top like a jump from the nav.
+	 */
+	async function revealAnchor(id: string) {
+		revealed = id;
 		await tick();
-		const target = document.getElementById(anchorId(field));
+		const target = document.getElementById(id);
 		if (!target) {
 			return;
 		}
+		const section = target.closest<HTMLElement>('section[id]');
+		if (section) {
+			steer(section.id);
+		}
 		target.scrollIntoView({
 			behavior: prefersReducedMotion.current ? 'auto' : 'smooth',
-			block: 'center'
+			block: target === section ? 'start' : 'center'
 		});
 		// A step is a ProseMirror surface rather than a textarea, so the test
 		// asks what the element can do, not which class it is.
@@ -314,6 +357,41 @@
 		) {
 			target.focus({ preventScroll: true });
 		}
+	}
+
+	/**
+	 * The error after the one revealed last, cycling; the first when that
+	 * one has been edited away.
+	 */
+	function revealNextError() {
+		const anchors = errorAnchors(errors);
+		if (anchors.length === 0) {
+			return;
+		}
+		const at = revealed === undefined ? -1 : anchors.indexOf(revealed);
+		void revealAnchor(anchors[(at + 1) % anchors.length]);
+	}
+
+	/**
+	 * Says how many fields need something, with a way to the next one, and
+	 * reveals the first. The count is taken now; the toast does not follow
+	 * edits - the destructive marks in the bar, sheet and rail do.
+	 */
+	async function reportErrors() {
+		const anchors = errorAnchors(errors);
+		const count = anchors.length;
+		toast.error(count === 1 ? m.editor_errors_count_one() : m.editor_errors_count({ count }), {
+			duration: 8000,
+			action: {
+				label: m.editor_errors_next(),
+				onClick: (event) => {
+					// Kept open, so "Next" can be pressed again to walk the errors.
+					event.preventDefault();
+					revealNextError();
+				}
+			}
+		});
+		await revealAnchor(anchors[0]);
 	}
 
 	// An error answers the last save; once its field is edited it no longer
@@ -327,18 +405,22 @@
 				? event.target.closest<HTMLElement>('[data-error-key]')?.dataset.errorKey
 				: undefined;
 		if (keys) {
-			errors = withoutErrors(errors, keys.split(' '));
+			saveErrors = withoutErrors(errors, keys.split(' '));
 		}
 	}
 
+	// How long the save button stays green before the editor moves on: the
+	// ring's 420ms (`--animate-saved-ring`), or under reduced motion, which
+	// shows the color with neither ring nor drawing, just long enough to see.
+	const SAVED_PAUSE = $derived(prefersReducedMotion.current ? 250 : 420);
+
 	async function handleSave() {
-		if (saving) {
+		if (saving || saved) {
 			return;
 		}
-		errors = validate(form);
+		saveErrors = validate(form);
 		if (Object.keys(errors).length > 0) {
-			toast.error(m.editor_validation_hint());
-			await revealFirstError();
+			await reportErrors();
 			return;
 		}
 
@@ -351,12 +433,17 @@
 			bypassGuard = true;
 			toast.success(m.editor_saved());
 			await images?.flush();
+			// The page turns inert with it, so nothing is typed or pressed
+			// into a recipe that is already saved.
+			saving = false;
+			saved = true;
+			await new Promise((done) => setTimeout(done, SAVED_PAUSE));
 			await goto(resolve('/recipes/[slug]', { slug: recipe.slug }));
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 422) {
-				errors = applyServerErrors(error.errors, form.steps);
+				saveErrors = applyServerErrors(error.errors, form.steps);
 				if (Object.keys(errors).length > 0) {
-					await revealFirstError();
+					await reportErrors();
 				} else {
 					toast.error(error.detail ?? m.editor_save_error());
 				}
@@ -454,19 +541,30 @@
 
 {#snippet noActions()}{/snippet}
 
-<!-- Mobile leaves room for the fixed save bar above the headline. -->
-<div class="pt-20 md:pt-10 md:pb-0">
-	<h1 class="font-display text-display-sm font-medium md:hidden">{heading}</h1>
+<!-- A phone's top is `EditorBar`, pinned and 60px high; the page starts under it. -->
+<div class="pt-15 md:pt-10 md:pb-0" inert={saved}>
+	<!-- No visible headline: on a phone the bar and the first card say where
+	     you are, on desktop the top bar's breadcrumb does. It stays on every
+	     width for assistive tech, so the page still has a heading. -->
+	<h1 class="sr-only">{heading}</h1>
 
-	<!-- Mobile: the running head sticks under the save bar and names the
-	     section being read; the contents sheet it opens reaches the others. -->
-	<RunningHead
+	<EditorBar
 		entries={contents}
 		current={activeSection}
 		progress={sectionProgress}
+		dirty={dirty && !saved}
+		{saving}
+		{saved}
+		{errorIds}
 		expanded={contentsOpen}
-		onopen={() => (contentsOpen = true)}
-		class="top-16 mt-2"
+		onopen={() => {
+			// A modal sheet under a toast reads as broken, and the sheet marks
+			// the sections with errors itself.
+			toast.dismiss();
+			contentsOpen = true;
+		}}
+		oncancel={handleCancel}
+		onsave={handleSave}
 	/>
 	<ContentsSheet
 		bind:open={contentsOpen}
@@ -477,48 +575,58 @@
 
 	<div class="mt-3 md:mt-5 md:grid md:grid-cols-[200px_minmax(0,720px)] md:items-start md:gap-14">
 		<!--
-			The rail is one sticky block: the section entries and, under them,
-			the save actions. Keeping the actions here rather than over the
-			form is what stops them covering anything - see `SaveBar`. The
-			wrapper carries no `hidden`, because `SaveBar`'s phone branch is
-			`fixed` and renders from inside it; the nav hides itself instead.
+			Desktop: the rail is one sticky block, the section entries and,
+			under them, the save actions. Keeping the actions here rather than
+			over the form is what stops them covering anything - see `SaveBar`.
 		-->
-		<div class="md:sticky md:top-6 md:flex md:flex-col md:gap-5">
+		<div class="hidden md:sticky md:top-6 md:flex md:flex-col md:gap-5">
 			<nav
 				aria-label={m.editor_sections_label()}
-				class="hidden flex-col gap-1.5 text-body-sm font-medium text-text-muted md:flex"
+				class="flex flex-col gap-1.5 text-body-sm font-medium text-text-muted"
 			>
 				{#each sections as section (section.id)}
 					<button
 						type="button"
 						onclick={() => scrollToSection(section.id)}
 						aria-current={activeSection === section.id ? 'true' : undefined}
-						class="rounded-pill px-3.5 py-2 text-left transition {activeSection === section.id
+						class="flex items-center gap-2 rounded-pill px-3.5 py-2 text-left transition {activeSection ===
+						section.id
 							? 'bg-surface font-semibold text-text'
 							: 'hover:text-text'}"
 					>
 						{section.label}
+						{#if errorIds.has(section.id)}
+							<ErrorDot />
+						{/if}
 					</button>
 				{/each}
 			</nav>
 
-			<SaveBar {dirty} {saving} oncancel={handleCancel} onsave={handleSave} />
+			<SaveBar
+				dirty={dirty && !saved}
+				{saving}
+				{saved}
+				oncancel={handleCancel}
+				onsave={handleSave}
+			/>
 		</div>
 
 		<form
 			{@attach trackSections}
 			onsubmit={(event) => event.preventDefault()}
 			oninput={clearEditedErrors}
-			class="space-y-5"
+			class="space-y-3 max-md:-mx-2 md:space-y-5"
 		>
 			<section id="editor-section-basics" class={sectionCard}>
 				<!-- The legend sits once, by the first section, where the first
-				     star is. Hidden from assistive tech, which hears
-				     `aria-required` on each field and has no star to decode. -->
-				<div class="mb-4 flex items-baseline justify-between gap-3">
+				     star is, and keeps its star when the fields have turned to
+				     checks: it explains the star. Hidden from assistive tech,
+				     which hears `aria-required` on each field and has no star to
+				     decode. -->
+				<div class="mb-3 flex items-baseline justify-between gap-3 md:mb-4">
 					<h2 class="font-display text-heading font-medium">{m.editor_section_basics()}</h2>
 					<p aria-hidden="true" class="text-micro text-text-muted">
-						<span class="text-primary">*</span>
+						<RequiredMark state="empty" />
 						{m.editor_required_legend()}
 					</p>
 				</div>
@@ -560,9 +668,7 @@
 					/>
 				</h2>
 				{#if errors.ingredientGroups}
-					<p class="mb-3 text-micro font-medium text-destructive motion-safe:animate-error-in">
-						{errors.ingredientGroups}
-					</p>
+					<FieldError message={errors.ingredientGroups} class="mb-3" />
 				{/if}
 				<IngredientGroupEditor bind:groups={form.ingredientGroups} {errors} />
 			</section>
@@ -570,9 +676,7 @@
 			<section id="editor-section-steps" class={sectionCard}>
 				<h2 class={sectionTitle}>{m.editor_section_steps()}</h2>
 				{#if errors.steps}
-					<p class="mb-3 text-micro font-medium text-destructive motion-safe:animate-error-in">
-						{errors.steps}
-					</p>
+					<FieldError message={errors.steps} class="mb-3" />
 				{/if}
 				<StepEditor bind:steps={form.steps} groups={form.ingredientGroups} {errors} />
 			</section>

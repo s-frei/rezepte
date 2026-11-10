@@ -65,6 +65,7 @@ description: Dev servers, builds and the check gate
 
 <Callout type="warn">
 
+  - Every page of a running `mise run dev` turns blank (404s on `src/lib/paraglide/messages/<key>.js`) after `mise run check` or the unit tests: Vitest recompiles the Paraglide output in another module structure than the dev server serves. Restart the dev server, which compiles it back.
   - An e2e run where every test that logs in fails with "That username or password is wrong." means a stale process on the port, not your change - see the trap under [Running a probe](/howtos/verify-ui#running-a-probe).
 
 </Callout>

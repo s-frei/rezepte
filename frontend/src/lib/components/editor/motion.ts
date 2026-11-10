@@ -41,7 +41,9 @@ function trailingGap(node: Element): number {
  */
 export function reveal(node: HTMLElement, { fresh = false } = {}): TransitionConfig {
 	if (!fresh || prefersReducedMotion.current) return { duration: 0 };
-	const end = parseFloat(getComputedStyle(node).marginBlockEnd) || 0;
+	const margins = getComputedStyle(node);
+	const end = parseFloat(margins.marginBlockEnd) || 0;
+	const start = parseFloat(margins.marginBlockStart) || 0;
 	const gap = trailingGap(node);
 	const { style } = node;
 	// The height is read every frame (`scrollHeight`, what the content needs)
@@ -50,21 +52,27 @@ export function reveal(node: HTMLElement, { fresh = false } = {}): TransitionCon
 	// taken at the start cut both off and then jumped by them at the end.
 	// `overflow: clip`, not `hidden`: a hidden box is a scroll container, and
 	// focusing the field inside it scrolled the step's top row out of sight.
+	// The bottom padding opens with it, read afresh each frame too: a box
+	// cannot be shorter than its padding, and a step's reserve for its link
+	// line (StepEditor) goes when the line comes.
 	return {
 		duration: 180,
 		easing: cubicOut,
 		css: (t) => `opacity: ${t};`,
 		tick: (t) => {
+			style.removeProperty('padding-block-end');
 			if (t === 1) {
 				for (const p of ['overflow', 'height', 'margin-block-end', 'margin-block-start']) {
 					style.removeProperty(p);
 				}
 				return;
 			}
+			const padding = parseFloat(getComputedStyle(node).paddingBlockEnd) || 0;
 			style.overflow = 'clip';
 			style.height = `${t * node.scrollHeight}px`;
+			style.paddingBlockEnd = `${t * padding}px`;
 			style.marginBlockEnd = `${t * end}px`;
-			style.marginBlockStart = `${(t - 1) * gap}px`;
+			style.marginBlockStart = `${t * start + (t - 1) * gap}px`;
 		}
 	};
 }
@@ -83,15 +91,20 @@ export function collapse(node: Element | null | undefined): Promise<void> {
 	node.style.overflow = 'clip';
 	return node
 		.animate(
+			// Padding folds too: a box cannot be shorter than its padding.
 			[
 				{
 					height: `${node.offsetHeight}px`,
+					paddingBlockStart: style.paddingBlockStart,
+					paddingBlockEnd: style.paddingBlockEnd,
 					marginBlockEnd: style.marginBlockEnd,
 					marginBlockStart: style.marginBlockStart,
 					opacity: 1
 				},
 				{
 					height: '0px',
+					paddingBlockStart: '0px',
+					paddingBlockEnd: '0px',
 					marginBlockEnd: '0px',
 					marginBlockStart: `${-trailingGap(node)}px`,
 					opacity: 0

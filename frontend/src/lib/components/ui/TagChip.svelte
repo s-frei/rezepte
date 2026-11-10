@@ -10,6 +10,7 @@
 		onclick,
 		removable = false,
 		onremove,
+		removeLabel,
 		leading,
 		trailing,
 		ariaLabel
@@ -20,6 +21,8 @@
 		onclick?: (event: MouseEvent) => void;
 		removable?: boolean;
 		onremove?: () => void;
+		/** Names the × by what it removes; "Remove" alone when not given. */
+		removeLabel?: string;
 		/** Rendered before the label on a filter chip - the author filter
 		 * puts a dot in the same color its recipes carry on their cards,
 		 * so the two read as one thing. */
@@ -63,18 +66,23 @@
 	</button>
 {:else}
 	<span
-		class="inline-flex items-center gap-1.5 rounded-pill bg-accent px-3 py-1 text-caption font-semibold text-accent-foreground"
+		class="inline-flex max-w-full items-center gap-1.5 rounded-pill bg-accent px-3 py-1 text-caption font-semibold text-accent-foreground"
 	>
-		{label}
+		<span class="min-w-0 truncate">{label}</span>
 		{#if count !== undefined}
 			<span class="opacity-70">{count}</span>
 		{/if}
 		{#if removable}
+			<!-- Below md the button's hit area is the ::after, reaching past the
+			     chip so the visible chip stays small: 46px wide, and 38px high,
+			     which is the pitch of `TagInput`'s wrapped rows - any higher and
+			     it would reach over the × of the chip above or below. At 70%
+			     the × is 3.4:1 on the chip in light (60% was 2.8:1). -->
 			<button
 				type="button"
 				onclick={onremove}
-				aria-label={m.common_remove()}
-				class="opacity-60 transition hover:opacity-100"
+				aria-label={removeLabel ?? m.common_remove()}
+				class="relative opacity-70 transition after:absolute after:-inset-x-4 after:-inset-y-3 hover:opacity-100 md:after:hidden"
 			>
 				<X class="size-3.5" />
 			</button>

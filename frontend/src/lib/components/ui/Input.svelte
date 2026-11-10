@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { Label } from 'bits-ui';
 	import type { HTMLInputAttributes } from 'svelte/elements';
+	import FieldError from './FieldError.svelte';
 	import RequiredMark, { requiredState } from './RequiredMark.svelte';
 
 	let {
@@ -14,6 +15,7 @@
 		counter,
 		aside,
 		required = false,
+		satisfied,
 		floating = false,
 		value = $bindable(''),
 		class: className = '',
@@ -29,22 +31,33 @@
 		 * start of a sentence the value completes ("Adapted from …").
 		 */
 		prefix?: string;
-		/** Unit rendered inside the field, right-aligned (e.g. "Min"). */
+		/**
+		 * Unit rendered inside the field, right-aligned (e.g. "Min"). The
+		 * field keeps 44px clear for it: a short unit at its 16px inset plus
+		 * a breath, and not a pixel more - every one is taken from the value.
+		 */
 		suffix?: string;
 		/**
-		 * Character limit to count towards, shown inside the field once the
-		 * value approaches it. Pass the same number as `maxlength`.
+		 * Character limit to count towards, shown at the end of the hint line
+		 * once the value approaches it. Pass the same number as `maxlength`.
 		 */
 		counter?: number;
 		/** Small text or links at the end of the label's line ("set · remove"). */
 		aside?: Snippet;
 		/**
 		 * Marks the field as one the form cannot be saved without: a star on
-		 * the label and a stroke in the margin while it is empty. Deliberately
+		 * the label and a stroke in the margin while it is empty, a check on
+		 * the label once it is satisfied. Deliberately
 		 * not the native attribute, which would have the browser stop the
 		 * submit with its own bubble instead of the form's error on save.
 		 */
 		required?: boolean;
+		/**
+		 * Whether a required field holds what it needs, which turns its star
+		 * into a check. Defaults to "not blank"; pass the form's own rule
+		 * where a typed value can still be wrong (servings "0").
+		 */
+		satisfied?: boolean;
 		/**
 		 * The sign-in pages' field (AuthScene): the label sits inside it and
 		 * floats up on focus or once it holds a value, and a field marked
@@ -67,24 +80,19 @@
 	// with the text someone is actually typing.
 	const showCounter = $derived(counter !== undefined && counted >= counter * 0.75);
 	const atLimit = $derived(counter !== undefined && counted >= counter);
-	// The padding below is reserved for the whole life of a counting field,
-	// not only while the counter shows: text that reflowed at the 48th
-	// character would draw more attention than the counter appearing does.
+	// The counter sits on the line below the field so typing never reflows;
+	// a counting field with no hint gains that line once, at three quarters.
 
-	const status = $derived(requiredState(value.trim() !== '', !!error));
+	const status = $derived(requiredState(satisfied ?? value.trim() !== '', !!error));
 
 	// Measured, not fixed: the prefix is a word in the reader's language,
 	// "Nach" in one and "Adapted from" in another, and typed text must never
 	// start underneath it.
 	let prefixWidth = $state(0);
 
-	// The app's focus outline, as on every other control; the floating
-	// field keeps its own soft ring (see the styles below).
-	const FOCUS =
-		'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
-
+	// The floating field keeps its own soft ring (see the styles below).
 	const classes = $derived(
-		`${floating ? 'h-14.5 border-border pt-5.5 pb-1.5 outline-none' : `h-11 transition ${FOCUS} ${error ? 'border-[1.5px] border-destructive' : 'border-border'}`} w-full rounded-md border bg-surface-elevated px-4 text-body focus:border-primary ${suffix ? 'pr-12' : ''} ${counter !== undefined ? 'pr-16' : ''} ${className}`
+		`${floating ? 'h-14.5 border-border pt-5.5 pb-1.5 outline-none' : `h-11 transition focus-visible:outline-2 focus-visible:outline-offset-2 ${error ? 'focus-visible:outline-destructive' : 'focus-visible:outline-primary'} ${error ? 'border-[1.5px] border-destructive' : 'border-border'}`} w-full rounded-md border bg-surface-elevated px-4 text-input text-text placeholder:text-text-muted ${error ? 'focus:border-destructive' : 'focus:border-primary'} ${suffix ? 'pr-11' : ''} ${className}`
 	);
 
 	// Prefix and suffix are part of what the field means ("30" is 30 minutes,
@@ -155,8 +163,9 @@
 		{#if required}
 			<!--
 				A pencil tick in the margin, the way a cook marks the line still to
-				do. It says one thing - this is empty and needs filling - so it
-				leaves once there is content, and also once a save has failed:
+				do. It says one thing - this still needs filling - so it leaves
+				once the field is satisfied (the star beside the label turns
+				into a check then, which says it), and also once a save has failed:
 				the red border and message say it louder then, and a third red
 				mark would only shout. It sits outside the field, so it needs
 				free space on the left; the containers that hold required fields
@@ -188,34 +197,35 @@
 				{suffix}
 			</span>
 		{/if}
-		<!--
-			Hidden from assistive tech on purpose: `maxlength` already tells a
-			screen reader what the field accepts, and a count that changed with
-			every keystroke would either say nothing (not a live region) or say
-			far too much (one announcement per character).
-
-			A full field is not an error, so it does not turn destructive - a
-			name of exactly the maximum length is valid, and a red counter
-			greeting someone on page load would say otherwise. It loses the
-			muted tone instead, which is enough to explain why typing stopped.
-		-->
-		{#if showCounter}
-			<span
-				aria-hidden="true"
-				class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-micro tabular-nums {atLimit
-					? 'font-semibold text-text'
-					: 'text-text-muted'}"
-			>
-				{counted}/{counter}
-			</span>
-		{/if}
 	</div>
-	{#if error}
-		<p id="{id}-error" class="text-micro font-medium text-destructive motion-safe:animate-error-in">
-			{error}
-		</p>
-	{:else if hint}
-		<p id="{id}-hint" class="text-micro text-text-muted">{hint}</p>
+	{#if error || hint || showCounter}
+		<div class="flex items-start gap-2">
+			{#if error}
+				<FieldError id="{id}-error" message={error} class="min-w-0" />
+			{:else if hint}
+				<p id="{id}-hint" class="min-w-0 text-micro text-text-muted">{hint}</p>
+			{/if}
+			<!-- Hidden from assistive tech on purpose: `maxlength` already tells a
+			     screen reader what the field accepts, and a count that changed with
+			     every keystroke would either say nothing (not a live region) or say
+			     far too much (one announcement per character).
+
+			     A full field is not an error, so it does not turn destructive - a
+			     name of exactly the maximum length is valid, and a red counter
+			     greeting someone on page load would say otherwise. It loses the
+			     muted tone instead, which is enough to explain why typing stopped. -->
+			{#if showCounter}
+				<span
+					aria-hidden="true"
+					data-slot="counter"
+					class="ml-auto shrink-0 text-micro tabular-nums {atLimit
+						? 'font-semibold text-text'
+						: 'text-text-muted'}"
+				>
+					{counted}/{counter}
+				</span>
+			{/if}
+		</div>
 	{/if}
 </div>
 

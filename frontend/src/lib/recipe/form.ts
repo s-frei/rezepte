@@ -432,6 +432,12 @@ function minutesOrNull(value: string): number | null {
 	return parsed === null ? null : Math.round(parsed);
 }
 
+/** A whole number of servings from 1 to 99. Also drives the field's required mark. */
+export function servingsValid(value: string): boolean {
+	const servings = parseNumber(value);
+	return servings !== null && Number.isInteger(servings) && servings >= 1 && servings <= 99;
+}
+
 /**
  * Client-side validation, mirroring the constraints the API enforces so the
  * common mistakes never cost a round trip. Returns an empty record when the
@@ -444,8 +450,7 @@ export function validate(form: RecipeForm): FieldErrors {
 		errors.title = m.editor_validation_title_required();
 	}
 
-	const servings = parseNumber(form.servings);
-	if (servings === null || !Number.isInteger(servings) || servings < 1 || servings > 99) {
+	if (!servingsValid(form.servings)) {
 		errors.servings = m.editor_validation_servings();
 	}
 
@@ -495,6 +500,15 @@ export function validate(form: RecipeForm): FieldErrors {
 		errors.ingredientGroups = m.editor_validation_ingredients();
 	}
 
+	Object.assign(errors, referenceErrors(form));
+
+	return errors;
+}
+
+/**
+ * The step errors `validate` raises over links, keyed `step:<id>`.
+ */
+function referenceErrors(form: RecipeForm): FieldErrors {
 	// A link whose row was deleted while the recipe was open is the one case
 	// that must stop a save rather than degrade. Its remembered names may since
 	// have come to describe another row, so sending them could re-point the
@@ -510,6 +524,7 @@ export function validate(form: RecipeForm): FieldErrors {
 	// A link into a row whose name its group now holds twice is caught the
 	// same way: the server could not tell the two apart and would refuse the
 	// whole save.
+	const errors: FieldErrors = {};
 	const repeated = findDuplicates(form.ingredientGroups).rows;
 	for (const step of form.steps) {
 		if (isBlank(step.text)) {
@@ -524,6 +539,57 @@ export function validate(form: RecipeForm): FieldErrors {
 	}
 
 	return errors;
+}
+
+/**
+ * The errors of the last save that still describe the form. Most go when
+ * their field is typed in (`withoutErrors`), but a link error is about two
+ * places at once and changes by buttons: unlinking, deleting the step or
+ * the row, restoring the row. So it is checked again against the form, as
+ * is a group's shared name (the other group may go by its ⋯ menu), and an
+ * error keyed to a step, group or row that is gone goes with it.
+ *
+ * Returns the same object when nothing changed, and reads no form state
+ * when there are no errors.
+ */
+export function currentErrors(errors: FieldErrors, form: RecipeForm): FieldErrors {
+	const keys = Object.keys(errors);
+	if (keys.length === 0) {
+		return errors;
+	}
+	const ids = new Set(form.steps.map((step) => `step:${step.id}`));
+	for (const group of form.ingredientGroups) {
+		ids.add(`group:${group.id}`);
+		for (const row of group.ingredients) {
+			ids.add(`quantity:${row.id}`).add(`name:${row.id}`);
+		}
+	}
+	const linkMessages: string[] = [
+		m.editor_validation_reference_deleted(),
+		m.editor_validation_reference_duplicate()
+	];
+	const links = referenceErrors(form);
+	const clashes = findDuplicates(form.ingredientGroups).groups;
+	const live: FieldErrors = {};
+	let changed = false;
+	for (const key of keys) {
+		let message: string | undefined = errors[key];
+		if (key.includes(':') && !ids.has(key)) {
+			message = undefined;
+		} else if (key.startsWith('group:') && !clashes.has(key.slice('group:'.length))) {
+			// A group's only error is a name it shares; renaming or removing the other group ends it.
+			message = undefined;
+		} else if (linkMessages.includes(message)) {
+			message = links[key];
+		}
+		if (message !== errors[key]) {
+			changed = true;
+		}
+		if (message !== undefined) {
+			live[key] = message;
+		}
+	}
+	return changed ? live : errors;
 }
 
 /**
@@ -599,24 +665,6 @@ function serverField(location: string, steps: FormStep[]): string | null {
 	return FIELD_ORDER.includes(head) ? head : null;
 }
 
-/**
- * The error to scroll to: the one belonging to the field that comes first in
- * the form. Row-level errors rank with the ingredients section, and ties keep
- * the order `validate` inserted them in (top to bottom).
- */
-export function firstErrorField(errors: FieldErrors): string | null {
-	let best: string | null = null;
-	let bestRank = Number.POSITIVE_INFINITY;
-	for (const field of Object.keys(errors)) {
-		const rank = fieldRank(field);
-		if (rank < bestRank) {
-			bestRank = rank;
-			best = field;
-		}
-	}
-	return best;
-}
-
 function fieldRank(field: string): number {
 	const index = FIELD_ORDER.indexOf(field);
 	if (index >= 0) {
@@ -629,6 +677,27 @@ function fieldRank(field: string): number {
 		return FIELD_ORDER.indexOf('steps');
 	}
 	return FIELD_ORDER.length;
+}
+
+export type EditorSection = 'basics' | 'images' | 'ingredients' | 'steps' | 'editing';
+
+/** The editor section an error field lives in. */
+export function sectionOfError(field: string): 'basics' | 'ingredients' | 'steps' {
+	const rank = fieldRank(field);
+	if (rank === FIELD_ORDER.indexOf('ingredientGroups')) {
+		return 'ingredients';
+	}
+	return rank === FIELD_ORDER.indexOf('steps') ? 'steps' : 'basics';
+}
+
+export function sectionsWithErrors(errors: FieldErrors): Set<EditorSection> {
+	return new Set(Object.keys(errors).map(sectionOfError));
+}
+
+/** Distinct anchor ids of all errors, top to bottom (stable within a rank). */
+export function errorAnchors(errors: FieldErrors): string[] {
+	const ranked = Object.keys(errors).sort((a, b) => fieldRank(a) - fieldRank(b));
+	return [...new Set(ranked.map(anchorId))];
 }
 
 /** The id of the element to focus/scroll to for a given error field. */

@@ -4,8 +4,9 @@ import {
 	anchorId,
 	applyReview,
 	applyServerErrors,
+	currentErrors,
+	errorAnchors,
 	emptyForm,
-	firstErrorField,
 	fromRecipe,
 	hasNamedIngredient,
 	isBlank,
@@ -17,8 +18,11 @@ import {
 	normaliseTag,
 	parseNumber,
 	presentReferences,
+	sectionOfError,
+	sectionsWithErrors,
 	toInput,
 	validate,
+	type FieldErrors,
 	type RecipeForm
 } from './form';
 
@@ -584,7 +588,6 @@ describe('a reference whose row is deleted while the recipe is open', () => {
 		// take the link off deliberately. `toInput` dropping it is only the
 		// second line: no save gets that far while this stands.
 		expect(errors[`step:${form.steps[0].id}`]).toBe('This link points at a deleted ingredient');
-		expect(firstErrorField(errors)).toBe(`step:${form.steps[0].id}`);
 		expect(anchorId(`step:${form.steps[0].id}`)).toBe(`step-${form.steps[0].id}`);
 	});
 
@@ -639,6 +642,84 @@ describe('a reference whose row is deleted while the recipe is open', () => {
 	});
 });
 
+describe('currentErrors', () => {
+	/** The custard row deleted and a save tried: the step carries the link error. */
+	function brokenLink() {
+		const form = fromRecipe(ambiguousInput());
+		const custard = form.ingredientGroups[1].ingredients[0];
+		form.ingredientGroups[1].ingredients = [];
+		const key = `step:${form.steps[0].id}`;
+		const errors: FieldErrors = { ...validate(form), title: 'Please enter a title' };
+		expect(errors[key]).toBe('This link points at a deleted ingredient');
+		return { form, custard, key, errors };
+	}
+
+	it('keeps a link error while its cause stands, as the same object', () => {
+		const { form, errors } = brokenLink();
+		expect(currentErrors(errors, form)).toBe(errors);
+	});
+
+	it('drops a link error once the link is removed, and only that one', () => {
+		const { form, key, errors } = brokenLink();
+		form.steps[0].references = [];
+		const live = currentErrors(errors, form);
+		expect(live[key]).toBeUndefined();
+		expect(live.title).toBe('Please enter a title');
+		expect(sectionsWithErrors(live)).toEqual(new Set(['basics']));
+	});
+
+	it('drops it once the link points at a row that is there', () => {
+		const { form, key, errors } = brokenLink();
+		form.steps[0].references[0].ingredientId = form.ingredientGroups[0].ingredients[0].id;
+		expect(currentErrors(errors, form)[key]).toBeUndefined();
+	});
+
+	it('drops it once the row is back', () => {
+		const { form, custard, key, errors } = brokenLink();
+		form.ingredientGroups[1].ingredients = [custard];
+		expect(currentErrors(errors, form)[key]).toBeUndefined();
+	});
+
+	it('drops it once the word is gone from the step', () => {
+		const { form, key, errors } = brokenLink();
+		form.steps[0].text = 'Unterrühren.';
+		expect(currentErrors(errors, form)[key]).toBeUndefined();
+	});
+
+	it('drops a shared-name group error once the other group is gone', () => {
+		const form = fromRecipe(ambiguousInput());
+		const [first, second] = form.ingredientGroups;
+		second.name = first.name;
+		const key = `group:${second.id}`;
+		const errors = validate(form);
+		expect(errors[key]).toBeDefined();
+		expect(currentErrors(errors, form)[key]).toBeDefined();
+		form.ingredientGroups = [second];
+		expect(currentErrors(errors, form)[key]).toBeUndefined();
+	});
+
+	it('drops every error of a step, group or row that was removed', () => {
+		const { form, key, errors } = brokenLink();
+		const row = form.ingredientGroups[0].ingredients[0];
+		const group = form.ingredientGroups[0];
+		const withRows = {
+			...errors,
+			[`name:${row.id}`]: 'Please enter a name',
+			[`group:${group.id}`]: 'Two groups'
+		};
+		form.steps = [];
+		form.ingredientGroups = [];
+		expect(currentErrors(withRows, form)).toEqual({ title: 'Please enter a title' });
+		expect(withRows[key]).toBeDefined();
+	});
+
+	it('leaves a step error that is not about its links', () => {
+		const form = fromRecipe(linkedInput());
+		const errors = { [`step:${form.steps[0].id}`]: 'too long' };
+		expect(currentErrors(errors, form)).toBe(errors);
+	});
+});
+
 describe('validate', () => {
 	it('accepts a complete form', () => {
 		expect(validate(validForm())).toEqual({});
@@ -656,7 +737,6 @@ describe('validate', () => {
 		expect(errors).toEqual({
 			'group:b': 'Same name as the group “Teig” above. Give it a name of its own.'
 		});
-		expect(firstErrorField({ title: 'x', 'group:b': 'y' })).toBe('title');
 		// A row error further down never wins over the clash above it.
 		const below = validForm({
 			ingredientGroups: [
@@ -664,7 +744,7 @@ describe('validate', () => {
 				{ id: 'c', name: 'Guss', ingredients: [{ ...ing('c1', 'Milch'), quantity: 'viel' }] }
 			]
 		});
-		expect(firstErrorField(validate(below))).toBe('group:b');
+		expect(errorAnchors(validate(below))[0]).toBe('ingredient-group-name-b');
 		expect(anchorId('group:b')).toBe('ingredient-group-name-b');
 	});
 
@@ -819,30 +899,6 @@ describe('applyServerErrors', () => {
 	});
 });
 
-describe('firstErrorField', () => {
-	it('returns null when there is nothing wrong', () => {
-		expect(firstErrorField({})).toBeNull();
-	});
-
-	it('picks the field that comes first in the form', () => {
-		expect(firstErrorField({ steps: 'a', title: 'b', servings: 'c' })).toBe('title');
-	});
-
-	it('ranks row-level errors with the ingredients section', () => {
-		expect(firstErrorField({ steps: 'a', 'quantity:f7': 'b' })).toBe('quantity:f7');
-		expect(firstErrorField({ 'name:f7': 'a', servings: 'b' })).toBe('servings');
-	});
-
-	it('ranks a step-level error with the steps section', () => {
-		expect(firstErrorField({ 'step:f7': 'a', tags: 'b' })).toBe('tags');
-		expect(firstErrorField({ title: 'a', 'step:f7': 'b' })).toBe('title');
-	});
-
-	it('keeps insertion order among equally ranked fields', () => {
-		expect(firstErrorField({ 'name:f2': 'a', 'quantity:f9': 'b' })).toBe('name:f2');
-	});
-});
-
 describe('anchorId', () => {
 	it('maps scalar fields to their input', () => {
 		expect(anchorId('title')).toBe('editor-title');
@@ -954,5 +1010,29 @@ describe('applyReview', () => {
 	it('ignores indexes that point nowhere', () => {
 		const form = fromRecipe(emptyInput());
 		expect(() => applyReview(form, [{ group: 3, ingredient: 9, line: 'x' }])).not.toThrow();
+	});
+});
+
+describe('section errors', () => {
+	it('maps each error field to its section', () => {
+		expect(sectionOfError('title')).toBe('basics');
+		expect(sectionOfError('tags')).toBe('basics');
+		expect(sectionOfError('group:g1')).toBe('ingredients');
+		expect(sectionOfError('quantity:r1')).toBe('ingredients');
+		expect(sectionOfError('ingredientGroups')).toBe('ingredients');
+		expect(sectionOfError('step:s1')).toBe('steps');
+		expect(sectionOfError('steps')).toBe('steps');
+		expect(sectionOfError('whatever')).toBe('basics');
+	});
+	it('collects the sections that hold errors', () => {
+		expect(sectionsWithErrors({ title: 'x', 'name:r1': 'y' })).toEqual(
+			new Set(['basics', 'ingredients'])
+		);
+		expect(sectionsWithErrors({}).size).toBe(0);
+	});
+	it('lists error anchors once each, top to bottom', () => {
+		expect(
+			errorAnchors({ 'step:s1': 'a', title: 'b', 'name:r1': 'c', ingredientGroups: 'd' })
+		).toEqual(['editor-title', 'ingredient-name-r1', 'editor-section-ingredients', 'step-s1']);
 	});
 });

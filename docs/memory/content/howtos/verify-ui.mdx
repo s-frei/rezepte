@@ -177,6 +177,7 @@ for (const t of [0, 40, 80, 120, 200]) {
 - Freeze the clock only once the setup has settled: typing into a form right before the action leaves its focus transitions running (a floating label halfway up), and the frozen first frame shows them as if the action had caused them.
 - A sign-in's frames: `document.getAnimations()` lists the view transition's pseudo-elements and the overview's rising cards together, all held at 0, so one `currentTime` per frame keeps them in step. Each failed attempt counts towards the login throttle, so fail with a fresh unknown name every time.
 - A request held open with `page.route` (to see "Saving …") is not cancelled by `unrouteAll`: the held save went on to the instance and created the recipe. Keep the `Route` and `abort()` it before unrouting.
+- A probe that must not change the demo's data blocks every non-GET `/api` request with `page.route` except `/api/v1/auth/`, and creates its context with `serviceWorkers: 'block'`: the app's service worker (built in the demo and the e2e binary) fetches on the page's behalf, and those requests pass `page.route` by, so a save went through to the instance.
 
 ## Running a probe
 

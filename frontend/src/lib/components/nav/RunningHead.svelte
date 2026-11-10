@@ -8,7 +8,6 @@
 	let {
 		entries,
 		current,
-		progress,
 		expanded = false,
 		onopen,
 		class: className = ''
@@ -16,12 +15,6 @@
 		entries: ContentsEntry[];
 		/** Id of the entry the head names. */
 		current: string;
-		/**
-		 * How far the reader is through the current entry, 0 to 1. Set, it
-		 * draws the hairline of one segment per entry under the name; unset
-		 * (pages rather than a scroll), the head is a field instead.
-		 */
-		progress?: number;
 		/** Whether the contents sheet this head opens is open. */
 		expanded?: boolean;
 		onopen: () => void;
@@ -37,21 +30,7 @@
 	);
 	const label = $derived(entries[index]?.label ?? '');
 	const Icon = $derived(entries[index]?.icon);
-	// Pages rather than a scroll (settings): the head is a select-like field,
-	// so it reads as a control to change the page and not as a second title.
-	const field = $derived(progress === undefined);
 	const duration = $derived(prefersReducedMotion.current ? 0 : 160);
-
-	/** Fill of segment `i`: whole before the current one, partial on it, none after. */
-	function fill(i: number): number {
-		if (i < index) {
-			return 1;
-		}
-		if (i > index) {
-			return 0;
-		}
-		return Math.min(1, Math.max(0, progress ?? 0));
-	}
 </script>
 
 <!--
@@ -59,18 +38,17 @@
 	and the contents sheet it opens takes you anywhere else. It stays one line
 	however many entries there are, which is what lets it carry any number of
 	them. Full-bleed so what scrolls under it is covered edge to edge; the
-	name swapping is its only motion. Over a scroll (the editor) it is the
-	name over a hairline of reading progress; over pages (settings) the name
-	alone looked like a heading, so it is a field - surface, border, the
-	page's icon, the chevron at the far end - that separates by itself.
-	The field's name wraps rather than ending in "…": with 200% text a
-	page name like "Benutzer" no longer fits a phone's line.
+	name swapping is its only motion. It heads pages (settings), where the
+	name alone looked like a heading, so it is a select-like field - surface,
+	border, the page's icon, the chevron at the far end - that reads as a
+	control to change the page and not as a second title. The name wraps
+	rather than ending in "…": with 200% text a page name like "Benutzer" no
+	longer fits a phone's line. The editor's scroll has its own head with
+	reading progress, `EditorBar`.
 -->
 <div
 	data-covers-top
-	class="sticky z-30 -mx-5 bg-background/90 backdrop-blur md:hidden {field
-		? 'px-5 py-2'
-		: ''} {className}"
+	class="sticky z-30 -mx-5 bg-background/90 px-5 py-2 backdrop-blur md:hidden {className}"
 >
 	<button
 		type="button"
@@ -78,11 +56,9 @@
 		aria-haspopup="dialog"
 		aria-expanded={expanded}
 		aria-label={m.nav_contents_open({ current: label })}
-		class="flex w-full items-center text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary {field
-			? 'min-h-12 gap-2.5 rounded-xl border border-border bg-surface/80 px-3.5 py-1.5'
-			: 'h-12 gap-1.5 px-5'}"
+		class="flex min-h-12 w-full items-center gap-2.5 rounded-xl border border-border bg-surface/80 px-3.5 py-1.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
 	>
-		{#if field && Icon}
+		{#if Icon}
 			<Icon class="size-4.5 shrink-0 text-text-muted" aria-hidden="true" />
 		{/if}
 		<!-- One grid cell for the outgoing and the incoming name, so the two
@@ -90,28 +66,13 @@
 		<span class="grid min-w-0">
 			{#key label}
 				<span
-					class="col-start-1 row-start-1 font-display font-medium {field
-						? 'text-body-lg wrap-break-word hyphens-auto'
-						: 'truncate text-card'}"
+					class="col-start-1 row-start-1 font-display text-body-lg font-medium wrap-break-word hyphens-auto"
 					transition:fade={{ duration }}
 				>
 					{label}
 				</span>
 			{/key}
 		</span>
-		<ChevronDown
-			class="size-4 shrink-0 text-text-muted {field ? 'ml-auto' : 'translate-y-px'}"
-			aria-hidden="true"
-		/>
+		<ChevronDown class="ml-auto size-4 shrink-0 text-text-muted" aria-hidden="true" />
 	</button>
-	{#if progress !== undefined}
-		<!-- The name already says where the reader is; this only shows it. -->
-		<div aria-hidden="true" class="flex gap-1 px-5">
-			{#each entries as entry, i (entry.id)}
-				<span class="h-0.5 flex-1 overflow-hidden rounded-pill bg-border">
-					<span class="block h-full bg-primary" style:width="{fill(i) * 100}%"></span>
-				</span>
-			{/each}
-		</div>
-	{/if}
 </div>

@@ -11,6 +11,8 @@
 		value = $bindable(''),
 		id,
 		class: fieldClass = '',
+		labelled = false,
+		enterkeyhint,
 		onkeydown,
 		oninput
 	}: {
@@ -19,6 +21,15 @@
 		id: string;
 		/** The row's field classes, so the unit looks like its neighbors. */
 		class?: string;
+		/**
+		 * Set inside the ingredient row: a visible `<label for={id}>` names the
+		 * field (no `aria-label`, no placeholder), and the chevron is narrow until
+		 * the row's `@container` is `@xl`, so "Stück" and "Prise" show whole in the
+		 * ~92px a phone leaves the unit.
+		 */
+		labelled?: boolean;
+		/** What a phone keyboard's Enter key shows. */
+		enterkeyhint?: 'next' | 'done' | 'enter';
 		/** The row's own keys (Backspace in an empty row), for whatever the list does not take. */
 		onkeydown?: (event: KeyboardEvent) => void;
 		/** The unit changed, typed or picked from the list. */
@@ -129,6 +140,7 @@
 		type="text"
 		autocomplete="off"
 		autocapitalize="off"
+		{enterkeyhint}
 		spellcheck="false"
 		role="combobox"
 		aria-expanded={listboxOpen}
@@ -137,9 +149,9 @@
 		aria-activedescendant={listboxOpen && highlighted >= 0
 			? `${id}-option-${highlighted}`
 			: undefined}
-		aria-label={m.editor_ingredient_unit()}
-		placeholder={m.editor_ingredient_unit()}
-		class="{fieldClass} pr-9"
+		aria-label={labelled ? undefined : m.editor_ingredient_unit()}
+		placeholder={labelled ? undefined : m.editor_ingredient_unit()}
+		class="{fieldClass} {labelled ? 'pr-5.5 @xl:pr-9' : 'pr-9'}"
 	/>
 	<button
 		type="button"
@@ -160,7 +172,9 @@
 				openList();
 			}
 		}}
-		class="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-text-muted"
+		class="absolute inset-y-0 right-0 flex items-center justify-center text-text-muted {labelled
+			? 'w-4.5 @xl:w-9'
+			: 'w-9'}"
 	>
 		<ChevronDown
 			class="size-4 transition-transform motion-reduce:transition-none {listboxOpen
@@ -171,9 +185,17 @@
 	</button>
 	{#if listboxOpen}
 		<!-- The frame is rounded and clips; the list scrolls inside its padding,
-		     so its scrollbar runs on the straight part of the edge (as SearchBar). -->
+		     so its scrollbar runs on the straight part of the edge (as SearchBar).
+		     A labelled field sits 2px inside its fieldset (border plus padding,
+		     whether resting or focused), so the list reaches out by that much to
+		     share the visible edges, and sits the 6px below them that popovers use. The options' text starts
+		     where the field's value does: 15px in for a labelled field, 13px from @xl (2px
+		     inset plus its 13px padding), 13px for a plain one, less the
+		     frame's 7px of border and padding. -->
 		<div
-			class="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog"
+			class="absolute z-30 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog {labelled
+				? '-inset-x-0.5 top-full mt-2'
+				: 'inset-x-0 top-full mt-1.5'}"
 		>
 			<ul
 				id="{id}-listbox"
@@ -196,10 +218,9 @@
 						role="option"
 						aria-selected={index === highlighted}
 						onclick={() => pick(unit)}
-						class="flex h-10 cursor-pointer items-center rounded-sm px-3 text-body-sm {index ===
-						highlighted
-							? 'bg-background font-semibold'
-							: ''}"
+						class="flex h-10 cursor-pointer items-center rounded-sm text-body-sm {labelled
+							? 'px-2 @xl:px-1.5'
+							: 'px-1.5'} {index === highlighted ? 'bg-background font-semibold' : ''}"
 					>
 						{unit}
 					</li>

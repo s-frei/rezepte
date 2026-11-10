@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Label } from 'bits-ui';
+	import FieldError from './FieldError.svelte';
 	import type { HTMLTextareaAttributes } from 'svelte/elements';
 
 	let {
@@ -18,7 +19,7 @@
 	} & Omit<HTMLTextareaAttributes, 'id' | 'value' | 'class'> = $props();
 
 	const classes = $derived(
-		`min-h-11 w-full resize-y rounded-md border bg-surface-elevated px-4 py-2.5 text-body transition focus:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${error ? 'border-[1.5px] border-destructive' : 'border-border'} ${className}`
+		`min-h-11 w-full resize-y rounded-md border bg-surface-elevated px-4 py-2.5 text-input text-text placeholder:text-text-muted transition focus-visible:outline-2 focus-visible:outline-offset-2 ${error ? 'border-[1.5px] border-destructive focus:border-destructive focus-visible:outline-destructive' : 'border-border focus:border-primary focus-visible:outline-primary'} ${className}`
 	);
 </script>
 
@@ -32,8 +33,6 @@
 		class={classes}
 		{...rest}></textarea>
 	{#if error}
-		<p id="{id}-error" class="text-micro font-medium text-destructive motion-safe:animate-error-in">
-			{error}
-		</p>
+		<FieldError id="{id}-error" message={error} />
 	{/if}
 </div>

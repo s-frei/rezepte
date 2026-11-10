@@ -28,6 +28,8 @@ export type ContentsEntry = {
 	group?: string;
 	/** Drawn before the label, as the settings pages carry one. Optional. */
 	icon?: IconComponent;
+	/** The entry holds an error (an editor section after a failed save): the sheet marks it. */
+	error?: boolean;
 };
 
 /**

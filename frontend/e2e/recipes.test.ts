@@ -587,7 +587,10 @@ test('guards a dirty editor against navigating away', async ({ page }) => {
 	await expect(page).toHaveURL('/');
 });
 
-test('keeps a typed tag when saving without pressing Enter', async ({ page }) => {
+// A tag goes on only when it is chosen. Text typed into the field and left
+// there - by Save, Tab or a tap elsewhere - creates nothing behind the
+// author's back, even though the list highlights creating it.
+test('saves no tag that was typed but never chosen', async ({ page }) => {
 	const token = uniqueToken();
 	// `beforeEach` already logs in - a second login here logs two HTTP 500s.
 	await page.goto('/recipes/new');
@@ -596,21 +599,25 @@ test('keeps a typed tag when saving without pressing Enter', async ({ page }) =>
 	await page.getByRole('textbox', { name: 'Ingredient', exact: true }).first().fill('Flour');
 	await page.getByRole('textbox', { name: 'Step 1', exact: true }).fill('Stir.');
 
-	// Typed but NOT committed with Enter - clicking "Save" blurs the field.
 	const tags = page.getByRole('combobox', { name: 'Tags', exact: true });
 	await tags.fill(token);
-	// The list is open on its "new:" row, but nothing is arrow-selected yet,
-	// so no option may be announced as active.
-	await expect(tags).not.toHaveAttribute('aria-activedescendant');
+	// Nothing matches, so the highlight is on creating it: Enter would.
+	await expect(page.getByRole('option', { name: `Create the tag ${token}` })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	// Tab leaves the field and adds nothing; the text stays, uncommitted.
+	await page.keyboard.press('Tab');
+	await expect(tags).not.toBeFocused();
+	await expect(tags).toHaveValue(token);
+	await expect(page.getByRole('button', { name: `Remove ${token}` })).toHaveCount(0);
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(page.getByRole('heading', { level: 1, name: `No Enter ${token}` })).toBeVisible();
-	await expect(page.getByText(token, { exact: true })).toBeVisible();
+	await expect(page.getByText(token, { exact: true })).toHaveCount(0);
 });
 
-test('keeps a typed tag when editing and saving without pressing Enter', async ({ page }) => {
-	// Same mechanism as the test above, on an existing recipe: the tag is
-	// typed but never committed with Enter, and "Save" blurs the field.
+test('saves no typed tag when editing either', async ({ page }) => {
 	const token = uniqueToken();
 	const recipe = await createRecipe(page, { ...loadFixture(4), title: `Edited ${token}` });
 
@@ -619,7 +626,31 @@ test('keeps a typed tag when editing and saving without pressing Enter', async (
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
-	await expect(page.getByText(token, { exact: true })).toBeVisible();
+	await expect(page.getByText(token, { exact: true })).toHaveCount(0);
+});
+
+// After a pick the list stays open for the next tag. A click on the field
+// that already has the focus closes it and the next opens it again, the
+// WAI-ARIA editable combobox's toggle: how a phone closes it in place.
+test('a click on the focused tag field closes and opens its list', async ({ page }) => {
+	const token = uniqueToken();
+	const tag = `${token}cinnamon`;
+	await createRecipe(page, { ...loadFixture(6), title: `Toggle ${token}`, tags: [tag] });
+
+	await openNewRecipe(page);
+	const tags = page.getByRole('combobox', { name: 'Tags', exact: true });
+	const list = page.getByRole('listbox', { name: 'Tag suggestions' });
+	await tags.fill(token);
+	await page.getByRole('option', { name: `${tag} 1`, exact: true }).click();
+	await expect(page.getByRole('button', { name: `Remove ${tag}` })).toHaveCount(1);
+	await expect(tags).toBeFocused();
+	await expect(list).toBeVisible();
+
+	await tags.click();
+	await expect(list).toHaveCount(0);
+	await expect(tags).toBeFocused();
+	await tags.click();
+	await expect(list).toBeVisible();
 });
 
 test('adds a suggested tag by tapping it on touch', async ({ page, isMobile }) => {
@@ -635,10 +666,10 @@ test('adds a suggested tag by tapping it on touch', async ({ page, isMobile }) =
 	// Playwright's click() also dispatches pointer events, so only tap()
 	// actually exercises the touch path, where the list keeps the focus in
 	// the field on `pointerdown` and the option is taken on the click.
-	await page.getByRole('option', { name: tag, exact: true }).tap();
+	await page.getByRole('option', { name: `${tag} 1`, exact: true }).tap();
 
 	await expect(page.getByText(tag, { exact: true })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(1);
+	await expect(page.getByRole('button', { name: `Remove ${tag}`, exact: true })).toHaveCount(1);
 });
 
 test('adds a suggested tag by clicking it', async ({ page }) => {
@@ -648,10 +679,10 @@ test('adds a suggested tag by clicking it', async ({ page }) => {
 
 	await openNewRecipe(page);
 	await page.getByRole('combobox', { name: 'Tags', exact: true }).fill(token);
-	await page.getByRole('option', { name: tag, exact: true }).click();
+	await page.getByRole('option', { name: `${tag} 1`, exact: true }).click();
 
 	await expect(page.getByText(tag, { exact: true })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(1);
+	await expect(page.getByRole('button', { name: `Remove ${tag}`, exact: true })).toHaveCount(1);
 });
 
 test('leaves a suggested tag alone when a scroll starts on it', async ({ page }) => {
@@ -662,14 +693,14 @@ test('leaves a suggested tag alone when a scroll starts on it', async ({ page })
 	await openNewRecipe(page);
 	const tags = page.getByRole('combobox', { name: 'Tags', exact: true });
 	await tags.fill(token);
-	const option = page.getByRole('option', { name: tag, exact: true });
+	const option = page.getByRole('option', { name: `${tag} 1`, exact: true });
 
 	// A finger that lands on an option and drags is a scroll through the
 	// list: the browser cancels the pointer, and no click follows.
 	const touch = { pointerType: 'touch', isPrimary: true, bubbles: true, cancelable: true };
 	await option.dispatchEvent('pointerdown', touch);
 	await option.dispatchEvent('pointercancel', touch);
-	await expect(page.getByRole('button', { name: 'Remove', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: `Remove ${tag}`, exact: true })).toHaveCount(0);
 	await expect(option).toBeVisible();
 	await expect(tags).toHaveValue(token);
 });
@@ -1287,10 +1318,12 @@ test('accepts the matcher’s ingredient links and leaves the text as written', 
 	// One proposal: "Saft". "Zucker" is not proposed, because it names a row in
 	// two groups and only the author can say which one is meant. The row above
 	// the steps counts what is open; a save takes none of it, and the save
-	// button stays a plain "Save".
+	// button stays a plain "Save" (on a phone a check, named "Save").
 	const banner = page.getByText('1 suggestion open');
 	await expect(banner).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveText('Save');
+	if (!(await phoneLayout(page))) {
+		await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveText('Save');
+	}
 
 	// The proposal is a dotted underline over the word - a decoration, not
 	// anything written into the text.
@@ -1623,6 +1656,15 @@ test('takes a proposal from the card at its word', async ({ page }) => {
 		// The step stays bright under the dim and takes a tap, which closes the
 		// sheet and writes where it landed.
 		const third = await openWordCard(page, step, 'Saft', 'aft', 'Link for "Saft"');
+		// The sheet scrolls the word into the room above it: a tap aimed
+		// before the scroll ends lands on the dim instead.
+		await expect
+			.poll(async () => {
+				const before = (await step.boundingBox())!.y;
+				await page.waitForTimeout(100);
+				return (await step.boundingBox())!.y - before;
+			})
+			.toBe(0);
 		await step.tap({ position: { x: 8, y: 8 } });
 		await expect(third).toHaveCount(0);
 		await expect(step).toBeFocused();
@@ -2160,11 +2202,8 @@ test('a dragged ingredient stays among the ingredients', async ({ page }) => {
 	const steps = page.getByRole('list', { name: 'Steps', exact: true });
 	const alert = page.locator('#dnd-action-aria-alert');
 
-	// The handle arms the drag and the item starts it, which is the order
-	// svelte-dnd-action's handle zones take a keyboard drag in.
+	// Enter on the handle starts the drag.
 	await ingredients.getByRole('button', { name: 'Move ingredient' }).first().focus();
-	await page.keyboard.press('Enter');
-	await ingredients.getByRole('listitem').first().focus();
 	await page.keyboard.press('Enter');
 
 	await expect(alert).toHaveText(
@@ -2176,8 +2215,6 @@ test('a dragged ingredient stays among the ingredients', async ({ page }) => {
 
 	await page.getByRole('button', { name: 'Add group' }).click();
 	await ingredients.getByRole('button', { name: 'Move ingredient' }).first().focus();
-	await page.keyboard.press('Enter');
-	await ingredients.getByRole('listitem').first().focus();
 	await page.keyboard.press('Enter');
 	await expect(alert).toContainText('or Tab to switch to another list');
 	await expect(steps).toHaveAttribute('tabindex', '-1');
@@ -2306,6 +2343,34 @@ test('opens the full unit list on every tap, even over a chosen unit', async ({ 
 	await expect(unit).toHaveValue('bunch');
 });
 
+// Enter - a phone keyboard's "next" key - walks an ingredient: name, amount,
+// unit. Only from the unit (or the note) does it start the next ingredient,
+// and Enter that picks a unit from the list only picks it.
+test('Enter walks an ingredient row before it adds the next', async ({ page }) => {
+	await openNewRecipe(page);
+	const ingredients = page.getByRole('list', { name: 'Ingredients' });
+	const names = ingredients.getByRole('textbox', { name: 'Ingredient', exact: true });
+	await expect(names).toHaveCount(1);
+
+	await names.first().fill('Flour');
+	await names.first().press('Enter');
+	const amount = ingredients.getByRole('textbox', { name: 'Amount', exact: true }).first();
+	await expect(amount).toBeFocused();
+	await expect(names).toHaveCount(1);
+	await amount.fill('200');
+	await amount.press('Enter');
+	const unit = ingredients.getByRole('combobox', { name: 'Unit', exact: true }).first();
+	await expect(unit).toBeFocused();
+
+	await unit.press('ArrowDown');
+	await unit.press('Enter');
+	await expect(unit).not.toHaveValue('');
+	await expect(names).toHaveCount(1);
+	await unit.press('Enter');
+	await expect(names).toHaveCount(2);
+	await expect(names.nth(1)).toBeFocused();
+});
+
 test('leaves the unit list shut when a scroll starts on the chevron', async ({ page }) => {
 	await openNewRecipe(page);
 
@@ -2341,12 +2406,15 @@ test('sets the unit list apart from the fields in dark mode', async ({ page }) =
 	const list = page.getByRole('listbox', { name: 'Unit suggestions' });
 	await expect(list).toBeVisible();
 
-	const style = (el: Element) => {
-		const cs = getComputedStyle(el);
+	// The row's field box and the list's frame carry the colors; the input
+	// and the listbox inside them are transparent.
+	const style = (el: Element, frame: string) => {
+		const box = frame === 'fieldset' ? el.closest('fieldset')! : el.parentElement!;
+		const cs = getComputedStyle(box);
 		return { background: cs.backgroundColor, border: cs.borderTopColor };
 	};
-	const field = await unit.evaluate(style);
-	const popover = await list.evaluate(style);
+	const field = await unit.evaluate(style, 'fieldset');
+	const popover = await list.evaluate(style, 'parent');
 	expect(popover.background).not.toBe(field.background);
 	expect(popover.border).not.toBe(field.border);
 });

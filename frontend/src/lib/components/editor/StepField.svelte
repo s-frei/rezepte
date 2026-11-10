@@ -73,7 +73,7 @@
 	import StepLinks from './StepLinks.svelte';
 
 	let {
-		step,
+		step = $bindable(),
 		index,
 		groups,
 		entries,
@@ -103,10 +103,11 @@
 	 * Classes for the editable itself. ProseMirror owns this element, so they
 	 * are handed to it through `editorProps` rather than written in the markup -
 	 * which is also why they must be one literal string: Tailwind scans source
-	 * text for class names.
+	 * text for class names. The deeper top padding keeps the first line clear
+	 * of the number pill `StepEditor` sets on the top border.
 	 */
 	const EDITABLE =
-		'step-editable min-h-16 w-full rounded-md border border-border bg-surface-elevated px-3.5 py-2.5 text-body transition outline-none focus:border-primary';
+		'step-editable min-h-16 w-full rounded-md border border-border bg-surface-elevated px-3.5 pt-4 pb-2.5 text-input transition outline-none focus:border-primary aria-[invalid=true]:border-[1.5px] aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:border-destructive aria-[invalid=true]:focus:outline-2 aria-[invalid=true]:focus:outline-offset-2 aria-[invalid=true]:focus:outline-destructive';
 
 	/**
 	 * The popup's own size, which has to be known before it exists: the side it
@@ -1222,8 +1223,8 @@
 
 	/**
 	 * Where the screen stops being visible at the top: the bottom edge of the
-	 * bars pinned there (`data-covers-top`, the phone's save bar and running
-	 * head), or 0 where none is.
+	 * bars pinned there (`data-covers-top`, the phone's `EditorBar`), or 0 where
+	 * none is.
 	 */
 	function coveredTop(): number {
 		const bars = [...document.querySelectorAll<HTMLElement>('[data-covers-top]')]

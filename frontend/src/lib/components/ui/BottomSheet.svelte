@@ -37,7 +37,11 @@
 		 * takes taps, for a sheet about something on the page, such as a
 		 * step's word. A click there is outside the sheet for Bits UI and
 		 * closes it; a caller that wants a tap there to do more answers it
-		 * first (the step editor at `touchend`).
+		 * first (the step editor at `touchend`). The elements marked
+		 * `data-spotlight-with` in its nearest `data-spotlight-scope` - a
+		 * step's number pill and x, which stick out over its top border - are
+		 * left out too where they stick out, in their own shape, so the hole
+		 * never cuts through them.
 		 */
 		spotlight?: HTMLElement | null;
 		children: Snippet;
@@ -47,30 +51,53 @@
 	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
 	/**
-	 * The dim with a hole where `spotlight` is: a clip path, so the hole is
-	 * clipped out of the hit test too and a tap there reaches the element.
+	 * The dim with holes where `spotlight` and its `data-spotlight-with`
+	 * elements are: a clip path, so the holes are clipped out of the hit test
+	 * too and a tap there reaches the element. A marked element's hole is only
+	 * its part above the spotlight's top, so no two holes overlap: in one
+	 * path an overlap fills back in under either fill rule. Each hole is a
+	 * rounded rectangle cut off flat at `cut`, all drawn the same way round.
 	 * Followed on scroll and resize, since the page under the sheet scrolls.
 	 */
 	let hole = $state<string | undefined>(undefined);
+	function cutout(element: Element, cut = Infinity) {
+		const { left, right, top, bottom: end, width, height } = element.getBoundingClientRect();
+		const bottom = Math.min(cut, end);
+		if (bottom <= top) {
+			return '';
+		}
+		const k = Math.min(
+			parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0,
+			height / 2,
+			width / 2
+		);
+		const arc = (x: number, y: number) => `A${k} ${k} 0 0 0 ${x} ${y}`;
+		let sides;
+		if (bottom === end) {
+			sides = `${arc(left, top + k)}V${bottom - k}${arc(left + k, bottom)}H${right - k}${arc(right, bottom - k)}V${top + k}`;
+		} else if (bottom >= top + k) {
+			sides = `${arc(left, top + k)}V${bottom}H${right}V${top + k}`;
+		} else {
+			// Cut through the top corners: from where the cut meets each arc.
+			const inset = k - Math.sqrt(k * k - (top + k - bottom) ** 2);
+			sides = `${arc(left + inset, bottom)}H${right - inset}`;
+		}
+		return `M${right - k} ${top}H${left + k}${sides}${arc(right - k, top)}Z`;
+	}
 	function measure() {
 		if (!spotlight) {
 			hole = undefined;
 			return;
 		}
-		const r = spotlight.getBoundingClientRect();
-		const k = Math.min(
-			parseFloat(getComputedStyle(spotlight).borderTopLeftRadius) || 0,
-			r.height / 2
-		);
-		const arc = (x: number, y: number) => `A${k} ${k} 0 0 1 ${x} ${y}`;
+		const cut = spotlight.getBoundingClientRect().top;
+		const scope = spotlight.closest('[data-spotlight-scope]');
+		const marked = [...(scope?.querySelectorAll('[data-spotlight-with]') ?? [])];
+		// The outer edge reaches far past any screen: a zoomed page's
+		// innerWidth is smaller than the dim, which would then cover only its
+		// top left.
 		hole =
-			// The outer edge reaches far past any screen: a zoomed page's
-			// innerWidth is smaller than the dim, which would then cover only
-			// its top left.
-			`path(evenodd, "M-1e5 -1e5H1e5V1e5H-1e5Z ` +
-			`M${r.left + k} ${r.top}H${r.right - k}${arc(r.right, r.top + k)}` +
-			`V${r.bottom - k}${arc(r.right - k, r.bottom)}H${r.left + k}${arc(r.left, r.bottom - k)}` +
-			`V${r.top + k}${arc(r.left + k, r.top)}Z")`;
+			`path("M-1e5 -1e5H1e5V1e5H-1e5Z ${cutout(spotlight)} ` +
+			`${marked.map((element) => cutout(element, cut)).join(' ')}")`;
 	}
 	$effect(() => {
 		if (!open || !spotlight) return;

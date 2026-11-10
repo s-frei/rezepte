@@ -191,7 +191,8 @@
 {/if}
 
 {#if editing || listed > 0}
-	<div class="mt-1 flex min-h-8 flex-wrap items-center gap-x-2">
+	<!-- `data-links-line`: StepEditor hands back the space it reserves for this line. -->
+	<div data-links-line class="mt-1 flex min-h-8 flex-wrap items-center gap-x-2">
 		{#if editing}
 			<!--
 				`mousedown` is prevented so the click never takes focus out of
@@ -202,7 +203,7 @@
 				type="button"
 				onmousedown={(event) => event.preventDefault()}
 				onclick={onlinkword}
-				class="-ml-1 flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				class="relative -ml-1 flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				<Link2 class="size-3.5" aria-hidden="true" />
 				{m.editor_reference_link_word()}
@@ -211,7 +212,7 @@
 				type="button"
 				onmousedown={(event) => event.preventDefault()}
 				onclick={onmarktime}
-				class="flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition hover:text-time-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				class="relative flex items-center gap-1 rounded-pill px-1 py-1 text-caption text-text-muted transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-time-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				<Timer class="size-3.5" aria-hidden="true" />
 				{m.editor_time_mark()}
@@ -231,7 +232,7 @@
 				aria-controls="step-links-{stepId}"
 				onmousedown={(event) => event.preventDefault()}
 				onclick={() => (open = !open)}
-				class="-mr-1 ml-auto flex items-center gap-1 rounded-pill px-1 py-1 text-caption transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {suggested +
+				class="relative -mr-1 ml-auto flex items-center gap-1 rounded-pill px-1 py-1 text-caption transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {suggested +
 					waiting >
 				0
 					? 'text-primary'

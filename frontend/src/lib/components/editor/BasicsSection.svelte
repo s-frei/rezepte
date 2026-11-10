@@ -2,7 +2,7 @@
 	import Input from '#lib/components/ui/Input.svelte';
 	import Textarea from '#lib/components/ui/Textarea.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import type { FieldErrors, RecipeForm } from '#lib/recipe/form.js';
+	import { servingsValid, type FieldErrors, type RecipeForm } from '#lib/recipe/form.js';
 	import TagInput from './TagInput.svelte';
 	import TagSuggestions from './TagSuggestions.svelte';
 
@@ -26,6 +26,7 @@
 		error={errors.title ?? null}
 		required
 		data-error-key="title"
+		enterkeyhint="next"
 	/>
 
 	<Textarea
@@ -62,6 +63,7 @@
 		counter={200}
 		autocomplete="off"
 		data-error-key="sourceName"
+		enterkeyhint="next"
 	/>
 
 	<Input
@@ -70,45 +72,53 @@
 		bind:value={form.sourceUrl}
 		error={errors.sourceUrl ?? null}
 		data-error-key="sourceUrl"
+		enterkeyhint="next"
 		type="url"
 		inputmode="url"
 		placeholder={m.editor_source_placeholder()}
 	/>
 
-	<div class="grid gap-3 sm:grid-cols-3">
-		<!-- Deliberately `type="text"`: `bind:value` on a number input hands
-		     back a number (or null), and every form field here is a string the
-		     validation parses itself. `validate` enforces the 1-99 range. -->
-		<Input
-			id="editor-servings"
-			label={m.recipe_servings()}
-			bind:value={form.servings}
-			error={errors.servings ?? null}
-			required
-			data-error-key="servings"
-			type="text"
-			inputmode="numeric"
-		/>
-		<Input
-			id="editor-prepMinutes"
-			label={m.recipe_prep_time()}
-			bind:value={form.prepMinutes}
-			error={errors.prepMinutes ?? null}
-			data-error-key="prepMinutes"
-			suffix={m.editor_minutes_suffix()}
-			type="text"
-			inputmode="numeric"
-		/>
-		<Input
-			id="editor-cookMinutes"
-			label={m.recipe_cook_time()}
-			bind:value={form.cookMinutes}
-			error={errors.cookMinutes ?? null}
-			data-error-key="cookMinutes"
-			suffix={m.editor_minutes_suffix()}
-			type="text"
-			inputmode="numeric"
-		/>
+	<!-- A container query, not a viewport one: the card's width decides.
+	     Three columns once each minutes field shows three digits whole beside
+	     its "Min" (93px a field, so 19rem: a 360px phone, not a 320px one),
+	     otherwise servings and prep share a row and cook time takes its own. -->
+	<div class="@container">
+		<div class="grid grid-cols-2 gap-3 @min-[19rem]:grid-cols-3">
+			<!-- Deliberately `type="text"`: `bind:value` on a number input hands
+			     back a number (or null), and every form field here is a string the
+			     validation parses itself. `validate` enforces the 1-99 range. -->
+			<Input
+				id="editor-servings"
+				label={m.recipe_servings()}
+				bind:value={form.servings}
+				error={errors.servings ?? null}
+				required
+				satisfied={servingsValid(form.servings)}
+				data-error-key="servings"
+				type="text"
+				inputmode="numeric"
+			/>
+			<Input
+				id="editor-prepMinutes"
+				label={m.recipe_prep_time()}
+				bind:value={form.prepMinutes}
+				error={errors.prepMinutes ?? null}
+				data-error-key="prepMinutes"
+				suffix={m.editor_minutes_suffix()}
+				type="text"
+				inputmode="numeric"
+			/>
+			<Input
+				id="editor-cookMinutes"
+				label={m.recipe_cook_time()}
+				bind:value={form.cookMinutes}
+				error={errors.cookMinutes ?? null}
+				data-error-key="cookMinutes"
+				suffix={m.editor_minutes_suffix()}
+				type="text"
+				inputmode="numeric"
+			/>
+		</div>
 	</div>
 
 	<div>

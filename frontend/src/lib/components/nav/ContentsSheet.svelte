@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
+	import ErrorDot from '#lib/components/ui/ErrorDot.svelte';
 	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { byGroup, type ContentsAction, type ContentsEntry } from './contents';
@@ -71,6 +72,9 @@
 							>
 								{entry.label}
 							</span>
+							{#if entry.error}
+								<ErrorDot class="self-center" />
+							{/if}
 							{#if entry.summary !== undefined}
 								<span
 									aria-hidden="true"
