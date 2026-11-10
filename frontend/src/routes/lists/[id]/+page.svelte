@@ -5,6 +5,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import {
 		addFreeItem,
@@ -48,6 +49,11 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// Arrived from the draft on /lists/new: the head's actions and "Shop" fade
+	// in, the dimmed rest brightens, the caret goes to "What do you need?".
+	const created = page.state.created === true;
+	const arrive = created ? 'motion-safe:animate-fade-in' : '';
 
 	// Starts as the first load; `load` below follows each later one, and every
 	// change replaces the list with the server's answer.
@@ -179,7 +185,7 @@
 			<a
 				href={shopHref(list.id)}
 				aria-describedby="list-shop-counts"
-				class="relative mt-4 flex h-14 items-center gap-3 overflow-hidden rounded-2xl bg-primary hover-tint px-5 text-primary-foreground shadow-cta transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.99] md:hidden"
+				class="relative mt-4 flex h-14 items-center gap-3 overflow-hidden rounded-2xl bg-primary hover-tint px-5 text-primary-foreground shadow-cta transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.99] md:hidden {arrive}"
 			>
 				<ShoppingBasket class="size-5 shrink-0" aria-hidden="true" />
 				<span class="text-body font-semibold">{m.list_shop()}</span>
@@ -200,7 +206,7 @@
 				>{m.list_counts({ open: openRows, done: doneRows })}</span
 			>
 		</div>
-		<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1">
+		<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1 {arrive}">
 			<Button href={shopHref(list.id)} class="shrink-0 max-md:hidden">
 				<ShoppingBasket class="size-4" aria-hidden="true" />
 				{m.list_shop()}
@@ -239,8 +245,8 @@
 	</header>
 
 	<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-		<div class="min-w-0">
-			<AddItemCard onadd={add} />
+		<div class="min-w-0 {arrive}" style:--fade-from={created ? 0.4 : undefined}>
+			<AddItemCard onadd={add} focus={created} />
 			<div class="mt-4 rounded-2xl bg-surface shadow-card">
 				<div
 					class="mx-4.5 border-b border-dashed border-border py-3.5 md:mx-6 md:flex md:items-center md:justify-between md:py-3"
@@ -367,7 +373,7 @@
 			</div>
 		</div>
 
-		<aside class="min-w-0 max-lg:hidden">
+		<aside class="min-w-0 max-lg:hidden {arrive}">
 			<ListSide
 				{list}
 				onservings={changeServings}

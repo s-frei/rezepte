@@ -1427,6 +1427,7 @@
 	"nav_lists_invitations_one": "1 Einladung",
 	"lists_new_name_label": "Name",
 	"lists_new_name_placeholder": "Wocheneinkauf",
+	"lists_new_create_short": "Anlegen",
 	"lists_new_create": "Liste anlegen",
 	"lists_load_error": "Die Listen konnten nicht geladen werden.",
 	"lists_create_error": "Die Liste konnte nicht angelegt werden.",

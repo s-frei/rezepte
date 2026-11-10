@@ -53,6 +53,7 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	// Share → Rezepte lands here and moves on to the overview at once.
 	'/import': 'recipes',
 	'/lists': 'lists',
+	'/lists/new': 'lists',
 	'/lists/[id]': 'lists',
 	'/lists/[id]/shop': null,
 	'/settings': 'you',

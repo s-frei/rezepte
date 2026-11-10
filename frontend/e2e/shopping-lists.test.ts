@@ -15,7 +15,7 @@ const department = (page: Page, label: string) =>
 async function newList(page: Page, name: string) {
 	await page.goto('/lists');
 	await page.getByRole('button', { name: 'New list' }).filter({ visible: true }).first().click();
-	await page.getByRole('dialog').getByLabel('Name').fill(name);
+	await page.getByLabel('Name').fill(name);
 	await page.getByRole('button', { name: 'Create list' }).click();
 	await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }
@@ -42,7 +42,32 @@ test('a person without lists sees the steps, and the button starts one', async (
 		/Fill in and share/
 	]);
 	await page.getByRole('button', { name: 'New list' }).click();
-	await expect(page.getByRole('dialog').getByLabel('Name')).toBeVisible();
+
+	// The draft: the name has the caret, "Create" waits for one, and the rest is not there yet.
+	await expect(page).toHaveURL(/\/lists\/new$/);
+	const name = page.getByLabel('Name');
+	await expect(name).toBeFocused();
+	await expect(page.getByRole('button', { name: 'Create list' })).toBeDisabled();
+	await expect(page.locator('[inert] input[placeholder="What do you need?"]')).toHaveCount(1);
+
+	// Cancel leaves nothing behind, a typed name included.
+	await name.fill('Wochenmarkt');
+	await page.getByRole('link', { name: 'Cancel' }).filter({ visible: true }).click();
+	await expect(page).toHaveURL(/\/lists$/);
+	await expect(page.getByRole('heading', { level: 2, name: 'No shopping list yet' })).toBeVisible();
+
+	// Enter creates it, its page replaces the draft, and the caret waits for the first item.
+	await page.getByRole('button', { name: 'New list' }).click();
+	await page.getByLabel('Name').fill('Wochenmarkt');
+	await page.getByLabel('Name').press('Enter');
+	await expect(page.getByRole('heading', { level: 1, name: 'Wochenmarkt' })).toBeVisible();
+	await expect(page.getByLabel('What do you need?')).toBeFocused();
+	await expect(
+		page.getByRole('button', { name: 'Share' }).filter({ visible: true }).first()
+	).toBeVisible();
+	await page.goBack();
+	await expect(page).toHaveURL(/\/lists$/);
+	await expect(page.getByRole('link', { name: /Wochenmarkt/ })).toBeVisible();
 });
 
 test('a shopping list fills from a recipe and by hand', async ({ page }) => {

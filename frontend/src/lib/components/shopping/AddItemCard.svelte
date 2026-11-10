@@ -1,14 +1,19 @@
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
+	import { onMount } from 'svelte';
 	import UnitInput from '#lib/components/editor/UnitInput.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { parseNumber } from '#lib/recipe/form.js';
+	import { handKeyboardTo } from '#lib/keyboard.js';
 
 	let {
-		onadd
+		onadd,
+		focus = false
 	}: {
 		/** Stores the item; resolves to whether it landed, which clears the fields. */
 		onadd: (name: string, fields: { quantity?: number; unit?: string }) => Promise<boolean>;
+		/** The name field takes the focus (and a held keyboard) once mounted: a list just created. */
+		focus?: boolean;
 	} = $props();
 
 	let quantity = $state('');
@@ -18,6 +23,10 @@
 	let quantityError = $state(false);
 	let nameField: HTMLInputElement | undefined = $state();
 	let quantityField: HTMLInputElement | undefined = $state();
+
+	onMount(() => {
+		if (focus && nameField) handKeyboardTo(nameField);
+	});
 
 	const fieldClasses =
 		'h-11 w-full min-w-0 rounded-md border border-border bg-surface-elevated px-3 text-body outline-none transition placeholder:text-text-muted focus:border-primary';

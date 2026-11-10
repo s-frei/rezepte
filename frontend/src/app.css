@@ -168,6 +168,15 @@
 			transform: scale(0.6);
 		}
 	}
+	/* A list just created: what its draft lacked fades in, and what the draft
+	   showed dimmed (--fade-from) brightens to full. */
+	--animate-fade-in: fade-in 280ms var(--ease-glide) both;
+
+	@keyframes fade-in {
+		from {
+			opacity: var(--fade-from, 0);
+		}
+	}
 	/* A shopping item just added, lighting up where the list sorted it. */
 	--animate-flash: flash 1800ms var(--ease-glide) both;
 

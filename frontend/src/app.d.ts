@@ -15,6 +15,9 @@ declare global {
 			// Who just signed out, for /login's one-time "Signed out: Mila".
 			// Name and color only: the login page is public, so never a photo.
 			signedOut?: { displayName: string; color: string };
+			// A list just made on /lists/new: its page fades in what the
+			// draft did not have and puts the caret into "What do you need?".
+			created?: boolean;
 		}
 		// interface Platform {}
 	}
