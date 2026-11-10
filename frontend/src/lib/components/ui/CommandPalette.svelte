@@ -14,6 +14,7 @@
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
+	import { followVisibleArea } from '#lib/visible-area.js';
 
 	let query = $state('');
 	let results = $state<RecipeCard[]>([]);
@@ -115,42 +116,27 @@
 		input?.focus();
 	}
 
-	// The software keyboard shrinks the visual viewport, not the layout one a
-	// `fixed` sheet measures from, so the sheet's bottom follows the keyboard's
-	// top: the last results and "all results" stay reachable above it.
-	//
-	// Where `bottom: 0` lands is measured, not assumed: Chrome for Android
-	// can anchor fixed elements to a box that differs from `innerHeight`, and
-	// an inset computed from `innerHeight` left the sheet floating a few
-	// millimeters above the keyboard. The probe is a zero-height fixed line at
-	// `bottom: 0` with no transition, so the sheet's own fly-in cannot skew
-	// the reading; both it and the visual viewport report layout coordinates.
-	//
-	// Lifted off the screen edge, the sheet is a card resting on the keyboard,
-	// so it rounds its bottom corners too; its list fades out over its last
-	// 1.5rem either way, since a list cut off at a straight edge reads as
-	// broken rather than as scrollable.
+	// The sheet's bottom follows the software keyboard's top: the last results
+	// and "all results" stay reachable above it. On iOS that is the inset
+	// below; Chromium shrinks the layout itself with the keyboard
+	// (`interactive-widget` in app.html), so there the inset reads 0 and the
+	// sheet's fixed bottom already rests on it. While its field has focus the
+	// sheet is a card resting on the keyboard, so it rounds its bottom
+	// corners too; its list fades out over its last 1.5rem either way, since
+	// a list cut off at a straight edge reads as broken rather than as
+	// scrollable.
 	let keyboardInset = $state(0);
+	let typing = $state(false);
 	let floorProbe = $state<HTMLElement>();
 	$effect(() => {
-		const viewport = window.visualViewport;
 		const probe = floorProbe;
-		if (!palette.open || !phone.current || !viewport || !probe) return;
-		const follow = () => {
-			const floor = probe.getBoundingClientRect().top;
-			keyboardInset = Math.max(0, Math.round(floor - viewport.offsetTop - viewport.height));
-		};
-		follow();
-		viewport.addEventListener('resize', follow);
-		viewport.addEventListener('scroll', follow);
-		// The toolbar moving resizes the window without always resizing the
-		// visual viewport, and it moves the floor the probe measures.
-		window.addEventListener('resize', follow);
+		if (!palette.open || !phone.current || !probe) return;
+		const stop = followVisibleArea(probe, (area) => (keyboardInset = area.bottom));
 		return () => {
-			viewport.removeEventListener('resize', follow);
-			viewport.removeEventListener('scroll', follow);
-			window.removeEventListener('resize', follow);
+			stop();
 			keyboardInset = 0;
+			// Closed with its field focused, the field never blurs.
+			typing = false;
 		};
 	});
 	const motion = $derived(prefersReducedMotion.current ? 0 : phone.current ? 250 : 200);
@@ -194,7 +180,7 @@
 			<span
 				bind:this={floorProbe}
 				aria-hidden="true"
-				class="pointer-events-none fixed inset-x-0 bottom-0 h-0"
+				class="pointer-events-none fixed inset-y-0 left-0 w-0"
 			></span>
 		{/if}
 		<Dialog.Overlay forceMount>
@@ -214,7 +200,7 @@
 					<div
 						{...props}
 						class={phone.current
-							? `fixed inset-x-0 top-10 bottom-0 z-50 flex flex-col bg-background px-3 shadow-sheet ${keyboardInset > 0 ? 'rounded-3xl' : 'rounded-t-3xl'}`
+							? `fixed inset-x-0 top-10 bottom-0 z-50 flex flex-col bg-background px-3 shadow-sheet ${typing || keyboardInset > 0 ? 'rounded-3xl' : 'rounded-t-3xl'}`
 							: 'fixed top-[12vh] left-1/2 z-50 w-[calc(100%-2.5rem)] max-w-[600px] -translate-x-1/2 rounded-3xl bg-surface p-3 shadow-dialog'}
 						style:bottom={phone.current ? `${keyboardInset}px` : undefined}
 						transition:paletteIn={{ duration: motion }}
@@ -240,6 +226,8 @@
 								<Command.Input
 									bind:ref={input}
 									bind:value={query}
+									onfocus={() => (typing = true)}
+									onblur={() => (typing = false)}
 									placeholder={m.palette_placeholder()}
 									class="h-10 min-w-0 flex-1 bg-transparent text-body-lg outline-none placeholder:text-text-muted"
 								/>

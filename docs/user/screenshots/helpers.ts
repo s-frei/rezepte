@@ -38,16 +38,28 @@ export async function prepare(
   );
   if (opts.login) {
     await page.goto("/login");
+    await openSheet(page);
     await page.getByLabel("Username").fill(DEMO_USER.username);
     await page.getByLabel("Password").fill(DEMO_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL("/");
-    // The address reads the overview while the sign-in's view transition
-    // still runs, and until it ends every click lands on its overlay (the
-    // <html>): Playwright then retries the click and scrolls the page to
-    // other alignments on the way. See frontend/e2e/helpers.ts.
-    await expect(page.locator("html[data-sign-in]")).toHaveCount(0);
+    await page.getByRole("main").waitFor();
   }
+}
+
+/**
+ * Below lg the login opens on a cover and its form waits in a sheet: opens
+ * it the way a person taps "Sign in". Nothing to do from lg, where the form
+ * shows at once.
+ */
+export async function openSheet(page: Page): Promise<void> {
+  const cover = page
+    .locator("[data-auth-cover]")
+    .getByRole("button", { name: "Sign in" });
+  await expect(
+    cover.or(page.getByLabel("Username")).filter({ visible: true }).first(),
+  ).toBeVisible();
+  if (await cover.isVisible()) await cover.click();
 }
 
 /** Waits for fonts, network and running animations, then takes the named screenshot (the name is the contract with <Screenshot name=…/>). */

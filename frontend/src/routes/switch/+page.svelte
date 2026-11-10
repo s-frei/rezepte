@@ -21,7 +21,7 @@
 	} from '#lib/api/auth.js';
 	import AccountCard from '#lib/components/switch/AccountCard.svelte';
 	import AddCard from '#lib/components/switch/AddCard.svelte';
-	import HelloSplash from '#lib/components/switch/HelloSplash.svelte';
+	import HelloSplash, { grow } from '#lib/components/switch/HelloSplash.svelte';
 	import RemoveDialog from '#lib/components/switch/RemoveDialog.svelte';
 	import { seenLabel } from '#lib/components/switch/switch.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -154,31 +154,14 @@
 	}
 
 	async function splash(account: DeviceAccount) {
-		const show = () => flushSync(() => (chosen = account));
-		if (!document.startViewTransition || prefersReducedMotion.current) {
-			pending = account.id;
-			return show();
-		}
 		flushSync(() => (pending = account.id));
-		// The rules below hang off this attribute: page styles stay loaded
-		// after the page is left, and the app's own page transitions keep
-		// their cross-fade.
-		const root = document.documentElement;
-		root.dataset.switching = '';
 		morphing = true;
-		const transition = document.startViewTransition(() => {
-			show();
+		await grow(() => {
+			flushSync(() => (chosen = account));
 			// The new image is live: the rest of the list falls away under the growing card.
 			flushSync(() => (picking = true));
 		});
-		// A skipped transition still runs `show`; only the animation is lost.
-		transition.ready.catch(() => {});
-		await transition.finished
-			.catch(() => {})
-			.finally(() => {
-				morphing = false;
-				delete root.dataset.switching;
-			});
+		morphing = false;
 	}
 </script>
 
@@ -365,49 +348,6 @@
 		to {
 			translate: 0 24px;
 			opacity: 0;
-		}
-	}
-
-	/* The pick: the card grows into the splash. The root does not cross-fade
-	   (only its live new image shows, where the rest of the list falls away); the new image is
-	   opaque from the start while the old one fades, both filling the group
-	   as it grows, and the pair's corners round off into the screen's. */
-	:global(html[data-switching]::view-transition-old(root)),
-	:global(html[data-switching]::view-transition-new(root)) {
-		animation: none;
-	}
-	/* Only the live new image shows, so the rest of the list can fall away in it. */
-	:global(html[data-switching]::view-transition-old(root)) {
-		opacity: 0;
-	}
-	:global(::view-transition-old(chosen-card)),
-	:global(::view-transition-new(chosen-card)) {
-		height: 100%;
-		object-fit: cover;
-		object-position: 50% 50%;
-	}
-	:global(::view-transition-new(chosen-card)) {
-		animation: none;
-	}
-	:global(::view-transition-old(chosen-card)) {
-		animation-duration: 240ms;
-		animation-timing-function: ease-out;
-	}
-	:global(::view-transition-group(chosen-card)) {
-		animation-duration: 0.55s;
-		animation-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1);
-	}
-	/* Keyframes declared `-global-` are referenced by their bare name. */
-	:global(::view-transition-image-pair(chosen-card)) {
-		overflow: clip;
-		animation: switch-corners 0.55s cubic-bezier(0.2, 0.9, 0.25, 1) both;
-	}
-	@keyframes -global-switch-corners {
-		from {
-			border-radius: var(--radius-index-card);
-		}
-		to {
-			border-radius: 0;
 		}
 	}
 </style>

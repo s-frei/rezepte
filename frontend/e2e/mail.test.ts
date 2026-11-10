@@ -10,6 +10,7 @@ import {
 	createRecipe,
 	createUser,
 	devPassword,
+	openLoginSheet,
 	devPasswordNext,
 	loadFixture,
 	login,
@@ -313,6 +314,7 @@ test('a forgotten password is reset by username', async ({ page, request }) => {
 	const { name, address } = await confirmedAccount(page, request, 'reset');
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await page.goto('/login');
+	await openLoginSheet(page);
 	await page.getByLabel('Username').fill(name);
 	// The link sits in the password label's row but comes last by keyboard.
 	await page.locator('#username').focus();

@@ -56,8 +56,8 @@ export async function pinLocale(page: Page, locale: 'en' | 'de' = 'en'): Promise
  *
  * The right password signs in through the API, not the form: `page.request`
  * shares the context's cookie jar, so the session cookie the response sets
- * signs the page in, and the test skips the sign-in transition - 1.4s
- * against 0.1s, in nearly every test. auth.test.ts and smoke.test.ts drive
+ * signs the page in, and the test skips the form, the sheet and the full
+ * load after it, in nearly every test. auth.test.ts and smoke.test.ts drive
  * the form itself. Any other password, or a refused right one, goes through
  * the form, so a test that expects the error still reads it there.
  */
@@ -84,6 +84,7 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 	const retries = password === devPassword(username) ? 5 : 0;
 	for (let attempt = 0; ; attempt++) {
 		await page.goto('/login');
+		await openLoginSheet(page);
 		await page.getByLabel('Username').fill(username);
 		await page.getByLabel('Password').fill(password);
 		await page.getByRole('button', { name: 'Sign in' }).click();
@@ -102,17 +103,26 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 			)
 		]);
 		if (outcome === 'in') {
-			// The address reads the new page while the sign-in still opens the
-			// card into it: the overview mounts, and fetches, only once that
-			// transition has run, so a test listening for requests from here
-			// on would count the sign-in's own. The transition runs on the page's
-			// timers, so a spec that paused its clock resumes it to sign in.
-			await expect(page.locator('html[data-sign-in]')).toHaveCount(0);
+			await page.getByRole('main').waitFor();
 			return;
 		}
 		if (outcome !== 'alert' || !(await alert.textContent())?.startsWith('Too many')) return;
 		await page.waitForTimeout(250 * (attempt + 1));
 	}
+}
+
+/**
+ * Below `lg` the login opens on a cover with one "Sign in" button, and the
+ * form waits in a sheet behind it. Raises the sheet; a no-op on desktop and
+ * on URLs that start open (`?add=1`, `?username=`), where there is no cover.
+ */
+export async function openLoginSheet(page: Page) {
+	const cover = page.locator('[data-auth-cover]');
+	// Wait for the page to settle on one of its two states, or a cover that has
+	// not mounted yet would be taken for its absence. Both are in the DOM on a
+	// phone (the form waits hidden behind the cover), so only the shown one counts.
+	await expect(cover.or(page.getByLabel('Username')).filter({ visible: true })).toHaveCount(1);
+	if (await cover.isVisible()) await cover.getByRole('button', { name: 'Sign in' }).click();
 }
 
 /**

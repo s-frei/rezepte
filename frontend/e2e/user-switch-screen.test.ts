@@ -265,12 +265,19 @@ test('the entry row names the other people, and offers adding when there are non
 });
 
 test('the add mode of the login page prefills the name and goes back to the picker', async ({
-	page
+	page,
+	isMobile
 }) => {
 	await page.goto('/login?add=1&username=mila');
 	await expect(page.getByRole('heading', { name: 'Sign in another person' })).toBeAttached();
 	await expect(page.getByLabel('Username')).toHaveValue('mila');
-	await expect(page.getByLabel('Password')).toBeFocused();
+	// A phone opens straight in the sheet but focuses nothing: without a tap
+	// iOS would not raise the keyboard anyway.
+	if (isMobile) {
+		expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+	} else {
+		await expect(page.getByLabel('Password')).toBeFocused();
+	}
 	await expect(page.getByRole('link', { name: /Back to .Who's cooking\?./ })).toHaveAttribute(
 		'href',
 		'/switch'

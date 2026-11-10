@@ -163,6 +163,7 @@
 <!-- Every state shares the login's scene and card; only the form states
      carry the line under the wordmark. -->
 <AuthScene
+	frame="sheet"
 	lead={ready
 		? reset
 			? m.welcome_reset_lead()

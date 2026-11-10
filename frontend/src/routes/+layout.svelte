@@ -92,7 +92,7 @@
 		}
 	}
 
-	// After a switch the reload opens under the splash's ground (app.html),
+	// After an arrival (a switch or a sign-in) the reload opens under the splash's ground (app.html),
 	// which closes into the avatar now that the app is there.
 	onMount(() => void arrive());
 	onMount(listenForLaunches);
@@ -129,8 +129,6 @@
 <!-- `min-h-dvh`, not `min-h-screen`: on mobile browsers `100vh` is taller than
      the visible viewport, so the wrapper would outgrow the `h-dvh` cooking
      page and the document would scroll under a full-screen route. -->
-<!-- `data-app`: the tree a sign-in opens out of the login card (`signIn` in
-     #lib/page-transition.ts). -->
 <!-- `data-bare`: a page that owns the whole window keeps no room for a
      scrollbar (app.css), or the login's painting stopped short of the edge. -->
 <!-- `overflow-x-clip`: on a phone, anything past the right edge for even one

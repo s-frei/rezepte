@@ -1,7 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 // Type-only, like helpers.ts: the stubs below speak the app's own contract.
 import type { RecipeDraft } from '../src/lib/api/drafts';
-import { createRecipe, devPassword, loadFixture, login, openImport, uniqueToken } from './helpers';
+import {
+	createRecipe,
+	devPassword,
+	loadFixture,
+	login,
+	openImport,
+	openLoginSheet,
+	uniqueToken
+} from './helpers';
 
 // Importing a recipe from a link or pasted text into an unsaved draft.
 // Pasted text runs against the real service. A link cannot: the service
@@ -389,6 +397,7 @@ test('a share while signed out waits in the dialog after sign-in', async ({ brow
 	await page.goto(`/import?text=${encodeURIComponent(`Look ${sharedSoup}`)}`);
 	await expect(page).toHaveURL(/\/login/);
 	// Not the login helper: it opens /login itself and would drop `next`.
+	await openLoginSheet(page);
 	await page.getByLabel('Username').fill('admin');
 	await page.getByLabel('Password').fill(devPassword('admin'));
 	await page.getByRole('button', { name: 'Sign in' }).click();

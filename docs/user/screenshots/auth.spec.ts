@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { configureMail, devPassword, prepare, shot, turnMailOff } from './helpers';
+import { configureMail, devPassword, openSheet, prepare, shot, turnMailOff } from './helpers';
 
 test('login', async ({ page }, testInfo) => {
 	await prepare(page, testInfo);
@@ -54,6 +54,7 @@ test('login-forgot-link', async ({ page }, testInfo) => {
 	try {
 		await page.context().clearCookies({ name: 'rezepte_session' });
 		await page.goto('/login');
+		await openSheet(page);
 		await expect(page.getByRole('link', { name: 'Forgot password?' })).toBeVisible();
 		await shot(page, 'login-forgot-link');
 	} finally {
@@ -68,6 +69,7 @@ test('forgot-password', async ({ page }, testInfo) => {
 	await prepare(page, testInfo);
 	await page.route('**/api/v1/auth/password', (route) => route.fulfill({ json: { available: true } }));
 	await page.goto('/login');
+	await openSheet(page);
 	await page.getByLabel('Username').fill('mila');
 	await page.getByRole('link', { name: 'Forgot password?' }).click();
 	await expect(page.getByLabel('Username or email')).toHaveValue('mila');

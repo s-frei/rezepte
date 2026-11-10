@@ -141,9 +141,9 @@
 	// Where the cards "Load more" brought start, so only they rise into
 	// place; a fresh list (a filter, a reload) has none.
 	let appendedFrom = $state(Infinity);
-	// Set for the first list after a sign-in (`signIn` in
-	// #lib/page-transition.ts) or a switch (#lib/arrival.ts): every card rises then, on the arrival's own
-	// timing (`data-arrival` in app.css).
+	// Set for the first list after an arrival, from a switch or a sign-in
+	// (#lib/arrival.ts): every card rises then, on the arrival's own timing
+	// (`data-arrival` in app.css).
 	let arrival = $state(false);
 	let riseTimer: ReturnType<typeof setTimeout> | undefined;
 	let showSkeleton = $state(false);
@@ -352,15 +352,12 @@
 				if (controller !== abortController) {
 					return;
 				}
-				arrival =
-					!listed &&
-					('signIn' in document.documentElement.dataset ||
-						'arrival' in document.documentElement.dataset);
+				arrival = !listed && 'arrival' in document.documentElement.dataset;
 				appendedFrom = arrival ? 0 : append ? items.length : Infinity;
 				// Once they have risen the cards drop the rise again: kept, it
 				// played anew whenever the grid laid them out afresh (a card
 				// size change), and the cards vanished and rose a second time.
-				// The longest rise, a sign-in's eighth card or a "Load more"
+				// The longest rise, an arrival's eighth card or a "Load more"
 				// batch's ninth, is over within a second.
 				clearTimeout(riseTimer);
 				if (appendedFrom !== Infinity) {

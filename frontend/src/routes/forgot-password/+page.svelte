@@ -52,7 +52,7 @@
 
 <svelte:head><title>{m.forgot_title()} · {m.app_name()}</title></svelte:head>
 
-<AuthScene lead={m.forgot_lead()}>
+<AuthScene frame="sheet" lead={m.forgot_lead()}>
 	{#if available === false}
 		<div class="space-y-2">
 			<h1 class="font-display text-heading font-medium">{m.forgot_title()}</h1>

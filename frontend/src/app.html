@@ -40,7 +40,7 @@
 					}
 				} catch (_) {}
 			})();
-			// After a switch (#lib/arrival.ts): the splash's ground, painted
+			// After an arrival, from a switch or a sign-in (#lib/arrival.ts): the splash's ground, painted
 			// before the first frame so the reload shows no blank page, until the
 			// app closes it into the avatar. One-shot, so a later reload shows
 			// nothing; cleared after 2s if the app never takes it over.
@@ -90,7 +90,10 @@
 			}
 		</style>
 
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+		/>
 
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="32x32" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
