@@ -252,6 +252,13 @@ type Step struct {
 	Text     string
 }
 
+type StepPhoto struct {
+	StepID   string
+	ImageID  string
+	Phrase   string
+	Position int64
+}
+
 type StepReference struct {
 	StepID       string
 	IngredientID string

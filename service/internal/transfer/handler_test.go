@@ -273,3 +273,38 @@ func TestImportValidatesAgainstTheInputSchema(t *testing.T) {
 		t.Fatalf("schema: %d %s", rec.Code, rec.Body)
 	}
 }
+
+func TestImportReadsStepPhotoLinksAgainstTheInputSchema(t *testing.T) {
+	env := newHandler(t)
+	c := loginCookie(t, env.h, "sam")
+	in := sampleInput("Focaccia")
+	var steps []any
+	for _, st := range in.Steps {
+		steps = append(steps, map[string]any{"text": st.Text, "references": st.References, "times": st.Times,
+			"photos": []any{map[string]any{"phrase": "Äpfel schälen", "image": "1.jpg"}}})
+	}
+	m := map[string]any{
+		"format": transfer.Format, "version": transfer.Version, "title": in.Title, "description": "", "servings": in.Servings, "prepMinutes": nil, "cookMinutes": nil, "sourceUrl": nil, "sourceName": nil,
+		"tags": in.Tags, "ingredientGroups": in.IngredientGroups, "steps": steps, "images": []string{"1.jpg"}, "cover": "1.jpg",
+	}
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, data := range map[string][]byte{"focaccia/recipe.json": mustJSON(t, m), "focaccia/1.jpg": jpegBytes(t, 120, 80)} {
+		w, _ := zw.Create(name)
+		_, _ = w.Write(data)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rec := doReq(env.h, "/api/v1/import", buf.Bytes(), "application/zip", c)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("import: %d %s", rec.Code, rec.Body)
+	}
+
+	// A schema error on the link names the archive's field, image.
+	steps[0].(map[string]any)["photos"] = []any{map[string]any{"phrase": "Äpfel schälen", "image": ""}}
+	rec = doReq(env.h, "/api/v1/import", zipWith(t, "focaccia/recipe.json", mustJSON(t, m)), "application/zip", c)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "focaccia/recipe.json: body.steps[0].photos[0].image\"") {
+		t.Fatalf("empty image: %d %s", rec.Code, rec.Body)
+	}
+}

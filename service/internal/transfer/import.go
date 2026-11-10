@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -62,7 +64,16 @@ func (s *Service) Import(ctx context.Context, actor user.User, r io.ReaderAt, si
 // create writes one checked folder. A non-empty Created comes back even on
 // error, so the caller can roll the recipe back.
 func (s *Service) create(ctx context.Context, actor user.User, f folder) (Created, error) {
-	rec, err := s.recipes.Create(ctx, actor.ID, f.file.Input)
+	// Create refuses links to photos that do not exist yet; they are written
+	// by one Update once the photos are uploaded.
+	in := f.file.Input
+	in.Steps = slices.Clone(in.Steps)
+	linked := false
+	for i := range in.Steps {
+		linked = linked || len(in.Steps[i].Photos) > 0
+		in.Steps[i].Photos = []recipe.StepPhoto{}
+	}
+	rec, err := s.recipes.Create(ctx, actor.ID, in)
 	if err != nil {
 		return Created{}, fmt.Errorf("create %s: %w", f.name, err)
 	}
@@ -88,6 +99,19 @@ func (s *Service) create(ctx context.Context, actor user.User, f folder) (Create
 	if f.file.Cover != nil && *f.file.Cover != f.file.Images[0] {
 		if err := s.images.SetCover(ctx, rec.ID, ids[*f.file.Cover], actor); err != nil {
 			return c, fmt.Errorf("set cover of %s: %w", f.name, err)
+		}
+	}
+	if linked {
+		withIDs := slices.Clone(f.file.Steps)
+		for i, st := range withIDs {
+			withIDs[i].Photos = slices.Clone(st.Photos)
+			for j, ph := range st.Photos {
+				withIDs[i].Photos[j].ImageID = ids[ph.ImageID]
+			}
+		}
+		in.Steps = withIDs
+		if _, err := s.recipes.Update(ctx, rec.ID, actor, in); err != nil {
+			return c, fmt.Errorf("link photos of %s: %w", f.name, err)
 		}
 	}
 	return c, nil

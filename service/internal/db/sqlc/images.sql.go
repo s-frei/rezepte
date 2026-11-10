@@ -111,6 +111,18 @@ func (q *Queries) GetImage(ctx context.Context, arg GetImageParams) (Image, erro
 	return i, err
 }
 
+const imageExists = `-- name: ImageExists :one
+SELECT EXISTS (SELECT 1 FROM images WHERE id = ?)
+`
+
+// Whether an image of any recipe has this id.
+func (q *Queries) ImageExists(ctx context.Context, id string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, imageExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const imageStatsForRecipes = `-- name: ImageStatsForRecipes :many
 SELECT recipe_id,
        CAST(COUNT(*) AS INTEGER) AS image_count,

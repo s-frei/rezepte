@@ -34,6 +34,21 @@ type File struct {
 	Cover  *string  `json:"cover"`
 }
 
+// archiveStep and archivePhoto are how recipe.json writes a step: a photo link
+// names its photo by the archive file name ("3.jpg"), the way cover does,
+// because the ids of an export mean nothing to the instance that imports it.
+type archiveStep struct {
+	Text       string                 `json:"text"`
+	References []recipe.IngredientRef `json:"references"`
+	Times      []recipe.StepTime      `json:"times"`
+	Photos     []archivePhoto         `json:"photos,omitempty"` // left out without links, so an older Rezepte still reads the step
+}
+
+type archivePhoto struct {
+	Phrase string `json:"phrase"`
+	Image  string `json:"image"`
+}
+
 // Error is a problem with one entry of an import, located by its path
 // inside the zip (and, for a schema error, the field inside recipe.json).
 type Error struct {

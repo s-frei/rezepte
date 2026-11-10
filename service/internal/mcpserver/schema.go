@@ -10,7 +10,7 @@ import (
 )
 
 // recipeDefs are the huma component schemas a recipe document is built from.
-var recipeDefs = []string{"Input", "IngredientGroup", "Ingredient", "Step", "IngredientRef", "StepTime"}
+var recipeDefs = []string{"Input", "IngredientGroup", "Ingredient", "Step", "IngredientRef", "StepTime", "StepPhoto"}
 
 // recipeSchema is create_recipe's input schema, {"recipe": Input}, and with
 // withID update_recipe's, {"id", "recipe": Input}.
@@ -79,14 +79,14 @@ func componentDefs(api huma.API) (map[string]any, error) {
 	return defs, nil
 }
 
-// requireStepLists makes every step state its references and times. REST
-// leaves the fields optional, so a client that drops one silently deletes
-// every ingredient link or step time in the recipe; a model rewriting a step
+// requireStepLists makes every step state its references, times and photos.
+// REST leaves the fields optional, so a client that drops one silently deletes
+// every ingredient link, step time or photo link in the recipe; a model rewriting a step
 // is exactly such a client, so over MCP it has to send them, or an explicit [].
 func requireStepLists(defs map[string]any) {
 	step := defs["Step"].(map[string]any)
 	req, _ := step["required"].([]any)
-	for _, f := range []string{"references", "times"} {
+	for _, f := range []string{"references", "times", "photos"} {
 		req = append(req, f)
 		prop(defs, "Step")[f].(map[string]any)["type"] = "array"
 	}

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -192,5 +193,73 @@ func TestImportMovesAnOldExportsCoverFirst(t *testing.T) {
 	}
 	if len(got.Images) != 2 || got.Images[0].Width != 80 || got.CoverImageID == nil || *got.CoverImageID != got.Images[0].ID {
 		t.Fatalf("images = %+v cover = %v", got.Images, got.CoverImageID)
+	}
+}
+
+// A step without photo links writes no photos key, so the archive stays
+// readable by a Rezepte from before step photos, whose schema refuses it.
+func TestExportLeavesPhotosOutOfAStepWithoutLinks(t *testing.T) {
+	src := newEnv(t)
+	r, err := src.recipes.Create(context.Background(), src.admin.ID, sampleInput("Apfelstrudel"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive := exportOf(t, src, r.ID)
+	zr, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, _ := zr.File[0].Open()
+	raw, _ := io.ReadAll(rc)
+	rc.Close()
+	if !bytes.Contains(raw, []byte(`"times"`)) || bytes.Contains(raw, []byte(`"photos"`)) {
+		t.Fatalf("recipe.json: %s", raw)
+	}
+}
+
+func TestImportKeepsAStepPhotoLinkOnItsPhoto(t *testing.T) {
+	ctx := context.Background()
+	src := newEnv(t)
+	r, err := src.recipes.Create(ctx, src.admin.ID, sampleInput("Apfelstrudel"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, size := range [][2]int{{120, 80}, {80, 120}} {
+		if _, err := src.images.Upload(ctx, r.ID, src.admin, bytes.NewReader(jpegBytes(t, size[0], size[1]))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stored, err := src.recipes.ByID(ctx, r.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := stored.Input
+	in.Steps[0].Photos = []recipe.StepPhoto{{Phrase: "Äpfel schälen", ImageID: stored.Images[1].ID}}
+	if _, err := src.recipes.Update(ctx, r.ID, src.admin, in); err != nil {
+		t.Fatal(err)
+	}
+	archive := exportOf(t, src, r.ID)
+	zr, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, _ := zr.File[0].Open()
+	raw, _ := io.ReadAll(rc)
+	rc.Close()
+	if !bytes.Contains(raw, []byte(`"image": "2.jpg"`)) || bytes.Contains(raw, []byte(stored.Images[1].ID)) {
+		t.Fatalf("recipe.json names the photo wrongly: %s", raw)
+	}
+
+	dst := newEnv(t)
+	created, err := dst.svc.Import(ctx, dst.admin, bytes.NewReader(archive), int64(len(archive)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := dst.recipes.ByID(ctx, created[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got.Steps[0].Photos; len(p) != 1 || p[0].Phrase != "Äpfel schälen" || p[0].ImageID != got.Images[1].ID || got.Images[1].Width != 80 {
+		t.Fatalf("photos = %+v, images = %+v", p, got.Images)
 	}
 }

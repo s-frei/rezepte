@@ -3840,7 +3840,19 @@
       "Step": {
         "additionalProperties": false,
         "properties": {
+          "photos": {
+            "description": "Photo links of this step. A save rewrites the step: leaving this out or null removes its links, so send back what GET returned",
+            "items": {
+              "$ref": "#/components/schemas/StepPhoto"
+            },
+            "maxItems": 20,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "references": {
+            "description": "Ingredient words of this step. A save rewrites the step: leaving this out or null removes its references, so send back what GET returned",
             "items": {
               "$ref": "#/components/schemas/IngredientRef"
             },
@@ -3856,6 +3868,7 @@
             "type": "string"
           },
           "times": {
+            "description": "Timed phrases of this step. A save rewrites the step: leaving this out or null removes its times, so send back what GET returned",
             "items": {
               "$ref": "#/components/schemas/StepTime"
             },
@@ -3868,6 +3881,27 @@
         },
         "required": [
           "text"
+        ],
+        "type": "object"
+      },
+      "StepPhoto": {
+        "additionalProperties": false,
+        "properties": {
+          "imageId": {
+            "description": "Id of one of the recipe's photos",
+            "minLength": 1,
+            "type": "string"
+          },
+          "phrase": {
+            "description": "The words of the step's text that open the photo",
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "phrase",
+          "imageId"
         ],
         "type": "object"
       },

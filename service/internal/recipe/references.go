@@ -28,14 +28,15 @@ type IngredientRef struct {
 // Step is one preparation step and the ingredients its text points at.
 type Step struct {
 	Text       string          `json:"text" minLength:"1" maxLength:"2000"`
-	References []IngredientRef `json:"references" maxItems:"30" required:"false"`
-	Times      []StepTime      `json:"times" maxItems:"20" required:"false"`
+	References []IngredientRef `json:"references" maxItems:"30" required:"false" doc:"Ingredient words of this step. A save rewrites the step: leaving this out or null removes its references, so send back what GET returned"`
+	Times      []StepTime      `json:"times" maxItems:"20" required:"false" doc:"Timed phrases of this step. A save rewrites the step: leaving this out or null removes its times, so send back what GET returned"`
+	Photos     []StepPhoto     `json:"photos" maxItems:"20" required:"false" doc:"Photo links of this step. A save rewrites the step: leaving this out or null removes its links, so send back what GET returned"`
 }
 
 // RefError says which reference could not be resolved and why. The handler turns
 // it into a 422 whose location names the exact JSON path.
 type RefError struct {
-	List  string // "references" or "times"
+	List  string // "references", "times" or "photos"
 	Step  int
 	Ref   int
 	Field string
@@ -162,22 +163,26 @@ func findIngredient(group IngredientGroup, name string) (int, error) {
 // wordPattern in frontend/src/lib/recipe/references.ts draws its boundaries
 // with, so both sides agree next to "½" too: a time "1" in "1½ Stunden" is
 // refused here because the frontend could never draw it.
-func containsWord(text, word string) bool {
+func containsWord(text, word string) bool { return wordIndex(text, word) >= 0 }
+
+// wordIndex is the byte offset of the first whole-word occurrence of word in
+// text, or -1.
+func wordIndex(text, word string) int {
 	if word == "" {
-		return false
+		return -1
 	}
 	for off := 0; off <= len(text)-len(word); {
 		i := strings.Index(text[off:], word)
 		if i < 0 {
-			return false
+			return -1
 		}
 		i += off
 		if !alnumBefore(text, i) && !alnumAt(text, i+len(word)) {
-			return true
+			return i
 		}
 		off = i + 1
 	}
-	return false
+	return -1
 }
 
 func alnumBefore(s string, i int) bool {

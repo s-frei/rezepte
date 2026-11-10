@@ -813,3 +813,35 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 		}
 	}
 }
+
+func TestSeedLinksATechniquePhotoToItsStep(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		locale       user.Locale
+		slug, phrase string
+		step         int
+	}{
+		{"de", "kaesespaetzle", "vom Brett ins kochende Salzwasser schaben", 1},
+		{"en", "sausage-rolls", "brush the tops with the remaining egg", 3},
+	}
+	for _, c := range cases {
+		t.Run(string(c.locale), func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			conn := dbtest.Open(t)
+			if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, c.locale, time.Now(), quiet); err != nil {
+				t.Fatal(err)
+			}
+			r, err := recipe.NewService(conn, "").BySlug(ctx, c.slug)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p := r.Steps[c.step].Photos; len(r.Images) != 3 || len(p) != 1 || p[0].Phrase != c.phrase || p[0].ImageID != r.Images[2].ID {
+				t.Fatalf("step %d photos = %+v, images = %+v", c.step, p, r.Images)
+			}
+		})
+	}
+}

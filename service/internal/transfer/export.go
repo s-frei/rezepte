@@ -68,7 +68,18 @@ func (s *Service) writeZip(ctx context.Context, w io.Writer, recipes []recipe.Re
 				file.Cover = &name
 			}
 		}
-		raw, err := json.MarshalIndent(file, "", "  ")
+		steps := make([]archiveStep, len(in.Steps))
+		for i, st := range in.Steps {
+			steps[i] = archiveStep{Text: st.Text, References: st.References, Times: st.Times, Photos: make([]archivePhoto, len(st.Photos))}
+			for j, ph := range st.Photos {
+				steps[i].Photos[j] = archivePhoto{Phrase: ph.Phrase, Image: names[ph.ImageID]}
+			}
+		}
+		// Steps at depth 0 shadow the embedded Input's.
+		raw, err := json.MarshalIndent(struct {
+			File
+			Steps []archiveStep `json:"steps"`
+		}{file, steps}, "", "  ")
 		if err != nil {
 			return fmt.Errorf("encode %s: %w", r.Slug, err)
 		}

@@ -10,6 +10,7 @@ import (
 	_ "image/jpeg" // registers the decoder DecodeConfig uses
 	"io"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -105,11 +106,17 @@ func (s *Service) readFile(dir string, zf *zip.File) (File, error) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return File{}, &Error{Location: loc, Msg: "not valid JSON"}
 	}
+	// A photo link holds its file name in ImageID until Import swaps in the id
+	// of the uploaded photo.
+	photoImageToID(m)
+	if raw, err = json.Marshal(m); err != nil {
+		return File{}, fmt.Errorf("encode %s: %w", loc, err)
+	}
 	for _, k := range []string{"format", "version", "images", "cover", "editPolicy"} {
 		delete(m, k)
 	}
 	if errs := s.validate(m); len(errs) > 0 {
-		return File{}, &Error{Location: loc + ": " + errs[0].Location, Msg: errs[0].Message}
+		return File{}, &Error{Location: loc + ": " + archiveField(errs[0].Location), Msg: errs[0].Message}
 	}
 	var file File
 	if err := json.Unmarshal(raw, &file); err != nil {
@@ -123,7 +130,44 @@ func (s *Service) readFile(dir string, zf *zip.File) (File, error) {
 		}
 		return File{}, &Error{Location: loc, Msg: err.Error()}
 	}
+	// Step photo links must name photos of this folder.
+	listed := make(map[string]struct{}, len(file.Images))
+	for _, name := range file.Images {
+		listed[name] = struct{}{}
+	}
+	if err := recipe.ValidatePhotos(file.Steps, listed); err != nil {
+		var re *recipe.RefError
+		if errors.As(err, &re) {
+			return File{}, &Error{Location: loc + ": " + archiveField(re.Location()), Msg: re.Msg}
+		}
+		return File{}, &Error{Location: loc, Msg: err.Error()}
+	}
 	return file, nil
+}
+
+var archivePhotoField = regexp.MustCompile(`(photos\[\d+\])\.imageId\b`)
+
+// archiveField names a step photo's link as the archive does, image; the
+// schema and recipe.ValidatePhotos know it as imageId.
+func archiveField(loc string) string {
+	return archivePhotoField.ReplaceAllString(loc, "$1.image")
+}
+
+// photoImageToID renames every step photo's "image" to "imageId" in m for the
+// schema check.
+func photoImageToID(m map[string]any) {
+	steps, _ := m["steps"].([]any)
+	for _, st := range steps {
+		step, _ := st.(map[string]any)
+		photos, _ := step["photos"].([]any)
+		for _, ph := range photos {
+			photo, _ := ph.(map[string]any)
+			if name, ok := photo["image"]; ok {
+				photo["imageId"] = name
+				delete(photo, "image")
+			}
+		}
+	}
 }
 
 func checkPhotos(dir string, file File, photos map[string]*zip.File) error {

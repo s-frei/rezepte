@@ -316,6 +316,7 @@ func unresolvableRef() recipe.IngredientRef {
 type problemErrors struct {
 	Errors []struct {
 		Location string `json:"location"`
+		Message  string `json:"message"`
 	} `json:"errors"`
 }
 
@@ -1005,5 +1006,26 @@ func TestHandlerLockedRecipeAnswers403AndFlags(t *testing.T) {
 	if !asAnna.CanEdit || !asAnna.CanDelete || !asAnna.CanChangePolicy {
 		t.Errorf("anna sees edit=%v delete=%v policy=%v, want all true",
 			asAnna.CanEdit, asAnna.CanDelete, asAnna.CanChangePolicy)
+	}
+}
+
+// A new recipe has no photos, so a link on create is refused with a message
+// that says to link after the upload.
+func TestCreateRejectsAPhotoLink(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)[0]
+	fx.Steps[0].Photos = []recipe.StepPhoto{{Phrase: fx.Steps[0].Text, ImageID: "nope"}}
+	rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx), cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	var problem problemErrors
+	if err := json.Unmarshal(rec.Body.Bytes(), &problem); err != nil {
+		t.Fatal(err)
+	}
+	if len(problem.Errors) == 0 || problem.Errors[0].Location != "body.steps[0].photos[0].imageId" ||
+		!strings.Contains(problem.Errors[0].Message, "a new recipe has no photos yet") {
+		t.Fatalf("errors = %+v", problem.Errors)
 	}
 }

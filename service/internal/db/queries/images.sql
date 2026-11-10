@@ -9,6 +9,10 @@ SELECT * FROM images WHERE recipe_id = ? ORDER BY position, id;
 -- name: GetImage :one
 SELECT * FROM images WHERE recipe_id = ? AND id = ?;
 
+-- Whether an image of any recipe has this id.
+-- name: ImageExists :one
+SELECT EXISTS (SELECT 1 FROM images WHERE id = ?);
+
 -- name: DeleteImage :execrows
 DELETE FROM images WHERE recipe_id = ? AND id = ?;
 

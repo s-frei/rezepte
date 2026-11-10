@@ -355,6 +355,27 @@ func (q *Queries) InsertStep(ctx context.Context, arg InsertStepParams) error {
 	return err
 }
 
+const insertStepPhoto = `-- name: InsertStepPhoto :exec
+INSERT INTO step_photos (step_id, image_id, phrase, position) VALUES (?, ?, ?, ?)
+`
+
+type InsertStepPhotoParams struct {
+	StepID   string
+	ImageID  string
+	Phrase   string
+	Position int64
+}
+
+func (q *Queries) InsertStepPhoto(ctx context.Context, arg InsertStepPhotoParams) error {
+	_, err := q.db.ExecContext(ctx, insertStepPhoto,
+		arg.StepID,
+		arg.ImageID,
+		arg.Phrase,
+		arg.Position,
+	)
+	return err
+}
+
 const insertStepReference = `-- name: InsertStepReference :exec
 INSERT INTO step_references (step_id, ingredient_id, word, position) VALUES (?, ?, ?, ?)
 `
@@ -782,6 +803,43 @@ func (q *Queries) ListRecipesBySourcePrefix(ctx context.Context, prefix *string)
 			&i.SourceUrl,
 			&i.CreatedBy,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStepPhotosByRecipe = `-- name: ListStepPhotosByRecipe :many
+SELECT sp.step_id, sp.image_id, sp.phrase
+FROM step_photos sp
+JOIN steps s ON s.id = sp.step_id
+WHERE s.recipe_id = ?
+ORDER BY s.position, sp.position
+`
+
+type ListStepPhotosByRecipeRow struct {
+	StepID  string
+	ImageID string
+	Phrase  string
+}
+
+func (q *Queries) ListStepPhotosByRecipe(ctx context.Context, recipeID string) ([]ListStepPhotosByRecipeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listStepPhotosByRecipe, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListStepPhotosByRecipeRow{}
+	for rows.Next() {
+		var i ListStepPhotosByRecipeRow
+		if err := rows.Scan(&i.StepID, &i.ImageID, &i.Phrase); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

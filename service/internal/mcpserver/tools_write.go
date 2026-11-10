@@ -33,6 +33,10 @@ const documentHelp = " Send every field of recipe. Only prepMinutes, cookMinutes
 	"A reference ties a word of the step's text to one ingredient: word must occur in the text as a whole word, " +
 	"ingredientName is the ingredient's name and groupName its group's name (null for the unnamed group). " +
 	"Ambiguous targets are refused, never guessed. " +
+	"A step's photos link phrases of its text to the recipe's photos ({phrase, imageId}, the imageId one of the ids in get_recipe's images): " +
+	"keep every link whose phrase still occurs in the step's text as it was; when an edit removes or rewords a linked phrase, " +
+	"drop that link or move its phrase to words that still occur, since a phrase missing from the text is refused. " +
+	"Send [] when there are none; a new recipe has no photos to link yet. " +
 	"editPolicy is optional: default follows the household setting, open lets every member edit, locked keeps " +
 	"the recipe to its author and admins; left out on update, the stored policy stays."
 

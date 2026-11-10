@@ -81,6 +81,16 @@ JOIN steps s ON s.id = st.step_id
 WHERE s.recipe_id = ?
 ORDER BY s.position, st.position;
 
+-- name: InsertStepPhoto :exec
+INSERT INTO step_photos (step_id, image_id, phrase, position) VALUES (?, ?, ?, ?);
+
+-- name: ListStepPhotosByRecipe :many
+SELECT sp.step_id, sp.image_id, sp.phrase
+FROM step_photos sp
+JOIN steps s ON s.id = sp.step_id
+WHERE s.recipe_id = ?
+ORDER BY s.position, sp.position;
+
 -- name: ListTagNamesByRecipe :many
 SELECT t.name
 FROM tags t

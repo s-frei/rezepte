@@ -76,6 +76,9 @@ func (s *Service) create(ctx context.Context, createdBy string, in Input, announ
 	if err != nil {
 		return Recipe{}, err
 	}
+	if err := ValidatePhotos(in.Steps, nil); err != nil {
+		return Recipe{}, err
+	}
 	var id string
 	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		slug, err := uniqueSlug(ctx, q, Slugify(in.Title))
@@ -133,6 +136,20 @@ func (s *Service) Update(ctx context.Context, id string, actor user.User, in Inp
 	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
 		row, err := GuardEdit(ctx, q, actor, id)
 		if err != nil {
+			return err
+		}
+		imgs, err := q.ListImagesByRecipe(ctx, id)
+		if err != nil {
+			return fmt.Errorf("list images: %w", err)
+		}
+		imageIDs := make(map[string]struct{}, len(imgs))
+		for _, im := range imgs {
+			imageIDs[im.ID] = struct{}{}
+		}
+		if in.Steps, err = dropDeletedPhotos(ctx, q, in.Steps, imageIDs); err != nil {
+			return err
+		}
+		if err := ValidatePhotos(in.Steps, imageIDs); err != nil {
 			return err
 		}
 		policy := policyFromDB(row.EditPolicy)
@@ -516,6 +533,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list step times: %w", err)
 	}
+	photoRows, err := s.q.ListStepPhotosByRecipe(ctx, row.ID)
+	if err != nil {
+		return Recipe{}, fmt.Errorf("list step photos: %w", err)
+	}
 	tagNames, err := s.q.ListTagNamesByRecipe(ctx, row.ID)
 	if err != nil {
 		return Recipe{}, fmt.Errorf("list tags: %w", err)
@@ -574,6 +595,10 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			MaxSeconds: db.Conv[int](r.MaxSeconds),
 		})
 	}
+	photosByStep := make(map[string][]StepPhoto, len(steps))
+	for _, r := range photoRows {
+		photosByStep[r.StepID] = append(photosByStep[r.StepID], StepPhoto{Phrase: r.Phrase, ImageID: r.ImageID})
+	}
 	outSteps := make([]Step, len(steps))
 	for i, st := range steps {
 		refs := refsByStep[st.ID]
@@ -586,7 +611,11 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 			// Never nil, for the same round-trip reason as the references.
 			times = []StepTime{}
 		}
-		outSteps[i] = Step{Text: st.Text, References: refs, Times: times}
+		photos := photosByStep[st.ID]
+		if photos == nil {
+			photos = []StepPhoto{}
+		}
+		outSteps[i] = Step{Text: st.Text, References: refs, Times: times, Photos: photos}
 	}
 
 	// Never nil, like the steps' references: "nobody yet" is an empty list.
@@ -717,6 +746,16 @@ func writeChildren(ctx context.Context, q *sqlc.Queries, recipeID string, in Inp
 				Position:   int64(ti),
 			}); err != nil {
 				return fmt.Errorf("insert step time: %w", err)
+			}
+		}
+		for pi, ph := range step.Photos {
+			if err := q.InsertStepPhoto(ctx, sqlc.InsertStepPhotoParams{
+				StepID:   stepID,
+				ImageID:  ph.ImageID,
+				Phrase:   strings.TrimSpace(ph.Phrase),
+				Position: int64(pi),
+			}); err != nil {
+				return fmt.Errorf("insert step photo: %w", err)
 			}
 		}
 	}

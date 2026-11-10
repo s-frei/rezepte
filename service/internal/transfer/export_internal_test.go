@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -17,5 +19,19 @@ func TestWriteZipStopsWhenTheClientIsGone(t *testing.T) {
 	err := (&Service{}).writeZip(ctx, io.Discard, []recipe.Recipe{{}})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+}
+
+// archiveStep is written by hand from recipe.Step; a field added to Step
+// without one here would be silently left out of every archive.
+func TestArchiveStepCarriesEveryStepField(t *testing.T) {
+	archived := map[string]bool{}
+	for f := range reflect.TypeFor[archiveStep]().Fields() {
+		archived[strings.Split(f.Tag.Get("json"), ",")[0]] = true
+	}
+	for f := range reflect.TypeFor[recipe.Step]().Fields() {
+		if !archived[f.Tag.Get("json")] {
+			t.Errorf("recipe.Step.%s (json %q) has no archiveStep field", f.Name, f.Tag.Get("json"))
+		}
 	}
 }

@@ -18,6 +18,8 @@ erDiagram
   recipes ||--o{ steps : has
   steps ||--o{ step_references : has
   steps ||--o{ step_times : has
+  steps ||--o{ step_photos : has
+  images ||--o{ step_photos : "shown by"
   ingredients ||--o{ step_references : "named by"
   recipes ||--o{ recipe_tags : tagged
   tags ||--o{ recipe_tags : tags
@@ -179,6 +181,11 @@ erDiagram
     text phrase PK
     integer max_seconds "nullable, upper end of a range"
   }
+  step_photos {
+    text step_id PK "also FK to steps.id"
+    text phrase PK
+    text image_id FK "images.id"
+  }
   tags {
     text id PK
     text name UK
@@ -298,6 +305,7 @@ erDiagram
 - Tags are implicit: `tags` only ever holds names currently used by at least one recipe (see [Recipes and search](/features/recipes)); there is no separate tag-management table or endpoint.
 - `step_references` is keyed by `(step_id, word)`, following `recipe_tags`: a word carries at most one reference per step. Both foreign keys cascade, so deleting the step or the ingredient it names removes the reference with it - a dangling reference is a state the database cannot hold. See [Ingredient references](/features/ingredient-references).
 - `step_times` is keyed by `(step_id, phrase)`, like `step_references`: a phrase carries at most one time per step. The foreign key cascades with `DeleteStepsByRecipe`, which every save runs. `seconds` is the duration (the lower end of a range) and `max_seconds` its upper end, `NULL` for a single duration; the phrase is the anchor, no unit text or ISO 8601 string is stored. See [Step times](/features/step-times).
+- `step_photos` is keyed by `(step_id, phrase)`, like `step_times`: a phrase opens at most one photo per step. `image_id` is the image's id, never its position, so reordering photos keeps every link on its picture. Both foreign keys cascade: `DeleteStepsByRecipe` (every save) clears the rows with their steps, and deleting an image removes its links while the step's text stays as written; `step_photos_image_idx` on `image_id` serves that cascade. A link disappears when its image is deleted or when a save leaves it out (a step sent without `photos` has none); a save that still names a deleted image skips that link. The service refuses a link to an image of another recipe (or, on create, to any image) before it writes. Migration `0028_step_photos.sql`.
 - `images.filename` is `<id>.jpg`; the three variants (`<id>.jpg`, `<id>_detail.jpg`, `<id>_thumb.jpg`) live in `<REZEPTE_DATA_DIR>/images/<recipe_id>/`, outside the database; `width`/`height` are the largest variant's; `size_bytes` sums all three; `position` is compact `0..n-1` like the other position columns, rewritten on delete and reorder. See [Images](/features/images).
 - `comment_images` holds a comment's photos and the unsent ones (`comment_id` NULL, `comment_images_staged_idx` serves the sweep; `comment_images_recipe_idx` serves the recipe's comment list and its cascade, `comment_images_recipe_image_idx` the `ON DELETE SET NULL` from `images`). It is a table of its own, not rows of `images`, so the recipe photo cap, the cover, the export and the public pages never see it; files live in `images/<recipe_id>/comments/<id>/`. See [Images](/features/images) and [Recipe comments](/features/recipe-comments).
 - `favorites` is keyed by `(user_id, recipe_id)` and both foreign keys cascade, so a star never outlives the user or the recipe it belongs to. The primary key serves lookups by user; `favorites_recipe_idx` on `recipe_id` serves the reverse direction, which the per-page card lookup uses. See [Favorites](/features/favorites).

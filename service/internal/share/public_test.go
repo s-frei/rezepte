@@ -79,6 +79,9 @@ func TestPublicRecipeCarriesOnlyTheRecipe(t *testing.T) {
 	if got := keysOf(t, body.Images[0]); !slices.Equal(got, []string{"height", "id", "width"}) {
 		t.Errorf("image keys = %v", got)
 	}
+	if body.Steps[0].Photos == nil {
+		t.Errorf("steps carry no photos list: %s", rec.Body.String())
+	}
 	if body.Title != s.recipe.Title || len(body.Steps) != 1 || len(body.Steps[0].References) != 1 {
 		t.Errorf("body = %s", rec.Body.String())
 	}
@@ -499,5 +502,32 @@ func TestPublicSharerAvatar(t *testing.T) {
 		if b != bodies[0] {
 			t.Errorf("body %d = %q, want %q like the first", i, b, bodies[0])
 		}
+	}
+}
+
+func TestPublicRecipeCarriesStepPhotoLinksByPublicImageID(t *testing.T) {
+	s := newStack(t)
+	img := s.upload(t, s.recipe.ID)
+	stored, err := s.recipes.ByID(context.Background(), s.recipe.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := stored.Input
+	in.Steps = slices.Clone(in.Steps)
+	in.Steps[0].Photos = []recipe.StepPhoto{{Phrase: strings.Fields(in.Steps[0].Text)[0], ImageID: img.ID}}
+	if _, err := s.recipes.Update(context.Background(), s.recipe.ID, s.member, in); err != nil {
+		t.Fatal(err)
+	}
+	sh := s.create(t, s.login(t, s.member), s.recipe.ID, `{"days":null}`)
+	rec := s.do(http.MethodGet, "/api/v1/public/shares/"+tokenOf(sh), "", nil)
+	var body struct {
+		Images []struct{ ID string }
+		Steps  []recipe.Step
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if p := body.Steps[0].Photos; len(p) != 1 || p[0].ImageID != body.Images[0].ID {
+		t.Fatalf("photos = %+v, images = %+v", p, body.Images)
 	}
 }

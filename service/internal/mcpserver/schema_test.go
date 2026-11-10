@@ -34,7 +34,7 @@ func validRecipe() map[string]any {
 		"ingredientGroups": []any{map[string]any{"name": nil, "ingredients": []any{
 			map[string]any{"quantity": 1, "unit": nil, "name": "Leek", "note": nil},
 		}}},
-		"steps": []any{map[string]any{"text": "Cook the leek.", "references": []any{}, "times": []any{}}},
+		"steps": []any{map[string]any{"text": "Cook the leek.", "references": []any{}, "times": []any{}, "photos": []any{}}},
 	}
 }
 
@@ -57,6 +57,23 @@ func TestInputSchemaRequiresTimes(t *testing.T) {
 	m["steps"] = []any{map[string]any{"text": "Cook the leek.", "references": []any{}}}
 	if err := resolve(t, s).Validate(map[string]any{"recipe": m}); err == nil {
 		t.Fatal("a step without times was accepted over MCP")
+	}
+}
+
+func TestInputSchemaRequiresPhotos(t *testing.T) {
+	s, err := recipeSchema(registeredAPI(t), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := validRecipe()
+	m["steps"] = []any{map[string]any{"text": "Cook the leek.", "references": []any{}, "times": []any{}}}
+	if err := resolve(t, s).Validate(map[string]any{"recipe": m}); err == nil {
+		t.Fatal("a step without photos was accepted over MCP")
+	}
+	m["steps"] = []any{map[string]any{"text": "Cook the leek.", "references": []any{}, "times": []any{},
+		"photos": []any{map[string]any{"phrase": "Cook the leek", "imageId": "x"}}}}
+	if err := resolve(t, s).Validate(map[string]any{"recipe": m}); err != nil {
+		t.Fatalf("a step with a photo link was refused: %v", err)
 	}
 }
 

@@ -405,3 +405,103 @@ func TestSetCoverMovesTheImageFirst(t *testing.T) {
 		}
 	}
 }
+
+// photoInput is e's recipe with one step that links phrase to imageID.
+func photoInput(e env, imageID string) recipe.Input {
+	in := e.recipe.Input
+	in.Steps = []recipe.Step{{Text: "Nudeln ins kochende Salzwasser geben.", References: []recipe.IngredientRef{}, Times: []recipe.StepTime{},
+		Photos: []recipe.StepPhoto{{Phrase: " ins kochende Salzwasser ", ImageID: imageID}}}}
+	return in
+}
+
+func TestStepPhotoLinkSurvivesReorderAndDeleteCascades(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	a, b := upload(t, e, 64, 64), upload(t, e, 64, 64)
+	r, err := e.recipes.Update(ctx, e.recipe.ID, adminOf(e), photoInput(e, b.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := r.Steps[0].Photos; len(p) != 1 || p[0].Phrase != "ins kochende Salzwasser" || p[0].ImageID != b.ID {
+		t.Fatalf("photos = %+v", p)
+	}
+	if _, err := e.images.Reorder(ctx, e.recipe.ID, adminOf(e), []string{b.ID, a.ID}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = e.recipes.ByID(ctx, e.recipe.ID)
+	if r.Images[0].ID != b.ID || len(r.Steps[0].Photos) != 1 || r.Steps[0].Photos[0].ImageID != b.ID {
+		t.Fatalf("after reorder: images %+v, photos %+v", r.Images, r.Steps[0].Photos)
+	}
+	if err := e.images.Delete(ctx, e.recipe.ID, b.ID, adminOf(e)); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = e.recipes.ByID(ctx, e.recipe.ID)
+	if r.Steps[0].Photos == nil || len(r.Steps[0].Photos) != 0 || r.Steps[0].Text != "Nudeln ins kochende Salzwasser geben." {
+		t.Fatalf("after delete: step = %+v", r.Steps[0])
+	}
+}
+
+func TestStepPhotoOfAnotherRecipeIsRefused(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	other, err := e.recipes.Create(ctx, e.owner, recipe.Input{
+		Title: "Anderes", Servings: 2,
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Name: "Salz"}}}},
+		Steps:            []recipe.Step{{Text: "Salzen."}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := e.images.Upload(ctx, other.ID, adminOf(e), bytes.NewReader(pngBytes(t, 64, 64)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.recipes.Update(ctx, e.recipe.ID, adminOf(e), photoInput(e, foreign.ID))
+	var re *recipe.RefError
+	if !errors.As(err, &re) || re.Location() != "body.steps[0].photos[0].imageId" {
+		t.Fatalf("err = %v, want a RefError at body.steps[0].photos[0].imageId", err)
+	}
+}
+
+// An editor still holding a link to a photo someone else deleted saves
+// without it: the link goes, the phrase stays text, the rest of the save lands.
+func TestStepPhotoOfADeletedImageIsDropped(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	a := upload(t, e, 64, 64)
+	if err := e.images.Delete(ctx, e.recipe.ID, a.ID, adminOf(e)); err != nil {
+		t.Fatal(err)
+	}
+	in := photoInput(e, a.ID)
+	in.Title = "Neu"
+	r, err := e.recipes.Update(ctx, e.recipe.ID, adminOf(e), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Title != "Neu" || len(r.Steps[0].Photos) != 0 || r.Steps[0].Text != "Nudeln ins kochende Salzwasser geben." {
+		t.Fatalf("recipe = %+v", r)
+	}
+	if len(in.Steps[0].Photos) != 1 {
+		t.Fatal("Update changed the caller's steps")
+	}
+}
+
+// A client that sends a step without `photos` - the editor leaves the field
+// off a step with no links - saves the step without links, not with the old ones.
+func TestStepWithoutPhotosDropsItsLinks(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	a := upload(t, e, 64, 64)
+	if _, err := e.recipes.Update(ctx, e.recipe.ID, adminOf(e), photoInput(e, a.ID)); err != nil {
+		t.Fatal(err)
+	}
+	in := photoInput(e, a.ID)
+	in.Steps[0].Photos = nil
+	r, err := e.recipes.Update(ctx, e.recipe.ID, adminOf(e), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Steps[0].Photos) != 0 {
+		t.Fatalf("photos = %+v, want none", r.Steps[0].Photos)
+	}
+}

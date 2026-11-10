@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -314,11 +315,17 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 		sum.Recipes++
 		sum.RecipeIDs[i] = r.ID
 		if withPhotos {
+			var uploaded []recipe.Image
 			for n, data := range sets[i] {
-				if _, err := images.Upload(ctx, r.ID, a, bytes.NewReader(data)); err != nil {
+				img, err := images.Upload(ctx, r.ID, a, bytes.NewReader(data))
+				if err != nil {
 					return sum, fmt.Errorf("upload photo %d for %q: %w", n+1, r.Title, err)
 				}
+				uploaded = append(uploaded, img)
 				sum.Images++
+			}
+			if err := linkSamplePhoto(ctx, recipes, a, r, uploaded); err != nil {
+				return sum, err
 			}
 		} else if i < imagedRecipes {
 			data, err := Placeholder(i, r.Title)
@@ -333,6 +340,33 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 	}
 	logger.Info("demo: sample data seeded", "recipes", sum.Recipes, "images", sum.Images)
 	return sum, nil
+}
+
+// samplePhotoLinks ties a step's phrase to the n-th photo (0-based) of the
+// samples that show a technique, by slug. The photos are uploaded after the
+// create, so the link is written by one Update under the same clock: like the
+// photos it is part of writing the sample, not an edit of it.
+var samplePhotoLinks = map[string]struct {
+	step   int
+	phrase string
+	photo  int
+}{
+	"kaesespaetzle": {1, "vom Brett ins kochende Salzwasser schaben", 2},
+	"sausage-rolls": {3, "brush the tops with the remaining egg", 2},
+}
+
+func linkSamplePhoto(ctx context.Context, recipes *recipe.Service, actor user.User, r recipe.Recipe, uploaded []recipe.Image) error {
+	l, ok := samplePhotoLinks[r.Slug]
+	if !ok {
+		return nil
+	}
+	in := r.Input
+	in.Steps = slices.Clone(in.Steps)
+	in.Steps[l.step].Photos = []recipe.StepPhoto{{Phrase: l.phrase, ImageID: uploaded[l.photo].ID}}
+	if _, err := recipes.Update(ctx, r.ID, actor, in); err != nil {
+		return fmt.Errorf("link photo of %q: %w", r.Title, err)
+	}
+	return nil
 }
 
 // photosFor returns the embedded photos of the sample whose slug is slug,
