@@ -27,7 +27,7 @@
 	import PeopleSheet from '#lib/components/shopping/PeopleSheet.svelte';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
-	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import ShareButton from '#lib/components/ui/ShareButton.svelte';
 	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import ItemSheet from '#lib/components/shopping/ItemSheet.svelte';
 	import ListMenu from '#lib/components/shopping/ListMenu.svelte';
@@ -224,9 +224,7 @@
 				</button>
 			{/if}
 			{#if owner}
-				<IconButton label={m.list_share()} onclick={() => (shareOpen = true)} class="md:hidden">
-					<Share2 class="size-[18px]" aria-hidden="true" />
-				</IconButton>
+				<ShareButton label={m.list_share()} onclick={() => (shareOpen = true)} class="md:hidden" />
 				<Button variant="secondary" onclick={() => (shareOpen = true)} class="max-md:hidden">
 					<Share2 class="size-4" aria-hidden="true" />
 					{m.list_share()}

@@ -21,6 +21,7 @@
 	import Button from '#lib/components/ui/Button.svelte';
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import ShareButton from '#lib/components/ui/ShareButton.svelte';
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import KitchenDiary from '#lib/components/recipe/KitchenDiary.svelte';
 	import FavoriteStar from '#lib/components/recipe/FavoriteStar.svelte';
@@ -390,15 +391,11 @@
 				<ChefHat class="size-5" aria-hidden="true" />
 			</a>
 		{:else}
-			<IconButton
+			<ShareButton
 				label={m.detail_share()}
 				onclick={passOn}
 				class="pointer-events-auto shadow-card {headerCircle}"
-			>
-				<!-- Centered by its box, the glyph still leans right: two of its
-				     three dots sit there. A pixel left centers it to the eye. -->
-				<Share2 class="size-5 -translate-x-px" aria-hidden="true" />
-			</IconButton>
+			/>
 		{/if}
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
