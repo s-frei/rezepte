@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { belongsToRecipe, ingredientKey, parseCheckedKeys, serializeCheckedKeys } from './checked';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+	belongsToRecipe,
+	ingredientKey,
+	loadCheckedKeys,
+	parseCheckedKeys,
+	saveCheckedKeys,
+	serializeCheckedKeys
+} from './checked';
 
 describe('ingredientKey', () => {
 	it('joins recipe id, group index and ingredient index with colons', () => {
@@ -66,5 +73,36 @@ describe('round trip', () => {
 	it('parseCheckedKeys(serializeCheckedKeys(keys)) recovers the keys', () => {
 		const keys = [ingredientKey('recipe-1', 0, 0), ingredientKey('recipe-1', 1, 2)];
 		expect(parseCheckedKeys(serializeCheckedKeys(keys))).toEqual(keys);
+	});
+});
+
+describe('session storage', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('reads nothing and writes nothing when the browser blocks site data', () => {
+		Object.defineProperty(globalThis, 'sessionStorage', {
+			configurable: true,
+			get() {
+				throw new DOMException('The operation is insecure.', 'SecurityError');
+			}
+		});
+		try {
+			expect(loadCheckedKeys()).toEqual([]);
+			expect(() => saveCheckedKeys(['recipe-1:0:0'])).not.toThrow();
+		} finally {
+			delete (globalThis as { sessionStorage?: Storage }).sessionStorage;
+		}
+	});
+
+	it('reads back what it wrote', () => {
+		const store = new Map<string, string>();
+		vi.stubGlobal('sessionStorage', {
+			getItem: (key: string) => store.get(key) ?? null,
+			setItem: (key: string, value: string) => store.set(key, value)
+		});
+		saveCheckedKeys(['recipe-1:0:0']);
+		expect(loadCheckedKeys()).toEqual(['recipe-1:0:0']);
 	});
 });

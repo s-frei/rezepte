@@ -1,28 +1,12 @@
 import { SvelteSet } from 'svelte/reactivity';
-import { belongsToRecipe, parseCheckedKeys, serializeCheckedKeys } from './checked';
-
-const STORAGE_KEY = 'rezepte:checked-ingredients';
-
-function readStorage(): string[] {
-	if (typeof window === 'undefined') {
-		return [];
-	}
-	return parseCheckedKeys(sessionStorage.getItem(STORAGE_KEY));
-}
-
-function writeStorage(): void {
-	if (typeof window === 'undefined') {
-		return;
-	}
-	sessionStorage.setItem(STORAGE_KEY, serializeCheckedKeys(keys));
-}
+import { belongsToRecipe, loadCheckedKeys, saveCheckedKeys } from './checked';
 
 // A single reactive set, shared across every open recipe in this tab - keys
 // are built with `ingredientKey` from `./checked`
 // (`${recipeId}:${groupIndex}:${ingredientIndex}`) so different recipes
 // never collide. `SvelteSet` (rather than a plain `Set` inside `$state`)
 // gives fine-grained reactivity for `.has()`/`.add()`/`.delete()`.
-const keys = new SvelteSet<string>(readStorage());
+const keys = new SvelteSet<string>(loadCheckedKeys());
 
 /** Whether the ingredient row for `key` is checked in this session. */
 export function isChecked(key: string): boolean {
@@ -36,7 +20,7 @@ export function toggle(key: string): void {
 	} else {
 		keys.add(key);
 	}
-	writeStorage();
+	saveCheckedKeys(keys);
 }
 
 /** Drops every checked key belonging to `recipeId` (e.g. once it's deleted). */
@@ -46,5 +30,5 @@ export function clear(recipeId: string): void {
 			keys.delete(key);
 		}
 	}
-	writeStorage();
+	saveCheckedKeys(keys);
 }

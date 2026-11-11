@@ -4,6 +4,8 @@
  * it can be unit tested without a browser or `sessionStorage`.
  */
 
+const STORAGE_KEY = 'rezepte:checked-ingredients';
+
 /**
  * Builds the storage key for one ingredient row, unique across all recipes
  * so a single `sessionStorage` entry can hold checked state for every
@@ -50,4 +52,26 @@ export function parseCheckedKeys(raw: string | null): string[] {
 /** Serializes a set of checked-ingredient keys for `sessionStorage`. */
 export function serializeCheckedKeys(keys: Iterable<string>): string {
 	return JSON.stringify(Array.from(keys));
+}
+
+/**
+ * Reads the checked keys from `sessionStorage`. A browser that blocks site
+ * data throws on the property itself, and outside the browser there is none;
+ * either way nothing is checked, and the page still renders.
+ */
+export function loadCheckedKeys(): string[] {
+	try {
+		return parseCheckedKeys(sessionStorage.getItem(STORAGE_KEY));
+	} catch {
+		return [];
+	}
+}
+
+/** Writes the checked keys; without storage the ticks last only this page. */
+export function saveCheckedKeys(keys: Iterable<string>): void {
+	try {
+		sessionStorage.setItem(STORAGE_KEY, serializeCheckedKeys(keys));
+	} catch {
+		// No storage: the ticks stay on screen until the page goes.
+	}
 }
