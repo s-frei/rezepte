@@ -128,7 +128,7 @@
 	}
 
 	function confirm() {
-		if (natural) onconfirm(toCrop(natural.w, natural.h, frame, view));
+		if (natural && !busy) onconfirm(toCrop(natural.w, natural.h, frame, view));
 	}
 </script>
 
@@ -194,6 +194,6 @@
 	</Slider.Root>
 	<DialogActions class="pt-5">
 		<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-		<Button onclick={confirm} disabled={busy || !natural}>{m.common_save()}</Button>
+		<Button onclick={confirm} {busy} disabled={!natural}>{m.common_save()}</Button>
 	</DialogActions>
 </BaseDialog>

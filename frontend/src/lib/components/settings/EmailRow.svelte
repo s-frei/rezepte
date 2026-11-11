@@ -116,9 +116,9 @@
 			{#if action}
 				<button
 					type="button"
-					disabled={sending}
+					aria-busy={sending || undefined}
 					onclick={send}
-					class="ml-auto font-semibold whitespace-nowrap text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+					class="relative ml-auto font-semibold whitespace-nowrap text-primary underline after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-busy:opacity-50"
 				>
 					{action}
 				</button>

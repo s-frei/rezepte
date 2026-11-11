@@ -79,6 +79,7 @@
 	}
 
 	async function save() {
+		if (saving) return;
 		saving = true;
 		try {
 			onsaved(await saveSignInSettings(config()));
@@ -112,14 +113,16 @@
 {#snippet secretState()}
 	{#if removeSecret}
 		{m.settings_sign_in_field_secret_removed()} ·
-		<button type="button" class="text-primary underline" onclick={() => (removeSecret = false)}
-			>{m.settings_sign_in_field_secret_keep()}</button
+		<button
+			type="button"
+			class="relative text-primary underline after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2"
+			onclick={() => (removeSecret = false)}>{m.settings_sign_in_field_secret_keep()}</button
 		>
 	{:else}
 		{m.settings_sign_in_field_secret_set()} ·
 		<button
 			type="button"
-			class="text-primary underline"
+			class="relative text-primary underline after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2"
 			onclick={() => ((removeSecret = true), (secret = ''))}
 			>{m.settings_sign_in_field_secret_remove()}</button
 		>
@@ -189,7 +192,7 @@
 		</div>
 		<DialogActions class="border-t border-border pt-4">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={saving}>{m.common_save()}</Button>
+			<Button type="submit" busy={saving}>{m.common_save()}</Button>
 		</DialogActions>
 	</form>
 </BaseDialog>

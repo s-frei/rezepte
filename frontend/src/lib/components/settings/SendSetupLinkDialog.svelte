@@ -42,6 +42,7 @@
 	});
 
 	async function run(action: () => Promise<void>) {
+		if (busy) return;
 		busy = true;
 		error = null;
 		try {
@@ -115,7 +116,7 @@
 			<Button variant="ghost" disabled={busy} onclick={() => (open = false)}>
 				{m.common_cancel()}
 			</Button>
-			<Button type="submit" disabled={busy || (mode === 'mail' && !address.trim())}>
+			<Button type="submit" {busy} disabled={mode === 'mail' && !address.trim()}>
 				{mode === 'mail' ? m.setup_link_send() : m.setup_link_show()}
 			</Button>
 		</DialogActions>

@@ -2,7 +2,7 @@
 	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { Dialog, Tabs } from 'bits-ui';
 	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
-	import { toast } from 'svelte-sonner';
+	import { copyText } from '#lib/recipe/share.svelte.js';
 	import type { TokenScope } from '#lib/api/tokens.js';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -22,15 +22,11 @@
 	const jsonSnippetText = $derived(jsonSnippet(url, token));
 
 	async function copy() {
-		await navigator.clipboard.writeText(token);
-		toast.success(m.tokens_reveal_copied());
-		tokenIcon?.play();
+		if (await copyText(token, m.tokens_reveal_copied())) tokenIcon?.play();
 	}
 
 	async function copySnippet(value: string, icon: CopyIcon | undefined) {
-		await navigator.clipboard.writeText(value);
-		toast.success(m.tokens_mcp_copied());
-		icon?.play();
+		if (await copyText(value, m.tokens_mcp_copied())) icon?.play();
 	}
 
 	let tokenIcon = $state<CopyIcon>();
