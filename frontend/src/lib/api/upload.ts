@@ -37,9 +37,8 @@ export function uploadWithProgress<T>(
 			if (xhr.status === 401 && typeof window !== 'undefined') void redirectSignedOut();
 			reject(new ApiError(xhr.status, parsed as Problem));
 		};
-		xhr.onerror = () => reject(new ApiError(0, { title: 'Network error' }));
-		xhr.onabort = () => reject(new ApiError(0, { title: 'Upload aborted' }));
-		xhr.ontimeout = () => reject(new ApiError(0, { title: 'Upload timed out' }));
+		// No title: a caller words status 0 from its own catalog.
+		xhr.onerror = xhr.onabort = xhr.ontimeout = () => reject(new ApiError(0, {}));
 		xhr.send(body as FormData | Uint8Array<ArrayBuffer>);
 	});
 }

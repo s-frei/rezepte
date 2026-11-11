@@ -130,10 +130,7 @@
 				imported.set(normalizeTitle(r.title), slug);
 				announcement = `${r.title}: ${m.settings_transfer_state_done()}`;
 			} catch (error) {
-				const message =
-					error instanceof ApiError
-						? error.errors[0]?.message || error.detail || error.title
-						: String(error);
+				const message = failureText(error);
 				status[r.folder] = { kind: 'failed', message };
 				announcement = `${r.title}: ${m.settings_transfer_state_failed()} – ${message}`;
 				for (const rest of queue)
@@ -142,6 +139,16 @@
 			}
 		}
 		running = false;
+	}
+
+	// Catalog copy per failure kind, never the server's English text.
+	function failureText(error: unknown) {
+		const status = error instanceof ApiError ? error.status : -1;
+		if (status === 0) return m.settings_transfer_import_error_network();
+		if (status === 403) return m.settings_transfer_import_error_forbidden();
+		if (status === 413) return m.settings_transfer_import_error_too_large();
+		if (status === 400 || status === 422) return m.settings_transfer_import_error_invalid();
+		return m.settings_transfer_import_error_failed();
 	}
 
 	function errorText(e: ImportRow['error']) {
