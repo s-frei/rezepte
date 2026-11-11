@@ -4,7 +4,7 @@
 // landed stays and must not fail every later check. See
 // docs/memory/content/conventions/commits.mdx.
 import { env, git, gitOk } from '../../lib/release/git';
-import { isFixup, violations } from '../../lib/guards/commits';
+import { isExempt, violations } from '../../lib/guards/commits';
 
 const cwd = process.cwd();
 const skip = (why: string) => {
@@ -18,14 +18,14 @@ if (!gitOk(['rev-parse', '--verify', '--quiet', 'develop^{commit}'], cwd)) skip(
 // develop..HEAD would list commits that are long on develop.
 if (git(['rev-parse', '--is-shallow-repository'], cwd) === 'true') skip('the clone is shallow');
 
-const log = Bun.spawnSync(['git', 'log', '--format=%h%x00%B%x00', 'develop..HEAD'], { cwd, env }).stdout.toString();
+const log = Bun.spawnSync(['git', 'log', '--no-merges', '--format=%h%x00%B%x00', 'develop..HEAD'], { cwd, env }).stdout.toString();
 const parts = log.split('\0');
 let checked = 0;
 let failed = 0;
 for (let i = 0; i + 1 < parts.length; i += 2) {
 	const sha = parts[i].trim();
 	const message = parts[i + 1];
-	if (isFixup(message)) continue;
+	if (isExempt(message)) continue;
 	checked++;
 	for (const v of violations(message)) {
 		console.error(`commits:check: ${sha} ${message.split('\n')[0]}\n  ${v}`);
