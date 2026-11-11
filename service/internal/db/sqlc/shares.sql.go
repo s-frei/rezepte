@@ -170,7 +170,7 @@ SELECT s.id, s.token, s.recipe_id, s.created_by, s.created_at, s.expires_at, s.s
 FROM shares s
 JOIN recipes r ON r.id = s.recipe_id
 JOIN users u ON u.id = s.created_by
-ORDER BY s.created_at DESC
+ORDER BY s.created_at DESC, s.id DESC
 `
 
 type ListAllSharesRow struct {
@@ -235,7 +235,7 @@ FROM shares s
 JOIN recipes r ON r.id = s.recipe_id
 JOIN users u ON u.id = s.created_by
 WHERE s.created_by = ?
-ORDER BY s.created_at DESC
+ORDER BY s.created_at DESC, s.id DESC
 `
 
 type ListSharesByCreatorRow struct {

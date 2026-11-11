@@ -25,7 +25,7 @@ FROM shares s
 JOIN recipes r ON r.id = s.recipe_id
 JOIN users u ON u.id = s.created_by
 WHERE s.created_by = ?
-ORDER BY s.created_at DESC;
+ORDER BY s.created_at DESC, s.id DESC;
 
 -- Every share in the household, for the admin view; adds the creator's
 -- display name and color, which ListSharesByCreator has no use for.
@@ -37,7 +37,7 @@ SELECT s.*,
 FROM shares s
 JOIN recipes r ON r.id = s.recipe_id
 JOIN users u ON u.id = s.created_by
-ORDER BY s.created_at DESC;
+ORDER BY s.created_at DESC, s.id DESC;
 
 -- name: DeleteShare :execrows
 DELETE FROM shares WHERE id = ?;

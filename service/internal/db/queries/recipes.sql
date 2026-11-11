@@ -207,7 +207,7 @@ WHERE r.id = ?;
 -- with a site's scheme and host. Go normalizes and compares exactly.
 SELECT id, slug, title, source_url, created_by FROM recipes
 WHERE source_url LIKE sqlc.arg(prefix) || '%'
-ORDER BY created_at DESC;
+ORDER BY created_at DESC, id DESC;
 
 -- name: ListDueAnnouncements :many
 -- Recipes waiting for the daily digest that were created before
@@ -215,7 +215,7 @@ ORDER BY created_at DESC;
 SELECT id, slug, title, servings, prep_minutes, cook_minutes, cover_image_id, created_by, created_at
 FROM recipes
 WHERE announce_pending AND created_at < sqlc.arg(created_before)
-ORDER BY created_at;
+ORDER BY created_at, id;
 
 -- name: ClearAnnouncements :exec
 UPDATE recipes SET announce_pending = FALSE WHERE id IN (sqlc.slice(ids));

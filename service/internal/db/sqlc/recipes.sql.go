@@ -610,7 +610,7 @@ const listDueAnnouncements = `-- name: ListDueAnnouncements :many
 SELECT id, slug, title, servings, prep_minutes, cook_minutes, cover_image_id, created_by, created_at
 FROM recipes
 WHERE announce_pending AND created_at < ?1
-ORDER BY created_at
+ORDER BY created_at, id
 `
 
 type ListDueAnnouncementsRow struct {
@@ -774,7 +774,7 @@ func (q *Queries) ListIngredientsByRecipe(ctx context.Context, recipeID string) 
 const listRecipesBySourcePrefix = `-- name: ListRecipesBySourcePrefix :many
 SELECT id, slug, title, source_url, created_by FROM recipes
 WHERE source_url LIKE ?1 || '%'
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 `
 
 type ListRecipesBySourcePrefixRow struct {

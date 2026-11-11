@@ -52,7 +52,7 @@ SELECT a.id, a.fire_at, a.title, a.body, a.url,
 FROM timer_alarms a
 JOIN push_subscriptions s ON s.id = a.subscription_id
 WHERE a.fire_at <= ?
-ORDER BY a.fire_at;
+ORDER BY a.fire_at, a.id;
 
 -- name: DeleteTimerAlarm :execrows
 DELETE FROM timer_alarms WHERE id = ?;

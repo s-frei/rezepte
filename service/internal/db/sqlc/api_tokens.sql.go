@@ -77,7 +77,7 @@ const listAPITokens = `-- name: ListAPITokens :many
 SELECT t.id, t.user_id, t.name, t.token_hash, t.token_prefix, t.scopes, t.expires_at, t.last_used_at, t.created_at, u.username AS owner_username, u.display_name AS owner_display_name, u.color AS owner_color
 FROM api_tokens t
 JOIN users u ON u.id = t.user_id
-ORDER BY t.created_at DESC
+ORDER BY t.created_at DESC, t.id DESC
 `
 
 type ListAPITokensRow struct {
