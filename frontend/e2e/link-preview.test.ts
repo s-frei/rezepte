@@ -38,11 +38,7 @@ async function shareLink(
 	return (await response.json()) as { path: string; expiresAt: string | null };
 }
 
-test('a share link previews the recipe, a plain link the app', async ({
-	page,
-	request
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'link previews are instance-wide');
+test('a share link previews the recipe, a plain link the app', async ({ page, request }) => {
 	await login(page);
 	const title = `Preview ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
@@ -91,8 +87,7 @@ test('Copy link hands out a previewing link and renews it when the tab comes bac
 	page,
 	context,
 	request
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'link previews are instance-wide');
+}) => {
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 	// A fake clock, so the page can be moved past the link's lifetime
 	// without its renewal timer firing first. Installed before the first
@@ -143,10 +138,9 @@ test('Copy link hands out a previewing link and renews it when the tab comes bac
 	}
 });
 
-test('the owner switches link previews on and picks a lifetime', async ({ page }, testInfo) => {
+test('the owner switches link previews on and picks a lifetime', async ({ page }) => {
 	// One switch for the whole instance: only the desktop project flips it,
 	// and it goes back off whatever happens.
-	test.skip(testInfo.project.name.startsWith('mobile'), 'link previews are instance-wide');
 	await login(page);
 	try {
 		await page.goto('/settings/users');

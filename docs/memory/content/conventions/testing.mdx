@@ -70,7 +70,7 @@ description: What to test and how, per package
 | The sign-in (OIDC) settings and the shared Dex accounts | `frontend/e2e/oidc.test.ts` ([Test OIDC](/howtos/test-oidc)) |
 
 - The owning file runs `test.describe.configure({ mode: 'serial' })`, so its own tests do not flip the setting under each other.
-- **`mode: 'serial'` orders tests within one project only.** The desktop and mobile projects run the same file side by side, so every test that flips a setting also skips on the mobile project (`test.skip(testInfo.project.name.startsWith('mobile'), …)`); the mail and OIDC files run on `desktop` alone. The household lock is flipped and reset inside one test, which skips on mobile the same way.
+- **`mode: 'serial'` orders tests within one project only.** The desktop and mobile projects run the same file side by side, so an owning file runs on `desktop` alone: the mobile project's `testIgnore` lists `public-shares` and `link-preview`, and the mail and OIDC files skip every project but `desktop`. Their tests that never flip the setting and need a phone live beside them, as `public-shares-stateless.test.ts` does. The household lock is flipped and reset inside one test, which skips on mobile (`test.skip(testInfo.project.name.startsWith('mobile'), …)`).
 - A spec that only needs to see a state of a setting answers its `GET` with `page.route` instead of writing it, as `sign-in-settings.test.ts` does.
 - `--repeat-each` on an owning file runs its copies side by side, so they flip the setting on each other; repeat such a file one run at a time.
 

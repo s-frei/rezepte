@@ -18,12 +18,13 @@ export default defineConfig({
 		{ name: 'desktop', use: { ...devices['Desktop Chrome'] } },
 		// Only the files with a phone path of their own: the rest would run the
 		// same steps again at 412px. cook-timers and source size their own
-		// viewport; the others never ask isMobile.
+		// viewport; the others never ask isMobile. public-shares and
+		// link-preview flip instance-wide switches, so only one project runs them.
 		{
 			name: 'mobile',
 			use: { ...devices['Pixel 7'] },
 			testIgnore:
-				/(cook-timers|notifications|tokens|source|locale|required-fields|transfer|sign-in-settings|smoke|titles|icons|lightbox-window|top-bar)\.test\.ts/
+				/(cook-timers|notifications|tokens|source|locale|required-fields|transfer|sign-in-settings|smoke|titles|icons|lightbox-window|top-bar|public-shares|link-preview)\.test\.ts/
 		},
 		// Safari draws the recipe card differently enough (fonts, pictures,
 		// canvas size) to deserve its own run, and focuses no button on click,

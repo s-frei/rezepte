@@ -20,15 +20,15 @@ import {
 	uploadImage
 } from './helpers';
 
-// Public sharing is an instance-wide switch, like link previews: every test
-// below that flips it runs in the desktop project only and turns it back
-// off, whatever happens - see link-preview.test.ts for the pattern. They
-// share one instance, so they run one after the other rather than in
-// parallel.
+// Public sharing is an instance-wide switch, like link previews: this file
+// runs in the desktop project only (the mobile project ignores it), and
+// every test that flips it turns it back off, whatever happens. They share
+// one instance, so they run one after the other rather than in parallel.
+// The tests that never flip it, and so run on a phone too, live in
+// public-shares-stateless.test.ts.
 test.describe.configure({ mode: 'serial' });
 
-test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a stranger opens a public link', async ({ page, browser }) => {
 	await login(page);
 	const title = `Public ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
@@ -97,8 +97,7 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 	}
 });
 
-test('a signed-in member sees the same public page', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a signed-in member sees the same public page', async ({ page }) => {
 	await login(page);
 	const title = `Member view ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(1), title });
@@ -127,11 +126,7 @@ test('a signed-in member sees the same public page', async ({ page }, testInfo) 
 // With the sharer switch off (the default) a public page shows nobody by
 // photo, and the browser's bar is the app's, not theirs. The one face a
 // public page may show is the sharer's, under that switch (below).
-test('a public page shows no one by photo, signed in or not', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a public page shows no one by photo, signed in or not', async ({ page, browser }) => {
 	const name = `face${uniqueToken()}`.toLowerCase();
 	await login(page);
 	await createUser(page, { username: name, role: 'admin' });
@@ -163,8 +158,7 @@ test('a public page shows no one by photo, signed in or not', async ({
 	}
 });
 
-test('a recipe without photos, description or times', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a recipe without photos, description or times', async ({ page }) => {
 	await login(page);
 	const title = `Bare ${uniqueToken()}`;
 	const fixture = loadFixture(2);
@@ -193,8 +187,7 @@ test('a recipe without photos, description or times', async ({ page }, testInfo)
 	}
 });
 
-test('a stranger sees where the recipe comes from', async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a stranger sees where the recipe comes from', async ({ page, browser }) => {
 	await login(page);
 	const recipe = await createRecipe(page, {
 		...loadFixture(0),
@@ -225,11 +218,7 @@ test('a stranger sees where the recipe comes from', async ({ page, browser }, te
 	}
 });
 
-test('a public link opens a step photo from its own image route', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a public link opens a step photo from its own image route', async ({ page, browser }) => {
 	await login(page);
 	const input = { ...loadFixture(0), title: `Step photo ${uniqueToken()}` };
 	const recipe = await createRecipe(page, input);
@@ -258,15 +247,7 @@ test('a public link opens a step photo from its own image route', async ({
 	}
 });
 
-test('an unknown token', async ({ page }) => {
-	await page.goto(`/s/${uniqueToken()}`);
-	await expect(page.getByText('This link is no longer available.')).toBeVisible();
-	// Nothing was shared, so there is nothing to credit.
-	await expect(page.getByRole('contentinfo')).toHaveCount(0);
-});
-
-test('the owner stops public pages from naming Rezepte', async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('the owner stops public pages from naming Rezepte', async ({ page, browser }) => {
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Quiet ${uniqueToken()}` });
 
@@ -295,11 +276,7 @@ test('the owner stops public pages from naming Rezepte', async ({ page, browser 
 	}
 });
 
-test('the owner lets public pages name who shared, with their photo', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('the owner lets public pages name who shared, with their photo', async ({ page, browser }) => {
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Signed ${uniqueToken()}` });
 	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { displayName: string };
@@ -365,8 +342,7 @@ test('the owner lets public pages name who shared, with their photo', async ({
 
 // The same switch names Rezepte at the foot of a recipe card, and the owner
 // finds it whether public links are on or not (see share-image.test.ts).
-test('the credit on a recipe card follows the owner setting', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'the setting is instance-wide');
+test('the credit on a recipe card follows the owner setting', async ({ page }) => {
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Credit ${uniqueToken()}` });
 	const openCard = async () => {
@@ -393,25 +369,6 @@ test('the credit on a recipe card follows the owner setting', async ({ page }, t
 	} finally {
 		await patchSettings(page, { publicShareAttribution: true });
 	}
-});
-
-// getPublicRecipe bypasses api() and must never let a network failure or a
-// malformed body propagate into SvelteKit's generic error page: that would
-// drop this route's own header along with the friendly message.
-test('a public link that fails to load', async ({ page }) => {
-	await page.route('**/api/v1/public/shares/**', (route) => route.abort());
-	await page.goto(`/s/${uniqueToken()}`);
-	await expect(page.getByRole('img', { name: 'Rezepte' })).toBeVisible();
-	await expect(page.getByText('This link is no longer available.')).toBeVisible();
-});
-
-test('a public link that answers with a malformed body', async ({ page }) => {
-	await page.route('**/api/v1/public/shares/**', (route) =>
-		route.fulfill({ status: 200, body: 'not json' })
-	);
-	await page.goto(`/s/${uniqueToken()}`);
-	await expect(page.getByRole('img', { name: 'Rezepte' })).toBeVisible();
-	await expect(page.getByText('This link is no longer available.')).toBeVisible();
 });
 
 // Stands in for the share sheet, recording each address it was handed.
@@ -445,8 +402,7 @@ function shortDate(iso: string): string {
 		.replaceAll(' ', '\u00a0');
 }
 
-test('a member creates, shares, re-times and revokes a public link', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a member creates, shares, re-times and revokes a public link', async ({ page }) => {
 	await recordShares(page);
 	await login(page);
 	const title = `Shareable ${uniqueToken()}`;
@@ -551,8 +507,7 @@ test('a member creates, shares, re-times and revokes a public link', async ({ pa
 	}
 });
 
-test('the marker and the colophon open the Link tab', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('the marker and the colophon open the Link tab', async ({ page }) => {
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Marker ${uniqueToken()}` });
 
@@ -589,8 +544,7 @@ test('the marker and the colophon open the Link tab', async ({ page }, testInfo)
 test('a refused link says whether sharing is off or the right withdrawn', async ({
 	page,
 	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+}) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `refused${token}`;
@@ -635,11 +589,7 @@ test('a refused link says whether sharing is off or the right withdrawn', async 
 	}
 });
 
-test('a member without the right is offered the household link only', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a member without the right is offered the household link only', async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `withdrawn${token}`;
@@ -667,10 +617,7 @@ test('a member without the right is offered the household link only', async ({
 	}
 });
 
-test('with public sharing off the Link tab offers the household link only', async ({
-	page
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('with public sharing off the Link tab offers the household link only', async ({ page }) => {
 	await login(page);
 	const title = `No sharing ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
@@ -682,8 +629,7 @@ test('with public sharing off the Link tab offers the household link only', asyn
 	await expect(sheet.getByRole('radio', { name: /For everyone/ })).toHaveCount(0);
 });
 
-test('a limited link starts again from the lifetime picked', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a limited link starts again from the lifetime picked', async ({ page }) => {
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Limited ${uniqueToken()}` });
 
@@ -720,10 +666,7 @@ test('a limited link starts again from the lifetime picked', async ({ page }, te
 	}
 });
 
-test('a re-time the service refuses keeps the link, or drops a gone one', async ({
-	page
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a re-time the service refuses keeps the link, or drops a gone one', async ({ page }) => {
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Retime ${uniqueToken()}` });
 
@@ -781,8 +724,7 @@ test('a re-time the service refuses keeps the link, or drops a gone one', async 
 	}
 });
 
-test('revoking a link that is already gone lets go of it', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('revoking a link that is already gone lets go of it', async ({ page }) => {
 	await recordShares(page);
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Gone ${uniqueToken()}` });
@@ -826,8 +768,7 @@ test('revoking a link that is already gone lets go of it', async ({ page }, test
 // The preview gives way on small phones: the buttons stay on screen, the
 // sheet itself never scrolls, and the region above the buttons steps its
 // preview down until it fits, shrinking the ticket rather than dropping it.
-test('the sheet fits small screens', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('the sheet fits small screens', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await recordShares(page);
 	await login(page);
@@ -899,92 +840,9 @@ test('the sheet fits small screens', async ({ page }, testInfo) => {
 	}
 });
 
-// The tabs share one height on a phone: whatever the Link tab holds, the
-// switch above and the buttons below never move on a switch, nor on a pick
-// of the audience. Answered, not set: public sharing is instance-wide and
-// this runs beside the rest.
-test('the switch and the buttons stay put across the tabs', async ({ page }, testInfo) => {
-	test.skip(!testInfo.project.use.isMobile, 'the phone sheet keeps one height');
-	await page.emulateMedia({ reducedMotion: 'reduce' });
-	// Short enough that the public rows cost the preview a fit step, and
-	// narrow enough that a detail one line taller than the other shows.
-	await page.setViewportSize({ width: 300, height: 640 });
-	// A share sheet for files and links, so both tabs lead with Share.
-	await page.addInitScript(() => {
-		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
-		Object.defineProperty(Navigator.prototype, 'share', { value: () => Promise.resolve() });
-	});
-	let publicShares = false;
-	let share: object | null = null;
-	await page.route('**/api/v1/settings', async (route) => {
-		const response = await route.fetch();
-		await route.fulfill({ response, json: { ...(await response.json()), publicShares } });
-	});
-	await page.route('**/api/v1/shares/by-recipe/*', (route) => route.fulfill({ json: { share } }));
-	await login(page);
-	const title = `Steady ${uniqueToken()}`;
-	const recipe = await createRecipe(page, { ...loadFixture(0), title });
-	const now = Date.now();
-	const active = {
-		id: 'steady',
-		recipe: { id: recipe.id, slug: recipe.slug, title },
-		path: '/s/steadytoken',
-		createdAt: new Date(now).toISOString(),
-		startsAt: new Date(now).toISOString(),
-		expiresAt: new Date(now + 7 * 86_400_000).toISOString(),
-		status: 'active'
-	};
-
-	for (const [name, on, link] of [
-		['household only', false, null],
-		['with the choice', true, null],
-		['with a public link', true, active]
-	] as const) {
-		publicShares = on;
-		share = link;
-		await page.goto(`/recipes/${recipe.slug}`);
-		await page.getByRole('button', { name: 'Share', exact: true }).click();
-		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
-		const where = async (button: string) => {
-			await expect(sheet.getByRole('button', { name: button, exact: true })).toBeVisible();
-			const tabs = await sheet.getByRole('radiogroup', { name: 'Pass on as' }).boundingBox();
-			const primary = await sheet.getByRole('button', { name: button, exact: true }).boundingBox();
-			return { tabs: Math.round(tabs!.y), buttons: Math.round(primary!.y) };
-		};
-		await sheet.getByRole('radio', { name: 'Image', exact: true }).click();
-		const image = await where('Share image');
-		await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
-		if (link) {
-			await expect(sheet.getByRole('radio', { name: 'For everyone with the link' })).toBeChecked();
-		}
-		expect(await where('Share link'), name).toEqual(image);
-		if (on) {
-			// Each row's detail is as tall as the other's, so the sheet keeps its
-			// height and both audiences show the ticket at one step.
-			const ticket = sheet.locator('[data-ticket]');
-			const size = async () => {
-				const box = (await ticket.boundingBox())!;
-				return `${Math.round(box.width)}x${Math.round(box.height)}`;
-			};
-			const before = await size();
-			const other = link ? 'For the household' : 'For everyone with the link';
-			await sheet.getByRole('radio', { name: other }).click();
-			await expect(sheet.getByRole('radio', { name: other })).toBeChecked();
-			const primary = !link ? 'Create public link' : 'Share link';
-			await expect
-				.poll(async () => JSON.stringify(await where(primary)), { message: `${name}, ${other}` })
-				.toBe(JSON.stringify(image));
-			await expect.poll(size, { message: `${name}, ${other}` }).toBe(before);
-		}
-		await page.keyboard.press('Escape');
-		await expect(sheet).toBeHidden();
-	}
-});
-
 // The dialog keeps its size too when the audience changes: a centered box
 // that grew would move both its edges.
-test('the dialog keeps its size when the audience changes', async ({ page }, testInfo) => {
-	test.skip(Boolean(testInfo.project.use.isMobile), 'the dialog is from 768px');
+test('the dialog keeps its size when the audience changes', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await page.route('**/api/v1/settings', async (route) => {
 		const response = await route.fetch();
@@ -1022,8 +880,7 @@ test('the dialog keeps its size when the audience changes', async ({ page }, tes
 	await expect.poll(size).toBe(household);
 });
 
-test('the owner switches public sharing and its lifetimes', async ({ page }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('the owner switches public sharing and its lifetimes', async ({ page }) => {
 	await login(page);
 	await setPublicShares(page, false);
 
@@ -1069,8 +926,7 @@ test('the owner switches public sharing and its lifetimes', async ({ page }, tes
 	}
 });
 
-test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('shared links lists and revokes', async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `sharelist${token}`;
@@ -1121,8 +977,7 @@ test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
 	}
 });
 
-test("admins see everyone's links and revoke all", async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test("admins see everyone's links and revoke all", async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `sharer${token}`;
@@ -1168,8 +1023,7 @@ test("admins see everyone's links and revoke all", async ({ page, browser }, tes
 	}
 });
 
-test("an admin narrows everyone's links to one person", async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test("an admin narrows everyone's links to one person", async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `narrow${token}`;
@@ -1226,11 +1080,7 @@ test("an admin narrows everyone's links to one person", async ({ page, browser }
 	}
 });
 
-test('shared links narrows by status and explains why links are off', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('shared links narrows by status and explains why links are off', async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `status${token}`;
@@ -1283,11 +1133,7 @@ test('shared links narrows by status and explains why links are off', async ({
 	}
 });
 
-test('a paused link opens on the household and cannot be shared', async ({
-	page,
-	browser
-}, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test('a paused link opens on the household and cannot be shared', async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `withdrawn${token}`;
@@ -1352,8 +1198,7 @@ test('a paused link opens on the household and cannot be shared', async ({
 	}
 });
 
-test("only the owner switches an admin's right to share", async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'the members table is checked on desktop');
+test("only the owner switches an admin's right to share", async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const admin = `rankadmin${token}`;
@@ -1395,8 +1240,7 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 	}
 });
 
-test("withdrawing sharing pauses a member's links", async ({ page, browser }, testInfo) => {
-	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+test("withdrawing sharing pauses a member's links", async ({ page, browser }) => {
 	await login(page);
 	const token = uniqueToken();
 	const username = `withdrawpause${token}`;
