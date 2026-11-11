@@ -1,13 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { DeviceAccount } from '../src/lib/api/auth';
-import { login } from './helpers';
+import { daysAgo, login } from './helpers';
 
 // "Who's cooking?" against mocked device accounts, and the ways there: the
 // entry row in the account menu and the phone's You sheet, the add mode of
 // /login, and where a 401 leads. The service side lives in auth.test.ts and
 // user-switch.test.ts; here only the screens' own behavior counts.
 const LONG = 'Maximiliane-Friederike Sophie von Hohenzollern-Sigmaringen';
-const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
 const accounts: DeviceAccount[] = [
 	{

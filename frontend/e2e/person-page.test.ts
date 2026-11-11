@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { createUser, devPassword, login, openDialog, uniqueToken } from './helpers';
+import { createUser, daysAgo, devPassword, login, openDialog, uniqueToken } from './helpers';
 
 // Desktop and mobile run this file against one binary and one database, so
 // every test makes its own people. Pages are opened by URL or from the
@@ -25,8 +25,6 @@ async function stubLastActive(page: Page, username: string, at: string | null): 
 		await route.fulfill({ response, json: body });
 	});
 }
-
-const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
 
 async function asOwner(page: Page): Promise<void> {
 	await login(page);

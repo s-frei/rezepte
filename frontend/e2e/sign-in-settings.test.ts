@@ -1,15 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { createUser, login, openDialog, switchTo, uniqueToken } from './helpers';
+import { configured, createUser, login, openDialog, switchTo, uniqueToken } from './helpers';
 
 // The owner's Sign-in page, in whatever state the run left it: with Dex up
 // (mise run oidc:up) the e2e task has saved Dex there, without it sign-in is
 // off. Nothing here saves; the flows that need a provider that answers live
 // in oidc.test.ts.
-
-/** The stored configuration, without the connection counts oidc*.test.ts change in parallel. */
-function configured({ source, issuer, clientId, secretSet, name }: Record<string, unknown>) {
-	return { source, issuer, clientId, secretSet, name };
-}
 
 test('owner sees the sign-in page; an admin is sent to settings', async ({ page }) => {
 	await login(page);

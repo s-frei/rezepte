@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+	cards,
 	createRecipe,
 	createUser,
 	loadFixture,
@@ -9,8 +10,6 @@ import {
 	uniqueToken,
 	uploadImage
 } from './helpers';
-
-const cards = (page: Page) => page.getByRole('main').getByRole('heading', { level: 3 });
 
 /** Marks a recipe tasty through the API, as whoever `page` is signed in as. */
 async function markTasty(page: Page, recipeId: string) {

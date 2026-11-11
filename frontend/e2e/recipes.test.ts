@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { Editor } from '@tiptap/core';
 import {
+	cards,
 	createRecipe,
 	createUser,
 	loadFixture,
@@ -17,13 +18,6 @@ import {
 	uniqueToken,
 	uploadImage
 } from './helpers';
-
-// Card titles are the only level-3 headings inside `main` - the filter
-// panel (a portaled dialog, rendered outside `main`) has a level-3
-// heading per section under its "Filters" level-2 title, so scoping to
-// `main` is what keeps counting them equivalent to counting the grid once
-// that panel can be open at the same time.
-const cards = (page: Page) => page.getByRole('main').getByRole('heading', { level: 3 });
 
 test.beforeEach(async ({ page }) => {
 	await login(page);

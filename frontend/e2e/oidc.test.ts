@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createUser, login, signOut, switchTo, uniqueToken } from './helpers';
+import { configured, createUser, login, signOut, switchTo, uniqueToken } from './helpers';
 
 // Exercises sign-in through the test OIDC provider (mise run oidc:up, see
 // docs/memory/content/howtos/test-oidc.mdx). Every test below shares the two
@@ -16,11 +16,6 @@ test.beforeEach(async ({ request }, testInfo) => {
 	const res = await request.get('/api/v1/auth/oidc');
 	test.skip(!(await res.json()).enabled, 'Dex is not running (mise run oidc:up)');
 });
-
-/** The stored configuration, without the connection counts other specs change in parallel. */
-function configured({ source, issuer, clientId, secretSet, name }: Record<string, unknown>) {
-	return { source, issuer, clientId, secretSet, name };
-}
 
 async function dexLogin(page: Page, email: string, password: string) {
 	await page.getByLabel(/email/i).fill(email);

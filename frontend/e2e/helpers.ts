@@ -274,11 +274,20 @@ export async function openImport(page: Page) {
 }
 
 /**
- * The editor's save button. Matched on a prefix rather than exactly, because
- * while a save runs the label reads "Speichern …".
+ * The overview's recipe cards, by their titles. Card titles are the only
+ * level-3 headings inside `main` - the filter panel (a portaled dialog,
+ * rendered outside `main`) has a level-3 heading per section under its
+ * "Filters" level-2 title, so scoping to `main` is what keeps counting them
+ * equivalent to counting the grid once that panel can be open at the same time.
  */
-export function saveButton(page: Page) {
-	return page.getByRole('button', { name: /^Speichern/ });
+export const cards = (page: Page) => page.getByRole('main').getByRole('heading', { level: 3 });
+
+/** An ISO timestamp `days` before now. */
+export const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+
+/** The stored sign-in configuration, without the connection counts other specs change in parallel. */
+export function configured({ source, issuer, clientId, secretSet, name }: Record<string, unknown>) {
+	return { source, issuer, clientId, secretSet, name };
 }
 
 /** The overview's search field - a combobox, since it suggests tags. */
