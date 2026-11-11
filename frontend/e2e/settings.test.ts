@@ -37,10 +37,16 @@ async function openPerson(page: Page, username: string): Promise<void> {
 	await expect(page).toHaveURL(`/settings/users/${username}`);
 }
 
-/** Opens the own password dialog from its row on the profile page. */
+/**
+ * Opens the own password dialog from its row on the profile page, and waits
+ * for Bits UI to focus its first field, a frame after it opens: a fill of a
+ * later field that frame lands in would type into the first one.
+ */
 async function openPasswordDialog(page: Page): Promise<void> {
 	await page.getByRole('button', { name: 'Change password' }).click();
-	await expect(page.getByRole('dialog', { name: 'Change password' })).toBeVisible();
+	const dialog = page.getByRole('dialog', { name: 'Change password' });
+	await expect(dialog).toBeVisible();
+	await expect.poll(() => dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
 }
 
 test('a member changes the own password and logs in with it', async ({ page }) => {
