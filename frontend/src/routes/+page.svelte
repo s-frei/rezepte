@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import Columns2 from '@lucide/svelte/icons/columns-2';
 	import Grid3x3 from '@lucide/svelte/icons/grid-3x3';
@@ -75,12 +76,8 @@
 	// which is fine for a running head.
 	const today = new Date();
 	// The local calendar day; toISOString() would give the UTC one, a day
-	// off in the hours around midnight.
-	const todayIso = [
-		today.getFullYear(),
-		String(today.getMonth() + 1).padStart(2, '0'),
-		String(today.getDate()).padStart(2, '0')
-	].join('-');
+	// off in the hours around midnight. Swedish writes dates ISO-style.
+	const todayIso = today.toLocaleDateString('sv');
 
 	let items = $state<RecipeCardData[]>([]);
 	let total = $state(0);
@@ -416,28 +413,30 @@
 		void fetchPage(1, false, false);
 	}
 
-	function toggleTag(name: string) {
-		tags = tags.includes(name) ? tags.filter((t) => t !== name) : [...tags, name];
+	/** A filter or the order changed: back to the first page. */
+	function refilter() {
 		pageNum = 1;
 		void fetchPage(1, false);
+	}
+
+	function toggleTag(name: string) {
+		tags = tags.includes(name) ? tags.filter((t) => t !== name) : [...tags, name];
+		refilter();
 	}
 
 	function setMaxMinutes(value: number) {
 		maxMinutes = value;
-		pageNum = 1;
-		void fetchPage(1, false);
+		refilter();
 	}
 
 	function setFavoritesOnly(value: boolean) {
 		favoritesOnly = value;
-		pageNum = 1;
-		void fetchPage(1, false);
+		refilter();
 	}
 
 	function setAuthor(value: string) {
 		author = value;
-		pageNum = 1;
-		void fetchPage(1, false);
+		refilter();
 	}
 
 	// Only the sort control and the phone's sort chip come through here, so
@@ -448,8 +447,7 @@
 			writeSort(value);
 		}
 		sort = value;
-		pageNum = 1;
-		void fetchPage(1, false);
+		refilter();
 	}
 
 	// Sort is deliberately left alone: it isn't a filter (see the note on
@@ -468,8 +466,7 @@
 		maxMinutes = 0;
 		favoritesOnly = false;
 		author = '';
-		pageNum = 1;
-		void fetchPage(1, false);
+		refilter();
 	}
 
 	function loadMore() {
@@ -552,7 +549,7 @@
 		const top = anchor?.getBoundingClientRect().top;
 		const animate =
 			'startViewTransition' in document &&
-			!window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+			!prefersReducedMotion.current &&
 			!gliding &&
 			!('pageTransition' in root.dataset) &&
 			!('themeTransition' in root.dataset);
