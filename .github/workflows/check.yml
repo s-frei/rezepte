@@ -49,24 +49,10 @@ jobs:
       - name: "Check out the repository"
         uses: actions/checkout@v7
 
-      - name: "Set up mise"
-        uses: jdx/mise-action@v5
+      - name: "Set up the toolchain"
+        uses: ./.github/actions/setup
         with:
-          cache: true
-
-      - name: "Restore the Go and Bun caches"
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.cache/golangci-lint
-            ~/.bun/install/cache
-          key: gate-${{ matrix.task }}-${{ hashFiles('service/go.sum', '**/bun.lock') }}
-          restore-keys: gate-${{ matrix.task }}-
-
-      - name: "Install dependencies"
-        run: mise run setup
+          cache-key: gate-${{ matrix.task }}
 
       - name: "Run the gate"
         run: mise run "${{ matrix.task }}"
@@ -78,23 +64,10 @@ jobs:
       - name: "Check out the repository"
         uses: actions/checkout@v7
 
-      - name: "Set up mise"
-        uses: jdx/mise-action@v5
+      - name: "Set up the toolchain"
+        uses: ./.github/actions/setup
         with:
-          cache: true
-
-      - name: "Restore the Go and Bun caches"
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.bun/install/cache
-          key: generated-${{ hashFiles('service/go.sum', '**/bun.lock') }}
-          restore-keys: generated-
-
-      - name: "Install dependencies"
-        run: mise run setup
+          cache-key: generated
 
       - name: "Generate the OpenAPI documentation"
         run: mise run //docs/user:openapi
@@ -126,26 +99,13 @@ jobs:
       - name: "Check out the repository"
         uses: actions/checkout@v7
 
-      - name: "Set up mise"
-        uses: jdx/mise-action@v5
+      - name: "Set up the toolchain"
+        uses: ./.github/actions/setup
         with:
-          cache: true
-
-      - name: "Restore the Go and Bun caches"
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-            ~/.bun/install/cache
           # Not shared with the jobs on the runner: actions/cache stores paths
           # relative to the workspace, and the container's HOME sits elsewhere,
           # so their archive cannot be unpacked here.
-          key: e2e-container-${{ hashFiles('service/go.sum', '**/bun.lock') }}
-          restore-keys: e2e-container-
-
-      - name: "Install dependencies"
-        run: mise run setup
+          cache-key: e2e-container
 
       - name: "Build and run the Playwright end-to-end tests"
         run: mise run e2e --shard=${{ matrix.shard }}/4

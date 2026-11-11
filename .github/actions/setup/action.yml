@@ -1,0 +1,30 @@
+name: "Set up the toolchain"
+description: "Install the mise tools, restore the Go and Bun caches and run mise run setup. Runs after actions/checkout, which brings this action along."
+
+inputs:
+  cache-key:
+    description: "Prefix of the cache key: one per job, so jobs that build different things keep caches of their own"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: "Set up mise"
+      uses: jdx/mise-action@v5
+      with:
+        cache: true
+
+    - name: "Restore the Go and Bun caches"
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+          ~/.cache/golangci-lint
+          ~/.bun/install/cache
+        key: ${{ inputs.cache-key }}-${{ hashFiles('service/go.sum', '**/bun.lock') }}
+        restore-keys: ${{ inputs.cache-key }}-
+
+    - name: "Install dependencies"
+      shell: bash
+      run: mise run setup
