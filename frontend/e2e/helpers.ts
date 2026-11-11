@@ -453,12 +453,6 @@ export async function setLinkPreviews(
 	).toBeTruthy();
 }
 
-/**
- * Switches public sharing through the API, as the signed-in owner. Like
- * `setLinkPreviews`, it is instance-wide - a test that turns it on turns it
- * off again. `null` for either lifetime means no maximum / permanent by
- * default, matching the settings API.
- */
 /** Switches the owner's "Name Rezepte when sharing" setting. */
 export async function setPublicShareAttribution(page: Page, on: boolean): Promise<void> {
 	const origin = new URL(page.url()).origin;
@@ -469,6 +463,7 @@ export async function setPublicShareAttribution(page: Page, on: boolean): Promis
 	expect(response.ok()).toBeTruthy();
 }
 
+/** Switches the owner's sharer setting: whether a public link names who shared it. */
 export async function setPublicShareSharer(page: Page, on: boolean): Promise<void> {
 	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {
@@ -478,6 +473,12 @@ export async function setPublicShareSharer(page: Page, on: boolean): Promise<voi
 	expect(response.ok()).toBeTruthy();
 }
 
+/**
+ * Switches public sharing through the API, as the signed-in owner. Like
+ * `setLinkPreviews`, it is instance-wide - a test that turns it on turns it
+ * off again. `null` for either lifetime means no maximum / permanent by
+ * default, matching the settings API.
+ */
 export async function setPublicShares(
 	page: Page,
 	on: boolean,
@@ -700,6 +701,24 @@ export async function longPress(
 		const w = window as unknown as { prevented: string[]; unprevented: string[]; lifted: boolean };
 		return { selection: String(getSelection()), ...w };
 	});
+}
+
+/**
+ * Clicks `trigger` and returns the dialog called `name` once focus sits inside
+ * it. Bits UI focuses a dialog's first field a frame after it opens, and
+ * `fill` focuses, then types: a fill of a later field that frame lands in
+ * would type into the first one. Open every dialog a test types into here.
+ */
+export async function openDialog(
+	page: Page,
+	trigger: Locator,
+	name?: string | RegExp
+): Promise<Locator> {
+	await trigger.click();
+	const dialog = page.getByRole('dialog', name === undefined ? {} : { name });
+	await expect(dialog).toBeVisible();
+	await expect.poll(() => dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+	return dialog;
 }
 
 /** Opens a person's page from their card in the people list: the card is one link. */

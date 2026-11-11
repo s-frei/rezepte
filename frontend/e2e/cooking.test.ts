@@ -326,16 +326,16 @@ test('sets the step type size for this visit to cook mode only', async ({ page, 
 
 	await page.goto(`/recipes/${recipe.slug}`);
 	await startCookMode(page);
-	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe('30px');
+	await expect.poll(() => stepFontSize(page, 'Mix the flour and salt.')).toBe('30px');
 
 	await page.getByRole('button', { name: 'Type size' }).click();
 	const sizes = page.getByRole('radiogroup', { name: 'Type size' });
 	await expect(sizes.getByRole('radio', { name: 'Pica', exact: true })).toBeChecked();
 	await sizes.getByRole('radio', { name: 'Double Pica' }).click();
 	await expect(sizes.getByRole('radio', { name: 'Double Pica' })).toBeChecked();
-	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe(largest);
+	await expect.poll(() => stepFontSize(page, 'Mix the flour and salt.')).toBe(largest);
 	await sizes.getByRole('radio', { name: 'Brevier' }).click();
-	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe(smallest);
+	await expect.poll(() => stepFontSize(page, 'Mix the flour and salt.')).toBe(smallest);
 	await sizes.getByRole('radio', { name: 'Double Pica' }).click();
 
 	// Escape closes the specimen, not cook mode.
@@ -346,13 +346,13 @@ test('sets the step type size for this visit to cook mode only', async ({ page, 
 	// The size holds across steps.
 	await page.keyboard.press('ArrowRight');
 	await expect(page.getByText('Step 2 of 3')).toBeVisible();
-	expect(await stepFontSize(page, 'Add the water.')).toBe(largest);
+	await expect.poll(() => stepFontSize(page, 'Add the water.')).toBe(largest);
 
 	// Leaving cook mode forgets it: the next visit starts at the default again.
 	await page.getByRole('button', { name: 'Back to the recipe' }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 	await startCookMode(page);
-	expect(await stepFontSize(page, 'Mix the flour and salt.')).toBe('30px');
+	await expect.poll(() => stepFontSize(page, 'Mix the flour and salt.')).toBe('30px');
 });
 
 test('keeps the start of a long step readable at the largest size', async ({ page }) => {

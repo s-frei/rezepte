@@ -6,6 +6,7 @@ import {
 	devPasswordNext,
 	loadFixture,
 	login,
+	openDialog,
 	search,
 	setCover,
 	tinyPng,
@@ -37,16 +38,9 @@ async function openPerson(page: Page, username: string): Promise<void> {
 	await expect(page).toHaveURL(`/settings/users/${username}`);
 }
 
-/**
- * Opens the own password dialog from its row on the profile page, and waits
- * for Bits UI to focus its first field, a frame after it opens: a fill of a
- * later field that frame lands in would type into the first one.
- */
-async function openPasswordDialog(page: Page): Promise<void> {
-	await page.getByRole('button', { name: 'Change password' }).click();
-	const dialog = page.getByRole('dialog', { name: 'Change password' });
-	await expect(dialog).toBeVisible();
-	await expect.poll(() => dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+/** Opens the own password dialog from its row on the profile page. */
+async function openPasswordDialog(page: Page): Promise<Locator> {
+	return openDialog(page, page.getByRole('button', { name: 'Change password' }), 'Change password');
 }
 
 test('a member changes the own password and logs in with it', async ({ page }) => {
@@ -105,9 +99,11 @@ test('a refused password change reads in German and keeps focus on Save', async 
 				})
 	);
 	await page.goto('/settings');
-	await page.getByRole('button', { name: 'Passwort ändern' }).click();
-	const dialog = page.getByRole('dialog', { name: 'Passwort ändern' });
-	await expect.poll(() => dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+	const dialog = await openDialog(
+		page,
+		page.getByRole('button', { name: 'Passwort ändern' }),
+		'Passwort ändern'
+	);
 	await dialog.getByLabel('Aktuelles Passwort').fill(devPassword(username));
 	await dialog.getByLabel('Neues Passwort', { exact: true }).fill(devPasswordNext(username));
 	await dialog.getByLabel('Neues Passwort wiederholen').fill(devPasswordNext(username));
@@ -306,8 +302,7 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
-	await page.getByRole('button', { name: 'Add account' }).click();
-	const dialog = page.getByRole('dialog');
+	const dialog = await openDialog(page, page.getByRole('button', { name: 'Add account' }));
 	await dialog.getByLabel('Username').fill(username);
 	// "Send a setup link" is the default mode; this test wants the old
 	// admin-hands-over-a-password form.
@@ -327,8 +322,11 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await expect(page.getByText(`${username} is now Admin`)).toBeVisible();
 	await expect(card.getByRole('button', { name: `${username}'s role` })).toBeFocused();
 
-	await card.getByRole('button', { name: `Reset ${username}'s password` }).click();
-	const reset = page.getByRole('dialog', { name: `Reset ${username}'s password` });
+	const reset = await openDialog(
+		page,
+		card.getByRole('button', { name: `Reset ${username}'s password` }),
+		`Reset ${username}'s password`
+	);
 	await reset.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
 	await reset.getByLabel('Repeat the new password').fill(devPasswordNext(username));
 	await reset.getByRole('button', { name: 'Reset', exact: true }).click();
@@ -351,8 +349,11 @@ test('a reset password has to be typed the same twice', async ({ page }) => {
 	await createUser(page, { username, role: 'user' });
 	await page.goto(`/settings/users/${username}`);
 
-	await page.getByRole('button', { name: `Reset ${username}'s password` }).click();
-	const dialog = page.getByRole('dialog', { name: `Reset ${username}'s password` });
+	const dialog = await openDialog(
+		page,
+		page.getByRole('button', { name: `Reset ${username}'s password` }),
+		`Reset ${username}'s password`
+	);
 	const repeat = dialog.getByLabel('Repeat the new password');
 
 	await dialog.getByLabel('New password', { exact: true }).fill(devPasswordNext(username));
@@ -375,8 +376,11 @@ test('adding an account refuses a password typed differently twice', async ({ pa
 	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
-	await page.getByRole('button', { name: 'Add account' }).click();
-	const dialog = page.getByRole('dialog', { name: 'Add account' });
+	const dialog = await openDialog(
+		page,
+		page.getByRole('button', { name: 'Add account' }),
+		'Add account'
+	);
 	await dialog.getByRole('radio', { name: 'Set a password now' }).click();
 	const repeat = dialog.getByLabel('Repeat the new password');
 	await dialog.getByLabel('Username').fill(username);
@@ -899,14 +903,25 @@ test('the add-account dialog fits a short phone screen and scrolls', async ({ pa
 	await page.getByRole('button', { name: 'Add account' }).click();
 
 	const dialog = page.getByRole('dialog');
-	await expect(dialog.getByRole('heading', { name: 'Add account' })).toBeInViewport();
+	// Measured against the box of the nearest scroller, or the viewport:
+	// toBeInViewport counts an element its scroller clips as in view.
+	const shown = (el: Locator) =>
+		el.evaluate((node) => {
+			let scroller = node.parentElement;
+			while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY))
+				scroller = scroller.parentElement;
+			const box = scroller?.getBoundingClientRect() ?? { top: 0, bottom: innerHeight };
+			const rect = node.getBoundingClientRect();
+			return rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1;
+		});
+	await expect.poll(() => shown(dialog.getByRole('heading', { name: 'Add account' }))).toBe(true);
 	const box = await dialog.boundingBox();
 	expect(box!.y).toBeGreaterThanOrEqual(0);
 	expect(box!.y + box!.height).toBeLessThanOrEqual(560);
 
 	const submit = dialog.getByRole('button', { name: 'Add', exact: true });
 	await submit.scrollIntoViewIfNeeded();
-	await expect(submit).toBeInViewport();
+	await expect.poll(() => shown(submit)).toBe(true);
 });
 
 test('the account menu switches the theme and stays open', async ({ page, isMobile }) => {

@@ -1387,7 +1387,7 @@ test('links the right one of two same-named ingredients with the @ picker', asyn
 	await page.keyboard.press('ArrowDown');
 	await page.keyboard.press('Enter');
 	// The plain word lands in the text; nothing else does.
-	expect(await step.innerText()).toBe('Alles verrühren. Saft dazugeben. Zucker');
+	await expect(step).toHaveText('Alles verrühren. Saft dazugeben. Zucker', { useInnerText: true });
 	await showLinks(page);
 	await expect(
 		page.getByRole('button', { name: 'Remove link "Zucker · 50 g · Vanillesoße"' })
@@ -1396,9 +1396,9 @@ test('links the right one of two same-named ingredients with the @ picker', asyn
 	// The pick is one undo step: the word and its link go together, and come back together.
 	await selectInStep(step, 'Saft', 'caret');
 	await page.keyboard.press('ControlOrMeta+z');
-	expect(await step.innerText()).not.toContain('Zucker');
+	await expect(step).not.toContainText('Zucker', { useInnerText: true });
 	await page.keyboard.press('ControlOrMeta+Shift+z');
-	expect(await step.innerText()).toBe('Alles verrühren. Saft dazugeben. Zucker');
+	await expect(step).toHaveText('Alles verrühren. Saft dazugeben. Zucker', { useInnerText: true });
 	await expect(
 		page.getByRole('button', { name: 'Remove link "Zucker · 50 g · Vanillesoße"' })
 	).toBeVisible();
@@ -1427,7 +1427,7 @@ test('keeps a picked name apart from the word the @ was typed before', async ({ 
 	await expect(picker.getByRole('option')).toHaveCount(2);
 	await page.keyboard.press('Enter');
 	// Glued on, `ZuckerSahne` would be a link the API refuses.
-	expect(await step.innerText()).toBe('Zum Schluss Zucker Sahne.');
+	await expect(step).toHaveText('Zum Schluss Zucker Sahne.', { useInnerText: true });
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
@@ -1648,7 +1648,7 @@ test('takes a proposal from the card at its word', async ({ page }) => {
 		await again.getByRole('button', { name: 'Edit the word' }).click();
 		await expect(again).toHaveCount(0);
 		await expect(step).toBeFocused();
-		expect(await caretAt()).toBe(9);
+		await expect.poll(caretAt).toBe(9);
 		// A caret in the word opens nothing on a phone: only a tap does.
 		await selectInStep(step, 'aft', 'caret');
 		await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -1668,7 +1668,7 @@ test('takes a proposal from the card at its word', async ({ page }) => {
 		await step.tap({ position: { x: 8, y: 8 } });
 		await expect(third).toHaveCount(0);
 		await expect(step).toBeFocused();
-		expect(await caretAt()).toBe(1);
+		await expect.poll(caretAt).toBe(1);
 	} else {
 		// Escape closes the card at the caret, until the caret moves.
 		await page.keyboard.press('Escape');
@@ -1876,7 +1876,7 @@ test('brings a link back when the edit that removed its word is undone', async (
 
 	// ...so Cmd+Z brings back the word and the link it carried.
 	await page.keyboard.press('ControlOrMeta+z');
-	expect(await step.innerText()).toBe('Den Saft aufkochen.');
+	await expect(step).toHaveText('Den Saft aufkochen.', { useInnerText: true });
 	await showLinks(page);
 	await expect(chip).toBeVisible();
 	await expect(page.locator('[data-ref-word="Saft"]')).toHaveClass('ref-confirmed');
@@ -1921,7 +1921,7 @@ test('ends a link with its word, and undoes link actions', async ({ page }) => {
 	await selectInStep(step, 'aufkochen', 'caret');
 	await page.keyboard.press('ControlOrMeta+z');
 	await expect(saft).toHaveClass('ref-suggestion');
-	expect(await step.innerText()).toBe('Den Saft aufkochen.');
+	await expect(step).toHaveText('Den Saft aufkochen.', { useInnerText: true });
 
 	// "Dismiss" only closes the card: the word stays proposed, as if the
 	// recipe were opened again, and the card is back once the caret returns.
@@ -2103,7 +2103,7 @@ test('links a word whose text differs from the ingredient’s name', async ({ pa
 	// The word is underlined as a confirmed link although the text says
 	// something else entirely, and the step's text is untouched.
 	await expect(page.locator('[data-ref-word="Flüssigkeit"]')).toHaveClass('ref-confirmed');
-	expect(await step.innerText()).toBe('Langsam aufkochen: die Flüssigkeit.');
+	await expect(step).toHaveText('Langsam aufkochen: die Flüssigkeit.', { useInnerText: true });
 
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page).toHaveURL(`/recipes/${recipe.slug}`);

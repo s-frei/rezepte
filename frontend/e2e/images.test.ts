@@ -430,9 +430,10 @@ test('a vertical swipe over the photos scrolls instead of reordering', async ({
 	}
 	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 	await cdp.detach();
-	await page.waitForTimeout(500);
 
-	expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+	// The swipe scrolled the page; one settle for a reorder that must not come.
+	await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+	await page.waitForTimeout(300);
 	expect(await order(page)).toEqual(ids);
 	expect(saves).toBe(0);
 });

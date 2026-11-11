@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { createUser, devPassword, login, uniqueToken } from './helpers';
+import { createUser, devPassword, login, openDialog, uniqueToken } from './helpers';
 
 // Desktop and mobile run this file against one binary and one database, so
 // every test makes its own people. Pages are opened by URL or from the
@@ -218,49 +218,63 @@ test('a sharing answer overtaken by a newer flip is dropped', async ({ page }) =
 	const sharing = card(page, username).getByRole('switch', { name: 'May share publicly' });
 	const before = await sharing.isChecked();
 	await delayFirstPatch(page, user.id);
+	let answered = 0;
+	page.on('response', (r) => {
+		if (r.url().endsWith(`/api/v1/users/${user.id}`) && r.request().method() === 'PATCH')
+			answered++;
+	});
 
 	await sharing.click();
 	await sharing.click();
-	await page.waitForTimeout(2000);
+	// Both answers are in, the overtaken one last; one settle for its effect.
+	await expect.poll(() => answered, { timeout: 10_000 }).toBe(2);
+	await page.waitForTimeout(300);
 	expect(await sharing.isChecked()).toBe(before);
 });
 
-test('an admin issues and revokes a setup link from the person page', async ({ page }) => {
-	const username = `psl${uniqueToken()}`;
-	await asOwner(page);
-	await createUser(page, { username, role: 'user' });
-	await page.goto(`/settings/users/${username}`);
+// Mail on or off is answered, not set: mail settings belong to mail.test.ts.
+for (const mailEnabled of [false, true]) {
+	test(`an admin issues and revokes a setup link from the person page, mail ${mailEnabled ? 'on' : 'off'}`, async ({
+		page
+	}) => {
+		const username = `psl${uniqueToken()}`;
+		await page.route('**/api/v1/settings', async (route) => {
+			if (route.request().method() !== 'GET') return route.fallback();
+			const response = await route.fetch();
+			await route.fulfill({ response, json: { ...(await response.json()), mailEnabled } });
+		});
+		await asOwner(page);
+		await createUser(page, { username, role: 'user' });
+		await page.goto(`/settings/users/${username}`);
 
-	const head = card(page, username);
-	await expect(head.getByText('Signs in with a password')).toBeVisible();
-	await head.getByRole('button', { name: 'Create link' }).click();
-	// mail.test.ts turns mail on for the shared instance; with mail on, a
-	// step asks first where the link goes.
-	const byHand = page.getByRole('radio', { name: 'Pass it on myself' });
-	const dialog = page.getByRole('dialog', { name: `Setup link for ${username}` });
-	await expect(byHand.or(page.locator('textarea'))).toBeVisible();
-	if (await byHand.isVisible()) {
-		await byHand.click();
-		await page.getByRole('button', { name: 'Show link' }).click();
-		// The step has finished closing behind the result.
-		await expect(page.getByRole('dialog')).toHaveCount(1);
-	}
-	await expect(dialog.getByRole('textbox')).toHaveValue(/\/welcome#/);
-	await page.keyboard.press('Escape');
-	// Both the step and the result share the name while they play out.
-	await expect(page.getByRole('dialog')).toHaveCount(0);
+		const head = card(page, username);
+		await expect(head.getByText('Signs in with a password')).toBeVisible();
+		await head.getByRole('button', { name: 'Create link' }).click();
+		// With mail on, a step asks first where the link goes.
+		const dialog = page.getByRole('dialog', { name: `Setup link for ${username}` });
+		if (mailEnabled) {
+			await page.getByRole('radio', { name: 'Pass it on myself' }).click();
+			await page.getByRole('button', { name: 'Show link' }).click();
+			// The step has finished closing behind the result.
+			await expect(page.getByRole('dialog')).toHaveCount(1);
+		}
+		await expect(dialog.getByRole('textbox')).toHaveValue(/\/welcome#/);
+		await page.keyboard.press('Escape');
+		// Both the step and the result share the name while they play out.
+		await expect(page.getByRole('dialog')).toHaveCount(0);
 
-	await expect(head.getByText(/Setup link open until/)).toBeVisible();
-	// "Create link" became "Manage"; focus moved over with it.
-	await expect(head.getByRole('button', { name: 'Manage the setup link' })).toBeFocused();
-	await head.getByRole('button', { name: 'Manage the setup link' }).click();
-	await expect(page.getByRole('menuitem', { name: 'Create a new link' })).toBeVisible();
-	await page.getByRole('menuitem', { name: 'Revoke' }).click();
-	await expect(page.getByText('Setup link revoked')).toBeVisible();
-	await expect(head.getByText('Signs in with a password')).toBeVisible();
-	// "Manage" left with the link; "Create link" in its place takes focus.
-	await expect(head.getByRole('button', { name: `Create link for ${username}` })).toBeFocused();
-});
+		await expect(head.getByText(/Setup link open until/)).toBeVisible();
+		// "Create link" became "Manage"; focus moved over with it.
+		await expect(head.getByRole('button', { name: 'Manage the setup link' })).toBeFocused();
+		await head.getByRole('button', { name: 'Manage the setup link' }).click();
+		await expect(page.getByRole('menuitem', { name: 'Create a new link' })).toBeVisible();
+		await page.getByRole('menuitem', { name: 'Revoke' }).click();
+		await expect(page.getByText('Setup link revoked')).toBeVisible();
+		await expect(head.getByText('Signs in with a password')).toBeVisible();
+		// "Manage" left with the link; "Create link" in its place takes focus.
+		await expect(head.getByRole('button', { name: `Create link for ${username}` })).toBeFocused();
+	});
+}
 
 test('the owner resets a password from the person page', async ({ page }) => {
 	const username = `prs${uniqueToken()}`;
@@ -290,8 +304,11 @@ test('a reset gives an account without a password one on the person page', async
 
 	const head = card(page, username);
 	await expect(head.getByText('Not set up yet')).toBeVisible();
-	await head.getByRole('button', { name: `Reset ${username}'s password` }).click();
-	const dialog = page.getByRole('dialog', { name: `Reset ${username}'s password` });
+	const dialog = await openDialog(
+		page,
+		head.getByRole('button', { name: `Reset ${username}'s password` }),
+		`Reset ${username}'s password`
+	);
 	await dialog.getByLabel('New password', { exact: true }).fill(devPassword(username));
 	await dialog.getByLabel('Repeat the new password').fill(devPassword(username));
 	await dialog.getByRole('button', { name: 'Reset', exact: true }).click();
@@ -447,16 +464,27 @@ test('people cards keep their content inside with 200% text on a 360px phone', a
 
 	const report = await page.locator('[data-person]').evaluateAll((cards) =>
 		cards.flatMap((card) => {
+			// The glyphs, through a Range: an element's box stays inside while
+			// its text spills past the card. Text an element clips (an
+			// ellipsis, a screen-reader label) ends at that element's box.
+			const extent = (text: Node) => {
+				for (let el = text.parentElement; el && el !== card; el = el.parentElement)
+					if (getComputedStyle(el).overflowX !== 'visible') return el.getBoundingClientRect();
+				const range = document.createRange();
+				range.selectNodeContents(text);
+				return range.getBoundingClientRect();
+			};
 			const box = card.getBoundingClientRect();
 			const out: string[] = [];
-			for (const el of card.querySelectorAll('*')) {
-				const r = el.getBoundingClientRect();
-				if (r.width && r.right > box.right + 0.5)
-					out.push(
-						`${card.getAttribute('data-person')}: "${(el as HTMLElement).innerText?.slice(0, 20)}" +${Math.round(r.right - box.right)}`
-					);
+			const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+			for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+				const r = extent(text);
+				if (!r.width) continue;
+				if (r.right > box.right + 0.5 || r.left < box.left - 0.5)
+					out.push(`${card.getAttribute('data-person')}: "${text.textContent?.slice(0, 20)}"`);
 			}
-			// The name is never one letter per line: its column has the card's width.
+			// The name is never one letter per line: its column, an element's
+			// box on purpose, has the card's width.
 			const name = card.querySelector('.text-body.font-medium') as HTMLElement;
 			if (name.getBoundingClientRect().width < box.width * 0.6)
 				out.push(`${card.getAttribute('data-person')}: name squeezed`);

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createUser, login, uniqueToken } from './helpers';
+import { createUser, login, openDialog, uniqueToken } from './helpers';
 
 // The owner's Sign-in page, in whatever state the run left it: with Dex up
 // (mise run oidc:up) the e2e task has saved Dex there, without it sign-in is
@@ -46,8 +46,11 @@ test('a wrong issuer shows a field error and saves nothing', async ({ page }) =>
 
 	await page.goto('/settings/sign-in');
 	const card = page.getByRole('region', { name: 'Sign-in' });
-	await card.getByRole('button', { name: /^(Set up sign-in|Edit)$/ }).click();
-	const dialog = page.getByRole('dialog', { name: 'Set up sign-in' });
+	const dialog = await openDialog(
+		page,
+		card.getByRole('button', { name: /^(Set up sign-in|Edit)$/ }),
+		'Set up sign-in'
+	);
 	await dialog.getByLabel('Issuer URL').fill('http://localhost:1/nothing');
 	await dialog.getByLabel('Client ID').fill('rezepte');
 	// With Dex up a secret is stored, and it never goes to another issuer: a

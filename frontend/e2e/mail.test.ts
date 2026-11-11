@@ -10,10 +10,11 @@ import {
 	createRecipe,
 	createUser,
 	devPassword,
-	openLoginSheet,
 	devPasswordNext,
 	loadFixture,
 	login,
+	openDialog,
+	openLoginSheet,
 	uniqueToken
 } from './helpers';
 import {
@@ -40,8 +41,7 @@ test.beforeEach(() => {
 async function configure(page: Page, port: number) {
 	await page.goto('/settings/mail');
 	const card = page.getByRole('region', { name: 'Email' });
-	await card.getByRole('button', { name: /^(Set up mail|Edit)$/ }).click();
-	const dialog = page.getByRole('dialog');
+	const dialog = await openDialog(page, card.getByRole('button', { name: /^(Set up mail|Edit)$/ }));
 	await dialog.getByLabel('From address').fill('rezepte@example.com');
 	await dialog.getByLabel('Server', { exact: true }).fill('localhost');
 	await dialog.getByLabel('Port').fill(String(port));
@@ -53,8 +53,7 @@ async function configure(page: Page, port: number) {
 
 async function addAccount(page: Page, name: string, email?: string) {
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Add account' }).click();
-	const dialog = page.getByRole('dialog');
+	const dialog = await openDialog(page, page.getByRole('button', { name: 'Add account' }));
 	await dialog.getByLabel('Username').fill(name);
 	if (email) await dialog.getByLabel(/^Email/).fill(email);
 	await dialog
@@ -273,8 +272,7 @@ test('a member invited by a mailed setup link shows the link in the email row', 
 	await login(page);
 	const name = `inv${uniqueToken()}`;
 	await page.goto('/settings/users');
-	await page.getByRole('button', { name: 'Add account' }).first().click();
-	const dialog = page.getByRole('dialog');
+	const dialog = await openDialog(page, page.getByRole('button', { name: 'Add account' }).first());
 	await dialog.getByLabel('Username').fill(name);
 	await dialog.getByLabel(/^Email/).fill(`${name}@example.com`);
 	await expect(

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { login, uniqueToken } from './helpers';
 
 // Below lg /forgot-password and /welcome open in the sheet, inside a frame that
@@ -21,6 +21,18 @@ async function documentScroll(page: Page) {
 	});
 }
 
+// Whether `el` sits inside the sheet's box, the scroller it lives in.
+// toBeInViewport counts an element the sheet clips as in view. With a pixel
+// to spare: Chromium rounds the scroll offset scrollIntoView sets to whole
+// pixels, so a field can end a fraction past the sheet.
+function inSheet(el: Locator) {
+	return el.evaluate((node) => {
+		const field = node.getBoundingClientRect();
+		const box = node.closest('[data-auth-page]')!.getBoundingClientRect();
+		return field.top >= box.top - 1 && field.bottom <= box.bottom + 1;
+	});
+}
+
 test('forgot-password opens in the sheet and the page never scrolls', async ({
 	page
 }, testInfo) => {
@@ -36,8 +48,8 @@ test('forgot-password opens in the sheet and the page never scrolls', async ({
 
 	await page.setViewportSize({ width: 320, height: 400 });
 	await field.focus();
-	await expect(field).toBeInViewport();
-	await expect(page.getByRole('button', { name: 'Send link' })).toBeInViewport();
+	await expect.poll(() => inSheet(field)).toBe(true);
+	await expect.poll(() => inSheet(page.getByRole('button', { name: 'Send link' }))).toBe(true);
 	expect(await documentScroll(page)).toEqual({ top: 0, fits: true });
 	await expect(sheet.getByRole('heading', { name: 'Forgot password' })).toBeVisible();
 });
@@ -64,7 +76,7 @@ test('welcome opens in the sheet and scrolls inside it, never the page', async (
 	await invited.setViewportSize({ width: 360, height: 420 });
 	const repeat = invited.getByLabel('Repeat the new password');
 	await repeat.focus();
-	await expect(repeat).toBeInViewport();
+	await expect.poll(() => inSheet(repeat)).toBe(true);
 	expect((await documentScroll(invited)).top).toBe(0);
 	const sheet = invited.locator('[data-auth-page]');
 	expect(await sheet.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
@@ -78,21 +90,17 @@ test('welcome opens in the sheet and scrolls inside it, never the page', async (
 	// The frame changing size brings the focused field back into view: what
 	// the keyboard rising does on a phone. Focusing alone would not prove it,
 	// since the browser scrolls a field into view on focus by itself.
-	// 340px, so that scrolled to its top the sheet hides the field. Measured
-	// against the sheet: toBeInViewport counted the field in view there. With
-	// a pixel to spare: Chromium rounds the scroll offset scrollIntoView sets to
-	// whole pixels, so the field can end a fraction past the sheet, depending on
-	// how the random name and color wrap.
-	const shown = () =>
-		repeat.evaluate((el) => {
-			const field = el.getBoundingClientRect();
-			const box = el.closest('[data-auth-page]')!.getBoundingClientRect();
-			return field.top >= box.top - 1 && field.bottom <= box.bottom + 1;
-		});
+	// 340px, so that scrolled to its top the sheet hides the field.
+	const shown = () => inSheet(repeat);
 	await invited.setViewportSize({ width: 360, height: 340 });
 	await expect.poll(shown).toBe(true);
-	await sheet.evaluate((el) => el.scrollTo(0, 0));
-	expect(await shown()).toBe(false);
+	// Scrolled again on every try: the resize may still bring the field back.
+	await expect
+		.poll(async () => {
+			await sheet.evaluate((el) => el.scrollTo(0, 0));
+			return shown();
+		})
+		.toBe(false);
 	await invited.setViewportSize({ width: 360, height: 330 });
 	await expect.poll(shown).toBe(true);
 	expect((await documentScroll(invited)).top).toBe(0);

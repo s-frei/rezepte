@@ -361,13 +361,13 @@ test('the player covers nothing', async ({ page }) => {
 	};
 	await expect.poll(() => bottomNav.getAttribute('data-docked')).toBe('');
 	await expect.poll(async () => (await bottomNav.boundingBox())!.x).toBeLessThan(9);
-	await sameEdges();
+	await expect(sameEdges).toPass();
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await expect.poll(() => bottomNav.getAttribute('data-docked')).toBeNull();
 	// Both morph over 500 ms.
+	// Retried until both have finished, not read once after a sleep.
 	await expect.poll(async () => (await bottomNav.boundingBox())!.x).toBeGreaterThan(15);
-	await page.waitForTimeout(600);
-	await sameEdges();
+	await expect(sameEdges).toPass();
 
 	// A page without the nav keeps its fixed top bar at the top.
 	await page.goto(`/recipes/${recipe.slug}`);

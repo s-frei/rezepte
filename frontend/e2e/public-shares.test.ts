@@ -1029,8 +1029,15 @@ test('the dialog keeps its size when the audience changes', async ({ page }, tes
 		return JSON.stringify([Math.round(box.y), Math.round(box.height)]);
 	};
 	await expect(sheet.getByRole('radio', { name: 'For the household' })).toBeChecked();
-	await page.waitForTimeout(100);
-	const household = await size();
+	// The size it settles on: read until two reads agree.
+	let household = '';
+	await expect
+		.poll(async () => {
+			const last = household;
+			household = await size();
+			return household === last;
+		})
+		.toBe(true);
 	await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
 	await expect(sheet.getByRole('button', { name: 'Create public link' })).toBeVisible();
 	await expect.poll(size).toBe(household);

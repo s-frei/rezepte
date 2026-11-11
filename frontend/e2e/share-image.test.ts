@@ -102,8 +102,13 @@ test('canceling the share sheet keeps it open', async ({ page }, testInfo) => {
 	test.skip(!isPhone(testInfo), 'the phone sheet is where "Share image" opens the share sheet');
 	await page.addInitScript(() => {
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
+		const w = window as unknown as { shares: number };
+		w.shares = 0;
 		Object.defineProperty(Navigator.prototype, 'share', {
-			value: () => Promise.reject(new DOMException('canceled', 'AbortError'))
+			value: () => {
+				w.shares++;
+				return Promise.reject(new DOMException('canceled', 'AbortError'));
+			}
 		});
 	});
 	await login(page);
@@ -115,8 +120,12 @@ test('canceling the share sheet keeps it open', async ({ page }, testInfo) => {
 	let downloaded = false;
 	page.on('download', () => (downloaded = true));
 	await sheet.getByRole('button', { name: 'Share image', exact: true }).click();
-	// Longer than the sheet's 320ms send animation and a download's start.
-	await page.waitForTimeout(800);
+	// The share sheet was asked and canceled; then longer than the sheet's
+	// 320ms send animation and a download's start.
+	await expect
+		.poll(() => page.evaluate(() => (window as unknown as { shares: number }).shares))
+		.toBe(1);
+	await page.waitForTimeout(400);
 	await expect(sheet).toBeVisible();
 	await expect(page.getByText('Image saved')).toHaveCount(0);
 	expect(downloaded).toBe(false);
@@ -147,9 +156,12 @@ test('a second tap while the share sheet is up sends nothing more', async ({ pag
 	// meanwhile is refused the way browsers refuse it.
 	await page.addInitScript(() => {
 		let pending = false;
+		const w = window as unknown as { shares: number };
+		w.shares = 0;
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
 		Object.defineProperty(Navigator.prototype, 'share', {
 			value: () => {
+				w.shares++;
 				if (pending) return Promise.reject(new DOMException('busy', 'InvalidStateError'));
 				pending = true;
 				return new Promise(() => {});
@@ -166,7 +178,11 @@ test('a second tap while the share sheet is up sends nothing more', async ({ pag
 	const card = sheet.getByRole('button', { name: 'Share image', exact: true });
 	await card.click();
 	await card.click({ force: true });
-	await page.waitForTimeout(800);
+	// The share sheet is up; one settle for a download that must not start.
+	await expect
+		.poll(() => page.evaluate(() => (window as unknown as { shares: number }).shares))
+		.toBeGreaterThan(0);
+	await page.waitForTimeout(400);
 	expect(downloaded).toBe(false);
 	await expect(sheet).toBeVisible();
 });

@@ -98,6 +98,10 @@ test('Copy link hands out a previewing link and renews it when the tab comes bac
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'link previews are instance-wide');
 	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	// A fake clock, so the page can be moved past the link's lifetime
+	// without its renewal timer firing first. Installed before the first
+	// navigation, as a clock installed later misses the page's timers.
+	await page.clock.install();
 	await login(page);
 	await expect(page).toHaveURL('/');
 	const title = `Copied ${uniqueToken()}`;
@@ -112,9 +116,6 @@ test('Copy link hands out a previewing link and renews it when the tab comes bac
 
 	try {
 		await setLinkPreviews(page, true);
-		// A fake clock, so the page can be moved past the link's lifetime
-		// without its renewal timer firing first.
-		await page.clock.install();
 		const first = page.waitForResponse((r) => r.url().endsWith(`/${recipe.id}/share-link`));
 		await page.goto(`/recipes/${recipe.slug}`);
 		await first;
