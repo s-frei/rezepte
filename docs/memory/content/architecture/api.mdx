@@ -102,7 +102,7 @@ RFC 9457 `application/problem+json`:
 { "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
   "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
 ```
-**`detail`, `message` and `errors[].message` are English text for a developer, not copy for a person.** huma writes `detail` `validation failed` on every schema `422` and the handlers write their own `detail` in English, so the SPA shows a catalog string instead: it maps an error's `location` to the field and a catalog key where it knows the field, and otherwise shows the operation's generic catalog error. The places that still show the server's text are listed under [Limits](#limits).
+**`detail`, `message` and `errors[].message` are English text for a developer, not copy for a person.** huma writes `detail` `validation failed` on every schema `422` and the handlers write their own `detail` in English, so the SPA never shows them: it maps an error's `location` to the field and a catalog key where it knows the field, and otherwise shows the operation's generic catalog error (the recipe editor's mapping: [Recipes](/features/recipes#adding-a-field-to-a-recipe-or-a-step)). The one server text a person reads is a mail server's own reply to a test mail (`502`), because that is what there is to fix ([Email](/features/email)). A handler's `422` for a field the schema lets through names that field in `errors[].location`, as the mail settings do (`mail.ConfigError`), so the SPA can say which one to fix.
 
 The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `GET /auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `GET /auth/me` is excluded (mutating calls such as `PATCH /auth/me` still redirect) because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.
 
@@ -133,5 +133,4 @@ The typed shape is also a layering rule. The input and output structs *are* the 
 
 ## Limits
 
-- Some screens still show the server's English text: field errors the recipe form maps with `applyServerErrors` (`frontend/src/lib/recipe/form.ts`), a failed archive import on the import card, a refused mail configuration, and the `error.detail ?? m.…()` fallbacks of several settings dialogs and the recipe form. In the German interface those read in English.
 - The Scalar page at `/api/v1/docs` fetches its JavaScript bundle from `unpkg.com` at runtime - huma's `DocsRendererScalar` pins the version and an SRI hash, and the CSP allows that one origin - so the page needs outbound internet access to render. The OpenAPI document itself is served from the binary and works offline.

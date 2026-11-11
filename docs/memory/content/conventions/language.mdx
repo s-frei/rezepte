@@ -29,6 +29,6 @@ A rule that applies to every word can be followed without thinking about any of 
 | canceled, labeled, signaling, traveling | cancelled, labelled, signalling, travelling |
 | normalize, serialize, recognize, optimize, synchronize, authorization | normalise, serialise, recognise, optimise, synchronise, authorisation |
 
-**`check` enforces the table** through the spelling check over every tracked file, except `frontend/messages/de.json`, the German sample data (`*.de.json`), this page, which quotes the British forms, lockfiles and binaries.
+**`check` catches the common British forms** through `spelling:check` over every tracked file; `WORDS` in `mise/lib/guards/spelling.ts` lists the ones it knows, a subset of the table, and `EXCLUDED` the files it skips with their reasons: the German catalog and sample data, this page and the checker, which quote the British forms, and lockfiles. Binaries are skipped too. A British form the list lacks passes, so add it there when one turns up.
 
 The *-ize* column covers every verb of that family; words that end in *-ise* in American English as well - *promise*, *exercise*, *advise*, *surprise*, *mise* - stay as they are. A recipe's own vocabulary is not spelling: the English sample recipes are British dishes and keep their *caster sugar* and *double cream*.

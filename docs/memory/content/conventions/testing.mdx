@@ -82,6 +82,8 @@ description: What to test and how, per package
 
 **A test that checks where text lands measures the text through a `Range`, not its element's box.** `document.createRange()` with `selectNodeContents` and `getBoundingClientRect()` give the glyphs' extent; a grid or flex cell keeps a clean box while its text spills into its neighbor or past the card, so a box check passes a broken row (the ingredient row in `e2e/cooking.test.ts`).
 
+**Text clipped by an overflow element ends at that element's box, not at its glyphs.** A `Range` measures the whole string, so a `truncate` ellipsis or an `sr-only` label reads as a spill unless the check clamps the text's extent to the nearest ancestor whose `overflow` is not `visible` (the "200% text" test in `e2e/person-page.test.ts`).
+
 ### Picking a person
 
 **An e2e test picks a person by `@username`, never by display name.** A username is unique; display names repeat, both between accounts that earlier runs left in the database and on purpose, as in the shopping list's share test, which creates two people with one first name ([Sharing](/features/shopping-lists#sharing)).
