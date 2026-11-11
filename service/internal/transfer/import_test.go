@@ -246,7 +246,7 @@ func TestImportKeepsAStepPhotoLinkOnItsPhoto(t *testing.T) {
 	rc, _ := zr.File[0].Open()
 	raw, _ := io.ReadAll(rc)
 	rc.Close()
-	if !bytes.Contains(raw, []byte(`"image": "2.jpg"`)) || bytes.Contains(raw, []byte(stored.Images[1].ID)) {
+	if !bytes.Contains(raw, []byte(`"imageId": "2.jpg"`)) || bytes.Contains(raw, []byte(stored.Images[1].ID)) {
 		t.Fatalf("recipe.json names the photo wrongly: %s", raw)
 	}
 

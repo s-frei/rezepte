@@ -70,9 +70,9 @@ func (s *Service) writeZip(ctx context.Context, w io.Writer, recipes []recipe.Re
 		}
 		steps := make([]archiveStep, len(in.Steps))
 		for i, st := range in.Steps {
-			steps[i] = archiveStep{Text: st.Text, References: st.References, Times: st.Times, Photos: make([]archivePhoto, len(st.Photos))}
+			steps[i] = archiveStep{Step: st, Photos: make([]recipe.StepPhoto, len(st.Photos))}
 			for j, ph := range st.Photos {
-				steps[i].Photos[j] = archivePhoto{Phrase: ph.Phrase, Image: names[ph.ImageID]}
+				steps[i].Photos[j] = recipe.StepPhoto{Phrase: ph.Phrase, ImageID: names[ph.ImageID]}
 			}
 		}
 		// Steps at depth 0 shadow the embedded Input's.

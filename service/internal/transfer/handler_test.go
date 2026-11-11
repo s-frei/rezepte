@@ -281,7 +281,7 @@ func TestImportReadsStepPhotoLinksAgainstTheInputSchema(t *testing.T) {
 	var steps []any
 	for _, st := range in.Steps {
 		steps = append(steps, map[string]any{"text": st.Text, "references": st.References, "times": st.Times,
-			"photos": []any{map[string]any{"phrase": "Äpfel schälen", "image": "1.jpg"}}})
+			"photos": []any{map[string]any{"phrase": "Äpfel schälen", "imageId": "1.jpg"}}})
 	}
 	m := map[string]any{
 		"format": transfer.Format, "version": transfer.Version, "title": in.Title, "description": "", "servings": in.Servings, "prepMinutes": nil, "cookMinutes": nil, "sourceUrl": nil, "sourceName": nil,
@@ -302,9 +302,9 @@ func TestImportReadsStepPhotoLinksAgainstTheInputSchema(t *testing.T) {
 	}
 
 	// A schema error on the link names the archive's field, image.
-	steps[0].(map[string]any)["photos"] = []any{map[string]any{"phrase": "Äpfel schälen", "image": ""}}
+	steps[0].(map[string]any)["photos"] = []any{map[string]any{"phrase": "Äpfel schälen", "imageId": ""}}
 	rec = doReq(env.h, "/api/v1/import", zipWith(t, "focaccia/recipe.json", mustJSON(t, m)), "application/zip", c)
-	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "focaccia/recipe.json: body.steps[0].photos[0].image\"") {
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "focaccia/recipe.json: body.steps[0].photos[0].imageId\"") {
 		t.Fatalf("empty image: %d %s", rec.Code, rec.Body)
 	}
 }

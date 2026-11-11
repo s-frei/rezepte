@@ -119,14 +119,14 @@ func TestCheckRejects(t *testing.T) {
 			m["steps"] = []any{map[string]any{"text": "Salz dazu.", "references": []any{map[string]any{"word": "Salz", "groupName": nil, "ingredientName": "Salz"}}}}
 		})}, "a/recipe.json: body.steps[0].references[0].ingredientName", `no ingredient "Salz"`},
 		{"step photo of a missing file", []string{"a/recipe.json", "a/1.jpg"}, map[string][]byte{"a/recipe.json": recipeJSON(t, func(m map[string]any) {
-			m["steps"] = []any{map[string]any{"text": "Salz dazu.", "references": []any{}, "times": []any{}, "photos": []any{map[string]any{"phrase": "Salz dazu", "image": "9.jpg"}}}}
-		}), "a/1.jpg": jpg}, "a/recipe.json: body.steps[0].photos[0].image", "not a photo of this recipe"},
+			m["steps"] = []any{map[string]any{"text": "Salz dazu.", "references": []any{}, "times": []any{}, "photos": []any{map[string]any{"phrase": "Salz dazu", "imageId": "9.jpg"}}}}
+		}), "a/1.jpg": jpg}, "a/recipe.json: body.steps[0].photos[0].imageId", "not a photo of this recipe"},
 		{"step photo phrase not in text", []string{"a/recipe.json", "a/1.jpg"}, map[string][]byte{"a/recipe.json": recipeJSON(t, func(m map[string]any) {
-			m["steps"] = []any{map[string]any{"text": "Salz dazu.", "references": []any{}, "times": []any{}, "photos": []any{map[string]any{"phrase": "Pfeffer", "image": "1.jpg"}}}}
+			m["steps"] = []any{map[string]any{"text": "Salz dazu.", "references": []any{}, "times": []any{}, "photos": []any{map[string]any{"phrase": "Pfeffer", "imageId": "1.jpg"}}}}
 		}), "a/1.jpg": jpg}, "a/recipe.json: body.steps[0].photos[0].phrase", "does not occur"},
 		{"step photo without a name", []string{"a/recipe.json", "a/1.jpg"}, map[string][]byte{"a/recipe.json": recipeJSON(t, func(m map[string]any) {
 			m["steps"] = []any{map[string]any{"text": "Salz dazu.", "references": []any{}, "times": []any{}, "photos": []any{map[string]any{"phrase": "Salz dazu"}}}}
-		}), "a/1.jpg": jpg}, "a/recipe.json: body.steps[0].photos[0].image", "not a photo of this recipe"},
+		}), "a/1.jpg": jpg}, "a/recipe.json: body.steps[0].photos[0].imageId", "not a photo of this recipe"},
 		{"missing photo", []string{"a/recipe.json"}, map[string][]byte{"a/recipe.json": recipeJSON(t, nil)}, "a/1.jpg", "missing"},
 		{"cover not listed", []string{"a/recipe.json", "a/1.jpg"}, map[string][]byte{"a/recipe.json": recipeJSON(t, func(m map[string]any) { m["cover"] = "2.jpg" }), "a/1.jpg": jpg}, "a/recipe.json: cover", "not one of images"},
 		{"not a jpeg", []string{"a/recipe.json", "a/1.jpg"}, map[string][]byte{"a/recipe.json": recipeJSON(t, nil), "a/1.jpg": []byte("GIF89a")}, "a/1.jpg", "not a JPEG"},
