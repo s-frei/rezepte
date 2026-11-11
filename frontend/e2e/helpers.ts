@@ -423,56 +423,31 @@ export async function createUser(
 	return (await response.json()) as UserAccount;
 }
 
-/** Switches the household lock through the API, as the signed-in owner. */
-export async function setRecipesLockedByDefault(page: Page, on: boolean): Promise<void> {
-	const response = await page.request.patch('/api/v1/settings', {
-		data: { recipesLockedByDefault: on }
-	});
+/**
+ * Changes instance settings through the API, as the signed-in owner. The
+ * suite shares one instance, so a test that switches one on switches it off
+ * again.
+ */
+export async function patchSettings(page: Page, data: Record<string, unknown>): Promise<void> {
+	const response = await page.request.patch('/api/v1/settings', { data });
 	expect(
 		response.ok(),
 		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
 	).toBeTruthy();
 }
 
-/**
- * Switches link previews through the API, as the signed-in owner. The suite
- * shares one instance, so a test that turns them on turns them off again.
- */
+/** Switches link previews, with how long a preview link lasts. */
 export async function setLinkPreviews(
 	page: Page,
 	on: boolean,
 	minutes: 15 | 60 | 1440 = 15
 ): Promise<void> {
-	const response = await page.request.patch('/api/v1/settings', {
-		data: { linkPreviews: on, linkPreviewMinutes: minutes }
-	});
-	expect(
-		response.ok(),
-		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
-	).toBeTruthy();
-}
-
-/** Switches the owner's "Name Rezepte when sharing" setting. */
-export async function setPublicShareAttribution(page: Page, on: boolean): Promise<void> {
-	const response = await page.request.patch('/api/v1/settings', {
-		data: { publicShareAttribution: on }
-	});
-	expect(response.ok()).toBeTruthy();
-}
-
-/** Switches the owner's sharer setting: whether a public link names who shared it. */
-export async function setPublicShareSharer(page: Page, on: boolean): Promise<void> {
-	const response = await page.request.patch('/api/v1/settings', {
-		data: { publicShareSharer: on }
-	});
-	expect(response.ok()).toBeTruthy();
+	await patchSettings(page, { linkPreviews: on, linkPreviewMinutes: minutes });
 }
 
 /**
- * Switches public sharing through the API, as the signed-in owner. Like
- * `setLinkPreviews`, it is instance-wide - a test that turns it on turns it
- * off again. `null` for either lifetime means no maximum / permanent by
- * default, matching the settings API.
+ * Switches public sharing. `null` for either lifetime means no maximum /
+ * permanent by default, matching the settings API.
  */
 export async function setPublicShares(
 	page: Page,
@@ -480,17 +455,11 @@ export async function setPublicShares(
 	defaultDays: 1 | 7 | 30 | 365 | null = null,
 	maxDays: 1 | 7 | 30 | 365 | null = null
 ): Promise<void> {
-	const response = await page.request.patch('/api/v1/settings', {
-		data: {
-			publicShares: on,
-			publicShareDefaultDays: defaultDays,
-			publicShareMaxDays: maxDays
-		}
+	await patchSettings(page, {
+		publicShares: on,
+		publicShareDefaultDays: defaultDays,
+		publicShareMaxDays: maxDays
 	});
-	expect(
-		response.ok(),
-		`PATCH /api/v1/settings failed: ${response.status()} ${await response.text()}`
-	).toBeTruthy();
 }
 
 /** A public link, as `POST /recipes/{id}/public-share` hands it out. */

@@ -5,7 +5,7 @@ import {
 	loadFixture,
 	login,
 	openRecipeMenu,
-	setRecipesLockedByDefault,
+	patchSettings,
 	signOut,
 	uniqueToken
 } from './helpers';
@@ -110,7 +110,7 @@ test('the household lock hides editing from other members until the author opens
 	} finally {
 		const admin = await browser.newPage();
 		await login(admin);
-		await setRecipesLockedByDefault(admin, false);
+		await patchSettings(admin, { recipesLockedByDefault: false });
 		await admin.close();
 	}
 });

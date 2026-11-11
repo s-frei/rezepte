@@ -10,11 +10,10 @@ import {
 	openFromPeopleList,
 	openLinkTab,
 	openRecipeMenu,
+	patchSettings,
 	type PublicShare,
 	setCanSharePublicly,
 	setOwnAvatarViaApi,
-	setPublicShareAttribution,
-	setPublicShareSharer,
 	setPublicShares,
 	tinyPng,
 	uniqueToken,
@@ -291,7 +290,7 @@ test('the owner stops public pages from naming Rezepte', async ({ page, browser 
 			await strangerContext.close();
 		}
 	} finally {
-		await setPublicShareAttribution(page, true);
+		await patchSettings(page, { publicShareAttribution: true });
 		await setPublicShares(page, false);
 	}
 });
@@ -344,7 +343,7 @@ test('the owner lets public pages name who shared, with their photo', async ({
 			await expect(stranger.locator('img[src*="/avatars/"]')).toHaveCount(0);
 
 			// Off again: name and photo go at once, the address with them.
-			await setPublicShareSharer(page, false);
+			await patchSettings(page, { publicShareSharer: false });
 			await stranger.reload();
 			await expect(stranger.getByRole('heading', { level: 1, name: recipe.title })).toBeVisible();
 			await expect(stranger.getByText(/^Shared by /)).toHaveCount(0);
@@ -359,7 +358,7 @@ test('the owner lets public pages name who shared, with their photo', async ({
 		}
 	} finally {
 		await page.request.delete('/api/v1/auth/me/avatar');
-		await setPublicShareSharer(page, false);
+		await patchSettings(page, { publicShareSharer: false });
 		await setPublicShares(page, false);
 	}
 });
@@ -382,17 +381,17 @@ test('the credit on a recipe card follows the owner setting', async ({ page }, t
 		await page.goto('/settings/users');
 		await expect(page.getByRole('switch', { name: 'Name Rezepte when sharing' })).toBeVisible();
 
-		await setPublicShareAttribution(page, false);
+		await patchSettings(page, { publicShareAttribution: false });
 		await page.goto(`/recipes/${recipe.slug}`);
 		await openCard();
 		await expect(page.locator('[data-testid="share-card"] footer')).toHaveCount(0);
 
-		await setPublicShareAttribution(page, true);
+		await patchSettings(page, { publicShareAttribution: true });
 		await page.reload();
 		await openCard();
 		await expect(page.locator('[data-testid="share-card"] footer')).toHaveCount(1);
 	} finally {
-		await setPublicShareAttribution(page, true);
+		await patchSettings(page, { publicShareAttribution: true });
 	}
 });
 
