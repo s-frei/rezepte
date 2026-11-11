@@ -2,9 +2,7 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"slices"
@@ -118,9 +116,7 @@ func (s *TokenService) Create(ctx context.Context, ownerID, name string, scopes 
 	if err != nil {
 		return "", Token{}, err
 	}
-	buf := make([]byte, 32)
-	_, _ = rand.Read(buf) // never fails since Go 1.24
-	raw := TokenPrefix + base64.RawURLEncoding.EncodeToString(buf)
+	raw := TokenPrefix + newToken()
 	now := s.now()
 	tok := Token{
 		ID:               uuid.NewV7().String(),

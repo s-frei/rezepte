@@ -3,10 +3,8 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -99,9 +97,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (Session
 // StartSession opens a session for u. Login calls it after the password
 // check; a setup link and an identity provider call it after theirs.
 func (s *Service) StartSession(ctx context.Context, u user.User) (Session, error) {
-	raw := make([]byte, 32)
-	_, _ = rand.Read(raw) // never fails since Go 1.24
-	token := base64.RawURLEncoding.EncodeToString(raw)
+	token := newToken()
 	now := s.now()
 	expires := now.Add(SessionTTL)
 	if err := s.q.CreateSession(ctx, sqlc.CreateSessionParams{

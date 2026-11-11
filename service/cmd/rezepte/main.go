@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -84,18 +83,14 @@ func main() {
 // distroless, with no shell and no curl for one to call, so the binary has to
 // be able to probe itself.
 func healthcheck(addr string) error {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return fmt.Errorf("parse %q: %w", addr, err)
-	}
 	// REZEPTE_ADDR is an address, not a port, and usually names every
 	// interface (":8060"). The probe runs inside the same container, so it
 	// asks the loopback one rather than guessing a routable address.
-	switch host {
-	case "", "0.0.0.0", "::":
-		host = "127.0.0.1"
+	local, err := config.LocalAddr(addr, "127.0.0.1")
+	if err != nil {
+		return err
 	}
-	url := "http://" + net.JoinHostPort(host, port) + "/healthz"
+	url := "http://" + local + "/healthz"
 
 	// Shorter than the HEALTHCHECK --timeout in the Dockerfile, so a hung
 	// server is reported as unhealthy rather than killed mid-probe.

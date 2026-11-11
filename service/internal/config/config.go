@@ -143,13 +143,23 @@ func (c Config) OpenURL() string {
 	if c.PublicURL != "" {
 		return c.PublicURL
 	}
-	host, port, err := net.SplitHostPort(c.Addr)
+	addr, err := LocalAddr(c.Addr, "localhost")
 	if err != nil {
 		return c.Addr
 	}
-	switch host {
-	case "", "0.0.0.0", "::":
-		host = "localhost"
+	return "http://" + addr
+}
+
+// LocalAddr is addr, a REZEPTE_ADDR, with host in place of a host that names
+// every interface ("", "0.0.0.0", "::").
+func LocalAddr(addr, host string) (string, error) {
+	h, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", fmt.Errorf("parse %q: %w", addr, err)
 	}
-	return "http://" + net.JoinHostPort(host, port)
+	switch h {
+	case "", "0.0.0.0", "::":
+		h = host
+	}
+	return net.JoinHostPort(h, port), nil
 }
