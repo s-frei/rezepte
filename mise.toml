@@ -56,14 +56,14 @@ depends = ["//service:dev", "//frontend:dev"]
 
 [tasks.check]
 description = "All lint, format and test gates"
-depends = ["test:release", "playwright:image:check", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
+depends = ["test:release", "commits:check", "playwright:image:check", "docker:compose:check", "//service:check", "//frontend:check", "//docs/memory:check", "//docs/user:check"]
 
 [tasks.build]
 description = "Build frontend, then the Go binary with embedded assets"
 depends = ["//service:build"]
 
 [tasks."test:release"]
-description = "Unit tests for the release tooling in mise/lib/release"
+description = "Unit tests for the task tooling in mise/lib (release tooling, commit checks)"
 run = "bun test mise/lib"
 
 [tasks."docker:build"]
