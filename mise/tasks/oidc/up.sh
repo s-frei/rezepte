@@ -2,6 +2,8 @@
 #MISE description="Start the test OIDC provider (Dex) for this worktree"
 set -euo pipefail
 : "${RZP_DEX_PORT:?run this through mise: mise run oidc:up}"
+# shellcheck source=mise/lib/instance.sh
+. mise/lib/instance.sh
 mkdir -p .oidc
 sed -e "s/\${RZP_DEX_PORT}/$RZP_DEX_PORT/g" \
     -e "s/\${RZP_BACKEND_PORT}/$RZP_BACKEND_PORT/g" \
@@ -13,15 +15,7 @@ sed -e "s/\${RZP_DEX_PORT}/$RZP_DEX_PORT/g" \
 # only confirm the container is running, not that Dex is answering yet - poll
 # discovery instead, the same document oidc.Login's own discover() reads.
 docker compose -f docker-compose.test.yaml up -d dex
-ready=false
-for _ in $(seq 1 100); do
-	if curl -fsS "http://localhost:$RZP_DEX_PORT/dex/.well-known/openid-configuration" >/dev/null 2>&1; then
-		ready=true
-		break
-	fi
-	sleep 0.1
-done
-if [ "$ready" != true ]; then
+if ! rzp_wait_for rzp_dex_up; then
 	echo "oidc:up: Dex did not answer on http://localhost:$RZP_DEX_PORT/dex within about 10s; see docker compose -f docker-compose.test.yaml logs" >&2
 	exit 1
 fi

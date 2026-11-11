@@ -1,4 +1,5 @@
-# Sourced by mise/tasks/demo.sh and mise/tasks/e2e.sh: the three things both of
+# Sourced by mise/tasks/demo.sh and mise/tasks/e2e.sh (and by mail:up and
+# oidc:up for their readiness checks): the three things both of
 # them have to get right when they start ./service/bin/rezepte themselves - the
 # port guard, the data directory and the /healthz wait.
 #
@@ -77,6 +78,18 @@ rzp_wait_healthz() {
 	done
 	echo "$label: rezepte did not answer on :$port within ${seconds}s" >&2
 	exit 1
+}
+
+# rzp_wait_for <command...>: runs the command every 0.1s until it succeeds,
+# for about 10s; fails when it never does. For the test containers, whose
+# images declare no HEALTHCHECK `docker compose up --wait` could wait on.
+rzp_wait_for() {
+	local i
+	for i in $(seq 1 100); do
+		"$@" && return
+		sleep 0.1
+	done
+	return 1
 }
 
 # rzp_stop <pid> - for `trap ... EXIT`.
