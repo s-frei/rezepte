@@ -14,7 +14,8 @@
 	import Input from '#lib/components/ui/Input.svelte';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import TestMailRow, { mailProblem, type TestMailResult } from './TestMailRow.svelte';
+	import { mailProblem } from '#lib/settings/mail-problem.js';
+	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';
 
 	let {
 		open = $bindable(false),

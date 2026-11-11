@@ -24,7 +24,7 @@ var (
 	ErrDisabled = errors.New("mail is not configured")
 	// ErrPasswordRequired means a kept password was asked for while the host
 	// or the username changed: the stored one never goes to another server.
-	ErrPasswordRequired = fmt.Errorf("%w: enter the password for a different server", ErrInvalidConfig)
+	ErrPasswordRequired error = &ConfigError{"password", "enter the password for a different server"}
 )
 
 // Source says where the effective configuration comes from.

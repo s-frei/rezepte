@@ -13,6 +13,15 @@ import (
 // ErrInvalidConfig wraps every reason a Config is refused.
 var ErrInvalidConfig = errors.New("invalid mail configuration")
 
+// ConfigError is a refused Config. Field names the setting it fails on as
+// the API's request body spells it, so the owner is told which one to fix.
+type ConfigError struct{ Field, Reason string }
+
+func (e *ConfigError) Error() string { return ErrInvalidConfig.Error() + ": " + e.Reason }
+
+// Unwrap makes every ConfigError an ErrInvalidConfig.
+func (e *ConfigError) Unwrap() error { return ErrInvalidConfig }
+
 // Security is how the connection to the SMTP server is protected.
 type Security string
 
@@ -38,7 +47,7 @@ func ParseSecurity(s string) (Security, error) {
 			return v, nil
 		}
 	}
-	return "", fmt.Errorf("%w: security must be starttls, tls or none, got %q", ErrInvalidConfig, s)
+	return "", &ConfigError{"security", fmt.Sprintf("security must be starttls, tls or none, got %q", s)}
 }
 
 // Config is everything needed to send. The zero value means "not configured".
@@ -55,25 +64,25 @@ type Config struct {
 // Configured reports whether c names a server at all.
 func (c Config) Configured() bool { return c.Host != "" }
 
-// Validate reports the first problem with c, wrapping ErrInvalidConfig.
+// Validate reports the first problem with c as a *ConfigError.
 func (c Config) Validate() error {
 	if c.Host == "" {
-		return fmt.Errorf("%w: host is required", ErrInvalidConfig)
+		return &ConfigError{"host", "host is required"}
 	}
 	if c.Port < 1 || c.Port > 65535 {
-		return fmt.Errorf("%w: port must be between 1 and 65535, got %d", ErrInvalidConfig, c.Port)
+		return &ConfigError{"port", fmt.Sprintf("port must be between 1 and 65535, got %d", c.Port)}
 	}
 	if _, err := ParseSecurity(string(c.Security)); err != nil {
 		return err
 	}
 	if c.Security == SecurityNone && c.Username != "" && !isLoopback(c.Host) {
-		return fmt.Errorf("%w: credentials need starttls or tls", ErrInvalidConfig)
+		return &ConfigError{"security", "credentials need starttls or tls"}
 	}
 	if c.From == "" {
-		return fmt.Errorf("%w: from address is required", ErrInvalidConfig)
+		return &ConfigError{"from", "from address is required"}
 	}
 	if got, err := user.ParseEmail(c.From); err != nil || got == "" || got != c.From {
-		return fmt.Errorf("%w: from must be a bare address like rezepte@example.org", ErrInvalidConfig)
+		return &ConfigError{"from", "from must be a bare address like rezepte@example.org"}
 	}
 	return nil
 }

@@ -72,8 +72,10 @@ func owner(ctx context.Context) (user.User, error) {
 }
 
 // mapErr answers mail's errors with their status and leaves anything else
-// to be the 500 it is. A delivery failure is 502 with the server's reply.
-func mapErr(err error) error {
+// to be the 500 it is. A delivery failure is 502 with the server's reply; a
+// refused setting is 422 at its field, prefix plus its name in MailConfig.
+func mapErr(err error, prefix string) error {
+	var ce *mail.ConfigError
 	switch {
 	case err == nil:
 		return nil
@@ -90,8 +92,8 @@ func mapErr(err error) error {
 		return huma.Error409Conflict("mail is set by the server environment")
 	case errors.Is(err, mail.ErrDisabled):
 		return huma.Error409Conflict("mail is not configured")
-	case errors.Is(err, mail.ErrInvalidConfig):
-		return huma.Error422UnprocessableEntity(err.Error())
+	case errors.As(err, &ce):
+		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: prefix + ce.Field, Message: ce.Reason})
 	case errors.Is(err, user.ErrInvalidEmail):
 		return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body.to", Message: "not a valid email address"})
 	}
@@ -133,7 +135,7 @@ func Register(api huma.API, s *mail.Service) {
 		}
 		c, keep := in.Body.config()
 		if err := s.Save(ctx, u, c, keep); err != nil {
-			return nil, mapErr(err)
+			return nil, mapErr(err, "body.")
 		}
 		b, err := body(ctx, s)
 		return &settingsOutput{Body: b}, err
@@ -149,7 +151,7 @@ func Register(api huma.API, s *mail.Service) {
 			return nil, err
 		}
 		if err := s.Clear(ctx, u); err != nil {
-			return nil, mapErr(err)
+			return nil, mapErr(err, "")
 		}
 		return &struct{}{}, nil
 	})
@@ -171,7 +173,7 @@ func Register(api huma.API, s *mail.Service) {
 			override, keep = &c, k
 		}
 		if err := s.SendTest(ctx, u, in.Body.To, override, keep); err != nil {
-			return nil, mapErr(err)
+			return nil, mapErr(err, "body.config.")
 		}
 		return &struct{}{}, nil
 	})

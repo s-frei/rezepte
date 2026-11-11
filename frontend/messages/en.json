@@ -1189,6 +1189,10 @@
 	"settings_mail_saved": "Mail settings saved",
 	"settings_mail_save_error": "Mail settings could not be saved.",
 	"settings_mail_config_invalid": "Rezepte cannot send with these settings. Check the server and the from address; signing in needs STARTTLS or TLS, and a different server needs its password.",
+	"settings_mail_host_invalid": "Enter the address of your mail server.",
+	"settings_mail_security_invalid": "Signing in needs STARTTLS or TLS.",
+	"settings_mail_from_invalid": "Enter the from address on its own, such as rezepte@example.org.",
+	"settings_mail_password_required": "A different server or username needs its password.",
 
 	"settings_nav_notifications": "Notifications",
 	"settings_notifications_mail_off": "Mail isn't set up on this instance, so nothing goes out yet.",

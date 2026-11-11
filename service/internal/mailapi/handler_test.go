@@ -189,11 +189,32 @@ func TestKeptPasswordRefusedForAnotherServer(t *testing.T) {
 		t.Fatalf("PUT = %d %s", rec.Code, rec.Body)
 	}
 	other := `{"host":"evil.example.org","port":587,"security":"starttls","username":"u","from":"r@example.org"}`
-	if rec := do(h, "PUT", "/api/v1/settings/mail", other, cookies["olga"]); rec.Code != 422 || !strings.Contains(rec.Body.String(), "password") {
+	if rec := do(h, "PUT", "/api/v1/settings/mail", other, cookies["olga"]); rec.Code != 422 || !strings.Contains(rec.Body.String(), `"location":"body.password"`) {
 		t.Fatalf("PUT another host = %d %s", rec.Code, rec.Body)
 	}
 	test := `{"to":"olga@example.org","config":` + other + `}`
-	if rec := do(h, "POST", "/api/v1/settings/mail/test", test, cookies["olga"]); rec.Code != 422 {
+	if rec := do(h, "POST", "/api/v1/settings/mail/test", test, cookies["olga"]); rec.Code != 422 || !strings.Contains(rec.Body.String(), `"location":"body.config.password"`) {
 		t.Fatalf("test another host = %d %s", rec.Code, rec.Body)
+	}
+}
+
+// A setting the schema lets through but mail refuses is a 422 at its field,
+// so the dialog can say which one to fix.
+func TestRefusedSettingNamesItsField(t *testing.T) {
+	h, cookies := newMailHandler(t, mail.Config{})
+	for _, tc := range []struct{ body, at string }{
+		{`{"host":"  ","port":587,"security":"starttls","from":"r@example.org"}`, "host"},
+		{`{"host":"smtp.example.org","port":25,"security":"none","username":"u","password":"p","from":"r@example.org"}`, "security"},
+		{`{"host":"smtp.example.org","port":587,"security":"starttls","from":"Rezepte <r@example.org>"}`, "from"},
+	} {
+		rec := do(h, "PUT", "/api/v1/settings/mail", tc.body, cookies["olga"])
+		if rec.Code != 422 || !strings.Contains(rec.Body.String(), `"location":"body.`+tc.at+`"`) {
+			t.Errorf("PUT %s = %d %s, want 422 at body.%s", tc.body, rec.Code, rec.Body, tc.at)
+		}
+		test := `{"to":"olga@example.org","config":` + tc.body + `}`
+		rec = do(h, "POST", "/api/v1/settings/mail/test", test, cookies["olga"])
+		if rec.Code != 422 || !strings.Contains(rec.Body.String(), `"location":"body.config.`+tc.at+`"`) {
+			t.Errorf("test %s = %d %s, want 422 at body.config.%s", tc.body, rec.Code, rec.Body, tc.at)
+		}
 	}
 }

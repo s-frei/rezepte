@@ -1,33 +1,17 @@
 <script lang="ts" module>
-	import { ApiError, isSignedOut } from '#lib/api/client.js';
-	import { m } from '#lib/paraglide/messages.js';
-
 	export type TestMailResult = { ok: true; to: string } | { ok: false; message: string };
-
-	/**
-	 * What the owner reads under the row when a test or a save fails: the
-	 * mail server's own reply for a refused delivery (502), since that is
-	 * what there is to fix, and catalog copy for everything else - the
-	 * API's own words are English.
-	 */
-	export function mailProblem(error: unknown, fallback: string): string {
-		if (!(error instanceof ApiError)) return fallback;
-		if (error.status === 502) return error.message;
-		if (error.status !== 422) return fallback;
-		const at = error.errors.map((e) => e.location);
-		if (at.includes('body.to')) return m.settings_profile_email_invalid();
-		if (at.some((l) => l.endsWith('.port'))) return m.settings_mail_field_port_invalid();
-		return m.settings_mail_config_invalid();
-	}
 </script>
 
 <script lang="ts">
 	import CircleCheckIcon from '#lib/components/icons/CircleCheckIcon.svelte';
 	import SendIcon from '#lib/components/icons/SendIcon.svelte';
+	import { isSignedOut } from '#lib/api/client.js';
 	import { sendTestMail, type MailConfigInput } from '#lib/api/mail.js';
 	import { session } from '#lib/auth.svelte.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
+	import { m } from '#lib/paraglide/messages.js';
+	import { mailProblem } from '#lib/settings/mail-problem.js';
 
 	let {
 		config,
