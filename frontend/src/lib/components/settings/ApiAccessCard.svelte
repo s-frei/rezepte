@@ -60,7 +60,7 @@
 				type="button"
 				aria-label={copyLabel}
 				onclick={() => void copy(url, copied)}
-				class="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-border bg-surface-elevated px-3 text-micro font-semibold text-text-muted transition hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				class="relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill border border-border bg-surface-elevated px-3 text-micro font-semibold text-text-muted transition after:absolute after:inset-x-0 after:-inset-y-2 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				<CopyIcon bind:this={copyIcons[url]} class="size-3.5" />
 				{m.access_copy()}
