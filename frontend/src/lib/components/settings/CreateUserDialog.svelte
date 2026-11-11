@@ -113,6 +113,7 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		if (saving) return;
 		errors = {};
 		if (username.trim() === '') {
 			errors.username = m.users_validation_username();
@@ -157,7 +158,7 @@
 				if (password) {
 					errors.password = password;
 				}
-				if (Object.keys(errors).length === 0) toast.error(error.detail ?? m.users_create_error());
+				if (Object.keys(errors).length === 0) toast.error(m.users_create_error());
 			} else if (!isSignedOut(error)) {
 				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.users_create_error());
@@ -342,11 +343,7 @@
 		{/if}
 		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button
-				type="submit"
-				disabled={saving}
-				aria-describedby={mails ? 'new-user-notice' : undefined}
-			>
+			<Button type="submit" busy={saving} aria-describedby={mails ? 'new-user-notice' : undefined}>
 				{!mails
 					? m.users_create_submit()
 					: mode === 'link'

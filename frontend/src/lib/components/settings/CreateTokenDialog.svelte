@@ -106,6 +106,7 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		if (saving) return;
 		errors = {};
 		if (name.trim() === '') {
 			errors.name = m.tokens_validation_name();
@@ -122,8 +123,13 @@
 			open = false;
 			oncreated(created);
 		} catch (error) {
-			if (error instanceof ApiError && error.status === 422) {
-				errors.name = error.detail ?? m.tokens_create_error();
+			if (
+				error instanceof ApiError &&
+				error.status === 422 &&
+				error.errors.some((e) => e.location === 'body.name')
+			) {
+				// The client already refused an empty name, so the server's is the 64 limit.
+				errors.name = m.tokens_validation_name_too_long();
 			} else if (!isSignedOut(error)) {
 				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.tokens_create_error());
@@ -193,7 +199,7 @@
 		</div>
 		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={saving}>{m.tokens_create_submit()}</Button>
+			<Button type="submit" busy={saving}>{m.tokens_create_submit()}</Button>
 		</DialogActions>
 	</form>
 </BaseDialog>

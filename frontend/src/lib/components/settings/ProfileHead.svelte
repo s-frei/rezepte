@@ -84,13 +84,14 @@
 			stopRename();
 		} catch (failure) {
 			// Too long or a control character (a pasted newline), both located at
-			// `body.displayName`; the message tells them apart.
+			// `body.displayName`; the name typed tells them apart (Go's
+			// unicode.IsControl is the Cc category).
 			const issue =
 				failure instanceof ApiError && failure.status === 422
 					? failure.errors.find((e) => e.location === 'body.displayName')
 					: undefined;
 			if (issue) {
-				nameError = issue.message.includes('control character')
+				nameError = /\p{Cc}/u.test(name)
 					? m.settings_profile_name_control_char()
 					: m.settings_profile_name_invalid();
 			} else if (onerror) {

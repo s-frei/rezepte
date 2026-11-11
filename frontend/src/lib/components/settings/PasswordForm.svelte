@@ -37,6 +37,7 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		if (saving) return;
 		errors = validateNewPassword(next, repeat);
 		if (hasPassword && current === '') {
 			errors = { ...errors, current: m.settings_password_current_required() };
@@ -59,7 +60,7 @@
 			if (error instanceof ApiError && error.status === 422) {
 				errors = passwordErrorsFromApi(error.errors);
 				if (Object.keys(errors).length === 0) {
-					toast.error(error.detail ?? m.settings_password_error());
+					toast.error(m.settings_password_error());
 				}
 			} else if (!isSignedOut(error)) {
 				// 401 already redirects to the login page (see #lib/api/client).
@@ -124,6 +125,6 @@
 	     would wrap beside the cancel button on a phone. -->
 	<DialogActions class="pt-2">
 		<Button variant="ghost" onclick={oncancel}>{m.common_cancel()}</Button>
-		<Button type="submit" disabled={saving}>{m.common_save()}</Button>
+		<Button type="submit" busy={saving}>{m.common_save()}</Button>
 	</DialogActions>
 </form>

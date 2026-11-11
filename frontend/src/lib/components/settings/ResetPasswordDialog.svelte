@@ -50,6 +50,7 @@
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
+		if (saving) return;
 		if (!user) {
 			return;
 		}
@@ -66,7 +67,7 @@
 		} catch (failure) {
 			if (failure instanceof ApiError && failure.status === 422) {
 				errors = passwordErrorsFromApi(failure.errors);
-				if (!errors.next) toast.error(failure.detail ?? m.users_update_error());
+				if (!errors.next) toast.error(m.users_update_error());
 			} else if (!isSignedOut(failure)) {
 				// 401 already redirects to the login page (see #lib/api/client).
 				toast.error(m.users_update_error());
@@ -109,7 +110,7 @@
 		/>
 		<DialogActions class="pt-2">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={saving}>{m.users_reset_submit()}</Button>
+			<Button type="submit" busy={saving}>{m.users_reset_submit()}</Button>
 		</DialogActions>
 	</form>
 </BaseDialog>

@@ -14,7 +14,7 @@
 	import Input from '#lib/components/ui/Input.svelte';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';
+	import TestMailRow, { mailProblem, type TestMailResult } from './TestMailRow.svelte';
 
 	let {
 		open = $bindable(false),
@@ -78,7 +78,7 @@
 
 	async function save(event: SubmitEvent) {
 		event.preventDefault();
-		if (!portOk()) return;
+		if (saving || !portOk()) return;
 		saving = true;
 		try {
 			onsaved(await saveMailSettings(input()));
@@ -86,10 +86,9 @@
 			open = false;
 		} catch (error) {
 			if (isSignedOut(error)) return;
-			// A refused configuration says why ("credentials need starttls or
-			// tls"); it goes where the test result goes, under the test row.
+			// A refused configuration goes where the test result goes, under the test row.
 			if (error instanceof ApiError && error.status === 422) {
-				result = { ok: false, message: error.message };
+				result = { ok: false, message: mailProblem(error, m.settings_mail_save_error()) };
 			} else {
 				toast.error(m.settings_mail_save_error());
 			}
@@ -195,7 +194,7 @@
 		<div class="pt-2"><TestMailRow config={() => (portOk() ? input() : null)} bind:result /></div>
 		<DialogActions class="border-t border-border pt-4">
 			<Button variant="ghost" onclick={() => (open = false)}>{m.common_cancel()}</Button>
-			<Button type="submit" disabled={saving}>{m.common_save()}</Button>
+			<Button type="submit" busy={saving}>{m.common_save()}</Button>
 		</DialogActions>
 	</form>
 </BaseDialog>

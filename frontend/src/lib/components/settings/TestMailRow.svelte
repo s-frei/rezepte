@@ -1,16 +1,33 @@
 <script lang="ts" module>
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
+	import { m } from '#lib/paraglide/messages.js';
+
 	export type TestMailResult = { ok: true; to: string } | { ok: false; message: string };
+
+	/**
+	 * What the owner reads under the row when a test or a save fails: the
+	 * mail server's own reply for a refused delivery (502), since that is
+	 * what there is to fix, and catalog copy for everything else - the
+	 * API's own words are English.
+	 */
+	export function mailProblem(error: unknown, fallback: string): string {
+		if (!(error instanceof ApiError)) return fallback;
+		if (error.status === 502) return error.message;
+		if (error.status !== 422) return fallback;
+		const at = error.errors.map((e) => e.location);
+		if (at.includes('body.to')) return m.settings_profile_email_invalid();
+		if (at.some((l) => l.endsWith('.port'))) return m.settings_mail_field_port_invalid();
+		return m.settings_mail_config_invalid();
+	}
 </script>
 
 <script lang="ts">
 	import CircleCheckIcon from '#lib/components/icons/CircleCheckIcon.svelte';
 	import SendIcon from '#lib/components/icons/SendIcon.svelte';
-	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import { sendTestMail, type MailConfigInput } from '#lib/api/mail.js';
 	import { session } from '#lib/auth.svelte.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
-	import { m } from '#lib/paraglide/messages.js';
 
 	let {
 		config,
@@ -38,9 +55,7 @@
 			result = { ok: true, to: to.trim() };
 		} catch (error) {
 			if (isSignedOut(error)) return;
-			// The SMTP server's own reply (502) or the configuration problem
-			// (422), as the API words it: that is what the owner needs to fix.
-			result = { ok: false, message: error instanceof ApiError ? error.message : String(error) };
+			result = { ok: false, message: mailProblem(error, m.settings_mail_test_error()) };
 		} finally {
 			sending = false;
 		}
@@ -67,7 +82,13 @@
 				{onkeydown}
 			/>
 		</div>
-		<Button variant="secondary" class="h-11" disabled={!ready} onclick={() => void send()}>
+		<Button
+			variant="secondary"
+			class="h-11"
+			disabled={to.trim() === ''}
+			busy={sending}
+			onclick={() => void send()}
+		>
 			<SendIcon bind:this={sendIcon} class="size-4" />
 			{config ? m.settings_mail_test_send_unsaved() : m.settings_mail_test_send()}
 		</Button>

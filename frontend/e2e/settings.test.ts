@@ -87,6 +87,38 @@ test('a wrong current password shows an inline error', async ({ page }) => {
 	await expect(page.getByText('The current password is wrong')).toBeVisible();
 });
 
+// huma words every 422 "validation failed"; a German reader gets the
+// catalog's German instead, and the busy Save keeps the keyboard focus.
+test('a refused password change reads in German and keeps focus on Save', async ({ page }) => {
+	const username = `pwde${uniqueToken()}`;
+	await login(page);
+	await createUser(page, { username, role: 'user', locale: 'de' });
+	await page.context().clearCookies();
+	await login(page, username);
+	await page.route('**/api/v1/auth/me', (route) =>
+		route.request().method() !== 'PATCH'
+			? route.continue()
+			: route.fulfill({
+					status: 422,
+					contentType: 'application/problem+json',
+					json: { title: 'Unprocessable Entity', status: 422, detail: 'validation failed' }
+				})
+	);
+	await page.goto('/settings');
+	await page.getByRole('button', { name: 'Passwort ändern' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Passwort ändern' });
+	await expect.poll(() => dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+	await dialog.getByLabel('Aktuelles Passwort').fill(devPassword(username));
+	await dialog.getByLabel('Neues Passwort', { exact: true }).fill(devPasswordNext(username));
+	await dialog.getByLabel('Neues Passwort wiederholen').fill(devPasswordNext(username));
+	const save = dialog.getByRole('button', { name: 'Speichern', exact: true });
+	await save.focus();
+	await save.press('Enter');
+	await expect(page.getByText('Passwort konnte nicht geändert werden.')).toBeVisible();
+	await expect(page.getByText('validation failed')).toHaveCount(0);
+	await expect(save).toBeFocused();
+});
+
 test('the own password change refuses a new password typed differently twice', async ({ page }) => {
 	await login(page);
 	await expect(page).toHaveURL('/');
@@ -896,6 +928,49 @@ test('the account menu switches the theme and stays open', async ({ page, isMobi
 
 	await theme.getByRole('menuitemradio', { name: 'System' }).click();
 	await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+});
+
+// Answered here like the test above: a refused configuration reads in the
+// catalog's words, while a failed delivery keeps the mail server's reply.
+test('mail shows catalog copy for a refused setup and the server reply for a failed send', async ({
+	page
+}) => {
+	const problem = (status: number, detail: string) => ({
+		status,
+		contentType: 'application/problem+json',
+		json: { title: 'Error', status, detail }
+	});
+	await page.route('**/api/v1/settings/mail', (route) =>
+		route.request().method() === 'GET'
+			? route.fulfill({
+					json: {
+						source: 'settings',
+						host: 'mail.example.org',
+						port: 587,
+						security: 'none',
+						username: 'rezepte',
+						passwordSet: true,
+						from: 'rezepte@example.org',
+						fromName: '',
+						publicUrlMissing: false
+					}
+				})
+			: route.fulfill(problem(422, 'invalid mail configuration: credentials need starttls or tls'))
+	);
+	await page.route('**/api/v1/settings/mail/test', (route) =>
+		route.fulfill(problem(502, 'send mail: 535 5.7.8 authentication failed'))
+	);
+	await login(page);
+	await page.goto('/settings/mail');
+	const card = page.getByRole('region', { name: 'Email' });
+	await card.getByLabel('Send a test mail to').fill('owner@example.org');
+	await card.getByLabel('Send a test mail to').press('Enter');
+	await expect(card.getByRole('alert')).toHaveText('send mail: 535 5.7.8 authentication failed');
+
+	await card.getByRole('button', { name: 'Edit' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Set up mail' });
+	await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(dialog.getByRole('alert')).toHaveText(/^Rezepte cannot send with these settings/);
 });
 
 test('mail card stacks left-aligned on a 320px phone', async ({ page }) => {

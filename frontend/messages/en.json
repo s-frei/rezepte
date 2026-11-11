@@ -842,6 +842,7 @@
 	"tokens_field_name": "Name",
 	"tokens_field_name_hint": "What the token is for, e.g. \"MCP on the laptop\".",
 	"tokens_validation_name": "Please enter a name",
+	"tokens_validation_name_too_long": "At most 64 characters",
 	"tokens_validation_scopes": "Please choose at least one kind of access",
 	"tokens_access_recipes": "Recipes",
 	"tokens_access_users": "Accounts",
@@ -1165,6 +1166,7 @@
 	"settings_mail_test_send_unsaved": "Send with these values",
 	"settings_mail_test_sent": "Test mail sent to {to}",
 	"settings_mail_test_sent_unsaved": "Test mail sent to {to} with these values. Not saved yet.",
+	"settings_mail_test_error": "The test mail could not be sent.",
 	"settings_mail_dialog_title": "Set up mail",
 	"settings_mail_dialog_hint": "Your mail provider lists these under \"SMTP\" or \"set up a mail program\".",
 	"settings_mail_section_sender": "Sender",
@@ -1185,6 +1187,7 @@
 	"settings_mail_field_security_hint": "STARTTLS usually on 587, TLS on 465. None only for a server in your own network.",
 	"settings_mail_saved": "Mail settings saved",
 	"settings_mail_save_error": "Mail settings could not be saved.",
+	"settings_mail_config_invalid": "Rezepte cannot send with these settings. Check the server and the from address; signing in needs STARTTLS or TLS, and a different server needs its password.",
 
 	"settings_nav_notifications": "Notifications",
 	"settings_notifications_mail_off": "Mail isn't set up on this instance, so nothing goes out yet.",
