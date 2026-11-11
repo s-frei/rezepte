@@ -13,7 +13,6 @@ import {
 
 test('an exported recipe comes back with its photos after an import', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Transfer ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	await uploadImage(page, recipe.id, tinyPng([180, 83, 9]));
@@ -46,7 +45,6 @@ test('an exported recipe comes back with its photos after an import', async ({ p
 
 test('the import waits for the recipe list before it takes a file', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	// Hold the list back: until it arrives, a file would tick every duplicate.
 	let release!: () => void;
 	const held = new Promise<void>((resolve) => (release = resolve));
@@ -63,12 +61,10 @@ test('the import waits for the recipe list before it takes a file', async ({ pag
 
 test('a member sees neither the page nor the zip import link', async ({ page }, testInfo) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const username = `member${uniqueToken()}`;
 	await createUser(page, { username, role: 'user' });
 	await signOut(page, testInfo);
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 	// The import dialog is for everyone; its zip-file row is for admins.
 	await openImport(page);
 	await expect(page.getByRole('link', { name: 'Import a zip file' })).toHaveCount(0);
@@ -81,7 +77,6 @@ test('a recipe that moves to the next page while the list loads is listed once',
 	page
 }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(0), title: `Moved ${token}` });
 	await createRecipe(page, { ...loadFixture(1), title: `Stays ${token}` });

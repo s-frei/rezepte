@@ -30,7 +30,6 @@ const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISO
 
 async function asOwner(page: Page): Promise<void> {
 	await login(page);
-	await expect(page).toHaveURL('/');
 }
 
 test('the owner opens a member from the list and goes back the same way', async ({ page }) => {
@@ -342,7 +341,6 @@ test('a plain admin sees a member read-only in the head but manages the account'
 	await createUser(page, { username: member, role: 'user', color: 'sage' });
 	await page.context().clearCookies();
 	await login(page, admin);
-	await expect(page).toHaveURL('/');
 	await page.goto(`/settings/users/${member}`);
 
 	const head = card(page, member);
@@ -367,7 +365,6 @@ test('typed person URLs redirect or say the person is unknown', async ({ page })
 	await createUser(page, { username: admin, role: 'admin' });
 	await page.context().clearCookies();
 	await login(page, admin);
-	await expect(page).toHaveURL('/');
 
 	await page.goto(`/settings/users/${admin}`);
 	await expect(page).toHaveURL('/settings');

@@ -64,7 +64,6 @@ test('an admin creates, sees once and revokes an API token', async ({ page }) =>
 test('a Delete recipes token carries the delete scope', async ({ page }) => {
 	const name = `full-${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 	await page.getByRole('button', { name: 'Create token' }).click();
 	const dialog = page.getByRole('dialog');
@@ -100,7 +99,6 @@ test('a Delete recipes token carries the delete scope', async ({ page }) => {
 test('a users-only token gets no MCP snippet', async ({ page }) => {
 	const name = `users-${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 	await page.getByRole('button', { name: 'Create token' }).click();
 	const dialog = page.getByRole('dialog');
@@ -123,7 +121,6 @@ test('a users-only token gets no MCP snippet', async ({ page }) => {
 
 test('a token with no access says so before it is submitted', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 	await page.getByRole('button', { name: 'Create token' }).click();
 	const dialog = page.getByRole('dialog');
@@ -144,13 +141,11 @@ test("an admin sees another admin's token only in the household view", async ({ 
 	const issuer = `iss${uniqueToken()}`;
 	const theirs = `theirs-${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: issuer, role: 'admin' });
 
 	// The other admin issues a token of their own.
 	await page.context().clearCookies();
 	await login(page, issuer);
-	await expect(page).toHaveURL('/');
 	const origin = new URL(page.url()).origin;
 	const created = await page.request.post('/api/v1/tokens', {
 		headers: { Origin: origin, 'Content-Type': 'application/json' },
@@ -160,7 +155,6 @@ test("an admin sees another admin's token only in the household view", async ({ 
 
 	await page.context().clearCookies();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 	const list = page.getByRole('region', { name: 'API tokens' });
 	// Own tokens by default: theirs is not in the list.
@@ -193,7 +187,6 @@ test("an admin sees another admin's token only in the household view", async ({ 
 test('a Shopping lists token reaches the lists API', async ({ page, request }) => {
 	const name = `lists-${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 	await page.getByRole('button', { name: 'Create token' }).click();
 	const dialog = page.getByRole('dialog');

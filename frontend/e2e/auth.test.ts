@@ -118,7 +118,6 @@ test('the login form starts in the username field', async ({ page }, testInfo) =
 
 test('the password change names the account it belongs to', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Change password' }).click();
 	const account = page.locator('input[autocomplete="username"]');

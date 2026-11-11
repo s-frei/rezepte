@@ -3,7 +3,6 @@ import { createUser, login, uniqueToken } from './helpers';
 
 test('an admin finds both ways in on the API page', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 
 	await expect(page.getByRole('heading', { name: 'Access for programs' })).toBeVisible();
@@ -38,12 +37,10 @@ test('an admin finds both ways in on the API page', async ({ page }) => {
 test('a member reaches the API page without the token section', async ({ page }, testInfo) => {
 	const username = `api${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 
 	await page.goto('/settings');
 	// A phone lists the pages in the contents sheet behind the running head;
@@ -68,7 +65,6 @@ test('a member reaches the API page without the token section', async ({ page },
 
 test('the API page shows the MCP endpoint', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/api');
 	const card = page.getByRole('region', { name: 'For AI assistants' });
 	await expect(card.getByText(/^http:\/\/.+\/mcp$/)).toBeVisible();

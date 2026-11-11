@@ -18,7 +18,6 @@ import {
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 function dialog(page: Page) {

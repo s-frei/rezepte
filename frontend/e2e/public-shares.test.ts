@@ -31,7 +31,6 @@ test.describe.configure({ mode: 'serial' });
 test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Public ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	await uploadImage(page, recipe.id, tinyPng());
@@ -102,7 +101,6 @@ test('a stranger opens a public link', async ({ page, browser }, testInfo) => {
 test('a signed-in member sees the same public page', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Member view ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(1), title });
 
@@ -169,7 +167,6 @@ test('a public page shows no one by photo, signed in or not', async ({
 test('a recipe without photos, description or times', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Bare ${uniqueToken()}`;
 	const fixture = loadFixture(2);
 	const recipe = await createRecipe(page, {
@@ -200,7 +197,6 @@ test('a recipe without photos, description or times', async ({ page }, testInfo)
 test('a stranger sees where the recipe comes from', async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, {
 		...loadFixture(0),
 		title: `Credited ${uniqueToken()}`,
@@ -274,7 +270,6 @@ test('an unknown token', async ({ page }) => {
 test('the owner stops public pages from naming Rezepte', async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Quiet ${uniqueToken()}` });
 
 	try {
@@ -308,7 +303,6 @@ test('the owner lets public pages name who shared, with their photo', async ({
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Signed ${uniqueToken()}` });
 	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { displayName: string };
 	// A photo the stranger sees only while the switch is on, and only at
@@ -459,7 +453,6 @@ test('a member creates, shares, re-times and revokes a public link', async ({ pa
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await recordShares(page);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Shareable ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 
@@ -565,7 +558,6 @@ test('a member creates, shares, re-times and revokes a public link', async ({ pa
 test('the marker and the colophon open the Link tab', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Marker ${uniqueToken()}` });
 
 	try {
@@ -604,7 +596,6 @@ test('a refused link says whether sharing is off or the right withdrawn', async 
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `refused${token}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Refused ${token}` });
@@ -634,7 +625,6 @@ test('a refused link says whether sharing is off or the right withdrawn', async 
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			await refuse(
 				memberPage,
 				() => setCanSharePublicly(page, member.id, false),
@@ -655,7 +645,6 @@ test('a member without the right is offered the household link only', async ({
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `withdrawn${token}`;
 	const member = await createUser(page, { username, role: 'user' });
@@ -669,7 +658,6 @@ test('a member without the right is offered the household link only', async ({
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			await memberPage.goto(`/recipes/${recipe.slug}`);
 			const sheet = await openLinkTab(memberPage);
 			await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
@@ -688,7 +676,6 @@ test('with public sharing off the Link tab offers the household link only', asyn
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `No sharing ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 
@@ -702,7 +689,6 @@ test('with public sharing off the Link tab offers the household link only', asyn
 test('a limited link starts again from the lifetime picked', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Limited ${uniqueToken()}` });
 
 	try {
@@ -743,7 +729,6 @@ test('a re-time the service refuses keeps the link, or drops a gone one', async 
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Retime ${uniqueToken()}` });
 
 	try {
@@ -804,7 +789,6 @@ test('revoking a link that is already gone lets go of it', async ({ page }, test
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await recordShares(page);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Gone ${uniqueToken()}` });
 
 	try {
@@ -851,7 +835,6 @@ test('the sheet fits small screens', async ({ page }, testInfo) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await recordShares(page);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: 'Fit check' });
 	await uploadImage(page, recipe.id, tinyPng([60, 140, 70], 320, 240));
 
@@ -1046,7 +1029,6 @@ test('the dialog keeps its size when the audience changes', async ({ page }, tes
 test('the owner switches public sharing and its lifetimes', async ({ page }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await setPublicShares(page, false);
 
 	try {
@@ -1094,7 +1076,6 @@ test('the owner switches public sharing and its lifetimes', async ({ page }, tes
 test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `sharelist${token}`;
 	const title = `Shared list ${token}`;
@@ -1111,7 +1092,6 @@ test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			await createPublicShare(memberPage, recipe.id);
 
 			await memberPage.goto('/settings/shares');
@@ -1148,7 +1128,6 @@ test('shared links lists and revokes', async ({ page, browser }, testInfo) => {
 test("admins see everyone's links and revoke all", async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `sharer${token}`;
 	const title = `Everyone ${token}`;
@@ -1163,7 +1142,6 @@ test("admins see everyone's links and revoke all", async ({ page, browser }, tes
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			share = await createPublicShare(memberPage, recipe.id);
 		} finally {
 			await memberContext.close();
@@ -1197,7 +1175,6 @@ test("admins see everyone's links and revoke all", async ({ page, browser }, tes
 test("an admin narrows everyone's links to one person", async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `narrow${token}`;
 	const theirs = `Theirs ${token}`;
@@ -1214,7 +1191,6 @@ test("an admin narrows everyone's links to one person", async ({ page, browser }
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			await createPublicShare(memberPage, theirRecipe.id);
 		} finally {
 			await memberContext.close();
@@ -1260,7 +1236,6 @@ test('shared links narrows by status and explains why links are off', async ({
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `status${token}`;
 	const active = `Status active ${token}`;
@@ -1276,7 +1251,6 @@ test('shared links narrows by status and explains why links are off', async ({
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			await createPublicShare(memberPage, pausedRecipe.id);
 		} finally {
 			await memberContext.close();
@@ -1319,7 +1293,6 @@ test('a paused link opens on the household and cannot be shared', async ({
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `withdrawn${token}`;
 	const title = `Withdrawn ${token}`;
@@ -1332,7 +1305,6 @@ test('a paused link opens on the household and cannot be shared', async ({
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			await createPublicShare(memberPage, recipe.id);
 
 			await setCanSharePublicly(page, member.id, false);
@@ -1387,7 +1359,6 @@ test('a paused link opens on the household and cannot be shared', async ({
 test("only the owner switches an admin's right to share", async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'the members table is checked on desktop');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const admin = `rankadmin${token}`;
 	const otherAdmin = `rankpeer${token}`;
@@ -1418,7 +1389,6 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 	try {
 		const adminPage = await adminContext.newPage();
 		await login(adminPage, admin);
-		await expect(adminPage).toHaveURL('/');
 		await adminPage.goto('/settings/users');
 		await expect(rowOf(adminPage, otherAdmin).getByRole('link')).toHaveCount(0);
 		await expect(rowOf(adminPage, admin).getByRole('link')).toHaveAttribute('href', '/settings');
@@ -1432,7 +1402,6 @@ test("only the owner switches an admin's right to share", async ({ page, browser
 test("withdrawing sharing pauses a member's links", async ({ page, browser }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const token = uniqueToken();
 	const username = `withdrawpause${token}`;
 	const title = `Withdraw pause ${token}`;
@@ -1447,7 +1416,6 @@ test("withdrawing sharing pauses a member's links", async ({ page, browser }, te
 		try {
 			const memberPage = await memberContext.newPage();
 			await login(memberPage, username);
-			await expect(memberPage).toHaveURL('/');
 			share = await createPublicShare(memberPage, recipe.id);
 		} finally {
 			await memberContext.close();

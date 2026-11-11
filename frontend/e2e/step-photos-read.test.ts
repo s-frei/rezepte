@@ -8,7 +8,6 @@ import { createRecipe, expectSpotlight, login, tinyPng, uniqueToken, uploadImage
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 const PHRASE = 'vom Brett ins kochende Salzwasser schaben';

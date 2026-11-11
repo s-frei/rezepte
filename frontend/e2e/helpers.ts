@@ -60,6 +60,9 @@ export async function pinLocale(page: Page, locale: 'en' | 'de' = 'en'): Promise
  * load after it, in nearly every test. auth.test.ts and smoke.test.ts drive
  * the form itself. Any other password, or a refused right one, goes through
  * the form, so a test that expects the error still reads it there.
+ *
+ * A dev-password login that succeeds also asserts it landed on `/`, so a
+ * test does not repeat that line; a refused one is the caller's to judge.
  */
 export async function login(page: Page, username = 'admin', password = devPassword(username)) {
 	await pinLocale(page, 'en');
@@ -68,6 +71,7 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 			const res = await page.request.post('/api/v1/auth/login', { data: { username, password } });
 			if (res.ok()) {
 				await page.goto('/');
+				await expect(page).toHaveURL('/');
 				await page.getByRole('main').waitFor();
 				return;
 			}
@@ -103,6 +107,7 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 			)
 		]);
 		if (outcome === 'in') {
+			await expect(page).toHaveURL('/');
 			await page.getByRole('main').waitFor();
 			return;
 		}

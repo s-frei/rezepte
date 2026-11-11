@@ -20,7 +20,6 @@ async function switchTo(page: Page, testInfo: TestInfo, username: string) {
 	await page.goto('/');
 	await signOut(page, testInfo);
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 }
 
 test('the household lock hides editing from other members until the author opens the recipe', async ({
@@ -46,7 +45,6 @@ test('the household lock hides editing from other members until the author opens
 		const ben = `ben${token}`.slice(0, 20);
 
 		await login(page);
-		await expect(page).toHaveURL('/');
 		await createUser(page, { username: anna, role: 'user' });
 		await createUser(page, { username: ben, role: 'user' });
 
@@ -112,7 +110,6 @@ test('the household lock hides editing from other members until the author opens
 	} finally {
 		const admin = await browser.newPage();
 		await login(admin);
-		await expect(admin).toHaveURL('/');
 		await setRecipesLockedByDefault(admin, false);
 		await admin.close();
 	}

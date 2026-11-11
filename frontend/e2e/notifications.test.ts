@@ -12,7 +12,6 @@ import {
 async function switchTo(page: Page, name: string) {
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page, name);
-	await expect(page).toHaveURL('/');
 }
 
 // The mailed flow (comment mail, unsubscribe link, Undo) lives in
@@ -183,7 +182,6 @@ async function germanMember(page: Page, push: NotificationPermission | 'unsuppor
 	await createUser(page, { username: name, role: 'user', locale: 'de' });
 	await page.context().clearCookies();
 	await login(page, name);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/notifications');
 	return {
 		mail: page.getByRole('region', { name: 'Per Mail' }),

@@ -11,7 +11,6 @@ const fieldBox = (page: Page, id: string) =>
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 test('the editor marks what a recipe needs and lets go once it is there', async ({ page }) => {

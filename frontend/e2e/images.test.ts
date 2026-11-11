@@ -14,7 +14,6 @@ import type { Recipe } from '../src/lib/api/recipes';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 test('shows the cover on the card and the detail page', async ({ page }) => {

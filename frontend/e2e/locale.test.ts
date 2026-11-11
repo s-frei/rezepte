@@ -47,7 +47,6 @@ test.describe('an English browser signing a German account in and out', () => {
 	test('<html lang> follows login and sign-out', async ({ page }, testInfo) => {
 		const username = `lang${uniqueToken()}`;
 		await login(page);
-		await expect(page).toHaveURL('/');
 		await createUser(page, { username, role: 'user', locale: 'de' });
 
 		await page.context().clearCookies();
@@ -69,7 +68,6 @@ test('a German account reads German, decimal comma included', async ({ page }) =
 	const username = `lang${uniqueToken()}`;
 	// admin, only to create the throwaway member through the API.
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user', locale: 'de' });
 
 	// login() pins English for the form; the login response then hands over
@@ -93,7 +91,6 @@ test('a German account reads German, decimal comma included', async ({ page }) =
 test('switching to German changes the UI and survives a reload', async ({ page }) => {
 	const username = `lang${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	// Named although it is the default, because the click below has to be an
 	// actual switch, not a no-op.
 	await createUser(page, { username, role: 'user', locale: 'en' });
@@ -124,7 +121,6 @@ test('a stale locale cookie gives way to the account on the next session load', 
 }) => {
 	const username = `lang${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user', locale: 'en' });
 
 	await page.context().clearCookies();

@@ -13,7 +13,6 @@ test('the login page names itself', async ({ page }) => {
 
 test('each route sets its own tab title after client-side navigation', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await expect(page).toHaveTitle('Rezepte');
 
 	const title = `Title ${uniqueToken()}`;

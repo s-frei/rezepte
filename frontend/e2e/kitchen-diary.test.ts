@@ -19,7 +19,6 @@ async function switchTo(page: Page, testInfo: TestInfo, username: string) {
 	await page.goto('/');
 	await signOut(page, testInfo);
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 }
 
 const diary = (page: Page) => page.getByRole('tabpanel', { name: /^Comments/ });
@@ -40,7 +39,6 @@ test('members talk in the comments and the author sees the dot', async ({ page }
 	const token = uniqueToken();
 	const mara = `mara${token}`.slice(0, 20);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: mara, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Diary ${token}` });
 
@@ -159,7 +157,6 @@ test('a tablet sets a long ingredient list in two columns, a short one in one', 
 	const token = uniqueToken();
 	await page.setViewportSize({ width: 720, height: 1000 });
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const fixture = loadFixture(1);
 	const long = await createRecipe(page, { ...fixture, title: `Columns ${token}` });
 	const short = await createRecipe(page, {
@@ -200,7 +197,6 @@ const png = (name: string, tint: [number, number, number]) => ({
 test('members attach photos to comments', async ({ page }) => {
 	const token = uniqueToken();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Photo diary ${token}` });
 	await page.goto(`/recipes/${recipe.slug}`);
 	await diaryTab(page).click();
@@ -292,7 +288,6 @@ test('members attach photos to comments', async ({ page }) => {
 /** Signs in, creates a recipe and opens its diary. */
 async function freshDiary(page: Page, title: string) {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const recipe = await createRecipe(page, {
 		...loadFixture(1),
 		title: `${title} ${uniqueToken()}`
@@ -836,7 +831,6 @@ test('the author adds a comment photo to the recipe photos', async ({ page, brow
 	const token = uniqueToken();
 	const ben = `ben${token}`.slice(0, 20);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: ben, role: 'user' });
 	// Open on purpose: editing-rights.test.ts locks the household for a
 	// while, and on Default the member below could then add no photo.
@@ -885,7 +879,6 @@ test('the author adds a comment photo to the recipe photos', async ({ page, brow
 	try {
 		const benPage = await benContext.newPage();
 		await login(benPage, ben);
-		await expect(benPage).toHaveURL('/');
 		await addDiaryPhoto(benPage, recipe.id, 'Mine too', tinyPng([40, 120, 200]));
 		await benPage.goto(`/recipes/${recipe.slug}`);
 		await benPage.getByRole('button', { name: 'Tasty', exact: true, pressed: false }).click();
@@ -923,7 +916,6 @@ test('the author adds a comment photo to the recipe photos', async ({ page, brow
 	try {
 		const member = await memberContext.newPage();
 		await login(member, ben);
-		await expect(member).toHaveURL('/');
 		await member.goto(`/recipes/${locked.slug}`);
 		await member.getByRole('tab', { name: /^Comments/ }).click();
 		await expect(diary(member).getByText('Nice')).toBeVisible();

@@ -27,7 +27,6 @@ const cards = (page: Page) => page.getByRole('main').getByRole('heading', { leve
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 test('shows the empty state while nothing is stored', async ({ page }) => {
@@ -790,7 +789,6 @@ test('the recipe page never scrolls sideways', async ({ page }, testInfo) => {
 	});
 	await signOut(page, testInfo);
 	await login(page, reader);
-	await expect(page).toHaveURL('/');
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 	await expect(
@@ -823,7 +821,6 @@ test('the recipe title keeps the whole width on a phone', async ({ page }, testI
 	});
 	await signOut(page, testInfo);
 	await login(page, reader);
-	await expect(page).toHaveURL('/');
 	await page.setViewportSize({ width: 360, height: 800 });
 	await page.goto(`/recipes/${recipe.slug}`);
 
@@ -979,7 +976,6 @@ test('one card per row on a phone shows the desktop card, and stays', async ({
 	const other = await browser.newContext();
 	const olaPage = await other.newPage();
 	await login(olaPage, ola);
-	await expect(olaPage).toHaveURL('/');
 	const recipe = await createRecipe(olaPage, { ...loadFixture(3), title: `Wide ${token}` });
 	await uploadImage(olaPage, recipe.id, tinyPng([200, 120, 40], 400, 300));
 	await other.close();
@@ -1149,7 +1145,6 @@ test('narrows the grid to one author and shows whose recipes they are', async ({
 	await page.goto('/');
 	await signOut(page, testInfo);
 	await login(page, writer);
-	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(8), title: `By kim ${token}` });
 
 	await page.goto(`/?q=${token}`);
@@ -1184,7 +1179,6 @@ test("heads one author's recipes with a band of their own", async ({ page }, tes
 	await page.goto('/');
 	await signOut(page, testInfo);
 	await login(page, writer);
-	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(8), title: `Band ${token}` });
 
 	await page.goto(`/?author=${writer}`);
@@ -1193,7 +1187,6 @@ test("heads one author's recipes with a band of their own", async ({ page }, tes
 	await page.goto('/');
 	await signOut(page, testInfo);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await page.goto(`/?author=${writer}`);
 	const band = page.getByRole('heading', { level: 2, name: `Recipes by ${name}` });

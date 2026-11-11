@@ -19,7 +19,6 @@ let username = '';
 async function signInGerman(page: Page) {
 	await page.clock.install();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	username = `timer${uniqueToken()}`;
 	await createUser(page, { username, role: 'user', locale: 'de' });
 	await page.context().clearCookies();

@@ -60,7 +60,6 @@ async function startCookMode(page: Page) {
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 test('scales quantities with the servings stepper and keeps the choice', async ({ page }) => {

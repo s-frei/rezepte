@@ -13,7 +13,6 @@ function configured({ source, issuer, clientId, secretSet, name }: Record<string
 
 test('owner sees the sign-in page; an admin is sent to settings', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/sign-in');
 	const card = page.getByRole('region', { name: 'Sign-in' });
 	await expect(card.getByText('Redirect URI for the provider')).toBeVisible();
@@ -23,14 +22,12 @@ test('owner sees the sign-in page; an admin is sent to settings', async ({ page 
 	await createUser(page, { username: name, role: 'admin' });
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page, name);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/sign-in');
 	await expect(page).toHaveURL('/settings');
 });
 
 test('a wrong issuer shows a field error and saves nothing', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	// The card is told nobody is connected, so no switch warning stands
 	// between the save and its error: oidc.test.ts may have an account linked
 	// at Dex right now, and the warning has its own test there.

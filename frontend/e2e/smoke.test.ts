@@ -21,7 +21,6 @@ test('health endpoint answers with a status and a version', async ({ request }) 
 
 test('serves the app shell for deep links', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/recipes/some-deep-link');
 	// The SPA answers, not the server's 404: the shell's header is there, and
 	// the app's own page says the recipe is missing.

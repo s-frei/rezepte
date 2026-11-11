@@ -47,7 +47,6 @@ test('a share link previews the recipe, a plain link the app', async ({
 }, testInfo) => {
 	test.skip(testInfo.project.name.startsWith('mobile'), 'link previews are instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Preview ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	const cover = await uploadImage(page, recipe.id, tinyPng([60, 140, 70]));
@@ -103,7 +102,6 @@ test('Copy link hands out a previewing link and renews it when the tab comes bac
 	// navigation, as a clock installed later misses the page's timers.
 	await page.clock.install();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const title = `Copied ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	const copied = async () => {
@@ -153,7 +151,6 @@ test('the owner switches link previews on and picks a lifetime', async ({ page }
 	// and it goes back off whatever happens.
 	test.skip(testInfo.project.name.startsWith('mobile'), 'link previews are instance-wide');
 	await login(page);
-	await expect(page).toHaveURL('/');
 	try {
 		await page.goto('/settings/users');
 		await expect(page.getByRole('heading', { name: 'Link previews' })).toBeVisible();

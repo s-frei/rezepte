@@ -29,7 +29,6 @@ async function makeTall(page: Page) {
 
 test('the bar shows icons only and marks the current place', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const nav = bottomNav(page);
 	// No word in the bar: nothing a longer language could squeeze.
 	await expect(nav).toHaveText('');
@@ -43,7 +42,6 @@ test('the bar shows icons only and marks the current place', async ({ page }) =>
 
 test('the bar stays whole while reading', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	// The address changes before the sign-in's transition swaps the page in,
 	// so the login's <main> is still there for a moment.
 	await expect(page.getByRole('heading', { name: 'What are we cooking today?' })).toBeVisible();
@@ -64,7 +62,6 @@ test('the bar stays whole while reading', async ({ page }) => {
 
 test('the pill follows an open sheet and returns', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const nav = bottomNav(page);
 	await nav.getByRole('button', { name: 'Search' }).click();
 	await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
@@ -121,7 +118,6 @@ test('a page restored below the fold starts docked', async ({ page }) => {
 test('Recipes scrolls to the top before it clears filters', async ({ page }) => {
 	const token = uniqueToken();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(0), title: `Filter ${token}` });
 	await page.goto(`/?q=${token}`);
 	// The list first: a scroll before it arrives is undone when it does.
@@ -142,7 +138,6 @@ test('Recipes scrolls to the top before it clears filters', async ({ page }) => 
 
 test('You shows who is signed in and reaches the settings pages', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 
 	await bottomNav(page).getByRole('button', { name: 'You' }).click();
 	// The `admin` the e2e task seeds is the owner, and its display name is
@@ -178,7 +173,6 @@ test('You shows who is signed in and reaches the settings pages', async ({ page 
 test('Search opens the command palette, which hands a query to the overview', async ({ page }) => {
 	const token = uniqueToken();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(0), title: `Palette ${token}` });
 	await page.goto('/settings');
 
@@ -208,7 +202,6 @@ test('Search opens the command palette, which hands a query to the overview', as
 
 test('the palette sheet ends on the keyboard, not above or below it', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await bottomNav(page).getByRole('button', { name: 'Search' }).click();
 	const palette = page.getByRole('dialog', { name: 'Command palette' });
 	await expect(palette).toBeVisible();
@@ -232,7 +225,6 @@ test('the palette sheet ends on the keyboard, not above or below it', async ({ p
 
 test('You switches the theme without leaving the sheet', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 
 	await bottomNav(page).getByRole('button', { name: 'You' }).click();
 	const sheet = page.getByRole('dialog', { name: 'admin' });

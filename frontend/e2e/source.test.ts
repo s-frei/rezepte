@@ -3,7 +3,6 @@ import { createRecipe, loadFixture, login, uniqueToken } from './helpers';
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 // The credit line is the paragraph that starts with the prefix; found by

@@ -17,7 +17,6 @@ import {
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 });
 
 const SCRAPE = 'Scrape the dough from the board into the boiling water.';

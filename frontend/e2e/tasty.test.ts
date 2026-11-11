@@ -20,7 +20,6 @@ async function switchTo(page: Page, testInfo: TestInfo, username: string) {
 	await page.goto('/');
 	await signOut(page, testInfo);
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 }
 
 /** Marks a recipe tasty through the API, as whoever `page` is signed in as. */
@@ -40,7 +39,6 @@ test('a member marks somebody else’s recipe tasty and everyone sees it', async
 	const mara = `mara${token}`.slice(0, 20);
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: mara, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Tasty ${token}` });
 
@@ -102,7 +100,6 @@ test('a tap on the count of a phone card opens the recipe', async ({ page, brows
 	const jo = `jo${token}`.slice(0, 20);
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: jo, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Count ${token}` });
 
@@ -111,7 +108,6 @@ test('a tap on the count of a phone card opens the recipe', async ({ page, brows
 	const other = await browser.newContext();
 	const joPage = await other.newPage();
 	await login(joPage, jo);
-	await expect(joPage).toHaveURL('/');
 	await markTasty(joPage, recipe.id);
 	await other.close();
 
@@ -129,7 +125,6 @@ test('sorts the overview by the most tasty marks', async ({ page, browser, isMob
 	const users = [`ann${token}`.slice(0, 20), `bo${token}`.slice(0, 20)];
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	for (const username of users) {
 		await createUser(page, { username, role: 'user' });
 	}
@@ -141,7 +136,6 @@ test('sorts the overview by the most tasty marks', async ({ page, browser, isMob
 		const context = await browser.newContext();
 		const other = await context.newPage();
 		await login(other, username);
-		await expect(other).toHaveURL('/');
 		await markTasty(other, twice.id);
 		if (index === 0) {
 			await markTasty(other, once.id);
@@ -177,14 +171,12 @@ test('the count on a photo card shares the center of its corner', async ({
 	const lu = `lu${token}`.slice(0, 20);
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: lu, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(3), title: `Grow ${token}` });
 	await uploadImage(page, recipe.id, tinyPng([200, 120, 40], 400, 300));
 	const other = await browser.newContext();
 	const luPage = await other.newPage();
 	await login(luPage, lu);
-	await expect(luPage).toHaveURL('/');
 	await markTasty(luPage, recipe.id);
 	await other.close();
 
@@ -226,7 +218,6 @@ test('the star and the heart on the recipe page are thumb-sized on a phone', asy
 	const kai = `kai${token}`.slice(0, 20);
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: kai, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(4), title: `Thumb ${token}` });
 	await switchTo(page, testInfo, kai);
@@ -248,14 +239,12 @@ test('a text card shows the tasty count before the initials', async ({
 	const lu = `lu${token}`.slice(0, 20);
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: lu, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(2), title: `Plain ${token}` });
 
 	const other = await browser.newContext();
 	const luPage = await other.newPage();
 	await login(luPage, lu);
-	await expect(luPage).toHaveURL('/');
 	await markTasty(luPage, recipe.id);
 	await other.close();
 

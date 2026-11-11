@@ -46,12 +46,10 @@ async function openPasswordDialog(page: Page): Promise<Locator> {
 test('a member changes the own password and logs in with it', async ({ page }) => {
 	const username = `pw${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	await openPasswordDialog(page);
 	await page.getByLabel('Current password').fill(devPassword(username));
@@ -69,7 +67,6 @@ test('a member changes the own password and logs in with it', async ({ page }) =
 
 test('a wrong current password shows an inline error', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	await openPasswordDialog(page);
 	await page.getByLabel('Current password').fill('definitely-wrong');
@@ -117,7 +114,6 @@ test('a refused password change reads in German and keeps focus on Save', async 
 
 test('the own password change refuses a new password typed differently twice', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	await openPasswordDialog(page);
 	// Stopped before the API, so the owner's password is never at risk here.
@@ -134,7 +130,6 @@ test('the own password change refuses a new password typed differently twice', a
 
 test('fixing the first password field clears the mismatch too', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	await openPasswordDialog(page);
 	await page.getByLabel('Current password').fill(devPassword('admin'));
@@ -152,7 +147,6 @@ test('fixing the first password field clears the mismatch too', async ({ page })
 
 test('the new password is rated as it is typed, and only advised on', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	await openPasswordDialog(page);
 	const next = page.getByLabel('New password', { exact: true });
@@ -168,12 +162,10 @@ test('a member sees everyone, read-only', async ({ page }) => {
 	const username = `m${uniqueToken()}`;
 	const adminName = `a${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 	await createUser(page, { username: adminName, role: 'admin' });
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	await expect(page).toHaveURL('/settings/users');
 
@@ -203,12 +195,10 @@ test('a member sees everyone, read-only', async ({ page }) => {
 test('a member sees the list without links', async ({ page }) => {
 	const username = `m${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 	await createUser(page, { username: `n${uniqueToken()}`, role: 'user' });
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
 	await expect(personRow(page, 'admin')).toBeVisible();
@@ -218,7 +208,6 @@ test('a member sees the list without links', async ({ page }) => {
 
 test('the own card leads to the profile page', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
 	const own = personRow(page, 'admin');
@@ -233,7 +222,6 @@ test("an admin reads a member's counts on the card and the rest on their page", 
 }) => {
 	const username = `d${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user', email: `${username}@example.com` });
 	await page.context().clearCookies();
 	await login(page, username);
@@ -271,7 +259,6 @@ test('the card shows the four newest covers, newest first, and no recipes calmly
 	const cook = `c${uniqueToken()}`;
 	const idle = `i${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: cook, role: 'user' });
 	await createUser(page, { username: idle, role: 'user' });
 	await page.context().clearCookies();
@@ -299,7 +286,6 @@ test('the card shows the four newest covers, newest first, and no recipes calmly
 test('the owner creates, promotes, resets and deletes a user', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
 	const dialog = await openDialog(page, page.getByRole('button', { name: 'Add account' }));
@@ -345,7 +331,6 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 test('a reset password has to be typed the same twice', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 	await page.goto(`/settings/users/${username}`);
 
@@ -373,7 +358,6 @@ test('a reset password has to be typed the same twice', async ({ page }) => {
 test('adding an account refuses a password typed differently twice', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
 	const dialog = await openDialog(
@@ -398,7 +382,6 @@ test('adding an account refuses a password typed differently twice', async ({ pa
 test('every field that sets a password says how long it has to be', async ({ page }) => {
 	const username = `u${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 
 	await page.goto('/settings');
@@ -429,7 +412,6 @@ test('every field that sets a password says how long it has to be', async ({ pag
 test('a role change is undone from its toast', async ({ page }) => {
 	const username = `r${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user' });
 	await page.goto('/settings/users');
 
@@ -451,7 +433,6 @@ test('the people list groups everyone under their role', async ({ page }) => {
 	const member = `z${uniqueToken()}`;
 	const admin = `y${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: member, role: 'user' });
 	await createUser(page, { username: admin, role: 'admin' });
 	await page.goto('/settings/users');
@@ -468,12 +449,10 @@ test('the people list groups everyone under their role', async ({ page }) => {
 test('a second admin cannot touch the instance owner', async ({ page }) => {
 	const username = `a${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'admin' });
 
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
 	// The owner's card leads nowhere: there is nothing on it to act on. Its
@@ -490,14 +469,12 @@ test('a plain admin manages a member but cannot change their role', async ({ pag
 	const other = `o${uniqueToken()}`;
 	const member = `m${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: admin, role: 'admin' });
 	await createUser(page, { username: other, role: 'admin' });
 	await createUser(page, { username: member, role: 'user' });
 
 	await page.context().clearCookies();
 	await login(page, admin);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 
 	// Another admin is the owner's to manage: their card leads nowhere.
@@ -513,12 +490,10 @@ test('a plain admin manages a member but cannot change their role', async ({ pag
 test('only the owner can hand out the admin role', async ({ page }) => {
 	const admin = `a${uniqueToken()}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: admin, role: 'admin' });
 
 	await page.context().clearCookies();
 	await login(page, admin);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
 	// The dialog offers "Member" only.
@@ -530,7 +505,6 @@ test('only the owner can hand out the admin role', async ({ page }) => {
 test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ page }) => {
 	const token = uniqueToken();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const fixture = loadFixture(3);
 	fixture.title = `Fish and Chips ${token}`;
 	const recipe = await createRecipe(page, fixture);
@@ -547,7 +521,6 @@ test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ pag
 test('the palette stays open while the overview finishes loading', async ({ page }) => {
 	const token = uniqueToken();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	const fixture = loadFixture(3);
 	fixture.title = `Slow list ${token}`;
 	await createRecipe(page, fixture);
@@ -585,7 +558,6 @@ test('the palette stays open while the overview finishes loading', async ({ page
 
 test('the palette stays open when a search it interrupted lands', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	// The search's list answers only after the palette is open, and its URL
 	// differs from the one the palette opened over.
 	let release = () => {};
@@ -623,12 +595,10 @@ test('a member renames themselves and picks a color, and their cards follow', as
 	// answer to "Added by Sam".
 	const displayName = `Sam ${token}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user', color: 'amber' });
 
 	await page.context().clearCookies();
 	await login(page, username);
-	await expect(page).toHaveURL('/');
 	await createRecipe(page, { ...loadFixture(0), title: `Color test ${token}` });
 
 	await page.goto('/settings');
@@ -660,7 +630,6 @@ test('the profile page shows who else wears the own color', async ({ page }) => 
 	const token = uniqueToken();
 	const member = `amb${token}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: member, role: 'user', color: 'amber' });
 	// Unique, because every test shares one database: others may wear amber
 	// too, so the visible line may count Sofia among "N more". The
@@ -686,7 +655,6 @@ test('a 64-character display name fits the profile head on a 320px phone', async
 	const username = `long${uniqueToken()}`;
 	const displayName = 'Konstantin '.repeat(6).slice(0, 64);
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user', displayName });
 	await page.context().clearCookies();
 	await page.setViewportSize({ width: 320, height: 780 });
@@ -705,7 +673,6 @@ test('the e-mail row says when there is no address and offers a send for an unco
 	const bare = `bare${token}`;
 	const unconfirmed = `unc${token}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username: bare, role: 'user' });
 	await createUser(page, {
 		username: unconfirmed,
@@ -751,7 +718,6 @@ test("an admin changes a member's address but not their name, the owner can", as
 	const admin = `adm${token}`;
 	const displayName = `Renamed ${token}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	// Not teal, so picking Teal below is a change whatever the least worn color is.
 	await createUser(page, { username: member, role: 'user', color: 'rose' });
 	await createUser(page, { username: admin, role: 'admin' });
@@ -762,7 +728,6 @@ test("an admin changes a member's address but not their name, the owner can", as
 	// no path through the UI and is covered by the Go handler test.
 	await page.context().clearCookies();
 	await login(page, admin);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	await openPerson(page, member);
 	await expect(page.getByRole('button', { name: 'Change name' })).toHaveCount(0);
@@ -785,7 +750,6 @@ test("an admin changes a member's address but not their name, the owner can", as
 	// somebody else is theirs alone.
 	await page.context().clearCookies();
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	await openPerson(page, member);
 	await page.getByRole('button', { name: 'Change name' }).click();
@@ -808,7 +772,6 @@ test("an admin changes a member's address but not their name, the owner can", as
 
 test('the settings page links to the user guide in a new tab', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	const help = page.getByRole('link', { name: /Help & guide/ });
 	await expect(help).toBeVisible();
@@ -818,7 +781,6 @@ test('the settings page links to the user guide in a new tab', async ({ page }) 
 
 test('the settings page says which Rezepte runs and where it comes from', async ({ page }) => {
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 	const about = page.getByRole('region', { name: 'About Rezepte' });
 	await expect(about).toContainText(/Version \S+/);
@@ -841,7 +803,6 @@ test('a phone reaches the settings pages and sign-out through the contents sheet
 	);
 
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings');
 
 	await page.getByRole('button', { name: 'Profile, open contents' }).click();
@@ -877,7 +838,6 @@ test('the add-account dialog names who already wears the picked color', async ({
 	// screen-reader list names everyone in full.
 	const displayName = `Finn Fenchel ${username}`;
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await createUser(page, { username, role: 'user', displayName, color: 'rose' });
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
@@ -898,7 +858,6 @@ test('the add-account dialog fits a short phone screen and scrolls', async ({ pa
 	// pushing its title and its buttons off the screen.
 	await page.setViewportSize({ width: 360, height: 560 });
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
 
@@ -927,7 +886,6 @@ test('the add-account dialog fits a short phone screen and scrolls', async ({ pa
 test('the account menu switches the theme and stays open', async ({ page, isMobile }) => {
 	test.skip(isMobile, 'the account menu is the desktop top bar; a phone has the You sheet');
 	await login(page);
-	await expect(page).toHaveURL('/');
 
 	await page.getByRole('button', { name: 'Account menu' }).click();
 	const menu = page.getByRole('menu');
@@ -1010,7 +968,6 @@ test('mail card stacks left-aligned on a 320px phone', async ({ page }) => {
 	);
 	await page.setViewportSize({ width: 320, height: 700 });
 	await login(page);
-	await expect(page).toHaveURL('/');
 	await page.goto('/settings/mail');
 	const values = page.getByRole('region', { name: 'Email' }).locator('dd');
 	await expect(values).toHaveCount(3);
