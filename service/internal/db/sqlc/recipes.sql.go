@@ -978,7 +978,7 @@ SELECT t.name
 FROM tags t
 JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id = ?
-ORDER BY t.name
+ORDER BY t.name COLLATE unicode
 `
 
 func (q *Queries) ListTagNamesByRecipe(ctx context.Context, recipeID string) ([]string, error) {
@@ -1009,7 +1009,7 @@ SELECT rt.recipe_id, t.name
 FROM tags t
 JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id IN (/*SLICE:recipe_ids*/?)
-ORDER BY rt.recipe_id, t.name
+ORDER BY rt.recipe_id, t.name COLLATE unicode
 `
 
 type ListTagNamesForRecipesRow struct {

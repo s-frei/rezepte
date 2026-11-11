@@ -96,14 +96,14 @@ SELECT t.name
 FROM tags t
 JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id = ?
-ORDER BY t.name;
+ORDER BY t.name COLLATE unicode;
 
 -- name: ListTagNamesForRecipes :many
 SELECT rt.recipe_id, t.name
 FROM tags t
 JOIN recipe_tags rt ON rt.tag_id = t.id
 WHERE rt.recipe_id IN (sqlc.slice(recipe_ids))
-ORDER BY rt.recipe_id, t.name;
+ORDER BY rt.recipe_id, t.name COLLATE unicode;
 
 -- The people behind a page of recipes, batched like ListTagNamesForRecipes.
 -- name: ListAuthorsForIDs :many

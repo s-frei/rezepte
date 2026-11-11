@@ -525,6 +525,32 @@ func TestListSortsTitlesWithUmlautsAlphabetically(t *testing.T) {
 	}
 }
 
+// Tag names sort like titles: an umlaut with its base letter, not after "z".
+// One recipe carries both tags, so all three tag queries see a tie on count.
+func TestTagsSortWithUmlautsAlphabetically(t *testing.T) {
+	ctx := context.Background()
+	svc, uid := setup(t)
+	in := loadFixtures(t)[0]
+	in.Tags = []string{"zucchini", "österreichisch"}
+	created, err := svc.Create(ctx, uid, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"österreichisch", "zucchini"}
+	got, err := svc.ByID(ctx, created.ID)
+	if err != nil || !slices.Equal(got.Tags, want) {
+		t.Fatalf("ByID tags = %q, %v; want %q", got.Tags, err, want)
+	}
+	p, err := svc.List(ctx, recipe.ListParams{})
+	if err != nil || len(p.Items) != 1 || !slices.Equal(p.Items[0].Tags, want) {
+		t.Fatalf("List = %+v, %v; want tags %q", p.Items, err, want)
+	}
+	counts, err := svc.TagsFor(ctx, recipe.ListParams{})
+	if err != nil || len(counts) != 2 || counts[0].Name != want[0] || counts[1].Name != want[1] {
+		t.Fatalf("TagsFor = %+v, %v; want %q", counts, err, want)
+	}
+}
+
 func TestListRejectsAnUnknownSort(t *testing.T) {
 	svc := seedAll(t)
 	p, err := svc.List(context.Background(), recipe.ListParams{Sort: "; DROP TABLE recipes"})

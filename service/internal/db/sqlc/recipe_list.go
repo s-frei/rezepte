@@ -172,7 +172,7 @@ type TagCountRow struct {
 func (q *Queries) ListTagCounts(ctx context.Context, f RecipeFilter) ([]TagCountRow, error) {
 	where, args := f.where()
 	query := "SELECT t.name, COUNT(*) AS count\nFROM recipes r\nJOIN recipe_tags rt ON rt.recipe_id = r.id\nJOIN tags t ON t.id = rt.tag_id" +
-		where + "\nGROUP BY t.id\nORDER BY count DESC, t.name"
+		where + "\nGROUP BY t.id\nORDER BY count DESC, t.name COLLATE unicode"
 	rows, err := q.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
