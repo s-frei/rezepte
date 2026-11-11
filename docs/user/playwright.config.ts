@@ -39,40 +39,18 @@ export default defineConfig({
     timezoneId: "Europe/Berlin",
     contextOptions: { reducedMotion: "reduce" },
   },
-  projects: [
-    {
-      name: "desktop-light",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1440, height: 900 },
-        colorScheme: "light",
-      },
-    },
-    {
-      name: "desktop-dark",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1440, height: 900 },
-        colorScheme: "dark",
-      },
-    },
-    // Pixel 7's default viewport (412px) is documented in "Widths that matter"
-    // (docs/memory/content/howtos/verify-ui.mdx) as too forgiving; override to 360px.
-    {
-      name: "mobile-light",
-      use: {
-        ...devices["Pixel 7"],
-        viewport: { width: 360, height: 780 },
-        colorScheme: "light",
-      },
-    },
-    {
-      name: "mobile-dark",
-      use: {
-        ...devices["Pixel 7"],
-        viewport: { width: 360, height: 780 },
-        colorScheme: "dark",
-      },
-    },
-  ],
+  // Pixel 7's default viewport (412px) is documented in "Widths that matter"
+  // (docs/memory/content/howtos/verify-ui.mdx) as too forgiving; override to 360px.
+  // The project names are part of every screenshot's file name.
+  projects: (
+    [
+      ["desktop", devices["Desktop Chrome"], { width: 1440, height: 900 }],
+      ["mobile", devices["Pixel 7"], { width: 360, height: 780 }],
+    ] as const
+  ).flatMap(([form, device, viewport]) =>
+    (["light", "dark"] as const).map((colorScheme) => ({
+      name: `${form}-${colorScheme}`,
+      use: { ...device, viewport, colorScheme },
+    })),
+  ),
 });
