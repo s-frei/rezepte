@@ -1,22 +1,18 @@
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
-	import Plus from '@lucide/svelte/icons/plus';
 	import X from '@lucide/svelte/icons/x';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/auth.svelte.js';
-	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
 	import FaceStack from '#lib/components/ui/FaceStack.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import ListGroups from '#lib/components/shopping/ListGroups.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
 	import ViewSwitch from '#lib/components/shopping/ViewSwitch.svelte';
-	import { servingsUnit } from '#lib/recipe/format.js';
 	import { ScreenWakeLock } from '#lib/recipe/wake-lock.svelte.js';
-	import { departmentLabel } from '#lib/shopping/departments.js';
 	import { listHref } from '#lib/shopping/href.js';
 	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
-	import { followList } from '#lib/shopping/live.js';
 	import { listViews } from '#lib/shopping/rows.js';
 	import { listView } from '#lib/shopping/view.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -27,11 +23,9 @@
 	// As on the list page: the server's answer replaces the list, live changes refetch it.
 	// svelte-ignore state_referenced_locally
 	const lst = new ListState(data.list, failList);
+	lst.connect(() => data.list);
 	// `shown`: what another device just ticked stays in place for a moment.
 	const list = $derived(lst.shown);
-	$effect.pre(() => lst.load(data.list));
-	const listId = $derived(data.list.id);
-	$effect(() => followList(listId, (revision) => void lst.follow(revision)));
 
 	const { departments, recipes, done, openRows, doneRows } = $derived(
 		listViews(list, listView.current)
@@ -45,18 +39,7 @@
 
 	const wakeLock = new ScreenWakeLock();
 
-	onMount(() => {
-		void wakeLock.acquire();
-		// The browser drops the lock when the tab is hidden; take it again on return.
-		function onVisibilityChange() {
-			if (document.visibilityState === 'visible') void wakeLock.acquire();
-		}
-		document.addEventListener('visibilitychange', onVisibilityChange);
-		return () => {
-			document.removeEventListener('visibilitychange', onVisibilityChange);
-			void wakeLock.release();
-		};
-	});
+	onMount(() => wakeLock.hold());
 
 	const column = 'mx-auto w-full max-w-[720px] px-5';
 </script>
@@ -121,73 +104,13 @@
 		class="min-h-0 flex-1 overflow-y-auto [mask-image:linear-gradient(to_bottom,transparent,black_1.5rem,black_calc(100%-2.5rem),transparent)] pt-3 pb-10"
 	>
 		<div class={column}>
-			{#if listView.current === 'department'}
-				{#each departments as group (group.department)}
-					<section>
-						<h2
-							class="mt-4.5 mb-0.5 flex items-baseline justify-between gap-3 font-display text-heading font-medium text-primary italic"
-						>
-							{departmentLabel(group.department)}
-							<span class="font-sans text-body-sm font-semibold text-text-muted not-italic"
-								>{group.rows.length}</span
-							>
-						</h2>
-						<ul>
-							{#each group.rows as row (row.key)}
-								<ShoppingRow
-									checkers={list.members.length > 0}
-									{row}
-									shop
-									onToggle={(row) => lst.toggle(row)}
-								/>
-							{/each}
-						</ul>
-					</section>
-				{/each}
-			{:else}
-				{#each recipes as group (group.entry?.id ?? 'free')}
-					{@const rows = group.rows.filter((r) => !r.checked)}
-					{#if rows.length > 0}
-						<section>
-							<div class="mt-2 flex items-center gap-3 pt-4 pb-1">
-								{#if group.entry}
-									<EntryCover entry={group.entry} class="size-10 text-body-lg" />
-									<div class="min-w-0 flex-1">
-										<h2 class="font-display text-card font-medium text-pretty">
-											{group.entry.title}
-										</h2>
-										<p class="text-caption text-text-muted">
-											{group.entry.servings}
-											{servingsUnit(group.entry.servings)}
-										</p>
-									</div>
-								{:else}
-									<span
-										aria-hidden="true"
-										class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"
-									>
-										<Plus class="size-[18px]" />
-									</span>
-									<h2 class="min-w-0 flex-1 font-display text-card font-medium">
-										{m.list_free_items()}
-									</h2>
-								{/if}
-							</div>
-							<ul>
-								{#each rows as row (row.key)}
-									<ShoppingRow
-										checkers={list.members.length > 0}
-										{row}
-										bySource
-										shop
-										onToggle={(row) => lst.toggle(row)}
-									/>
-								{/each}
-							</ul>
-						</section>
-					{/if}
-				{/each}
-			{/if}
+			<ListGroups
+				{departments}
+				{recipes}
+				checkers={list.members.length > 0}
+				shop
+				onToggle={(row) => lst.toggle(row)}
+			/>
 
 			{#if done.length > 0}
 				<section class="mt-5">

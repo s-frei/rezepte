@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
-	import Plus from '@lucide/svelte/icons/plus';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
@@ -23,27 +22,26 @@
 		type ShoppingList
 	} from '#lib/api/shopping.js';
 	import AddItemCard from '#lib/components/shopping/AddItemCard.svelte';
-	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
 	import EntryMenu from '#lib/components/shopping/EntryMenu.svelte';
 	import PeopleSheet from '#lib/components/shopping/PeopleSheet.svelte';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
+	import IconButton from '#lib/components/ui/IconButton.svelte';
 	import ShareButton from '#lib/components/ui/ShareButton.svelte';
 	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import ItemSheet from '#lib/components/shopping/ItemSheet.svelte';
 	import ListImportDialog from '#lib/components/shopping/ListImportDialog.svelte';
+	import ListGroups from '#lib/components/shopping/ListGroups.svelte';
 	import ListMenu from '#lib/components/shopping/ListMenu.svelte';
+	import ListPanel from '#lib/components/shopping/ListPanel.svelte';
 	import ListSide from '#lib/components/shopping/ListSide.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
-	import ViewSwitch from '#lib/components/shopping/ViewSwitch.svelte';
 	import { session } from '#lib/auth.svelte.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
-	import { servingsUnit } from '#lib/recipe/format.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
 	import { listText, listViews, type Row } from '#lib/shopping/rows.js';
 	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
-	import { followList } from '#lib/shopping/live.js';
 	import { shopHref } from '#lib/shopping/href.js';
 	import { listView } from '#lib/shopping/view.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -57,17 +55,13 @@
 	const created = page.state.created === true;
 	const arrive = created ? 'motion-safe:animate-fade-in' : '';
 
-	// Starts as the first load; `load` below follows each later one, and every
+	// Starts as the first load; `connect` follows each later one, and every
 	// change replaces the list with the server's answer.
 	// svelte-ignore state_referenced_locally
 	const lst = new ListState(data.list, failList);
+	lst.connect(() => data.list);
 	// `shown`: what another device just ticked stays in place for a moment.
 	const list = $derived(lst.shown);
-	$effect.pre(() => lst.load(data.list));
-	// Follows the list live: another member's change refetches it.
-	// Only the id: a reload of the same list must not reopen the stream (every open refetches).
-	const listId = $derived(data.list.id);
-	$effect(() => followList(listId, (revision) => void lst.follow(revision)));
 
 	const { departments, recipes, done, openRows, doneRows } = $derived(
 		listViews(list, listView.current)
@@ -185,13 +179,13 @@
 <div class="pt-6 pb-8 md:pt-4">
 	<!-- Phone: back and ⋯ above the title; desktop: ⋯ beside it. One menu either way. -->
 	<header class="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4">
-		<a
+		<IconButton
 			href={resolve('/lists')}
-			aria-label={m.detail_back()}
-			class="inline-flex size-10 items-center justify-center justify-self-start rounded-full border border-border bg-surface hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:hidden"
+			label={m.detail_back()}
+			class="justify-self-start md:hidden"
 		>
 			<ArrowLeft class="size-5" aria-hidden="true" />
-		</a>
+		</IconButton>
 		<div class="col-span-2 row-start-2 mt-5 min-w-0 md:col-span-1 md:row-start-1 md:mt-0">
 			<h1 class="font-display text-display-md font-medium wrap-break-word md:text-display-lg">
 				{list.name}
@@ -266,130 +260,55 @@
 	<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
 		<div class="min-w-0 {arrive}" style:--fade-from={created ? 0.4 : undefined}>
 			<AddItemCard onadd={add} focus={created} />
-			<div class="mt-4 rounded-2xl bg-surface shadow-card">
-				<div
-					class="mx-4.5 border-b border-dashed border-border py-3.5 md:mx-6 md:flex md:items-center md:justify-between md:py-3"
+			<ListPanel open={openRows} done={doneRows} {empty}>
+				<ListGroups
+					{departments}
+					{recipes}
+					checkers={people.length > 1}
+					{flashId}
+					onToggle={(row) => lst.toggle(row)}
+					onOpen={openSheet}
 				>
-					<p class="text-caption text-text-muted max-md:hidden">
-						{m.list_counts({ open: openRows, done: doneRows })}
-					</p>
-					<ViewSwitch compact />
-				</div>
-				<div class="px-4.5 pb-3 md:px-6 md:pt-1.5 md:pb-4">
-					{#if empty}
-						<div class="py-10 text-center">
-							<p class="font-display text-heading font-medium">{m.list_empty_title()}</p>
-							<p class="mx-auto mt-1.5 max-w-sm text-body text-text-muted">{m.list_empty_text()}</p>
-						</div>
-					{:else if listView.current === 'department'}
-						{#each departments as group (group.department)}
-							<section>
-								<h2
-									class="mt-4.5 mb-0.5 flex items-baseline justify-between gap-3 font-display text-body-lg font-medium text-primary italic"
-								>
-									{departmentLabel(group.department)}
-									<span class="font-sans text-caption font-semibold text-text-muted not-italic"
-										>{group.rows.length}</span
-									>
-								</h2>
-								<ul>
-									{#each group.rows as row (row.key)}
-										<ShoppingRow
-											checkers={people.length > 1}
-											{row}
-											flash={!!flashId && row.itemIds.includes(flashId)}
-											onToggle={(row) => lst.toggle(row)}
-											onOpen={openSheet}
-										/>
-									{/each}
-								</ul>
-							</section>
-						{/each}
-					{:else}
-						{#each recipes as group, i (group.entry?.id ?? 'free')}
-							{@const rows = group.rows.filter((r) => !r.checked)}
-							{#if group.entry || rows.length > 0}
-								<section class={i > 0 ? 'mt-2 border-t border-border' : ''}>
-									<div class="flex items-center gap-3 pt-4 pb-1">
-										{#if group.entry}
-											{@const entry = group.entry}
-											<EntryCover entry={group.entry} class="size-10 text-body-lg" />
-											<div class="min-w-0 flex-1">
-												<h2 class="font-display text-card font-medium text-pretty">
-													{group.entry.title}
-												</h2>
-												<p class="text-caption text-text-muted">
-													{group.entry.servings}
-													{servingsUnit(group.entry.servings)}
-												</p>
-											</div>
-											<EntryMenu
-												{entry}
-												onservings={(n) => changeServings(entry, n)}
-												onremove={() => dropEntry(entry)}
-											/>
-										{:else}
-											<span
-												aria-hidden="true"
-												class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"
-											>
-												<Plus class="size-[18px]" />
-											</span>
-											<div class="min-w-0 flex-1">
-												<h2 class="font-display text-card font-medium">{m.list_free_items()}</h2>
-												<p class="text-caption text-text-muted">{m.list_free_items_hint()}</p>
-											</div>
-										{/if}
-									</div>
-									<ul>
-										{#each rows as row (row.key)}
-											<ShoppingRow
-												checkers={people.length > 1}
-												{row}
-												bySource
-												flash={!!flashId && row.itemIds.includes(flashId)}
-												onToggle={(row) => lst.toggle(row)}
-												onOpen={openSheet}
-											/>
-										{/each}
-									</ul>
-								</section>
-							{/if}
-						{/each}
-					{/if}
+					{#snippet entryMenu(entry)}
+						<EntryMenu
+							{entry}
+							onservings={(n) => changeServings(entry, n)}
+							onremove={() => dropEntry(entry)}
+						/>
+					{/snippet}
+				</ListGroups>
 
-					{#if done.length > 0}
-						<section class="mt-5">
-							<div class="flex flex-wrap items-center justify-between gap-x-2">
-								<h2 class="font-display text-body-lg font-medium text-text-muted italic">
-									{m.list_done_heading({ count: done.length })}
-								</h2>
-								<!-- A 44px target grown upward: the first done row's target starts right below.
+				{#if done.length > 0}
+					<section class="mt-5">
+						<div class="flex flex-wrap items-center justify-between gap-x-2">
+							<h2 class="font-display text-body-lg font-medium text-text-muted italic">
+								{m.list_done_heading({ count: done.length })}
+							</h2>
+							<!-- A 44px target grown upward: the first done row's target starts right below.
 								     Its padding is given back on the right, so its text ends where the
 								     counts above end; with 200% text it wraps to its own line, at the end. -->
-								<button
-									type="button"
-									onclick={() => lst.apply(clearChecked(list.id))}
-									class="relative -mr-1 ml-auto h-8 rounded-pill px-1 text-body-sm font-semibold whitespace-nowrap text-primary transition after:absolute after:inset-x-0 after:-top-[13px] after:bottom-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-								>
-									{m.list_clear_checked()}
-								</button>
-							</div>
-							<ul>
-								{#each done as row (row.key)}
-									<ShoppingRow
-										checkers={people.length > 1}
-										{row}
-										flash={!!flashId && row.itemIds.includes(flashId)}
-										onToggle={(row) => lst.toggle(row)}
-										onOpen={openSheet}
-									/>
-								{/each}
-							</ul>
-						</section>
-					{/if}
-				</div>
-			</div>
+							<button
+								type="button"
+								onclick={() => lst.apply(clearChecked(list.id))}
+								class="relative -mr-1 ml-auto h-8 rounded-pill px-1 text-body-sm font-semibold whitespace-nowrap text-primary transition after:absolute after:inset-x-0 after:-top-[13px] after:bottom-0 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+							>
+								{m.list_clear_checked()}
+							</button>
+						</div>
+						<ul>
+							{#each done as row (row.key)}
+								<ShoppingRow
+									checkers={people.length > 1}
+									{row}
+									flash={!!flashId && row.itemIds.includes(flashId)}
+									onToggle={(row) => lst.toggle(row)}
+									onOpen={openSheet}
+								/>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+			</ListPanel>
 		</div>
 
 		<aside class="min-w-0 max-lg:hidden {arrive}">

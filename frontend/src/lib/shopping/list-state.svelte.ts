@@ -1,5 +1,6 @@
 import { ApiError, isSignedOut } from '#lib/api/client.js';
 import { getShoppingList, setItemsChecked, type ShoppingList } from '#lib/api/shopping.js';
+import { followList } from './live';
 import type { Row } from './rows';
 
 /**
@@ -29,6 +30,17 @@ export class ListState {
 		public onfail: (error: unknown) => void
 	) {
 		this.list = initial;
+	}
+
+	/**
+	 * Ties the state to its page, called while the page sets up: every later
+	 * load replaces the list, and a member's change refetches it. Only the id
+	 * reopens the stream: a reload of the same list must not (every open refetches).
+	 */
+	connect(data: () => ShoppingList) {
+		$effect.pre(() => this.load(data()));
+		const id = $derived(data().id);
+		$effect(() => followList(id, (revision) => void this.follow(revision)));
 	}
 
 	/** A new page load: its list replaces the current one and outranks answers in flight. */

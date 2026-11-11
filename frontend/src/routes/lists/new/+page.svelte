@@ -8,8 +8,9 @@
 	import { isSignedOut } from '#lib/api/client.js';
 	import { createShoppingList } from '#lib/api/shopping.js';
 	import AddItemCard from '#lib/components/shopping/AddItemCard.svelte';
-	import ViewSwitch from '#lib/components/shopping/ViewSwitch.svelte';
+	import ListPanel from '#lib/components/shopping/ListPanel.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
+	import IconButton from '#lib/components/ui/IconButton.svelte';
 	import { handKeyboardTo, holdKeyboard } from '#lib/keyboard.js';
 	import { listHref } from '#lib/shopping/href.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -66,13 +67,13 @@
 	<!-- The list page's header: phone, close and "Create" above the name; desktop, both beside it. -->
 	<form onsubmit={create} class="mb-4">
 		<header class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4">
-			<a
+			<IconButton
 				href={resolve('/lists')}
-				aria-label={m.common_cancel()}
-				class="inline-flex size-10 items-center justify-center justify-self-start rounded-full border border-border bg-surface hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:hidden"
+				label={m.common_cancel()}
+				class="justify-self-start md:hidden"
 			>
 				<X class="size-5" aria-hidden="true" />
-			</a>
+			</IconButton>
 			<div class="col-span-2 row-start-2 mt-5 min-w-0 md:col-span-1 md:row-start-1 md:mt-0">
 				<input
 					bind:this={field}
@@ -103,21 +104,6 @@
 	<!-- What the list will be, waiting until it exists. -->
 	<div inert class="opacity-40">
 		<AddItemCard onadd={async () => false} />
-		<div class="mt-4 rounded-2xl bg-surface shadow-card">
-			<div
-				class="mx-4.5 border-b border-dashed border-border py-3.5 md:mx-6 md:flex md:items-center md:justify-between md:py-3"
-			>
-				<p class="text-caption text-text-muted max-md:hidden">
-					{m.list_counts({ open: 0, done: 0 })}
-				</p>
-				<ViewSwitch compact />
-			</div>
-			<div class="px-4.5 pb-3 md:px-6 md:pt-1.5 md:pb-4">
-				<div class="py-10 text-center">
-					<p class="font-display text-heading font-medium">{m.list_empty_title()}</p>
-					<p class="mx-auto mt-1.5 max-w-sm text-body text-text-muted">{m.list_empty_text()}</p>
-				</div>
-			</div>
-		</div>
+		<ListPanel open={0} done={0} empty />
 	</div>
 </div>
