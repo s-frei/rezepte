@@ -13,13 +13,15 @@ The root `mise.toml` is the monorepo root (`monorepo_root = true`) and names its
 |---|---|
 | `mise run setup` | installs every package's dependencies plus the Playwright browser, installs the Git LFS hooks, then `go mod download` |
 | `mise run dev` | `//service:dev` (watchexec restarts the API on `.go` changes) and `//frontend:dev` |
-| `mise run check` | `test:release`, `docker:compose:check` (validates `docker-compose.yaml` and `docker-compose.test.yaml`; skipped out loud where `docker compose` is missing) plus the four package `check` tasks |
+| `mise run check` | the gate before every commit: `test:release` (the release tooling's `bun test`), `playwright:image:check` (the e2e job's Playwright container matches the installed `@playwright/test`), `docker:compose:check` (validates `docker-compose.yaml` and `docker-compose.test.yaml`; skipped out loud where `docker compose` is missing) and the four package `check` tasks: `//service:check`, `//frontend:check`, `//docs/memory:check`, `//docs/user:check` |
 | `mise run build` | `//service:build`, which depends on `//frontend:build` — the SPA lands in `service/internal/web/dist` and is embedded |
 | `mise run docs` | both documentation sites |
 | `mise run e2e` | builds, starts the binary on a temporary data directory, runs the frontend Playwright suite |
 | `mise run demo` | builds, starts `rezepte --demo` on the demo port and keeps it up; with `-- <cmd>` it runs that command against it instead |
 | `mise run oidc:up` / `oidc:down` | starts or stops only Dex, the test identity provider `mise run e2e` and `mise run demo` sign in against when it is running ([Test OIDC sign-in](/howtos/test-oidc)) |
 | `mise run mail:up` / `mail:down` | starts or stops only Mailpit, the test mail server `mise run e2e` and `mise run demo` send into when it is running; its SMTP and inbox ports come from the worktree's offset and `mise run ports` lists them ([Email](/features/email)) |
+
+**`mise run check` must pass before every commit**, on every commit of a branch before it lands ([Commits](/conventions/commits#tidy-the-branch-before-it-lands)). CI runs more besides (see below).
 
 Docker is the one tool in this list not in `[tools]`: nothing else here needs it, so a contributor who never runs `oidc:up` or `mail:up` and never touches `docker-compose*.yaml` does not have to install it, and `frontend/e2e/oidc.test.ts` and `frontend/e2e/mail.test.ts` skip themselves rather than failing when Dex or Mailpit is not running.
 
@@ -63,7 +65,7 @@ CI runs on every pull request, so each of these shows up as a red check rather t
 
 ## Worktrees and ports
 
-The unit of feature work is a git worktree under `.worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`mise/tasks/worktree/new.sh`) and removed with `mise run worktree:remove <name>` (`mise/tasks/worktree/remove.sh`), which also deletes the branch once it is merged. [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure and the port table; this page is the scheme behind it.
+The unit of feature work is a git worktree under `.worktrees/<name>`, branched off `develop` as `feat/<name>` and created with `mise run worktree:new <name>` (`mise/tasks/worktree/new.sh`) and removed with `mise run worktree:remove <name>` (`mise/tasks/worktree/remove.sh`), which also deletes the branch once it is merged. [Work in a worktree](/howtos/work-in-a-worktree) owns the procedure; this page is the scheme behind it.
 
 **Every port derives from one offset.** The root `mise.toml` `[env]` block defines `RZP_BACKEND_PORT`, `RZP_FRONTEND_PORT`, `RZP_DEMO_PORT`, `RZP_E2E_PORT`, `RZP_SCREENSHOTS_PORT`, `RZP_DOCS_MEMORY_PORT`, `RZP_DOCS_USER_PORT`, `RZP_DEX_PORT`, `RZP_MAILPIT_SMTP_PORT` and `RZP_MAILPIT_UI_PORT` as `base + REZEPTE_PORT_OFFSET * 100`, reading the offset from `[vars]` in the worktree's `mise.local.toml`. The main checkout runs at offset 0 and keeps the project's default numbers exactly; a worktree gets an offset of its own, so two full stacks never bind the same socket. `mise run ports` (`mise/tasks/ports.sh`) prints this worktree's map — never write a port number into a file, and never assume one in a command.
 
@@ -80,7 +82,7 @@ Every consumer reads the variable rather than a literal: `frontend/vite.config.t
 
 The binary embeds the frontend. Splitting the two across repositories would put a cross-repo coordination step in front of every release of a single artifact, so they share a repository and a version.
 
-One command is the gate. `mise run check` runs the same four package gates a reviewer, an agent and CI run, which is only true while the tool versions are pinned in the repository rather than installed by hand.
+One command is the gate. `mise run check` runs the same gates a reviewer, an agent and CI run, which is only true while the tool versions are pinned in the repository rather than installed by hand.
 
 Deriving the port register from the worktrees that exist cannot go stale. Any scheme that records offsets separately has a cleanup obligation, and the one time it is skipped, the register hands out an offset that is still in use — which is the exact failure the scheme exists to prevent.
 

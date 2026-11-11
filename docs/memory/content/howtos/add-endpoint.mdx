@@ -73,8 +73,14 @@ description: huma operations, security, errors
   </Step>
   <Step>
 
+    ### Call it from the frontend
+    Add the call and its types by hand to the resource's file in `frontend/src/lib/api/`; nothing generates them ([Architecture overview](/architecture/overview)).
+
+  </Step>
+  <Step>
+
     ### Regenerate the API reference
-    The OpenAPI document changed, so run `mise run //docs/user:openapi` and commit `docs/user/public/openapi.json` and `docs/user/content/api/reference/`; CI regenerates them and fails on a difference ([Regenerate the API reference](/howtos/regenerate-api-reference)). The frontend calls the operation through a typed function in `src/lib/api/`, and the feature's memory page names the new route.
+    The OpenAPI document changed, so run `mise run //docs/user:openapi` and commit `docs/user/public/openapi.json` and `docs/user/content/api/reference/`; CI regenerates them and fails on a difference ([Regenerate the API reference](/howtos/regenerate-api-reference)). The frontend calls the operation through a typed function in `frontend/src/lib/api/`, whose request and response types are written by hand there - no generator reads the OpenAPI document - and the feature's memory page names the new route.
 
   </Step>
 </Steps>
@@ -99,8 +105,12 @@ Two exported types with the same name in different feature packages (two called 
 
   `requireAdmin` hands back the caller, and that is what the third layer needs: an operation acting on another user account passes the caller into the service, which applies the rank rules in `service/internal/user/permission.go` - an admin manages plain members, anything touching an admin or the instance owner belongs to the owner (see [Users and authentication](/features/users-and-auth)). Scope answers "may this credential reach the operation", role answers "may this caller use it at all", rank answers "may this caller do it to that target".
 
+  An operation that changes a recipe or anything under it (its images included) calls `recipe.GuardEdit` inside its transaction, which returns `ErrNotFound` or `ErrEditForbidden` for this actor ([Editing rights](/features/editing-rights)).
+
 </Callout>
 
 ## Non-JSON responses
 
 A huma operation frames its response as JSON unless it returns a `*huma.StreamResponse`, which is how a byte stream (an image, a download) stays an operation and so stays in the document: its `Body` gets the `huma.Context`, and `humago.Unwrap(ctx)` yields the `*http.Request` and `http.ResponseWriter` for `http.ServeContent` or a foreign handler. Return a `huma.Error…` before the stream for a failure, since the stream itself can no longer change the status. A stream has no schema, so declare the `200` in `Responses` by hand; for a JPEG, return `image.JPEG(f, cacheControl)` and use `image.JPEGResponses` (`internal/image/file.go`). Security, tags and path parameters work as for any operation, even for a path outside `/api/v1`. Never register an API route with `srv.Handle`: the document would not know it ([HTTP API](/architecture/api)).
+
+A change that adds a field to a recipe or a step touches more than the operation; follow [Adding a field to a recipe or a step](/features/recipes#adding-a-field-to-a-recipe-or-a-step).

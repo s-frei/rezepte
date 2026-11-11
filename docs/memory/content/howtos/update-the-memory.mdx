@@ -1,27 +1,97 @@
 ---
 title: Update the memory
-description: Which page owns which fact, and how to change it
+description: How the memory is built, how to write a page, and which page owns which fact
 ---
 
-The memory holds one page per thing that exists. Updating it is therefore not writing a new entry: it is finding the page that owns the fact and rewriting the sentence that is now wrong.
+This page is the one place that says how the memory is written. Its rules are project-neutral; only the last section, [In this repository](#in-this-repository), names Rezepte's paths and tools. To give another project the same memory, copy this page and `docs/memory/scripts/memory-audit.ts`, then rewrite that last section and the config block at the top of the script; the phrasing lists below the block are project-neutral.
 
-## What belongs here
+<Callout type="warn" title="Before you commit a memory change">
 
-This memory describes **the repository, not the machine and not the day**.
+- The fact sits on the page that owns it; every other page links there instead of repeating it.
+- It says what is true now: no dates, no "used to", no "for now", no correction appended beside the old claim.
+- Each paragraph leads with its rule and holds one idea; none runs past 300 words.
+- A section past about 1,000 words is split with `###` subheadings.
+- A trap - something that breaks the build, loses data or fails silently - is a one-line bullet in the page's `Traps` Callout near the top.
+- Nothing the code already shows: no pixel sizes, class lists or copied lists of routes, keys or fields.
+- No machine's setup: no absolute paths, usernames, hostnames or one laptop's quirks.
+- The audit passes ([Run the gate](#run-the-gate)).
 
-**Write the present.** Every page says what is true now. When something changes, rewrite the sentence - do not append a correction, do not leave the old claim standing beside the new one, and do not add a date. Git holds what the page said before, and a page that reads as a changelog has stopped being memory. There is one document per thing that exists, never one per event, so the number of pages follows the size of the system rather than the age of the project. Reasoning moves with its subject: why a thing is shaped the way it is, and which alternatives were weighed and refused, live on that thing's page under `## Why it is this way` and `## Rejected`.
+</Callout>
 
-**Write the constraint, not the event.** "macOS binds port 5000 system-wide to the AirPlay receiver, which answers every request with 403" is durable: it explains the choice and stops anyone picking 5000 again. "We moved off 5000 on 2026-09-18" is the same fact with a shelf life, and git already records it. So: no dates, no "originally", no "used to", no "for now", no "Phase 2", no "no longer, since", no "not built yet". If a sentence only makes sense to someone who knows what the repository looked like before, rewrite it as the constraint that outlived it. Where a concrete incident is what makes a rule credible, keep it to one sentence and lead with the rule.
+## The shape
 
-**One fact, one owner.** A value written in two places will rot in one of them. Ports, paths, task names and commands are named where they belong and linked from everywhere else - for ports that means `mise run ports`, never a copied number or table. A list a source file already holds - routes, icons, color values, environment variables - is pointed at, not copied.
+The memory holds **one page per thing that exists, never one per event**. Updating it means finding the page that owns the fact and rewriting the sentence that is now wrong, so the number of pages follows the size of the system, not the age of the project.
 
-**Never record one machine's setup.** No absolute paths, usernames, hostnames, or "on the development machine" quirks: this repository is meant to be readable by anyone, on any machine, and it may become public. A workaround that is true only of one laptop belongs in that developer's own notes. Ports named here are the project's own defaults (offset 0), not a fact about anyone's setup.
+| Section | Holds | One page per |
+| --- | --- | --- |
+| Index | What the project is, a routing table from "your task touches" to the pages to read, a map of the top-level folders | - |
+| Architecture | The shape of the system: packages, tables, endpoints, tokens, the toolchain, the docs sites | part of the system |
+| Features | What a user can do, how it works, why, what was refused, what it does not do | user-visible capability with facts beyond its look |
+| Conventions | How to write code and commits: rules for a whole class of files | language or concern |
+| How-tos | Step-by-step guides for work that recurs | recurring task |
 
-**Write down what the next agent would rediscover.** A trap you hit, the way a change finally got tested, a gate that passed when it should have failed: if the next agent would have to find it again, it goes into the page that owns it, in the commit that taught it. An agent's private memory is invisible to every other agent and to every other developer; keep only what is about one person and how they like to work there.
+The agent's entry file (`AGENTS.md`) lists only the hard rules, each with a `→` to the page that explains it, and sends every agent to the index first.
 
-**A rule for a class goes to the class.** A learning that holds for a whole class of cases - every sheet, every dialog, every e2e test, every migration - belongs to that class's general owner: a section of [Design system](/architecture/design-system), a page under Conventions, or a how-to. The feature page where you met it keeps only what is specific to that feature and links to the rule. Two signs that a rule is hiding in a feature page: a paragraph past about 300 words, and the same trap told on two feature pages.
+### A feature page carries four sections
 
-**Write for an agent that greps.** Nobody reads the memory end to end. Lead each paragraph with its rule, keep one idea per paragraph, and leave out what the code already shows - the pixel sizes and class lists of a component, the fields of a generated schema.
+The four `##` sections in this order, which the audit enforces (it does not check the Callout):
+
+```markdown
+---
+title: The capability
+description: One line naming what it does
+---
+
+A paragraph saying what a user can do and which packages hold it.
+
+<Callout type="warn" title="Traps">
+- One line per trap, linking down to the detail.
+</Callout>
+
+## How it works
+
+### One subheading per part
+
+## Why it is this way
+
+## Rejected
+
+## Limits
+```
+
+- **How it works** is the present-tense description, split into `###` parts once it grows past a screen.
+- **Why it is this way** is the reasoning: why this shape and not another.
+- **Rejected** names options that were weighed and not taken. Keep an entry only while a competent agent might still propose it; delete one that has become unthinkable.
+- **Limits** names what the thing deliberately does not do.
+
+The `Traps` Callout is there only when the page has traps; a page without them leaves it out.
+
+### What earns a page under features
+
+A capability earns one when it carries facts no component file states: a contract with the service (an endpoint, a table, files on disk), a rule that has to hold across several places (a storage key, an upload limit, shared arithmetic), or a refused alternative someone would still propose.
+
+A capability whose facts are exhausted by how it looks and how its component is written already has an owner: a row in the design-system page or a rule in a conventions page. Giving it a page would split its facts rather than collect them. Rezepte's command palette, theme switching, recipe editor and tag filter are owned that way.
+
+## Writing rules
+
+### What to write
+
+- **Write the present.** Every page says what is true now. When something changes, rewrite the sentence; git holds what it said before.
+- **Write the constraint, not the event.** "macOS binds port 5000 to the AirPlay receiver, which answers every request with 403" is durable; "we moved off 5000 last September" has a shelf life. So no dates, no "originally", "used to", "for now", "Phase 2", "not built yet". Where an incident makes a rule credible, keep it to one clause after the rule.
+- **One fact, one owner.** A value written in two places rots in one of them. Ports, paths, task names and commands are named where they belong and linked from everywhere else. A list a source file already holds - routes, icons, colors, environment variables - is pointed at, not copied.
+- **A rule for a class goes to the class.** A learning that holds for every sheet, every dialog, every e2e test or every migration belongs to that class's owner: a section of an architecture page, a conventions page or a how-to. The feature page where you met it keeps what is specific to the feature and links to the rule. A paragraph past 300 words, or the same trap on two feature pages, is the sign a class rule is hiding there.
+- **Write down what the next agent would rediscover.** A trap you hit, the way a change finally got tested, a gate that passed when it should have failed: it goes into the owning page in the commit that taught it. An agent's private memory is invisible to every other agent; keep only what is about one person and how they like to work.
+- **Never record one machine's setup.** No absolute paths, usernames, hostnames or "on the development machine" quirks; the repository is meant to be readable by anyone. Ports are named by their variable and the project's default, not by one checkout's offset.
+
+### How to write it
+
+Nobody reads the memory end to end. Agents grep, land mid-page and read a screen.
+
+- **Lead each paragraph with its rule**, then the reason. One idea per paragraph, at most 300 words.
+- **Make the important things look important.** Traps go in the `Traps` Callout at the top, each one line. Bold marks the one sentence of a paragraph that is its rule, never decoration. A hard rule from the entry file gets a `Callout` on its owning how-to.
+- **Use structure where the content has it.** A list in prose is a bulleted list; values side by side are a table; a sequence is `<Steps>`. Headings are the table of contents, so a long section gets `###` subheadings named after what they hold.
+- **Leave out what the code shows.** A component's pixel sizes, class lists, animation timings and the fields of a generated schema live in the code. Write what a reader who has to change the thing must know that the code does not say: the contract, the rule across places, the trap, the reason.
+- **Link, do not retell.** Name the owning page with a link, with an anchor when the fact sits in one section.
 
 ## How to change it
 
@@ -29,58 +99,41 @@ This memory describes **the repository, not the machine and not the day**.
   <Step>
 
     ### Find the page that owns the fact
-    A user-visible capability is a page under [Features](/features/recipes). The shape of the system - packages, tables, endpoints, tokens, the toolchain, the documentation sites - is a page under [Architecture](/architecture/overview). How to do a recurring task is a [how-to](/howtos). How to write code is a page under [Conventions](/conventions/go).
-
-    If the fact is true of a whole class of things rather than of this one, its owner is the class's page, not the feature's (see "A rule for a class goes to the class" above). If the fact has no page and the thing it describes exists, create the page. If two pages would both take the sentence, one of them owns the subject and the other links to it: a value written twice rots in one of the copies.
-
-    **What earns a page under `features/`.** A capability earns one when it carries facts no component file states: a contract with the service - an endpoint, a table, files on disk - a rule that has to hold across several places such as the scaling arithmetic, a storage key or an upload limit, or an alternative a competent agent would still propose and that was refused for a reason. Those are what the four sections further down are fillable with.
-
-    A capability whose facts are exhausted by how it looks and how its component is written already has an owner: a row or a bullet in [Design system](/architecture/design-system) for the first, a rule in [Svelte conventions](/conventions/svelte) for the second. The command palette, theme switching, the recipe editor and the tag filter are owned that way, and giving one of them a page would split its facts rather than collect them. So ask what a reader who has to change the thing must know that the code does not already say, and write it where that answer already lives.
+    A user-visible capability is a page under Features, the system's shape a page under Architecture, a recurring task a how-to, how to write code a page under Conventions. If the fact holds for a whole class, its owner is the class's page, not the feature's. If two pages would both take the sentence, one owns the subject and the other links to it. If the thing exists and has no page, create one.
 
   </Step>
   <Step>
 
-    ### A new feature page carries the four sections
-    In this order, and the audit enforces both their presence and their order:
-
-    ```markdown
-    ---
-    title: The capability
-    description: One line naming what it does
-    ---
-
-    A paragraph saying what a user can do and which packages hold it.
-
-    ## How it works
-
-    ## Why it is this way
-
-    ## Rejected
-
-    ## Limits
-    ```
-
-    `How it works` is the present-tense description. `Why it is this way` carries the reasoning: why this shape and not another. `Rejected` names the options that were weighed and not taken. `Limits` names what the thing deliberately does not do. Add the page to `docs/memory/content/features/meta.json` in the same change, so navigation never names a page that has no file. A new how-to goes into `docs/memory/content/howtos/meta.json` and gets a `<Card>` in `howtos/index.mdx`; the memory audit fails while either is missing.
+    ### Rewrite, do not append
+    Change the sentence that is now wrong. Remove what is gone: a capability that is removed takes its page and the links into it with it, in the same change.
 
   </Step>
   <Step>
 
-    ### Keep a rejected option only while someone might still propose it
-    A `## Rejected` entry earns its place by stopping an agent from suggesting the same discarded option again. Delete one that has become unthinkable. A section that only grows is the thing this structure replaced.
-
-  </Step>
-  <Step>
-
-    ### Delete the page when the thing is gone
-    One document per thing that exists. The number of pages follows the size of the system, not the age of the project, so removing a capability removes its page and the links into it in the same change.
+    ### Register a new page
+    Add it to its folder's navigation, and a how-to also to the how-to index and, when an agent would look for it by task, to the routing table on the index ([In this repository](#in-this-repository) names the files).
 
   </Step>
   <Step>
 
     ### Run the gate
-    `mise run check` must pass before the commit; `mise run //docs/memory:check` is the fast loop while writing. `docs/memory/scripts/memory-audit.ts` is the part that reads the prose: it fails when a `mise run` task name does not exist, when a repository path in backticks does not exist, when a link into the memory resolves to no page, when a `features/` page is missing one of its four sections or carries them out of order, when a sentence names one machine's setup, and when a sentence describes an event instead of a constraint.
-
-    It cannot tell whether a sentence is true, only whether the things it names still exist. Everything else rests on the rules above.
+    The audit reads the prose for what can be checked mechanically ([In this repository](#in-this-repository) lists every check). It cannot tell whether a sentence is true, only whether the things it names exist and whether the page keeps the form above; everything else rests on these rules.
 
   </Step>
 </Steps>
+
+## In this repository
+
+- **Entry file:** `AGENTS.md`, with `CLAUDE.md` a symlink to it, so Claude Code and every tool that looks for `AGENTS.md` read the same file. Edit `AGENTS.md`; never replace the symlink with a copy.
+- **Pages:** `docs/memory/content/`, a Fumadocs site. Each folder's `meta.json` lists its pages in navigation order; the how-to index is `docs/memory/content/howtos/index.mdx`, one `<Card>` per how-to with the page's `description` as its text.
+- **Gate:** `mise run //docs/memory:check` is the fast loop while writing; `mise run check` runs it with everything else before a commit.
+- **Audit:** `docs/memory/scripts/memory-audit.ts` fails when
+  - a `mise run` task does not exist, or a backticked path under `service/`, `frontend/`, `docs/`, `mise/`, `assets/` or `.github/` (or `mise.toml`, `AGENTS.md`, `CLAUDE.md`) is neither tracked nor an unignored new file - write paths from the repository root so they are checked;
+  - a link into the memory, or its `#anchor`, resolves to nothing;
+  - a page is missing from its folder's `meta.json`, or `meta.json` names a page that has no file;
+  - a how-to has no `<Card>`, or its card text differs from the page's `description`;
+  - a `features/` page lacks one of its four sections or orders them differently;
+  - a paragraph or list item runs past 300 words, or a `##` section past 1,000 words has no `###`;
+  - a sentence names one machine's setup or describes an event instead of a constraint (this page is exempt, since it quotes what it forbids).
+
+  Ports are not checked: every port in the memory is a default named beside its variable or a `mise run ports` pointer.

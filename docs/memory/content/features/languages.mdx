@@ -5,7 +5,17 @@ description: The two interface languages, where the choice lives, and how it rea
 
 Rezepte's interface exists in English and German. `en` is the base locale - the one a string falls back to if nothing else applies - and it is also the instance default: an operator who sets nothing gets an English instance. Every account carries its own choice, so two people signed into the same instance can each read the app in a different language.
 
+<Callout type="warn" title="Traps">
+
+- A locale in `service/internal/i18n/locales.json` without a catalog in `frontend/messages/` still compiles and falls back to English for every message; `service/internal/i18n/i18n_test.go` catches it ([The set of languages](#the-set-of-languages)).
+- `go:embed` refuses a symlink, so `locales.json` cannot be shared with `frontend/` that way ([The set of languages](#the-set-of-languages)).
+- Every e2e and screenshot run must stay English whatever the developer's `REZEPTE_LOCALE` says; a German test asks for German fixtures and accounts explicitly ([Tests](#tests)).
+
+</Callout>
+
 ## How it works
+
+### The set of languages
 
 **The set of languages is written down once, in `service/internal/i18n/locales.json`**: `{"baseLocale": "en", "locales": ["en", "de"]}`, and nothing else. Both sides read that file.
 
@@ -20,15 +30,21 @@ Everything else derives from that file. The API's enum comes from `user.Locales`
 
 The one thing that does not derive from the file is the [recipe import](/features/recipe-import)'s word table for the language (`service/internal/recipeimport/lang_<locale>.go`), since units and headings are not interface strings. `TestEveryAppLanguageHasAnImportTable` reads `i18n.Locales()` and fails for a locale without one; [Add an import language](/howtos/add-an-import-language) says what goes in it.
 
+### An account's language
+
 **Every account has a `locale` in the `users` table**, `NOT NULL` like `role` and `color` beside it. `REZEPTE_LOCALE` (default `en`) sets `user.Service`'s `defaultLocale`, which a new account gets when nothing more specific is given: `POST /api/v1/users` accepts an optional `locale` field that overrides it for one new member, and the instance owner created at startup always gets it. `REZEPTE_LOCALE` also selects which demo fixture `--demo` seeds, falling back to English for a language without its own - see [Demo mode](/features/demo-mode).
 
 **Changing it afterwards is self-service.** `PATCH /api/v1/auth/me/profile` accepts `locale` alongside `displayName` and `color`, and only ever targets the caller's own row - the admin-only `PATCH /api/v1/users/{id}` has no `locale` field in its body at all, the same way a rename is the owner's alone (`user.CanEditProfile`). Nobody but the account holder can change what language their own screen renders in.
+
+### Reaching the browser
 
 **The Go service writes a `PARAGLIDE_LOCALE` cookie so the SPA can resolve a locale before it renders anything.** `auth.LocaleCookie` sets it on every sign-in - password, setup link and OIDC alike - and, unconditionally, on every call to `PATCH /api/v1/auth/me/profile` that succeeds - not only one that changes the locale - always from the just-loaded `users` row; `auth.expiredLocaleCookie` clears it on logout. The cookie is deliberately not `HttpOnly` - Paraglide's cookie strategy reads it from JavaScript, and it carries a display preference, nothing a session could be hijacked with.
 
 **Paraglide resolves a locale by trying three strategies in order: `cookie`, `preferredLanguage`, `baseLocale`.** Signed in, the cookie above wins, so the account's own choice is what renders regardless of the browser. Signed out - the login screen - there is no cookie yet, so the browser's own language (`preferredLanguage`, read from `navigator.languages`) decides; a browser reporting a language this app doesn't have falls through to `baseLocale`, which is `en`. `<html lang>` is kept in step with whichever locale actually rendered by a `$effect` in the root layout that reads `getLocale()`. The cookie is not reactive, so the effect also reads `session.user`: login and sign-out change the cookie without a reload and set `session.user` right after, which re-runs it; every other locale change reloads the page.
 
 **The SPA reconciles the cookie against the row on every session load.** `adoptAccountLocale` in `frontend/src/lib/auth.svelte.ts` compares the `locale` that `GET /auth/me` just returned with Paraglide's `getLocale()`, and calls `setLocale` when they differ; the root `+layout.ts` load is its only caller, right after it assigns `session.user`. Without it a device that signed in before the language was changed on another one would keep rendering the old language for a year, the cookie's `MaxAge`. The reload is left to `setLocale`'s own default here, unlike in `LanguageControl.svelte`, where the PATCH response has already installed the new cookie and Paraglide therefore sees no change to reload for. It cannot loop: `setLocale` writes the cookie before it reloads, `cookie` is the first strategy, and the row is untouched, so the comparison after the reload comes out equal.
+
+### Tests
 
 **Both Playwright suites run in English, whatever a developer's own `REZEPTE_LOCALE` says.** `mise/tasks/e2e.sh` sets `REZEPTE_LOCALE=en` directly on the binary and `frontend/e2e/helpers.ts` pins the `PARAGLIDE_LOCALE` cookie to English before every login; the screenshot tasks set `RZP_DEMO_LOCALE=en`, which `mise/tasks/demo.sh` prefers over `REZEPTE_LOCALE` for the reason [Toolchain](/architecture/toolchain) gives.
 

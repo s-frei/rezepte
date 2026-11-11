@@ -18,9 +18,9 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run dev
     ```
-    Go API on `http://localhost:8060` (restarts on `.go` changes), SvelteKit on `http://localhost:9060` (proxies `/api`, `/images`, `/avatars` and `/healthz` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
+    Go API on `http://localhost:8060` (`RZP_BACKEND_PORT`; restarts on `.go` changes), SvelteKit on `http://localhost:9060` (`RZP_FRONTEND_PORT`; proxies `/api`, `/images`, `/avatars` and `/healthz` to Go, so the browser sees one origin and the API's origin check still matches) - both by default; run `mise run ports` to see the numbers for this worktree, see [Work in a worktree](/howtos/work-in-a-worktree).
 
-    Log in as `admin` / `admin1234` at `http://localhost:9060/login` (or the frontend port `mise run ports` gives this worktree); the task prints the pair as it starts. `REZEPTE_ADMIN_PASSWORD` has no default in the binary - an empty `users` table without it is `ErrAdminPasswordRequired` and the service refuses to start, see [Users and auth](/features/users-and-auth) - so `//service:dev` defaults it to the username with `1234` appended, like every bootstrapped account here ([Development credentials](/conventions/dev-credentials)); a value set in the environment still wins. That password creates the instance owner on the very first start and is read again only by `rezepte --reset-superadmin-password`.
+    Log in as `admin` / `admin1234` at `http://localhost:9060/login` (`RZP_FRONTEND_PORT`, or the frontend port `mise run ports` gives this worktree); the task prints the pair as it starts. `REZEPTE_ADMIN_PASSWORD` has no default in the binary - an empty `users` table without it is `ErrAdminPasswordRequired` and the service refuses to start, see [Users and auth](/features/users-and-auth) - so `//service:dev` defaults it to the username with `1234` appended, like every bootstrapped account here ([Development credentials](/conventions/dev-credentials)); a value set in the environment still wins. That password creates the instance owner on the very first start and is read again only by `rezepte --reset-superadmin-password`.
 
     For an instance that already has recipes in it, `mise run demo` starts the built binary with the twelve samples on the demo port and keeps it up until Ctrl-C (`demo` / `demo1234`) - no dev server, no HMR, but nothing to fill in either ([Demo mode](/features/demo-mode)).
 
@@ -33,7 +33,7 @@ description: Dev servers, builds and the check gate
     ```bash
     mise run docs
     ```
-    `mise run docs` starts the memory site on `http://localhost:4000` and the user docs on `http://localhost:4001` by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). Both sites listen on `0.0.0.0` and both `next.config.mjs` files pass this machine's own IPv4 addresses as `allowedDevOrigins`, so a phone on the same network can open them: without that, Next answers the HTML but 403s every `/_next/*` chunk, and the page renders once and never hydrates.
+    `mise run docs` starts the memory site on `http://localhost:4000` (`RZP_DOCS_MEMORY_PORT`) and the user docs on `http://localhost:4001` (`RZP_DOCS_USER_PORT`) by default - run `mise run ports` for this worktree's numbers, see [Work in a worktree](/howtos/work-in-a-worktree). Both sites listen on `0.0.0.0` and both `next.config.mjs` files pass this machine's own IPv4 addresses as `allowedDevOrigins`, so a phone on the same network can open them: without that, Next answers the HTML but 403s every `/_next/*` chunk, and the page renders once and never hydrates.
 
   </Step>
   <Step>

@@ -82,11 +82,11 @@ description: One worktree per feature, one port offset per worktree
 
     ### Tidy the history, then merge
 
-    Before the branch lands, give its history the shape you want to read later: one commit per finished change, no fixup trail. See [Commits](/conventions/commits). Squash while the branch is still yours - after the merge it is final.
+    Before the branch lands, give its history the shape you want to read later: one commit per finished change, no fixup trail. Squash while the branch is still yours - after the merge it is final.
 
     Review findings that take minutes - a missing error toast, a limit, a test hook, a doc sentence - are fixed on the branch before it lands, not listed as deferred. Only a costly or debatable one stays open, and the hand-over says why.
 
-    A branch lands only after the maintainer says yes to that landing, asked as a question of its own - a yes to anything else beside it is not one. Then the agent lands it itself rather than handing over a command: `git rebase develop --exec 'mise run check'` so every commit passes the gate, back to the main checkout, confirm it is on a clean `develop`, and `git merge --ff-only feat/<name>`. Pushing, `main` and tags stay with the maintainer ([Commits](/conventions/commits#branches-git-flow)).
+    **A branch lands only after the maintainer says yes to that landing, asked as a question of its own** - a yes to anything else beside it is not one. Then the agent lands it itself rather than handing over a command, with the sequence in [Tidy the branch before it lands](/conventions/commits#tidy-the-branch-before-it-lands). Pushing, `main` and tags stay with the maintainer ([Commits](/conventions/commits#branches-git-flow)).
 
   </Step>
   <Step>

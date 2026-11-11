@@ -5,7 +5,18 @@ description: A flag that fills an empty instance with the twelve sample recipes 
 
 `rezepte --demo` fills an empty instance with sample recipes and their photos, so screenshots have realistic data and manual testing has something to click through. The flag is declared in `service/cmd/rezepte/main.go` and everything it does lives in `service/internal/demo/seed.go`.
 
+<Callout type="warn" title="Traps">
+
+- `--reset-superadmin-password` never falls back to `demo1234`: the published password must never land on the owner's account, so a reset without `REZEPTE_ADMIN_PASSWORD` fails ([Credentials and logins](#credentials-and-logins)).
+- A renamed sample loses its photos unless its folder under `service/internal/demo/photos` is renamed too; `TestEveryPhotoSetBelongsToASample` catches it ([Photos](#photos)).
+- The photo originals are excluded from every clone by `.lfsconfig`; `mise run demo-photos` fetches them first, a plain build never sees them ([Photos](#photos)).
+- The user-docs screenshot specs share one demo instance in a fixed order: a detail shot that marked a recipe's comments seen would take the dot off its card in every later shot, so `prepare` answers `PUT …/comments/seen` itself ([A fixed clock for screenshots](#a-fixed-clock-for-screenshots)).
+
+</Callout>
+
 ## How it works
+
+### Seeding
 
 **It seeds like any other run, into the configured data directory.** `demo.Seed` builds the same `recipe.Service` and `image.Service` the API uses and writes through them, into `REZEPTE_DATA_DIR` (default `./data`) with the photos under its `images/` subdirectory. The flag does not invent a temporary directory of its own. Seeding runs after the instance owner is ensured and before the HTTP server starts listening, so `/healthz` answers only once the instance is fully populated.
 
@@ -19,9 +30,13 @@ description: A flag that fills an empty instance with the twelve sample recipes 
 - `Seed` creates the set back to front, because the overview sorts by `updated_at` descending and that puts the first sample on top.
 - The recipes are created under the user `findOwner` resolves: the account whose name matches `REZEPTE_ADMIN_USER`, else the first user by username, and `ErrNoUsers` when the instance has none. The exception are the samples `Seed`'s `members` argument claims, below.
 
+### Credentials and logins
+
 **The demo credentials apply only when the operator configured none, and never to a reset.** `demo.AdminUser` is `demo` and `demo.AdminPassword` is `demo1234`. `useDemoDefaults` in `main.go` substitutes both — username and password together — when `--demo` is passed, `REZEPTE_ADMIN_PASSWORD` is empty and the run is a start; with that variable set, the operator's own user and password are what the instance gets, and the logins table says the password came from the environment rather than printing it. `--demo --reset-superadmin-password` gets no substitution at all: `demo1234` is printed in the user documentation, and writing it onto the instance owner's account is the one thing the fallback must never do, so a reset with no `REZEPTE_ADMIN_PASSWORD` is `ErrAdminPasswordRequired` whether `--demo` is there or not. The same pair is repeated once more, deliberately, in `docs/user/scripts/demo-user.ts`, which is where the build-time tools that drive a demo instance read it from.
 
 **The logins are printed as a table, past the log level.** `seedDemo` ends by writing `demo ready at <url>` and a user / password / role table between two rules straight to stdout (`writeDemoTable`), not through the logger: `mise run demo` runs the binary at `REZEPTE_LOG_LEVEL=warn`, and the logins are what somebody starting a demo is looking for, so the task prints no login line of its own. The rows are the admin and, on the demo credentials, `demo.Members` with their `demo.MemberPassword` (`<name>1234`) - taken from the list, not from what `AddMembers` created, because on a kept data directory it creates nobody and the members are there all the same. The URL is `config.Config.OpenURL` (`REZEPTE_PUBLIC_URL`, else `REZEPTE_ADDR` with every-interface hosts shown as `localhost`); inside a container that is the container's port, which is why `mise run docker:demo` still echoes the host port itself. With `REZEPTE_LOG_FORMAT=json` there is no table, but one `demo: ready` record with the URL and the same rows, which a log collector can read.
+
+### The demo household
 
 **On the demo credentials, the household has more people, and they did things.** `seedDemo` in `main.go` runs `demo.AddMembers` before the seed and `demo.SeedMembers` and `demo.SeedAvatars` after it, and only when `useDemoDefaults` substituted the published credentials: the members' passwords are as public as `demo1234`, and an operator who set `REZEPTE_ADMIN_PASSWORD` gets no accounts they did not ask for. All of it follows the seed - `AddMembers` creates nobody on an instance that already holds recipes - and a member name somebody already holds is left to them, recipes, marks and links included. So features that show one member's doing to another, [tasty marks](/features/tasty) first, are on screen from the first start, in the running demo as in the user docs' screenshots.
 
@@ -37,6 +52,8 @@ description: A flag that fills an empty instance with the twelve sample recipes 
 - **Comments.** `seedComments`, the end of `SeedMembers`, writes `memberComments` in `service/internal/demo/seed.go`: comments by Mila and Jonas on samples 0 and 3 (the admin's own, unseen), a question by the admin and Jonas's answer on sample 1, and a talk between Mila and Jonas on sample 2 the admin is not part of - so the overview shows the new-comments dot on samples 0, 1 and 3 and not on 2 (`TestSeedMembersWriteTheKitchenDiary`). They are written in the admin's language through the query `AddComment` uses, oldest first so ids follow time, dated back over the last week from the demo's clock so the separators show a weekday, "Yesterday" and "Today". Each writer's watermark is raised to their own comment, as if they had the page open while writing (`AddComment` itself leaves it alone), so a member signing in finds only the comments after their own new. Jonas's comment on Shepherd's Pie (sample 0 in German too) carries the sample's third photo, attached by `attachSamplePhoto` through the staging path but written without `TouchRecipe` and without mail, so the recipe keeps its stamp. [Recipe comments](/features/recipe-comments) owns the dot and the watermark.
 - **Shopping lists.** `seedLists` writes `sampleLists` in the admin's language through `shopping.Service`, its clock set to each list's time back from `Summary.Now`: the admin's weekly shop holds samples 0 and 1 at 4 servings with two typed-in items and three rows checked off, the admin's market list only typed-in items, and Mila holds one list of her own, so the people page counts lists for more than one person (`TestSeedMembersWriteShoppingLists`). Sharing is seeded through `Invite` and `Accept` (`sampleLists`' `sharedWith`): the weekly shop is shared with Mila, who added one item to it, Mila's list is shared with the admin (the "Shared with you" card), and Jonas's barbecue list holds a pending invitation for the admin. The seed sets no notifier, so no mail or push goes out. The user docs' `shopping.spec.ts` photographs the admin's lists, the invitation and the share dialog; [Shopping lists](/features/shopping-lists) owns what they show.
 
+### Photos
+
 **Both sample sets carry AI-generated photos, embedded in the binary.** `service/internal/demo/photos/<locale>/<slug>/<n>.jpg` is embedded with `go:embed`; `photosFor` finds a sample's set by its slug (`recipe.Slugify` of the title) under any locale directory and reads `1.jpg`, `2.jpg`, … until the first missing number. `Seed` uploads them in that order through `image.Service.Upload`, so the first becomes the cover and each becomes the usual three variants (see [Images](/features/images)).
 
 - Every upload moves the recipe's `updated_at`, so `Seed` writes each sample and its uploads under one clock (below): the uploads land on the creation time, and no sample carries a "Last edited" line that would come and go between seeds. `TestSeedUploadsEmbeddedPhotos` checks every sample for it.
@@ -46,12 +63,18 @@ description: A flag that fills an empty instance with the twelve sample recipes 
 
 **The embedded photos are derived, the originals live in Git LFS.** `assets/demo-photos/<locale>/<slug>/` holds each photo exactly as the image generator returned it (2400 × 1792 JPEG), tracked by Git LFS through `.gitattributes`, with a `prompts.md` beside them that records the generator, model and settings and the prompt of every photo, so an adjusted photo can be made with the same settings. `.lfsconfig` excludes the folder from every clone, CI included; `mise run demo-photos` first runs `demo-photos:pull` to fetch it, then `service/cmd/demo-photos` scales each original to at most 1600 px (Catmull-Rom, JPEG quality 82, no metadata) and rewrites `service/internal/demo/photos`, dropping sets that left the originals. Its output depends only on the originals, so a rerun changes no byte and a reseed uploads identical files. The 54 photos add about 14 MB to the binary.
 
+### Avatars
+
 **Two of the demo people have a picture, made of their ingredient.** `demo.SeedAvatars` gives the accounts in `avatarUsers` - `demo` and `mila` - their picture through `avatar.Service.Set`, the path the API takes, with the centered crop. `jonas` has none on purpose: the demo then shows the color-and-initial fallback, and a manual test has an account to set a picture on; his picture is embedded all the same, so giving him one is adding his name to `avatarUsers`.
 
 - An account that does not exist or already has a picture is left alone, so a second start changes nothing and a picture someone set by hand survives. It runs on every start with the published credentials, not only after a fresh seed, so a kept demo database that lacks them gets them; the price is that a demo picture someone removed returns on the next start.
 - `assets/demo-avatars/seed/<username>.jpg` holds the originals, `assets/demo-avatars/herbs/` the ingredient alone as an alternative, both tracked by Git LFS, and `assets/demo-avatars/prompts.md` records the generator, settings and every prompt. Unlike the photos, the avatars are fetched by an ordinary clone. `mise run demo-avatars` scales the originals to 640 px through `service/cmd/demo-photos -max 640` into `service/internal/demo/avatars`, which is embedded; the service renders its own 320 px file from that.
 
+### Placeholders
+
 **A set without any photos gets placeholders drawn in Go.** `Seed` falls back to `demo.Placeholder` for the first `imagedRecipes` (nine) samples only when no sample of the chosen set has photos, which is what a language with sample recipes of its own but no photos gets; `TestSeedFallsBackToPlaceholders` covers it by swapping the embedded photos for an empty file system. `service/internal/demo/placeholder.go` draws the title's initial on a plate over a tinted background, centered by its ink box rather than its advance box so narrow and wide letters both sit centered. The tints are three warm surface colors copied from the design system ([Design system](/architecture/design-system) owns them), picked by `index % 3`, and every full rotation steps one shade darker, so samples that share a base tint and an initial still get distinguishable tiles. A placeholder depends on nothing but the index and the title, so it is byte-identical across reseeds.
+
+### The demo task
 
 **The instance itself comes from one task, `//:demo`.** `mise run demo` starts the binary on the worktree's demo port and keeps it up until Ctrl-C; `mise run demo -- <cmd>` runs one command against it and stops it afterwards, which is how the screenshot and OpenAPI tasks get an instance they own. `mise/tasks/demo.sh`:
 
@@ -61,6 +84,8 @@ description: A flag that fills an empty instance with the twelve sample recipes 
 - polls `/healthz` until it answers, and removes both the process and its own directory from a trap.
 
 The port guard and the `/healthz` wait live in `mise/lib/instance.sh`, shared with `//:e2e` ([Toolchain](/architecture/toolchain)). With Dex or Mailpit running, the demo signs in through Dex and sends mail into Mailpit: [Test OIDC sign-in](/howtos/test-oidc) and [Verify UI with Playwright](/howtos/verify-ui#mail) own that wiring.
+
+### A fixed clock for screenshots
 
 **The screenshot tasks fix the demo's clock.** The samples, their comments, the shopping lists and the admin's tokens are dated from the moment of seeding, so a recipe's "Added by … on" line, the comments' day separators and the tokens' lifetime bars would move with the day a picture is taken.
 

@@ -5,7 +5,18 @@ description: A duration in a step's text, authored in the editor, stored as seco
 
 A duration in a preparation step - "90 Minuten", "20-25 minutes", "1 Std. 30 Min." - can be marked. The detail page and cook mode then show it with a clock glyph and a dotted underline, so a cook sees where a step waits, and in cook mode a tap on a time starts a [cook timer](/features/cook-timers) on its stored seconds. `service/internal/recipe/times.go` owns validation and storage; `frontend/src/lib/recipe/times.ts` and `step-times.ts` own detection and the editor's bookkeeping.
 
+<Callout type="warn" title="Traps">
+
+- A time must overlap no [photo link](/features/step-photos) either: without that check a time inside a photo phrase fails the save with a 422 at `steps[i].photos[j].phrase` ([The editor](#the-editor)).
+- The unit words are Paraglide catalog keys read for every locale at once; they are detector data, and `message-parity.ts` makes a new language provide them ([The detector](#the-detector)).
+- Bits UI reports a close when a reopen replaces the last focus scope, so the popover hands focus back only while it is closed.
+- Safari focuses no button on click, so the step-times e2e runs in WebKit too.
+
+</Callout>
+
 ## How it works
+
+### Wire format, validation and storage
 
 **The wire format sits beside `references`.** `Step.Times` is `[]StepTime`, on the wire `times: [{phrase, seconds, maxSeconds?}]`. `phrase` is the text as it stands in the step, the anchor, never an index. `seconds` is 1 to 604800 (one week); `maxSeconds` is present only for a range and lies above `seconds` and at most 604800. Every place a step travels carries it ([Adding a field](/features/recipes#adding-a-field-to-a-recipe-or-a-step)).
 
@@ -15,9 +26,11 @@ The other limits are huma schema tags on `StepTime` and `Step.Times`, checked be
 
 **Storage is one table.** Migration `0013_step_times.sql` creates `step_times`, keyed by `(step_id, phrase)` and cascading with `DeleteStepsByRecipe`, which every save runs. `writeChildren` inserts inside the save's transaction and reading assembles `Step.Times` beside `Step.References`. See [Data model](/architecture/data-model).
 
-In the step editor a marked time, like any marked word, never breaks across lines (`white-space: pre` on the marks inside `.step-editable` in `app.css`): "15" at a line's end and "Minuten" on the next read as two, and the underline or frame broke with it. The whole mark moves to the next line instead; the list under a step is left out, where a long ingredient name has to wrap.
+### Rendering
 
 **Rendering looks stored times up and detects nothing.** `segmentStep` splits a step's text at the first occurrence of each stored reference word and phrase; if two overlap the earlier one wins. `StepText.svelte` draws a time as one unbreakable mark with a `data-time` attribute the e2e tests find it by; its comments carry the wrapping, sizing and hyphenation constraints, and the visible text is the accessible text. The color is the `time-foreground` token in [Design system](/architecture/design-system). Cook mode shows nothing beyond that.
+
+### The detector
 
 **The detector runs only in the editor.** `suggestTimes` in `times.ts` finds a number plus a unit (`90 Minuten`, `2,5 Stunden`, `½ Stunde`), a range (`20-25 min`, `20 bis 25 Minuten`) and a compound (`1 Std. 30 Min.`, `1 hour 30 minutes`), and leaves `2 Eier`, `180 °C`, `3 EL` and a bare number alone. `times.ts` points here for its rules:
 
@@ -26,6 +39,8 @@ In the step editor a marked time, like any marked word, never breaks across line
 - Matching is case-insensitive; an earlier start wins, then the longer match. A result the service would refuse (a phrase over 60 characters, seconds out of range) is never proposed.
 - A match is proposed only where `wordPattern` anchors its phrase, the first whole-word occurrence: a repeated "20 Minuten", or a "30 Minuten" that first appears inside "1 Stunde 30 Minuten", yields nothing, so every proposal's phrase is unique and the editor's keyed lists never see a duplicate.
 - `times.test.ts` holds the sample recipes (`service/internal/recipe/testdata/recipes.{de,en}.json`) to the detector: every stored time is what it proposes for that step, and it proposes nothing else.
+
+### The editor
 
 **The editor reuses the reference machinery.** `step-times.ts` holds the bookkeeping, and `StepField.svelte` and `StepLinks.svelte` draw times beside links, the folded list again being the keyboard and screen-reader path.
 
@@ -37,6 +52,8 @@ In the step editor a marked time, like any marked word, never breaks across line
 - `formatDuration` builds on `formatMinutes` and its `duration_*` catalog keys plus `duration_seconds`.
 - A save accepts no time suggestion, as it accepts no reference suggestion; "Accept all" takes both, and the count of open suggestions above the steps covers both. Removing a stored time makes it a proposal again.
 - `FormStep.times` is carried by `fromRecipe` and `toInput`; a stored time ends with its phrase and comes back with it on undo, by the same document attributes and `dropAbsent` that carry references ([Ingredient references](/features/ingredient-references)).
+
+In the step editor a marked time, like any marked word, never breaks across lines (`white-space: pre` on the marks inside `.step-editable` in `app.css`): "15" at a line's end and "Minuten" on the next read as two, and the underline or frame broke with it. The whole mark moves to the next line instead; the list under a step is left out, where a long ingredient name has to wrap.
 
 ## Why it is this way
 

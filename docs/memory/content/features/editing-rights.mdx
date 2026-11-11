@@ -5,6 +5,14 @@ description: A household lock and a per-recipe policy decide who may edit, re-ph
 
 Every member reads every recipe, but who may change one is a rule with two inputs: a household switch the instance owner flips on the People page, and a policy the author sets on each recipe in the editor. The rule itself is `service/internal/recipe/permission.go`; the switch lives in `service/internal/settings`; the SPA only shows and hides what the service answers. `docs/user/content/(guide)/guide/editing-rights.mdx` tells the same rule to the people cooking from the instance.
 
+<Callout type="warn" title="Traps">
+
+- **Guard inside the write transaction**, through `recipe.GuardEdit`: checked before `BEGIN`, a policy change or a flip of the switch slips in between the check and the write ([It runs inside the write transaction](#how-it-works)).
+- **An absent `editPolicy` on update keeps the stored one**: treating it as Default resets every recipe a script saves, and trips `CanChangePolicy` for a member.
+- **Never re-derive the rule in the SPA**: show and hide by the `can*` flags the service sends.
+
+</Callout>
+
 ## How it works
 
 **Two inputs, one effective state.** `instance_settings.recipes_locked_by_default` is a boolean, `false` out of the box, in a table that holds exactly one row. `recipes.edit_policy` is `NULL`, `'open'` or `'locked'`; `NULL` is `recipe.PolicyDefault` in Go and `"default"` on the wire. The effective state is `edit_policy ?? (recipes_locked_by_default ? locked : open)`, computed by `recipe.Locked`:
@@ -41,7 +49,7 @@ A recipe on Default follows the switch live: nothing is copied onto the row when
 
 **The editor's last section is the policy.** `frontend/src/lib/components/editor/EditingSection.svelte` is a `SegmentedControl` of Default, Everyone and Locked, with a hint that states what applies right now; for Default it reads the household setting through `GET /api/v1/settings`. Without `canChangePolicy` - a member editing someone else's recipe - it shows a sentence instead of the control: who opened the recipe when it is `open`, the Default hint otherwise. A locked recipe never reaches that branch, because such a member never reaches its editor.
 
-**The switch is the owner's.** `settings.Service.SetRecipesLockedByDefault` refuses anyone but `Role.IsSuperadmin` with `ErrOwnerRequired`. `PATCH /api/v1/settings` takes `auth.SessionSecurity` only and answers a non-owner `403` `superadmin role required`, the wording `userapi` uses; `GET /api/v1/settings` takes any session or a token carrying `recipes:read`. `frontend/src/lib/components/settings/RecipeEditingCard.svelte` sits below the people table: a `Switch` that applies on flip for the owner, a sentence naming the owner for every other admin, and a link to the user guide's page.
+**The switch is the owner's.** `settings.Service.SetRecipesLockedByDefault` refuses anyone but `Role.IsSuperadmin` with `ErrOwnerRequired`. `PATCH /api/v1/settings` takes `auth.SessionSecurity` only and answers a non-owner `403` `superadmin role required`, the wording `userapi` uses; `GET /api/v1/settings` takes any session or a token carrying `recipes:read`. `frontend/src/lib/components/settings/RecipeEditingCard.svelte` sits below the people list: a `Switch` that applies on flip for the owner, a sentence naming the owner for every other admin, and a link to the user guide's page.
 
 **Deleting a user keeps the policies.** `ReassignRecipes` moves `created_by` and `updated_by` to the acting admin and does not touch `edit_policy`, so a locked recipe stays locked to its new author.
 

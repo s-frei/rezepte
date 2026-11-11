@@ -17,18 +17,21 @@ A self-hosted recipe manager for the people you cook with: a Go service serving 
 
 ## Where to look
 
-Read the page for the thing you are about to change before changing it, and leave it saying the new thing when you are done ([Update the memory](/howtos/update-the-memory)). Every user-visible capability has a page under `features/`, named after it; each one says how it works, why it is this way, which alternatives were refused and what it deliberately does not do.
+Read the page for the thing you are about to change before changing it, and leave it saying the new thing when you are done ([Update the memory](/howtos/update-the-memory)). A user-visible capability with facts beyond its look has a page under `features/`, named after it ([what earns one](/howtos/update-the-memory#what-earns-a-page-under-features)); each one says how it works, why it is this way, which alternatives were refused and what it deliberately does not do.
 
 | Your task touches | Read |
 | --- | --- |
 | A feature's behavior | its page under `features/`, then the architecture page it links |
 | An API endpoint | [HTTP API](/architecture/api), [Add an API endpoint](/howtos/add-endpoint) |
-| A mail Rezepte sends | [Email](/features/email), [Notifications](/features/notifications) for the ones people switch off, [Add a translation](/howtos/add-translation) for its `mail_*` copy, [Verify UI](/howtos/verify-ui#mail) for Mailpit |
+| A mail Rezepte sends | [Email](/features/email), [Notifications](/features/notifications) for the ones people switch off and [Adding a kind](/features/notifications#adding-a-kind) for a new one, [Add a translation](/howtos/add-translation) for its `mail_*` copy, [Verify UI](/howtos/verify-ui#mail) for Mailpit |
+| A new field on a recipe or a step | [Adding a field to a recipe or a step](/features/recipes#adding-a-field-to-a-recipe-or-a-step), the checklist of every place it has to reach |
 | A table, a migration, a query | [Data model](/architecture/data-model), [Add a database migration](/howtos/add-migration), [Add a sqlc query](/howtos/add-query) |
 | A component, a page, a layout | [Design system](/architecture/design-system), [Svelte conventions](/conventions/svelte), [Add a UI component](/howtos/add-component), [Add a route](/howtos/add-route) (also for a page that opens without signing in) |
-| The people list, roles, who may do what to whom | [Users and authentication](/features/users-and-auth), [Editing rights](/features/editing-rights) |
+| The people list, roles, who may do what to whom | [Editing rights](/features/editing-rights), [Users and authentication](/features/users-and-auth) |
+| Navigation, page changes, back and forth | [View transitions](/architecture/design-system#view-transitions), [Page change](/architecture/design-system#motion-in-feature-components) (a navigation during a running one is `held`), [Overlapping requests](/conventions/svelte#overlapping-requests) |
 | Checking a UI change | [Verify UI with Playwright](/howtos/verify-ui), [Keep the user docs in step with the UI](/howtos/update-user-docs) |
 | UI copy, languages | [Add a translation](/howtos/add-translation), [Add a language](/howtos/add-language), [Languages](/features/languages) |
+| Importing recipes from links or text | [Recipe import](/features/recipe-import), [Add an import language](/howtos/add-an-import-language) |
 | Tests | [Testing](/conventions/testing), [Development credentials](/conventions/dev-credentials), [Test OIDC sign-in](/howtos/test-oidc) |
 | Go or Svelte code style | [Go](/conventions/go), [Svelte conventions](/conventions/svelte) |
 | Tasks, ports, the dev loop | [Run the app locally](/howtos/run-dev), [Work in a worktree](/howtos/work-in-a-worktree), [Toolchain](/architecture/toolchain) |
@@ -50,6 +53,6 @@ Each folder is described where it is owned, so the list below names the page rat
 - `assets/` – the logo sources in [Design system](/architecture/design-system#logo), the README images in [Toolchain](/architecture/toolchain), the demo photos and pictures in [Demo mode](/features/demo-mode)
 - `.github/` – [Releases](/architecture/releases) and [GitHub Actions](/conventions/github-actions)
 
-`AGENTS.md` carries the hard rules every agent follows, and `CLAUDE.md` is a symlink to it, so Claude Code and every tool that looks for `AGENTS.md` read the same file. Edit `AGENTS.md`; never replace the symlink with a copy.
+`AGENTS.md` carries the hard rules every agent follows; [Update the memory](/howtos/update-the-memory#in-this-repository) says how it relates to `CLAUDE.md` and this site.
 
 `CONTRIBUTING.md` and `SECURITY.md` are for strangers arriving on GitHub: where a bug, an idea, a question or a vulnerability goes, and what a pull request needs. They point into the user docs and into this memory rather than repeating either, so a rule changes in its own page and the two files only need touching when a channel changes.

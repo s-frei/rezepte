@@ -17,32 +17,60 @@ description: End-to-end tests and screenshots, no browser extensions
     REZEPTE_E2E_PORT=8051 mise run e2e   # when something foreign holds the e2e port (8050 at offset 0)
     mise run e2e e2e/tokens.test.ts      # arguments go to Playwright: spec files, --grep, --shard
     ```
-    Builds the binary, starts it on its own port, `:8050` by default (`RZP_E2E_PORT`, override with `REZEPTE_E2E_PORT`) so it runs beside `mise run dev` and `mise run demo`, with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=admin1234` ([Development credentials](/conventions/dev-credentials)), runs every `frontend/e2e/*.test.ts` on a desktop project, the files with a phone path of their own on a mobile (Pixel 7) project as well, and the few tests that need Safari on the WebKit projects in `frontend/playwright.config.ts`, then stops the binary and deletes the directory. Run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree). Traces and screenshots of failures land in `frontend/test-results/`. The instance logs at `info`, where a request that succeeded leaves no line at all - the request log writes 2xx and 3xx at `debug` - so a missing line in the run's output does not mean a request never arrived. To see every request, run `REZEPTE_LOG_LEVEL=debug mise run e2e`; the trace of the failing test holds the browser's side.
+    Builds the binary, starts it on its own port, `:8050` by default (`RZP_E2E_PORT`, override with `REZEPTE_E2E_PORT`) so it runs beside `mise run dev` and `mise run demo`, with a temporary data directory and `REZEPTE_ADMIN_PASSWORD=admin1234` ([Development credentials](/conventions/dev-credentials)), runs every `frontend/e2e/*.test.ts` on a desktop project, the files with a phone path of their own on a mobile (Pixel 7) project as well, and the few tests that need Safari on the WebKit projects in `frontend/playwright.config.ts`, then stops the binary and deletes the directory. Run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree). Traces and screenshots of failures land in `frontend/test-results/`.
 
-    Run it from the repository root. Inside `frontend/`, `mise run e2e` resolves to `//frontend:e2e`, which starts no instance and points the suite at the dev server's port, so every test fails on `page.goto` with `ERR_CONNECTION_REFUSED` - that is the task, not your change.
+    **A request missing from the run's output may still have arrived.** The instance logs at `info`, and the request log writes 2xx and 3xx at `debug`, so a request that succeeded leaves no line at all. To see every request, run `REZEPTE_LOG_LEVEL=debug mise run e2e`; the trace of the failing test holds the browser's side.
+
+    **Run it from the repository root.** Inside `frontend/`, `mise run e2e` resolves to `//frontend:e2e`, which starts no instance and points the suite at the dev server's port, so every test fails on `page.goto` with `ERR_CONNECTION_REFUSED` - that is the task, not your change.
 
     The task refuses to start when the port is taken, and aborts if the binary dies while binding - otherwise a stranger's instance answers `/healthz` and every test that logs in fails against *their* data.
 
-    Add a test per user-facing flow you touch, in the `frontend/e2e/<area>.test.ts` file for its area. A change that sends mail runs the suite with `mise run mail:up` first ([Mail](#mail)). Log in with the `login` helper from `frontend/e2e/helpers.ts`. With the account's development password it posts `/api/v1/auth/login` through `page.request`, which shares the browser context's cookie jar, so the session cookie the response sets signs the page in; then it opens `/` and returns once `main` renders. That skips the form, the sheet and the full load after it, and halved the suite. `auth.test.ts` and `smoke.test.ts` drive the form itself. Any other password, or a refused right one, goes through the form and returns right after the click, so a test that expects an error reads it on the page; that path waits, on success, until the next page's `main` renders. Both paths retry a sign-in the login throttle refused on the right password (`429`, or "Too many failed attempts" on the form): the throttle counts an attempt when it begins, so the workers of one run signing `admin` in together lock the name until the first of them succeeds, and a spec that hits "Too many failed attempts" with correct credentials is that race, never a lock worth testing.
+    ### Writing a test
 
-    The `mobile` project skips the files in its `testIgnore` (`frontend/playwright.config.ts`): files that never ask `isMobile` or `project.name`, or that set their own viewport, would only run the same steps again at 412px, and that second pass was half the suite's time. A new file runs on both projects; add it to the list when it has no phone path, and take a listed file off it the moment it grows one, or its phone branch never runs. To find what is slow, run `PLAYWRIGHT_JSON_OUTPUT_NAME=<file> mise run e2e --reporter=json` and sum `.results[].duration` per test, file and project; a test far above the median of about 2s is usually a fake clock ticking through minutes (`page.clock.runFor`, see [Cook timers](/features/cook-timers)) or an `expect` inside a loop: each call carries Playwright's bookkeeping, and one per pair of 300 cards took 40s where one `expect` on the collected failures takes none.
+    **Add a test per user-facing flow you touch**, in the `frontend/e2e/<area>.test.ts` file for its area. A change that sends mail runs the suite with `mise run mail:up` first ([Mail](#mail)).
 
-    CI runs four workers on four cores, so the browser is slow there in a way a laptop never is, and a check that reads the page once right after an action loses the race now and then: `expect(await count()).toBe(1)` reads the layout before the click has landed, where `await expect.poll(count).toBe(1)` waits for it. To catch one before CI does, run it under load: `mise run e2e <file> -g <name> --repeat-each=40 --workers=14`, and read `error-context.md` in `frontend/test-results/` of a failed repeat, which shows the page the test saw. A helper that branches on what the page looks like right after a click has the same race: `openNewRecipe` asked whether the bottom nav was there, while an empty overview's own "New recipe" link had already taken it to the editor.
+    **Log in with the `login` helper from `frontend/e2e/helpers.ts`.** With the account's development password it posts `/api/v1/auth/login` through `page.request`, which shares the browser context's cookie jar, so the session cookie the response sets signs the page in; then it opens `/` and returns once `main` renders. That skips the form, the sheet and the full load after it, which halves the suite's time. `auth.test.ts` and `smoke.test.ts` drive the form itself. Any other password, or a refused right one, goes through the form and returns right after the click, so a test that expects an error reads it on the page; that path waits, on success, until the next page's `main` renders.
 
-    The races a slow runner has turned up, each of them in the test or the page and none in the runner: a helper that returns before what it started has finished (`signOut` returned on the click, with the app's logout still out while the next `login` began, and a test then found itself on `/login` right after signing in; it now returns once the app has reached `/login`); a click on a button that something loading late pushes away (the password meter's label, which arrives 250 ms after typing and now holds its line from the start); a drop on a spot that itself moves the page (see the edge trap in [Images](/features/images)); and a step that takes longer than the 5s an `expect` waits by default (300 recipe cards in phone WebKit). Fonts are not one of them: the app ships Karla and Literata, so the Playwright image's fonts (its `sans-serif` is WenQuanYi Zen Hei) against the runner's DejaVu change nothing, which a run with DejaVu installed showed. CI's e2e job runs in `mcr.microsoft.com/playwright`, so the closest local copy of it is that image in Docker with `--workers 4` and the CPU capped (`docker update --cpus 1.2 <container>`). Two things make a Docker run lie: Playwright's `workers: '100%'` counts the host's cores even under `--cpuset-cpus`, and that many browsers in a Docker VM's memory get the binary OOM-killed, which reads as `ECONNREFUSED` and timeouts in every test after it.
+    **"Too many failed attempts" on the right password is a race between workers, never a lock worth testing.** The throttle counts an attempt when it begins, so the workers of one run signing `admin` in together lock the name until the first of them succeeds. Both paths of `login` retry a sign-in the throttle refused on the right password (`429`, or the message on the form).
 
-    Two traps show only when the whole suite runs at once, which sharding mostly hides. A check right after a click that navigates can pass against the page still on screen: the overview card showed the same counts the list page was meant to show, so the test was green without looking at the list, and red when the list won the race and showed them three times. Wait for the new page's heading first. And files run in parallel against one instance, so a setting that is the instance's leaks into every test beside the one that flips it. The household lock is one: only `editing-rights.test.ts` flips it, a test in which a member must edit gives its recipe `editPolicy: 'open'`, and a test that needs a locked recipe sets `editPolicy: 'locked'` on it instead of switching the household ([Editing rights](/features/editing-rights)). `--repeat-each` on `editing-rights.test.ts` runs its copies side by side, so they flip the lock on each other; repeat that file one run at a time.
+    **A new file runs on both projects; add it to the `mobile` project's `testIgnore` (`frontend/playwright.config.ts`) when it has no phone path.** Files that never ask `isMobile` or `project.name`, or that set their own viewport, would only run the same steps again at 412px, and that second pass was half the suite's time. Take a listed file off the list the moment it grows a phone path, or its phone branch never runs.
+
+    **To find what is slow, sum durations per test from the JSON reporter:** `PLAYWRIGHT_JSON_OUTPUT_NAME=<file> mise run e2e --reporter=json`, then `.results[].duration` per test, file and project. A test far above the median of about 2s is usually a fake clock ticking through minutes (`page.clock.runFor`, see [Cook timers](/features/cook-timers)) or an `expect` inside a loop: each call carries Playwright's bookkeeping, and one per pair of 300 cards took 40s where one `expect` on the collected failures takes none.
+
+    ### Races on a slow runner
+
+    **Wait for the state; never read the page once right after an action.** CI runs four workers on four cores, so the browser is slow there in a way a laptop never is: `expect(await count()).toBe(1)` reads the layout before the click has landed, where `await expect.poll(count).toBe(1)` waits for it. To catch one before CI does, run it under load: `mise run e2e <file> -g <name> --repeat-each=40 --workers=14`, and read `error-context.md` in `frontend/test-results/` of a failed repeat, which shows the page the test saw.
+
+    The races a slow runner has turned up, each of them in the test or the page and none in the runner:
+
+    - A helper that branches on what the page looks like right after a click: `openNewRecipe` asked whether the bottom nav was there, while an empty overview's own "New recipe" link had already taken it to the editor.
+    - A helper that returns before what it started has finished: `signOut` now returns once the app has reached `/login`, since the app's logout still running under the next `login` landed a test on `/login` right after signing in.
+    - A click on a button that something loading late pushes away: the password meter's label, which arrives 250 ms after typing, holds its line from the start.
+    - A drop on a spot that itself moves the page (see the edge trap in [Images](/features/images)).
+    - A step that takes longer than the 5s an `expect` waits by default (300 recipe cards in phone WebKit).
+
+    Fonts are not one of them: the app ships Karla and Literata, so the Playwright image's fonts (its `sans-serif` is WenQuanYi Zen Hei) against the runner's DejaVu change nothing.
+
+    **To reproduce CI locally, run the `mcr.microsoft.com/playwright` image in Docker with `--workers 4` and the CPU capped** (`docker update --cpus 1.2 <container>`). Two things make a Docker run lie: Playwright's `workers: '100%'` counts the host's cores even under `--cpuset-cpus`, and that many browsers in a Docker VM's memory get the binary OOM-killed, which reads as `ECONNREFUSED` and timeouts in every test after it.
+
+    ### Traps of the whole suite
+
+    **After a click that navigates, wait for the new page's heading before checking anything.** Otherwise the check can pass against the page still on screen: the overview card showed the same counts the list page was meant to show, so the test was green without looking at the list, and red when the list won the race and showed them three times. Sharding mostly hides this; it shows when the whole suite runs at once.
+
+    **An instance-wide setting flipped in one file leaks into every test beside it**, because files run in parallel against one instance. The household lock is one: only `editing-rights.test.ts` flips it, a test in which a member must edit gives its recipe `editPolicy: 'open'`, and a test that needs a locked recipe sets `editPolicy: 'locked'` on it instead of switching the household ([Editing rights](/features/editing-rights)). `--repeat-each` on `editing-rights.test.ts` runs its copies side by side, so they flip the lock on each other; repeat that file one run at a time.
 
   </Tab>
   <Tab value="Screenshots">
 
-    With `mise run dev` running (frontend on `:9060` by default - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree)):
+    With `mise run dev` running (frontend on `:9060` by default, `RZP_FRONTEND_PORT` - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree)):
     ```bash
     cd frontend
     mise exec -- bunx playwright screenshot --viewport-size=360,780 http://localhost:9060/login test-results/login-mobile.png
     mise exec -- bunx playwright screenshot --viewport-size=1440,900 http://localhost:9060/ test-results/home-desktop.png
     ```
     Then open the PNG (agents: read the image file) and compare against the design system.
+
+    **The `playwright screenshot` CLI has no session, so it only shows pages that need no login.** Anything behind a login or a click is a [probe](#running-a-probe).
 
     **Use 360×780 for phones, not 390×844.** See [Widths that matter](#widths-that-matter).
 
@@ -52,7 +80,7 @@ description: End-to-end tests and screenshots, no browser extensions
     ```bash
     E2E_BASE_URL=http://localhost:9060 mise run //frontend:e2e
     ```
-    Faster iteration without a production build; the Go API must be running (`mise run dev`). `:9060` is the frontend port at offset 0 - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree).
+    Faster iteration without a production build; the Go API must be running (`mise run dev`). `:9060` is the frontend port at offset 0 (`RZP_FRONTEND_PORT`) - run `mise run ports` for this worktree's number, see [Work in a worktree](/howtos/work-in-a-worktree).
 
   </Tab>
   <Tab value="Docs screenshots">
@@ -119,7 +147,7 @@ const fits = input.getBoundingClientRect().width >= ctx.measureText(input.placeh
 A screenshot shows *that* something looks off, never *why*, and it cannot tell 4px of overlap from a rendering artifact. Drive the page with a throwaway Playwright script and assert on geometry - the numbers are the evidence, and they survive being pasted into a commit message:
 
 ```ts
-// scratch probe, run through `mise run demo` (demo/demo1234 on :8070 by default)
+// scratch probe, run through `mise run demo` (demo/demo1234 on :8070 by default, RZP_DEMO_PORT)
 const info = await page.evaluate(() => {
 	const el = document.querySelector('[role="radiogroup"]')!;
 	const box = el.closest('section')!;           // the container it must fit inside
@@ -192,11 +220,27 @@ for (const t of [0, 40, 80, 120, 200]) {
 
 ## Running a probe
 
-`mise run demo -- <command>` starts the built binary with demo data on `:8070` by default (login `demo` / `demo1234`, twelve recipes with images), runs the command against it and stops it afterwards - the fastest way to a realistic page:
+The root `demo` task with a command after `--` starts the built binary with demo data on `:8070` by default (`RZP_DEMO_PORT`; login `demo` / `demo1234`, twelve recipes with images), runs the command against it and stops it afterwards - the fastest way to a realistic page:
 
 ```bash
 cd frontend
 mise run //:demo -- bun run test-results/probe.ts
+```
+
+`//:demo` is that task's full name: the call runs in `frontend/`, where the probe has to run, and there a bare `demo` is not found. A probe that needs a signed-in page at phone width:
+
+```ts
+// frontend/test-results/probe.ts
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const context = await browser.newContext({ baseURL: `http://localhost:${process.env.RZP_DEMO_PORT}`, viewport: { width: 360, height: 780 } });
+const page = await context.newPage();
+// signs in the way `login` in frontend/e2e/helpers.ts does: page.request shares the context's cookies
+await page.request.post('/api/v1/auth/login', { data: { username: 'demo', password: 'demo1234' } });
+await page.goto('/');
+await page.getByRole('main').waitFor();
+await page.screenshot({ path: 'test-results/probe-360.png' });
+await browser.close();
 ```
 
 The probe lives in `frontend/test-results/`, which is git-ignored: a script outside `frontend/` cannot import `playwright`, because Bun resolves packages from the script's own directory. The command runs where it was typed, with the instance at `http://localhost:${process.env.RZP_DEMO_PORT}`. Playwright empties `frontend/test-results/` at the start of every `mise run e2e`, probes and their screenshots included, so keep the probe's source elsewhere and copy it in before a run.

@@ -8,20 +8,20 @@ Step-by-step guides for work that comes up repeatedly.
 <Cards>
   <Card href="/howtos/run-dev" title="Run the app locally" description="Dev servers, builds and the check gate" />
   <Card href="/howtos/work-in-a-worktree" title="Work in a worktree" description="One worktree per feature, one port offset per worktree" />
-  <Card href="/howtos/verify-ui" title="Verify UI with Playwright" description="End-to-end tests and screenshots" />
-  <Card href="/howtos/test-oidc" title="Test OIDC sign-in" description="Dex as a local identity provider, by hand and in e2e" />
-  <Card href="/howtos/update-user-docs" title="Keep the user docs in step with the UI" description="What to edit and regenerate when the app changes" />
-  <Card href="/howtos/add-screenshot" title="Add a screenshot" description="A new <Screenshot> name, its spec and its PNGs" />
-  <Card href="/howtos/regenerate-api-reference" title="Regenerate the API reference" description="mise run //docs/user:openapi, and extending the generator" />
+  <Card href="/howtos/verify-ui" title="Verify UI with Playwright" description="End-to-end tests and screenshots, no browser extensions" />
+  <Card href="/howtos/test-oidc" title="Test OIDC sign-in" description="Running the OIDC login feature against Dex, the test identity provider" />
+  <Card href="/howtos/update-user-docs" title="Keep the user docs in step with the UI" description="What to edit and regenerate when a UI or API change lands" />
+  <Card href="/howtos/add-screenshot" title="Add a screenshot" description="A new <Screenshot> name, its spec and its four PNGs" />
+  <Card href="/howtos/regenerate-api-reference" title="Regenerate the API reference" description="mise run //docs/user:openapi, and the configuration behind it" />
   <Card href="/howtos/add-migration" title="Add a database migration" description="Sequential goose migrations, embedded and applied at startup" />
   <Card href="/howtos/add-query" title="Add a sqlc query" description="Hand-written SQL compiled into typed Go" />
   <Card href="/howtos/add-endpoint" title="Add an API endpoint" description="huma operations, security, errors" />
   <Card href="/howtos/add-component" title="Add a UI component" description="Token classes, Bits UI wrapping, svelte-autofixer" />
   <Card href="/howtos/add-route" title="Add a route" description="Page, +page.ts load, guard, messages" />
   <Card href="/howtos/add-translation" title="Add a translation" description="Paraglide message keys" />
-  <Card href="/howtos/add-language" title="Add a language" description="A third interface language, end to end" />
-  <Card href="/howtos/add-an-import-language" title="Add an import language" description="A language table so the recipe import reads that language" />
-  <Card href="/howtos/update-the-memory" title="Update the memory" description="Which page owns which fact, and how to change it" />
-  <Card href="/howtos/release" title="Release" description="Maintainer only: release:start, the notes, release:finish, push" />
-  <Card href="/howtos/write-release-notes" title="Write release notes" description="From the release:start draft to the changelog page" />
+  <Card href="/howtos/add-language" title="Add a language" description="A new interface language, end to end" />
+  <Card href="/howtos/add-an-import-language" title="Add an import language" description="A language table for the recipe import, so links and pasted text in that language become clean drafts" />
+  <Card href="/howtos/update-the-memory" title="Update the memory" description="How the memory is built, how to write a page, and which page owns which fact" />
+  <Card href="/howtos/release" title="Release" description="Maintainer-only: release:start, write the notes, release:finish, push" />
+  <Card href="/howtos/write-release-notes" title="Write release notes" description="Turning a release:start draft into the changelog page people upgrade by" />
 </Cards>

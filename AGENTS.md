@@ -6,13 +6,13 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 ## Hard rules
 
 - Everything in the repo is American English (code, identifiers, JSON keys, comments, commits, docs, `en.json`): color, favorite, center, normalize. German lives only in `de.json` and German sample and test data. → `docs/memory/content/conventions/language.mdx`
-- UI copy lives only in `frontend/messages/*.json`, one catalog per language; `en.json` is the source and `de.json` is its equal, and both hold the same keys. → `docs/memory/content/conventions/svelte.mdx`
+- UI copy lives only in `frontend/messages/*.json`, one catalog per language; `en.json` is the source and `de.json` is its equal, and both hold the same keys. → `docs/memory/content/howtos/add-translation.mdx`
 - Commits: semantic prefix, title ≤ 70 chars, body only when needed, no Co-Authored-By or tool trailers. A breaking change (API, configuration, deployment) carries `!` before the colon and a body line `Breaking: <what someone running Rezepte must do>`. → `docs/memory/content/conventions/commits.mdx`
 - Git flow: develop on `develop`, releases merge to `main`; never push, merge to `main`, tag or open PRs without being asked. History on `develop` is never rewritten unless explicitly asked; a branch is tidied in its worktree before it lands. → `docs/memory/content/conventions/commits.mdx`
 - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 - Run tools only through mise: `mise run <task>` or `mise exec -- <cmd>`. Never call `npm`/`node` directly; use Bun. → `docs/memory/content/architecture/toolchain.mdx`
 - GitHub Actions: every step carries a quoted `name`, actions are pinned to a major tag, and tools come from mise. → `docs/memory/content/conventions/github-actions.mdx`
-- `mise run check` must pass before every commit. → `docs/memory/content/howtos/run-dev.mdx`
+- `mise run check` must pass before every commit. → `docs/memory/content/architecture/toolchain.mdx`
 - The memory holds one page per thing that exists, never a record per event: a feature with facts beyond its look has a `features/` page, the system's shape lives in `architecture/`. Rewrite the page when the thing changes; delete it when the thing is gone. What you learn on the way - a trap, how to test it, a gate that passes when it should not - goes into the page that owns it in the same commit, never into an agent's private memory. → `docs/memory/content/howtos/update-the-memory.mdx`
 - Go: standard library first, `golangci-lint` clean, stdlib `testing` only, errors wrapped with `%w`. → `docs/memory/content/conventions/go.mdx`
 - Svelte: Svelte 5 runes, TypeScript, Bits UI for primitives, validate every `.svelte` file with the svelte MCP `svelte-autofixer` tool before committing. → `docs/memory/content/conventions/svelte.mdx`
@@ -24,3 +24,4 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 - Docs are two independent Fumadocs apps, `docs/memory/` (agent memory, for the people developing Rezepte) and `docs/user/` (end-user docs, for the people cooking from it and hosting it), each with its own `package.json`, both English. → `docs/memory/content/architecture/docs.mdx`
 - Feature work happens in a worktree created with `mise run worktree:new <name>` (branches off `develop`, assigns a port offset). Never hand-edit ports; `mise run ports` shows the map. → `docs/memory/content/howtos/work-in-a-worktree.mdx`
 - The memory describes the repository, not the machine and not the day: it states what is true now, and it never records one machine's setup, paths or quirks. → `docs/memory/content/howtos/update-the-memory.mdx`
+- Memory pages are written for an agent that greps: each paragraph leads with its rule and stays under 300 words, long sections get `###` subheadings, traps sit in a `Traps` Callout at the top, and nothing the code already shows (pixel sizes, class lists) is copied in. Check the list at the top of the page before every memory change. → `docs/memory/content/howtos/update-the-memory.mdx`

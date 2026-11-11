@@ -1,17 +1,30 @@
 ---
 title: Recipe import
-description: A link to a recipe page or pasted recipe text becomes an unsaved draft in the new-recipe editor; every member
+description: A link to a recipe page or pasted recipe text becomes an unsaved draft in the new-recipe editor, for every member
 ---
 
 Every member can turn a recipe on a website, or recipe text copied out of a mail, a chat or a note, into a draft in the new-recipe editor, check it and save it. Nothing is stored until they save, and saving is the ordinary `POST /api/v1/recipes`. `service/internal/recipeimport` fetches and reads; `frontend/src/lib/components/import/` holds the dialog; [HTTP API](/architecture/api) owns the two endpoints. The zip import between instances is a different feature, for admins: [Import and export](/features/import-export).
 
+<Callout type="warn" title="Traps">
+
+- The address guard lives in the dialer's `Control` and the transport has no proxy; a host-name check before the request, or a proxy, lets redirects and DNS rebinding reach private addresses ([The service](#the-service)).
+- Changing `import_example` in any catalog must still import cleanly with that language's table, or `TestEveryAppLanguageExampleImportsCleanly` fails ([The dialog](#the-dialog)).
+- Closing the dialog must abort on `importDialog.open` turning false, not on unmount after the fade, or a late draft navigates away ([The hand-over](#the-hand-over)).
+- Chromium's `window.launchQueue` is read-only; the e2e stubs it with `Object.defineProperty` ([Entry points](#entry-points)).
+
+</Callout>
+
 ## How it works
+
+### Entry points
 
 **Entry points.** The top bar, the empty overview, the command palette and the phone's New sheet (`frontend/src/lib/components/shell/NewSheet.svelte`) all open the import dialog, for every role, through one flag, `importDialog` in `frontend/src/lib/import.svelte.ts`. `ImportDialog.svelte` is mounted once in the root layout and shows `ImportForm.svelte` in a `BaseDialog` on a wide screen and in a `BottomSheet` below `md`.
 
 **Share → Rezepte.** The manifest's `share_target` and its "Import" shortcut point at `/import` (`frontend/src/routes/import/+page.svelte`). The page reads `title`, `text` and `url` through `sharedInput`: an http(s) `url` wins, else the first link inside `text`, else the `text` itself; the `title` is never a recipe. It replaces its own history entry with the overview (Back and a reload do not import again), and only then calls `openImport(value)`: the dialog opens over the overview with the value in the field and waits for Import (`importDialog.prefill`, taken in an `$effect` in `ImportForm`, so a share into an already open dialog replaces its field and cancels a read in flight). It does not read at once: a dialog that leaps to the editor before the member has looked at the link feels wrong. Opening it before the overview had settled let a fast draft lose to the overview's own `replaceState`, so the overview's `syncUrl` also stands down while another navigation runs. Signed out, the root layout sends `/import?...` through `/login?next=` and the share resumes after sign-in.
 
 **Launches into an open window.** With `launch_handler: focus-existing` the installed app does not reload for a second share; `listenForLaunches` (`frontend/src/lib/launch.ts`, started from the root layout) gets the target through `launchQueue` and `goto`s it unless it is the first launch and matches the page that loaded (`launchFilter` forgets that href after one look, so sharing the same link again later navigates). That navigation passes through `RecipeForm`'s leave guard, so an editor with unsaved changes asks first; the guard sees the target is `/import` and words its `ConfirmDialog` for the share ("Discard changes and import the link?", with "Keep editing" as its `cancelLabel`), and "Keep editing" drops the share. The e2e stubs `window.launchQueue` with `Object.defineProperty`, since Chromium's own is read-only.
+
+### The dialog
 
 **The dialog.** One field takes a link or text. `detectInput` in `frontend/src/lib/recipe/import-input.ts` decides which: a single token that `URL` parses with `http:` or `https:` is a link, anything else is text, and the line under the field says which. A short example recipe, the message `import_example`, shows how text should look - in the empty field's placeholder, and once the field holds text in a disclosure. Each language writes it with its own import table's headings, and `TestEveryAppLanguageExampleImportsCleanly` reads every catalog's example with that table and fails unless it imports with a title, two ingredients that need no check and a step. The answers it can get:
 
@@ -24,7 +37,9 @@ Every member can turn a recipe on a website, or recipe text copied out of a mail
 
 Admins also see a row linking to the zip import at `/settings/transfer#import`.
 
-**The dialog answers in place.** The failure banner slides in (180ms) where the lead line was, and the duplicate panel and the field swap whole: the incoming side fades in over 180ms and the one it replaces goes at once, so the two never stand in the sheet together. The banner's `role="alert"` is announced when it mounts, and Back still hands the focus to the field. Under reduced motion both appear at once.
+**The dialog answers in place.** The failure banner takes the lead line's place, and the duplicate panel and the field swap whole, so the two never stand in the sheet together. The banner's `role="alert"` is announced when it mounts, and Back still hands the focus to the field.
+
+### The hand-over
 
 **The hand-over.** The dialog redeems the draft's photo link while it still shows "Reading …", puts `{draft, photo, photoFailed}` into `frontend/src/lib/recipe/draft.ts` and navigates to `/recipes/new`, which takes it out once (`takeDraft`) and prefills the editor. A reload of `/recipes/new` finds nothing and shows an empty editor.
 
@@ -35,6 +50,8 @@ Admins also see a row linking to the zip import at `/settings/transfer#import`.
 - The photo is a queued file, uploaded after the create like any photo picked before the first save. A failed photo and a truncated draft each raise one toast.
 
 **Editor-only state.** An ingredient the parser was unsure about carries `source`, its original line, on `FormIngredient` (`applyReview` in `frontend/src/lib/recipe/form.ts` sets it from `review`); its row asks for a check and shows the original, and editing or dismissing the row clears it. `toInput` drops it, so it is never stored and never blocks saving. Keywords that would be new tags are suggestions under the tag field (`TagSuggestions.svelte`, styled with the step links through `frontend/src/lib/components/editor/link-list.ts`); whatever is left open is not saved.
+
+### The service
 
 **The service.** `recipeimport.Service` reads a link with `FromURL` (decoding the page to UTF-8 by its declared charset with `golang.org/x/net/html/charset`, so a Latin-1 page keeps its umlauts) and text with `FromText`; both end in `Build` (`draft.go`), which reads every ingredient line with the language table the reader chose, sets keywords that match an existing tag case-insensitively as tags in the collection's spelling and returns the rest as `suggestedTags`; a keyword equal to an author's name (`Page.Authors`, every author, case-insensitive) is neither, because sites such as BBC Good Food list the author among the keywords.
 
@@ -47,6 +64,8 @@ Admins also see a row linking to the zip import at `/settings/transfer#import`.
 - `lang.go`, `lang_de.go`, `lang_en.go`: the language tables. Every word the readers look for - units, range words, plural markers ("Gurke(n)", "Zehe/n"), unit modifiers ("EL, gehäuft"), vague words, headings, step words, promo patterns - lives in one `language` value per language, registered in `languages`; the type's doc comments are the contract, and [Add an import language](/howtos/add-an-import-language) walks through it. `detectLanguage` picks the table: the Recipe's `inLanguage`, else a `WebPage` node's, else `<html lang>`, by primary subtag (`de-DE` → `de`); without one, or for pasted text, the table that recognizes most lines (a heading, a unit, a vague word, a plural marker), and on a tie all tables at once (`anyLanguage`). `Page.Language` names the table used. `TestEveryAppLanguageHasAnImportTable` fails when a locale in `service/internal/i18n/locales.json` has no table.
 - `ingredient.go`: `parseLine` reads one line with one table: plural markers go, then the quantity (integers, decimals with `,` or `.`, thousands grouped by the table's `thousandsSeparators` ("1.000 g" in German), Unicode and slash fractions, mixed numbers, ranges as the lower bound with the range as note), a parenthesis right after it as note ("1 (14-ounce) can"), a unit from the table, a parenthesis right after the unit as note ("1 can (14 oz) tomatoes"), a unit modifier into the note, the name and a trailing note in the outermost balanced parentheses or after a comma. Notes lose leading commas, so WP Recipe Maker's "(, minced)" is "minced". `sure` is false when the line has a digit but no leading quantity, when it says something vague (as whole words), or when the name cannot be right in any language: empty, starting with punctuation, holding a `/` or with unbalanced parentheses. An unsure line without a quantity is kept whole as the name.
 - `clamp.go`: every length and count is cut to the `recipe.Input` maxima, at a word boundary where one is near, and `truncated` says so. Suggestions over 40 characters or beyond 20 are dropped without it, since they are no recipe content. A draft is not run through the schema, because a draft may lack a title.
+
+### Duplicates, photos and access
 
 **Duplicates.** `recipe.Service.FindBySource` compares the entered URL, the URL after redirects and the canonical URL against the stored sources, both sides through `recipe.NormalizeSource` (lower-case scheme and host, no fragment, no `utm_*`); the newest match is `duplicate`. Text without a link never has one.
 
