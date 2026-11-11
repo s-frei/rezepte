@@ -122,7 +122,13 @@ export async function openLoginSheet(page: Page) {
 	// not mounted yet would be taken for its absence. Both are in the DOM on a
 	// phone (the form waits hidden behind the cover), so only the shown one counts.
 	await expect(cover.or(page.getByLabel('Username')).filter({ visible: true })).toHaveCount(1);
-	if (await cover.isVisible()) await cover.getByRole('button', { name: 'Sign in' }).click();
+	// Retried until the field shows: right after a back navigation the page
+	// change can still show the old page, so one look can miss a cover that
+	// mounts a moment later, and the form then stays hidden behind it.
+	await expect(async () => {
+		if (await cover.isVisible()) await cover.getByRole('button', { name: 'Sign in' }).click();
+		await expect(page.getByLabel('Username', { exact: true })).toBeVisible({ timeout: 1000 });
+	}).toPass();
 }
 
 /**
