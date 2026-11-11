@@ -426,7 +426,6 @@ test('a timer survives its recipe losing the step', async ({ page }) => {
 	const shorter = { ...loadFixture(0, 'de'), title: recipe.title };
 	shorter.steps = shorter.steps.slice(0, 2);
 	const response = await page.request.put(`/api/v1/recipes/${recipe.id}`, {
-		headers: { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' },
 		data: shorter
 	});
 	expect(response.ok()).toBeTruthy();

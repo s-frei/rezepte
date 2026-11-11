@@ -10,9 +10,7 @@ import { FIXED_TIME, prepare, shot } from './helpers';
 // picture expects it off.
 
 async function setPublicShares(page: Page, on: boolean): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const res = await page.request.patch('/api/v1/settings', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { publicShares: on }
 	});
 	expect(res.ok(), `PATCH /api/v1/settings: ${res.status()}`).toBeTruthy();
@@ -67,8 +65,7 @@ test('public-link-sheet', async ({ page }, testInfo) => {
 		await shot(page, 'public-link-sheet');
 	} finally {
 		// The other pictures expect this recipe unshared.
-		const origin = new URL(page.url()).origin;
-		await page.request.delete(`/api/v1/shares/${share.id}`, { headers: { Origin: origin } });
+		await page.request.delete(`/api/v1/shares/${share.id}`);
 	}
 });
 
@@ -80,8 +77,7 @@ test('shared-links', async ({ page }) => {
 });
 
 test('public-page', async ({ page, browser }, testInfo) => {
-	const origin = new URL(page.url()).origin;
-	const res = await page.request.get('/api/v1/shares', { headers: { Origin: origin } });
+	const res = await page.request.get('/api/v1/shares');
 	expect(res.ok()).toBeTruthy();
 	const { items } = (await res.json()) as { items: { path: string }[] };
 	expect(items.length).toBeGreaterThan(0);

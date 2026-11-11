@@ -25,10 +25,7 @@ test('an exported recipe comes back with its photos after an import', async ({ p
 	await page.getByRole('button', { name: 'Export .zip' }).click();
 	const file = await (await downloading).path();
 
-	const origin = new URL(page.url()).origin;
-	const deleted = await page.request.delete(`/api/v1/recipes/${recipe.id}`, {
-		headers: { Origin: origin }
-	});
+	const deleted = await page.request.delete(`/api/v1/recipes/${recipe.id}`);
 	expect(deleted.ok()).toBeTruthy();
 	await page.reload();
 

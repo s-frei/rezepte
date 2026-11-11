@@ -24,10 +24,7 @@ async function switchTo(page: Page, testInfo: TestInfo, username: string) {
 
 /** Marks a recipe tasty through the API, as whoever `page` is signed in as. */
 async function markTasty(page: Page, recipeId: string) {
-	const origin = new URL(page.url()).origin;
-	const response = await page.request.put(`/api/v1/recipes/${recipeId}/tasty`, {
-		headers: { Origin: origin }
-	});
+	const response = await page.request.put(`/api/v1/recipes/${recipeId}/tasty`);
 	expect(response.status(), await response.text()).toBe(204);
 }
 

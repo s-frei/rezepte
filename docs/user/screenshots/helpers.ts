@@ -97,9 +97,7 @@ export async function ensureUser(
   role: "admin" | "user",
 ): Promise<void> {
   const password = devPassword(username);
-  const origin = new URL(page.url()).origin;
   const res = await page.request.post("/api/v1/users", {
-    headers: { Origin: origin },
     data: { username, password, role },
   });
   if (!res.ok() && res.status() !== 409) {
@@ -114,7 +112,6 @@ export async function ensureUser(
 // (RZP_DEMO_MAIL=off), and the card is the same whether or not it works.
 export async function configureMail(page: Page) {
   const response = await page.request.put("/api/v1/settings/mail", {
-    headers: { Origin: new URL(page.url()).origin },
     data: {
       host: "smtp.example.org",
       port: 587,
@@ -129,9 +126,7 @@ export async function configureMail(page: Page) {
 }
 
 export async function turnMailOff(page: Page) {
-  await page.request.delete("/api/v1/settings/mail", {
-    headers: { Origin: new URL(page.url()).origin }
-  });
+  await page.request.delete("/api/v1/settings/mail");
 }
 
 /**

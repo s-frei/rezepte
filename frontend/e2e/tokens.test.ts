@@ -146,9 +146,7 @@ test("an admin sees another admin's token only in the household view", async ({ 
 	// The other admin issues a token of their own.
 	await page.context().clearCookies();
 	await login(page, issuer);
-	const origin = new URL(page.url()).origin;
 	const created = await page.request.post('/api/v1/tokens', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { name: theirs, scopes: ['recipes:read'] }
 	});
 	expect(created.ok()).toBeTruthy();

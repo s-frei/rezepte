@@ -15,9 +15,7 @@ test('login', async ({ page }, testInfo) => {
 // screenshots would otherwise list it.
 test('welcome', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
-	const origin = new URL(page.url()).origin;
 	const res = await page.request.post('/api/v1/users', {
-		headers: { Origin: origin },
 		data: { username: `welcome-${testInfo.project.name}`, role: 'user' }
 	});
 	const created = (await res.json()) as { id: string; setupLink: { path: string } };
@@ -27,7 +25,7 @@ test('welcome', async ({ page }, testInfo) => {
 	await expect(page.getByRole('heading', { name: /^Welcome,/ })).toBeVisible();
 	await shot(page, 'welcome');
 	await page.context().addCookies(session);
-	await page.request.delete(`/api/v1/users/${created.id}`, { headers: { Origin: origin } });
+	await page.request.delete(`/api/v1/users/${created.id}`);
 });
 
 // A fresh instance has no recipes, but the demo seeds some, so the three list

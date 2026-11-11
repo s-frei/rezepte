@@ -59,10 +59,6 @@ test('import-export-import', async ({ page }, testInfo) => {
 	// shows what a real file looks like, "already here" marks included.
 	const list = await (await page.request.get('/api/v1/recipes?limit=4&sort=title')).json();
 	const zip = await page.request.post('/api/v1/export', {
-		headers: {
-			Origin: new URL(page.url()).origin,
-			'Content-Type': 'application/json'
-		},
 		data: { recipeIds: list.items.map((r: { id: string }) => r.id) }
 	});
 	await page.goto('/settings/transfer');
@@ -138,12 +134,11 @@ test('token-mcp', async ({ page }, testInfo) => {
 	// The projects share one instance and run one after another, so the
 	// token this picture creates goes again, or the next project's `api`
 	// picture would show one tag more. The demo's own tokens stay.
-	const origin = new URL(page.url()).origin;
 	const list = (await (await page.request.get('/api/v1/tokens')).json()) as {
 		items: { id: string; name: string }[];
 	};
 	for (const token of list.items.filter((t) => t.name === 'MCP on the laptop')) {
-		await page.request.delete(`/api/v1/tokens/${token.id}`, { headers: { Origin: origin } });
+		await page.request.delete(`/api/v1/tokens/${token.id}`);
 	}
 });
 
@@ -213,9 +208,7 @@ test('setup-link-dialog', async ({ page }, testInfo) => {
 		items: { id: string; username: string }[];
 	};
 	const id = users.items.find((u) => u.username === username)?.id;
-	await page.request.delete(`/api/v1/users/${id}`, {
-		headers: { Origin: new URL(page.url()).origin }
-	});
+	await page.request.delete(`/api/v1/users/${id}`);
 });
 
 test('mail-card', async ({ page }, testInfo) => {

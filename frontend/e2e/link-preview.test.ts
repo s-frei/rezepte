@@ -33,10 +33,7 @@ async function shareLink(
 	page: Page,
 	recipeId: string
 ): Promise<{ path: string; expiresAt: string | null }> {
-	const origin = new URL(page.url()).origin;
-	const response = await page.request.post(`/api/v1/recipes/${recipeId}/share-link`, {
-		headers: { Origin: origin }
-	});
+	const response = await page.request.post(`/api/v1/recipes/${recipeId}/share-link`);
 	expect(response.ok()).toBeTruthy();
 	return (await response.json()) as { path: string; expiresAt: string | null };
 }

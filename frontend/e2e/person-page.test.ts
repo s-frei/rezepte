@@ -291,14 +291,11 @@ test('the owner resets a password from the person page', async ({ page }) => {
 test('a reset gives an account without a password one on the person page', async ({ page }) => {
 	const username = `pnp${uniqueToken()}`;
 	await asOwner(page);
-	const origin = new URL(page.url()).origin;
-	const headers = { Origin: origin, 'Content-Type': 'application/json' };
 	const created = await page.request.post('/api/v1/users', {
-		headers,
 		data: { username, role: 'user' }
 	});
 	const { id } = (await created.json()) as { id: string };
-	await page.request.delete(`/api/v1/users/${id}/setup-link`, { headers });
+	await page.request.delete(`/api/v1/users/${id}/setup-link`);
 	await page.goto(`/settings/users/${username}`);
 
 	const head = card(page, username);

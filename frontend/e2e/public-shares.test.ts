@@ -238,7 +238,6 @@ test('a public link opens a step photo from its own image route', async ({
 	const [first, ...rest] = input.steps;
 	const phrase = first.text.split(' ').slice(0, 2).join(' ');
 	const put = await page.request.put(`/api/v1/recipes/${recipe.id}`, {
-		headers: { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' },
 		data: { ...input, steps: [{ ...first, photos: [{ phrase, imageId: image.id }] }, ...rest] }
 	});
 	expect(put.ok(), `PUT recipe failed: ${put.status()} ${await put.text()}`).toBeTruthy();
@@ -359,9 +358,7 @@ test('the owner lets public pages name who shared, with their photo', async ({
 			await strangerContext.close();
 		}
 	} finally {
-		await page.request.delete('/api/v1/auth/me/avatar', {
-			headers: { Origin: new URL(page.url()).origin }
-		});
+		await page.request.delete('/api/v1/auth/me/avatar');
 		await setPublicShareSharer(page, false);
 		await setPublicShares(page, false);
 	}

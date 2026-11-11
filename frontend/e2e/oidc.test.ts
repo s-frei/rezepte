@@ -30,10 +30,7 @@ async function dexLogin(page: Page, email: string, password: string) {
 
 /** Disconnects the signed-in account's Dex identity, through the API with the page's session. */
 async function unlinkDex(page: Page): Promise<void> {
-	const origin = new URL(page.url()).origin;
-	const response = await page.request.delete('/api/v1/auth/me/identity', {
-		headers: { Origin: origin }
-	});
+	const response = await page.request.delete('/api/v1/auth/me/identity');
 	expect(
 		response.ok(),
 		`DELETE /api/v1/auth/me/identity failed: ${response.status()}`
@@ -87,8 +84,7 @@ test.afterEach(async ({ page }) => {
 	};
 	const created = list.items.find((u) => u.username === name);
 	if (!created) return;
-	const origin = new URL(page.url()).origin;
-	await page.request.delete(`/api/v1/users/${created.id}`, { headers: { Origin: origin } });
+	await page.request.delete(`/api/v1/users/${created.id}`);
 });
 
 test('an invited person sets up their account with Dex', async ({ page, browser }) => {

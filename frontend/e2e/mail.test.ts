@@ -487,13 +487,11 @@ test('an account that signs in only with Dex gets a hint', async ({ page, reques
 	test.skip(!oidc.enabled, 'Dex is not running (mise run oidc:up)');
 	await login(page);
 	const name = `dexhint${uniqueToken()}`;
-	const origin = new URL(page.url()).origin;
 	let created: { id?: string; setupLink?: { path: string } } | undefined;
 	let context: BrowserContext | undefined;
 	try {
 		created = await (
 			await page.request.post('/api/v1/users', {
-				headers: { Origin: origin },
 				data: { username: name, role: 'user' }
 			})
 		).json();
@@ -522,7 +520,7 @@ test('an account that signs in only with Dex gets a hint', async ({ page, reques
 	} finally {
 		await context?.close();
 		if (created?.id) {
-			await page.request.delete(`/api/v1/users/${created.id}`, { headers: { Origin: origin } });
+			await page.request.delete(`/api/v1/users/${created.id}`);
 		}
 	}
 });
@@ -674,12 +672,10 @@ test('inviting someone to a shopping list mails them', async ({ page, request })
 	await createUser(page, { username: owner, role: 'user' });
 	await page.context().clearCookies({ name: 'rezepte_session' });
 	await login(page, owner);
-	const headers = { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' };
 	const list = await (
-		await page.request.post('/api/v1/shopping-lists', { headers, data: { name: 'Picnic' } })
+		await page.request.post('/api/v1/shopping-lists', { data: { name: 'Picnic' } })
 	).json();
 	const res = await page.request.post(`/api/v1/shopping-lists/${list.id}/invitations`, {
-		headers,
 		data: { userId: inviteeId }
 	});
 	expect(res.ok()).toBeTruthy();

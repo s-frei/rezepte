@@ -45,16 +45,14 @@ async function recipeWithPhotos(
 	for (let i = 0; i < 3; i++) {
 		ids.push((await uploadImage(page, recipe.id, tinyPng([60 * i, 120, 200 - 40 * i]))).id);
 	}
-	const origin = new URL(page.url()).origin;
 	const put = await page.request.put(`/api/v1/recipes/${recipe.id}`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: {
 			...input,
 			steps: [{ ...input.steps[0], photos: [{ phrase, imageId: ids[2] }] }, input.steps[1]]
 		}
 	});
 	expect(put.ok(), `PUT recipe failed: ${put.status()} ${await put.text()}`).toBeTruthy();
-	return { recipe, ids, origin };
+	return { recipe, ids };
 }
 
 const trigger = (page: Page) => page.locator('[data-step-photo]');
@@ -279,9 +277,8 @@ test('cook mode opens it, and the time chip still starts its timer', async ({ pa
 });
 
 test('a reordered photo keeps its link and shows its new position', async ({ page }) => {
-	const { recipe, ids, origin } = await recipeWithPhotos(page);
+	const { recipe, ids } = await recipeWithPhotos(page);
 	const order = await page.request.put(`/api/v1/recipes/${recipe.id}/images/order`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { imageIds: [ids[2], ids[0], ids[1]] }
 	});
 	expect(order.ok()).toBeTruthy();

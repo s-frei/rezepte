@@ -410,10 +410,7 @@ test('an invitation is declined, and a member leaves', async ({ page, browser },
 		await expect(lists.getByText('3 invitations')).toBeAttached();
 
 		// Withdrawn while the page is open: answering it drops the card.
-		const origin = new URL(page.url()).origin;
-		const withdrawn = await page.request.delete(`/api/v1/shopping-lists/${gone}`, {
-			headers: { Origin: origin }
-		});
+		const withdrawn = await page.request.delete(`/api/v1/shopping-lists/${gone}`);
 		expect(withdrawn.ok()).toBe(true);
 		// The innermost element that holds both the text and the button is the card.
 		const accept = lists.getByRole('button', { name: 'Accept' });

@@ -220,16 +220,14 @@ export function loadFixture(index: number, locale: 'en' | 'de' = 'en'): RecipeIn
 /**
  * Creates a recipe straight through the API, reusing the session cookie the
  * page logged in with (`page.request` shares the browser context's cookie
- * jar). Sets `Origin` the way the browser would, since the server rejects
- * mutating API calls whose origin doesn't match its host.
+ * jar). It sends no `Origin`: the server rejects only a mutating call whose
+ * Origin names another host, and lets one without the header through.
  *
  * Use it to arrange state for a test; the editor flow itself is covered
  * through the UI.
  */
 export async function createRecipe(page: Page, input: RecipeInput): Promise<Recipe> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.post('/api/v1/recipes', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: input
 	});
 	expect(
@@ -376,9 +374,7 @@ function crc32(data: Buffer): number {
 
 /** Makes one of a recipe's images its cover, through the API with the page's session. */
 export async function setCover(page: Page, recipeId: string, imageId: string): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.put(`/api/v1/recipes/${recipeId}/cover`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { imageId }
 	});
 	expect(
@@ -389,9 +385,7 @@ export async function setCover(page: Page, recipeId: string, imageId: string): P
 
 /** Uploads a PNG through the API with the page's session (multipart, part "file"). */
 export async function uploadImage(page: Page, recipeId: string, png: Buffer): Promise<Image> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.post(`/api/v1/recipes/${recipeId}/images`, {
-		headers: { Origin: origin },
 		multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: png } }
 	});
 	expect(
@@ -419,9 +413,7 @@ export async function createUser(
 		color?: string;
 	}
 ): Promise<UserAccount> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.post('/api/v1/users', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { ...input, password: input.password ?? devPassword(input.username) }
 	});
 	expect(
@@ -433,9 +425,7 @@ export async function createUser(
 
 /** Switches the household lock through the API, as the signed-in owner. */
 export async function setRecipesLockedByDefault(page: Page, on: boolean): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { recipesLockedByDefault: on }
 	});
 	expect(
@@ -453,9 +443,7 @@ export async function setLinkPreviews(
 	on: boolean,
 	minutes: 15 | 60 | 1440 = 15
 ): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { linkPreviews: on, linkPreviewMinutes: minutes }
 	});
 	expect(
@@ -466,9 +454,7 @@ export async function setLinkPreviews(
 
 /** Switches the owner's "Name Rezepte when sharing" setting. */
 export async function setPublicShareAttribution(page: Page, on: boolean): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { publicShareAttribution: on }
 	});
 	expect(response.ok()).toBeTruthy();
@@ -476,9 +462,7 @@ export async function setPublicShareAttribution(page: Page, on: boolean): Promis
 
 /** Switches the owner's sharer setting: whether a public link names who shared it. */
 export async function setPublicShareSharer(page: Page, on: boolean): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { publicShareSharer: on }
 	});
 	expect(response.ok()).toBeTruthy();
@@ -496,9 +480,7 @@ export async function setPublicShares(
 	defaultDays: 1 | 7 | 30 | 365 | null = null,
 	maxDays: 1 | 7 | 30 | 365 | null = null
 ): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch('/api/v1/settings', {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: {
 			publicShares: on,
 			publicShareDefaultDays: defaultDays,
@@ -531,9 +513,7 @@ export async function createPublicShare(
 	recipeId: string,
 	days: 1 | 7 | 30 | 365 | null = null
 ): Promise<PublicShare> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.post(`/api/v1/recipes/${recipeId}/public-share`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { days }
 	});
 	expect(
@@ -545,9 +525,7 @@ export async function createPublicShare(
 
 /** Writes a comment on a recipe through the API, as the signed-in person. */
 export async function addDiaryEntry(page: Page, recipeId: string, body: string): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.post(`/api/v1/recipes/${recipeId}/comments`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { body }
 	});
 	expect(
@@ -563,15 +541,12 @@ export async function addDiaryPhoto(
 	body: string,
 	png: Buffer
 ): Promise<string> {
-	const origin = new URL(page.url()).origin;
 	const up = await page.request.post(`/api/v1/recipes/${recipeId}/comment-images`, {
-		headers: { Origin: origin },
 		multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: png } }
 	});
 	expect(up.status(), `POST comment-images: ${await up.text()}`).toBe(201);
 	const { id } = (await up.json()) as { id: string };
 	const response = await page.request.post(`/api/v1/recipes/${recipeId}/comments`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { body, imageIds: [id] }
 	});
 	expect(response.status(), `POST comments: ${await response.text()}`).toBe(201);
@@ -584,9 +559,7 @@ export async function addDiaryPhoto(
  * see the share validity rules.
  */
 export async function setCanSharePublicly(page: Page, userId: string, on: boolean): Promise<void> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.patch(`/api/v1/users/${userId}`, {
-		headers: { Origin: origin, 'Content-Type': 'application/json' },
 		data: { canSharePublicly: on }
 	});
 	expect(
@@ -597,9 +570,7 @@ export async function setCanSharePublicly(page: Page, userId: string, on: boolea
 
 /** Sets the signed-in account's picture through the API (centered crop). */
 export async function setOwnAvatarViaApi(page: Page, png: Buffer): Promise<string> {
-	const origin = new URL(page.url()).origin;
 	const response = await page.request.put('/api/v1/auth/me/avatar', {
-		headers: { Origin: origin },
 		multipart: { file: { name: 'me.png', mimeType: 'image/png', buffer: png } }
 	});
 	expect(response.ok(), `PUT /api/v1/auth/me/avatar failed: ${response.status()}`).toBeTruthy();
