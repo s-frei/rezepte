@@ -38,8 +38,8 @@ func TestGuardTarget(t *testing.T) {
 		{"nobody manages the superadmin", RoleSuperadmin, RoleSuperadmin, ErrSuperadminProtected},
 		{"a member manages nobody", RoleUser, RoleUser, nil},
 	} {
-		if got := guardTarget(tc.actor, tc.target); !errors.Is(got, tc.want) {
-			t.Errorf("%s: guardTarget(%s, %s) = %v, want %v", tc.name, tc.actor, tc.target, got, tc.want)
+		if got := GuardTarget(tc.actor, tc.target); !errors.Is(got, tc.want) {
+			t.Errorf("%s: GuardTarget(%s, %s) = %v, want %v", tc.name, tc.actor, tc.target, got, tc.want)
 		}
 	}
 }
@@ -57,11 +57,8 @@ func TestGuardAssignRole(t *testing.T) {
 		{"superadmin is never assignable", RoleSuperadmin, RoleSuperadmin, ErrSuperadminProtected},
 		{"nor by an admin", RoleAdmin, RoleSuperadmin, ErrSuperadminProtected},
 	} {
-		if got := guardTarget(tc.actor, tc.role); !errors.Is(got, tc.want) {
-			t.Errorf("%s: guardTarget(%s, %s) = %v, want %v", tc.name, tc.actor, tc.role, got, tc.want)
-		}
-		if got := CanAssignRole(tc.actor, tc.role); !errors.Is(got, tc.want) {
-			t.Errorf("%s: CanAssignRole disagrees with guardTarget: %v", tc.name, got)
+		if got := GuardTarget(tc.actor, tc.role); !errors.Is(got, tc.want) {
+			t.Errorf("%s: GuardTarget(%s, %s) = %v, want %v", tc.name, tc.actor, tc.role, got, tc.want)
 		}
 	}
 }
@@ -77,8 +74,8 @@ func TestGuardProfileEdit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.actor), func(t *testing.T) {
-			if err := guardProfileEdit(tt.actor); !errors.Is(err, tt.want) {
-				t.Errorf("guardProfileEdit(%q) = %v; want %v", tt.actor, err, tt.want)
+			if err := GuardProfileEdit(tt.actor); !errors.Is(err, tt.want) {
+				t.Errorf("GuardProfileEdit(%q) = %v; want %v", tt.actor, err, tt.want)
 			}
 		})
 	}

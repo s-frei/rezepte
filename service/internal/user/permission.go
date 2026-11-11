@@ -7,13 +7,15 @@ package user
 // exhaustively testable, and so a caller cannot accidentally pass the target
 // where the actor belongs and still compile into something plausible.
 
-// guardTarget reports whether actor may delete, re-role or reset the password
-// of a user whose role is target, and equally whether actor may hand out the
-// role target. The superadmin check comes first: that it is refused holds for
-// every caller, including the superadmin, so it is the more specific answer.
+// GuardTarget reports whether actor may delete, re-role or reset the password
+// of a user whose role is target (issuing a setup link is such a reset), and
+// equally whether actor may hand out the role target: creating a user has no
+// target row to read, so userapi checks the requested role itself. The
+// superadmin check comes first: that it is refused holds for every caller,
+// including the superadmin, so it is the more specific answer.
 // It is also why the superadmin role is never assignable through the
 // application; the bootstrap path is its only writer.
-func guardTarget(actor, target Role) error {
+func GuardTarget(actor, target Role) error {
 	if target.IsSuperadmin() {
 		return ErrSuperadminProtected
 	}
@@ -23,29 +25,17 @@ func guardTarget(actor, target Role) error {
 	return nil
 }
 
-// CanAssignRole reports whether actor may hand out role, for callers outside
-// this package. Creating a user has no target row to read, so userapi checks
-// the requested role itself before calling Create.
-func CanAssignRole(actor, role Role) error { return guardTarget(actor, role) }
-
-// CanManage reports whether actor may reset target's credentials: the same
-// rule as a password reset, which issuing a setup link is.
-func CanManage(actor, target Role) error { return guardTarget(actor, target) }
-
-// guardProfileEdit reports whether actor may write the profile fields -
+// GuardProfileEdit reports whether actor may write the profile fields -
 // display name and color - of another user. This is deliberately not
-// guardTarget: that one lets an admin act on a member, which is right for a
+// GuardTarget: that one lets an admin act on a member, which is right for a
 // role change or a password reset and wrong for a rename. Managing a member
 // is administration; renaming them is not.
 //
 // Editing one's own profile never reaches here. That is the /auth/me route,
 // which has no target to guard.
-func guardProfileEdit(actor Role) error {
+func GuardProfileEdit(actor Role) error {
 	if !actor.IsSuperadmin() {
 		return ErrSuperadminRequired
 	}
 	return nil
 }
-
-// CanEditProfile is guardProfileEdit for callers outside this package.
-func CanEditProfile(actor Role) error { return guardProfileEdit(actor) }

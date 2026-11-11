@@ -742,7 +742,7 @@ func TestWithdrawSharing(t *testing.T) {
 	}
 }
 
-// TestSharingFollowsRank: the switch follows guardTarget like every other
+// TestSharingFollowsRank: the switch follows GuardTarget like every other
 // write aimed at an account - an admin reaches plain users only, their own
 // row included in "an admin", and only the owner reaches admins.
 func TestSharingFollowsRank(t *testing.T) {

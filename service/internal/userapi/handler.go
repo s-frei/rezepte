@@ -79,12 +79,7 @@ type PersonEntry struct {
 }
 
 // LatestRecipe is one of a person's newest recipes: enough for its link and thumbnail.
-type LatestRecipe struct {
-	ID           string  `json:"id" doc:"Recipe id"`
-	Slug         string  `json:"slug" doc:"The recipe's URL slug"`
-	Title        string  `json:"title" doc:"Recipe title"`
-	CoverImageID *string `json:"coverImageId" nullable:"true" doc:"The cover photo, served at /images/{id}/{coverImageId}/thumb.jpg; null when it has none"`
-}
+type LatestRecipe = recipe.LatestRecipe
 
 // PersonList is the response body of list-people.
 type PersonList struct {
@@ -184,18 +179,24 @@ func requireAdmin(ctx context.Context) (user.User, error) {
 	return u, nil
 }
 
-// rankError maps the two authorization errors the user service returns.
-// ErrSuperadminProtected states a fact about the instance that holds for every
-// caller, which is the register ErrSelfDelete already uses; ErrSuperadminRequired
-// is about who is asking. Returns nil for anything else.
-func rankError(err error) error {
+// userError maps what the user service returns for a target account: the two
+// rank errors, a missing account and the profile validation failures; any
+// other err comes back as it is. ErrSuperadminProtected states a fact about
+// the instance that holds for every caller, which is the register
+// ErrSelfDelete already uses; ErrSuperadminRequired is about who is asking.
+func userError(err error) error {
 	switch {
 	case errors.Is(err, user.ErrSuperadminProtected):
 		return huma.Error409Conflict("the superadmin cannot be modified")
 	case errors.Is(err, user.ErrSuperadminRequired):
 		return huma.Error403Forbidden("superadmin role required")
+	case errors.Is(err, user.ErrNotFound):
+		return huma.Error404NotFound("user not found")
 	}
-	return nil
+	if mapped := auth.ProfileError(err); mapped != nil {
+		return mapped
+	}
+	return err
 }
 
 // withMailStatus adds u's mail windows, read after any send of the request.
@@ -258,17 +259,7 @@ func (c counts) LastRecipeTitles(ctx context.Context) (map[string]string, error)
 }
 
 func (c counts) LatestRecipes(ctx context.Context) (map[string][]LatestRecipe, error) {
-	latest, err := c.recipes.LatestByCreator(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string][]LatestRecipe, len(latest))
-	for id, rs := range latest {
-		for _, r := range rs {
-			out[id] = append(out[id], LatestRecipe(r))
-		}
-	}
-	return out, nil
+	return c.recipes.LatestByCreator(ctx)
 }
 
 // Mailer is what user management needs from package mail.
@@ -459,11 +450,8 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		// lets the bootstrap path write the one superadmin row - so the rank
 		// rule for a brand new account is checked here, where there is a
 		// requested role but no target row to read.
-		if err := user.CanAssignRole(actor.Role, user.Role(in.Body.Role)); err != nil {
-			if mapped := rankError(err); mapped != nil {
-				return nil, mapped
-			}
-			return nil, err
+		if err := user.GuardTarget(actor.Role, user.Role(in.Body.Role)); err != nil {
+			return nil, userError(err)
 		}
 		if in.Body.Password != "" && len(in.Body.Password) < 8 {
 			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
@@ -555,23 +543,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		var before, after user.User
 		if in.Body != nil && in.Body.Email != nil {
 			before, err = users.ByID(ctx, in.ID)
-			if errors.Is(err, user.ErrNotFound) {
-				return nil, huma.Error404NotFound("user not found")
-			}
-			if err != nil {
+			if err := userError(err); err != nil {
 				return nil, err
 			}
 			after, err = users.SetEmail(ctx, actor, in.ID, *in.Body.Email)
-			if mapped := rankError(err); mapped != nil {
-				return nil, mapped
-			}
-			if mapped := auth.ProfileError(err); mapped != nil {
-				return nil, mapped
-			}
-			if errors.Is(err, user.ErrNotFound) {
-				return nil, huma.Error404NotFound("user not found")
-			}
-			if err != nil {
+			if err := userError(err); err != nil {
 				return nil, err
 			}
 			// The address is written: the old one hears now, whatever fails
@@ -579,13 +555,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			sessions.EmailChanged(ctx, before, after, adminName(actor, after))
 		}
 		link, err := sessions.IssueSetupLink(ctx, actor, in.ID)
-		if mapped := rankError(err); mapped != nil {
-			return nil, mapped
-		}
-		if errors.Is(err, user.ErrNotFound) {
-			return nil, huma.Error404NotFound("user not found")
-		}
-		if err != nil {
+		if err := userError(err); err != nil {
 			return nil, err
 		}
 		body := setupLinkBody{Path: auth.SetupPath(link.Token), ExpiresAt: link.ExpiresAt}
@@ -615,17 +585,14 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			return nil, err
 		}
 		target, err := users.ByID(ctx, in.ID)
-		if errors.Is(err, user.ErrNotFound) {
-			return nil, huma.Error404NotFound("user not found")
-		}
-		if err != nil {
+		if err := userError(err); err != nil {
 			return nil, err
 		}
 		if target.ID == actor.ID {
 			return nil, huma.Error409Conflict("use resend-email-confirmation for your own address")
 		}
-		if mapped := rankError(user.CanManage(actor.Role, target.Role)); mapped != nil {
-			return nil, mapped
+		if err := user.GuardTarget(actor.Role, target.Role); err != nil {
+			return nil, userError(err)
 		}
 		return nil, auth.ResendError(sessions.ResendConfirmation(ctx, target, adminName(actor, target)))
 	})
@@ -646,13 +613,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			return nil, err
 		}
 		err = sessions.RevokeSetupLink(ctx, actor, in.ID)
-		if mapped := rankError(err); mapped != nil {
-			return nil, mapped
-		}
-		if errors.Is(err, user.ErrNotFound) {
-			return nil, huma.Error404NotFound("user not found")
-		}
-		if err != nil {
+		if err := userError(err); err != nil {
 			return nil, err
 		}
 		return &revokeSetupLinkOutput{}, nil
@@ -683,17 +644,11 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			})
 		}
 		// Renaming somebody is not administration, so it is the owner's alone -
-		// a different rule from guardTarget, which still decides the role
+		// a different rule from GuardTarget, which still decides the role
 		// change and the password reset below.
 		if hasProfile {
-			if err := user.CanEditProfile(actor.Role); err != nil {
-				if mapped := rankError(err); mapped != nil {
-					return nil, mapped
-				}
-				if mapped := auth.BusyError(err); mapped != nil {
-					return nil, mapped
-				}
-				return nil, err
+			if err := user.GuardProfileEdit(actor.Role); err != nil {
+				return nil, userError(err)
 			}
 		}
 		// Every value is checked before the first write, so a refused field
@@ -712,43 +667,22 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		} else {
 			u, err = users.ByID(ctx, in.ID)
 		}
-		if mapped := rankError(err); mapped != nil {
-			return nil, mapped
-		}
-		if errors.Is(err, user.ErrNotFound) {
-			return nil, huma.Error404NotFound("user not found")
-		}
-		if err != nil {
+		if err := userError(err); err != nil {
 			return nil, err
 		}
-		// It follows guardTarget like the role change above, the address and
+		// It follows GuardTarget like the role change above, the address and
 		// the password reset below, so none of them can land while another is
 		// refused.
 		if in.Body.CanSharePublicly != nil {
 			u, err = users.SetCanSharePublicly(ctx, actor, in.ID, *in.Body.CanSharePublicly)
-			if mapped := rankError(err); mapped != nil {
-				return nil, mapped
-			}
-			if errors.Is(err, user.ErrNotFound) {
-				return nil, huma.Error404NotFound("user not found")
-			}
-			if err != nil {
+			if err := userError(err); err != nil {
 				return nil, err
 			}
 		}
 		before := u
 		if in.Body.Email != nil {
 			u, err = users.SetEmail(ctx, actor, in.ID, *in.Body.Email)
-			if mapped := rankError(err); mapped != nil {
-				return nil, mapped
-			}
-			if mapped := auth.ProfileError(err); mapped != nil {
-				return nil, mapped
-			}
-			if errors.Is(err, user.ErrNotFound) {
-				return nil, huma.Error404NotFound("user not found")
-			}
-			if err != nil {
+			if err := userError(err); err != nil {
 				return nil, err
 			}
 			// The address is written: the old one hears and the new one gets
@@ -758,26 +692,17 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		}
 		if hasProfile {
 			u, err = users.SetProfile(ctx, in.ID, user.ProfileUpdate{DisplayName: update.DisplayName, Color: update.Color})
-			if mapped := auth.ProfileError(err); mapped != nil {
-				return nil, mapped
-			}
-			if errors.Is(err, user.ErrNotFound) {
-				return nil, huma.Error404NotFound("user not found")
-			}
-			if err != nil {
+			if err := userError(err); err != nil {
 				return nil, err
 			}
 		}
 		if in.Body.Password != nil {
 			if err := users.SetPassword(ctx, actor, in.ID, *in.Body.Password); err != nil {
-				if mapped := rankError(err); mapped != nil {
-					return nil, mapped
-				}
-				return nil, err
+				return nil, userError(err)
 			}
 			// The password is written: the notice goes even if ending
 			// sessions fails. It goes to the address confirmed before this
-			// request, since a new one set above is not confirmed yet. guardTarget
+			// request, since a new one set above is not confirmed yet. GuardTarget
 			// refuses every self-target, so the actor is always someone else.
 			sessions.PasswordChanged(ctx, before, mail.OriginAdmin, actor.DisplayName)
 			// A reset means the old credential is compromised or forgotten:
@@ -807,15 +732,10 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 			return nil, err
 		}
 		err = users.Delete(ctx, actor, in.ID)
-		if mapped := rankError(err); mapped != nil {
-			return nil, mapped
-		}
-		switch {
-		case errors.Is(err, user.ErrSelfDelete):
+		if errors.Is(err, user.ErrSelfDelete) {
 			return nil, huma.Error409Conflict("cannot delete yourself")
-		case errors.Is(err, user.ErrNotFound):
-			return nil, huma.Error404NotFound("user not found")
-		case err != nil:
+		}
+		if err := userError(err); err != nil {
 			return nil, err
 		}
 		// The row is gone, so nothing names the files any more; a leftover

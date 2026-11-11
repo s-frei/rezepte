@@ -57,7 +57,7 @@ type noContent struct{}
 
 // Register installs the picture operations: changing an account's own, which
 // any session may use, and another account's, which only the owner may, the
-// same rule user.CanEditProfile applies to the rest of a profile; and
+// same rule user.GuardProfileEdit applies to the rest of a profile; and
 // reading any account's picture file.
 func Register(api huma.API, svc *Service) {
 	upload := func(ctx context.Context, userID, crop string, file io.ReadCloser) (*uploadOutput, error) {
@@ -171,14 +171,14 @@ func Register(api huma.API, svc *Service) {
 	})
 }
 
-// requireOwner is user.CanEditProfile at the edge: only the instance owner
+// requireOwner is user.GuardProfileEdit at the edge: only the instance owner
 // writes another account's profile, picture included.
 func requireOwner(ctx context.Context) error {
 	actor, ok := auth.UserFrom(ctx)
 	if !ok {
 		return huma.Error401Unauthorized("authentication required")
 	}
-	if err := user.CanEditProfile(actor.Role); err != nil {
+	if err := user.GuardProfileEdit(actor.Role); err != nil {
 		return huma.Error403Forbidden("superadmin role required")
 	}
 	return nil

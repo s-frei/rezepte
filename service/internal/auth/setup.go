@@ -77,7 +77,7 @@ func (s *Service) IssueSetupLink(ctx context.Context, actor user.User, userID st
 	if err != nil {
 		return SetupLink{}, err
 	}
-	if err := user.CanManage(actor.Role, target.Role); err != nil {
+	if err := user.GuardTarget(actor.Role, target.Role); err != nil {
 		return SetupLink{}, err
 	}
 	return s.issueLink(ctx, target, actor.ID, PurposeSetup, SetupLinkTTL)
@@ -350,7 +350,7 @@ func (s *Service) RevokeSetupLink(ctx context.Context, actor user.User, userID s
 	if err != nil {
 		return err
 	}
-	if err := user.CanManage(actor.Role, target.Role); err != nil {
+	if err := user.GuardTarget(actor.Role, target.Role); err != nil {
 		return err
 	}
 	if err := s.q.DeleteSetupLinkOfUser(ctx, userID); err != nil {

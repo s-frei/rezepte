@@ -293,10 +293,10 @@ func (s *Service) SetRole(ctx context.Context, actor User, id string, role Role)
 		if err != nil {
 			return err
 		}
-		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+		if err := GuardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
 		}
-		if err := guardTarget(actor.Role, role); err != nil {
+		if err := GuardTarget(actor.Role, role); err != nil {
 			return err
 		}
 		updated, err := q.UpdateUserRole(ctx, sqlc.UpdateUserRoleParams{
@@ -354,7 +354,7 @@ func (p ProfileUpdate) Validate() error {
 // performs no rank check: its two callers differ in who they may aim at - one
 // writes the caller's own row, the other only the owner's doing - and the
 // service cannot tell them apart. Authorization is decided at the API
-// boundary, by user.CanEditProfile.
+// boundary, by user.GuardProfileEdit.
 //
 // The read and the write share one transaction so a concurrent write cannot
 // land between them and lose the field this call left alone.
@@ -427,7 +427,7 @@ func nextEmail(row sqlc.User, typed *string) (string, bool, error) {
 }
 
 // SetEmail writes another account's address, clearing the verified mark when
-// it changes. It follows guardTarget like a password reset, checked inside
+// it changes. It follows GuardTarget like a password reset, checked inside
 // the transaction that writes, so the rank read and the write cannot be
 // separated by a role change.
 func (s *Service) SetEmail(ctx context.Context, actor User, id, email string) (User, error) {
@@ -437,7 +437,7 @@ func (s *Service) SetEmail(ctx context.Context, actor User, id, email string) (U
 		if err != nil {
 			return err
 		}
-		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+		if err := GuardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
 		}
 		addr, verified, err := nextEmail(row, &email)
@@ -473,7 +473,7 @@ func (s *Service) SetEmailIfEmpty(ctx context.Context, id, email string, verifie
 }
 
 // SetCanSharePublicly switches whether id may create or keep a public recipe
-// link. It follows guardTarget like the role change and the password reset:
+// link. It follows GuardTarget like the role change and the password reset:
 // an admin switches it for plain users, only the superadmin for admins, and
 // the superadmin's own row is refused - public sharing for the whole instance
 // is the owner's call, made through package settings, not a per-person switch
@@ -486,7 +486,7 @@ func (s *Service) SetCanSharePublicly(ctx context.Context, actor User, id string
 		if err != nil {
 			return err
 		}
-		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+		if err := GuardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
 		}
 		updated, err := q.SetCanSharePublicly(ctx, sqlc.SetCanSharePubliclyParams{
@@ -517,7 +517,7 @@ func (s *Service) Delete(ctx context.Context, actor User, id string) error {
 		if err != nil {
 			return err
 		}
-		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+		if err := GuardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
 		}
 		if err := q.DeleteTastyOfNewOwner(ctx, sqlc.DeleteTastyOfNewOwnerParams{NewOwner: actor.ID, OldOwner: id}); err != nil {
@@ -555,7 +555,7 @@ func (s *Service) SetPassword(ctx context.Context, actor User, id, password stri
 		if err != nil {
 			return err
 		}
-		if err := guardTarget(actor.Role, Role(row.Role)); err != nil {
+		if err := GuardTarget(actor.Role, Role(row.Role)); err != nil {
 			return err
 		}
 		n, err := q.UpdateUserPasswordHash(ctx, sqlc.UpdateUserPasswordHashParams{

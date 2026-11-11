@@ -409,10 +409,10 @@ func (s *Service) LastTitlesByCreator(ctx context.Context) (map[string]string, e
 
 // LatestRecipe is one of a person's newest recipes as the people list shows it.
 type LatestRecipe struct {
-	ID           string
-	Slug         string
-	Title        string
-	CoverImageID *string
+	ID           string  `json:"id" doc:"Recipe id"`
+	Slug         string  `json:"slug" doc:"The recipe's URL slug"`
+	Title        string  `json:"title" doc:"Recipe title"`
+	CoverImageID *string `json:"coverImageId" nullable:"true" doc:"The cover photo, served at /images/{id}/{coverImageId}/thumb.jpg; null when it has none"`
 }
 
 // LatestByCreator returns each person's four newest created recipes, newest
