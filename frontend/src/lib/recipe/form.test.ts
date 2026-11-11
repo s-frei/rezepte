@@ -828,7 +828,25 @@ describe('applyServerErrors', () => {
 	it('maps a top-level location onto its form field', () => {
 		expect(
 			applyServerErrors([{ location: 'body.title', message: 'expected minLength 1' }], [])
-		).toEqual({ title: 'expected minLength 1' });
+		).toEqual({ title: 'Please enter a title' });
+	});
+
+	it('never shows the server’s own message', () => {
+		expect(
+			applyServerErrors([{ location: 'body.prepMinutes', message: 'expected number <= 1440' }], [])
+		).toEqual({ prepMinutes: 'Please check this entry' });
+	});
+
+	it('names a step’s links when one of them no longer fits', () => {
+		const steps = validForm().steps;
+		expect(
+			applyServerErrors(
+				[{ location: 'body.steps[0].references[0].word', message: '"x" does not occur' }],
+				steps
+			)
+		).toEqual({
+			[`step:${steps[0].id}`]: 'A link, time or photo in this step no longer matches its text'
+		});
 	});
 
 	it('collapses a nested location onto its top-level field', () => {
@@ -837,14 +855,14 @@ describe('applyServerErrors', () => {
 				[{ location: 'body.ingredientGroups[0].ingredients[2].name', message: 'too short' }],
 				[]
 			)
-		).toEqual({ ingredientGroups: 'too short' });
+		).toEqual({ ingredientGroups: 'Please check this entry' });
 	});
 
 	it('keys a problem inside one step by that step’s id, not the whole section', () => {
 		const steps = validForm().steps;
 		expect(
 			applyServerErrors([{ location: 'body.steps[1].text', message: 'too long' }], steps)
-		).toEqual({ [`step:${steps[1].id}`]: 'too long' });
+		).toEqual({ [`step:${steps[1].id}`]: 'Please check this entry' });
 	});
 
 	it('indexes against the steps the server actually saw, skipping blanks', () => {
@@ -855,7 +873,7 @@ describe('applyServerErrors', () => {
 		const [, first, second] = form.steps;
 		expect(
 			applyServerErrors([{ location: 'body.steps[1].text', message: 'too long' }], form.steps)
-		).toEqual({ [`step:${second.id}`]: 'too long' });
+		).toEqual({ [`step:${second.id}`]: 'Please check this entry' });
 		expect(anchorId(`step:${first.id}`)).not.toBe(anchorId(`step:${second.id}`));
 	});
 
@@ -865,25 +883,26 @@ describe('applyServerErrors', () => {
 				[{ location: 'body.steps[5].text', message: 'too long' }],
 				validForm().steps
 			)
-		).toEqual({ steps: 'too long' });
+		).toEqual({ steps: 'Please check this entry' });
 	});
 
 	it('collapses a bare steps location onto the section', () => {
 		expect(applyServerErrors([{ location: 'body.steps', message: 'too many' }], [])).toEqual({
-			steps: 'too many'
+			steps: 'Please check this entry'
 		});
 	});
 
 	it('keeps the first message per field', () => {
+		const steps = validForm().steps;
 		expect(
 			applyServerErrors(
 				[
-					{ location: 'body.title', message: 'first' },
-					{ location: 'body.title', message: 'second' }
+					{ location: 'body.steps[0].text', message: 'first' },
+					{ location: 'body.steps[0].references[0].word', message: 'second' }
 				],
-				[]
+				steps
 			)
-		).toEqual({ title: 'first' });
+		).toEqual({ [`step:${steps[0].id}`]: 'Please check this entry' });
 	});
 
 	it('ignores locations outside the body and unknown fields', () => {

@@ -3264,3 +3264,40 @@ test('the back button glides the cover home on a touch screen too', async ({ pag
 	await expect(page).toHaveURL(new RegExp(`tags=${token}`));
 	expect(await transitions()).toBe(3);
 });
+
+test('a refused save shows catalog copy, never the server’s own words', async ({ page }) => {
+	const recipe = await createRecipe(page, {
+		...REFERENCE_RECIPE,
+		title: `Abgelehnt ${uniqueToken()}`,
+		steps: [{ text: 'Saft aufkochen.', references: [], times: [] }]
+	});
+	// What the API answers when a link no longer matches its step: English
+	// for an API client, not for the person at the editor.
+	await page.route(`**/api/v1/recipes/${recipe.id}`, (route) =>
+		route.request().method() === 'PUT'
+			? route.fulfill({
+					status: 422,
+					contentType: 'application/problem+json',
+					json: {
+						title: 'Unprocessable Entity',
+						status: 422,
+						detail: 'validation failed',
+						errors: [
+							{
+								location: 'body.steps[0].references[0].word',
+								message: '"Saft" does not occur in the step\'s text'
+							}
+						]
+					}
+				})
+			: route.fallback()
+	);
+
+	await page.goto(`/recipes/${recipe.slug}/edit`);
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(
+		page.getByText('A link, time or photo in this step no longer matches its text')
+	).toBeVisible();
+	await expect(page.getByText('does not occur')).toHaveCount(0);
+	await expect(page.getByText('validation failed')).toHaveCount(0);
+});

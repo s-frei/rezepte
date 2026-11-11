@@ -706,6 +706,8 @@
 	"editor_ingredient_duplicate": "Doppelt – nicht verknüpfbar",
 	"editor_validation_ingredient_name": "Bitte einen Namen eingeben",
 	"editor_validation_reference_deleted": "Verknüpfung zeigt auf eine gelöschte Zutat",
+	"editor_validation_step_links": "Eine Verknüpfung, Zeit oder ein Foto in diesem Schritt passt nicht mehr zum Text",
+	"editor_validation_server": "Bitte prüfe diese Angabe",
 	"editor_validation_reference_duplicate": "Verknüpfung zeigt auf eine Zutat, deren Name in ihrer Gruppe doppelt ist",
 	"editor_ingredient_row_label": "Zutat {number}",
 	"time_units_seconds": "Sekunden|Sekunde|Sek.|Sek",

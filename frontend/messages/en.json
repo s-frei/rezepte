@@ -706,6 +706,8 @@
 	"editor_ingredient_duplicate": "Duplicate – can't be linked",
 	"editor_validation_ingredient_name": "Please enter a name",
 	"editor_validation_reference_deleted": "This link points at a deleted ingredient",
+	"editor_validation_step_links": "A link, time or photo in this step no longer matches its text",
+	"editor_validation_server": "Please check this entry",
 	"editor_validation_reference_duplicate": "This link points at an ingredient whose name is in its group twice",
 	"editor_ingredient_row_label": "Ingredient {number}",
 	"time_units_seconds": "seconds|second|secs|sec",

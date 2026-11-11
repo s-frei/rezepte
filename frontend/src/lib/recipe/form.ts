@@ -695,6 +695,9 @@ function numberError(value: string): string | null {
  * never sent and never rejected. Filtered here with the exact predicate
  * `toInput` uses (`!isBlank(step.text)`), so `body.steps[1]` lands on the
  * same step the server saw, not on whatever sits at index 1 of the form.
+ *
+ * The server's own message is English and never shown: each field gets the
+ * catalog copy the editor's own check would give it, or a generic one.
  */
 export function applyServerErrors(errors: FieldError[], steps: FormStep[]): FieldErrors {
 	const submitted = steps.filter((step) => !isBlank(step.text));
@@ -704,10 +707,20 @@ export function applyServerErrors(errors: FieldError[], steps: FormStep[]): Fiel
 		// First message wins - later ones for the same field would only
 		// overwrite the one the user is most likely to act on.
 		if (field !== null && !(field in mapped)) {
-			mapped[field] = error.message;
+			mapped[field] = serverMessage(field, error.location);
 		}
 	}
 	return mapped;
+}
+
+function serverMessage(field: string, location: string): string {
+	if (field === 'title') return m.editor_validation_title_required();
+	if (field === 'servings') return m.editor_validation_servings();
+	if (field === 'sourceUrl') return m.editor_validation_source_url();
+	if (/^body\.steps\[\d+\]\.(references|times|photos)\b/.test(location)) {
+		return m.editor_validation_step_links();
+	}
+	return m.editor_validation_server();
 }
 
 function serverField(location: string, steps: FormStep[]): string | null {

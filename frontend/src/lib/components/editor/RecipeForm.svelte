@@ -484,7 +484,7 @@
 				if (Object.keys(errors).length > 0) {
 					await reportErrors();
 				} else {
-					toast.error(error.detail ?? m.editor_save_error());
+					toast.error(m.editor_save_error());
 				}
 			} else if (!(error instanceof ApiError && error.status === 401)) {
 				// A 401 already sends the browser to the login page (see
