@@ -96,7 +96,7 @@ opposite failure — split those.
 
 ## Tidy the branch before it lands
 
-**A branch gets its final shape in its worktree, and lands on `develop` as a fast-forward in which every commit passes `mise run check`.** Until the merge, rewriting the branch is free and expected. Squash the fixups, fold regenerated artifacts into the commits that caused them, and leave each commit with a title that still makes sense in a year.
+**A branch gets its final shape in its worktree, and lands on `develop` as a fast-forward whose tip passes `mise run check`.** The gate runs once, on the rebased tip, not on every commit: re-running it per commit costs minutes of full load each for a `bisect` guarantee that `git bisect skip` already covers. Each commit is still meant to stand on its own, because `check` runs before it is made. Until the merge, rewriting the branch is free and expected. Squash the fixups, fold regenerated artifacts into the commits that caused them, and leave each commit with a title that still makes sense in a year.
 
 A branch lands only after the maintainer says yes to that landing ([Work in a worktree](/howtos/work-in-a-worktree)). The full sequence:
 
@@ -105,14 +105,15 @@ A branch lands only after the maintainer says yes to that landing ([Work in a wo
 git commit --fixup=<sha>
 
 # in the worktree, before landing: fold the fixups onto the current develop
-# and run the gate on every commit (no editor needed)
-GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash --exec 'mise run check' develop
+# (no editor needed), then run the gate once on the tip
+GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash develop
+mise run check
 
 # in the main checkout, on a clean develop
 git merge --ff-only feat/<name>
 ```
 
-An agent cannot drive an interactive editor, so it tidies through `--fixup` and `--autosquash`; a person can run `git rebase -i develop` and reorder by hand. A failing `--exec` stops the rebase on that commit: fix it, `git commit --amend`, `git rebase --continue`. If `--ff-only` refuses, `develop` moved meanwhile; rebase again in the worktree.
+An agent cannot drive an interactive editor, so it tidies through `--fixup` and `--autosquash`; a person can run `git rebase -i develop` and reorder by hand. When the tip check fails, fix it with a `--fixup` for the commit that broke it and run the sequence again. If `--ff-only` refuses, `develop` moved meanwhile; rebase again in the worktree.
 
 <Callout type="warn" title="Hard rule">
 
