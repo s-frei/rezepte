@@ -6,6 +6,7 @@ import KeyRound from '@lucide/svelte/icons/key-round';
 import Mail from '@lucide/svelte/icons/mail';
 import UserRound from '@lucide/svelte/icons/user-round';
 import UsersRound from '@lucide/svelte/icons/users-round';
+import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import type { ResolvedPathname } from '$app/types';
 import type { IconComponent } from '#lib/components/nav/contents.js';
@@ -99,4 +100,18 @@ export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 			((page.id !== 'mail' && page.id !== 'sign-in') || role === 'superadmin') &&
 			(page.id !== 'transfer' || isAdminRole(role))
 	);
+}
+
+/**
+ * For a settings page's load: a viewer whose role the nav does not offer
+ * the page to goes back to the profile. The API refuses them anyway.
+ */
+export async function requirePage(
+	id: SettingsPageId,
+	parent: () => Promise<{ user?: { role: UserRole } | null }>
+): Promise<void> {
+	const { user } = await parent();
+	if (!settingsPages(user?.role).some((page) => page.id === id)) {
+		redirect(307, resolve('/settings'));
+	}
 }

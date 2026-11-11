@@ -9,12 +9,11 @@
 	import { login, safeNext, type User } from '#lib/api/auth.js';
 	import { ApiError } from '#lib/api/client.js';
 	import type { OidcInfo } from '#lib/api/oidc.js';
-	import { markArrival } from '#lib/arrival.js';
 	import { session } from '#lib/auth.svelte.js';
 	import { wait } from '#lib/page-transition.js';
 	import { announceSession } from '#lib/session-broadcast.js';
 	import AuthScene from '#lib/components/auth/AuthScene.svelte';
-	import HelloSplash, { grow } from '#lib/components/switch/HelloSplash.svelte';
+	import HelloSplash, { arriveAs, grow } from '#lib/components/switch/HelloSplash.svelte';
 	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
@@ -39,9 +38,12 @@
 	let fromSwitch = $state(false);
 	afterNavigate(({ from }) => (fromSwitch = from?.route.id === '/switch'));
 
+	// A modified click (new tab, window, download) is left to the browser.
+	const isPlainClick = (event: MouseEvent) =>
+		event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+
 	function backToSwitch(event: MouseEvent) {
-		if (!fromSwitch || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey)
-			return;
+		if (!fromSwitch || !isPlainClick(event)) return;
 		event.preventDefault();
 		history.back();
 	}
@@ -93,15 +95,7 @@
 	// a server log. A modified click (new tab) opens the page empty.
 	function openForgot(event: MouseEvent) {
 		const name = username.trim();
-		if (
-			!name ||
-			event.button !== 0 ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.shiftKey ||
-			event.altKey
-		)
-			return;
+		if (!name || !isPlainClick(event)) return;
 		event.preventDefault();
 		void goto(resolve('/forgot-password'), { state: { login: name } });
 	}
@@ -156,14 +150,9 @@
 		announceSession(user.id);
 		const target = safeNext(next);
 		// The switch's greeting, after the answer so a refused sign-in never
-		// shows one; the app paints its ground again over the reload and
-		// closes it into the avatar (#lib/arrival.ts).
+		// shows one.
 		if (!prefersReducedMotion.current) await greet(user);
-		await markArrival(user.color, target);
-		// A full load, so nothing of the previous person survives; it also
-		// reaches a target without a client route (the Scalar docs under
-		// /api/, a path that no longer exists).
-		window.location.assign(target);
+		await arriveAs(user.color, target, () => (greeted = true));
 	}
 
 	// What grows into the greeting, as the switch's tapped card does: the
@@ -192,8 +181,6 @@
 		);
 		named = false;
 		await wait(900);
-		greeted = true;
-		await wait(150);
 	}
 
 	// The message opens its line below the fields while the card shakes,

@@ -8,7 +8,6 @@
 	import { resolve } from '$app/paths';
 	import type { Path } from '$app/types';
 	import { resolvePath } from '#lib/paths.js';
-	import { markArrival } from '#lib/arrival.js';
 	import { wait } from '#lib/page-transition.js';
 	import { announceSession } from '#lib/session-broadcast.js';
 	import mascot from '$brand/lockups/rezepte-mascot-switch.webp?url';
@@ -21,7 +20,7 @@
 	} from '#lib/api/auth.js';
 	import AccountCard from '#lib/components/switch/AccountCard.svelte';
 	import AddCard from '#lib/components/switch/AddCard.svelte';
-	import HelloSplash, { grow } from '#lib/components/switch/HelloSplash.svelte';
+	import HelloSplash, { arriveAs, grow } from '#lib/components/switch/HelloSplash.svelte';
 	import RemoveDialog from '#lib/components/switch/RemoveDialog.svelte';
 	import { seenLabel } from '#lib/components/switch/switch.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -126,15 +125,7 @@
 			await splash(account);
 			await Promise.all([switched, wait(900)]);
 			announceSession(account.id);
-			// The app paints the splash's ground again over the reload and
-			// closes it into the avatar (#lib/arrival.ts).
-			if (!prefersReducedMotion.current) {
-				greeted = true;
-				await wait(150);
-			}
-			const target = resolvePath(data.next as Path);
-			await markArrival(account.color, target);
-			location.assign(target);
+			await arriveAs(account.color, resolvePath(data.next as Path), () => (greeted = true));
 		} catch (error) {
 			chosen = null;
 			pending = null;

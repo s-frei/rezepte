@@ -1,4 +1,8 @@
 <script module lang="ts">
+	import { markArrival } from '#lib/arrival.js';
+	import { wait } from '#lib/page-transition.js';
+	import type { UserColor } from '#lib/user/color.js';
+
 	/**
 	 * Grows the element named `chosen-card` (a picked card, the login's sheet
 	 * or card) into the splash: a view transition whose `show` renders the
@@ -26,6 +30,22 @@
 				delete root.dataset.switching;
 				root.style.removeProperty('--grow-from');
 			});
+	}
+
+	/**
+	 * The end of a sign-in or a switch: `greet` fades the greeting, the app
+	 * paints the splash's ground again over the reload and closes it into
+	 * the avatar (#lib/arrival.ts). A full load, so nothing of the previous
+	 * person survives; it also reaches a target without a client route (the
+	 * Scalar docs under /api/, a path that no longer exists).
+	 */
+	export async function arriveAs(color: UserColor, target: string, greet: () => void) {
+		if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			greet();
+			await wait(150);
+		}
+		await markArrival(color, target);
+		location.assign(target);
 	}
 </script>
 
