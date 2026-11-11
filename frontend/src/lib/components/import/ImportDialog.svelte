@@ -27,9 +27,7 @@
 		closeLabel={m.import_cancel()}
 		onOpenAutoFocus={focusField}
 	>
-		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-			<ImportForm ondone={close} {admin} />
-		</div>
+		<ImportForm ondone={close} {admin} sheet />
 	</BottomSheet>
 {:else}
 	<BaseDialog bind:open={importDialog.open}>

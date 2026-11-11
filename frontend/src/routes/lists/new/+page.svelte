@@ -24,9 +24,14 @@
 
 	onMount(() => field && handKeyboardTo(field));
 
+	// The draft is the new list: the bar offers no other one.
 	$effect(() => {
 		shell.breadcrumb = m.list_breadcrumb({ lists: m.lists_title(), name: m.lists_new() });
-		return () => (shell.breadcrumb = undefined);
+		shell.actions = noActions;
+		return () => {
+			shell.breadcrumb = undefined;
+			shell.actions = undefined;
+		};
 	});
 
 	async function create(event: SubmitEvent) {
@@ -51,6 +56,8 @@
 		if (event.key === 'Escape') void goto(resolve('/lists'));
 	}
 </script>
+
+{#snippet noActions()}{/snippet}
 
 <svelte:head><title>{m.lists_new()} · {m.app_name()}</title></svelte:head>
 

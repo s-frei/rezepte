@@ -100,6 +100,14 @@ export const listShoppingLists = () =>
 export const createShoppingList = (name: string) =>
 	send<ShoppingList>('/shopping-lists', 'POST', { name });
 
+/** A new list from pasted text; `name` wins over the text's name line, `defaultName` is the fallback. */
+export const importShoppingList = (text: string, name: string | undefined, defaultName: string) =>
+	send<ShoppingList>('/shopping-lists/import', 'POST', { text, name, defaultName });
+
+/** Appends the pasted text's items; the list keeps its name. */
+export const importIntoShoppingList = (id: string, text: string) =>
+	send<ShoppingList>(`${base(id)}/import`, 'POST', { text });
+
 export const getShoppingList = (id: string) => api<ShoppingList>(base(id));
 
 export const renameShoppingList = (id: string, name: string) =>

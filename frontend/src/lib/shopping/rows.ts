@@ -213,14 +213,28 @@ export function groupByRecipe(list: ShoppingList): { entry: ShoppingEntry | null
 }
 
 /**
- * The open rows as plain text, one row per line in aisle order: amounts, then
- * the name ("5 Stück Zwiebeln", "2 Stück + 200 g Zwiebeln"), the shape `shoppingList` copies
- * from a recipe, so to-do apps turn each line into one item.
+ * The open rows as plain text, one row per line in aisle order: amounts, the
+ * name, then the notes of the open items after a comma ("5 Stück Zwiebeln",
+ * "2 Stück + 200 g Zwiebeln", "1 Bund Petersilie, glatt"), the shape
+ * `shoppingList` copies from a recipe, so to-do apps turn each line into one
+ * item and the list import reads it back. A row mixing items with and without
+ * an amount has no `total`; the amounts that exist stand in for it.
  */
 export function listText(list: ShoppingList): string {
 	return groupByDepartment(list)
 		.flatMap((g) => g.rows)
-		.map((row) => [row.total, row.name].filter(Boolean).join(' '))
+		.map((row) => {
+			const open = list.items.filter((i) => row.itemIds.includes(i.id) && !i.checked);
+			const amount =
+				row.total ||
+				sumByUnit(open.filter((i) => i.quantity !== null))
+					.map((sum) => amountText(sum.quantity, sum.unit))
+					.filter(Boolean)
+					.join(' + ');
+			const notes = [...new Set(open.map((i) => i.note).filter(Boolean))].join(', ');
+			const line = [amount, row.name].filter(Boolean).join(' ');
+			return notes ? `${line}, ${notes}` : line;
+		})
 		.join('\n');
 }
 

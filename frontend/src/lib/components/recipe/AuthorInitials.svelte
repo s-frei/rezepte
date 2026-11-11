@@ -94,7 +94,7 @@
 		{@render circles()}
 	</button>
 	<BottomSheet bind:open closeLabel={m.common_close()}>
-		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 			<Dialog.Title class="sr-only">{label}</Dialog.Title>
 			{@render cards('text-caption text-text-muted', false)}
 		</div>

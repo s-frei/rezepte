@@ -74,7 +74,7 @@
 		{@render faces()}
 	</button>
 	<BottomSheet bind:open closeLabel={m.common_close()}>
-		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 			<Dialog.Title class="text-caption text-text-muted">{m.recipe_tasty_by()}</Dialog.Title>
 			{@render cards(false)}
 		</div>

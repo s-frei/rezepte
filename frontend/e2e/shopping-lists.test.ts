@@ -12,9 +12,27 @@ const department = (page: Page, label: string) =>
 		.locator('section')
 		.filter({ has: page.getByRole('heading', { name: new RegExp(`^${label}`) }) });
 
+const phone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
+
+/** "New list" or the import: the top bar's on a desktop, the "+" sheet's on a phone. */
+async function startFromLists(page: Page, way: 'new' | 'import') {
+	if (phone(page)) {
+		await page.getByRole('button', { name: 'New', exact: true }).click();
+		const sheet = page.getByRole('dialog', { name: 'New list' });
+		await sheet
+			.getByRole('button', { name: way === 'new' ? /Start one yourself/ : /Import/ })
+			.click();
+		return;
+	}
+	await page
+		.getByRole('banner')
+		.getByRole('button', { name: way === 'new' ? 'New list' : 'Import list', exact: true })
+		.click();
+}
+
 async function newList(page: Page, name: string) {
 	await page.goto('/lists');
-	await page.getByRole('button', { name: 'New list' }).filter({ visible: true }).first().click();
+	await startFromLists(page, 'new');
 	await page.getByLabel('Name').fill(name);
 	await page.getByRole('button', { name: 'Create list' }).click();
 	await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
@@ -41,7 +59,7 @@ test('a person without lists sees the steps, and the button starts one', async (
 		/Add recipes/,
 		/Fill in and share/
 	]);
-	await page.getByRole('button', { name: 'New list' }).click();
+	await page.getByRole('main').getByRole('button', { name: 'New list' }).click();
 
 	// The draft: the name has the caret, "Create" waits for one, and the rest is not there yet.
 	await expect(page).toHaveURL(/\/lists\/new$/);
@@ -57,7 +75,7 @@ test('a person without lists sees the steps, and the button starts one', async (
 	await expect(page.getByRole('heading', { level: 2, name: 'No shopping list yet' })).toBeVisible();
 
 	// Enter creates it, its page replaces the draft, and the caret waits for the first item.
-	await page.getByRole('button', { name: 'New list' }).click();
+	await page.getByRole('main').getByRole('button', { name: 'New list' }).click();
 	await page.getByLabel('Name').fill('Wochenmarkt');
 	await page.getByLabel('Name').press('Enter');
 	await expect(page.getByRole('heading', { level: 1, name: 'Wochenmarkt' })).toBeVisible();
@@ -542,4 +560,175 @@ test('shopping mode ticks and collapses done items', async ({ page }, testInfo) 
 	await page.getByRole('link', { name: 'Leave shopping mode' }).click();
 	await expect(page.getByRole('heading', { level: 1, name: `Laden ${token}` })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Done · 1' })).toBeVisible();
+});
+
+/** The list from the spec's shopping-list format, as an AI chat answers it. */
+const PASTED_LIST = [
+	'Liste: Wocheneinkauf',
+	'2 l Milch, 1,5 %',
+	'500 g Mehl',
+	'6 Eier',
+	'1 Bund Petersilie, glatt',
+	'1 Glas Kapern',
+	'Zahnpasta'
+].join('\n');
+
+const openRows = (page: Page) => page.getByRole('button', { name: /^Check off / });
+
+test('a pasted list becomes a new list; a paste too long makes none', async ({ page }) => {
+	const person = `imp${uniqueToken()}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: person, role: 'user' });
+	await login(page, person);
+	await page.goto('/lists');
+
+	// Without a list yet the import is there too, beside the steps' "New list".
+	await startFromLists(page, 'import');
+	let dialog = page.getByRole('dialog', { name: 'Import list' });
+	const field = dialog.getByRole('textbox', { name: 'Shopping list as text' });
+	await expect(field).toBeFocused();
+	const create = dialog.getByRole('button', { name: 'Import', exact: true });
+	await expect(create).toBeDisabled();
+
+	// 201 items are refused whole, and no list is made.
+	await field.fill(Array.from({ length: 201 }, (_, i) => `Artikel ${i + 1}`).join('\n'));
+	await create.click();
+	await expect(dialog.getByRole('alert')).toHaveText('At most 200 items at once - split the list.');
+	// Past the API's length limit the refusal says so too, not a bare error.
+	await field.fill('x'.repeat(20001));
+	await create.click();
+	await expect(dialog.getByRole('alert')).toHaveText('The text is too long - split the list.');
+	await page.keyboard.press('Escape');
+	await page.reload();
+	await expect(page.getByRole('heading', { level: 2, name: 'No shopping list yet' })).toBeVisible();
+
+	// The name line names it; the list page is the preview. A name typed
+	// behind the toggle and folded away again does not count.
+	await startFromLists(page, 'import');
+	dialog = page.getByRole('dialog', { name: 'Import list' });
+	await dialog.getByRole('textbox', { name: 'Shopping list as text' }).fill(PASTED_LIST);
+	const naming = dialog.getByRole('button', { name: 'Choose a name' });
+	await naming.click();
+	await dialog.getByLabel('List name').fill('Vergessen');
+	await naming.click();
+	await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+	await expect(page.getByRole('heading', { level: 1, name: 'Wocheneinkauf' })).toBeVisible();
+	await expect(page).toHaveURL(/\/lists\/[^/]+$/);
+	await expect(openRows(page)).toHaveCount(6);
+	await expect(
+		page
+			.getByRole('listitem')
+			.filter({ has: page.getByRole('button', { name: 'Milch', exact: true }) })
+			.getByText('1,5 %', { exact: true })
+	).toBeVisible();
+
+	// A name typed behind the toggle beats the name line.
+	await page.goto('/lists');
+	await startFromLists(page, 'import');
+	dialog = page.getByRole('dialog', { name: 'Import list' });
+	await dialog.getByRole('textbox', { name: 'Shopping list as text' }).fill(PASTED_LIST);
+	await dialog.getByRole('button', { name: 'Choose a name' }).click();
+	await dialog.getByLabel('List name').fill('Samstag');
+	await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+	await expect(page.getByRole('heading', { level: 1, name: 'Samstag' })).toBeVisible();
+});
+
+test('the + on the lists starts a list; a sheet that scrolls shows its thumb', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'the import is a sheet on a phone only');
+	await login(page);
+	await page.goto('/lists');
+	// The "+" on the lists makes a list, by the recipe's two ways; the
+	// header has no import of its own.
+	await expect(page.getByRole('button', { name: 'Import list' })).toHaveCount(0);
+	await page.getByRole('button', { name: 'New', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'New list' });
+	await expect(sheet.getByRole('button', { name: /Start one yourself/ })).toBeVisible();
+	await expect(sheet.getByRole('button', { name: /Write it yourself/ })).toHaveCount(0);
+	// Tall enough for all of it: no thumb.
+	await sheet.getByRole('button', { name: /Import/ }).click();
+	const dialog = page.getByRole('dialog', { name: 'Import list' });
+	await expect(dialog.getByRole('button', { name: 'Import', exact: true })).toBeInViewport();
+	await expect(dialog.locator('[data-sheet-thumb]')).toHaveCount(0);
+	// Short, as above a keyboard: the body scrolls, its thumb shows without
+	// a swipe, and Import stays in view at the sheet's foot.
+	await page.setViewportSize({ width: 412, height: 420 });
+	await expect(dialog.locator('[data-sheet-thumb]')).toBeVisible();
+	await expect(dialog.getByRole('button', { name: 'Import', exact: true })).toBeInViewport();
+});
+
+test('"Start one yourself" hands the keyboard from the + sheet to the draft', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'the + is the phone’s');
+	await login(page);
+	await page.goto('/lists');
+	await page.getByRole('button', { name: 'New', exact: true }).click();
+	const start = page
+		.getByRole('dialog', { name: 'New list' })
+		.getByRole('button', { name: /Start one yourself/ });
+	// The sheet opens on its grip; recording starts once it has.
+	await expect(
+		page.getByRole('dialog', { name: 'New list' }).getByRole('button', { name: 'Close' })
+	).toBeFocused();
+	// iOS keeps the keyboard only while focus goes from field to field: after
+	// the tapped row, the stand-in and then the draft's name take it, never
+	// the sheet or "+" in between.
+	await page.evaluate(() => {
+		const seen: string[] = [];
+		Object.assign(window, { seen });
+		document.addEventListener(
+			'focusin',
+			(e) => {
+				const el = e.target as HTMLElement;
+				seen.push(
+					el.id ||
+						el.getAttribute('aria-label') ||
+						el.textContent?.trim().split(' ')[0] ||
+						el.tagName
+				);
+			},
+			true
+		);
+	});
+	await start.click();
+	await expect(page.getByLabel('Name')).toBeFocused();
+	// The tapped row, the stand-in (no name), the draft's name field.
+	expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([
+		'Start',
+		'INPUT',
+		'Name'
+	]);
+});
+
+test('text adds to a list, and Undo takes exactly that back', async ({ page }) => {
+	const token = uniqueToken();
+	const person = `add${token}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: person, role: 'user' });
+	await login(page, person);
+	await newList(page, `Vorrat ${token}`);
+	await addFree(page, 'Zucker');
+	await expect(openRows(page)).toHaveCount(1);
+
+	await page.getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Add from text' }).click();
+	const dialog = page.getByRole('dialog', { name: `Add to “Vorrat ${token}”` });
+	// Adding has no name field: the list keeps its name.
+	await expect(dialog.getByRole('button', { name: 'Choose a name' })).toHaveCount(0);
+	await dialog
+		.getByRole('textbox', { name: 'Shopping list as text' })
+		.fill('Liste: Pfannkuchen\n250 g Mehl\n4 Eier');
+	await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+	await expect(dialog).toHaveCount(0);
+	await expect(page.getByRole('heading', { level: 1, name: `Vorrat ${token}` })).toBeVisible();
+	await expect(openRows(page)).toHaveCount(3);
+	await expect(page.getByText('2 items added')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(openRows(page)).toHaveCount(1);
+	await expect(page.getByRole('button', { name: 'Zucker', exact: true })).toBeVisible();
 });

@@ -19,7 +19,8 @@
 		setDepartment,
 		setEntryServings,
 		type Department,
-		type ShoppingEntry
+		type ShoppingEntry,
+		type ShoppingList
 	} from '#lib/api/shopping.js';
 	import AddItemCard from '#lib/components/shopping/AddItemCard.svelte';
 	import EntryCover from '#lib/components/shopping/EntryCover.svelte';
@@ -30,6 +31,7 @@
 	import ShareButton from '#lib/components/ui/ShareButton.svelte';
 	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import ItemSheet from '#lib/components/shopping/ItemSheet.svelte';
+	import ListImportDialog from '#lib/components/shopping/ListImportDialog.svelte';
 	import ListMenu from '#lib/components/shopping/ListMenu.svelte';
 	import ListSide from '#lib/components/shopping/ListSide.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
@@ -137,6 +139,24 @@
 		lst.apply(setEntryServings(list.id, entry.id, servings));
 	const dropEntry = (entry: ShoppingEntry) => lst.apply(removeEntry(list.id, entry.id));
 
+	let importOpen = $state(false);
+
+	/**
+	 * Pasted text added items: the answer goes through `apply` like any change,
+	 * and "Undo" removes exactly the items it added, through `apply` too, so
+	 * a later change's answer still wins.
+	 */
+	async function imported(answer: ShoppingList, addedIds: string[]) {
+		if (!(await lst.apply(Promise.resolve(answer))) || addedIds.length === 0) return;
+		const count = addedIds.length;
+		toast.success(count === 1 ? m.list_import_added_one() : m.list_import_added({ count }), {
+			action: {
+				label: m.common_undo(),
+				onClick: () => void lst.apply(removeItems(answer.id, addedIds))
+			}
+		});
+	}
+
 	/** The item just added: its row lights up where the list sorted it. */
 	let flashId = $state<string | null>(null);
 	let flashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -234,6 +254,7 @@
 				name={list.name}
 				{owner}
 				onshare={() => (shareOpen = true)}
+				onaddtext={() => (importOpen = true)}
 				onleave={leave}
 				onrename={(name) => lst.apply(renameShoppingList(list.id, name))}
 				oncopy={() => copyText(listText(list), m.list_copied())}
@@ -389,6 +410,8 @@
 	{list}
 	apply={(request, onfail) => lst.apply(request, undefined, onfail)}
 />
+
+<ListImportDialog bind:open={importOpen} mode={{ kind: 'add', list }} ondone={imported} />
 
 <ItemSheet
 	bind:open={sheetOpen}

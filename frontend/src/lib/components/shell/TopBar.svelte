@@ -7,6 +7,7 @@
 	import BrandTab from '#lib/components/brand/BrandTab.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
+	import { listImport, startList } from '#lib/shopping/new-list.svelte.js';
 	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { navPlace, shell } from '#lib/shell.svelte.js';
@@ -20,6 +21,11 @@
 	const showNav = $derived(place !== null);
 	// The overview of lists is named by its own segment already.
 	const breadcrumb = $derived(page.route.id === '/lists' ? undefined : shell.breadcrumb);
+	// The actions make something new where the segments say you are: a
+	// recipe, or on the lists a list - as the phone's "+" does.
+	const lists = $derived(place === 'lists');
+	const importLabel = $derived(lists ? m.list_import_title() : m.overview_import());
+	const newLabel = $derived(lists ? m.lists_new() : m.overview_new_recipe());
 
 	const segment =
 		'inline-flex h-8 items-center gap-2 rounded-pill px-4 text-body-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
@@ -33,6 +39,11 @@
 	// width, so it holds for every language and type size. `labeled` keeps the
 	// row's labeled width while the circle shows, to know when it fits again.
 	let compact = $state(false);
+	// Another label has another width: measured afresh, labeled first.
+	$effect(() => {
+		void lists;
+		compact = false;
+	});
 	let labeled = 0;
 	function fitLabel(box: HTMLElement) {
 		const row = box.firstElementChild as HTMLElement;
@@ -105,29 +116,46 @@
 				{@render shell.actions()}
 			{:else}
 				<!-- A circle: importing is reached for now and then, while
-				     "New recipe" beside it is what the bar is for. -->
+				     "New recipe" or "New list" beside it is what the bar is for. -->
 				<button
 					type="button"
-					aria-label={m.overview_import()}
-					title={m.overview_import()}
+					aria-label={importLabel}
+					title={importLabel}
 					class="{round} border border-border bg-surface text-text"
-					onclick={() => (importDialog.open = true)}
+					onclick={() => (lists ? (listImport.open = true) : (importDialog.open = true))}
 				>
 					<Import class="size-4" aria-hidden="true" />
 				</button>
-				{#if compact}
+				{#if lists && compact}
+					<button
+						type="button"
+						aria-label={newLabel}
+						title={newLabel}
+						data-new
+						class="{round} bg-primary text-primary-foreground"
+						onclick={startList}
+					>
+						<Plus class="size-4" aria-hidden="true" />
+					</button>
+				{:else if compact}
 					<a
 						href={resolve('/recipes/new')}
-						aria-label={m.overview_new_recipe()}
-						title={m.overview_new_recipe()}
+						aria-label={newLabel}
+						title={newLabel}
+						data-new
 						class="{round} bg-primary text-primary-foreground"
 					>
 						<Plus class="size-4" aria-hidden="true" />
 					</a>
 				{:else}
-					<Button variant="primary" href={resolve('/recipes/new')}>
+					<Button
+						variant="primary"
+						href={lists ? undefined : resolve('/recipes/new')}
+						onclick={lists ? startList : undefined}
+						data-new
+					>
 						<Plus class="size-4" aria-hidden="true" />
-						{m.overview_new_recipe()}
+						{newLabel}
 					</Button>
 				{/if}
 			{/if}

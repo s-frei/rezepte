@@ -66,7 +66,7 @@
 
 {#if phone.current}
 	<BottomSheet bind:open closeLabel={m.common_cancel()} onCloseAutoFocus={closeFocus}>
-		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">{@render body()}</div>
+		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">{@render body()}</div>
 	</BottomSheet>
 {:else}
 	<BaseDialog bind:open onCloseAutoFocus={closeFocus}>{@render body()}</BaseDialog>

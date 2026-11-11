@@ -305,6 +305,25 @@ test('the example shows in the empty field, and behind a toggle once text is in'
 });
 
 // The member half - no zip row - is in transfer.test.ts, beside the page it guards.
+test('the AI instruction copies from the dialog, with and without text', async ({
+	page,
+	context
+}) => {
+	await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+	await openImport(page);
+	const copy = dialog(page).getByRole('button', { name: 'Copy AI instruction' });
+	await copy.click();
+	await expect(dialog(page).getByRole('button', { name: 'Copied' })).toBeVisible();
+	await expect(dialog(page).getByRole('status').filter({ hasText: 'Copied' })).toBeAttached();
+	const copied = await page.evaluate(() => navigator.clipboard.readText());
+	expect(copied.startsWith('You write recipes for my recipe app')).toBe(true);
+	expect(copied).toContain('Ingredients');
+	await field(page).fill('Soup\nIngredients\n1 l broth');
+	await expect(
+		dialog(page).getByRole('button', { name: /Copy AI instruction|Copied/ })
+	).toBeVisible();
+});
+
 test('an admin is offered the zip import in the dialog', async ({ page }) => {
 	await openImport(page);
 	await expect(dialog(page).getByRole('link', { name: 'Import a zip file' })).toHaveAttribute(

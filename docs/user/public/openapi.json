@@ -1632,6 +1632,64 @@
         ],
         "type": "object"
       },
+      "ImportItemsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ImportItemsBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "text": {
+            "description": "Items as text, one per line; a name line is skipped",
+            "maxLength": 20000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "ImportListBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ImportListBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "defaultName": {
+            "description": "List name when neither name nor a name line gives one",
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "description": "List name; wins over the text's name line",
+            "maxLength": 80,
+            "type": "string"
+          },
+          "text": {
+            "description": "A shopping list as text, one item per line; a first \"Liste:\" or \"List:\" line names it",
+            "maxLength": 20000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "defaultName"
+        ],
+        "type": "object"
+      },
       "ImportOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -10261,6 +10319,67 @@
         ]
       }
     },
+    "/api/v1/shopping-lists/import": {
+      "post": {
+        "operationId": "import-shopping-list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportListBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
+          }
+        ],
+        "summary": "Create a shopping list from text",
+        "tags": [
+          "shopping-lists"
+        ]
+      }
+    },
     "/api/v1/shopping-lists/{id}": {
       "delete": {
         "operationId": "delete-shopping-list",
@@ -10611,6 +10730,87 @@
           }
         ],
         "summary": "Follow a shopping list's changes",
+        "tags": [
+          "shopping-lists"
+        ]
+      }
+    },
+    "/api/v1/shopping-lists/{id}/import": {
+      "post": {
+        "operationId": "import-into-shopping-list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportItemsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "lists:write"
+            ]
+          }
+        ],
+        "summary": "Add items from text",
         "tags": [
           "shopping-lists"
         ]

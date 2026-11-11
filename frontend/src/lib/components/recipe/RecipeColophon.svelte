@@ -167,7 +167,7 @@
 
 {#if phone.current}
 	<BottomSheet bind:open={sheetOpen} closeLabel={m.common_close()}>
-		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 			{#if sheetPerson}
 				<PersonCard person={sheetPerson} asTitle onnavigate={() => (sheetOpen = false)} />
 			{/if}

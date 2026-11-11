@@ -44,6 +44,41 @@ const list = (items: ShoppingItem[]): ShoppingList => ({
 	pending: []
 });
 
+export const LIST_TEXT_CASES: { name: string; items: Partial<ShoppingItem>[]; text: string }[] = [
+	{
+		name: 'keeps the amount of a row that also holds an item without one',
+		items: [
+			{ name: 'Zwiebeln', nameKey: 'zwiebeln', entryId: 'e1', quantity: 2 },
+			{ name: 'Zwiebeln', nameKey: 'zwiebeln' }
+		],
+		text: '2 Zwiebeln'
+	},
+	{
+		name: 'appends a note',
+		items: [
+			{ name: 'Petersilie', nameKey: 'petersilie', quantity: 1, unit: 'Bund', note: 'glatt' }
+		],
+		text: '1 Bund Petersilie, glatt'
+	},
+	{
+		name: 'appends every distinct note',
+		items: [
+			{ name: 'Milch', nameKey: 'milch', quantity: 1, unit: 'l', note: '1,5 %' },
+			{ name: 'Milch', nameKey: 'milch', quantity: 1, unit: 'l', note: 'fettarm' },
+			{ name: 'Milch', nameKey: 'milch', note: '1,5 %' }
+		],
+		text: '2 l Milch, 1,5 %, fettarm'
+	},
+	{
+		name: 'adds merged units up',
+		items: [
+			{ name: 'Zwiebeln', nameKey: 'zwiebeln', entryId: 'e1', quantity: 2, unit: 'Stück' },
+			{ name: 'Zwiebeln', nameKey: 'zwiebeln', entryId: 'e2', quantity: 200, unit: 'g' }
+		],
+		text: '2 Stück + 200 g Zwiebeln'
+	}
+];
+
 describe('groupByDepartment', () => {
 	it('merges same nameKey into one row with two sources', () => {
 		const g = groupByDepartment(
@@ -191,6 +226,11 @@ describe('listText', () => {
 			item({ id: 'x', name: 'Soap', nameKey: 'soap', department: 'household', checked: true })
 		]);
 		expect(listText(l)).toBe('5 pc + 200 g Onion\n1 l Milk\nSalt');
+	});
+
+	// Plain data: the Go round-trip test of the list import copies these strings.
+	it.each(LIST_TEXT_CASES)('$name', ({ items, text }) => {
+		expect(listText(list(items.map((over, i) => item({ id: `i${i}`, ...over }))))).toBe(text);
 	});
 });
 

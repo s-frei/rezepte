@@ -96,7 +96,7 @@
 
 {#if phone.current}
 	<BottomSheet bind:open closeLabel={m.item_sheet_done()}>
-		<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-4">{@render body()}</div>
+		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-4">{@render body()}</div>
 		<!-- One line where both fit; on the narrowest phones "Fertig" wraps below, never cutting the label. -->
 		<div class="flex flex-wrap gap-3 border-t border-border px-5 pt-3.5 pb-5">
 			{@render footer()}

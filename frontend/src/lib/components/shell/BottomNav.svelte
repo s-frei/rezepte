@@ -164,4 +164,4 @@
 </div>
 
 <YouSheet bind:open={youOpen} />
-<NewSheet bind:open={newOpen} />
+<NewSheet bind:open={newOpen} lists={place === 'lists'} />

@@ -90,8 +90,9 @@
 
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import type { Snippet } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
+	import { followVisibleArea, type VisibleArea } from '#lib/visible-area.js';
 	import SheetHandle from './SheetHandle.svelte';
 
 	// Shared Overlay + Content wrapper for the phone's bottom sheets (the
@@ -137,6 +138,84 @@
 		spotlight?: HTMLElement | null;
 		children: Snippet;
 	} = $props();
+
+	// The sheet rests on the software keyboard ([Sheets] in the design
+	// system): on iOS, where the keyboard only shrinks the visual viewport,
+	// `followVisibleArea` lifts it by the keyboard's height and caps it to the
+	// room above; lifted off the screen edge it is a card, so it rounds its
+	// bottom corners too. Chromium shrinks the layout itself and reads 0.
+	// Every time the area moves, the focused field scrolls back into view
+	// inside the sheet's body.
+	let area = $state<VisibleArea>({ top: 0, bottom: 0 });
+	let probe = $state<HTMLElement>();
+	$effect(() => {
+		const line = probe;
+		if (!open || !line) return;
+		const stop = followVisibleArea(line, (next) => {
+			area = next;
+			void reveal();
+		});
+		return () => {
+			stop();
+			area = { top: 0, bottom: 0 };
+		};
+	});
+	async function reveal() {
+		await tick();
+		const focused = document.activeElement;
+		if (!(focused instanceof HTMLElement) || !panel?.contains(focused)) return;
+		// A field grown taller than the body would be scrolled to its top,
+		// taking the caret out of sight; the browser keeps the caret in view.
+		const body = focused.closest('[data-sheet-body]');
+		if (!body || focused.offsetHeight <= body.clientHeight) {
+			focused.scrollIntoView({ block: 'nearest' });
+		}
+	}
+	const lifted = $derived(area.bottom > 0);
+
+	// A sheet that scrolls shows it all the time: a phone hides its
+	// scrollbar until a swipe, and a sheet cut off by the screen's edge then
+	// reads as broken. The body that scrolls (the caller's
+	// `data-sheet-body`) gets a thumb of its own, drawn over its right edge,
+	// in place of the browser's (hidden in app.css).
+	let panel = $state<HTMLElement>();
+	let thumb = $state<{ top: number; height: number } | null>(null);
+	$effect(() => {
+		const body = panel?.querySelector<HTMLElement>('[data-sheet-body]');
+		if (!body) return;
+		const measure = () => {
+			const { scrollTop, scrollHeight, clientHeight } = body;
+			if (scrollHeight <= clientHeight + 1) {
+				thumb = null;
+				return;
+			}
+			const track = clientHeight - 8;
+			const height = Math.max(24, (track * clientHeight) / scrollHeight);
+			const share = scrollTop / (scrollHeight - clientHeight);
+			thumb = { top: body.offsetTop + 4 + (track - height) * share, height };
+		};
+		const sizes = new ResizeObserver(measure);
+		const watch = () => {
+			sizes.observe(body);
+			for (const child of body.children) sizes.observe(child);
+		};
+		// Content that comes and goes (an error line, a field that unfolds)
+		// changes the height to scroll without resizing the body.
+		const changes = new MutationObserver(() => {
+			watch();
+			measure();
+		});
+		watch();
+		changes.observe(body, { childList: true, subtree: true });
+		body.addEventListener('scroll', measure, { passive: true });
+		measure();
+		return () => {
+			sizes.disconnect();
+			changes.disconnect();
+			body.removeEventListener('scroll', measure);
+			thumb = null;
+		};
+	});
 
 	const duration = $derived(prefersReducedMotion.current ? 0 : 250);
 	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
@@ -235,6 +314,13 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Portal>
+		{#if open}
+			<span
+				bind:this={probe}
+				aria-hidden="true"
+				class="pointer-events-none fixed inset-y-0 left-0 w-0"
+			></span>
+		{/if}
 		<Dialog.Overlay forceMount>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}
@@ -258,13 +344,29 @@
 				{#if isOpen}
 					<div
 						{...props}
+						bind:this={panel}
 						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex {tall
 							? 'max-h-[92dvh]'
-							: 'max-h-[80dvh]'} w-full max-w-[640px] flex-col rounded-t-3xl bg-background shadow-sheet outline-none"
+							: 'max-h-[80dvh]'} w-full max-w-[640px] flex-col {lifted
+							? 'rounded-3xl'
+							: 'rounded-t-3xl'} bg-background shadow-sheet outline-none"
+						style:bottom={lifted ? `${area.bottom}px` : undefined}
+						style:max-height={lifted
+							? `calc(100dvh - ${area.top + area.bottom + 16}px)`
+							: undefined}
 						transition:fly={{ duration, y: 200 }}
 					>
 						<SheetHandle label={closeLabel} onclose={() => (open = false)} />
 						{@render children()}
+						{#if thumb}
+							<div
+								aria-hidden="true"
+								data-sheet-thumb
+								class="pointer-events-none absolute right-1 w-1 rounded-pill bg-handle"
+								style:top="{thumb.top}px"
+								style:height="{thumb.height}px"
+							></div>
+						{/if}
 					</div>
 				{/if}
 			{/snippet}

@@ -2,6 +2,7 @@
 	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import ListPlus from '@lucide/svelte/icons/list-plus';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Share2 from '@lucide/svelte/icons/share-2';
@@ -18,6 +19,7 @@
 		owner,
 		onrename,
 		onshare,
+		onaddtext,
 		oncopy,
 		ondelete,
 		onleave
@@ -28,6 +30,8 @@
 		onshare: () => void;
 		/** Resolves to whether the new name was stored, which closes the dialog. */
 		onrename: (name: string) => Promise<boolean>;
+		/** Opens the dialog that adds pasted text to the list. */
+		onaddtext: () => void;
 		oncopy: () => void;
 		ondelete: () => void;
 		onleave: () => void;
@@ -88,6 +92,10 @@
 					{m.list_share()}
 				</DropdownMenu.Item>
 			{/if}
+			<DropdownMenu.Item onSelect={onaddtext} class={item}>
+				<ListPlus class="size-4" aria-hidden="true" />
+				{m.list_add_text()}
+			</DropdownMenu.Item>
 			<DropdownMenu.Item onSelect={oncopy} class={item}>
 				<Copy class="size-4" aria-hidden="true" />
 				{m.list_copy_text()}

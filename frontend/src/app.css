@@ -606,6 +606,13 @@
  * the image gallery does with `[scrollbar-width:none]`.
  */
 @layer base {
+	/* A sheet's body draws its own thumb, always visible (BottomSheet), and
+	   its scroll never runs on into the page behind it. */
+	[data-sheet-body] {
+		scrollbar-width: none;
+		overscroll-behavior: contain;
+	}
+
 	/* The scrollbar's room is kept on every page, short or long: a settings
 	   page that scrolls next to one that does not otherwise narrowed the
 	   page by the bar, and the centered layout slid sideways on the switch. */

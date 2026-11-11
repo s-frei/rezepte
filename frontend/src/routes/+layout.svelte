@@ -2,11 +2,14 @@
 	import '../app.css';
 	import { onMount, type Snippet } from 'svelte';
 	import { Toaster } from 'svelte-sonner';
-	import { onNavigate } from '$app/navigation';
+	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import AppShell from '#lib/components/shell/AppShell.svelte';
 	import CommandPalette from '#lib/components/ui/CommandPalette.svelte';
 	import ImportDialog from '#lib/components/import/ImportDialog.svelte';
+	import ListImportDialog from '#lib/components/shopping/ListImportDialog.svelte';
+	import { listHref } from '#lib/shopping/href.js';
+	import { listImport } from '#lib/shopping/new-list.svelte.js';
 	import IosInstallSheet from '#lib/components/install/IosInstallSheet.svelte';
 	import { authPages, session } from '#lib/auth.svelte.js';
 	// Imported here, before any page mounts, so the install state takes over
@@ -101,6 +104,12 @@
 	// tab's person (#lib/session-broadcast.ts).
 	onMount(() => followSession(() => session.user?.id ?? null));
 	onNavigate(pageTransition);
+	// The list import lives here, above every page, so it closes as a page
+	// would have taken it along; a page rewriting its own query is not left.
+	afterNavigate(({ from, to, type }) => {
+		if (type === 'goto' && from?.url.pathname === to?.url.pathname) return;
+		listImport.open = false;
+	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (bare) {
@@ -148,6 +157,11 @@
 		</AppShell>
 		<CommandPalette />
 		<ImportDialog />
+		<ListImportDialog
+			bind:open={listImport.open}
+			mode={{ kind: 'new' }}
+			ondone={(list) => void goto(listHref(list.id))}
+		/>
 		<IosInstallSheet />
 	{/if}
 </div>

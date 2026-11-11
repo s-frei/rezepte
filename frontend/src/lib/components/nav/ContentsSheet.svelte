@@ -46,7 +46,7 @@
 	<Dialog.Title class="px-5 pb-2 font-display text-heading-lg font-medium italic">
 		{m.nav_contents_title()}
 	</Dialog.Title>
-	<div class="min-h-0 flex-1 overflow-y-auto px-2 pb-8">
+	<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-2 pb-8">
 		{#each byGroup(entries) as run, i (run.label ?? i)}
 			{#if run.label}
 				<GroupHeading label={run.label} first={i === 0} class="px-3" />

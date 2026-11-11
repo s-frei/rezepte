@@ -9,7 +9,7 @@
 <!-- What tapping an install hint opens on an iPhone, which has no install
      dialog of its own: the Safari steps, as the settings card shows them. -->
 <BottomSheet bind:open={install.iosSheet} closeLabel={m.common_close()}>
-	<div class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+	<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
 		<Dialog.Title class="mb-4 font-display text-heading font-medium">
 			{m.install_ios_sheet_title()}
 		</Dialog.Title>

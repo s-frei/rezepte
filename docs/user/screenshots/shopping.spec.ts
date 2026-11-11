@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { prepare, shot } from './helpers';
+import { isMobile, prepare, shot } from './helpers';
 
 // Shopping lists as the demo seeds them for its admin: "Weekly shop" with
 // two samples at 4 servings, typed-in items and three rows checked off, and
@@ -71,4 +71,23 @@ test('list-shop', async ({ page }, testInfo) => {
   await page.getByRole('link', { name: 'Shop', exact: true }).first().click();
   await expect(page.getByRole('main', { name: 'Shopping mode' })).toBeVisible();
   await shot(page, 'list-shop');
+});
+
+test('list-import', async ({ page }, testInfo) => {
+  await prepare(page, testInfo, { login: true });
+  await page.goto('/lists');
+  // The top bar's circle, or on a phone "+" and then "Import".
+  if (isMobile(testInfo)) {
+    await page.getByRole('button', { name: 'New', exact: true }).click();
+    await page.getByRole('dialog', { name: 'New list' }).getByRole('button', { name: /^Import/ }).click();
+  } else {
+    await page.getByRole('banner').getByRole('button', { name: 'Import list', exact: true }).click();
+  }
+  const dialog = page.getByRole('dialog', { name: 'Import list' });
+  const field = dialog.getByLabel('Shopping list as text');
+  await expect(field).toBeFocused();
+  // Five lines, the field's height on a desktop: the "List:" line stays in view.
+  await field.fill('List: Groceries\n2 l milk, 1.5 %\n500 g flour\n6 eggs\n1 bunch parsley, flat-leaf');
+  await expect(dialog.getByRole('button', { name: 'Copy AI instruction' })).toBeVisible();
+  await shot(page, 'list-import');
 });

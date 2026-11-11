@@ -38,6 +38,18 @@ describe('copyText', () => {
 		expect(await copyText('Zwiebeln', 'copied')).toBe(true);
 	});
 
+	// A caller with its own inline confirmation passes no message.
+	it('shows no success toast without a message, but still the fallback toast', async () => {
+		vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
+		expect(await copyText('Zwiebeln')).toBe(true);
+		expect(toast.success).not.toHaveBeenCalled();
+
+		vi.stubGlobal('navigator', {});
+		stubDocument(false);
+		expect(await copyText('Zwiebeln')).toBe(false);
+		expect(toast).toHaveBeenCalledWith('unavailable', { description: 'Zwiebeln' });
+	});
+
 	// The caller's check must not appear when the text only sits in a toast.
 	it('reports no copy when every way fails', async () => {
 		vi.stubGlobal('navigator', {

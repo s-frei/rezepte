@@ -1,11 +1,8 @@
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { isSignedOut } from '#lib/api/client.js';
-	import { holdKeyboard } from '#lib/keyboard.js';
 	import {
 		listShoppingLists,
 		type ShoppingInvitation,
@@ -14,11 +11,11 @@
 	import { session } from '#lib/auth.svelte.js';
 	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
 	import { invitations as nav } from '#lib/shopping/invitations.svelte.js';
+	import { startList } from '#lib/shopping/new-list.svelte.js';
 	import ListCard from '#lib/components/shopping/ListCard.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import EmptyState from '#lib/components/ui/EmptyState.svelte';
 	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
-	import IconButton from '#lib/components/ui/IconButton.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import shoppingArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
@@ -29,13 +26,6 @@
 	const mine = $derived(lists?.filter((l) => l.owner.id === session.user?.id) ?? []);
 	const shared = $derived(lists?.filter((l) => l.owner.id !== session.user?.id) ?? []);
 	let failed = $state(false);
-
-	// The draft of a list opens as a page, its name field at the top. The
-	// keyboard is raised inside this tap, which iOS insists on.
-	function newList() {
-		holdKeyboard();
-		void goto(resolve('/lists/new'));
-	}
 
 	async function load() {
 		failed = false;
@@ -66,26 +56,11 @@
 <svelte:head><title>{m.lists_title()} · {m.app_name()}</title></svelte:head>
 
 <div class="pt-6 pb-8 md:pt-4">
-	<div class="mb-6 flex items-end justify-between gap-4">
-		<h1
-			class="min-w-0 font-display text-display-md font-medium hyphens-auto max-[359px]:text-display-sm md:text-display-lg"
-		>
-			{m.lists_title()}
-		</h1>
-		{#if !failed && (lists === undefined || lists.length > 0 || invited.length > 0)}
-			<Button variant="primary" onclick={newList} class="max-md:hidden">
-				<Plus class="size-4" aria-hidden="true" />
-				{m.lists_new()}
-			</Button>
-			<IconButton
-				label={m.lists_new()}
-				onclick={newList}
-				class="shrink-0 bg-primary text-primary-foreground md:hidden"
-			>
-				<Plus class="size-5" aria-hidden="true" />
-			</IconButton>
-		{/if}
-	</div>
+	<!-- New list and the import are the top bar's and the phone's "+", as on
+	     the recipes; the title has the line to itself. -->
+	<h1 class="mb-6 font-display text-display-md font-medium hyphens-auto md:text-display-lg">
+		{m.lists_title()}
+	</h1>
 
 	{#if failed}
 		<EmptyState title={m.lists_load_error()} text="">
@@ -106,7 +81,7 @@
 				[m.lists_empty_step_share(), m.lists_empty_step_share_hint()]
 			]}
 		>
-			<Button variant="primary" size="lg" onclick={newList} class="group shadow-cta md:h-12">
+			<Button variant="primary" size="lg" onclick={startList} class="group shadow-cta md:h-12">
 				<Plus
 					aria-hidden="true"
 					strokeWidth={2.5}

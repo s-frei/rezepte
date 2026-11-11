@@ -18,13 +18,23 @@
 		type RecipeDraft
 	} from '#lib/api/drafts.js';
 	import { TOGGLE } from '#lib/components/editor/link-list.js';
+	import AiInstruction from '#lib/components/import/AiInstruction.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { putDraft } from '#lib/recipe/draft.js';
 	import { detectInput } from '#lib/recipe/import-input.js';
 
-	let { ondone, admin }: { ondone: () => void; admin: boolean } = $props();
+	let {
+		ondone,
+		admin,
+		sheet = false
+	}: {
+		ondone: () => void;
+		admin: boolean;
+		/** In the phone's sheet: the body scrolls, the buttons stay at its foot. */
+		sheet?: boolean;
+	} = $props();
 
 	let raw = $state('');
 	let reading = $state(false);
@@ -35,6 +45,10 @@
 	let field = $state<HTMLTextAreaElement>();
 
 	const input = $derived(detectInput(raw));
+	// The example shows whole in the empty field, as the list import's does,
+	// and text keeps that height; a link needs three lines.
+	const placeholder = $derived(`${m.import_field_placeholder()}\n\n${m.import_example()}`);
+	const fieldRows = $derived(input.kind === 'link' ? 3 : placeholder.split('\n').length);
 	const readingHost = $derived(input.kind === 'link' ? input.host : null);
 	// The example sits behind its toggle only while text is in: the empty
 	// field shows it as placeholder, and a link needs none. Writable, and
@@ -179,175 +193,201 @@
 	{readingHost ? m.import_reading({ host: readingHost }) : m.import_reading_text()}
 {/snippet}
 
-<form onsubmit={submit}>
-	<Dialog.Title class="font-display text-heading font-medium">{m.import_title()}</Dialog.Title>
-	{#if failure}
-		<p
-			in:slide={{ duration: DURATION, easing: cubicOut }}
-			role="alert"
-			class="mt-3 rounded-md bg-destructive-soft px-3 py-2.5 text-body-sm text-destructive"
+{#snippet submitRow()}
+	<!-- On a phone the sheet's handle closes it, so Import stands alone
+	     and spans the sheet. -->
+	<div class="flex justify-end gap-2 {sheet ? '' : 'mt-4'}">
+		<Button variant="ghost" onclick={ondone} class="max-md:hidden">
+			{m.import_cancel()}
+		</Button>
+		<Button
+			variant="primary"
+			type="submit"
+			disabled={input.kind === 'empty' || reading}
+			class="max-md:h-12 max-md:w-full"
 		>
-			{#if failure === 'no-recipe'}
-				{m.import_failed_no_recipe({ host: fallback?.host ?? '' })}
-			{:else if failure === 'unreachable'}
-				{m.import_failed_unreachable()}
-			{:else}
-				{m.import_failed_no_recipe_in_text()}
-			{/if}
-		</p>
-	{:else}
-		<Dialog.Description class="mt-1 text-body-sm text-text-muted">
-			{m.import_lead()}
-		</Dialog.Description>
-	{/if}
+			{m.import_submit()}
+		</Button>
+	</div>
+{/snippet}
 
-	<!-- Each side of the swap fades in as a whole; the one it replaces goes
-	     at once, so the two never stand in the sheet together. -->
-	{#if duplicate?.duplicate}
-		{@const found = duplicate.duplicate}
-		<div in:fade={{ duration: DURATION }}>
-			<div class="mt-4 rounded-md bg-accent px-3 py-2.5 text-body-sm text-accent-foreground">
-				<p>
-					{m.import_duplicate()}
-					<strong>{found.title}</strong> · {m.import_duplicate_by({
-						name: found.createdBy.displayName
-					})}
-				</p>
-			</div>
-			<p class="mt-2 flex min-h-6 items-center gap-1.5 text-caption text-text-muted">
-				{#if reading}
-					{@render readingLine()}
+<form onsubmit={submit} class={sheet ? 'flex min-h-0 flex-1 flex-col' : ''}>
+	<div
+		data-sheet-body={sheet || undefined}
+		class={sheet ? 'min-h-0 flex-1 overflow-y-auto px-5 pb-4' : ''}
+	>
+		<Dialog.Title class="font-display text-heading font-medium">{m.import_title()}</Dialog.Title>
+		{#if failure}
+			<p
+				in:slide={{ duration: DURATION, easing: cubicOut }}
+				role="alert"
+				class="mt-3 rounded-md bg-destructive-soft px-3 py-2.5 text-body-sm text-destructive"
+			>
+				{#if failure === 'no-recipe'}
+					{m.import_failed_no_recipe({ host: fallback?.host ?? '' })}
+				{:else if failure === 'unreachable'}
+					{m.import_failed_unreachable()}
+				{:else}
+					{m.import_failed_no_recipe_in_text()}
 				{/if}
 			</p>
-			<!-- On a phone the buttons stack full width, Import anyway on top. -->
-			<div class="mt-2 flex justify-end gap-2 max-md:flex-col-reverse">
-				<Button
-					variant="ghost"
-					onclick={backToField}
-					disabled={reading}
-					class="max-md:h-12 max-md:w-full md:mr-auto"
-				>
-					{m.import_duplicate_back()}
-				</Button>
-				<Button
-					variant="secondary"
-					href={resolve('/recipes/[slug]', { slug: found.slug })}
-					onclick={ondone}
-					class="max-md:h-12 max-md:w-full"
-				>
-					{m.import_duplicate_view()}
-				</Button>
-				<Button
-					variant="primary"
-					onclick={importAnyway}
-					disabled={reading}
-					class="max-md:h-12 max-md:w-full"
-				>
-					{m.import_duplicate_anyway()}
-				</Button>
-			</div>
-		</div>
-	{:else}
-		<div in:fade={{ duration: DURATION }}>
-			<label for="import-field" class="sr-only">{m.import_field_label()}</label>
-			<!-- Dashed like a drop area: a link dragged from the browser lands in it. -->
-			<textarea
-				id="import-field"
-				bind:this={field}
-				bind:value={raw}
-				rows={input.kind === 'text' ? 7 : input.kind === 'link' ? 3 : 10}
-				placeholder={`${m.import_field_placeholder()}\n\n${m.import_example()}`}
-				disabled={reading}
-				class="mt-4 block w-full resize-y rounded-md border-2 border-dashed border-handle bg-surface-elevated px-3.5 py-3 text-body-sm transition outline-none focus:border-primary disabled:opacity-60"
-			></textarea>
-			<div class="mt-2 flex flex-wrap items-center gap-x-3">
-				<p class="flex min-h-6 flex-wrap items-center gap-1.5 text-caption text-text-muted">
+		{:else}
+			<Dialog.Description class="mt-1 text-body-sm text-text-muted">
+				{m.import_lead()}
+			</Dialog.Description>
+		{/if}
+
+		<!-- Each side of the swap fades in as a whole; the one it replaces goes
+	     at once, so the two never stand in the sheet together. -->
+		{#if duplicate?.duplicate}
+			{@const found = duplicate.duplicate}
+			<div in:fade={{ duration: DURATION }}>
+				<div class="mt-4 rounded-md bg-accent px-3 py-2.5 text-body-sm text-accent-foreground">
+					<p>
+						{m.import_duplicate()}
+						<strong>{found.title}</strong> · {m.import_duplicate_by({
+							name: found.createdBy.displayName
+						})}
+					</p>
+				</div>
+				<p class="mt-2 flex min-h-6 items-center gap-1.5 text-caption text-text-muted">
 					{#if reading}
 						{@render readingLine()}
-					{:else}
-						{#if input.kind === 'link'}
-							<span class={chip}>{m.import_detected_link()}</span>
-							{m.import_detected_link_host({ host: input.host })}
-						{:else if input.kind === 'text'}
-							<span class={chip}>{m.import_detected_text()}</span>
-						{/if}
-						{#if fallback && input.kind !== 'link'}
-							<span class={input.kind === 'empty' ? '' : 'ml-2'}>{m.import_source()}</span>
-							<span class={chip}>{fallback.host}</span>
-						{/if}
 					{/if}
 				</p>
-				<!-- Opens like the editor's suggestion lines. -->
-				{#if isText}
-					<button
-						type="button"
-						aria-expanded={exampleOpen}
-						aria-controls="import-example"
-						onclick={() => (exampleOpen = !exampleOpen)}
-						class="ml-auto {TOGGLE}"
+				<!-- On a phone the buttons stack full width, Import anyway on top. -->
+				<div class="mt-2 flex justify-end gap-2 max-md:flex-col-reverse">
+					<Button
+						variant="ghost"
+						onclick={backToField}
+						disabled={reading}
+						class="max-md:h-12 max-md:w-full md:mr-auto"
 					>
-						{m.import_example_toggle()}
-						<ChevronDown
-							class="size-3.5 transition-transform motion-reduce:transition-none {exampleOpen
-								? 'rotate-180'
-								: ''}"
-							aria-hidden="true"
-						/>
-					</button>
+						{m.import_duplicate_back()}
+					</Button>
+					<Button
+						variant="secondary"
+						href={resolve('/recipes/[slug]', { slug: found.slug })}
+						onclick={ondone}
+						class="max-md:h-12 max-md:w-full"
+					>
+						{m.import_duplicate_view()}
+					</Button>
+					<Button
+						variant="primary"
+						onclick={importAnyway}
+						disabled={reading}
+						class="max-md:h-12 max-md:w-full"
+					>
+						{m.import_duplicate_anyway()}
+					</Button>
+				</div>
+			</div>
+		{:else}
+			<div in:fade={{ duration: DURATION }}>
+				<label for="import-field" class="sr-only">{m.import_field_label()}</label>
+				<!-- Dashed like a drop area: a link dragged from the browser lands in it.
+				     In the sheet, text makes it grow with its lines instead of
+				     scrolling inside the sheet's scrolling body: two scrollers in
+				     one another move whichever the finger lands on. Empty, it
+				     is as tall as the example, which never scrolls. -->
+				<textarea
+					id="import-field"
+					bind:this={field}
+					bind:value={raw}
+					rows={fieldRows}
+					{placeholder}
+					disabled={reading}
+					style:min-height={sheet && raw ? `calc(${fieldRows}lh + 1.5rem + 4px)` : undefined}
+					class="{sheet && raw
+						? 'field-sizing-content resize-none'
+						: 'resize-y'} mt-4 block w-full rounded-md border-2 border-dashed border-handle bg-surface-elevated px-3.5 py-3 text-body-sm transition outline-none focus:border-primary disabled:opacity-60"
+				></textarea>
+				<div class="mt-2 flex flex-wrap items-center gap-x-3">
+					<p class="flex min-h-6 flex-wrap items-center gap-1.5 text-caption text-text-muted">
+						{#if reading}
+							{@render readingLine()}
+						{:else}
+							{#if input.kind === 'link'}
+								<span class={chip}>{m.import_detected_link()}</span>
+								{m.import_detected_link_host({ host: input.host })}
+							{:else if input.kind === 'text'}
+								<span class={chip}>{m.import_detected_text()}</span>
+							{/if}
+							{#if fallback && input.kind !== 'link'}
+								<span class={input.kind === 'empty' ? '' : 'ml-2'}>{m.import_source()}</span>
+								<span class={chip}>{fallback.host}</span>
+							{/if}
+						{/if}
+					</p>
+					<!-- Opens like the editor's suggestion lines. -->
+					{#if isText}
+						<button
+							type="button"
+							aria-expanded={exampleOpen}
+							aria-controls="import-example"
+							onclick={() => (exampleOpen = !exampleOpen)}
+							class="ml-auto {TOGGLE}"
+						>
+							{m.import_example_toggle()}
+							<ChevronDown
+								class="size-3.5 transition-transform motion-reduce:transition-none {exampleOpen
+									? 'rotate-180'
+									: ''}"
+								aria-hidden="true"
+							/>
+						</button>
+					{/if}
+				</div>
+				{#if exampleOpen}
+					<div
+						transition:slide={{ duration: DURATION, easing: cubicOut }}
+						id="import-example"
+						class="mt-1 border-t border-dashed border-border pt-2.5 text-caption text-text-muted"
+					>
+						<p class="mb-1.5 text-label font-bold uppercase">{m.import_example_label()}</p>
+						<p
+							class="rounded-md border border-border bg-surface-elevated px-3 py-2.5 whitespace-pre-line text-text"
+						>
+							{m.import_example()}
+						</p>
+						<p class="mt-1.5">{m.import_example_note()}</p>
+					</div>
+				{/if}
+				<div class="mt-2">
+					<AiInstruction kind="recipe" />
+				</div>
+				{#if !sheet}
+					{@render submitRow()}
 				{/if}
 			</div>
-			{#if exampleOpen}
-				<div
-					transition:slide={{ duration: DURATION, easing: cubicOut }}
-					id="import-example"
-					class="mt-1 border-t border-dashed border-border pt-2.5 text-caption text-text-muted"
-				>
-					<p class="mb-1.5 text-label font-bold uppercase">{m.import_example_label()}</p>
-					<p
-						class="rounded-md border border-border bg-surface-elevated px-3 py-2.5 whitespace-pre-line text-text"
-					>
-						{m.import_example()}
-					</p>
-					<p class="mt-1.5">{m.import_example_note()}</p>
-				</div>
-			{/if}
-			<!-- On a phone the sheet's handle closes it, so Import stands alone
-		     and spans the sheet. -->
-			<div class="mt-4 flex justify-end gap-2">
-				<Button variant="ghost" onclick={ondone} class="max-md:hidden">
-					{m.import_cancel()}
-				</Button>
-				<Button
-					variant="primary"
-					type="submit"
-					disabled={input.kind === 'empty' || reading}
-					class="max-md:h-12 max-md:w-full"
-				>
-					{m.import_submit()}
-				</Button>
-			</div>
-		</div>
-	{/if}
+		{/if}
 
-	{#if admin}
-		<div
-			class="mt-4 flex items-start justify-between gap-2 border-t border-border pt-3 text-caption text-text-muted"
-		>
-			<p>
-				{m.import_zip_hint()}
-				<!-- Resolved; the rule only loses track of it once `#import` follows. -->
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a
-					href={`${resolve('/settings/transfer')}#import`}
-					onclick={ondone}
-					class="font-semibold whitespace-nowrap text-primary">{m.import_zip_link()}</a
-				>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
-			</p>
-			<span
-				class="shrink-0 rounded-pill bg-accent px-2 text-label font-bold text-accent-foreground uppercase"
-				>{m.import_admin_tag()}</span
+		{#if admin}
+			<div
+				class="mt-4 flex items-start justify-between gap-2 border-t border-border pt-3 text-caption text-text-muted"
 			>
+				<p>
+					{m.import_zip_hint()}
+					<!-- Resolved; the rule only loses track of it once `#import` follows. -->
+					<!-- eslint-disable svelte/no-navigation-without-resolve -->
+					<a
+						href={`${resolve('/settings/transfer')}#import`}
+						onclick={ondone}
+						class="font-semibold whitespace-nowrap text-primary">{m.import_zip_link()}</a
+					>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
+				</p>
+				<span
+					class="shrink-0 rounded-pill bg-accent px-2 text-label font-bold text-accent-foreground uppercase"
+					>{m.import_admin_tag()}</span
+				>
+			</div>
+		{/if}
+	</div>
+	{#if sheet && !duplicate?.duplicate}
+		<div class="shrink-0 border-t border-border px-5 pt-3 pb-5">
+			{@render submitRow()}
 		</div>
 	{/if}
 </form>
