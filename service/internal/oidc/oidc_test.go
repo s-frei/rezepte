@@ -74,9 +74,10 @@ func newServer(t *testing.T, cfg *oidc.Config) *env {
 	appCfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(appCfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
+	srv := httpserver.New(appCfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, tokens, false),
+		SecuritySchemes: auth.SecuritySchemes(),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	envCfg := oidc.Config{PublicURL: publicURL}
 	if cfg != nil {

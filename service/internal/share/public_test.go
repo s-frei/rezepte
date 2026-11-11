@@ -112,7 +112,7 @@ func TestPublicRecipeCarriesAttribution(t *testing.T) {
 	if !attribution() {
 		t.Error("attribution = false by default, want true")
 	}
-	if _, err := s.settings.SetPublicShareAttribution(context.Background(), s.owner, false); err != nil {
+	if err := s.settings.SetPublicShareAttribution(context.Background(), s.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	if attribution() {
@@ -151,11 +151,11 @@ func TestPublicRecipeFailsAlike(t *testing.T) {
 		t.Fatalf("active: %d", rec.Code)
 	}
 
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	fail("paused by the owner", tokenOf(sh))
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -167,12 +167,12 @@ func TestPublicRecipeFailsAlike(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.settings.SetShareLifetimes(ctx, s.owner, nil, new(1)); err != nil {
+	if err := s.settings.SetShareLifetimes(ctx, s.owner, nil, new(1)); err != nil {
 		t.Fatal(err)
 	}
 	s.clock = s.clock.Add(48 * time.Hour)
 	fail("limited by the maximum", tokenOf(sh))
-	if _, err := s.settings.SetShareLifetimes(ctx, s.owner, nil, nil); err != nil {
+	if err := s.settings.SetShareLifetimes(ctx, s.owner, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if rec := get(tokenOf(sh)); rec.Code != http.StatusOK {
@@ -309,7 +309,7 @@ func TestLinkPreviewOfAPublicShare(t *testing.T) {
 		t.Errorf("the shell outside /s/ says noindex")
 	}
 
-	if _, err := s.settings.SetPublicShares(context.Background(), s.owner, false); err != nil {
+	if err := s.settings.SetPublicShares(context.Background(), s.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	if p := s.shares.ForRequest(httptest.NewRequest(http.MethodGet, "/s/"+token, nil)); p != nil {
@@ -380,7 +380,7 @@ func TestPublicRecipeNamesTheSharerOnlyWhenAllowed(t *testing.T) {
 	if body := get(); strings.Contains(body, "sharedBy") || strings.Contains(body, s.member.DisplayName) {
 		t.Errorf("the sharer is named while the switch is off: %s", body)
 	}
-	if _, err := s.settings.SetPublicShareSharer(ctx, s.owner, true); err != nil {
+	if err := s.settings.SetPublicShareSharer(ctx, s.owner, true); err != nil {
 		t.Fatal(err)
 	}
 	var got struct {
@@ -441,7 +441,7 @@ func TestPublicSharerAvatar(t *testing.T) {
 	}
 	setSharer := func(on bool) {
 		t.Helper()
-		if _, err := s.settings.SetPublicShareSharer(ctx, s.owner, on); err != nil {
+		if err := s.settings.SetPublicShareSharer(ctx, s.owner, on); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -477,11 +477,11 @@ func TestPublicSharerAvatar(t *testing.T) {
 
 	fail("an unknown token", "/public-images/AAAAAAAAAAAAAAAAAAAAAA/sharer.jpg")
 
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	fail("public sharing off", path)
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
 		t.Fatal(err)
 	}
 

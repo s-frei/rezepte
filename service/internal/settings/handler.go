@@ -131,37 +131,37 @@ func update(ctx context.Context, svc *Service, u user.User, in *updateSettingsIn
 		return Settings{}, ErrOwnerRequired
 	}
 	if in.Body.RecipesLockedByDefault != nil {
-		if _, err := svc.SetRecipesLockedByDefault(ctx, u, *in.Body.RecipesLockedByDefault); err != nil {
+		if err := svc.SetRecipesLockedByDefault(ctx, u, *in.Body.RecipesLockedByDefault); err != nil {
 			return Settings{}, err
 		}
 	}
 	if in.Body.LinkPreviews != nil {
-		if _, err := svc.SetLinkPreviews(ctx, u, *in.Body.LinkPreviews); err != nil {
+		if err := svc.SetLinkPreviews(ctx, u, *in.Body.LinkPreviews); err != nil {
 			return Settings{}, err
 		}
 	}
 	if in.Body.LinkPreviewMinutes != nil {
-		if _, err := svc.SetLinkPreviewMinutes(ctx, u, *in.Body.LinkPreviewMinutes); err != nil {
+		if err := svc.SetLinkPreviewMinutes(ctx, u, *in.Body.LinkPreviewMinutes); err != nil {
 			return Settings{}, err
 		}
 	}
 	if in.Body.PublicShares != nil {
-		if _, err := svc.SetPublicShares(ctx, u, *in.Body.PublicShares); err != nil {
+		if err := svc.SetPublicShares(ctx, u, *in.Body.PublicShares); err != nil {
 			return Settings{}, err
 		}
 	}
 	if in.Body.PublicShareAttribution != nil {
-		if _, err := svc.SetPublicShareAttribution(ctx, u, *in.Body.PublicShareAttribution); err != nil {
+		if err := svc.SetPublicShareAttribution(ctx, u, *in.Body.PublicShareAttribution); err != nil {
 			return Settings{}, err
 		}
 	}
 	if in.Body.PublicShareSharer != nil {
-		if _, err := svc.SetPublicShareSharer(ctx, u, *in.Body.PublicShareSharer); err != nil {
+		if err := svc.SetPublicShareSharer(ctx, u, *in.Body.PublicShareSharer); err != nil {
 			return Settings{}, err
 		}
 	}
 	if in.Body.RecipeDigestHour != nil {
-		if _, err := svc.SetRecipeDigestHour(ctx, u, *in.Body.RecipeDigestHour); err != nil {
+		if err := svc.SetRecipeDigestHour(ctx, u, *in.Body.RecipeDigestHour); err != nil {
 			return Settings{}, err
 		}
 	}
@@ -182,7 +182,7 @@ func update(ctx context.Context, svc *Service, u user.User, in *updateSettingsIn
 		if in.Body.PublicShareMaxDays.sent {
 			maxDays = in.Body.PublicShareMaxDays.value
 		}
-		if _, err := svc.SetShareLifetimes(ctx, u, defaultDays, maxDays); err != nil {
+		if err := svc.SetShareLifetimes(ctx, u, defaultDays, maxDays); err != nil {
 			return Settings{}, err
 		}
 	}

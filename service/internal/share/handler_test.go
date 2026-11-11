@@ -75,7 +75,7 @@ func newStack(t *testing.T) *stack {
 		}
 	}
 	s.settings = settings.NewService(conn)
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
 		t.Fatal(err)
 	}
 	imageDir := filepath.Join(t.TempDir(), "images")
@@ -88,11 +88,12 @@ func newStack(t *testing.T) *stack {
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	s.tokens = auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte(shellPage)}},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, s.tokens, false)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
-		httpserver.WithLinkPreview(s.shares.ForRequest),
-		httpserver.WithShellHeaders(share.ShellHeaders))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte(shellPage)}}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, s.tokens, false),
+		SecuritySchemes: auth.SecuritySchemes(),
+		LinkPreview:     s.shares.ForRequest,
+		ShellHeaders:    share.ShellHeaders,
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	share.Register(srv.API(), s.shares)
 	s.avatars = avatar.NewService(conn, filepath.Join(t.TempDir(), "avatars"), s.images)
@@ -294,18 +295,18 @@ func TestCreatePublicShare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	rec = s.do(http.MethodPost, "/api/v1/recipes/"+other.ID+"/public-share", `{"days":null}`, mia)
 	if refusal := decode[share.RefusedError](t, rec); rec.Code != http.StatusForbidden || refusal.Reason != share.ReasonSharingOff {
 		t.Errorf("create while sharing is off: %d %s, want 403 reason %s", rec.Code, rec.Body.String(), share.ReasonSharingOff)
 	}
-	if _, err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
+	if err := s.settings.SetPublicShares(ctx, s.owner, true); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := s.settings.SetShareLifetimes(ctx, s.owner, nil, new(30)); err != nil {
+	if err := s.settings.SetShareLifetimes(ctx, s.owner, nil, new(30)); err != nil {
 		t.Fatal(err)
 	}
 	for _, body := range []string{`{"days":null}`, `{"days":365}`, `{"days":2}`} {

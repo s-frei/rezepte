@@ -69,7 +69,7 @@ func setup(t *testing.T) env {
 		t.Fatal(err)
 	}
 	st := settings.NewService(conn)
-	if _, err := st.SetLinkPreviews(ctx, u, true); err != nil {
+	if err := st.SetLinkPreviews(ctx, u, true); err != nil {
 		t.Fatal(err)
 	}
 	e := env{conn: conn, settings: st, recipes: recipes, images: images, owner: u, recipe: r, coverID: cover.ID, otherID: other.ID}
@@ -103,14 +103,14 @@ func pngBytes(t *testing.T, w, h int) []byte {
 
 func (e env) switchPreviews(t *testing.T, on bool) {
 	t.Helper()
-	if _, err := e.settings.SetLinkPreviews(context.Background(), e.owner, on); err != nil {
+	if err := e.settings.SetLinkPreviews(context.Background(), e.owner, on); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func (e env) lifetime(t *testing.T, minutes int) {
 	t.Helper()
-	if _, err := e.settings.SetLinkPreviewMinutes(context.Background(), e.owner, minutes); err != nil {
+	if err := e.settings.SetLinkPreviewMinutes(context.Background(), e.owner, minutes); err != nil {
 		t.Fatal(err)
 	}
 }

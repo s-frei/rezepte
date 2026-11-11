@@ -9,7 +9,7 @@ import (
 // TestProblemBodies pins the exact bytes of the problem+json answers the
 // server writes outside huma, so they stay identical to huma's own.
 func TestProblemBodies(t *testing.T) {
-	h := newTestServer(t).Handler()
+	h := newTestServer(t, Options{}).Handler()
 	cases := []struct {
 		method, path, origin string
 		status               int

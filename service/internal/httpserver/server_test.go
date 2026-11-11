@@ -18,19 +18,19 @@ import (
 	"github.com/s-frei/rezepte/service/internal/config"
 )
 
-func newTestServer(t *testing.T, opts ...Option) *Server {
+func newTestServer(t *testing.T, opts Options) *Server {
 	t.Helper()
 	cfg, err := config.LoadFrom(map[string]string{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	static := fstest.MapFS{"index.html": {Data: []byte("app")}}
-	return New(cfg, slog.New(slog.DiscardHandler), static, opts...)
+	return New(cfg, slog.New(slog.DiscardHandler), static, opts)
 }
 
 func TestHealthzReportsStatusAndVersion(t *testing.T) {
 	rec := httptest.NewRecorder()
-	srv := newTestServer(t, WithVersion("1.2.3"))
+	srv := newTestServer(t, Options{Version: "1.2.3"})
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	if rec.Code != http.StatusOK {
@@ -50,7 +50,7 @@ func TestHealthzReportsStatusAndVersion(t *testing.T) {
 
 func TestHealthzVersionDefaultsWhenUnset(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	newTestServer(t, Options{}).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
 	var got struct {
 		Version string `json:"version"`
@@ -59,13 +59,13 @@ func TestHealthzVersionDefaultsWhenUnset(t *testing.T) {
 		t.Fatalf("body %q is not JSON: %v", rec.Body.String(), err)
 	}
 	if got.Version != "dev" {
-		t.Fatalf("version = %q, want %q for a server built without WithVersion", got.Version, "dev")
+		t.Fatalf("version = %q, want %q for a server built without a version", got.Version, "dev")
 	}
 }
 
 func TestOpenAPIIsServed(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil))
+	newTestServer(t, Options{}).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d", rec.Code)
 	}
@@ -77,15 +77,15 @@ func TestOpenAPIIsServed(t *testing.T) {
 func TestOpenAPIVersionIsTheBuildVersion(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		opts []Option
+		opts Options
 		want string
 	}{
-		{"with WithVersion", []Option{WithVersion("1.2.3")}, "1.2.3"},
-		{"without WithVersion", nil, "dev"},
+		{"with a version", Options{Version: "1.2.3"}, "1.2.3"},
+		{"without one", Options{}, "dev"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			newTestServer(t, tc.opts...).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil))
+			newTestServer(t, tc.opts).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/openapi.json", nil))
 			var doc struct {
 				Info struct {
 					Version string `json:"version"`
@@ -103,7 +103,7 @@ func TestOpenAPIVersionIsTheBuildVersion(t *testing.T) {
 
 func TestDocsIsServed(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil))
+	newTestServer(t, Options{}).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/docs", nil))
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "scalar") {
 		t.Fatalf("got %d, body contains scalar: %v", rec.Code, strings.Contains(rec.Body.String(), "scalar"))
 	}
@@ -117,7 +117,7 @@ func TestDocsIsServed(t *testing.T) {
 
 func TestSPAFallbackIsWired(t *testing.T) {
 	rec := httptest.NewRecorder()
-	newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/recipes/x", nil))
+	newTestServer(t, Options{}).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/recipes/x", nil))
 	if rec.Code != http.StatusOK || rec.Body.String() != "app" {
 		t.Fatalf("got %d %q", rec.Code, rec.Body.String())
 	}
@@ -127,7 +127,7 @@ func TestUnknownAPIRouteIsProblemJSON(t *testing.T) {
 	for _, path := range []string{"/api/v1/does-not-exist", "/api"} {
 		t.Run(path, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			newTestServer(t).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+			newTestServer(t, Options{}).Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
 			if rec.Code != http.StatusNotFound {
 				t.Fatalf("status = %d, want 404", rec.Code)
 			}
@@ -150,7 +150,7 @@ func TestLogRequestsLevelByStatus(t *testing.T) {
 
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	handler := New(cfg, logger, static).Handler()
+	handler := New(cfg, logger, static, Options{}).Handler()
 
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/v1/nope", nil))
 	out := buf.String()
@@ -172,7 +172,7 @@ func TestServerErrorsHideDetails(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
-	srv := New(cfg, logger, fstest.MapFS{})
+	srv := New(cfg, logger, fstest.MapFS{}, Options{})
 
 	huma.Register(srv.API(), huma.Operation{
 		OperationID: "boom",
@@ -206,11 +206,11 @@ func TestServerErrorsHideDetails(t *testing.T) {
 	}
 }
 
-// TestWithAPIMiddlewareAppliesBeforeRegistration proves that an Option
+// TestAPIMiddlewareAppliesBeforeRegistration proves that the APIMiddleware
 // passed to New applies before the caller can register any operation: a
 // middleware that rejects every protected operation still rejects an
 // operation registered strictly after New returns.
-func TestWithAPIMiddlewareAppliesBeforeRegistration(t *testing.T) {
+func TestAPIMiddlewareAppliesBeforeRegistration(t *testing.T) {
 	cfg, err := config.LoadFrom(map[string]string{})
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +224,7 @@ func TestWithAPIMiddlewareAppliesBeforeRegistration(t *testing.T) {
 			next(ctx)
 		}
 	}
-	srv := New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, WithAPIMiddleware(rejectProtected))
+	srv := New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, Options{APIMiddleware: rejectProtected})
 
 	// Registered after New returns - if the middleware were not already
 	// installed by this point, this operation would run unauthenticated.
@@ -240,7 +240,7 @@ func TestWithAPIMiddlewareAppliesBeforeRegistration(t *testing.T) {
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/protected", nil))
 	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("status = %d, want 401 (WithAPIMiddleware must apply before an operation can be registered)", rec.Code)
+		t.Fatalf("status = %d, want 401 (APIMiddleware must apply before an operation can be registered)", rec.Code)
 	}
 }
 
@@ -260,7 +260,7 @@ func TestOnShutdownRunsWhenRunStops(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{})
+	srv := New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, Options{})
 	stopped := make(chan struct{})
 	srv.OnShutdown(func() { close(stopped) })
 	ctx, cancel := context.WithCancel(context.Background())

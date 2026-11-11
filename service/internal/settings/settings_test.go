@@ -47,11 +47,14 @@ func TestOnlyTheOwnerSetsShareAttribution(t *testing.T) {
 	ctx := context.Background()
 	svc := settings.NewService(dbtest.Open(t))
 	admin := user.User{ID: "a", Role: user.RoleAdmin}
-	if _, err := svc.SetPublicShareAttribution(ctx, admin, false); !errors.Is(err, settings.ErrOwnerRequired) {
+	if err := svc.SetPublicShareAttribution(ctx, admin, false); !errors.Is(err, settings.ErrOwnerRequired) {
 		t.Errorf("admin switch: err = %v, want ErrOwnerRequired", err)
 	}
 	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
-	got, err := svc.SetPublicShareAttribution(ctx, owner, false)
+	if err := svc.SetPublicShareAttribution(ctx, owner, false); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,10 +66,13 @@ func TestOnlyTheOwnerSetsShareAttribution(t *testing.T) {
 func TestOnlyTheOwnerNamesTheSharer(t *testing.T) {
 	ctx := context.Background()
 	svc := settings.NewService(dbtest.Open(t))
-	if _, err := svc.SetPublicShareSharer(ctx, user.User{ID: "a", Role: user.RoleAdmin}, true); !errors.Is(err, settings.ErrOwnerRequired) {
+	if err := svc.SetPublicShareSharer(ctx, user.User{ID: "a", Role: user.RoleAdmin}, true); !errors.Is(err, settings.ErrOwnerRequired) {
 		t.Errorf("admin switch: err = %v, want ErrOwnerRequired", err)
 	}
-	got, err := svc.SetPublicShareSharer(ctx, user.User{ID: "o", Role: user.RoleSuperadmin}, true)
+	if err := svc.SetPublicShareSharer(ctx, user.User{ID: "o", Role: user.RoleSuperadmin}, true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,20 +85,20 @@ func TestOnlyTheOwnerSetsLinkPreviews(t *testing.T) {
 	ctx := context.Background()
 	svc := settings.NewService(dbtest.Open(t))
 	admin := user.User{ID: "a", Role: user.RoleAdmin}
-	if _, err := svc.SetLinkPreviews(ctx, admin, true); !errors.Is(err, settings.ErrOwnerRequired) {
+	if err := svc.SetLinkPreviews(ctx, admin, true); !errors.Is(err, settings.ErrOwnerRequired) {
 		t.Errorf("admin switch: err = %v, want ErrOwnerRequired", err)
 	}
-	if _, err := svc.SetLinkPreviewMinutes(ctx, admin, 60); !errors.Is(err, settings.ErrOwnerRequired) {
+	if err := svc.SetLinkPreviewMinutes(ctx, admin, 60); !errors.Is(err, settings.ErrOwnerRequired) {
 		t.Errorf("admin lifetime: err = %v, want ErrOwnerRequired", err)
 	}
 	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
-	if _, err := svc.SetLinkPreviewMinutes(ctx, owner, 30); !errors.Is(err, settings.ErrUnknownLifetime) {
+	if err := svc.SetLinkPreviewMinutes(ctx, owner, 30); !errors.Is(err, settings.ErrUnknownLifetime) {
 		t.Errorf("30 minutes: err = %v, want ErrUnknownLifetime", err)
 	}
-	if _, err := svc.SetLinkPreviews(ctx, owner, true); err != nil {
+	if err := svc.SetLinkPreviews(ctx, owner, true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.SetLinkPreviewMinutes(ctx, owner, 1440); err != nil {
+	if err := svc.SetLinkPreviewMinutes(ctx, owner, 1440); err != nil {
 		t.Fatal(err)
 	}
 	got, err := svc.Get(ctx)
@@ -131,12 +137,15 @@ func TestShareLifetimes(t *testing.T) {
 	admin := user.User{ID: "a", Role: user.RoleAdmin}
 	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
 
-	if _, err := svc.SetShareLifetimes(ctx, admin, intPtr(30), intPtr(7)); !errors.Is(err, settings.ErrOwnerRequired) {
+	if err := svc.SetShareLifetimes(ctx, admin, intPtr(30), intPtr(7)); !errors.Is(err, settings.ErrOwnerRequired) {
 		t.Errorf("admin: err = %v, want ErrOwnerRequired", err)
 	}
 
 	// A default above the new maximum is lowered to the maximum.
-	got, err := svc.SetShareLifetimes(ctx, owner, intPtr(30), intPtr(7))
+	if err := svc.SetShareLifetimes(ctx, owner, intPtr(30), intPtr(7)); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +157,10 @@ func TestShareLifetimes(t *testing.T) {
 	}
 
 	// Both nil is permanent for both.
-	got, err = svc.SetShareLifetimes(ctx, owner, nil, nil)
+	if err := svc.SetShareLifetimes(ctx, owner, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err = svc.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +168,7 @@ func TestShareLifetimes(t *testing.T) {
 		t.Errorf("got %+v, want both nil (permanent)", got)
 	}
 
-	if _, err := svc.SetShareLifetimes(ctx, owner, intPtr(2), nil); !errors.Is(err, settings.ErrUnknownShareLifetime) {
+	if err := svc.SetShareLifetimes(ctx, owner, intPtr(2), nil); !errors.Is(err, settings.ErrUnknownShareLifetime) {
 		t.Errorf("2 days: err = %v, want ErrUnknownShareLifetime", err)
 	}
 }
@@ -174,12 +186,15 @@ func TestOnlyTheOwnerSetsTheLock(t *testing.T) {
 	ctx := context.Background()
 	svc := settings.NewService(dbtest.Open(t))
 	for _, role := range []user.Role{user.RoleUser, user.RoleAdmin} {
-		_, err := svc.SetRecipesLockedByDefault(ctx, user.User{ID: "x", Role: role}, true)
+		err := svc.SetRecipesLockedByDefault(ctx, user.User{ID: "x", Role: role}, true)
 		if !errors.Is(err, settings.ErrOwnerRequired) {
 			t.Errorf("%s: err = %v, want ErrOwnerRequired", role, err)
 		}
 	}
-	got, err := svc.SetRecipesLockedByDefault(ctx, user.User{ID: "o", Role: user.RoleSuperadmin}, true)
+	if err := svc.SetRecipesLockedByDefault(ctx, user.User{ID: "o", Role: user.RoleSuperadmin}, true); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,16 +221,16 @@ func TestSetRecipeDigestHour(t *testing.T) {
 		t.Errorf("RecipeDigestHour = %d on a fresh instance, want 17", got.RecipeDigestHour)
 	}
 	admin := user.User{ID: "a", Role: user.RoleAdmin}
-	if _, err := svc.SetRecipeDigestHour(ctx, admin, 6); !errors.Is(err, settings.ErrOwnerRequired) {
+	if err := svc.SetRecipeDigestHour(ctx, admin, 6); !errors.Is(err, settings.ErrOwnerRequired) {
 		t.Errorf("admin: err = %v, want ErrOwnerRequired", err)
 	}
 	owner := user.User{ID: "o", Role: user.RoleSuperadmin}
 	for _, hour := range []int{24, -1} {
-		if _, err := svc.SetRecipeDigestHour(ctx, owner, hour); !errors.Is(err, settings.ErrUnknownHour) {
+		if err := svc.SetRecipeDigestHour(ctx, owner, hour); !errors.Is(err, settings.ErrUnknownHour) {
 			t.Errorf("hour %d: err = %v, want ErrUnknownHour", hour, err)
 		}
 	}
-	if _, err := svc.SetRecipeDigestHour(ctx, owner, 6); err != nil {
+	if err := svc.SetRecipeDigestHour(ctx, owner, 6); err != nil {
 		t.Fatal(err)
 	}
 	if got, err = svc.Get(ctx); err != nil {

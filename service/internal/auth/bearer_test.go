@@ -44,9 +44,10 @@ func newBearerStackWithScopes(t *testing.T, scopes ...string) (http.Handler, str
 		t.Fatal(err)
 	}
 	cfg, _ := config.LoadFrom(map[string]string{})
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, tokens, false),
+		SecuritySchemes: auth.SecuritySchemes(),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	userapi.Register(srv.API(), users, sessions, avatar.NewService(conn, t.TempDir(), image.NewService(conn, t.TempDir())), nil, nil, nil)
 	return srv.Handler(), raw

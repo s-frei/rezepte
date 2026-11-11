@@ -67,7 +67,7 @@ const defaultVersion = "dev"
 // paths (e.g. /api/v1/recipes) so the mux and OpenAPI agree.
 //
 // The API has no version of its own: info.version is the build version, so
-// it is set by New once WithVersion has run, not here.
+// it is set by New from Options.Version, not here.
 func newAPI(mux *http.ServeMux) huma.API {
 	cfg := huma.DefaultConfig("Rezepte API", defaultVersion)
 	cfg.Tags = apiTags

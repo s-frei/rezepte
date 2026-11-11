@@ -40,8 +40,9 @@ func newMailHandlerDB(t *testing.T, env mail.Config) (http.Handler, map[string]*
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
 	logger := slog.New(slog.DiscardHandler)
-	srv := httpserver.New(cfg, logger, fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	srv := httpserver.New(cfg, logger, fstest.MapFS{}, httpserver.Options{
+		APIMiddleware: auth.Middleware(sessions, tokens, false),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	mailapi.Register(srv.API(), mail.NewService(conn, env, "https://r.example.org", logger))
 	h := srv.Handler()

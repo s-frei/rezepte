@@ -166,11 +166,11 @@ type redeemSetupInput struct {
 // in the accounts cookie device writes (see RegisterDevice).
 //
 // The session security scheme itself is not declared here: it comes from
-// SecuritySchemes, installed through httpserver.WithSecuritySchemes, which
+// SecuritySchemes, installed through httpserver.Options.SecuritySchemes, which
 // is the single place both schemes are described.
 //
 // The auth middleware itself is not installed here: it is passed to
-// httpserver.New via httpserver.WithAPIMiddleware(auth.Middleware(...)),
+// httpserver.New via httpserver.Options.APIMiddleware,
 // which applies it before this package (or any other) can register an
 // operation. That ordering is structural, not a calling-convention
 // requirement of this function.

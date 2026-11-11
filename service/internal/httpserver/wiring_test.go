@@ -75,12 +75,13 @@ func newFullApp(t *testing.T) fullApp {
 	}
 	shares := share.NewService(conn, instance, users)
 
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte("app")}},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
-		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
-		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
-		httpserver.WithShellHeaders(share.ShellHeaders))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{"index.html": {Data: []byte("app")}}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, tokens, cfg.SecureCookies),
+		SecuritySchemes: auth.SecuritySchemes(),
+		SpecGuard:       auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies),
+		LinkPreview:     httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest),
+		ShellHeaders:    share.ShellHeaders,
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), cfg.SecureCookies)
 	recipes := recipe.NewService(conn, imageDir)
 	recipe.Register(srv.API(), recipes)
@@ -150,7 +151,7 @@ func (a fullApp) get(path string, cookie *http.Cookie) *httptest.ResponseRecorde
 // OpenAPI document in all four flavors it emits (3.1 plus the 3.0
 // downgrades, each as JSON and YAML), the schema registry and the Scalar
 // docs page. None of them is a huma operation, so auth.Middleware never
-// sees them - httpserver.WithSpecGuard is what covers them.
+// sees them - httpserver.Options.SpecGuard is what covers them.
 var specRoutes = []string{
 	"/api/v1/docs",
 	"/api/v1/openapi.json",

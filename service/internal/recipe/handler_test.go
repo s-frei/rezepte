@@ -45,8 +45,9 @@ func newRecipeHandlerWithConn(t *testing.T) (http.Handler, *sql.DB) {
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware: auth.Middleware(sessions, tokens, false),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	recipe.Register(srv.API(), recipe.NewService(conn, ""))
 	return srv.Handler(), conn
@@ -118,8 +119,9 @@ func newTokenEnv(t *testing.T, scopes []string) *tokenEnv {
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware: auth.Middleware(sessions, tokens, false),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	recipe.Register(srv.API(), recipe.NewService(conn, ""))
 	raw, _, err := tokens.Create(context.Background(), sam.ID, "t", scopes, nil)

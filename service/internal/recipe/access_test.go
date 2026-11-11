@@ -118,13 +118,13 @@ func TestDeleteOpenByOtherIsRefused(t *testing.T) {
 func TestDefaultPolicyFollowsGlobalLive(t *testing.T) {
 	e := newAccessEnv(t, recipe.PolicyDefault)
 	ctx := context.Background()
-	if _, err := e.settings.SetRecipesLockedByDefault(ctx, e.owner, true); err != nil {
+	if err := e.settings.SetRecipesLockedByDefault(ctx, e.owner, true); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.Update(ctx, e.rec.ID, e.other, e.rec.Input); !errors.Is(err, recipe.ErrEditForbidden) {
 		t.Fatalf("global on: err = %v, want ErrEditForbidden", err)
 	}
-	if _, err := e.settings.SetRecipesLockedByDefault(ctx, e.owner, false); err != nil {
+	if err := e.settings.SetRecipesLockedByDefault(ctx, e.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.Update(ctx, e.rec.ID, e.other, e.rec.Input); err != nil {

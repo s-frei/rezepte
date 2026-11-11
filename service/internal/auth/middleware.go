@@ -52,7 +52,7 @@ func TokenOnly(scopes ...string) []map[string][]string {
 }
 
 // SecuritySchemes describes both authenticators for the OpenAPI document.
-// It is installed through httpserver.WithSecuritySchemes so the scheme names
+// It is installed through httpserver.Options.SecuritySchemes so the scheme names
 // stay in this package and httpserver keeps knowing nothing about auth.
 func SecuritySchemes() map[string]*huma.SecurityScheme {
 	return map[string]*huma.SecurityScheme{
@@ -175,7 +175,7 @@ func ScopesFrom(ctx context.Context) []string {
 // re-issues the session cookie with the fresh expiry, so the browser's copy
 // never falls behind the one stored in the database.
 //
-// It is installed via httpserver.WithAPIMiddleware, which applies it before
+// It is installed via httpserver.Options.APIMiddleware, which applies it before
 // any operation can be registered - see httpserver.New. This makes it
 // structurally impossible to register a protected operation ahead of the
 // middleware, unlike calling api.UseMiddleware directly from Register.

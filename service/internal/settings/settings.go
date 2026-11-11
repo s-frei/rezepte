@@ -100,95 +100,95 @@ func (s *Service) Get(ctx context.Context) (Settings, error) {
 
 // SetRecipesLockedByDefault switches the household default. Only the
 // superadmin may; everybody else gets ErrOwnerRequired.
-func (s *Service) SetRecipesLockedByDefault(ctx context.Context, actor user.User, on bool) (Settings, error) {
+func (s *Service) SetRecipesLockedByDefault(ctx context.Context, actor user.User, on bool) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if err := s.q.SetRecipesLockedByDefault(ctx, on); err != nil {
-		return Settings{}, fmt.Errorf("set recipes locked by default: %w", err)
+		return fmt.Errorf("set recipes locked by default: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetLinkPreviews switches link previews on or off. Only the superadmin
 // may; everybody else gets ErrOwnerRequired.
-func (s *Service) SetLinkPreviews(ctx context.Context, actor user.User, on bool) (Settings, error) {
+func (s *Service) SetLinkPreviews(ctx context.Context, actor user.User, on bool) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if err := s.q.SetLinkPreviews(ctx, on); err != nil {
-		return Settings{}, fmt.Errorf("set link previews: %w", err)
+		return fmt.Errorf("set link previews: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetLinkPreviewMinutes chooses how long a link preview lasts, one of
 // PreviewLifetimes. Only the superadmin may; everybody else gets
 // ErrOwnerRequired, any other value ErrUnknownLifetime.
-func (s *Service) SetLinkPreviewMinutes(ctx context.Context, actor user.User, minutes int) (Settings, error) {
+func (s *Service) SetLinkPreviewMinutes(ctx context.Context, actor user.User, minutes int) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if !slices.Contains(PreviewLifetimes, minutes) {
-		return Settings{}, ErrUnknownLifetime
+		return ErrUnknownLifetime
 	}
 	if err := s.q.SetLinkPreviewMinutes(ctx, int64(minutes)); err != nil {
-		return Settings{}, fmt.Errorf("set link preview minutes: %w", err)
+		return fmt.Errorf("set link preview minutes: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetPublicShares switches whether members may create public recipe links.
 // Only the superadmin may; everybody else gets ErrOwnerRequired.
-func (s *Service) SetPublicShares(ctx context.Context, actor user.User, on bool) (Settings, error) {
+func (s *Service) SetPublicShares(ctx context.Context, actor user.User, on bool) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if err := s.q.SetPublicShares(ctx, on); err != nil {
-		return Settings{}, fmt.Errorf("set public shares: %w", err)
+		return fmt.Errorf("set public shares: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetPublicShareAttribution switches whether public share pages and
 // recipe cards name Rezepte. Only the superadmin may; everybody else gets ErrOwnerRequired.
-func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User, on bool) (Settings, error) {
+func (s *Service) SetPublicShareAttribution(ctx context.Context, actor user.User, on bool) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if err := s.q.SetPublicShareAttribution(ctx, on); err != nil {
-		return Settings{}, fmt.Errorf("set public share attribution: %w", err)
+		return fmt.Errorf("set public share attribution: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetPublicShareSharer switches whether public share pages name the member
 // who shared the recipe. Only the superadmin may; everybody else gets
 // ErrOwnerRequired.
-func (s *Service) SetPublicShareSharer(ctx context.Context, actor user.User, on bool) (Settings, error) {
+func (s *Service) SetPublicShareSharer(ctx context.Context, actor user.User, on bool) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if err := s.q.SetPublicShareSharer(ctx, on); err != nil {
-		return Settings{}, fmt.Errorf("set public share sharer: %w", err)
+		return fmt.Errorf("set public share sharer: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetRecipeDigestHour chooses the hour, 0 to 23, of the daily new recipes
 // notification, by mail and push. Only the superadmin may; everybody else gets ErrOwnerRequired, any
 // other hour ErrUnknownHour.
-func (s *Service) SetRecipeDigestHour(ctx context.Context, actor user.User, hour int) (Settings, error) {
+func (s *Service) SetRecipeDigestHour(ctx context.Context, actor user.User, hour int) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if hour < 0 || hour > 23 {
-		return Settings{}, ErrUnknownHour
+		return ErrUnknownHour
 	}
 	if err := s.q.SetRecipeDigestHour(ctx, int64(hour)); err != nil {
-		return Settings{}, fmt.Errorf("set recipe digest hour: %w", err)
+		return fmt.Errorf("set recipe digest hour: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // SetShareLifetimes chooses the default and maximum lifetime, in days, a new
@@ -199,15 +199,15 @@ func (s *Service) SetRecipeDigestHour(ctx context.Context, actor user.User, hour
 // promise a lifetime the maximum forbids. Both columns are written in one
 // statement, so a reader never sees a default the new maximum already
 // disallows.
-func (s *Service) SetShareLifetimes(ctx context.Context, actor user.User, defaultDays, maxDays *int) (Settings, error) {
+func (s *Service) SetShareLifetimes(ctx context.Context, actor user.User, defaultDays, maxDays *int) error {
 	if !actor.Role.IsSuperadmin() {
-		return Settings{}, ErrOwnerRequired
+		return ErrOwnerRequired
 	}
 	if defaultDays != nil && !slices.Contains(ShareLifetimes, *defaultDays) {
-		return Settings{}, ErrUnknownShareLifetime
+		return ErrUnknownShareLifetime
 	}
 	if maxDays != nil && !slices.Contains(ShareLifetimes, *maxDays) {
-		return Settings{}, ErrUnknownShareLifetime
+		return ErrUnknownShareLifetime
 	}
 	if maxDays != nil && (defaultDays == nil || *defaultDays > *maxDays) {
 		defaultDays = maxDays
@@ -216,9 +216,9 @@ func (s *Service) SetShareLifetimes(ctx context.Context, actor user.User, defaul
 		PublicShareDefaultDays: db.Conv[int64](defaultDays),
 		PublicShareMaxDays:     db.Conv[int64](maxDays),
 	}); err != nil {
-		return Settings{}, fmt.Errorf("set share lifetimes: %w", err)
+		return fmt.Errorf("set share lifetimes: %w", err)
 	}
-	return s.Get(ctx)
+	return nil
 }
 
 // LinkPreviewKey returns the 32-byte instance key link preview tokens and

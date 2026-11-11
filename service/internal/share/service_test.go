@@ -44,7 +44,7 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	st := settings.NewService(conn)
-	if _, err := st.SetPublicShares(ctx, owner, true); err != nil {
+	if err := st.SetPublicShares(ctx, owner, true); err != nil {
 		t.Fatal(err)
 	}
 	recipes := recipe.NewService(conn, "")
@@ -79,7 +79,7 @@ func intPtr(i int) *int { return &i }
 func TestCreateRefusesLifetimeAboveTheMaximum(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()
-	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+	if err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.shares.Create(ctx, e.member, e.recipe.ID, nil); !errors.Is(err, share.ErrLifetime) {
@@ -187,7 +187,7 @@ func TestCreateExistingShareWinsOverALoweredMaximum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(7)); err != nil {
+	if err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(7)); err != nil {
 		t.Fatal(err)
 	}
 	again, err := e.shares.Create(ctx, e.member, e.recipe.ID, intPtr(30))
@@ -229,7 +229,7 @@ func TestCreateFindsADirectlyInsertedRowAsExisting(t *testing.T) {
 func TestCreateSharingOff(t *testing.T) {
 	e := setup(t)
 	ctx := context.Background()
-	if _, err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
+	if err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.shares.Create(ctx, e.member, e.recipe.ID, nil); !errors.Is(err, share.ErrSharingOff) {
@@ -362,13 +362,13 @@ func TestResolve(t *testing.T) {
 		t.Fatal(err)
 	}
 	pausedToken := paused.Path[len("/s/"):]
-	if _, err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
+	if err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok, err := e.shares.Resolve(ctx, pausedToken); err != nil || ok {
 		t.Errorf("paused (sharing off): ok=%v err=%v, want false nil", ok, err)
 	}
-	if _, err := e.settings.SetPublicShares(ctx, e.owner, true); err != nil {
+	if err := e.settings.SetPublicShares(ctx, e.owner, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.shares.Revoke(ctx, e.member, paused.ID); err != nil {
@@ -387,7 +387,7 @@ func TestResolve(t *testing.T) {
 	}
 	limitedToken := limited.Path[len("/s/"):]
 	e.clock = e.clock.Add(40 * 24 * time.Hour)
-	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+	if err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok, err := e.shares.Resolve(ctx, expiredToken); err != nil || ok {
@@ -412,7 +412,7 @@ func TestSweepDeletesOwnExpiryButKeepsLimited(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.clock = e.clock.Add(40 * 24 * time.Hour)
-	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+	if err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -472,7 +472,7 @@ func TestRetimeRevivesALimitedLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+	if err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
 		t.Fatal(err)
 	}
 	e.clock = e.clock.Add(31 * 24 * time.Hour).Truncate(time.Second)
@@ -501,7 +501,7 @@ func TestRetimeRefusedWhenPaused(t *testing.T) {
 	if _, err := e.shares.Retime(ctx, e.member, first.ID, intPtr(7)); !errors.Is(err, share.ErrNotAllowed) {
 		t.Errorf("withdrawn right: err = %v, want ErrNotAllowed", err)
 	}
-	if _, err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
+	if err := e.settings.SetPublicShares(ctx, e.owner, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.shares.Retime(ctx, e.member, first.ID, intPtr(7)); !errors.Is(err, share.ErrSharingOff) {
@@ -516,7 +516,7 @@ func TestRetimeAboveTheMaximum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
+	if err := e.settings.SetShareLifetimes(ctx, e.owner, nil, intPtr(30)); err != nil {
 		t.Fatal(err)
 	}
 	for _, days := range []*int{intPtr(365), nil, intPtr(2)} {

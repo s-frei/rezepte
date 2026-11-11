@@ -50,8 +50,9 @@ func newHandler(t *testing.T) harness {
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware: auth.Middleware(sessions, tokens, false),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	dataDir := t.TempDir()
 	dir := filepath.Join(dataDir, "images")

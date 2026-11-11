@@ -21,89 +21,44 @@ import (
 
 // Server owns the mux, the huma API and the http.Server lifecycle.
 type Server struct {
-	cfg       config.Config
-	logger    *slog.Logger
-	mux       *http.ServeMux
-	api       huma.API
-	specGuard func(http.Handler) http.Handler
-	preview   PreviewFunc
-	headers   ShellHeaderFunc
-	version   string
-	onStop    []func()
+	cfg    config.Config
+	logger *slog.Logger
+	mux    *http.ServeMux
+	api    huma.API
+	opts   Options
+	onStop []func()
 }
 
-// Option configures a Server at construction time. Options run after the
-// huma API is created but before New returns, so an Option such as
-// WithAPIMiddleware is guaranteed to apply before the caller can register
-// any operation on the returned Server.
-type Option func(*Server)
-
-// WithAPIMiddleware installs an API-wide huma middleware. mw receives the
-// server's huma.API (useful for writing errors with huma.WriteErr) and
-// returns the actual middleware function.
-//
-// Because New applies every Option before returning, a middleware installed
-// this way is structurally guaranteed to run for every operation registered
-// afterwards - there is no window in which an operation could be registered
-// ahead of it, unlike calling api.UseMiddleware from arbitrary caller code.
-func WithAPIMiddleware(mw func(api huma.API) func(huma.Context, func(huma.Context))) Option {
-	return func(s *Server) {
-		s.api.UseMiddleware(mw(s.api))
-	}
-}
-
-// WithSpecGuard wraps the routes huma registers for the contract itself -
-// the OpenAPI document, the JSON schemas and the Scalar docs page.
-//
-// Those are not huma operations: huma hangs them straight off the mux, so
-// the middleware WithAPIMiddleware installs never runs for them and their
-// Security is empty. Guarding them therefore has to happen here, in front
-// of the mux, rather than in the operation chain. mw is an ordinary
-// net/http middleware - auth.RequireAuthOrLogin, which redirects a
-// browser to the login form and answers everything else with a 401; see
-// docs/memory/content/features/users-and-auth.mdx.
-func WithSpecGuard(mw func(http.Handler) http.Handler) Option {
-	return func(s *Server) {
-		s.specGuard = mw
-	}
-}
-
-// WithLinkPreview installs the function that gives a page its own link
-// preview in the app shell - a shared recipe's title and cover. Without it
-// every page carries the app's own. See docs/memory/content/features/link-previews.mdx.
-func WithLinkPreview(f PreviewFunc) Option {
-	return func(s *Server) { s.preview = f }
-}
-
-// WithShellHeaders installs the function that adjusts the app shell's
-// response headers for the page a request asks for - the public share page
-// sends noindex and no-referrer, for one. Without it every page gets the
-// shell's own headers.
-func WithShellHeaders(f ShellHeaderFunc) Option {
-	return func(s *Server) { s.headers = f }
-}
-
-// WithVersion sets the build version /healthz reports and the OpenAPI
-// document carries as info.version. Without it both say "dev", which is what
-// a plain `go build` produces.
-func WithVersion(v string) Option {
-	return func(s *Server) { s.version = v }
-}
-
-// WithSecuritySchemes declares the OpenAPI security schemes the operations
-// refer to. huma.DefaultConfig declares none, so without this the emitted
-// document names schemes it never defines and the docs page offers no way to
-// authorize. The map comes from the auth package, which owns the names -
-// httpserver stays ignorant of how authentication works, exactly as it does
-// for WithAPIMiddleware.
-func WithSecuritySchemes(schemes map[string]*huma.SecurityScheme) Option {
-	return func(s *Server) {
-		components := s.api.OpenAPI().Components
-		if components.SecuritySchemes == nil {
-			components.SecuritySchemes = map[string]*huma.SecurityScheme{}
-		}
-		maps.Copy(components.SecuritySchemes, schemes)
-	}
+// Options configures a Server. Every field may be left zero.
+type Options struct {
+	// APIMiddleware is an API-wide huma middleware: it receives the server's
+	// huma.API (for writing errors with huma.WriteErr) and returns the
+	// middleware. New installs it before it returns, so it runs for every
+	// operation registered afterwards - there is no window in which an
+	// operation could be registered ahead of it.
+	APIMiddleware func(api huma.API) func(huma.Context, func(huma.Context))
+	// SecuritySchemes are the OpenAPI security schemes the operations refer
+	// to; huma.DefaultConfig declares none, so without them the document
+	// names schemes it never defines. They come from the auth package, which
+	// owns the names.
+	SecuritySchemes map[string]*huma.SecurityScheme
+	// SpecGuard wraps the routes huma hangs straight off the mux for the
+	// contract itself - the OpenAPI document, the JSON schemas and the docs
+	// page. They are not operations, so APIMiddleware never runs for them;
+	// auth.RequireAuthOrLogin guards them here (see
+	// docs/memory/content/features/users-and-auth.mdx).
+	SpecGuard func(http.Handler) http.Handler
+	// LinkPreview gives a page its own link preview in the app shell - a
+	// shared recipe's title and cover; without it every page carries the
+	// app's own. See docs/memory/content/features/link-previews.mdx.
+	LinkPreview PreviewFunc
+	// ShellHeaders adjusts the app shell's response headers for the page a
+	// request asks for - the public share page sends noindex and no-referrer.
+	ShellHeaders ShellHeaderFunc
+	// Version is the build version /healthz reports and the OpenAPI document
+	// carries as info.version; empty means "dev", what a plain `go build`
+	// produces.
+	Version string
 }
 
 // errorLogger holds the logger the huma error hook below logs to. New stores
@@ -149,27 +104,37 @@ func installErrorHook() {
 
 // New builds a server serving the API under /api/v1 and static assets from
 // fsys. Options run after the huma API is created and before any operation
-// can be registered on it; use WithAPIMiddleware to install API-wide
+// can be registered on it; use Options.APIMiddleware to install API-wide
 // middleware (such as auth.Middleware) with that guarantee.
-func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *Server {
+func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts Options) *Server {
 	mux := http.NewServeMux()
-	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux), version: defaultVersion}
+	if opts.Version == "" {
+		opts.Version = defaultVersion
+	}
+	s := &Server{cfg: cfg, logger: logger, mux: mux, api: newAPI(mux), opts: opts}
 
 	installErrorHook()
 	errorLogger.Store(logger)
 
-	for _, opt := range opts {
-		opt(s)
+	if opts.APIMiddleware != nil {
+		s.api.UseMiddleware(opts.APIMiddleware(s.api))
+	}
+	if opts.SecuritySchemes != nil {
+		components := s.api.OpenAPI().Components
+		if components.SecuritySchemes == nil {
+			components.SecuritySchemes = map[string]*huma.SecurityScheme{}
+		}
+		maps.Copy(components.SecuritySchemes, opts.SecuritySchemes)
 	}
 	// The API is versioned with the application: one number, bumped by the
 	// release tag, never by hand. See docs/memory/content/architecture/api.mdx.
-	s.api.OpenAPI().Info.Version = s.version
+	s.api.OpenAPI().Info.Version = opts.Version
 
 	// The version is public here by decision: it is the one place an operator
 	// can read what a running instance is without shell access to it.
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": s.version})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": opts.Version})
 	})
 	// huma's own operations register more specific patterns (e.g.
 	// "GET /api/v1/openapi.json") which take precedence over these catch-alls.
@@ -180,7 +145,7 @@ func New(cfg config.Config, logger *slog.Logger, static fs.FS, opts ...Option) *
 	// with a 200 would read as a broken document rather than "none here".
 	mux.Handle("/.well-known/", notFound("no such document"))
 	mux.Handle("GET /manifest.webmanifest", ManifestHandler(static, cfg.Locale))
-	mux.Handle("/", SPAHandler(static, cfg.SecureCookies, s.preview, s.headers))
+	mux.Handle("/", SPAHandler(static, cfg.SecureCookies, opts.LinkPreview, opts.ShellHeaders))
 	return s
 }
 
@@ -231,15 +196,15 @@ func (s *Server) API() huma.API { return s.api }
 // Handler returns the root handler with Origin check and request logging.
 func (s *Server) Handler() http.Handler { return s.logRequests(checkOrigin(s.guardSpec(s.mux))) }
 
-// guardSpec routes the contract paths through the middleware WithSpecGuard
+// guardSpec routes the contract paths through the middleware Options.SpecGuard
 // installed and lets everything else reach the mux untouched. With no guard
 // configured the mux is returned as it is, so a Server built without the
 // option behaves exactly as before.
 func (s *Server) guardSpec(next http.Handler) http.Handler {
-	if s.specGuard == nil {
+	if s.opts.SpecGuard == nil {
 		return next
 	}
-	guarded := s.specGuard(next)
+	guarded := s.opts.SpecGuard(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isSpecRoute(r.URL.Path) {
 			guarded.ServeHTTP(w, r)

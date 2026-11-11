@@ -7,7 +7,7 @@ Base path `/api/v1`. OpenAPI 3.1 at `/api/v1/openapi.json`, interactive docs at 
 
 ## Version
 
-The API has no version of its own. `info.version` in the served document is the build version - the one `-X main.version` stamps into the binary, `rezepte --version` prints and `/healthz` reports (see [Releases](/architecture/releases)): `httpserver.New` sets it from `WithVersion` once the options have run, and a build without it says `"dev"` in both places. So there is nothing to bump by hand; the release tag is the one place a version is written. `/api/v1` in the path is a different thing, the compatibility line: it changes only if the API ever has to serve two incompatible shapes side by side.
+The API has no version of its own. `info.version` in the served document is the build version - the one `-X main.version` stamps into the binary, `rezepte --version` prints and `/healthz` reports (see [Releases](/architecture/releases)): `httpserver.New` sets it from `Options.Version`, and a build without it says `"dev"` in both places. So there is nothing to bump by hand; the release tag is the one place a version is written. `/api/v1` in the path is a different thing, the compatibility line: it changes only if the API ever has to serve two incompatible shapes side by side.
 
 The committed copy, `docs/user/public/openapi.json`, cannot carry the build version: between releases that is `git describe --tags --always`, which changes with every commit, and CI regenerates the document and runs `git diff --exit-code` (see [Regenerate the API reference](/howtos/regenerate-api-reference)). It carries the version of the release it is published with instead:
 
@@ -29,7 +29,7 @@ The app points at the Scalar page rather than duplicating it: Settings → API c
 
 ## Authentication
 
-Two authenticators, declared as two OpenAPI security schemes (`session`, `token`) via `httpserver.WithSecuritySchemes(auth.SecuritySchemes())`; the Scalar page at `/api/v1/docs` therefore carries an Authorize control for both. See [API tokens](/features/api-tokens) for the token half.
+Two authenticators, declared as two OpenAPI security schemes (`session`, `token`) via `httpserver.Options.SecuritySchemes`; the Scalar page at `/api/v1/docs` therefore carries an Authorize control for both. See [API tokens](/features/api-tokens) for the token half.
 
 <Tabs items={['Cookie session', 'API token', 'Public']}>
   <Tab value="Cookie session">

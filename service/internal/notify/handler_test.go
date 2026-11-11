@@ -69,8 +69,9 @@ func newFixture(t *testing.T) fixture {
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware: auth.Middleware(sessions, tokens, false),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	f.svc = notify.NewService(conn, testKey, users, avatar.NewService(conn, t.TempDir(), nil), nil, mailOff{}, pushOff{}, publicURL)
 	notify.Register(srv.API(), f.svc)

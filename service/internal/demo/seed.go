@@ -552,11 +552,11 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 	}
 	sharing := admin.Role.IsSuperadmin()
 	if sharing {
-		if _, err := instance.SetPublicShares(ctx, admin, true); err != nil {
+		if err := instance.SetPublicShares(ctx, admin, true); err != nil {
 			return fmt.Errorf("turn public sharing on: %w", err)
 		}
 		def, maxDays := shareDefaultDays, shareMaxDays
-		if _, err := instance.SetShareLifetimes(ctx, admin, &def, &maxDays); err != nil {
+		if err := instance.SetShareLifetimes(ctx, admin, &def, &maxDays); err != nil {
 			return fmt.Errorf("set share lifetimes: %w", err)
 		}
 		if err := shareSamples(ctx, shares, admin, sum, adminShares); err != nil {
@@ -585,7 +585,7 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 		return err
 	}
 	if sharing {
-		if _, err := instance.SetPublicShares(ctx, admin, false); err != nil {
+		if err := instance.SetPublicShares(ctx, admin, false); err != nil {
 			return fmt.Errorf("turn public sharing off: %w", err)
 		}
 	}

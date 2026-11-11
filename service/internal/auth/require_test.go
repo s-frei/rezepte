@@ -337,9 +337,10 @@ func TestRequireAuthOrLoginNeverRedirectsABearerRequest(t *testing.T) {
 func tokenOnlyStack(t *testing.T, env *requireEnv, scopes *[]string) http.Handler {
 	t.Helper()
 	cfg, _ := config.LoadFrom(map[string]string{})
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(env.sessions, env.tokens, false)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(env.sessions, env.tokens, false),
+		SecuritySchemes: auth.SecuritySchemes(),
+	})
 	huma.Register(srv.API(), huma.Operation{
 		OperationID: "token-only",
 		Method:      http.MethodPost,

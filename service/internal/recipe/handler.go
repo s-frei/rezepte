@@ -95,7 +95,7 @@ type authorListOutput struct {
 // delete, and the tag list with usage counts. Every operation requires a
 // session or a scoped API token (Security: auth.Protected(...)); the caller
 // is responsible for installing the matching auth.Middleware via
-// httpserver.WithAPIMiddleware before Register runs.
+// httpserver.Options.APIMiddleware before Register runs.
 func Register(api huma.API, svc *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-recipes",

@@ -42,9 +42,10 @@ func newHandlerWith(t *testing.T, client *http.Client) (http.Handler, *push.Serv
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, tokens, false),
+		SecuritySchemes: auth.SecuritySchemes(),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	svc := push.NewService(conn, "", client)
 	push.Register(srv.API(), svc)

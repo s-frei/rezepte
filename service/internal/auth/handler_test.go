@@ -35,9 +35,10 @@ func newHandlerWithSessions(t *testing.T) (http.Handler, *auth.Service, *user.Se
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, tokens, false),
+		SecuritySchemes: auth.SecuritySchemes(),
+	})
 	device := auth.NewDevice(deviceKey)
 	auth.Register(srv.API(), sessions, device, false)
 	auth.RegisterDevice(srv.API(), sessions, device, false)
@@ -253,8 +254,8 @@ var pathParam = regexp.MustCompile(`\{[^}]+\}`)
 
 // TestEveryProtectedOperationRejectsAnonymous guards against a future
 // operation declaring Security: auth.SessionSecurity without actually being
-// protected. httpserver.WithAPIMiddleware makes that structurally hard to
-// get wrong (see httpserver.TestWithAPIMiddlewareAppliesBeforeRegistration),
+// protected. httpserver.Options.APIMiddleware makes that structurally hard to
+// get wrong (see httpserver.TestAPIMiddlewareAppliesBeforeRegistration),
 // but this test still exercises every currently registered operation.
 func TestEveryProtectedOperationRejectsAnonymous(t *testing.T) {
 	conn := dbtest.Open(t)
@@ -262,8 +263,9 @@ func TestEveryProtectedOperationRejectsAnonymous(t *testing.T) {
 	cfg, _ := config.LoadFrom(map[string]string{})
 	sessions := auth.NewService(conn, users)
 	tokens := auth.NewTokenService(conn, users)
-	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{},
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, false)))
+	srv := httpserver.New(cfg, slog.New(slog.DiscardHandler), fstest.MapFS{}, httpserver.Options{
+		APIMiddleware: auth.Middleware(sessions, tokens, false),
+	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
 	h := srv.Handler()
 

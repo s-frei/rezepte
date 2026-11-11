@@ -262,14 +262,15 @@ func run() error {
 	mailer.SetReporter(notifications)
 	digestDone := notifications.StartRecipeDigest(ctx)
 
-	srv := httpserver.New(cfg, logger, web.Dist(),
-		httpserver.WithAPIMiddleware(auth.Middleware(sessions, tokens, cfg.SecureCookies)),
-		httpserver.WithSecuritySchemes(auth.SecuritySchemes()),
-		httpserver.WithSpecGuard(auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies)),
+	srv := httpserver.New(cfg, logger, web.Dist(), httpserver.Options{
+		APIMiddleware:   auth.Middleware(sessions, tokens, cfg.SecureCookies),
+		SecuritySchemes: auth.SecuritySchemes(),
+		SpecGuard:       auth.RequireAuthOrLogin(sessions, tokens, cfg.SecureCookies),
 		// A public share's page first: /s/{token} is never a recipe page.
-		httpserver.WithLinkPreview(httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest)),
-		httpserver.WithShellHeaders(share.ShellHeaders),
-		httpserver.WithVersion(version))
+		LinkPreview:  httpserver.PreviewFuncs(shares.ForRequest, previews.ForRequest),
+		ShellHeaders: share.ShellHeaders,
+		Version:      version,
+	})
 	device := auth.NewDevice(signingKey)
 	auth.Register(srv.API(), sessions, device, cfg.SecureCookies)
 	auth.RegisterDevice(srv.API(), sessions, device, cfg.SecureCookies)
