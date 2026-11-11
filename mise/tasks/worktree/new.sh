@@ -2,6 +2,7 @@
 #MISE description="Create a worktree off develop with its own port offset"
 #USAGE arg "[name]" help="Directory name under .worktrees/, and the branch feat/<name> unless a branch is given; omit it inside a worktree made some other way to give that one an offset"
 #USAGE arg "[branch]" help="Branch to create instead of feat/<name>; release:start passes release/vX.Y.Z"
+#USAGE flag "--open" help="Run worktree:after-new to open the worktree where the owner works; only when the owner asked for it"
 # Creates a worktree for feature work and gives it its own port offset, so
 # two agents can run their stacks at once. See
 # docs/memory/content/howtos/work-in-a-worktree.mdx.
@@ -128,8 +129,9 @@ echo "worktree:new: $DIR on $(git -C "$DIR" branch --show-current)"
 # multiplexer, an editor. It lives in the main checkout's gitignored
 # mise.local.toml, so it is looked up there: a worktree's own config is a
 # monorepo root of its own and does not see it. It runs last and only warns,
-# because the worktree is already there.
-if [ -n "$NAME" ] && mise -C "$ROOT" tasks info worktree:after-new >/dev/null 2>&1; then
+# because the worktree is already there. Only --open runs it: a worktree an
+# agent makes for its own work must not appear in the owner's workspace.
+if [ -n "$NAME" ] && [ "${usage_open:-}" = true ] && mise -C "$ROOT" tasks info worktree:after-new >/dev/null 2>&1; then
 	WORKTREE_DIR="$DIR" WORKTREE_NAME="$NAME" mise -C "$ROOT" run -q worktree:after-new ||
 		echo "worktree:new: worktree:after-new failed; the worktree is ready anyway" >&2
 fi

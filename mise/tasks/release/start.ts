@@ -86,7 +86,7 @@ ${draft}`);
 	process.exit(0);
 }
 
-const created = Bun.spawnSync(['mise', 'run', 'worktree:new', name, branch], { cwd: root, env, stdio: ['inherit', 'inherit', 'inherit'] });
+const created = Bun.spawnSync(['mise', 'run', 'worktree:new', '--open', name, branch], { cwd: root, env, stdio: ['inherit', 'inherit', 'inherit'] });
 if (created.exitCode !== 0) fail('worktree:new failed');
 // A fresh worktree has no node_modules; release:finish runs the full gate there.
 const setup = Bun.spawnSync(['mise', 'run', 'setup'], { cwd: dir, env, stdio: ['inherit', 'inherit', 'inherit'] });
