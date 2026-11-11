@@ -44,6 +44,8 @@ description: One worktree per feature, one port offset per worktree
 
     A worktree at offset *n* adds `n * 100` to each port; the main checkout is always offset 0. The task is the only list of ports - a page that needs a number names the `RZP_*_PORT` variable and the offset-0 default, never a table of its own.
 
+    Cookies ignore the port, so two instances on one hostname (`localhost` with two ports) share the session cookie and sign each other out. Open each worktree's instance under a hostname of its own (`localhost` for one, `127.0.0.1` for another) or in a separate browser profile ([Users and authentication](/features/users-and-auth)).
+
     Every instance a task starts for itself has a port of its own, so `mise run e2e` and `mise run //docs/user:screenshots` run while `mise run dev` and `mise run demo` stay up.
 
   </Step>

@@ -74,6 +74,19 @@ A recipe is an aggregate, not a row: one `recipes` row plus ordered ingredient g
 
 **An instance without recipes says how to begin.** With no recipe stored and no filter on, the overview shows a `NoteEmptyState` ([Design system](/architecture/design-system#components)) with the mascot opening its own cover (`rezepte-mascot-first-recipe.webp`), the steps write, bring one in, cook together, and "Import" and "New recipe" at the note's end. `shows the empty state while nothing is stored` in `frontend/e2e/recipes.test.ts` pins the API to an empty list, as the suite shares one instance.
 
+## Adding a field to a recipe or a step
+
+A field reaches every place a step travels, and nothing but the compiler and two tests tell you which one you missed.
+
+- **Struct and validation:** `recipe.Step` (`service/internal/recipe/references.go`) or `recipe.Input`, with its huma limits and a `doc`; cross-field rules in a pure validator that runs before `db.Tx` (`resolveRefs`, `ValidatePhotos`), failing as a `RefError` located at `body.steps[i].<list>[j].<field>`.
+- **Optional or required:** a REST list that stays `required:"false"` is cleared by a `PUT` that omits it, so decide on purpose and state it in the field's `doc` ([HTTP API](/architecture/api)).
+- **Storage:** a goose migration, sqlc queries, `writeChildren` (written inside the save's transaction) and the read in `service/internal/recipe/service.go`; regenerate with `mise run //service:generate`.
+- **MCP:** a step list is added to the names `requireStepLists` forces in `service/internal/mcpserver/schema.go`, so a model rewriting a step sends it back.
+- **Zip archive:** `archiveStep` in `service/internal/transfer/format.go` is written by hand and `TestArchiveStepCarriesEveryStepField` fails without a matching field; export (`export.go`), the check and the import (`check.go`, `import.go`) carry it, and a field an older Rezepte would refuse stays out of the file when empty ([Import and export](/features/import-export)).
+- **Public share and recipe import:** the share returns `recipe.Step` as it is (`share/public.go`); the recipe import's draft (`service/internal/recipeimport/draft.go`) builds steps by hand and sets an empty list.
+- **Frontend:** the generated API types, `FormStep`, `newStep`, `fromRecipe` and `toInput` in `frontend/src/lib/recipe/form.ts`, plus the editor, `RecipeView` and cook mode that show it; a text-anchored field is also a step-document attribute ([Ingredient references](/features/ingredient-references)).
+- **Fixtures:** the demo seed (`service/internal/demo/seed.go`), the sample recipes in `service/internal/recipe/testdata/recipes.{de,en}.json`, the e2e specs and the user-docs screenshot specs.
+
 ## Why it is this way
 
 The editor always submits the whole form, so there is nothing to diff: a partial update would have to reconstruct the submitted document anyway. Rewriting the whole document instead removes an entire class of position and ordering bugs, because positions are never patched, only re-derived from the order the client sent.

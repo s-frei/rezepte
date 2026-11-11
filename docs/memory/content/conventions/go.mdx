@@ -11,3 +11,14 @@ description: Package layout, errors, logging, formatting
 - Context first parameter everywhere that does I/O.
 - Prefer the standard library. Add a dependency only when it is the established solution and replaces real work, and say why under `## Why it is this way` on the page that owns what it serves.
 - The linters in `service/.golangci.yml` enforce the rest: `%w` rather than `%v` for an error (errorlint), a doc comment on every exported identifier and a package comment per package (revive), gofmt and goimports. Run `mise run //service:fmt` then `mise run //service:check`.
+
+## Transactions and side effects
+
+Slow or fallible work runs before `db.Tx`, never inside it. The SQLite DSN carries `_txlock=immediate` (`service/internal/db/db.go`), so a transaction holds the write lock from `BEGIN`: an argon2id hash (~100ms), reference resolution (`resolveRefs`) or input validation inside it would block every other writer. `user.SetPassword` hashes first, and `recipe.Create` and `Update` resolve references first.
+
+Side effects that follow a change (mail, push, notices) run after the commit, on `context.WithoutCancel(ctx)` with a timeout and a `recover`, so a client that hangs up cancels nothing half-sent and a panic in a goroutine with no request left to fail does not end the process. Their failure is logged and never undoes the change. `notify.detach` is the shape; `auth`'s forgot-password goroutine and `push` follow it. A cleanup that must run although the request is gone (`transfer`'s import rollback) uses `WithoutCancel` as well.
+
+## Detecting change
+
+Change is detected with a counter (a `version` or `revision` that every write bumps, a comment's autoincrement id), never with a timestamp: timestamps are RFC 3339 at second precision (`db.FormatTime`), so two writes in one second compare equal. See [Data model](/architecture/data-model) and [Shopping lists](/features/shopping-lists).
+

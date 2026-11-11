@@ -41,7 +41,7 @@ Behind a tab beside the method of every recipe, the household writes down what i
 
 **An id watermark, not a timestamp.** Timestamps are RFC 3339 at second precision ([Data model](/architecture/data-model)); a comment written in the second somebody opens the page would be filed as seen. Comparing ids has no such second.
 
-**`AUTOINCREMENT`, unlike every other table's UUID.** The id doubles as the watermark, so it must only grow. Without `AUTOINCREMENT` SQLite hands a deleted newest row's id to the next insert, and that comment would count as already seen. Comment ids are not secret inside the household.
+**`AUTOINCREMENT`, unlike every other table's UUID.** The id doubles as the watermark, so it must only grow, and a reused id would count as already seen ([Add a migration](/howtos/add-migration)). Comment ids are not secret inside the household.
 
 **`ON DELETE SET NULL` for the author.** A comment is a statement of a person. Recipes of a deleted member move to the acting admin; comments must not be put in the admin's mouth, so they stay and read "Former member". A missing author is an absent `author` key in the API, not `null`: huma cannot mark a `$ref` nullable.
 

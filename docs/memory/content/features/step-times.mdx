@@ -7,7 +7,7 @@ A duration in a preparation step - "90 Minuten", "20-25 minutes", "1 Std. 30 Min
 
 ## How it works
 
-**The wire format sits beside `references`.** `Step.Times` is `[]StepTime`, on the wire `times: [{phrase, seconds, maxSeconds?}]`. `phrase` is the text as it stands in the step, the anchor, never an index. `seconds` is 1 to 604800 (one week); `maxSeconds` is present only for a range and lies above `seconds` and at most 604800. The same shape travels everywhere a step does: REST, MCP, zip export and import, public shares. Over REST `times` is `required:"false"`, so an old client or archive without it stays valid; over MCP `requireStepLists` in `service/internal/mcpserver/schema.go` requires it, as it does `references`.
+**The wire format sits beside `references`.** `Step.Times` is `[]StepTime`, on the wire `times: [{phrase, seconds, maxSeconds?}]`. `phrase` is the text as it stands in the step, the anchor, never an index. `seconds` is 1 to 604800 (one week); `maxSeconds` is present only for a range and lies above `seconds` and at most 604800. Every place a step travels carries it ([Adding a field](/features/recipes#adding-a-field-to-a-recipe-or-a-step)).
 
 **Validation runs before the transaction, through `resolveRefs`.** `validateTimes` is pure. For every time it requires at least one number rune in the phrase (`unicode.IsNumber`, so "½ Stunde" counts), each phrase at most once per step, occurring in the text on whole-word boundaries, and a range running upward. `containsWord` (the check references use) treats letters and `unicode.IsNumber` runes as word characters, the `\p{L}\p{N}` class the frontend's `wordPattern` uses, so a phrase "1" in "1½ Stunden" is refused on both sides.
 

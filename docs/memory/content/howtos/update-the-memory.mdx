@@ -19,6 +19,8 @@ This memory describes **the repository, not the machine and not the day**.
 
 **Write down what the next agent would rediscover.** A trap you hit, the way a change finally got tested, a gate that passed when it should have failed: if the next agent would have to find it again, it goes into the page that owns it, in the commit that taught it. An agent's private memory is invisible to every other agent and to every other developer; keep only what is about one person and how they like to work there.
 
+**A rule for a class goes to the class.** A learning that holds for a whole class of cases - every sheet, every dialog, every e2e test, every migration - belongs to that class's general owner: a section of [Design system](/architecture/design-system), a page under Conventions, or a how-to. The feature page where you met it keeps only what is specific to that feature and links to the rule. Two signs that a rule is hiding in a feature page: a paragraph past about 300 words, and the same trap told on two feature pages.
+
 **Write for an agent that greps.** Nobody reads the memory end to end. Lead each paragraph with its rule, keep one idea per paragraph, and leave out what the code already shows - the pixel sizes and class lists of a component, the fields of a generated schema.
 
 ## How to change it
@@ -29,7 +31,7 @@ This memory describes **the repository, not the machine and not the day**.
     ### Find the page that owns the fact
     A user-visible capability is a page under [Features](/features/recipes). The shape of the system - packages, tables, endpoints, tokens, the toolchain, the documentation sites - is a page under [Architecture](/architecture/overview). How to do a recurring task is a [how-to](/howtos). How to write code is a page under [Conventions](/conventions/go).
 
-    If the fact has no page and the thing it describes exists, create the page. If two pages would both take the sentence, one of them owns the subject and the other links to it: a value written twice rots in one of the copies.
+    If the fact is true of a whole class of things rather than of this one, its owner is the class's page, not the feature's (see "A rule for a class goes to the class" above). If the fact has no page and the thing it describes exists, create the page. If two pages would both take the sentence, one of them owns the subject and the other links to it: a value written twice rots in one of the copies.
 
     **What earns a page under `features/`.** A capability earns one when it carries facts no component file states: a contract with the service - an endpoint, a table, files on disk - a rule that has to hold across several places such as the scaling arithmetic, a storage key or an upload limit, or an alternative a competent agent would still propose and that was refused for a reason. Those are what the four sections further down are fillable with.
 

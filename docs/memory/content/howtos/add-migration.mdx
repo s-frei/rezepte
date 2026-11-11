@@ -31,6 +31,17 @@ description: Sequential goose migrations, embedded and applied at startup
   </Step>
   <Step>
 
+    ### Know what SQLite's `ALTER TABLE` cannot do
+    It adds, renames and drops columns, and nothing else. A column's type, default, `NOT NULL`, primary key or a table-level constraint cannot be changed after the fact, so that change is a rebuild: create `<table>_new`, copy the rows with `INSERT ... SELECT`, `DROP TABLE` the old one, `ALTER TABLE <table>_new RENAME TO <table>` (`0021_notification_channels.sql`). The connection runs with `foreign_keys(ON)` and goose wraps a migration in a transaction, where that pragma cannot be switched off, so dropping a table that others reference with `ON DELETE CASCADE` deletes their rows: rebuild such a table only after copying its children away, or add a column instead.
+
+    - `ADD COLUMN` takes only a constant default. A random or computed value is written by a following `UPDATE`, as `0004_link_previews.sql` does for `link_preview_key` with `randomblob(32)`.
+    - A new `NOT NULL` column carries a default, which is also what an upgraded instance holds until it is changed: `DEFAULT FALSE` or `DEFAULT 0` on a feature switch means an upgrade changes nothing ([Public shares](/features/public-shares)).
+    - A cross-column rule cannot be a table-level `CHECK` on an existing table. Put it as a column `CHECK` on the column added last, since a column constraint may only name columns that already exist by then (`public_share_max_days` in `0005_public_shares.sql`).
+    - An id that must never be handed out twice, such as a watermark, is `INTEGER PRIMARY KEY AUTOINCREMENT`: without `AUTOINCREMENT` SQLite reuses a deleted newest row's id ([Data model](/architecture/data-model)).
+
+  </Step>
+  <Step>
+
     ### Regenerate sqlc
     sqlc reads the migrations as schema: `mise run //service:generate`.
 

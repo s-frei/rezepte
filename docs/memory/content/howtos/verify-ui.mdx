@@ -143,6 +143,17 @@ Three assertions catch most layout bugs:
 
 For stacking bugs (something hidden behind a fixed bar), `document.elementFromPoint(x, y)` names the element that actually paints there, and `getComputedStyle` gives you `zIndex`, `position` and `backdropFilter` of both sides.
 
+## What Playwright cannot do
+
+Headless Chromium lacks a few things the app depends on, and each has a stand-in. A test that ignores the gap passes for the wrong reason.
+
+- **No software keyboard.** Shrink the viewport to the keyboard's height to stand in for it (`frontend/e2e/auth-sheet.test.ts`). Check a field against its scroll container's box, never with `toBeInViewport`: it counts an element clipped by its scroller as in view. Scroll the container away from the field before the resize, because focusing alone scrolls a field into view natively. Allow about 1px in a geometry check, since Chromium rounds the scroll offset `scrollIntoView` sets to whole pixels.
+- **A mouse is not a finger.** A mouse pointer ignores `touch-action`, so a swipe or drag test sends real touches through CDP `Input.dispatchTouchEvent` and runs on the mobile project only. Long-press needs `Input.synthesizeTapGesture` with a `duration` (`longPress` in `frontend/e2e/helpers.ts`); touch events alone never trigger it, and it only fires on Chromium on macOS ([Images](/features/images)).
+- **Time is `page.clock`.** Install it before the first navigation, then move it with `runFor` or `fastForward` ([Cook timers](/features/cook-timers)).
+- **No push service and no permission prompt.** Headless Chromium reports `Notification.permission` as `denied` even with the permission granted and has no `PushManager` subscription, so a test that needs push stubs both with `page.addInitScript` (`frontend/e2e/cook-timers.test.ts`, `frontend/e2e/install.test.ts`).
+- **One instance serves every file.** Files run in parallel against it, so an instance-wide setting that one file flips leaks into the others (the household lock and the mail settings are the cases, see [Mail](#mail) and the end-to-end tab).
+- **Content that arrives late moves what is under the pointer.** A click on a control that a late label, image or list pushes away lands on the moved element, so the page reserves the space from the first frame (the end-to-end tab lists the races it caused).
+
 ## Mail
 A change that sends mail is verified against Mailpit, not against a mocked sender. `docker-compose.test.yaml` runs a pinned Mailpit that accepts any login; `mise run mail:up` and `mail:down` start and stop only it, and its SMTP and inbox ports follow the worktree's offset ([Toolchain](/architecture/toolchain)). The inbox is a browser tab at the URL `mail:up` prints, where the HTML part and the plain-text part can be looked at side by side.
 
