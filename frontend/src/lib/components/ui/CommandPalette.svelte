@@ -8,12 +8,13 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Settings from '@lucide/svelte/icons/settings';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
-	import { fade, fly, scale } from 'svelte/transition';
+	import { fly, scale } from 'svelte/transition';
+	import Overlay from './Overlay.svelte';
 	import { listRecipes, type RecipeCard } from '#lib/api/recipes.js';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
+	import { narrow as phone } from '#lib/ui/narrow.js';
 	import { followVisibleArea } from '#lib/visible-area.js';
 
 	let query = $state('');
@@ -105,7 +106,6 @@
 	// Below `md` the palette is a sheet: the phone's bottom nav opens it as
 	// its search, and a dialog floating at 12vh would sit under the software
 	// keyboard. The sheet starts near the top so the field stays above it.
-	const phone = new MediaQuery('max-width: 767.98px');
 	let input = $state<HTMLInputElement | null>(null);
 
 	// Opening focuses the field, not the first focusable element - on a phone
@@ -183,17 +183,7 @@
 				class="pointer-events-none fixed inset-y-0 left-0 w-0"
 			></span>
 		{/if}
-		<Dialog.Overlay forceMount>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: prefersReducedMotion.current ? 0 : 200 }}
-					></div>
-				{/if}
-			{/snippet}
-		</Dialog.Overlay>
+		<Overlay />
 		<Dialog.Content forceMount preventScroll={false} onOpenAutoFocus={focusField}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}

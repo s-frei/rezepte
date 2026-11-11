@@ -1,36 +1,19 @@
 <script lang="ts">
-	import { MediaQuery } from 'svelte/reactivity';
 	import { session } from '#lib/auth.svelte.js';
-	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { isAdminRole } from '#lib/roles.js';
 	import ImportForm from './ImportForm.svelte';
+	import { focusField } from './PasteForm.svelte';
 
-	// The same breakpoint as the bottom nav: a phone gets a sheet.
-	const phone = new MediaQuery('max-width: 767.98px');
 	const admin = $derived(isAdminRole(session.user?.role));
-	const close = () => (importDialog.open = false);
-
-	// The sheet would focus its handle, its first control, while the field
-	// is what someone opens it for; the dialog reaches the field on its own.
-	function focusField(event: Event) {
-		event.preventDefault();
-		document.getElementById('import-field')?.focus();
-	}
 </script>
 
-{#if phone.current}
-	<BottomSheet
-		bind:open={importDialog.open}
-		closeLabel={m.import_cancel()}
-		onOpenAutoFocus={focusField}
-	>
-		<ImportForm ondone={close} {admin} sheet />
-	</BottomSheet>
-{:else}
-	<BaseDialog bind:open={importDialog.open}>
-		<ImportForm ondone={close} {admin} />
-	</BaseDialog>
-{/if}
+<ResponsiveDialog
+	bind:open={importDialog.open}
+	closeLabel={m.import_cancel()}
+	onOpenAutoFocus={focusField('import-field')}
+>
+	<ImportForm ondone={() => (importDialog.open = false)} {admin} />
+</ResponsiveDialog>

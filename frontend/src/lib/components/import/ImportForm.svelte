@@ -1,7 +1,6 @@
 <script lang="ts">
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
-	import { Dialog } from 'bits-ui';
 	import { onDestroy, tick, untrack } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -19,6 +18,7 @@
 	} from '#lib/api/drafts.js';
 	import { TOGGLE } from '#lib/components/editor/link-list.js';
 	import AiInstruction from '#lib/components/import/AiInstruction.svelte';
+	import PasteForm from '#lib/components/import/PasteForm.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -27,13 +27,10 @@
 
 	let {
 		ondone,
-		admin,
-		sheet = false
+		admin
 	}: {
 		ondone: () => void;
 		admin: boolean;
-		/** In the phone's sheet: the body scrolls, the buttons stay at its foot. */
-		sheet?: boolean;
 	} = $props();
 
 	let raw = $state('');
@@ -42,7 +39,6 @@
 	/** Set when a page had no recipe: the text pasted next keeps it as source. */
 	let fallback = $state<{ url: string; host: string } | null>(null);
 	let duplicate = $state<RecipeDraft | null>(null);
-	let field = $state<HTMLTextAreaElement>();
 
 	const input = $derived(detectInput(raw));
 	// The example shows whole in the empty field, as the list import's does,
@@ -79,7 +75,7 @@
 	async function focusField() {
 		// Re-enabled only now: a disabled field drops its focus.
 		await tick();
-		field?.focus();
+		document.getElementById('import-field')?.focus();
 	}
 
 	// A shared link arrives in the field and waits there for the member to
@@ -184,6 +180,15 @@
 	}
 
 	const DURATION = $derived(prefersReducedMotion.current ? 0 : 180);
+	const failureText = $derived(
+		failure === 'no-recipe'
+			? m.import_failed_no_recipe({ host: fallback?.host ?? '' })
+			: failure === 'unreachable'
+				? m.import_failed_unreachable()
+				: failure
+					? m.import_failed_no_recipe_in_text()
+					: null
+	);
 
 	const chip = 'rounded-pill bg-accent px-2.5 py-0.5 font-semibold text-accent-foreground';
 </script>
@@ -193,50 +198,24 @@
 	{readingHost ? m.import_reading({ host: readingHost }) : m.import_reading_text()}
 {/snippet}
 
-{#snippet submitRow()}
-	<!-- On a phone the sheet's handle closes it, so Import stands alone
-	     and spans the sheet. -->
-	<div class="flex justify-end gap-2 {sheet ? '' : 'mt-4'}">
-		<Button variant="ghost" onclick={ondone} class="max-md:hidden">
-			{m.import_cancel()}
-		</Button>
-		<Button
-			variant="primary"
-			type="submit"
-			disabled={input.kind === 'empty' || reading}
-			class="max-md:h-12 max-md:w-full"
-		>
-			{m.import_submit()}
-		</Button>
-	</div>
-{/snippet}
-
-<form onsubmit={submit} class={sheet ? 'flex min-h-0 flex-1 flex-col' : ''}>
-	<div
-		data-sheet-body={sheet || undefined}
-		class={sheet ? 'min-h-0 flex-1 overflow-y-auto px-5 pb-4' : ''}
-	>
-		<Dialog.Title class="font-display text-heading font-medium">{m.import_title()}</Dialog.Title>
-		{#if failure}
-			<p
-				in:slide={{ duration: DURATION, easing: cubicOut }}
-				role="alert"
-				class="mt-3 rounded-md bg-destructive-soft px-3 py-2.5 text-body-sm text-destructive"
-			>
-				{#if failure === 'no-recipe'}
-					{m.import_failed_no_recipe({ host: fallback?.host ?? '' })}
-				{:else if failure === 'unreachable'}
-					{m.import_failed_unreachable()}
-				{:else}
-					{m.import_failed_no_recipe_in_text()}
-				{/if}
-			</p>
-		{:else}
-			<Dialog.Description class="mt-1 text-body-sm text-text-muted">
-				{m.import_lead()}
-			</Dialog.Description>
-		{/if}
-
+<PasteForm
+	bind:value={raw}
+	onsubmit={submit}
+	title={m.import_title()}
+	lead={m.import_lead()}
+	error={failureText}
+	fieldId="import-field"
+	fieldLabel={m.import_field_label()}
+	{placeholder}
+	rows={fieldRows}
+	disabled={reading}
+	cancelLabel={m.import_cancel()}
+	oncancel={ondone}
+	submitLabel={m.import_submit()}
+	canSubmit={input.kind !== 'empty' && !reading}
+	actions={!duplicate?.duplicate}
+>
+	{#snippet children(field, row)}
 		<!-- Each side of the swap fades in as a whole; the one it replaces goes
 	     at once, so the two never stand in the sheet together. -->
 		{#if duplicate?.duplicate}
@@ -285,24 +264,7 @@
 			</div>
 		{:else}
 			<div in:fade={{ duration: DURATION }}>
-				<label for="import-field" class="sr-only">{m.import_field_label()}</label>
-				<!-- Dashed like a drop area: a link dragged from the browser lands in it.
-				     In the sheet, text makes it grow with its lines instead of
-				     scrolling inside the sheet's scrolling body: two scrollers in
-				     one another move whichever the finger lands on. Empty, it
-				     is as tall as the example, which never scrolls. -->
-				<textarea
-					id="import-field"
-					bind:this={field}
-					bind:value={raw}
-					rows={fieldRows}
-					{placeholder}
-					disabled={reading}
-					style:min-height={sheet && raw ? `calc(${fieldRows}lh + 1.5rem + 4px)` : undefined}
-					class="{sheet && raw
-						? 'field-sizing-content resize-none'
-						: 'resize-y'} mt-4 block w-full rounded-md border-2 border-dashed border-handle bg-surface-elevated px-3.5 py-3 text-body-sm transition outline-none focus:border-primary disabled:opacity-60"
-				></textarea>
+				{@render field()}
 				<div class="mt-2 flex flex-wrap items-center gap-x-3">
 					<p class="flex min-h-6 flex-wrap items-center gap-1.5 text-caption text-text-muted">
 						{#if reading}
@@ -357,9 +319,7 @@
 				<div class="mt-2">
 					<AiInstruction kind="recipe" />
 				</div>
-				{#if !sheet}
-					{@render submitRow()}
-				{/if}
+				{@render row()}
 			</div>
 		{/if}
 
@@ -384,10 +344,5 @@
 				>
 			</div>
 		{/if}
-	</div>
-	{#if sheet && !duplicate?.duplicate}
-		<div class="shrink-0 border-t border-border px-5 pt-3 pb-5">
-			{@render submitRow()}
-		</div>
-	{/if}
-</form>
+	{/snippet}
+</PasteForm>

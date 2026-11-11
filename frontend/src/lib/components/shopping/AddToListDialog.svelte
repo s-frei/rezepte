@@ -1,10 +1,9 @@
 <script lang="ts">
-	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { untrack } from 'svelte';
-	import { MediaQuery, SvelteSet } from 'svelte/reactivity';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { isSignedOut } from '#lib/api/client.js';
 	import type { IngredientGroup } from '#lib/api/recipes.js';
@@ -14,8 +13,7 @@
 		listShoppingLists,
 		type ShoppingSummary
 	} from '#lib/api/shopping.js';
-	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Checkbox from '#lib/components/ui/Checkbox.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
@@ -48,7 +46,6 @@
 	} = $props();
 
 	const LAST_LIST = 'rezepte:last-list';
-	const phone = new MediaQuery('max-width: 767.98px');
 
 	let lists = $state<ShoppingSummary[]>([]);
 	let loaded = $state(false);
@@ -295,22 +292,11 @@
 	</Button>
 {/snippet}
 
-{#if phone.current}
-	<BottomSheet bind:open closeLabel={m.common_cancel()}>
-		<form onsubmit={submit} class="flex min-h-0 flex-1 flex-col">
-			<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-4">{@render body()}</div>
-			<div class="flex gap-2 border-t border-border px-4 pt-3.5 pb-5 min-[340px]:px-5">
-				{@render footer()}
-			</div>
-		</form>
-	</BottomSheet>
-{:else}
-	<BaseDialog bind:open>
-		<form onsubmit={submit}>
-			{@render body()}
-			<DialogActions class="mt-6 border-t border-border pt-4">
-				{@render footer()}
-			</DialogActions>
-		</form>
-	</BaseDialog>
-{/if}
+<ResponsiveDialog
+	bind:open
+	closeLabel={m.common_cancel()}
+	onsubmit={submit}
+	footerClass="flex gap-2 px-4 pt-3.5 min-[340px]:px-5"
+	{body}
+	{footer}
+/>

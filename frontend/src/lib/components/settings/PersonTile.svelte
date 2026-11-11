@@ -1,7 +1,5 @@
 <script lang="ts">
-	import { Popover } from 'bits-ui';
 	import { cubicOut } from 'svelte/easing';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { slide } from 'svelte/transition';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -14,14 +12,15 @@
 	import { resolve } from '$app/paths';
 	import { imageUrl } from '#lib/api/recipes.js';
 	import type { PersonEntry, UserRole } from '#lib/api/users.js';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import PersonCard from '#lib/components/ui/PersonCard.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import PersonPeek from '#lib/components/ui/PersonPeek.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { formatDate } from '#lib/recipe/format.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 	import { isAdminRole, roleLabel } from '#lib/roles.js';
 	import { lastActive } from '#lib/settings/last-active.js';
+	import { narrow } from '#lib/ui/narrow.js';
 	import { canOpenPerson, listsText } from '#lib/settings/person-page.js';
 	import { rowPermissions } from '#lib/settings/row-permissions.js';
 
@@ -58,8 +57,6 @@
 	} = $props();
 
 	let cardOpen = $state(false);
-	// The person card is a bottom sheet below `md`, as everywhere else.
-	const phone = new MediaQuery('max-width: 767.98px');
 
 	const permissions = $derived(rowPermissions(actorRole, person, isSelf));
 	// The own card leads to the profile, anyone the viewer may act on to
@@ -158,40 +155,28 @@
 		>
 			{#if !interactive}
 				<PersonMark {person} size="lg" class="@lg:size-11" />
-			{:else if phone.current}
-				<button
-					type="button"
-					aria-label={m.person_card_open({ name: person.displayName })}
-					onclick={() => (cardOpen = true)}
-					class="relative shrink-0 rounded-full after:absolute after:-inset-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-				>
-					<PersonMark {person} size="lg" class="@lg:size-11" />
-				</button>
-				<BottomSheet bind:open={cardOpen} closeLabel={m.common_close()}>
-					<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-						<PersonCard {person} asTitle onnavigate={() => (cardOpen = false)} />
-					</div>
-				</BottomSheet>
 			{:else}
-				<Popover.Root>
-					<Popover.Trigger
-						aria-label={m.person_card_open({ name: person.displayName })}
-						class="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-					>
+				<!-- The phone's circle hits on 4px more around it. -->
+				<PersonPeek
+					bind:open={cardOpen}
+					hover={false}
+					label={m.person_card_open({ name: person.displayName })}
+					class="{narrow.current
+						? 'relative after:absolute after:-inset-1'
+						: ''} shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					panelClass="max-w-80 bg-surface p-4 text-text"
+				>
+					{#snippet trigger()}
 						<PersonMark {person} size="lg" class="@lg:size-11" />
-					</Popover.Trigger>
-					<Popover.Portal>
-						<Popover.Content
-							side="bottom"
-							sideOffset={6}
-							align="start"
-							collisionPadding={12}
-							class="z-50 max-w-80 rounded-2xl bg-surface p-4 text-text shadow-dialog"
-						>
+					{/snippet}
+					{#snippet card(sheet)}
+						{#if sheet}
+							<PersonCard {person} asTitle onnavigate={() => (cardOpen = false)} />
+						{:else}
 							<PersonCard {person} />
-						</Popover.Content>
-					</Popover.Portal>
-				</Popover.Root>
+						{/if}
+					{/snippet}
+				</PersonPeek>
 			{/if}
 		</span>
 		<span

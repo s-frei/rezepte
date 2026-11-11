@@ -1,8 +1,6 @@
 <script lang="ts">
 	import Globe from '@lucide/svelte/icons/globe';
 	import Lock from '@lucide/svelte/icons/lock';
-	import { Popover } from 'bits-ui';
-	import { MediaQuery } from 'svelte/reactivity';
 	import type { Person, Recipe } from '#lib/api/recipes.js';
 	import type { PublicShare } from '#lib/api/shares.js';
 	import { session } from '#lib/auth.svelte.js';
@@ -10,8 +8,8 @@
 	import { lockNotice } from '#lib/recipe/access.js';
 	import { hasBeenEdited } from '#lib/recipe/authorship.js';
 	import { formatDate } from '#lib/recipe/format.js';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import PersonCard from '#lib/components/ui/PersonCard.svelte';
+	import PersonPeek from '#lib/components/ui/PersonPeek.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 
 	let {
@@ -59,16 +57,11 @@
 			: [])
 	]);
 
-	// Which line's person card is open: a popover from md, a bottom sheet
-	// below it, for the reason AuthorInitials gives. The sheet keeps its
-	// person while it slides away.
+	// Which line's person card is open (PersonPeek).
 	let open = $state<string | null>(null);
-	let sheetOpen = $state(false);
-	let sheetPerson = $state<Person | null>(null);
-	const phone = new MediaQuery('max-width: 767.98px');
 	// The line is caption text, 20px tall: an `::after` grows the target to
 	// 44px around it without moving a pixel of the sentence.
-	const trigger =
+	const triggerClass =
 		'relative rounded-sm after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 font-medium whitespace-nowrap text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 	const notice = $derived(lockNotice(recipe, session.user?.id));
 	const shareLine = $derived.by(() => {
@@ -94,36 +87,23 @@
 {/snippet}
 
 {#snippet who(key: string, person: Person)}
-	{#if phone.current}
-		<button
-			type="button"
-			class="group {trigger}"
-			onclick={() => {
-				sheetPerson = person;
-				sheetOpen = true;
-			}}
-		>
-			{@render face(person)}
-		</button>
-	{:else}
-		<Popover.Root bind:open={() => open === key, (value) => (open = value ? key : null)}>
-			<Popover.Trigger openOnHover openDelay={300} class="group {trigger}">
-				{@render face(person)}
-			</Popover.Trigger>
-			<Popover.Portal>
-				<!-- `inverse`, like the author panel on a card. -->
-				<Popover.Content
-					side="bottom"
-					sideOffset={6}
-					align="start"
-					collisionPadding={12}
-					class="z-50 w-80 max-w-[calc(100vw-24px)] rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
-				>
-					<PersonCard {person} compact inverse onnavigate={() => (open = null)} />
-				</Popover.Content>
-			</Popover.Portal>
-		</Popover.Root>
-	{/if}
+	<!-- `inverse`, like the author panel on a card. -->
+	<PersonPeek
+		bind:open={() => open === key, (value) => (open = value ? key : null)}
+		class="group {triggerClass}"
+		panelClass="w-80 max-w-[calc(100vw-24px)] bg-inverse p-3.5 text-caption text-inverse-foreground"
+	>
+		{#snippet trigger()}{@render face(person)}{/snippet}
+		{#snippet card(sheet)}
+			<PersonCard
+				{person}
+				asTitle={sheet}
+				compact={!sheet}
+				inverse={!sheet}
+				onnavigate={() => (open = null)}
+			/>
+		{/snippet}
+	</PersonPeek>
 {/snippet}
 
 <footer class="mt-10 border-t border-border pt-6 text-caption text-text-muted">
@@ -164,13 +144,3 @@
 		</p>
 	{/if}
 </footer>
-
-{#if phone.current}
-	<BottomSheet bind:open={sheetOpen} closeLabel={m.common_close()}>
-		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-			{#if sheetPerson}
-				<PersonCard person={sheetPerson} asTitle onnavigate={() => (sheetOpen = false)} />
-			{/if}
-		</div>
-	</BottomSheet>
-{/if}

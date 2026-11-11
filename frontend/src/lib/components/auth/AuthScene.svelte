@@ -7,7 +7,7 @@
 	import wordmark from '$brand/lockups/rezepte-wordmark.svg?url';
 	import { m } from '#lib/paraglide/messages.js';
 	import { followVisibleArea, isTextField, type VisibleArea } from '#lib/visible-area.js';
-	import { pullToClose } from '#lib/components/ui/pull-to-close.js';
+	import SheetHandle from '#lib/components/ui/SheetHandle.svelte';
 
 	// The platform's close request (Android's Back); Chromium only, not yet in
 	// TypeScript's DOM types.
@@ -519,15 +519,7 @@
 		class="relative flex flex-1 flex-col items-center gap-3.5 px-6 py-8 before:absolute before:inset-x-0 before:top-0 before:h-[22px] before:bg-linear-to-b before:from-overlay/50 before:to-transparent lg:ml-auto lg:min-h-screen lg:w-[460px] lg:items-stretch lg:justify-center lg:gap-5 lg:px-12 lg:py-14 lg:before:hidden dark:before:from-lightbox/70"
 	>
 		{#if dialog}
-			<button
-				type="button"
-				aria-label={m.common_close()}
-				onclick={close}
-				{@attach pullToClose(close)}
-				class="flex h-11 shrink-0 touch-none items-center justify-center self-stretch focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-			>
-				<span class="h-1 w-9 rounded-pill bg-handle" aria-hidden="true"></span>
-			</button>
+			<SheetHandle label={m.common_close()} onclose={close} class="self-stretch" />
 		{/if}
 		<!-- The wordmark as a mask, so on the text page it can take the theme's
 		     ink; on the painting it keeps its own. Quoted: Vite inlines the small

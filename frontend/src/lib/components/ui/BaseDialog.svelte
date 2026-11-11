@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
-	import { fade, scale } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import type { Snippet } from 'svelte';
+	import Overlay from './Overlay.svelte';
 
 	// Shared Overlay + Content wrapper for the app's small centered dialogs
 	// (confirm, create/reset user). The command palette has its own layout
@@ -44,17 +45,7 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Portal>
-		<Dialog.Overlay forceMount>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration }}
-					></div>
-				{/if}
-			{/snippet}
-		</Dialog.Overlay>
+		<Overlay />
 		<Dialog.Content
 			forceMount
 			preventScroll={false}

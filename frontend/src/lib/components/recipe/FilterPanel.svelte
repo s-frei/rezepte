@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import Filter from '@lucide/svelte/icons/filter';
-	import { fade, fly, scale } from 'svelte/transition';
+	import { fly, scale } from 'svelte/transition';
 	import type { TransitionConfig } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -10,12 +10,14 @@
 	import TagChip from '#lib/components/ui/TagChip.svelte';
 	import Slider from '#lib/components/ui/Slider.svelte';
 	import Switch from '#lib/components/ui/Switch.svelte';
+	import Overlay from '#lib/components/ui/Overlay.svelte';
 	import SheetHandle from '#lib/components/ui/SheetHandle.svelte';
 	import { formatMinutes } from '#lib/recipe/format.js';
 	import { isSort, type Sort } from '#lib/recipe/query.js';
 	import type { Author } from '#lib/api/recipes.js';
 	import { TIME_STOPS, timeStopIndex, timeStopMinutes } from '#lib/recipe/time-filter.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { narrow } from '#lib/ui/narrow.js';
 
 	// The filter dialog itself - centered on desktop, a bottom sheet on
 	// phones. One section per filter kind ("Zeit", "Favoriten" and
@@ -128,8 +130,6 @@
 			: m.overview_filter_time_upto({ duration: formatMinutes(timeMinutes) })
 	);
 
-	const PHONE_QUERY = '(max-width: 767.98px)';
-
 	/** Where the body's own scrollbar sits, in the panel; null while it all fits. */
 	let bar = $state<{ top: number; height: number; thumbTop: number; thumbHeight: number } | null>(
 		null
@@ -176,11 +176,11 @@
 	 * on phones - matching the design system's "Dialog: fade + scale" and
 	 * "Sheet: Dialog + slide" rows respectively. A `transition:` directive
 	 * only ever names one function, so this picks between the two built-ins
-	 * itself; `matchMedia` is read when the transition actually runs (each
-	 * mount/unmount), never cached, so a resize between opens can't go stale.
+	 * itself; `narrow` is read when the transition actually runs (each
+	 * mount/unmount), so a resize between opens can't go stale.
 	 */
 	function panelTransition(node: HTMLElement): TransitionConfig {
-		return window.matchMedia(PHONE_QUERY).matches
+		return narrow.current
 			? fly(node, { y: 200, duration: prefersReducedMotion.current ? 0 : 250 })
 			: scale(node, { duration: prefersReducedMotion.current ? 0 : 200, start: 0.95 });
 	}
@@ -195,17 +195,7 @@
 		{m.overview_filter()}
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Overlay forceMount>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-0 z-40 bg-overlay"
-						transition:fade={{ duration: prefersReducedMotion.current ? 0 : 200 }}
-					></div>
-				{/if}
-			{/snippet}
-		</Dialog.Overlay>
+		<Overlay />
 		<Dialog.Content forceMount preventScroll={false}>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}

@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { Dialog } from 'bits-ui';
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { slide } from 'svelte/transition';
 	import { ApiError } from '#lib/api/client.js';
 	import {
@@ -14,9 +12,8 @@
 	import { tick } from 'svelte';
 	import { TOGGLE } from '#lib/components/editor/link-list.js';
 	import AiInstruction from '#lib/components/import/AiInstruction.svelte';
-	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
-	import Button from '#lib/components/ui/Button.svelte';
+	import PasteForm, { focusField } from '#lib/components/import/PasteForm.svelte';
+	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { session } from '#lib/auth.svelte.js';
@@ -36,8 +33,6 @@
 		ondone: (list: ShoppingList, addedIds: string[]) => void;
 	} = $props();
 
-	// The same breakpoint as the bottom nav: a phone gets a sheet.
-	const phone = new MediaQuery('max-width: 767.98px');
 	const DURATION = $derived(prefersReducedMotion.current ? 0 : 180);
 
 	let text = $state('');
@@ -103,52 +98,34 @@
 			sending = false;
 		}
 	}
-
-	// The sheet would focus its handle; the field is what it opens for.
-	function focusField(event: Event) {
-		event.preventDefault();
-		document.getElementById('list-import-field')?.focus();
-	}
 </script>
 
-{#snippet form(sheet: boolean)}
-	<form onsubmit={submit} class={sheet ? 'flex min-h-0 flex-1 flex-col' : ''}>
-		<div
-			data-sheet-body={sheet || undefined}
-			class={sheet ? 'min-h-0 flex-1 overflow-y-auto px-5 pb-4' : ''}
-		>
-			<Dialog.Title class="font-display text-heading font-medium">
-				{mode.kind === 'add'
-					? m.list_add_text_title({ name: mode.list.name })
-					: m.list_import_title()}
-			</Dialog.Title>
-			{#if error}
-				<p
-					in:slide={{ duration: DURATION, easing: cubicOut }}
-					role="alert"
-					class="mt-3 rounded-md bg-destructive-soft px-3 py-2.5 text-body-sm text-destructive"
-				>
-					{error}
-				</p>
-			{:else}
-				<Dialog.Description class="mt-1 text-body-sm text-text-muted">
-					{mode.kind === 'add' ? m.list_add_text_lead() : m.list_import_lead()}
-				</Dialog.Description>
-			{/if}
-			<label for="list-import-field" class="sr-only">{m.list_import_field_label()}</label>
-			<!-- Dashed like the recipe import's field, and like it grown with its
-			     lines in the sheet rather than a scroller in a scroller. -->
-			<textarea
-				id="list-import-field"
-				bind:value={text}
-				rows={5}
-				disabled={sending}
-				placeholder={mode.kind === 'add' ? m.list_add_text_example() : m.list_import_example()}
-				style:min-height={sheet && text ? 'calc(5lh + 1.5rem + 4px)' : undefined}
-				class="{sheet && text
-					? 'field-sizing-content resize-none'
-					: 'resize-y'} mt-4 block w-full rounded-md border-2 border-dashed border-handle bg-surface-elevated px-3.5 py-3 text-body-sm transition outline-none focus:border-primary disabled:opacity-60"
-			></textarea>
+<ResponsiveDialog
+	bind:open
+	closeLabel={m.common_cancel()}
+	onOpenAutoFocus={focusField('list-import-field')}
+>
+	<PasteForm
+		bind:value={text}
+		onsubmit={submit}
+		title={mode.kind === 'add'
+			? m.list_add_text_title({ name: mode.list.name })
+			: m.list_import_title()}
+		lead={mode.kind === 'add' ? m.list_add_text_lead() : m.list_import_lead()}
+		{error}
+		fieldId="list-import-field"
+		fieldLabel={m.list_import_field_label()}
+		placeholder={mode.kind === 'add' ? m.list_add_text_example() : m.list_import_example()}
+		rows={5}
+		disabled={sending}
+		cancelLabel={m.common_cancel()}
+		oncancel={() => (open = false)}
+		submitLabel={mode.kind === 'add' ? m.list_add_text_submit() : m.import_submit()}
+		canSubmit={!!text.trim() && !sending}
+		busy={sending}
+	>
+		{#snippet children(field, row)}
+			{@render field()}
 			{#if mode.kind === 'new'}
 				<div class="mt-2 flex justify-end">
 					<button
@@ -186,34 +163,7 @@
 			<div class="mt-4">
 				<AiInstruction kind="list" />
 			</div>
-		</div>
-		<!-- On a phone the sheet's handle closes it, so the button stands alone. -->
-		<div
-			class="flex justify-end gap-2 {sheet
-				? 'shrink-0 border-t border-border px-5 pt-3 pb-5'
-				: 'mt-4'}"
-		>
-			<Button variant="ghost" onclick={() => (open = false)} class="max-md:hidden">
-				{m.common_cancel()}
-			</Button>
-			<Button
-				type="submit"
-				busy={sending}
-				disabled={!text.trim() || sending}
-				class="max-md:h-12 max-md:w-full"
-			>
-				{mode.kind === 'add' ? m.list_add_text_submit() : m.import_submit()}
-			</Button>
-		</div>
-	</form>
-{/snippet}
-
-{#if phone.current}
-	<BottomSheet bind:open closeLabel={m.common_cancel()} onOpenAutoFocus={focusField}>
-		{@render form(true)}
-	</BottomSheet>
-{:else}
-	<BaseDialog bind:open>
-		{@render form(false)}
-	</BaseDialog>
-{/if}
+			{@render row()}
+		{/snippet}
+	</PasteForm>
+</ResponsiveDialog>

@@ -1,9 +1,7 @@
 <script lang="ts">
-	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import X from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		inviteToList,
@@ -13,8 +11,7 @@
 	} from '#lib/api/shopping.js';
 	import { listPeople, type PersonEntry } from '#lib/api/users.js';
 	import { session } from '#lib/auth.svelte.js';
-	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
+	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { slide } from 'svelte/transition';
@@ -22,6 +19,7 @@
 	import InvitePicker from '#lib/components/shopping/InvitePicker.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import { narrow } from '#lib/ui/narrow.js';
 	import { failList } from '#lib/shopping/fail.js';
 	import { joinNames } from '#lib/user/holders.js';
 
@@ -35,8 +33,6 @@
 		/** The page's guard for racing answers: takes the returned list, false when the request failed. */
 		apply: (request: Promise<ShoppingList>, onfail?: (error: unknown) => void) => Promise<boolean>;
 	} = $props();
-
-	const phone = new MediaQuery('max-width: 767.98px');
 
 	let people = $state<PersonEntry[]>([]);
 	let picked = $state<string[]>([]);
@@ -236,18 +232,14 @@
 	</li>
 {/snippet}
 
-{#if phone.current}
-	<BottomSheet bind:open closeLabel={m.list_share_done()}>
-		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-4">{@render body()}</div>
-		<div class="flex justify-end border-t border-border px-5 pt-3.5 pb-5">
-			<Button onclick={primary} busy={sending} class="grow">{action}</Button>
-		</div>
-	</BottomSheet>
-{:else}
-	<BaseDialog bind:open>
-		{@render body()}
-		<DialogActions class="mt-6 border-t border-border pt-4">
-			<Button onclick={primary} busy={sending}>{action}</Button>
-		</DialogActions>
-	</BaseDialog>
-{/if}
+{#snippet footer()}
+	<Button onclick={primary} busy={sending} class={narrow.current ? 'grow' : ''}>{action}</Button>
+{/snippet}
+
+<ResponsiveDialog
+	bind:open
+	closeLabel={m.list_share_done()}
+	footerClass="flex justify-end px-5 pt-3.5"
+	{body}
+	{footer}
+/>

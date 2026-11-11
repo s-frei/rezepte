@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { Dialog, Popover } from 'bits-ui';
+	import { Dialog } from 'bits-ui';
 	import { flip } from 'svelte/animate';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { Person } from '#lib/api/recipes.js';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import PersonCard from '#lib/components/ui/PersonCard.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import PersonPeek from '#lib/components/ui/PersonPeek.svelte';
 
 	let {
 		people,
@@ -31,8 +30,6 @@
 	// CSS so it plays when the stack itself is new) or fades out, and the
 	// others make room; a new recipe's stack just appears.
 	const room = $derived(changed && !prefersReducedMotion.current ? 200 : 0);
-	// A bottom sheet below `md`, for the reason AuthorInitials gives.
-	const phone = new MediaQuery('max-width: 767.98px');
 </script>
 
 {#snippet faces()}
@@ -60,48 +57,24 @@
 	</ul>
 {/snippet}
 
-<!--
-	On a wide screen a popover rather than a tooltip, for the reason
-	AuthorInitials gives: bits-ui's tooltip ignores touch.
--->
-{#if people.length > 0 && phone.current}
-	<button
-		type="button"
-		aria-label={`${m.recipe_tasty_by()}: ${names}`}
-		onclick={() => (open = true)}
+<!-- `inverse`, like the author panel: the palette's role for something
+     laid over the page. -->
+{#if people.length > 0}
+	<PersonPeek
+		bind:open
+		label={`${m.recipe_tasty_by()}: ${names}`}
 		class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+		panelClass="max-w-72 bg-inverse p-3.5 text-caption text-inverse-foreground"
+		trigger={faces}
 	>
-		{@render faces()}
-	</button>
-	<BottomSheet bind:open closeLabel={m.common_close()}>
-		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
-			<Dialog.Title class="text-caption text-text-muted">{m.recipe_tasty_by()}</Dialog.Title>
-			{@render cards(false)}
-		</div>
-	</BottomSheet>
-{:else if people.length > 0}
-	<Popover.Root bind:open>
-		<Popover.Trigger
-			openOnHover
-			openDelay={300}
-			aria-label={`${m.recipe_tasty_by()}: ${names}`}
-			class="flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-		>
-			{@render faces()}
-		</Popover.Trigger>
-		<Popover.Portal>
-			<!-- `inverse`, like the author panel: the palette's role for
-			     something laid over the page. -->
-			<Popover.Content
-				side="bottom"
-				sideOffset={6}
-				align="start"
-				collisionPadding={12}
-				class="z-50 max-w-72 rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
-			>
+		{#snippet card(sheet)}
+			{#if sheet}
+				<Dialog.Title class="text-caption text-text-muted">{m.recipe_tasty_by()}</Dialog.Title>
+				{@render cards(false)}
+			{:else}
 				<p class="text-inverse-muted">{m.recipe_tasty_by()}</p>
 				{@render cards(true, true)}
-			</Popover.Content>
-		</Popover.Portal>
-	</Popover.Root>
+			{/if}
+		{/snippet}
+	</PersonPeek>
 {/if}

@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { Dialog, Popover } from 'bits-ui';
-	import { MediaQuery } from 'svelte/reactivity';
+	import { Dialog } from 'bits-ui';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { Person } from '#lib/api/recipes.js';
 	import { authorLabel } from '#lib/recipe/authorship.js';
-	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import PersonCard from '#lib/components/ui/PersonCard.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import PersonPeek from '#lib/components/ui/PersonPeek.svelte';
 
 	let {
 		createdBy,
@@ -36,12 +35,10 @@
 			? m.card_new_entries({ label: authorLabel(createdBy, updatedBy) })
 			: authorLabel(createdBy, updatedBy)
 	);
+	// Below `md` the people open in a bottom sheet (PersonPeek): under a card
+	// in a two-column grid the panel was 153px wide, cut the name and the
+	// role off and slid under the bottom nav.
 	let open = $state(false);
-	// Below `md` the people open in a bottom sheet instead: under a card in a
-	// two-column grid the panel was 153px wide, cut the name and the role off
-	// and slid under the bottom nav. The sheet is the phone's one shape for
-	// "one person" (PersonTile does the same).
-	const phone = new MediaQuery('max-width: 767.98px');
 </script>
 
 <!-- Two cards each carry their label above them; one card needs none. -->
@@ -78,71 +75,35 @@
 {/snippet}
 
 <!--
-	On a wide screen a popover rather than a tooltip, because bits-ui's
-	tooltip returns early on `pointerType === "touch"` and closes rather than
-	opens on click - a touch laptop would be left with two unexplained
-	letters. A popover opens on tap everywhere and, with `openOnHover`,
-	still behaves like a tooltip under a mouse.
+	The card is the popover's anchor, not the trigger: the panel then hangs
+	below the card and spans exactly its width (`--bits-floating-anchor-width`
+	is the anchor's measured width), which reads as belonging to that card
+	rather than pointing at two small circles inside it.
+
+	`inverse`, the same pair toasts use: it is the palette's "something laid
+	over the page" role, and it inverts with the theme by itself. The
+	dropdowns' `surface` cannot do that job here - it is the card's own
+	color, so in dark mode the panel dissolved into the card it hangs from,
+	and even in light mode a panel sharing the card's width, edge and color
+	family read as a second piece of the card rather than as an overlay.
+
+	The radius stays `rounded-2xl`, like every other floating panel in the
+	app: with the color doing the separating, the shape no longer has to.
 -->
-{#if phone.current}
-	<button
-		type="button"
-		aria-label={label}
-		onclick={() => (open = true)}
-		class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-	>
-		{@render circles()}
-	</button>
-	<BottomSheet bind:open closeLabel={m.common_close()}>
-		<div data-sheet-body class="min-h-0 flex-1 overflow-y-auto px-5 pb-8">
+<PersonPeek
+	bind:open
+	{label}
+	{anchor}
+	class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+	panelClass="w-[var(--bits-floating-anchor-width)] bg-inverse p-3.5 text-caption text-inverse-foreground"
+	trigger={circles}
+>
+	{#snippet card(sheet)}
+		{#if sheet}
 			<Dialog.Title class="sr-only">{label}</Dialog.Title>
 			{@render cards('text-caption text-text-muted', false)}
-		</div>
-	</BottomSheet>
-{:else}
-	<Popover.Root bind:open>
-		<Popover.Trigger
-			openOnHover
-			openDelay={300}
-			aria-label={label}
-			class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-		>
-			{@render circles()}
-		</Popover.Trigger>
-		<Popover.Portal>
-			<!--
-			The card is the anchor, not the trigger: the panel then hangs below
-			the card and spans exactly its width (`--bits-floating-anchor-width`
-			is the anchor's measured width), which reads as belonging to that
-			card rather than pointing at two small circles inside it.
-
-			`inverse`, the same pair toasts use: it is the
-			palette's "something laid over the page" role, and it inverts with
-			the theme by itself. The dropdowns' `surface` cannot do that job
-			here - it is the card's own color, so in dark mode the panel
-			dissolved into the card it hangs from, and even in light mode a
-			panel sharing the card's width, edge and color family read as a
-			second piece of the card rather than as an overlay.
-
-			The radius stays `rounded-2xl`, like every other floating panel in
-			the app: with the color doing the separating, the shape no longer
-			has to, and a flatter corner here would only make this one panel
-			the odd shape out.
-
-			`collisionPadding` keeps it off the screen edge when a card sits at
-			the very bottom of the viewport and Floating UI flips the panel
-			back above it.
-		-->
-			<Popover.Content
-				customAnchor={anchor}
-				side="bottom"
-				sideOffset={6}
-				align="start"
-				collisionPadding={12}
-				class="z-50 w-[var(--bits-floating-anchor-width)] rounded-2xl bg-inverse p-3.5 text-caption text-inverse-foreground shadow-dialog"
-			>
-				{@render cards('text-inverse-muted', true, true)}
-			</Popover.Content>
-		</Popover.Portal>
-	</Popover.Root>
-{/if}
+		{:else}
+			{@render cards('text-inverse-muted', true, true)}
+		{/if}
+	{/snippet}
+</PersonPeek>

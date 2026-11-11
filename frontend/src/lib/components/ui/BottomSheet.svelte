@@ -91,8 +91,9 @@
 <script lang="ts">
 	import { Dialog } from 'bits-ui';
 	import { tick, type Snippet } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { followVisibleArea, type VisibleArea } from '#lib/visible-area.js';
+	import Overlay from './Overlay.svelte';
 	import SheetHandle from './SheetHandle.svelte';
 
 	// Shared Overlay + Content wrapper for the phone's bottom sheets (the
@@ -218,7 +219,6 @@
 	});
 
 	const duration = $derived(prefersReducedMotion.current ? 0 : 250);
-	const fadeDuration = $derived(prefersReducedMotion.current ? 0 : 200);
 
 	/**
 	 * The dim with a hole where `spotlight` is: a clip path, so the hole is
@@ -321,18 +321,7 @@
 				class="pointer-events-none fixed inset-y-0 left-0 w-0"
 			></span>
 		{/if}
-		<Dialog.Overlay forceMount>
-			{#snippet child({ props, open: isOpen })}
-				{#if isOpen}
-					<div
-						{...props}
-						class="fixed inset-0 z-40 bg-overlay"
-						style:clip-path={hole}
-						transition:fade={{ duration: fadeDuration }}
-					></div>
-				{/if}
-			{/snippet}
-		</Dialog.Overlay>
+		<Overlay clipPath={hole} />
 		<Dialog.Content
 			forceMount
 			preventScroll={false}
