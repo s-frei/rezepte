@@ -4,15 +4,13 @@
 	import Download from '@lucide/svelte/icons/download';
 	import ImageIcon from '@lucide/svelte/icons/image';
 	import Link from '@lucide/svelte/icons/link';
-	import Scissors from '@lucide/svelte/icons/scissors';
 	import Share from '@lucide/svelte/icons/share';
 	import X from '@lucide/svelte/icons/x';
-	import { tick, untrack } from 'svelte';
+	import { tick, untrack, type ComponentProps } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import type { Recipe } from '#lib/api/recipes.js';
-	import type { PublicShare, ShareLifetime } from '#lib/api/shares.js';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
 	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -29,6 +27,9 @@
 	} from '#lib/recipe/share.svelte.js';
 	import { renderShareImage } from '#lib/recipe/share-image.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { load, save } from '#lib/storage.js';
+	import { narrow as phone } from '#lib/ui/narrow.js';
+	import Perforation from './Perforation.svelte';
 	import ShareCard from './ShareCard.svelte';
 	import ShareLinkPanel from './ShareLinkPanel.svelte';
 
@@ -44,30 +45,21 @@
 		open = $bindable(false),
 		recipe,
 		attribution,
-		linkUrl,
 		share = $bindable(null),
-		canCreateShare,
-		defaultDays,
-		maxDays,
-		initialTab
+		initialTab,
+		...link
 	}: {
 		open?: boolean;
 		recipe: Recipe;
 		/** The household's "name Rezepte when sharing" setting. */
 		attribution: boolean;
-		/** The household address - the page's `ShareLink`, read at tap time. */
-		linkUrl: () => string;
-		/** The member's own public link to this recipe. */
-		share?: PublicShare | null;
-		/** Public sharing is on and this member may use it. */
-		canCreateShare: boolean;
-		defaultDays: ShareLifetime;
-		maxDays: ShareLifetime;
 		/** The tab to open on; without one, the tab this device used last. */
 		initialTab?: Tab;
-	} = $props();
+	} & Pick<
+		ComponentProps<typeof ShareLinkPanel>,
+		'linkUrl' | 'share' | 'canCreateShare' | 'defaultDays' | 'maxDays'
+	> = $props();
 
-	const phone = new MediaQuery('max-width: 767.98px');
 	// Press and hold is a touch gesture: a narrow desktop window gets the
 	// phone sheet, but nothing to hold.
 	const touch = new MediaQuery('pointer: coarse');
@@ -84,29 +76,13 @@
 		{ value: 'link' as const, label: m.share_tab_link(), icon: Link }
 	];
 
-	function rememberedTab(): Tab {
-		try {
-			return localStorage.getItem(TAB_KEY) === 'link' ? 'link' : 'image';
-		} catch {
-			return 'image';
-		}
-	}
-
-	function remember(next: Tab) {
-		try {
-			localStorage.setItem(TAB_KEY, next);
-		} catch {
-			// Storage refused (private mode): the next opening starts on the image.
-		}
-	}
-
 	// Decided as the sheet opens - the page's choice, else the tab this
 	// device used last - then the switch's. Only `open` is tracked, and on
 	// closing the derived gives back the tab on screen, so the sheet keeps
 	// it while it slides away.
 	let onScreen: Tab = 'image';
 	let tab: Tab = $derived.by(() => {
-		if (open) onScreen = untrack(() => initialTab ?? rememberedTab());
+		if (open) onScreen = untrack(() => initialTab ?? (load(TAB_KEY) === 'link' ? 'link' : 'image'));
 		return onScreen;
 	});
 
@@ -117,7 +93,7 @@
 		const group = `[aria-label="${m.share_tabs_label()}"]`;
 		const held = Boolean(document.activeElement?.closest(group));
 		onScreen = next;
-		remember(next);
+		save(TAB_KEY, next);
 		if (!held) return;
 		await tick();
 		document.querySelector<HTMLElement>(`[role=dialog] ${group} [aria-checked="true"]`)?.focus();
@@ -228,12 +204,9 @@
 
 {#snippet panel(onPhone: boolean)}
 	<ShareLinkPanel
+		{...link}
 		{recipe}
-		{linkUrl}
 		bind:share
-		{canCreateShare}
-		{defaultDays}
-		{maxDays}
 		phone={onPhone}
 		shown={tab === 'link'}
 		{switcher}
@@ -259,11 +232,7 @@
 					     the phone's own long-press menu on the preview still shares it. -->
 					<p class="px-5 pb-3 text-center text-caption text-text-muted">{m.share_hold_hint()}</p>
 				{/if}
-				<div class="relative border-t-2 border-dashed border-handle" aria-hidden="true">
-					<Scissors
-						class="absolute -top-2.5 left-5 size-5 -rotate-90 bg-background px-0.5 text-text-muted"
-					/>
-				</div>
+				<Perforation />
 				<!-- The primary says what this browser will do: share where there is a
 				     share sheet for files, else copy where the clipboard takes an
 				     image, else save - and Save stays beside it while it is not Save. -->

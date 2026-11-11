@@ -5,6 +5,7 @@
 	import { imageUrl, type Recipe } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { shareStatusLabel } from '#lib/recipe/share-status.js';
 	import type { StubFace } from '#lib/recipe/share-stub.js';
 	import PlaceholderTile from './PlaceholderTile.svelte';
 
@@ -79,11 +80,7 @@
 				<span>{m.share_stub_household()}</span>
 			{:else if face.kind === 'paused' || face.kind === 'limited'}
 				<Pause class="size-4.5" />
-				<span>
-					{face.kind === 'paused'
-						? m.public_share_status_paused()
-						: m.public_share_status_limited()}
-				</span>
+				<span>{shareStatusLabel(face.kind)}</span>
 			{:else}
 				<Globe class="size-4.5" />
 				{#if face.kind === 'today'}

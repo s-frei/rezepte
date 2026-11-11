@@ -5,7 +5,6 @@
 	import Globe from '@lucide/svelte/icons/globe';
 	import House from '@lucide/svelte/icons/house';
 	import Lock from '@lucide/svelte/icons/lock';
-	import Scissors from '@lucide/svelte/icons/scissors';
 	import Share from '@lucide/svelte/icons/share';
 	import TicketPlus from '@lucide/svelte/icons/ticket-plus';
 	import TicketX from '@lucide/svelte/icons/ticket-x';
@@ -33,6 +32,7 @@
 	import { canShareLink, copyLink, shareLink } from '#lib/recipe/share.svelte.js';
 	import { stubFace, type StubFace } from '#lib/recipe/share-stub.js';
 	import LifetimePicker from './LifetimePicker.svelte';
+	import Perforation from './Perforation.svelte';
 	import ShareTicket from './ShareTicket.svelte';
 
 	type Audience = 'household' | 'everyone';
@@ -456,14 +456,6 @@
 	</RadioGroup.Root>
 {/snippet}
 
-{#snippet scissors()}
-	<div class="relative border-t-2 border-dashed border-handle" aria-hidden="true">
-		<Scissors
-			class="absolute -top-2.5 left-5 size-5 -rotate-90 bg-background px-0.5 text-text-muted"
-		/>
-	</div>
-{/snippet}
-
 {#if phone}
 	<!-- Shares the sheet's tab cell with the Image tab. The region above the
 	     buttons holds the preview, the perforation and the choice, from the
@@ -483,12 +475,12 @@
 				<!-- The tilted ticket's corner reaches 6px below its box, hence the
 				     line's distance. Its scissors hang 10px over the line: the room
 				     around it is the region's. -->
-				<div class="pt-4">{@render scissors()}</div>
+				<div class="pt-4"><Perforation /></div>
 				<div data-choice class="px-5 pt-3.5">{@render choice()}</div>
 			{/if}
 		</div>
 		{#if !offered}
-			{@render scissors()}
+			<Perforation />
 		{/if}
 		<div class="flex gap-2.5 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
 			<!-- The padding gives way first. "Öffentlichen Link erstellen", the one
