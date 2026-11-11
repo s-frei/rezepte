@@ -68,7 +68,7 @@ func Register(api huma.API, svc *Service) {
 			Content:     map[string]*huma.MediaType{"application/zip": {Schema: &huma.Schema{Type: "string", Format: "binary"}}},
 		}},
 	}, func(ctx context.Context, in *exportInput) (*huma.StreamResponse, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := auth.RequireRole(ctx, user.RoleAdmin); err != nil {
 			return nil, err
 		}
 		f, err := svc.Export(ctx, in.Body.RecipeIDs)
@@ -108,7 +108,7 @@ func Register(api huma.API, svc *Service) {
 		Middlewares: huma.Middlewares{spoolBody(api, svc.tmpDir)},
 		Errors:      []int{403, 413, 422},
 	}, func(ctx context.Context, _ *struct{}) (*importOutput, error) {
-		u, err := requireAdmin(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -179,17 +179,4 @@ func spoolBody(api huma.API, dir string) func(ctx huma.Context, next func(huma.C
 		}
 		next(huma.WithValue(ctx, spooledKey{}, f))
 	}
-}
-
-// requireAdmin returns the caller or a 401/403, the same rule as userapi's.
-// A token is its owner here, so a member's token is refused too.
-func requireAdmin(ctx context.Context) (user.User, error) {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return user.User{}, huma.Error401Unauthorized("authentication required")
-	}
-	if !u.Role.IsAdmin() {
-		return user.User{}, huma.Error403Forbidden("admin role required")
-	}
-	return u, nil
 }

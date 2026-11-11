@@ -9,7 +9,7 @@ An admin issues a named, scoped, optionally expiring API token from Settings →
 
 - **Write implies read only by convention.** The middleware compares scope lists and applies no implication; the UI sends every rung of the ladder, and a hand-built `recipes:write`-only token cannot read ([Scopes](#scopes-and-the-raw-value)).
 - **`auth.Protected` opens an operation to tokens.** Declaring it on anything a person does to their own session or account, or on `/api/v1/tokens`, hands that to every token ([Who may use a token](#who-may-use-a-token)).
-- **`canManageAllTokens` is `IsAdmin()`**: a comparison against `RoleAdmin` locks the owner out of their own instance's tokens.
+- **Token management is `auth.RequireRole(ctx, user.RoleAdmin)`**, which asks `IsAdmin()`: a comparison against `RoleAdmin` locks the owner out of their own instance's tokens.
 - **Never add the raw value as an optional field of `APIToken`**: `CreatedAPIToken` is the only type carrying it, so the list response cannot leak it.
 
 </Callout>
@@ -41,7 +41,7 @@ Without a bearer header, an operation marked `auth.TokenOnly` - only `/mcp`, see
 
 ### Management and the Settings UI
 
-**Token management itself stays session-only.** `service/internal/tokenapi` exposes list, create and revoke - the OpenAPI document has their paths and status codes - and none is reachable by a token: one able to mint or list tokens would defeat both expiry and revocation. `requireAdmin` gates all three; `canManageAllTokens` in `service/internal/tokenapi/handler.go` is `u.Role.IsAdmin()`, so every admin and the instance owner sees and revokes every token on the instance - a comparison against `RoleAdmin` would lock the owner out of their own instance's tokens. Narrowing the list to the instance owner alone would need it scoped by issuer and the revoke checked against that, neither of which exists.
+**Token management itself stays session-only.** `service/internal/tokenapi` exposes list, create and revoke - the OpenAPI document has their paths and status codes - and none is reachable by a token: one able to mint or list tokens would defeat both expiry and revocation. `auth.RequireRole(ctx, user.RoleAdmin)` gates all three and asks `Role.IsAdmin()`, so every admin and the instance owner sees and revokes every token on the instance - a comparison against `RoleAdmin` would lock the owner out of their own instance's tokens. Narrowing the list to the instance owner alone would need it scoped by issuer and the revoke checked against that, neither of which exists.
 
 **The Settings UI.** Settings → API (`frontend/src/routes/settings/api`) is open to every account, because any session may call the API and read the spec; `settings/api/+page.ts` resolves the role into `isAdmin` instead of redirecting, and the page gates the token half on that flag - the token card, its dialogs and the `GET /tokens` call alike, since a member firing that call would be answered `403`.
 

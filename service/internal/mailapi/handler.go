@@ -60,17 +60,6 @@ type testInput struct {
 	}
 }
 
-func owner(ctx context.Context) (user.User, error) {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return user.User{}, huma.Error401Unauthorized("authentication required")
-	}
-	if !u.Role.IsSuperadmin() {
-		return user.User{}, huma.Error403Forbidden("superadmin role required")
-	}
-	return u, nil
-}
-
 // mapErr answers mail's errors with their status and leaves anything else
 // to be the 500 it is. A delivery failure is 502 with the server's reply; a
 // refused setting is 422 at its field, prefix plus its name in MailConfig.
@@ -117,7 +106,7 @@ func Register(api huma.API, s *mail.Service) {
 		Summary: "Get the mail configuration", Tags: []string{"settings"},
 		Security: auth.SessionSecurity, Errors: []int{401, 403},
 	}, func(ctx context.Context, _ *struct{}) (*settingsOutput, error) {
-		if _, err := owner(ctx); err != nil {
+		if _, err := auth.RequireRole(ctx, user.RoleSuperadmin); err != nil {
 			return nil, err
 		}
 		b, err := body(ctx, s)
@@ -129,7 +118,7 @@ func Register(api huma.API, s *mail.Service) {
 		Summary: "Configure mail", Tags: []string{"settings"},
 		Security: auth.SessionSecurity, Errors: []int{401, 403, 409, 422},
 	}, func(ctx context.Context, in *putInput) (*settingsOutput, error) {
-		u, err := owner(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleSuperadmin)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +135,7 @@ func Register(api huma.API, s *mail.Service) {
 		Summary: "Turn mail off", Tags: []string{"settings"},
 		Security: auth.SessionSecurity, DefaultStatus: http.StatusNoContent, Errors: []int{401, 403, 409},
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
-		u, err := owner(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleSuperadmin)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +151,7 @@ func Register(api huma.API, s *mail.Service) {
 		Description: "With config, tests those unsaved values (a missing password uses the stored one, for the stored host and username only); without, the configuration in force. A refusal by the SMTP server answers 502 with the server's reply.",
 		Security:    auth.SessionSecurity, DefaultStatus: http.StatusNoContent, Errors: []int{401, 403, 409, 422, 502},
 	}, func(ctx context.Context, in *testInput) (*struct{}, error) {
-		u, err := owner(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleSuperadmin)
 		if err != nil {
 			return nil, err
 		}

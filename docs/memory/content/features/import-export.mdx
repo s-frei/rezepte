@@ -7,7 +7,7 @@ An admin can export a selection of recipes with their photos as one zip and impo
 
 ## How it works
 
-**Access.** Admins only. The token scopes are `recipes:read` (export) and `recipes:write` (import), and `requireAdmin` refuses a non-admin session with `403`. A member-owned API token never gets that far: `TokenService.Authenticate` refuses a non-admin owner, so auth answers `401`. The import checks the role in `spoolBody` before it reads a byte of the body.
+**Access.** Admins only. The token scopes are `recipes:read` (export) and `recipes:write` (import), and `auth.RequireRole` refuses a non-admin session with `403`. A member-owned API token never gets that far: `TokenService.Authenticate` refuses a non-admin owner, so auth answers `401`. The import checks the role in `spoolBody` before it reads a byte of the body.
 
 Comments and their photos are not exported ([Recipe comments](/features/recipe-comments)); a photo that was added to the recipe photos is an ordinary recipe photo and travels.
 

@@ -130,6 +130,20 @@ func CurrentUser(ctx context.Context) (user.User, error) {
 	return u, nil
 }
 
+// RequireRole is CurrentUser for an operation that needs at least the role
+// min: RoleAdmin lets in every admin, the superadmin included, and
+// RoleSuperadmin only the owner. Anyone else gets a 403 naming min.
+func RequireRole(ctx context.Context, min user.Role) (user.User, error) {
+	u, err := CurrentUser(ctx)
+	if err != nil {
+		return user.User{}, err
+	}
+	if (min.IsSuperadmin() && !u.Role.IsSuperadmin()) || (min.IsAdmin() && !u.Role.IsAdmin()) {
+		return user.User{}, huma.Error403Forbidden(string(min) + " role required")
+	}
+	return u, nil
+}
+
 type sessionKey struct{}
 
 // SessionIDFrom returns the id of the session that authenticated ctx's

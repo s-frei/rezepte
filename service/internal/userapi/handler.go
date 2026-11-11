@@ -163,22 +163,6 @@ type resendInput struct {
 	ID string `path:"id"`
 }
 
-// requireAdmin returns the calling user or a 401/403 huma error. Every
-// operation in this package calls it first; there is no permission table,
-// the rank of the session's user against the rank of the target is the whole
-// authorization model. IsAdmin rather than a comparison against RoleAdmin,
-// because the superadmin is an admin.
-func requireAdmin(ctx context.Context) (user.User, error) {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return user.User{}, huma.Error401Unauthorized("authentication required")
-	}
-	if !u.Role.IsAdmin() {
-		return user.User{}, huma.Error403Forbidden("admin role required")
-	}
-	return u, nil
-}
-
 // userError maps what the user service returns for a target account: the two
 // rank errors, a missing account and the profile validation failures; any
 // other err comes back as it is. ErrSuperadminProtected states a fact about
@@ -386,7 +370,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		Security:    auth.Protected(auth.ScopeUsersRead),
 		Errors:      []int{401, 403},
 	}, func(ctx context.Context, _ *struct{}) (*listOutput, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := auth.RequireRole(ctx, user.RoleAdmin); err != nil {
 			return nil, err
 		}
 		list, err := users.List(ctx)
@@ -442,7 +426,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{401, 403, 409, 422, 503},
 	}, func(ctx context.Context, in *createInput) (*createOutput, error) {
-		actor, err := requireAdmin(ctx)
+		actor, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -536,7 +520,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{401, 403, 404, 409, 422},
 	}, func(ctx context.Context, in *issueSetupLinkInput) (*setupLinkOutput, error) {
-		actor, err := requireAdmin(ctx)
+		actor, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -580,7 +564,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 403, 404, 409, 429, 502},
 	}, func(ctx context.Context, in *resendInput) (*struct{}, error) {
-		actor, err := requireAdmin(ctx)
+		actor, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -608,7 +592,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 403, 404, 409},
 	}, func(ctx context.Context, in *setupLinkInput) (*revokeSetupLinkOutput, error) {
-		actor, err := requireAdmin(ctx)
+		actor, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -628,7 +612,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		Security:    auth.Protected(auth.ScopeUsersWrite),
 		Errors:      []int{401, 403, 404, 409, 422, 503},
 	}, func(ctx context.Context, in *updateInput) (*userOutput, error) {
-		actor, err := requireAdmin(ctx)
+		actor, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -727,7 +711,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 403, 404, 409},
 	}, func(ctx context.Context, in *deleteInput) (*deleteOutput, error) {
-		actor, err := requireAdmin(ctx)
+		actor, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}

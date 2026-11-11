@@ -70,27 +70,6 @@ type deleteInput struct {
 
 type deleteOutput struct{}
 
-// requireAdmin returns the calling user or a 401/403 huma error.
-func requireAdmin(ctx context.Context) (user.User, error) {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return user.User{}, huma.Error401Unauthorized("authentication required")
-	}
-	if !canManageAllTokens(u) {
-		return user.User{}, huma.Error403Forbidden("admin role required")
-	}
-	return u, nil
-}
-
-// canManageAllTokens reports whether u may see and revoke every token in the
-// instance, not only their own. Today that is every admin, the instance owner
-// included - IsAdmin rather than a comparison against RoleAdmin, which would
-// exclude the owner from the tokens on their own instance. Narrowing this to
-// the owner alone is a change to the token feature rather than to the rank
-// rules: it needs the list scoped by owner and the revoke checked against it,
-// neither of which exists yet.
-func canManageAllTokens(u user.User) bool { return u.Role.IsAdmin() }
-
 func toResponse(t auth.Token) APIToken {
 	return APIToken{
 		ID:               t.ID,
@@ -108,7 +87,10 @@ func toResponse(t auth.Token) APIToken {
 }
 
 // Register installs list, create and delete for API tokens. All three require
-// an admin session; see the package comment for why a token cannot use them.
+// an admin session (see the package comment for why a token cannot use them),
+// and an admin sees and revokes every token of the instance, the owner
+// included. Narrowing that to the owner needs the list scoped by owner and
+// the revoke checked against it, neither of which exists yet.
 func Register(api huma.API, tokens *auth.TokenService) {
 	huma.Register(api, huma.Operation{
 		OperationID: "list-api-tokens",
@@ -119,7 +101,7 @@ func Register(api huma.API, tokens *auth.TokenService) {
 		Security:    auth.SessionSecurity,
 		Errors:      []int{401, 403},
 	}, func(ctx context.Context, _ *struct{}) (*listOutput, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := auth.RequireRole(ctx, user.RoleAdmin); err != nil {
 			return nil, err
 		}
 		list, err := tokens.List(ctx)
@@ -144,7 +126,7 @@ func Register(api huma.API, tokens *auth.TokenService) {
 		DefaultStatus: http.StatusCreated,
 		Errors:        []int{401, 403, 422},
 	}, func(ctx context.Context, in *createInput) (*createOutput, error) {
-		u, err := requireAdmin(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleAdmin)
 		if err != nil {
 			return nil, err
 		}
@@ -173,7 +155,7 @@ func Register(api huma.API, tokens *auth.TokenService) {
 		DefaultStatus: http.StatusNoContent,
 		Errors:        []int{401, 403, 404},
 	}, func(ctx context.Context, in *deleteInput) (*deleteOutput, error) {
-		if _, err := requireAdmin(ctx); err != nil {
+		if _, err := auth.RequireRole(ctx, user.RoleAdmin); err != nil {
 			return nil, err
 		}
 		if err := tokens.Delete(ctx, in.ID); errors.Is(err, auth.ErrNoToken) {

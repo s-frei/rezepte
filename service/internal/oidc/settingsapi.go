@@ -37,17 +37,6 @@ type SignInConfig struct {
 type signInOutput struct{ Body SignInSettings }
 type signInInput struct{ Body SignInConfig }
 
-func signInOwner(ctx context.Context) (user.User, error) {
-	u, ok := auth.UserFrom(ctx)
-	if !ok {
-		return user.User{}, huma.Error401Unauthorized("authentication required")
-	}
-	if !u.Role.IsSuperadmin() {
-		return user.User{}, huma.Error403Forbidden("superadmin role required")
-	}
-	return u, nil
-}
-
 // mapSettingsErr answers the settings' errors with their status and leaves
 // anything else to be the 500 it is.
 func mapSettingsErr(err error) error {
@@ -95,7 +84,7 @@ func RegisterSettings(api huma.API, s *Settings) {
 		Summary: "Get the sign-in provider", Tags: []string{"settings"},
 		Security: auth.SessionSecurity, Errors: []int{401, 403},
 	}, func(ctx context.Context, _ *struct{}) (*signInOutput, error) {
-		if _, err := signInOwner(ctx); err != nil {
+		if _, err := auth.RequireRole(ctx, user.RoleSuperadmin); err != nil {
 			return nil, err
 		}
 		b, err := signInBody(ctx, s)
@@ -108,7 +97,7 @@ func RegisterSettings(api huma.API, s *Settings) {
 		Description: "Runs OpenID discovery at the issuer first and stores nothing when no provider answers (422 on body.issuer). Takes effect on the next request.",
 		Security:    auth.SessionSecurity, Errors: []int{401, 403, 409, 422},
 	}, func(ctx context.Context, in *signInInput) (*signInOutput, error) {
-		u, err := signInOwner(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleSuperadmin)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +115,7 @@ func RegisterSettings(api huma.API, s *Settings) {
 		Description: "Connected identities stay and count again when the same provider is configured.",
 		Security:    auth.SessionSecurity, DefaultStatus: http.StatusNoContent, Errors: []int{401, 403, 409},
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
-		u, err := signInOwner(ctx)
+		u, err := auth.RequireRole(ctx, user.RoleSuperadmin)
 		if err != nil {
 			return nil, err
 		}

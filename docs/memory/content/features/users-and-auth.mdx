@@ -79,7 +79,7 @@ Several people in a household share one recipe collection. Accounts are created,
 **Three ranked roles, compared in one file.** `user.RoleUser`, `user.RoleAdmin` and `user.RoleSuperadmin` are the whole set, in ascending rank. The superadmin is the instance owner and is an admin.
 
 - **Ask the role, never compare it.** `Role.IsAdmin` and `Role.IsSuperadmin` in `service/internal/user/service.go` are the only way to ask what a role carries. The SPA's answer is `isAdminRole` in `frontend/src/lib/roles.ts`, because `role === 'admin'` locks the owner out of every admin surface. `roleLabel` (the only place a role becomes label text) and `roleRank` (the people list's order) sit in that module too.
-- **`requireAdmin`** in `service/internal/userapi/handler.go` answers `401` without an authenticated user and `403` `admin role required` when `IsAdmin` is false. Every user management operation calls it first; update and delete pass the caller it returns into the service.
+- **`auth.RequireRole(ctx, user.RoleAdmin)`** answers `401` without an authenticated user and `403` `admin role required` when `IsAdmin` is false. Every user management operation calls it first; update and delete pass the caller it returns into the service.
 - **Everything finer lives in `service/internal/user/permission.go` and nowhere else.** `GuardTarget` says who may act on whom and, applied to a role instead of a row, who may hand out which role. The create path uses that second form, since it has a requested role but no target row.
 - **The whole rule:** an admin manages plain users; anything touching an admin or the superadmin belongs to the superadmin; and the superadmin can be neither deleted nor demoted by anyone, themselves included. There is no permission table. Recipes carry the one per-resource rule, which [Editing rights](/features/editing-rights) owns.
 - **A token acts as its issuer's account**, so the rank applies underneath its scopes: a `users:write` token issued by an admin who is not the owner cannot hand out `admin` any more than that admin can. [API tokens](/features/api-tokens) owns how a token re-reads its issuer.
@@ -88,7 +88,7 @@ Several people in a household share one recipe collection. Accounts are created,
 
 | Caller | Target: a member | Target: an admin | Target: the owner |
 |---|---|---|---|
-| member | `403` `admin role required`, from `requireAdmin` before rank is consulted | same | same |
+| member | `403` `admin role required`, from `RequireRole` before rank is consulted | same | same |
 | admin | delete, reset, a setup link, setting the email address and the public-sharing switch; a role change and a profile write are each `403` `superadmin role required` | `403` `superadmin role required` | `409` `the superadmin cannot be modified` |
 | the owner | delete, reset, re-role, rename, recolor, set the email address and the public-sharing switch | delete, reset, re-role, rename, recolor, set the email address and the public-sharing switch | `409` `the superadmin cannot be modified` for delete, reset, setting the email address, re-role and the public-sharing switch; a profile write lands |
 
@@ -103,7 +103,7 @@ Several people in a household share one recipe collection. Accounts are created,
 - Each refusal carries one status code. `ErrSuperadminProtected` is `409` `the superadmin cannot be modified`, a fact about the instance that holds for every caller, in the register `ErrSelfDelete` uses; `ErrSuperadminRequired` is `403` `superadmin role required`, which is about who is asking.
 - Two SQLite triggers, `users_superadmin_undeletable` and `users_superadmin_role_locked`, refuse the delete and the demotion underneath the Go layer, for a raw query or a code path that forgets to ask; [Data model](/architecture/data-model) owns them.
 
-**Deleting a user hands their recipes to the acting admin.** `ReassignRecipes` moves the recipes they created **or last edited** to the acting admin (the token's issuer when the call carried a bearer token, since `requireAdmin` reads whichever account the credential belongs to), in the same transaction. `created_by` and `updated_by` both reference `users` with no `ON DELETE` clause, so a recipe somebody else wrote but this user last touched would otherwise hold the delete on its foreign key. `edit_policy` stays as it is, so each recipe keeps its [editing rights](/features/editing-rights) under its new author. Their [comments](/features/recipe-comments) are not reassigned: `author_id` is `ON DELETE SET NULL`, so they stay and read "Former member", since words a person wrote must not become the admin's; their watermarks go. Their sessions go with the row (see [Data model](/architecture/data-model)).
+**Deleting a user hands their recipes to the acting admin.** `ReassignRecipes` moves the recipes they created **or last edited** to the acting admin (the token's issuer when the call carried a bearer token, since `RequireRole` reads whichever account the credential belongs to), in the same transaction. `created_by` and `updated_by` both reference `users` with no `ON DELETE` clause, so a recipe somebody else wrote but this user last touched would otherwise hold the delete on its foreign key. `edit_policy` stays as it is, so each recipe keeps its [editing rights](/features/editing-rights) under its new author. Their [comments](/features/recipe-comments) are not reassigned: `author_id` is `ON DELETE SET NULL`, so they stay and read "Former member", since words a person wrote must not become the admin's; their watermarks go. Their sessions go with the row (see [Data model](/architecture/data-model)).
 
 **The bootstrap account is the owner, and only a shell resets it.** `EnsureSuperadmin` runs as the process starts and has three answers:
 
@@ -144,7 +144,7 @@ Several people in a household share one recipe collection. Accounts are created,
 
 ### The people list
 
-**Every account sees who takes part.** `GET /api/v1/people` (`list-people`, in `userapi`) answers any session with every account as a `PersonEntry` and nothing else; it is the one operation in the package that does not call `requireAdmin`.
+**Every account sees who takes part.** `GET /api/v1/people` (`list-people`, in `userapi`) answers any session with every account as a `PersonEntry` and nothing else; it is the one operation in the package that does not call `RequireRole`.
 
 - `latestRecipes` is up to four recipes the person created, newest **created** first (the card shows what someone added), in one query for every person (`LatestRecipesByCreator`, a `ROW_NUMBER()` window per `created_by`), with no visibility filter because every signed-in account reads every recipe. `lastRecipeTitle` on `GET /users` (newest changed) stays for API compatibility; nothing in the SPA reads it.
 - The recipe and list counts are public on purpose: how many shopping lists someone has is household knowledge, what is on them is not, and the page says so (`users_lists_privacy`).
@@ -278,7 +278,7 @@ An own login form gives the two things an HTTP Basic prompt cannot: a logout, an
 
 Renaming somebody is not administration, which is why the profile write has a guard of its own instead of reusing `GuardTarget`. `GuardTarget` lets an admin act on a member, and that is the right rule for a role change or a password reset: those keep the instance usable, and any admin has to be able to perform them without waiting for the owner. Deciding what another adult in the household is called has nothing operational in it, so it stays with the account that owns the instance. Folding it into `GuardTarget` would have handed it to every admin as a side effect of a rule written about something else.
 
-Authorization at household scale stays a comparison of two fields, the actor's rank and the target's. `requireAdmin`, the self-delete refusal and the two pure functions in `permission.go` are the whole of it. The one configurable rule in the instance is the household lock on recipes, which [Editing rights](/features/editing-rights) owns.
+Authorization at household scale stays a comparison of two fields, the actor's rank and the target's. `auth.RequireRole`, the self-delete refusal and the two pure functions in `permission.go` are the whole of it. The one configurable rule in the instance is the household lock on recipes, which [Editing rights](/features/editing-rights) owns.
 
 The rank is what makes `admin` a role that is handed out and taken back. Without an account that outranks every other, any admin can delete, demote or reset the person who installed the instance, and a rule that only keeps the admin count from reaching zero protects nobody from that: it still leaves every admin able to remove every other. An account that can be neither deleted nor demoted always counts as an admin, and the admins below it are delegated rather than protected.
 
