@@ -263,6 +263,8 @@ Several people in a household share one recipe collection. Accounts are created,
 
 An own login form gives the two things an HTTP Basic prompt cannot: a logout, and a place to manage users from.
 
+**`golang.org/x/crypto/argon2` hashes the passwords** because the standard library has no memory-hard password hash; argon2id is the current recommendation, and the Go team's own implementation is the one to trust with it.
+
 ### The throttle and the argon2 cap
 
 - The throttle keys on the username alone, because behind a reverse proxy the only address Rezepte sees is the proxy's, and reading `X-Forwarded-For` safely takes a list of trusted proxies an operator can get wrong without anything telling them.

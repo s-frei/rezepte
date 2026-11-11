@@ -123,6 +123,8 @@ A field reaches every place a step travels, and nothing but the compiler and two
 
 The editor always submits the whole form, so there is nothing to diff: a partial update would have to reconstruct the submitted document anyway. Rewriting the whole document instead removes an entire class of position and ordering bugs, because positions are never patched, only re-derived from the order the client sent.
 
+**`golang.org/x/text` supplies what Unicode-aware text needs and the standard library leaves out**: `collate` and `language` behind the `unicode` collation that sorts titles (`service/internal/db/collate.go`), and `unicode/norm` to decompose a title before its slug drops the accents (`service/internal/recipe/slug.go`).
+
 Because there is exactly one write path, the search index cannot drift structurally from the rows it describes. A bug can leave one recipe's entry stale until its next save; it cannot leave the index shaped differently from the data.
 
 Slugs are fixed at creation so a permalink survives a title edit — the URL a household member bookmarked or pasted into a chat keeps working.

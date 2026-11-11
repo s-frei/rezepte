@@ -83,7 +83,7 @@ Accounts are only ever *linked*, never created, from a provider: somebody signed
 
 `github.com/coreos/go-oidc/v3` is a deliberate exception to standard-library-first ([Go conventions](/conventions/go)): signature verification is security code, and a maintained, widely used verifier beats one written here. `golang.org/x/oauth2` does the exchange and PKCE.
 
-The flow state lives in an authenticated cookie rather than a table, so a flow that is never finished leaves nothing behind to sweep, and a restart only fails the flows in progress.
+The flow state lives in an authenticated cookie rather than a table, so a flow that is never finished leaves nothing behind to sweep, and a restart only fails the flows in progress. **The cookie carries its own HMAC-SHA256** (`seal` and `open` in `service/internal/oidc/oidc.go`, a key drawn per process), not an `internal/sign` token: a `sign` token proves a subject the verifier already knows and carries no payload, while the callback has to read the whole flow - state, nonce, verifier, intent, `next` - back out of the cookie.
 
 ## Rejected
 

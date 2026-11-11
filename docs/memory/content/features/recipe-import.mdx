@@ -96,6 +96,8 @@ Admins also see a row linking to the zip import at `/settings/transfer#import`.
 
 **One parser, in Go.** Pages are read on the server, which is the only place that can fetch them; reading pasted text there too keeps one ingredient parser instead of a Go and a TypeScript one that drift apart.
 
+**`golang.org/x/net/html` reads the pages** because the standard library has no HTML parser, and a recipe page is rarely well-formed enough for `encoding/xml`; its `charset` package decodes a page by its declared encoding.
+
 **Words in tables, rules in code.** A word list mixed into the parser grows by language until no one can say which word serves which; a table per language keeps the parser's rules (balanced parentheses, the safety net, the author in the title) the same for all of them, and lets someone who cooks in a language add it without reading the parser. Reading a page with its own table only also keeps the lists from colliding: English "to" is no German range word. The safety net exists because no table is complete: a line a missing word splits wrong comes out flagged, not confidently wrong.
 
 **The guard sits in the dialer.** A check of the host name before the request misses redirects and DNS that answers differently the second time; the address a connection actually opens is the only one that matters. One error for every failure means the answer never tells whether something lives at a private address.

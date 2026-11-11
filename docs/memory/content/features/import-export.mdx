@@ -30,7 +30,7 @@ Errors are located by zip path in the `location` of the `422`: `a/recipe.json: b
 - Rows whose normalized title (trimmed, case-insensitive) matches a recipe already here start unticked; the card waits until the whole recipe list has loaded so that default is right.
 - The Export card loads that list a hundred at a time, most recently updated first, and keys it by id: a recipe saved while the pages load pushes the last row of one page onto the next, and the same row twice would break the keyed list, so the Import card would never appear.
 - The zip estimate comes from `imageCount` and `imageBytes` on each card; `imageBytes` counts all three variants on disk while an export carries only the largest, so the estimate runs high.
-- `importZip` uses `XMLHttpRequest` because `fetch` reports no upload progress; it reports 1 on `upload.onload` and rejects on abort and timeout. `saveBlob` revokes its object URL late so the download is not cancelled.
+- `importZip` uses `XMLHttpRequest` because `fetch` reports no upload progress; it reports 1 on `upload.onload` and rejects on abort and timeout. `saveBlob` revokes its object URL late so the download is not canceled.
 
 ## Why it is this way
 

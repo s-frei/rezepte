@@ -3,7 +3,12 @@ title: Language
 description: American English everywhere in the repository, German only where a German reader is the audience
 ---
 
-Everything in the repository is written in **American English**: code, identifiers, JSON keys, URL paths and query parameters, SQL, comments, commits, both docs sites and the English UI copy in `frontend/messages/en.json`. German appears in exactly three places, each because a German reader is its audience: `frontend/messages/de.json`, the German sample recipes in `service/internal/recipe/testdata/recipes.de.json`, and test data or assertions that exercise the German interface.
+Everything in the repository is written in **American English**: code, identifiers, JSON keys, URL paths and query parameters, SQL, comments, commits, both docs sites and the English UI copy in `frontend/messages/en.json`. **German appears only where its reader or its input is German** - the German UI, German sample and test data, and the code that has to understand German text - and never in an identifier, a comment or a doc. Where it lives:
+
+- **The German catalog:** `frontend/messages/de.json`, and the copies generated from it, which are never edited by hand: `service/internal/mail/messages/de.json` ([Email](/features/email#the-copy)) and `frontend/static/manifest.de.webmanifest` ([Installable app](/features/installable-app)).
+- **Word tables for German input:** the units, numbers and phrases a parser matches in recipe text a person typed or imported, such as `service/internal/recipeimport/lang_de.go`, `frontend/src/lib/recipe/measures.ts`, `service/internal/shopping/freetext.go` and the umlaut spellings in `service/internal/recipe/search.go`. The words are data; the identifiers and comments around them stay English.
+- **Sample and seed data:** the German sample recipes in `service/internal/recipe/testdata/recipes.de.json`, the German demo in `service/internal/demo/seed.go`, the German preview mails in `service/internal/mail/samples.go`, and the German dish names the demo photos in `assets/demo-photos/de/` are filed and prompted under.
+- **Tests** whose data or assertions exercise the German interface.
 
 ## Why one variety, and why this one
 
@@ -17,10 +22,13 @@ A rule that applies to every word can be followed without thinking about any of 
 | favorite, favorites | favourite |
 | behavior | behaviour |
 | center, centered | centre, centred |
+| liter, meter, milliliter, fiber | litre, metre, millilitre, fibre |
 | gray | grey |
 | catalog | catalogue |
 | artifact | artefact |
 | canceled, labeled, signaling, traveling | cancelled, labelled, signalling, travelling |
 | normalize, serialize, recognize, optimize, synchronize, authorization | normalise, serialise, recognise, optimise, synchronise, authorisation |
+
+**`check` enforces the table** through the spelling check over every tracked file, except `frontend/messages/de.json`, the German sample data (`*.de.json`), this page, which quotes the British forms, lockfiles and binaries.
 
 The *-ize* column covers every verb of that family; words that end in *-ise* in American English as well - *promise*, *exercise*, *advise*, *surprise*, *mise* - stay as they are. A recipe's own vocabulary is not spelling: the English sample recipes are British dishes and keep their *caster sugar* and *double cream*.

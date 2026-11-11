@@ -115,6 +115,8 @@ Recipes carry photos: a cover on the card, a gallery on the detail page and a li
 
 The deployment is a single binary with SQLite for one household. There is no object store, no CDN and no image service to lean on, so the service does the work itself, once, and everything after that is a file read.
 
+**`golang.org/x/image` fills what the standard library's `image` lacks**: a WebP decoder (`webp`), a resampling scaler for the three sizes (`draw`; the standard library can only copy pixels), and the fonts that draw a person's initial and a placeholder's letter (`font`). It is pure Go, so the binary keeps building without cgo.
+
 The three sizes the UI needs are known up front — a thumbnail for cards and strips, a larger rendition for the gallery, and the largest for the lightbox — so rendering all three on write beats resizing on request: the expensive path runs once per photo instead of once per view.
 
 The thumbnail is 960 px rather than something card-sized because the card shows the photo in its own ratio, clamped to 4:5 through 16:9 (`coverWidth` and `coverHeight` on the card tell it the shape), cropped to the center beyond that: the width a card shows is the thumbnail's width or less (a 4:3 landscape is 960 px wide, a 3:4 portrait 720), and a card of about 300 CSS px needs 600 px of it on a 2x screen. A smaller thumbnail leaves less than a 2x screen draws the card at, and the card looks soft on every high-density display.

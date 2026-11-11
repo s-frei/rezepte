@@ -14,6 +14,10 @@ Format: `type(scope): summary` following [semantic commit messages](https://gist
 | `refactor` | code change without behavior change |
 | `test` | tests only |
 | `style` | formatting only |
+| `ci` | the GitHub Actions workflows |
+| `build` | the build and the gates: mise tasks, scripts, bundler and lint configuration |
+
+**`check` enforces these rules before a branch lands**: the commits check reads every commit from `develop` to `HEAD` and fails on an unknown type, a title past 70 characters, a `Co-Authored-By` or generated-with trailer, or a `!` without a `Breaking:` line. It ignores `fixup!` and `squash!` commits, and it does nothing on `develop` itself, without a local `develop` ref or in a shallow clone - so in CI it passes without looking ([Toolchain](/architecture/toolchain)).
 
 Scopes name the area a commit touches - a part of the repository (`service`, `frontend`, `docs`, `memory`, `e2e`, `mise`, `demo`) or a feature area (`api`, `settings`, `user`, `i18n`) - or are left out when no one area fits.
 
