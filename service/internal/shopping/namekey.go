@@ -2,7 +2,10 @@
 // merge, which department an item belongs to, and how quantities scale.
 package shopping
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // irregularPlurals maps plural last words that suffix rules cannot reach.
 var irregularPlurals = map[string]string{
@@ -55,10 +58,5 @@ func singular(w string) string {
 }
 
 func hasAnySuffix(w string, suffixes ...string) bool {
-	for _, s := range suffixes {
-		if strings.HasSuffix(w, s) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(suffixes, func(s string) bool { return strings.HasSuffix(w, s) })
 }

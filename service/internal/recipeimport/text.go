@@ -144,13 +144,7 @@ func (p *Page) readDetail(l string) bool {
 		return false
 	}
 	key, value = strings.TrimSpace(key), strings.TrimSpace(value)
-	field := ""
-	for k, f := range anyLanguage.detailKeys {
-		if strings.EqualFold(k, key) {
-			field = f
-		}
-	}
-	switch l := anyLanguage; field {
+	switch l := anyLanguage; l.detailKeys[strings.ToLower(key)] {
 	case "servings":
 		if m := firstInt.FindString(value); m != "" {
 			n, _ := strconv.Atoi(m)

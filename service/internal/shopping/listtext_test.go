@@ -109,8 +109,7 @@ func TestParseFreeKeepsListShapes(t *testing.T) {
 		{"100001 g Mehl", recipe.Ingredient{Name: "100001 g Mehl"}},
 	}
 	for _, c := range cases {
-		q, u, n, note := shopping.ParseFree(c.in)
-		wantItem(t, recipe.Ingredient{Quantity: q, Unit: u, Name: n, Note: note}, c.want)
+		wantItem(t, shopping.ParseFree(c.in), c.want)
 	}
 }
 

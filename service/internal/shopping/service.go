@@ -540,13 +540,13 @@ func (s *Service) AddItem(ctx context.Context, userID, listID, text string, quan
 	if err != nil {
 		return List{}, err
 	}
-	qty, unit, name, note := ParseFree(text)
+	it := ParseFree(text)
 	if quantity != nil {
-		qty = quantity
+		it.Quantity = quantity
 	}
 	if unitIn != nil {
 		if u := strings.TrimSpace(*unitIn); u != "" {
-			unit = &u
+			it.Unit = &u
 		}
 	}
 	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
@@ -554,13 +554,7 @@ func (s *Service) AddItem(ctx context.Context, userID, listID, text string, quan
 		if err != nil {
 			return fmt.Errorf("max item position: %w", err)
 		}
-		if err := q.InsertShoppingItem(ctx, sqlc.InsertShoppingItemParams{
-			ID: newID(), ListID: listID, Name: name, NameKey: NameKey(name),
-			Quantity: qty, Unit: unit, Note: note, Position: pos + 1, AddedBy: &userID, CreatedAt: s.stamp(),
-		}); err != nil {
-			return fmt.Errorf("insert shopping item: %w", err)
-		}
-		return nil
+		return insertFree(ctx, q, listID, userID, pos, s.stamp(), []recipe.Ingredient{it})
 	})
 }
 

@@ -34,7 +34,8 @@ func TestParseFree(t *testing.T) {
 		{"(Notiz)", nil, nil, "(Notiz)", nil},
 	}
 	for _, c := range cases {
-		q, u, n, note := shopping.ParseFree(c.in)
+		it := shopping.ParseFree(c.in)
+		q, u, n, note := it.Quantity, it.Unit, it.Name, it.Note
 		if !sameNum(q, c.q) || !sameStr(u, c.unit) || n != c.name || !sameStr(note, c.note) {
 			t.Errorf("%q → %v %v %q %v", c.in, q, u, n, note)
 		}

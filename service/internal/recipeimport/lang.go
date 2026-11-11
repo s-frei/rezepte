@@ -1,7 +1,6 @@
 package recipeimport
 
 import (
-	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -131,7 +130,9 @@ var anyLanguage = combine(languages...)
 func combine(ls ...*language) *language {
 	u := &language{detailKeys: map[string]string{}}
 	for _, l := range ls {
-		maps.Copy(u.detailKeys, l.detailKeys)
+		for k, f := range l.detailKeys { // lowercase, for readDetail's lookup
+			u.detailKeys[strings.ToLower(k)] = f
+		}
 		u.units = append(u.units, l.units...)
 		u.thousandsSeparators = append(u.thousandsSeparators, l.thousandsSeparators...)
 		u.decimalSeparators = append(u.decimalSeparators, l.decimalSeparators...)

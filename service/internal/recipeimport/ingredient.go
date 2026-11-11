@@ -251,11 +251,9 @@ func splitTrailingNote(s string) (name, note string) {
 		}
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] == ',' && (i == 0 || i == len(s)-1 || !isDigit(s[i-1]) || !isDigit(s[i+1])) {
+		if s[i] == ',' && (i == 0 || i == len(s)-1 || !unicode.IsDigit(rune(s[i-1])) || !unicode.IsDigit(rune(s[i+1]))) {
 			return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:])
 		}
 	}
 	return s, ""
 }
-
-func isDigit(b byte) bool { return '0' <= b && b <= '9' }

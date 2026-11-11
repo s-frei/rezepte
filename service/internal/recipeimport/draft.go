@@ -102,7 +102,7 @@ func Build(p Page, known []string) Draft {
 		t = strings.TrimSpace(strings.TrimPrefix(t, "#"))
 		switch n := utf8.RuneCountInString(t); {
 		case n == 0:
-		case n > 40:
+		case n > maxTag:
 			d.Truncated = true
 		default:
 			if k, ok := spelling[strings.ToLower(t)]; ok {
@@ -117,7 +117,7 @@ func Build(p Page, known []string) Draft {
 		}
 		if k, ok := spelling[strings.ToLower(kw)]; ok {
 			in.Tags = append(in.Tags, k)
-		} else if len([]rune(kw)) <= 40 {
+		} else if len([]rune(kw)) <= maxTag {
 			d.SuggestedTags = append(d.SuggestedTags, kw)
 		}
 	}
@@ -127,7 +127,7 @@ func Build(p Page, known []string) Draft {
 	d.Recipe, cut = clampInput(in)
 	d.Truncated = d.Truncated || cut
 	d.Review = keepReviews(d.Review, d.Recipe)
-	// Dropping suggestions (over 40 runes, beyond 20) loses no recipe
+	// Dropping suggestions (over maxTag runes, beyond 20) loses no recipe
 	// content, so it does not count as truncated.
 	if len(d.SuggestedTags) > 20 {
 		d.SuggestedTags = d.SuggestedTags[:20]

@@ -28,15 +28,21 @@ func cutPtr(p *string, n int) (*string, bool) {
 	return &s, did
 }
 
+// MaxName is the longest recipe.Ingredient name, in runes.
+const MaxName = 120
+
 // clampIngredient cuts name, unit and note to the recipe.Ingredient maxima
 // and reports whether it cut any of them.
 func clampIngredient(i recipe.Ingredient) (recipe.Ingredient, bool) {
 	var name, unit, note bool
-	i.Name, name = Cut(i.Name, 120)
+	i.Name, name = Cut(i.Name, MaxName)
 	i.Unit, unit = cutPtr(i.Unit, 20)
 	i.Note, note = cutPtr(i.Note, 200)
 	return i, name || unit || note
 }
+
+// maxTag is recipe.Input's longest tag, in runes.
+const maxTag = 40
 
 // maxGroups is recipe.Input's most ingredient groups.
 const maxGroups = 20
