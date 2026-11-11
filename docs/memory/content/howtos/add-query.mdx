@@ -10,9 +10,9 @@ description: Hand-written SQL compiled into typed Go
     In `service/internal/db/queries/<table>.sql`:
     ```sql
     -- name: ListUsers :many
-    SELECT * FROM users ORDER BY username;
+    SELECT * FROM users ORDER BY username COLLATE unicode, id;
     ```
-    Suffixes: `:one`, `:many`, `:exec`, `:execrows`. Placeholders are `?` in order, or `sqlc.arg(name)` - but never both in one statement: SQLite numbers a plain `?` after the highest explicit index a `sqlc.arg()` compiles to, and the driver then never binds it, silently. All or none per statement; see [Recipes and search](/features/recipes).
+    Suffixes: `:one`, `:many`, `:exec`, `:execrows`. Placeholders are `?` in order, or `sqlc.arg(name)` - but never both in one statement: SQLite numbers a plain `?` after the highest explicit index a `sqlc.arg()` compiles to, and the driver then never binds it, silently. All or none per statement; see [Recipes and search](/features/recipes). An alphabetical order over user text names `COLLATE unicode`, and an order ends on a unique column so ties stay stable ([Data model](/architecture/data-model#storage)).
 
   </Step>
   <Step>
