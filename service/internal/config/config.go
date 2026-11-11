@@ -68,17 +68,20 @@ func load(getenv func(string) string) (Config, error) {
 	}
 	// The messages keep the wording of the env library this replaced, which
 	// names the Config field rather than the variable.
-	var errs []string
+	// Each error is wrapped, and the one returned wraps all of them, so the
+	// chain survives; errors.Join would separate them by newlines instead.
+	var errs []any
 	if err := cfg.LogLevel.UnmarshalText([]byte(get("REZEPTE_LOG_LEVEL", "info"))); err != nil {
-		errs = append(errs, fmt.Sprintf(`parse error on field "LogLevel" of type "slog.Level": %v`, err))
+		errs = append(errs, fmt.Errorf(`parse error on field "LogLevel" of type "slog.Level": %w`, err))
 	}
 	secure, err := strconv.ParseBool(get("REZEPTE_SECURE_COOKIES", "false"))
 	if err != nil {
-		errs = append(errs, fmt.Sprintf(`parse error on field "SecureCookies" of type "bool": %v`, err))
+		errs = append(errs, fmt.Errorf(`parse error on field "SecureCookies" of type "bool": %w`, err))
 	}
 	cfg.SecureCookies = secure
 	if len(errs) > 0 {
-		return Config{}, fmt.Errorf("parse environment: env: %s", strings.Join(errs, "; "))
+		format := "parse environment: env: %w" + strings.Repeat("; %w", len(errs)-1)
+		return Config{}, fmt.Errorf(format, errs...)
 	}
 	if cfg.LogFormat != "text" && cfg.LogFormat != "json" {
 		return Config{}, fmt.Errorf("REZEPTE_LOG_FORMAT must be text or json, got %q", cfg.LogFormat)

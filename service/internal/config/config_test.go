@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"log/slog"
 	"maps"
+	"strconv"
 	"testing"
 
 	"github.com/s-frei/rezepte/service/internal/mail"
@@ -154,6 +156,13 @@ func TestLoadFromErrors(t *testing.T) {
 		if err == nil || err.Error() != tc.want || cfg != (Config{}) {
 			t.Errorf("%v:\n got %+v, %v\nwant zero Config, %s", tc.env, cfg, err, tc.want)
 		}
+	}
+}
+
+func TestLoadFromKeepsTheParseErrorChain(t *testing.T) {
+	_, err := LoadFrom(map[string]string{"REZEPTE_LOG_LEVEL": "bogus", "REZEPTE_SECURE_COOKIES": "yes"})
+	if !errors.Is(err, strconv.ErrSyntax) {
+		t.Errorf("errors.Is(%v, strconv.ErrSyntax) = false", err)
 	}
 }
 
