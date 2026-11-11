@@ -257,7 +257,7 @@
 	/**
 	 * A touch on the step in progress: where and when it began, and whether
 	 * it has moved too far to be a tap. Null for a second finger or a
-	 * cancelled touch, neither of which is a tap.
+	 * canceled touch, neither of which is a tap.
 	 */
 	let touch: { x: number; y: number; at: number; moved: boolean } | null = null;
 	/** Where the desktop card sits; a phone's sheet places itself. */
@@ -1432,7 +1432,7 @@
 	 * default is prevented, so the caret stays and no keyboard comes, and
 	 * whatever had focus lets go of it, so an open keyboard goes. Elsewhere in
 	 * the step it closes an open sheet and lets the tap write there. A touch
-	 * that moved, lasted, was cancelled or had a second finger is no tap, and
+	 * that moved, lasted, was canceled or had a second finger is no tap, and
 	 * neither is a lift the browser no longer lets be prevented - it has
 	 * scrolled.
 	 */

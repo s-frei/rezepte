@@ -784,7 +784,7 @@ export function anchorId(field: string): string {
 
 /** Normalizes a typed tag: trimmed and lower-cased, so `Dessert` and
  * ` dessert ` are the same tag. */
-export function normaliseTag(tag: string): string {
+export function normalizeTag(tag: string): string {
 	return tag.trim().toLowerCase();
 }
 

@@ -10,7 +10,7 @@
 
 export type Dimension = 'mass' | 'volume' | 'count';
 
-/** Factor to the base unit of its kind: grams, millilitres, pieces. */
+/** Factor to the base unit of its kind: grams, milliliters, pieces. */
 // ponytail: metric only; add oz, lb, cup and fl oz (with their factors) when recipes convert units.
 const MEASURES: Record<string, { dimension: Dimension; factor: number }> = {
 	mg: { dimension: 'mass', factor: 0.001 },

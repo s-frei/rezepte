@@ -181,7 +181,7 @@ export async function copyImage(blob: Blob): Promise<void> {
  * download elsewhere. `navigator.share` is the first thing awaited, so the
  * tap's user activation is still there for Safari; should Safari refuse
  * anyway (`NotAllowedError`), the picture is saved instead of lost. Any
- * other failure - a cancelled sheet (`AbortError`), a second call while one
+ * other failure - a canceled sheet (`AbortError`), a second call while one
  * is open (`InvalidStateError`) - does nothing: the person is looking at a
  * share sheet already, and a download on top would be a surprise.
  */

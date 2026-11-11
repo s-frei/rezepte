@@ -98,12 +98,12 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 	await expect(card.getByText('Only for the household.')).toHaveCount(0);
 });
 
-test('cancelling the share sheet keeps it open', async ({ page }, testInfo) => {
+test('canceling the share sheet keeps it open', async ({ page }, testInfo) => {
 	test.skip(!isPhone(testInfo), 'the phone sheet is where "Share image" opens the share sheet');
 	await page.addInitScript(() => {
 		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
 		Object.defineProperty(Navigator.prototype, 'share', {
-			value: () => Promise.reject(new DOMException('cancelled', 'AbortError'))
+			value: () => Promise.reject(new DOMException('canceled', 'AbortError'))
 		});
 	});
 	await login(page);

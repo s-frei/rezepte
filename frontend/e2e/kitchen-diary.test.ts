@@ -793,7 +793,7 @@ test('shows a picked photo large before sending', async ({ page }) => {
 	await expect(dialog.getByRole('button', { name: 'Add to recipe photos' })).toHaveCount(0);
 });
 
-test('an edit cannot be cancelled while it saves', async ({ page }) => {
+test('an edit cannot be canceled while it saves', async ({ page }) => {
 	const recipe = await freshDiary(page, 'Edit busy');
 	await addDiaryPhoto(page, recipe.id, 'Before', tinyPng());
 	await page.reload();

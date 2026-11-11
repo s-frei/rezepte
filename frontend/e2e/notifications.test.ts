@@ -40,7 +40,7 @@ test('without an address the page says so and keeps the switches', async ({ page
 	await page.goto('/settings/notifications');
 	const mail = page.getByRole('region', { name: 'By mail' });
 	await expect(mail.getByText('No address yet')).toBeVisible();
-	// Greyed, but a preference outlives the missing address.
+	// Grayed, but a preference outlives the missing address.
 	await expect(
 		mail.getByRole('radiogroup', { name: 'New comments' }).getByRole('radio', { name: 'Off' })
 	).toBeEnabled();

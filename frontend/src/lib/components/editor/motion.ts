@@ -114,7 +114,7 @@ export function collapse(node: Element | null | undefined): Promise<void> {
 		)
 		.finished.then(
 			() => {},
-			// Cancelled (the element went first): removing it is still right.
+			// Canceled (the element went first): removing it is still right.
 			() => {}
 		);
 }

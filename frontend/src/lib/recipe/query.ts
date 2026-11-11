@@ -1,5 +1,5 @@
 import type { ReadonlyURL } from '$app/state';
-import { normaliseTag } from './form';
+import { normalizeTag } from './form';
 import { snapMaxMinutes } from './time-filter';
 
 /** The orders the overview grid can be sorted by. */
@@ -37,7 +37,7 @@ export type ListQuery = {
  *
  * - `q` is trimmed.
  * - every tag is normalized the way the editor normalizes a typed tag
- *   (trimmed and lower-cased, see `normaliseTag`), and blank ones are dropped.
+ *   (trimmed and lower-cased, see `normalizeTag`), and blank ones are dropped.
  * - `author` is trimmed but keeps its case: the service stores usernames as
  *   they were typed (it only trims them too), so lower-casing here the way
  *   tags are would stop "Mara" from matching anything.
@@ -67,7 +67,7 @@ export type ListQuery = {
 function normalize(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery {
 	return {
 		q: state.q.trim(),
-		tags: state.tags.map((tag) => normaliseTag(tag)).filter((tag) => tag.length > 0),
+		tags: state.tags.map((tag) => normalizeTag(tag)).filter((tag) => tag.length > 0),
 		maxMinutes: snapMaxMinutes(state.maxMinutes),
 		favorites: Boolean(state.favorites),
 		author: state.author.trim(),

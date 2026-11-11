@@ -659,7 +659,7 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 		'href',
 		'/settings'
 	);
-	// Greyed, since nothing arrives yet, but the choice already counts.
+	// Grayed, since nothing arrives yet, but the choice already counts.
 	const off = byMail
 		.getByRole('radiogroup', { name: 'New comments' })
 		.getByRole('radio', { name: 'Off' });

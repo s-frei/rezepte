@@ -10,7 +10,7 @@ const duration = 8000;
 /**
  * A notification push that arrives while this window is visible also shows
  * here as a toast; "Open" goes to its page and closes the notification, so it
- * does not wait in the notification centre for what was just read. Returns the
+ * does not wait in the notification center for what was just read. Returns the
  * listener's removal.
  */
 export function listenForPushToasts(): () => void {

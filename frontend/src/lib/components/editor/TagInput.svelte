@@ -11,7 +11,7 @@
 	import { listTags } from '#lib/api/recipes.js';
 	import TagChip from '#lib/components/ui/TagChip.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import { MAX_TAGS, normaliseTag } from '#lib/recipe/form.js';
+	import { MAX_TAGS, normalizeTag } from '#lib/recipe/form.js';
 	import { tagSuggestions, tagToCommit } from '#lib/recipe/tag-suggestions.js';
 
 	let {
@@ -74,8 +74,8 @@
 	onMount(() => {
 		void listTags()
 			.then((items) => {
-				known = items.map((tag) => normaliseTag(tag.name));
-				counts = new Map(items.map((tag) => [normaliseTag(tag.name), tag.count]));
+				known = items.map((tag) => normalizeTag(tag.name));
+				counts = new Map(items.map((tag) => [normalizeTag(tag.name), tag.count]));
 			})
 			.catch(() => {});
 	});
@@ -85,7 +85,7 @@
 	// browsed and taken without typing. At the limit the field gives way to
 	// the limit note instead.
 	function add(candidate: string) {
-		const tag = normaliseTag(candidate);
+		const tag = normalizeTag(candidate);
 		query = '';
 		if (tag !== '' && !tags.includes(tag) && !atLimit) {
 			tags = [...tags, tag];
@@ -173,7 +173,7 @@
 
 	/** The tag name split around the typed text, so that part can be set bold. */
 	function split(name: string) {
-		const typed = normaliseTag(query);
+		const typed = normalizeTag(query);
 		const at = typed ? name.indexOf(typed) : -1;
 		return at < 0
 			? { before: name, match: '', after: '' }

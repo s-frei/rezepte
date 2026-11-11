@@ -430,7 +430,7 @@
 }
 
 /*
- * An initial in a circle sits too low without this. Centring puts the
+ * An initial in a circle sits too low without this. Centering puts the
  * font's metric box in the middle - ascent 19 over descent 5 at 16px in
  * Literata - but a capital or a lining figure never uses that descender
  * room, so its ink ends up ((ascent - descent) - capHeight) / 2 below the
@@ -443,7 +443,7 @@
  * It is padding rather than a transform because a transform would move the
  * circle as well, leaving the glyph exactly as off-center as before. With
  * border-box sizing the padding shrinks the content box without touching
- * the element's own size, so centring lands half of it - the 0.087em - on
+ * the element's own size, so centering lands half of it - the 0.087em - on
  * the glyph alone. In em, so it scales with the letter rather than with the
  * circle: a 12px initial in a 20px circle needs a smaller shift than a 16px
  * one in a 36px circle, and gets it.
@@ -802,7 +802,7 @@ html[data-page-transition]::view-transition-new(top-bar) {
  * A theme change (`setTheme`): the new colors open as a circle from the
  * control that chose them (`--theme-x`/`--theme-y`) over the old ones,
  * which stay as they are. Crossed over instead, light and dark met in a
- * muddy grey halfway. Everything named elsewhere drops its name for it, so
+ * muddy gray halfway. Everything named elsewhere drops its name for it, so
  * the bars recolor with the page rather than fading on their own.
  */
 html[data-theme-transition] * {

@@ -1046,7 +1046,7 @@ test('the owner switches public sharing and its lifetimes', async ({ page }, tes
 		await page.goto('/settings/users');
 		await expect(page.getByRole('heading', { name: 'Public sharing' })).toBeVisible();
 
-		// Turning it on asks first; cancelling leaves it off.
+		// Turning it on asks first; canceling leaves it off.
 		const sharingSwitch = page.getByRole('switch', { name: 'Members may share recipes publicly' });
 		const confirm = page.getByRole('dialog', { name: 'Turn on public sharing?' });
 		await sharingSwitch.click();

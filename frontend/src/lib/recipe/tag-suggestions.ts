@@ -1,4 +1,4 @@
-import { normaliseTag } from './form';
+import { normalizeTag } from './form';
 
 /**
  * What the editor's tag field offers for the text currently typed:
@@ -32,13 +32,13 @@ export function tagSuggestions(params: {
 	known: string[];
 	selected: string[];
 }): TagSuggestions {
-	const typed = normaliseTag(params.query);
+	const typed = normalizeTag(params.query);
 	// Normalized here rather than trusted from the caller, the way
 	// `normalize` in ./query.ts does for the same reason: a raw tag name
 	// slipping through would not fail loudly, it would match
 	// case-sensitively and silently drop suggestions.
-	const known = params.known.map((name) => normaliseTag(name));
-	const selected = new Set(params.selected.map((name) => normaliseTag(name)));
+	const known = params.known.map((name) => normalizeTag(name));
+	const selected = new Set(params.selected.map((name) => normalizeTag(name)));
 	const available = known.filter((name) => !selected.has(name));
 	const ranked = rankTags(
 		available.map((name) => ({ name })),

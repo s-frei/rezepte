@@ -156,7 +156,7 @@ let keyboardDrag: {
 
 /**
  * Runs in the capture phase, ahead of the library's own Escape handler on
- * the window, which drops the item and tells no one the drag was cancelled.
+ * the window, which drops the item and tells no one the drag was canceled.
  */
 function noteEscape(event: Event) {
 	if (keyboardDrag && (event as KeyboardEvent).key === 'Escape') keyboardDrag.escaped = true;

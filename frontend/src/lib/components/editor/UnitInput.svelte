@@ -11,7 +11,7 @@
 		value = $bindable(''),
 		id,
 		class: fieldClass = '',
-		labelled = false,
+		labeled = false,
 		enterkeyhint,
 		onkeydown,
 		oninput
@@ -27,7 +27,7 @@
 		 * the row's `@container` is `@xl`, so "Stück" and "Prise" show whole in the
 		 * ~92px a phone leaves the unit.
 		 */
-		labelled?: boolean;
+		labeled?: boolean;
 		/** What a phone keyboard's Enter key shows. */
 		enterkeyhint?: 'next' | 'done' | 'enter';
 		/** The row's own keys (Backspace in an empty row), for whatever the list does not take. */
@@ -149,9 +149,9 @@
 		aria-activedescendant={listboxOpen && highlighted >= 0
 			? `${id}-option-${highlighted}`
 			: undefined}
-		aria-label={labelled ? undefined : m.editor_ingredient_unit()}
-		placeholder={labelled ? undefined : m.editor_ingredient_unit()}
-		class="{fieldClass} {labelled ? 'pr-5.5 @xl:pr-9' : 'pr-9'}"
+		aria-label={labeled ? undefined : m.editor_ingredient_unit()}
+		placeholder={labeled ? undefined : m.editor_ingredient_unit()}
+		class="{fieldClass} {labeled ? 'pr-5.5 @xl:pr-9' : 'pr-9'}"
 	/>
 	<button
 		type="button"
@@ -172,7 +172,7 @@
 				openList();
 			}
 		}}
-		class="absolute inset-y-0 right-0 flex items-center justify-center text-text-muted {labelled
+		class="absolute inset-y-0 right-0 flex items-center justify-center text-text-muted {labeled
 			? 'w-4.5 @xl:w-9'
 			: 'w-9'}"
 	>
@@ -186,14 +186,14 @@
 	{#if listboxOpen}
 		<!-- The frame is rounded and clips; the list scrolls inside its padding,
 		     so its scrollbar runs on the straight part of the edge (as SearchBar).
-		     A labelled field sits 2px inside its fieldset (border plus padding,
+		     A labeled field sits 2px inside its fieldset (border plus padding,
 		     whether resting or focused), so the list reaches out by that much to
 		     share the visible edges, and sits the 6px below them that popovers use. The options' text starts
-		     where the field's value does: 15px in for a labelled field, 13px from @xl (2px
+		     where the field's value does: 15px in for a labeled field, 13px from @xl (2px
 		     inset plus its 13px padding), 13px for a plain one, less the
 		     frame's 7px of border and padding. -->
 		<div
-			class="absolute z-30 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog {labelled
+			class="absolute z-30 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog {labeled
 				? '-inset-x-0.5 top-full mt-2'
 				: 'inset-x-0 top-full mt-1.5'}"
 		>
@@ -218,7 +218,7 @@
 						role="option"
 						aria-selected={index === highlighted}
 						onclick={() => pick(unit)}
-						class="flex h-10 cursor-pointer items-center rounded-sm text-body-sm {labelled
+						class="flex h-10 cursor-pointer items-center rounded-sm text-body-sm {labeled
 							? 'px-2 @xl:px-1.5'
 							: 'px-1.5'} {index === highlighted ? 'bg-background font-semibold' : ''}"
 					>

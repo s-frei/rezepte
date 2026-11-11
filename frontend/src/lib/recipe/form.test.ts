@@ -15,7 +15,7 @@ import {
 	newId,
 	newIngredient,
 	newStep,
-	normaliseTag,
+	normalizeTag,
 	parseNumber,
 	photoErrors,
 	presentReferences,
@@ -166,10 +166,10 @@ describe('parseNumber', () => {
 	});
 });
 
-describe('normaliseTag', () => {
+describe('normalizeTag', () => {
 	it('trims and lower-cases', () => {
-		expect(normaliseTag('  Dessert ')).toBe('dessert');
-		expect(normaliseTag('BACKEN')).toBe('backen');
+		expect(normalizeTag('  Dessert ')).toBe('dessert');
+		expect(normalizeTag('BACKEN')).toBe('backen');
 	});
 });
 

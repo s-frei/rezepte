@@ -283,7 +283,7 @@
 						oninput={clearHint}
 						onkeydown={(event) => handleKeydown(event)}
 						class={control()}
-						labelled
+						labeled
 						enterkeyhint="next"
 					/>
 				</fieldset>

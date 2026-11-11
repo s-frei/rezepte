@@ -133,22 +133,22 @@
 	// Attached to the off-screen host, which mounts with the sheet and goes
 	// with it: one drawing per opening, dropped on closing.
 	function draw(node: HTMLDivElement) {
-		let cancelled = false;
+		let canceled = false;
 		let url: string | null = null;
 		renderShareImage(node)
 			.then((drawn) => {
-				if (cancelled) return;
+				if (canceled) return;
 				url = URL.createObjectURL(drawn);
 				blob = drawn;
 				preview = url;
 			})
 			.catch((error: unknown) => {
-				if (cancelled) return;
+				if (canceled) return;
 				console.error(error);
 				failed = true;
 			});
 		return () => {
-			cancelled = true;
+			canceled = true;
 			if (url) URL.revokeObjectURL(url);
 			blob = null;
 			preview = null;

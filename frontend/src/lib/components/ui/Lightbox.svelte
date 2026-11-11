@@ -171,7 +171,7 @@
 						     area really is a group of image plus prev/next buttons. -->
 						<!-- `select-none`: a mouse swipe across it would select, and the next
 						     press inside that selection drags it instead (Chromium on Linux
-						     and Windows), cancelling the pointer and with it the swipe.
+						     and Windows), canceling the pointer and with it the swipe.
 						     `touch-pan-y touch-pinch-zoom`: left at `auto`, a phone takes a
 						     finger's horizontal pan itself and cancels the pointer before the
 						     swipe is measured; pinching the photo stays the browser's. -->
