@@ -3,24 +3,24 @@ title: Using the API
 description: The HTTP API behind the app
 ---
 
-Rezepte's frontend talks to the same HTTP API documented here — there is nothing it can do that the API cannot.
+Script your instance through the same HTTP API the app uses. Signed in with a session cookie, you can do everything the app does; an [API token](/api/tokens) reaches less.
 
 ## Base URL and format
 
-Every endpoint lives under `/api/v1` of your instance (e.g. `http://localhost:8060/api/v1`). Requests and responses are JSON, with camelCase field names.
+Every endpoint lives under `/api/v1` of your instance, such as `http://localhost:8060/api/v1`. Requests and responses are JSON, with camelCase field names.
 
-The API is versioned with Rezepte itself: `info.version` in `/api/v1/openapi.json` is the Rezepte version the instance runs, the same number `/healthz` reports, and a release's [changelog](/changelog) page says what changed in the API.
+The API is versioned with Rezepte: `info.version` in `/api/v1/openapi.json` is the version the instance runs. Each release's [changelog](/changelog) page lists API changes.
 
 ## Authentication
 
-Two credentials work. An **API token** is what programs should use — see
-[API tokens](/api/tokens):
+Programs should use an **API token** (see [API tokens](/api/tokens)):
 
 ```bash
-curl -H "Authorization: Bearer rzp_..." 'http://localhost:8060/api/v1/recipes?limit=5'
+curl -H "Authorization: Bearer rzp_..." \
+  'http://localhost:8060/api/v1/recipes?limit=5'
 ```
 
-The **session cookie** is what the browser uses, and it works from a script too:
+The browser's **session cookie** works from a script too:
 
 ```bash
 curl -c cookies.txt -H 'Content-Type: application/json' \
@@ -30,7 +30,9 @@ curl -c cookies.txt -H 'Content-Type: application/json' \
 curl -b cookies.txt 'http://localhost:8060/api/v1/recipes?limit=5'
 ```
 
-`POST`, `PUT`, `PATCH` and `DELETE` requests additionally require an `Origin` header that matches the instance's host — this is what a browser sends automatically, and what a reverse proxy must forward unchanged (see [Reverse proxy](/operations/reverse-proxy)). A request with no `Origin` header at all, such as the `curl` calls above, is not affected.
+<Callout type="warn" title="Writes check the Origin header">
+  A `POST`, `PUT`, `PATCH` or `DELETE` that sends an `Origin` header must send this instance's host. A request without `Origin`, like the `curl` calls above, passes. Behind a [reverse proxy](/operations/reverse-proxy), forward `Origin` unchanged.
+</Callout>
 
 ## Errors
 
@@ -47,14 +49,8 @@ Errors are `application/problem+json`:
 
 ## Interactive docs
 
-A running instance serves interactive, try-it-out documentation (Scalar) at `/api/v1/docs`. The way in from the app is "Settings" → "API", which every signed-in member can open: it names this instance's base URL, what it serves, and links to both the interactive documentation and the raw document. See [Settings](/guide/settings).
+A running instance serves interactive, try-it-out docs at `/api/v1/docs`. In the app, **Settings → API** links to them and to the raw OpenAPI document. To connect an AI assistant, see [Connect an AI assistant](/api/mcp).
 
 ## Reference
 
-<Callout type="info">
-  The [full endpoint reference](/api/reference) has a page per endpoint, grouped by area — recipes, comments, shopping lists, public links, users and tokens among them. It is generated from the running app's OpenAPI document, so it always describes the endpoints this version serves.
-</Callout>
-
-## Coming later
-
-Instance sync is planned but not part of the current API — see [Roadmap](/roadmap). An MCP server already exists — see [Connect an AI assistant](/api/mcp).
+The [full endpoint reference](/api/reference) has a page per endpoint, grouped by area.

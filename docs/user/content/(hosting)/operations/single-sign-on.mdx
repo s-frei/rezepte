@@ -5,16 +5,16 @@ description: Let people sign in with Google or your own identity provider instea
 
 import { Audience } from '@/components/audience';
 
-Rezepte can offer one OpenID Connect provider next to its own passwords: Google, or one you run yourself such as Authelia, Authentik, Pocket ID, Keycloak or Dex. The login page then shows "Continue with …" under the password form.
+Let people sign in with Google or your own OpenID Connect provider, such as Authelia, Authentik, Pocket ID, Keycloak or Dex. The login page then shows "Continue with …" under the password form.
 
 ## What it does and what it does not
 
-- **It only signs in people who already have an account.** Somebody connects their provider account to their Rezepte account first, from their profile or through a setup link. A provider account nobody connected gets "not connected to Rezepte yet", never a new account. That is what makes Google safe to use: anybody can have a Google account, and none of them gets into your household by it.
-- **Accounts are matched only by the provider's own account ID**, never by email address.
+- **It only signs in people who already have an account.** A provider account nobody connected gets "not connected to Rezepte yet", never a new account. So anyone with a Google account still cannot get into your household.
+- **Accounts are matched only by the provider's account ID**, never by email address.
 - **One provider per instance.** GitHub, Facebook and other providers that are not OpenID Connect do not work.
-- **Roles stay in Rezepte.** The provider says who somebody is; what they may do is still decided under "People".
-- **Signing out of Rezepte ends the Rezepte session only**, and signing out at the provider does not sign anybody out of Rezepte.
-- **If the provider is down, passwords keep working.** Rezepte starts without contacting it; it first asks the provider when somebody presses the button, or when the owner saves the settings, to check the address.
+- **Roles stay in Rezepte.** The provider says who somebody is; **People** decides what they may do.
+- **Signing out of Rezepte ends only the Rezepte session.** Signing out at the provider does not sign anybody out of Rezepte.
+- **If the provider is down, passwords keep working.**
 
 ## Configure it
 
@@ -24,19 +24,34 @@ Register Rezepte at your provider as a web application with this redirect URI:
 https://<your Rezepte address>/api/v1/auth/oidc/callback
 ```
 
-You can then tell Rezepte about the provider in two ways. `REZEPTE_PUBLIC_URL` must be set either way: it is the address people open Rezepte at, exactly as in the browser, without a path, and Rezepte builds the redirect URI from it rather than from the request, so it must match what you registered at the provider (see [Configuration](/getting-started/configuration)). With an `https://` address, the short-lived cookie that carries a sign-in to the provider and back is only ever sent over HTTPS, whatever `REZEPTE_SECURE_COOKIES` says.
+Set `REZEPTE_PUBLIC_URL` to the address people open Rezepte at, exactly as in the browser, without a path ([Configuration](/getting-started/configuration)). It must match the address you registered at the provider. Then tell Rezepte about the provider, in the app or with environment variables.
 
 ### In Rezepte<Audience role="owner" />
 
-The owner opens **Settings → Sign-in**. The card shows the redirect URI with a "Copy" button, so you can paste it at the provider. "Set up sign-in" asks for the provider's **Issuer URL**, the **Client ID**, the **Client secret** if the provider issued one (leave it empty for a public client), and the **Button name** such as "Google", which the login button then says: "Continue with Google". On "Save", Rezepte checks that an OpenID provider answers at the issuer address, and says so under the field when none does. The change applies at once, without a restart.
+Open **Settings → Sign-in**, copy the redirect URI from the card and press **Set up sign-in**:
+
+| Field | Value |
+| --- | --- |
+| **Issuer URL** | The provider's address, checked on save |
+| **Client ID** | From the provider |
+| **Client secret** | From the provider; leave empty for a public client |
+| **Button name** | Such as "Google", for "Continue with Google" |
+
+The change applies at once, without a restart.
 
 <Screenshot name="sign-in-card" caption="The Sign-in card once a provider is set up" />
 
-A saved secret stays when you leave the field empty, but only for the same issuer and client ID; for another provider, type its secret again. "Edit" changes the settings, and "Turn off" removes them, with the secret. Turning off always asks first. Switching to another provider asks first when people are connected, and so does turning off: they can no longer sign in with the provider afterwards, and anyone without a password needs a setup link. Their connections stay saved and apply again if you set the same provider up again. The dialog lists who they are: open "connected accounts" to see each person, sorted into those without a password, who need a setup link, and those whose password keeps working.
+- **Edit** keeps a saved secret when you leave the field empty, but only for the same issuer and client ID.
+- **Turn off** removes the settings, secret included.
+- Connections stay saved and apply again if you set up the same provider again.
+
+<Callout type="warn" title="Turning off or switching providers">
+  People connected to the old provider can no longer sign in with it. Anyone without a password then needs a setup link. Rezepte asks first and lists them under "connected accounts".
+</Callout>
 
 ### With environment variables
 
-Set these variables instead, as plain environment variables or in `docker-compose.yaml`'s `environment:` (see [Docker](/getting-started/docker)):
+Set these instead, as plain environment variables or under `environment:` in `docker-compose.yaml` ([Docker](/getting-started/docker)):
 
 <Tabs items={['Environment variables', 'docker-compose.yaml']}>
   <Tab value="Environment variables">
@@ -67,17 +82,17 @@ Set these variables instead, as plain environment variables or in `docker-compos
   </Tab>
 </Tabs>
 
-The variables win over anything saved in Rezepte and lock the card: it then reads "Set by the server" and cannot be changed there. Change the variables and restart Rezepte instead. `REZEPTE_OIDC_NAME` is what the button says; without it the button reads "Continue with single sign-on".
+The variables win over anything saved in Rezepte, and the card reads "Set by the server". To change them, edit the variables and restart. Without `REZEPTE_OIDC_NAME`, the button reads "Continue with single sign-on".
 
 <Tabs items={['Google', 'Authelia']}>
   <Tab value="Google">
 
-    Google keeps these settings in the Google Auth Platform of the Google Cloud Console. Pick or create a project in the bar at the top first; the links below then open the right page of it.
+    In the Google Cloud Console, pick or create a project in the top bar. The links below then open the right page of it.
 
     1. On the [overview](https://console.cloud.google.com/auth/overview), start the setup: the app name (for example "Rezepte") and your email address.
-    2. Under [Audience](https://console.cloud.google.com/auth/audience), choose "External" and press "Publish app". Rezepte asks only for `openid` and `email`, which Google does not review, so publishing needs no verification. A published app lets any Google account reach Rezepte's sign-in, and that is safe: only an account somebody connected gets in (see above). Leaving the app in "Testing" works too, but then only the Google accounts you list as test users can sign in with Google at all.
+    2. Under [Audience](https://console.cloud.google.com/auth/audience), choose "External" and press "Publish app". Rezepte asks only for `openid` and `email`, so Google needs no verification. Only connected accounts get in. In "Testing" instead, only the Google accounts you list as test users can sign in.
     3. Under [Clients](https://console.cloud.google.com/auth/clients), create a client of type "Web application" and add `https://<your Rezepte address>/api/v1/auth/oidc/callback` as an authorized redirect URI.
-    4. Copy the client ID and secret into Settings → Sign-in, with `https://accounts.google.com` as the issuer and "Google" as the button name. With environment variables, set `REZEPTE_OIDC_CLIENT_ID`, `REZEPTE_OIDC_CLIENT_SECRET`, `REZEPTE_OIDC_ISSUER=https://accounts.google.com` and `REZEPTE_OIDC_NAME=Google` and restart Rezepte.
+    4. Enter the client ID and secret, `https://accounts.google.com` as the issuer and "Google" as the button name, in Settings → Sign-in or as the variables above.
 
   </Tab>
   <Tab value="Authelia">
@@ -100,14 +115,15 @@ The variables win over anything saved in Rezepte and lock the card: it then read
       token_endpoint_auth_method: client_secret_basic
     ```
 
-    Then enter your Authelia address (for example `https://auth.example.org`) as the issuer, `rezepte` as the client ID, the plain secret and "Authelia" as the button name in Settings → Sign-in, or set `REZEPTE_OIDC_ISSUER`, `REZEPTE_OIDC_CLIENT_ID=rezepte`, `REZEPTE_OIDC_CLIENT_SECRET` and `REZEPTE_OIDC_NAME=Authelia`.
+    Then enter your Authelia address (such as `https://auth.example.org`) as the issuer, `rezepte` as the client ID, the plain secret and "Authelia" as the button name, in Settings → Sign-in or as the variables above.
 
   </Tab>
 </Tabs>
 
 ## How people connect
 
-- **An existing account** signs in with its password once, opens "Settings", and presses "Connect" on the "Sign-in" row of their profile. From then on the button on the login page signs them in. The same row disconnects it again — but only once the account has a password, so nobody locks themselves out. An admin can also disconnect someone on that person's page under "Settings" → "People" (see [People](/guide/users#disconnect-single-sign-on)), password or not, and then send them a setup link.
-- **A new account** gets a setup link as usual (see [People](/guide/users)). The page the link opens offers "Continue with …" above the password form, so the person can pick the provider instead of a password.
+- **An existing account:** sign in with the password, open "Settings" and press **Connect** on the "Sign-in" row. From then on the login button signs you in.
+- **A new account:** the [setup link](/guide/users) offers "Continue with …" above the password form.
+- **Disconnecting:** the "Sign-in" row in Settings disconnects, but only once the account has a password. An admin can disconnect anyone under [People](/guide/users#disconnect-single-sign-on) and then send a setup link.
 
-If the login page says the account is not connected yet, that person has not connected it: sign in with the password and connect it, or ask an admin for a setup link.
+If the login page says the account is not connected yet, sign in with the password and connect it, or ask an admin for a setup link.

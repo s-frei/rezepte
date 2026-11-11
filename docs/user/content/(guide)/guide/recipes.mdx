@@ -3,6 +3,8 @@ title: Recipes
 description: Create, edit, delete, favorite and mark recipes tasty
 ---
 
+Write a recipe yourself, link its steps to ingredients, times and photos, and mark the ones you love.
+
 <Screenshot name="editor" caption="The recipe editor" />
 
 <Steps>
@@ -10,21 +12,25 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
     ### Start a recipe
 
-    Click "New recipe" in the top bar or the command palette; on a phone, tap "+" and then "Write it yourself". While there are no recipes at all, the overview says "No recipes yet", lists the ways to begin and offers "Import" and "New recipe" right there. To take a recipe from a website or from copied text instead, see [Importing a recipe](/guide/importing).
+    Click **New recipe** in the top bar. On a phone, tap "+" and then **Write it yourself**. To bring in a recipe from a website or copied text, see [Importing a recipe](/guide/importing).
 
   </Step>
   <Step>
 
     ### Fill in the basics
 
-    Under "Basics": a title, an optional description, servings (1–99), "Prep time" and "Cook time" in minutes, and where the recipe comes from: "Source" names it — a book with its page, a website, a person — and "Link" takes an `http://` or `https://` address. Both are optional. The recipe page credits them in one line under the description, "Adapted from Grandma's cookbook, p. 42", with the name as the link when there is one; a link without a name shows the site's address instead.
+    Under **Basics**, enter:
+
+    - a title, an optional description and the servings
+    - **Prep time** and **Cook time** in minutes
+    - optionally where it comes from: **Source** for a book, site or person, **Link** for a web address
 
   </Step>
   <Step>
 
     ### Add ingredients
 
-    Under "Ingredients", use "Add group" to split the list into sections, e.g. "Filling" and "Mash topping". Each row takes an "Amount", a "Unit", the "Ingredient" itself and an optional "Note"; "Add row" adds another. "Unit" suggests the usual units in your interface language — "tsp", "cup" or "oz" in English, "TL", "Bund" or "Zehe" in German. Opening the field lists all of them, typing narrows the list, and a unit that is not on it is fine too: whatever you type is kept as written.
+    Under **Ingredients**, fill in **Amount**, **Unit**, **Ingredient** and an optional **Note** for each row. **Unit** suggests common units, but you can type any unit. Use **Add group** to split the list into sections, such as "Filling" and "Topping".
 
     <Screenshot name="editor-ingredients" caption="Ingredient groups in the editor" />
 
@@ -33,33 +39,48 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
     ### Add steps and tags
 
-    Under "Steps", each step is a field of its own; "Add step" adds the next one.
+    Under **Steps**, write one step per field; **Add step** adds the next one.
 
-    Under "Tags", type a tag and press `Enter` or a comma, or tap a suggestion, to add it. As you type, tags already used on other recipes are suggested first; a name nobody has used yet is offered last, as "Create tag". Only a choice adds a tag: leaving the field keeps the typed text without adding it. Clicking or tapping the field again closes or reopens the list. `Backspace` in the empty field removes the last tag again.
+    Under **Tags**, type a tag and press `Enter` or a comma, or pick a suggestion. Text you leave in the field without choosing is not added.
 
   </Step>
   <Step>
 
     ### Link ingredients in a step
 
-    As you type a step, a dotted underline appears under a word the app recognizes as an ingredient — "Fry the onion and carrots" underlines "onion" and "carrots". Put the cursor in an underlined word to see what it points at and accept the suggestion, or leave it be ("Dismiss" closes the card, the word stays suggested). On a phone, tap the word instead: the keyboard steps aside and the choice opens at the bottom of the screen, and the keyboard button there takes you back to the end of the word. Under the step, a line counts the links and suggestions and opens into a list of them. Only what you accept is linked: saving leaves an open suggestion as it is, and it comes back the next time you edit the recipe. A row above the steps counts the open ones ("3 suggestions open"), and its check mark accepts them all in one go. Removing a link turns the word back into a suggestion.
+    A linked word shows its ingredient's quantity on the recipe page, scaled to the servings: "potatoes **(1 kg)**".
 
-    Two ways to link a word yourself. Type `@` to pick an ingredient and insert its name — the picker lists every ingredient with its quantity and group, so the same name in two groups is easy to tell apart. Or select a word already in the sentence (putting the caret in it is enough) and click "Link word": that links the word as it stands to any ingredient, which is what you need when the wording differs from the ingredient's name — "meat" for an ingredient listed as "ground beef". Deleting a linked word ends its link: typed again, the word is at most suggested. Undo (Cmd+Z or Ctrl+Z) brings the word and its link back, and undoes accepting and removing as well.
+    **Accept suggestions.** As you type, Rezepte underlines words it recognizes as ingredients with a dotted line. Put the cursor in one (on a phone, tap it) and click **Accept**. To accept all of them, click the check mark in the "3 suggestions open" row above the steps. Rezepte saves only the suggestions you accept.
 
-    When a word names an ingredient that appears in two groups — salt for the meatballs and salt for the sauce — the card at the word lists both groups. The app picks the one the rest of the sentence comes from, puts it first and says why ("goes with cream and capers"); "Accept" links it. Pick the other one and click "Accept" to link that instead. When the sentence gives nothing away, neither is picked: the note above the steps says the word is waiting for your choice, and saving leaves it unlinked.
+    **Link a word yourself.**
 
-    A link has to point at exactly one ingredient, so names need to be told apart. Two ingredient groups can't share a name, and only one group can go without a name — the editor marks the second one in red and won't save until it has a name of its own. The same ingredient twice in one group is allowed, but neither row can be linked; both are marked "Duplicate – can't be linked", and something like "sugar (for the crumble)" makes them distinct.
+    - Type `@` and pick an ingredient to insert its name.
+    - Or put the cursor in a word and click **Link word** to link it to any ingredient, for example "meat" to "ground beef".
+
+    **When salt is in two groups**, the card lists both and puts first the one the sentence points to. Pick one and click **Accept**. If Rezepte can't tell which one, the word stays unlinked until you choose.
+
+    **Remove a link** in the list under the step, or delete the word. Cmd+Z or Ctrl+Z brings it back. Only the first mention of a word in a step shows a quantity.
+
+    <Callout type="info" title="Names a link can tell apart">
+      Each link points at exactly one ingredient. Give every ingredient group its own name: Rezepte won't save two groups with the same name, or two without a name. Two identical rows in one group can't be linked, so rename one, for example "sugar (for the crumble)".
+    </Callout>
 
   </Step>
   <Step>
 
     ### Mark times in a step
 
-    A duration in a step — "25 to 30 minutes", "1 hour 30 minutes", "2.5 hours" — gets a dotted underline as you type, if it is written in English or German. Put the cursor in it to accept the suggestion; accepted, it is shown with a small clock on the recipe page, and in cook mode it becomes a button that starts a timer (see [Run timers](/guide/cook-mode#run-timers)); like a link, it is only stored once you accept it. Only text with a number counts, so "overnight" stays plain. Times show up in the same line under the step as links ("2 times"), where you can also remove one.
+    Rezepte underlines durations such as "25 to 30 minutes" or "1 hour 30 minutes" when they are written in English or German. Put the cursor in one and accept it. A marked time shows a small clock on the recipe page and starts a timer in [cook mode](/guide/cook-mode#run-timers). Text without a number, like "overnight", is never a time.
 
     <Screenshot name="editor-times" caption="A duration suggested in a step" />
 
-    To mark one the app missed, or one in another language, select it and click "Mark as time", choose "Seconds", "Minutes" or "Hours" — the window shows the duration it will mark — and click "Set". A selection without a number, one that is too long, or one that is already marked is not taken; a line under the buttons says why. Recipes you saved earlier get times the next time you save them in the editor.
+    To mark a time Rezepte missed:
+
+    1. Select the duration.
+    2. Click **Mark as time**.
+    3. Choose seconds, minutes or hours and click **Set**.
+
+    Like links, times are saved only once you accept them. A recipe saved before times existed shows its suggestions the next time you open it in the editor.
 
   </Step>
 
@@ -67,70 +88,72 @@ description: Create, edit, delete, favorite and mark recipes tasty
 
     ### Link a photo in a step
 
-    A word or phrase of a step can open one of the recipe's own photos, so "brush the tops with the remaining egg" shows how far to brush. Select the words (or put the caret in a single word) and click "Link photo" — "Photo" on a phone; the button is there once the recipe has a photo. The window shows the photo large with a strip of all the recipe's photos below it: click one in the strip, or swipe the large one, then click "Link photo 3" (the number is the photo's place in the recipe). Linked words get a dotted underline; the line under the step lists them along with its links and times, and that is where you remove one.
+    A phrase in a step can open one of the recipe's photos, for example to show how far to brush the dough.
+
+    1. Select the words, or put the cursor in a single word.
+    2. Click **Link photo** (**Photo** on a phone). The button shows up once the recipe has a photo.
+    3. Pick the photo and confirm.
 
     <Screenshot name="editor-step-photo" mobile caption="Picking the photo for a phrase" />
 
-    One photo per phrase: choosing "Link photo" on a linked phrase opens on its photo, and picking another replaces it. You can link a photo while you create a recipe, before its photos have finished uploading; the link is saved with the recipe. Reordering the photos keeps every link on its photo, and deleting a photo removes its links — the words stay in the step as plain text. A phrase can't overlap a marked time, and a time is not suggested inside a linked phrase.
+    Each phrase links to one photo. Reordering photos keeps the links. Deleting a photo removes its links, and the words stay as plain text. Remove a link in the list under the step.
 
   </Step>
   <Step>
 
     ### Decide who may edit it
 
-    The last section, "Editing", decides who besides you may change the recipe — see [Editing rights](/guide/editing-rights). Leave it on "Default" to follow the household setting.
+    Under **Editing**, choose who besides you may change the recipe, or leave it on **Default** to follow the household setting. See [Editing rights](/guide/editing-rights).
 
   </Step>
   <Step>
 
     ### Save
 
-    Click "Save".
-
-    A recipe needs a title, servings and at least one ingredient with a name; those fields carry a `*`, and an empty one has a short amber stroke beside it until you fill it in. If something is missing or wrong, saving stops and marks the field in red with a note under it. The note goes away as soon as you type in that field.
+    Click **Save**. A recipe needs a title, servings and at least one named ingredient, marked with `*`. If something is missing, Rezepte marks the field in red and does not save.
 
   </Step>
 </Steps>
 
 <Callout type="info" title="Good to know">
-  Pressing `Enter` (on a phone, the keyboard's "next" key) moves through an ingredient from "Ingredient" to "Amount" to "Unit"; in "Unit" or "Note" it adds a new row below, and `Backspace` in a row that is completely empty removes it. Every ingredient and step has a drag handle for reordering, and an ingredient can be dragged into another group; groups themselves keep their order. Photos are dragged by the photo itself (see [Photos](/guide/images)). Without a mouse, focus the handle, pick the item up with `Space`/`Enter` and move it with the arrow keys (see [Keyboard shortcuts](/guide/shortcuts)). Leaving the editor with unsaved changes asks "Discard changes?" first.
+  - Drag the handle of an ingredient or step to reorder it, even into another group. Keyboard moves are in [Keyboard shortcuts](/guide/shortcuts).
+  - Leaving the editor with unsaved changes asks **Discard changes?** first.
 </Callout>
 
 ## The detail page
 
 <Screenshot name="recipe-detail" caption="A recipe's detail page" />
 
-The page arranges itself by the width of your screen. From 840 px wide, the ingredients sit beside the method; on a narrower screen they come first and the method follows below. On a tablet between 600 and 840 px, an ingredient list of six rows or more (group names counted) splits into two columns, so the card does not leave half its width empty.
+The detail page shows servings and times at the top, the ingredients and the **Method**.
 
-Servings and times show as pills at the top. Ingredients list with checkboxes for checking items off while shopping or cooking; the steps follow under "Method". The "Shopping list" stub at the end of the ingredients copies everything you have not checked off or, with its basket, puts it on one of your [shopping lists](/guide/shopping-lists); "copy" beside the "Ingredients" heading copies the whole list (see [Copy a shopping list](/guide/servings#copy-a-shopping-list)). A word an ingredient was linked to in the editor shows that ingredient's quantity right after it, in parentheses — "potatoes **(1 kg)**" — scaled to whatever servings you have chosen (see [Servings](/guide/servings)); the same annotation appears in [cook mode](/guide/cook-mode).
-
-A phrase linked to a photo has a small image icon in front of it and a dotted underline. Click it to see the photo right at the step, with its place among the recipe's photos ("Photo 3 of 3"); "View large" opens it full size, and `Escape` or a click elsewhere closes it. On a phone the photo opens at the bottom of the screen, with the step still in view above it.
+- Check off ingredients while you shop or cook. The **Shopping list** stub at the end copies what is left, or its basket puts it on one of your [shopping lists](/guide/shopping-lists). See also [Copy a shopping list](/guide/servings#copy-a-shopping-list).
+- A linked word shows its quantity in parentheses, scaled to the [servings](/guide/servings) you choose, here and in [cook mode](/guide/cook-mode).
+- A phrase with an image icon opens its photo right at the step.
+- The tab next to **Method** holds the household's [comments](/guide/comments). Anyone can add one.
 
 <Screenshot name="recipe-step-photo" caption="A step's photo opened on the detail page" />
 
-"Edit" opens the editor. The "More actions" menu (`…`) holds "Edit" as well, "Copy link", which copies the recipe's address to share, and "Delete", which deletes the recipe after confirming. "Pass on" (the share button next to the menu on a phone) offers the recipe as an image or as a link, for the household or, where the owner allows it, for everyone (see [Sharing recipes](/guide/sharing)). Only the recipe's author and admins can delete it, and "Edit" is not shown on a recipe that is locked for you (see [Editing rights](/guide/editing-rights)).
+**Edit** opens the editor. The "…" menu holds **Copy link** and **Delete**. **Pass on** sends the recipe as an image or a link (see [Sharing recipes](/guide/sharing)). It is also in the "…" menu, and on a phone it is the share button at the top of the page. Who may edit or delete a recipe is in [Editing rights](/guide/editing-rights).
 
-Behind the tab beside "Method", the [comments](/guide/comments) hold what the household noted while cooking the recipe, and anyone can add one.
+<Callout type="warn" title="Deleting cannot be undone">
+  Deleting a recipe also deletes its photos and its public links. You cannot get it back.
+</Callout>
 
-At the foot of the page, a line says who added the recipe and when ("Added by … on …"), a second one who last changed it ("Last edited by … on …") once somebody has, and — on a locked recipe — who can edit it.
+## The overview
 
-The overview is a masonry of cards: each is as tall as its content and goes into the shortest column, in the order you sorted by, so the cards of different heights sit snugly together. A card with a photo shows it in its own shape, from tall to wide; a recipe without a photo is a short card in its own color, with the title and a large faint initial of it. Long words in a title are hyphenated.
+The overview shows your recipes as cards. To change the card size, use the squares beside **Filters** on a wide screen. On a phone, use the squares at the top right to switch between two cards per row and one. Each device remembers its own choice.
 
-You choose how big the cards are. On a wide screen the three squares beside "Filters" switch between small, medium and large cards, which fits more or fewer of them in a row. On a phone the two squares at the top right, beside the number of recipes, switch between two cards per row and one; a single card per row is as wide as the screen and shows everything a card shows on a computer, and you can mark a recipe tasty right on it. The choice is kept on that device.
-
-On the overview, each card carries the same information in small: one circle with the photo of whoever added the recipe — or their initial in their color, if they have no photo — and a second one when somebody else edited it last. Click the circles, or tap them on a phone, to open a person card for each (see [Tour of the app](/guide#person-cards)).
+Each card shows who added the recipe and, if someone else changed it last, who did. Tap those circles to open a [person card](/guide#person-cards).
 
 ## Favorites
 
-The star under the title on a recipe's page, and in the top-right corner of every recipe card, marks it as a favorite; tap it again to take the star off. Favorites are your own — each member stars for themselves, and nobody else sees your stars. "Favorites only" in the overview's filters then narrows the list to them (see [Tags and search](/guide/tags-and-search#filtering)).
+Tap the star on a recipe's page or card to make it a favorite, and tap it again to remove it. Your favorites are private: nobody else sees them. **Favorites only** in the overview's filters shows just them (see [Tags and search](/guide/tags-and-search#filtering)).
 
 ## Tasty
 
-The heart tells whoever wrote a recipe that you liked it — "Tasty", or "Lecker" in German. Unlike a favorite, a tasty mark is for everyone to see: the heart shows how many members found the recipe tasty, and the recipe's page names them under the title ("Tasty for"). Tap the heart again to remove your mark.
+Tap the heart to tell the author you liked a recipe. Unlike a favorite, everyone sees a tasty mark: the heart counts them, and the recipe page lists who gave them under **Tasty for**. Tap it again to take your mark back.
 
-You mark a recipe on its page, next to the star, and on a wider screen also with the heart in the bottom-left corner of its card. On a phone with two cards per row the card only shows the count, in its bottom-left corner; with one card per row it has the heart on the photo, as on a computer. You cannot mark your own recipes — the heart there only counts the others.
-
-"Tastiest" in **Sort by** puts the recipes with the most marks first (see [Tags and search](/guide/tags-and-search#filtering)).
+You find the heart next to the star on the recipe page and on the overview's cards. You can't mark your own recipes. **Tastiest** in **Sort by** puts the most-liked recipes first.
 
 <Accordions type="single">
   <Accordion title="Limits">
@@ -145,14 +168,5 @@ You mark a recipe on its page, next to the star, and on a wider screen also with
     - Steps: up to 50, each up to 2000 characters, each with up to 30 linked ingredients, up to 20 times and up to 20 photo links
     - A photo link: one photo per phrase, up to 120 characters of text
     - A marked time: up to 60 characters of text, and at most one week
-  </Accordion>
-  <Accordion title="What is a slug?">
-    Every recipe gets a URL-friendly slug derived from its title — German umlauts and ß are transliterated (ä→ae, ö→oe, ü→ue, ß→ss) and remaining diacritics and punctuation are stripped. If another recipe already has the same slug, a number is appended (`-2`, `-3`, …).
-  </Accordion>
-  <Accordion title="Deleting a recipe">
-    Deleting a recipe also removes its uploaded photos. This cannot be undone.
-  </Accordion>
-  <Accordion title="Why a step shows no quantity">
-    Not every ingredient word is recognized automatically, and a recipe carries linked words only once it has been saved with them — open it in the editor, accept or add the links you want, and save. Only the first mention of a word in a step ever shows a quantity, even if the word appears again later in the same sentence.
   </Accordion>
 </Accordions>

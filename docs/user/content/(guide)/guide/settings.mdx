@@ -1,136 +1,130 @@
 ---
 title: Settings
-description: Your profile with photo, name and color, your address, password and sign-in, language and theme, notifications, installing the app, help, API and signing out
+description: Your profile, email address, password and sign-in, language and theme, the other settings tabs, and sharing one device with the household
 ---
 
-import { Audience } from '@/components/audience';
 import { NewIn } from '@/components/new-in';
+import { Audience } from '@/components/audience';
+
+In Settings you change how Rezepte shows you, your email address and password, and how the app looks. On a shared kitchen tablet, you also switch between people here. People, roles and the household's switches are under [People](/guide/users).
 
 <Screenshot name="settings" caption="The settings page" />
 
 ## Profile<NewIn release="v1.4.0" />
 
-The page opens with one card: how Rezepte shows you to the household at the top, then your account, then how you use the app.
+### Change your photo, name and color
 
-### You: photo, name and color
+- **Photo**: click the camera on your photo and choose a JPEG, PNG or WebP of up to 10 MiB ([photo limits](/guide/images)). Drag and zoom to frame it, then confirm. To frame it differently later, choose the file again. "Remove photo" puts your initial back.
+- **Name**: click the pencil beside your name. The display name is the name on your recipes, up to 64 characters. Save it empty to use your login name again.
+- **Color**: tap one of the eight colors. It saves at once. Several people can share a color.
 
-The band across the top is your color, with your initial set into it, and your photo sits on its edge — or, without one, your initial in your color. Under it are your display name and a line with your role and the login name you sign in with. The login name is shown, not editable, and it stays the same however often you rename yourself.
-
-The camera on the photo adds one: it opens a file picker for a JPEG, PNG or WebP of up to 10 MiB. Once you have a photo, the camera opens a small menu with "Change photo" and "Remove photo". A new photo appears in a round frame to place: drag it to move, use the slider, a pinch or the mouse wheel to zoom in to four times, or use the arrow keys to move and plus and minus to zoom. Confirm, and the round section you framed becomes your photo, here and wherever Rezepte shows you — on the recipes you added, in the list of people and in your person card (see [Tour of the app](/guide#person-cards)). The photo is cut from the file you chose, so to frame it differently, choose the file again. A photo, or a framed section, smaller than about 64 pixels is refused with a message. "Remove photo" puts your initial back.
+Your login name is shown under your name and cannot be changed here. Renaming yourself does not change how you sign in.
 
 <Screenshot name="avatar-crop" caption="Framing a photo: the round window shows what the circles will show" />
 
-If a photo is missing or cannot be loaded, Rezepte shows your initial in your color instead. Your color and initial still identify you, so nobody has to recognize a face to know whose recipe it is.
+### Confirm your email address
 
-The pencil beside your name turns it into a field with "Save" and "Cancel". The display name is the name on your recipes, in the list of people and on the circles that sign a recipe card: up to 64 characters, and saving it empty puts your login name back. It does not have to be unique, so two people can both be "Mia".
+Your email address is optional and never used to sign in. Rezepte sends a link to it when you forget your password, but only once the address is confirmed.
 
-The eight circles under your name are the colors to choose from, and yours marks you wherever the app names you. Tapping one saves it right away, no button, and the band follows. The line under them says who else wears the chosen color — "Sage is also worn by Sofia, Ida and Tom" — or that nobody else does. Sharing a color is fine: your initial stays in the circle either way.
+1. Choose **Change**, type the address and save. With mail set up, the button reads **Save and send mail**.
+2. Open the link in the mail within 7 days. The badge beside **Email** turns from **unconfirmed** to **confirmed**.
 
-### Your account
+No mail? The box under the address says what happened:
 
-**Email** shows your address, or "none". It is optional and never used to sign in. It is where Rezepte sends a link when you forget your password, but only once it is confirmed. When you type a new address under **Change** and mail is set up, the window says before you save that a confirmation mail goes to it, and the button reads **Save and send mail**; the same address in other capital letters is the same mailbox and sends nothing. After saving, a badge beside **Email** says **unconfirmed**, and a box under the address says **Mail sent**, with a bar from the day it went out to the day its link stops working (7 days later) and **Send again**. **Send again** works once a minute, and saving the address counts as the first send. If the link ran out before you opened it, the badge says **expired**, the bar shows the day it ran out, and the box offers **Send new**; if no mail went out, it says **No mail sent** with **Send**. Once you open the link the badge says **confirmed**. A link that was used already or has expired says so, with **Go to your profile** to come back here and send a new one, or **Sign in** first when you are signed out. An address your identity provider vouched for counts as confirmed. To remove the address, clear the field and save.
+| The box says | Do this |
+| --- | --- |
+| **Mail sent** | Check your spam folder, or choose **Send again** (once a minute). |
+| **Mail not opened** (badge **expired**) | The link ran out. Choose **Send new**. |
+| **No mail sent** | Choose **Send**. |
+| **Setup link sent** | Open the setup link. Using it confirms the address. |
+
+An address your identity provider vouched for is already confirmed. To remove your address, clear the field and save.
 
 <Screenshot name="profile-email-unconfirmed" caption="An address waiting for its confirmation" />
 
-**Password** opens a small dialog: enter the current password once, then the new password (8–128 characters) twice. Changing your password signs out every other device that was logged in as you; this device stays signed in. An account without a password yet says so, and the button reads **Set**.
+### Change your password
 
-While you type the new password, a bar below it rates it from "very weak" to "strong". It knows the most common leaked passwords, keyboard runs like `qwertz` and your own names, so `anna1990` counts as weak for Anna. The rating is advice: any password of the right length can be saved. A password manager's generated password is the easy way to "strong".
+Choose **Change** in the **Password** row, enter your current password, then the new one (8–128 characters) twice. Your other devices are signed out; this one stays signed in. An account without a password shows **Set** instead.
 
-**Sign-in** is there only when your instance offers sign-in through an identity provider such as Google (the owner sets that up under Sign-in below, see [Single sign-on](/operations/single-sign-on)). **Connect** takes you to the provider and back; from then on the provider's button on the login page signs you in without a password. Once connected, the row says since when, and **Disconnect** undoes it and signs you out on your other devices — but only while your account also has a password, because without one you could no longer sign in at all. The row says so; set a password first.
+A bar rates the new password as you type. It is advice: any password of the right length saves.
+
+### Connect a sign-in provider
+
+The **Sign-in** row shows only when your instance offers [single sign-on](/operations/single-sign-on). **Connect** takes you to the provider and back. From then on, its button on the login page signs you in. **Disconnect** undoes it and signs out your other devices.
+
+<Callout type="warn" title="Set a password before you disconnect">
+  Rezepte lets you disconnect only while your account also has a password. Without one, you could no longer sign in.
+</Callout>
 
 <Screenshot name="settings-signin" caption="The sign-in row, before the account is connected" />
 
-### How you use Rezepte
+### Choose language and theme
 
-**Language** is "English" or "German", and picking one reloads the page into it. It is saved to your account rather than to this browser, so it follows you to any device you sign in from. It changes the interface only; it never translates a recipe's own title, ingredients or steps. Missing your language? See [Add a language](/contributing/add-a-language).
-
-**Appearance** is "System", "Light" or "Dark"; "System" follows your device. The same choice sits in the account menu behind your initial at the top right, and on a phone in the "You" sheet. Unlike your language, the theme is stored in this browser only — it does not follow you to another device or browser.
+- **Language**: "English" or "German". It is saved to your account and follows you to every device. It changes the interface, never a recipe's text.
+- **Appearance**: "System", "Light" or "Dark". It is saved in this browser only. The same choice sits in the account menu (on a phone, the "You" sheet).
 
 ## Notifications
 
-Under **Settings → Notifications** you choose what Rezepte tells you by mail, which arrives only once your email address is confirmed, and as a push notification to the devices you enable there, with a test for the device in your hand. The owner also sets there the hour the daily new recipes go out. See [Notifications](/guide/notifications).
+Choose what Rezepte sends you by mail and as push. See [Notifications](/guide/notifications).
 
 <Screenshot name="notifications" caption="The Notifications page: what comes by mail, with push below" />
 
 ## App
 
-The "Rezepte as an app" card offers to install Rezepte on this device, where your browser can: a button on Android and in Chrome or Edge on a computer, the three Safari steps on an iPhone or iPad. The card is hidden once the app is installed, except on an iPhone, where Safari cannot tell and the card stays in Safari. [Install Rezepte as an app](/guide/install-app) covers it all, including why the owner sees a note here while the instance runs on plain HTTP.
+The "Rezepte as an app" card installs Rezepte on this device. See [Install Rezepte as an app](/guide/install-app).
 
-## Help
+## Help and version
 
-The "Help & guide" card opens this guide in a new tab. It is the way here from inside the app whenever something is unclear.
-
-## About Rezepte
-
-The last card on the page says which version of Rezepte your instance runs, and links to its source code and to the [Changelog](/changelog) — handy when you ask for help or wonder what an update brought.
+"Help & guide" opens this guide in a new tab. "About Rezepte" shows your instance's version and links to the [Changelog](/changelog).
 
 ## API
 
+The "Access for programs" card has two parts: "For AI assistants" gives the MCP address and points to an API token, "For your own scripts" the API's base URL and its interactive docs. Each address has a "Copy" button. Admins create tokens in the "API tokens" card below. See [API](/api), [Connect an AI assistant](/api/mcp) and [API tokens](/api/tokens).
+
 <Screenshot name="api" caption="The API tab, here as an admin sees it" />
-
-Every signed-in member has this tab. Its "Access for programs" card reads like a cookbook page with two recipes, each with its ingredients and its steps:
-
-- **For AI assistants** — the MCP address an assistant such as Claude Code connects to, and an API token. Step one points to the "API tokens" card where you create the token (or, if you are not an admin, says who can issue one); "Setup guide" opens [Connect an AI assistant](/api/mcp).
-- **For your own scripts** — the base URL of this instance's API, and either a token or your username and password: a script may also sign in the way the app does. "Interactive docs" opens the try-it-out documentation, "openapi.json" the raw document — both work straight from the browser with your session, no token needed. See [API](/api) for what you can do with it.
-
-Both addresses have a "Copy" button. Admins find the "API tokens" card below, with "Create token" and their own tokens — or, with "Everyone in the household" switched on, every admin's. Once they hold a valid token, step one is marked done. [API tokens](/api/tokens) covers it.
 
 ## Shared links
 
-Every signed-in member has a "Shared links" tab: the public links you have created, across every recipe, with their status and Copy and Revoke for each — see [Public links](/guide/sharing#public-links). You can narrow the list by status. Admins can also switch to everyone's links there, narrow them to one person, and revoke them all.
+The "Shared links" tab lists the public links you created, to copy or revoke. Admins can also show everyone's links and revoke them all. See [Public links](/guide/sharing#public-links).
 
 ## Email<Audience role="owner" />
 
-The owner has an "Email" tab under "Household", between "People" and "Import & export", for the mail server Rezepte sends its mail through: setup links, links for a new password, address confirmations, security notices and notifications — see [Mail](/guide/mail).
+The "Email" tab sets the mail server Rezepte sends through. See [Mail](/guide/mail).
 
-## Sign-in page<Audience role="owner" />
+## Sign-in<Audience role="owner" />
 
-The owner has a "Sign-in" tab, next to "Email", for the identity provider people may sign in with instead of a password: Google, or one you run yourself. The card shows the provider and the client, whether sign-in is on, and the redirect URI to register at the provider. "Set up sign-in" and "Edit" open the window for the issuer address, client ID, secret and button name; "Turn off" removes them. When the settings come from environment variables, the stamp reads "Set by the server" and nothing can be changed here. [Single sign-on](/operations/single-sign-on) walks through it.
+The "Sign-in" tab sets the identity provider people may sign in with. See [Single sign-on](/operations/single-sign-on).
 
 <Screenshot name="sign-in-card" caption="The Sign-in tab, as the owner sees it" />
 
 ## Import and export<Audience role="admin" />
 
-Admins have one more tab, "Import & export", for passing recipes with their photos to another Rezepte — see [Import and export](/guide/import-export).
+The "Import & export" tab passes recipes with their photos to another Rezepte. See [Import and export](/guide/import-export).
 
 ## Signing out
 
-"Sign out" ends the current session on this device. You find it in the "Account menu" (your initial, top right on desktop) and at the foot of the Settings sidebar; on a phone, in the "You" sheet of the bottom bar and at the foot of the Settings "Contents" sheet.
+"Sign out" ends your session on this device; on a shared device, your card stays ([Share a device](#share-a-device)). It is in the account menu, behind your initial at the top right, and at the foot of the Settings sidebar. On a phone, it is in the "You" sheet.
 
 ## Share a device
 
-A kitchen tablet can hold everyone's account at once, so each person is one tap away from their own recipes, lists and settings. The first row of the "Account menu" (and of the "You" sheet on a phone) reads "Who's cooking?" and opens the list of people on this device; when you are alone on it, the row reads "Sign in another person" instead.
+A kitchen tablet can hold everyone's account, so each person is one tap away from their own recipes and lists. Open "Who's cooking?" at the top of the account menu, or of the "You" sheet on a phone. When you are alone on the device, the row reads "Sign in another person".
 
 <Screenshot name="switch" caption="Who's cooking? lists everyone signed in on this device, the person cooking now on top" />
 
-<Steps>
-  <Step>
+### Add a person
 
-    ### Add a person once
+Tap "Add a person" and sign in as usual, with a password or [single sign-on](/operations/single-sign-on). That person now has a card.
 
-    Tap "Add a person" at the end of the list and sign in as usual, with a password or with [single sign-on](/operations/single-sign-on). From then on that person has a card.
+### Switch person
 
-  </Step>
-  <Step>
+Tap a card. Rezepte opens that person's view, without a password. Tap the × at the top to go back. Cook timers keep running, and [notifications](/guide/notifications) follow whoever is cooking.
 
-    ### Switch with one tap
+### Remove a person from this device
 
-    Tap a card and Rezepte greets that person and opens their own view of the app: no password. Each card says when the person was last here. Tap the card of the person cooking now, or the × at the top, to go back where you were.
+Tap "Edit", then the × on someone else's card, and confirm. Tap "Done" to finish. Their account and recipes are untouched; they can sign in again with their password.
 
-  </Step>
-  <Step>
+<Screenshot name="switch-edit" caption="Edit mode: a × on the cards that can be removed" />
 
-    ### Remove someone from this device
+### When a card says "Sign in again"
 
-    "Edit" puts a × on every card but your own; confirm and the person's card is gone from this device. Their account and recipes are untouched, and they can be added again with their password. Done ends editing.
-
-    <Screenshot name="switch-edit" caption="Edit mode: a × on the cards that can be removed" />
-
-  </Step>
-</Steps>
-
-"Sign out" does not take you off the device: you stay in the list as "Sign in again", and the device opens on "Who's cooking?". Tap your card and type your password once. The same happens to a person nobody has used in 30 days: the card says "Sign in again" and asks for the password one time.
-
-Cook timers keep running across a switch, since they belong to the device, and [notifications](/guide/notifications) follow whoever is cooking. Only people who signed in on this device ever appear, and they appear only here: others on the household's list in Settings do not show up on the tablet. With nobody signed in, the device opens on "Who's cooking?" rather than the login, as long as someone is still on it.
-
-The instance owner can change another person's display name, color and photo on that person's page under "People"; nobody else can. See [People](/guide/users) for that and the rest of the account management admins do there. The owner also finds the household's **Recipe editing** setting there (see [Editing rights](/guide/editing-rights)), **Link previews** and **Public sharing** (see [Sharing recipes](/guide/sharing)).
+"Sign out" keeps you on the device: your card says "Sign in again", and you type your password once. The same happens after 30 days without use.

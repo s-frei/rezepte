@@ -5,37 +5,31 @@ description: Let programs reach your recipes without a login form
 
 import { Audience } from '@/components/audience';
 
-An API token lets a program talk to your instance the way the app does, without
-a login form. Use one for a script, a second instance, or [an AI assistant](/api/mcp).
-
-Only admins can issue tokens, under **Settings → API**.
+An API token lets a script, a second instance or [an AI assistant](/api/mcp) use your instance without a login form. Only admins can issue tokens, under **Settings → API**.
 
 ## Creating a token<Audience role="admin" />
 
-1. Open **Settings → API** and choose **Create token** on the "API tokens"
-   card.
+1. Open **Settings → API** and choose **Create token**.
 2. Give it a name that says where it will live, such as "MCP on the laptop".
-   That name is how you tell tokens apart later.
-3. Choose what it may do. **Recipes**, **Accounts** and **Shopping lists** are
-   set separately, each on a ladder of **None**, **Read** and **Write**, where every step
-   includes the ones before it; the sentence under the ladder says what the
-   chosen step allows. **Recipes** has a fourth step, **Delete** — a **Write**
-   token can create and edit recipes but never delete one. **Shopping lists**
-   **Read** shows your lists and what is on them; **Write** also creates lists
-   and adds, ticks and removes items, and over the HTTP API does everything
-   else the app does with a list too, renaming, deleting and sharing included:
-   invite and remove people, accept an invitation, leave a list.
-   [MCP](/api/mcp#what-it-cannot-do) does less, and an assistant connects
-   only with **Recipes** at **Read** or above as well. Give a token the least
-   it needs — but not nothing: as soon as all ladders stand at
-   **None**, the dialog says "Please choose at least one kind of access"
-   under them, and **Create** does nothing until one of them is raised.
-4. Choose its **Lifetime**: 30 days, 90 days, 1 year, or no expiry.
+3. Set its access for each area (see [the table below](#what-each-level-allows)). Give it the least it needs; **Create** works only once one area is above **None**.
+4. Choose its **Lifetime**: **30 days**, **90 days**, **1 year** or **No expiry**.
 5. Choose **Create**.
 
-The token is now shown **once**. Copy it, then choose **I have saved it** to
-close the dialog — it cannot be recovered afterwards. If you lose it, revoke it
-and create a new one.
+<Callout type="warn" title="The token is shown once">
+  Copy it, then choose **I have saved it**. It cannot be shown again. If you lose it, revoke it and create a new one.
+</Callout>
+
+## What each level allows
+
+Each level includes the ones before it.
+
+| Area | **Read** | **Write** | **Delete** |
+|---|---|---|---|
+| **Recipes** | Search and read recipes, tags and household settings | Create and edit recipes, import | Delete recipes |
+| **Accounts** | List people and accounts | Add, change and delete accounts | — |
+| **Shopping lists** | Read your lists and their items | Everything the app does with a list, sharing included | — |
+
+With **Recipes: Read**, a token also opens image files. Any token opens the OpenAPI document, so a client can discover the API. An [AI assistant](/api/mcp) needs **Recipes: Read** at least, and does less with lists than the HTTP API.
 
 ## Using a token
 
@@ -45,76 +39,47 @@ Send it as a bearer token, in place of the session cookie:
 curl -H "Authorization: Bearer rzp_..." https://your-instance/api/v1/recipes
 ```
 
-A token reaches the shopping lists the admin who issued it can open — their
-own and those shared with them — never anyone else's. Over the HTTP API,
-adding a recipe to a list needs only **Shopping lists: Write**, although it
-copies that recipe's ingredients: every account sees every recipe in the
-app, so a token without **Recipes** access loses nothing by it.
+## Who a token acts as
 
-A token also opens the image files and the OpenAPI document, so a client can
-discover the API on its own.
+A token acts as the admin who issued it, with that admin's role as it is now, limited by its levels.
+
+- It reaches only the shopping lists its issuer can open: their own and those shared with them.
+- It inherits its issuer's rank. An ordinary admin's token with **Accounts: Write** can add and delete members but cannot make anyone an admin; the owner's can (see [People](/guide/users)).
+- It stops working the moment its issuer loses the admin role or is deleted.
+
+To give the owner a token that cannot hand out admin rights, create a second admin as a service account and issue the token as them.
+
+<Callout type="warn" title="Deleting members moves their recipes">
+  Deleting a member does not delete their recipes. They pass to whoever performed the deletion, which for a token is its issuer.
+</Callout>
+
+## Locked recipes
+
+[Editing rights](/guide/editing-rights) do not narrow a token: admins may edit every recipe, locked or not, so a **Recipes: Write** token can too, and a **Recipes: Delete** token can delete every recipe. Only the owner can change the household's editing setting, and only in the browser.
 
 ## What a token cannot do
 
-A token acts as the admin who issued it, limited by its scopes. Some things
-are out of reach whatever scopes it carries:
+Whatever its levels, a token cannot:
 
-- managing API tokens, so a token can never list, issue or revoke one
-- anything about its own account: reading it (`GET /api/v1/auth/me`),
-  changing its password, display name, color, photo, email address or
-  notification choices, or looking up which colors are taken
-- signing out, or any other session mechanics
-- changing the household settings (`PATCH /api/v1/settings`): editing
-  rights, public links, link previews and the hour of the daily
-  new-recipes notification; reading them works with
-  **Recipes: Read**
-- issuing or revoking a setup link for an account
-  (`/api/v1/users/{id}/setup-link`), or disconnecting an account from its
-  identity provider (`/api/v1/users/{id}/identity`)
-- public links (`/api/v1/shares`, `/api/v1/recipes/{id}/public-share`):
-  listing, creating or revoking them
-- the mail settings and the test mail (`/api/v1/settings/mail`), and the
-  sign-in settings (`/api/v1/settings/sign-in`)
-- push notifications and timer alarms (`/api/v1/push/...`)
-- anything at all, once the admin who issued it loses the admin role or is
-  deleted
+- list, issue or revoke API tokens
+- read or change its own account (password, display name, color, photo, email, notifications), or look up which colors are taken
+- sign out, or handle sessions in any other way
+- change the household settings
+- issue or revoke setup links, or disconnect an account from its identity provider
+- list, create or revoke public links
+- touch the mail settings and test mail, or the sign-in settings
+- use push notifications and timer alarms
 
-One consequence worth knowing before you automate account cleanup: deleting a
-member does not delete their recipes, it transfers them to the account that
-performed the deletion — which for a token means the admin who issued it.
-
-It also inherits that admin's rank, which is what decides how far
-**Accounts: Write** reaches. Issued by an ordinary admin, a token
-can add and delete members but cannot make anyone an admin, because the
-account behind it cannot either (see [People](/guide/users)). Issued by the
-owner, it can.
-
-So if you are the owner and want a token that is unable to hand out admin
-rights, create a second admin to act as a service account and issue the token
-while signed in as them: the limit then comes from the account rather than
-from a setting anyone could forget.
-
-Recipe [editing rights](/guide/editing-rights) never narrow a working token
-either: admins may edit and delete every recipe, locked or not, and so may
-their tokens with **Recipes: Write**. That lasts only as long as the
-account behind the token is an admin — a token always acts with its
-issuer's current role, and stops working once that role is gone. Only the owner can change the
-household's editing setting, and only in the browser.
+The [API reference](/api/reference) names the endpoints.
 
 ## Revoking a token<Audience role="admin" />
 
-Choose **Revoke** on its tag. Rezepte asks first ("Revoke token?"); once you confirm, the token stops working immediately. This cannot be undone.
+Choose **Revoke** on its tag and confirm. The token stops working immediately.
 
-Expired tokens stay in the list, marked as such, until you revoke them — so you
-can always see why an integration stopped.
+<Callout type="warn">
+  Revoking cannot be undone.
+</Callout>
 
-Each token hangs in the list like a key tag. The bar under its name shows how
-much of its lifetime has passed: the mark is today, the dot is when it was last
-used, and an expired token is stamped "Expired". The plaques below show what it
-may do for each area, as dots from none to the highest step. Next to the name
-you find the first characters of the token, which is how you match a tag to the
-entry in a program's configuration. "Last used" is accurate to the hour.
+Expired tokens stay in the list, marked **Expired**, until you revoke them. Each tag shows the first characters of its token, so you can match it to a program's configuration.
 
-The list shows your own tokens. Switch on "Everyone in the household" to see
-every admin's tokens, each marked with who issued it, and pick a person to show
-only theirs.
+The list shows your own tokens. Switch on **Everyone in the household** to see every admin's tokens.

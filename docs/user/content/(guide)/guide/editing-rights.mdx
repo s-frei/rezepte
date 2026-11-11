@@ -5,36 +5,28 @@ description: Who may change, re-photograph and delete a recipe
 
 import { Audience } from '@/components/audience';
 
-Out of the box, everyone in the household may edit every recipe. Two settings narrow that down: one for the whole household, set by the owner, and one on each recipe, set by its author.
+By default, everyone in the household may edit every recipe. Two settings narrow that: one for the whole household, set by the owner, and one on each recipe, set by its author.
 
 <Screenshot name="editor-editing" caption="The Editing section at the end of the editor" />
 
 ## The household setting<Audience role="owner" />
 
-The owner of the instance finds **Recipe editing** under **Settings → People**. With "Only authors and admins edit recipes" switched on, every recipe left on **Default** can only be edited by its author and by admins. The switch applies as soon as you flip it. Admins see the card too, with a sentence saying what applies right now, but only the owner can change it.
+In **Settings → People**, the owner switches on **Only authors and admins edit recipes** under **Recipe editing**. Every recipe left on **Default** can then be edited only by its author and admins. The switch applies at once. Admins see the card, but only the owner can change it.
 
 <Screenshot name="settings-recipe-editing" caption="The Recipe editing card on the People page" />
 
 ## The setting on a recipe
 
-The last section of the editor, **Editing**, has three choices:
-
-- **Default** follows the household setting, and keeps following it when the owner changes it later.
-- **Everyone** lets every member edit the recipe, even when the household setting is on.
-- **Locked** keeps the recipe to its author and admins, even when the household setting is off.
-
-The line under the choices always says what applies right now. A new recipe starts on **Default**.
-
-Only the author and admins can change this setting. Anyone else who may edit the recipe sees a sentence instead of the choices: on a recipe set to **Everyone**, who opened it to everyone; on one left on **Default**, what the household setting allows right now.
-
-## What comes out
+The last section of the editor, **Editing**, has three choices. A new recipe starts on **Default**. Only the author and admins can change it.
 
 | Household setting | Recipe | Who may edit |
 |---|---|---|
-| off | Default | everyone |
-| on | Default | author and admins |
-| off or on | Everyone | everyone |
-| off or on | Locked | author and admins |
+| off | **Default** | everyone |
+| on | **Default** | author and admins |
+| off or on | **Everyone** | everyone |
+| off or on | **Locked** | author and admins |
+
+A recipe set to **Everyone** or **Locked** keeps that setting when the owner flips the household switch. Only recipes left on **Default** follow it.
 
 ## Who may do what
 
@@ -47,19 +39,14 @@ Only the author and admins can change this setting. Anyone else who may edit the
 
 Deleting is never opened up: only the author and admins can delete a recipe.
 
-Editing rights cover the recipe itself, not what people say about it: everyone in the household can write [comments](/guide/comments) on every recipe, locked ones included, star it, and mark it tasty unless they wrote it.
+When a recipe is locked for you, **Edit** and **Delete** are hidden. A line at the bottom of a locked recipe says who can edit it.
 
-When a recipe is locked for you, **Edit** and **Delete** are not shown, and a line at the bottom of the recipe says who can edit it. The line is there for everyone, the author included, whenever the recipe is locked; an open recipe has none.
+Editing rights cover only the recipe itself. Everyone can [comment](/guide/comments) on every recipe, locked ones included, and star it. Everyone except the author can mark it tasty.
 
-## Examples
-
-1. **A fresh instance.** The household setting is off and every recipe is on Default: everyone edits everything.
-2. **Anna keeps her bread to herself.** She sets it to *Locked*. Ben can no longer edit it; every other recipe stays open.
-3. **The owner switches the household setting on.** Every recipe on Default is locked at once. Anna's bread was locked already.
-4. **Ben opens his lasagna.** He sets it to *Everyone*. Despite the household setting, everyone may edit it — but not delete it.
-5. **The owner switches the household setting off again.** Recipes on Default are open again. Anna's bread stays locked and Ben's lasagna stays open, because both were set on purpose.
-6. **A member is deleted.** Their recipes pass to the admin who deleted them, with their setting unchanged. That admin is now their author, and also takes the member's place as last editor on any recipe the member was the last to change.
+When an admin deletes a member, the member's recipes pass to that admin, with their settings unchanged.
 
 ## Through the API
 
-The API follows the same rules as the app. [API tokens](/api/tokens) are issued by admins and act as the admin who issued them, with that account's role as it is now: while its issuer is an admin, a token that may write recipes can edit every recipe, locked or not, and one with the **Delete** recipes level can delete every recipe too. A token whose issuer loses the admin role stops working altogether. The household setting itself can only be changed in the browser, by the owner.
+<Callout type="warn" title="Tokens act as their admin">
+  An [API token](/api/tokens) acts as the admin who issued it. With the scopes for it, a token can edit and delete locked recipes too. Only the owner can change the household setting, in the browser.
+</Callout>

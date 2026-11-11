@@ -4,54 +4,46 @@ description: Upload, reorder and remove recipe photos
 new: v1.4.0
 ---
 
-Photos follow the recipe's editing rights: whoever may edit a recipe may add, reorder and remove its photos and choose its cover. See [Editing rights](/guide/editing-rights).
+Add, order and remove a recipe's photos in its editor. Whoever may edit a recipe may change its photos; see [Editing rights](/guide/editing-rights).
 
 <Screenshot name="editor-images" caption="The photo section of the editor" />
 
-<Steps>
-  <Step>
+## Add photos
 
-    ### Add photos
+In the editor's "Photos" section, click the add tile to pick files, or drop image files on the section. Outside a text field, you can also paste a photo with `⌘V` / `Ctrl+V`.
 
-    In the editor's "Photos" section, click the "Photos" tile (on a recipe without photos, "Add photos") to pick files, or drop image files anywhere on the section. The heading counts the photos against the limit of 20; at 20 the add tile goes away.
+- On a recipe that already exists, photos upload right away.
+- On a new recipe, photos upload when you click "Save".
+- If an upload fails, the photo gets a red outline. Click "Retry", or remove it from its ⋯ menu.
 
-  </Step>
-  <Step>
+## Choose the cover
 
-    ### Choose the cover
+The first photo is the cover. To pick another, open the ⋯ menu on that photo and choose "Make cover".
 
-    The first photo is the recipe's cover: it shows large with a "Cover" badge, and the others carry their place in the order. To pick a different cover, open the ⋯ menu on that photo and choose "Make cover" — it moves the photo to the front.
+## Reorder or remove
 
-  </Step>
-  <Step>
+- Drag a photo to a new place. On a touch screen, hold it for a moment first.
+- Or open the photo's ⋯ menu and choose "Move earlier", "Move later" or "Remove".
+- With the keyboard, see [Keyboard shortcuts](/guide/shortcuts).
 
-    ### Reorder or remove
-
-    Drag a photo to a new place; on a touch screen, hold it for a moment first, since a quick swipe scrolls the page. The other photos slide aside while you drag. Hold it near the top or bottom of the screen and the page scrolls along, so a photo reaches places further away. Without dragging, the ⋯ menu on each photo has "Move earlier" and "Move later", and "Remove" to delete it; with the keyboard, `Alt+←` or `Alt+↑` moves the focused photo one place earlier, `Alt+→` or `Alt+↓` one place later. "View" — or a tap on the photo — opens it in the lightbox. After "Remove", a message offers "Undo" for a few seconds; the photo is deleted for good once it closes or you leave the editor.
-
-  </Step>
-</Steps>
-
-<Callout type="info" title="Good to know">
-  On a recipe that already exists, photos upload immediately as soon as they are added, each with its own progress ring; you can also paste photos anywhere in the editor outside a text field with `⌘V` / `Ctrl+V`. If an upload fails, the photo stays with a red outline and "Retry": tap or click it to try again, or remove it from its ⋯ menu. On a new, unsaved recipe photos are queued and upload only once you click "Save". "Save" and "Cancel" wait until every photo you added is up (or has failed) before leaving the editor.
+<Callout type="warn">
+  After "Remove", choose "Undo" within a few seconds. Once the message closes or you leave the editor, the photo is deleted for good.
 </Callout>
 
 ## On the detail page
 
-On a wide screen, the cover photo shows large, with the other photos as thumbnails below it. Clicking a thumbnail puts that photo in the large spot; clicking the large photo opens the lightbox. On a phone, the photos form a carousel at the top of the page that starts on the cover: swipe through them, follow the dots, and tap one to open it in the lightbox.
+- On a wide screen, click a thumbnail to show it large, and click the large photo to open the lightbox.
+- On a phone, swipe through the photos at the top, and tap one to open the lightbox.
 
 <Screenshot name="lightbox" caption="The lightbox, with the original download link" />
 
-"Download the original" downloads the largest copy Rezepte keeps — the uploaded photo scaled to at most 2400 px on its longest side, not the file as it came off the camera.
+"Download the original" gives you the largest copy Rezepte keeps: your photo scaled to at most 2400 px on its longest side, not the camera's file.
 
-<Accordions type="single">
-  <Accordion title="Formats and limits">
-    JPEG, PNG and WebP are accepted, up to 10 MiB per file and up to 20 photos per recipe. Each side of a photo must be between 64 and 12000 px, and the whole photo at most 60 megapixels.
-  </Accordion>
-  <Accordion title="Orientation and stored sizes">
-    A photo's orientation is fixed from its EXIF data on upload, so it always displays upright regardless of how the camera recorded it. Three JPEG sizes are stored for every photo: the original (resized to at most 2400 px), a detail size (1600 px) and a thumbnail (960 px).
-  </Accordion>
-  <Accordion title="Deleting the cover">
-    Removing the current cover photo makes the first remaining photo, by its place in the order, the new cover automatically.
-  </Accordion>
-</Accordions>
+## Formats and limits
+
+| | Limit |
+|---|---|
+| Formats | JPEG, PNG, WebP |
+| File size | 10 MiB per photo |
+| Photos per recipe | 20 |
+| Dimensions | 64 to 12000 px per side, 60 megapixels at most |

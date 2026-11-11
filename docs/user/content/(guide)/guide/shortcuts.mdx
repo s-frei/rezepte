@@ -3,35 +3,109 @@ title: Keyboard shortcuts
 description: Every keyboard shortcut Rezepte defines
 ---
 
-| Shortcut | Where | What it does |
-|---|---|---|
-| `⌘K` / `Ctrl+K` | Anywhere except the login page and [cook mode](/guide/cook-mode) | Opens or closes the [command palette](/guide#command-palette) |
-| `↑` / `↓` | The overview's search box | Moves through the suggested tags |
-| `Enter` | The overview's search box | Picks the highlighted tag, or searches what you typed when none is highlighted |
-| `Esc` | The overview's search box, while suggestions show | Closes the suggestions and keeps what you typed |
-| `Enter` | The "Ingredient" or "Amount" field of an ingredient row, in the editor | Moves on to the next field of the row (on a phone, the keyboard's "next" key) |
-| `Enter` | The "Unit" or "Note" field of an ingredient row, in the editor | Adds a new ingredient row below |
-| `Backspace` | An ingredient row that is completely empty, in the editor | Removes the row |
-| `Enter` / `,` | The "Tags" field, in the editor | Adds what you typed, or the suggestion picked with the arrow keys, as a tag |
-| `↑` / `↓` | The "Tags" field, while suggestions show | Moves through the suggestions |
-| `Backspace` | The empty "Tags" field | Removes the last tag |
-| `Esc` | The "Tags" field, while suggestions show | Closes the suggestions and clears what you typed |
-| `↑` / `↓` | The `@` ingredient picker in a step | Moves through the ingredients |
-| `Enter` / `Tab` | The `@` ingredient picker in a step | Links the highlighted ingredient |
-| `Esc` | The `@` ingredient picker in a step | Closes the picker |
-| `↑` / `↓` | The ingredient search that "Link word" opens | Moves through the ingredients |
-| `Enter` | The ingredient search that "Link word" opens | Links the word to the highlighted ingredient |
-| `Esc` | The ingredient search that "Link word" opens | Closes the search |
-| `Space` / `Enter` | A drag handle (ingredient or step), in the editor | Picks up the item; arrow keys move it, `Space`/`Enter` drops it, `Esc` cancels |
-| `Tab` | A picked-up ingredient | Moves it on to another ingredient group |
-| `Alt+←` / `Alt+→` / `Alt+↑` / `Alt+↓` | A photo in the editor, or in a comment you write or edit | Moves it one place: `←` and `↑` earlier, `→` and `↓` later |
-| `Enter` | The [comment](/guide/comments) field "What did you notice?", with a keyboard | Sends the comment (on a touch screen it starts a new line) |
-| `Shift+Enter` | The comment field, with a keyboard | Starts a new line |
-| `⌘Enter` / `Ctrl+Enter` | The comment field, on every device | Sends the comment |
-| `Enter` / `⌘Enter` / `Ctrl+Enter` | A comment you are editing | Saves the edit (`Enter` only with a keyboard; `Shift+Enter` starts a new line) |
-| `Esc` | A comment you are editing | Cancels the edit and leaves the comment as it was |
-| `Esc` | Any dialog, or the [lightbox](/guide/images) | Closes it |
-| `←` / `→` | The lightbox | Switches to the previous/next photo |
-| `←` / `→` | [Cook mode](/guide/cook-mode) | Moves to the previous/next step |
-| `Esc` | Cook mode | Leaves cook mode and returns to the recipe |
-| `Esc` | Cook mode, with the ingredient list open | Closes the ingredient list; the arrow keys do not change the step while it is open |
+Every keyboard shortcut Rezepte defines, by where you are.
+
+## Anywhere
+
+| Shortcut | What it does |
+|---|---|
+| `⌘K` / `Ctrl+K` | Opens or closes the [command palette](/guide#command-palette) (not on the login page or in cook mode) |
+| `Esc` | Closes a dialog, the [lightbox](/guide/images) or a photo opened from a step |
+
+## Overview search
+
+| Shortcut | What it does |
+|---|---|
+| `↑` / `↓` | Moves through the suggested tags |
+| `Enter` | Picks the highlighted tag, or searches what you typed |
+| `Esc` | Closes the suggestions and keeps what you typed |
+
+## Editor
+
+### Ingredient rows
+
+| Shortcut | What it does |
+|---|---|
+| `Enter` | In "Ingredient" or "Amount": moves on to the next field (on a phone, the keyboard's "next" key) |
+| `Enter` | In "Unit" or "Note": adds a new ingredient row below (in "Unit" with suggestions open, picks the highlighted unit) |
+| `↑` / `↓` | In "Unit": opens the unit suggestions and moves through them |
+| `Esc` | Closes the "Unit" suggestions |
+| `Backspace` | In an empty ingredient row: removes the row |
+
+### Tags
+
+| Shortcut | What it does |
+|---|---|
+| `Enter` / `,` | Adds the highlighted suggestion: the first match, or what you typed when nothing matches |
+| `↑` / `↓` | Moves through the suggestions |
+| `Esc` | Closes the suggestions and clears what you typed |
+| `Backspace` | In the empty field: removes the last tag |
+
+### The `@` picker and "Link word"
+
+| Shortcut | What it does |
+|---|---|
+| `↑` / `↓` | Moves through the ingredients |
+| `Enter` | Links the highlighted ingredient (`Tab` too, in the `@` picker) |
+| `Esc` | Closes it |
+
+### Reordering
+
+| Shortcut | What it does |
+|---|---|
+| `Space` / `Enter` | On a drag handle: picks up the ingredient or step; arrow keys move it, `Space` / `Enter` drops it, `Esc` cancels |
+| `Tab` | Moves a picked-up ingredient to another ingredient group |
+| `Alt+←` / `Alt+↑` | Moves a photo one place earlier |
+| `Alt+→` / `Alt+↓` | Moves a photo one place later |
+
+### Photos
+
+| Shortcut | What it does |
+|---|---|
+| `←` / `→` | In the photo strip when you link a photo to a step: moves to the previous or next photo |
+| `⌘V` / `Ctrl+V` | Outside a text field: pastes a photo |
+
+## Comments
+
+| Shortcut | What it does |
+|---|---|
+| `Enter` | Sends a [comment](/guide/comments), or saves your edit (with a keyboard; on a touch screen it starts a new line) |
+| `⌘Enter` / `Ctrl+Enter` | Sends or saves, on every device |
+| `Shift+Enter` | Starts a new line |
+| `Esc` | Cancels an edit |
+| `Alt+←` / `Alt+→` / `Alt+↑` / `Alt+↓` | Moves a photo in the comment you write or edit |
+| `⌘V` / `Ctrl+V` | Pastes a photo into the comment, even from inside the text field |
+
+## Lightbox and cook mode
+
+### Lightbox
+
+| Shortcut | What it does |
+|---|---|
+| `←` / `→` | Shows the previous or next photo |
+
+### Cook mode
+
+| Shortcut | What it does |
+|---|---|
+| `←` / `→` | Moves to the previous or next step in [cook mode](/guide/cook-mode) |
+| `Esc` | With "Whole step" or the ingredient list open: closes it; while either is open, the arrow keys do not change the step |
+| `Esc` | Otherwise: leaves cook mode |
+
+## Settings and shopping lists
+
+### Crop the photo
+
+In [your profile](/guide/settings#profile):
+
+| Shortcut | What it does |
+|---|---|
+| Arrow keys | Moves the photo in the frame |
+| `+` / `-` | Zooms in or out |
+
+### Shopping lists
+
+| Shortcut | What it does |
+|---|---|
+| `Backspace` | In the empty field under **Invite people**, when you [share a list](/guide/shopping-lists#share-a-list): removes the last person you picked |
+| `Esc` | In "New list": cancels and goes back to your lists |

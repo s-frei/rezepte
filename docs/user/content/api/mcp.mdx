@@ -3,85 +3,98 @@ title: Connect an AI assistant
 description: Let an MCP client search, read and edit your recipes and shopping lists
 ---
 
-The Model Context Protocol (MCP) lets an AI assistant work with your recipe collection directly — searching, reading, and with the right token creating, editing and deleting — instead of you copying ingredients back and forth by hand. Rezepte serves an MCP endpoint at `https://<your instance>/mcp`, and it uses the same credential as the REST API: an API token.
+Let an AI assistant search, read and, with the right token, edit your recipes and shopping lists. Rezepte serves a Model Context Protocol (MCP) endpoint at `https://<your instance>/mcp`, and the assistant signs in with an API token.
 
 ## Create a token
 
-Follow [API tokens](/api/tokens) to issue one from **Settings → API**. What the assistant may do follows the **Recipes** level you choose:
+Issue a token as described in [API tokens](/api/tokens). What the assistant may do follows its levels:
 
-- **Read** — search and read recipes, their comments and their photos, and list the tags; nothing else.
-- **Write** — also create and edit recipes, star them as favorites, mark them tasty, write comments and add photos.
-- **Delete** — also delete recipes.
-
-Shopping lists have a ladder of their own, **Shopping lists**:
-
-- **Read** — see your lists and what is on them.
-- **Write** — also create lists, add recipes and items, and tick or remove items. The same token over the [HTTP API](/api/tokens) does the rest of what the app does with a list, too; MCP does not.
-
-The assistant connects only with **Recipes** at **Read** or above, so a token for shopping lists needs that as well; with **Shopping lists** alone, the connection is refused.
-
-Give it the least it needs.
+| Level | The assistant can |
+|---|---|
+| **Recipes: Read** | Search and read recipes, comments, photos and tags. Required: without it, the connection is refused. |
+| **Recipes: Write** | Also create and edit recipes, favorite them, mark them tasty, comment and add photos |
+| **Recipes: Delete** | Also delete recipes |
+| **Shopping lists: Read** | See your lists and their items |
+| **Shopping lists: Write** | Also create lists, add recipes and items, tick and remove items |
 
 ## Connect a client
 
-Once the token is created, its dialog offers two ways to connect, both already filled in with your token and this instance's address — copying them from there is easier than typing them out.
+After you create the token, its dialog shows both ways to connect, already filled in with your token and address. Copy from there.
 
-### With a command
+<Tabs items={['Claude Code', 'JSON', 'VS Code']}>
+  <Tab value="Claude Code">
 
-Claude Code registers the instance with one command, which the dialog's "Claude Code" tab holds:
+    Run the command from the dialog's "Claude Code" tab:
 
-```bash
-claude mcp add --transport http rezepte https://<your instance>/mcp --header "Authorization: Bearer rzp_..."
-```
+    ```bash
+    claude mcp add --transport http rezepte https://<your instance>/mcp \
+      --header "Authorization: Bearer rzp_..."
+    ```
+
+  </Tab>
+  <Tab value="JSON">
+
+    Cursor, a project's `.mcp.json` and most other clients read the `mcpServers` block from the dialog's "JSON" tab:
+
+    ```json title=".mcp.json"
+    {
+      "mcpServers": {
+        "rezepte": {
+          "type": "http",
+          "url": "https://<your instance>/mcp",
+          "headers": { "Authorization": "Bearer rzp_..." }
+        }
+      }
+    }
+    ```
+
+  </Tab>
+  <Tab value="VS Code">
+
+    VS Code takes the same entry under a top-level `servers` key:
+
+    ```json title=".vscode/mcp.json"
+    {
+      "servers": {
+        "rezepte": {
+          "type": "http",
+          "url": "https://<your instance>/mcp",
+          "headers": { "Authorization": "Bearer rzp_..." }
+        }
+      }
+    }
+    ```
+
+  </Tab>
+</Tabs>
 
 <Screenshot name="token-mcp" caption="The token dialog with the connect command, ready to copy" />
 
-### With a JSON configuration
-
-Most MCP clients, such as Cursor, read an `mcpServers` block from a configuration file instead, as does a project's `.mcp.json`. The dialog's "JSON" tab holds this one:
-
-```json
-{
-  "mcpServers": {
-    "rezepte": {
-      "type": "http",
-      "url": "https://<your instance>/mcp",
-      "headers": { "Authorization": "Bearer rzp_..." }
-    }
-  }
-}
-```
-
-VS Code's `mcp.json` expects the same entry under a top-level `servers` key instead of `mcpServers`.
-
 ## What the assistant can do
 
-Twenty-two tools, each reaching as far as the token's scopes allow. The assistant acts as the admin who issued the token, under the same [editing rights](/guide/editing-rights) as in the app:
+The assistant acts as the admin who issued the token, under the same [editing rights](/guide/editing-rights) as in the app. It can:
 
-- **Search** the collection by keyword, tag, time, favorites or author, and sort it by the most tasty marks.
-- **Read** one recipe in full — ingredients, steps, tags, whether you have starred it, and who marked it tasty.
-- **List the tags** already in use, so it reuses yours instead of inventing new ones.
-- **Create** a recipe.
-- **Edit** a recipe — it replaces the whole document, the same as saving in the editor, including who may edit it.
-- **Delete** a recipe and its photos, with a **Delete** token only. This cannot be undone.
-- **Star or unstar** a recipe as a favorite.
-- **Mark a recipe tasty**, or take the mark back — never on a recipe the token's admin wrote.
-- **Read a recipe's [comments](/guide/comments)**, and see which ones are new for you — reading it does not clear the dot in the app.
-- **Write a comment** on a recipe, as the token's admin. It cannot edit or delete comments, and photos are not part of it: reading shows only how many photos a comment has.
-- **Add a photo from a link** to a recipe — Rezepte downloads it itself. The first photo a recipe gets becomes its cover.
-- **Upload photos from your computer**, in an assistant that can run commands, such as Claude Code. It asks Rezepte for an upload link that works for 15 minutes and sends each photo there; your token never appears in it. This needs the instance's [public address](/getting-started/configuration) set (`REZEPTE_PUBLIC_URL`).
+- **Search** by keyword, tag, time, favorites or author, and sort by tasty marks.
+- **Read** a recipe in full, and **list the tags** in use, so it reuses yours.
+- **Create**, **edit** and **delete** recipes, **favorite** them and **mark them tasty** (except recipes the token's admin wrote).
+- **Read [comments](/guide/comments)** and see which are new for you, and **write a comment**.
+- **Add a photo from a link**, or **upload photos from your computer** in an assistant that can run commands, such as Claude Code. Uploading needs the instance's [public address](/getting-started/configuration) (`REZEPTE_PUBLIC_URL`). Each upload link works for 15 minutes and never contains your token.
 - **Look at a recipe's photos**, to check an upload or describe a dish.
-- **Work with your [shopping lists](/guide/shopping-lists)**, with a **Shopping lists** token: list them and read one, create a list, put a recipe on it at the servings you name (the recipe's own otherwise, all ingredients unless you pick), add free items such as "2 l Milch" or "Brot", and tick or remove items. For example: "Put Königsberger Klopse for 6 on Wocheneinkauf". Up to 50 items go in at once; if one of them fails, the ones before it stay on the list and the assistant is told how many went in. The assistant acts on your lists and the ones shared with you only; a list you have no access to is "not found".
+- **Work with your [shopping lists](/guide/shopping-lists)**: read them, create a list, add free items such as "2 l Milch", tick or remove items. Up to 50 items go in at once; if one fails, the ones before it stay on the list.
+- **Put a recipe on a list**, at the servings you name, with all or some of its ingredients. For example: "Put Königsberger Klopse for 6 on Wocheneinkauf".
+
+<Callout type="warn" title="Edits and deletes are final">
+  Editing replaces the whole recipe, the same as saving in the editor. Deleting removes the recipe and its photos and cannot be undone. Only a **Recipes: Delete** token can delete.
+</Callout>
 
 ## What it cannot do
 
-- It cannot share a shopping list, accept an invitation to one, leave one, rename or delete it, change the servings of a recipe on it or take the recipe off, clear its done items, or move an item to another department — do that in the app, or over the HTTP API with a **Shopping lists** **Write** token.
-- It cannot change the cover, reorder or delete photos — do that in the app.
-- Photos must be JPEG, PNG or WebP; an assistant converts others, such as iPhone HEIC photos, before uploading.
-- It cannot see or add photos on comments.
-- It cannot do anything about members, passwords or anyone else's account.
-- It can never do more than the token's scopes allow — a **Read** token cannot create, edit or delete, and only **Delete** can delete recipes.
+- Share, rename or delete a shopping list, accept an invitation or leave one, change or remove a recipe on it, clear done items, or move an item to another department. Use the app, or the HTTP API with **Shopping lists: Write**.
+- Change the cover, reorder or delete photos. Use the app.
+- Edit or delete comments, or see or add photos on them.
+- Upload formats other than JPEG, PNG and WebP. The assistant converts others, such as HEIC, first.
+- Anything about members, passwords or other accounts.
 
 ## Clients that need OAuth
 
-Clients that only connect through OAuth, such as claude.ai's custom connectors, are not supported — Rezepte does not implement OAuth. Every client that accepts a static header works.
+Rezepte does not implement OAuth, so clients that connect only through OAuth, such as claude.ai's custom connectors, cannot connect. Every client that accepts a static header works.

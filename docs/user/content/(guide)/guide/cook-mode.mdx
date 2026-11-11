@@ -8,6 +8,8 @@ import { NewIn } from '@/components/new-in';
 
 <Hero name="phone" alt="The cookbook mascot cooking along with cook mode on a phone" />
 
+Cook mode shows one step at a time in large type, with timers and the ingredients a tap away. The screen stays on while it is open.
+
 <Screenshot name="cook-mode" caption="A step in cook mode" />
 
 <Steps>
@@ -15,31 +17,30 @@ import { NewIn } from '@/components/new-in';
 
     ### Start cooking
 
-    On a recipe's detail page, click "Cook mode" in the top bar on desktop. On a phone, "Start cook mode" is the wide button right under the servings; once you have scrolled past the photo, a round chef's-hat button in the header at the top does the same.
+    On a recipe's page, click **Cook mode** in the top bar. On a phone, tap **Start cook mode** under the servings.
 
   </Step>
   <Step>
 
     ### Move through the steps
 
-    One step shows at a time, in large type. Swipe left/right, use the on-screen buttons, or the `←`/`→` arrow keys to move between steps; a progress bar at the top shows how far along you are. "Done" on the last step returns to the recipe. Where a step's wording was linked to an ingredient in the editor, that ingredient's quantity shows right after it in parentheses — "onion **(1)**" — scaled to whatever servings you chose, so the amount is there without leaving the step to check the ingredient list. Durations marked in the editor — "25 minutes" — are buttons with a small clock and a ▶, so you see where a step waits and that a tap starts its timer; see [Recipes](/guide/recipes).
+    Swipe, tap **Next** and **Back**, or press `←` and `→`. **Done** on the last step takes you back to the recipe.
+
+    An ingredient linked in a step shows its quantity in parentheses, "onion **(1)**", scaled to your servings.
 
   </Step>
   <Step>
 
     ### Run timers<NewIn release="v1.3.0" />
 
-    Tap a duration — "20 minutes" — to start a timer for it. Each marked time has its own timer, so tapping one that already runs starts nothing new, and timers of different steps, or of different recipes, run side by side. A duration given as a range — "20 to 25 minutes" — runs on the shorter time; check then and add more if needed.
+    Tap a time in a step, such as "20 minutes", to start its timer. For a range like "20 to 25 minutes", the timer runs for the shorter time. Timers of other steps and recipes run side by side.
 
-    Running timers sit above the "Next" button. On a phone they fold into one capsule showing the timer with the least time left, paused or not; tap it to see all of them, each with its remaining time and the clock time it ends. Tap a timer's ring to pause it (the ring shows ⏸ while it runs and ▶ while it is paused) and again to resume it, ✕ to stop it, or its name to go to its step.
+    - **See your timers.** They sit above **Next**. On a phone they fold into one capsule; tap it to see them all.
+    - **Pause, resume or stop.** Tap a timer's ring to pause or resume it, ✕ to stop it, or its name to go to its step.
+    - **When one ends.** A **Done** banner appears and a chime sounds for up to two minutes. The banner stays until you tap **Off**.
+    - **Leave cook mode.** Timers keep running, even after a reload. The next one to end shows at the bottom of the screen. A timer that ended during a reload plays its sound only after your first tap.
 
-    When a timer ends, an orange "Done" banner appears under the progress bar, its bell swinging, and the phone chimes (and vibrates, where it can) until you tap "Off". After about two minutes the sound stops by itself; the banner stays until you turn it off.
-
-    The first time you start a timer, the browser asks whether Rezepte may show notifications (unless you already enabled [push on this device](/guide/notifications#push-on-this-device)); allow it once, and a timer that ends while Rezepte is in the background or the phone is locked shows a notification that opens its step. While Rezepte is in front of you, the banner and the chime are enough and no notification sounds. If notifications cannot work on this device, a short line under the timers says "Notifications only while Rezepte is open".
-
-    Timers keep running when you change steps, leave cook mode or reload the page. Outside cook mode the timer with the least time left shows at the bottom of a phone's screen, above the menu, and at the bottom right on a computer; tap it to see every timer, where you can pause or stop one or tap its name to go back to its step.
-
-    Cook mode keeps the step you are on in the page's address, so a reload or a bookmark opens that step again.
+    Allow notifications when the browser asks. A timer that ends while your phone is locked then sends a notification that opens its step.
 
     <Screenshot name="cook-mode-timers" caption="Two timers running in cook mode" />
 
@@ -48,7 +49,7 @@ import { NewIn } from '@/components/new-in';
 
     ### See a step's photo
 
-    Where a phrase of the step was linked to a photo in the editor (see [Recipes](/guide/recipes#link-a-photo-in-a-step)), it carries a small image icon and a dotted underline; tap it to see the photo. On a wide screen the photo opens beside the step, so the text stays readable; ×, `Escape`, a second tap on the phrase or moving on to another step closes it, and "View large" opens it full size. On a phone or in a narrow window it opens at the bottom of the screen, with the step above it.
+    A phrase with a small image icon has a [photo linked to it](/guide/recipes#link-a-photo-in-a-step). Tap the phrase to see the photo beside the step, or below it on a phone. Tap it again, or press `Esc`, to close it.
 
     <Screenshot name="cook-mode-step-photo" caption="A step's photo beside the step in cook mode" />
 
@@ -57,9 +58,9 @@ import { NewIn } from '@/components/new-in';
 
     ### Resize the text
 
-    A long step can fill more than a phone screen. The "Aa" button in the header opens a row of five type sizes, from small enough to fit a long step to large enough to read from across the kitchen; tap one and the step is set in it at once. The size holds for every step until you leave cook mode, and the next time you start cooking it is back at the default.
+    Tap **Aa** in the header and pick one of five type sizes. The size holds until you leave cook mode.
 
-    When a step is still taller than the screen, the recipe's name above it steps aside, the text fades out where more of it follows, and you can scroll it. "Whole step" at the bottom of the text opens it on its own: only the text, the "Aa" button and your timers, with the rest of cook mode out of the way. ✕ or `Esc` takes you back to the step.
+    A step taller than the screen scrolls. **Whole step** at its end shows only the text and your timers.
 
     <Screenshot name="cook-mode-type-size" mobile caption="Choosing a type size in cook mode" />
 
@@ -68,28 +69,24 @@ import { NewIn } from '@/components/new-in';
 
     ### Check ingredients
 
-    Tap the "Ingredients" bar at the bottom of the screen (it shows how many there are) to open the ingredient list without leaving cook mode. It is scaled the same way as on the detail page, using whatever servings you last chose (see [Servings](/guide/servings)), and carries its own `−`/`+` stepper and "Reset", so you can change the servings right there. The checkboxes are the same ones as on the detail page: an ingredient checked off there is checked here, and the other way around. `Escape`, the handle at its top or a tap beside it closes the list again; while it is open, the arrow keys do not change the step.
+    Tap the **Ingredients** bar at the bottom to open the list. It uses the servings you chose on the recipe, and its `−`/`+` changes them. Items you check off here are checked on the recipe too.
 
     <Screenshot name="cook-mode-sheet" mobile caption="The ingredient list open in cook mode" />
 
   </Step>
 </Steps>
 
-<Callout type="info" title="Good to know">
-  While cook mode is open, the screen is kept from sleeping (a "Screen stays on" note appears when this is active). `Escape`, or the back arrow in the header, leaves cook mode and returns to the recipe.
+Press `Esc`, or tap **Back to the recipe** in the header, to leave cook mode.
+
+<Callout type="info" title="Timers stay on this device">
+  Another phone or computer does not see your timers. Signing out stops every timer, so the next person on a shared device starts clean.
 </Callout>
 
-<Accordions type="single">
-  <Accordion title="When the screen does not stay awake">
-    Keeping the screen on relies on the browser's Wake Lock API, which requires a secure context. Over plain HTTP on a local network (no TLS) the browser silently does not grant it, so the screen can still turn off — see [Reverse proxy](/operations/reverse-proxy) for adding HTTPS.
-  </Accordion>
-  <Accordion title="Timers stay on this device">
-    A timer lives only in the browser that started it: another phone or computer of your household does not see it. Signing out stops every timer, so the next person to sign in on a shared device starts clean. After a reload, a timer that ended while the page was closed shows as done, but the browser plays its sound only after your first tap on the page.
-  </Accordion>
-  <Accordion title="When no notification arrives">
-    Notifications need a secure (HTTPS) address; over plain HTTP the timer tells you only while the page is open — see [Reverse proxy](/operations/reverse-proxy). On an iPhone or iPad they work only in the app added to the home screen (iOS 16.4 or later), not in Safari itself; see [Install the app](/guide/install-app). If you declined the browser's question, Rezepte does not ask again: allow notifications for the site in the browser's settings. Signing out stops the notifications for this device along with the timers. **Send test** under Settings → Notifications shows whether a notification reaches this device at all.
-  </Accordion>
-  <Accordion title="Recipes without steps">
-    A recipe with no steps shows a short message instead of the step view.
-  </Accordion>
-</Accordions>
+## When something does not work
+
+| Problem | Fix |
+|---|---|
+| The screen turns off | Keeping it on needs HTTPS. See [Reverse proxy](/operations/reverse-proxy). |
+| No notification arrives | Notifications need HTTPS too. On an iPhone or iPad, they work only in the [app on the home screen](/guide/install-app). |
+| You declined notifications | Rezepte does not ask again. Allow them for the site in your browser's settings. |
+| You are not sure notifications reach this device | Use **Send test** under [Settings → Notifications](/guide/notifications). |

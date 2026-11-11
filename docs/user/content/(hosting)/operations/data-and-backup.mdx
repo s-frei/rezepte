@@ -3,45 +3,41 @@ title: Data and backup
 description: Where Rezepte stores its data and how to back it up safely
 ---
 
-Everything Rezepte owns lives under one data directory (`REZEPTE_DATA_DIR`, `/data` in the Docker image):
+Back up one directory and you have everything: the data directory (`REZEPTE_DATA_DIR`, `/data` in the Docker image).
 
 <Files>
   <Folder name="data" defaultOpen>
     <File name="rezepte.db" />
     <File name="rezepte.db-wal" />
     <File name="rezepte.db-shm" />
-    <Folder name="images" defaultOpen>
-      <Folder name="<recipeId>" defaultOpen>
-        <File name="<imageId>.jpg" />
-        <File name="<imageId>_detail.jpg" />
-        <File name="<imageId>_thumb.jpg" />
-        <Folder name="comments">
-          <Folder name="<imageId>">
-            <File name="<imageId>.jpg" />
-            <File name="<imageId>_detail.jpg" />
-            <File name="<imageId>_thumb.jpg" />
-          </Folder>
-        </Folder>
-      </Folder>
-    </Folder>
-    <Folder name="avatars" defaultOpen>
-      <Folder name="<userId>" defaultOpen>
-        <File name="<avatarId>.jpg" />
-      </Folder>
-    </Folder>
+    <Folder name="images" />
+    <Folder name="avatars" />
   </Folder>
 </Files>
 
-`rezepte.db` is the SQLite database: recipes with their ingredients, steps and step times, tags and photo records, comments and which of them you have seen, accounts with their email addresses and when each was last active, sessions, API tokens, open setup links, links for a new password and confirmation links, favorites and tasty marks, shopping lists with who they are shared with and the departments taught for their items, public links, everyone's notification choices, the devices that receive push notifications and the alarms of running cook timers, the mail settings, the sign-in provider set up under Settings → Sign-in, and the household settings — editing rights, public sharing, link previews, the hour of the daily new recipes, the key that signs link previews and the key that signs push notifications. A mail server password set in the app under [Settings → Email](/guide/mail), and a client secret set under [Settings → Sign-in](/operations/single-sign-on), are stored in it unencrypted, so keep your backups as private as those secrets themselves; ones set with `REZEPTE_SMTP_PASSWORD` or `REZEPTE_OIDC_CLIENT_SECRET` stay out of the database. While Rezepte runs, SQLite keeps its most recent writes in `rezepte.db-wal` (with `rezepte.db-shm` as its index) before folding them into `rezepte.db`, so the three files are one database: copy them together or not at all. Each recipe photo is stored as three JPEG variants: the original (resized to at most 2400 px), a `_detail` variant (1600 px) and a `_thumb` variant (960 px). The photos of comments live in `comments/` inside the recipe's folder, in the same three variants. A photo added to a recipe's own photos from a comment is a hard link to the same files, so it costs no extra space; a backup tool that does not preserve hard links (`rsync` without `-H`) stores it twice, which only costs disk. The profile photos of the accounts are one small square JPEG each, in `avatars/` beside `images/`; the database only records which file is whose, so a backup without `avatars/` restores every account with its initial instead of its photo.
+| Path | Holds |
+| --- | --- |
+| `rezepte.db` | The database: recipes, comments, accounts, sessions, API tokens, shopping lists, public links and all settings |
+| `rezepte.db-wal`, `rezepte.db-shm` | The newest writes, not yet folded into `rezepte.db` |
+| `images/` | Recipe and comment photos |
+| `avatars/` | Profile photos |
 
-To pass recipes to another instance rather than back them up, see [Import and export](/guide/import-export).
+Back up the three `rezepte.db*` files together or not at all. Back up `avatars/` too, or every account comes back with its initial instead of its photo.
+
+<Callout type="warn" title="Backups contain secrets">
+  A mail password set under [Settings → Email](/guide/mail) and a client secret set under [Settings → Sign-in](/operations/single-sign-on) are stored in the database unencrypted. Keep backups as private as those secrets. Values set with `REZEPTE_SMTP_PASSWORD` or `REZEPTE_OIDC_CLIENT_SECRET` stay out of the database.
+</Callout>
+
+A comment photo added to the recipe photos is a hard link to the same files. Copy with `rsync -H`, as below, so a backup does not store it twice.
+
+To pass recipes to another instance instead, see [Import and export](/guide/import-export).
 
 ## Backing up
 
-<Tabs items={['Docker', 'Binary']}>
+<Tabs groupId="install" persist items={['Docker', 'Binary']}>
   <Tab value="Docker">
 
-    The [compose file](/getting-started/docker) keeps `/data` in a named volume, and the image has neither a shell nor the `sqlite3` tool, so the backup runs in a throwaway container that borrows the volume. Stop Rezepte for the few seconds it takes, so the database cannot change mid-copy, and pack the whole data directory into one archive:
+    Stop Rezepte for a few seconds and pack the data directory into one archive, from a throwaway container:
 
     ```bash
     docker compose stop rezepte
@@ -51,52 +47,64 @@ To pass recipes to another instance rather than back them up, see [Import and ex
     docker compose start rezepte
     ```
 
-    Run it next to your `docker-compose.yaml`; the archive lands in `backups/`. `--volumes-from` finds the volume through the container, which also works while it is stopped, so you never need the volume's full name, and the same commands work for a bind mount. The archive holds the database with any `-wal` and `-shm` files beside it, and every photo, profile photos included.
+    Run it next to your `docker-compose.yaml`; the archive lands in `backups/`. It works for a named volume and a bind mount alike.
 
     Started with `docker run --name rezepte` instead of compose? Use `docker stop rezepte` and `docker start rezepte`, and `--volumes-from rezepte`.
+
+    With a bind mount, you can instead back up the host directory while Rezepte keeps running, with the commands in the Binary tab. Run them as UID 65532, which owns the files.
 
   </Tab>
   <Tab value="Binary">
 
-    With the binary, or with a bind-mounted `./data` directory, the database is an ordinary file on the host, and SQLite's own backup command takes a consistent copy while the app keeps running. It needs the `sqlite3` command-line tool on the host:
+    With the binary, back up while Rezepte keeps running. You need the `sqlite3` tool on the host:
 
     ```bash
     sqlite3 /var/lib/rezepte/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
-    rsync -a --exclude 'rezepte.db*' /var/lib/rezepte/ /backups/files/
+    rsync -aH --exclude 'rezepte.db*' /var/lib/rezepte/ /backups/files/
     ```
 
-    The database backup is a single file with everything from the `-wal` folded in. `rsync` takes everything else in the data directory — recipe photos, profile photos and whatever Rezepte keeps there in future versions — and leaves out the database files, which `sqlite3` has already copied consistently. Run it as the account that owns the data directory — `rezepte` in the [systemd unit](/getting-started/binary), UID 65532 for a bind mount used by the container — so any file SQLite creates next to the database belongs to that account, not to root.
+    `sqlite3` writes one consistent file; `rsync` copies everything else in the data directory.
+
+    <Callout type="warn">
+      Run both as the account that owns the data directory: `rezepte` in the [systemd unit](/getting-started/binary#run-as-a-systemd-service). Run as root, SQLite can leave files next to the database that Rezepte cannot write.
+    </Callout>
 
   </Tab>
 </Tabs>
 
 <Callout type="warn">
-  Never copy `rezepte.db` alone with `cp` while the app is running. SQLite's WAL mode keeps recent writes in `rezepte.db-wal`, so a plain file copy of `rezepte.db` can miss them or capture the database mid-write. Use `sqlite3 .backup`, or stop the app first, as the Docker variant does.
+  Never copy `rezepte.db` with `cp` while Rezepte runs: the copy can miss recent writes or catch the database mid-write. Use `sqlite3 .backup`, or stop Rezepte first.
 </Callout>
 
 ## Restoring
 
-<Tabs items={['Docker', 'Binary']}>
+<Callout type="warn">
+  A restore replaces everything in the data directory. Anything changed since the backup is lost.
+</Callout>
+
+<Tabs groupId="install" persist items={['Docker', 'Binary']}>
   <Tab value="Docker">
 
-    Stop Rezepte, empty the volume, unpack the archive you want into it and give every file back to the container's user, UID 65532 — the throwaway container runs as root, and Rezepte cannot write to files root owns:
+    Stop Rezepte, empty the volume, unpack the archive and give the files back to UID 65532:
 
     ```bash
     docker compose stop rezepte
     docker run --rm --volumes-from "$(docker compose ps -aq rezepte)" \
       -v "$PWD/backups:/backup:ro" alpine:3 \
-      sh -c 'rm -rf /data/* && tar xzf /backup/rezepte-2026-01-31.tar.gz -C /data && chown -R 65532:65532 /data'
+      sh -c 'rm -rf /data/* \
+        && tar xzf /backup/rezepte-2026-01-31.tar.gz -C /data \
+        && chown -R 65532:65532 /data'
     docker compose start rezepte
     ```
 
-    Replace `rezepte-2026-01-31.tar.gz` with the name of your archive. The `-wal` and `-shm` files in it belong to the database next to them, so they are restored with it.
+    Replace `rezepte-2026-01-31.tar.gz` with your archive's name.
 
   </Tab>
   <Tab value="Binary">
 
     1. Stop Rezepte.
     2. Replace `rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it — they belong to the database you replaced, not to the backup.
-    3. Copy the backed-up files back into the data directory: `rsync -a /backups/files/ /var/lib/rezepte/`.
+    3. Copy the backed-up files back into the data directory: `rsync -aH /backups/files/ /var/lib/rezepte/`.
     4. Give the data directory back to the account Rezepte runs as, for example `chown -R rezepte:rezepte /var/lib/rezepte`.
     5. Start Rezepte again.
 

@@ -3,6 +3,8 @@ title: First login
 description: Change the owner password and add the rest of the household
 ---
 
+Sign in as the owner, secure the account and invite the household.
+
 <Screenshot name="login" caption="The login page" />
 
 <Steps>
@@ -10,31 +12,30 @@ description: Change the owner password and add the rest of the household
 
     ### Log in as the owner
 
-    Use the username and password from [Quick start](/getting-started) (`admin` by default, or the value of `REZEPTE_ADMIN_USER`).
+    Use `admin` (or the value of `REZEPTE_ADMIN_USER`) and the password from `REZEPTE_ADMIN_PASSWORD` in [Quick start](/getting-started).
 
-    On a phone or a narrow window the login opens on a welcome page: tap **Sign in** and the form comes up from the bottom, resting on the keyboard. Tap the picture above it, pull it down by its handle or press Escape to close it again.
-
-    The login page speaks your browser's language if Rezepte has it, and English otherwise; once you are signed in, your account's language takes over. Signing out switches the login page back to the browser's language. Only when your session simply ran out does it keep the language of the account that was signed in.
-
-    After five wrong passwords in a row, a username is locked for 30 seconds, and every further wrong try doubles the wait, up to 15 minutes. The login page says so instead of "wrong password". Devices that are already signed in are not affected. Once the wait is over, a correct password clears the count.
-
-    This first account owns the instance. It cannot be deleted, it cannot be turned into an ordinary member, and it is the only account that can make someone else an admin.
+    Locked out? After five wrong passwords in a row, the username is locked for 30 seconds, doubling with each further try up to 15 minutes, and the login page says so. Devices already signed in are not affected, and a correct password after the wait clears the count.
 
   </Step>
   <Step>
 
     ### Change the owner password
 
-    Open "Settings" and press "Change" on the Password row (8–128 characters). Doing this signs every other device out of that account.
+    Open "Settings" and choose **Change** in the **Password** row (8–128 characters). This signs every other device out of the account.
 
-    Nobody else can change this password for you — not even another admin — so put it in a password manager before you go on.
+    Nobody else can change this password for you, not even another admin. Put it in a password manager before you go on.
 
   </Step>
   <Step>
 
     ### Add the household
 
-    Open "People" and use "Add account" to create an account for each household member: a username and a role — "Admin" manages accounts, "Member" cooks and edits recipes. Leave "Send a setup link" selected and you get a one-time link to send them yourself — or, once [mail](/guide/mail) is set up and you enter their email address, Rezepte mails it to them — instead of a password you would have to choose and hand over; opening it greets them by name and lets them pick their own password. See [People](/guide/users) for the link's details and for "Set a password now", the alternative for setting an account up together in person. If your instance offers [single sign-on](/operations/single-sign-on), the link's page also lets them continue with the provider instead of choosing a password.
+    Open **People** and press **Add account** for each person. Pick a role:
+
+    - **Admin** manages accounts.
+    - **Member** cooks and edits recipes.
+
+    Leave **Send a setup link** selected. You get a one-time link to pass on, or Rezepte mails it once [mail](/guide/mail) is set up. They pick their own password, or continue with [single sign-on](/operations/single-sign-on) if you offer it. [People](/guide/users) covers **Set a password now** and later changes.
 
     <Screenshot name="welcome" caption="What the link opens to for the person you invited" />
 
@@ -43,15 +44,27 @@ description: Change the owner password and add the rest of the household
 
 <Screenshot name="first-login" caption="The overview right after the first login, before anyone has added a recipe" />
 
-<Callout type="warn" title="There is no handover">
-  The owner account stays the owner for the life of the instance; there is no way to move ownership to somebody else. If its password is lost, whoever runs the server is the only way back in: they start Rezepte once with `--reset-superadmin-password` and `REZEPTE_ADMIN_PASSWORD` set to the new password — see [Configuration](/getting-started/configuration).
-</Callout>
+## The owner account
 
-See [People](/guide/users) for changing roles, resetting passwords and deleting accounts later on.
+The first account owns the instance:
+
+- It cannot be deleted or turned into an ordinary member.
+- It is the only account that can make someone else an admin.
+- `REZEPTE_ADMIN_USER` and `REZEPTE_ADMIN_PASSWORD` are read only on the first start. Changing them later changes nothing on its own.
+
+<Callout type="warn" title="There is no handover">
+  The owner stays the owner for the life of the instance; you cannot move ownership to someone else. If its password is lost, only whoever runs the server can get back in, with [`--reset-superadmin-password`](/getting-started/configuration#--reset-superadmin-password).
+</Callout>
 
 ## Forgot your password?
 
-When the owner has set up mail, the login page shows **Forgot password?** below the **Sign in** button. Enter your username or your email address and Rezepte mails a link for a new password to your confirmed address; it is valid for one hour and works once, and setting the new password signs you out everywhere else. The page always answers the same, so nobody can find out which accounts exist. It works only for an address you confirmed (see [Settings → Profile](/guide/settings#profile)); if you sign in with an identity provider and have no password, the mail tells you so. While a setup link an admin gave you is still open, no mail goes out: use that link instead. The owner cannot reset by mail — see [Configuration](/getting-started/configuration#--reset-superadmin-password) for `--reset-superadmin-password`.
+- Once mail is set up, the login page shows **Forgot password?** below **Sign in**.
+- Enter your username or email address. Rezepte mails a link to your confirmed address ([Settings → Profile](/guide/settings#profile)). It is valid for one hour and works once.
+- Setting the new password signs you out everywhere else.
+- Still have an open setup link from an admin? Use that instead; no mail goes out.
+- Signing in with an identity provider and have no password? The mail says so.
+- The owner cannot reset by mail; see [`--reset-superadmin-password`](/getting-started/configuration#--reset-superadmin-password).
+- The page answers the same whether or not the account exists.
 
 <Screenshot name="login-forgot-link" caption="The login page with mail set up" />
 

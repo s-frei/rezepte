@@ -3,40 +3,29 @@ title: Servings
 description: Scale ingredient quantities to any number of servings, copy them or put them on a shopping list
 ---
 
+Cook a recipe for more or fewer people, and take its ingredients shopping.
+
 <Screenshot name="servings" caption="The servings stepper on the recipe detail page" />
 
-<Steps>
-  <Step>
+## Change the number of servings
 
-    ### Change the number of servings
+On a recipe's detail page, use the `−`/`+` stepper under the title (1–99). Every quantity updates at once. "Reset" returns to the recipe's own servings.
 
-    On a recipe's detail page, use the `−`/`+` stepper at the start of the row of pills under the title (1–99). Every ingredient quantity updates immediately, scaled from the recipe's stored servings.
+- Quantities round the way a cookbook does: quarters, thirds and halves, whole numbers from ten up.
+- Units are never converted: "tbsp" stays "tbsp", just multiplied.
+- Your choice is remembered per recipe in this browser and carries over into [cook mode](/guide/cook-mode).
 
-  </Step>
-  <Step>
-
-    ### Reset
-
-    Once you have scaled a recipe, a "Reset" link appears right next to the stepper; it returns to the recipe's original, stored servings.
-
-  </Step>
-  <Step>
-
-    ### Copy a shopping list
-
-    <Screenshot name="shopping-list" caption="The shopping list stub at the end of the ingredients" />
-
-    Tick off what you already have at home. The "Shopping list" stub at the bottom of the ingredients then has two buttons. The copy button copies every ingredient you have not ticked, one per line and at the servings you chose, so pasting it into Reminders, Todoist or Google Keep makes one item per ingredient; once everything is ticked it goes away. The basket puts the ingredients on one of your [shopping lists](/guide/shopping-lists) instead, where several recipes come together. "copy" next to the "Ingredients" heading copies all of them with their groups and notes, for a message or a note.
-
-  </Step>
-</Steps>
-
-<Callout type="info" title="Good to know">
-  Scaled quantities round the way a cookbook would — to quarters, thirds and halves near common kitchen fractions, whole numbers from ten upward — rather than showing long decimals. Your choice of servings is remembered per recipe in this browser and carries over into [cook mode](/guide/cook-mode); it never changes the recipe itself, so it is not shared with other people or devices. Editing the recipe's own "Servings" field is what changes the baseline everyone else scales from.
+<Callout type="info">
+  Scaling never changes the recipe for anyone else. To change the servings everyone starts from, edit the recipe's "Servings" field.
 </Callout>
 
-<Accordions type="single">
-  <Accordion title="Where the scaled number is stored">
-    Nowhere on the server — scaling happens entirely in the browser. The recipe's stored servings and every ingredient quantity are untouched; only units are never converted (an amount in "tbsp" stays in "tbsp", just multiplied).
-  </Accordion>
-</Accordions>
+## Copy a shopping list
+
+<Screenshot name="shopping-list" caption="The shopping list stub at the end of the ingredients" />
+
+Tick off what you already have at home. Then use the "Shopping list" stub at the bottom of the ingredients:
+
+- The copy button copies the unticked ingredients at your servings, one per line. Pasted into Reminders or Todoist, each line becomes its own item.
+- The basket button puts them on one of your [shopping lists](/guide/shopping-lists).
+
+To copy every ingredient with its group and note, for a message, choose "copy" next to the "Ingredients" heading.

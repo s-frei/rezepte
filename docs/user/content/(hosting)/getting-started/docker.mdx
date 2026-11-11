@@ -3,12 +3,12 @@ title: Docker
 description: Run the Rezepte image with Docker Compose or plain docker run
 ---
 
-The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/arm64`. It listens on port 8060 and stores everything — the SQLite database and uploaded photos — under `/data`, owned by UID 65532 (the distroless `nonroot` user the container runs as).
+Run the image `ghcr.io/s-frei/rezepte` (`linux/amd64`, `linux/arm64`). It listens on port 8060 and keeps everything under `/data`.
 
 <Tabs items={['docker compose', 'docker run']}>
   <Tab value="docker compose">
 
-    This is [`docker-compose.yaml`](https://github.com/s-frei/rezepte/blob/main/docker-compose.yaml) from the repository, rendered from that file itself, so it cannot drift from what Rezepte is actually run with. Download it instead of copying if you prefer — it carries a few extra comments meant for people working on Rezepte, and nothing else.
+    This is the repository's [`docker-compose.yaml`](https://github.com/s-frei/rezepte/blob/main/docker-compose.yaml):
 
     <include lang="yaml" meta='title="docker-compose.yaml"'>../../../../../docker-compose.yaml#compose</include>
 
@@ -31,36 +31,25 @@ The image is published at `ghcr.io/s-frei/rezepte` for `linux/amd64` and `linux/
 
 ## Image tags
 
-`latest` is the newest stable release. Every version is listed on the [GitHub releases page](https://github.com/s-frei/rezepte/releases), and every image tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte); use one in place of `latest` to run that version.
+`latest` is the newest stable release. To run another version, use its tag in place of `latest`. Every version is on the [releases page](https://github.com/s-frei/rezepte/releases), every tag on the [package page](https://github.com/s-frei/rezepte/pkgs/container/rezepte).
 
-Each released image carries an SPDX SBOM and build provenance as attestations, so Trivy and Grype scan it straight from the registry. The Go modules show up there; the web app's packages are in the release's `.spdx.json` files (see [Running the binary](/getting-started/binary#download)).
+Each image carries an SPDX SBOM and build provenance, so Trivy and Grype scan it straight from the registry. The web app's packages are in the release's `.spdx.json` files ([Download](/getting-started/binary#download)).
 
 ## Bind mounts
 
-The container runs as the nonroot user (UID 65532), so a bind-mounted `./data` directory must be writable by that UID before the first start:
+The container runs as UID 65532. Before the first start, make a bind-mounted `./data` writable by it:
 
 ```bash
 mkdir -p data
 chown 65532:65532 data
 ```
 
-A named volume (as in the compose file above) does not need this — Docker creates it already owned by the container's user.
+A named volume, as in the compose file, needs nothing.
 
 ## Updating
 
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Migrations run automatically the next time the container starts, and `curl -s http://localhost:8060/healthz` reports the version now running; see [Updates](/operations/updates).
+Run `docker compose pull` and `docker compose up -d`. See [Updates](/operations/updates) before you do.
 
 ## Demo mode
 
-Start the image with sample data instead of mounting real data:
-
-```bash
-docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
-```
-
-Open `http://localhost:8060` and log in as **`demo`** / **`demo1234`**. Without a volume nothing persists — the sample recipes and photos disappear when the container stops.
+Run `docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo` for sample data that is gone when the container stops. See [`--demo`](/getting-started/configuration#--demo) for the logins.

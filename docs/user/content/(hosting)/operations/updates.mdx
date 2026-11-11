@@ -1,28 +1,33 @@
 ---
 title: Updates
-description: How Rezepte applies database migrations and how to update it
+description: How to update Rezepte and check which version is running
 ---
 
-Every start of the binary applies any pending database migrations automatically — they are embedded in the binary itself (via [goose](https://github.com/pressly/goose)), so there is nothing separate to run. There is no automatic downgrade: rolling back to an older version after migrations have already run is not supported.
+Update Rezepte by replacing the image or binary and starting it again. Pending database migrations run automatically on that start, before Rezepte serves requests.
 
-Every version is listed on the [GitHub releases page](https://github.com/s-frei/rezepte/releases). Before updating, read the release's page in the [Changelog](/changelog). If the release needs anything from you, the page opens with **Before you upgrade**.
+Before you update, read the release's page in the [Changelog](/changelog). If the release needs anything from you, the page opens with **Before you upgrade**. Every version is on the [releases page](https://github.com/s-frei/rezepte/releases).
 
-<Callout type="warn">
-  Back up the database before updating — see [Data and backup](/operations/data-and-backup). A migration that fails halfway is easier to recover from a backup than to fix in place.
+<Callout type="warn" title="Back up first; there is no downgrade">
+  [Back up your data](/operations/data-and-backup) before updating. Once migrations have run, you cannot go back to an older version, and a failed migration is easier to recover from a backup than to fix in place.
 </Callout>
 
-## Docker
+## Update
 
-```bash
-docker compose pull
-docker compose up -d
-```
+<Tabs groupId="install" persist items={['Docker', 'Binary']}>
+  <Tab value="Docker">
 
-The container applies migrations on this restart, before it starts serving requests.
+    ```bash
+    docker compose pull
+    docker compose up -d
+    ```
 
-## Binary
+  </Tab>
+  <Tab value="Binary">
 
-Download the new archive from the [latest release](https://github.com/s-frei/rezepte/releases/latest), replace the installed binary, and restart it — `systemctl restart rezepte` for the systemd unit from [Running the binary](/getting-started/binary), or however it was started otherwise.
+    Download the new archive from the [latest release](https://github.com/s-frei/rezepte/releases/latest), replace the installed binary and restart it: `sudo systemctl restart rezepte` for the [systemd unit](/getting-started/binary#run-as-a-systemd-service).
+
+  </Tab>
+</Tabs>
 
 ## Confirm the new version is running
 
@@ -30,9 +35,14 @@ Download the new archive from the [latest release](https://github.com/s-frei/rez
 curl -s http://localhost:8060/healthz
 ```
 
-The answer is `{"status":"ok","version":"1.4.2"}` — the version the running instance was built from. It needs no login, which is what makes it work for a container too: the image is distroless and has no shell, so this is the only way to read the version from outside it. With the binary, `rezepte --version` prints the same value.
+It answers `{"status":"ok","version":"1.4.0"}` and needs no login, so a monitoring check can use it too. You can also ask the binary directly:
 
-Docker also watches that endpoint on its own. The image declares a healthcheck, so `docker ps` shows the container as `healthy` once it is serving, and as `unhealthy` if it stops answering:
+```bash
+rezepte --version                                # the binary
+docker compose exec rezepte /rezepte --version   # inside the container
+```
+
+Docker watches the instance on its own: `docker ps` shows the container as `healthy` once it serves, and `unhealthy` if it stops answering.
 
 ```bash
 docker ps
@@ -40,4 +50,4 @@ docker ps
 # Up 2 minutes (healthy)
 ```
 
-The first half-minute after a start counts as a grace period, because migrations — and, in demo mode, the sample data — run before the server answers.
+The first 30 seconds after a start do not count against it, while migrations run.

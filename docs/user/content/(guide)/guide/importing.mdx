@@ -3,60 +3,67 @@ title: Importing a recipe
 description: Turn a recipe from a website or from copied text into a recipe of your own
 ---
 
-Found a recipe on a website, or got one in a mail or a chat? Paste it into Rezepte instead of typing it. Everyone can import, not only admins.
+Found a recipe on a website, or in a mail or chat? Paste it into Rezepte instead of typing it. Everyone can import, not only admins.
 
 <Screenshot name="import-dialog" caption="The import dialog with a link pasted" />
 
 ## Paste a link or the text
 
-Click **Import** in the top bar, use "Import recipe" in the command palette, or — on a phone — tap **+** and then **Import**. While there are no recipes yet, the overview offers "Import" too.
+1. Click **Import** in the top bar. On a phone, tap **+**, then **Import**.
+2. Paste a link to the recipe page, or the recipe's text from a mail, chat or note.
+3. Choose **Import**. Nothing is saved yet.
 
-On Android, and in Chrome or Edge on Windows or ChromeOS, once Rezepte is [installed as an app](/guide/install-app), you can also share a link to it from any other app: choose **Share → Rezepte**, and the dialog opens with the link in its field, ready for **Import**.
+When you paste text, help Rezepte read it:
 
-Paste one of two things into the field:
+- Put the title on the first line.
+- Use headings like "Ingredients" and "Method" (or "Zutaten" and "Zubereitung").
+- Number the steps.
 
-- **A link** to the recipe page. The line under the field says "Link to …" with the site's name.
-- **The recipe as text**, copied from a mail, a chat, a note or a page. The line says "Text". Put the title on the first line; headings like "Ingredients" and "Method" (or "Zutaten" and "Zubereitung") help Rezepte tell the ingredients from the steps, and numbered steps are kept apart. The empty field shows a short example, and "What should the text look like?" under the field shows it again once you have pasted text.
-
-Then choose **Import**. Nothing is saved yet.
+You can also share a link straight into Rezepte from another app. See [Share to Rezepte](/guide/install-app#share-to-rezepte).
 
 ## Check the draft, then save
 
-The recipe opens in the editor, filled in: title, description, servings, times, ingredients, steps, tags, the source, and from a link usually the photo as well. Read it through, change what you like, and choose **Save**. If you leave instead, nothing is kept.
+The recipe opens in the editor, filled in. From a link, it usually has the photo too. Read it through, change what you like, and choose **Save**.
+
+<Callout type="warn" title="Nothing is kept until you save">
+  If you leave or reload the page before **Save**, the imported recipe is gone.
+</Callout>
 
 <Screenshot name="import-draft" caption="An imported recipe in the editor, with one ingredient to check" />
 
-- **Ingredients to check.** When Rezepte was not sure how to read an ingredient line — "salt to taste", or a number in an odd place — it keeps the line whole and marks it **Please check**, with the original line beneath. A line above the list counts them. Fix the row, or choose **Looks right** to keep it as it is; the hint never stops you from saving.
-- **Tag suggestions.** Keywords that match tags you already use are set as tags. Keywords that would be new tags are only suggested: open "… suggestions" under the tag field and take each one with ✓ or drop it with ✕. The recipe author's name is never suggested. Suggestions you leave open are not saved, so your tag list only grows when you agree.
-- **The photo.** If the photo could not be taken over, the recipe opens without it and says so; add one yourself under "Photos".
-- **Long recipes.** If the page had more than a recipe here can hold — too many ingredients or steps, or a very long text — Rezepte shortens it and says so once.
+- **Ingredients to check.** A line Rezepte could not read, like "salt to taste", is marked **Please check**, with the original beneath. Fix it, or choose **Looks right**. It never stops you from saving.
+- **Tags.** Keywords that match your tags are set as tags. New ones are only suggested: take each with ✓ or drop it with ✕. Suggestions you leave open are not saved.
+- **The photo.** If the photo could not be taken over, the editor says so. Add one under "Photos".
 
-The editor keeps an imported recipe only until you save or leave: reloading the page starts an empty recipe.
-
-Imported photos and texts still belong to the people who made them. Keeping a recipe for your own cooking is fine; don't share an imported recipe through a [public link](/guide/sharing) without their permission.
+<Callout type="warn" title="Imported recipes belong to their authors">
+  Keeping a recipe for your own cooking is fine. Don't share an imported recipe through a [public link](/guide/sharing) without the author's permission.
+</Callout>
 
 ## Already here?
 
-When a recipe from the same page is already in your collection, the dialog says "This recipe is already here" and names it and who added it. **View** opens that recipe; **Import anyway** carries on and makes a second one; **Back** returns to the field with your link or text still in it.
+If a recipe from the same link is already in your collection, the dialog says **This recipe is already here** and names it.
+
+| Button | What it does |
+|---|---|
+| **View** | Opens the recipe you already have |
+| **Import anyway** | Makes a second copy |
+| **Back** | Returns to the field, with your link or text still in it |
 
 ## When a page does not work
 
-- **"We found no recipe on …"** — the page has no recipe Rezepte can read. Many sites build their recipe in a way only a browser shows. The field empties: copy the recipe text from the page, paste it and import again. The link stays as the recipe's source.
-- **"We couldn't open this page."** — the page did not load: it is down, blocks programs that are not browsers, sits behind a paywall or login, or the address is wrong. Here too, copying the text works.
-- **"We couldn't find a recipe in this text."** — the text has no ingredients or steps Rezepte recognizes. Start a new recipe and write it in the editor.
-
-## What Rezepte fetches
-
-The page is fetched by the Rezepte server, not by your browser. It only opens pages on the public internet: addresses in the network Rezepte runs in — your router, other machines at home or in the data center — are refused with the same "We couldn't open this page.", so an import never reaches anything behind the server.
+| Message | What to do |
+|---|---|
+| "We found no recipe on …" | Copy the recipe text from the page and paste it instead. The link stays as the source. |
+| "We couldn't open this page." | The page is down, blocks programs, needs a login, or the address is wrong. Copy the text instead. Addresses on your own network are refused too. |
+| "We couldn't find a recipe in this text." | Start a new recipe and write it in the editor. |
 
 ## Limits
 
 - One photo per recipe.
 - Nutrition, ratings, videos and the source's author are not taken over.
+- A very long recipe is shortened, and the editor says so.
+- Units are read in English and German. In other languages, a unit stays part of the ingredient's name.
 - A recipe counts as already here only when it came from the same link, not when it has the same title.
-- The import understands amounts and units in English and German, the languages Rezepte speaks. In other languages it still takes the amounts, but units stay part of the ingredient's name ("cuillères à soupe de farine"), and only lines it cannot split at all are marked **Please check**.
-- To move many recipes at once between two Rezepte, an admin uses [Import and export](/guide/import-export).
+- To move many recipes between two Rezepte, an admin uses [Import and export](/guide/import-export).
 
-## From a program
-
-`POST /api/v1/recipe-drafts` with `{"url": "…"}` or `{"text": "…"}` returns the draft without saving it, for any API token with `recipes:write`; `POST /api/v1/recipes` saves it. See the [API reference](/api).
+Programs get a draft from `POST /api/v1/recipe-drafts` with any token with **Recipes: Write**, and save it with `POST /api/v1/recipes`. See [the API reference](/api).

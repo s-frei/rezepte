@@ -4,53 +4,56 @@ description: Put Rezepte on your home screen or desktop, and share links straigh
 new: v1.3.0
 ---
 
-Rezepte runs in the browser, but you can also install it. It then has its own icon on the home screen or in the app list and opens in its own window, without the browser bar. Nothing else changes: it is the same Rezepte, with the same account and the same recipes.
+Install Rezepte to get its own icon and its own window, without the browser bar. It is the same Rezepte, with the same account and recipes.
 
 ## Android and desktop Chrome
 
-On a phone, a note at the top of the overview, headed **Tip**, offers **Rezepte as an app**. Tap **Install** and confirm the browser's dialog. The **×** in its corner hides the note for good on this device. Tablets and computers get no note, only the card and the menu row below.
+On Android, install from **Chrome**. Brave and Firefox only add a home-screen shortcut, and a shortcut never shows up in the share menu. After the install, you can go back to your usual browser.
 
-On Android, install from **Chrome**. Brave and Firefox only put a shortcut on the home screen: it opens Rezepte, but never shows up in the share menu. Installed from Chrome, Rezepte is listed under **Settings → Apps** like any other app, which is how you tell the two apart. Chrome only has to do the install; afterwards you can keep using your usual browser, and share from it to Rezepte.
+Start the install from any of these:
+
+- **Install** in the **Tip** note at the top of the overview (phones only). The **×** hides the note on this device for good.
+- **Install** on the **Rezepte as an app** card in [Settings](/guide/settings#app).
+- **Install app** in the account menu on a computer, or in the "You" sheet on a phone.
 
 <Screenshot name="install-banner" mobile caption="The install banner on a phone" />
 
-The banner is only the first offer. These do the same:
-
-- The **Rezepte as an app** card in [Settings](/guide/settings#app), with an **Install** button.
-- **Install app** in the account menu behind your initial on a desktop, and in the "You" sheet on a phone.
-
 <Screenshot name="settings-app" caption="The App card in Settings" />
 
-None of them shows once Rezepte is installed, or when your browser does not offer an install. Chrome and Edge do; Firefox on a computer does not. On an iPhone, Safari cannot tell whether Rezepte is already on your home screen, so the card and the menu row stay in Safari, and the note stays until you hide it with the **×**; none of them shows inside the installed app.
+Confirm the browser's dialog. On Android, Rezepte now shows up under **Settings → Apps**. If it does not, you got a shortcut: install again from Chrome.
 
-Inside the installed app, the overview offers [push notifications](/guide/notifications#push-on-this-device) instead: a note headed **Tip**, "Never miss a thing", with **Turn on notifications**. On an iPhone or iPad, push works only in the app on the home screen, not in Safari.
+These offers disappear once Rezepte is installed. A browser that cannot install apps, such as Firefox on a computer, never shows them.
 
 ## iPhone and iPad
 
-Safari has no install button, so Rezepte shows you the three steps instead: the card lists them, and **Install** in the note or the "You" sheet opens them. An iPad gets the card and the sheet, but no note.
+Safari has no install button, so the card, the note and the "You" sheet show these steps instead:
 
 1. Tap **Share** at the bottom of Safari.
 2. Choose **Add to Home Screen**.
 3. Tap **Add**.
 
-The app on the home screen signs in once on its own, separately from Safari, so sign in again the first time you open it.
+The home-screen app keeps its own sign-in, separate from Safari, so sign in again the first time you open it. Safari cannot tell that Rezepte is installed, so the card and the "You" row stay in Safari. The note stays until you hide it with **×**.
 
 ## Share to Rezepte
 
-Once Rezepte is installed on Android, or in Chrome or Edge on Windows or ChromeOS, it shows up in the system's share menu. Share a recipe page from your browser, or a link from a chat, and choose **Rezepte**: the import dialog opens with the link in its field, and **Import** reads it; you then check the draft as with any [import](/guide/importing). If you are signed out, you sign in first and the dialog opens after that. If you are in the middle of editing a recipe, Rezepte first asks whether to discard your changes; **Keep editing** drops the share instead.
+Once Rezepte is installed from Chrome on Android, or from Chrome or Edge on Windows or ChromeOS, it is in the share menu of every app, other browsers included.
 
-This needs Rezepte installed from Chrome (see [above](#android-and-desktop-chrome)); a shortcut from Brave or Firefox is not in the share menu. Installed from Chrome, Rezepte is in the share menu of every app, including other browsers.
+1. Share a recipe page or a link from a chat, and choose **Rezepte**.
+2. The import dialog opens with the link filled in. Choose **Import**. If you are signed out, you sign in first.
+3. Check the draft, as with any [import](/guide/importing).
 
-Anywhere else, on an iPhone or iPad, a Mac or Linux, Rezepte does not appear in the share menu, so paste the link into the import dialog as usual.
+If you are editing a recipe, Rezepte first asks whether to discard your changes. **Keep editing** drops the share.
+
+On an iPhone, iPad, Mac or Linux, Rezepte is not in the share menu. Paste the link into the import dialog instead.
 
 ## Shortcuts
 
-Press and hold the app icon (Android), or right-click it (desktop), for three shortcuts: **Import**, **New recipe** and **Favorites**. Their names follow the language your instance is set to, not your own choice in Settings.
+Press and hold the app icon (Android), or right-click it (desktop), for three shortcuts: **Import**, **New recipe** and **Favorites**. Their names follow the instance's language, not yours.
 
 ## HTTPS is required
 
-Browsers install a web app only from a secure address, so Rezepte offers nothing on plain HTTP, except on `localhost`. If it runs behind a [reverse proxy](/operations/reverse-proxy) with TLS, you are set. The owner sees a card in Settings that says so while the instance is on HTTP; other members see nothing.
+Browsers install apps only from a secure address, so Rezepte offers no install over plain HTTP, except on `localhost`. See [Reverse proxy](/operations/reverse-proxy). While the instance runs on HTTP, the owner sees a card in Settings that says so.
 
 ## Remove the app
 
-Remove Rezepte like any other app: press and hold its icon and choose to remove or uninstall it, or, on a computer, choose **Uninstall** in the app window's menu. Your account and recipes stay on the server.
+Remove Rezepte like any other app: press and hold its icon and remove it, or on a computer choose **Uninstall** in the app window's menu. Your account and recipes stay on the server.

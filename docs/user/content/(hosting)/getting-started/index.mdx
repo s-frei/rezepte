@@ -3,26 +3,14 @@ title: Quick start
 description: Run Rezepte with Docker Compose and log in for the first time
 ---
 
-Rezepte ships as a single Docker image. This page gets a household instance running in a few minutes; see [Docker](/getting-started/docker) and [Running the binary](/getting-started/binary) for other ways to run it, and [Configuration](/getting-started/configuration) for every setting.
-
-```mermaid
-flowchart TB
-  members[Members' browsers and phones] -- HTTPS --> proxy[Reverse proxy]
-  proxy -- HTTP --> rezepte[Rezepte]
-  rezepte --> data[(Data directory:<br/>SQLite and photos)]
-  rezepte -. optional .-> mail[Mail server]
-  rezepte -. optional .-> sso[Sign-in provider]
-  assistants[AI assistants and scripts] -- API and MCP --> proxy
-```
-
-One process serves the app, the API and the MCP endpoint; everything it keeps is in one [data directory](/operations/data-and-backup). The [reverse proxy](/operations/reverse-proxy) adds HTTPS, a [mail server](/guide/mail) and a [sign-in provider](/operations/single-sign-on) are optional.
+Get a household instance running in a few minutes with Docker Compose. For other ways to run it, see [Docker](/getting-started/docker) and [Running the binary](/getting-started/binary).
 
 <Steps>
   <Step>
 
     ### Start it
 
-    Save the following as `docker-compose.yaml`, then run `docker compose up -d`. It is the repository's own file; [Docker](/getting-started/docker) explains every part of it, including [which versions exist](/getting-started/docker#image-tags).
+    Save this as `docker-compose.yaml` and run `docker compose up -d`. To run another version, see [image tags](/getting-started/docker#image-tags).
 
     <include lang="yaml" meta='title="docker-compose.yaml"'>../../../../../docker-compose.yaml#compose</include>
 
@@ -38,7 +26,7 @@ One process serves the app, the API and the MCP endpoint; everything it keeps is
 
     ### Log in
 
-    Log in as `admin` with the password from `REZEPTE_ADMIN_PASSWORD` in the compose file above.
+    Log in as `admin` with the password from `REZEPTE_ADMIN_PASSWORD` in the compose file. Then change it in the app, as [First login](/getting-started/first-login) shows.
 
   </Step>
   <Step>
@@ -50,16 +38,24 @@ One process serves the app, the API and the MCP endpoint; everything it keeps is
   </Step>
 </Steps>
 
-<Callout type="info" title="Try it without setup">
-  Rezepte can also start with sample data instead of a real household's recipes:
-
-  ```bash
-  docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo
-  ```
-
-  Log in as `demo` with the password `demo1234`. Nothing is persisted without a volume, so the data disappears when the container stops.
-</Callout>
-
 <Callout type="warn">
-  `REZEPTE_ADMIN_PASSWORD` is read when the instance starts with no users yet, and after that only by `--reset-superadmin-password`. Change it inside the app — see [First login](/getting-started/first-login) — rather than editing the environment variable later.
+  `REZEPTE_ADMIN_PASSWORD` is read only on the first start. Editing it later changes no password on its own.
 </Callout>
+
+<Callout type="info" title="Try it without setup">
+  Run `docker run --rm -p 8060:8060 ghcr.io/s-frei/rezepte:latest --demo` and log in as `demo` / `demo1234`. The sample data is gone when the container stops; see [demo mode](/getting-started/configuration#--demo).
+</Callout>
+
+## How it fits together
+
+```mermaid
+flowchart TB
+  members[Members' browsers and phones] -- HTTPS --> proxy[Reverse proxy]
+  proxy -- HTTP --> rezepte[Rezepte]
+  rezepte --> data[(Data directory:<br/>SQLite and photos)]
+  rezepte -. optional .-> mail[Mail server]
+  rezepte -. optional .-> sso[Sign-in provider]
+  assistants[AI assistants and scripts] -- API and MCP --> proxy
+```
+
+Before you invite anyone, add a [reverse proxy](/operations/reverse-proxy) for HTTPS. Everything Rezepte keeps is in one [data directory](/operations/data-and-backup). [Mail](/guide/mail) and a [sign-in provider](/operations/single-sign-on) are optional.

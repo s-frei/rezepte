@@ -3,47 +3,50 @@ title: Configuration
 description: Every REZEPTE_* environment variable and command-line flag
 ---
 
-Rezepte takes its entire configuration from environment variables — there is no config file.
+Configure Rezepte with environment variables; there is no config file.
 
 <TypeTable
   type={{
-    REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060' },
-    REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db and images/', type: 'string', default: './data' },
-    REZEPTE_ADMIN_USER: { description: 'Username of the instance owner, used only on the first start', type: 'string', default: 'admin' },
-    REZEPTE_ADMIN_PASSWORD: { description: 'Password of the instance owner; required on the first start (empty users table), ignored afterwards except by --reset-superadmin-password', type: 'string' },
-    REZEPTE_LOCALE: { description: 'Language code, such as en or de, of the owner account created on the first start, of accounts created through the API without a language, and of the demo recipes (English for a language without its own). Any language the interface is translated into; see Add a language', type: 'string', default: 'en' },
-    REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info' },
-    REZEPTE_LOG_FORMAT: { description: 'text or json', type: 'string', default: 'text' },
-    REZEPTE_SECURE_COOKIES: { description: 'Set Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false' },
-    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org — scheme and host only, no path. Required for sign-in through an identity provider, for mail, so a mailed link can point back to Rezepte, and for the photo upload links an AI assistant uses', type: 'string' },
-    REZEPTE_OIDC_ISSUER: { description: 'Issuer URL of the OpenID Connect provider people may sign in with; setting it turns that sign-in on and locks Settings → Sign-in to the environment', type: 'string' },
-    REZEPTE_OIDC_CLIENT_ID: { description: 'Client ID Rezepte is registered under at the provider', type: 'string' },
-    REZEPTE_OIDC_CLIENT_SECRET: { description: 'Client secret, if the provider issued one', type: 'string' },
-    REZEPTE_OIDC_NAME: { description: 'The provider name on the "Continue with …" button, such as Google', type: 'string', default: 'single sign-on' },
-    REZEPTE_SMTP_HOST: { description: 'The mail server Rezepte sends through; setting it turns mail on and locks the Email card in Settings', type: 'string' },
-    REZEPTE_SMTP_PORT: { description: 'The mail server\'s port. It stays 587 with tls as well, so for tls set it to 465, or to the port your provider names', type: 'number', default: '587' },
-    REZEPTE_SMTP_SECURITY: { description: 'starttls (usually port 587), tls (usually port 465) or none, only for a server in your own network', type: 'string', default: 'starttls' },
-    REZEPTE_SMTP_USERNAME: { description: 'Username to sign in to the mail server with; leave empty for a server that needs none', type: 'string' },
-    REZEPTE_SMTP_PASSWORD: { description: 'Password for that username', type: 'string' },
-    REZEPTE_SMTP_FROM: { description: 'The address mail is sent from; required with REZEPTE_SMTP_HOST', type: 'string' },
-    REZEPTE_SMTP_FROM_NAME: { description: 'The sender name people see in their inbox', type: 'string', default: 'Rezepte' },
-    TZ: { description: 'The time zone, such as Europe/Berlin, that times in mails are written in; they name no zone', type: 'string', default: 'UTC' },
+    REZEPTE_ADDR: { description: 'Listen address', type: 'string', default: ':8060', required: true },
+    REZEPTE_DATA_DIR: { description: 'Directory holding rezepte.db, images/ and avatars/', type: 'string', default: './data', required: true },
+    REZEPTE_ADMIN_USER: { description: 'Username of the instance owner, used only on the first start', type: 'string', default: 'admin', required: true },
+    REZEPTE_ADMIN_PASSWORD: { description: 'Password of the instance owner; required on the first start, afterwards read only by --reset-superadmin-password', type: 'string', required: true },
+    REZEPTE_LOCALE: { description: 'Language, such as en or de, of the owner account, of API-created accounts without one, and of the demo recipes. Must be a language the interface has; each member picks their own in Settings', type: 'string', default: 'en', required: true },
+    REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info', required: true },
+    REZEPTE_LOG_FORMAT: { description: 'text or json, see Logging below', type: 'string', default: 'text', required: true },
+    REZEPTE_SECURE_COOKIES: { description: 'true sets Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false', required: true },
+    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org, without a path. Required for single sign-on, mail and the photo upload links an AI assistant uses', type: 'string', required: true },
+    REZEPTE_OIDC_ISSUER: { description: 'Issuer URL of the OpenID Connect provider people may sign in with; setting it turns that sign-in on and locks Settings → Sign-in to the environment', type: 'string', required: true },
+    REZEPTE_OIDC_CLIENT_ID: { description: 'Client ID Rezepte is registered under at the provider', type: 'string', required: true },
+    REZEPTE_OIDC_CLIENT_SECRET: { description: 'Client secret, if the provider issued one', type: 'string', required: true },
+    REZEPTE_OIDC_NAME: { description: 'The provider name on the "Continue with …" button, such as Google', type: 'string', default: 'single sign-on', required: true },
+    REZEPTE_SMTP_HOST: { description: 'The mail server Rezepte sends through; setting it turns mail on and locks the Email card in Settings', type: 'string', required: true },
+    REZEPTE_SMTP_PORT: { description: 'The mail server\'s port. The default does not follow REZEPTE_SMTP_SECURITY: for tls, set 465 or your provider\'s port', type: 'number', default: '587', required: true },
+    REZEPTE_SMTP_SECURITY: { description: 'starttls (usually port 587), tls (usually port 465) or none, only for a server in your own network', type: 'string', default: 'starttls', required: true },
+    REZEPTE_SMTP_USERNAME: { description: 'Username to sign in to the mail server with; leave empty for a server that needs none', type: 'string', required: true },
+    REZEPTE_SMTP_PASSWORD: { description: 'Password for that username', type: 'string', required: true },
+    REZEPTE_SMTP_FROM: { description: 'The address mail is sent from; required with REZEPTE_SMTP_HOST', type: 'string', required: true },
+    REZEPTE_SMTP_FROM_NAME: { description: 'The sender name people see in their inbox', type: 'string', default: 'Rezepte', required: true },
+    TZ: { description: 'Time zone, such as Europe/Berlin, for the times in mails, which name no zone, and the hour the daily new recipes go out', type: 'string', default: 'UTC', required: true },
   }}
 />
 
-`REZEPTE_LOCALE` is only a starting point: every member picks their own language in [Settings](/guide/settings), and the "Add account" dialog in the app starts on the language of the admin filling it in rather than on this value.
+`REZEPTE_ADMIN_USER` and `REZEPTE_ADMIN_PASSWORD` are read only on the first start; see [First login](/getting-started/first-login#the-owner-account).
 
-The account created on the first start owns the instance. It cannot be deleted, it cannot lose its admin rights, nobody else can reset its password, and it is the only account that can make someone else an admin — see [First login](/getting-started/first-login). Changing `REZEPTE_ADMIN_USER` later changes nothing — it is read only while the instance has no accounts at all. `REZEPTE_ADMIN_PASSWORD` is read on that first start too, and after that by `--reset-superadmin-password` below and by nothing else, so setting it on a running instance changes no password on its own.
-
-The `REZEPTE_OIDC_*` variables are optional: the owner can set the provider up in Settings → Sign-in instead, and only `REZEPTE_PUBLIC_URL` is needed for that. Set the variables and they win: the card then reads "Set by the server" and cannot be edited. `REZEPTE_OIDC_ISSUER`, `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_PUBLIC_URL` go together: set one of the first two without the others and Rezepte refuses to start, naming all three. Rezepte asks the provider for its settings only when someone first presses the button (or the owner saves the settings), so a provider that is down never keeps Rezepte from starting, and password sign-in keeps working without it. [Single sign-on](/operations/single-sign-on) walks through setting it up with Google and Authelia.
+`REZEPTE_OIDC_*` is optional: the owner can set up the provider in Settings → Sign-in instead. Set the variables and they win, and the card reads "Set by the server". `REZEPTE_OIDC_ISSUER`, `REZEPTE_OIDC_CLIENT_ID` and `REZEPTE_PUBLIC_URL` go together: set one without the others and Rezepte refuses to start. See [Single sign-on](/operations/single-sign-on).
 
 ## Mail
 
-Rezepte can mail setup links to the people you invite, links for a new password (or a sign-in hint for someone who signs in with an identity provider), links that confirm an email address, security notices and [notifications](/guide/notifications). Forgot password and address confirmation need mail; without it the login page shows no **Forgot password?** link. Set `REZEPTE_SMTP_HOST` and `REZEPTE_SMTP_FROM` (and the username and password your mail provider gave you) and mail is on; Rezepte refuses to start when `REZEPTE_SMTP_HOST` is set without `REZEPTE_SMTP_FROM` or `REZEPTE_PUBLIC_URL`, or with a security other than `starttls`, `tls` or `none`. With `starttls` Rezepte never falls back to an unencrypted connection: a server that does not offer it is an error.
+Set `REZEPTE_SMTP_HOST`, `REZEPTE_SMTP_FROM` and `REZEPTE_PUBLIC_URL` (plus the username and password from your mail provider) to turn mail on. Without mail, there is no **Forgot password?** and no address confirmation; [Mail](/guide/mail) lists what Rezepte sends.
 
-Times in mails, such as when a password was changed, are in the server's time zone and name none, so set `TZ` to yours (`TZ: Europe/Berlin` in the compose file).
+- Rezepte refuses to start when `REZEPTE_SMTP_HOST` is set without `REZEPTE_SMTP_FROM` or `REZEPTE_PUBLIC_URL`, or with an unknown `REZEPTE_SMTP_SECURITY`.
+- With `starttls`, Rezepte never falls back to an unencrypted connection. A server that does not offer it is an error.
+- Set `TZ` to your time zone (`TZ: Europe/Berlin` in the compose file). Without it, times use the server's zone, UTC in the Docker image.
+- While `REZEPTE_SMTP_HOST` is set, the **Email** card in Settings shows the values and cannot change them. Change the variables and restart. Leave it unset to set mail up in the app ([Mail](/guide/mail)).
 
-While `REZEPTE_SMTP_HOST` is set, the **Email** card in Settings shows these values and cannot change them; change the variables and restart instead. Leave it unset and the owner sets mail up in the app instead, as [Mail](/guide/mail) describes. For mail to reach inboxes rather than spam folders, publish the SPF and DKIM records your provider documents for the domain of the sender address.
+<Callout type="info">
+  For mail to reach inboxes rather than spam, publish the SPF and DKIM records your provider documents for the sender's domain.
+</Callout>
 
 ## Command-line flags
 
@@ -53,7 +56,17 @@ While `REZEPTE_SMTP_HOST` is set, the **Email** card in Settings shows these val
 rezepte --demo
 ```
 
-Fills an empty data directory with twelve sample recipes and photos for most of them. The English and German recipes come with AI-generated photos; for a language without sample recipes of its own, `--demo` uses the English ones, photos included. Only a sample set that has no photos at all gets simple placeholder images instead. If `REZEPTE_ADMIN_PASSWORD` is unset, it also creates the demo account `demo` / `demo1234` instead of requiring a password, and three more members: `mila` / `mila1234` and `jonas` / `jonas1234`, who wrote a few of the sample recipes (Mila locked one of hers) and have marked a few others tasty, and `noah`, left with an open setup link and no password instead, the way you would leave an account for somebody who has not signed in yet. All four go by made-up names from the pantry in the demo's language — in English Damson Dill, Mila Marjoram, Jonas Cinnamon and Noah Nutmeg — so you can tell a display name from a login name at a glance. The demo account and the two signed-in members also hold a few public links, which stay paused until you switch public sharing on under **Settings → People** (see [Public links](/guide/sharing#public-links)). With your own `REZEPTE_ADMIN_PASSWORD` set, none of those extra accounts is created. On an instance that already has recipes, `--demo` does nothing and starts normally.
+Fills an empty data directory with twelve sample recipes, most with photos, in the language of `REZEPTE_LOCALE` (English where there is no sample set). On an instance that already has recipes, it does nothing and starts normally.
+
+If `REZEPTE_ADMIN_PASSWORD` is unset, it also creates these accounts and prints their logins:
+
+| Login | Password | State |
+| --- | --- | --- |
+| `demo` | `demo1234` | The owner |
+| `mila`, `jonas` | `mila1234`, `jonas1234` | Members who wrote and marked a few recipes |
+| `noah` | none | An open setup link, as for someone not yet signed in |
+
+The demo accounts hold a few public links, paused until you switch public sharing on ([Public links](/guide/sharing#public-links)).
 
 ### `--reset-superadmin-password`
 
@@ -61,9 +74,9 @@ Fills an empty data directory with twelve sample recipes and photos for most of 
 REZEPTE_ADMIN_PASSWORD='the new password' rezepte --reset-superadmin-password
 ```
 
-The way back in when the owner's password is lost. Nobody inside the app can reset that account, so this runs on the server instead: it sets the owner's password to `REZEPTE_ADMIN_PASSWORD` (an empty value is an error), signs that account out on every device, and exits without starting the server. Start Rezepte normally afterwards and log in with the new password.
+Sets the owner's password to `REZEPTE_ADMIN_PASSWORD`, signs that account out on every device and exits without starting the server. An empty value is an error. Start Rezepte normally afterwards and log in with the new password.
 
-Everyone else's password is reset from "Settings" → "People" — see [People](/guide/users).
+Use it only for the owner; everyone else's password is reset in [People](/guide/users).
 
 ### `--version`
 
@@ -71,7 +84,7 @@ Everyone else's password is reset from "Settings" → "People" — see [People](
 rezepte --version
 ```
 
-Prints the version this binary was built from and exits. The same value comes back from `/healthz` on a running instance — see [Updates](/operations/updates).
+Prints the version and exits. See [Updates](/operations/updates#confirm-the-new-version-is-running) for a running instance.
 
 ### `--healthcheck`
 
@@ -79,21 +92,25 @@ Prints the version this binary was built from and exits. The same value comes ba
 rezepte --healthcheck
 ```
 
-Asks the instance on this machine's `REZEPTE_ADDR` whether it is serving, then exits: `0` if it answered, non-zero with a reason if it did not. It starts nothing and touches neither the database nor the data directory, so it is safe to run beside a live instance.
-
-The container image uses it for its own `HEALTHCHECK`, which is why it exists — the image has no shell and no `curl` for one to call. With the binary it works the same way, so a systemd watchdog or a monitoring check can use it too.
+Asks the instance on `REZEPTE_ADDR` whether it is serving and exits: `0` if it answered, non-zero with a reason if not. It touches neither the database nor the data directory, so it is safe beside a live instance. The Docker image uses it as its `HEALTHCHECK`; a systemd watchdog or monitoring check can too.
 
 ## Logging
 
-`REZEPTE_LOG_FORMAT=text` (the default), one line per event with the time, the level (`DBG`, `INF`, `WRN`, `ERR`) and the message:
+`REZEPTE_LOG_FORMAT=text` (the default) writes one line per event: time, level (`DBG`, `INF`, `WRN`, `ERR`) and message.
 
 ```text
 10:00:00 INF http: listening addr=:8060 url=http://localhost:8060
 ```
 
-In a terminal the level is colored. Without one - output into a file, journald or a log collector - the lines stay plain text, so no color codes end up in your logs. `NO_COLOR=1` turns color off everywhere, `FORCE_COLOR=1` turns it on without a terminal. With Docker Compose, `tty: true` on the service gives the container a terminal, and `docker compose logs` shows the colors.
+The level is colored only in a terminal, so files and journald get plain text.
 
-`REZEPTE_LOG_FORMAT=json`, one JSON object per line and never colored, for a log collector:
+| Setting | Effect |
+| --- | --- |
+| `NO_COLOR=1` | Color off everywhere |
+| `FORCE_COLOR=1` | Color on without a terminal |
+| `tty: true` on the compose service | Colors in `docker compose logs` |
+
+`REZEPTE_LOG_FORMAT=json` writes one uncolored JSON object per line, for a log collector:
 
 ```json
 {"time":"2026-09-18T10:00:00.000+02:00","level":"INFO","msg":"http: listening","addr":":8060","url":"http://localhost:8060"}
