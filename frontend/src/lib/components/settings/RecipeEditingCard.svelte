@@ -22,17 +22,22 @@
 	});
 
 	// Applies on flip, like theme and language; the switch shows the server's
-	// answer, so a failed write snaps back.
+	// answer, so a failed write snaps back. Only the latest flip's answer or
+	// snap back lands, so a slow older reply cannot undo a newer choice.
+	let saveSeq = 0;
 	async function change(next: boolean) {
+		const seq = ++saveSeq;
 		const before = locked;
 		locked = next;
 		try {
-			locked = (await setRecipesLockedByDefault(next)).recipesLockedByDefault;
+			const saved = (await setRecipesLockedByDefault(next)).recipesLockedByDefault;
+			if (seq !== saveSeq) return;
+			locked = saved;
 			toast.success(
-				locked ? m.settings_recipe_editing_saved_on() : m.settings_recipe_editing_saved_off()
+				saved ? m.settings_recipe_editing_saved_on() : m.settings_recipe_editing_saved_off()
 			);
 		} catch {
-			locked = before;
+			if (seq === saveSeq) locked = before;
 			toast.error(m.settings_recipe_editing_error());
 		}
 	}

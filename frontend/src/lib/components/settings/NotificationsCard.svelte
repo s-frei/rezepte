@@ -106,7 +106,7 @@
 		}
 	];
 
-	// Greyed but operable: the preferences are the account's, so a later
+	// Grayed but operable: the preferences are the account's, so a later
 	// confirmation or another device makes them count.
 	const muted: Record<Channel, boolean> = $derived({
 		mail: !mailEnabled || !verified,
@@ -165,6 +165,7 @@
 	}
 
 	async function sendTest() {
+		if (testing) return;
 		// Cleared first, so a repeat's "Sent" is new text and is announced again.
 		testSent = false;
 		testing = true;
@@ -196,15 +197,20 @@
 		}));
 	});
 
-	// Applies on pick; a failed write snaps back to what was saved.
+	// Applies on pick; a failed write snaps back to what was saved. Like
+	// `change`, only the latest pick's answer or snap back lands.
+	let hourSeq = 0;
 	async function saveHour(hour: number) {
+		const seq = ++hourSeq;
 		const before = digestHour;
 		digestHour = hour;
 		try {
-			digestHour = (await updateSettings({ recipeDigestHour: hour })).recipeDigestHour;
+			const saved = (await updateSettings({ recipeDigestHour: hour })).recipeDigestHour;
+			if (seq !== hourSeq) return;
+			digestHour = saved;
 			toast.success(m.settings_notifications_digest_saved());
 		} catch (error) {
-			digestHour = before;
+			if (seq === hourSeq) digestHour = before;
 			if (!isSignedOut(error)) toast.error(m.settings_notifications_save_error());
 		}
 	}
@@ -286,7 +292,7 @@
 			note={testSent ? m.settings_notifications_test_sent() : undefined}
 		>
 			{#snippet action()}
-				<Button size="sm" variant="secondary" disabled={testing} onclick={sendTest}>
+				<Button size="sm" variant="secondary" busy={testing} onclick={sendTest}>
 					<Send class="size-4" aria-hidden="true" />{m.settings_notifications_send_test()}
 				</Button>
 			{/snippet}
@@ -340,7 +346,7 @@
 							{@const groupOn = prefs.groups[group]?.[channel] ?? true}
 							<!-- The group's switch heads the block and its kinds sit inset
 							     below it, so it reads as the switch for all of them. Off, it
-							     holds them: greyed and inert but still focusable, each keeping
+							     holds them: grayed and inert but still focusable, each keeping
 							     its own choice. -->
 							<div class={blockClass}>
 								<div class="flex items-start justify-between gap-4 px-4 py-3">

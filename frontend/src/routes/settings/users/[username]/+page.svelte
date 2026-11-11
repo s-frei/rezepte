@@ -212,6 +212,7 @@
 		});
 	}
 
+	let roleSeq = 0;
 	/**
 	 * A role takes effect with one tap and carries rights, so the toast names
 	 * the new role and offers the way back: a stray tap costs a second tap,
@@ -219,9 +220,14 @@
 	 * failure, already toasted, so the control can snap back.
 	 */
 	async function saveRole(user: PersonEntry, next: UserRole): Promise<void> {
+		// Only the latest pick's answer lands, toast and all: an older reply,
+		// or an older failure's snap back, would undo a newer pick. An
+		// overtaken pick resolves quietly.
+		const seq = ++roleSeq;
 		const previous = user.role;
 		try {
 			const updated = await updateUser(user.id, { role: next });
+			if (seq !== roleSeq) return;
 			replace(updated);
 			toast.success(m.users_role_changed({ name: updated.displayName, role: roleLabel(next) }), {
 				action: {
@@ -232,6 +238,7 @@
 				}
 			});
 		} catch (error) {
+			if (seq !== roleSeq) return;
 			refused(error);
 			throw error;
 		}
@@ -304,11 +311,15 @@
 		}
 	}
 
+	// Like a role, only the latest flip's answer or snap back lands.
+	let sharingSeq = 0;
 	async function changeSharing(next: boolean) {
 		if (!person) return;
+		const seq = ++sharingSeq;
 		sharing = next;
 		try {
 			const updated = await updateUser(person.id, { canSharePublicly: next });
+			if (seq !== sharingSeq) return;
 			patchAccount(updated.id, { canSharePublicly: updated.canSharePublicly });
 			toast.success(
 				next
@@ -316,6 +327,7 @@
 					: m.users_share_disabled({ username: person.username })
 			);
 		} catch (error) {
+			if (seq !== sharingSeq) return;
 			refused(error);
 			sharing = setup?.canSharePublicly ?? false;
 		}

@@ -179,6 +179,52 @@ test('a role change on the person page is undone from its toast', async ({ page 
 	await expect(head.getByText(`Member, signs in as ${username}`)).toBeVisible();
 });
 
+/** Holds the first PATCH to `id`'s account 1.5s after the service answered it. */
+async function delayFirstPatch(page: Page, id: string): Promise<void> {
+	let first = true;
+	await page.route(`**/api/v1/users/${id}`, async (route) => {
+		if (route.request().method() !== 'PATCH' || !first) return route.fallback();
+		first = false;
+		const response = await route.fetch();
+		await new Promise((r) => setTimeout(r, 1500));
+		await route.fulfill({ response }).catch(() => {});
+	});
+}
+
+test('a role answer overtaken by a newer pick is dropped', async ({ page }) => {
+	const username = `prq${uniqueToken()}`;
+	await asOwner(page);
+	const user = await createUser(page, { username, role: 'user' });
+	await page.goto(`/settings/users/${username}`);
+	await delayFirstPatch(page, user.id);
+
+	const head = card(page, username);
+	const role = head.getByRole('button', { name: `${username}'s role` });
+	await role.click();
+	await page.getByRole('option', { name: 'Admin' }).click();
+	await role.click();
+	await page.getByRole('option', { name: 'Member' }).click();
+	await expect(page.getByText(`${username} is now Member`)).toBeVisible();
+	await page.waitForTimeout(1500);
+	await expect(head.getByText(`Member, signs in as ${username}`)).toBeVisible();
+	await expect(page.getByText(`${username} is now Admin`)).toHaveCount(0);
+});
+
+test('a sharing answer overtaken by a newer flip is dropped', async ({ page }) => {
+	const username = `prs${uniqueToken()}`;
+	await asOwner(page);
+	const user = await createUser(page, { username, role: 'user' });
+	await page.goto(`/settings/users/${username}`);
+	const sharing = card(page, username).getByRole('switch', { name: 'May share publicly' });
+	const before = await sharing.isChecked();
+	await delayFirstPatch(page, user.id);
+
+	await sharing.click();
+	await sharing.click();
+	await page.waitForTimeout(2000);
+	expect(await sharing.isChecked()).toBe(before);
+});
+
 test('an admin issues and revokes a setup link from the person page', async ({ page }) => {
 	const username = `psl${uniqueToken()}`;
 	await asOwner(page);

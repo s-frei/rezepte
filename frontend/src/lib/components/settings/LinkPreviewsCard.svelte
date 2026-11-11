@@ -37,18 +37,22 @@
 	});
 
 	// Applies on change, like the editing switch; the card shows the server's
-	// answer, so a failed write snaps back.
+	// answer, so a failed write snaps back. Only the latest change's answer or
+	// snap back lands: an older one would undo a newer choice still on its way.
+	let saveSeq = 0;
 	async function save(patch: Partial<Settings>) {
+		const seq = ++saveSeq;
 		const before = current;
 		if (current) {
 			current = { ...current, ...patch };
 		}
 		try {
 			const s = await updateSettings(patch);
+			if (seq !== saveSeq) return;
 			current = { linkPreviews: s.linkPreviews, linkPreviewMinutes: s.linkPreviewMinutes };
 			toast.success(m.settings_link_previews_saved());
 		} catch {
-			current = before;
+			if (seq === saveSeq) current = before;
 			toast.error(m.settings_link_previews_error());
 		}
 	}
