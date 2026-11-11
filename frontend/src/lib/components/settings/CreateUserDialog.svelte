@@ -23,14 +23,10 @@
 	import { withoutErrors } from '#lib/form-errors.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
-	import {
-		PASSWORD_MIN,
-		passwordErrorsFromApi,
-		validateNewPassword
-	} from '#lib/settings/password.js';
+	import { passwordErrorsFromApi, validateNewPassword } from '#lib/settings/password.js';
 	import { leastUsedColor, USER_COLORS, type UserColor } from '#lib/user/color.js';
 	import ColorPicker from './ColorPicker.svelte';
-	import PasswordStrength from './PasswordStrength.svelte';
+	import NewPasswordFields from './NewPasswordFields.svelte';
 
 	let {
 		open = $bindable(false),
@@ -73,9 +69,7 @@
 	// Held as a plain string because that is what the select binds; narrowed
 	// back to Locale on submit, where the API type demands it.
 	let locale = $state<string>(getLocale());
-	let errors = $state<{ username?: string; email?: string; password?: string; repeat?: string }>(
-		{}
-	);
+	let errors = $state<{ username?: string; email?: string; next?: string; repeat?: string }>({});
 	let saving = $state(false);
 
 	const localeOptions = languageOptions();
@@ -121,7 +115,7 @@
 		if (mode === 'password') {
 			const pw = validateNewPassword(password, repeat);
 			if (pw.next) {
-				errors.password = pw.next;
+				errors.next = pw.next;
 			}
 			if (pw.repeat) {
 				errors.repeat = pw.repeat;
@@ -156,7 +150,7 @@
 				}
 				const password = passwordErrorsFromApi(error.errors).next;
 				if (password) {
-					errors.password = password;
+					errors.next = password;
 				}
 				if (Object.keys(errors).length === 0) toast.error(m.users_create_error());
 			} else if (!isSignedOut(error)) {
@@ -305,29 +299,14 @@
 					</RadioGroup.Root>
 				</div>
 				{#if mode === 'password'}
-					<div class="space-y-1.5">
-						<Input
-							id="new-user-password"
-							label={m.login_password()}
-							type="password"
-							autocomplete="new-password"
-							required
-							bind:value={password}
-							oninput={() => (errors = withoutErrors(errors, ['password', 'repeat']))}
-							error={errors.password ?? null}
-							hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
-						/>
-						<PasswordStrength {password} userInputs={[username, displayName]} />
-					</div>
-					<Input
-						id="new-user-password-repeat"
-						label={m.settings_password_repeat()}
-						type="password"
-						autocomplete="new-password"
+					<NewPasswordFields
+						id="new-user-password"
+						label={m.login_password()}
 						required
-						bind:value={repeat}
-						oninput={() => (errors = withoutErrors(errors, ['repeat']))}
-						error={errors.repeat ?? null}
+						bind:password
+						bind:repeat
+						bind:errors
+						userInputs={[username, displayName]}
 					/>
 				{/if}
 			</div>

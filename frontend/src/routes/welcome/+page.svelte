@@ -13,16 +13,13 @@
 	import AuthScene from '#lib/components/auth/AuthScene.svelte';
 	import ProviderButton from '#lib/components/auth/ProviderButton.svelte';
 	import { session } from '#lib/auth.svelte.js';
-	import PasswordStrength from '#lib/components/settings/PasswordStrength.svelte';
+	import NewPasswordFields from '#lib/components/settings/NewPasswordFields.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
-	import Input from '#lib/components/ui/Input.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { userColorLabel } from '#lib/user/color-label.js';
-	import { withoutErrors } from '#lib/form-errors.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { announceSession } from '#lib/session-broadcast.js';
 	import {
-		PASSWORD_MIN,
 		passwordErrorsFromApi,
 		validateNewPassword,
 		type PasswordErrors
@@ -266,31 +263,14 @@
 					readonly
 					hidden
 				/>
-				<div class="space-y-1.5">
-					<Input
-						id="welcome-password"
-						label={m.settings_password_new()}
-						type="password"
-						autocomplete="new-password"
-						required
-						floating
-						bind:value={password}
-						oninput={() => (errors = withoutErrors(errors, ['next', 'repeat']))}
-						error={errors.next ?? null}
-						hint={m.settings_password_too_short({ min: PASSWORD_MIN })}
-					/>
-					<PasswordStrength {password} userInputs={[username, displayName]} />
-				</div>
-				<Input
-					id="welcome-password-repeat"
-					label={m.settings_password_repeat()}
-					type="password"
-					autocomplete="new-password"
+				<NewPasswordFields
+					id="welcome-password"
 					required
 					floating
-					bind:value={repeat}
-					oninput={() => (errors = withoutErrors(errors, ['repeat']))}
-					error={errors.repeat ?? null}
+					bind:password
+					bind:repeat
+					bind:errors
+					userInputs={[username, displayName]}
 				/>
 				{#if submitError}
 					<p role="alert" class="text-caption font-medium text-destructive">{submitError}</p>
