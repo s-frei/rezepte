@@ -37,6 +37,7 @@
 	import { closeHistory } from '@tiptap/pm/history';
 	import {
 		addReference,
+		entryLabel,
 		fitsWordLimit,
 		guessFirst,
 		isResolved,
@@ -438,8 +439,26 @@
 	}
 
 	/**
-	 * Everything the decorations draw: each word and the class it is drawn in,
-	 * as one comparable string. The editor re-draws decorations on every
+	 * Each marked word and the class it is drawn in, the first claim on a word
+	 * winning: links, then proposals, then stored and proposed times. Plain
+	 * arrays rather than a Map and a Set: they hold a handful of entries, and
+	 * `svelte/prefer-svelte-reactivity` rightly refuses a built-in collection
+	 * inside a component.
+	 */
+	const marks = $derived.by(() => {
+		const marked = shown.map((ref) => ({ word: ref.word, cls: confirmedClass(ref) }));
+		const add = (word: string, cls: string) => {
+			if (!marked.some((entry) => entry.word === word)) marked.push({ word, cls });
+		};
+		for (const word of proposed) add(word, 'ref-suggestion');
+		for (const time of shownTimes) add(time.phrase, 'time-link');
+		for (const time of pendingTimesList) add(time.phrase, 'time-proposal');
+		return marked;
+	});
+
+	/**
+	 * Everything the decorations draw: the marks, the photo phrases and the
+	 * framed occurrence, as one comparable string. The editor re-draws decorations on every
 	 * transaction of its own, so the only thing that has to push an update into
 	 * ProseMirror is this changing - which is why the effect below keys on it
 	 * rather than on the text. The class belongs in here as much as the word
@@ -448,13 +467,10 @@
 	 */
 	const decoratedWords = $derived(
 		JSON.stringify([
-			...shown.map((ref) => `${confirmedClass(ref)}:${ref.word}`),
-			...proposed.map((word) => `ref-suggestion:${word}`),
-			...shownTimes.map((time) => `time-link:${time.phrase}`),
-			...pendingTimesList.map((time) => `time-proposal:${time.phrase}`),
-			...shownPhotos.map((photo) => `photo-link:${photo.phrase}`),
-			`active:${sheet?.end ?? ''}`,
-			`picking:${photoPhrase ?? ''}`
+			marks,
+			shownPhotos.map((photo) => photo.phrase),
+			sheet?.end ?? null,
+			photoPhrase
 		])
 	);
 
@@ -472,22 +488,7 @@
 	 * where the quantity will appear.
 	 */
 	function decorate(doc: ProseMirrorNode): DecorationSet {
-		// Plain arrays rather than a Map and a Set: both are local to this call
-		// and hold a handful of entries, and `svelte/prefer-svelte-reactivity`
-		// rightly refuses a built-in collection inside a component.
-		const words = untrack(() => {
-			const marked = shown.map((ref) => ({
-				word: ref.word,
-				cls: confirmedClass(ref)
-			}));
-			const add = (word: string, cls: string) => {
-				if (!marked.some((entry) => entry.word === word)) marked.push({ word, cls });
-			};
-			for (const word of proposed) add(word, 'ref-suggestion');
-			for (const time of shownTimes) add(time.phrase, 'time-link');
-			for (const time of pendingTimesList) add(time.phrase, 'time-proposal');
-			return marked;
-		});
+		const words = untrack(() => marks);
 		// A photo phrase may hold a linked word, so it is drawn on its own, around it.
 		const photos = untrack(() => shownPhotos.map((photo) => photo.phrase));
 		// The phrase the photo picker is open for, framed as a sheet's word is.
@@ -627,6 +628,19 @@
 	}
 
 	/**
+	 * The selection, or the word at the caret, grown to whole words: what
+	 * "Link word", "Mark as time" and "Link photo" each start from. Null
+	 * without an editor; `phrase` is null where there is no word.
+	 */
+	function selectedPhrase() {
+		const view = editor?.view;
+		if (!view) return null;
+		const { from, to } = view.state.selection;
+		const phrase = wordAt(step.text, plainOffset(view, from), plainOffset(view, to));
+		return { view, from, to, phrase };
+	}
+
+	/**
 	 * The third way to link, and the only one that reaches a word differing
 	 * from the ingredient's name: the author selects a word - or simply leaves
 	 * the caret in one - and picks what it means. "Fleisch" points at
@@ -638,10 +652,9 @@
 	 * redraws the underline from it.
 	 */
 	function openManual() {
-		const view = editor?.view;
-		if (!view) return;
-		const { from, to } = view.state.selection;
-		const word = wordAt(step.text, plainOffset(view, from), plainOffset(view, to));
+		const at = selectedPhrase();
+		if (!at) return;
+		const { view, from, phrase: word } = at;
 		// `wordAt` already grows to whole words, so this only fails on text
 		// the editor and `step.text` disagree about. Refusing is the safe half
 		// of that disagreement: the API rejects a word it cannot find.
@@ -679,10 +692,9 @@
 	 * catalogs lack still gets the right length.
 	 */
 	function openTimeMark() {
-		const view = editor?.view;
-		if (!view) return;
-		const { from, to } = view.state.selection;
-		const phrase = wordAt(step.text, plainOffset(view, from), plainOffset(view, to));
+		const at = selectedPhrase();
+		if (!at) return;
+		const { view, from, to, phrase } = at;
 		if (phrase !== null && [...phrase].length > MAX_PHRASE_LENGTH) {
 			notice = m.editor_time_too_long();
 			return;
@@ -714,10 +726,8 @@
 	 * is picked.
 	 */
 	function openPhotoLink(trigger: HTMLElement) {
-		const view = editor?.view;
-		if (!view) return;
-		const { from, to } = view.state.selection;
-		const phrase = wordAt(step.text, plainOffset(view, from), plainOffset(view, to));
+		const phrase = selectedPhrase()?.phrase;
+		if (phrase === undefined) return;
 		if (phrase === null || firstWordMatch(step.text, phrase) === null) {
 			notice = m.editor_reference_no_word();
 			return;
@@ -761,13 +771,27 @@
 
 	$effect(() => {
 		if (photoPhrase === null || phone.value) return;
-		window.addEventListener('scroll', followPhoto, true);
-		window.addEventListener('resize', followPhoto);
-		return () => {
-			window.removeEventListener('scroll', followPhoto, true);
-			window.removeEventListener('resize', followPhoto);
-		};
+		return follow(followPhoto);
 	});
+
+	/**
+	 * Runs `fn` whenever the page moves under a popup: a scroll anywhere, a
+	 * resize, and the visual viewport's own, which the on-screen keyboard
+	 * resizes and iOS pans while it is up. Returns the effect's cleanup.
+	 */
+	function follow(fn: () => void) {
+		const viewport = window.visualViewport;
+		window.addEventListener('scroll', fn, true);
+		window.addEventListener('resize', fn);
+		viewport?.addEventListener('resize', fn);
+		viewport?.addEventListener('scroll', fn);
+		return () => {
+			window.removeEventListener('scroll', fn, true);
+			window.removeEventListener('resize', fn);
+			viewport?.removeEventListener('resize', fn);
+			viewport?.removeEventListener('scroll', fn);
+		};
+	}
 
 	/**
 	 * Links the picked photo, replacing the phrase's link if it had one. The
@@ -866,15 +890,17 @@
 			if (open.items.length > 0) choose(open.active);
 			return;
 		}
-		const count = open.items.length;
-		if (count === 0) return;
-		if (event.key === 'ArrowDown') {
-			event.preventDefault();
-			open.active = (open.active + 1) % count;
-		} else if (event.key === 'ArrowUp') {
-			event.preventDefault();
-			open.active = (open.active - 1 + count) % count;
-		}
+		if (walkPicker(event.key)) event.preventDefault();
+	}
+
+	/** The arrows walk the open list, around its ends; whether `key` was one of them. */
+	function walkPicker(key: string): boolean {
+		const open = picker;
+		const delta = key === 'ArrowDown' ? 1 : key === 'ArrowUp' ? -1 : 0;
+		const count = open?.items.length ?? 0;
+		if (open === null || delta === 0 || count === 0) return false;
+		open.active = (open.active + delta + count) % count;
+		return true;
 	}
 
 	/**
@@ -970,20 +996,12 @@
 					onKeyDown: ({ event, view }) => {
 						const open = picker;
 						if (open === null) return false;
-						const count = open.items.length;
 						if (event.key === 'Escape') {
 							exitSuggestion(view, PICKER_KEY);
 							return true;
 						}
-						if (count === 0) return false;
-						if (event.key === 'ArrowDown') {
-							open.active = (open.active + 1) % count;
-							return true;
-						}
-						if (event.key === 'ArrowUp') {
-							open.active = (open.active - 1 + count) % count;
-							return true;
-						}
+						if (walkPicker(event.key)) return true;
+						if (open.items.length === 0) return false;
 						if (event.key === 'Enter' || event.key === 'Tab') {
 							choose(open.active);
 							return true;
@@ -1260,21 +1278,9 @@
 	 */
 	$effect(() => {
 		if (anchor === null) return;
-		const follow = () => {
+		return follow(() => {
 			if (anchor) openAt(anchor.rect);
-		};
-		const viewport = window.visualViewport;
-		window.addEventListener('scroll', follow, true);
-		window.addEventListener('resize', follow);
-		viewport?.addEventListener('resize', follow);
-		// iOS pans only the visual viewport while the keyboard is up.
-		viewport?.addEventListener('scroll', follow);
-		return () => {
-			window.removeEventListener('scroll', follow, true);
-			window.removeEventListener('resize', follow);
-			viewport?.removeEventListener('resize', follow);
-			viewport?.removeEventListener('scroll', follow);
-		};
+		});
 	});
 
 	/**
@@ -1369,17 +1375,7 @@
 
 	$effect(() => {
 		if (phone.value || (cardWord === null && cardRepeat === null)) return;
-		const viewport = window.visualViewport;
-		window.addEventListener('scroll', placeCard, true);
-		window.addEventListener('resize', placeCard);
-		viewport?.addEventListener('resize', placeCard);
-		viewport?.addEventListener('scroll', placeCard);
-		return () => {
-			window.removeEventListener('scroll', placeCard, true);
-			window.removeEventListener('resize', placeCard);
-			viewport?.removeEventListener('resize', placeCard);
-			viewport?.removeEventListener('scroll', placeCard);
-		};
+		return follow(placeCard);
 	});
 
 	/**
@@ -1527,22 +1523,6 @@
 		};
 		viewport.addEventListener('resize', again);
 		setTimeout(() => viewport.removeEventListener('resize', again), 1000);
-	}
-
-	/**
-	 * The arrows in a sheet's radio rows: move the pick and the focus to the
-	 * next or previous row, around the ends, as a radio group does.
-	 */
-	function pickByArrow(event: KeyboardEvent, word: string, options: FormRef[], at: number) {
-		const delta = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
-		if (delta === undefined) return;
-		event.preventDefault();
-		const next = (at + delta + options.length) % options.length;
-		picked = { word, id: options[next].ingredientId };
-		const rows = (event.currentTarget as HTMLElement).parentElement?.querySelectorAll(
-			'[role="radio"]'
-		);
-		void tick().then(() => (rows?.[next] as HTMLElement | undefined)?.focus());
 	}
 
 	/** "Dismiss" on a card: closes it, and nothing more. */
@@ -1819,62 +1799,67 @@
 				</p>
 			{/if}
 		</div>
-		<div role="radiogroup" aria-label={choice.word} class="mt-2.5 grid gap-2 max-md:mt-2">
+		<RadioGroup.Root
+			value={chosen === null ? '' : String(ordered.indexOf(chosen))}
+			onValueChange={(at) => (picked = { word: choice.word, id: ordered[Number(at)].ingredientId })}
+			aria-label={choice.word}
+			class="mt-2.5 grid gap-2 max-md:mt-2"
+		>
 			{#each ordered as option, at (option.ingredientId)}
 				{@const view = refView(option, entries)}
 				{@const on = option === chosen}
 				{@const group = option.groupName ?? m.editor_reference_choice_no_group()}
 				{@const under =
 					choice.options.length === 1 ? view.group : sameGroup ? group : named ? view.name : ''}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={on}
+				<RadioGroup.Item
+					value={String(at)}
 					aria-label={refLabel(option, entries)}
 					aria-describedby={option === choice.guess && choice.because.length > 0
 						? `choice-because-${step.id}`
 						: undefined}
-					tabindex={phone.value && (on || (chosen === null && at === 0)) ? 0 : -1}
 					onmousedown={(event) => {
 						if (!phone.value) event.preventDefault();
 					}}
-					onclick={() => (picked = { word: choice.word, id: option.ingredientId })}
-					onkeydown={(event) => pickByArrow(event, choice.word, ordered, at)}
 					class="flex min-h-11 items-center gap-2.5 rounded-md border bg-surface-elevated px-2.5 py-2 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:py-1.5 {on
 						? 'border-primary ring-1 ring-primary'
 						: 'border-border hover:border-primary'}"
 				>
-					<span
-						aria-hidden="true"
-						class="grid size-4.5 shrink-0 place-items-center rounded-pill border-2 {on
-							? 'border-primary'
-							: 'border-text-muted'}"
-					>
-						{#if on}<span class="size-2 rounded-pill bg-primary"></span>{/if}
-					</span>
-					<span class="min-w-0 flex-1">
-						<span class="flex items-baseline justify-between gap-3">
-							<span class="line-clamp-2 text-body-sm font-semibold text-text">
-								{sameGroup ? view.name : group}
+					{#snippet child({ props })}
+						<!-- A desktop card never takes focus; a phone's sheet roves as Bits UI sets it. -->
+						<button {...props} tabindex={phone.value ? (props.tabindex as number) : -1}>
+							<span
+								aria-hidden="true"
+								class="grid size-4.5 shrink-0 place-items-center rounded-pill border-2 {on
+									? 'border-primary'
+									: 'border-text-muted'}"
+							>
+								{#if on}<span class="size-2 rounded-pill bg-primary"></span>{/if}
 							</span>
-							<span class="shrink-0 text-caption text-text-muted tabular-nums">
-								{view.amount}
+							<span class="min-w-0 flex-1">
+								<span class="flex items-baseline justify-between gap-3">
+									<span class="line-clamp-2 text-body-sm font-semibold text-text">
+										{sameGroup ? view.name : group}
+									</span>
+									<span class="shrink-0 text-caption text-text-muted tabular-nums">
+										{view.amount}
+									</span>
+								</span>
+								<!-- A lone option names its group only where the recipe has several. -->
+								{#if under}
+									<span class="block text-caption text-text-muted">{under}</span>
+								{/if}
+								<!-- Why this one was guessed: on a phone too, where the sheet has the room. -->
+								{#if option === choice.guess && choice.because.length > 0}
+									<span id="choice-because-{step.id}" class="block text-caption text-text-muted">
+										{becauseLine(choice.because)}
+									</span>
+								{/if}
 							</span>
-						</span>
-						<!-- A lone option names its group only where the recipe has several. -->
-						{#if under}
-							<span class="block text-caption text-text-muted">{under}</span>
-						{/if}
-						<!-- Why this one was guessed: on a phone too, where the sheet has the room. -->
-						{#if option === choice.guess && choice.because.length > 0}
-							<span id="choice-because-{step.id}" class="block text-caption text-text-muted">
-								{becauseLine(choice.because)}
-							</span>
-						{/if}
-					</span>
-				</button>
+						</button>
+					{/snippet}
+				</RadioGroup.Item>
 			{/each}
-		</div>
+		</RadioGroup.Root>
 		{@render actionBar([
 			{
 				label: m.editor_reference_dismiss_action(),
@@ -2132,7 +2117,7 @@
 					tabindex={-1}
 					id="ref-picker-{step.id}-{at}"
 					aria-selected={at === picker.active}
-					aria-label={[item.name, item.amount, item.group].filter(Boolean).join(' · ')}
+					aria-label={entryLabel(item)}
 					onmousedown={(event) => {
 						event.preventDefault();
 						choose(at);
