@@ -6,6 +6,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import Switch from '#lib/components/ui/Switch.svelte';
 	import { USER_GUIDE_URL } from '#lib/docs.js';
+	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
 
 	let { ownerName }: { ownerName: string } = $props();
@@ -21,23 +22,26 @@
 		}
 	});
 
-	// Applies on flip, like theme and language; the switch shows the server's
-	// answer, so a failed write snaps back. Only the latest flip's answer or
-	// snap back lands, so a slow older reply cannot undo a newer choice.
-	let saveSeq = 0;
+	// Applies on flip, like theme and language; the switch ends on the value
+	// the server holds, so a failed write snaps back (see `optimistic`).
+	const save = optimistic(
+		() => locked,
+		(value) => (locked = value)
+	);
 	async function change(next: boolean) {
-		const seq = ++saveSeq;
-		const before = locked;
-		locked = next;
 		try {
-			const saved = (await setRecipesLockedByDefault(next)).recipesLockedByDefault;
-			if (seq !== saveSeq) return;
-			locked = saved;
+			const { answer, latest } = await save(
+				next,
+				() => setRecipesLockedByDefault(next),
+				(s) => s.recipesLockedByDefault
+			);
+			if (!latest) return;
 			toast.success(
-				saved ? m.settings_recipe_editing_saved_on() : m.settings_recipe_editing_saved_off()
+				answer.recipesLockedByDefault
+					? m.settings_recipe_editing_saved_on()
+					: m.settings_recipe_editing_saved_off()
 			);
 		} catch {
-			if (seq === saveSeq) locked = before;
 			toast.error(m.settings_recipe_editing_error());
 		}
 	}

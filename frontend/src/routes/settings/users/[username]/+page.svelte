@@ -53,6 +53,7 @@
 	import Switch from '#lib/components/ui/Switch.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { optimistic } from '#lib/optimistic.js';
 	import { formatDate } from '#lib/recipe/format.js';
 	import { isAdminRole, roleLabel } from '#lib/roles.js';
 	import { lastActive } from '#lib/settings/last-active.js';
@@ -212,45 +213,53 @@
 		});
 	}
 
-	let roleSeq = 0;
+	// Quick picks and flips end on the value the server holds (see
+	// `optimistic`); every answer it confirms is stored, and only the newest
+	// one toasts. A request for someone the page no longer shows, such as an
+	// Undo from an earlier page, leaves the controls alone.
+	let roleOf = '';
+	const sendRole = optimistic(
+		() => role,
+		(value) => {
+			if (person?.id === roleOf) role = value;
+		}
+	);
+	let sharingOf = '';
+	const sendSharing = optimistic(
+		() => sharing,
+		(value) => {
+			if (person?.id === sharingOf) sharing = value;
+		}
+	);
+
 	/**
 	 * A role takes effect with one tap and carries rights, so the toast names
 	 * the new role and offers the way back: a stray tap costs a second tap,
-	 * not a trip into the sheet to find the old role again. Rethrows a
-	 * failure, already toasted, so the control can snap back.
+	 * not a trip into the sheet to find the old role again.
 	 */
-	async function saveRole(user: PersonEntry, next: UserRole): Promise<void> {
-		// Only the latest pick's answer lands, toast and all: an older reply,
-		// or an older failure's snap back, would undo a newer pick. An
-		// overtaken pick resolves quietly.
-		const seq = ++roleSeq;
+	async function saveRole(user: PersonEntry, next: UserRole) {
 		const previous = user.role;
+		roleOf = user.id;
 		try {
-			const updated = await updateUser(user.id, { role: next });
-			if (seq !== roleSeq) return;
-			replace(updated);
-			toast.success(m.users_role_changed({ name: updated.displayName, role: roleLabel(next) }), {
-				action: {
-					label: m.common_undo(),
-					// saveRole raises its own toast on failure; the rethrow is
-					// only for the control that made the change.
-					onClick: () => saveRole(updated, previous).catch(() => {})
+			const { answer: updated, latest } = await sendRole(
+				next,
+				() => updateUser(user.id, { role: next }),
+				(u) => {
+					replace(u);
+					return u.role;
 				}
+			);
+			if (!latest) return;
+			toast.success(m.users_role_changed({ name: updated.displayName, role: roleLabel(next) }), {
+				action: { label: m.common_undo(), onClick: () => void saveRole(updated, previous) }
 			});
 		} catch (error) {
-			if (seq !== roleSeq) return;
 			refused(error);
-			throw error;
 		}
 	}
 
-	async function changeRole(next: string) {
-		if (!person) return;
-		try {
-			await saveRole(person, next as UserRole);
-		} catch {
-			role = person.role;
-		}
+	function changeRole(next: string) {
+		if (person) void saveRole(person, next as UserRole);
 	}
 
 	let colorTimer: ReturnType<typeof setTimeout> | undefined;
@@ -311,25 +320,25 @@
 		}
 	}
 
-	// Like a role, only the latest flip's answer or snap back lands.
-	let sharingSeq = 0;
 	async function changeSharing(next: boolean) {
 		if (!person) return;
-		const seq = ++sharingSeq;
-		sharing = next;
+		const { id, username } = person;
+		sharingOf = id;
 		try {
-			const updated = await updateUser(person.id, { canSharePublicly: next });
-			if (seq !== sharingSeq) return;
-			patchAccount(updated.id, { canSharePublicly: updated.canSharePublicly });
+			const { latest } = await sendSharing(
+				next,
+				() => updateUser(id, { canSharePublicly: next }),
+				(u) => {
+					patchAccount(u.id, { canSharePublicly: u.canSharePublicly });
+					return u.canSharePublicly;
+				}
+			);
+			if (!latest) return;
 			toast.success(
-				next
-					? m.users_share_enabled({ username: person.username })
-					: m.users_share_disabled({ username: person.username })
+				next ? m.users_share_enabled({ username }) : m.users_share_disabled({ username })
 			);
 		} catch (error) {
-			if (seq !== sharingSeq) return;
 			refused(error);
-			sharing = setup?.canSharePublicly ?? false;
 		}
 	}
 

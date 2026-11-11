@@ -10,6 +10,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import Switch from '#lib/components/ui/Switch.svelte';
+	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
 
 	let { ownerName }: { ownerName: string } = $props();
@@ -36,23 +37,21 @@
 		}
 	});
 
-	// Applies on change, like the editing switch; the card shows the server's
-	// answer, so a failed write snaps back. Only the latest change's answer or
-	// snap back lands: an older one would undo a newer choice still on its way.
-	let saveSeq = 0;
+	// Applies on change, like the editing switch; the card ends on the value
+	// the server holds, so a failed write snaps back (see `optimistic`).
+	const send = optimistic(
+		() => current,
+		(value) => (current = value)
+	);
 	async function save(patch: Partial<Settings>) {
-		const seq = ++saveSeq;
-		const before = current;
-		if (current) {
-			current = { ...current, ...patch };
-		}
 		try {
-			const s = await updateSettings(patch);
-			if (seq !== saveSeq) return;
-			current = { linkPreviews: s.linkPreviews, linkPreviewMinutes: s.linkPreviewMinutes };
-			toast.success(m.settings_link_previews_saved());
+			const { latest } = await send(
+				current && { ...current, ...patch },
+				() => updateSettings(patch),
+				(s) => ({ linkPreviews: s.linkPreviews, linkPreviewMinutes: s.linkPreviewMinutes })
+			);
+			if (latest) toast.success(m.settings_link_previews_saved());
 		} catch {
-			if (seq === saveSeq) current = before;
 			toast.error(m.settings_link_previews_error());
 		}
 	}

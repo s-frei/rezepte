@@ -28,6 +28,7 @@
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
 	import Switch from '#lib/components/ui/Switch.svelte';
+	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 
@@ -127,22 +128,20 @@
 
 	// Saves on flip; the controls show the server's answer, so a failed write snaps back.
 	// A group's switch is its own: its kinds keep their choices.
-	// Only the latest flip's answer lands: an older reply, or an older failure's
-	// snap back, would undo a newer choice still on its way.
-	let latest = 0;
+	// Quick flips end on the value the server holds (see `optimistic`).
+	const sendPrefs = optimistic(
+		() => prefs,
+		(value) => (prefs = value)
+	);
 	async function change(patch: Prefs) {
 		if (!prefs) return;
-		const request = ++latest;
-		const before = prefs;
-		prefs = {
-			kinds: merge(prefs.kinds, patch.kinds),
-			groups: merge(prefs.groups, patch.groups)
-		};
 		try {
-			const saved = await setNotificationPrefs(patch);
-			if (request === latest) prefs = saved;
+			await sendPrefs(
+				{ kinds: merge(prefs.kinds, patch.kinds), groups: merge(prefs.groups, patch.groups) },
+				() => setNotificationPrefs(patch),
+				(saved) => saved
+			);
 		} catch (error) {
-			if (request === latest) prefs = before;
 			if (!isSignedOut(error)) toast.error(m.settings_notifications_save_error());
 		}
 	}
@@ -197,20 +196,20 @@
 		}));
 	});
 
-	// Applies on pick; a failed write snaps back to what was saved. Like
-	// `change`, only the latest pick's answer or snap back lands.
-	let hourSeq = 0;
+	// Applies on pick; like `change`, quick picks end on the hour the server holds.
+	const sendHour = optimistic(
+		() => digestHour,
+		(value) => (digestHour = value)
+	);
 	async function saveHour(hour: number) {
-		const seq = ++hourSeq;
-		const before = digestHour;
-		digestHour = hour;
 		try {
-			const saved = (await updateSettings({ recipeDigestHour: hour })).recipeDigestHour;
-			if (seq !== hourSeq) return;
-			digestHour = saved;
-			toast.success(m.settings_notifications_digest_saved());
+			const { latest } = await sendHour(
+				hour,
+				() => updateSettings({ recipeDigestHour: hour }),
+				(s) => s.recipeDigestHour
+			);
+			if (latest) toast.success(m.settings_notifications_digest_saved());
 		} catch (error) {
-			if (seq === hourSeq) digestHour = before;
 			if (!isSignedOut(error)) toast.error(m.settings_notifications_save_error());
 		}
 	}

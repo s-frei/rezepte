@@ -12,6 +12,7 @@
 		lifetimeLabel,
 		lifetimeOptions
 	} from '#lib/recipe/lifetimes.js';
+	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
 
 	let { ownerName }: { ownerName: string } = $props();
@@ -87,29 +88,27 @@
 	// once, and a lifetime select already shows its own new pick through its
 	// own two-way binding. Sends only the field that changed and shows the
 	// server's full answer afterwards, since lowering the maximum below the
-	// default lowers the default with it; a failed write snaps back. Only the
-	// latest change's answer or snap back lands: an older one would undo a
-	// newer choice still on its way.
-	let saveSeq = 0;
+	// default lowers the default with it; a failed write snaps back to the
+	// value the server holds (see `optimistic`).
+	const send = optimistic(
+		() => current,
+		(value) => (current = value)
+	);
 	async function save(patch: Partial<Settings>) {
-		const seq = ++saveSeq;
-		const before = current;
-		if (current) {
-			current = { ...current, ...patch };
-		}
 		try {
-			const s = await updateSettings(patch);
-			if (seq !== saveSeq) return;
-			current = {
-				publicShares: s.publicShares,
-				publicShareDefaultDays: s.publicShareDefaultDays,
-				publicShareMaxDays: s.publicShareMaxDays,
-				publicShareAttribution: s.publicShareAttribution,
-				publicShareSharer: s.publicShareSharer
-			};
-			toast.success(m.settings_public_sharing_saved());
+			const { latest } = await send(
+				current && { ...current, ...patch },
+				() => updateSettings(patch),
+				(s) => ({
+					publicShares: s.publicShares,
+					publicShareDefaultDays: s.publicShareDefaultDays,
+					publicShareMaxDays: s.publicShareMaxDays,
+					publicShareAttribution: s.publicShareAttribution,
+					publicShareSharer: s.publicShareSharer
+				})
+			);
+			if (latest) toast.success(m.settings_public_sharing_saved());
 		} catch {
-			if (seq === saveSeq) current = before;
 			toast.error(m.settings_public_sharing_error());
 		}
 	}
