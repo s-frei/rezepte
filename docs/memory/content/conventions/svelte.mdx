@@ -7,7 +7,7 @@ description: Runes, Bits UI, Tailwind, i18n
 
 - A drag handle is a `<div role="button" tabindex="0">` with an `aria-label`, never a `<button>`: `svelte-dnd-action` ignores Space and Enter on a target with a `disabled` property, so a `<button>` handle never starts a keyboard drag.
 - Every drag zone names its kind in `type` (`ingredient`, `step`): zones without one share the library's default type, so an item can be carried into any other list on the page.
-- Every drag zone passes `zoneTabIndex: -1`, or the library makes the list itself a Tab stop beside the handles.
+- Every drag zone takes its options from `zoneOptions` (`#lib/recipe/dnd.ts`), which passes `zoneTabIndex: -1`; without it the library makes the list itself a Tab stop beside the handles.
 - On Escape `svelte-dnd-action` just drops the item where it stands; `applyDrag` notes the Escape in the capture phase to put the lists back ([Reorderable lists](#reorderable-lists)).
 - The library ends a keyboard drag on a window click that comes after the real click, so a click into another item silently dropped the drag; `applyDrag` sends the library its window click first ([Reorderable lists](#reorderable-lists)).
 - Under reduced motion `getAnimations()` still lists `flashPlaced`'s light for 800 ms though nothing moves; a test must not read it as motion ([Reorderable lists](#reorderable-lists)).

@@ -7,8 +7,9 @@
 	import GripVertical from '@lucide/svelte/icons/grip-vertical';
 	import X from '@lucide/svelte/icons/x';
 	import { dragHandle, dragHandleZone, type DndEvent } from 'svelte-dnd-action';
+	import { Announcement } from '#lib/announcement.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { applyDrag, isShadow, liftDragged, pickUp, slotHeight } from '#lib/recipe/dnd.js';
+	import { applyDrag, isShadow, pickUp, slotHeight, zoneOptions } from '#lib/recipe/dnd.js';
 	import { newStep, type FieldErrors, type FormGroup, type FormStep } from '#lib/recipe/form.js';
 	import type { PhotoTile } from '#lib/recipe/step-photos.js';
 	import {
@@ -19,6 +20,7 @@
 	} from '#lib/recipe/step-references.js';
 	import { ACCEPT, ACTION, LIST, ROW } from './link-list';
 	import AddButton from './AddButton.svelte';
+	import DropSlot from './DropSlot.svelte';
 	import FieldError from '../ui/FieldError.svelte';
 	import StepField from './StepField.svelte';
 	import { collapse, fresh, reveal } from './motion';
@@ -66,9 +68,7 @@
 	 */
 	async function removeStep(index: number) {
 		const step = steps[index];
-		void announce(
-			m.editor_announce_removed({ label: m.editor_step_number({ number: index + 1 }) })
-		);
+		said.say(m.editor_announce_removed({ label: m.editor_step_number({ number: index + 1 }) }));
 		const staying = steps.filter((s) => s.id === step.id || !leaving.has(s.id));
 		if (staying.length > 1) {
 			const at = staying.indexOf(step);
@@ -102,14 +102,7 @@
 	const leaving = new SvelteSet<string>();
 
 	/** What "Accept all" or an x did, for a screen reader. */
-	let said = $state('');
-
-	/** Empties the region first: the same text again would not be read out. */
-	async function announce(text: string) {
-		said = '';
-		await tick();
-		said = text;
-	}
+	const said = new Announcement();
 
 	/**
 	 * Takes every open proposal and says how many. The button goes with them,
@@ -119,7 +112,7 @@
 	 */
 	function acceptEverything() {
 		const count = acceptAll(steps, groups, tiles);
-		void announce(m.editor_reference_accepted_all({ count }));
+		said.say(m.editor_reference_accepted_all({ count }));
 		void tick().then(() =>
 			(
 				document.getElementById('accept-all-box') ??
@@ -130,7 +123,7 @@
 </script>
 
 <div class="space-y-3">
-	<p role="status" class="sr-only">{said}</p>
+	<p role="status" class="sr-only">{said.text}</p>
 	{#if pendingCount > 0 || waiting.length > 0}
 		<!--
 			The one place the matcher's work is visible as a whole, drawn as a
@@ -186,16 +179,7 @@
 	     are `data-spotlight-with`: a link sheet that lights up the field
 	     lights them up whole (BottomSheet's `spotlight`). -->
 	<ul
-		use:dragHandleZone={{
-			items: steps,
-			type: 'step',
-			flipDurationMs: FLIP_DURATION,
-			dropTargetStyle: {},
-			// The handles are the keyboard way in; the list itself is no Tab stop.
-			zoneTabIndex: -1,
-			morphDisabled: true,
-			transformDraggedElement: liftDragged
-		}}
+		use:dragHandleZone={zoneOptions(steps, 'step', FLIP_DURATION)}
 		onconsider={reorder}
 		onfinalize={reorder}
 		aria-label={m.editor_section_steps()}
@@ -226,15 +210,9 @@
 				style:height={isShadow(step) ? `${slot}px` : undefined}
 			>
 				{#if isShadow(step)}
-					<!-- Where the dragged step will land: a slot of its height, empty.
-					     The library hides the shadow element; the slot overrides that
-					     to show itself. The look is the ingredient list's slot. The
-					     slot is a child, not the item, because the library copies the
-					     item's border and background onto the dragged copy. -->
-					<div
-						aria-hidden="true"
-						class="visible h-full rounded-lg border-2 border-dashed border-handle bg-accent/40"
-					></div>
+					<!-- A child, not the item, because the library copies the item's
+					     border and background onto the dragged copy. -->
+					<DropSlot />
 				{:else}
 					<!--
 						A div with the button role, not a <button>: svelte-dnd-action

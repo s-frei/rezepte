@@ -10,8 +10,9 @@
 	import { DropdownMenu } from 'bits-ui';
 	import { dragHandleZone, type DndEvent } from 'svelte-dnd-action';
 	import FieldError from '#lib/components/ui/FieldError.svelte';
+	import { Announcement } from '#lib/announcement.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { applyDrag, isShadow, liftDragged, slotHeight } from '#lib/recipe/dnd.js';
+	import { applyDrag, isShadow, slotHeight, zoneOptions } from '#lib/recipe/dnd.js';
 	import {
 		newGroup,
 		newIngredient,
@@ -21,6 +22,7 @@
 	} from '#lib/recipe/form.js';
 	import { findDuplicates } from '#lib/recipe/step-references.js';
 	import AddButton from './AddButton.svelte';
+	import DropSlot from './DropSlot.svelte';
 	import IngredientRow, { wideColumns } from './IngredientRow.svelte';
 	import { collapse, fresh, reveal } from './motion';
 
@@ -93,13 +95,7 @@
 	}
 
 	/** What the live region says. */
-	let said = $state('');
-	let toggle = false;
-	/** A screen reader stays silent when the text repeats; a trailing nbsp every other time makes it new. */
-	function announce(text: string) {
-		toggle = !toggle;
-		said = toggle ? text : `${text}\u00A0`;
-	}
+	const said = new Announcement();
 
 	/** Rows folding away; focus and neighbors skip them. */
 	const removing = new SvelteSet<string>();
@@ -127,7 +123,7 @@
 	async function removeRow(group: FormGroup, index: number) {
 		const row = group.ingredients[index];
 		if (removing.has(row.id)) return;
-		announce(
+		said.say(
 			m.editor_announce_removed({
 				label: row.name.trim() || m.editor_ingredient_row_label({ number: index + 1 })
 			})
@@ -185,7 +181,7 @@
 	 */
 	async function removeGroup(index: number) {
 		const { id, name } = groups[index];
-		announce(m.editor_announce_removed({ label: name.trim() || m.recipe_ingredients() }));
+		said.say(m.editor_announce_removed({ label: name.trim() || m.recipe_ingredients() }));
 		await collapse(document.getElementById(`ingredient-group-${id}`));
 		groups = groups.filter((group) => group.id !== id);
 		if (groups.length === 0) {
@@ -392,15 +388,7 @@
 				     (`zoneTabIndex`): the handles start a keyboard drag, and while one
 				     runs the library makes the other groups' lists tabbable to drop into. -->
 				<ul
-					use:dragHandleZone={{
-						items: group.ingredients,
-						type: 'ingredient',
-						flipDurationMs: FLIP_DURATION,
-						zoneTabIndex: -1,
-						dropTargetStyle: {},
-						morphDisabled: true,
-						transformDraggedElement: liftDragged
-					}}
+					use:dragHandleZone={zoneOptions(group.ingredients, 'ingredient', FLIP_DURATION)}
 					onconsider={(event) => reorder(group, event)}
 					onfinalize={(event) => reorder(group, event)}
 					aria-label={group.name.trim() === '' ? m.recipe_ingredients() : group.name}
@@ -417,14 +405,8 @@
 							style:height={isShadow(row) ? `${slot}px` : undefined}
 						>
 							{#if isShadow(row)}
-								<!-- Where the dragged row will land: a slot of its height in
-								     place of a second copy of it. The library hides the
-								     shadow element, so the slot shows itself; `data-slot`
-								     tells the row after it to drop its hairline. -->
-								<div
-									aria-hidden="true"
-									class="visible h-full rounded-lg border-2 border-dashed border-handle bg-accent/40"
-								></div>
+								<!-- `data-slot` tells the row after it to drop its hairline. -->
+								<DropSlot />
 							{:else}
 								<IngredientRow
 									bind:row={group.ingredients[rowIndex]}
@@ -466,5 +448,5 @@
 		{m.editor_ingredient_add_group()}
 	</AddButton>
 	<!-- Last, so the stack's spacing never counts it. -->
-	<p class="sr-only" aria-live="polite">{said}</p>
+	<p class="sr-only" aria-live="polite">{said.text}</p>
 </div>

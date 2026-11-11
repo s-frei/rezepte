@@ -120,6 +120,27 @@ export function liftDragged(element?: HTMLElement): void {
 }
 
 /**
+ * What both editor lists hand `dragHandleZone`: no drop-target outline, the
+ * list itself no Tab stop (the handles are the keyboard way in), and the
+ * dragged copy kept picked up (`liftDragged`) rather than morphed.
+ */
+export function zoneOptions<T extends { id: unknown }>(
+	items: T[],
+	type: string,
+	flipDurationMs: number
+) {
+	return {
+		items,
+		type,
+		flipDurationMs,
+		dropTargetStyle: {},
+		zoneTabIndex: -1,
+		morphDisabled: true,
+		transformDraggedElement: liftDragged
+	};
+}
+
+/**
  * Lights up the item a drag just placed: the primary outline the lifted
  * copy wore, with the accent behind it, fading out over 800ms - so the eye
  * finds where it landed. The outline stands `--flash-offset` (4px) off the
