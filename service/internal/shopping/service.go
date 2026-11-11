@@ -12,6 +12,8 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/recipeimport"
 )
 
 // Service stores shopping lists. A list is visible and changeable by its
@@ -560,6 +562,69 @@ func (s *Service) AddItem(ctx context.Context, userID, listID, text string, quan
 		}
 		return nil
 	})
+}
+
+// ImportList makes a list from pasted text (ParseListText) in one
+// transaction. Its name is name if given, else the text's name line, else
+// defaultName, cut at a word boundary to 80 characters (recipeimport.Cut).
+func (s *Service) ImportList(ctx context.Context, userID, text, name, defaultName string) (List, error) {
+	lt, err := ParseListText(text)
+	if err != nil {
+		return List{}, err
+	}
+	if name = strings.TrimSpace(name); name == "" {
+		name = lt.Name
+	}
+	if name == "" {
+		name = strings.TrimSpace(defaultName)
+	}
+	name, _ = recipeimport.Cut(name, 80)
+	name, err = clean("name", name, 80)
+	if err != nil {
+		return List{}, err
+	}
+	id, now := newID(), s.stamp()
+	err = db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		if err := q.InsertShoppingList(ctx, sqlc.InsertShoppingListParams{ID: id, Name: name, CreatedBy: userID, CreatedAt: now, UpdatedAt: now, UpdatedBy: &userID}); err != nil {
+			return fmt.Errorf("insert shopping list: %w", err)
+		}
+		return insertFree(ctx, q, id, userID, 0, now, lt.Items)
+	})
+	if err != nil {
+		return List{}, err
+	}
+	s.hub.Publish(id)
+	return s.Get(ctx, userID, id)
+}
+
+// ImportItems appends the items of pasted text (ParseListText) to a list; a
+// name line in the text is skipped, the list keeps its name.
+func (s *Service) ImportItems(ctx context.Context, userID, listID, text string) (List, error) {
+	lt, err := ParseListText(text)
+	if err != nil {
+		return List{}, err
+	}
+	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
+		pos, err := q.MaxShoppingItemPosition(ctx, listID)
+		if err != nil {
+			return fmt.Errorf("max item position: %w", err)
+		}
+		return insertFree(ctx, q, listID, userID, pos, s.stamp(), lt.Items)
+	})
+}
+
+// insertFree adds items as userID's free items after position pos.
+func insertFree(ctx context.Context, q *sqlc.Queries, listID, userID string, pos int64, now string, items []recipe.Ingredient) error {
+	for _, it := range items {
+		pos++
+		if err := q.InsertShoppingItem(ctx, sqlc.InsertShoppingItemParams{
+			ID: newID(), ListID: listID, Name: it.Name, NameKey: NameKey(it.Name),
+			Quantity: it.Quantity, Unit: it.Unit, Note: it.Note, Position: pos, AddedBy: &userID, CreatedAt: now,
+		}); err != nil {
+			return fmt.Errorf("insert shopping item: %w", err)
+		}
+	}
+	return nil
 }
 
 // SetChecked ticks or unticks items; ids that are not on the list are ignored.

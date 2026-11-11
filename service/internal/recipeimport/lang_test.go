@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -84,6 +85,15 @@ func TestParseLineGerman(t *testing.T) {
 		// Abbreviations written with their dot.
 		{"1 TL. Salz", recipe.Ingredient{Quantity: ptr(1.0), Unit: ptr("TL."), Name: "Salz"}, true},
 		{"2 EL. Öl", recipe.Ingredient{Quantity: ptr(2.0), Unit: ptr("EL."), Name: "Öl"}, true},
+		// A comma between two digits is a decimal comma, not a note.
+		{"1 l Milch 1,5 %", recipe.Ingredient{Quantity: ptr(1.0), Unit: ptr("l"), Name: "Milch 1,5 %"}, true},
+		{"2 l Milch, 1,5 %", recipe.Ingredient{Quantity: ptr(2.0), Unit: ptr("l"), Name: "Milch", Note: ptr("1,5 %")}, true},
+		// A vague word only in the note leaves the line sure; in the name it does not.
+		{"Salz, nach Geschmack", recipe.Ingredient{Name: "Salz", Note: ptr("nach Geschmack")}, true},
+		{"1 Chili (optional)", recipe.Ingredient{Quantity: ptr(1.0), Name: "Chili", Note: ptr("optional")}, true},
+		{"etwas Öl", recipe.Ingredient{Name: "etwas Öl"}, false},
+		{"1 Packung Backpulver", recipe.Ingredient{Quantity: ptr(1.0), Unit: ptr("Packung"), Name: "Backpulver"}, true},
+		{"2 Flaschen Wasser", recipe.Ingredient{Quantity: ptr(2.0), Unit: ptr("Flaschen"), Name: "Wasser"}, true},
 	})
 	// English has no thousands dot: "1.000" stays one.
 	checkLines(t, "english", withEnglish, []lineCase{
@@ -96,7 +106,7 @@ func TestParseLineGerman(t *testing.T) {
 func TestBuildKeepsEveryLine(t *testing.T) {
 	lines := []string{"1 TL, schwach gehäuft Salz", "1 EL, Salz", "200 g Mehl", "1 , Zucker", "1 ()", "2 - "}
 	for _, lang := range []string{"de", "en", ""} {
-		d := recipeimport.Build(recipeimport.Page{Language: lang, Ingredients: lines}, nil)
+		d := recipeimport.Build(recipeimport.Page{Language: lang, Groups: []recipeimport.PageGroup{{Lines: lines}}}, nil)
 		got := d.Recipe.IngredientGroups[0].Ingredients
 		if len(got) != len(lines) {
 			t.Fatalf("language %q: %d ingredients from %d lines: %+v", lang, len(got), len(lines), got)
@@ -149,6 +159,10 @@ func TestParseLineEnglish(t *testing.T) {
 		// WP Recipe Maker writes an empty amount note as "(, …)".
 		{"1 onion (, finely sliced into small pieces)", recipe.Ingredient{Quantity: ptr(1.0), Name: "onion", Note: ptr("finely sliced into small pieces")}, true},
 		{"2 cloves garlic (, minced)", recipe.Ingredient{Quantity: ptr(2.0), Unit: ptr("cloves"), Name: "garlic", Note: ptr("minced")}, true},
+		{"Salt, to taste", recipe.Ingredient{Name: "Salt", Note: ptr("to taste")}, true},
+		{"2 jars capers", recipe.Ingredient{Quantity: ptr(2.0), Unit: ptr("jars"), Name: "capers"}, true},
+		// A unit of two words.
+		{"4 fl oz cream", recipe.Ingredient{Quantity: ptr(4.0), Unit: ptr("fl oz"), Name: "cream"}, true},
 	})
 }
 
@@ -168,6 +182,7 @@ func TestSplitTrailingNote(t *testing.T) {
 		{"Chiliflocken (koreanische (Gochugaru))", "Chiliflocken", "koreanische (Gochugaru)"},
 		{"Salz (zum Entwässern der Gurke)", "Salz", "zum Entwässern der Gurke"},
 		{"Mehl, gesiebt", "Mehl", "gesiebt"},
+		{"Milch 1,5 %, kalt", "Milch 1,5 %", "kalt"},
 		// The last balanced group; the name it leaves is flagged by the safety net.
 		{"Chiliflocken (koreanische (Gochugaru)", "Chiliflocken (koreanische", "Gochugaru"},
 		{"Chiliflocken koreanische)", "Chiliflocken koreanische)", ""},
@@ -303,7 +318,7 @@ func TestBuildReadsWithThePageLanguage(t *testing.T) {
 	for _, c := range chefkochLines {
 		lines = append(lines, c.line)
 	}
-	d := recipeimport.Build(recipeimport.Page{Title: "Gurkensalat", Language: "de", Ingredients: lines}, nil)
+	d := recipeimport.Build(recipeimport.Page{Title: "Gurkensalat", Language: "de", Groups: []recipeimport.PageGroup{{Lines: lines}}}, nil)
 	if len(d.Review) != 0 {
 		t.Fatalf("review = %+v", d.Review)
 	}
@@ -328,34 +343,138 @@ func TestEveryAppLanguageHasAnImportTable(t *testing.T) {
 	}
 }
 
+// catalog reads an app language's message catalog.
+func catalog(t *testing.T, l string) map[string]any {
+	t.Helper()
+	body, err := os.ReadFile("../../../frontend/messages/" + l + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c map[string]any
+	if err := json.Unmarshal(body, &c); err != nil {
+		t.Fatalf("frontend/messages/%s.json: %v", l, err)
+	}
+	return c
+}
+
+// fenced splits an AI instruction into the prose around its first fenced
+// block and that block's content.
+func fenced(text string) (prose, example string) {
+	parts := strings.SplitN(text, "```", 3)
+	if len(parts) < 3 {
+		return text, ""
+	}
+	return parts[0] + parts[2], strings.TrimSpace(strings.TrimPrefix(parts[1], "\n"))
+}
+
 // The import dialog shows import_example as how a pasted recipe should look,
 // so in every interface language it must read as a clean recipe with that
 // language's table.
 func TestEveryAppLanguageExampleImportsCleanly(t *testing.T) {
 	const howto = "see docs/memory/content/howtos/add-an-import-language.mdx"
 	for _, l := range i18n.Locales() {
-		body, err := os.ReadFile("../../../frontend/messages/" + l + ".json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		var catalog map[string]any
-		if err := json.Unmarshal(body, &catalog); err != nil {
-			t.Fatalf("frontend/messages/%s.json: %v", l, err)
-		}
-		example, _ := catalog["import_example"].(string)
+		c := catalog(t, l)
+		example, _ := c["import_example"].(string)
 		lang := recipeimport.LanguageByTag(l)
 		if example == "" || lang == nil {
 			t.Errorf("%s: import_example is missing, or the language has no import table; %s", l, howto)
 			continue
 		}
 		p, ok := recipeimport.ReadTextWith(example, lang)
-		if !ok || p.Title == "" || len(p.Ingredients) < 2 || len(p.Steps) < 1 {
-			t.Errorf("%s: import_example reads as title %q, %d ingredients, %d steps; it needs a title, two ingredients and a step under the table's headings; %s", l, p.Title, len(p.Ingredients), len(p.Steps), howto)
+		var ingredients []string
+		for _, g := range p.Groups {
+			ingredients = append(ingredients, g.Lines...)
+		}
+		if !ok || p.Title == "" || len(ingredients) < 2 || len(p.Steps) < 1 {
+			t.Errorf("%s: import_example reads as title %q, %d ingredients, %d steps; it needs a title, two ingredients and a step under the table's headings; %s", l, p.Title, len(ingredients), len(p.Steps), howto)
 			continue
 		}
-		for _, line := range p.Ingredients {
+		for _, line := range ingredients {
 			if _, sure := recipeimport.ParseLineWith(line, lang); !sure {
 				t.Errorf("%s: import_example ingredient %q needs review; put a known amount and unit first; %s", l, line, howto)
+			}
+		}
+
+		// The AI instruction's example is what an AI copies: the whole
+		// instruction pasted back must give a complete, clean draft.
+		instruction, _ := c["ai_instruction_recipe"].(string)
+		if _, ex := fenced(instruction); ex == "" {
+			t.Errorf("%s: ai_instruction_recipe is missing or has no fenced example; %s", l, howto)
+			continue
+		}
+		p, ok = recipeimport.ReadText(instruction)
+		d := recipeimport.Build(p, nil)
+		in := d.Recipe
+		named := 0
+		for _, g := range in.IngredientGroups {
+			if g.Name != nil && *g.Name != "" {
+				named++
+			}
+		}
+		if !ok || in.Title == "" || in.Description == "" || in.Servings != 4 || in.PrepMinutes == nil || in.CookMinutes == nil ||
+			len(in.Tags) == 0 || in.SourceName == nil || named < 2 || len(in.Steps) < 3 || len(d.Review) != 0 {
+			t.Errorf("%s: ai_instruction_recipe's example reads as %+v, reviews %+v; it needs a title, a description, servings 4, prep and cook time, tags, a source, two named groups, three steps and no line to check; %s", l, in, d.Review, howto)
+		}
+	}
+}
+
+// The recipe instruction names the detail keys and units the reader knows:
+// a key it names is a key of the language's table, the example uses all
+// five, and every unit it allows reads as a unit.
+func TestEveryAppLanguageInstructionMatchesTables(t *testing.T) {
+	const howto = "see docs/memory/content/howtos/add-an-import-language.mdx"
+	keyLine := regexp.MustCompile(`^\s*(\pL[\pL ]*):\s+\S`)
+	for _, l := range i18n.Locales() {
+		lang := recipeimport.LanguageByTag(l)
+		instruction, _ := catalog(t, l)["ai_instruction_recipe"].(string)
+		prose, example := fenced(instruction)
+		if lang == nil || example == "" {
+			t.Errorf("%s: no import table or no ai_instruction_recipe with a fenced example; %s", l, howto)
+			continue
+		}
+		words := lang.StructureWords()
+		keys := map[string]bool{}
+		for _, f := range []string{"servingsKeys", "prepKeys", "cookKeys", "tagsKeys", "sourceKeys"} {
+			for _, k := range words[f] {
+				keys[k] = true
+			}
+			if !slices.ContainsFunc(strings.Split(example, "\n"), func(line string) bool {
+				return slices.ContainsFunc(words[f], func(k string) bool { return strings.HasPrefix(line, k+":") })
+			}) {
+				t.Errorf("%s: ai_instruction_recipe's example has no %s line; %s", l, f, howto)
+			}
+		}
+		for _, line := range strings.Split(prose, "\n") {
+			if m := keyLine.FindStringSubmatch(line); m != nil && !keys[m[1]] {
+				t.Errorf("%s: ai_instruction_recipe names the key %q, which is no detail key of the table; %s", l, m[1], howto)
+			}
+		}
+		i := strings.Index(prose, "g, kg")
+		if i < 0 {
+			t.Errorf("%s: ai_instruction_recipe lists no units (\"g, kg, …\"); %s", l, howto)
+			continue
+		}
+		list, _, _ := strings.Cut(prose[i:], ".")
+		for _, unit := range strings.Split(list, ", ") {
+			if ing, _ := recipeimport.ParseLineWith("1 "+unit+" Test", lang); ing.Unit == nil || *ing.Unit != unit {
+				t.Errorf("%s: ai_instruction_recipe allows the unit %q, which the table does not read as a unit; %s", l, unit, howto)
+			}
+		}
+	}
+}
+
+// A structure word is read with every table at once, so two tables must
+// not use one word for different headings or detail keys.
+func TestStructureWordsDoNotCollide(t *testing.T) {
+	field := map[string]string{}
+	for _, l := range recipeimport.Languages {
+		for name, words := range l.StructureWords() {
+			for _, w := range words {
+				w = strings.ToLower(w)
+				if f, ok := field[w]; ok && f != name {
+					t.Errorf("%q is both %s and %s (table %q)", w, f, name, l.Tag())
+				}
+				field[w] = name
 			}
 		}
 	}

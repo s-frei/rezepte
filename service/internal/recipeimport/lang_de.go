@@ -8,8 +8,8 @@ var german = &language{
 	units: []string{
 		"g", "gr", "Gramm", "kg", "mg", "ml", "cl", "dl", "l", "Liter",
 		"TL", "TL.", "EL", "EL.", "Teelöffel", "Esslöffel", "Msp", "Msp.", "Prise", "Prisen",
-		"Pck", "Pck.", "Päckchen", "Pkg", "Pkg.", "Dose", "Dosen", "Bund",
-		"Stück", "Stk", "Stk.", "Zehe", "Zehen", "Scheibe", "Scheiben",
+		"Pck", "Pck.", "Päckchen", "Pkg", "Pkg.", "Packung", "Packungen", "Dose", "Dosen",
+		"Flasche", "Flaschen", "Bund", "Bunde", "Bünde", "Stück", "Stücke", "Stk", "Stk.", "Zehe", "Zehen", "Scheibe", "Scheiben",
 		"Becher", "Tasse", "Tassen", "Glas", "Gläser", "Handvoll",
 		"Zweig", "Zweige", "Blatt", "Blätter", "Würfel",
 		"Stange", "Stangen", //nolint:misspell // German unit, not "Strange"
@@ -29,6 +29,11 @@ var german = &language{
 	ingredientHeadings: []string{"Zutaten", "Zutaten für …"},
 	stepHeadings:       []string{"Zubereitung", "Anleitung", "Schritte"},
 	stepWords:          []string{"Schritt"},
+	detailKeys: map[string]string{
+		"Portionen": "servings", "Vorbereitung": "prep", "Kochzeit": "cook", "Tags": "tags", "Quelle": "source",
+	},
+	minuteWords: []string{"Min.", "Min", "Minuten", "Minute"},
+	hourWords:   []string{"Std.", "Std", "Stunden", "Stunde", "h"},
 	promo: []*regexp.Regexp{
 		regexp.MustCompile(`(?i)^Über \d[\d.]* Bewertungen`),
 		regexp.MustCompile(`►`),

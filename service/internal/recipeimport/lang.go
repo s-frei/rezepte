@@ -1,6 +1,7 @@
 package recipeimport
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -74,6 +75,20 @@ type language struct {
 	// like ingredientHeadings; e.g. "Zubereitung", "Anleitung".
 	stepHeadings []string
 
+	// detailKeys maps the keys of the detail lines ("Portionen: 4") above
+	// the ingredients in pasted text, the app's own labels for the fields,
+	// to the field: "servings", "prep", "cook", "tags" or "source"; e.g.
+	// "Portionen": "servings". Matched as the whole key before the colon,
+	// ignoring case. Every table's keys are read in every text, so a word
+	// must not be one table's key and another's heading.
+	detailKeys map[string]string
+
+	// minuteWords and hourWords are the units of a time detail
+	// ("Kochzeit: 1 Std. 30 Min."), abbreviations with their dot as a
+	// separate entry; e.g. "Min.", "Min", "Minuten", "Std.", "h".
+	minuteWords []string
+	hourWords   []string
+
 	// stepWords are the words that may stand before a step's number in
 	// pasted text and are dropped with it; e.g. "Schritt" ("Schritt 2: …").
 	// A bare "2." or "2)" is a step number in every language.
@@ -114,8 +129,9 @@ var anyLanguage = combine(languages...)
 // combine returns one table holding the words of all of ls, with tag "".
 // combine(german, english) reads "1 EL Salz" and "1 tbsp salt" alike.
 func combine(ls ...*language) *language {
-	u := &language{}
+	u := &language{detailKeys: map[string]string{}}
 	for _, l := range ls {
+		maps.Copy(u.detailKeys, l.detailKeys)
 		u.units = append(u.units, l.units...)
 		u.thousandsSeparators = append(u.thousandsSeparators, l.thousandsSeparators...)
 		u.decimalSeparators = append(u.decimalSeparators, l.decimalSeparators...)
@@ -126,6 +142,8 @@ func combine(ls ...*language) *language {
 		u.ingredientHeadings = append(u.ingredientHeadings, l.ingredientHeadings...)
 		u.stepHeadings = append(u.stepHeadings, l.stepHeadings...)
 		u.stepWords = append(u.stepWords, l.stepWords...)
+		u.minuteWords = append(u.minuteWords, l.minuteWords...)
+		u.hourWords = append(u.hourWords, l.hourWords...)
 		u.promo = append(u.promo, l.promo...)
 	}
 	return u
@@ -134,28 +152,39 @@ func combine(ls ...*language) *language {
 // detectLanguage picks the table to read a recipe with. tag is what the
 // page declares ("de-DE", "en_GB", "" for none); its primary subtag picks
 // the table when there is one. Otherwise every table scores the lines (see
-// score) and the best one wins; a tie, nothing recognized included, reads
-// with every table at once.
-// detectLanguage("de-DE", nil) = german; detectLanguage("", ["2 cups flour"]) = english.
+// score) and the best one wins. On a tie, nothing recognized included, the
+// table whose headings the lines use wins when only one of the tied does;
+// else every table reads at once.
+// detectLanguage("de-DE", nil) = german; detectLanguage("", ["2 cups flour"]) = english;
+// detectLanguage("", ["Ingredients", "1 kg lamb"]) = english.
 func detectLanguage(tag string, lines []string) *language {
 	primary, _, _ := strings.Cut(strings.ReplaceAll(strings.ToLower(strings.TrimSpace(tag)), "_", "-"), "-")
 	if l := byTag(primary); l != nil {
 		return l
 	}
-	var best *language
-	bestScore, tie := 0, false
+	var best []*language
+	bestScore := -1
 	for _, l := range languages {
 		switch s := score(l, lines); {
 		case s > bestScore:
-			best, bestScore, tie = l, s, false
-		case s == bestScore && s > 0:
-			tie = true
+			best, bestScore = []*language{l}, s
+		case s == bestScore:
+			best = append(best, l)
 		}
 	}
-	if best == nil || tie {
-		return anyLanguage
+	if len(best) == 1 {
+		return best[0]
 	}
-	return best
+	headed := slices.DeleteFunc(best, func(l *language) bool {
+		re := l.patterns()
+		return !slices.ContainsFunc(lines, func(s string) bool {
+			return re.ingredientHeading.MatchString(s) || re.stepHeading.MatchString(s)
+		})
+	})
+	if len(headed) == 1 {
+		return headed[0]
+	}
+	return anyLanguage
 }
 
 // byTag returns the registered table with tag, nil when there is none.
@@ -167,17 +196,21 @@ func byTag(tag string) *language {
 	return languages[i]
 }
 
-// score counts the lines lang recognizes: a heading, a unit after the
-// quantity, a vague word or a plural marker. Words several tables share,
-// like "g", count for each of them and so decide nothing.
-// score(german, ["Zutaten", "1 EL Salz", "Salz"]) = 2.
+// score counts the ingredient lines lang recognizes: a unit after the
+// quantity, a vague word or a plural marker. Headings and detail lines are
+// structure every table reads alike, so they count for none. Words several
+// tables share, like "g", count for each of them and so decide nothing.
+// score(german, ["Zutaten", "1 EL Salz", "Salz"]) = 1.
 func score(lang *language, lines []string) int {
-	re := lang.patterns()
+	re, structure := lang.patterns(), anyLanguage.patterns()
+	var p Page
 	n := 0
 	for _, l := range lines {
+		if structure.ingredientHeading.MatchString(l) || structure.stepHeading.MatchString(l) || p.readDetail(l) {
+			continue
+		}
 		ing, _ := parseLine(l, lang)
-		if re.ingredientHeading.MatchString(l) || re.stepHeading.MatchString(l) ||
-			ing.Unit != nil || re.vague.MatchString(l) || re.plural.MatchString(l) {
+		if ing.Unit != nil || re.vague.MatchString(l) || re.plural.MatchString(l) {
 			n++
 		}
 	}

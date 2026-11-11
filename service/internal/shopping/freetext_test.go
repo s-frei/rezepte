@@ -20,7 +20,7 @@ func TestParseFree(t *testing.T) {
 		{"3 Zitronen", numPtr(3), nil, "Zitronen", nil},
 		{"  2 cups flour ", numPtr(2), strPtr("cups"), "flour", nil},
 		{"500g Mehl", numPtr(500), strPtr("g"), "Mehl", nil},
-		{"3Zitronen", nil, nil, "3Zitronen", nil},
+		{"3Zitronen", numPtr(3), nil, "Zitronen", nil},
 		{"2 Dosen Tomaten", numPtr(2), strPtr("Dosen"), "Tomaten", nil},
 		{"3 Zehen Knoblauch", numPtr(3), strPtr("Zehen"), "Knoblauch", nil},
 		{"3 Gurken", numPtr(3), nil, "Gurken", nil},

@@ -45,7 +45,7 @@ func ReadPage(body []byte, base *url.URL) (Page, bool) {
 		Servings:    servings(rec["recipeYield"]),
 		PrepMinutes: ParseDuration(text(rec["prepTime"])),
 		CookMinutes: ParseDuration(text(rec["cookTime"])),
-		Ingredients: ingredients,
+		Groups:      []PageGroup{{Lines: ingredients}},
 		Steps:       instructions(rec["recipeInstructions"]),
 		Keywords:    keywords(rec),
 		Authors:     authorNames(rec["author"], ids),

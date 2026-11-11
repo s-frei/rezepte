@@ -6,15 +6,21 @@
     "Servings": 0,
     "PrepMinutes": null,
     "CookMinutes": null,
-    "Ingredients": [
-      "500 g Mehl",
-      "1 TL Salz"
+    "Groups": [
+      {
+        "Name": "",
+        "Lines": [
+          "500 g Mehl",
+          "1 TL Salz"
+        ]
+      }
     ],
     "Steps": [
       "Teig kneten.",
       "Backen."
     ],
     "Keywords": null,
+    "Tags": null,
     "Authors": null,
     "PhotoURL": "",
     "SourceURL": "https://example.com/recipe",

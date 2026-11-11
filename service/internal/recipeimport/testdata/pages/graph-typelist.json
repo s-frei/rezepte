@@ -6,8 +6,13 @@
     "Servings": 4,
     "PrepMinutes": null,
     "CookMinutes": 45,
-    "Ingredients": [
-      "1 l Brühe"
+    "Groups": [
+      {
+        "Name": "",
+        "Lines": [
+          "1 l Brühe"
+        ]
+      }
     ],
     "Steps": [
       "Aufkochen."
@@ -16,6 +21,7 @@
       "Suppe",
       "schnell"
     ],
+    "Tags": null,
     "Authors": null,
     "PhotoURL": "https://example.com/img/soup.jpg",
     "SourceURL": "https://example.com/graph-soup",

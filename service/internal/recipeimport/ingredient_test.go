@@ -24,7 +24,7 @@ func TestParseLine(t *testing.T) {
 		{"2 wholesome rolls", recipe.Ingredient{Quantity: ptr(2.0), Name: "wholesome rolls"}, true},
 		{"1 awesome sauce", recipe.Ingredient{Quantity: ptr(1.0), Name: "awesome sauce"}, true},
 		{"some salt", recipe.Ingredient{Name: "some salt"}, false},
-		{"Salz (optional)", recipe.Ingredient{Name: "Salz (optional)"}, false},
+		{"Salz (optional)", recipe.Ingredient{Name: "Salz", Note: ptr("optional")}, true},
 		{"1½ Tassen Reis", recipe.Ingredient{Quantity: ptr(1.5), Unit: ptr("Tassen"), Name: "Reis"}, true},
 		{"1–2 Knoblauchzehen", recipe.Ingredient{Quantity: ptr(1.0), Name: "Knoblauchzehen", Note: ptr("1–2")}, true},
 		{"1 bis 2 Zwiebeln", recipe.Ingredient{Quantity: ptr(1.0), Name: "Zwiebeln", Note: ptr("1 bis 2")}, true},
@@ -54,6 +54,21 @@ func TestParseLineClampsLengths(t *testing.T) {
 	got, _ = parseAny("1 g Mehl (" + strings.Repeat("b", 300) + ")")
 	if got.Note == nil || len([]rune(*got.Note)) > 200 || got.Name != "Mehl" {
 		t.Fatalf("note not clamped: %s", show(got))
+	}
+}
+
+func TestSplitItem(t *testing.T) {
+	for _, tc := range []struct {
+		line string
+		want recipe.Ingredient
+	}{
+		{"Eier (6 Stück)", recipe.Ingredient{Name: "Eier", Note: ptr("6 Stück")}},
+		{"Toilettenpapier, 3-lagig", recipe.Ingredient{Name: "Toilettenpapier", Note: ptr("3-lagig")}},
+		{"2 l Milch", recipe.Ingredient{Quantity: ptr(2.0), Unit: ptr("l"), Name: "Milch"}},
+	} {
+		if got, cut := recipeimport.SplitItem(tc.line); !equalIngredient(got, tc.want) || cut {
+			t.Errorf("SplitItem(%q) = %s; want %s", tc.line, show(got), show(tc.want))
+		}
 	}
 }
 

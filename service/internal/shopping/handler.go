@@ -3,6 +3,7 @@ package shopping
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -32,6 +33,14 @@ type (
 		Text     string   `json:"text" minLength:"1" maxLength:"200" doc:"Free text such as \"2 l Milch\", or only the name when quantity or unit is given"`
 		Quantity *float64 `json:"quantity,omitempty" exclusiveMinimum:"0" maximum:"100000" doc:"Overrides an amount parsed from text"`
 		Unit     *string  `json:"unit,omitempty" maxLength:"30" doc:"Overrides a unit parsed from text"`
+	}
+	importListBody struct {
+		Text        string `json:"text" maxLength:"20000" doc:"A shopping list as text, one item per line; a first \"Liste:\" or \"List:\" line names it"`
+		Name        string `json:"name,omitempty" maxLength:"80" doc:"List name; wins over the text's name line"`
+		DefaultName string `json:"defaultName" minLength:"1" maxLength:"80" doc:"List name when neither name nor a name line gives one"`
+	}
+	importItemsBody struct {
+		Text string `json:"text" maxLength:"20000" doc:"Items as text, one per line; a name line is skipped"`
 	}
 	// ItemSet names items by id; exported because huma skips unexported embedded fields.
 	ItemSet struct {
@@ -93,7 +102,12 @@ type (
 		ID   string `path:"id"`
 		Body ItemSet
 	}
-	departmentIn struct{ Body departmentBody }
+	departmentIn  struct{ Body departmentBody }
+	importListIn  struct{ Body importListBody }
+	importItemsIn struct {
+		ID   string `path:"id"`
+		Body importItemsBody
+	}
 )
 
 // Register installs the shopping-list operations onto api. Every operation
@@ -118,6 +132,8 @@ func Register(api huma.API, svc *Service) {
 			return huma.Error404NotFound("shopping list not found")
 		case errors.Is(err, ErrRecipeNotFound):
 			return huma.Error404NotFound("recipe not found")
+		case errors.Is(err, ErrNoItems), errors.Is(err, ErrTooManyItems), errors.As(err, new(*LineError)):
+			return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body.text", Message: importMessage(err)})
 		case errors.Is(err, ErrInvalid):
 			msg := strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": ")
 			return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body." + field, Message: msg})
@@ -175,6 +191,13 @@ func Register(api huma.API, svc *Service) {
 	huma.Register(api, op("create-shopping-list", http.MethodPost, "/api/v1/shopping-lists", "Create a shopping list", http.StatusCreated, 422),
 		func(ctx context.Context, in *createIn) (*listOut, error) {
 			return mutation(ctx, "name", func(uid string) (List, error) { return svc.Create(ctx, uid, in.Body.Name) })
+		})
+
+	huma.Register(api, op("import-shopping-list", http.MethodPost, "/api/v1/shopping-lists/import", "Create a shopping list from text", http.StatusCreated, 422),
+		func(ctx context.Context, in *importListIn) (*listOut, error) {
+			return mutation(ctx, "name", func(uid string) (List, error) {
+				return svc.ImportList(ctx, uid, in.Body.Text, in.Body.Name, in.Body.DefaultName)
+			})
 		})
 
 	huma.Register(api, reader(op("get-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}", "Get a shopping list", http.StatusOK, 404)),
@@ -258,6 +281,11 @@ func Register(api huma.API, svc *Service) {
 			})
 		})
 
+	huma.Register(api, op("import-into-shopping-list", http.MethodPost, "/api/v1/shopping-lists/{id}/import", "Add items from text", http.StatusOK, 404, 422),
+		func(ctx context.Context, in *importItemsIn) (*listOut, error) {
+			return mutation(ctx, "text", func(uid string) (List, error) { return svc.ImportItems(ctx, uid, in.ID, in.Body.Text) })
+		})
+
 	huma.Register(api, op("check-shopping-items", http.MethodPost, "/api/v1/shopping-lists/{id}/items/check", "Tick or untick items", http.StatusOK, 404),
 		func(ctx context.Context, in *checkIn) (*listOut, error) {
 			return mutation(ctx, "", func(uid string) (List, error) {
@@ -279,4 +307,17 @@ func Register(api huma.API, svc *Service) {
 		func(ctx context.Context, in *departmentIn) (*emptyOut, error) {
 			return command(ctx, "name", func(uid string) error { return svc.SetDepartment(ctx, uid, in.Body.Name, in.Body.Department) })
 		})
+}
+
+// importMessage is the code a refused list import answers with:
+// "no-items", "too-many-items" or "line-too-long:<line>".
+func importMessage(err error) string {
+	var le *LineError
+	switch {
+	case errors.As(err, &le):
+		return fmt.Sprintf("line-too-long:%d", le.Line)
+	case errors.Is(err, ErrTooManyItems):
+		return "too-many-items"
+	}
+	return "no-items"
 }

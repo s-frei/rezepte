@@ -2,45 +2,40 @@ package shopping
 
 import (
 	"regexp"
-	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/recipeimport"
 )
 
-// freeUnits are the editor's suggested units (frontend/messages
-// editor_unit_options, both languages) plus their plural forms.
-const freeUnits = `g|kg|ml|l|TL|EL|Prisen?|Stücke?|Bunde?|Bünde|Zehen?|Dosen?|Packungen?|tsp|tbsp|tablespoons?|teaspoons?|cups?|fl oz|oz|lbs?|pinch(?:es)?|pieces?`
+// dashNoteRe is a " - " or " – " between name and note.
+var dashNoteRe = regexp.MustCompile(`\s+[–-]\s+`)
 
-// freeRe matches "2 l Milch" or "500g Mehl": amount, optional unit, name. A
-// unit may touch the amount, but a name may not ("3Zitronen" stays a name).
-var freeRe = regexp.MustCompile(`(?i)^(\d+(?:[.,]\d+)?)(?:\s*(` + freeUnits + `)\s+|\s+)(.+)$`)
-
-// noteSepRe is the first ", ", " – " or " - " after the name.
-var noteSepRe = regexp.MustCompile(`,\s+|\s+[–-]\s+`)
-
-// trailingNoteRe is a closing "(...)" after a name.
-var trailingNoteRe = regexp.MustCompile(`^(.+?)\s*\(([^()]+)\)$`)
-
-// ParseFree splits free text into quantity, unit, name and note. Text without
-// a leading amount is all name; the first ", " or " – " after the name starts
-// the note, and so does a closing "(...)".
+// ParseFree splits free text into quantity, unit, name and note with the
+// recipe import's shared split (recipeimport.SplitItem), so a typed and an
+// imported item land in the same row. When that split finds no note, the
+// first " - " or " – " after the name starts one.
 func ParseFree(text string) (quantity *float64, unit *string, name string, note *string) {
-	text = strings.TrimSpace(text)
-	if m := freeRe.FindStringSubmatch(text); m != nil {
-		if q, err := strconv.ParseFloat(strings.Replace(m[1], ",", ".", 1), 64); err == nil {
-			quantity = &q
-			if m[2] != "" {
-				unit = &m[2]
-			}
-			text = strings.TrimSpace(m[3])
+	it, _ := splitFree(text)
+	return it.Quantity, it.Unit, it.Name, it.Note
+}
+
+// splitFree is ParseFree, and reports whether SplitItem cut the name (120
+// runes) or the note (200 runes) to fit.
+func splitFree(text string) (recipe.Ingredient, bool) {
+	text = strings.Join(strings.Fields(text), " ")
+	ing, cut := recipeimport.SplitItem(text)
+	it := ing
+	if it.Name == "" { // "2" alone stays a name, as typed
+		return recipe.Ingredient{Name: text}, utf8.RuneCountInString(text) > 120
+	}
+	if it.Note == nil {
+		if loc := dashNoteRe.FindStringIndex(it.Name); loc != nil && loc[0] > 0 && strings.TrimSpace(it.Name[loc[1]:]) != "" {
+			it.Name, it.Note = strings.TrimSpace(it.Name[:loc[0]]), ptr(strings.TrimSpace(it.Name[loc[1]:]))
 		}
 	}
-	name = text
-	if loc := noteSepRe.FindStringIndex(text); loc != nil && loc[0] > 0 && strings.TrimSpace(text[loc[1]:]) != "" {
-		name, note = strings.TrimSpace(text[:loc[0]]), ptr(strings.TrimSpace(text[loc[1]:]))
-	} else if m := trailingNoteRe.FindStringSubmatch(text); m != nil {
-		name, note = strings.TrimSpace(m[1]), ptr(strings.TrimSpace(m[2]))
-	}
-	return quantity, unit, name, note
+	return it, cut
 }
 
 func ptr(s string) *string { return &s }

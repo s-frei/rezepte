@@ -313,6 +313,25 @@ func TestDraftFindsDuplicate(t *testing.T) {
 	}
 }
 
+// A "Quelle:" link in pasted text finds the recipe saved from it.
+func TestDraftFromTextFindsDuplicate(t *testing.T) {
+	h := newHandler(t, allowAll)
+	in, err := recipe.Samples("de")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := "https://www.chefkoch.de/r/1"
+	in[0].Title = "Meine Suppe"
+	in[0].SourceURL = &src
+	if _, err := h.recipes.Create(context.Background(), h.samID, in[0]); err != nil {
+		t.Fatal(err)
+	}
+	d := decode[draftBody](t, h.post(t, map[string]string{"text": "Suppe\nQuelle: Chefkoch https://www.chefkoch.de/r/1?utm_source=x\nZutaten\n1 l Wasser\nZubereitung\nKochen."}))
+	if d.Duplicate == nil || d.Duplicate.Title != "Meine Suppe" {
+		t.Fatalf("duplicate = %+v", d.Duplicate)
+	}
+}
+
 func TestDraftNeedsWriteScope(t *testing.T) {
 	h := newHandler(t, allowAll)
 	if rec := h.do(http.MethodPost, "/api/v1/recipe-drafts", `{"text":"x"}`, nil); rec.Code != http.StatusUnauthorized {

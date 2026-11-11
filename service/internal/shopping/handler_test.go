@@ -359,3 +359,32 @@ func TestTokenActsAsIssuer(t *testing.T) {
 		t.Fatalf("status %d, want 404 for another user's list", rec.Code)
 	}
 }
+
+func TestImportEndpoints(t *testing.T) {
+	a := newAPI(t)
+	ca, cb := a.login(t, "anna"), a.login(t, "ben")
+	l := a.call(t, ca, http.MethodPost, base+"/import", map[string]string{"text": "Liste: Party\n2 l Milch", "defaultName": "Einkaufsliste"}, http.StatusCreated)
+	if l.Name != "Party" || len(l.Items) != 1 {
+		t.Fatalf("import: %+v", l)
+	}
+	p := base + "/" + l.ID + "/import"
+	l = a.call(t, ca, http.MethodPost, p, map[string]string{"text": "1 Ei\n2 Stück + 200 g Zwiebeln"}, http.StatusOK)
+	if l.Name != "Party" || len(l.Items) != 4 {
+		t.Fatalf("import into: %+v", l)
+	}
+	a.call(t, cb, http.MethodPost, p, map[string]string{"text": "1 Ei"}, http.StatusNotFound)
+	for body, msg := range map[string]string{
+		`{"text":"Liste: Leer","defaultName":"Einkaufsliste"}`:                                    "no-items",
+		`{"text":"` + strings.Repeat(`1 Ei\n`, 201) + `","defaultName":"Einkaufsliste"}`:          "too-many-items",
+		`{"text":"1 Ei\n1 Ei\n2 ` + strings.Repeat("x", 121) + `","defaultName":"Einkaufsliste"}`: "line-too-long:3",
+	} {
+		rec := a.do(http.MethodPost, base+"/import", body, ca)
+		if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), `"message":"`+msg+`"`) || !strings.Contains(rec.Body.String(), "body.text") {
+			t.Errorf("%s: %d %s", msg, rec.Code, rec.Body.String())
+		}
+	}
+	rec := a.do(http.MethodPost, p, `{"text":"Liste: Leer"}`, ca)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "no-items") {
+		t.Errorf("into, no items: %d %s", rec.Code, rec.Body.String())
+	}
+}

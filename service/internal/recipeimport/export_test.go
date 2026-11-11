@@ -17,3 +17,15 @@ var (
 
 // Tag returns a table's language tag.
 func (l *language) Tag() string { return l.tag }
+
+// ReadDuration reads a time value; see readDuration.
+var ReadDuration = readDuration
+
+// StructureWords returns the table's headings and detail keys by field.
+func (l *language) StructureWords() map[string][]string {
+	words := map[string][]string{"ingredientHeadings": l.ingredientHeadings, "stepHeadings": l.stepHeadings}
+	for k, f := range l.detailKeys {
+		words[f+"Keys"] = append(words[f+"Keys"], k)
+	}
+	return words
+}

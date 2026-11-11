@@ -81,13 +81,19 @@ func (s *Service) FromURL(ctx context.Context, raw string) (Result, error) {
 	return r, err
 }
 
-// FromText reads pasted text.
+// FromText reads pasted text; a "Source:" link finds a duplicate as a
+// page's link does.
 func (s *Service) FromText(ctx context.Context, text string) (Result, error) {
 	page, ok := ReadText(text)
 	if !ok {
 		return Result{}, ErrNoRecipeInText
 	}
-	return s.build(ctx, page)
+	r, err := s.build(ctx, page)
+	if err != nil || page.SourceURL == "" {
+		return r, err
+	}
+	r.Duplicate, err = s.recipes.FindBySource(ctx, []string{page.SourceURL})
+	return r, err
 }
 
 func (s *Service) build(ctx context.Context, page Page) (Result, error) {

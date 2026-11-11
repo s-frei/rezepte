@@ -27,6 +27,8 @@ A table is a value of the type `language` in `service/internal/recipeimport/lang
 | `vague` | Words and phrases that make an amount uncertain, matched as whole words; the line is flagged for the cook to check. | `"nach Belieben"`, `"etwas"`, `"n.B."` |
 | `ingredientHeadings` | Lines that open the ingredient list in pasted text, the whole line with or without a colon. An entry ending in ` …` also takes any words after it. | `"Zutaten"`, `"Zutaten für …"` |
 | `stepHeadings` | Lines that open the steps in pasted text, matched the same way. | `"Zubereitung"`, `"Anleitung"` |
+| `detailKeys` | The keys of the detail lines above the ingredients in pasted text (`Portionen: 4`), each the whole key before the colon, mapped to its field: `servings`, `prep`, `cook`, `tags`, `source`. Use the app's own labels from the catalog (`recipe_servings`, `recipe_prep_time`, `recipe_cook_time`, `recipe_source`; "Tags" is a literal), so the text looks like the recipe page. No aliases. Every table's keys are read in every text, so a word must not be one table's key and another's heading (`TestStructureWordsDoNotCollide`). | `"Portionen": "servings"`, `"Vorbereitung": "prep"`, `"Kochzeit": "cook"`, `"Tags": "tags"`, `"Quelle": "source"` |
+| `minuteWords`, `hourWords` | The units of a time detail, abbreviations with their dot as a separate entry. | `"Min."`, `"Min"`, `"Minuten"`, `"Minute"`; `"Std."`, `"Std"`, `"Stunden"`, `"Stunde"`, `"h"` |
 | `stepWords` | Words before a step's number in pasted text, dropped with it. A bare `2.` or `2)` is a step number in every language. | `"Schritt"` - "Schritt 2: …" |
 | `promo` | Regular expressions for the advertising sentences sites append to a description; a matching sentence is dropped. Use `(?i)` when case does not matter. | `` `(?i)^Über \d[\d.]* Bewertungen` ``, `` `►` `` |
 
@@ -37,8 +39,8 @@ What every language shares stays in the parser: numbers and fractions, dashes in
 `detectLanguage` in `lang.go` picks the table:
 
 1. **What the page declares.** `ReadPage` takes the Recipe's `inLanguage`, else a `WebPage` node's `inLanguage`, else `<html lang>`, and uses the table for its primary subtag (`de-DE` → `de`).
-2. **What the lines say.** Without a declaration, or with one no table has, every table scores the lines: one point for each line it recognizes, by a heading, a unit after the quantity, a vague word or a plural marker. Pasted text is always scored, over all its lines; a page over its ingredient lines.
-3. **A tie reads with every table at once** (`anyLanguage`), the union of all their words.
+2. **What the lines say.** Without a declaration, or with one no table has, every table scores the lines: one point for each line it recognizes, by a unit after the quantity, a vague word or a plural marker. Headings and detail lines score for none: they are structure, read with every table at once, so German keys above English ingredients still read the ingredients as English. Pasted text is always scored, over all its lines; a page over its ingredient lines.
+3. **A tie goes to the headings.** When exactly one of the tied tables has its own headings in the lines, it wins ("1.250 kg" under "Ingredients" is English, not German 1250 kg); otherwise every table reads at once (`anyLanguage`), the union of all their words.
 
 `Page.Language` records the tag that was used (`""` for all at once), and `Build` reads the ingredient lines with it.
 
@@ -67,8 +69,14 @@ What every language shares stays in the parser: numbers and fractions, dashes in
   </Step>
   <Step>
 
-    ### Translate the dialog's example
+    ### Translate the dialog's example and the AI instructions
     The import dialog shows `import_example` from `frontend/messages/<tag>.json`, in the empty field and under "What should the text look like?", as how a pasted recipe should look. Write it in the language with the new table's headings: a title line, an ingredient heading, two or three lines with the amount first, a step heading and one or two numbered steps. `TestEveryAppLanguageExampleImportsCleanly` in `lang_test.go` reads it with your table and fails unless it gives a title, two ingredients that need no check and a step.
+
+    The import dialogs also copy an instruction for an AI chat, `ai_instruction_recipe` and `ai_instruction_list`, which tells the AI to answer in exactly the shape the readers read. Translate both from `de.json` line by line, keeping their structure: the keywords are the new table's headings and detail keys, the units only words the table knows (the list's only units one buys, no spoons), the name line the list's word, and the fenced example the same recipe and list. Three tests hold them to the code:
+
+    - `TestEveryAppLanguageExampleImportsCleanly` also pastes the whole recipe instruction back through `ReadText` and `Build` and fails unless its fenced example gives a title, a description, 4 servings, prep and cook time, tags, a source, two named groups, three steps and no line to check.
+    - `TestEveryAppLanguageInstructionMatchesTables` fails when an indented `Key:` line in the recipe instruction's prose is no detail key of the table, when the example leaves out one of the five keys, or when a unit in the list that starts with `g, kg` (up to the next `.`) does not read as a unit.
+    - `TestEveryAppLanguageListInstructionImports` in `service/internal/shopping/listtext_test.go` pastes the list instruction back through `ParseListText` and compares the name and every item's amount, unit, name and note with its row for the language; add the row. It also checks the name line's word is in `listNameWords` (add it there) and every allowed unit reads as one.
 
   </Step>
   <Step>
@@ -91,11 +99,11 @@ What every language shares stays in the parser: numbers and fractions, dashes in
 
 ## Checklist
 
-- [ ] `lang_<tag>.go` with every field filled or deliberately empty
+- [ ] `lang_<tag>.go` with every field filled or deliberately empty, the detail keys the catalog's labels
 - [ ] Registered in `languages` in `lang.go`
 - [ ] `ParseLineWith` rows for real lines, with exact results, none of them a name starting with punctuation
 - [ ] `DetectLanguage` and `RemovePromo` rows
-- [ ] `import_example` in the language's catalog, with the table's headings
+- [ ] `import_example`, `ai_instruction_recipe` and `ai_instruction_list` in the language's catalog, with the table's words, the list word in `listNameWords` and a row in `TestEveryAppLanguageListInstructionImports`
 - [ ] One trimmed, scrubbed fixture page and its regenerated golden `.json`, read and confirmed
 - [ ] [Recipe import](/features/recipe-import)'s limits and the user docs' `guide/importing.mdx` name the new language
 - [ ] `mise run check` green

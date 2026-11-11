@@ -2,6 +2,7 @@ package recipeimport_test
 
 import (
 	"encoding/json"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,13 +15,13 @@ import (
 
 func TestBuildSplitsTagsAndFlagsLines(t *testing.T) {
 	d := recipeimport.Build(recipeimport.Page{
-		Title:       "Käsespätzle",
-		Ingredients: []string{"400 g Mehl", "Salz und Pfeffer n.B."},
-		Steps:       []string{"Verrühren."},
-		Keywords:    []string{"Vegetarisch", "Party", "nudeln"},
-		SourceURL:   "https://www.chefkoch.de/rezepte/1/kaesespaetzle.html",
-		SourceName:  "Chefkoch",
-		PhotoURL:    "https://img.chefkoch.de/a.jpg",
+		Title:      "Käsespätzle",
+		Groups:     []recipeimport.PageGroup{{Lines: []string{"400 g Mehl", "Salz und Pfeffer n.B."}}},
+		Steps:      []string{"Verrühren."},
+		Keywords:   []string{"Vegetarisch", "Party", "nudeln"},
+		SourceURL:  "https://www.chefkoch.de/rezepte/1/kaesespaetzle.html",
+		SourceName: "Chefkoch",
+		PhotoURL:   "https://img.chefkoch.de/a.jpg",
 	}, []string{"vegetarisch", "Nudeln", "Kuchen"})
 	if got := d.Recipe.Tags; len(got) != 2 || got[0] != "vegetarisch" || got[1] != "Nudeln" {
 		t.Fatalf("tags = %q", got)
@@ -42,7 +43,7 @@ func TestBuildClampsAndStillValidates(t *testing.T) {
 	for range 130 {
 		many = append(many, "1 g Salz")
 	}
-	d := recipeimport.Build(recipeimport.Page{Title: long, Description: long, Ingredients: many, Steps: []string{long}}, nil)
+	d := recipeimport.Build(recipeimport.Page{Title: long, Description: long, Groups: []recipeimport.PageGroup{{Lines: many}}, Steps: []string{long}}, nil)
 	if !d.Truncated {
 		t.Fatal("not marked truncated")
 	}
@@ -123,5 +124,46 @@ func TestBuildSendsEmptyStepLists(t *testing.T) {
 	}
 	if want := `[{"text":"20 Minuten kochen.","references":[],"times":[],"photos":[]}]`; string(raw) != want {
 		t.Errorf("steps = %s, want %s", raw, want)
+	}
+}
+
+func TestBuildClampsGroups(t *testing.T) {
+	var groups []recipeimport.PageGroup
+	for i := range 21 {
+		groups = append(groups, recipeimport.PageGroup{Name: "Teil " + strconv.Itoa(i), Lines: []string{"1 g Salz", "etwas Öl"}})
+	}
+	d := recipeimport.Build(recipeimport.Page{Title: "x", Groups: groups, Steps: []string{"x"}}, nil)
+	gs := d.Recipe.IngredientGroups
+	if len(gs) != 20 || len(gs[19].Ingredients) != 4 || !d.Truncated {
+		t.Fatalf("%d groups, last has %d, truncated = %v", len(gs), len(gs[len(gs)-1].Ingredients), d.Truncated)
+	}
+	// The 21st group's unsure line points into the 20th, where it now is.
+	if last := d.Review[len(d.Review)-1]; last != (recipeimport.DraftReview{Group: 19, Ingredient: 3, Line: "etwas Öl"}) {
+		t.Fatalf("last review = %+v", last)
+	}
+}
+
+func TestBuildExplicitTags(t *testing.T) {
+	d := recipeimport.Build(recipeimport.Page{
+		Title: "x", Steps: []string{"x"},
+		Tags: []string{"vegetarisch", "#neu", strings.Repeat("t", 41), "Neu", "#vegetarisch"},
+		// A tag twice, in any case, is one: the editor keys tags by their text.
+		Keywords: []string{"Vegetarisch", "Sommer", "sommer"},
+	}, []string{"Vegetarisch"})
+	if got := d.Recipe.Tags; !slices.Equal(got, []string{"Vegetarisch", "neu"}) || !slices.Equal(d.SuggestedTags, []string{"Sommer"}) || !d.Truncated {
+		t.Fatalf("tags = %q, suggested = %q, truncated = %v", got, d.SuggestedTags, d.Truncated)
+	}
+}
+
+func TestBuildReviewsPerGroup(t *testing.T) {
+	d := recipeimport.Build(recipeimport.Page{Title: "x", Language: "de", Groups: []recipeimport.PageGroup{
+		{Name: "Teig", Lines: []string{"200 g Mehl"}},
+		{Name: "Guss", Lines: []string{"100 g Zucker", "etwas Zitronensaft"}},
+	}}, nil)
+	if want := []recipeimport.DraftReview{{Group: 1, Ingredient: 1, Line: "etwas Zitronensaft"}}; !slices.Equal(d.Review, want) {
+		t.Fatalf("review = %+v", d.Review)
+	}
+	if g := d.Recipe.IngredientGroups[1]; g.Name == nil || *g.Name != "Guss" {
+		t.Fatalf("group 1 = %+v", g)
 	}
 }

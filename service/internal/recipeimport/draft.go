@@ -1,7 +1,9 @@
 package recipeimport
 
 import (
+	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/s-frei/rezepte/service/internal/recipe"
 )
@@ -27,7 +29,9 @@ type Draft struct {
 // with the table for p.Language (detected from the lines when ""). Keywords matching one of
 // known (case-insensitively) become tags in the collection's spelling; the
 // rest are suggestions the member accepts one by one. A keyword equal to an
-// author's name (case-insensitively) is neither.
+// author's name (case-insensitively) is neither. Explicit tags (p.Tags,
+// a "Tags:" line) all become tags. Each PageGroup becomes one group, and a
+// review names the group of its line.
 func Build(p Page, known []string) Draft {
 	var d Draft
 	in := recipe.Input{
@@ -48,19 +52,39 @@ func Build(p Page, known []string) Draft {
 	if p.SourceName != "" {
 		in.SourceName = &p.SourceName
 	}
-	group := recipe.IngredientGroup{Ingredients: []recipe.Ingredient{}}
-	lang := detectLanguage(p.Language, p.Ingredients)
-	for _, line := range p.Ingredients {
-		ing, sure := parseLine(line, lang)
-		if ing.Name == "" {
-			continue
-		}
-		if !sure {
-			d.Review = append(d.Review, DraftReview{Group: 0, Ingredient: len(group.Ingredients), Line: line})
-		}
-		group.Ingredients = append(group.Ingredients, ing)
+	var lines []string
+	for _, g := range p.Groups {
+		lines = append(lines, g.Lines...)
 	}
-	in.IngredientGroups = []recipe.IngredientGroup{group}
+	lang := detectLanguage(p.Language, lines)
+	for gi, g := range p.Groups {
+		group := recipe.IngredientGroup{Ingredients: []recipe.Ingredient{}}
+		if g.Name != "" {
+			group.Name = &g.Name
+		}
+		for _, line := range g.Lines {
+			ing, sure := parseLine(line, lang)
+			if ing.Name == "" {
+				continue
+			}
+			if !sure {
+				d.Review = append(d.Review, DraftReview{Group: gi, Ingredient: len(group.Ingredients), Line: line})
+			}
+			group.Ingredients = append(group.Ingredients, ing)
+		}
+		in.IngredientGroups = append(in.IngredientGroups, group)
+	}
+	if len(in.IngredientGroups) == 0 {
+		in.IngredientGroups = []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{}}} // the schema wants one
+	}
+	// clampInput merges the groups beyond the 20th into it; their reviews
+	// move with them.
+	for i := range d.Review {
+		for r := &d.Review[i]; r.Group > maxGroups-1; {
+			r.Group--
+			r.Ingredient += len(in.IngredientGroups[r.Group].Ingredients)
+		}
+	}
 	for _, s := range p.Steps {
 		in.Steps = append(in.Steps, recipe.Step{Text: s, References: []recipe.IngredientRef{}, Times: []recipe.StepTime{}, Photos: []recipe.StepPhoto{}})
 	}
@@ -72,6 +96,21 @@ func Build(p Page, known []string) Draft {
 	for _, a := range p.Authors {
 		authors[strings.ToLower(strings.TrimSpace(a))] = true
 	}
+	// A "Tags:" line is the cook's own choice, so every tag counts, in
+	// the collection's spelling when it has one.
+	for _, t := range p.Tags {
+		t = strings.TrimSpace(strings.TrimPrefix(t, "#"))
+		switch n := utf8.RuneCountInString(t); {
+		case n == 0:
+		case n > 40:
+			d.Truncated = true
+		default:
+			if k, ok := spelling[strings.ToLower(t)]; ok {
+				t = k
+			}
+			in.Tags = append(in.Tags, t)
+		}
+	}
 	for _, kw := range p.Keywords {
 		if authors[strings.ToLower(strings.TrimSpace(kw))] {
 			continue
@@ -82,7 +121,11 @@ func Build(p Page, known []string) Draft {
 			d.SuggestedTags = append(d.SuggestedTags, kw)
 		}
 	}
-	d.Recipe, d.Truncated = clampInput(in)
+	// The editor keys tags by their text: a tag twice ("vegan, Vegan") broke it.
+	in.Tags, d.SuggestedTags = uniqueFold(in.Tags), uniqueFold(d.SuggestedTags)
+	var cut bool
+	d.Recipe, cut = clampInput(in)
+	d.Truncated = d.Truncated || cut
 	d.Review = keepReviews(d.Review, d.Recipe)
 	// Dropping suggestions (over 40 runes, beyond 20) loses no recipe
 	// content, so it does not count as truncated.
@@ -97,9 +140,20 @@ func Build(p Page, known []string) Draft {
 func keepReviews(rs []DraftReview, in recipe.Input) []DraftReview {
 	out := rs[:0]
 	for _, r := range rs {
-		if r.Ingredient < len(in.IngredientGroups[0].Ingredients) {
+		if r.Group < len(in.IngredientGroups) && r.Ingredient < len(in.IngredientGroups[r.Group].Ingredients) {
 			out = append(out, r)
 		}
 	}
 	return out
+}
+
+// uniqueFold keeps the first of tags that differ only in case.
+func uniqueFold(tags []string) []string {
+	seen := map[string]bool{}
+	return slices.DeleteFunc(tags, func(t string) bool {
+		k := strings.ToLower(t)
+		dup := seen[k]
+		seen[k] = true
+		return dup
+	})
 }

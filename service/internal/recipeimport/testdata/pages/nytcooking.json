@@ -6,18 +6,23 @@
     "Servings": 18,
     "PrepMinutes": null,
     "CookMinutes": 45,
-    "Ingredients": [
-      "2 cups minus 2 tablespoons cake flour (8 ½ ounces)",
-      "1 ⅔ cups bread flour (8 ½ ounces)",
-      "1 ¼ teaspoons baking soda",
-      "1 ½ teaspoons baking powder",
-      "1 ½ teaspoons coarse sea salt, plus more for sprinkling",
-      "1 ¼ cups unsalted butter (2 ½ sticks)",
-      "1 ¼ cups light brown sugar (10 ounces)",
-      "1 cup plus 2 tablespoons granulated sugar (8 ounces)",
-      "2 large eggs",
-      "2 teaspoons natural vanilla extract",
-      "1 ¼ pounds bittersweet chocolate disks or fèves, at least 60 percent cacao content (see note)"
+    "Groups": [
+      {
+        "Name": "",
+        "Lines": [
+          "2 cups minus 2 tablespoons cake flour (8 ½ ounces)",
+          "1 ⅔ cups bread flour (8 ½ ounces)",
+          "1 ¼ teaspoons baking soda",
+          "1 ½ teaspoons baking powder",
+          "1 ½ teaspoons coarse sea salt, plus more for sprinkling",
+          "1 ¼ cups unsalted butter (2 ½ sticks)",
+          "1 ¼ cups light brown sugar (10 ounces)",
+          "1 cup plus 2 tablespoons granulated sugar (8 ounces)",
+          "2 large eggs",
+          "2 teaspoons natural vanilla extract",
+          "1 ¼ pounds bittersweet chocolate disks or fèves, at least 60 percent cacao content (see note)"
+        ]
+      }
     ],
     "Steps": [
       "Step one.",
@@ -35,6 +40,7 @@
       "Chocolate Chip Cookie",
       "Dessert"
     ],
+    "Tags": null,
     "Authors": [
       "Test Author"
     ],

@@ -20,37 +20,58 @@ const fracClass = `½⅓⅔¼¾⅕⅛⅜⅝⅞`
 // number: "1 1/2", "1 ½", "1/2", "1½", "1,5", "1.5", "2", "½".
 const number = `(?:\d+\s+\d+/\d+|\d+\s+[` + fracClass + `]|\d+/\d+|\d+[` + fracClass + `]|\d+(?:[.,]\d+)?|[` + fracClass + `])`
 
-// parseLine splits one ingredient line into quantity, unit, name and note,
-// reading every word from lang. In order: plural markers go, then the
-// quantity (a range keeps the range as note), a parenthesis right after it
-// ("1 (14-ounce) can"), the unit, a parenthesis right after that ("1 can
-// (14 oz) tomatoes"), a unit modifier ("gehäuft"), and a
-// trailing note in balanced parentheses or after a comma. sure is false
-// when the member should look at the result: a number that is not at the
-// start, a vague amount like "to taste", or a name that cannot be right
-// (see plausibleName). An unsure line without a quantity is kept whole.
+// parseLine splits one ingredient line with splitLine and judges the
+// split. sure is false when the member should look at the result: a number
+// that is not at the start, a vague amount like "to taste" in the name (in
+// a note it is said where the cook sees it: "Salz, nach Geschmack"), or a
+// name that cannot be right (see plausibleName). An unsure line without a
+// quantity, or without a name, is kept whole.
 // parseLine("1 EL, gehäuft Salz (zum Entwässern)", german) =
 // {1 EL Salz, note "gehäuft, zum Entwässern"}, true.
 func parseLine(line string, lang *language) (recipe.Ingredient, bool) {
-	re := lang.patterns()
 	line = strings.Join(strings.Fields(line), " ")
 	if line == "" {
 		return recipe.Ingredient{}, false
 	}
+	ing, _ := splitLine(line, lang)
+	sure := plausibleName(ing.Name)
+	if ing.Quantity == nil && strings.IndexFunc(line, unicode.IsDigit) >= 0 {
+		sure = false
+	}
+	if lang.patterns().vague.MatchString(ing.Name) {
+		sure = false
+	}
+	if !sure && (ing.Quantity == nil || ing.Name == "") {
+		// Unsure with nothing split off, or with no name left: keep the line
+		// whole so nothing is lost (Build drops ingredients without a name).
+		ing, _ = clampIngredient(recipe.Ingredient{Name: line})
+	}
+	return ing, sure
+}
+
+// splitLine splits one line into quantity, unit, name and note, reading
+// every word from lang, and passes no verdict. In order: plural markers go,
+// then the quantity (a range keeps the range as note), a parenthesis right
+// after it ("1 (14-ounce) can"), the unit (one word or two: "fl oz"), a
+// parenthesis right after that ("1 can (14 oz) tomatoes"), a unit modifier
+// ("gehäuft"), and a trailing note in balanced parentheses or after a comma
+// (see splitTrailingNote).
+// splitLine("2 l Milch, 1,5 %", german) = {2 l Milch, note "1,5 %"}.
+func splitLine(line string, lang *language) (recipe.Ingredient, bool) {
+	re := lang.patterns()
+	line = strings.Join(strings.Fields(line), " ")
 	var ing recipe.Ingredient
 	var notes []string
 	rest := stripPluralMarkers(line, lang)
-	if m := re.quantity.FindStringSubmatchIndex(rest); m != nil {
-		num := rest[m[2]:m[3]]
-		if re.thousands.MatchString(num) { // "1.000,5" is 1000.5
-			for _, s := range lang.thousandsSeparators {
-				num = strings.ReplaceAll(num, s, "")
-			}
-			for _, s := range lang.decimalSeparators {
-				num = strings.ReplaceAll(num, s, ".")
-			}
+	m := re.quantity.FindStringSubmatchIndex(rest)
+	var q float64
+	if m != nil {
+		var ok bool
+		if q, ok = readQuantity(rest[m[2]:m[3]], lang); !ok {
+			m = nil // "0 g" or 400 digits: no amount, the line stays text
 		}
-		q := parseNumber(num)
+	}
+	if m != nil {
 		ing.Quantity = &q
 		if m[4] >= 0 { // a range: lower bound as quantity, the range as note
 			notes = append(notes, rest[m[0]:m[1]])
@@ -59,8 +80,8 @@ func parseLine(line string, lang *language) (recipe.Ingredient, bool) {
 		var note string
 		note, rest = splitLeadingNote(rest)
 		notes = append(notes, note)
-		if word, after := leadingWord(rest); re.units[strings.ToLower(word)] {
-			ing.Unit = &word
+		if unit, after, ok := leadingUnit(rest, re.units); ok {
+			ing.Unit = &unit
 			note, rest = splitLeadingNote(strings.TrimSpace(after)) // "1 can (14 oz) tomatoes"
 			notes = append(notes, note)
 			note, rest = splitUnitModifier(rest, lang)
@@ -78,19 +99,17 @@ func parseLine(line string, lang *language) (recipe.Ingredient, bool) {
 		ing.Note = &joined
 	}
 	ing.Name = name
-	sure := plausibleName(name)
-	if ing.Quantity == nil && strings.IndexFunc(line, unicode.IsDigit) >= 0 {
-		sure = false
+	return clampIngredient(ing)
+}
+
+// leadingUnit takes a unit from units off the start of s, two words before
+// one: leadingUnit("fl oz cream", …) = "fl oz", " cream", true.
+func leadingUnit(s string, units map[string]bool) (unit, rest string, ok bool) {
+	word, after := leadingWord(s)
+	if second, after2 := leadingWord(strings.TrimPrefix(after, " ")); strings.HasPrefix(after, " ") && units[strings.ToLower(word+" "+second)] {
+		return word + " " + second, after2, true
 	}
-	if re.vague.MatchString(line) {
-		sure = false
-	}
-	if !sure && (ing.Quantity == nil || ing.Name == "") {
-		// Unsure with nothing split off, or with no name left: keep the line
-		// whole so nothing is lost (Build drops ingredients without a name).
-		ing = recipe.Ingredient{Name: line}
-	}
-	return clampIngredient(ing), sure
+	return word, after, units[strings.ToLower(word)]
 }
 
 // plausibleName is the safety net under every table: a name that is empty,
@@ -155,6 +174,26 @@ func splitUnitModifier(s string, lang *language) (modifier, rest string) {
 	return s[m[2]:m[3]], strings.TrimLeft(s[m[3]:], " ,")
 }
 
+// maxQuantity is the largest amount an item takes, as the shopping API's.
+const maxQuantity = 100000
+
+// readQuantity reads the matched amount with lang's separators ("1.000,5" is
+// 1000.5) and refuses one that is not above 0 and at most maxQuantity: a
+// zero means none, and hundreds of digits parse to +Inf, which no JSON
+// answer can carry.
+func readQuantity(num string, lang *language) (float64, bool) {
+	if lang.patterns().thousands.MatchString(num) {
+		for _, s := range lang.thousandsSeparators {
+			num = strings.ReplaceAll(num, s, "")
+		}
+		for _, s := range lang.decimalSeparators {
+			num = strings.ReplaceAll(num, s, ".")
+		}
+	}
+	q := parseNumber(num)
+	return q, q > 0 && q <= maxQuantity
+}
+
 func parseNumber(s string) float64 {
 	s = strings.ReplaceAll(s, ",", ".")
 	if whole, frac, ok := strings.Cut(s, " "); ok { // "1 1/2"
@@ -188,8 +227,9 @@ func leadingWord(s string) (string, string) {
 }
 
 // splitTrailingNote takes a note off a name: the outermost balanced "(…)"
-// that ends it, else everything after the first comma. A parenthesis that
-// is the whole of s, or does not balance, stays in the name.
+// that ends it, else everything after the first comma that is not between
+// two digits ("Milch 1,5 %" keeps its decimal comma). A parenthesis that is
+// the whole of s, or does not balance, stays in the name.
 // splitTrailingNote("Chiliflocken (koreanische (Gochugaru))") =
 // "Chiliflocken", "koreanische (Gochugaru)"; splitTrailingNote("Mehl, gesiebt") = "Mehl", "gesiebt".
 func splitTrailingNote(s string) (name, note string) {
@@ -210,8 +250,12 @@ func splitTrailingNote(s string) (name, note string) {
 			}
 		}
 	}
-	if name, note, ok := strings.Cut(s, ","); ok {
-		return strings.TrimSpace(name), strings.TrimSpace(note)
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' && (i == 0 || i == len(s)-1 || !isDigit(s[i-1]) || !isDigit(s[i+1])) {
+			return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+1:])
+		}
 	}
 	return s, ""
 }
+
+func isDigit(b byte) bool { return '0' <= b && b <= '9' }
