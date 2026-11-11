@@ -561,7 +561,7 @@ SELECT u.id, u.username, u.display_name, u.color, u.avatar_id, COUNT(r.id) AS re
 FROM users u
 JOIN recipes r ON r.created_by = u.id
 GROUP BY u.id, u.username, u.display_name, u.color, u.avatar_id
-ORDER BY recipe_count DESC, u.username
+ORDER BY recipe_count DESC, u.username COLLATE unicode
 `
 
 type ListAuthorsWithCountRow struct {

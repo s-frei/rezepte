@@ -14,7 +14,7 @@ SELECT * FROM users WHERE username = ?;
 SELECT COUNT(*) FROM users;
 
 -- name: ListUsers :many
-SELECT * FROM users ORDER BY username;
+SELECT * FROM users ORDER BY username COLLATE unicode;
 
 -- name: GetSuperadmin :one
 SELECT * FROM users WHERE role = 'superadmin';
@@ -98,7 +98,7 @@ WHERE id = ? AND email = ? AND email != '';
 -- name: ListUsersByVerifiedEmail :many
 SELECT * FROM users
 WHERE lower(email) = lower(sqlc.arg(address)) AND email_verified = 1 AND email != ''
-ORDER BY username;
+ORDER BY username COLLATE unicode;
 
 -- Whether the account could sign in before a time: a password, or an
 -- identity linked before it. A setup link redeemed on such an account

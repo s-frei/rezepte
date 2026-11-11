@@ -52,7 +52,7 @@ WHERE u.id != sqlc.arg(author_id)
   AND NOT EXISTS (
       SELECT 1 FROM notification_group_optouts g
       WHERE g.user_id = u.id AND g.grp = 'household' AND g.channel = sqlc.arg(channel))
-ORDER BY u.username;
+ORDER BY u.username COLLATE unicode;
 
 -- name: ListRecipeDigestRecipients :many
 -- Who gets the daily new recipes digest on channel: everyone with neither
@@ -66,4 +66,4 @@ WHERE NOT EXISTS (
   AND NOT EXISTS (
       SELECT 1 FROM notification_group_optouts g
       WHERE g.user_id = users.id AND g.grp = 'household' AND g.channel = sqlc.arg(channel))
-ORDER BY username;
+ORDER BY username COLLATE unicode;

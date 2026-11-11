@@ -95,7 +95,7 @@ WHERE u.id != ?2
   AND NOT EXISTS (
       SELECT 1 FROM notification_group_optouts g
       WHERE g.user_id = u.id AND g.grp = 'household' AND g.channel = ?3)
-ORDER BY u.username
+ORDER BY u.username COLLATE unicode
 `
 
 type ListCommentRecipientsParams struct {
@@ -219,7 +219,7 @@ WHERE NOT EXISTS (
   AND NOT EXISTS (
       SELECT 1 FROM notification_group_optouts g
       WHERE g.user_id = users.id AND g.grp = 'household' AND g.channel = ?1)
-ORDER BY username
+ORDER BY username COLLATE unicode
 `
 
 type ListRecipeDigestRecipientsRow struct {

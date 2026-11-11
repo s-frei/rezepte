@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -142,18 +143,26 @@ func seedTwo(t *testing.T) (*sql.DB, *user.Service, user.User, user.User) {
 	return conn, svc, sam, kim
 }
 
+// Usernames sort like titles: case-insensitively and an umlaut beside its
+// base letter, not after "z".
 func TestListOrdersByUsername(t *testing.T) {
 	ctx := context.Background()
 	_, svc, _, _ := seedTwo(t)
-	if _, err := svc.Create(ctx, user.CreateParams{Username: "Anna", Password: "password-anna", Role: user.RoleUser}); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"Anna", "Ölaf"} {
+		if _, err := svc.Create(ctx, user.CreateParams{Username: name, Password: "password-" + name, Role: user.RoleUser}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	got, err := svc.List(ctx)
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	if len(got) != 3 || got[0].Username != "Anna" || got[1].Username != "kim" || got[2].Username != "sam" {
-		t.Fatalf("List = %+v", got)
+	var names []string
+	for _, u := range got {
+		names = append(names, u.Username)
+	}
+	if want := []string{"Anna", "kim", "Ölaf", "sam"}; !slices.Equal(names, want) {
+		t.Fatalf("List = %q, want %q", names, want)
 	}
 }
 

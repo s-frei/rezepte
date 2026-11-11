@@ -217,7 +217,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified, last_active_at FROM users ORDER BY username
+SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified, last_active_at FROM users ORDER BY username COLLATE unicode
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -261,7 +261,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 const listUsersByVerifiedEmail = `-- name: ListUsersByVerifiedEmail :many
 SELECT id, username, display_name, password_hash, role, color, locale, created_at, updated_at, can_share_publicly, avatar_id, email, email_verified, last_active_at FROM users
 WHERE lower(email) = lower(?1) AND email_verified = 1 AND email != ''
-ORDER BY username
+ORDER BY username COLLATE unicode
 `
 
 // Who a forgotten-password request by address reaches. lower() folds ASCII
