@@ -220,7 +220,7 @@
 						onclick={() => pick(unit)}
 						class="flex h-10 cursor-pointer items-center rounded-sm text-body-sm {labeled
 							? 'px-2 @xl:px-1.5'
-							: 'px-1.5'} {index === highlighted ? 'bg-background font-semibold' : ''}"
+							: 'px-1.5'} {index === highlighted ? 'bg-popover-highlight font-semibold' : ''}"
 					>
 						{unit}
 					</li>

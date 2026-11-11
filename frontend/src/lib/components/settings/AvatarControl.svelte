@@ -30,7 +30,7 @@
 	let badge = $state<HTMLSpanElement>();
 
 	const item =
-		'flex h-10 items-center rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background';
+		'flex h-10 items-center rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-popover-highlight';
 
 	function picked(event: Event) {
 		const target = event.currentTarget as HTMLInputElement;

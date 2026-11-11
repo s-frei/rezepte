@@ -25,6 +25,8 @@
 	   dark values lift them a step above the fields they cover. */
 	--color-popover: #ffffff;
 	--color-popover-border: #e3d7c3;
+	/* The highlighted row in a popover list or menu. */
+	--color-popover-highlight: var(--color-background);
 	--color-text: #2b2118;
 	--color-text-muted: #756554;
 	/* A label written into a field's top border (the ingredient row): the
@@ -333,6 +335,7 @@
 	--color-border: #3b322a;
 	--color-popover: #3a3129;
 	--color-popover-border: #56493c;
+	--color-popover-highlight: color-mix(in srgb, var(--color-text) 7%, transparent);
 	--color-text: #f3ebe0;
 	--color-text-muted: #a8998a;
 	--color-primary: #d97a2b;
@@ -386,6 +389,7 @@
 		--color-border: #3b322a;
 		--color-popover: #3a3129;
 		--color-popover-border: #56493c;
+		--color-popover-highlight: color-mix(in srgb, var(--color-text) 7%, transparent);
 		--color-text: #f3ebe0;
 		--color-text-muted: #a8998a;
 		--color-primary: #d97a2b;

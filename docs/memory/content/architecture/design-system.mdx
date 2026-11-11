@@ -36,6 +36,7 @@ Every color token is redefined for dark mode (see [Implementation notes](#implem
 | `surface-elevated` | inputs, and anything raised inside a `surface` dialog or panel |
 | `border` | 1px borders and dashed separators |
 | `popover` / `popover-border` | lists and menus that open over fields or the page: `Select`, the tag and unit suggestions, the user menu. Equal to `surface-elevated` and `border` in light, where the shadow sets them apart; a step lighter in dark, where the shadow does not read |
+| `popover-highlight` | the highlighted row in every such list or menu (`data-highlighted`, `data-selected`, the suggestion lists' active row): `background` in light, a 7% wash of `text` in dark, so it lifts whatever it sits on, where `background` would cut a black bar into it |
 | `text` / `text-muted` | body text / secondary text and labels |
 | `primary` / `primary-foreground` | primary buttons, links, focus outlines, group headings |
 | `accent` / `accent-foreground` | display tag chips, step numbers, accent buttons. **Never a success state**: amber reads as a warning |

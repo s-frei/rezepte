@@ -365,7 +365,7 @@
 							onpointermove={(event) => point(event, index)}
 							class="flex min-h-11 cursor-pointer gap-2.5 rounded-lg px-2.5 text-body {index ===
 							highlighted
-								? 'bg-background dark:bg-text/7'
+								? 'bg-popover-highlight'
 								: ''} {row.isNew ? 'items-center py-2' : 'items-start py-2.5'} {row.isNew &&
 							rows.length > 1
 								? 'relative mt-2 before:absolute before:inset-x-2.5 before:-top-1 before:h-px before:bg-popover-border'

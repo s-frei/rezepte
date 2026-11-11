@@ -194,7 +194,7 @@
 				<Combobox.Item
 					value={person.id}
 					label={person.displayName}
-					class="flex cursor-pointer items-center gap-3 rounded-sm px-2.5 py-2 text-text outline-none data-highlighted:bg-background"
+					class="flex cursor-pointer items-center gap-3 rounded-sm px-2.5 py-2 text-text outline-none data-highlighted:bg-popover-highlight"
 				>
 					<PersonMark {person} size="md" />
 					<span class="flex min-w-0 flex-col">

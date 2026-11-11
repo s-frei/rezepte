@@ -149,7 +149,7 @@
 				<BitsSelect.Item
 					value={option.value}
 					label={option.label}
-					class="flex h-10 cursor-default items-center justify-between gap-8 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
+					class="flex h-10 cursor-default items-center justify-between gap-8 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-popover-highlight"
 				>
 					{#snippet children({ selected })}
 						<span class="flex min-w-0 items-baseline gap-2">

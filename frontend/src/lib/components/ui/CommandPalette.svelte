@@ -169,7 +169,7 @@
 	// so its rows light up in background, and the sheet is background, where
 	// the same tone would vanish, so its rows light up in surface.
 	const item = $derived(
-		`flex h-11 cursor-default items-center gap-3 rounded-md px-3 text-body text-text outline-none ${phone.current ? 'data-selected:bg-surface' : 'data-selected:bg-background'}`
+		`flex h-11 cursor-default items-center gap-3 rounded-md px-3 text-body text-text outline-none ${phone.current ? 'data-selected:bg-surface' : 'data-selected:bg-popover-highlight'}`
 	);
 	const heading = 'px-3 pt-3 pb-1 text-caption font-semibold text-text-muted';
 </script>

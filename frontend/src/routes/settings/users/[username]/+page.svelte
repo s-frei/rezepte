@@ -489,7 +489,7 @@
 	});
 
 	const menuItemClass =
-		'flex h-10 items-center rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background';
+		'flex h-10 items-center rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-popover-highlight';
 </script>
 
 <svelte:head>

@@ -180,7 +180,7 @@
 								{#if entry.canEdit}
 									<DropdownMenu.Item
 										onSelect={startEdit}
-										class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-background"
+										class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text outline-none data-highlighted:bg-popover-highlight"
 									>
 										{m.diary_edit()}
 									</DropdownMenu.Item>
