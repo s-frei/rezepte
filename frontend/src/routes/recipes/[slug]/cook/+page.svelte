@@ -384,21 +384,7 @@
 
 	const wakeLock = new ScreenWakeLock();
 
-	onMount(() => {
-		void wakeLock.acquire();
-		// The browser drops the lock when the tab is hidden; take it again
-		// when the cook comes back.
-		function onVisibilityChange() {
-			if (document.visibilityState === 'visible') {
-				void wakeLock.acquire();
-			}
-		}
-		document.addEventListener('visibilitychange', onVisibilityChange);
-		return () => {
-			document.removeEventListener('visibilitychange', onVisibilityChange);
-			void wakeLock.release();
-		};
-	});
+	onMount(() => wakeLock.hold());
 
 	const navButtonClass =
 		'inline-flex h-14 items-center justify-center gap-2 rounded-pill text-body font-semibold transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-40';

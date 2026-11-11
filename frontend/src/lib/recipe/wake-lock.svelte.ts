@@ -6,7 +6,7 @@
  * The API exists only in secure contexts (https or localhost) and the
  * request rejects while the tab is hidden; both cases leave `active`
  * false without throwing. The browser releases the lock itself when the
- * tab goes to the background - the page re-acquires on `visibilitychange`.
+ * tab goes to the background - `hold` re-acquires on `visibilitychange`.
  */
 async function releaseQuietly(sentinel: WakeLockSentinel): Promise<void> {
 	try {
@@ -52,6 +52,22 @@ export class ScreenWakeLock {
 				this.active = false;
 			}
 		}
+	}
+
+	/**
+	 * Holds the lock while the page is open, taking it again whenever the tab
+	 * comes back; returns the cleanup that lets it go, for `onMount`.
+	 */
+	hold(): () => void {
+		void this.acquire();
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'visible') void this.acquire();
+		};
+		document.addEventListener('visibilitychange', onVisibilityChange);
+		return () => {
+			document.removeEventListener('visibilitychange', onVisibilityChange);
+			void this.release();
+		};
 	}
 
 	async release(): Promise<void> {
