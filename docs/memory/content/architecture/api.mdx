@@ -44,7 +44,7 @@ Two authenticators, declared as two OpenAPI security schemes (`session`, `token`
   </Tab>
   <Tab value="Public">
 
-    Operations without `Security` are public: login, `GET /healthz`, the setup-link, password-reset, email-confirmation and OIDC entry points under `/api/v1/auth`, the three unsubscribe routes under `/api/v1/unsubscribe` (see [Email](/features/email)), `GET /api/v1/public/shares/{token}`, `GET /public-images/…` (a share's photos and its sharer's picture, see [Public shares](/features/public-shares)), `GET /link-preview/…` (see [Link previews](/features/link-previews)) and `GET /marks/…`, a push's face behind a signed address (see [Notifications](/features/notifications)) - the last three outside `/api/v1` and deliberately without authentication, since the stranger, the crawler or the notification system behind them has no session to carry. Living outside `/api/v1` says nothing about security: `GET /images/…` and `GET /avatars/…` declare `auth.Protected` like any other operation, and `/mcp` declares `auth.TokenOnly`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)).
+    Operations without `Security` are public: login, the setup-link, password-reset, email-confirmation and OIDC entry points under `/api/v1/auth`, the device's account switcher (`list-device-accounts`, `switch-account`, `remove-device-account`, whose credential is the signed accounts cookie, see [Who's cooking?](/features/user-switch)), the hidden `upload-image-by-link`, whose signed token is the whole credential ([Images](/features/images)), the three unsubscribe routes under `/api/v1/unsubscribe` (see [Email](/features/email)), `GET /api/v1/public/shares/{token}`, `GET /public-images/…` (a share's photos and its sharer's picture, see [Public shares](/features/public-shares)), `GET /link-preview/…` (see [Link previews](/features/link-previews)) and `GET /marks/…`, a push's face behind a signed address (see [Notifications](/features/notifications)) - the last three outside `/api/v1` and deliberately without authentication, since the stranger, the crawler or the notification system behind them has no session to carry. Living outside `/api/v1` says nothing about security: `GET /images/…` and `GET /avatars/…` declare `auth.Protected` like any other operation, and `/mcp` declares `auth.TokenOnly`, so it never accepts a session cookie - only a bearer token carrying `recipes:read` reaches it at all (see [MCP](/features/mcp)). `GET /healthz` is public too, but it is a plain mux route, not an operation ([Why it is this way](#why-it-is-this-way)).
 
   </Tab>
 </Tabs>
@@ -65,6 +65,7 @@ The served document is the list of operations: every route, its security and sco
 | `images` | [Images](/features/images) |
 | `transfer` | [Import and export](/features/import-export) |
 | `push` | [Cook timers](/features/cook-timers) for devices, alarms and the test push, [Notifications](/features/notifications) for what is pushed |
+| `shopping-lists` | [Shopping lists](/features/shopping-lists) |
 | `shares`, `public` | [Public shares](/features/public-shares), [Link previews](/features/link-previews), [Notifications](/features/notifications) for unsubscribing |
 | `settings` | [Editing rights](/features/editing-rights), [Public shares](/features/public-shares), [Link previews](/features/link-previews), [Email](/features/email) for the mail settings, [OIDC](/features/oidc) for the sign-in settings |
 | `users` | [Users and authentication](/features/users-and-auth) - the rank matrix, `/people`, profile pictures |
@@ -101,6 +102,8 @@ RFC 9457 `application/problem+json`:
 { "title": "Unprocessable Entity", "status": 422, "detail": "validation failed",
   "errors": [{ "location": "body.username", "message": "expected length >= 1" }] }
 ```
+**`detail`, `message` and `errors[].message` are English text for a developer, not copy for a person.** huma writes `detail` `validation failed` on every schema `422` and the handlers write their own `detail` in English, so the SPA shows a catalog string instead: it maps an error's `location` to the field and a catalog key where it knows the field, and otherwise shows the operation's generic catalog error. The places that still show the server's text are listed under [Limits](#limits).
+
 The frontend maps this to `ApiError` in `src/lib/api/client.ts`. A `401` from any call - except the login call itself, except `GET /auth/me`, and except while already on `/login` - clears the SPA's session state and redirects to `/login?next=<original path>` so the user lands back where they were after signing in again. `GET /auth/me` is excluded (mutating calls such as `PATCH /auth/me` still redirect) because its only caller is the root `+layout.ts` guard, which already redirects via SvelteKit's `redirect()` on a `401`; calling `goto()` from the client as well would race that in-flight navigation.
 
 The login operation also answers `429` with a `Retry-After` header when the username is locked after too many attempts, and every operation that hashes or checks a password answers `503` with `Retry-After: 1` when too many password checks are already running or waiting; [Users and auth](/features/users-and-auth) owns both rules.
@@ -116,8 +119,8 @@ The typed shape is also a layering rule. The input and output structs *are* the 
 **Every route a client, a crawler or an agent calls is a huma operation**, so the document lists all of them and cannot drift from the mux.
 
 - That includes the ones that write bytes: an operation answering a file returns a `*huma.StreamResponse` whose body reaches the `http.ResponseWriter` through `humago.Unwrap` - `image.JPEG` (`service/internal/image/file.go`) for the four JPEG routes, the export's zip, `/mcp` handing the request to the SDK's handler - and declares its `200` by hand in `Responses`, since a stream has no schema to infer (`image.JPEGResponses`).
-- Only two kinds of route stay on the mux: the SPA shell and its assets, which are not API, and the contract routes huma hangs there itself.
-- A public operation's `404` is `httpserver.PublicNotFound`, and any other status `httpserver.PublicError`: huma's problem body without the `$schema` link a stranger could not follow.
+- What stays on the mux (`httpserver.New`): the SPA shell and its assets, which are not API; the contract routes huma hangs there itself; the problem+json `404` catch-alls for `/api/` and `/.well-known/`; and two plain routes that are not API either, `GET /healthz` (status and build version for an operator or a probe) and `GET /manifest.webmanifest` ([Installable app](/features/installable-app)), so neither is in the document.
+- **An operation a stranger reaches answers its errors with `httpserver.PublicNotFound` and `httpserver.PublicError`**: huma's problem body without the `$schema` link a stranger could not follow. Those are the public share (`service/internal/share/public.go`), the link preview's cover (`service/internal/preview/handler.go`), the push marks and the unsubscribe routes (`service/internal/notify/handler.go`). The other operations without `Security` - the auth entry points, the device's accounts, `upload-image-by-link` - are called by the app itself and answer huma's errors.
 
 ## Rejected
 
@@ -130,4 +133,5 @@ The typed shape is also a layering rule. The input and output structs *are* the 
 
 ## Limits
 
+- Some screens still show the server's English text: field errors the recipe form maps with `applyServerErrors` (`frontend/src/lib/recipe/form.ts`), a failed archive import on the import card, a refused mail configuration, and the `error.detail ?? m.…()` fallbacks of several settings dialogs and the recipe form. In the German interface those read in English.
 - The Scalar page at `/api/v1/docs` fetches its JavaScript bundle from `unpkg.com` at runtime - huma's `DocsRendererScalar` pins the version and an SRI hash, and the CSP allows that one origin - so the page needs outbound internet access to render. The OpenAPI document itself is served from the binary and works offline.
