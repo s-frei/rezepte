@@ -156,7 +156,7 @@
 				<button
 					type="button"
 					onclick={onmanageshare}
-					class="font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+					class="relative font-semibold text-primary underline-offset-4 after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					{m.detail_public_share_manage()}
 				</button>

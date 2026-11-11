@@ -322,7 +322,7 @@
 			<a
 				href={next ? `${resolve('/switch')}?next=${encodeURIComponent(next)}` : resolve('/switch')}
 				onclick={backToSwitch}
-				class="self-center text-caption font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				class="relative self-center text-caption font-semibold text-primary underline after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				{m.login_add_back()}
 			</a>
@@ -331,7 +331,7 @@
 			<a
 				href={resolve('/forgot-password')}
 				onclick={openForgot}
-				class="self-center text-caption font-semibold text-primary underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				class="relative self-center text-caption font-semibold text-primary underline after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				{m.login_forgot()}
 			</a>

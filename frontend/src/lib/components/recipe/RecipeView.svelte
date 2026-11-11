@@ -240,7 +240,7 @@
 						copyIcon?.play();
 					}
 				}}
-				class="inline-flex items-center gap-1.5 font-display text-[16px] font-medium text-primary italic underline-offset-4 transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				class="relative inline-flex items-center gap-1.5 font-display text-card-sm font-medium text-primary italic underline-offset-4 transition after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
 				<CopyIcon bind:this={copyIcon} class="size-[15px]" />
 				{m.ingredients_copy()}
