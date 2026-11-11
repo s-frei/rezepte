@@ -12,6 +12,7 @@
 	import TagChip from '#lib/components/ui/TagChip.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { MAX_TAGS, normalizeTag } from '#lib/recipe/form.js';
+	import { matchedPart } from '#lib/recipe/step-references.js';
 	import { tagSuggestions, tagToCommit } from '#lib/recipe/tag-suggestions.js';
 
 	let {
@@ -169,19 +170,6 @@
 			viewport.removeEventListener('scroll', fit);
 			window.removeEventListener('scroll', fit);
 		};
-	}
-
-	/** The tag name split around the typed text, so that part can be set bold. */
-	function split(name: string) {
-		const typed = normalizeTag(query);
-		const at = typed ? name.indexOf(typed) : -1;
-		return at < 0
-			? { before: name, match: '', after: '' }
-			: {
-					before: name.slice(0, at),
-					match: name.slice(at, at + typed.length),
-					after: name.slice(at + typed.length)
-				};
 	}
 
 	// Leaving the field - Tab, a tap elsewhere, closing the keyboard, or
@@ -395,12 +383,16 @@
 								>
 								<span class="flex min-w-0"><TagChip label={row.name} /></span>
 							{:else}
-								{@const parts = split(row.name)}
+								{@const parts = matchedPart(row.name, query) ?? {
+									before: row.name,
+									hit: '',
+									after: ''
+								}}
 								<span class="mt-0.5 grid size-5 shrink-0 place-items-center">
 									<TagIcon class="size-4 text-text-muted" aria-hidden="true" />
 								</span>
 								<span class="line-clamp-2 min-w-0 [overflow-wrap:anywhere]"
-									>{parts.before}<b class="font-bold">{parts.match}</b>{parts.after}</span
+									>{parts.before}<b class="font-bold">{parts.hit}</b>{parts.after}</span
 								>
 								{#if counts.has(row.name)}
 									<span

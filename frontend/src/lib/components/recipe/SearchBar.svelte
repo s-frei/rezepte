@@ -11,6 +11,7 @@
 	import type { Tag } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
+	import { matchedPart } from '#lib/recipe/step-references.js';
 	import { rankTags } from '#lib/recipe/tag-suggestions.js';
 
 	let {
@@ -172,18 +173,6 @@
 			inputNode = undefined;
 		};
 	}
-
-	/** The tag name split around the first match, so the match can be set bold. */
-	function split(name: string) {
-		const at = query ? name.toLocaleLowerCase().indexOf(query) : -1;
-		return at < 0
-			? { before: name, match: '', after: '' }
-			: {
-					before: name.slice(0, at),
-					match: name.slice(at, at + query.length),
-					after: name.slice(at + query.length)
-				};
-	}
 </script>
 
 <!-- `min-w-0` is what lets this shrink in the row it shares with the filter
@@ -307,7 +296,11 @@
 							</span>
 						{:else}
 							{@const on = active.includes(row.tag.name)}
-							{@const parts = split(row.tag.name)}
+							{@const parts = matchedPart(row.tag.name, query) ?? {
+								before: row.tag.name,
+								hit: '',
+								after: ''
+							}}
 							{#if on}
 								<Check class="mt-1 size-4 shrink-0 text-primary" aria-hidden="true" />
 							{:else}
@@ -315,7 +308,7 @@
 							{/if}
 							<span
 								class="line-clamp-2 min-w-0 [overflow-wrap:anywhere] {on ? 'font-semibold' : ''}"
-								>{parts.before}<b class="font-bold">{parts.match}</b>{parts.after}</span
+								>{parts.before}<b class="font-bold">{parts.hit}</b>{parts.after}</span
 							>
 							<span
 								aria-hidden="true"
