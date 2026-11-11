@@ -14,7 +14,7 @@ description: The /switch screen, where the people signed in on a shared device p
 - **The arrival panel's rule lives in `app.html` with the resolved color**: the fallback page links no stylesheet, so a token name resolves to nothing.
 - **`markArrival` only for a client route**: a page outside the app never reads the key, which then painted the tab's next load.
 - **Prefill focus with the `autofocus` attribute, not `onMount`**: SvelteKit refocuses the body after a navigation.
-- **E2E: the `login` helper signs in by API and never hands over**; a second person on the device is added through the UI ([Testing](#testing)).
+- **E2E: the `login` helper signs in by API and never hands over**, but it still writes the accounts cookie: dropping only `rezepte_session` and signing in again keeps the one before on the device, and their sign-out lands on `/switch`. `switchTo` drops both cookies; a second person on the device is added through the UI ([Testing](#testing)).
 
 </Callout>
 

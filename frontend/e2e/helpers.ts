@@ -116,9 +116,14 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 	}
 }
 
-/** Signs whoever is in out and `username` in, by dropping the session cookie. */
+/**
+ * Signs whoever is in out and `username` in, by dropping the session cookie
+ * and the device's account list: kept, the list would hand the one before
+ * over, and a later sign-out would land on /switch instead of /login.
+ */
 export async function switchTo(page: Page, username = 'admin') {
 	await page.context().clearCookies({ name: 'rezepte_session' });
+	await page.context().clearCookies({ name: 'rezepte_accounts' });
 	await login(page, username);
 }
 
