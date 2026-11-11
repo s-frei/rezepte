@@ -6,7 +6,6 @@ import {
 	applyServerErrors,
 	currentErrors,
 	errorAnchors,
-	emptyForm,
 	fromRecipe,
 	hasNamedIngredient,
 	isBlank,
@@ -280,9 +279,9 @@ describe('fromRecipe', () => {
 	});
 });
 
-describe('emptyForm', () => {
+describe('fromRecipe(emptyInput())', () => {
 	it('starts with one blank row, one blank step and no tags', () => {
-		const form = emptyForm();
+		const form = fromRecipe(emptyInput());
 		expect(form.title).toBe('');
 		expect(form.servings).toBe('4');
 		expect(form.tags).toEqual([]);
@@ -981,25 +980,25 @@ describe('editPolicy', () => {
 	});
 
 	it('starts a new recipe on "default"', () => {
-		expect(emptyForm().editPolicy).toBe('default');
+		expect(fromRecipe(emptyInput()).editPolicy).toBe('default');
 	});
 });
 
 describe('hasNamedIngredient', () => {
 	it('is false while no row carries a name', () => {
-		const form = emptyForm();
+		const form = fromRecipe(emptyInput());
 		form.ingredientGroups[0].ingredients[0].quantity = '200';
 		expect(hasNamedIngredient(form.ingredientGroups)).toBe(false);
 	});
 
 	it('ignores a name that is only whitespace', () => {
-		const form = emptyForm();
+		const form = fromRecipe(emptyInput());
 		form.ingredientGroups[0].ingredients[0].name = '   ';
 		expect(hasNamedIngredient(form.ingredientGroups)).toBe(false);
 	});
 
 	it('is true once any row in any group has a name', () => {
-		const form = emptyForm();
+		const form = fromRecipe(emptyInput());
 		form.ingredientGroups.push(newGroup());
 		form.ingredientGroups[1].ingredients[0].name = 'Mehl';
 		expect(hasNamedIngredient(form.ingredientGroups)).toBe(true);

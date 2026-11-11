@@ -1,12 +1,11 @@
 import type { FieldError } from '#lib/api/client.js';
 import type { DraftReview } from '#lib/api/drafts.js';
-import {
-	emptyInput,
-	type EditPolicy,
-	type IngredientGroup,
-	type IngredientRef,
-	type RecipeInput,
-	type StepTime
+import type {
+	EditPolicy,
+	IngredientGroup,
+	IngredientRef,
+	RecipeInput,
+	StepTime
 } from '#lib/api/recipes.js';
 import { m } from '#lib/paraglide/messages.js';
 import { getLocale } from '#lib/paraglide/runtime.js';
@@ -224,8 +223,7 @@ function isFilledRow(row: FormIngredient): boolean {
 }
 
 /**
- * Builds the form model from a recipe (or any `RecipeInput`, which is how
- * `emptyForm` reuses it).
+ * Builds the form model from a recipe, or from `emptyInput()` for a new one.
  *
  * Empty collections are padded so the editor always has something to type
  * into: at least one group, at least one row per group and at least one
@@ -384,11 +382,6 @@ function refToInput(groups: FormGroup[], ref: FormRef): IngredientRef | null {
 		groupName: blankToNull(found.group.name),
 		ingredientName: found.row.name.trim()
 	};
-}
-
-/** The form model for a brand new recipe. */
-export function emptyForm(): RecipeForm {
-	return fromRecipe(emptyInput());
 }
 
 /**
