@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
-	import { toast } from 'svelte-sonner';
 	import { fetchOperationCount } from '#lib/api/spec.js';
 	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { MCP_GUIDE_URL } from '#lib/docs.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { mcpUrl } from '#lib/settings/mcp.js';
 	import type { TokenSupply } from '#lib/settings/token-access.js';
 
@@ -45,9 +45,7 @@
 	);
 
 	async function copy(text: string, confirmation: string) {
-		await navigator.clipboard.writeText(text);
-		toast.success(confirmation);
-		copyIcons[text]?.play();
+		if (await copyText(text, confirmation)) copyIcons[text]?.play();
 	}
 
 	// One icon per address, keyed by it, so each answers its own copy.

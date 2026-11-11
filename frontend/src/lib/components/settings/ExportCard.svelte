@@ -28,6 +28,10 @@
 	let sort = $state('title');
 	let ticked = $state<Record<string, boolean>>({});
 	let progress = $state<null | { loaded: number; total: number | null }>(null);
+	// A text action in running text: an `::after` grows the target to 44px
+	// tall without moving the line (RecipeColophon's trigger).
+	const textAction =
+		'relative rounded-sm after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 
 	const sortOptions = [
 		{ value: 'title', label: m.settings_transfer_sort_title() },
@@ -182,11 +186,11 @@
 							size
 						})}
 				·
-				<button type="button" class="underline hover:text-text" onclick={() => tickAll(true)}>
+				<button type="button" class="{textAction} hover:text-text" onclick={() => tickAll(true)}>
 					{m.settings_transfer_tick_all()}
 				</button>
 				·
-				<button type="button" class="underline hover:text-text" onclick={() => tickAll(false)}>
+				<button type="button" class="{textAction} hover:text-text" onclick={() => tickAll(false)}>
 					{m.settings_transfer_clear()}
 				</button>
 			</span>

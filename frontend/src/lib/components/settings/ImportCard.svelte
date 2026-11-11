@@ -56,6 +56,10 @@
 		rows.filter((r) => ticked[r.folder] && status[r.folder]?.kind !== 'done')
 	);
 	const anyDone = $derived(rows.some((r) => status[r.folder]?.kind === 'done'));
+	// A text action in running text: an `::after` grows the target to 44px
+	// tall without moving the line (RecipeColophon's trigger).
+	const textAction =
+		'relative rounded-sm after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary underline';
 
 	async function open(file: File) {
 		for (const url of Object.values(thumbs)) URL.revokeObjectURL(url);
@@ -194,7 +198,7 @@
 				{m.settings_transfer_drop()}
 				<button
 					type="button"
-					class="font-semibold text-text underline"
+					class="{textAction} font-semibold text-text"
 					onclick={() => input?.click()}
 				>
 					{m.settings_transfer_choose_file()}
@@ -277,7 +281,7 @@
 					·
 					<button
 						type="button"
-						class="underline hover:text-text"
+						class="{textAction} hover:text-text"
 						disabled={running}
 						onclick={() => input?.click()}
 					>
