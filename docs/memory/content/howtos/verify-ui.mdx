@@ -57,7 +57,7 @@ description: End-to-end tests and screenshots, no browser extensions
 
     **After a click that navigates, wait for the new page's heading before checking anything.** Otherwise the check can pass against the page still on screen: the overview card showed the same counts the list page was meant to show, so the test was green without looking at the list, and red when the list won the race and showed them three times. Sharding mostly hides this; it shows when the whole suite runs at once.
 
-    **An instance-wide setting flipped in one file leaks into every test beside it**, because files run in parallel against one instance. The household lock is one: only `editing-rights.test.ts` flips it, a test in which a member must edit gives its recipe `editPolicy: 'open'`, and a test that needs a locked recipe sets `editPolicy: 'locked'` on it instead of switching the household ([Editing rights](/features/editing-rights)). `--repeat-each` on `editing-rights.test.ts` runs its copies side by side, so they flip the lock on each other; repeat that file one run at a time.
+    **An instance-wide setting flipped in one file leaks into every test beside it**, because files run in parallel against one instance. Each setting has one owning spec file; [Testing](/conventions/testing#instance-wide-settings) lists them and how a test that flips one guards itself.
 
   </Tab>
   <Tab value="Screenshots">
@@ -179,7 +179,7 @@ Headless Chromium lacks a few things the app depends on, and each has a stand-in
 - **A mouse is not a finger.** A mouse pointer ignores `touch-action`, so a swipe or drag test sends real touches through CDP `Input.dispatchTouchEvent` and runs on the mobile project only. Long-press needs `Input.synthesizeTapGesture` with a `duration` (`longPress` in `frontend/e2e/helpers.ts`); touch events alone never trigger it, and it only fires on Chromium on macOS ([Images](/features/images)).
 - **Time is `page.clock`.** Install it before the first navigation, then move it with `runFor` or `fastForward` ([Cook timers](/features/cook-timers)).
 - **No push service and no permission prompt.** Headless Chromium reports `Notification.permission` as `denied` even with the permission granted and has no `PushManager` subscription, so a test that needs push stubs both with `page.addInitScript` (`frontend/e2e/cook-timers.test.ts`, `frontend/e2e/install.test.ts`).
-- **One instance serves every file.** Files run in parallel against it, so an instance-wide setting that one file flips leaks into the others (the household lock and the mail settings are the cases, see [Mail](#mail) and the end-to-end tab).
+- **One instance serves every file.** Files run in parallel against it, so an instance-wide setting that one file flips leaks into the others ([Instance-wide settings](/conventions/testing#instance-wide-settings) lists each setting's owning file).
 - **Content that arrives late moves what is under the pointer.** A click on a control that a late label, image or list pushes away lands on the moved element, so the page reserves the space from the first frame (the end-to-end tab lists the races it caused).
 
 ## Mail
@@ -214,8 +214,8 @@ for (const t of [0, 40, 80, 120, 200]) {
 - A Svelte transition driven by `tick` instead of `css` (the editor's `reveal`) stops when its animation is paused, so a frozen clock shows it stuck at its first frame. Slow the clock instead (`playbackRate: 0.05`) and take screenshots in real time.
 - A Svelte `in:` transition with a `delay` runs the delay as an animation of its own and starts the real one only after it, so a frozen clock never shows it (the login's error line): slow the clock for it too.
 - Freeze the clock only once the setup has settled: typing into a form right before the action leaves its focus transitions running (a floating label halfway up), and the frozen first frame shows them as if the action had caused them.
-- Frames of a refused sign-in (the login's error line): each failed attempt counts towards the login throttle, so fail with a fresh unknown name every time.
-- A request held open with `page.route` (to see "Saving …") is not cancelled by `unrouteAll`: the held save went on to the instance and created the recipe. Keep the `Route` and `abort()` it before unrouting.
+- Frames of a refused sign-in (the login's error line): each failed attempt counts toward the login throttle, so fail with a fresh unknown name every time.
+- A request held open with `page.route` (to see "Saving …") is not canceled by `unrouteAll`: the held save went on to the instance and created the recipe. Keep the `Route` and `abort()` it before unrouting.
 - A probe that must not change the demo's data blocks every non-GET `/api` request with `page.route` except `/api/v1/auth/`, and creates its context with `serviceWorkers: 'block'`: the app's service worker (built in the demo and the e2e binary) fetches on the page's behalf, and those requests pass `page.route` by, so a save went through to the instance.
 
 ## Running a probe

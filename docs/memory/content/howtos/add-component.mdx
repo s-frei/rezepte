@@ -13,7 +13,7 @@ description: Token classes, Bits UI wrapping, svelte-autofixer
   <Step>
 
     ### Wrap a Bits UI primitive when one exists
-    Import the Bits UI part(s) and give the wrapper the same shape as `Button.svelte`: typed `Variant`/`Size` unions for visual variants, props destructured inline in `$props()`, and the caller's `class` appended last in the class string so it can override. A new dialog or sheet wraps `ui/BaseDialog.svelte` or `ui/BottomSheet.svelte` (as `ConfirmDialog` does) rather than Bits UI's `Dialog` directly: they hold the one place where `Dialog.Overlay` and `Dialog.Content` use `forceMount` with a `child` snippet that gates the markup on `isOpen`, because Bits UI's own unmount does not run svelte transitions.
+    Import the Bits UI part(s) and give the wrapper the same shape as `Button.svelte`: typed `Variant`/`Size` unions for visual variants, props destructured inline in `$props()`, and the caller's `class` appended last in the class string so it can override. A new dialog or sheet wraps `ui/BaseDialog.svelte` or `ui/BottomSheet.svelte` (as `ConfirmDialog` does) rather than Bits UI's `Dialog` directly: they hold the `forceMount` pattern - `Dialog.Overlay` and `Dialog.Content` with a `child` snippet that gates the markup on `isOpen` - because Bits UI's own unmount does not run svelte transitions. Three components use Bits UI's `Dialog` directly, each because its layout is not a dialog or sheet, and each mounts its own `Dialog.Content` with `forceMount` (the Lightbox has no `Dialog.Overlay`): `ui/Lightbox.svelte`, `ui/CommandPalette.svelte` and `recipe/FilterPanel.svelte`. Nothing else does.
 
   </Step>
   <Step>

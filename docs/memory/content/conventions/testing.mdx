@@ -16,7 +16,7 @@ description: What to test and how, per package
 
     - Standard `testing` package, table tests with `t.Run`, no assertion libraries, no mocking frameworks.
     - Database tests run against a real migrated database, never a mock or a hand-built schema: take one from `dbtest.Open(t)` in `service/internal/db/dbtest/`. [Data model](/architecture/data-model) owns what it opens.
-    - Handler tests build the real server - `httpserver.New` with `auth.Middleware`, the package's `Register` and a `dbtest.Open(t)` database - and drive `srv.Handler()` with `net/http/httptest` requests, so every request passes the same middleware, origin check and validation as in production. Not `humatest`, which would skip the middleware.
+    - Handler tests build the real server - `httpserver.New` with `auth.Middleware`, the package's `Register` and a `dbtest.Open(t)` database - and drive `srv.Handler()` with `net/http/httptest` requests, so every request passes the same middleware, origin check and validation as in production. A handler test does not use `humatest`, which would skip the middleware; a test of a schema, a validator or a middleware on its own may (`service/internal/mcpserver/schema_test.go`, `service/internal/recipeimport/draft_test.go`, `service/internal/transfer/spool_test.go`).
     - Test names describe behavior: `TestCreateRecipeRejectsEmptyTitle`.
     - A test that costs seconds calls `t.Parallel()`, as the `demo.Seed` tests in `service/internal/demo/` do: every seed renders all embedded photos, and run one after another they would make that package the longest step of `check`. A test that swaps package-level state, such as `photos` in that package, stays serial; Go finishes the serial tests before it starts the parallel ones.
     - `//service:test` runs `go test -trimpath`: without it the checkout's directory is part of the test cache key, and a new worktree reruns every package instead of reusing the main checkout's results.
@@ -25,13 +25,13 @@ description: What to test and how, per package
   </Tab>
   <Tab value="Frontend">
 
-    - Vitest for pure logic (`src/lib/**/*.test.ts`): API client, scaling, formatting.
+    - Vitest for pure logic (`src/**/*.test.ts`, mostly under `src/lib/`, a route's own logic beside its route): API client, scaling, formatting.
     - A Vitest file that re-imports a `.svelte.ts` store per test (`vi.resetModules()` then `await import(...)`) imports it once in a `beforeAll` with a long timeout first, as `push-store.test.ts` does. The first import compiles the store's whole module graph, which takes seconds under a loaded `mise run check`; inside a test it overruns the 5 s timeout, and the abandoned test keeps running against the next test's mocks. `--testTimeout=100` on the file shows whether the cost still sits in a test.
     - Playwright end-to-end tests in `frontend/e2e/` against the built binary (`mise run e2e`), a desktop project, a mobile project for the files with a phone path (its `testIgnore` lists the rest, see [Verify UI](/howtos/verify-ui)), plus WebKit projects for the tests that need Safari (`frontend/playwright.config.ts`). One test per user-facing flow.
-    - **A test that flips an instance-wide setting (public sharing, link previews) lives in the one `mode: 'serial'` file that owns that setting** (`public-shares.test.ts`, `link-preview.test.ts`), never in a feature's own file. Files run in parallel, so a flip from elsewhere changes the setting under that file mid-test.
-    - **A test that fills a dialog field other than the first waits for focus inside the dialog first** (`openPasswordDialog` in `settings.test.ts`). Bits UI focuses a dialog's first field a frame after it opens (`requestAnimationFrame` in its focus scope), and Playwright's `fill` focuses, then types, so a late frame in between types a later field's text into the first one.
+    - **A test that flips an instance-wide setting lives in the one file that owns that setting**, never in a feature's own file ([Instance-wide settings](#instance-wide-settings)).
+    - **A test that fills a dialog field other than the first opens the dialog through the helper that waits for focus inside it**, `openDialog` in `frontend/e2e/helpers.ts`. Bits UI focuses a dialog's first field a frame after it opens (`requestAnimationFrame` in its focus scope), and Playwright's `fill` focuses, then types, so a late frame in between types a later field's text into the first one.
     - What headless Chromium cannot do (software keyboard, touch, clock, push) and the stand-ins for it: [What Playwright cannot do](/howtos/verify-ui#what-playwright-cannot-do).
-    - Users a test bootstraps take their password from their username, through `devPassword` in `frontend/e2e/helpers.ts` ([Development credentials](/conventions/dev-credentials)); Go unit tests keep their own fixture passwords.
+    - Users a test bootstraps take their password from their username, through `devPassword` in `frontend/e2e/helpers.ts`; [Development credentials](/conventions/dev-credentials) owns the rule, including what a Go fixture writes.
     - `bun run lint` keeps Prettier's and ESLint's caches in the frontend's node_modules, so a repeated local lint takes a second instead of ESLint's twenty (its typed `projectService` setup is what `svelte/no-navigation-without-resolve` needs). A cached result can miss a type change in another file; CI starts without a cache, so it catches that.
     - These caches, like the docs sites' `.next/cache`, key their entries by absolute path, so a new worktree starts cold and a copy from the main checkout never hits; a seeded `.next/cache` even builds slower than none.
     - `svelte-check` and ESLint are part of the gate; no component tests. `svelte-check` type-checks the Playwright specs and `playwright.config.ts` too: `frontend/tsconfig.json` extends `$app/tsconfig` and lists them in its own `include`. The service worker is its own TypeScript project (`src/service-worker/tsconfig.json`, extending `$app/tsconfig/service-worker` for the worker's globals), excluded from the root one, so `bun run check` runs `tsc -p src/service-worker` after `svelte-check`.
@@ -49,13 +49,34 @@ description: What to test and how, per package
 
 ### A paused page clock
 
-**A test that drives time installs `page.clock` before the first navigation, pauses it, and moves it with `runFor` for short spans and `fastForward` for long ones.** `runFor` fires and renders every timer callback on the way, so an hour of one-second ticks takes long; `fastForward` jumps and fires each due timer once. While the clock is paused:
+**A test that drives time installs `page.clock` before the first navigation, pauses it, and moves it with `runFor` for spans up to about a quarter of an hour and `fastForward` beyond that.** `runFor` fires and renders every timer callback on the way: 15 minutes of one-second ticks is fine, 80 minutes took 25 seconds; `fastForward` jumps and fires each due timer once (`frontend/e2e/cook-timers.test.ts`). While the clock is paused:
 
 - Svelte transitions wait on it; the file runs under `reducedMotion: 'reduce'` (`test.use({ contextOptions: { reducedMotion: 'reduce' } })`), where every duration is 0 ([Interaction rules](/architecture/design-system#interaction-rules)).
 - A client-side link navigation stalls; `page.clock.resume()` before the click.
 - `isVisible()` does not wait, so a test that branches on it first waits with `expect(…).toBeVisible()` for what must be there.
 
 `frontend/e2e/cook-timers.test.ts` does all of it ([Cook timers](/features/cook-timers#tests)).
+
+### Instance-wide settings
+
+**Each instance-wide setting has one spec file that flips it, and only that file does.** Files run in parallel against one instance, so a flip from anywhere else changes the setting under the owning file mid-test.
+
+| Setting | Owning file |
+|---|---|
+| Public sharing, its lifetimes, the attribution and the sharer switch | `frontend/e2e/public-shares.test.ts` |
+| Link previews and their lifetime | `frontend/e2e/link-preview.test.ts` |
+| The household lock | `frontend/e2e/editing-rights.test.ts` |
+| The mail settings | `frontend/e2e/mail.test.ts` ([Mail](/howtos/verify-ui#mail)) |
+| The sign-in (OIDC) settings and the shared Dex accounts | `frontend/e2e/oidc.test.ts` ([Test OIDC](/howtos/test-oidc)) |
+
+- The owning file runs `test.describe.configure({ mode: 'serial' })`, so its own tests do not flip the setting under each other.
+- **`mode: 'serial'` orders tests within one project only.** The desktop and mobile projects run the same file side by side, so every test that flips a setting also skips on the mobile project (`test.skip(testInfo.project.name.startsWith('mobile'), …)`); the mail and OIDC files run on `desktop` alone. The household lock is flipped and reset inside one test, which skips on mobile the same way.
+- A spec that only needs to see a state of a setting answers its `GET` with `page.route` instead of writing it, as `sign-in-settings.test.ts` does.
+- `--repeat-each` on an owning file runs its copies side by side, so they flip the setting on each other; repeat such a file one run at a time.
+
+### Asserting that nothing happens
+
+**A test that asserts something does not happen first waits for a positive signal that the action was handled, then allows one short settle before the negative check.** A negative check made at once passes before the app had a chance to do the wrong thing. The signal is whatever the action produces when it succeeds - an announcement, a request answered, a state attribute; the settle is a single `waitForTimeout` of a few hundred milliseconds, never a loop. The photo reorder in `frontend/e2e/kitchen-diary.test.ts` waits for "Photo moved to position 3 of 3", presses again on the first photo and checks after 300 ms that nothing moved.
 
 ### Measuring layout
 
