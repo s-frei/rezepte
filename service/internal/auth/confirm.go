@@ -75,20 +75,11 @@ func (s *Service) Confirm(ctx context.Context, token string) (string, error) {
 	return address, err
 }
 
-// ConfirmationPending reports whether u's current address has an open
-// confirmation link: one that was mailed, is unexpired and unused. Only then
-// may the profile say a confirmation mail went out.
-func (s *Service) ConfirmationPending(ctx context.Context, u user.User) (bool, error) {
-	if u.Email == "" || u.EmailVerified {
-		return false, nil
-	}
-	open, err := s.q.HasOpenEmailConfirmation(ctx, sqlc.HasOpenEmailConfirmationParams{
-		UserID: u.ID, Address: u.Email, ExpiresAt: db.FormatTime(s.now()),
-	})
-	if err != nil {
-		return false, fmt.Errorf("look up confirmation of %s: %w", u.ID, err)
-	}
-	return open, nil
+// ConfirmationPending reports whether st, an account's MailStatus, holds a
+// confirmation link that is still open: only then may the profile say a
+// confirmation mail went out.
+func (s *Service) ConfirmationPending(st MailStatus) bool {
+	return st.Confirmation != nil && s.now().Before(st.Confirmation.ExpiresAt)
 }
 
 // MailWindow is when a mail that confirms an address went out and until when

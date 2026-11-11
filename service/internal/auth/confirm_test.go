@@ -242,8 +242,8 @@ func TestConfirmationPending(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, err := f.sessions.ConfirmationPending(ctx, u); err != nil || got != want {
-			t.Fatalf("%s: pending = %v, %v; want %v", why, got, err, want)
+		if st, err := f.sessions.MailStatus(ctx, u); err != nil || f.sessions.ConfirmationPending(st) != want {
+			t.Fatalf("%s: pending = %v, %v; want %v", why, !want, err, want)
 		}
 	}
 	withEmail(t, f, f.member, "anna@example.org")

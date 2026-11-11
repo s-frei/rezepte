@@ -10,13 +10,6 @@ ON CONFLICT (user_id) DO UPDATE SET
 -- name: ConsumeEmailConfirmation :one
 DELETE FROM email_confirmations WHERE id = ? AND expires_at > ? RETURNING user_id, address;
 
--- Whether a link mailed to address is still open: what lets the profile say
--- "Confirmation mail sent" truthfully.
--- name: HasOpenEmailConfirmation :one
-SELECT EXISTS (
-    SELECT 1 FROM email_confirmations WHERE user_id = ? AND address = ? AND expires_at > ?
-);
-
 -- name: DeleteEmailConfirmation :exec
 DELETE FROM email_confirmations WHERE id = ?;
 

@@ -267,7 +267,7 @@ func TestEveryAddressChangeMails(t *testing.T) {
 			t.Fatal(err)
 		}
 		f.sessions.ConfirmChangedAddress(ctx, before, u, "")
-		if pending, _ := f.sessions.ConfirmationPending(ctx, u); !pending {
+		if st, _ := f.sessions.MailStatus(ctx, u); !f.sessions.ConfirmationPending(st) {
 			t.Fatalf("%s: no confirmation pending", addr)
 		}
 		before = u
@@ -587,7 +587,7 @@ func TestOwnAddressChangeSharesTheResendMinute(t *testing.T) {
 	if sent := f.mailer.drain(); len(sent) != 1 {
 		t.Fatalf("sent %d within a minute, want 1: %+v", len(sent), sent)
 	}
-	if pending, _ := f.sessions.ConfirmationPending(ctx, after); pending {
+	if st, _ := f.sessions.MailStatus(ctx, after); f.sessions.ConfirmationPending(st) {
 		t.Fatal("pending although the held-back mail never went out")
 	}
 	change("lea@three.org", "Owner")
@@ -645,8 +645,8 @@ func TestFailedSendDropsOnlyItsOwnConfirmation(t *testing.T) {
 	if err := f.sessions.ResendConfirmation(ctx, lea, ""); !errors.Is(err, mail.ErrSend) {
 		t.Fatalf("resend: %v", err)
 	}
-	if pending, err := f.sessions.ConfirmationPending(ctx, lea); err != nil || !pending {
-		t.Fatalf("the newer confirmation is gone: %v %v", pending, err)
+	if st, err := f.sessions.MailStatus(ctx, lea); err != nil || !f.sessions.ConfirmationPending(st) {
+		t.Fatalf("the newer confirmation is gone: %+v %v", st, err)
 	}
 }
 

@@ -41,27 +41,6 @@ func (q *Queries) DeleteEmailConfirmation(ctx context.Context, id string) error 
 	return err
 }
 
-const hasOpenEmailConfirmation = `-- name: HasOpenEmailConfirmation :one
-SELECT EXISTS (
-    SELECT 1 FROM email_confirmations WHERE user_id = ? AND address = ? AND expires_at > ?
-)
-`
-
-type HasOpenEmailConfirmationParams struct {
-	UserID    string
-	Address   string
-	ExpiresAt string
-}
-
-// Whether a link mailed to address is still open: what lets the profile say
-// "Confirmation mail sent" truthfully.
-func (q *Queries) HasOpenEmailConfirmation(ctx context.Context, arg HasOpenEmailConfirmationParams) (bool, error) {
-	row := q.db.QueryRowContext(ctx, hasOpenEmailConfirmation, arg.UserID, arg.Address, arg.ExpiresAt)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
 const listEmailConfirmations = `-- name: ListEmailConfirmations :many
 SELECT user_id, address, created_at, expires_at FROM email_confirmations
 `

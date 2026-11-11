@@ -630,15 +630,11 @@ func expiredLocaleCookie(secure bool) http.Cookie {
 // send one rather than claiming it was sent.
 func respond(ctx context.Context, svc *Service, u user.User) UserResponse {
 	r := toResponse(u)
-	pending, err := svc.ConfirmationPending(ctx, u)
-	if err != nil {
-		slog.WarnContext(ctx, "auth: confirmation lookup failed", "user", u.ID, "err", err)
-	}
-	r.EmailConfirmationPending = pending
 	st, err := svc.MailStatus(ctx, u)
 	if err != nil {
 		slog.WarnContext(ctx, "auth: mail status lookup failed", "user", u.ID, "err", err)
 	}
+	r.EmailConfirmationPending = svc.ConfirmationPending(st)
 	r.EmailConfirmation, r.EmailSetupLink = st.Confirmation, st.SetupLink
 	return r
 }
