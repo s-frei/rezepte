@@ -107,10 +107,7 @@ function isPlaceholder(s: string): boolean {
 }
 
 function walk(dir: string): string[] {
-	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-		const p = path.join(dir, e.name);
-		return e.isDirectory() ? walk(p) : p.endsWith('.mdx') ? [p] : [];
-	});
+	return readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.mdx')).map((f) => path.join(dir, f));
 }
 
 /** The anchor Fumadocs gives a heading: github-slugger's rules. */

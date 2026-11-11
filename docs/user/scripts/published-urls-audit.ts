@@ -43,7 +43,7 @@ for (const doc of ['README.md', 'CONTRIBUTING.md']) {
 // The docs' own links, page to page and to a heading on the same page: a
 // rewrite that renames a heading breaks them without any other error.
 const walk = (dir: string): string[] =>
-	readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.mdx') ? [path.join(dir, e.name)] : []));
+	readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.mdx')).map((f) => path.join(dir, f));
 for (const mdx of walk('content')) {
 	// content/(guide)/guide/index.mdx is served at guide/index.html.
 	const own = mdx.slice('content/'.length).replace(/\([^)]*\)\//g, '').replace(/(^|\/)index\.mdx$/, '$1').replace(/\.mdx$/, '/');

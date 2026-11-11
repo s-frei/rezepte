@@ -10,11 +10,7 @@ import path from 'node:path';
 const VARIANTS = ['desktop-light', 'desktop-dark', 'mobile-light', 'mobile-dark'];
 
 function walk(dir: string, ext: string): string[] {
-	return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-		const p = path.join(dir, e.name);
-		if (e.isDirectory()) return walk(p, ext);
-		return e.name.endsWith(ext) ? [p] : [];
-	});
+	return readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith(ext)).map((f) => path.join(dir, f));
 }
 
 const referenced = new Map<string, string[]>();
