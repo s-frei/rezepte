@@ -81,6 +81,7 @@
 	}
 
 	async function clear() {
+		if (busy) return;
 		busy = true;
 		try {
 			await remove();
@@ -109,8 +110,9 @@
 				<DropdownMenu.Trigger
 					aria-label={m.avatar_change()}
 					title={m.avatar_change()}
-					disabled={busy}
-					class="relative inline-flex size-[34px] items-center justify-center rounded-full bg-surface hover-tint text-text shadow-card ring-1 ring-border transition after:absolute after:-inset-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+					aria-disabled={busy}
+					aria-busy={busy}
+					class="relative inline-flex size-[34px] items-center justify-center rounded-full bg-surface hover-tint text-text shadow-card ring-1 ring-border transition after:absolute after:-inset-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-disabled:opacity-50"
 				>
 					<Camera class="size-4" aria-hidden="true" />
 				</DropdownMenu.Trigger>
@@ -122,7 +124,7 @@
 						align="start"
 						class="w-48 max-w-[calc(100vw-2rem)] rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 					>
-						<DropdownMenu.Item onSelect={() => input?.click()} class={item}>
+						<DropdownMenu.Item onSelect={() => !busy && input?.click()} class={item}>
 							{m.avatar_change()}
 						</DropdownMenu.Item>
 						<DropdownMenu.Item onSelect={clear} class={item}>
@@ -136,9 +138,10 @@
 				type="button"
 				aria-label={m.avatar_add()}
 				title={m.avatar_add()}
-				disabled={busy}
-				onclick={() => input?.click()}
-				class="relative inline-flex size-[34px] items-center justify-center rounded-full bg-surface hover-tint text-text shadow-card ring-1 ring-border transition after:absolute after:-inset-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+				aria-disabled={busy}
+				aria-busy={busy}
+				onclick={() => !busy && input?.click()}
+				class="relative inline-flex size-[34px] items-center justify-center rounded-full bg-surface hover-tint text-text shadow-card ring-1 ring-border transition after:absolute after:-inset-[5px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-disabled:opacity-50"
 			>
 				<Camera class="size-4" aria-hidden="true" />
 			</button>
