@@ -43,7 +43,7 @@ description: The /switch screen, where the people signed in on a shared device p
   - sign-out (`sign-out.ts`; after clearing timers and disabling push, one navigation, without `next`; the card of the person who left reads "Sign in again");
   - the root load's `401` (`+layout.ts`, `authPages` exempt, with `next`);
   - a `401` mid-use from the API client or an upload (`redirectSignedOut`, with `next`; not on `/login` or `/switch`, and not for login, `GET /auth/me` or logout). Several calls failing together leave once: `redirectSignedOut` keeps its first run in `leaving` and hands it to the rest.
-- **Other tabs follow.** A switch, a sign-in (both login modes, `/welcome`) and a sign-out change the cookie under every other open tab. `announceSession` (`frontend/src/lib/session-broadcast.ts`) posts the new person's id, or `null`, on the `BroadcastChannel` `rezepte-session` (without one, a `localStorage` write that reaches the others as a `storage` event); the root layout's `followSession` reloads a tab whose `session.user` differs. One channel object sends and listens, since a message never reaches the object that posted it.
+- **Other tabs follow.** A switch, a sign-in (both login modes, `/welcome`) and a sign-out change the cookie under every other open tab. `announceSession` (`frontend/src/lib/session-broadcast.ts`) posts the new person's id, or `null`, on the `BroadcastChannel` `rezepte-session`; the root layout's `followSession` reloads a tab whose `session.user` differs. One channel object sends and listens, since a message never reaches the object that posted it.
 - **The back-forward cache** would restore the app as it was left, maybe as the person before a switch: the root layout reloads on a `pageshow` with `persisted`.
 
 ### Motion
