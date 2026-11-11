@@ -3,7 +3,7 @@ title: Documentation sites
 description: Two Fumadocs apps under docs/, committed screenshots and a generated API reference, the user docs published to GitHub Pages at getrezepte.app
 ---
 
-`docs/` holds two independent Fumadocs apps. `docs/memory/` renders this memory for the people and agents developing Rezepte; `docs/user/` renders the end-user manual for the people who cook from Rezepte and the people who host it, and is the only one that is published. Both are English, and a sentence in the wrong one reaches the wrong audience: nothing about developing Rezepte belongs in the user docs, nothing about cooking belongs here.
+`docs/` holds two independent Fumadocs apps. `docs/memory/` renders this memory for the people and agents developing Rezepte; `docs/user/` renders the end-user manual for the people who cook from Rezepte and the people who host it, and is the only one that is published. Both are English, and a sentence in the wrong one reaches the wrong audience: nothing about developing Rezepte belongs in the user docs, nothing about cooking belongs here. How a user-docs page is written, and the audit that checks it, is [Writing the user docs](/conventions/user-docs).
 
 ## The two apps
 
@@ -28,7 +28,7 @@ The user docs come in four sections, one per reader: **Guide** (`content/(guide)
 
 **The newest release is announced above every page.** `<ReleaseBanner />` in `docs/user/app/layout.tsx` (from `components/releases.tsx`) is Fumadocs' `Banner` naming the same newest release, linked to its page, in the primary color so it does not merge with the navbar. Its id carries the version: closing it is remembered in the browser until the next release changes the id.
 
-**A release's address is permanent, and so is every address linked from outside.** The GitHub release notes link `/changelog/<version>/` and its Markdown view, the app links the guide, the changelog and the MCP page from `frontend/src/lib/docs.ts`, and `README.md` and `CONTRIBUTING.md` link pages down to their headings; none of them changes when the docs do. `docs/user/scripts/published-urls-audit.ts`, run by `//docs/user:check` after the build, fails when any of those addresses, or an anchor the two Markdown files use, is missing from the export, so a regrouping that moves one fails the gate instead of a reader's link.
+**A release's address is permanent, and so is every address linked from outside.** The GitHub release notes link `/changelog/<version>/` and its Markdown view, the app links the guide, the changelog and the MCP page from `frontend/src/lib/docs.ts`, and `README.md` and `CONTRIBUTING.md` link pages down to their headings; none of them changes when the docs do. `docs/user/scripts/published-urls-audit.ts`, run by `//docs/user:check` after the build, fails when any of those addresses, an anchor the two Markdown files use, or a page or heading a user-docs page links to is missing from the export, so a regrouping that moves one fails the gate instead of a reader's link.
 
 **Who a user-docs page is for is a word badge, not a warning box.**
 

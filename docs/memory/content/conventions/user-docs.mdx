@@ -1,0 +1,85 @@
+---
+title: Writing the user docs
+description: How a page in docs/user/content is written - short, task-first, one owner per fact - and the audit that holds it to that
+---
+
+The user docs are read by people who cook from Rezepte and people who host it, and they read the way everyone reads the web: they scan for the one thing they came for and skip the rest. Every rule here serves that reader. Where to put a page and how the site is built is [Documentation sites](/architecture/docs); what to edit after a UI change is [Keep the user docs in step with the UI](/howtos/update-user-docs).
+
+<Callout type="warn" title="Before you commit a user-docs change">
+
+- The page opens with what the reader can do, in one or two sentences.
+- A task is numbered steps, one action each; options, roles, fields and states are a table.
+- No paragraph or list item past 80 words, no sentence past 35, no page past 1,200 words of prose - `prose-audit.ts` fails on all three.
+- Nothing the screen already shows, no "why it works this way", no implementation detail.
+- A fact shared by several pages is stated on its owner page ([below](#one-owner-per-fact)); the others give one line and a link.
+- Warnings about data loss, irreversible actions, privacy and security stay, in a `Callout`, never inside a paragraph or a collapsed `Accordion`.
+- A heading with `<Audience />` or `<NewIn />` keeps the page's own `import` of it - removing it as "already registered" silently breaks the table of contents ([why](/architecture/docs)); the audit checks it.
+- Headings that another page, `README.md`, `CONTRIBUTING.md`, `frontend/src/lib/docs.ts` or a changelog links to keep their exact text.
+
+</Callout>
+
+## What a page holds
+
+**A page answers what the reader can do and how, and stops.** Measured on real readers, cutting words alone made web text more usable than any formatting did, and readers take in about a quarter of the words on a page. So the first cut is always words, the second is shape.
+
+- **Leave out what the screen shows.** Name a button when a step needs the reader to press it; never describe it. Where a sheet slides in from, what a badge looks like, how a list narrows as you type: the reader sees it the moment they get there, and the screenshot shows the rest.
+- **Leave out the why.** A sentence explaining a design decision belongs in the memory's `Why it is this way`, not here. Keep a reason only when the reader needs it to act ("so a lost phone stops getting notifications" does not; "renaming keeps the address, so links already sent keep working" does).
+- **Leave out the implementation.** Image sizes in pixels, table names, the API a browser feature uses, retry timing, which library migrates the database. The host gets what to set and what happens, not how it works inside.
+- **Keep error recovery.** What goes wrong and how to fix it is the most-read part of a page: the three import error messages, "no mail arrived", "the timer never rang". Keep it short, as a table of symptom and fix where there are several.
+- **Keep the rules that surprise.** A list copies the ingredients, so later edits do not reach it; moving an item to a department moves it for everyone. These are the sentences a reader would otherwise learn by losing something.
+
+### Rare cases
+
+**A rare case gets one line or a collapsed `Accordion`, never a paragraph.** A case most readers never meet (a member deleted while sharing a list, a link from a link with a sort order) either drops, or goes into one `Accordion` at the end of its section. Only two levels of disclosure: page and accordion, never an accordion inside an accordion.
+
+## Shape
+
+**Pick the shape the content has, not a paragraph.**
+
+| The content | The shape |
+| --- | --- |
+| A task done in order | `<Steps>` or a numbered list, one action per step, place first, then the action ("In Settings → People, choose Add account") |
+| Independent tasks on one page | `##` or `###` sections, one per task, headed with a verb - never `<Steps>`, which reads as a sequence |
+| Options, roles, fields, states, error messages | A table |
+| Two to seven things of a kind | A bullet list, items parallel and short; never a list of one |
+| Environment variables or flags with a default | A `<TypeTable>`, which folds to one line per variable on a phone; every entry sets `required: true`, or its name shows a TypeScript `?` that reads as a typo |
+| A warning | A `Callout`; `warn` for loss or exposure, `info` for the rest |
+| Something the reader has to see | A `<Screenshot>` ([Add a screenshot](/howtos/add-screenshot)) |
+| The same task for alternatives the reader picks once (Docker or binary, Caddy or nginx, one client or another) | `<Tabs>`, never one section per alternative; Docker/Binary tabs carry `groupId="install" persist`, so the choice follows the reader to every hosting page |
+| The content of a file | A code block with the file's path as `title` (`title="compose.yaml"`); a command to run has no title, and a command past about 80 characters breaks across lines with `\` so neither the edge nor the copy button cuts it off |
+
+- **Tables stay readable on a phone.** Two or three columns, a first column of a few words, cells of a phrase each. A column that repeats where something happens ("in the editor") becomes one `###` per place; a long label moves into the text under the table.
+- **Sentences: 15 words on average, 25 as a soft cap, 35 hard.** Comprehension falls off steeply past 25.
+- **Paragraphs: one idea, three sentences or 80 words at most.** The key point leads; a paragraph never saves it for the end.
+- **A heading earns its place with more than two sentences.** A section of one line merges into its neighbor.
+- **Page: around 300-600 words for a feature, 1,200 at most.** A page past that has two jobs; split the reference half into a table or its own page.
+- **Plain words, "you", present tense, American English** ([Language](/conventions/language)), and UI labels quoted exactly as `frontend/messages/en.json` has them, in bold.
+
+## One owner per fact
+
+**A fact several pages need is written once, on its owner page; every other page gives the fact in one line and links there.** A one-line restatement is fine and keeps a page readable on its own; a second explanation is not, because the two drift apart. The owners:
+
+| Fact | Owner |
+| --- | --- |
+| Who may do what to accounts (member, admin, owner) | The table at the top of `guide/users.mdx` |
+| The owner account: permanent, never handed over, reset only by flag | `getting-started/first-login.mdx` |
+| Who may edit or delete a recipe | `guide/editing-rights.mdx` |
+| Email confirmation states, your own profile | `guide/settings.mdx#profile` |
+| Which mails exist, how long each link is valid | `guide/mail.mdx` |
+| Which notifications exist and how to switch them | `guide/notifications.mdx` |
+| Photo limits and formats | `guide/images.mdx` |
+| Keyboard shortcuts | `guide/shortcuts.mdx`; a feature page names at most the one or two keys its task needs |
+| Household and public links, previews | `guide/sharing.mdx`; the owner's switches for them in `guide/users.mdx#public-sharing` |
+| Install as an app, share to Rezepte | `guide/install-app.mdx` |
+| What plain HTTP loses (install, wake lock, push) | `operations/reverse-proxy.mdx`; a cook page says "needs HTTPS" and links |
+| Token scopes | `api/tokens.mdx`; `api/mcp.mdx` names only the scope each tool needs |
+| Variables and flags, demo mode | `getting-started/configuration.mdx` |
+| Updating, the running version, `/healthz` | `operations/updates.mdx` |
+
+## The audit
+
+**`docs/user/scripts/prose-audit.ts` runs in `//docs/user:check` and fails on the three measurable walls**: a paragraph or list item past 80 words, a sentence past 35, a page past 1,200 words of prose. It also fails on a heading badge whose component the page does not import. Tables, code, JSX tags, headings and frontmatter do not count. It skips the generated API reference and the release pages published before it existed, which stay as they shipped; every later release page is audited. Everything else on this page needs judgment and is the reviewer's: whether a sentence restates the screen, whether a fact is on its owner page, whether the first sentence says what the reader can do.
+
+- The sentence split is naive: it breaks at `.`, `!`, `?` or `:` followed by a capital, a quote, a parenthesis, `*` or a backtick. A sentence glued to the next without one of those counts as one long sentence; rewrite it rather than tuning the split.
+- `published-urls-audit.ts` checks the docs' own links to pages and headings against the build. It reads links to a root path, with or without a heading anchor, and links to a heading on the same page; a link with a title or a query string is not checked, so do not write one.
+- The numbers are caps, not targets. A page at 1,150 words of 79-word paragraphs passes the audit and still fails the reader.

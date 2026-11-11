@@ -12,7 +12,8 @@
     "readme-images": "bun scripts/readme-images.ts",
     "hero-images": "bun scripts/hero-images.ts",
     "brand-assets": "bun scripts/brand-assets.ts",
-    "published-urls:audit": "bun scripts/published-urls-audit.ts"
+    "published-urls:audit": "bun scripts/published-urls-audit.ts",
+    "prose:audit": "bun scripts/prose-audit.ts"
   },
   "dependencies": {
     "@fontsource-variable/literata": "^5.3.0",

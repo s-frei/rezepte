@@ -11,8 +11,8 @@ description = "Static export of the user docs"
 run = "bun run build"
 
 [tasks.check]
-description = "Lint, screenshot audit, README image, hero image, logo copy and OpenAPI version tests, build (validates MDX), published-URLs audit"
-run = ["bun run lint", "bun run screenshots:audit", "bun test scripts/readme-images.test.ts scripts/hero-images.test.ts scripts/brand-assets.test.ts scripts/openapi-version.test.ts", "bun run build", "bun run published-urls:audit"]
+description = "Lint, prose audit, screenshot audit, README image, hero image, logo copy and OpenAPI version tests, build (validates MDX), published-URLs audit"
+run = ["bun run lint", "bun run prose:audit", "bun run screenshots:audit", "bun test scripts/prose-audit.test.ts scripts/readme-images.test.ts scripts/hero-images.test.ts scripts/brand-assets.test.ts scripts/openapi-version.test.ts", "bun run build", "bun run published-urls:audit"]
 
 [tasks.openapi]
 description = "Fetch openapi.json from rezepte --demo and regenerate content/api/reference/"

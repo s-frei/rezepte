@@ -1,5 +1,5 @@
-// Fails the build when an address someone outside this site links to is gone
-// from the export. They are linked from places a docs change never touches:
+// Fails the build when an address someone links to is gone from the export,
+// including the docs' own links between pages and to headings. They are linked from places a docs change never touches:
 // every release's page and its Markdown view, named in the GitHub release
 // notes (mise/lib/release/changelog.ts); the docs pages the app links to
 // (frontend/src/lib/docs.ts); and every docs link in README.md and
@@ -37,6 +37,21 @@ for (const doc of ['README.md', 'CONTRIBUTING.md']) {
 		const file = /\.\w+$/.test(rest) ? rest : `${rest}index.html`;
 		required.set(file, `linked from ${doc}`);
 		if (anchor) anchors.set(`${file}#${anchor}`, `linked from ${doc}`);
+	}
+}
+
+// The docs' own links, page to page and to a heading on the same page: a
+// rewrite that renames a heading breaks them without any other error.
+const walk = (dir: string): string[] =>
+	readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith('.mdx') ? [path.join(dir, e.name)] : []));
+for (const mdx of walk('content')) {
+	// content/(guide)/guide/index.mdx is served at guide/index.html.
+	const own = mdx.slice('content/'.length).replace(/\([^)]*\)\//g, '').replace(/(^|\/)index\.mdx$/, '$1').replace(/\.mdx$/, '/');
+	for (const [, rest, anchor] of readFileSync(mdx, 'utf8').matchAll(/\]\((?:\/([^)\s#]*))?(?:#([\w-]+))?\)/g)) {
+		if (rest === undefined && anchor === undefined) continue;
+		const file = rest === undefined ? `${own}index.html` : `${rest.replace(/\/?$/, '/')}index.html`.replace(/^\//, '');
+		required.set(file, `linked from ${mdx}`);
+		if (anchor) anchors.set(`${file}#${anchor}`, `linked from ${mdx}`);
 	}
 }
 
