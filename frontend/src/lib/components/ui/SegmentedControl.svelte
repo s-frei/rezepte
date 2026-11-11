@@ -1,4 +1,5 @@
 <script lang="ts" generics="T extends string">
+	import { RadioGroup } from 'bits-ui';
 	import type { Component } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import type { LucideProps } from '@lucide/svelte';
@@ -42,8 +43,8 @@
 		onchange?: (value: T) => void;
 	} = $props();
 
-	let buttons: HTMLButtonElement[] = $state([]);
-	let group = $state<HTMLDivElement>();
+	let buttons: (HTMLElement | null)[] = $state([]);
+	let group = $state<HTMLElement | null>(null);
 	let pillEl = $state<HTMLSpanElement>();
 	// The checked segment's place in the group. The segments differ in width
 	// (their labels, and the icons from 280px of container width), so the
@@ -71,14 +72,13 @@
 		if (!group) return;
 		const observer = new ResizeObserver(measure);
 		observer.observe(group);
-		for (const button of buttons) observer.observe(button);
+		for (const button of buttons) if (button) observer.observe(button);
 		return () => observer.disconnect();
 	});
 
+	// Bits UI's radio group does the roving tabindex and the arrow keys;
+	// `readonly` keeps a disabled group focusable and drops every pick.
 	function select(next: T) {
-		if (disabled || next === value) {
-			return;
-		}
 		const from = pill;
 		value = next;
 		onchange?.(next);
@@ -95,25 +95,9 @@
 		}
 	}
 
-	// Roving tabindex, as the WAI-ARIA radio group pattern expects: only the
-	// checked segment is in the tab order, arrows move and check.
-	function handleKey(event: KeyboardEvent, index: number) {
-		const delta =
-			event.key === 'ArrowRight' || event.key === 'ArrowDown'
-				? 1
-				: event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-					? -1
-					: 0;
-		if (delta === 0) {
-			return;
-		}
-		event.preventDefault();
-		if (disabled) {
-			return;
-		}
-		const next = (index + delta + options.length) % options.length;
-		select(options[next].value);
-		buttons[next]?.focus();
+	// A disabled group keeps focus where it is, too.
+	function holdKeys(event: KeyboardEvent) {
+		if (disabled && /^(Arrow|Home$|End$)/.test(event.key)) event.preventDefault();
 	}
 </script>
 
@@ -140,61 +124,65 @@
 	     above and below it, so a 36px segment hits on 44px. -->
 	<!-- The checked look is one pill behind the labels that glides from the
 	     segment it left; on each segment, the background blinked across. -->
-	<div
-		bind:this={group}
-		role="radiogroup"
+	<RadioGroup.Root
+		bind:ref={group}
+		bind:value={() => value, (next) => select(next as T)}
+		readonly={disabled}
+		orientation="horizontal"
 		aria-label={label}
-		aria-disabled={disabled || undefined}
-		class="relative flex w-full flex-wrap rounded-3xl p-1 {onSurface
-			? 'border border-handle bg-surface md:border-[1.5px]'
-			: 'bg-background md:inline-flex md:w-auto'}"
 	>
-		<span
-			bind:this={pillEl}
-			aria-hidden="true"
-			class="absolute top-0 left-0 rounded-pill {onSurface
-				? 'bg-primary shadow-cta'
-				: 'bg-surface shadow-card'} {pill ? '' : 'hidden'}"
-			style:translate="{pill?.x ?? 0}px {pill?.y ?? 0}px"
-			style:width="{pill?.w ?? 0}px"
-			style:height="{pill?.h ?? 0}px"
-		></span>
-		{#each options as option, i (option.value)}
-			{@const checked = option.value === value}
-			{@const Icon = option.icon}
-			<button
-				bind:this={buttons[i]}
-				type="button"
-				role="radio"
-				aria-checked={checked}
+		{#snippet child({ props })}
+			<div
+				{...props}
 				aria-disabled={disabled || undefined}
-				tabindex={checked ? 0 : -1}
-				onclick={() => select(option.value)}
-				onkeydown={(event) => handleKey(event, i)}
-				class="relative inline-flex {onSurface
-					? 'h-9 text-body-sm md:h-11 md:text-body'
-					: size === 'sm'
-						? 'h-7 text-body-sm'
-						: 'h-9 text-body-sm'} min-w-fit flex-1 items-center justify-center gap-2 rounded-pill px-2 font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-1 {onSurface
-					? 'duration-300 ease-glide motion-reduce:duration-0'
-					: 'md:flex-none md:px-4'} {checked
-					? onSurface
-						? 'text-primary-foreground'
-						: 'text-text'
-					: disabled
-						? 'text-text-muted'
-						: 'text-text-muted hover:text-text'}"
+				class="relative flex w-full flex-wrap rounded-3xl p-1 {onSurface
+					? 'border border-handle bg-surface md:border-[1.5px]'
+					: 'bg-background md:inline-flex md:w-auto'}"
 			>
-				{#if Icon}
-					<Icon
-						class="{onSurface ? 'size-4 md:size-4.5' : 'size-4'} shrink-0 {options.length > 2
-							? 'hidden md:block @min-[280px]:block'
-							: ''}"
-						aria-hidden="true"
-					/>
-				{/if}
-				<span>{option.label}</span>
-			</button>
-		{/each}
-	</div>
+				<span
+					bind:this={pillEl}
+					aria-hidden="true"
+					class="absolute top-0 left-0 rounded-pill {onSurface
+						? 'bg-primary shadow-cta'
+						: 'bg-surface shadow-card'} {pill ? '' : 'hidden'}"
+					style:translate="{pill?.x ?? 0}px {pill?.y ?? 0}px"
+					style:width="{pill?.w ?? 0}px"
+					style:height="{pill?.h ?? 0}px"
+				></span>
+				{#each options as option, i (option.value)}
+					{@const checked = option.value === value}
+					{@const Icon = option.icon}
+					<RadioGroup.Item
+						bind:ref={() => buttons[i] ?? null, (el) => (buttons[i] = el)}
+						value={option.value}
+						aria-disabled={disabled || undefined}
+						onkeydown={holdKeys}
+						class="relative inline-flex {onSurface
+							? 'h-9 text-body-sm md:h-11 md:text-body'
+							: size === 'sm'
+								? 'h-7 text-body-sm'
+								: 'h-9 text-body-sm'} min-w-fit flex-1 items-center justify-center gap-2 rounded-pill px-2 font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-1 {onSurface
+							? 'duration-300 ease-glide motion-reduce:duration-0'
+							: 'md:flex-none md:px-4'} {checked
+							? onSurface
+								? 'text-primary-foreground'
+								: 'text-text'
+							: disabled
+								? 'text-text-muted'
+								: 'text-text-muted hover:text-text'}"
+					>
+						{#if Icon}
+							<Icon
+								class="{onSurface ? 'size-4 md:size-4.5' : 'size-4'} shrink-0 {options.length > 2
+									? 'hidden md:block @min-[280px]:block'
+									: ''}"
+								aria-hidden="true"
+							/>
+						{/if}
+						<span>{option.label}</span>
+					</RadioGroup.Item>
+				{/each}
+			</div>
+		{/snippet}
+	</RadioGroup.Root>
 </div>

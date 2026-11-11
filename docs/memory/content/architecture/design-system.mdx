@@ -239,7 +239,7 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 - **`Switch`** - a setting that takes effect when flipped; a checkbox marks an item in a list. It reports `role="switch"`, so Playwright's `check()` does not drive it: click and read `aria-checked`.
 - **`Checkbox`** - the square form checkbox; the ingredient list draws a round one on the same primitive. Its tick draws only when clicked ([Icons that answer](#icons-that-answer)).
 - **`Slider`** - `value` is a **position** on a fixed scale; the caller maps it. `role="slider"` sits on the thumb, so `aria-label`/`aria-valuetext` go there. A filter refetches from `oncommit`.
-- **`SegmentedControl`** (own radiogroup) - a choice of a few; `track="surface"` is the bolder track for a choice a whole sheet hangs on. `disabled` is `aria-disabled`, so the checked segment stays focusable. Labels never truncate: the track wraps, and the checked pill is measured from the checked button, gliding only on a pick. `size="sm"` is every `SettingsRow` control's height.
+- **`SegmentedControl`** (Bits UI `RadioGroup`) - a choice of a few; `track="surface"` is the bolder track for a choice a whole sheet hangs on. `disabled` is `aria-disabled` and Bits UI's `readonly`, so the checked segment stays focusable. Labels never truncate: the track wraps, and the checked pill is measured from the checked button, gliding only on a pick. `size="sm"` is every `SettingsRow` control's height.
 - **`AccessLadder`** (own radiogroup) - levels where each includes the ones below (a token's access); a sentence under it says what the chosen step allows.
 
 **Dialogs and sheets**
