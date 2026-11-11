@@ -33,7 +33,7 @@
 	let saving = $state(false);
 	let switchOpen = $state(false);
 
-	// Refilled from what is stored every time the dialog opens, so a cancelled
+	// Refilled from what is stored every time the dialog opens, so a canceled
 	// edit never lingers into the next one.
 	$effect(() => {
 		if (!open) return;

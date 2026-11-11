@@ -39,7 +39,7 @@
 		{ value: 'none', label: m.settings_mail_security_none() }
 	]);
 
-	// Refilled from what is stored every time the dialog opens, so a cancelled
+	// Refilled from what is stored every time the dialog opens, so a canceled
 	// edit never lingers into the next one.
 	$effect(() => {
 		if (!open) return;

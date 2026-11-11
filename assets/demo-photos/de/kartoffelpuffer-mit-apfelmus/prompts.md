@@ -27,7 +27,7 @@ Photos 2 and 3 also pass `inputImagePath` pointing at `1.jpg` and `maintainChara
 
 **prompt**
 
-> Homemade German Kartoffelpuffer with Apfelmus on a cream plate: three thin, round potato pancakes with lacy, deep golden, crispy edges and visible grated potato strands, slightly overlapping, beside a generous dollop of chunky homemade apple sauce dusted with a little cinnamon, a few thin slices of fresh red apple for colour. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. No cutlery on the plate or in the air. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
+> Homemade German Kartoffelpuffer with Apfelmus on a cream plate: three thin, round potato pancakes with lacy, deep golden, crispy edges and visible grated potato strands, slightly overlapping, beside a generous dollop of chunky homemade apple sauce dusted with a little cinnamon, a few thin slices of fresh red apple for color. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. No cutlery on the plate or in the air. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
 
 ## 2.jpg: close-up
 

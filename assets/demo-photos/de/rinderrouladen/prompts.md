@@ -27,7 +27,7 @@ Photos 2 and 3 also pass `inputImagePath` pointing at `1.jpg` and `maintainChara
 
 **prompt**
 
-> A homemade German Sunday dinner of Rinderrouladen on a cream plate: two braised beef roulades tied with kitchen string, glossy under a rich dark brown gravy, one cut open showing the swirl of beef around bacon, mustard, onion and a gherkin strip, served with a fluffy potato dumpling (Kartoffelkloß) and a portion of glossy braised red cabbage for colour. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. Plain unbranded tableware. No text, no labels, no hands, no people.
+> A homemade German Sunday dinner of Rinderrouladen on a cream plate: two braised beef roulades tied with kitchen string, glossy under a rich dark brown gravy, one cut open showing the swirl of beef around bacon, mustard, onion and a gherkin strip, served with a fluffy potato dumpling (Kartoffelkloß) and a portion of glossy braised red cabbage for color. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. Plain unbranded tableware. No text, no labels, no hands, no people.
 
 The plate came out larger than asked; the square card crop trims its rim on both sides.
 
@@ -41,7 +41,7 @@ Reference: `1.jpg`, `maintainCharacterConsistency: true`
 
 **prompt**
 
-> Close-up of the Rinderrouladen from the reference image, shot from a low side angle almost at plate height: one roulade sliced into thick rounds, the cut faces in sharp focus showing the tight spiral of tender braised beef around smoky bacon, a streak of mustard, soft onion and a bright green gherkin centre, glossy dark gravy running over them and pooling on the plate, a little red cabbage at the edge. The dumpling, the rest of the plate and the window light fall into a soft, strongly blurred background. No cutlery in the shot. Same rustic wooden table and warm window light as the reference. Macro food photography, shallow depth of field, realistic home cooking, warm muted tones. No text, no hands, no people.
+> Close-up of the Rinderrouladen from the reference image, shot from a low side angle almost at plate height: one roulade sliced into thick rounds, the cut faces in sharp focus showing the tight spiral of tender braised beef around smoky bacon, a streak of mustard, soft onion and a bright green gherkin center, glossy dark gravy running over them and pooling on the plate, a little red cabbage at the edge. The dumpling, the rest of the plate and the window light fall into a soft, strongly blurred background. No cutlery in the shot. Same rustic wooden table and warm window light as the reference. Macro food photography, shallow depth of field, realistic home cooking, warm muted tones. No text, no hands, no people.
 
 ## 3.jpg: preparation
 
