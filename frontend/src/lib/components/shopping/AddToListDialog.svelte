@@ -246,7 +246,7 @@
 					{#each groups as group, g (g)}
 						{#if group.name}
 							<h3
-								class="mt-3 mb-1 font-display text-[16px] font-medium text-primary italic first:mt-1"
+								class="mt-3 mb-1 font-display text-card-sm font-medium text-primary italic first:mt-1"
 							>
 								{group.name}
 							</h3>

@@ -31,7 +31,7 @@
 	const everyone = $derived(!off && face.kind !== 'household');
 	// The photo's box, and for the placeholder its initial in proportion.
 	const box = $derived(
-		photo === 'flat' ? 'h-14 [&>span]:text-[34px]' : 'h-[84px] [&>span]:text-[46px]'
+		photo === 'flat' ? 'h-14 [&>span]:text-placeholder-xs' : 'h-[84px] [&>span]:text-placeholder-sm'
 	);
 </script>
 
@@ -59,7 +59,7 @@
 				{/if}
 			{/if}
 			<p
-				class="mt-2 line-clamp-2 font-display text-[18px]/[1.2] font-medium hyphens-auto {off
+				class="mt-2 line-clamp-2 font-display text-ticket-title/[1.2] font-medium hyphens-auto {off
 					? 'text-text-muted'
 					: ''}"
 			>
@@ -68,7 +68,7 @@
 			<p class="mt-[3px] truncate text-micro/[1.3] text-text-muted">{address}</p>
 		</div>
 		<div
-			class="flex w-16 flex-none flex-col items-center justify-center gap-1 rounded-r-lg border-l-2 border-dashed text-center text-[11px]/[1.25] font-semibold {everyone
+			class="flex w-16 flex-none flex-col items-center justify-center gap-1 rounded-r-lg border-l-2 border-dashed text-center text-label/[1.25] font-semibold tracking-normal {everyone
 				? 'border-handle bg-accent text-accent-foreground'
 				: off
 					? 'border-border bg-surface text-text-muted'
@@ -96,7 +96,7 @@
 						})}
 					</span>
 				{:else}
-					<strong class="font-display text-[28px]/none font-semibold">
+					<strong class="font-display text-ticket-figure/none font-semibold">
 						{face.kind === 'open' ? '∞' : face.value}
 					</strong>
 					<span>

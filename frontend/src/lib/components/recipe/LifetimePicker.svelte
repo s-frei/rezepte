@@ -49,7 +49,7 @@
 	{@const cell = lifetimeCell(days)}
 	<span class="font-display text-body-lg/none font-semibold">{cell.value}</span>
 	{#if cell.unit}
-		<span class="text-[11px]/none font-semibold {current ? '' : 'text-text-muted'}">
+		<span class="text-label/none font-semibold tracking-normal {current ? '' : 'text-text-muted'}">
 			{cell.unit}
 		</span>
 	{/if}

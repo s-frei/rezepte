@@ -104,6 +104,8 @@
 	   sitting in the sentence. Named for its one caller, the way
 	   --radius-toast is. */
 	--radius-word: 3px;
+	/* The strip of tape that pins `NoteEmptyState`'s note. */
+	--radius-tape: 2px;
 	/* The tap target around a time in cook mode: in em, so the chip keeps its
 	   shape at every type size. */
 	--radius-time: 0.32em;
@@ -277,6 +279,20 @@
 	--text-card-cover--line-height: 1.25;
 	--text-initial-sm: 93px;
 	--text-initial: 150px;
+	/* The initial a photo-less recipe shows in place of its photo
+	   (`PlaceholderTile`), sized to its box: the pass-on ticket's two photo
+	   heights, an overview card, the detail page's cover; and the "R" over
+	   an empty state. */
+	--text-placeholder-xs: 34px;
+	--text-placeholder-sm: 46px;
+	--text-placeholder-empty: 64px;
+	--text-placeholder: 72px;
+	--text-placeholder-lg: 120px;
+	/* An empty state's title (`EmptyState`, `NoteEmptyState` from md). */
+	--text-empty-title: 26px;
+	/* The pass-on ticket's recipe title and the figure on its stub. */
+	--text-ticket-title: 18px;
+	--text-ticket-figure: 28px;
 	--text-heading: 22px;
 	--text-heading--line-height: 1.2;
 	--text-heading-lg: 24px;

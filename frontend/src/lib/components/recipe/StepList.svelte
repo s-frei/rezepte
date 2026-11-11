@@ -23,13 +23,13 @@
 		<li class="flex gap-4">
 			<span
 				aria-hidden="true"
-				class="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-[16px] font-semibold text-accent-foreground"
+				class="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent font-display text-card-sm font-semibold text-accent-foreground"
 			>
 				{index + 1}
 			</span>
 			<!-- A step reads in one sweep: the measure stops near 68 characters
 			     however wide the method column grows. -->
-			<p class="max-w-[68ch] pt-1 text-[16px] leading-[1.6] text-text">
+			<p class="max-w-[68ch] pt-1 text-card-sm leading-[1.6] text-text">
 				<StepText
 					{step}
 					{groups}

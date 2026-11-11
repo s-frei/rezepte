@@ -76,7 +76,9 @@
 		<div class="rounded-2xl bg-surface px-5 pt-[18px] pb-2">
 			{#each recipe.ingredientGroups as group, groupIndex (groupIndex)}
 				{#if group.name}
-					<h3 class="mt-4 mb-1 font-display text-[16px] font-medium text-primary italic first:mt-0">
+					<h3
+						class="mt-4 mb-1 font-display text-card-sm font-medium text-primary italic first:mt-0"
+					>
 						{group.name}
 					</h3>
 				{/if}

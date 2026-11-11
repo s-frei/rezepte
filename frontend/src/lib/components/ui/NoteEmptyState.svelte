@@ -36,7 +36,7 @@
 				alt=""
 				width="320"
 				height="320"
-				class="block aspect-square w-full rounded-[10px] md:rounded-xl"
+				class="block aspect-square w-full rounded-sm md:rounded-xl"
 			/>
 		</div>
 	</div>
@@ -47,7 +47,7 @@
 		<span class="tape" aria-hidden="true"></span>
 		<span class="art-room" aria-hidden="true"></span>
 		<h2
-			class="pb-3 font-display text-[1.375rem] leading-tight font-medium text-balance [hyphenate-limit-chars:6_3_3] min-[360px]:text-2xl md:text-[1.625rem] @max-[12rem]:hyphens-auto"
+			class="pb-3 font-display text-heading leading-tight font-medium text-balance [hyphenate-limit-chars:6_3_3] min-[360px]:text-heading-lg md:text-empty-title @max-[12rem]:hyphens-auto"
 		>
 			{title}
 		</h2>
@@ -145,7 +145,7 @@
 		height: 22px;
 		translate: -50% 0;
 		rotate: 2deg;
-		border-radius: 2px;
+		border-radius: var(--radius-tape);
 		border: 1px solid var(--color-border);
 		background: var(--color-accent);
 		opacity: 0.95;

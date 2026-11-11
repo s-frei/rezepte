@@ -17,11 +17,11 @@
 <div data-empty class="flex flex-col items-center gap-4 px-6 py-16 text-center">
 	<div
 		aria-hidden="true"
-		class="flex size-[120px] items-center justify-center rounded-full bg-accent italic-centered initial-centered font-display text-[64px] font-medium text-primary italic"
+		class="flex size-[120px] items-center justify-center rounded-full bg-accent italic-centered initial-centered font-display text-placeholder-empty font-medium text-primary italic"
 	>
 		R
 	</div>
-	<h2 class="font-display text-[26px] font-medium">{title}</h2>
+	<h2 class="font-display text-empty-title font-medium">{title}</h2>
 	<p class="max-w-sm text-body text-text-muted">{text}</p>
 	<div class="mt-2 flex flex-wrap items-center justify-center gap-3">
 		{@render children()}

@@ -97,7 +97,7 @@
 			{@const groupIndex = part.group}
 			{#if part.heading}
 				<h3
-					class="col-span-full mt-5 mb-2 font-display text-[16px] font-medium text-primary italic {right
+					class="col-span-full mt-5 mb-2 font-display text-card-sm font-medium text-primary italic {right
 						? 'min-[600px]:max-[840px]:first:mt-0'
 						: 'first:mt-0'}"
 				>
@@ -204,7 +204,7 @@
 			></span>
 			<div class="flex w-full items-center gap-4 rounded-b-2xl px-6 pt-4 pb-5">
 				<span class="min-w-0 flex-1">
-					<span class="block font-display text-[17px] font-medium text-primary italic">
+					<span class="block font-display text-body-lg/normal font-medium text-primary italic">
 						{m.ingredients_slip_title()}
 					</span>
 					<span id="{uid}-slip" class="block text-caption text-text-muted">

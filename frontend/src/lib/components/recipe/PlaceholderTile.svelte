@@ -18,8 +18,8 @@
 	} = $props();
 
 	const SIZE_CLASSES = {
-		card: 'text-[72px]',
-		detail: 'text-[120px]'
+		card: 'text-placeholder',
+		detail: 'text-placeholder-lg'
 	} as const;
 
 	const tint = $derived(tintFor(id));
