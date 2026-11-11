@@ -560,7 +560,6 @@
 	"timer_count": "{count} Timer",
 	"timer_expand": "Alle Timer zeigen",
 	"timer_collapse": "Timer einklappen",
-	"timer_open": "Zu {name}",
 	"timer_notify_title": "{recipe} · fertig",
 	"timer_push_unavailable": "Benachrichtigung nur, solange Rezepte offen ist",
 	"push_toast_open": "Öffnen",
