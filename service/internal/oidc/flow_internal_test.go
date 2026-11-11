@@ -19,7 +19,7 @@ import (
 
 func TestFlowCookieSeal(t *testing.T) {
 	l := New(NewSettings(nil, Config{}), nil, nil, nil, false)
-	f := flow{State: "s", Intent: intentLink, UserID: "u1", Expires: time.Now().Add(time.Minute)}
+	f := flow{State: "s", Intent: intentLink, UserID: "u1"}
 
 	if got, ok := l.open(l.seal(f)); !ok || got.UserID != "u1" || got.State != "s" {
 		t.Fatalf("round trip: %+v, %v", got, ok)
@@ -28,7 +28,7 @@ func TestFlowCookieSeal(t *testing.T) {
 	// A payload rewritten to another account keeps its old MAC.
 	sealed := l.seal(f)
 	_, mac, _ := strings.Cut(sealed, ".")
-	forged := flow{State: "s", Intent: intentLink, UserID: "u2", Expires: f.Expires}
+	forged := flow{State: "s", Intent: intentLink, UserID: "u2"}
 	payload, _, _ := strings.Cut(l.seal(forged), ".")
 	if _, ok := l.open(payload + "." + mac); ok {
 		t.Fatal("accepted a payload under another payload's MAC")
@@ -39,9 +39,9 @@ func TestFlowCookieSeal(t *testing.T) {
 		t.Fatal("opened with another key")
 	}
 
-	expired := f
-	expired.Expires = time.Now().Add(-time.Second)
-	if _, ok := l.open(l.seal(expired)); ok {
+	payload, _, _ = strings.Cut(sealed, ".")
+	expired, _ := l.flowSign.Sign(payload, -time.Second)
+	if _, ok := l.open(payload + "." + expired); ok {
 		t.Fatal("accepted an expired flow")
 	}
 

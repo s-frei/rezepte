@@ -42,7 +42,7 @@ The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA fo
     - `internal/recipeimport` – turns a recipe page or pasted text into a draft recipe (see [Recipe import](/features/recipe-import))
     - `internal/transfer` – export and import of recipes between instances as a zip (see [Import and export](/features/import-export))
     - `internal/preview` – what a crawler sees for a recipe link shared from the app (see [Link previews](/features/link-previews))
-    - `internal/sign` – short, stateless HMAC tokens with an expiry, used by `preview`, `recipeimport`, `notify` (unsubscribe links), `image` (upload links) and `auth` (the device's accounts cookie)
+    - `internal/sign` – short, stateless HMAC tokens with an expiry, used by `preview`, `recipeimport`, `notify` (unsubscribe links), `image` (upload links), `auth` (the device's accounts cookie) and `oidc` (the flow cookie)
     - `internal/mcpserver` – the MCP endpoint at `/mcp`, its tools calling the same services as the HTTP handlers (see [MCP server](/features/mcp))
     - `internal/i18n` – the set of interface languages, read from `locales.json` (see [Languages](/features/languages))
     - `internal/demo` – seeds the sample recipes with their embedded photos through those services for `--demo`, with generated placeholders only for a sample set that has no photos (see [Demo mode](/features/demo-mode))

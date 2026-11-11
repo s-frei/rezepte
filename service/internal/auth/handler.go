@@ -161,11 +161,6 @@ type redeemSetupInput struct {
 	Body     SetupRedemption
 }
 
-type redeemSetupOutput struct {
-	SetCookie []http.Cookie `header:"Set-Cookie"`
-	Body      UserResponse
-}
-
 // Register installs the login, logout, me and change-password operations.
 // Login, logout and redeeming a setup link keep the device's other accounts
 // in the accounts cookie device writes (see RegisterDevice).
@@ -202,18 +197,11 @@ func Register(api huma.API, svc *Service, device *Device, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
-		accounts, err := device.SignedIn(ctx, svc, in.Session, device.Parse(in.Accounts), DeviceEntry{UserID: sess.User.ID, Token: sess.Token}, secureCookies)
+		cookies, err := device.SignInCookies(ctx, svc, in.Session, device.Parse(in.Accounts), sess, secureCookies)
 		if err != nil {
 			return nil, err
 		}
-		return &loginOutput{
-			SetCookie: []http.Cookie{
-				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
-				LocaleCookie(sess.User.Locale, secureCookies),
-				accounts,
-			},
-			Body: respond(ctx, svc, sess.User),
-		}, nil
+		return &loginOutput{SetCookie: cookies, Body: respond(ctx, svc, sess.User)}, nil
 	})
 	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/login", http.StatusTooManyRequests, http.StatusServiceUnavailable)
 
@@ -381,7 +369,7 @@ func Register(api huma.API, svc *Service, device *Device, secureCookies bool) {
 		Summary:     "Set a password through a setup link and sign in",
 		Tags:        []string{"auth"},
 		Errors:      []int{404, 422, 503},
-	}, func(ctx context.Context, in *redeemSetupInput) (*redeemSetupOutput, error) {
+	}, func(ctx context.Context, in *redeemSetupInput) (*loginOutput, error) {
 		sess, err := svc.RedeemWithPassword(ctx, in.Body.Token, in.Body.Password)
 		if errors.Is(err, ErrNoSetupLink) {
 			return nil, huma.Error404NotFound("setup link not found or expired")
@@ -392,18 +380,11 @@ func Register(api huma.API, svc *Service, device *Device, secureCookies bool) {
 		if err != nil {
 			return nil, err
 		}
-		accounts, err := device.SignedIn(ctx, svc, in.Session, device.Parse(in.Accounts), DeviceEntry{UserID: sess.User.ID, Token: sess.Token}, secureCookies)
+		cookies, err := device.SignInCookies(ctx, svc, in.Session, device.Parse(in.Accounts), sess, secureCookies)
 		if err != nil {
 			return nil, err
 		}
-		return &redeemSetupOutput{
-			SetCookie: []http.Cookie{
-				SessionCookie(sess.Token, sess.ExpiresAt, secureCookies),
-				LocaleCookie(sess.User.Locale, secureCookies),
-				accounts,
-			},
-			Body: respond(ctx, svc, sess.User),
-		}, nil
+		return &loginOutput{SetCookie: cookies, Body: respond(ctx, svc, sess.User)}, nil
 	})
 	DeclareRetryAfter(api, http.MethodPost, "/api/v1/auth/setup/password", http.StatusServiceUnavailable)
 

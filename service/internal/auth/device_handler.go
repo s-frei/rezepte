@@ -136,18 +136,11 @@ func RegisterDevice(api huma.API, svc *Service, device *Device, secureCookies bo
 		if v.User.ID != entries[i].UserID {
 			return nil, huma.Error404NotFound("account not on this device")
 		}
-		accounts, err := device.SignedIn(ctx, svc, in.Session, entries, entries[i], secureCookies)
+		cookies, err := device.SignInCookies(ctx, svc, in.Session, entries, Session{Token: entries[i].Token, ExpiresAt: v.ExpiresAt, User: v.User}, secureCookies)
 		if err != nil {
 			return nil, err
 		}
-		return &loginOutput{
-			SetCookie: []http.Cookie{
-				SessionCookie(entries[i].Token, v.ExpiresAt, secureCookies),
-				LocaleCookie(v.User.Locale, secureCookies),
-				accounts,
-			},
-			Body: respond(ctx, svc, v.User),
-		}, nil
+		return &loginOutput{SetCookie: cookies, Body: respond(ctx, svc, v.User)}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -214,6 +207,16 @@ func (d *Device) SignedIn(ctx context.Context, svc *Service, session string, ent
 		return http.Cookie{}, err
 	}
 	return d.Cookie(next, secure), nil
+}
+
+// SignInCookies are the cookies every sign-in sets: sess's session, its
+// user's locale and the accounts cookie SignedIn writes with sess active.
+func (d *Device) SignInCookies(ctx context.Context, svc *Service, session string, entries []DeviceEntry, sess Session, secure bool) ([]http.Cookie, error) {
+	accounts, err := d.SignedIn(ctx, svc, session, entries, DeviceEntry{UserID: sess.User.ID, Token: sess.Token}, secure)
+	if err != nil {
+		return nil, err
+	}
+	return []http.Cookie{SessionCookie(sess.Token, sess.ExpiresAt, secure), LocaleCookie(sess.User.Locale, secure), accounts}, nil
 }
 
 // endDropped ends the session of every token in before that after no

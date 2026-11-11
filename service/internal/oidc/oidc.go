@@ -5,9 +5,7 @@ package oidc
 
 import (
 	"context"
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
@@ -25,6 +23,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/mail"
+	"github.com/s-frei/rezepte/service/internal/sign"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
@@ -39,14 +38,14 @@ type Config struct {
 // Login runs the authorization code flow against the provider in force,
 // which it asks settings for on every request.
 type Login struct {
-	settings  *Settings
-	sessions  *auth.Service
-	users     *user.Service
-	device    *auth.Device
-	secure    bool
-	cookieKey []byte // HMAC key for the flow cookie, per process
-	client    *http.Client
-	logger    *slog.Logger
+	settings *Settings
+	sessions *auth.Service
+	users    *user.Service
+	device   *auth.Device
+	secure   bool
+	flowSign *sign.Signer // signs the flow cookie, under a key per process
+	client   *http.Client
+	logger   *slog.Logger
 
 	mu             sync.Mutex
 	provider       *gooidc.Provider // discovered lazily; nil until the first success
@@ -79,8 +78,7 @@ type flow struct {
 	UserID string `json:",omitempty"` // intent link: who started it
 	// Setup is the setup link's hash (auth.SetupLinkHash), enough to peek
 	// and consume the link at the end; the raw token never enters the cookie.
-	Setup   string `json:",omitempty"`
-	Expires time.Time
+	Setup string `json:",omitempty"`
 }
 
 // New returns a Login for the provider settings resolve, also while there is
@@ -92,7 +90,7 @@ func New(settings *Settings, sessions *auth.Service, users *user.Service, device
 	key := make([]byte, 32)
 	_, _ = rand.Read(key)
 	return &Login{
-		settings: settings, sessions: sessions, users: users, device: device, secure: secureCookies, cookieKey: key,
+		settings: settings, sessions: sessions, users: users, device: device, secure: secureCookies, flowSign: sign.New(key, "rezepte oidc flow"),
 		client: &http.Client{Timeout: 10 * time.Second},
 		logger: slog.Default(),
 	}
@@ -180,7 +178,6 @@ func (l *Login) start(cfg Config, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.State, f.Nonce, f.Verifier = rand.Text(), rand.Text(), oauth2.GenerateVerifier()
-	f.Expires = time.Now().Add(flowTTL)
 	opts := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(f.Verifier), gooidc.Nonce(f.Nonce)}
 	// Someone signs in on a device someone else uses - on top of a valid
 	// session, or after a sign-out that left people on the device - whom a
@@ -401,16 +398,14 @@ func (l *Login) signIn(w http.ResponseWriter, r *http.Request, intent string, u 
 		return false
 	}
 	entries := l.device.Parse(cookie(r, auth.AccountsCookieName))
-	ac, err := l.device.SignedIn(ctx, l.sessions, cookie(r, auth.CookieName), entries, auth.DeviceEntry{UserID: u.ID, Token: sess.Token}, l.secure)
+	cookies, err := l.device.SignInCookies(ctx, l.sessions, cookie(r, auth.CookieName), entries, sess, l.secure)
 	if err != nil {
 		l.fail(w, r, intent, "hand over the device's accounts", err)
 		return false
 	}
-	sc := auth.SessionCookie(sess.Token, sess.ExpiresAt, l.secure)
-	lc := auth.LocaleCookie(u.Locale, l.secure)
-	http.SetCookie(w, &sc)
-	http.SetCookie(w, &lc)
-	http.SetCookie(w, &ac)
+	for _, c := range cookies {
+		http.SetCookie(w, &c)
+	}
 	return true
 }
 
@@ -441,34 +436,30 @@ func (l *Login) flowCookie(value string, maxAge int) http.Cookie {
 	}
 }
 
-// seal encodes f as payload.mac, both base64url.
+// seal encodes f as payload.token: the JSON in base64url and its sign token,
+// which carries the expiry.
 func (l *Login) seal(f flow) string {
-	payload, _ := json.Marshal(f)
-	return base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(l.mac(payload))
+	raw, _ := json.Marshal(f)
+	payload := base64.RawURLEncoding.EncodeToString(raw)
+	token, _ := l.flowSign.Sign(payload, flowTTL)
+	return payload + "." + token
 }
 
-// open verifies and decodes a sealed flow; a bad MAC or a passed expiry fail.
+// open verifies and decodes a sealed flow; a bad token or a passed expiry fail.
 func (l *Login) open(value string) (flow, bool) {
-	p, m, ok := strings.Cut(value, ".")
-	if !ok {
+	payload, token, ok := strings.Cut(value, ".")
+	if !ok || !l.flowSign.Verify(payload, token) {
 		return flow{}, false
 	}
-	payload, err1 := base64.RawURLEncoding.DecodeString(p)
-	mac, err2 := base64.RawURLEncoding.DecodeString(m)
-	if err1 != nil || err2 != nil || !hmac.Equal(mac, l.mac(payload)) {
+	raw, err := base64.RawURLEncoding.DecodeString(payload)
+	if err != nil {
 		return flow{}, false
 	}
 	var f flow
-	if err := json.Unmarshal(payload, &f); err != nil || !time.Now().Before(f.Expires) {
+	if err := json.Unmarshal(raw, &f); err != nil {
 		return flow{}, false
 	}
 	return f, true
-}
-
-func (l *Login) mac(payload []byte) []byte {
-	h := hmac.New(sha256.New, l.cookieKey)
-	h.Write(payload)
-	return h.Sum(nil)
 }
 
 // safeNext keeps a post-login target only when it is a path on this origin,
