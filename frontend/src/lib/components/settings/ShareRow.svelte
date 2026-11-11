@@ -69,7 +69,7 @@
 >
 	<span
 		aria-hidden="true"
-		class="absolute top-6 left-2.5 size-3 rounded-full bg-background shadow-inner md:left-3.5"
+		class="absolute top-6 left-2.5 size-3 rounded-full bg-background inset-shadow-hole md:left-3.5"
 	></span>
 
 	<div class="min-w-0 {dormant ? 'opacity-60' : ''}">

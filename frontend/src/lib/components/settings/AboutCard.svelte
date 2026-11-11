@@ -14,7 +14,7 @@
 	});
 
 	const link =
-		'inline-flex min-h-10 max-w-full min-w-0 flex-auto items-center justify-center gap-2 rounded-[1.25rem] border border-border bg-surface-elevated px-4 py-2 text-center text-body-sm font-semibold wrap-break-word hyphens-auto transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+		'inline-flex min-h-10 max-w-full min-w-0 flex-auto items-center justify-center gap-2 rounded-2xl border border-border bg-surface-elevated px-4 py-2 text-center text-body-sm font-semibold wrap-break-word hyphens-auto transition hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 </script>
 
 <!--

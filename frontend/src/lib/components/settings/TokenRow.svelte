@@ -64,7 +64,7 @@
 >
 	<span
 		aria-hidden="true"
-		class="absolute top-6 left-2.5 size-3 rounded-full bg-background shadow-inner md:left-3.5"
+		class="absolute top-6 left-2.5 size-3 rounded-full bg-background inset-shadow-hole md:left-3.5"
 	></span>
 
 	<!-- On a phone "Revoke" moves below the plaques, so the name keeps the

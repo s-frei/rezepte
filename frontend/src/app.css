@@ -12,6 +12,9 @@
 	   Plain Literata stays in the stack for a system install. */
 	--font-display: 'Literata Variable', Literata, Georgia, serif;
 	--font-sans: 'Karla', system-ui, sans-serif;
+	/* Token prefixes, addresses and setup links: the system's own monospace,
+	   no web font for a few short strings. */
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
 
 	--color-background: #f4ede2;
 	--color-surface: #fdf9f2;
@@ -120,6 +123,9 @@
 	--shadow-dialog: 0 24px 60px -24px rgb(80 50 20 / 0.4);
 	--shadow-sheet: 0 -12px 40px -20px rgb(80 50 20 / 0.4);
 	--shadow-cta: 0 8px 20px -8px rgb(180 83 9 / 0.5);
+	/* The punched hole of a key tag (token and share rows): warm, like
+	   every shadow here, where Tailwind's shadow-inner is black. */
+	--inset-shadow-hole: inset 0 2px 4px rgb(80 50 20 / 0.12);
 	/* A recipe card picked up off the table: shadow-card, lifted further. */
 	--shadow-lift: 0 2px 4px rgb(80 50 20 / 0.06), 0 18px 36px -14px rgb(80 50 20 / 0.32);
 	/* shadow-lift as a filter, for a shape with holes cut out of it (the
