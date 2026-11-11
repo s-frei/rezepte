@@ -306,7 +306,11 @@
 			animation: pop 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) both;
 		}
 		/* A hovered or focused card rises above the pile's order. */
-		.slot:hover,
+		@media (hover: hover) {
+			.slot:hover {
+				z-index: 101 !important;
+			}
+		}
 		.slot:has(:global(:focus-visible)) {
 			z-index: 101 !important;
 		}

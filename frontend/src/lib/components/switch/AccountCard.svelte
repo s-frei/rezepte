@@ -166,23 +166,25 @@
 		.shine {
 			transition: opacity 0.3s;
 		}
-		.card:not(.editing):hover {
-			translate: 0 -2px;
-		}
-		.card:not(.editing):hover .avatar {
-			translate: var(--px, 0) var(--py, 0);
-		}
-		.card:not(.editing):hover .label {
-			translate: calc(var(--px, 0px) / 2) calc(var(--py, 0px) / 2);
-		}
-		.card:not(.editing):hover .shine {
-			opacity: 1;
+		@media (hover: hover) {
+			.card:not(.editing):hover {
+				translate: 0 -2px;
+			}
+			.card:not(.editing):hover .avatar {
+				translate: var(--px, 0) var(--py, 0);
+			}
+			.card:not(.editing):hover .label {
+				translate: calc(var(--px, 0px) / 2) calc(var(--py, 0px) / 2);
+			}
+			.card:not(.editing):hover .shine {
+				opacity: 1;
+			}
+			.card.expired:hover :global(.key) {
+				animation: jiggle 0.5s ease-in-out;
+			}
 		}
 		.card:not(.editing):active {
 			scale: 0.985;
-		}
-		.card.expired:hover :global(.key) {
-			animation: jiggle 0.5s ease-in-out;
 		}
 		.card.editing:not(.current) {
 			animation: wobble 0.45s ease-in-out;
