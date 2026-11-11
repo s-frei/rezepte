@@ -1,22 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import {
-		getSettings,
-		updateSettings,
-		type PreviewLifetime,
-		type Settings
-	} from '#lib/api/settings.js';
+	import { updateSettings, type PreviewLifetime, type Settings } from '#lib/api/settings.js';
 	import { session } from '#lib/auth.svelte.js';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
-	import Switch from '#lib/components/ui/Switch.svelte';
 	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import SettingsCard from './SettingsCard.svelte';
+	import SwitchRow from './SwitchRow.svelte';
 
-	let { ownerName }: { ownerName: string } = $props();
+	let { ownerName, settings }: { ownerName: string; settings: Settings | null } = $props();
 
 	const isOwner = $derived(session.user?.role === 'superadmin');
-	let current = $state<Pick<Settings, 'linkPreviews' | 'linkPreviewMinutes'> | null>(null);
+	const pick = (s: Settings) => ({
+		linkPreviews: s.linkPreviews,
+		linkPreviewMinutes: s.linkPreviewMinutes
+	});
+	let current = $derived(settings && pick(settings));
 
 	const lifetimes: Record<PreviewLifetime, () => string> = {
 		15: m.settings_link_previews_15,
@@ -27,15 +26,6 @@
 		value: String(value) as `${PreviewLifetime}`,
 		label: lifetimes[value]()
 	}));
-
-	onMount(async () => {
-		try {
-			const s = await getSettings();
-			current = { linkPreviews: s.linkPreviews, linkPreviewMinutes: s.linkPreviewMinutes };
-		} catch {
-			current = null;
-		}
-	});
 
 	// Applies on change, like the editing switch; the card ends on the value
 	// the server holds, so a failed write snaps back (see `optimistic`).
@@ -48,7 +38,7 @@
 			const { latest } = await send(
 				current && { ...current, ...patch },
 				() => updateSettings(patch),
-				(s) => ({ linkPreviews: s.linkPreviews, linkPreviewMinutes: s.linkPreviewMinutes })
+				pick
 			);
 			if (latest) toast.success(m.settings_link_previews_saved());
 		} catch {
@@ -57,25 +47,15 @@
 	}
 </script>
 
-<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-link-previews">
-	<h2 id="settings-link-previews" class="mb-4 font-display text-heading font-medium">
-		{m.settings_link_previews_title()}
-	</h2>
+<SettingsCard title={m.settings_link_previews_title()}>
 	{#if current !== null}
 		{#if isOwner}
-			<div class="flex items-start justify-between gap-4">
-				<div class="min-w-0">
-					<p class="text-body font-semibold">{m.settings_link_previews_switch()}</p>
-					<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
-						{m.settings_link_previews_hint()}
-					</p>
-				</div>
-				<Switch
-					checked={current.linkPreviews}
-					label={m.settings_link_previews_switch()}
-					onchange={(on) => save({ linkPreviews: on })}
-				/>
-			</div>
+			<SwitchRow
+				title={m.settings_link_previews_switch()}
+				hint={m.settings_link_previews_hint()}
+				checked={current.linkPreviews}
+				onchange={(on) => save({ linkPreviews: on })}
+			/>
 			{#if current.linkPreviews}
 				<p class="mt-5 mb-3 text-body-sm text-text-muted">{m.settings_link_previews_lifetime()}</p>
 				<SegmentedControl
@@ -97,4 +77,4 @@
 			</p>
 		{/if}
 	{/if}
-</section>
+</SettingsCard>

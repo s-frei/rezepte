@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { getSettings, updateSettings, type Settings } from '#lib/api/settings.js';
+	import { updateSettings, type Settings } from '#lib/api/settings.js';
 	import { session } from '#lib/auth.svelte.js';
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
-	import Switch from '#lib/components/ui/Switch.svelte';
 	import {
 		lifetimeFromKey,
 		lifetimeKey,
@@ -14,18 +12,20 @@
 	} from '#lib/recipe/lifetimes.js';
 	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import SettingsCard from './SettingsCard.svelte';
+	import SwitchRow from './SwitchRow.svelte';
 
-	let { ownerName }: { ownerName: string } = $props();
+	let { ownerName, settings }: { ownerName: string; settings: Settings | null } = $props();
 
 	const isOwner = $derived(session.user?.role === 'superadmin');
-	let current = $state<Pick<
-		Settings,
-		| 'publicShares'
-		| 'publicShareDefaultDays'
-		| 'publicShareMaxDays'
-		| 'publicShareAttribution'
-		| 'publicShareSharer'
-	> | null>(null);
+	const pick = (s: Settings) => ({
+		publicShares: s.publicShares,
+		publicShareDefaultDays: s.publicShareDefaultDays,
+		publicShareMaxDays: s.publicShareMaxDays,
+		publicShareAttribution: s.publicShareAttribution,
+		publicShareSharer: s.publicShareSharer
+	});
+	let current = $derived(settings && pick(settings));
 
 	// The maximum offers all five lifetimes; the default is capped at
 	// whatever the maximum currently is, so it can never name a lifetime the
@@ -69,21 +69,6 @@
 		if (!open) switchKey++;
 	}
 
-	onMount(async () => {
-		try {
-			const s = await getSettings();
-			current = {
-				publicShares: s.publicShares,
-				publicShareDefaultDays: s.publicShareDefaultDays,
-				publicShareMaxDays: s.publicShareMaxDays,
-				publicShareAttribution: s.publicShareAttribution,
-				publicShareSharer: s.publicShareSharer
-			};
-		} catch {
-			current = null;
-		}
-	});
-
 	// Applies on change, like the other switches here: the switch flips at
 	// once, and a lifetime select already shows its own new pick through its
 	// own two-way binding. Sends only the field that changed and shows the
@@ -99,13 +84,7 @@
 			const { latest } = await send(
 				current && { ...current, ...patch },
 				() => updateSettings(patch),
-				(s) => ({
-					publicShares: s.publicShares,
-					publicShareDefaultDays: s.publicShareDefaultDays,
-					publicShareMaxDays: s.publicShareMaxDays,
-					publicShareAttribution: s.publicShareAttribution,
-					publicShareSharer: s.publicShareSharer
-				})
+				pick
 			);
 			if (latest) toast.success(m.settings_public_sharing_saved());
 		} catch {
@@ -114,27 +93,17 @@
 	}
 </script>
 
-<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-public-sharing">
-	<h2 id="settings-public-sharing" class="mb-4 font-display text-heading font-medium">
-		{m.settings_public_sharing_title()}
-	</h2>
+<SettingsCard title={m.settings_public_sharing_title()}>
 	{#if current !== null}
 		{#if isOwner}
-			<div class="flex items-start justify-between gap-4">
-				<div class="min-w-0">
-					<p class="text-body font-semibold">{m.settings_public_sharing_switch()}</p>
-					<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
-						{m.settings_public_sharing_hint()}
-					</p>
-				</div>
-				{#key switchKey}
-					<Switch
-						checked={current.publicShares}
-						label={m.settings_public_sharing_switch()}
-						onchange={flip}
-					/>
-				{/key}
-			</div>
+			{#key switchKey}
+				<SwitchRow
+					title={m.settings_public_sharing_switch()}
+					hint={m.settings_public_sharing_hint()}
+					checked={current.publicShares}
+					onchange={flip}
+				/>
+			{/key}
 			{#if current.publicShares}
 				<div class="mt-5 flex flex-col gap-4 sm:flex-row sm:gap-6">
 					<div class="min-w-0 flex-1">
@@ -161,32 +130,20 @@
 					</div>
 				</div>
 			{/if}
-			<div class="mt-5 flex items-start justify-between gap-4 border-t border-border pt-5">
-				<div class="min-w-0">
-					<p class="text-body font-semibold">{m.settings_public_sharing_attribution()}</p>
-					<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
-						{m.settings_public_sharing_attribution_hint()}
-					</p>
-				</div>
-				<Switch
-					checked={current.publicShareAttribution}
-					label={m.settings_public_sharing_attribution()}
-					onchange={(on) => save({ publicShareAttribution: on })}
-				/>
-			</div>
-			<div class="mt-5 flex items-start justify-between gap-4 border-t border-border pt-5">
-				<div class="min-w-0">
-					<p class="text-body font-semibold">{m.settings_public_sharing_sharer()}</p>
-					<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
-						{m.settings_public_sharing_sharer_hint()}
-					</p>
-				</div>
-				<Switch
-					checked={current.publicShareSharer}
-					label={m.settings_public_sharing_sharer()}
-					onchange={(on) => save({ publicShareSharer: on })}
-				/>
-			</div>
+			<SwitchRow
+				class="mt-5 border-t border-border pt-5"
+				title={m.settings_public_sharing_attribution()}
+				hint={m.settings_public_sharing_attribution_hint()}
+				checked={current.publicShareAttribution}
+				onchange={(on) => save({ publicShareAttribution: on })}
+			/>
+			<SwitchRow
+				class="mt-5 border-t border-border pt-5"
+				title={m.settings_public_sharing_sharer()}
+				hint={m.settings_public_sharing_sharer_hint()}
+				checked={current.publicShareSharer}
+				onchange={(on) => save({ publicShareSharer: on })}
+			/>
 		{:else if ownerName}
 			<!-- Waits for the members list: without it the sentence has no one to name. -->
 			<p class="max-w-[60ch] text-body-sm text-text-muted">
@@ -199,7 +156,7 @@
 			</p>
 		{/if}
 	{/if}
-</section>
+</SettingsCard>
 
 <ConfirmDialog
 	bind:open={() => confirmOpen, setConfirmOpen}

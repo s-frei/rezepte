@@ -1,26 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import { toast } from 'svelte-sonner';
-	import { getSettings, setRecipesLockedByDefault } from '#lib/api/settings.js';
+	import { setRecipesLockedByDefault, type Settings } from '#lib/api/settings.js';
 	import { session } from '#lib/auth.svelte.js';
-	import Switch from '#lib/components/ui/Switch.svelte';
 	import { USER_GUIDE_URL } from '#lib/docs.js';
 	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import SettingsCard from './SettingsCard.svelte';
+	import SwitchRow from './SwitchRow.svelte';
 
-	let { ownerName }: { ownerName: string } = $props();
+	let { ownerName, settings }: { ownerName: string; settings: Settings | null } = $props();
 
 	const isOwner = $derived(session.user?.role === 'superadmin');
-	let locked = $state<boolean | null>(null);
-
-	onMount(async () => {
-		try {
-			locked = (await getSettings()).recipesLockedByDefault;
-		} catch {
-			locked = null;
-		}
-	});
+	let locked = $derived(settings?.recipesLockedByDefault ?? null);
 
 	// Applies on flip, like theme and language; the switch ends on the value
 	// the server holds, so a failed write snaps back (see `optimistic`).
@@ -47,21 +39,15 @@
 	}
 </script>
 
-<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-recipe-editing">
-	<h2 id="settings-recipe-editing" class="mb-4 font-display text-heading font-medium">
-		{m.settings_recipe_editing_title()}
-	</h2>
+<SettingsCard title={m.settings_recipe_editing_title()}>
 	{#if locked !== null}
 		{#if isOwner}
-			<div class="flex items-start justify-between gap-4">
-				<div class="min-w-0">
-					<p class="text-body font-semibold">{m.settings_recipe_editing_switch()}</p>
-					<p class="mt-1 max-w-[60ch] text-caption text-text-muted">
-						{m.settings_recipe_editing_hint()}
-					</p>
-				</div>
-				<Switch checked={locked} label={m.settings_recipe_editing_switch()} onchange={change} />
-			</div>
+			<SwitchRow
+				title={m.settings_recipe_editing_switch()}
+				hint={m.settings_recipe_editing_hint()}
+				checked={locked}
+				onchange={change}
+			/>
 		{:else if ownerName}
 			<!-- Waits for the people list: without it the sentence has no one to name. -->
 			<p class="max-w-[60ch] text-body-sm text-text-muted">
@@ -89,4 +75,4 @@
 		<span class="sr-only">({m.settings_help_new_tab()})</span>
 	</a>
 	<!-- eslint-enable svelte/no-navigation-without-resolve -->
-</section>
+</SettingsCard>

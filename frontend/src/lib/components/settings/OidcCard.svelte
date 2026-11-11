@@ -8,6 +8,7 @@
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import SettingsCard from './SettingsCard.svelte';
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { providerName, turnOffWarning } from '#lib/settings/sign-in.js';
 	import ConnectedAccounts from './ConnectedAccounts.svelte';
@@ -67,11 +68,7 @@
 	}
 </script>
 
-<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-sign-in">
-	<h2 id="settings-sign-in" class="font-display text-heading font-medium">
-		{m.settings_nav_sign_in()}
-	</h2>
-	<p class="mt-1 mb-4 max-w-[60ch] text-caption text-text-muted">{m.settings_sign_in_intro()}</p>
+<SettingsCard title={m.settings_nav_sign_in()} intro={m.settings_sign_in_intro()}>
 	{#if loadFailed}
 		<p class="text-body-sm text-text-muted">{m.settings_sign_in_load_error()}</p>
 	{:else if !current}
@@ -143,7 +140,7 @@
 			</div>
 		{/if}
 	{/if}
-</section>
+</SettingsCard>
 
 {#if current}
 	<OidcSettingsDialog bind:open={editOpen} {current} onsaved={(next) => (current = next)} />

@@ -4,7 +4,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import { isSignedOut } from '#lib/api/client.js';
 	import { getOidc } from '#lib/api/oidc.js';
-	import { getSettings } from '#lib/api/settings.js';
+	import { getSettings, type Settings } from '#lib/api/settings.js';
 	import {
 		listPeople,
 		listUsers,
@@ -40,7 +40,11 @@
 	// new account starts with; everything else happens on the person's page.
 	let setup = $state<Record<string, UserAccount>>({});
 	let provider = $state<string | undefined>(undefined);
-	let mailEnabled = $state(false);
+	// Fetched once for the household cards below and the mail-aware dialogs.
+	let settings = $state<Settings | null>(null);
+	// Advisory like the provider: unknown means the dialogs work as without mail.
+	const mailEnabled = $derived(settings?.mailEnabled ?? false);
+	const ownerName = $derived(users.find((u) => u.role === 'superadmin')?.displayName ?? '');
 	let setupLinkOpen = $state(false);
 	let setupLinkInfo = $state<SetupLinkInfo | null>(null);
 	let setupLinkName = $state('');
@@ -74,18 +78,11 @@
 			getOidc()
 				.then((info) => (provider = info.enabled ? info.name : undefined))
 				.catch(() => {});
-			void loadMailEnabled();
+			getSettings()
+				.then((s) => (settings = s))
+				.catch(() => {});
 		}
 	});
-
-	// Advisory like the provider: unknown means the dialogs work as without mail.
-	async function loadMailEnabled() {
-		try {
-			mailEnabled = (await getSettings()).mailEnabled;
-		} catch {
-			mailEnabled = false;
-		}
-	}
 
 	function userCreated(user: UserAccount, setupLink: SetupLinkInfo | null) {
 		rows.play(() => (users = [...users, user]));
@@ -157,9 +154,9 @@
 		{/if}
 	</section>
 	{#if isAdmin}
-		<RecipeEditingCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
-		<LinkPreviewsCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
-		<PublicSharingCard ownerName={users.find((u) => u.role === 'superadmin')?.displayName ?? ''} />
+		<RecipeEditingCard {ownerName} {settings} />
+		<LinkPreviewsCard {ownerName} {settings} />
+		<PublicSharingCard {ownerName} {settings} />
 	{/if}
 </SettingsLayout>
 

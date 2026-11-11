@@ -30,6 +30,7 @@
 	import Switch from '#lib/components/ui/Switch.svelte';
 	import { optimistic } from '#lib/optimistic.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import SettingsCard from './SettingsCard.svelte';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 
 	let {
@@ -49,6 +50,23 @@
 
 	const address = $derived(session.user?.email ?? '');
 	const verified = $derived(Boolean(address) && Boolean(session.user?.emailVerified));
+	// The profile's address as the mail box words it: missing, unconfirmed or confirmed.
+	const addressState = $derived(
+		!address
+			? {
+					hint: m.settings_notifications_address_none_hint(),
+					label: m.settings_notifications_add_in_profile()
+				}
+			: !verified
+				? {
+						hint: m.settings_notifications_address_unconfirmed(),
+						label: m.settings_notifications_confirm_in_profile()
+					}
+				: {
+						hint: m.settings_notifications_address_confirmed(),
+						label: m.settings_notifications_change_in_profile()
+					}
+	);
 	const isOwner = $derived(session.user?.role === 'superadmin');
 	const device = $derived(deviceState());
 	let testSent = $state(false);
@@ -233,42 +251,16 @@
 			hint={m.settings_notifications_mail_off()}
 			action={isOwner ? setUpMail : undefined}
 		/>
-	{:else if !address}
-		<StatusBox
-			icon={MailWarning}
-			tone="warn"
-			title={m.settings_notifications_address_none()}
-			hint={m.settings_notifications_address_none_hint()}
-		>
-			{#snippet action()}
-				<Button size="sm" href={resolve('/settings')}>
-					<Mail class="size-4" aria-hidden="true" />{m.settings_notifications_add_in_profile()}
-				</Button>
-			{/snippet}
-		</StatusBox>
-	{:else if !verified}
-		<StatusBox
-			icon={MailWarning}
-			tone="warn"
-			title={address}
-			hint={m.settings_notifications_address_unconfirmed()}
-		>
-			{#snippet action()}
-				<Button size="sm" href={resolve('/settings')}>
-					<Mail class="size-4" aria-hidden="true" />{m.settings_notifications_confirm_in_profile()}
-				</Button>
-			{/snippet}
-		</StatusBox>
 	{:else}
 		<StatusBox
-			icon={MailCheck}
-			tone="good"
-			title={address}
-			hint={m.settings_notifications_address_confirmed()}
+			icon={verified ? MailCheck : MailWarning}
+			tone={verified ? 'good' : 'warn'}
+			title={address || m.settings_notifications_address_none()}
+			hint={addressState.hint}
 		>
 			{#snippet action()}
-				<Button size="sm" variant="secondary" href={resolve('/settings')}>
-					{m.settings_notifications_change_in_profile()}
+				<Button size="sm" variant={verified ? 'secondary' : 'primary'} href={resolve('/settings')}>
+					{#if !verified}<Mail class="size-4" aria-hidden="true" />{/if}{addressState.label}
 				</Button>
 			{/snippet}
 		</StatusBox>
@@ -321,10 +313,7 @@
 	{/if}
 {/snippet}
 
-<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-notifications">
-	<h2 id="settings-notifications" class="mb-4 font-display text-heading font-medium">
-		{m.settings_nav_notifications()}
-	</h2>
+<SettingsCard title={m.settings_nav_notifications()}>
 	{#if prefs === null}
 		<p class="mb-4 text-body-sm text-text-muted">{m.settings_notifications_load_error()}</p>
 	{/if}
@@ -441,4 +430,4 @@
 			/>
 		</div>
 	{/if}
-</section>
+</SettingsCard>

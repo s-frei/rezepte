@@ -7,6 +7,7 @@
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import SettingsCard from './SettingsCard.svelte';
 	import Letterhead, { type LetterheadLine } from './Letterhead.svelte';
 	import MailSettingsDialog from './MailSettingsDialog.svelte';
 	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';
@@ -81,11 +82,7 @@
 	}
 </script>
 
-<section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="settings-mail">
-	<h2 id="settings-mail" class="font-display text-heading font-medium">
-		{m.settings_nav_mail()}
-	</h2>
-	<p class="mt-1 mb-4 max-w-[60ch] text-caption text-text-muted">{m.settings_mail_intro()}</p>
+<SettingsCard title={m.settings_nav_mail()} intro={m.settings_mail_intro()}>
 	{#if loadFailed}
 		<p class="text-body-sm text-text-muted">{m.settings_mail_load_error()}</p>
 	{:else if !current}
@@ -133,7 +130,7 @@
 			{/if}
 		{/if}
 	{/if}
-</section>
+</SettingsCard>
 
 {#if current}
 	<MailSettingsDialog bind:open={editOpen} {current} onsaved={saved} />
