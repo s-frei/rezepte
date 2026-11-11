@@ -224,7 +224,7 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 **Buttons and fields**
 
 - **`Button`** (`Button.Root`, or an `<a>` with `href`) - variants primary, secondary, accent, ghost, quiet (a settings row's control), destructive, destructive-quiet (a danger row's pill). **Focus-visible everywhere is a `primary` outline, text fields included**; only `Input`'s `floating` field keeps its own ring. `busy` marks a request still out with `aria-busy`, never `disabled`, which dimmed the one thing working; the caller ignores a second press.
-- **`IconButton`** - a circle named by `label`. Its default `bg-surface` steps aside when the caller passes a `bg-*` class: there is no tailwind-merge, so CSS source order would otherwise decide.
+- **`IconButton`** - a circle named by `label`, a link with `href`; a menu trigger that cannot be one takes its `iconCircle` class. Its default `bg-surface` steps aside when the caller passes a `bg-*` class: there is no tailwind-merge, so CSS source order would otherwise decide.
 - **`ShareButton`** - the one share button of a page's head; its glyph is nudged left because the icon's ink sits right of its box.
 - **`Input` / `Textarea`** - the field rules:
   - `counter` counts **code points**, not `.length`, so it agrees with the server's rune limit; it is `aria-hidden` and at the limit goes semibold, never `destructive`: a full field is valid.

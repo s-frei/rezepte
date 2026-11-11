@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
@@ -44,7 +45,7 @@
 	<!-- Round and outlined like the list header's ⋯, so it reads as a button where "remove" lives. -->
 	<DropdownMenu.Trigger
 		aria-label={m.list_entry_menu({ title: entry.title })}
-		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
+		class="{iconCircle} bg-surface text-text"
 	>
 		<Ellipsis class="size-5" aria-hidden="true" />
 	</DropdownMenu.Trigger>

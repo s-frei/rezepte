@@ -1,9 +1,16 @@
+<script lang="ts" module>
+	/** The circle itself, for a menu trigger that cannot be an `IconButton`; the caller adds `bg-*` and `text-*`. */
+	export const iconCircle =
+		'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border hover-tint transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
+</script>
+
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { Button as BitsButton } from 'bits-ui';
 
 	let {
 		label,
+		href,
 		type = 'button',
 		disabled = false,
 		onclick,
@@ -11,6 +18,8 @@
 		children
 	}: {
 		label: string;
+		/** Makes it a link. */
+		href?: string;
 		type?: 'button' | 'submit' | 'reset';
 		disabled?: boolean;
 		onclick?: (event: MouseEvent) => void;
@@ -26,11 +35,11 @@
 </script>
 
 <BitsButton.Root
-	{type}
+	{...href ? { href } : { type }}
 	{disabled}
 	{onclick}
 	aria-label={label}
-	class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border {background} {ink} hover-tint transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] disabled:pointer-events-none disabled:opacity-50 {className}"
+	class="{iconCircle} {background} {ink} disabled:pointer-events-none disabled:opacity-50 {className}"
 >
 	{@render children()}
 </BitsButton.Root>

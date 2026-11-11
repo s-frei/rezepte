@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
@@ -69,10 +70,7 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger
-		aria-label={m.detail_menu()}
-		class="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface hover-tint text-text transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]"
-	>
+	<DropdownMenu.Trigger aria-label={m.detail_menu()} class="{iconCircle} bg-surface text-text">
 		<Ellipsis class="size-5" aria-hidden="true" />
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Portal>

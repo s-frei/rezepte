@@ -20,7 +20,7 @@
 	import type { PublicShare } from '#lib/api/shares.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import ConfirmDialog from '#lib/components/ui/ConfirmDialog.svelte';
-	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import IconButton, { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import ShareButton from '#lib/components/ui/ShareButton.svelte';
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import KitchenDiary from '#lib/components/recipe/KitchenDiary.svelte';
@@ -175,8 +175,7 @@
 	// Its insets stop at 40px and 20px for the same reason.
 	const headerCircle = 'max-md:shrink max-md:h-auto max-md:aspect-square';
 
-	const menuTriggerClass =
-		'inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-text transition hover-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98]';
+	const menuTriggerClass = `${iconCircle} bg-surface text-text`;
 
 	// The address "Copy link" and the share button hand out; see
 	// `#lib/recipe/share.svelte.ts`. One per recipe: re-created when the page
