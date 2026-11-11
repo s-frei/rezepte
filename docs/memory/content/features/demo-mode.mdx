@@ -78,6 +78,8 @@ description: A flag that fills an empty instance with the twelve sample recipes 
 
 **The instance itself comes from one task, `//:demo`.** `mise run demo` starts the binary on the worktree's demo port and keeps it up until Ctrl-C; `mise run demo -- <cmd>` runs one command against it and stops it afterwards, which is how the screenshot and OpenAPI tasks get an instance they own. `mise/tasks/demo.sh`:
 
+- without a command, also starts the Vite dev server on `RZP_DEMO_FRONTEND_PORT` (9070 at offset 0), proxying to the demo: frontend changes hot-reload against the demo data, while the demo port keeps serving the built frontend. It runs `node_modules/.bin/vite` itself, not `bun run dev`, which would leave Vite running when killed; the trap stops it. The Go side does not reload;
+
 - refuses to start when the port is already taken - a stranger's instance answering `/healthz` first would silently be screenshotted or scraped instead;
 - creates a `mktemp -d` directory unless `REZEPTE_DATA_DIR` names one (a directory it did not create is never removed, and demo mode does not reseed a populated one);
 - clears `REZEPTE_ADMIN_USER` and `REZEPTE_ADMIN_PASSWORD` with `env -u`, so an exported password cannot displace the credentials the callers log in with;

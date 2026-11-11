@@ -21,8 +21,12 @@ PORT="${RZP_DEMO_INSTANCE_PORT:-$RZP_DEMO_PORT}"
 
 rzp_require_binary demo
 rzp_require_free_port demo "$PORT"
+# Without a command the demo is for clicking through, and the Vite dev server
+# beside it proxies to it: hot reload on the frontend, the demo's data behind
+# it. It gets a port of its own so it runs beside `mise run dev`.
+[ "$#" -eq 0 ] && rzp_require_free_port demo "$RZP_DEMO_FRONTEND_PORT"
 rzp_make_data_dir
-trap 'rzp_stop "${PID:-}"; [ -n "${STUB_PID:-}" ] && kill "$STUB_PID" 2>/dev/null; rm -f "${jar:-}" "${stub_out:-}"' EXIT
+trap '[ -n "${VITE_PID:-}" ] && kill "$VITE_PID" 2>/dev/null; rzp_stop "${PID:-}"; [ -n "${STUB_PID:-}" ] && kill "$STUB_PID" 2>/dev/null; rm -f "${jar:-}" "${stub_out:-}"' EXIT
 # Sign-in through a provider, by RZP_DEMO_OIDC:
 # - dex (the default): Dex, when it answers (mise run oidc:up);
 # - stub: mise/lib/stub-issuer.ts, a provider that only answers discovery, so
@@ -140,6 +144,11 @@ if [ "$#" -gt 0 ]; then
 	exit
 fi
 
+# vite itself, not `bun run dev`: bun would leave vite running when killed.
+# A background job ignores Ctrl-C here, so the EXIT trap stops it.
+(cd frontend && RZP_BACKEND_PORT="$PORT" RZP_FRONTEND_PORT="$RZP_DEMO_FRONTEND_PORT" exec node_modules/.bin/vite dev) &
+VITE_PID=$!
+echo "demo: hot reload on http://localhost:$RZP_DEMO_FRONTEND_PORT, the built frontend on http://localhost:$PORT"
 if [ -n "$RZP_OWNED_DATA_DIR" ]; then
 	echo "demo: Ctrl-C stops it and deletes its data; REZEPTE_DATA_DIR=<dir> keeps it"
 else

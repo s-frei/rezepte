@@ -32,6 +32,7 @@ REZEPTE_PORT_OFFSET  = "{{ vars.REZEPTE_PORT_OFFSET | default(value='0') }}"
 RZP_BACKEND_PORT     = "{{ 8060 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 RZP_FRONTEND_PORT    = "{{ 9060 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 RZP_DEMO_PORT        = "{{ 8070 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
+RZP_DEMO_FRONTEND_PORT = "{{ 9070 + (vars.REZEPTE_PORT_OFFSET | default(value='0') | int) * 100 }}"
 # The e2e suite and the docs screenshots each start an instance of their own;
 # with ports of their own they run beside `mise run dev` and `mise run demo`
 # instead of refusing to start until one of those is stopped.
