@@ -40,8 +40,8 @@ Every color token is redefined for dark mode (see [Implementation notes](#implem
 | `primary` / `primary-foreground` | primary buttons, links, focus outlines, group headings |
 | `accent` / `accent-foreground` | display tag chips, step numbers, accent buttons. **Never a success state**: amber reads as a warning |
 | `destructive` / `destructive-foreground` / `destructive-soft` | delete actions, error text and banners. `destructive` text has to clear 4.5:1 on `destructive-soft` (the quiet Delete pill) and on `surface-elevated` in both themes |
-| `success-soft` / `success-foreground` | success banners and messages, always with a check icon (`CircleCheckIcon`, see [Icons that answer](#icons-that-answer)). Success is green, never `accent` |
-| `success` | small success marks: a status dot, the strong end of the password meter. Theme-independent: one mid green reads on both grounds as a mark, and it is not a text color (about 2.4:1 on the light surface); the "keeps" line in `ConnectedAccounts.svelte` sets text in it all the same |
+| `success-soft` / `success-foreground` | success banners and messages, always with a check icon (`CircleCheckIcon`, see [Icons that answer](#icons-that-answer)). `success-foreground` is also the text color of a success line without a banner (the "keeps" line in `ConnectedAccounts.svelte`): about 5.9:1 on the light surface, 9.7:1 on the dark one. Success is green, never `accent` |
+| `success` | small success marks: a status dot, the strong end of the password meter. Theme-independent: one mid green reads on both grounds as a mark, and it is never a text color (about 2.4:1 on the light surface) |
 | `field-label` | a label written into a field's top border (the ingredient row's column names). Theme-independent as a value: it is mixed from `text-muted` and `border`, so it follows both themes without a dark entry of its own |
 | `inverse` / `inverse-foreground` / `inverse-muted` | something laid over the page that has to invert with the theme: toasts, active filter chips, the author popover |
 | `skeleton` | loading placeholders |

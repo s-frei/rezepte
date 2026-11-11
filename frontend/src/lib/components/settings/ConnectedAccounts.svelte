@@ -35,7 +35,7 @@
 		<div class="border-t border-border pb-1.5">
 			<p
 				class="flex items-start gap-2 px-3 pt-2.5 pb-1 text-caption {keeps
-					? 'text-success'
+					? 'text-success-foreground'
 					: 'text-destructive'}"
 			>
 				{#if keeps}
