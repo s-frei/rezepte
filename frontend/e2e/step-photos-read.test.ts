@@ -1,17 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import {
-	createPublicShare,
-	createRecipe,
-	expectSpotlight,
-	login,
-	setPublicShares,
-	tinyPng,
-	uniqueToken,
-	uploadImage
-} from './helpers';
+import { createRecipe, expectSpotlight, login, tinyPng, uniqueToken, uploadImage } from './helpers';
 
 // A step's photo phrase opens its photo: a card on a desktop, a sheet on a
-// phone (the mobile project), in the detail page, cook mode and a public link.
+// phone (the mobile project), in the detail page and cook mode; the public
+// link's photo is in public-shares.test.ts, beside the other tests that flip
+// the instance-wide switch.
 
 test.beforeEach(async ({ page }) => {
 	await login(page);
@@ -299,31 +292,6 @@ test('a reordered photo keeps its link and shows its new position', async ({ pag
 	const preview = page.getByRole('dialog');
 	await expect(preview.locator('img')).toHaveAttribute('src', new RegExp(ids[2]));
 	await expect(preview.getByText('Photo 1 of 3')).toBeVisible();
-});
-
-test('a public link opens the photo from its own image route', async ({
-	page,
-	browser,
-	isMobile
-}) => {
-	test.skip(isMobile, 'public sharing is instance-wide, the desktop run covers it');
-	const { recipe, ids } = await recipeWithPhotos(page);
-	const context = await browser.newContext();
-	try {
-		await setPublicShares(page, true);
-		const share = await createPublicShare(page, recipe.id);
-		const token = share.path.replace('/s/', '');
-		const stranger = await context.newPage();
-		await stranger.goto(share.path);
-		await trigger(stranger).click();
-		await expect(stranger.getByRole('dialog').locator('img')).toHaveAttribute(
-			'src',
-			new RegExp(`/public-images/${token}/${ids[2]}/detail`)
-		);
-	} finally {
-		await setPublicShares(page, false);
-		await context.close();
-	}
 });
 
 test('a long phrase wraps inline at 320 px', async ({ page, isMobile }) => {

@@ -230,6 +230,40 @@ test('a stranger sees where the recipe comes from', async ({ page, browser }, te
 	}
 });
 
+test('a public link opens a step photo from its own image route', async ({
+	page,
+	browser
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'public sharing is instance-wide');
+	await login(page);
+	const input = { ...loadFixture(0), title: `Step photo ${uniqueToken()}` };
+	const recipe = await createRecipe(page, input);
+	const image = await uploadImage(page, recipe.id, tinyPng());
+	const [first, ...rest] = input.steps;
+	const phrase = first.text.split(' ').slice(0, 2).join(' ');
+	const put = await page.request.put(`/api/v1/recipes/${recipe.id}`, {
+		headers: { Origin: new URL(page.url()).origin, 'Content-Type': 'application/json' },
+		data: { ...input, steps: [{ ...first, photos: [{ phrase, imageId: image.id }] }, ...rest] }
+	});
+	expect(put.ok(), `PUT recipe failed: ${put.status()} ${await put.text()}`).toBeTruthy();
+
+	const strangerContext = await browser.newContext();
+	try {
+		await setPublicShares(page, true);
+		const share = await createPublicShare(page, recipe.id);
+		const stranger = await strangerContext.newPage();
+		await stranger.goto(share.path);
+		await stranger.locator('[data-step-photo]').click();
+		await expect(stranger.getByRole('dialog').locator('img')).toHaveAttribute(
+			'src',
+			new RegExp(`/public-images/${share.path.slice(3)}/${image.id}/detail`)
+		);
+	} finally {
+		await strangerContext.close();
+		await setPublicShares(page, false);
+	}
+});
+
 test('an unknown token', async ({ page }) => {
 	await page.goto(`/s/${uniqueToken()}`);
 	await expect(page.getByText('This link is no longer available.')).toBeVisible();
