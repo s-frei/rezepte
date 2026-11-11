@@ -116,6 +116,12 @@ export async function login(page: Page, username = 'admin', password = devPasswo
 	}
 }
 
+/** Signs whoever is in out and `username` in, by dropping the session cookie. */
+export async function switchTo(page: Page, username = 'admin') {
+	await page.context().clearCookies({ name: 'rezepte_session' });
+	await login(page, username);
+}
+
 /**
  * Below `lg` the login opens on a cover with one "Sign in" button, and the
  * form waits in a sheet behind it. Raises the sheet; a no-op on desktop and

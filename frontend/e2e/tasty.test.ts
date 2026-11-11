@@ -1,26 +1,16 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
 	createRecipe,
 	createUser,
 	loadFixture,
 	login,
-	signOut,
+	switchTo,
 	tinyPng,
 	uniqueToken,
 	uploadImage
 } from './helpers';
 
 const cards = (page: Page) => page.getByRole('main').getByRole('heading', { level: 3 });
-
-/**
- * Signs whoever is in out and `username` in, from the overview: the recipe
- * page hides the phone's bottom nav, which holds the sign-out.
- */
-async function switchTo(page: Page, testInfo: TestInfo, username: string) {
-	await page.goto('/');
-	await signOut(page, testInfo);
-	await login(page, username);
-}
 
 /** Marks a recipe tasty through the API, as whoever `page` is signed in as. */
 async function markTasty(page: Page, recipeId: string) {
@@ -31,7 +21,7 @@ async function markTasty(page: Page, recipeId: string) {
 test('a member marks somebody else’s recipe tasty and everyone sees it', async ({
 	page,
 	isMobile
-}, testInfo) => {
+}) => {
 	const token = uniqueToken();
 	const mara = `mara${token}`.slice(0, 20);
 
@@ -49,7 +39,7 @@ test('a member marks somebody else’s recipe tasty and everyone sees it', async
 	).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Tasty', exact: true })).toHaveCount(0);
 
-	await switchTo(page, testInfo, mara);
+	await switchTo(page, mara);
 	await page.goto(`/recipes/${recipe.slug}`);
 	await page.getByRole('button', { name: 'Tasty', exact: true, pressed: false }).click();
 	await expect(
@@ -81,7 +71,7 @@ test('a member marks somebody else’s recipe tasty and everyone sees it', async
 	}
 
 	// The author sees the count too.
-	await switchTo(page, testInfo, 'admin');
+	await switchTo(page, 'admin');
 	await page.goto(`/recipes/${recipe.slug}`);
 	await expect(page.getByRole('button', { name: 'Tasty', exact: true })).toHaveCount(0);
 	if (isMobile) {
@@ -209,7 +199,7 @@ test('the count on a photo card shares the center of its corner', async ({
 test('the star and the heart on the recipe page are thumb-sized on a phone', async ({
 	page,
 	isMobile
-}, testInfo) => {
+}) => {
 	test.skip(!isMobile, 'the desktop keeps its 36px pair');
 	const token = uniqueToken();
 	const kai = `kai${token}`.slice(0, 20);
@@ -217,7 +207,7 @@ test('the star and the heart on the recipe page are thumb-sized on a phone', asy
 	await login(page);
 	await createUser(page, { username: kai, role: 'user' });
 	const recipe = await createRecipe(page, { ...loadFixture(4), title: `Thumb ${token}` });
-	await switchTo(page, testInfo, kai);
+	await switchTo(page, kai);
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	for (const name of ['Favorite', 'Tasty']) {

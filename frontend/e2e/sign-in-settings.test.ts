@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createUser, login, openDialog, uniqueToken } from './helpers';
+import { createUser, login, openDialog, switchTo, uniqueToken } from './helpers';
 
 // The owner's Sign-in page, in whatever state the run left it: with Dex up
 // (mise run oidc:up) the e2e task has saved Dex there, without it sign-in is
@@ -20,8 +20,7 @@ test('owner sees the sign-in page; an admin is sent to settings', async ({ page 
 
 	const name = `signin${uniqueToken()}`;
 	await createUser(page, { username: name, role: 'admin' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
+	await switchTo(page, name);
 	await page.goto('/settings/sign-in');
 	await expect(page).toHaveURL('/settings');
 });

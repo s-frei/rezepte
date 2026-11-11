@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createUser, login, signOut, uniqueToken } from './helpers';
+import { createUser, login, signOut, switchTo, uniqueToken } from './helpers';
 
 // Exercises sign-in through the test OIDC provider (mise run oidc:up, see
 // docs/memory/content/howtos/test-oidc.mdx). Every test below shares the two
@@ -43,8 +43,7 @@ test('connect Dex in the profile, then sign in with it', async ({ page }, testIn
 	const name = `dexlink${uniqueToken()}`;
 	await login(page);
 	await createUser(page, { username: name, role: 'user' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
+	await switchTo(page, name);
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Connect Dex' }).click();
 	await dexLogin(page, 'mila@example.com', 'mila1234');
@@ -132,8 +131,7 @@ test('switching the provider warns with the number of connected accounts', async
 	const name = `dexswitch${uniqueToken()}`;
 	await login(page);
 	await createUser(page, { username: name, role: 'user' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
+	await switchTo(page, name);
 	await page.goto('/settings');
 	await page.getByRole('button', { name: 'Connect Dex' }).click();
 	await dexLogin(page, 'mila@example.com', 'mila1234');

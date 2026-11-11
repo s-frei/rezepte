@@ -5,14 +5,9 @@ import {
 	createUser,
 	loadFixture,
 	login,
+	switchTo,
 	uniqueToken
 } from './helpers';
-
-/** Signs whoever is in out and name in. */
-async function switchTo(page: Page, name: string) {
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
-}
 
 // The mailed flow (comment mail, unsubscribe link, Undo) lives in
 // mail.test.ts: mail settings are instance-wide, and only that file's serial

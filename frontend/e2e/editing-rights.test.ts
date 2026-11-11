@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
 	createRecipe,
 	createUser,
@@ -6,21 +6,9 @@ import {
 	login,
 	openRecipeMenu,
 	patchSettings,
-	signOut,
+	switchTo,
 	uniqueToken
 } from './helpers';
-
-/**
- * Signs whoever is in out and `username` in. The detail page replaces the
- * top bar's actions and hides the phone's bottom nav, so the sign-out menu
- * is only reachable from the overview; and the URL check waits out the
- * sign-in, or the next goto races the session cookie back to /login.
- */
-async function switchTo(page: Page, testInfo: TestInfo, username: string) {
-	await page.goto('/');
-	await signOut(page, testInfo);
-	await login(page, username);
-}
 
 test('the household lock hides editing from other members until the author opens the recipe', async ({
 	page,
@@ -55,7 +43,7 @@ test('the household lock hides editing from other members until the author opens
 		await expect(page.getByText('Recipes are now locked to their authors')).toBeVisible();
 		await expect(lock).toBeChecked();
 
-		await switchTo(page, testInfo, anna);
+		await switchTo(page, anna);
 		const recipe = await createRecipe(page, {
 			...loadFixture(0),
 			title: `Anna's bread ${token}`
@@ -63,7 +51,7 @@ test('the household lock hides editing from other members until the author opens
 
 		// Ben reads the recipe but may neither edit nor delete it, and the
 		// colophon says who can.
-		await switchTo(page, testInfo, ben);
+		await switchTo(page, ben);
 		await page.goto(`/recipes/${recipe.slug}`);
 		await expect(page.getByText(`Only ${anna} and admins can edit this recipe.`)).toBeVisible();
 		await openRecipeMenu(page);
@@ -78,7 +66,7 @@ test('the household lock hides editing from other members until the author opens
 		await expect(page).toHaveURL(`/recipes/${recipe.slug}`);
 
 		// Anna opens her recipe to everyone from the editor's last section.
-		await switchTo(page, testInfo, anna);
+		await switchTo(page, anna);
 		await page.goto(`/recipes/${recipe.slug}`);
 		await expect(page.getByText('Only you and admins can edit this recipe.')).toBeVisible();
 		await page.goto(`/recipes/${recipe.slug}/edit`);
@@ -93,7 +81,7 @@ test('the household lock hides editing from other members until the author opens
 		await expect(page.getByText('and admins can edit this recipe.')).toHaveCount(0);
 
 		// Ben may edit it now - but opening a recipe never opens deleting it.
-		await switchTo(page, testInfo, ben);
+		await switchTo(page, ben);
 		await page.goto(`/recipes/${recipe.slug}`);
 		await expect(
 			page.getByRole('heading', { level: 1, name: `Anna's bread ${token}` })

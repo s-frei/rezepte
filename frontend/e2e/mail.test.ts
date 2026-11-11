@@ -15,6 +15,7 @@ import {
 	login,
 	openDialog,
 	openLoginSheet,
+	switchTo,
 	uniqueToken
 } from './helpers';
 import {
@@ -195,8 +196,7 @@ async function confirmedAccount(page: Page, request: APIRequestContext, prefix: 
 	await login(page);
 	const name = `${prefix}${uniqueToken()}`;
 	await createUser(page, { username: name, role: 'user' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
+	await switchTo(page, name);
 	const address = `${name}@example.com`;
 	await page.goto('/settings');
 	await saveOwnAddress(page, address);
@@ -228,8 +228,7 @@ test("an admin changes a member's address, sees the mail go out and sends it aga
 	const admin = `addradm${token}`;
 	await createUser(page, { username: member, role: 'user' });
 	await createUser(page, { username: admin, role: 'admin' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, admin);
+	await switchTo(page, admin);
 	await page.goto(`/settings/users/${member}`);
 	await page.getByRole('button', { name: `Change ${member}'s email` }).click();
 	const dialog = page.getByRole('dialog', { name: 'Email address' });
@@ -301,8 +300,7 @@ test('a changed address is confirmed from its mail', async ({ page, request }) =
 	const { name } = await confirmedAccount(page, request, 'conf');
 	await page.goto('/settings');
 	await expect(page.getByText('confirmed', { exact: true })).toBeVisible();
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page);
+	await switchTo(page);
 	await page.goto('/settings/users');
 	const row = page.getByRole('listitem').filter({ hasText: name });
 	await expect(row.getByText('Address confirmed', { exact: true })).toHaveCount(1);
@@ -423,8 +421,7 @@ test('sending again right after saving waits, and the first link still works', a
 	await login(page);
 	const name = `again${uniqueToken()}`;
 	await createUser(page, { username: name, role: 'user' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
+	await switchTo(page, name);
 	const address = `${name}@example.com`;
 	await page.goto('/settings');
 	await saveOwnAddress(page, address);
@@ -542,19 +539,15 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 	const title = `Notified ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(1), title });
 	const guest = `guest${uniqueToken()}`;
-	const switchTo = async (name: string) => {
-		await page.context().clearCookies({ name: 'rezepte_session' });
-		await login(page, name);
-	};
-	await switchTo('admin');
+	await switchTo(page, 'admin');
 	await createUser(page, { username: guest, role: 'user' });
 
-	await switchTo(guest);
+	await switchTo(page, guest);
 	await addDiaryEntry(page, recipe.id, 'Lovely with capers.');
 	const mail = await mailWithSubject(request, address, `${guest} commented on “${title}”`);
 
 	// "View comment" opens the recipe on its comments.
-	await switchTo(cook);
+	await switchTo(page, cook);
 	await page.goto(urlAfter(mail.text, 'View comment'));
 	await expect(page.getByRole('tab', { name: /^Comments/ })).toHaveAttribute(
 		'aria-selected',
@@ -577,13 +570,13 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 
 		// A second comment mails nothing.
 		const before = await mailCountTo(request, address);
-		await switchTo(guest);
+		await switchTo(page, guest);
 		await addDiaryEntry(page, recipe.id, 'And with lemon.');
 		await page.waitForTimeout(1000);
 		expect(await mailCountTo(request, address)).toBe(before);
 
 		// The settings page shows it off; Undo on the link's page turns it on.
-		await switchTo(cook);
+		await switchTo(page, cook);
 		await page.goto('/settings/notifications');
 		const byMail = page.getByRole('region', { name: 'By mail' });
 		// The kind's "On" side: checked while the mail arrives.
@@ -639,8 +632,7 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 	await login(page);
 	const name = `unconf${uniqueToken()}`;
 	await createUser(page, { username: name, role: 'user' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, name);
+	await switchTo(page, name);
 	const address = `${name}@example.com`;
 	await page.goto('/settings');
 	await saveOwnAddress(page, address);
@@ -666,12 +658,10 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 test('inviting someone to a shopping list mails them', async ({ page, request }) => {
 	const { address } = await confirmedAccount(page, request, 'guest');
 	const inviteeId = (await (await page.request.get('/api/v1/auth/me')).json()).id as string;
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page);
+	await switchTo(page);
 	const owner = `host${uniqueToken()}`;
 	await createUser(page, { username: owner, role: 'user' });
-	await page.context().clearCookies({ name: 'rezepte_session' });
-	await login(page, owner);
+	await switchTo(page, owner);
 	const list = await (
 		await page.request.post('/api/v1/shopping-lists', { data: { name: 'Picnic' } })
 	).json();

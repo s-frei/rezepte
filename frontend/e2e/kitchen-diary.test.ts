@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
 	addDiaryPhoto,
 	createRecipe,
@@ -6,20 +6,10 @@ import {
 	loadFixture,
 	login,
 	longPress,
-	signOut,
+	switchTo,
 	tinyPng,
 	uniqueToken
 } from './helpers';
-
-/**
- * Signs whoever is in out and `username` in, from the overview: the recipe
- * page hides the phone's bottom nav, which holds the sign-out.
- */
-async function switchTo(page: Page, testInfo: TestInfo, username: string) {
-	await page.goto('/');
-	await signOut(page, testInfo);
-	await login(page, username);
-}
 
 const diary = (page: Page) => page.getByRole('tabpanel', { name: /^Comments/ });
 const diaryTab = (page: Page) => page.getByRole('tab', { name: /^Comments/ });
@@ -44,7 +34,7 @@ test('members talk in the comments and the author sees the dot', async ({ page }
 
 	// A member writes on somebody else's recipe, then edits it in place.
 	// An empty diary has nothing to mark seen, opened or not.
-	await switchTo(page, testInfo, mara);
+	await switchTo(page, mara);
 	let seenCalls = 0;
 	const count = (r: { url(): string; method(): string }) => {
 		if (r.url().endsWith('/comments/seen') && r.method() === 'PUT') seenCalls++;
@@ -102,7 +92,7 @@ test('members talk in the comments and the author sees the dot', async ({ page }
 
 	// The recipe's author sees the dot on the card until opening the diary;
 	// the tab carries it too, and drops it once opened - once a visit.
-	await switchTo(page, testInfo, 'admin');
+	await switchTo(page, 'admin');
 	await page.goto(`/?q=${token}`);
 	await expect(dot(page)).toBeVisible();
 	await page.goto(`/recipes/${recipe.slug}`);
@@ -145,7 +135,7 @@ test('members talk in the comments and the author sees the dot', async ({ page }
 
 	// Her only entry is gone, and with it her part in the conversation: the
 	// author's answer brings her no dot.
-	await switchTo(page, testInfo, mara);
+	await switchTo(page, mara);
 	await page.goto(`/?q=${token}`);
 	await expect(page.getByRole('heading', { level: 3, name: `Diary ${token}` })).toBeVisible();
 	await expect(dot(page)).toHaveCount(0);
