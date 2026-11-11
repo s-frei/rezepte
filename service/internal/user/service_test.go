@@ -637,7 +637,7 @@ func TestCreateWithoutOptionDefaultsToEnglish(t *testing.T) {
 	}
 }
 
-func TestCreateHonoursAnExplicitLocale(t *testing.T) {
+func TestCreateHonorsAnExplicitLocale(t *testing.T) {
 	conn := dbtest.Open(t)
 	svc := user.NewService(conn, "en")
 

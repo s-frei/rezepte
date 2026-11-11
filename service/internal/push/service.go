@@ -333,7 +333,7 @@ func (s *Service) RunDue(ctx context.Context, now time.Time) {
 			return
 		}
 		// Deleted before the send, so a crash mid-send cannot send it twice.
-		// No row deleted: the cook cancelled it after the list was read.
+		// No row deleted: the cook canceled it after the list was read.
 		if n, err := s.q.DeleteTimerAlarm(ctx, a.ID); err != nil {
 			slog.WarnContext(ctx, "push: delete alarm failed", "err", err)
 			continue

@@ -247,7 +247,7 @@ func TestCancelOnlyOwn(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n, _ := f.svc.q.CountAlarmsBySubscription(ctx, f.subID(t, f.bob, fcm)); n != 1 {
-		t.Fatalf("alice cancelled bob's alarm: %d left", n)
+		t.Fatalf("alice canceled bob's alarm: %d left", n)
 	}
 	if err := f.svc.Cancel(ctx, f.bob, id); err != nil {
 		t.Fatal(err)
@@ -459,7 +459,7 @@ func TestRunDueLogsNoEndpointPath(t *testing.T) {
 	}
 }
 
-func TestRunDueSkipsAlarmCancelledMidBatch(t *testing.T) {
+func TestRunDueSkipsAlarmCanceledMidBatch(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	p := newPushServer(t, f, http.StatusCreated)
@@ -479,7 +479,7 @@ func TestRunDueSkipsAlarmCancelledMidBatch(t *testing.T) {
 	p.after = func() { _ = f.svc.Cancel(ctx, f.alice, second) }
 	f.svc.RunDue(ctx, now.Add(time.Minute))
 	if len(p.got) != 1 {
-		t.Fatalf("%d requests, want 1: the cancelled alarm was sent", len(p.got))
+		t.Fatalf("%d requests, want 1: the canceled alarm was sent", len(p.got))
 	}
 }
 

@@ -631,7 +631,7 @@ func TestCreateAndLoadRoundTripsReferencesWithinOneGroup(t *testing.T) {
 	}
 }
 
-func TestReferencesSerialiseAsEmptySliceNotNil(t *testing.T) {
+func TestReferencesSerializeAsEmptySliceNotNil(t *testing.T) {
 	svc, userID := setup(t)
 	ctx := context.Background()
 	created, err := svc.Create(ctx, userID, recipe.Input{

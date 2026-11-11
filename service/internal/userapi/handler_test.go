@@ -902,23 +902,23 @@ func TestOnlyTheOwnerSwitchesAnAdminsSharing(t *testing.T) {
 	h := newHandler(t)
 	owner := loginAs(t, h, "owner", "pw")
 	sam := loginAs(t, h, "sam", "pw")
-	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"ren","password":"ren-password","role":"admin"}`, owner)
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"rena","password":"rena1234","role":"admin"}`, owner)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create second admin: status %d: %s", rec.Code, rec.Body.String())
 	}
-	ren := loginAs(t, h, "ren", "ren-password")
-	renAccount := userNamed(t, h, owner, "ren")
+	rena := loginAs(t, h, "rena", "rena1234")
+	renaAccount := userNamed(t, h, owner, "rena")
 
-	for what, caller := range map[string]*http.Cookie{"ren on their own row": ren, "sam on ren's row": sam} {
-		rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renAccount.ID, `{"canSharePublicly":false}`, caller)
+	for what, caller := range map[string]*http.Cookie{"rena on their own row": rena, "sam on rena's row": sam} {
+		rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renaAccount.ID, `{"canSharePublicly":false}`, caller)
 		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "superadmin role required") {
 			t.Errorf("%s: status %d, want 403: %s", what, rec.Code, rec.Body.String())
 		}
 	}
 
-	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renAccount.ID, `{"canSharePublicly":false}`, owner)
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renaAccount.ID, `{"canSharePublicly":false}`, owner)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canSharePublicly":false`) {
-		t.Errorf("owner withdraws ren's right: status %d: %s", rec.Code, rec.Body.String())
+		t.Errorf("owner withdraws rena's right: status %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -929,18 +929,18 @@ func TestRefusedPatchWritesNothing(t *testing.T) {
 	h := newHandler(t)
 	owner := loginAs(t, h, "owner", "pw")
 	sam := loginAs(t, h, "sam", "pw")
-	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"ren","password":"ren-password","role":"admin"}`, owner)
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"rena","password":"rena1234","role":"admin"}`, owner)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create second admin: status %d: %s", rec.Code, rec.Body.String())
 	}
-	renAccount := userNamed(t, h, owner, "ren")
+	renaAccount := userNamed(t, h, owner, "rena")
 
-	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renAccount.ID, `{"canSharePublicly":false,"password":"new-password-1"}`, sam)
+	rec = doReq(h, http.MethodPatch, "/api/v1/users/"+renaAccount.ID, `{"canSharePublicly":false,"password":"rena5678"}`, sam)
 	if rec.Code != http.StatusForbidden {
-		t.Errorf("sam withdraws and resets ren: status %d, want 403: %s", rec.Code, rec.Body.String())
+		t.Errorf("sam withdraws and resets rena: status %d, want 403: %s", rec.Code, rec.Body.String())
 	}
-	if got := userNamed(t, h, owner, "ren"); !got.CanSharePublicly {
-		t.Error("ren lost the right to share although the request was refused")
+	if got := userNamed(t, h, owner, "rena"); !got.CanSharePublicly {
+		t.Error("rena lost the right to share although the request was refused")
 	}
 }
 
