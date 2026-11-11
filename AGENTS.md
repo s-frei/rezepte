@@ -12,7 +12,7 @@ Read `docs/memory/content/index.mdx` before making changes. The memory explains 
 - Never commit `docs/superpowers/` (local specs and plans) or `docs/design_handoff_rezepte/` (local design mockups).
 - Run tools only through mise: `mise run <task>` or `mise exec -- <cmd>`. Never call `npm`/`node` directly; use Bun. → `docs/memory/content/architecture/toolchain.mdx`
 - GitHub Actions: every step carries a quoted `name`, actions are pinned to a major tag, and tools come from mise. → `docs/memory/content/conventions/github-actions.mdx`
-- `mise run check` must pass before every commit. → `docs/memory/content/architecture/toolchain.mdx`
+- `mise run check` must pass before every commit; e2e runs only the specs for the touched part while working, and in full once on a branch's rebased tip before it lands. → `docs/memory/content/conventions/testing.mdx#which-run-when`
 - The memory holds one page per thing that exists, never a record per event: a feature with facts beyond its look has a `features/` page, the system's shape lives in `architecture/`. Rewrite the page when the thing changes; delete it when the thing is gone. What you learn on the way - a trap, how to test it, a gate that passes when it should not - goes into the page that owns it in the same commit, never into an agent's private memory. → `docs/memory/content/howtos/update-the-memory.mdx`
 - Go: standard library first, `golangci-lint` clean, stdlib `testing` only, errors wrapped with `%w`. → `docs/memory/content/conventions/go.mdx`
 - Svelte: Svelte 5 runes, TypeScript, Bits UI for primitives, validate every `.svelte` file with the svelte MCP `svelte-autofixer` tool before committing. → `docs/memory/content/conventions/svelte.mdx`

@@ -47,6 +47,19 @@ description: What to test and how, per package
 
 ## End-to-end tests
 
+### Which run when
+
+**While working, `check` runs in full before every commit, and only the e2e specs that cover the change run; the full e2e runs once, on a branch's rebased tip before it lands.** `check` takes about a minute with a warm cache, so narrowing it by path would save seconds and could miss a change that crosses folders (an API change reaching `openapi.json`, a catalog change reaching the audits). The e2e suite is the expensive part: about a thousand tests across the projects.
+
+| When | `check` | e2e |
+|---|---|---|
+| Before each commit | full | the specs for the touched part: `mise run e2e -- <spec names>`, plus `mise run e2e -- --only-changed=develop` for the specs and helpers the branch edited |
+| Before a branch lands | full, once, on the tip | full, once, on the tip ([Tidy the branch before it lands](/conventions/commits#tidy-the-branch-before-it-lands)) |
+| Parallel agents | each bundle as above | no bundle runs the full suite; the controller runs it once on the integrated branch |
+
+`--only-changed` only sees spec files and what they import, never the app code under test, so it adds to the hand-picked specs and does not replace them. A change to `frontend/e2e/helpers.ts` selects every spec.
+
+
 ### A paused page clock
 
 **A test that drives time installs `page.clock` before the first navigation, pauses it, and moves it with `runFor` for spans up to about a quarter of an hour and `fastForward` beyond that.** `runFor` fires and renders every timer callback on the way: 15 minutes of one-second ticks is fine, 80 minutes took 25 seconds; `fastForward` jumps and fires each due timer once (`frontend/e2e/cook-timers.test.ts`). While the clock is paused:
