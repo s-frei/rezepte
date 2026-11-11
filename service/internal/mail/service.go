@@ -227,50 +227,43 @@ func (s *Service) SendTest(ctx context.Context, actor user.User, to string, over
 
 // SendInvite mails a setup link; in.Path is appended to REZEPTE_PUBLIC_URL.
 func (s *Service) SendInvite(ctx context.Context, in Invite) error {
-	return s.deliver(ctx, in.To, "setup link", func(cfg Config) (Envelope, error) {
-		return BuildInvite(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "setup link", BuildInvite, in)
 }
 
 // SendReset mails a password reset link.
 func (s *Service) SendReset(ctx context.Context, in Reset) error {
-	return s.deliver(ctx, in.To, "password reset", func(cfg Config) (Envelope, error) {
-		return BuildReset(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "password reset", BuildReset, in)
 }
 
 // SendHint mails the sign-in hint for an account without a password.
 func (s *Service) SendHint(ctx context.Context, in Hint) error {
-	return s.deliver(ctx, in.To, "sign-in hint", func(cfg Config) (Envelope, error) {
-		return BuildHint(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "sign-in hint", BuildHint, in)
 }
 
 // SendConfirm mails an address confirmation link.
 func (s *Service) SendConfirm(ctx context.Context, in Confirm) error {
-	return s.deliver(ctx, in.To, "address confirmation", func(cfg Config) (Envelope, error) {
-		return BuildConfirm(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "address confirmation", BuildConfirm, in)
 }
 
 // SendPasswordChanged mails the notice that a password changed.
 func (s *Service) SendPasswordChanged(ctx context.Context, in PasswordChanged) error {
-	return s.deliver(ctx, in.To, "password notice", func(cfg Config) (Envelope, error) {
-		return BuildPasswordChanged(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "password notice", BuildPasswordChanged, in)
 }
 
 // SendEmailChanged mails the notice that an address changed to the old one.
 func (s *Service) SendEmailChanged(ctx context.Context, in EmailChanged) error {
-	return s.deliver(ctx, in.To, "address notice", func(cfg Config) (Envelope, error) {
-		return BuildEmailChanged(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "address notice", BuildEmailChanged, in)
 }
 
 // SendIdentityLinked mails the notice that a sign-in identity was linked.
 func (s *Service) SendIdentityLinked(ctx context.Context, in IdentityLinked) error {
-	return s.deliver(ctx, in.To, "sign-in method notice", func(cfg Config) (Envelope, error) {
-		return BuildIdentityLinked(cfg, in, s.publicURL, s.now())
+	return deliverBuilt(ctx, s, in.To, "sign-in method notice", BuildIdentityLinked, in)
+}
+
+// deliverBuilt is deliver for a mail that build renders from in.
+func deliverBuilt[T any](ctx context.Context, s *Service, to, what string, build func(Config, T, string, time.Time) (Envelope, error), in T) error {
+	return s.deliver(ctx, to, what, func(cfg Config) (Envelope, error) {
+		return build(cfg, in, s.publicURL, s.now())
 	})
 }
 
@@ -296,7 +289,7 @@ func (s *Service) deliver(ctx context.Context, to, what string, build func(Confi
 		if reply, ok := errors.AsType[*textproto.Error](err); ok {
 			reason = reply.Code
 		}
-		s.logger.Warn("mail: "+what+" not sent", "domain", to[strings.LastIndex(to, "@")+1:], "reason", reason)
+		s.logger.Warn("mail: "+what+" not sent", "domain", domainOf(to), "reason", reason)
 		if se, ok := errors.AsType[*setupError](err); ok && s.reporter != nil {
 			s.reporter.MailFailed(ctx, se.Reason)
 		}
@@ -318,35 +311,25 @@ func LogUnsent(ctx context.Context, msg, userID string, err error) {
 
 // SendComment mails a follower of a recipe about a new comment.
 func (s *Service) SendComment(ctx context.Context, in Comment) error {
-	return s.deliver(ctx, in.To, "comment notification", func(cfg Config) (Envelope, error) {
-		return BuildComment(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "comment notification", BuildComment, in)
 }
 
 // SendRecipeDigest mails one person the new recipes digest.
 func (s *Service) SendRecipeDigest(ctx context.Context, in RecipeDigest) error {
-	return s.deliver(ctx, in.To, "recipe digest", func(cfg Config) (Envelope, error) {
-		return BuildRecipeDigest(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "recipe digest", BuildRecipeDigest, in)
 }
 
 // SendListInvite mails somebody that they were invited to a shopping list.
 func (s *Service) SendListInvite(ctx context.Context, in ListInvite) error {
-	return s.deliver(ctx, in.To, "list invitation notification", func(cfg Config) (Envelope, error) {
-		return BuildListInvite(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "list invitation notification", BuildListInvite, in)
 }
 
 // SendTasty mails a recipe's author that somebody finds it tasty.
 func (s *Service) SendTasty(ctx context.Context, in Tasty) error {
-	return s.deliver(ctx, in.To, "tasty notification", func(cfg Config) (Envelope, error) {
-		return BuildTasty(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "tasty notification", BuildTasty, in)
 }
 
 // SendInviteAccepted mails an admin that their invitation was accepted.
 func (s *Service) SendInviteAccepted(ctx context.Context, in InviteAccepted) error {
-	return s.deliver(ctx, in.To, "invitation notification", func(cfg Config) (Envelope, error) {
-		return BuildInviteAccepted(cfg, in, s.publicURL, s.now())
-	})
+	return deliverBuilt(ctx, s, in.To, "invitation notification", BuildInviteAccepted, in)
 }
