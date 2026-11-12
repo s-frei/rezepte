@@ -8,17 +8,19 @@ import { source } from '@/lib/source';
 
 // The sidebar shows a release as its version, large, with the release's name
 // beneath, instead of the whole "v1.3.0 — …" title in sidebar type; and it
-// marks a page whose `new` names a release of the newest minor line, so the
-// mark leaves by itself with the next minor release.
-function sidebarTree<T extends PageTree.Root | PageTree.Folder>(node: T): T {
+// marks a page whose `new`, or one of whose <NewIn> sections, names a release
+// of the newest minor line, so the mark leaves by itself with the next minor
+// release. `releases` maps a page's file path to those releases, its own first.
+function sidebarTree<T extends PageTree.Root | PageTree.Folder>(node: T, releases: Map<string, string[]>): T {
 	return {
 		...node,
 		children: node.children.map((child) => {
-			if (child.type === 'folder') return sidebarTree(child);
+			if (child.type === 'folder') return sidebarTree(child, releases);
 			if (child.type !== 'page') return child;
 			if (isReleaseUrl(child.url) && typeof child.name === 'string') return { ...child, name: <ReleaseNavName title={child.name} /> };
-			const release = source.getNodePage(child)?.data.new;
-			if (release && isNewIn(release))
+			const page = source.getNodePage(child);
+			const release = page && releases.get(page.path)?.find(isNewIn);
+			if (release)
 				return {
 					...child,
 					name: (
@@ -35,10 +37,20 @@ function sidebarTree<T extends PageTree.Root | PageTree.Folder>(node: T): T {
 
 // The notebook layout puts the sections - the root folders of content/ - as
 // tabs into the navbar, so the sidebar lists only the open one.
-export default function Layout({ children }: { children: ReactNode }) {
+export default async function Layout({ children }: { children: ReactNode }) {
+	// A section's mark is a tag in the MDX, not data the loader exposes, so it
+	// is read from the page's source; the build reads each file once.
+	const releases = new Map(
+		await Promise.all(
+			source.getPages().map(async (page) => {
+				const sections = [...(await page.data.getText('raw')).matchAll(/<NewIn release="([^"]+)"/g)].map((m) => m[1]);
+				return [page.path, page.data.new ? [page.data.new, ...sections] : sections] as const;
+			})
+		)
+	);
 	return (
 		<DocsLayout
-			tree={sidebarTree(source.getPageTree())}
+			tree={sidebarTree(source.getPageTree(), releases)}
 			tabMode="navbar"
 			// The navbar tabs render only the title, so the section's icon goes in
 			// with it. On phones the tabs become the sidebar's dropdown, which shows

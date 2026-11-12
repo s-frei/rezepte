@@ -3,7 +3,8 @@ import changelog from '@/content/(releases)/changelog/meta.json';
 // "New" marks follow the newest release by themselves: a page sets
 // `new: v1.3.0` in its frontmatter, a section puts <NewIn release="v1.3.0" />
 // straight after its heading text (no space, or the heading's anchor gains a
-// trailing hyphen). Both show while that release is in the newest minor
+// trailing hyphen), which also marks its page in the sidebar
+// (app/[...slug]/layout.tsx). Both show while that release is in the newest minor
 // line - v1.3.0's marks under v1.3.1 too, since a patch release does not
 // replace what the minor one brought - so nothing has to be removed when the
 // next minor ships. Read from the
