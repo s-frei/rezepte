@@ -1,0 +1,57 @@
+---
+title: "v1.5.0 — Everyone in the kitchen on one device"
+description: "Several people stay signed in on one shared device and switch with a tap, an AI chat writes recipes and shopping lists that paste in complete, and a step can open the photo it talks about."
+date: 2026-11-12
+upgrade: "Nothing breaks coming from 1.4.0; back up your data directory, then pull and start `ghcr.io/s-frei/rezepte:1.5.0`."
+---
+
+Upgrade as usual (see [Updates](/operations/updates)). Everyone stays signed in, and on the first start Rezepte adds what step photos and link lifetimes need. Public links keep the lifetime they had. A zip exported with step photo links does not import into a Rezepte before 1.5.0.
+
+## Everyone in the kitchen on one device
+
+A kitchen tablet can now hold everyone's account. Choose "Sign in another person" in the account menu and sign in as them. From then on, "Who's cooking?" lists everyone, and a tap on a card opens that person's recipes and lists without a password. Cook timers keep running across a switch, and notifications follow whoever is cooking. On a shared device, signing out keeps your card, so coming back takes only your password. See [Share a device](/guide/settings#share-a-device).
+
+<Screenshot name="switch" caption="Who's cooking? lists everyone signed in on this device" />
+
+## Recipes and lists from an AI chat
+
+Under the import field, **Copy AI instruction** copies an instruction in your language. Paste it into ChatGPT, Claude or any other AI chat, say what you want, and paste the answer back: the recipe arrives complete, with groups, amounts, times and tags, and nothing to check. Shopping lists import the same way, as a new list or added to one you have. See [Recipes and lists as text](/guide/text-format) and [Import a list](/guide/shopping-lists#import-a-list).
+
+<Screenshot name="list-import" caption="Importing a list from text, with the AI instruction below the field" />
+
+## A step shows its photo
+
+A phrase in a step can now open one of the recipe's photos, to show how thin to roll the dough or what golden means. Select the words in the editor and choose **Link photo**. On the recipe page, the phrase carries a small image icon and opens the photo right at the step. See [Link a photo in a step](/guide/recipes#link-a-photo-in-a-step).
+
+<Screenshot name="recipe-step-photo" caption="A step's photo opened on the detail page" />
+
+## API
+
+- Several people on one device: `GET /api/v1/auth/accounts` lists the other accounts signed in on this device, `POST /api/v1/auth/switch` makes one of them the active one, and `DELETE /api/v1/auth/accounts/{userId}` removes one from the device.
+- Step photos: a step carries `photos`, a list of `{phrase, imageId}`. A phrase must occur in the step's text, and the image must belong to the recipe. A save rewrites them, so send back the `photos` that GET returned; leaving them out removes the links. The MCP tool that edits a recipe keeps and writes these links too.
+- Import from text: `POST /api/v1/shopping-lists/import` creates a list from text, and `POST /api/v1/shopping-lists/{id}/import` adds items to one. `POST /api/v1/import` reads recipe text in the new format.
+- Public links: `PATCH /api/v1/shares/{id}` gives a link a new lifetime counted from now, and a share carries `startsAt`, where that lifetime began.
+- Mail: a user carries `emailConfirmation` and `emailSetupLink`, each with `sentAt` and `expiresAt`, and `POST /api/v1/users/{id}/email/confirmation` lets an admin send a new confirmation link.
+
+The [API reference](/api/reference) lists every endpoint.
+
+## Also in this release
+
+- **New:** A public link's lifetime can change after the fact, counted from now, in the **Link** tab of **Pass on**. The public link moved there from the recipe's "…" menu. See [Public links](/guide/sharing#public-links).
+- **New:** The email row on your profile and on a person's page says which mail went out, when, and until when its link works, with a way to send it again. Admins can resend a confirmation for someone else. See [Confirm your email address](/guide/settings#confirm-your-email-address).
+- **New:** Invite several people to a shopping list at once, picked by name and photo.
+- **New:** An empty recipe overview or shopping list page explains what goes there and how to start.
+- **Improved:** Two ingredient groups with the same name now stop the save until one is renamed, so links can tell them apart.
+- **Improved:** The recipe editor is reworked for phones: a one-row header with your progress, ingredient rows that lead with the name, and a check on Save once it went through.
+- **Improved:** Ingredient and time links in a step wait for you. Suggestions show as cards you accept one by one or all at once, and a save never takes one on its own.
+- **Improved:** On a phone, the login opens on a cover and signs in through a sheet that rests on the keyboard.
+- **Improved:** A new shopping list opens as its own page, and only **Create list** makes it.
+- **Improved:** Text actions and the copy buttons are easier to hit with a thumb, and error messages in settings and the editor always come in your language.
+- **Improved:** A failing mail setup names the field it trips on.
+- **Improved:** The user documentation is shorter and task-first, with steps for tasks and tables for options.
+- **Fixed:** Swiping works on touch screens in cook mode and in the photo viewer.
+- **Fixed:** Quick flips of a setting end on the value the server holds.
+- **Fixed:** Tags and usernames sort correctly with umlauts and accents.
+- **Fixed:** The ingredient picker in a step shows every ingredient.
+- **Fixed:** Scroll bars stay inside rounded boxes, and highlighted list rows no longer turn into a black bar in dark mode.
+- **Fixed:** A recipe page still opens when the browser blocks site storage.

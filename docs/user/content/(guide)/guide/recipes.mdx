@@ -3,6 +3,8 @@ title: Recipes
 description: Create, edit, delete, favorite and mark recipes tasty
 ---
 
+import { NewIn } from '@/components/new-in';
+
 Write a recipe yourself, link its steps to ingredients, times and photos, and mark the ones you love.
 
 <Screenshot name="editor" caption="The recipe editor" />
@@ -86,7 +88,7 @@ Write a recipe yourself, link its steps to ingredients, times and photos, and ma
 
   <Step>
 
-    ### Link a photo in a step
+    ### Link a photo in a step<NewIn release="v1.5.0" />
 
     A phrase in a step can open one of the recipe's photos, for example to show how far to brush the dough.
 
