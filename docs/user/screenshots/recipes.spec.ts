@@ -195,8 +195,11 @@ test('recipe-step-photo', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(PHOTO_RECIPE);
 	const phrase = page.locator('[data-step-photo]');
-	// Centered first, so the card at the phrase has room below it.
-	await phrase.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+	// On a phone the step is centered, so it sits just above the sheet and the
+	// top bar names the recipe. On desktop the page stays at the top: the
+	// title and hero photo frame the step, and centering the phrase scrolled
+	// both out of the shot.
+	if (isMobile(testInfo)) await phrase.evaluate((el) => el.scrollIntoView({ block: 'center' }));
 	await phrase.click();
 	await expect(page.getByRole('dialog').getByText('Photo 3 of 3')).toBeVisible();
 	await shot(page, 'recipe-step-photo');
