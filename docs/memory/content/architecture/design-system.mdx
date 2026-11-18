@@ -21,6 +21,7 @@ description: Token roles, type scale, component rules and interaction rules of t
 - A `1fr` grid track stops at its min-content and pushes its rigid neighbor out of the box, in a width band no Playwright project checks ([Rules](#grids-and-rows)).
 - A hit-area inset counts from the padding box, so a border takes from it; measure hits, never add up classes ([Rules](#targets-and-controls)).
 - `touch-action` combines only up to the nearest scroll container: a value on a gesture's element alone does nothing inside a scroller, and the browser cancels the pointer ([Scrolling](#scrolling)).
+- sharp and librsvg render `favicon.svg` and the lockups blank, since neither decodes the WebP inside; look at them in a browser ([Logo](#logo)).
 - Sonner's styles are unlayered and beat the utilities; its classes need Tailwind's `!` ([Components](#patterns-in-feature-components)).
 
 </Callout>
@@ -387,7 +388,7 @@ The logo is a mascot: a well-used hardcover cookbook that waves with one hand an
 
 The master is the painting itself, `assets/brand/mascot/rezepte-mascot-original.jpg` exactly as generated, and `rezepte-mascot.png`, the same picture cut out of its cream ground and trimmed. Both are in Git LFS; `prompts.md` beside them records the generator, its settings and the prompts, so a variant (a pose for an empty state) can be generated as an edit of the same figure.
 
-**Wherever there is room, the painting is used as it is, never redrawn**: a vector copy lost the brush texture and with it the warmth, and simplified small versions lost the character. The one exception is the favicon, `assets/brand/icon/rezepte-book.svg`: the book alone, upright, without face or limbs, as a flat vector. At 16 px the figure turns into a brown smudge, while the book with its green ribbon still reads.
+**Wherever there is room, the painting is used as it is, never redrawn**: a vector copy lost the brush texture and with it the warmth, and simplified small versions lost the character. **The favicon has a painting of its own**, `rezepte-mascot-favicon-original.jpg`: the same face as a close-up in a circle, generated from the mascot, with the page edges and the ribbon peeking in at the top so it still reads as a book. A crop of the mascot cannot do that, since the pages sit far from the face. It is tuned for 32 px, the size every phone, tablet and high-density screen draws a tab icon at; at 16 px (a 100%-scaled monitor) it only has to keep a face.
 
 ### Wordmark and lockups
 
@@ -413,13 +414,13 @@ The SVG embeds the mascot as a WebP data URI, so it is one self-contained file a
 
 `mise run //frontend:brand:export` writes everything from the masters (it needs the LFS files, so pull them first if a clone skipped them):
 
-- into `assets/brand/lockups/`: the lockups, `rezepte-kitchen.webp` for the login screen, the [error page](#error-page) and empty-state poses, and the cut-out poses (`CUTOUTS` in `brand-export.ts`), resized from their own cut-out `.png` master (the ImageMagick command is in `assets/brand/mascot/prompts.md`);
-- into `frontend/static/`: the favicon (`favicon.svg`, the book file itself, and `favicon.ico` through `@vite-pwa/assets-generator`), the home screen icons (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, and `icon-maskable-512.png` inside Android's safe zone), `manifest.webmanifest` (the base locale) and one `manifest.<locale>.webmanifest` for every other locale in `service/internal/i18n/locales.json`, and `og.png`;
+- into `assets/brand/lockups/`: the lockups, `rezepte-kitchen.webp` for the login screen, the [error page](#error-page) and empty-state poses, `rezepte-favicon-192.png` (the favicon circle as a raster for the docs site), and the cut-out poses (`CUTOUTS` in `brand-export.ts`), resized from their own cut-out `.png` master (the ImageMagick command is in `assets/brand/mascot/prompts.md`);
+- into `frontend/static/`: the favicon (`favicon.svg`, the circle as a WebP inside an SVG like the lockups, which sharp and librsvg draw empty since neither decodes the WebP, so check it in a browser; and `favicon.ico` at 32 px through `@vite-pwa/assets-generator`), the home screen icons (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, and `icon-maskable-512.png` inside Android's safe zone), `manifest.webmanifest` (the base locale) and one `manifest.<locale>.webmanifest` for every other locale in `service/internal/i18n/locales.json`, and `og.png`;
 - `assets/brand/social-preview.png`, the same picture as `og.png`, mascot and wordmark edge to edge so a platform that crops keeps both.
 
-"Add to home screen" shows the painting, not the book: a home screen icon is large enough for the figure to read. The Go service serves the instance locale's manifest at `/manifest.webmanifest` (`ManifestHandler`, `no-cache` so installed apps pick up changed shortcuts); what it declares belongs to [Installable app](/features/installable-app).
+"Add to home screen" shows the whole figure, not the favicon's close-up: a home screen icon is large enough for it to read. The Go service serves the instance locale's manifest at `/manifest.webmanifest` (`ManifestHandler`, `no-cache` so installed apps pick up changed shortcuts); what it declares belongs to [Installable app](/features/installable-app).
 
-**`//frontend:brand:check`, part of `check`, never reads the masters, since CI does not fetch LFS.** It holds the committed outputs to their shape - the wordmark one path in the ink, each lockup a cream box with the hairline and exactly one embedded WebP, the favicon identical to the book, the manifests to what `manifest(locale)` writes, the rasters to their sizes and ground - but not to their pixels, because sharp may encode differently on another platform. `frontend/scripts/brand-palette.ts` is the one list of these colors; the ink is also the `scene-ink` token and light `accent-foreground`.
+**`//frontend:brand:check`, part of `check`, never reads the masters, since CI does not fetch LFS.** It holds the committed outputs to their shape - the wordmark one path in the ink, each lockup a cream box with the hairline and exactly one embedded WebP, the favicon a square SVG around one WebP, the manifests to what `manifest(locale)` writes, the rasters to their sizes and ground - but not to their pixels, because sharp may encode differently on another platform. `frontend/scripts/brand-palette.ts` is the one list of these colors; the ink is also the `scene-ink` token and light `accent-foreground`.
 
 In the app, `#lib/components/brand/Lockup.svelte` loads a lockup as an `<img>` through the `$brand` alias (`../assets/brand`, a Vite `resolve.alias` in `vite.config.ts`, where the dev server is also allowed to serve the folder), so Vite fingerprints it. The top bar's home link carries the name through `aria-label` while picture and masked wordmark stay silent; the login's masked wordmark is a `role="img"` named by `aria-label`.
 
@@ -478,7 +479,7 @@ Callouts use an earthy set of their own (`info`, `warning`, `error`, `success`, 
 
 The direction is warm and calm so that the food is the loudest thing on the page: paper and cream grounds, a single burnt-orange accent, brown-based shadows instead of gray ones. It is also a phone-in-a-kitchen interface, which is what the pill shapes and the generous target sizes are for - one hand, a wet thumb, and a screen propped against something while a pan is on the hob.
 
-The logo is a painted mascot rather than a drawn mark because a drawn mark with a face reads as generic clip art, and a friendly character only carries once it is painted in the same gouache as the demo avatars. Keeping the painting everywhere it fits, and only the favicon as a vector, follows from that: a simplified figure loses either the face or the warmth.
+The logo is a painted mascot rather than a drawn mark because a drawn mark with a face reads as generic clip art, and a friendly character only carries once it is painted in the same gouache as the demo avatars. Keeping the painting everywhere, the favicon included, follows from that: a simplified figure loses either the face or the warmth.
 
 Both faces are self-hosted through Fontsource and imported from CSS (`frontend/src/app.css`), never fetched from a font service at runtime. A self-hosted app should not tell a third party who is reading which recipe, and a kitchen tablet on a LAN with no internet has to render the same as one online.
 
@@ -498,7 +499,8 @@ The user docs wear this palette because end users meet the docs before they meet
 - **`class="dark"` on `<html>`, the common Tailwind convention.** A boolean class has two states where the theme has three: explicit `light`, explicit `dark`, and the attribute's absence meaning "follow the system". `data-theme` carries all three, and it is what lets `:root:not([data-theme='light'])` keep an explicit `light` under a dark system preference.
 - **Theming `docs/memory/` the same way.** The neutral look is what marks it as internal.
 - **A vector trace of the mascot for the small sizes.** Traced flat, cropped to a bust, or with thicker outlines, it kept the pose but lost the charm, and at 24 px and below only the silhouette survives anyway.
-- **A face on the favicon.** At 16 px it is two dark pixels; the book with its ribbon reads better.
+- **A faceless book as the favicon.** A flat vector of the book alone read at 16 px but had nothing of the mascot; tabs draw 32 px on every high-density screen, where the painted face carries.
+- **Retouching the face for small sizes.** Eyes, brows and grin drawn over the painting in bold lines read at 16 px, but turn the character into a different, slightly manic one.
 - **A face in the phone's dock.** The dock's You keeps a line icon, so the bar reads as one set.
 - **A sage or amber box, or a dark box in the dark theme.** Cream is the painting's own ground, so the box and the picture are one surface; a second color would frame the picture instead of holding it.
 - **A drawn mark with a face**, such as a brush-painted onion with a sprout. It reads as clip art, and a face drawn in a few strokes looks either startled or smug.

@@ -12,14 +12,3 @@ export const PAGE = '#f4ede2';
 export const EDGE = '#e3d7c3';
 /** The wordmark. */
 export const INK = '#7c3d0a';
-
-/** The favicon book's colors: outline, shade, cover, wood, ribbon and its shade, pages. */
-export const BOOK = new Set([
-	'#3b1d06',
-	'#8a4210',
-	'#a8560b',
-	'#c47a30',
-	'#86a86f',
-	'#6f8f5c',
-	'#f1e6d2'
-]);

@@ -1,8 +1,16 @@
 import { expect, test } from 'bun:test';
 import { readdirSync } from 'node:fs';
 import sharp from 'sharp';
-import { CUTOUTS, horizontal, manifest, parseWordmark, POSE_SIZE, POSES } from './brand-export';
-import { BOOK, EDGE, GROUND, INK, PAGE } from './brand-palette';
+import {
+	CUTOUTS,
+	FAVICON_SIZE,
+	horizontal,
+	manifest,
+	parseWordmark,
+	POSE_SIZE,
+	POSES
+} from './brand-export';
+import { EDGE, GROUND, INK, PAGE } from './brand-palette';
 
 // brand:check never reads the mascot master: it sits in Git LFS, which CI
 // does not fetch. It checks the committed outputs instead.
@@ -22,12 +30,17 @@ test('the wordmark is one path of letters in the ink', async () => {
 	expect(svg).not.toMatch(/<(image|text|style|script)\b|transform=/);
 });
 
-test('the favicon book is a flat vector in its own palette', async () => {
-	const svg = await text(new URL('icon/rezepte-book.svg', brand));
-	const [, , , w, h] = svg.match(/viewBox="([\d.-]+) ([\d.-]+) ([\d.]+) ([\d.]+)"/) ?? [];
-	expect(w).toBe(h); // square, so the favicon is not squashed
-	for (const color of colors(svg)) expect(BOOK).toContain(color);
-	expect(svg).not.toMatch(/<(image|text|style|script|foreignObject)\b|transform=|\sstyle=/);
+test('the favicon is a square, self-contained painting', async () => {
+	const svg = await text(new URL('favicon.svg', statics));
+	expect(svg).toContain(`viewBox="0 0 ${FAVICON_SIZE} ${FAVICON_SIZE}"`);
+	expect([...svg.matchAll(/<image\b[^>]*href="data:image\/webp;base64,/g)].length).toBe(1);
+	expect(svg).not.toMatch(/<(script|style|foreignObject)\b|href="(?!data:)/);
+	// sharp draws the SVG blank, so the circle is checked on the WebP inside.
+	const webp = Buffer.from(svg.match(/base64,([^"]+)/)![1], 'base64');
+	const img = await sharp(webp).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+	const middle = (img.info.height / 2) * img.info.width + img.info.width / 2;
+	expect(img.data[3]).toBe(0);
+	expect(img.data[middle * 4 + 3]).toBe(255);
 });
 
 const expected = ['rezepte-lockup-horizontal.svg'];
@@ -68,10 +81,7 @@ test('the layouts keep the wordmark inside the box', async () => {
 	}
 });
 
-test('the favicon is the book, and the manifests what the generator writes', async () => {
-	expect(await text(new URL('favicon.svg', statics))).toBe(
-		await text(new URL('icon/rezepte-book.svg', brand))
-	);
+test('the manifests are what the generator writes', async () => {
 	const { baseLocale, locales } = JSON.parse(
 		await Bun.file(new URL('../../service/internal/i18n/locales.json', import.meta.url)).text()
 	);
@@ -198,6 +208,18 @@ test('the cut-out poses are trimmed to their figure on a clear ground', async ()
 test('the poses sit on the app background', async () => {
 	const css = await Bun.file(new URL('../src/app.css', import.meta.url)).text();
 	expect(css).toContain(`--color-background: ${PAGE};`);
+});
+
+test("the docs site's raster favicon is a 192px circle on a clear ground", async () => {
+	const img = await sharp(
+		Buffer.from(await Bun.file(new URL('rezepte-favicon-192.png', lockups)).arrayBuffer())
+	)
+		.ensureAlpha()
+		.raw()
+		.toBuffer({ resolveWithObject: true });
+	expect([img.info.width, img.info.height]).toEqual([192, 192]);
+	expect(img.data[3]).toBe(0); // a corner, outside the circle
+	expect(img.data[(96 * 192 + 96) * 4 + 3]).toBe(255); // the middle
 });
 
 test('favicon.ico is an icon file with a 32px image', async () => {

@@ -5,8 +5,8 @@
 //
 // The mascot is a painting, so every lockup embeds it as a WebP inside the
 // SVG, on a cream box of its own: a lockup looks the same in both themes and
-// needs no dark variant. Only the favicon is vector, the book alone, because
-// the figure turns to a smudge at 16px.
+// needs no dark variant. The favicon is its own painting, a close-up of the
+// face in a circle, because the whole figure turns to a smudge at tab size.
 import { generateAssets } from '@vite-pwa/assets-generator/api/generate-assets';
 import { instructions } from '@vite-pwa/assets-generator/api/instructions';
 import { readFileSync } from 'node:fs';
@@ -238,11 +238,42 @@ async function socialPreview(
 		.toBuffer();
 }
 
+// The favicon: the close-up painting cut to the circle it was painted in. The
+// generator paints it on white, so the white is trimmed and the circle drawn a
+// hair inside the painted one, leaving no light fringe on a dark tab bar.
+export const FAVICON_SIZE = 96;
+
+async function faviconPng(size: number): Promise<Buffer> {
+	const master = await readLfs('mascot/rezepte-mascot-favicon-original.jpg');
+	const disc = await sharp(master).trim({ background: '#ffffff', threshold: 40 }).toBuffer();
+	const r = size / 2;
+	const mask = Buffer.from(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${r}" cy="${r}" r="${r * 0.97}"/></svg>`
+	);
+	return sharp(disc)
+		.resize(size, size, { fit: 'cover' })
+		.ensureAlpha()
+		.composite([{ input: mask, blend: 'dest-in' }])
+		.png()
+		.toBuffer();
+}
+
+// favicon.svg wraps a WebP, like the lockups: one file every modern browser
+// scales to its tab, at three times the 32px a sharp screen draws.
+export function faviconSvg(webp: Buffer): string {
+	const href = `data:image/webp;base64,${webp.toString('base64')}`;
+	return svg(
+		FAVICON_SIZE,
+		FAVICON_SIZE,
+		`<image width="${FAVICON_SIZE}" height="${FAVICON_SIZE}" href="${href}"/>`
+	);
+}
+
 // favicon.ico, through @vite-pwa/assets-generator, which writes ICO files.
-async function faviconIco(book: string) {
+async function faviconIco(png: Buffer) {
 	const plan = await instructions({
-		imageResolver: async () => Buffer.from(book),
-		imageName: 'rezepte-book.svg',
+		imageResolver: async () => png,
+		imageName: 'rezepte-favicon.png',
 		preset: {
 			transparent: { sizes: [], padding: 0, favicons: [[32, 'favicon.ico']] },
 			maskable: { sizes: [] },
@@ -276,9 +307,20 @@ async function main() {
 		await Bun.write(new URL(`rezepte-mascot-${name}.webp`, lockups), await cutout(master));
 	}
 
-	const book = await Bun.file(new URL('icon/rezepte-book.svg', brand)).text();
-	await Bun.write(new URL('favicon.svg', statics), book);
-	await faviconIco(book);
+	const favicon = await faviconPng(FAVICON_SIZE * 2);
+	const faviconWebp = await sharp(favicon)
+		.resize(FAVICON_SIZE)
+		.webp({ quality: 85, alphaQuality: 90, effort: 6 })
+		.toBuffer();
+	await Bun.write(new URL('favicon.svg', statics), faviconSvg(faviconWebp));
+	await faviconIco(favicon);
+	// The docs site's raster tab icon, for search results: a multiple of 48px.
+	await Bun.write(
+		new URL('rezepte-favicon-192.png', lockups),
+		await sharp(await faviconPng(192))
+			.png({ palette: true, quality: 92 })
+			.toBuffer()
+	);
 	await Bun.write(new URL('apple-touch-icon.png', statics), await icon(master, 180, 0.84));
 	await Bun.write(new URL('icon-192.png', statics), await icon(master, 192, 0.84));
 	await Bun.write(new URL('icon-512.png', statics), await icon(master, 512, 0.84));

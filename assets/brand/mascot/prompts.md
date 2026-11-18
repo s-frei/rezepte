@@ -2,7 +2,7 @@
 
 `rezepte-mascot-original.jpg` is the mascot exactly as the generator returned it: a waving cookbook holding a wooden spoon, in vintage-cookbook gouache on its own cream ground. `rezepte-mascot.png` is the same picture with that ground flood-filled away from the four corners and trimmed (ImageMagick, `-fuzz 9%`), the master `mise run //frontend:brand:export` derives every lockup, icon and preview from. Both are in Git LFS.
 
-`../icon/rezepte-book.svg`, the favicon, is the book alone: a flat redraw of the mascot, the face, arms, legs and spoon removed, traced with vtracer and mapped onto the palette in `frontend/scripts/brand-palette.ts`.
+`rezepte-mascot-favicon-original.jpg` is the favicon's own painting: a close-up of the face in a circle, generated from the mascot, since a crop of the mascot loses the pages and ribbon that make it a book.
 
 ## Settings
 
@@ -30,13 +30,17 @@ The mascot took three steps, each an edit of the one before (`inputImagePath`, `
 
 > Edit this illustration and keep everything the same: same cookbook character, same pose, same waving hand, same spoon, same colors, same gouache style, same background, same framing. Keep a little of its playful personality but make it clearly friendly: one eyebrow only very slightly higher than the other in a playful, good-humored way (not questioning), eyes open and warm, and a big, genuine, slightly lopsided grin that clearly reads as happy. Charming, fun and welcoming, not skeptical, not smug. No text.
 
-## The book for the favicon
+## The favicon
 
-A flat redraw of step 3, then the book alone from it, both edits of the one before:
+### `rezepte-mascot-favicon-original.jpg`
 
-> Redraw this exact illustration as a clean flat vector illustration, tracing it as faithfully as possible: identical pose, identical proportions, identical tilt, identical waving hand, identical spoon grip, identical ribbon shape, and above all the identical face — same eyebrow shapes and positions (one very slightly higher), same eye shapes with their small highlights, same nose line, same lopsided happy grin. Only the rendering changes: replace the gouache texture with smooth flat color fills, one uniform bold dark-brown outline (#3b1d06) around every shape, at most one flat shadow tone per color. Colors: cover amber-brown #a8560b with shadow #8a4210, spine and corner details #8a4210, arms and legs #8a4210, wooden spoon #c47a30 with outline, ribbon sage green #86a86f with shadow #6f8f5c, pages cream #f1e6d2, face lines #3b1d06. Background pure flat #ffffff edge to edge. No text, no texture, no gradients.
+An edit of `rezepte-mascot-original.jpg` (`maintainCharacterConsistency: true`), generator model `gemini-nano-banana-2.1`, 1024 × 1024 px, the other settings as in the table. `mise run //frontend:brand:export` trims its white, cuts the circle a hair inside the painted one and writes `favicon.svg` and `favicon.ico`.
 
-> From this exact illustration, keep only the book itself: same cookbook, same colors, same outline weight, same flat vector style, same sage-green ribbon swooshing out of the top, same cream page block, same corner details. Remove the face completely (plain cover), remove the arms, hands, legs and the spoon. Stand the book upright and straight (no tilt), centered in the square, filling about 80% of its height. Clean flat shapes, no texture. Background pure flat #ffffff edge to edge. No text.
+**purpose**: Browser favicon for a recipe app, shown at 32 px and 16 px, round
+
+> Edit this illustration and keep the same cookbook character exactly: same amber-brown cover, same face (same eye shapes with their small highlights, same eyebrows with one very slightly higher, same warm lopsided grin, same cheeks), same vintage-cookbook gouache style with dark ink outline. New framing: an extreme close-up portrait. A perfect circle filled with the book's amber-brown cover itself; the face fills about 70 percent of the circle's width, centered; at the top of the circle a narrow strip of the cream page edges and the sage-green ribbon tip peek in, so it still reads as a book. The circle edge crops the cover. Same expression, same proportions of the face, not exaggerated, no googly eyes, just the face painted a little cleaner and with slightly clearer dark lines so it survives being shown very small. No arms, no spoon. Outside the circle pure flat white edge to edge. No text, no ring, no shadow.
+
+Softer prompts ("a close-up of the upper part of the book") came back as the whole figure on a cream disc.
 
 ## The error page poses
 
