@@ -2306,6 +2306,29 @@
         ],
         "type": "object"
       },
+      "LatestRelease": {
+        "additionalProperties": false,
+        "properties": {
+          "changelogUrl": {
+            "description": "Release notes of that release",
+            "type": "string"
+          },
+          "publishedAt": {
+            "description": "When that release was published; absent when GitHub gives no date",
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "description": "Version of the newest stable release",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "changelogUrl"
+        ],
+        "type": "object"
+      },
       "Link": {
         "additionalProperties": false,
         "properties": {
@@ -4037,6 +4060,43 @@
           "slug",
           "title",
           "createdBy"
+        ],
+        "type": "object"
+      },
+      "StatusBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/StatusBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "current": {
+            "description": "Version this instance runs",
+            "type": "string"
+          },
+          "latest": {
+            "$ref": "#/components/schemas/LatestRelease",
+            "description": "The newer release; present only when state is available"
+          },
+          "state": {
+            "description": "current: up to date; available: a newer release exists; unknown: no successful check yet; off: update check disabled, demo mode or a development build",
+            "enum": [
+              "current",
+              "available",
+              "unknown",
+              "off"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "current",
+          "state"
         ],
         "type": "object"
       },
@@ -10036,6 +10096,52 @@
           }
         ],
         "summary": "Configure the sign-in provider",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/update": {
+      "get": {
+        "operationId": "get-update-status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Get whether a newer Rezepte release exists",
         "tags": [
           "settings"
         ]

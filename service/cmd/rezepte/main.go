@@ -43,6 +43,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/tokenapi"
 	"github.com/s-frei/rezepte/service/internal/transfer"
+	"github.com/s-frei/rezepte/service/internal/update"
 	"github.com/s-frei/rezepte/service/internal/user"
 	"github.com/s-frei/rezepte/service/internal/userapi"
 	"github.com/s-frei/rezepte/service/internal/web"
@@ -257,6 +258,8 @@ func run() error {
 	// Sends queue from here on; the command line above sends inside its call.
 	mailer.Start(ctx)
 	digestDone := notifications.StartRecipeDigest(ctx)
+	updates := update.NewService(version, update.FeedURL, cfg.UpdateCheck && !*demoMode, &http.Client{Timeout: 10 * time.Second}, logger)
+	updateDone := updates.Start(ctx)
 
 	srv := httpserver.New(cfg, logger, web.Dist(), httpserver.Options{
 		APIMiddleware:   auth.Middleware(sessions, tokens, cfg.SecureCookies),
@@ -295,6 +298,7 @@ func run() error {
 	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance, mailer.Enabled)
+	update.Register(srv.API(), updates)
 	mailapi.Register(srv.API(), mailer, users)
 	oidc.RegisterSettings(srv.API(), oidcSettings)
 	preview.Register(srv.API(), previews)
@@ -312,7 +316,8 @@ func run() error {
 	err = srv.Run(ctx)
 	stop() // a failed listen returns before ctx ends
 	// One deadline for all three, in this order: the digest hands its mails
-	// to the queue before the queue drains.
+	// to the queue before the queue drains. The update check needs none: ctx
+	// is canceled, which ends its request.
 	deadline := (<-stopped).Add(shutdownWait)
 	select {
 	case <-digestDone:
@@ -320,6 +325,7 @@ func run() error {
 		logger.Warn("rezepte: recipe digest still running at exit, its remaining mails are lost")
 	}
 	mailer.Stop(time.Until(deadline))
+	<-updateDone
 	select {
 	case <-pushDone:
 	case <-time.After(time.Until(deadline)):

@@ -25,6 +25,7 @@ type Config struct {
 	LogFormat     string     // REZEPTE_LOG_FORMAT, default "text"
 	Locale        string     // REZEPTE_LOCALE, default "en"
 	SecureCookies bool       // REZEPTE_SECURE_COOKIES, default false
+	UpdateCheck   bool       // REZEPTE_UPDATE_CHECK, default true
 
 	PublicURL        string // REZEPTE_PUBLIC_URL, no default; stored without a trailing slash
 	OIDCIssuer       string // REZEPTE_OIDC_ISSUER
@@ -79,6 +80,11 @@ func load(getenv func(string) string) (Config, error) {
 		errs = append(errs, fmt.Errorf(`parse error on field "SecureCookies" of type "bool": %w`, err))
 	}
 	cfg.SecureCookies = secure
+	updateCheck, err := strconv.ParseBool(get("REZEPTE_UPDATE_CHECK", "true"))
+	if err != nil {
+		errs = append(errs, fmt.Errorf(`parse error on field "UpdateCheck" of type "bool": %w`, err))
+	}
+	cfg.UpdateCheck = updateCheck
 	if len(errs) > 0 {
 		format := "parse environment: env: %w" + strings.Repeat("; %w", len(errs)-1)
 		return Config{}, fmt.Errorf(format, errs...)

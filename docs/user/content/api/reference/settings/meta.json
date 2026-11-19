@@ -12,6 +12,7 @@
     "send-test-mail",
     "get-sign-in-settings",
     "delete-sign-in-settings",
-    "update-sign-in-settings"
+    "update-sign-in-settings",
+    "get-update-status"
   ]
 }

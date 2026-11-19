@@ -97,7 +97,7 @@ func TestLoadFromEmptyMeansDefault(t *testing.T) {
 	for _, name := range []string{
 		"REZEPTE_ADDR", "REZEPTE_DATA_DIR", "REZEPTE_ADMIN_USER", "REZEPTE_ADMIN_PASSWORD",
 		"REZEPTE_LOG_LEVEL", "REZEPTE_LOG_FORMAT", "REZEPTE_LOCALE", "REZEPTE_SECURE_COOKIES",
-		"REZEPTE_OIDC_NAME",
+		"REZEPTE_UPDATE_CHECK", "REZEPTE_OIDC_NAME",
 	} {
 		got, err := LoadFrom(map[string]string{name: ""})
 		if err != nil || got != want {
@@ -119,6 +119,8 @@ func TestLoadFromParsesValuesVerbatim(t *testing.T) {
 		{map[string]string{"REZEPTE_SECURE_COOKIES": "1"}, func(c Config) bool { return c.SecureCookies }},
 		{map[string]string{"REZEPTE_SECURE_COOKIES": "TRUE"}, func(c Config) bool { return c.SecureCookies }},
 		{map[string]string{"REZEPTE_SECURE_COOKIES": "false"}, func(c Config) bool { return !c.SecureCookies }},
+		{map[string]string{}, func(c Config) bool { return c.UpdateCheck }},
+		{map[string]string{"REZEPTE_UPDATE_CHECK": "false"}, func(c Config) bool { return !c.UpdateCheck }},
 		{map[string]string{"REZEPTE_LOG_LEVEL": "WARN"}, func(c Config) bool { return c.LogLevel == slog.LevelWarn }},
 		{map[string]string{"REZEPTE_LOG_LEVEL": "info+2"}, func(c Config) bool { return c.LogLevel == slog.LevelInfo+2 }},
 		{map[string]string{"REZEPTE_LOG_LEVEL": "error"}, func(c Config) bool { return c.LogLevel == slog.LevelError }},
@@ -140,6 +142,8 @@ func TestLoadFromErrors(t *testing.T) {
 			`parse environment: env: parse error on field "SecureCookies" of type "bool": strconv.ParseBool: parsing "yes": invalid syntax`},
 		{map[string]string{"REZEPTE_SECURE_COOKIES": " true"},
 			`parse environment: env: parse error on field "SecureCookies" of type "bool": strconv.ParseBool: parsing " true": invalid syntax`},
+		{map[string]string{"REZEPTE_UPDATE_CHECK": "nope"},
+			`parse environment: env: parse error on field "UpdateCheck" of type "bool": strconv.ParseBool: parsing "nope": invalid syntax`},
 		{map[string]string{"REZEPTE_LOG_LEVEL": "bogus"},
 			`parse environment: env: parse error on field "LogLevel" of type "slog.Level": slog: level string "bogus": unknown name`},
 		{map[string]string{"REZEPTE_LOG_LEVEL": " debug"},
