@@ -16,6 +16,7 @@
 	import { signOut } from '#lib/sign-out.js';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import SwitchEntry from './SwitchEntry.svelte';
+	import VersionBand from './VersionBand.svelte';
 
 	let { open = $bindable(false) }: { open?: boolean } = $props();
 
@@ -109,6 +110,8 @@
 					{m.logout()}
 				</button>
 			</div>
+			<VersionBand place="sheet" />
 		</div>
+		<VersionBand place="sheet-foot" onopen={() => (open = false)} />
 	</BottomSheet>
 {/if}

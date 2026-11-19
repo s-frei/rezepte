@@ -2,13 +2,11 @@
 	import BellRing from '@lucide/svelte/icons/bell-ring';
 	import X from '@lucide/svelte/icons/x';
 	import { toast } from 'svelte-sonner';
-	import { cubicOut } from 'svelte/easing';
-	import { prefersReducedMotion } from 'svelte/motion';
-	import { slide } from 'svelte/transition';
 	import { standalone } from '#lib/install.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { deviceState, enableDevice, pushUndecided } from '#lib/push.svelte.js';
 	import { load, save } from '#lib/storage.js';
+	import { collapse } from './collapse.js';
 
 	const STORAGE_KEY = 'rezepte-push-banner-dismissed';
 
@@ -28,13 +26,6 @@
 			if (deviceState() !== 'blocked') toast.error(m.settings_notifications_enable_error());
 		});
 	}
-
-	// As the install banner: only × folds the note away with motion.
-	function collapse(node: Element) {
-		const duration = dismissed && !prefersReducedMotion.current ? 240 : 0;
-		const fold = slide(node, { duration, easing: cubicOut });
-		return { ...fold, css: (t: number, u: number) => `${fold.css?.(t, u)}; opacity: ${t}` };
-	}
 </script>
 
 <!--
@@ -45,7 +36,10 @@
 	× hides it for good on this device; Settings → Notifications stays.
 -->
 {#if standalone && pushUndecided() && !dismissed}
-	<div out:collapse class="mb-5 rounded-2xl bg-surface px-4 pt-3 pb-4 shadow-card">
+	<div
+		out:collapse={() => dismissed}
+		class="mb-5 rounded-2xl bg-surface px-4 pt-3 pb-4 shadow-card"
+	>
 		<div class="flex items-center gap-2.5">
 			<span class="font-display text-body-sm font-medium text-primary italic">
 				{m.push_banner_label()}

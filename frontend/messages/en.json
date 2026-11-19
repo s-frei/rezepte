@@ -1673,5 +1673,19 @@
 	"step_photo_caption": "Step {step} · {phrase}",
 	"step_photo_position": "Photo {number} of {count}",
 	"step_photo_enlarge": "View large",
-	"step_photo_close": "Close photo"
+	"step_photo_close": "Close photo",
+
+	"update_note_label": "Update",
+	"update_note_title": "New version available",
+	"update_note_installed": "Installed",
+	"update_note_since": "Since {date}",
+	"update_note_whats_new": "What's new",
+	"update_note_instructions": "Instructions",
+	"update_note_dismiss": "Hide",
+	"update_band_name": "Rezepte",
+	"update_band_version": "Version {version}",
+	"update_band_current": "Up to date",
+	"update_band_available": "Update available",
+	"update_band_available_label": "Update available: {from} to {to}, what's new (opens in a new tab)",
+	"update_versions_label": "Installed {from}, new {to}"
 }

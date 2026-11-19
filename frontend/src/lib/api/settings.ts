@@ -43,3 +43,17 @@ export function updateSettings(patch: Partial<Settings>): Promise<Settings> {
 export function setRecipesLockedByDefault(on: boolean): Promise<Settings> {
 	return updateSettings({ recipesLockedByDefault: on });
 }
+
+export type UpdateState = 'current' | 'available' | 'unknown' | 'off';
+
+/** Owner only: the running version against the latest stable release. */
+export type UpdateStatus = {
+	current: string;
+	state: UpdateState;
+	/** Only when `state` is `available`; the link comes from the server. */
+	latest?: { version: string; publishedAt?: string; changelogUrl: string };
+};
+
+export function getUpdateStatus(): Promise<UpdateStatus> {
+	return api<UpdateStatus>('/settings/update');
+}

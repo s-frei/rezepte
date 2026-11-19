@@ -1673,5 +1673,19 @@
 	"step_photo_caption": "Schritt {step} · {phrase}",
 	"step_photo_position": "Foto {number} von {count}",
 	"step_photo_enlarge": "Groß ansehen",
-	"step_photo_close": "Foto schließen"
+	"step_photo_close": "Foto schließen",
+
+	"update_note_label": "Update",
+	"update_note_title": "Neue Version verfügbar",
+	"update_note_installed": "Installiert",
+	"update_note_since": "Seit {date}",
+	"update_note_whats_new": "Was ist neu",
+	"update_note_instructions": "Anleitung",
+	"update_note_dismiss": "Ausblenden",
+	"update_band_name": "Rezepte",
+	"update_band_version": "Version {version}",
+	"update_band_current": "Aktuell",
+	"update_band_available": "Update verfügbar",
+	"update_band_available_label": "Update verfügbar: {from} auf {to}, was ist neu (öffnet in neuem Tab)",
+	"update_versions_label": "Installiert {from}, neu {to}"
 }

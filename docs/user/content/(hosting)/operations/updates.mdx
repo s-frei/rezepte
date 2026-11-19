@@ -29,6 +29,18 @@ Before you update, read the release's page in the [Changelog](/changelog). If th
   </Tab>
 </Tabs>
 
+## How you learn about a new version
+
+Once a day, Rezepte asks GitHub (`api.github.com`) for the latest release. When it is newer than the running version, the owner sees a note on the overview, with a link to the release. Each version's note can be dismissed with ×, in that browser only. Members never see it.
+
+<Screenshot name="update-note" caption="The note on the overview when a newer version is out" />
+
+The owner's menu (on a phone: the You sheet) ends with the running version, marked up to date when it is. While an update is waiting, it shows both versions and links to the release.
+
+<Screenshot name="update-band" caption="The foot of the owner's menu while an update is waiting" />
+
+The request carries only the name `Rezepte` as its User-Agent, nothing about your instance, and its answer stays on the server. Set `REZEPTE_UPDATE_CHECK=false` to stop it; the demo mode and development builds never check. A note can arrive up to a day after a release, and a failed check changes nothing until the next one.
+
 ## Confirm the new version is running
 
 ```bash

@@ -26,6 +26,7 @@
 	import firstRecipeArt from '$brand/lockups/rezepte-mascot-first-recipe.webp?url';
 	import InstallBanner from '#lib/components/install/InstallBanner.svelte';
 	import PushBanner from '#lib/components/install/PushBanner.svelte';
+	import UpdateBanner from '#lib/components/install/UpdateBanner.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import ActiveFilters from '#lib/components/recipe/ActiveFilters.svelte';
@@ -699,6 +700,7 @@
 <section class="pt-5 md:pt-8">
 	<InstallBanner />
 	<PushBanner />
+	<UpdateBanner />
 	<!-- A running head, as at the top of a cookbook page: the section on the
 	     left, a dotted leader like the ones in a table of contents, and on
 	     the right how many recipes the list holds and today's date. The

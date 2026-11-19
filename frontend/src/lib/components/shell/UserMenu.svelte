@@ -16,6 +16,7 @@
 	import { setTheme, theme } from '#lib/theme.svelte.js';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import SwitchEntry from './SwitchEntry.svelte';
+	import VersionBand from './VersionBand.svelte';
 
 	/** The desktop top bar's avatar menu; a phone reaches the same through the bottom nav's "You". */
 	let { open = $bindable(false) }: { open?: boolean } = $props();
@@ -50,7 +51,7 @@
 			preventScroll={false}
 			sideOffset={8}
 			align="end"
-			class="w-61 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
+			class="w-61 overflow-hidden rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 		>
 			<!-- Headed by the person, as the You sheet is, so desktop and phone
 			     read the same: who is signed in, then the rows with their icons. -->
@@ -117,7 +118,7 @@
 							closeOnSelect={false}
 							aria-label={option.label}
 							title={option.label}
-							class="relative flex h-6 w-6.5 items-center justify-center rounded-pill text-text-muted transition outline-none hover:text-text focus-visible:outline-2 focus-visible:outline-primary data-highlighted:text-text data-[state=checked]:text-text"
+							class="relative flex h-6 w-6.5 items-center justify-center rounded-pill text-text-muted transition outline-none hover:text-text focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-solid data-highlighted:text-text data-[state=checked]:text-text"
 						>
 							<Icon class="size-3.5" aria-hidden="true" />
 						</DropdownMenu.RadioItem>
@@ -135,6 +136,7 @@
 				<LogOut class="size-4 shrink-0" aria-hidden="true" />
 				{m.logout()}
 			</DropdownMenu.Item>
+			<VersionBand place="menu" />
 		</DropdownMenu.Content>
 	</DropdownMenu.Portal>
 </DropdownMenu.Root>

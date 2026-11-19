@@ -1,0 +1,44 @@
+---
+title: Update check
+description: The owner's note about a new release and the version band; a daily server-side look at GitHub, off in the demo, in e2e and for dev builds
+---
+
+Rezepte tells its owner when a newer stable release exists. `service/internal/update/` asks GitHub once a day and serves the result at `GET /api/v1/settings/update`, owner only; the SPA shows it as `components/install/UpdateBanner.svelte` on the overview and `components/shell/VersionBand.svelte` at the foot of the user menu and the You sheet. State and loading: `frontend/src/lib/update.ts`, `update.svelte.ts`. Hosts read the Updates page in the user docs (`docs/user/content/(hosting)/operations/updates.mdx`).
+
+<Callout type="warn" title="Traps">
+
+- Demo, e2e and `dev` builds never check: `--demo`, `REZEPTE_UPDATE_CHECK=false` (set by `mise/tasks/e2e.sh`) and an unparsable version all give state `off`. Stub the endpoint with `page.route` ([Testing](#testing)).
+- The e2e filter matches the full path, so a word that is also in the worktree's name matches every spec; pass the file path (`e2e/update.test.ts`).
+- The app's service worker bypasses `page.route`; the test context needs `serviceWorkers: 'block'`.
+- The account's own locale beats `pinLocale`, and the shared `admin` account must never be flipped: route `/auth/me` to get German.
+
+</Callout>
+
+## How it works
+
+**The server checks, once a day.** `Service.Start` calls GitHub's `releases/latest` at start and every 24 hours and caches the outcome; a failure is logged and keeps the previous status. The request sends `User-Agent: Rezepte` and nothing else. A response naming a prerelease or draft counts as a failed check.
+
+**The status has four states.** `current`, `available` (with the latest version and, when GitHub gives one, its date), `unknown` (enabled, no successful check yet) and `off`. The handler is owner-only; members get no status.
+
+**The note is per version and per browser.** The × stores the dismissed version in `localStorage` key `rezepte-update-dismissed`; a newer release shows the note again. `update.svelte.ts` loads only for the owner and resets on sign-in.
+
+**In the You sheet only an update stays in view.** `available` renders below the sheet's scroller as its foot, so the list and the sheet's scroll thumb end above it; every other state is a card at the end of the list, scrolled with it, since a band saying nothing is to do would only take room if it stuck. `VersionBand`'s `place` (`sheet` inside the scroller, `sheet-foot` after it) picks which one renders.
+
+### Testing
+
+`frontend/e2e/update.test.ts` stubs the endpoint per state; no real GitHub call happens anywhere in tests.
+
+## Why it is this way
+
+- **Server-side, not a browser fetch.** One request per instance instead of one per owner device, no owner or member IP reaches GitHub, and a host turns it off in one place.
+
+## Rejected
+
+- **A browser fetch of the GitHub API.** It sends every browser's IP to GitHub, once per device, and a host could not turn it off centrally.
+- **An own release feed.** A server of ours would see every instance; GitHub already holds the releases.
+
+## Limits
+
+- Dismissal is per browser, not per owner.
+- A release can take up to 24 hours to show.
+- GitHub's unauthenticated rate limit (60 requests an hour per address) is far above one request a day, but instances behind one shared address share it.

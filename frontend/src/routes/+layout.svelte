@@ -18,6 +18,7 @@
 	// Registers the service worker and arms a push alarm for each running timer.
 	import '#lib/push.svelte.js';
 	import { palette } from '#lib/palette.svelte.js';
+	import { loadUpdateStatus } from '#lib/update.svelte.js';
 	import { navPlace } from '#lib/shell.svelte.js';
 	import { pageTransition } from '#lib/page-transition.js';
 	import { arrive } from '#lib/arrival.js';
@@ -100,6 +101,11 @@
 	onMount(() => void arrive());
 	onMount(listenForLaunches);
 	onMount(listenForPushToasts);
+	// The owner's update status, for the overview's note and the menu's band
+	// on any page; once, and again on a switch (#lib/update.svelte.ts).
+	$effect(() => {
+		if (session.user) void loadUpdateStatus();
+	});
 	// Another tab switched, signed in or out: the cookie is no longer this
 	// tab's person (#lib/session-broadcast.ts).
 	onMount(() => followSession(() => session.user?.id ?? null));

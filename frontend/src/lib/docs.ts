@@ -18,3 +18,6 @@ export const SOURCE_URL = 'https://github.com/s-frei/rezepte';
 
 /** The user-docs page on connecting an MCP client; same site as USER_GUIDE_URL. */
 export const MCP_GUIDE_URL = 'https://getrezepte.app/api/mcp/';
+
+/** The user-docs page on updating an instance; same site as USER_GUIDE_URL. */
+export const UPDATES_GUIDE_URL = 'https://getrezepte.app/operations/updates/';
