@@ -184,20 +184,26 @@ func (s *Service) sendConfirmation(ctx context.Context, u user.User, by string) 
 	if err != nil {
 		return err
 	}
-	err = s.mailer.SendConfirm(ctx, mail.Confirm{To: u.Email, Username: u.Username, Admin: by, Path: ConfirmPath(token), Locale: u.Locale})
-	if err != nil {
-		// A link nobody received is not an open confirmation: dropped, so
-		// ConfirmationPending never claims a mail that did not go out. The
-		// replaced link before it is dead either way. By token, so a newer
-		// confirmation issued meanwhile stays.
+	// A link nobody received is not an open confirmation: dropped once the
+	// mail finally fails, so ConfirmationPending never claims a mail that
+	// did not go out. The replaced link before it is dead either way. By
+	// token, so a newer confirmation issued meanwhile stays. A mail that
+	// never went out does not use up the minute, so the send button offered
+	// next works at once.
+	drop := func(ctx context.Context, err error) {
 		if derr := s.q.DeleteEmailConfirmation(ctx, hashToken(token)); derr != nil {
 			slog.WarnContext(ctx, "auth: drop unsent confirmation failed", "user", u.ID, "err", derr)
 		}
-		// A mail that never went out does not use up the minute, so the
-		// send button offered next works at once.
-		if errors.Is(err, mail.ErrSend) {
+		if !errors.Is(err, mail.ErrDisabled) {
 			s.confirmCooldown.forget(u.ID)
 		}
+	}
+	err = s.mailer.SendConfirm(ctx, mail.Confirm{
+		To: u.Email, Username: u.Username, Admin: by, Path: ConfirmPath(token), Locale: u.Locale, OnFail: drop,
+	})
+	if err != nil && !errors.Is(err, mail.ErrSend) {
+		// Nothing was handed over, so OnFail never runs.
+		drop(ctx, err)
 	}
 	return err
 }

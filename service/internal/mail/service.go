@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/user"
 )
@@ -46,6 +47,15 @@ type Service struct {
 	logger    *slog.Logger
 	now       func() time.Time
 	reporter  DeliveryReporter
+	// The worker's queue, nil until Start; quit ends the worker and done
+	// closes once it has.
+	queue      chan *job
+	quit, done chan struct{}
+	// stopping closes when Stop begins, before it takes stopMu.
+	stopping chan struct{}
+	// stopped is set by Stop under stopMu; enqueue reads it.
+	stopMu  sync.RWMutex
+	stopped bool
 }
 
 // DeliveryReporter hears how real sends go, so the owner can be warned
@@ -222,83 +232,100 @@ func (s *Service) SendTest(ctx context.Context, actor user.User, to string, over
 	if err != nil {
 		return err
 	}
-	return Send(ctx, cfg, env)
+	// The owner waits for this one on screen, so it goes around the queue,
+	// on a connection of its own, and never reports. It is in the history
+	// like any other.
+	id, err := s.record(ctx, env)
+	if err != nil {
+		return err
+	}
+	err = Send(ctx, cfg, env)
+	status, detail := "sent", ""
+	if err != nil {
+		status, detail = "failed", Detail(err)
+	}
+	now := db.FormatTime(s.now())
+	if derr := s.q.FinishMailLog(context.WithoutCancel(ctx), sqlc.FinishMailLogParams{
+		Status: status, Attempts: 1, Error: detail, FinishedAt: &now, ID: id,
+	}); derr != nil {
+		s.logger.Warn("mail: history update failed", "err", derr)
+	}
+	return err
 }
 
 // SendInvite mails a setup link; in.Path is appended to REZEPTE_PUBLIC_URL.
 func (s *Service) SendInvite(ctx context.Context, in Invite) error {
-	return deliverBuilt(ctx, s, in.To, "setup link", BuildInvite, in)
+	return deliverBuilt(ctx, s, "setup link", BuildInvite, in, in.OnSent, nil)
 }
 
 // SendReset mails a password reset link.
 func (s *Service) SendReset(ctx context.Context, in Reset) error {
-	return deliverBuilt(ctx, s, in.To, "password reset", BuildReset, in)
+	return deliverBuilt(ctx, s, "password reset", BuildReset, in, nil, nil)
 }
 
 // SendHint mails the sign-in hint for an account without a password.
 func (s *Service) SendHint(ctx context.Context, in Hint) error {
-	return deliverBuilt(ctx, s, in.To, "sign-in hint", BuildHint, in)
+	return deliverBuilt(ctx, s, "sign-in hint", BuildHint, in, nil, nil)
 }
 
 // SendConfirm mails an address confirmation link.
 func (s *Service) SendConfirm(ctx context.Context, in Confirm) error {
-	return deliverBuilt(ctx, s, in.To, "address confirmation", BuildConfirm, in)
+	return deliverBuilt(ctx, s, "address confirmation", BuildConfirm, in, nil, in.OnFail)
 }
 
 // SendPasswordChanged mails the notice that a password changed.
 func (s *Service) SendPasswordChanged(ctx context.Context, in PasswordChanged) error {
-	return deliverBuilt(ctx, s, in.To, "password notice", BuildPasswordChanged, in)
+	return deliverBuilt(ctx, s, "password notice", BuildPasswordChanged, in, nil, nil)
 }
 
 // SendEmailChanged mails the notice that an address changed to the old one.
 func (s *Service) SendEmailChanged(ctx context.Context, in EmailChanged) error {
-	return deliverBuilt(ctx, s, in.To, "address notice", BuildEmailChanged, in)
+	return deliverBuilt(ctx, s, "address notice", BuildEmailChanged, in, nil, nil)
 }
 
 // SendIdentityLinked mails the notice that a sign-in identity was linked.
 func (s *Service) SendIdentityLinked(ctx context.Context, in IdentityLinked) error {
-	return deliverBuilt(ctx, s, in.To, "sign-in method notice", BuildIdentityLinked, in)
+	return deliverBuilt(ctx, s, "sign-in method notice", BuildIdentityLinked, in, nil, nil)
 }
 
 // deliverBuilt is deliver for a mail that build renders from in.
-func deliverBuilt[T any](ctx context.Context, s *Service, to, what string, build func(Config, T, string, time.Time) (Envelope, error), in T) error {
-	return s.deliver(ctx, to, what, func(cfg Config) (Envelope, error) {
+func deliverBuilt[T any](ctx context.Context, s *Service, what string, build func(Config, T, string, time.Time) (Envelope, error), in T, onSent func(context.Context), onFail func(context.Context, error)) error {
+	return s.deliver(ctx, what, func(cfg Config) (Envelope, error) {
 		return build(cfg, in, s.publicURL, s.now())
-	})
+	}, onSent, onFail)
 }
 
-// deliver renders a mail with build and sends it to to. ErrDisabled means
-// mail is off and nothing was tried. A failure is returned and logged with
-// the recipient's domain and, for a server refusal, its reply code only: the
-// error text can quote the address, and a link is never logged. The
-// reporter hears of a setup failure and of every accepted send.
-func (s *Service) deliver(ctx context.Context, to, what string, build func(Config) (Envelope, error)) error {
-	cfg, src, err := s.Effective(ctx)
+// deliver renders a mail with build, records it in the history and sends
+// it. ErrDisabled means mail is off and nothing was tried; any other
+// error returned is one of rendering or the history, and nothing was sent.
+// Once Start ran, deliver returns as soon as the mail is queued and the
+// worker sends it; without, it sends inside the call and also returns the
+// delivery failure. Either way an accepted send calls onSent and a final
+// failure onFail (nil: nothing to do), is logged with the recipient's domain and a server's reply
+// code only - the error text can quote the address, and a link is never
+// logged - and reports a setup failure; every accepted send reports too.
+func (s *Service) deliver(ctx context.Context, what string, build func(Config) (Envelope, error), onSent func(context.Context), onFail func(context.Context, error)) error {
+	cfg, err := s.sendable(ctx)
 	if err != nil {
 		return err
-	}
-	if src == SourceNone || s.publicURL == "" {
-		return ErrDisabled
 	}
 	env, err := build(cfg)
 	if err != nil {
 		return err
 	}
-	if err := Send(ctx, cfg, env); err != nil {
-		reason := any("send failed")
-		if reply, ok := errors.AsType[*textproto.Error](err); ok {
-			reason = reply.Code
-		}
-		s.logger.Warn("mail: "+what+" not sent", "domain", domainOf(to), "reason", reason)
-		if se, ok := errors.AsType[*setupError](err); ok && s.reporter != nil {
-			s.reporter.MailFailed(ctx, se.Reason)
-		}
+	id, err := s.record(ctx, env)
+	if err != nil {
 		return err
 	}
-	if s.reporter != nil {
-		s.reporter.MailReset(ctx)
+	j := &job{id: id, env: env, what: what, onSent: onSent, onFail: onFail}
+	if s.queue != nil {
+		s.enqueue(ctx, j)
+		return nil
 	}
-	return nil
+	j.attempts = 1
+	err = Send(ctx, cfg, env)
+	s.finish(ctx, j, err)
+	return err
 }
 
 // LogUnsent logs a send's err unless it is nil, ErrDisabled or a refused
@@ -311,25 +338,25 @@ func LogUnsent(ctx context.Context, msg, userID string, err error) {
 
 // SendComment mails a follower of a recipe about a new comment.
 func (s *Service) SendComment(ctx context.Context, in Comment) error {
-	return deliverBuilt(ctx, s, in.To, "comment notification", BuildComment, in)
+	return deliverBuilt(ctx, s, "comment notification", BuildComment, in, nil, nil)
 }
 
 // SendRecipeDigest mails one person the new recipes digest.
 func (s *Service) SendRecipeDigest(ctx context.Context, in RecipeDigest) error {
-	return deliverBuilt(ctx, s, in.To, "recipe digest", BuildRecipeDigest, in)
+	return deliverBuilt(ctx, s, "recipe digest", BuildRecipeDigest, in, nil, nil)
 }
 
 // SendListInvite mails somebody that they were invited to a shopping list.
 func (s *Service) SendListInvite(ctx context.Context, in ListInvite) error {
-	return deliverBuilt(ctx, s, in.To, "list invitation notification", BuildListInvite, in)
+	return deliverBuilt(ctx, s, "list invitation notification", BuildListInvite, in, nil, nil)
 }
 
 // SendTasty mails a recipe's author that somebody finds it tasty.
 func (s *Service) SendTasty(ctx context.Context, in Tasty) error {
-	return deliverBuilt(ctx, s, in.To, "tasty notification", BuildTasty, in)
+	return deliverBuilt(ctx, s, "tasty notification", BuildTasty, in, nil, nil)
 }
 
 // SendInviteAccepted mails an admin that their invitation was accepted.
 func (s *Service) SendInviteAccepted(ctx context.Context, in InviteAccepted) error {
-	return deliverBuilt(ctx, s, in.To, "invitation notification", BuildInviteAccepted, in)
+	return deliverBuilt(ctx, s, "invitation notification", BuildInviteAccepted, in, nil, nil)
 }

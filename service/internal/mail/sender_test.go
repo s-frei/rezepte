@@ -176,9 +176,9 @@ func TestSendSurfacesReply(t *testing.T) {
 }
 
 func TestSendDeadline(t *testing.T) {
-	old := sendTimeout
-	sendTimeout = 200 * time.Millisecond
-	t.Cleanup(func() { sendTimeout = old })
+	old := stepTimeout
+	stepTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { stepTimeout = old })
 	f := &fakeSMTP{hang: true}
 	host, port := startFake(t, f)
 	start := time.Now()

@@ -38,9 +38,17 @@ func (f *fakeMailer) record(m any) error {
 	return nil
 }
 
-func (f *fakeMailer) SendReset(_ context.Context, m mail.Reset) error     { return f.record(m) }
-func (f *fakeMailer) SendHint(_ context.Context, m mail.Hint) error       { return f.record(m) }
-func (f *fakeMailer) SendConfirm(_ context.Context, m mail.Confirm) error { return f.record(m) }
+func (f *fakeMailer) SendReset(_ context.Context, m mail.Reset) error { return f.record(m) }
+func (f *fakeMailer) SendHint(_ context.Context, m mail.Hint) error   { return f.record(m) }
+
+// SendConfirm, like mail.Service, calls OnFail for a delivery that failed.
+func (f *fakeMailer) SendConfirm(ctx context.Context, m mail.Confirm) error {
+	err := f.record(m)
+	if errors.Is(err, mail.ErrSend) && m.OnFail != nil {
+		m.OnFail(ctx, err)
+	}
+	return err
+}
 func (f *fakeMailer) SendPasswordChanged(_ context.Context, m mail.PasswordChanged) error {
 	return f.record(m)
 }

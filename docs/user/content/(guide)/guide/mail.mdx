@@ -58,6 +58,19 @@ Only the owner sees **Settings → Email**.
 
 The card has the same test field, to try another inbox later. "Turn off" asks first, then clears the settings and the stored password. When the server is set with `REZEPTE_SMTP_*` variables, the stamp reads "Set by the server" and only the test works.
 
+## The outbox<Audience role="owner" />
+
+Under the settings, **Outbox** lists every mail Rezepte sent in the last 30 days: subject, recipient and time, never the content. Only the owner sees it.
+
+| You see | It means |
+| --- | --- |
+| No badge | The mail server accepted the mail. |
+| "delivered on attempt 2" | An earlier attempt failed; the box below says why. |
+| **On the way** | Rezepte tries again after 15 seconds, 1 minute and 5 minutes, then gives up. |
+| **Not delivered** | Rezepte gave up. The box below says what went wrong. Rezepte does not send it again. |
+
+To see only the problems, tap **N not delivered** or **N on the way**. Tap it again to see all.
+
 ## What a person receives
 
 | Mail | When | Valid for |
@@ -108,7 +121,8 @@ These mails cannot be switched off and have no unsubscribe link. They go only to
 
 | Symptom | Fix |
 | --- | --- |
-| "Mail to … could not be sent" after "Create and send link" or "Send link" | The account and link exist anyway. Copy the link and pass it on yourself. |
-| A send fails after a short wait | Check the port and server address. Rezepte waits at most 10 seconds for the server. |
-| The mail was accepted but never shows up | Look in the spam folder. Check that the sender domain has the SPF and DKIM records your provider documents. |
-| You need to know why it failed | Only the owner sees the server's reply, through the test mail on **Settings → Email**. Admins only learn that sending failed. |
+| A mail never came | The owner looks it up in the [outbox](#the-outbox). For a setup link, copy the link from the dialog and pass it on yourself. |
+| A mail stays **On the way** | The server cannot be reached or asked to wait. Check the port and server address with a test mail. After about 6 minutes the mail shows as **Not delivered**. |
+| **Not delivered**: Rezepte stopped, or mail was turned off | The mail was still waiting when that happened. Send it again, for a setup link from the person's page. |
+| The mail was delivered but never shows up | Look in the spam folder. Check that the sender domain has the SPF and DKIM records your provider documents. |
+| You need to know why it failed | Only the owner sees the outbox. Admins see that a mail is on its way, not how it went. |

@@ -106,9 +106,6 @@ services:
   rezepte:
     image: ghcr.io/s-frei/rezepte:latest
     restart: unless-stopped
-    # Room to finish a running daily mail on stop: up to 10 s for open
-    # requests plus up to 2 min for the mail, where Docker's default is 10 s.
-    stop_grace_period: 2m30s
     volumes:
       - rezepte-data:/data
     environment:

@@ -99,6 +99,19 @@ type InstanceSetting struct {
 	PublicShareSharer      bool
 }
 
+type MailLog struct {
+	ID            int64
+	Kind          string
+	Recipient     string
+	Subject       string
+	Status        string
+	Attempts      int64
+	Error         string
+	NextAttemptAt *string
+	CreatedAt     string
+	FinishedAt    *string
+}
+
 type NotificationGroupOptout struct {
 	UserID  string
 	Grp     string

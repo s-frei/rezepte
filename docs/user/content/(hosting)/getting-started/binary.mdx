@@ -44,9 +44,6 @@ Environment=REZEPTE_SECURE_COOKIES=true
 EnvironmentFile=-/etc/rezepte.env
 ExecStart=/usr/local/bin/rezepte
 Restart=on-failure
-# Time to finish open requests and a daily mail going out;
-# systemd's default is 90 s.
-TimeoutStopSec=150
 
 [Install]
 WantedBy=multi-user.target

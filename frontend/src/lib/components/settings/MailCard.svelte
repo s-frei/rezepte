@@ -9,6 +9,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import SettingsCard from './SettingsCard.svelte';
 	import Letterhead, { type LetterheadLine } from './Letterhead.svelte';
+	import MailOutbox from './MailOutbox.svelte';
 	import MailSettingsDialog from './MailSettingsDialog.svelte';
 	import TestMailRow, { type TestMailResult } from './TestMailRow.svelte';
 
@@ -128,6 +129,8 @@
 			{#if current.source !== 'none'}
 				<div class="mt-5 border-t border-border pt-5"><TestMailRow bind:result /></div>
 			{/if}
+			<!-- Below the settings, what they sent; a test mail shows up at once. -->
+			<MailOutbox refresh={result} quietWhenEmpty={current.source === 'none'} />
 		{/if}
 	{/if}
 </SettingsCard>

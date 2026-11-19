@@ -32,7 +32,7 @@ func newMailHandlerDB(t *testing.T, env mail.Config) (http.Handler, map[string]*
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
 	for name, role := range map[string]user.Role{"olga": user.RoleSuperadmin, "adam": user.RoleAdmin} {
-		if _, err := users.Create(context.Background(), user.CreateParams{Username: name, Password: "pw", Role: role}); err != nil {
+		if _, err := users.Create(context.Background(), user.CreateParams{Username: name, Password: "pw", Role: role, Email: name + "@example.org"}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -44,7 +44,7 @@ func newMailHandlerDB(t *testing.T, env mail.Config) (http.Handler, map[string]*
 		APIMiddleware: auth.Middleware(sessions, tokens, false),
 	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
-	mailapi.Register(srv.API(), mail.NewService(conn, env, "https://r.example.org", logger))
+	mailapi.Register(srv.API(), mail.NewService(conn, env, "https://r.example.org", logger), users)
 	h := srv.Handler()
 	cookies := map[string]*http.Cookie{}
 	for _, name := range []string{"olga", "adam"} {
@@ -158,7 +158,7 @@ func TestSendTestShowsServerReplyUnquoted(t *testing.T) {
 	h, cookies := newMailHandler(t, mail.Config{})
 	body := fmt.Sprintf(`{"to":"olga@example.org","config":{"host":"127.0.0.1","port":%d,"security":"none","username":"u","password":"p","from":"r@example.org"}}`, ln.Addr().(*net.TCPAddr).Port)
 	rec := do(h, "POST", "/api/v1/settings/mail/test", body, cookies["olga"])
-	if rec.Code != 502 || !strings.Contains(rec.Body.String(), `"detail":"send failed: sign-in: 535 5.7.8 authentication failed"`) {
+	if rec.Code != 502 || !strings.Contains(rec.Body.String(), `"detail":"sign-in: 535 5.7.8 authentication failed"`) {
 		t.Fatalf("test = %d %s", rec.Code, rec.Body)
 	}
 }
@@ -217,5 +217,28 @@ func TestRefusedSettingNamesItsField(t *testing.T) {
 		if rec.Code != 422 || !strings.Contains(rec.Body.String(), `"location":"body.config.`+tc.at+`"`) {
 			t.Errorf("test %s = %d %s, want 422 at body.config.%s", tc.body, rec.Code, rec.Body, tc.at)
 		}
+	}
+}
+
+// The history is the owner's alone, and a failed test mail is in it with
+// the reason, never the content.
+func TestHistoryIsTheOwnersAndListsATestMail(t *testing.T) {
+	h, cookies := newMailHandler(t, mail.Config{})
+	if rec := do(h, "GET", "/api/v1/settings/mail/history", "", cookies["adam"]); rec.Code != 403 {
+		t.Fatalf("admin history = %d", rec.Code)
+	}
+	body := `{"to":"olga@example.org","config":{"host":"127.0.0.1","port":1,"security":"none","from":"r@example.org"}}`
+	if rec := do(h, "POST", "/api/v1/settings/mail/test", body, cookies["olga"]); rec.Code != 502 {
+		t.Fatalf("test = %d", rec.Code)
+	}
+	rec := do(h, "GET", "/api/v1/settings/mail/history", "", cookies["olga"])
+	got := rec.Body.String()
+	if rec.Code != 200 || !strings.Contains(got, `"kind":"test"`) || !strings.Contains(got, `"to":"olga@example.org"`) ||
+		!strings.Contains(got, `"status":"failed"`) || !strings.Contains(got, `127.0.0.1:1`) {
+		t.Fatalf("history = %d %s", rec.Code, got)
+	}
+	// The address names the account that holds it, matched in any case.
+	if !strings.Contains(got, `"people":[{"id":`) || !strings.Contains(got, `"username":"olga"`) {
+		t.Fatalf("history names no person: %s", got)
 	}
 }

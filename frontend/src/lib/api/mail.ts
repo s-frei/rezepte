@@ -43,3 +43,51 @@ export function clearMailSettings(): Promise<void> {
 export function sendTestMail(to: string, config?: MailConfigInput): Promise<void> {
 	return api<void>('/settings/mail/test', { method: 'POST', body: JSON.stringify({ to, config }) });
 }
+
+/** One mail in the owner's outbox: kind, recipient, subject and how it went, never the content. */
+export type SentMail = {
+	id: number;
+	kind: string;
+	to: string;
+	subject: string;
+	/** queued: waiting for the mail server or for a retry. */
+	status: 'queued' | 'sent' | 'failed';
+	attempts: number;
+	/** The last failed attempt's reason, as the mail server said it; also on a mail a retry got through. */
+	error?: string;
+	createdAt: string;
+	finishedAt?: string;
+	/** When the next attempt is due, while a retry waits. */
+	nextAttemptAt?: string;
+	/** The accounts that hold the address now: none for a stranger's, several when accounts share it. */
+	people: MailPerson[];
+};
+
+/** An account a mail's address belongs to. */
+export type MailPerson = {
+	id: string;
+	username: string;
+	displayName: string;
+	color: string;
+	avatarId?: string;
+};
+
+/** One page of the outbox, newest first, and the counts over all of it. */
+export type Outbox = {
+	items: SentMail[];
+	more: boolean;
+	total: number;
+	failed: number;
+	queued: number;
+};
+
+/** The page of mails older than `before` (absent: the newest), only those in `status` when given. */
+export function getOutbox(
+	options: { before?: number; status?: SentMail['status'] } = {}
+): Promise<Outbox> {
+	const query = new URLSearchParams();
+	if (options.before) query.set('before', String(options.before));
+	if (options.status) query.set('status', options.status);
+	const qs = query.size ? `?${query}` : '';
+	return api<Outbox>(`/settings/mail/history${qs}`);
+}

@@ -1,6 +1,7 @@
 package mail
 
 import (
+	"context"
 	"time"
 
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -17,6 +18,9 @@ type Invite struct {
 	InviterColor user.Color
 	Locale       user.Locale
 	Existing     bool
+	// OnSent records that the link was mailed, once the server accepted
+	// the mail: only then may redeeming it confirm the address.
+	OnSent func(context.Context)
 }
 
 // BuildInvite renders the setup mail.
@@ -91,6 +95,9 @@ func providerName(locale user.Locale, name string) (string, error) {
 type Confirm struct {
 	To, Username, Admin, Path string
 	Locale                    user.Locale
+	// OnFail drops the confirmation nobody received, once the mail finally
+	// could not be sent.
+	OnFail func(context.Context, error)
 }
 
 // BuildConfirm renders the address confirmation mail.

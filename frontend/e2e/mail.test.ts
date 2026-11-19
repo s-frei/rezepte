@@ -69,8 +69,16 @@ test('the owner sets up mail and sends a test', async ({ page, request }) => {
 	const card = page.getByRole('region', { name: 'Email' });
 	await card.getByLabel('Send a test mail to').fill(to);
 	await card.getByLabel('Send a test mail to').press('Enter');
-	await expect(card.getByRole('status')).toContainText(`Test mail sent to ${to}`);
+	await expect(card.getByRole('status').filter({ hasText: 'Test mail sent' })).toContainText(
+		`Test mail sent to ${to}`
+	);
 	expect((await latestMailTo(request, to)).subject).toBe('Rezepte can send mail');
+	// The outbox under the settings lists it at once.
+	const sent = page
+		.getByRole('region', { name: 'Outbox' })
+		.getByRole('listitem')
+		.filter({ hasText: to });
+	await expect(sent).toContainText('Rezepte can send mail');
 });
 
 test('an invited person sets up their account from the mail', async ({
@@ -86,7 +94,7 @@ test('an invited person sets up their account from the mail', async ({
 		page
 			.getByRole('dialog')
 			.getByRole('status')
-			.filter({ hasText: `Sent to ${address}` })
+			.filter({ hasText: `On its way to ${address}` })
 	).toBeVisible();
 
 	const mail = await latestMailTo(request, address);
@@ -124,7 +132,7 @@ test('sending the link from the person page returns focus to its control', async
 	const step = page.getByRole('dialog', { name: new RegExp(`^Setup link for ${name}`, 'i') });
 	await step.getByLabel('Email').fill(address);
 	await step.getByRole('button', { name: 'Send link' }).click();
-	await expect(page.getByText(`Sent to ${address}`)).toBeVisible();
+	await expect(page.getByText(`On its way to ${address}`)).toBeVisible();
 	// The step dialog has finished closing behind the result.
 	await expect(page.getByRole('dialog')).toHaveCount(1);
 	expect((await latestMailTo(request, address)).subject).toContain('invited you to Rezepte');
@@ -143,7 +151,7 @@ test('passing the link on by hand mails nothing', async ({ page, request }) => {
 	const address = `${name}@example.com`;
 	await addAccount(page, name, address);
 	const result = page.getByRole('dialog', { name: `Setup link for ${name}` });
-	await expect(result.getByText(`Sent to ${address}`)).toBeVisible();
+	await expect(result.getByText(`On its way to ${address}`)).toBeVisible();
 	// Add account's own close has to finish before Escape reaches the result.
 	await expect(page.getByRole('dialog', { name: 'Add account' })).toBeHidden();
 	await latestMailTo(request, address);
@@ -159,23 +167,37 @@ test('passing the link on by hand mails nothing', async ({ page, request }) => {
 	await step.getByRole('button', { name: 'Show link' }).click();
 	await expect(page.getByRole('dialog')).toHaveCount(1);
 	await expect(result.locator('textarea')).toHaveValue(/\/welcome#/);
-	await expect(result.getByText(`Sent to ${address}`)).toHaveCount(0);
+	await expect(result.getByText(`On its way to ${address}`)).toHaveCount(0);
 	await expect(result.getByRole('status')).toHaveCount(0);
 	// A send would be in Mailpit well within this; nothing may arrive.
 	await page.waitForTimeout(500);
 	expect(await mailCountTo(request, address)).toBe(before);
 });
 
-test('a failed send still shows the link', async ({ page }) => {
+test('a mail the server cannot take waits in the outbox, with the link on screen', async ({
+	page
+}) => {
 	await login(page);
 	await configure(page, 1); // nothing listens on port 1
 	const name = `max${uniqueToken()}`;
 	await addAccount(page, name, `${name}@example.com`);
 	const dialog = page.getByRole('dialog', { name: `Setup link for ${name}` });
-	await expect(dialog.getByRole('alert')).toContainText('could not be sent');
+	// The answer comes before the server does: the mail is queued.
+	await expect(dialog.getByText(`On its way to ${name}@example.com`)).toBeVisible();
 	await expect(dialog.locator('textarea')).toHaveValue(/\/welcome#/);
-	// Leave the instance configured for Mailpit for whatever runs next.
 	await page.keyboard.press('Escape');
+	// The owner sees it waiting for its retry, and why.
+	await page.goto('/settings/mail');
+	const outbox = page.getByRole('region', { name: 'Outbox' });
+	const row = outbox.getByRole('listitem').filter({ hasText: `${name}@example.com` });
+	await expect(row.getByText('On the way')).toBeVisible();
+	await expect(row.getByText(/connection refused/)).toBeVisible();
+	const chip = outbox.getByRole('button', { name: /on the way/ });
+	await chip.click();
+	await expect(chip).toHaveAttribute('aria-pressed', 'true');
+	await expect(row).toBeVisible();
+	await expect(outbox.getByRole('listitem').filter({ hasNotText: 'On the way' })).toHaveCount(0);
+	// Leave the instance configured for Mailpit for whatever runs next.
 	await configure(page, mailpitSmtpPort);
 });
 
@@ -201,7 +223,7 @@ async function confirmedAccount(page: Page, request: APIRequestContext, prefix: 
 	await page.goto('/settings');
 	await saveOwnAddress(page, address);
 	// The row's card; the dialog closed on save and the toast named the address.
-	await expect(page.getByText(`Saved. Confirmation mail sent to ${address}.`)).toBeVisible();
+	await expect(page.getByText(`Saved. Confirmation mail on its way to ${address}.`)).toBeVisible();
 	await expect(page.getByText('Mail sent', { exact: true })).toBeVisible();
 	const mail = await latestMailTo(request, address);
 	expect(mail.subject).toBe('Confirm your email address for Rezepte');
@@ -245,7 +267,7 @@ test("an admin changes a member's address, sees the mail go out and sends it aga
 		`When you save, a confirmation mail goes to ${address}. Until ${member} opens the link in it, the address stays unconfirmed.`
 	);
 	await dialog.getByRole('button', { name: 'Save and send mail' }).click();
-	await expect(page.getByText(`Saved. Confirmation mail sent to ${address}.`)).toBeVisible();
+	await expect(page.getByText(`Saved. Confirmation mail on its way to ${address}.`)).toBeVisible();
 	const region = page.getByRole('region', { name: member, exact: true });
 	await expect(region.getByText('unconfirmed', { exact: true })).toBeVisible();
 	await expect(region.getByText('Mail sent', { exact: true })).toBeVisible();
@@ -256,7 +278,9 @@ test("an admin changes a member's address, sees the mail go out and sends it aga
 	// An admin's change starts no minute, so the row sends again at once,
 	// and a second click inside the minute waits.
 	await region.getByRole('button', { name: 'Send again' }).click();
-	await expect(page.getByText(`Confirmation mail sent to ${address}`)).toBeVisible();
+	await expect(
+		page.getByText(`Confirmation mail on its way to ${address}`, { exact: true })
+	).toBeVisible();
 	await expect.poll(() => mailCountTo(request, address)).toBe(2);
 	await region.getByRole('button', { name: 'Send again' }).click();
 	await expect(

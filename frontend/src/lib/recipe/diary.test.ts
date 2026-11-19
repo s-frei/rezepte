@@ -43,6 +43,11 @@ describe('groupByDay', () => {
 		const late = new Date(2026, 9, 2, 23, 30).toISOString();
 		expect(groupByDay([at(late)], now)[0].label).toBe('Gestern');
 	});
+	it('drops the weekday when asked, for the mail outbox on a phone', () => {
+		expect(groupByDay([at('2026-09-29T19:40:00')], now, { weekday: false })[0].label).toBe(
+			'29. September'
+		);
+	});
 	it('adds the year for another year', () => {
 		locale = 'en';
 		expect(groupByDay([at('2025-12-24T18:00:00')], now)[0].label).toBe(

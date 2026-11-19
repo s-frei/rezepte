@@ -3,24 +3,33 @@ import { m } from '#lib/paraglide/messages.js';
 import { getLocale } from '#lib/paraglide/runtime.js';
 import { formatDay } from './format';
 
-export type DiaryDay = {
+export type DiaryDay<T = Comment> = {
 	/** The local calendar day, YYYY-MM-DD; stable for keyed each blocks. */
 	key: string;
-	/** Today, yesterday, or the weekday and date in the active locale. */
+	/** Today, yesterday, or the date in the active locale, with its weekday unless asked not to. */
 	label: string;
-	entries: Comment[];
+	entries: T[];
 };
 
 /** The local calendar day as YYYY-MM-DD (Swedish writes dates ISO-style). */
 const dayKey = (d: Date) => d.toLocaleDateString('sv');
 
-/** Groups entries (already oldest first) by the reader's local calendar day. */
-export function groupByDay(comments: Comment[], now: Date): DiaryDay[] {
+/**
+ * Groups entries by the reader's local calendar day, keeping their order
+ * (the diary's oldest first, the mail outbox's newest first). `weekday`
+ * false drops the weekday from older days, for a label that has to fit a
+ * phone on one line.
+ */
+export function groupByDay<T extends { createdAt: string }>(
+	comments: T[],
+	now: Date,
+	{ weekday = true } = {}
+): DiaryDay<T>[] {
 	const today = dayKey(now);
 	const y = new Date(now);
 	y.setDate(y.getDate() - 1);
 	const yesterday = dayKey(y);
-	const days: DiaryDay[] = [];
+	const days: DiaryDay<T>[] = [];
 	for (const c of comments) {
 		const d = new Date(c.createdAt);
 		const key = dayKey(d);
@@ -31,7 +40,7 @@ export function groupByDay(comments: Comment[], now: Date): DiaryDay[] {
 					? m.diary_today()
 					: key === yesterday
 						? m.diary_yesterday()
-						: formatDay(d, { year: d.getFullYear() !== now.getFullYear() });
+						: formatDay(d, { weekday, year: d.getFullYear() !== now.getFullYear() });
 			day = { key, label, entries: [] };
 			days.push(day);
 		}

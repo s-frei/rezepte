@@ -89,7 +89,8 @@ func (s *Service) RunRecipeDigest(ctx context.Context, now time.Time) error {
 		return err
 	}
 	// The recipes are off the queue now: a shutdown must not cut the run
-	// short (main waits for it). Each send keeps its own sendTimeout.
+	// short (main waits for it). Each mail only renders and joins the mail
+	// queue here, so the run takes seconds however slow the server is.
 	ctx = context.WithoutCancel(ctx)
 	recipes := make([]mail.DigestRecipe, len(due))
 	creators := map[string]user.User{}
@@ -143,10 +144,11 @@ func (s *Service) RunRecipeDigest(ctx context.Context, now time.Time) error {
 
 // claimRecipeDigest marks day as run and takes the recipes due by cutoff
 // off the queue, in one transaction; nil when another run claimed day.
-// ponytail: the claim commits before the mails go out, so a crash, mail
-// switched off mid-run or a run outlasting main's shutdown wait loses that
-// day's remaining mails (at most once, never twice); a per-recipient outbox
-// if that ever matters.
+// ponytail: the claim commits before the mails go out and the mail queue
+// lives in memory, so a crash, mail switched off mid-run or a stop before
+// the queue drained loses that day's remaining mails (at most once, never
+// twice; the mail history marks them); a persisted outbox if that ever
+// matters.
 func (s *Service) claimRecipeDigest(ctx context.Context, day string, cutoff time.Time) ([]sqlc.ListDueAnnouncementsRow, error) {
 	var due []sqlc.ListDueAnnouncementsRow
 	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {

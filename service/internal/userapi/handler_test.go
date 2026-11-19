@@ -92,7 +92,8 @@ func (f *fakeMailer) SendIdentityLinked(_ context.Context, in mail.IdentityLinke
 	return nil
 }
 
-func (f *fakeMailer) SendInvite(_ context.Context, in mail.Invite) error {
+// SendInvite, like mail.Service, calls OnSent for an accepted mail.
+func (f *fakeMailer) SendInvite(ctx context.Context, in mail.Invite) error {
 	if !f.enabled {
 		return mail.ErrDisabled
 	}
@@ -103,6 +104,9 @@ func (f *fakeMailer) SendInvite(_ context.Context, in mail.Invite) error {
 		return fmt.Errorf("%w: 535 nope", mail.ErrSend)
 	}
 	f.sent = append(f.sent, in)
+	if in.OnSent != nil {
+		in.OnSent(ctx)
+	}
 	return nil
 }
 

@@ -20,7 +20,7 @@ Run the image `ghcr.io/s-frei/rezepte` (`linux/amd64`, `linux/arm64`). It listen
   <Tab value="docker run">
 
     ```bash
-    docker run -d --name rezepte -p 8060:8060 --stop-timeout 150 \
+    docker run -d --name rezepte -p 8060:8060 \
       -e REZEPTE_ADMIN_PASSWORD=change-me-now \
       -v "$PWD/data:/data" \
       ghcr.io/s-frei/rezepte:latest

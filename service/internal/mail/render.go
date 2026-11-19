@@ -289,7 +289,7 @@ func build(cfg Config, to string, l letter, now time.Time) (Envelope, error) {
 	header("Content-Type", contentType)
 	msg.WriteString("\r\n")
 	msg.Write(body.Bytes())
-	return Envelope{To: to, Data: msg.Bytes()}, nil
+	return Envelope{To: to, Data: msg.Bytes(), Kind: l.Name, Subject: subject}, nil
 }
 
 // newID is the random part of a Message-ID, and of the Content-IDs of the

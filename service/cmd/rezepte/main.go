@@ -57,13 +57,12 @@ const sweepInterval = 24 * time.Hour
 // nothing from that moment on; the sweep only removes the rows.
 const shareSweepInterval = time.Hour
 
-// digestShutdownWait bounds how long a shutdown waits for a recipe digest
-// run under way, so a hung SMTP server cannot keep the process alive.
-const digestShutdownWait = 2 * time.Minute
-
-// pushShutdownWait bounds how long a shutdown waits for a push under way;
-// one send times out well before it.
-const pushShutdownWait = 30 * time.Second
+// shutdownWait bounds a stop, counted from the signal: the server's wait
+// for open requests, a digest run handing over its mails, the mail queue
+// and pushes being sent. Container runtimes kill a process 10 seconds after
+// asking it to stop, so it fits in that by default; a mail cut off is
+// marked as not sent in the history at the next start.
+const shutdownWait = 8 * time.Second
 
 // version is the build version, set with -ldflags "-X main.version=...".
 // A plain `go build` leaves it at "dev", which is what a development binary
@@ -255,6 +254,8 @@ func run() error {
 		}
 	}()
 	mailer.SetReporter(notifications)
+	// Sends queue from here on; the command line above sends inside its call.
+	mailer.Start(ctx)
 	digestDone := notifications.StartRecipeDigest(ctx)
 
 	srv := httpserver.New(cfg, logger, web.Dist(), httpserver.Options{
@@ -294,7 +295,7 @@ func run() error {
 	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
 	settings.Register(srv.API(), instance, mailer.Enabled)
-	mailapi.Register(srv.API(), mailer)
+	mailapi.Register(srv.API(), mailer, users)
 	oidc.RegisterSettings(srv.API(), oidcSettings)
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
@@ -304,19 +305,24 @@ func run() error {
 	userapi.Register(srv.API(), users, sessions, avatars,
 		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer, userapi.NewCounts(recipes, shoppingSvc))
 	tokenapi.Register(srv.API(), tokens)
+	// The deadline counts from the stop signal, so the server's own wait
+	// for open requests is part of it rather than added to it.
+	stopped := make(chan time.Time, 1)
+	context.AfterFunc(ctx, func() { stopped <- time.Now() })
 	err = srv.Run(ctx)
 	stop() // a failed listen returns before ctx ends
-	// Both waits start now, so a stop takes the longer of the two, not their
-	// sum: the stop timeouts in docker-compose.yaml and the docs count on it.
-	pushDeadline := time.After(pushShutdownWait)
+	// One deadline for all three, in this order: the digest hands its mails
+	// to the queue before the queue drains.
+	deadline := (<-stopped).Add(shutdownWait)
 	select {
 	case <-digestDone:
-	case <-time.After(digestShutdownWait):
+	case <-time.After(time.Until(deadline)):
 		logger.Warn("rezepte: recipe digest still running at exit, its remaining mails are lost")
 	}
+	mailer.Stop(time.Until(deadline))
 	select {
 	case <-pushDone:
-	case <-pushDeadline:
+	case <-time.After(time.Until(deadline)):
 		logger.Warn("rezepte: push still sending at exit")
 	}
 	return err

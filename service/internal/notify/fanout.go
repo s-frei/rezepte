@@ -24,8 +24,8 @@ import (
 const detachedTimeout = 10 * time.Minute
 
 // sendTimeout bounds one follower's mail: the settings lookup, rendering
-// and the SMTP dialog (whose own deadline is 10 seconds). A variable so a
-// test can shorten it.
+// and handing it to the mail queue, which sends it on its own time. A
+// variable so a test can shorten it.
 var sendTimeout = 15 * time.Second
 
 // CommentAdded mails and then pushes the followers of recipeID about

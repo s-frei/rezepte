@@ -707,7 +707,7 @@ test('the e-mail row says when there is no address and offers a send for an unco
 	// ("Send again"); with it off, none went ("Send").
 	await account.getByRole('button', { name: /^(Send|Send again)$/ }).click();
 	await expect(
-		page.getByText(`Confirmation mail sent to ${unconfirmed}@example.com`)
+		page.getByText(`Confirmation mail on its way to ${unconfirmed}@example.com`)
 	).toBeVisible();
 	expect(resent).toBe(true);
 });
@@ -737,7 +737,7 @@ test("an admin changes a member's address but not their name, the owner can", as
 	// Mail is on or off on the shared instance, depending on which file ran first.
 	await emailDialog.getByRole('button', { name: /^Save( and send mail)?$/ }).click();
 	await expect(
-		page.getByText(/^(Email address saved|Saved\. Confirmation mail sent to .*)$/)
+		page.getByText(/^(Email address saved|Saved\. Confirmation mail on its way to .*)$/)
 	).toBeVisible();
 	await expect(emailDialog).toBeHidden();
 	// The new address is unconfirmed at once, on the page and on the card,

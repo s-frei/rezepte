@@ -467,6 +467,34 @@
 		document.getElementById(`${uid}-setup`)?.querySelector('button')?.focus();
 	}
 
+	// A mailed link is marked once the server took the mail, which comes
+	// after the answer: when its dialog closes, reread the account until the
+	// email row shows the link went out, so it offers no second mail. A
+	// mail still retrying after the last look shows on the next visit.
+	let linkWasOpen = false;
+	$effect(() => {
+		if (setupLinkOpen) {
+			linkWasOpen = true;
+			return;
+		}
+		if (!linkWasOpen) return;
+		linkWasOpen = false;
+		if (!untrack(() => setupLinkInfo?.mailedTo && !setupLinkInfo.mailError)) return;
+		let tries = 0;
+		let stopped = false;
+		let timer: ReturnType<typeof setTimeout>;
+		const look = async () => {
+			await load(true);
+			if (stopped || untrack(() => setup?.emailSetupLink) || ++tries >= 5) return;
+			timer = setTimeout(look, 2000);
+		};
+		timer = setTimeout(look, 0);
+		return () => {
+			stopped = true;
+			clearTimeout(timer);
+		};
+	});
+
 	// A dialog gives focus back to the control that opened it. Two of those
 	// are gone by then: "Create link" turns into "Manage" once a link is
 	// open, and the disconnect row leaves with the identity. Focus would

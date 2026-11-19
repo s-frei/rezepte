@@ -387,7 +387,7 @@ test('the e-mail row on the person page shows no address and an unconfirmed one'
 	// Mail is on or off on the shared instance, depending on which file ran first.
 	await dialog.getByRole('button', { name: /^Save( and send mail)?$/ }).click();
 	await expect(
-		page.getByText(/^(Email address saved|Saved\. Confirmation mail sent to .*)$/)
+		page.getByText(/^(Email address saved|Saved\. Confirmation mail on its way to .*)$/)
 	).toBeVisible();
 	await expect(head.getByText(`${username}@example.com`)).toBeVisible();
 	await expect(head.getByText('unconfirmed', { exact: true })).toBeVisible();

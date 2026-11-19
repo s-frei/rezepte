@@ -253,10 +253,13 @@ type Mailer interface {
 
 // mailLink mails link to target when target has an address and mail is on,
 // and records where it went: mailedTo names the address whenever a send was
-// tried, mailError marks a failed one. A failure is never an error here:
-// the account and the link exist either way. A nil mailer is mail off, for
-// tests that do not care. existing marks an account that could sign in
-// already, whose mail does not say an account was created.
+// tried, mailError marks one that failed before the answer. Once the mail
+// queue runs the mail goes out after the answer, and the link is marked as
+// mailed only when the server accepted it: redeeming a marked link confirms
+// the address. A failure is never an error here: the account and the link
+// exist either way. A nil mailer is mail off, for tests that do not care.
+// existing marks an account that could sign in already, whose mail does
+// not say an account was created.
 func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor, target user.User, link auth.SetupLink, body *setupLinkBody, existing bool) {
 	if mailer == nil || target.Email == "" {
 		return
@@ -264,6 +267,14 @@ func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor,
 	err := mailer.SendInvite(ctx, mail.Invite{
 		To: target.Email, Name: target.DisplayName, Inviter: actor.DisplayName, InviterColor: actor.Color,
 		Path: auth.SetupPath(link.Token), Locale: target.Locale, Existing: existing,
+		OnSent: func(ctx context.Context) {
+			// The only cost of a failed mark is that redeeming the link does
+			// not verify the address. No handler gets a logger injected;
+			// slog's default is main's logger.
+			if err := sessions.MarkSetupLinkSent(ctx, link.Token, target.Email); err != nil {
+				slog.WarnContext(ctx, "auth: mark setup link sent failed", "user", target.ID, "err", err)
+			}
+		},
 	})
 	if errors.Is(err, mail.ErrDisabled) {
 		return
@@ -276,13 +287,6 @@ func mailLink(ctx context.Context, mailer Mailer, sessions *auth.Service, actor,
 	body.MailedTo = target.Email
 	if err != nil {
 		body.MailError = "send_failed"
-		return
-	}
-	// The mail went out, so it is reported even when the mark fails; the
-	// only cost is that redeeming the link does not verify the address.
-	// No handler gets a logger injected; slog's default is main's logger.
-	if err := sessions.MarkSetupLinkSent(ctx, link.Token, target.Email); err != nil {
-		slog.WarnContext(ctx, "auth: mark setup link sent failed", "user", target.ID, "err", err)
 	}
 }
 
