@@ -1,0 +1,499 @@
+package mealplan_test
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/mealplan"
+	"github.com/s-frei/rezepte/service/internal/recipe"
+	"github.com/s-frei/rezepte/service/internal/shopping"
+	"github.com/s-frei/rezepte/service/internal/user"
+)
+
+// The week of 2026-11-16 (Monday) to 2026-11-22 (Sunday).
+const mon, sun = "2026-11-16", "2026-11-22"
+
+type env struct {
+	conn    *sql.DB
+	svc     *mealplan.Service
+	recipes *recipe.Service
+	a, b    user.User
+	now     time.Time
+}
+
+func setup(t *testing.T) *env {
+	t.Helper()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	mk := func(name string, role user.Role) user.User {
+		u, err := users.Create(context.Background(), user.CreateParams{Username: name, Password: "pw", Role: role})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return u
+	}
+	e := &env{
+		conn: conn, svc: mealplan.NewService(conn, shopping.NewService(conn)), recipes: recipe.NewService(conn, t.TempDir()),
+		a: mk("anna", user.RoleSuperadmin), b: mk("ben", user.RoleUser),
+		now: time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC),
+	}
+	e.svc.SetClock(func() time.Time { return e.now })
+	return e
+}
+
+func (e *env) curry(t *testing.T) recipe.Recipe {
+	t.Helper()
+	q, g := 200.0, "g"
+	r, err := e.recipes.Create(context.Background(), e.a.ID, recipe.Input{
+		Title: "Curry", Servings: 4, Tags: []string{},
+		IngredientGroups: []recipe.IngredientGroup{{Ingredients: []recipe.Ingredient{{Quantity: &q, Unit: &g, Name: "Reis"}}}},
+		Steps:            []recipe.Step{{Text: "Kochen."}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func (e *env) plan(t *testing.T) mealplan.Plan {
+	t.Helper()
+	p, err := e.svc.Create(context.Background(), e.a.ID, "Haushalt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func ptr[T any](v T) *T { return &v }
+
+// add puts a free-text entry on day (nil: the tray) and returns its id, or
+// "" for a day outside this week.
+func (e *env) add(t *testing.T, planID string, day *string, title string) string {
+	t.Helper()
+	p, err := e.svc.Add(context.Background(), e.a.ID, planID, mon, sun, mealplan.AddEntry{Day: day, Title: &title})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, en := range p.Entries {
+		if en.Title == title {
+			return en.ID
+		}
+	}
+	return ""
+}
+
+// titles returns the entry titles of a day (nil: the tray) in order, and
+// fails unless their positions are 0..n-1.
+func titles(t *testing.T, p mealplan.Plan, day *string) []string {
+	t.Helper()
+	var out []string
+	for _, en := range p.Entries {
+		if (en.Day == nil) != (day == nil) || day != nil && *en.Day != *day {
+			continue
+		}
+		if en.Position != len(out) {
+			t.Fatalf("%q at position %d, want %d", en.Title, en.Position, len(out))
+		}
+		out = append(out, en.Title)
+	}
+	return out
+}
+
+func equal(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestPersonalPlanIsCreatedOnce(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	if _, _, err := e.svc.Plans(ctx, e.a.ID); err != nil {
+		t.Fatal(err)
+	}
+	e.plan(t)
+	plans, invites, err := e.svc.Plans(ctx, e.a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plans) != 2 || len(invites) != 0 {
+		t.Fatalf("plans = %+v, invitations = %+v", plans, invites)
+	}
+	if p := plans[0]; !p.Personal || p.Name != nil || p.Owner.ID != e.a.ID {
+		t.Fatalf("first plan = %+v, want anna's personal plan", p)
+	}
+	if p := plans[1]; p.Personal || p.Name == nil || *p.Name != "Haushalt" {
+		t.Fatalf("second plan = %+v", p)
+	}
+}
+
+func TestPersonalPlanCannotBeRenamedDeletedOrShared(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	plans, _, err := e.svc.Plans(ctx, e.a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := plans[0].ID
+	if _, err := e.svc.Rename(ctx, e.a.ID, id, "Meins"); !errors.Is(err, mealplan.ErrPersonal) || !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("rename = %v, want ErrPersonal wrapping ErrInvalid", err)
+	}
+	if err := e.svc.Delete(ctx, e.a.ID, id); !errors.Is(err, mealplan.ErrPersonal) {
+		t.Fatalf("delete = %v, want ErrPersonal", err)
+	}
+	p, err := e.svc.Get(ctx, e.a.ID, id, mon, sun)
+	if err != nil || p.Name != nil || p.Revision != 0 {
+		t.Fatalf("plan after refusals = %+v, %v; want unnamed, revision 0", p, err)
+	}
+	// Sharing (Invite) arrives with the sharing methods and is tested there.
+}
+
+func TestForeignPlanIsNotFound(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	p := e.plan(t)
+	if _, err := e.svc.Get(ctx, e.b.ID, p.ID, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("ben get = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.Add(ctx, e.b.ID, p.ID, mon, sun, mealplan.AddEntry{Title: ptr("Pizza")}); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("ben add = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.Rename(ctx, e.b.ID, p.ID, "Meins"); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("ben rename = %v, want ErrNotFound", err)
+	}
+	if err := e.svc.Delete(ctx, e.b.ID, p.ID); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("ben delete = %v, want ErrNotFound", err)
+	}
+	plans, _, err := e.svc.Plans(ctx, e.b.ID)
+	if err != nil || len(plans) != 1 || !plans[0].Personal {
+		t.Fatalf("ben's plans = %+v, %v; want only his personal plan", plans, err)
+	}
+}
+
+func TestRenameAndDelete(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	p := e.plan(t)
+	got, err := e.svc.Rename(ctx, e.a.ID, p.ID, "  Urlaub Sylt ")
+	if err != nil || got.Name == nil || *got.Name != "Urlaub Sylt" {
+		t.Fatalf("rename = %+v, %v", got, err)
+	}
+	if _, err := e.svc.Rename(ctx, e.a.ID, p.ID, " "); !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("blank rename = %v, want ErrInvalid", err)
+	}
+	if err := e.svc.Delete(ctx, e.a.ID, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(ctx, e.a.ID, p.ID, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("get after delete = %v, want ErrNotFound", err)
+	}
+}
+
+func TestAddRecipeCopiesTitleAndServings(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	r := e.curry(t)
+	p, err := e.svc.Add(ctx, e.a.ID, e.plan(t).ID, mon, sun, mealplan.AddEntry{Day: ptr("2026-11-18"), RecipeID: &r.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Entries) != 1 {
+		t.Fatalf("entries = %+v", p.Entries)
+	}
+	en := p.Entries[0]
+	if en.Title != "Curry" || en.Servings == nil || *en.Servings != 4 || en.RecipeID == nil || *en.RecipeID != r.ID ||
+		en.RecipeSlug == nil || *en.RecipeSlug != r.Slug || en.Day == nil || *en.Day != "2026-11-18" ||
+		en.CreatedBy == nil || en.CreatedBy.ID != e.a.ID {
+		t.Fatalf("entry = %+v", en)
+	}
+	p, err = e.svc.Add(ctx, e.a.ID, p.ID, mon, sun, mealplan.AddEntry{RecipeID: &r.ID, Servings: ptr(2)})
+	if err != nil || *p.Entries[0].Servings != 2 || p.Entries[0].Day != nil {
+		t.Fatalf("tray entry with servings = %+v, %v", p.Entries, err)
+	}
+	if _, err := e.svc.Add(ctx, e.a.ID, p.ID, mon, sun, mealplan.AddEntry{RecipeID: ptr("nope")}); !errors.Is(err, mealplan.ErrRecipeNotFound) {
+		t.Fatalf("unknown recipe = %v, want ErrRecipeNotFound", err)
+	}
+	for _, bad := range []mealplan.AddEntry{
+		{},
+		{RecipeID: &r.ID, Title: ptr("Curry")},
+		{RecipeID: &r.ID, Servings: ptr(100)},
+		{RecipeID: &r.ID, Day: ptr("2026-11-31")},
+	} {
+		if _, err := e.svc.Add(ctx, e.a.ID, p.ID, mon, sun, bad); !errors.Is(err, mealplan.ErrInvalid) {
+			t.Fatalf("add %+v = %v, want ErrInvalid", bad, err)
+		}
+	}
+}
+
+func TestAddFreeTextHasNoServings(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	p, err := e.svc.Add(ctx, e.a.ID, e.plan(t).ID, mon, sun, mealplan.AddEntry{Day: ptr(mon), Title: ptr(" Pizza bestellen ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if en := p.Entries[0]; en.Title != "Pizza bestellen" || en.Servings != nil || en.RecipeID != nil {
+		t.Fatalf("entry = %+v", en)
+	}
+	if _, err := e.svc.SetServings(ctx, e.a.ID, p.ID, p.Entries[0].ID, mon, sun, 3); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("servings on free text = %v, want ErrNotFound", err)
+	}
+	for _, bad := range []mealplan.AddEntry{
+		{Title: ptr(" ")},
+		{Title: ptr(string(make([]rune, 121)))},
+		{Title: ptr("Pizza"), Servings: ptr(2)},
+	} {
+		if _, err := e.svc.Add(ctx, e.a.ID, p.ID, mon, sun, bad); !errors.Is(err, mealplan.ErrInvalid) {
+			t.Fatalf("add %+v = %v, want ErrInvalid", bad, err)
+		}
+	}
+}
+
+func TestSetServings(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	r := e.curry(t)
+	p, err := e.svc.Add(ctx, e.a.ID, e.plan(t).ID, mon, sun, mealplan.AddEntry{RecipeID: &r.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.svc.SetServings(ctx, e.a.ID, p.ID, p.Entries[0].ID, mon, sun, 6)
+	if err != nil || *p.Entries[0].Servings != 6 {
+		t.Fatalf("set servings = %+v, %v", p.Entries, err)
+	}
+	if _, err := e.svc.SetServings(ctx, e.a.ID, p.ID, p.Entries[0].ID, mon, sun, 0); !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("servings 0 = %v, want ErrInvalid", err)
+	}
+}
+
+func TestMoveRenumbersBothDays(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	tue := ptr("2026-11-17")
+	a1 := e.add(t, id, tue, "A1")
+	e.add(t, id, tue, "A2")
+	e.add(t, id, tue, "A3")
+	e.add(t, id, nil, "T1")
+	t2 := e.add(t, id, nil, "T2")
+
+	p, err := e.svc.Move(ctx, e.a.ID, id, a1, mon, sun, nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(t, p, tue); !equal(got, []string{"A2", "A3"}) {
+		t.Fatalf("tuesday = %v", got)
+	}
+	if got := titles(t, p, nil); !equal(got, []string{"T1", "A1", "T2"}) {
+		t.Fatalf("tray = %v", got)
+	}
+
+	// From the tray onto the day, past its end: it lands last.
+	p, err = e.svc.Move(ctx, e.a.ID, id, t2, mon, sun, tue, 9)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(t, p, tue); !equal(got, []string{"A2", "A3", "T2"}) {
+		t.Fatalf("tuesday = %v", got)
+	}
+	if got := titles(t, p, nil); !equal(got, []string{"T1", "A1"}) {
+		t.Fatalf("tray = %v", got)
+	}
+
+	// Within one day.
+	p, err = e.svc.Move(ctx, e.a.ID, id, t2, mon, sun, tue, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(t, p, tue); !equal(got, []string{"T2", "A2", "A3"}) {
+		t.Fatalf("tuesday = %v", got)
+	}
+	if _, err := e.svc.Move(ctx, e.a.ID, id, "nope", mon, sun, tue, 0); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("move unknown = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.Move(ctx, e.a.ID, id, t2, mon, sun, tue, -1); !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("move to -1 = %v, want ErrInvalid", err)
+	}
+}
+
+func TestRangeIncludesBothEnds(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	e.add(t, id, ptr("2026-11-15"), "Before")
+	e.add(t, id, ptr(mon), "Monday")
+	e.add(t, id, ptr(sun), "Sunday")
+	e.add(t, id, ptr("2026-11-23"), "After")
+	e.add(t, id, nil, "Tray")
+	p, err := e.svc.Get(ctx, e.a.ID, id, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, en := range p.Entries {
+		got = append(got, en.Title)
+	}
+	if !equal(got, []string{"Tray", "Monday", "Sunday"}) {
+		t.Fatalf("entries = %v, want tray first, then both ends", got)
+	}
+	if p.From != mon || p.To != sun {
+		t.Fatalf("range = %s..%s", p.From, p.To)
+	}
+}
+
+func TestRangeLimit(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	if _, err := e.svc.Get(ctx, e.a.ID, id, "2026-11-01", "2027-01-02"); err != nil {
+		t.Fatalf("62 days apart = %v, want ok", err)
+	}
+	for _, r := range [][2]string{
+		{"2026-11-01", "2027-01-03"}, // 63 days apart
+		{sun, mon},
+		{"2026-11-16", "16.11.2026"},
+		{"", sun},
+	} {
+		if _, err := e.svc.Get(ctx, e.a.ID, id, r[0], r[1]); !errors.Is(err, mealplan.ErrInvalid) {
+			t.Fatalf("range %v = %v, want ErrInvalid", r, err)
+		}
+	}
+}
+
+func TestRemoveAndRestore(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	e.add(t, id, ptr(mon), "A")
+	b := e.add(t, id, ptr(mon), "B")
+	e.add(t, id, ptr(mon), "C")
+	p, err := e.svc.Remove(ctx, e.a.ID, id, b, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(t, p, ptr(mon)); !equal(got, []string{"A", "C"}) {
+		t.Fatalf("monday after remove = %v", got)
+	}
+	if _, err := e.svc.Remove(ctx, e.a.ID, id, b, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("second remove = %v, want ErrNotFound", err)
+	}
+	p, err = e.svc.Restore(ctx, e.a.ID, id, b, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := titles(t, p, ptr(mon)); !equal(got, []string{"A", "B", "C"}) {
+		t.Fatalf("monday after restore = %v", got)
+	}
+	if _, err := e.svc.Restore(ctx, e.a.ID, id, b, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("second restore = %v, want ErrNotFound", err)
+	}
+}
+
+func TestPurgeDropsOldRemovals(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	old := e.add(t, id, ptr(mon), "Old")
+	fresh := e.add(t, id, ptr(mon), "Fresh")
+	if _, err := e.svc.Remove(ctx, e.a.ID, id, old, mon, sun); err != nil {
+		t.Fatal(err)
+	}
+	e.now = e.now.Add(25 * time.Hour)
+	if _, err := e.svc.Remove(ctx, e.a.ID, id, fresh, mon, sun); err != nil {
+		t.Fatal(err)
+	}
+	rows := func(entryID string) int {
+		var n int
+		if err := e.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM meal_plan_entries WHERE id = ?`, entryID).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if rows(old) != 0 {
+		t.Fatal("entry removed 25 h ago is still stored")
+	}
+	if rows(fresh) != 1 {
+		t.Fatal("entry removed just now was purged")
+	}
+	if _, err := e.svc.Restore(ctx, e.a.ID, id, old, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("restore purged = %v, want ErrNotFound", err)
+	}
+}
+
+func TestDeletedRecipeKeepsEntry(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	r := e.curry(t)
+	p, err := e.svc.Add(ctx, e.a.ID, e.plan(t).ID, mon, sun, mealplan.AddEntry{Day: ptr(mon), RecipeID: &r.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.recipes.Delete(ctx, r.ID, e.a); err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.svc.Get(ctx, e.a.ID, p.ID, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if en := p.Entries[0]; en.Title != "Curry" || en.RecipeID != nil || en.RecipeSlug != nil || en.Servings == nil || *en.Servings != 4 {
+		t.Fatalf("entry after recipe delete = %+v", en)
+	}
+}
+
+func TestChangesPublish(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	r := e.curry(t)
+	id := e.plan(t).ID
+	events, cancel := e.svc.Hub().Subscribe(id)
+	defer cancel()
+	signaled := func(what string) {
+		t.Helper()
+		select {
+		case <-events:
+		default:
+			t.Fatalf("%s did not signal", what)
+		}
+	}
+	p, err := e.svc.Add(ctx, e.a.ID, id, mon, sun, mealplan.AddEntry{Day: ptr(mon), RecipeID: &r.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	signaled("add")
+	entry := p.Entries[0].ID
+	steps := []struct {
+		name string
+		run  func() error
+	}{
+		{"move", func() error { _, err := e.svc.Move(ctx, e.a.ID, id, entry, mon, sun, nil, 0); return err }},
+		{"servings", func() error { _, err := e.svc.SetServings(ctx, e.a.ID, id, entry, mon, sun, 2); return err }},
+		{"remove", func() error { _, err := e.svc.Remove(ctx, e.a.ID, id, entry, mon, sun); return err }},
+		{"restore", func() error { _, err := e.svc.Restore(ctx, e.a.ID, id, entry, mon, sun); return err }},
+		{"rename", func() error { _, err := e.svc.Rename(ctx, e.a.ID, id, "Neu"); return err }},
+		{"delete", func() error { return e.svc.Delete(ctx, e.a.ID, id) }},
+	}
+	for _, s := range steps {
+		if err := s.run(); err != nil {
+			t.Fatalf("%s: %v", s.name, err)
+		}
+		signaled(s.name)
+	}
+	if _, err := e.svc.Add(ctx, e.b.ID, id, mon, sun, mealplan.AddEntry{Title: ptr("x")}); err == nil {
+		t.Fatal("stranger add on deleted plan succeeded")
+	}
+	select {
+	case <-events:
+		t.Fatal("a refused change signaled")
+	default:
+	}
+}
