@@ -150,6 +150,18 @@ func (q *Queries) DeleteMealPlanStaple(ctx context.Context, arg DeleteMealPlanSt
 	return err
 }
 
+const getCalendarFeedCreated = `-- name: GetCalendarFeedCreated :one
+SELECT created_at FROM calendar_feeds WHERE user_id = ?
+`
+
+// When the person's feed secret was made; no row while they have none.
+func (q *Queries) GetCalendarFeedCreated(ctx context.Context, userID string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getCalendarFeedCreated, userID)
+	var created_at string
+	err := row.Scan(&created_at)
+	return created_at, err
+}
+
 const getCalendarFeedUser = `-- name: GetCalendarFeedUser :one
 SELECT user_id FROM calendar_feeds WHERE token_hash = ?
 `

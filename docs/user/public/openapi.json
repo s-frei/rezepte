@@ -1604,6 +1604,37 @@
         ],
         "type": "object"
       },
+      "FeedState": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/FeedState.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "active": {
+            "description": "Whether the caller has a feed address that works",
+            "type": "boolean"
+          },
+          "createdAt": {
+            "description": "When that address was made; null without one",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "active",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "FeedURL": {
         "additionalProperties": false,
         "properties": {
@@ -7492,6 +7523,41 @@
           }
         ],
         "summary": "Revoke the caller's calendar feed",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "get": {
+        "description": "Whether the caller's feed address works and since when; the address itself is shown only once, by create-calendar-feed. Session only.",
+        "operationId": "get-calendar-feed-state",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedState"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Tell whether the caller has a calendar feed",
         "tags": [
           "meal-plans"
         ]

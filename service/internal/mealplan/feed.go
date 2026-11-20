@@ -65,6 +65,23 @@ func (f *Feeds) Create(ctx context.Context, userID string) (string, error) {
 	return f.publicURL + "/calendar/" + secret + ".ics", nil
 }
 
+// Since reports when the person's current feed was made; nil while they
+// have none. The secret itself is never stored, so it cannot be shown again.
+func (f *Feeds) Since(ctx context.Context, userID string) (*time.Time, error) {
+	at, err := f.q.GetCalendarFeedCreated(ctx, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get calendar feed: %w", err)
+	}
+	t, err := db.ParseTime(at)
+	if err != nil {
+		return nil, fmt.Errorf("parse calendar feed time: %w", err)
+	}
+	return &t, nil
+}
+
 // Delete revokes the person's feed.
 func (f *Feeds) Delete(ctx context.Context, userID string) error {
 	if err := f.q.DeleteCalendarFeed(ctx, userID); err != nil {
@@ -106,8 +123,14 @@ type (
 	FeedURL struct {
 		URL string `json:"url" doc:"The feed's secret address; anyone holding it reads the caller's plans"`
 	}
-	feedOut  struct{ Body FeedURL }
-	feedFile struct {
+	feedOut struct{ Body FeedURL }
+	// FeedState is the response body of get-calendar-feed-state.
+	FeedState struct {
+		Active    bool       `json:"active" doc:"Whether the caller has a feed address that works"`
+		CreatedAt *time.Time `json:"createdAt" doc:"When that address was made; null without one"`
+	}
+	feedStateOut struct{ Body FeedState }
+	feedFile     struct {
 		File string `path:"file" doc:"The secret followed by .ics"`
 	}
 	icsOut struct {
@@ -127,6 +150,23 @@ func RegisterFeed(api huma.API, feeds *Feeds) {
 		}
 		return u.ID, nil
 	}
+	huma.Register(api, huma.Operation{
+		OperationID: "get-calendar-feed-state", Method: http.MethodGet, Path: "/api/v1/calendar-feed",
+		Summary:     "Tell whether the caller has a calendar feed",
+		Description: "Whether the caller's feed address works and since when; the address itself is shown only once, by create-calendar-feed. Session only.",
+		Tags:        []string{"meal-plans"}, Security: auth.SessionSecurity,
+	}, func(ctx context.Context, _ *struct{}) (*feedStateOut, error) {
+		uid, err := caller(ctx)
+		if err != nil {
+			return nil, err
+		}
+		at, err := feeds.Since(ctx, uid)
+		if err != nil {
+			return nil, err
+		}
+		return &feedStateOut{Body: FeedState{Active: at != nil, CreatedAt: at}}, nil
+	})
+
 	huma.Register(api, huma.Operation{
 		OperationID: "create-calendar-feed", Method: http.MethodPost, Path: "/api/v1/calendar-feed",
 		Summary:     "Create or replace the caller's calendar feed",

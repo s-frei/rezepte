@@ -177,3 +177,7 @@ export const planEventsUrl = (id: string) => `/api/v1${base(id)}/events`;
 export const createCalendarFeed = () => send<{ url: string }>('/calendar-feed', 'POST');
 
 export const deleteCalendarFeed = () => send<void>('/calendar-feed', 'DELETE');
+
+/** Whether the reader's calendar address works, and since when; the address is shown only by `createCalendarFeed`. */
+export const getCalendarFeed = () =>
+	api<{ active: boolean; createdAt: string | null }>('/calendar-feed');

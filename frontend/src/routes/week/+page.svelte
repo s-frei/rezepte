@@ -269,7 +269,7 @@
 				</IconButton>
 			</div>
 		</div>
-		<!-- Which plan, and for a named one who is on it and its ⋯. -->
+		<!-- Which plan, for a named one who is on it, and its ⋯ (the calendar for every plan). -->
 		<div class="flex min-w-0 items-center gap-2 max-md:order-first">
 			<PlanPicker
 				{plans}
@@ -278,8 +278,8 @@
 				onchange={(id) => show(monday, id)}
 				onnew={newPlan}
 			/>
-			{#if !plan.personal}
-				<div class="flex shrink-0 items-center gap-2 max-md:ml-auto">
+			<div class="flex shrink-0 items-center gap-2 max-md:ml-auto">
+				{#if !plan.personal}
 					{#if people.length > 1}
 						<button
 							type="button"
@@ -304,17 +304,18 @@
 							<Share2 class="size-5 -translate-x-px" aria-hidden="true" />
 						</button>
 					{/if}
-					<PlanMenu
-						name={planName}
-						{owner}
-						onrename={(name) =>
-							week.apply(renamePlan(plan.id, name, week.range), undefined, failChange)}
-						onshare={() => (shareOpen = true)}
-						ondelete={removePlan}
-						onleave={leave}
-					/>
-				</div>
-			{/if}
+				{/if}
+				<PlanMenu
+					personal={plan.personal}
+					name={planName}
+					{owner}
+					onrename={(name) =>
+						week.apply(renamePlan(plan.id, name, week.range), undefined, failChange)}
+					onshare={() => (shareOpen = true)}
+					ondelete={removePlan}
+					onleave={leave}
+				/>
+			</div>
 		</div>
 		{#if !empty}
 			<div class="flex flex-col gap-1 md:ml-auto md:flex-row md:items-center md:gap-3">

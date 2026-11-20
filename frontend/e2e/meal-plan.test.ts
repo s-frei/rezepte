@@ -739,7 +739,10 @@ test('personal plan has no share or rename', async ({ page }) => {
 	await expect(picker(page)).toHaveText('My plan');
 	const main = page.getByRole('main');
 	await expect(main.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
-	await expect(main.getByRole('button', { name: 'More actions' })).toHaveCount(0);
+	// Its ⋯ holds only the calendar, the same feed every plan offers.
+	await main.getByRole('button', { name: 'More actions' }).click();
+	await expect(page.getByRole('menuitem')).toHaveText(['Subscribe in calendar']);
+	await page.keyboard.press('Escape');
 	// Nor does the API rename it.
 	const own = await ownPlan(page);
 	const renamed = await page.request.patch(`/api/v1/meal-plans/${own}`, { data: { name: 'X' } });
@@ -753,7 +756,12 @@ test('the owner renames and deletes a plan', async ({ page }) => {
 	await page.goto(`/week?plan=${id}`);
 
 	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
-	await expect(page.getByRole('menuitem')).toHaveText(['Rename', 'Share', 'Delete plan']);
+	await expect(page.getByRole('menuitem')).toHaveText([
+		'Rename',
+		'Share',
+		'Subscribe in calendar',
+		'Delete plan'
+	]);
 	await page.getByRole('menuitem', { name: 'Rename' }).click();
 	const rename = page.getByRole('dialog', { name: 'Rename' });
 	await rename.getByLabel('Name').fill(`${name} 2`);
@@ -786,7 +794,11 @@ test('member leaves a plan', async ({ page }) => {
 	// A member renames and leaves; sharing and deleting are the owner's.
 	await expect(page.getByRole('main').getByRole('button', { name: 'Share' })).toHaveCount(0);
 	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
-	await expect(page.getByRole('menuitem')).toHaveText(['Rename', 'Leave plan']);
+	await expect(page.getByRole('menuitem')).toHaveText([
+		'Rename',
+		'Subscribe in calendar',
+		'Leave plan'
+	]);
 	await page.getByRole('menuitem', { name: 'Leave plan' }).click();
 	const confirm = page.getByRole('dialog', { name: `Leave the plan “${name}”?` });
 	await confirm.getByRole('button', { name: 'Leave plan' }).click();
@@ -899,4 +911,62 @@ test('a list member outside the plan sees the day but no way to the week', async
 	} finally {
 		await other.context.close();
 	}
+});
+
+test('creates and replaces the calendar link', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	await plan(page, { day: '2026-11-19', title: `Curry ${t}` });
+	await page
+		.context()
+		.grantPermissions(['clipboard-read', 'clipboard-write'])
+		.catch(() => {});
+	await page.goto('/week');
+
+	const open = async () => {
+		await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+		await page.getByRole('menuitem', { name: 'Subscribe in calendar' }).click();
+		const dialog = page.getByRole('dialog', { name: 'Subscribe in calendar' });
+		await expect(dialog).toBeVisible();
+		return dialog;
+	};
+	let dialog = await open();
+	await dialog.getByRole('button', { name: 'Create link' }).click();
+	const field = dialog.getByRole('textbox', { name: 'Your calendar link' });
+	const first = await field.inputValue();
+	expect(first).toMatch(/^http:\/\/[^/]+\/calendar\/[\w-]+\.ics$/);
+	// Focus lands on Copy, and the copy says so.
+	const copy = dialog.getByRole('button', { name: 'Copy' });
+	await expect(copy).toBeFocused();
+	await copy.click();
+	await expect(page.getByText('Calendar link copied')).toBeVisible();
+	const feed = await page.request.get(first);
+	expect(feed.status()).toBe(200);
+	expect(feed.headers()['content-type']).toContain('text/calendar');
+	expect(await feed.text()).toContain(`SUMMARY:Curry ${t}`);
+	await dialog.getByRole('button', { name: 'Done' }).last().click();
+	await expect(dialog).toBeHidden();
+
+	// Opened again: the link is not shown again, the subscription is.
+	dialog = await open();
+	await expect(dialog.getByText(/^Subscribed since /)).toBeVisible();
+	await expect(dialog.getByRole('textbox')).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Make a new link' }).click();
+	const confirm = page.getByRole('dialog', { name: 'Make a new link?' });
+	await confirm.getByRole('button', { name: 'Make a new link' }).click();
+	const second = await dialog.getByRole('textbox', { name: 'Your calendar link' }).inputValue();
+	expect(second).not.toBe(first);
+	expect((await page.request.get(first)).status()).toBe(404);
+	expect((await page.request.get(second)).status()).toBe(200);
+
+	// Ended: the link is gone and the dialog offers a new one.
+	await dialog.getByRole('button', { name: 'End subscription' }).click();
+	await page
+		.getByRole('dialog', { name: 'End the subscription?' })
+		.getByRole('button', { name: 'End subscription' })
+		.click();
+	await expect(page.getByText('Subscription ended')).toBeVisible();
+	await expect(dialog.getByRole('button', { name: 'Create link' })).toBeFocused();
+	expect((await page.request.get(second)).status()).toBe(404);
 });

@@ -78,6 +78,31 @@ func TestFeedReplaceRevokesOld(t *testing.T) {
 	}
 }
 
+func TestFeedStateTellsWithoutTheSecret(t *testing.T) {
+	a := newAPI(t)
+	c := a.login(t, "anna")
+	state := func() map[string]any {
+		var out map[string]any
+		a.send(t, c, http.MethodGet, "/api/v1/calendar-feed", nil, http.StatusOK, &out)
+		return out
+	}
+	if got := state(); got["active"] != false || got["createdAt"] != nil {
+		t.Fatalf("before: %v", got)
+	}
+	secret := strings.TrimSuffix(strings.TrimPrefix(a.newFeed(t, c), "/calendar/"), ".ics")
+	got := state()
+	if got["active"] != true || got["createdAt"] == nil {
+		t.Fatalf("after create: %v", got)
+	}
+	if strings.Contains(a.do(http.MethodGet, "/api/v1/calendar-feed", "", c).Body.String(), secret) {
+		t.Fatal("state shows the secret")
+	}
+	a.send(t, c, http.MethodDelete, "/api/v1/calendar-feed", nil, http.StatusNoContent, nil)
+	if got := state(); got["active"] != false {
+		t.Fatalf("after delete: %v", got)
+	}
+}
+
 func TestFeedShowsOnlyAccessiblePlans(t *testing.T) {
 	a := newAPI(t)
 	anna, ben := a.login(t, "anna"), a.login(t, "ben")

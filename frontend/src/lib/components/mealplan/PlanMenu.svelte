@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CalendarSync from '@lucide/svelte/icons/calendar-sync';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -11,13 +12,16 @@
 	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
+	import CalendarFeedDialog from './CalendarFeedDialog.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 
 	/**
-	 * A named plan's ⋯, as a list's: everyone renames; the creator shares and
-	 * deletes, a member leaves. The personal plan has none of these.
+	 * A plan's ⋯. Every plan offers the calendar, one feed over all plans the
+	 * reader is in. A named plan's, as a list's: everyone renames; the creator
+	 * shares and deletes, a member leaves. The personal plan has only the calendar.
 	 */
 	let {
+		personal = false,
 		name,
 		owner,
 		onrename,
@@ -25,6 +29,7 @@
 		ondelete,
 		onleave
 	}: {
+		personal?: boolean;
 		name: string;
 		owner: boolean;
 		/** Resolves to whether the new name was stored, which closes the dialog. */
@@ -35,6 +40,7 @@
 	} = $props();
 
 	let renameOpen = $state(false);
+	let calendarOpen = $state(false);
 	let confirmOpen = $state(false);
 	let draft = $state('');
 	let saving = $state(false);
@@ -78,32 +84,42 @@
 			align="end"
 			class="z-50 w-60 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 		>
-			<DropdownMenu.Item onSelect={openRename} class={item}>
-				<Pencil class="size-4" aria-hidden="true" />
-				{m.plan_rename()}
+			{#if !personal}
+				<DropdownMenu.Item onSelect={openRename} class={item}>
+					<Pencil class="size-4" aria-hidden="true" />
+					{m.plan_rename()}
+				</DropdownMenu.Item>
+				{#if owner}
+					<DropdownMenu.Item onSelect={onshare} class={item}>
+						<Share2 class="size-4" aria-hidden="true" />
+						{m.plan_share()}
+					</DropdownMenu.Item>
+				{/if}
+			{/if}
+			<DropdownMenu.Item onSelect={() => (calendarOpen = true)} class={item}>
+				<CalendarSync class="size-4" aria-hidden="true" />
+				{m.plan_calendar()}
 			</DropdownMenu.Item>
-			{#if owner}
-				<DropdownMenu.Item onSelect={onshare} class={item}>
-					<Share2 class="size-4" aria-hidden="true" />
-					{m.plan_share()}
+			{#if !personal}
+				<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
+				<DropdownMenu.Item
+					onSelect={() => (confirmOpen = true)}
+					class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
+				>
+					{#if owner}
+						<Trash2 class="size-4" aria-hidden="true" />
+						{m.plan_delete()}
+					{:else}
+						<LogOut class="size-4" aria-hidden="true" />
+						{m.plan_leave()}
+					{/if}
 				</DropdownMenu.Item>
 			{/if}
-			<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
-			<DropdownMenu.Item
-				onSelect={() => (confirmOpen = true)}
-				class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-destructive transition hover:bg-destructive-soft"
-			>
-				{#if owner}
-					<Trash2 class="size-4" aria-hidden="true" />
-					{m.plan_delete()}
-				{:else}
-					<LogOut class="size-4" aria-hidden="true" />
-					{m.plan_leave()}
-				{/if}
-			</DropdownMenu.Item>
 		</DropdownMenu.Content>
 	</DropdownMenu.Portal>
 </DropdownMenu.Root>
+
+<CalendarFeedDialog bind:open={calendarOpen} />
 
 <BaseDialog bind:open={renameOpen}>
 	<Dialog.Title class="font-display text-heading font-medium">{m.plan_rename()}</Dialog.Title>

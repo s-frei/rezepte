@@ -185,6 +185,10 @@ DELETE FROM meal_plan_staples WHERE plan_id = sqlc.arg(plan_id) AND name_key = s
 INSERT INTO calendar_feeds (user_id, token_hash, created_at) VALUES (?, ?, ?)
 ON CONFLICT (user_id) DO UPDATE SET token_hash = excluded.token_hash, created_at = excluded.created_at;
 
+-- When the person's feed secret was made; no row while they have none.
+-- name: GetCalendarFeedCreated :one
+SELECT created_at FROM calendar_feeds WHERE user_id = ?;
+
 -- name: GetCalendarFeedUser :one
 SELECT user_id FROM calendar_feeds WHERE token_hash = ?;
 
