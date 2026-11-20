@@ -10,6 +10,7 @@
 	import { addPlanEntry } from '#lib/api/mealplan.js';
 	import AddEntrySheet from '#lib/components/mealplan/AddEntrySheet.svelte';
 	import PlanPicker from '#lib/components/mealplan/PlanPicker.svelte';
+	import ToListDialog from '#lib/components/mealplan/ToListDialog.svelte';
 	import WeekView from '#lib/components/mealplan/WeekView.svelte';
 	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -75,6 +76,7 @@
 	// the new-things sheet behind a phone's "+": both open the add sheet, on
 	// today in this week, else on the shown week's Monday.
 	let adding = $state(false);
+	let listing = $state(false);
 	let addDay = $state<string | null>(null);
 	function openAdd(day: string | null = days.includes(data.today) ? data.today : monday) {
 		addDay = day;
@@ -181,19 +183,23 @@
 						/>
 					</a>
 				{/if}
-				<!-- Opens the "Put on the list" dialog (its own task); the count is what it would add. -->
-				<Button variant="primary" class="shadow-cta max-md:h-11 max-md:w-full md:px-4.5">
+				<!-- The count is what the dialog would add for the shown week and the tray. -->
+				<Button
+					variant="primary"
+					aria-haspopup="dialog"
+					aria-expanded={listing}
+					label={plan.unlisted > 0
+						? `${m.plan_to_list()}, ${plan.unlisted === 1 ? m.plan_to_list_count_one() : m.plan_to_list_count({ count: plan.unlisted })}`
+						: undefined}
+					onclick={() => (listing = true)}
+					class="shadow-cta max-md:h-11 max-md:w-full md:px-4.5"
+				>
 					<ShoppingBasket class="size-4" aria-hidden="true" />
 					{m.plan_to_list()}
 					{#if plan.unlisted > 0}
 						<span
 							class="inline-flex h-5.5 min-w-5.5 items-center justify-center rounded-full bg-primary-foreground px-1.5 text-caption font-bold text-primary"
 							aria-hidden="true">{plan.unlisted}</span
-						>
-						<span class="sr-only"
-							>, {plan.unlisted === 1
-								? m.plan_to_list_count_one()
-								: m.plan_to_list_count({ count: plan.unlisted })}</span
 						>
 					{/if}
 				</Button>
@@ -236,4 +242,5 @@
 	{/if}
 </div>
 
+<ToListDialog bind:open={listing} {week} today={data.today} />
 <AddEntrySheet bind:open={adding} {days} day={addDay} today={data.today} onadd={add} />

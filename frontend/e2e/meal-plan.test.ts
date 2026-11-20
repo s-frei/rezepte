@@ -404,3 +404,112 @@ test('pages weeks and keeps today marked', async ({ page }) => {
 	await expect(day(page, 'Friday, November 20')).toHaveAttribute('aria-current', 'date');
 	await expect(day(page, 'Saturday, November 21').getByText('Pizza bestellen')).toBeVisible();
 });
+
+// "Put on the list": the dialog over the shown week's rest.
+
+type List = {
+	name: string;
+	entries: { id: string; title: string; servings: number }[];
+	items: { entryId: string | null; name: string }[];
+};
+
+const toListButton = (page: Page) =>
+	page.getByRole('main').getByRole('button', { name: /^Put on the list/ });
+
+async function listFromToast(page: Page): Promise<List> {
+	await page.getByRole('button', { name: 'Open list' }).click();
+	await expect(page).toHaveURL(/\/lists\/[^/?]+$/);
+	const id = new URL(page.url()).pathname.split('/').pop()!;
+	return (await (await page.request.get(`/api/v1/shopping-lists/${id}`)).json()) as List;
+}
+
+test('puts the rest of the week on a new list without staples', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	const fish = await createRecipe(page, { ...loadFixture(3), title: `Fish ${t}` });
+	await plan(page, { day: '2026-11-16', recipeId: fish.id });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id, servings: 6 });
+	await plan(page, { day: '2026-11-21', recipeId: mash.id, servings: 3 });
+	const staple = await page.request.put(`/api/v1/meal-plans/${await ownPlan(page)}/staples`, {
+		data: { name: 'salt', staple: true }
+	});
+	expect(staple.ok()).toBe(true);
+	await page.goto('/week');
+
+	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	// Today to Sunday; Monday is behind us.
+	await expect(dialog.getByRole('button', { name: /^Days/ })).toContainText(
+		'Wed Nov 18 – Sun Nov 22'
+	);
+	await expect(dialog.getByText(`Pie ${t}`)).toBeVisible();
+	await expect(dialog.getByText(`Mash ${t}`)).toBeVisible();
+	await expect(dialog.getByText(`Fish ${t}`)).toHaveCount(0);
+	// No list yet: a new one, named after the week.
+	await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue(
+		'Shopping Nov\u00A018–22'
+	);
+
+	// The staple starts deselected, everything else picked.
+	await dialog.getByRole('button', { name: `Ingredients of Pie ${t}` }).click();
+	await expect(
+		dialog.getByRole('checkbox', { name: 'salt', exact: true }).first()
+	).not.toBeChecked();
+	await expect(dialog.getByRole('checkbox', { name: 'onion', exact: true })).toBeChecked();
+	// Marked as always at home here, it leaves this recipe and the other one
+	// (Mash's "onions" is the same ingredient to the list).
+	const mashOnions = dialog.getByRole('checkbox', { name: 'onions', exact: true });
+	await dialog.getByRole('button', { name: `Ingredients of Mash ${t}` }).click();
+	await expect(mashOnions).toBeChecked();
+	await dialog.getByRole('button', { name: 'We always have onion', exact: true }).click();
+	await expect(
+		dialog.getByRole('button', { name: 'We always have onion', exact: true })
+	).toHaveAttribute('aria-pressed', 'true');
+	await expect(dialog.getByRole('checkbox', { name: 'onion', exact: true })).not.toBeChecked();
+	await expect(mashOnions).not.toBeChecked();
+	await dialog.getByRole('button', { name: 'Add 2 recipes' }).click();
+	await expect(dialog).toBeHidden();
+
+	const list = await listFromToast(page);
+	expect(list.name).toBe('Shopping Nov\u00A018–22');
+	expect(list.entries.map((e) => [e.title, e.servings]).sort()).toEqual([
+		[`Mash ${t}`, 3],
+		[`Pie ${t}`, 6]
+	]);
+	expect(list.items.some((i) => i.name === 'carrots')).toBe(true);
+	expect(list.items.filter((i) => ['salt', 'onion', 'onions'].includes(i.name))).toEqual([]);
+	await expect(page.getByRole('main').getByText(`Pie ${t}`).first()).toBeVisible();
+});
+
+test('second time adds only new entries', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	await plan(page, { day: '2026-11-17', recipeId: pie.id });
+	await page.goto('/week');
+
+	let dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await dialog.getByRole('button', { name: 'Add 1 recipe' }).click();
+	await expect(dialog).toBeHidden();
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+
+	await plan(page, { day: '2026-11-19', recipeId: mash.id });
+	await page.reload();
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	// The list the plan went to last; the recipe on it is left out and said so.
+	await expect(dialog.getByRole('button', { name: 'List', exact: true })).toHaveText(
+		'Shopping Nov\u00A016–22'
+	);
+	await expect(dialog.getByText('1 recipe is already on “Shopping Nov\u00A016–22”')).toBeVisible();
+	await expect(dialog.getByText(`Pie ${t}`)).toHaveCount(0);
+	await dialog.getByRole('button', { name: 'Add 1 recipe' }).click();
+	await expect(dialog).toBeHidden();
+
+	const list = await listFromToast(page);
+	expect(list.entries.map((e) => e.title).sort()).toEqual([`Mash ${t}`, `Pie ${t}`]);
+});
