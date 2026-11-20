@@ -127,6 +127,12 @@
 	--shadow-card: 0 1px 2px rgb(80 50 20 / 0.06), 0 8px 24px -12px rgb(80 50 20 / 0.18);
 	--shadow-cover: 0 12px 32px -16px rgb(80 50 20 / 0.3);
 	--shadow-dialog: 0 24px 60px -24px rgb(80 50 20 / 0.4);
+	/* A colored person card floating over the page, lifted clearly. Black
+	   in the dark themes, where the warm shadows vanish into the ground: a
+	   token of its own, used as `dark:shadow-float-dark`, since an @theme
+	   shadow is compiled into its utility and cannot be redefined per mode. */
+	--shadow-float: 0 2px 6px rgb(80 50 20 / 0.18), 0 24px 48px -12px rgb(80 50 20 / 0.45);
+	--shadow-float-dark: 0 2px 6px rgb(0 0 0 / 0.28), 0 24px 48px -12px rgb(0 0 0 / 0.55);
 	--shadow-sheet: 0 -12px 40px -20px rgb(80 50 20 / 0.4);
 	--shadow-cta: 0 8px 20px -8px rgb(180 83 9 / 0.5);
 	/* The punched hole of a key tag (token and share rows): warm, like

@@ -160,6 +160,7 @@
 				<PersonPeek
 					bind:open={cardOpen}
 					hover={false}
+					lifted
 					label={m.person_card_open({ name: person.displayName })}
 					class="{narrow.current
 						? 'relative after:absolute after:-inset-1'

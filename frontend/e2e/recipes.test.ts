@@ -3413,6 +3413,14 @@ test('the recipe page names its author under the source and opens their card', a
 	}
 	await byline.click();
 	await expect(page.getByRole('link', { name: /Recipes by admin/ })).toBeVisible();
+	// Over the page it is cut out of the ground (a 4px rim) and lifted, so a
+	// card beneath never runs into it, in either theme.
+	if (testInfo.project.name !== 'mobile') {
+		const shadow = await page
+			.locator('[data-popover-content]')
+			.evaluate((el) => getComputedStyle(el).boxShadow);
+		expect(shadow).toContain('0px 0px 0px 4px');
+	}
 });
 
 test('a one-word name of full length wraps in the author ribbon on a 360px phone', async ({

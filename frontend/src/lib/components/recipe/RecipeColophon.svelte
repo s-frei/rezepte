@@ -91,6 +91,7 @@
 	<PersonPeek
 		bind:open={() => open === key, (value) => (open = value ? key : null)}
 		class="group {triggerClass}"
+		lifted
 		panelClass="w-80 max-w-[calc(100vw-24px)] text-caption"
 	>
 		{#snippet trigger()}{@render face(person)}{/snippet}

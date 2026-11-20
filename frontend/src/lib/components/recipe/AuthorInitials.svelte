@@ -104,6 +104,7 @@
 	bind:open
 	{label}
 	{anchor}
+	lifted={!edited}
 	class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	panelClass="w-[var(--bits-floating-anchor-width)] text-caption {edited
 		? 'bg-inverse p-3.5 text-inverse-foreground'

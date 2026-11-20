@@ -508,6 +508,7 @@
 				<div class="mt-4.5 flex pl-1">
 					<PersonPeek
 						bind:open={authorOpen}
+						lifted
 						label={m.recipe_by({ name: recipe.createdBy.displayName })}
 						class="max-w-full min-w-0 rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 						panelClass="w-80 max-w-[calc(100vw-24px)] text-caption"

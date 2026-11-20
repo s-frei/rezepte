@@ -15,6 +15,7 @@
 		label,
 		class: className,
 		hover = true,
+		lifted = false,
 		anchor,
 		panelClass,
 		trigger,
@@ -27,6 +28,9 @@
 		class: string;
 		/** Opens on hover after 300ms as well as on a click. */
 		hover?: boolean;
+		/** A colored card over the page: cut out of the ground by a rim and
+		 * lifted further, so a card beneath never runs into it. */
+		lifted?: boolean;
 		/** What the popover lines up with, when not the trigger. */
 		anchor?: HTMLElement | null;
 		/** The popover's look and width. */
@@ -58,7 +62,9 @@
 				sideOffset={6}
 				align="start"
 				collisionPadding={12}
-				class="z-50 rounded-2xl shadow-dialog {panelClass}"
+				class="z-50 rounded-2xl {lifted
+					? 'shadow-float ring-4 ring-background dark:shadow-float-dark'
+					: 'shadow-dialog'} {panelClass}"
 			>
 				{@render card(false)}
 			</Popover.Content>
