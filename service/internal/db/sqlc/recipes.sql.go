@@ -732,6 +732,54 @@ func (q *Queries) ListIngredientGroupsByRecipe(ctx context.Context, recipeID str
 	return items, nil
 }
 
+const listIngredientNamesForRecipes = `-- name: ListIngredientNamesForRecipes :many
+SELECT g.recipe_id, i.name
+FROM ingredients i
+JOIN ingredient_groups g ON g.id = i.group_id
+WHERE g.recipe_id IN (/*SLICE:recipe_ids*/?)
+ORDER BY g.recipe_id, g.position, i.position
+`
+
+type ListIngredientNamesForRecipesRow struct {
+	RecipeID string
+	Name     string
+}
+
+// The ingredient names of a page of search hits, batched like
+// ListTagNamesForRecipes, for what each card says it was found by.
+func (q *Queries) ListIngredientNamesForRecipes(ctx context.Context, recipeIds []string) ([]ListIngredientNamesForRecipesRow, error) {
+	query := listIngredientNamesForRecipes
+	var queryParams []interface{}
+	if len(recipeIds) > 0 {
+		for _, v := range recipeIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:recipe_ids*/?", strings.Repeat(",?", len(recipeIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:recipe_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIngredientNamesForRecipesRow{}
+	for rows.Next() {
+		var i ListIngredientNamesForRecipesRow
+		if err := rows.Scan(&i.RecipeID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIngredientsByRecipe = `-- name: ListIngredientsByRecipe :many
 SELECT i.id, i.group_id, i.quantity, i.unit, i.name, i.note, i.position
 FROM ingredients i

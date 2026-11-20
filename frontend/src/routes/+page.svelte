@@ -17,6 +17,8 @@
 		listTags,
 		type Author,
 		type RecipeCard as RecipeCardData,
+		type RecipePage,
+		type SearchSection,
 		type Tag
 	} from '#lib/api/recipes.js';
 	import { listPeople, type PersonEntry } from '#lib/api/users.js';
@@ -82,6 +84,9 @@
 
 	let items = $state<RecipeCardData[]>([]);
 	let total = $state(0);
+	let lastPage = $state(false);
+	/** A search's results counted by section; absent without a search. */
+	let sections = $state<RecipePage['sections']>();
 	let allTags = $state<Tag[]>([]);
 	/**
 	 * The desktop row's tags while a search text is on, counted under it too:
@@ -185,7 +190,7 @@
 	);
 	const isEmpty = $derived(viewState.isEmpty);
 	const isNoResults = $derived(viewState.isNoResults);
-	const canLoadMore = $derived(viewState.canLoadMore);
+	const canLoadMore = $derived(viewState.canLoadMore && !lastPage);
 	// Sum of everything narrowing the list: selected tags, an active time
 	// filter, the favorites switch and an author, written as a sum so a
 	// later filter adds its own term here. The tags are counted even though
@@ -364,8 +369,19 @@
 						arrival = false;
 					}, 1200);
 				}
-				items = append ? [...items, ...fetched] : fetched;
+				// Pages are cut by offset: a recipe saved since an earlier page
+				// moves one onto the next, which would show it twice. It is
+				// then one card short of the total, so the last page, not the
+				// count, ends "Load more".
+				const shown = new Set(append ? items.map((recipe) => recipe.id) : []);
+				const fresh = fetched.filter(
+					(recipe, at) =>
+						!shown.has(recipe.id) && fetched.findIndex((other) => other.id === recipe.id) === at
+				);
+				items = append ? [...items, ...fresh] : fresh;
 				total = result.total;
+				lastPage = result.page * result.limit >= result.total;
+				sections = result.sections;
 				pageNum = result.page;
 				// Inside the update, so the glide's picture of the new state
 				// already has the skeleton or the empty state where it belongs.
@@ -474,12 +490,43 @@
 		void fetchPage(pageNum + 1, true);
 	}
 
-	const sortOptions: { value: Sort; label: string }[] = [
-		{ value: 'updated', label: m.overview_sort_updated() },
+	// With a search text the default order puts the best hits first (most
+	// recently changed only breaks ties), so it is named for that then.
+	const defaultSortLabel = $derived(
+		q.trim() ? m.overview_sort_relevance() : m.overview_sort_updated()
+	);
+	const sortOptions: { value: Sort; label: string }[] = $derived([
+		{ value: 'updated', label: defaultSortLabel },
 		{ value: 'created', label: m.overview_sort_created() },
 		{ value: 'title', label: m.overview_sort_title() },
 		{ value: 'tasty', label: m.overview_sort_tasty() }
-	];
+	]);
+
+	const sectionLabels: Record<SearchSection, () => string> = {
+		title: m.overview_section_title,
+		tags: m.overview_section_tags,
+		ingredients: m.overview_section_ingredients,
+		description: m.overview_section_description
+	};
+	// A search in the best-match order comes grouped by where each hit was
+	// found. The server orders by section first, so a section's cards come
+	// in one run; a card joins its section's group even when it does not
+	// (a recipe saved between two pages shifts the offset), so a section
+	// never shows twice. `at` keeps each card's place in the whole list for
+	// its rise. Only `sections` decides, never `sort`: the order changes on
+	// the click, the cards only when the new list arrives. The server
+	// sends sections only with the best-match order.
+	const groups = $derived.by(() => {
+		if (!sections) return null;
+		const out: { section: SearchSection; cards: { recipe: RecipeCardData; at: number }[] }[] = [];
+		items.forEach((recipe, at) => {
+			const section = recipe.match?.section ?? 'description';
+			let group = out.find((g) => g.section === section);
+			if (!group) out.push((group = { section, cards: [] }));
+			group.cards.push({ recipe, at });
+		});
+		return out;
+	});
 
 	const sizeOptions = [
 		{ value: 'small' as CardSize, label: m.overview_card_size_small(), icon: Grid3x3 },
@@ -619,6 +666,10 @@
 		const transition = scoped
 			? (scoped as unknown as Pick<Document, 'startViewTransition'>).startViewTransition(update)
 			: document.startViewTransition(update);
+		// A transition the browser aborts (its layout check failed while the
+		// list changed) rejects `ready` as well as `finished`; the list still
+		// updates, only without the glide, so neither is an error.
+		transition.ready.catch(() => {});
 		await transition.finished.catch(() => {});
 		gliding = false;
 		delete marked.dataset.cardTransition;
@@ -764,6 +815,7 @@
 				{author}
 				{authors}
 				{sort}
+				{sortOptions}
 				{filterCount}
 				onmaxminutes={setMaxMinutes}
 				onfavorites={setFavoritesOnly}
@@ -838,6 +890,7 @@
 				sortLabel={sort === 'updated'
 					? ''
 					: (sortOptions.find((option) => option.value === sort)?.label ?? '')}
+				{defaultSortLabel}
 				onsortreset={() => {
 					// An order a link brought along is dropped for this view only;
 					// the reader's own remembered one is let go of.
@@ -939,11 +992,48 @@
 				</Button>
 			</EmptyState>
 		{:else}
-			<RecipeGrid>
-				{#each items as recipe, i (recipe.id)}
-					<RecipeCard {recipe} rise={i >= appendedFrom ? i - appendedFrom : null} />
+			{#if groups}
+				{#each groups as group (group.section)}
+					{@const count = sections?.[group.section] ?? group.cards.length}
+					<!-- A section's title is quiet, in the running head's italic: it
+					     orders the hits without outweighing the h1 or the cards'
+					     titles. In the text color, not the accent, which the text
+					     cards' titles already wear and which misses AA on the page's
+					     background at this size. -->
+					<section aria-labelledby="section-{group.section}" class="mt-8 first:mt-0 md:mt-10">
+						<h2
+							id="section-{group.section}"
+							class="mb-2.5 flex items-baseline gap-2 font-display text-body-lg font-medium italic md:mb-3"
+						>
+							{sectionLabels[group.section]()}
+							<!-- All of the section's hits, not just the ones loaded; a
+							     screen reader hears "2 recipes", not a bare number. -->
+							<span
+								aria-hidden="true"
+								class="font-sans text-caption font-medium text-text-muted not-italic tabular-nums"
+							>
+								{count}
+							</span>
+							<span class="sr-only"
+								>, {count === 1
+									? m.overview_result_count_one()
+									: m.overview_result_count({ count })}</span
+							>
+						</h2>
+						<RecipeGrid>
+							{#each group.cards as { recipe, at } (recipe.id)}
+								<RecipeCard {recipe} rise={at >= appendedFrom ? at - appendedFrom : null} />
+							{/each}
+						</RecipeGrid>
+					</section>
 				{/each}
-			</RecipeGrid>
+			{:else}
+				<RecipeGrid>
+					{#each items as recipe, i (recipe.id)}
+						<RecipeCard {recipe} rise={i >= appendedFrom ? i - appendedFrom : null} />
+					{/each}
+				</RecipeGrid>
+			{/if}
 			<!-- The button's row stays once more were loaded, empty after the
 			     last page: taking it away would shorten the page by its height
 			     just as the last cards arrive, and a reader at the bottom would

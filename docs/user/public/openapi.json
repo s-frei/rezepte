@@ -333,6 +333,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "match": {
+            "$ref": "#/components/schemas/Match"
+          },
           "newComments": {
             "type": "boolean"
           },
@@ -1549,6 +1552,66 @@
         ],
         "type": "object"
       },
+      "Find": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "enum": [
+              "tags",
+              "ingredients",
+              "description"
+            ],
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FindItem"
+            },
+            "type": "array"
+          },
+          "more": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "field",
+          "items",
+          "more"
+        ],
+        "type": "object"
+      },
+      "FindItem": {
+        "additionalProperties": false,
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/FindPart"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "parts"
+        ],
+        "type": "object"
+      },
+      "FindPart": {
+        "additionalProperties": false,
+        "properties": {
+          "hit": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "hit"
+        ],
+        "type": "object"
+      },
       "ForgotInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2727,6 +2790,40 @@
         ],
         "type": "object"
       },
+      "Match": {
+        "additionalProperties": false,
+        "properties": {
+          "finds": {
+            "items": {
+              "$ref": "#/components/schemas/Find"
+            },
+            "type": "array"
+          },
+          "section": {
+            "enum": [
+              "title",
+              "tags",
+              "ingredients",
+              "description"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "items": {
+              "$ref": "#/components/schemas/FindPart"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "section",
+          "finds"
+        ],
+        "type": "object"
+      },
       "MyShareBody": {
         "additionalProperties": false,
         "properties": {
@@ -2921,6 +3018,13 @@
           "page": {
             "format": "int64",
             "type": "integer"
+          },
+          "sections": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
           },
           "total": {
             "format": "int64",
@@ -7734,12 +7838,12 @@
         "operationId": "list-recipes",
         "parameters": [
           {
-            "description": "Full-text search query",
+            "description": "Full-text search: every word must occur in the title, description, ingredients or tags, also inside a longer word from 3 characters on",
             "explode": false,
             "in": "query",
             "name": "q",
             "schema": {
-              "description": "Full-text search query",
+              "description": "Full-text search: every word must occur in the title, description, ingredients or tags, also inside a longer word from 3 characters on",
               "maxLength": 100,
               "type": "string"
             }
@@ -7795,13 +7899,13 @@
             }
           },
           {
-            "description": "Result order: tasty puts the most tasty marks first",
+            "description": "Result order: tasty puts the most tasty marks first; updated, with a q, puts the best matches first",
             "explode": false,
             "in": "query",
             "name": "sort",
             "schema": {
               "default": "updated",
-              "description": "Result order: tasty puts the most tasty marks first",
+              "description": "Result order: tasty puts the most tasty marks first; updated, with a q, puts the best matches first",
               "enum": [
                 "updated",
                 "created",

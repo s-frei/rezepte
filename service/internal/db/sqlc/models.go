@@ -180,6 +180,13 @@ type RecipesFt struct {
 	Tags        string
 }
 
+type RecipesTrigram struct {
+	Title       string
+	Description string
+	Ingredients string
+	Tags        string
+}
+
 type Session struct {
 	ID        string
 	UserID    string

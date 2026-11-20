@@ -47,6 +47,7 @@
 		author,
 		authors,
 		sort,
+		sortOptions,
 		filterCount,
 		onmaxminutes,
 		onfavorites,
@@ -73,6 +74,9 @@
 		 * the grid rather than narrowing it, so it never turns "no recipes
 		 * match" into "no recipes at all" the way a real filter would. */
 		sort: Sort;
+		/** The orders on offer, named by the page: the default one reads
+		 * differently while a search is on. */
+		sortOptions: { value: Sort; label: string }[];
 		/** Total active filters across the whole overview - the tag chips
 		 * outside this panel included, since "Reset all filters"
 		 * below clears those too and only shows while there is something
@@ -97,13 +101,6 @@
 	const authorHeadingId = `${uid}-author-heading`;
 
 	const sortHeadingId = `${uid}-sort-heading`;
-
-	const sortOptions: { value: Sort; label: string }[] = [
-		{ value: 'updated', label: m.overview_sort_updated() },
-		{ value: 'created', label: m.overview_sort_created() },
-		{ value: 'title', label: m.overview_sort_title() },
-		{ value: 'tasty', label: m.overview_sort_tasty() }
-	];
 
 	function handleSort(value: string) {
 		// Select's `value` is a plain string (any Bits UI item value fits);

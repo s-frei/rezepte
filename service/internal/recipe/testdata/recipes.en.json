@@ -266,7 +266,7 @@
   },
   {
     "title": "Toad in the Hole",
-    "description": "Pork sausages baked in a crisp Yorkshire pudding batter, served with onion gravy.",
+    "description": "Pork sausages baked in a crisp Yorkshire pudding batter that rises tall and crisp, served with onion gravy.",
     "servings": 4,
     "prepMinutes": 15,
     "cookMinutes": 35,
@@ -409,7 +409,7 @@
     "cookMinutes": 40,
     "sourceUrl": null,
     "sourceName": null,
-    "tags": ["sweet", "dessert"],
+    "tags": ["sweet", "dessert", "winter-dessert"],
     "ingredientGroups": [
       {
         "name": "Sponge",

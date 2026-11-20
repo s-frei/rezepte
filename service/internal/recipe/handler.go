@@ -11,12 +11,12 @@ import (
 )
 
 type listInput struct {
-	Query         string   `query:"q" maxLength:"100" doc:"Full-text search query"`
+	Query         string   `query:"q" maxLength:"100" doc:"Full-text search: every word must occur in the title, description, ingredients or tags, also inside a longer word from 3 characters on"`
 	Tags          []string `query:"tags" doc:"Restrict to recipes carrying all of these tags"`
 	MaxMinutes    int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
 	FavoritesOnly bool     `query:"favorites" doc:"Restrict to the caller's own favorites"`
 	Author        string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
-	Sort          string   `query:"sort" enum:"updated,created,title,tasty" default:"updated" doc:"Result order: tasty puts the most tasty marks first"`
+	Sort          string   `query:"sort" enum:"updated,created,title,tasty" default:"updated" doc:"Result order: tasty puts the most tasty marks first; updated, with a q, puts the best matches first"`
 	Page          int      `query:"page" minimum:"1" default:"1" doc:"1-based page number"`
 	Limit         int      `query:"limit" minimum:"1" maximum:"100" default:"24" doc:"Page size"`
 }

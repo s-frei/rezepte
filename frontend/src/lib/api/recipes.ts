@@ -48,7 +48,32 @@ export type RecipeCard = {
 	updatedBy: Person;
 	/** Unseen diary entries the member should notice: they wrote the recipe or an entry on it. */
 	newComments: boolean;
+	/** Where a search found the recipe; only on a search's results. */
+	match?: SearchMatch;
 };
+
+/** The fields a search finds a word in, strongest first. */
+export type SearchSection = 'title' | 'tags' | 'ingredients' | 'description';
+
+/** A run of a find's text; `hit` marks what the search word matched. */
+export type FindPart = { text: string; hit: boolean };
+
+/**
+ * Where search words were found outside the title, one per field: the field,
+ * up to two matching tags or ingredients (or one excerpt of the description)
+ * and how many more matched.
+ */
+export type SearchFind = {
+	field: Exclude<SearchSection, 'title'>;
+	items: { parts: FindPart[] }[];
+	more: number;
+};
+
+/**
+ * The section a search hit is grouped under and what it was found by; `title`
+ * is the title with its hits marked, when a word was found in it.
+ */
+export type SearchMatch = { section: SearchSection; title?: FindPart[]; finds: SearchFind[] };
 
 export type Image = { id: string; width: number; height: number; position: number };
 
@@ -155,6 +180,8 @@ export type RecipePage = {
 	page: number;
 	limit: number;
 	total: number;
+	/** A search's results counted by section, over all pages; only on a search. */
+	sections?: Partial<Record<SearchSection, number>>;
 };
 
 export type Tag = { name: string; count: number };

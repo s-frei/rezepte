@@ -1,0 +1,46 @@
+<script lang="ts">
+	import FindParts from './FindParts.svelte';
+	import type { SearchFind } from '#lib/api/recipes.js';
+	import { m } from '#lib/paraglide/messages.js';
+	import { findIcons, findLabel, findText } from '#lib/recipe/finds.js';
+
+	let { finds, photo = false }: { finds: SearchFind[]; photo?: boolean } = $props();
+</script>
+
+<!-- One find per field the words the title does not show were found in:
+     the field as a quiet first line, what they were found by below, set off
+     by a thin rule in the accent like a quotation rather than a box, the
+     same on every card. The field's name follows the card's tag line: muted
+     on a photo card's paper, the text color dimmed on a text card's tint,
+     where the muted gray misses AA. The find stays on one line; the server
+     starts an excerpt at the word the match is in, so the ellipsis cuts
+     after it, and the tooltip has the rest. -->
+<ul class="mt-2.5 flex flex-col gap-2 desk:mt-3">
+	{#each finds as find, i (i)}
+		{@const Icon = findIcons[find.field]}
+		<li class="@container flex min-w-0 flex-col gap-0.5 border-l-2 border-primary/45 py-px pl-2.5">
+			<!-- The count sits at the end of the field's line, where it costs
+			     the find nothing; a screen reader hears it after the find. A
+			     box too narrow for "Beschreibung" (a two-column card at 320px)
+			     drops the icon before a letter of the name. -->
+			<span
+				class="flex min-w-0 items-center gap-1 text-micro font-medium {photo
+					? 'text-text-muted'
+					: 'text-text/75'}"
+			>
+				<Icon class="size-3.5 shrink-0 @max-[6.5rem]:hidden" aria-hidden="true" />
+				<span class="truncate">{findLabel(find)}<span class="sr-only">:</span></span>
+				{#if find.more > 0}
+					<span aria-hidden="true" class="ml-auto shrink-0 tabular-nums">
+						{m.search_find_more({ count: find.more })}
+					</span>
+				{/if}
+			</span>
+			<span class="truncate text-caption text-text" title={findText(find)}>
+				<FindParts items={find.items} />{#if find.more > 0}<span class="sr-only"
+						>, {m.search_find_more({ count: find.more })}</span
+					>{/if}
+			</span>
+		</li>
+	{/each}
+</ul>

@@ -49,6 +49,10 @@ test('command-palette', async ({ page }, testInfo) => {
 	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(12);
 	await page.keyboard.press('ControlOrMeta+k');
 	await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+	// A word in one title and three ingredient lists: the palette marks it
+	// in the title and names the ingredient under the other three.
+	await page.keyboard.type('beef');
+	await expect(page.getByRole('option', { name: /^Toad in the Hole\s*, Ingredient/ })).toBeVisible();
 	await shot(page, 'command-palette');
 });
 
@@ -56,10 +60,12 @@ test('search', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	// Enter searches and closes the tag suggestions, which would otherwise
 	// lie over the grid this picture is about.
-	await page.getByLabel('Search recipes').fill('Leek');
+	await page.getByLabel('Search recipes').fill('potato');
 	await page.getByLabel('Search recipes').press('Enter');
-	// "Leek" only occurs in Leek and Potato Soup (title and ingredient).
-	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(1);
+	// "potato" is in one title and three ingredient lists: two sections,
+	// and each ingredient card says where it was found.
+	await expect(page.getByRole('heading', { level: 2 })).toHaveCount(2);
+	await expect(page.getByRole('heading', { level: 3 })).toHaveCount(4);
 	await shot(page, 'search');
 });
 

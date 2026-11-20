@@ -369,3 +369,58 @@ func TestUserLastActiveMigration(t *testing.T) {
 		t.Fatalf("down to 24: %v", err)
 	}
 }
+
+// TestSearchIndexesMigrationIndexesExistingRecipes moves a database with a
+// recipe in it over 0030, so both search indexes cover every column of the
+// recipes already there, folded, and rolls it back to the unfolded index.
+func TestSearchIndexesMigrationIndexesExistingRecipes(t *testing.T) {
+	ctx := t.Context()
+	conn, provider := openAt(t, 29)
+	for _, q := range []string{
+		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
+			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
+		`INSERT INTO recipes (id, slug, title, description, created_by, created_at, updated_by, updated_at)
+			VALUES ('r1', 'r', 'Bauernbrot', 'Mit Sauerteig', 'u1', 't', 'u1', 't')`,
+		`INSERT INTO ingredient_groups (id, recipe_id, position) VALUES ('g1', 'r1', 0)`,
+		`INSERT INTO ingredients (id, group_id, name, position) VALUES ('i1', 'g1', 'Roggenmehl', 0), ('i2', 'g1', 'Süßrahm', 1)`,
+		`INSERT INTO tags (id, name) VALUES ('t1', 'herzhaft')`,
+		`INSERT INTO recipe_tags (recipe_id, tag_id) VALUES ('r1', 't1')`,
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatalf("up: %v", err)
+	}
+	count := func(table, match string) int {
+		t.Helper()
+		var n int
+		if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE `+table+` MATCH ?`, match).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	// Matches are folded the way a search folds them: "Bauernbrot" is
+	// "baurnbrot", "Süßrahm" and "Suessrahm" are "susrahm".
+	for _, match := range []string{`{title} : "brot"`, `{description} : "teig"`, `{ingredients} : "mehl"`, `{ingredients} : "susrahm"`, `{tags} : "herz"`} {
+		if n := count("recipes_trigram", match); n != 1 {
+			t.Fatalf("recipes_trigram %s: %d hits, want 1", match, n)
+		}
+	}
+	for _, match := range []string{`{title} : "baurnbrot"`, `{ingredients} : "susrahm"`, `{tags} : "herzhaft"`} {
+		if n := count("recipes_fts", match); n != 1 {
+			t.Fatalf("recipes_fts %s: %d hits, want 1", match, n)
+		}
+	}
+	if _, err := provider.DownTo(ctx, 28); err != nil {
+		t.Fatalf("down to 28: %v", err)
+	}
+	// Back to the unfolded index 0028 knew: "ß" kept, so "susrahm" misses.
+	if n := count("recipes_fts", `{ingredients} : "susrahm"`); n != 0 {
+		t.Fatalf("recipes_fts still folded after down: %d hits", n)
+	}
+	if n := count("recipes_fts", `{ingredients} : "roggenmehl"`); n != 1 {
+		t.Fatalf("recipes_fts after down: %d hits, want 1", n)
+	}
+}

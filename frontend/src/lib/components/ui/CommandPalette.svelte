@@ -10,10 +10,12 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly, scale } from 'svelte/transition';
 	import Overlay from './Overlay.svelte';
+	import FindParts from '#lib/components/recipe/FindParts.svelte';
 	import { listRecipes, type RecipeCard } from '#lib/api/recipes.js';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
+	import { findIcons, findLabel, findText } from '#lib/recipe/finds.js';
 	import { narrow as phone } from '#lib/ui/narrow.js';
 	import { followVisibleArea } from '#lib/visible-area.js';
 
@@ -168,8 +170,19 @@
 	// The highlight is the other of the two warm tones: the dialog is surface,
 	// so its rows light up in background, and the sheet is background, where
 	// the same tone would vanish, so its rows light up in surface.
+	const selected = $derived(
+		phone.current ? 'data-selected:bg-surface' : 'data-selected:bg-popover-highlight'
+	);
 	const item = $derived(
-		`flex h-11 cursor-default items-center gap-3 rounded-md px-3 text-body text-text outline-none ${phone.current ? 'data-selected:bg-surface' : 'data-selected:bg-popover-highlight'}`
+		`flex h-11 cursor-default items-center gap-3 rounded-md px-3 text-body text-text outline-none ${selected}`
+	);
+	// A recipe found by more than its title grows a line per field it was
+	// found in. The lines sit 2px under the title and the rows 4px apart on
+	// top of their padding, about 20px between one recipe's last line and the
+	// next title, so a find reads as its recipe's, never the next one's; the
+	// thumbnail heads the block. A row of one line stays the actions' 44px.
+	const recipeItem = $derived(
+		`flex min-h-11 cursor-default items-start gap-3 rounded-md px-3 py-2 text-body text-text outline-none ${selected}`
 	);
 	const heading = 'px-3 pt-3 pb-1 text-caption font-semibold text-text-muted';
 </script>
@@ -223,6 +236,7 @@
 								/>
 							</div>
 							<Command.List
+								aria-label={m.palette_results()}
 								class="mt-2 overflow-y-auto {phone.current
 									? 'min-h-0 flex-1 mask-b-from-[calc(100%-1.5rem)] pb-6'
 									: 'max-h-[60vh]'}"
@@ -232,12 +246,12 @@
 										<Command.GroupHeading class={heading}
 											>{m.palette_group_recipes()}</Command.GroupHeading
 										>
-										<Command.GroupItems>
+										<Command.GroupItems class="flex flex-col gap-1">
 											{#each results as recipe (recipe.id)}
 												<Command.Item
 													value="recipe:{recipe.id}"
 													onSelect={() => go(resolve('/recipes/[slug]', { slug: recipe.slug }))}
-													class={item}
+													class={recipeItem}
 												>
 													{#if recipe.coverImageId}
 														<img
@@ -253,7 +267,42 @@
 															{recipe.title.charAt(0).toUpperCase()}
 														</span>
 													{/if}
-													<span class="truncate">{recipe.title}</span>
+													<!-- Centered on the thumbnail while it is one line, from its top
+	once the finds make it taller. -->
+													<span
+														class="flex min-h-8 min-w-0 flex-1 flex-col justify-center gap-y-0.5"
+													>
+														<span class="truncate">
+															{#if recipe.match?.title}
+																<FindParts items={[{ parts: recipe.match.title }]} />
+															{:else}
+																{recipe.title}
+															{/if}{#if recipe.match?.finds.length}<span class="sr-only">,</span
+																>{/if}
+														</span>
+														{#each recipe.match?.finds ?? [] as find, i (i)}
+															{@const Icon = findIcons[find.field]}
+															<span
+																class="flex min-w-0 items-center gap-1.5 text-caption text-text-muted"
+															>
+																<Icon class="size-3.5 shrink-0" aria-hidden="true" />
+																<span class="shrink-0"
+																	>{findLabel(find)}<span class="sr-only">:</span></span
+																>
+																<span aria-hidden="true">·</span>
+																<span class="truncate text-text" title={findText(find)}
+																	><FindParts items={find.items} /></span
+																>
+																{#if find.more > 0}
+																	<span aria-hidden="true" class="shrink-0 tabular-nums"
+																		>{m.search_find_more({ count: find.more })}</span
+																	><span class="sr-only"
+																		>, {m.search_find_more({ count: find.more })}</span
+																	>
+																{/if}
+															</span>
+														{/each}
+													</span>
 												</Command.Item>
 											{/each}
 											<!-- Offered only while there is something to hand over: next

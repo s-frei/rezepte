@@ -518,6 +518,36 @@ test('the command palette opens with Ctrl+K and jumps to a recipe', async ({ pag
 	await expect(dialog).toHaveCount(0);
 });
 
+// Each result says why it is one: the hit marked in the title, or a line
+// per field the title does not show (recipe.Match).
+test('the palette shows what each recipe was found by', async ({ page }) => {
+	const word = `${uniqueToken()}crumb`;
+	await login(page);
+	const base = loadFixture(1);
+	await createRecipe(page, { ...base, title: `Pie ${word}` });
+	await createRecipe(page, {
+		...base,
+		title: 'Ingredient pie',
+		description: '',
+		steps: [],
+		ingredientGroups: [
+			{
+				name: null,
+				ingredients: [{ quantity: null, unit: null, name: `Fresh ${word}s`, note: null }]
+			}
+		]
+	});
+
+	await page.keyboard.press('Control+k');
+	const dialog = page.getByRole('dialog', { name: 'Command palette' });
+	await dialog.getByRole('combobox').fill(word);
+	const titled = dialog.getByRole('option', { name: `Pie ${word}` });
+	await expect(titled.locator('b')).toHaveText(word);
+	const found = dialog.getByRole('option', { name: /^Ingredient pie/ });
+	await expect(found).toContainText(`Ingredient: · Fresh ${word}s`);
+	await expect(found.locator('b')).toHaveText(word);
+});
+
 test('the palette stays open while the overview finishes loading', async ({ page }) => {
 	const token = uniqueToken();
 	await login(page);

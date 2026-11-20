@@ -28,12 +28,12 @@ func init() {
 // cannot fail an output-schema check the REST API never had.
 
 type searchIn struct {
-	Query      string   `json:"query,omitempty" jsonschema:"Full-text search over title, description, ingredient names and tags; prefix-matched, max 100 characters"`
+	Query      string   `json:"query,omitempty" jsonschema:"Full-text search over title, description, ingredient names and tags; every word must occur, also inside a longer word (3+ characters), max 100 characters"`
 	Tags       []string `json:"tags,omitempty" jsonschema:"Only recipes carrying all of these tags (see list_tags)"`
 	MaxMinutes int      `json:"maxMinutes,omitempty" jsonschema:"Only recipes whose prep plus cook time is at most this many minutes, 0-1440; 0 is off"`
 	Favorites  bool     `json:"favorites,omitempty" jsonschema:"Only the token owner's favorites"`
 	Author     string   `json:"author,omitempty" jsonschema:"Only recipes written by this username (createdBy.username in get_recipe), max 50 characters"`
-	Sort       string   `json:"sort,omitempty" jsonschema:"Result order: updated (default), created, title or tasty (most tasty marks first)"`
+	Sort       string   `json:"sort,omitempty" jsonschema:"Result order: updated (default; with a query, best matches first), created, title or tasty (most tasty marks first)"`
 	Page       int      `json:"page,omitempty" jsonschema:"1-based page, default 1"`
 	Limit      int      `json:"limit,omitempty" jsonschema:"Page size, 1-100, default 24"`
 }

@@ -782,7 +782,7 @@ func writeTags(ctx context.Context, q *sqlc.Queries, recipeID string, tags []str
 	return nil
 }
 
-// reindex rebuilds the recipes_fts entry for recipeID from in and tags.
+// reindex rebuilds the full-text entries for recipeID from in and tags.
 func reindex(ctx context.Context, q *sqlc.Queries, recipeID string, in Input, tags []string) error {
 	rowid, err := q.GetRecipeRowID(ctx, recipeID)
 	if err != nil {

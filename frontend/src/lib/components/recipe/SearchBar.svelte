@@ -291,8 +291,10 @@
 					>
 						{#if row.kind === 'text'}
 							<Search class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
-							<span class="min-w-0 [overflow-wrap:anywhere]">
+							<span class="flex min-w-0 flex-col [overflow-wrap:anywhere]">
 								{m.overview_search_text({ query: value.trim() })}
+								<!-- Where a search looks, so a hit in an ingredient is no surprise. -->
+								<span class="text-caption text-text-muted">{m.overview_search_text_fields()}</span>
 							</span>
 						{:else}
 							{@const on = active.includes(row.tag.name)}

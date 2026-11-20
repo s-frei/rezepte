@@ -479,6 +479,102 @@ test('filters the overview down to favorites', async ({ page }) => {
 	await expect(cards(page)).toHaveText([`Starred ${token}`]);
 });
 
+// The newer recipe would lead in the default order; a search ranks the title
+// hit first and names the default order for that (RecipeFilter.rank in
+// service/internal/db/sqlc/recipe_list.go).
+test('puts the best search match first', async ({ page, isMobile }) => {
+	const token = uniqueToken();
+	await createRecipe(page, { ...loadFixture(1), title: `Cornbread ${token}` });
+	await createRecipe(page, {
+		...loadFixture(2),
+		title: `Stuffed peppers ${token}`,
+		description: 'Serve with bread.'
+	});
+
+	await page.goto('/');
+	await search(page, `${token} bread`);
+	await expect(cards(page)).toHaveText([`Cornbread ${token}`, `Stuffed peppers ${token}`]);
+
+	if (isMobile) {
+		await page.getByRole('button', { name: 'Filters' }).click();
+	}
+	await expect(page.getByRole('button', { name: 'Sort by' })).toContainText('Best match');
+});
+
+// A search in the best-match order is grouped by where each hit was found,
+// and every card outside the title section says by what (recipe.Match).
+test('groups search hits by where they were found', async ({ page, isMobile }) => {
+	const word = `${uniqueToken()}crumb`;
+	const base = loadFixture(1);
+	await createRecipe(page, { ...base, title: `Pie ${word}`, description: '' });
+	await createRecipe(page, {
+		...base,
+		title: 'Tagged pie',
+		tags: [`${word}night`],
+		description: ''
+	});
+	await createRecipe(page, {
+		...base,
+		title: 'Ingredient pie',
+		description: '',
+		steps: [],
+		ingredientGroups: [
+			{
+				name: null,
+				ingredients: [{ quantity: null, unit: null, name: `Fresh ${word}s`, note: null }]
+			}
+		]
+	});
+	await createRecipe(page, {
+		...base,
+		title: 'Plain pie',
+		description: `Serve with ${word} on top.`
+	});
+
+	await page.goto('/');
+	await search(page, word);
+	const main = page.getByRole('main');
+	const headings = main.getByRole('heading', { level: 2 });
+	await expect(headings).toHaveText([
+		/^In the title/,
+		/^In the tags/,
+		/^In the ingredients/,
+		/^In the description/
+	]);
+	// The badge's bare number is hidden; a screen reader hears the unit.
+	await expect(headings.first()).toHaveAccessibleName(/^In the title\s*, 1 recipe$/);
+	// A card is an article labeled by its title.
+	const finds = (title: string) =>
+		main.getByRole('article', { name: title, exact: true }).getByRole('listitem');
+	await expect(finds(`Pie ${word}`)).toHaveCount(0);
+	await expect(finds('Tagged pie')).toHaveText(`Tag: ${word}night`);
+	// The tag line leaves out the tag the find already names.
+	await expect(main.getByRole('article', { name: 'Tagged pie', exact: true })).not.toContainText(
+		`${word}night, `
+	);
+	await expect(
+		main.getByRole('article', { name: 'Tagged pie', exact: true }).getByText(`${word}night`)
+	).toHaveCount(1);
+	await expect(finds('Ingredient pie')).toHaveText(`Ingredient: Fresh ${word}s`);
+	await expect(finds('Plain pie')).toHaveText(`Description: … ${word} on top.`);
+
+	// Another order shows one list; the finds stay.
+	await page.goto(`/?q=${word}&sort=title`);
+	await expect(main.getByRole('heading', { level: 2 })).toHaveCount(0);
+	await expect(finds('Tagged pie')).toHaveText(`Tag: ${word}night`);
+
+	// Back to the best match: the grouped list arrives without a page error.
+	const errors: Error[] = [];
+	page.on('pageerror', (error) => errors.push(error));
+	if (isMobile) {
+		await page.getByRole('button', { name: 'Filters' }).click();
+	}
+	await page.getByRole('button', { name: 'Sort by' }).click();
+	await page.getByRole('option', { name: 'Best match' }).click();
+	await expect(main.getByRole('heading', { level: 2 })).toHaveCount(4);
+	expect(errors).toEqual([]);
+});
+
 test('sorts the grid alphabetically', async ({ page, isMobile }) => {
 	const token = uniqueToken();
 	await createRecipe(page, { ...loadFixture(1), title: `Last ${token}` });
@@ -2421,7 +2517,7 @@ test('finds a tag through the search and picks it', async ({ page, isMobile }) =
 	await field.fill(`${token}s`);
 	const list = page.getByRole('listbox', { name: 'Suggestions' });
 	await expect(list.getByRole('option')).toHaveText([
-		`Search “${token}s” in the text`,
+		new RegExp(`Search for “${token}s” Title, ingredients, tags, description$`),
 		/soup.*1$/,
 		/stew.*1$/
 	]);
@@ -2705,7 +2801,7 @@ test('remembers the chosen order', async ({ page, isMobile }) => {
 	await expect(page).toHaveURL(/sort=title/);
 
 	if (isMobile) {
-		await page.getByRole('button', { name: 'Back to recently changed' }).click();
+		await page.getByRole('button', { name: 'Back to “Recently changed”' }).click();
 	} else {
 		await page.getByRole('button', { name: 'Sort by' }).click();
 		await page.getByRole('option', { name: 'Recently changed' }).click();
@@ -2740,7 +2836,7 @@ test("keeps the remembered order when a link's chip is cleared", async ({ page, 
 	await page.goto('/');
 	await page.evaluate(() => localStorage.setItem('rezepte-sort', 'title'));
 	await page.goto('/?sort=tasty');
-	await page.getByRole('button', { name: 'Back to recently changed' }).click();
+	await page.getByRole('button', { name: 'Back to “Recently changed”' }).click();
 	await expect(page).not.toHaveURL(/sort=/);
 	await page.goto('/');
 	await expect(page).toHaveURL(/sort=title/);
@@ -2760,7 +2856,7 @@ test('shows a changed order as a chip on phones', async ({ page, isMobile }) => 
 	await chip.click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await page.keyboard.press('Escape');
-	await page.getByRole('button', { name: 'Back to recently changed' }).click();
+	await page.getByRole('button', { name: 'Back to “Recently changed”' }).click();
 	await expect(page).not.toHaveURL(/sort=/);
 	await expect(chip).toHaveCount(0);
 });

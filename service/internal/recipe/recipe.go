@@ -151,6 +151,9 @@ type Card struct {
 	// Recipe. The card shows them as initials.
 	CreatedBy Person `json:"createdBy"`
 	UpdatedBy Person `json:"updatedBy"`
+	// Match says where a search found the recipe; it is there only on a
+	// search's results.
+	Match *Match `json:"match,omitempty" required:"false"`
 }
 
 // TagCount is a tag name paired with how many recipes currently use it.

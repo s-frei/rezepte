@@ -56,6 +56,15 @@ JOIN ingredient_groups g ON g.id = i.group_id
 WHERE g.recipe_id = ?
 ORDER BY g.position, i.position;
 
+-- The ingredient names of a page of search hits, batched like
+-- ListTagNamesForRecipes, for what each card says it was found by.
+-- name: ListIngredientNamesForRecipes :many
+SELECT g.recipe_id, i.name
+FROM ingredients i
+JOIN ingredient_groups g ON g.id = i.group_id
+WHERE g.recipe_id IN (sqlc.slice(recipe_ids))
+ORDER BY g.recipe_id, g.position, i.position;
+
 -- name: ListStepsByRecipe :many
 SELECT * FROM steps WHERE recipe_id = ? ORDER BY position;
 

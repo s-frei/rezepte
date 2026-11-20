@@ -27,6 +27,7 @@
 		onfavorites,
 		onauthor,
 		sortLabel = '',
+		defaultSortLabel = '',
 		onsortreset,
 		tags = [],
 		ontagremove,
@@ -51,6 +52,8 @@
 		/** The order, when it is not the default one - only where the sort
 		 * control is out of sight (the phone, where it lives in the panel). */
 		sortLabel?: string;
+		/** What the default order is called, for the chip's remove label. */
+		defaultSortLabel?: string;
 		/** Back to the default order. */
 		onsortreset?: () => void;
 		/** The chosen tags, after the panel's chips - the phone's, where no
@@ -87,7 +90,7 @@
 					key: 'sort',
 					label: sortLabel,
 					remove: () => onsortreset?.(),
-					removeLabel: m.overview_sort_reset()
+					removeLabel: m.overview_sort_reset({ order: defaultSortLabel })
 				},
 				maxMinutes > 0 && {
 					key: 'time',

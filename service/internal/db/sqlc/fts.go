@@ -29,19 +29,20 @@ func (q *Queries) GetRecipeRowID(ctx context.Context, id string) (int64, error) 
 	return rowid, err
 }
 
-const deleteFTS = `-- name: DeleteFTS :exec
-DELETE FROM recipes_fts WHERE rowid = ?
-`
+// The two full-text indexes, recipes_fts (whole words) and recipes_trigram
+// (parts of words), hold the same four columns for the same rowid;
+// DeleteFTS and InsertFTS always write both, so they cannot disagree.
+var ftsTables = [...]string{"recipes_fts", "recipes_trigram"}
 
-// DeleteFTS removes the recipes_fts entry for the given rowid.
+// DeleteFTS removes the full-text entries for the given rowid.
 func (q *Queries) DeleteFTS(ctx context.Context, rowid int64) error {
-	_, err := q.db.ExecContext(ctx, deleteFTS, rowid)
-	return err
+	for _, table := range ftsTables {
+		if _, err := q.db.ExecContext(ctx, "DELETE FROM "+table+" WHERE rowid = ?", rowid); err != nil {
+			return err
+		}
+	}
+	return nil
 }
-
-const insertFTS = `-- name: InsertFTS :exec
-INSERT INTO recipes_fts (rowid, title, description, ingredients, tags) VALUES (?, ?, ?, ?, ?)
-`
 
 // InsertFTSParams are the arguments to InsertFTS.
 type InsertFTSParams struct {
@@ -52,14 +53,16 @@ type InsertFTSParams struct {
 	Tags        string
 }
 
-// InsertFTS adds a recipes_fts entry keyed by rowid.
+// InsertFTS adds the full-text entries keyed by rowid, folded (db.Fold, the
+// SQL function fold) the way a search is.
 func (q *Queries) InsertFTS(ctx context.Context, arg InsertFTSParams) error {
-	_, err := q.db.ExecContext(ctx, insertFTS,
-		arg.Rowid,
-		arg.Title,
-		arg.Description,
-		arg.Ingredients,
-		arg.Tags,
-	)
-	return err
+	for _, table := range ftsTables {
+		if _, err := q.db.ExecContext(ctx,
+			"INSERT INTO "+table+" (rowid, title, description, ingredients, tags) VALUES (?, fold(?), fold(?), fold(?), fold(?))",
+			arg.Rowid, arg.Title, arg.Description, arg.Ingredients, arg.Tags,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
 }

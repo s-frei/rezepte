@@ -5,6 +5,7 @@
 	import { formatMinutes } from '#lib/recipe/format.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 	import AuthorInitials from './AuthorInitials.svelte';
+	import SearchFinds from './SearchFinds.svelte';
 	import FavoriteStar from './FavoriteStar.svelte';
 	import TastyButton from './TastyButton.svelte';
 
@@ -36,6 +37,18 @@
 	// own chance without an effect resetting a flag.
 	let failed = $state<string | null>(null);
 	const photo = $derived(recipe.coverImageId !== null && failed !== recipe.coverImageId);
+	// Find boxes under the title take the text card's wider gap to the tags.
+	const hasFinds = $derived((recipe.match?.finds.length ?? 0) > 0);
+	// The tag line leaves out the tags a find already names, so a search for
+	// "brot" does not show "brotzeit" twice, one line apart.
+	const tags = $derived.by(() => {
+		const named = new Set(
+			recipe.match?.finds
+				.filter((find) => find.field === 'tags')
+				.flatMap((find) => find.items.map((item) => item.parts.map((part) => part.text).join('')))
+		);
+		return recipe.tags.filter((tag) => !named.has(tag));
+	});
 	// The photo fades in once it has loaded, over the skeleton's tint that
 	// holds its place, rather than popping in as the list scrolls. One the
 	// browser already has (a way back from the recipe) is there at once and
@@ -269,6 +282,11 @@
 				<span class="squiggle">{recipe.title}</span>
 			</p>
 		</div>
+		<!-- On a search's results: where each word the title does not show
+		     was found. -->
+		{#if recipe.match && hasFinds}
+			<SearchFinds finds={recipe.match.finds} {photo} />
+		{/if}
 		<!-- From md up the tags sit left of the marks and give way: two lines
 		     at most, ending in an ellipsis. A phone card has no room beside
 		     its marks, so the tags take a line of their own, two on a photo
@@ -276,17 +294,17 @@
 		     the tasty count and the initials share the line below, one in
 		     each bottom corner. -->
 		<div
-			class="flex flex-wrap items-center gap-2 gap-y-1.5 desk:flex-nowrap {photo
-				? 'mt-2 desk:mt-2.5'
+			class="flex flex-wrap items-center gap-2 gap-y-1.5 desk:flex-nowrap {photo || hasFinds
+				? 'mt-2.5 desk:mt-3'
 				: 'mt-3.5 desk:mt-[18px]'}"
 		>
-			{#if recipe.tags.length > 0}
+			{#if tags.length > 0}
 				<p
 					class="min-w-0 basis-full text-caption desk:line-clamp-2 desk:basis-auto desk:whitespace-normal {photo
 						? 'line-clamp-2 text-text-muted'
 						: 'truncate text-text'}"
 				>
-					{recipe.tags.join(', ')}
+					{tags.join(', ')}
 				</p>
 			{/if}
 			<!-- The count mirrors the initials into the bottom-left corner,

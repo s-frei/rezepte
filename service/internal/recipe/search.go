@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
@@ -23,7 +24,7 @@ const (
 // combine with AND. Sort orders the result: "created" (newest created
 // first), "title" (A-Z), "tasty" (most tasty marks first, ties most recently
 // updated first), or anything else including "" (most recently updated
-// first, the default). Limit is clamped to [1, 100] (0 defaults to
+// first, the default; with a Query, the best hits first). Limit is clamped to [1, 100] (0 defaults to
 // 24); Page is clamped to at least 1.
 //
 // UserID is the caller's id, used to fill Card.Favorite for the returned
@@ -56,6 +57,10 @@ type Page struct {
 	Page  int    `json:"page"`
 	Limit int    `json:"limit"`
 	Total int    `json:"total"`
+	// Sections counts a search's results by the section each card's Match
+	// names, over all pages; it is there only on a search in the best-match
+	// order, the one that is ordered by section.
+	Sections map[string]int `json:"sections,omitempty" required:"false"`
 }
 
 // filter turns the narrowing half of p into the one RecipeFilter that List
@@ -65,8 +70,10 @@ func (p ListParams) filter() sqlc.RecipeFilter {
 	// Normalized, de-duplicated and capped here, the one place every caller
 	// passes through: the SQL matches on COUNT(DISTINCT t.name) = len(Tags),
 	// so a duplicate tag would silently match nothing.
+	words := searchWords(p.Query)
 	f := sqlc.RecipeFilter{
-		Match:  ftsQuery(p.Query),
+		Search: searchTerms(words),
+		Phrase: db.FoldWords(p.Query),
 		Tags:   normalizeTagQuery(p.Tags),
 		Author: p.Author,
 	}
@@ -83,8 +90,9 @@ func (p ListParams) filter() sqlc.RecipeFilter {
 	return f
 }
 
-// List returns a page of recipe cards, most recently updated first,
-// optionally narrowed by full-text search query and/or tags.
+// List returns a page of recipe cards, most recently updated first or, for a
+// search, best hits first, optionally narrowed by full-text search query
+// and/or tags.
 func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	limit := p.Limit
 	if limit == 0 {
@@ -95,7 +103,8 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	offset := int64((page - 1) * limit)
 
 	f := p.filter()
-	rows, err := s.q.ListRecipes(ctx, f, normalizeSort(p.Sort), int64(limit), offset)
+	sort := normalizeSort(p.Sort)
+	rows, err := s.q.ListRecipes(ctx, f, sort, int64(limit), offset)
 	if err != nil {
 		return Page{}, fmt.Errorf("list recipes: %w", err)
 	}
@@ -107,7 +116,25 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	if err != nil {
 		return Page{}, err
 	}
-	return Page{Items: items, Page: page, Limit: limit, Total: int(total)}, nil
+	if err := s.matchCards(ctx, items, rows, searchWords(p.Query)); err != nil {
+		return Page{}, err
+	}
+	// Only the best-match order runs section by section; in any other a
+	// section's cards are spread over the list.
+	var sections map[string]int
+	if sort == sqlc.RecipeSortUpdated {
+		counts, err := s.q.CountSections(ctx, f)
+		if err != nil {
+			return Page{}, fmt.Errorf("count sections: %w", err)
+		}
+		for tier, n := range counts {
+			if sections == nil {
+				sections = map[string]int{}
+			}
+			sections[tierSections[tier]] = int(n)
+		}
+	}
+	return Page{Items: items, Page: page, Limit: limit, Total: int(total), Sections: sections}, nil
 }
 
 // normalizeSort maps sort to one of the orders sqlc.ListRecipes knows,
@@ -150,6 +177,33 @@ func normalizeTagQuery(tags []string) []string {
 		}
 	}
 	return out
+}
+
+// matchCards fills Card.Match for a page of search results, from the rows
+// they were built from: the title, the tags already on each card, the
+// ingredient names in one batch, and the description. Without search words
+// it does nothing and costs no query.
+func (s *Service) matchCards(ctx context.Context, cards []Card, rows []sqlc.Recipe, words []string) error {
+	if len(words) == 0 || len(cards) == 0 {
+		return nil
+	}
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+	}
+	ingRows, err := s.q.ListIngredientNamesForRecipes(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("list ingredient names for recipes: %w", err)
+	}
+	ingredients := make(map[string][]string, len(rows))
+	for _, ir := range ingRows {
+		ingredients[ir.RecipeID] = append(ingredients[ir.RecipeID], ir.Name)
+	}
+	mw := matchWords(words)
+	for i, r := range rows {
+		cards[i].Match = matchCard(mw, r.Title, cards[i].Tags, ingredients[r.ID], r.Description)
+	}
+	return nil
 }
 
 // toCards loads the tags, the authors' display names and colors, the tasty
@@ -293,63 +347,61 @@ func totalMinutes(prep, cook *int64) *int {
 	return &t
 }
 
-// asciiToUmlaut turns the plain-ASCII German spellings of umlauts and ß
-// (ae, oe, ue, ss) back into their diacritic form (ä, ö, ü, ß) — the
-// inverse of the umlauts replacer in slug.go.
-var asciiToUmlaut = strings.NewReplacer("ae", "ä", "oe", "ö", "ue", "ü", "ss", "ß")
-
-// variants returns term plus its alternate German spelling, when it has
-// one: an ASCII term such as "kaese" also gets its umlaut form ("käse"),
-// and a term already spelled with umlauts or ß also gets its ASCII
-// transliteration ("käse" → "kaese", matching Slugify's convention). This
-// is needed because the FTS5 tokenizer's remove_diacritics option folds
-// "ä" to "a", not to "ae": an ASCII query would otherwise never match text
-// indexed with umlauts, and vice versa.
-//
-// Precondition: term must already be lower-cased. Both replacers only
-// match lower-case patterns ("ae", "oe", "ue", "ss", "ä", "ö", "ü"), so a
-// mixed- or upper-case term (e.g. "KAESE") would silently fail to produce
-// its umlaut variant. ftsQuery, the only caller, lower-cases each term
-// before calling variants; FTS5's own tokenizer case-folds regardless, so
-// lower-casing here loses no matches.
-func variants(term string) []string {
-	out := []string{term}
-	if v := asciiToUmlaut.Replace(term); v != term {
-		out = append(out, v)
+// searchWords splits what the user typed into words at anything that is not
+// a letter or a digit, as the unicode61 tokenizer does, and folds each the
+// way the search indexes hold their text (db.Fold): "Käse" and "kaese" are
+// both "kase". The split also leaves no quote or FTS5 operator in a word.
+// A word whose stem an earlier word already has is dropped: "zwiebel
+// Zwiebeln" would otherwise score twice and show two identical finds.
+func searchWords(q string) []string {
+	var words []string
+	seen := map[string]bool{}
+	for _, w := range strings.Fields(db.FoldWords(q)) {
+		if s := stem(w); !seen[s] {
+			seen[s] = true
+			words = append(words, w)
+		}
 	}
-	if v := umlauts.Replace(term); v != term {
-		out = append(out, v)
-	}
-	return out
+	return words
 }
 
-// ftsQuery translates a user search string into an FTS5 MATCH expression
-// against recipes_fts: each whitespace-separated term becomes a
-// double-quoted prefix match ("term"*, with embedded quotes doubled), its
-// alternate German spellings (see variants) are combined with OR, and
-// terms are combined with an explicit AND. (FTS5's implicit AND only
-// applies between bare phrases; adjacent parenthesized groups, which an OR
-// of variants requires, are a syntax error without an explicit operator.)
-// An empty (or all-whitespace) input returns "": callers must treat that as
-// "no search query" and not run a search query with it.
-func ftsQuery(q string) string {
-	terms := strings.Fields(q)
-	if len(terms) == 0 {
-		return ""
+// stem drops a German plural or inflection ending from a word of five
+// letters or more - "en", else "n" or "e" - so "tomaten" finds "Tomate" and
+// "äpfel", folded to "apfel", finds "Apfel". What is left still starts the
+// longer form, so nothing that the whole word found is lost. ponytail: a
+// suffix cut, not a stemmer; a Snowball stemmer conflates too much for
+// recipes ("Küche" and "Kuchen").
+func stem(word string) string {
+	if utf8.RuneCountInString(word) < 5 {
+		return word
 	}
-	groups := make([]string, len(terms))
-	for i, term := range terms {
-		term = strings.ToLower(term)
-		vs := variants(term)
-		quoted := make([]string, len(vs))
-		for j, v := range vs {
-			quoted[j] = `"` + strings.ReplaceAll(v, `"`, `""`) + `"*`
-		}
-		if len(quoted) == 1 {
-			groups[i] = quoted[0]
-		} else {
-			groups[i] = "(" + strings.Join(quoted, " OR ") + ")"
-		}
+	if s, ok := strings.CutSuffix(word, "en"); ok {
+		return s
 	}
-	return strings.Join(groups, " AND ")
+	return strings.TrimSuffix(strings.TrimSuffix(word, "n"), "e")
+}
+
+// searchTerms renders each word as the MATCH expressions sqlc.SearchTerm
+// holds, quoted as FTS5 strings: Exact as typed, Prefix stemmed with "*",
+// and Trigram stemmed, for the trigram index, where a quoted string matches
+// anywhere in the text - unless the stem is shorter than the three
+// characters a trigram needs. No words returns nil: no search, not one that
+// matches nothing.
+func searchTerms(words []string) []sqlc.SearchTerm {
+	var terms []sqlc.SearchTerm
+	for _, word := range words {
+		s := stem(word)
+		term := sqlc.SearchTerm{Exact: quote(word), Prefix: quote(s) + "*"}
+		if utf8.RuneCountInString(s) >= 3 {
+			term.Trigram = quote(s)
+		}
+		terms = append(terms, term)
+	}
+	return terms
+}
+
+// quote makes word an FTS5 string. Words come from searchWords, so they hold
+// no quote to escape.
+func quote(word string) string {
+	return `"` + word + `"`
 }
