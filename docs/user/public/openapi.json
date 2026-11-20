@@ -3918,6 +3918,13 @@
           "alreadyListed": {
             "type": "boolean"
           },
+          "day": {
+            "description": "The planned day (YYYY-MM-DD); null on the tray",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "entryId": {
             "type": "string"
           },
@@ -3940,6 +3947,7 @@
         },
         "required": [
           "entryId",
+          "day",
           "title",
           "servings",
           "alreadyListed",

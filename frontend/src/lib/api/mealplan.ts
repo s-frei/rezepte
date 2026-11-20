@@ -69,6 +69,8 @@ export type Staple = { nameKey: string; name: string };
 
 export type PreviewEntry = {
 	entryId: string;
+	/** `YYYY-MM-DD`; null on the tray. */
+	day: string | null;
 	title: string;
 	servings: number;
 	alreadyListed: boolean;

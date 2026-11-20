@@ -8,6 +8,7 @@
 	import { parseDate } from '@internationalized/date';
 	import { Dialog, RangeCalendar, type DateRange } from 'bits-ui';
 	import { tick, untrack } from 'svelte';
+	import { on } from 'svelte/events';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
@@ -70,16 +71,23 @@
 	let listId = $state('');
 	let creating = $state(false);
 	let newName = $state('');
+	/** The reader typed a name; until then it follows the days ("Einkauf 23.–29. Nov."). */
+	let named = $state(false);
 
 	let entries = $state<PreviewEntry[]>([]);
 	let previewLoaded = $state(false);
 	let previewFailed = $state(false);
+	/** A changed range, tray or staple is being fetched: the recipes shown are the old ones. */
+	let refreshing = $state(false);
 	/** Picked ingredients per entry; an entry with none stays off the list. */
 	const picks = new SvelteMap<string, SvelteSet<string>>();
 	const expanded = new SvelteSet<string>();
 	let saving = $state(false);
 
-	const trayRecipes = $derived(plan.entries.filter((e) => e.day === null && e.recipeId).length);
+	/** Tray recipes the switch would add: on no list the reader can open yet. */
+	const trayRecipes = $derived(
+		plan.entries.filter((e) => e.day === null && e.recipeId && e.lists.length === 0).length
+	);
 	const fresh = $derived(entries.filter((e) => !e.alreadyListed));
 	const listed = $derived(entries.filter((e) => e.alreadyListed));
 	const chosen = $derived(fresh.filter((e) => (picks.get(e.entryId)?.size ?? 0) > 0));
@@ -89,6 +97,7 @@
 			!listsFailed &&
 			previewLoaded &&
 			!previewFailed &&
+			!refreshing &&
 			(showNew ? !!newName.trim() : !!listId) &&
 			!saving
 	);
@@ -116,11 +125,11 @@
 				? dayLabel(span.from, locale)
 				: `${dayLabel(span.from, locale)} – ${dayLabel(span.to, locale)}`
 	);
-	/** The weekday an entry of the shown week (or the tray) is planned for. */
-	function dayOf(entryId: string): string | null | undefined {
-		const day = plan.entries.find((p) => p.id === entryId)?.day;
-		if (day === undefined) return undefined;
-		return day === null ? m.plan_tray() : dayNames(day, locale).weekday;
+	/** "Sa" in the shown week, "Mo 30. Nov." beyond it, "Irgendwann" on the tray. */
+	function dayOf(day: string | null): string {
+		if (day === null) return m.plan_tray();
+		const names = dayNames(day, locale);
+		return day >= plan.from && day <= plan.to ? names.weekday : `${names.weekday} ${names.date}`;
 	}
 
 	// A fresh start on every opening.
@@ -137,6 +146,7 @@
 		picking = false;
 		tray = false;
 		creating = false;
+		named = false;
 		newName = m.plan_new_list_name({ span: spanLabel(from, sunday, locale) });
 		picks.clear();
 		expanded.clear();
@@ -175,6 +185,7 @@
 	async function loadPreview(keep = false) {
 		const mine = ++previewReq;
 		if (!keep) previewLoaded = false;
+		refreshing = keep;
 		previewFailed = false;
 		const before = new Map(entries.map((e) => [e.entryId, e]));
 		try {
@@ -209,13 +220,26 @@
 			if (mine !== previewReq) return;
 			// Said in place, with its retry: recipes of the days before must not stay.
 			previewFailed = true;
+		} finally {
+			if (mine === previewReq) refreshing = false;
 		}
+	}
+
+	/** Escape in the open calendar folds it, before the dialog's own Escape (a document listener) sees it. */
+	function foldOnEscape(node: HTMLElement) {
+		return on(node, 'keydown', (event) => {
+			if (event.key !== 'Escape') return;
+			event.stopPropagation();
+			picking = false;
+			void tick().then(() => document.getElementById(`${uid}-days`)?.focus());
+		});
 	}
 
 	function pickRange(next: DateRange) {
 		calendar = next;
 		if (!next.start || !next.end) return;
 		span = { from: next.start.toString(), to: next.end.toString() };
+		if (!named) newName = m.plan_new_list_name({ span: spanLabel(span.from, span.to, locale) });
 		picking = false;
 		void loadPreview(true);
 		// The calendar folds away; the keyboard lands on what opened it.
@@ -243,9 +267,16 @@
 		stapling = `${entry.entryId}/${key}`;
 		try {
 			await setStaple(plan.id, ing.name, next);
-			// This row at once; the same ingredient in the other recipes with the refetch.
-			ing.staple = next;
-			toggleIngredient(entry.entryId, key, !next);
+			// The row as shown now - a range refetch may have replaced it meanwhile
+			// - at once; the same ingredient in the other recipes with the refetch,
+			// which also supersedes one still in flight.
+			const row = entries
+				.find((e) => e.entryId === entry.entryId)
+				?.ingredients.find((i) => i.group === ing.group && i.index === ing.index);
+			if (row) {
+				row.staple = next;
+				toggleIngredient(entry.entryId, key, !next);
+			}
 			await loadPreview(true);
 		} catch (error) {
 			if (!isSignedOut(error)) toast.error(m.plan_entry_error());
@@ -336,56 +367,58 @@
 			{#if picking}
 				<!-- Each day is a seventh of the width: at 320px that is 40px, a
 				     row of adjoining targets with no gap to miss into. -->
-				<RangeCalendar.Root
-					id="{uid}-calendar"
-					value={calendar}
-					onValueChange={pickRange}
-					weekStartsOn={1}
-					{locale}
-					fixedWeeks
-					weekdayFormat="short"
-					class="mt-2 rounded-2xl border border-border bg-surface-elevated p-2"
-				>
-					{#snippet children({ months, weekdays })}
-						<RangeCalendar.Header class="flex items-center justify-between pb-1">
-							<RangeCalendar.PrevButton class={navButton}>
-								<ChevronLeft class="size-4.5" aria-hidden="true" />
-							</RangeCalendar.PrevButton>
-							<RangeCalendar.Heading class="font-display text-body font-medium" />
-							<RangeCalendar.NextButton class={navButton}>
-								<ChevronRight class="size-4.5" aria-hidden="true" />
-							</RangeCalendar.NextButton>
-						</RangeCalendar.Header>
-						{#each months as month (month.value.toString())}
-							<RangeCalendar.Grid class="w-full border-collapse">
-								<RangeCalendar.GridHead>
-									<RangeCalendar.GridRow class="flex">
-										{#each weekdays as weekday, i (i)}
-											<RangeCalendar.HeadCell
-												class="flex-1 pb-1 text-center text-micro font-semibold text-text-muted"
-											>
-												{weekday.replace(/\.$/, '')}
-											</RangeCalendar.HeadCell>
-										{/each}
-									</RangeCalendar.GridRow>
-								</RangeCalendar.GridHead>
-								<RangeCalendar.GridBody>
-									{#each month.weeks as days, w (w)}
+				<div {@attach foldOnEscape}>
+					<RangeCalendar.Root
+						id="{uid}-calendar"
+						value={calendar}
+						onValueChange={pickRange}
+						weekStartsOn={1}
+						{locale}
+						fixedWeeks
+						weekdayFormat="short"
+						class="mt-2 rounded-2xl border border-border bg-surface-elevated p-2"
+					>
+						{#snippet children({ months, weekdays })}
+							<RangeCalendar.Header class="flex items-center justify-between pb-1">
+								<RangeCalendar.PrevButton class={navButton}>
+									<ChevronLeft class="size-4.5" aria-hidden="true" />
+								</RangeCalendar.PrevButton>
+								<RangeCalendar.Heading class="font-display text-body font-medium" />
+								<RangeCalendar.NextButton class={navButton}>
+									<ChevronRight class="size-4.5" aria-hidden="true" />
+								</RangeCalendar.NextButton>
+							</RangeCalendar.Header>
+							{#each months as month (month.value.toString())}
+								<RangeCalendar.Grid class="w-full border-collapse">
+									<RangeCalendar.GridHead>
 										<RangeCalendar.GridRow class="flex">
-											{#each days as date (date.toString())}
-												<RangeCalendar.Cell {date} month={month.value} class="flex-1 p-0">
-													<RangeCalendar.Day
-														class="flex h-11 w-full items-center justify-center text-body-sm text-text tabular-nums transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-primary data-[outside-month]:text-text-muted/60 data-[range-middle]:bg-accent data-[range-middle]:text-accent-foreground data-[selected]:bg-accent data-[selection-end]:rounded-r-md data-[selection-end]:bg-primary data-[selection-end]:font-semibold data-[selection-end]:text-primary-foreground data-[selection-start]:rounded-l-md data-[selection-start]:bg-primary data-[selection-start]:font-semibold data-[selection-start]:text-primary-foreground data-[today]:font-bold data-[today]:underline data-[today]:decoration-2 data-[today]:underline-offset-4 md:h-10 [&:not([data-selected])]:rounded-md [&:not([data-selected])]:hover:bg-background"
-													/>
-												</RangeCalendar.Cell>
+											{#each weekdays as weekday, i (i)}
+												<RangeCalendar.HeadCell
+													class="flex-1 pb-1 text-center text-micro font-semibold text-text-muted"
+												>
+													{weekday.replace(/\.$/, '')}
+												</RangeCalendar.HeadCell>
 											{/each}
 										</RangeCalendar.GridRow>
-									{/each}
-								</RangeCalendar.GridBody>
-							</RangeCalendar.Grid>
-						{/each}
-					{/snippet}
-				</RangeCalendar.Root>
+									</RangeCalendar.GridHead>
+									<RangeCalendar.GridBody>
+										{#each month.weeks as days, w (w)}
+											<RangeCalendar.GridRow class="flex">
+												{#each days as date (date.toString())}
+													<RangeCalendar.Cell {date} month={month.value} class="flex-1 p-0">
+														<RangeCalendar.Day
+															class="flex h-11 w-full items-center justify-center text-body-sm text-text tabular-nums transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-primary data-[outside-month]:text-text-muted/60 data-[range-middle]:bg-accent data-[range-middle]:text-accent-foreground data-[selected]:bg-accent data-[selection-end]:rounded-r-md data-[selection-end]:bg-primary data-[selection-end]:font-semibold data-[selection-end]:text-primary-foreground data-[selection-start]:rounded-l-md data-[selection-start]:bg-primary data-[selection-start]:font-semibold data-[selection-start]:text-primary-foreground data-[today]:font-bold data-[today]:underline data-[today]:decoration-2 data-[today]:underline-offset-4 md:h-10 [&:not([data-selected])]:rounded-md [&:not([data-selected])]:hover:bg-background"
+														/>
+													</RangeCalendar.Cell>
+												{/each}
+											</RangeCalendar.GridRow>
+										{/each}
+									</RangeCalendar.GridBody>
+								</RangeCalendar.Grid>
+							{/each}
+						{/snippet}
+					</RangeCalendar.Root>
+				</div>
 			{/if}
 			{#if trayRecipes > 0}
 				<div class="mt-3 flex items-center justify-between gap-3">
@@ -428,6 +461,7 @@
 					autocomplete="off"
 					maxlength={80}
 					bind:value={newName}
+					oninput={() => (named = true)}
 				/>
 			{:else}
 				<Select
@@ -453,12 +487,17 @@
 				{#if fresh.length > 0}
 					<!-- The frame rounds and clips; on a computer the recipes scroll inside
 					     it, so the dialog's buttons stay in view (as AddToListDialog). -->
-					<div class="overflow-hidden rounded-2xl border border-border bg-surface-elevated">
+					<div
+						aria-busy={refreshing}
+						class="overflow-hidden rounded-2xl border border-border bg-surface-elevated transition-opacity {refreshing
+							? 'opacity-55'
+							: ''}"
+					>
 						<ul class="md:max-h-[40dvh] md:overflow-y-auto md:overscroll-contain">
 							{#each fresh as entry (entry.entryId)}
 								{@const set = picks.get(entry.entryId)}
 								{@const count = set?.size ?? 0}
-								{@const day = dayOf(entry.entryId)}
+								{@const day = dayOf(entry.day)}
 								{@const isOpen = expanded.has(entry.entryId)}
 								<li class="border-b border-border last:border-b-0">
 									<div class="flex items-center gap-1 pr-1.5 pl-3.5">
@@ -474,7 +513,7 @@
 													>{entry.title}</span
 												>
 												<span class="block text-caption text-text-muted"
-													>{day ? `${day} · ` : ''}{entry.servings === 1
+													>{day} · {entry.servings === 1
 														? m.plan_servings_one()
 														: m.plan_servings({ count: entry.servings })}</span
 												>
@@ -587,7 +626,7 @@
 		class="min-w-0 grow px-3 whitespace-nowrap md:grow-0 md:px-5"
 	>
 		<ShoppingBasket class="size-4 shrink-0 max-[340px]:hidden" aria-hidden="true" />
-		{chosen.length === 0
+		{chosen.length === 0 || previewFailed
 			? m.plan_to_list()
 			: chosen.length === 1
 				? m.plan_to_list_submit_one()

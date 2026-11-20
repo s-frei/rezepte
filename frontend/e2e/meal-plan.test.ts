@@ -513,3 +513,85 @@ test('second time adds only new entries', async ({ page }) => {
 	const list = await listFromToast(page);
 	expect(list.entries.map((e) => e.title).sort()).toEqual([`Mash ${t}`, `Pie ${t}`]);
 });
+
+test('a changed range waits for its recipes before it goes on a list', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	await plan(page, { day: '2026-11-23', recipeId: mash.id, servings: 4 });
+	await page.goto('/week');
+
+	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	const submit = dialog.getByRole('button', { name: 'Add 1 recipe' });
+	await expect(submit).toBeEnabled();
+	await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue(
+		'Shopping Nov\u00A018–22'
+	);
+
+	// Escape in the calendar folds the calendar, not the dialog.
+	const days = dialog.getByRole('button', { name: /^Days/ });
+	await days.click();
+	await expect(days).toHaveAttribute('aria-expanded', 'true');
+	await dialog.locator('[data-bits-day][data-value="2026-11-20"]').focus();
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeVisible();
+	await expect(days).toHaveAttribute('aria-expanded', 'false');
+	await expect(days).toBeFocused();
+
+	// Next week: until its recipes are in, the old ones cannot go on the list.
+	let release = () => {};
+	const held = new Promise<void>((resolve) => (release = resolve));
+	await page.route('**/shopping-preview**', async (route) => {
+		await held;
+		await route.continue();
+	});
+	await days.click();
+	await dialog.locator('[data-bits-day][data-value="2026-11-23"]').click();
+	await dialog.locator('[data-bits-day][data-value="2026-11-29"]').click();
+	await expect(days).toContainText('Mon Nov 23 – Sun Nov 29');
+	await expect(submit).toBeDisabled();
+	await expect(dialog.getByText(`Pie ${t}`)).toBeVisible();
+	release();
+	await expect(dialog.getByText(`Mash ${t}`)).toBeVisible();
+	await expect(dialog.getByText(`Pie ${t}`)).toHaveCount(0);
+	// Out of the shown week, a row says its date; the new list's name follows the days.
+	await expect(dialog.getByText('Mon Nov 23 · 4 servings')).toBeVisible();
+	await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue(
+		'Shopping Nov\u00A023–29'
+	);
+	await expect(submit).toBeEnabled();
+});
+
+test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Frühstück ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(1), title });
+	await page.goto(`/recipes/${recipe.slug}`);
+	const stepper = page.getByRole('group', { name: 'Servings' }).first();
+	for (let i = 0; i < 4; i++) await stepper.getByRole('button', { name: 'More servings' }).click();
+	await expect(stepper.getByText('6', { exact: true })).toBeVisible();
+
+	const dialog = await openDialog(
+		page,
+		page.getByRole('button', { name: 'Add to plan' }),
+		'Add to plan'
+	);
+	await expect(dialog.getByRole('radio', { name: 'Monday, November 16, Today' })).toBeChecked();
+	await expect(dialog.getByRole('radio', { name: 'Sunday, November 29' })).toBeVisible();
+	await expect(
+		dialog.getByRole('group', { name: 'Servings' }).getByText('6', { exact: true })
+	).toBeVisible();
+	await dialog.getByRole('radio', { name: 'Wednesday, November 18' }).check();
+	await dialog.getByRole('button', { name: 'Add to plan' }).click();
+	await expect(dialog).toBeHidden();
+
+	await page.getByRole('button', { name: 'Open week' }).click();
+	await expect(page).toHaveURL(/\/week\?plan=[^&]+&from=2026-11-16$/);
+	await expect(
+		day(page, 'Wednesday, November 18').getByRole('link', { name: title })
+	).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=6`);
+});

@@ -89,9 +89,11 @@ func (s *Service) ToList(ctx context.Context, userID, planID, from, to string, i
 }
 
 // PreviewEntry is a recipe entry as the "Auf die Liste" dialog offers it.
-// AlreadyListed is whether it is on a list the caller can access.
+// AlreadyListed is whether it is on a list the caller can access; Day is nil
+// on the tray.
 type PreviewEntry struct {
 	EntryID       string              `json:"entryId"`
+	Day           *string             `json:"day" nullable:"true" doc:"The planned day (YYYY-MM-DD); null on the tray"`
 	Title         string              `json:"title"`
 	Servings      int                 `json:"servings"`
 	AlreadyListed bool                `json:"alreadyListed"`
@@ -142,7 +144,7 @@ func (s *Service) Preview(ctx context.Context, userID, planID, from, to string, 
 		if err != nil {
 			return nil, fmt.Errorf("list ingredients: %w", err)
 		}
-		pe := PreviewEntry{EntryID: e.ID, Title: e.Title, Servings: *e.Servings, AlreadyListed: len(e.Lists) > 0, Ingredients: []PreviewIngredient{}}
+		pe := PreviewEntry{EntryID: e.ID, Day: e.Day, Title: e.Title, Servings: *e.Servings, AlreadyListed: len(e.Lists) > 0, Ingredients: []PreviewIngredient{}}
 		for g, grp := range groups {
 			i := 0
 			for _, ing := range ings {

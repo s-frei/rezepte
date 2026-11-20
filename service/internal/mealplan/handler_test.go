@@ -281,6 +281,7 @@ func TestPlanNeedsPlanScopes(t *testing.T) {
 type preview struct {
 	Entries []struct {
 		EntryID       string
+		Day           *string
 		Title         string
 		Servings      int
 		AlreadyListed bool
@@ -314,7 +315,7 @@ func TestShoppingPreviewMarksStaplesAndListed(t *testing.T) {
 		t.Fatalf("without tray: %+v", pv)
 	}
 	e := pv.Entries[0]
-	if e.EntryID != listed || e.Title != "Dal" || e.Servings != 2 || !e.AlreadyListed || len(e.Ingredients) != 2 {
+	if e.EntryID != listed || e.Title != "Dal" || e.Servings != 2 || !e.AlreadyListed || len(e.Ingredients) != 2 || e.Day == nil || *e.Day != mon {
 		t.Fatalf("entry %+v", e)
 	}
 	if lin, zw := e.Ingredients[0], e.Ingredients[1]; lin.Name != "Linsen" || *lin.Quantity != 100 || *lin.Unit != "g" || lin.Staple ||
@@ -322,7 +323,7 @@ func TestShoppingPreviewMarksStaplesAndListed(t *testing.T) {
 		t.Fatalf("ingredients %+v", e.Ingredients)
 	}
 	a.send(t, c, http.MethodGet, path+"/shopping-preview"+week+"&tray=true", nil, http.StatusOK, &pv)
-	if len(pv.Entries) != 2 || pv.Entries[0].AlreadyListed || pv.Entries[0].Servings != 4 || *pv.Entries[0].Ingredients[0].Quantity != 200 {
+	if len(pv.Entries) != 2 || pv.Entries[0].AlreadyListed || pv.Entries[0].Servings != 4 || *pv.Entries[0].Ingredients[0].Quantity != 200 || pv.Entries[0].Day != nil {
 		t.Fatalf("with tray: %+v", pv)
 	}
 	a.send(t, a.login(t, "ben"), http.MethodGet, path+"/shopping-preview"+week, nil, http.StatusNotFound, nil)

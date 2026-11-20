@@ -3,6 +3,7 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { backOut } from 'svelte/easing';
 	import { fade, scale } from 'svelte/transition';
+	import CalendarPlus from '@lucide/svelte/icons/calendar-plus';
 	import Check from '@lucide/svelte/icons/check';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import type { IngredientGroup } from '#lib/api/recipes.js';
@@ -14,6 +15,7 @@
 	import { formatQuantityFor } from '#lib/recipe/scale.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import AddToListDialog from '#lib/components/shopping/AddToListDialog.svelte';
+	import AddToPlanDialog from '#lib/components/mealplan/AddToPlanDialog.svelte';
 	import CopyIcon from '#lib/components/icons/CopyIcon.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 
@@ -39,13 +41,14 @@
 		addable?: boolean;
 		/** Two columns on a tablet, where the stacked recipe spans the page. */
 		columns?: boolean;
-		/** The recipe's title, for the add-to-list dialog. */
+		/** The recipe's title, for the add-to-list dialog; the plan button needs it. */
 		title?: string;
 	} = $props();
 
 	const uid = $props.id();
 	let slipIcon = $state<CopyIcon>();
 	let adding = $state(false);
+	let planning = $state(false);
 	const scaled = $derived(servings !== baseServings);
 	// A check springs in and a recomputed amount answers the stepper with a
 	// brief grow; neither moves under reduced motion. Taking a check back has
@@ -202,8 +205,10 @@
 				class="absolute top-0.5 -right-[11px] size-[22px] -translate-y-1/2 rounded-full bg-background"
 				aria-hidden="true"
 			></span>
-			<div class="flex w-full items-center gap-4 rounded-b-2xl px-6 pt-4 pb-5">
-				<span class="min-w-0 flex-1">
+			<!-- The buttons drop under the text once it would get narrower than
+			     its title: three of them at 44px leave a 320px phone too little. -->
+			<div class="flex w-full flex-wrap items-center gap-x-4 gap-y-3 rounded-b-2xl px-6 pt-4 pb-5">
+				<span class="min-w-36 flex-1">
 					<span class="block font-display text-body-lg/normal font-medium text-primary italic">
 						{m.ingredients_slip_title()}
 					</span>
@@ -213,40 +218,56 @@
 							: m.ingredients_slip_count({ open, total, servings: formatServings(servings) })}
 					</span>
 				</span>
-				{#if open > 0}
-					<button
-						type="button"
-						aria-label={m.ingredients_slip_copy()}
-						aria-describedby="{uid}-slip"
-						onclick={async () => {
-							if (
-								await copyText(
-									shoppingList(groups, baseServings, servings, checkedAt),
-									m.ingredients_slip_copied()
-								)
-							) {
-								slipIcon?.play();
-							}
-						}}
-						class="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary hover-tint text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]"
-					>
-						<CopyIcon bind:this={slipIcon} class="size-[18px]" />
-					</button>
-				{/if}
-				{#if addable}
-					<button
-						type="button"
-						aria-label={m.ingredients_slip_add()}
-						onclick={() => (adding = true)}
-						class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary hover-tint text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96]"
-					>
-						<ShoppingBasket class="size-[18px]" aria-hidden="true" />
-					</button>
-				{/if}
+				<span class="ml-auto flex gap-2.5 empty:hidden">
+					{#if open > 0}
+						<button
+							type="button"
+							aria-label={m.ingredients_slip_copy()}
+							aria-describedby="{uid}-slip"
+							onclick={async () => {
+								if (
+									await copyText(
+										shoppingList(groups, baseServings, servings, checkedAt),
+										m.ingredients_slip_copied()
+									)
+								) {
+									slipIcon?.play();
+								}
+							}}
+							class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary hover-tint text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96] md:size-10"
+						>
+							<CopyIcon bind:this={slipIcon} class="size-[18px]" />
+						</button>
+					{/if}
+					{#if addable}
+						<button
+							type="button"
+							aria-label={m.ingredients_slip_add()}
+							onclick={() => (adding = true)}
+							class="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary hover-tint text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96] md:size-10"
+						>
+							<ShoppingBasket class="size-[18px]" aria-hidden="true" />
+						</button>
+					{/if}
+					{#if addable && title}
+						<button
+							type="button"
+							aria-label={m.plan_add_from_recipe()}
+							aria-haspopup="dialog"
+							onclick={() => (planning = true)}
+							class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary hover-tint text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96] md:size-10"
+						>
+							<CalendarPlus class="size-[18px]" aria-hidden="true" />
+						</button>
+					{/if}
+				</span>
 			</div>
 		</div>
 	{/if}
 </div>
 {#if addable}
 	<AddToListDialog bind:open={adding} {recipeId} {groups} {baseServings} {servings} {title} />
+	{#if title}
+		<AddToPlanDialog bind:open={planning} {recipeId} {title} {servings} />
+	{/if}
 {/if}
