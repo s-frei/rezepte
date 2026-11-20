@@ -108,8 +108,8 @@ ORDER BY m.invited_at DESC, l.id DESC;
 SELECT created_by, COUNT(*) AS lists FROM shopping_lists GROUP BY created_by;
 
 -- name: InsertShoppingEntry :exec
-INSERT INTO shopping_list_entries (id, list_id, recipe_id, title, base_servings, servings, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO shopping_list_entries (id, list_id, recipe_id, title, base_servings, servings, created_at, plan_entry_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListShoppingEntries :many
 SELECT e.id, e.recipe_id, e.title, e.base_servings, e.servings,
@@ -157,8 +157,21 @@ WHERE list_id = sqlc.arg(list_id) AND id IN (sqlc.slice(ids))
 -- name: DeleteShoppingItems :exec
 DELETE FROM shopping_list_items WHERE list_id = sqlc.arg(list_id) AND id IN (sqlc.slice(ids));
 
+-- Items of a removed plan entry's block stay, ticks and all, so Undo brings
+-- the block back as it was.
 -- name: DeleteCheckedShoppingItems :exec
-DELETE FROM shopping_list_items WHERE list_id = ? AND checked_at IS NOT NULL;
+DELETE FROM shopping_list_items WHERE shopping_list_items.list_id = ? AND shopping_list_items.checked_at IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM shopping_list_entries he JOIN meal_plan_entries hp ON hp.id = he.plan_entry_id WHERE he.id = shopping_list_items.entry_id AND hp.removed_at IS NOT NULL);
+
+-- The lists that hold entries of these plan entries, hidden ones too.
+-- name: ListShoppingListIDsByPlanEntries :many
+SELECT DISTINCT list_id FROM shopping_list_entries WHERE plan_entry_id IN (sqlc.slice(plan_entry_ids)) ORDER BY list_id;
+
+-- name: SetShoppingEntryServingsByPlanEntries :exec
+UPDATE shopping_list_entries SET servings = sqlc.arg(servings) WHERE plan_entry_id IN (sqlc.slice(plan_entry_ids));
+
+-- name: BumpShoppingListRevisions :exec
+UPDATE shopping_lists SET revision = revision + 1 WHERE id IN (sqlc.slice(ids));
 
 -- name: ListDepartmentOverrides :many
 SELECT name_key, department FROM shopping_department_overrides;

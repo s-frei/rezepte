@@ -50,6 +50,10 @@ type Entry struct {
 	Title        string  `json:"title"`
 	BaseServings int     `json:"baseServings"`
 	Servings     int     `json:"servings"`
+	// PlanID and PlanDay are set when the entry came from a meal plan; PlanDay
+	// is nil for an entry on the plan's tray.
+	PlanID  *string `json:"planId" nullable:"true"`
+	PlanDay *string `json:"planDay" nullable:"true"`
 }
 
 // Item is one line of a list. Quantity is already scaled to the entry's

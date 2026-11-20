@@ -512,6 +512,34 @@ func (q *Queries) ListMealPlanEntries(ctx context.Context, arg ListMealPlanEntri
 	return items, nil
 }
 
+const listMealPlanEntryIDs = `-- name: ListMealPlanEntryIDs :many
+SELECT id FROM meal_plan_entries WHERE plan_id = ?
+`
+
+// Every entry of a plan, removed ones too.
+func (q *Queries) ListMealPlanEntryIDs(ctx context.Context, planID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listMealPlanEntryIDs, planID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMealPlanEntryLists = `-- name: ListMealPlanEntryLists :many
 SELECT se.plan_entry_id, l.id AS list_id, l.name AS list_name,
        (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i
@@ -755,6 +783,38 @@ func (q *Queries) ListMealPlans(ctx context.Context, userID string) ([]ListMealP
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRemovedMealPlanEntryIDs = `-- name: ListRemovedMealPlanEntryIDs :many
+SELECT id FROM meal_plan_entries WHERE plan_id = ?1 AND removed_at < ?2
+`
+
+type ListRemovedMealPlanEntryIDsParams struct {
+	PlanID string
+	Cutoff *string
+}
+
+func (q *Queries) ListRemovedMealPlanEntryIDs(ctx context.Context, arg ListRemovedMealPlanEntryIDsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listRemovedMealPlanEntryIDs, arg.PlanID, arg.Cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

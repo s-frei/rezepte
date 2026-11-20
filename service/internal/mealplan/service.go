@@ -148,13 +148,28 @@ func (s *Service) Rename(ctx context.Context, userID, id, name string) (Plan, er
 	})
 }
 
-// Delete removes a shared plan with everything on it; only its creator can.
+// Delete removes a shared plan with everything on it, its blocks on every
+// list too; only its creator can.
 func (s *Service) Delete(ctx context.Context, userID, id string) error {
-	n, err := s.q.DeleteMealPlan(ctx, sqlc.DeleteMealPlanParams{ID: id, CreatedBy: userID})
-	if err != nil {
-		return fmt.Errorf("delete meal plan: %w", err)
-	}
-	if n == 0 {
+	var lists []string
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		ids, err := q.ListMealPlanEntryIDs(ctx, id)
+		if err != nil {
+			return fmt.Errorf("list meal plan entries: %w", err)
+		}
+		if lists, err = shopping.FollowPlan(ctx, q, ids, nil); err != nil {
+			return err
+		}
+		n, err := q.DeleteMealPlan(ctx, sqlc.DeleteMealPlanParams{ID: id, CreatedBy: userID})
+		if err != nil {
+			return fmt.Errorf("delete meal plan: %w", err)
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
+	if errors.Is(err, ErrNotFound) {
 		p, err := s.q.GetMealPlanCreator(ctx, id)
 		if err == nil && p.CreatedBy == userID && p.Personal == 1 {
 			return personal()
@@ -164,7 +179,11 @@ func (s *Service) Delete(ctx context.Context, userID, id string) error {
 		}
 		return ErrNotFound
 	}
+	if err != nil {
+		return err
+	}
 	s.hub.Publish(id)
+	s.lists.Hub().Publish(lists...)
 	return nil
 }
 
@@ -407,7 +426,8 @@ func (s *Service) SetServings(ctx context.Context, userID, planID, entryID, from
 	if err := checkServings(servings); err != nil {
 		return Plan{}, err
 	}
-	return s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
+	var lists []string
+	p, err := s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
 		n := int64(servings)
 		rows, err := q.SetMealPlanEntryServings(ctx, sqlc.SetMealPlanEntryServingsParams{Servings: &n, ID: entryID, PlanID: planID})
 		if err != nil {
@@ -416,15 +436,28 @@ func (s *Service) SetServings(ctx context.Context, userID, planID, entryID, from
 		if rows == 0 {
 			return ErrNotFound
 		}
-		return nil
+		lists, err = shopping.FollowPlan(ctx, q, []string{entryID}, &servings)
+		return err
 	})
+	return s.followed(p, err, lists)
+}
+
+// followed tells the open streams of the lists a committed plan change
+// reached; err is the change's, and nothing is told when it failed.
+func (s *Service) followed(p Plan, err error, lists []string) (Plan, error) {
+	if err != nil {
+		return Plan{}, err
+	}
+	s.lists.Hub().Publish(lists...)
+	return p, nil
 }
 
 // Remove takes an entry off the plan; it keeps its position and stays
 // restorable for purgeAfter, and every Remove purges the plan's older
-// removals.
+// removals. Its blocks on lists hide until Restore or the purge drops them.
 func (s *Service) Remove(ctx context.Context, userID, planID, entryID, from, to string) (Plan, error) {
-	return s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
+	var lists []string
+	p, err := s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
 		now := s.now()
 		stamp, cutoff := db.FormatTime(now), db.FormatTime(now.Add(-purgeAfter))
 		e, err := liveEntry(ctx, q, planID, entryID)
@@ -437,16 +470,26 @@ func (s *Service) Remove(ctx context.Context, userID, planID, entryID, from, to 
 		if err := insertAt(ctx, q, planID, e.Day, entryID, -1); err != nil {
 			return err
 		}
+		purged, err := q.ListRemovedMealPlanEntryIDs(ctx, sqlc.ListRemovedMealPlanEntryIDsParams{PlanID: planID, Cutoff: &cutoff})
+		if err != nil {
+			return fmt.Errorf("list removed meal plan entries: %w", err)
+		}
+		if lists, err = shopping.FollowPlan(ctx, q, append(purged, entryID), nil); err != nil {
+			return err
+		}
 		if err := q.PurgeRemovedMealPlanEntries(ctx, sqlc.PurgeRemovedMealPlanEntriesParams{PlanID: planID, Cutoff: &cutoff}); err != nil {
 			return fmt.Errorf("purge removed meal plan entries: %w", err)
 		}
 		return nil
 	})
+	return s.followed(p, err, lists)
 }
 
-// Restore brings a removed entry back at the position it had.
+// Restore brings a removed entry back at the position it had, and its blocks
+// on lists with their ticks.
 func (s *Service) Restore(ctx context.Context, userID, planID, entryID, from, to string) (Plan, error) {
-	return s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
+	var lists []string
+	p, err := s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
 		e, err := q.GetMealPlanEntry(ctx, sqlc.GetMealPlanEntryParams{ID: entryID, PlanID: planID})
 		if errors.Is(err, sql.ErrNoRows) || err == nil && e.RemovedAt == nil {
 			return ErrNotFound
@@ -457,8 +500,12 @@ func (s *Service) Restore(ctx context.Context, userID, planID, entryID, from, to
 		if _, err := q.RestoreMealPlanEntry(ctx, sqlc.RestoreMealPlanEntryParams{ID: entryID, PlanID: planID}); err != nil {
 			return fmt.Errorf("restore meal plan entry: %w", err)
 		}
+		if lists, err = shopping.FollowPlan(ctx, q, []string{entryID}, nil); err != nil {
+			return err
+		}
 		return insertAt(ctx, q, planID, e.Day, entryID, int(e.Position))
 	})
+	return s.followed(p, err, lists)
 }
 
 // liveEntry loads an entry of the plan that is not removed.

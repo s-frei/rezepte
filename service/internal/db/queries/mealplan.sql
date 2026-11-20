@@ -143,6 +143,13 @@ WHERE id = sqlc.arg(id) AND plan_id = sqlc.arg(plan_id) AND removed_at IS NULL;
 UPDATE meal_plan_entries SET removed_at = NULL
 WHERE id = sqlc.arg(id) AND plan_id = sqlc.arg(plan_id) AND removed_at IS NOT NULL;
 
+-- Every entry of a plan, removed ones too.
+-- name: ListMealPlanEntryIDs :many
+SELECT id FROM meal_plan_entries WHERE plan_id = ?;
+
+-- name: ListRemovedMealPlanEntryIDs :many
+SELECT id FROM meal_plan_entries WHERE plan_id = sqlc.arg(plan_id) AND removed_at < sqlc.arg(cutoff);
+
 -- Drops a plan's entries removed before the cutoff; their list entries cascade.
 -- name: PurgeRemovedMealPlanEntries :exec
 DELETE FROM meal_plan_entries WHERE plan_id = sqlc.arg(plan_id) AND removed_at < sqlc.arg(cutoff);

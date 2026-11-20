@@ -20,6 +20,7 @@ const mon, sun = "2026-11-16", "2026-11-22"
 type env struct {
 	conn    *sql.DB
 	svc     *mealplan.Service
+	lists   *shopping.Service
 	recipes *recipe.Service
 	a, b    user.User
 	now     time.Time
@@ -36,8 +37,9 @@ func setup(t *testing.T) *env {
 		}
 		return u
 	}
+	lists := shopping.NewService(conn)
 	e := &env{
-		conn: conn, svc: mealplan.NewService(conn, shopping.NewService(conn)), recipes: recipe.NewService(conn, t.TempDir()),
+		conn: conn, svc: mealplan.NewService(conn, lists), lists: lists, recipes: recipe.NewService(conn, t.TempDir()),
 		a: mk("anna", user.RoleSuperadmin), b: mk("ben", user.RoleUser),
 		now: time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC),
 	}

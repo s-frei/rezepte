@@ -48,6 +48,25 @@ func (q *Queries) BumpShoppingListRevision(ctx context.Context, id string) error
 	return err
 }
 
+const bumpShoppingListRevisions = `-- name: BumpShoppingListRevisions :exec
+UPDATE shopping_lists SET revision = revision + 1 WHERE id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) BumpShoppingListRevisions(ctx context.Context, ids []string) error {
+	query := bumpShoppingListRevisions
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
 const canAccessShoppingList = `-- name: CanAccessShoppingList :one
 SELECT EXISTS (SELECT 1 FROM shopping_lists l WHERE l.id = ?1 AND (l.created_by = ?2 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = ?2 AND m.accepted_at IS NOT NULL)))
 `
@@ -98,9 +117,12 @@ func (q *Queries) CountShoppingListsByCreator(ctx context.Context) ([]CountShopp
 }
 
 const deleteCheckedShoppingItems = `-- name: DeleteCheckedShoppingItems :exec
-DELETE FROM shopping_list_items WHERE list_id = ? AND checked_at IS NOT NULL
+DELETE FROM shopping_list_items WHERE shopping_list_items.list_id = ? AND shopping_list_items.checked_at IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM shopping_list_entries he JOIN meal_plan_entries hp ON hp.id = he.plan_entry_id WHERE he.id = shopping_list_items.entry_id AND hp.removed_at IS NOT NULL)
 `
 
+// Items of a removed plan entry's block stay, ticks and all, so Undo brings
+// the block back as it was.
 func (q *Queries) DeleteCheckedShoppingItems(ctx context.Context, listID string) error {
 	_, err := q.db.ExecContext(ctx, deleteCheckedShoppingItems, listID)
 	return err
@@ -287,8 +309,8 @@ func (q *Queries) GetShoppingListRevision(ctx context.Context, arg GetShoppingLi
 }
 
 const insertShoppingEntry = `-- name: InsertShoppingEntry :exec
-INSERT INTO shopping_list_entries (id, list_id, recipe_id, title, base_servings, servings, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO shopping_list_entries (id, list_id, recipe_id, title, base_servings, servings, created_at, plan_entry_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertShoppingEntryParams struct {
@@ -299,6 +321,7 @@ type InsertShoppingEntryParams struct {
 	BaseServings int64
 	Servings     int64
 	CreatedAt    string
+	PlanEntryID  *string
 }
 
 func (q *Queries) InsertShoppingEntry(ctx context.Context, arg InsertShoppingEntryParams) error {
@@ -310,6 +333,7 @@ func (q *Queries) InsertShoppingEntry(ctx context.Context, arg InsertShoppingEnt
 		arg.BaseServings,
 		arg.Servings,
 		arg.CreatedAt,
+		arg.PlanEntryID,
 	)
 	return err
 }
@@ -661,6 +685,44 @@ func (q *Queries) ListShoppingItems(ctx context.Context, listID string) ([]ListS
 	return items, nil
 }
 
+const listShoppingListIDsByPlanEntries = `-- name: ListShoppingListIDsByPlanEntries :many
+SELECT DISTINCT list_id FROM shopping_list_entries WHERE plan_entry_id IN (/*SLICE:plan_entry_ids*/?) ORDER BY list_id
+`
+
+// The lists that hold entries of these plan entries, hidden ones too.
+func (q *Queries) ListShoppingListIDsByPlanEntries(ctx context.Context, planEntryIds []*string) ([]string, error) {
+	query := listShoppingListIDsByPlanEntries
+	var queryParams []interface{}
+	if len(planEntryIds) > 0 {
+		for _, v := range planEntryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:plan_entry_ids*/?", strings.Repeat(",?", len(planEntryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:plan_entry_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var list_id string
+		if err := rows.Scan(&list_id); err != nil {
+			return nil, err
+		}
+		items = append(items, list_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listShoppingListMembers = `-- name: ListShoppingListMembers :many
 SELECT m.list_id, m.user_id, m.accepted_at, u.display_name, u.color, u.avatar_id
 FROM shopping_list_members m
@@ -842,6 +904,31 @@ func (q *Queries) SetShoppingEntryServings(ctx context.Context, arg SetShoppingE
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const setShoppingEntryServingsByPlanEntries = `-- name: SetShoppingEntryServingsByPlanEntries :exec
+UPDATE shopping_list_entries SET servings = ?1 WHERE plan_entry_id IN (/*SLICE:plan_entry_ids*/?)
+`
+
+type SetShoppingEntryServingsByPlanEntriesParams struct {
+	Servings     int64
+	PlanEntryIds []*string
+}
+
+func (q *Queries) SetShoppingEntryServingsByPlanEntries(ctx context.Context, arg SetShoppingEntryServingsByPlanEntriesParams) error {
+	query := setShoppingEntryServingsByPlanEntries
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Servings)
+	if len(arg.PlanEntryIds) > 0 {
+		for _, v := range arg.PlanEntryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:plan_entry_ids*/?", strings.Repeat(",?", len(arg.PlanEntryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:plan_entry_ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
 }
 
 const setShoppingItemsChecked = `-- name: SetShoppingItemsChecked :exec

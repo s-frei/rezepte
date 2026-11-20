@@ -1378,6 +1378,18 @@
           "id": {
             "type": "string"
           },
+          "planDay": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "recipeId": {
             "type": [
               "string",
@@ -1405,7 +1417,9 @@
           "coverImageId",
           "title",
           "baseServings",
-          "servings"
+          "servings",
+          "planId",
+          "planDay"
         ],
         "type": "object"
       },

@@ -181,6 +181,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 		l.Entries = append(l.Entries, Entry{
 			ID: e.ID, RecipeID: e.RecipeID, RecipeSlug: e.RecipeSlug, CoverImageID: e.CoverImageID,
 			Title: e.Title, BaseServings: int(e.BaseServings), Servings: int(e.Servings),
+			PlanID: e.PlanID, PlanDay: e.PlanDay,
 		})
 		spans[e.ID] = span{float64(e.BaseServings), float64(e.Servings)}
 	}
@@ -441,61 +442,128 @@ func (s *Service) AddRecipe(ctx context.Context, userID, listID, recipeID string
 		return List{}, invalid("servings must be 1-99")
 	}
 	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
-		rec, err := q.GetRecipe(ctx, recipeID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrRecipeNotFound
-		}
-		if err != nil {
-			return fmt.Errorf("get recipe: %w", err)
-		}
-		if len(include) == 0 {
-			return invalid("pick at least one ingredient")
-		}
-		groups, err := q.ListIngredientGroupsByRecipe(ctx, recipeID)
-		if err != nil {
-			return fmt.Errorf("list ingredient groups: %w", err)
-		}
-		ings, err := q.ListIngredientsByRecipe(ctx, recipeID)
-		if err != nil {
-			return fmt.Errorf("list ingredients: %w", err)
-		}
-		byGroup := map[string][]sqlc.Ingredient{}
-		for _, i := range ings {
-			byGroup[i.GroupID] = append(byGroup[i.GroupID], i)
-		}
-		pos, err := q.MaxShoppingItemPosition(ctx, listID)
-		if err != nil {
-			return fmt.Errorf("max item position: %w", err)
-		}
-		now, entryID := s.stamp(), newID()
-		// Validate every ref before writing anything.
-		picked := make([]sqlc.Ingredient, 0, len(include))
-		pickedGroup := make([]*string, 0, len(include))
-		for _, ref := range include {
-			if ref.Group < 0 || ref.Group >= len(groups) || ref.Index < 0 || ref.Index >= len(byGroup[groups[ref.Group].ID]) {
-				return invalid(fmt.Sprintf("ingredient %d/%d does not exist", ref.Group, ref.Index))
-			}
-			picked = append(picked, byGroup[groups[ref.Group].ID][ref.Index])
-			pickedGroup = append(pickedGroup, groups[ref.Group].Name)
-		}
-		if err := q.InsertShoppingEntry(ctx, sqlc.InsertShoppingEntryParams{
-			ID: entryID, ListID: listID, RecipeID: &recipeID, Title: rec.Title,
-			BaseServings: rec.Servings, Servings: int64(servings), CreatedAt: now,
-		}); err != nil {
-			return fmt.Errorf("insert shopping entry: %w", err)
-		}
-		for i, ing := range picked {
-			pos++
-			if err := q.InsertShoppingItem(ctx, sqlc.InsertShoppingItemParams{
-				ID: newID(), ListID: listID, EntryID: &entryID, Name: ing.Name, NameKey: ingredient.Key(ing.Name),
-				Quantity: ing.Quantity, Unit: ing.Unit, Note: ing.Note, GroupName: pickedGroup[i],
-				Position: pos, CreatedAt: now,
-			}); err != nil {
-				return fmt.Errorf("insert shopping item: %w", err)
-			}
-		}
-		return nil
+		return s.addRecipe(ctx, q, listID, recipeID, servings, include, nil)
 	})
+}
+
+// PlannedRecipe is a plan entry to put on a list: its recipe at its servings
+// with the included ingredients.
+type PlannedRecipe struct {
+	PlanEntryID, RecipeID string
+	Servings              int
+	Include               []IngredientPick
+}
+
+// AddPlanned puts plan entries on a list inside the caller's transaction, one
+// recipe entry each, linked to its plan entry. It checks the caller's access
+// to the list but does not publish; the caller does after commit.
+func (s *Service) AddPlanned(ctx context.Context, q *sqlc.Queries, userID, listID string, adds []PlannedRecipe) error {
+	n, err := q.TouchShoppingList(ctx, sqlc.TouchShoppingListParams{UpdatedAt: s.stamp(), ID: listID, UserID: &userID})
+	if err != nil {
+		return fmt.Errorf("touch shopping list: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	for _, a := range adds {
+		if a.Servings < 1 || a.Servings > 99 {
+			return invalid("servings must be 1-99")
+		}
+		if err := s.addRecipe(ctx, q, listID, a.RecipeID, a.Servings, a.Include, &a.PlanEntryID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// FollowPlan carries a change of plan entries into every list they are on:
+// it sets their list entries' servings when servings is non-nil and bumps the
+// revision of each such list, whose ids it returns for the caller to publish
+// after commit. It checks no list access on purpose: whoever may change the
+// plan changes what the plan put on any list.
+func FollowPlan(ctx context.Context, q *sqlc.Queries, planEntryIDs []string, servings *int) ([]string, error) {
+	if len(planEntryIDs) == 0 {
+		return nil, nil
+	}
+	ids := make([]*string, len(planEntryIDs))
+	for i := range planEntryIDs {
+		ids[i] = &planEntryIDs[i]
+	}
+	listIDs, err := q.ListShoppingListIDsByPlanEntries(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list shopping lists of plan entries: %w", err)
+	}
+	if len(listIDs) == 0 {
+		return nil, nil
+	}
+	if servings != nil {
+		if err := q.SetShoppingEntryServingsByPlanEntries(ctx, sqlc.SetShoppingEntryServingsByPlanEntriesParams{Servings: int64(*servings), PlanEntryIds: ids}); err != nil {
+			return nil, fmt.Errorf("set shopping entry servings of plan entries: %w", err)
+		}
+	}
+	if err := q.BumpShoppingListRevisions(ctx, listIDs); err != nil {
+		return nil, fmt.Errorf("bump shopping list revisions: %w", err)
+	}
+	return listIDs, nil
+}
+
+// addRecipe inserts one recipe entry with its picked items, linked to
+// planEntryID when given.
+func (s *Service) addRecipe(ctx context.Context, q *sqlc.Queries, listID, recipeID string, servings int, include []IngredientPick, planEntryID *string) error {
+	rec, err := q.GetRecipe(ctx, recipeID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrRecipeNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get recipe: %w", err)
+	}
+	if len(include) == 0 {
+		return invalid("pick at least one ingredient")
+	}
+	groups, err := q.ListIngredientGroupsByRecipe(ctx, recipeID)
+	if err != nil {
+		return fmt.Errorf("list ingredient groups: %w", err)
+	}
+	ings, err := q.ListIngredientsByRecipe(ctx, recipeID)
+	if err != nil {
+		return fmt.Errorf("list ingredients: %w", err)
+	}
+	byGroup := map[string][]sqlc.Ingredient{}
+	for _, i := range ings {
+		byGroup[i.GroupID] = append(byGroup[i.GroupID], i)
+	}
+	pos, err := q.MaxShoppingItemPosition(ctx, listID)
+	if err != nil {
+		return fmt.Errorf("max item position: %w", err)
+	}
+	now, entryID := s.stamp(), newID()
+	// Validate every ref before writing anything.
+	picked := make([]sqlc.Ingredient, 0, len(include))
+	pickedGroup := make([]*string, 0, len(include))
+	for _, ref := range include {
+		if ref.Group < 0 || ref.Group >= len(groups) || ref.Index < 0 || ref.Index >= len(byGroup[groups[ref.Group].ID]) {
+			return invalid(fmt.Sprintf("ingredient %d/%d does not exist", ref.Group, ref.Index))
+		}
+		picked = append(picked, byGroup[groups[ref.Group].ID][ref.Index])
+		pickedGroup = append(pickedGroup, groups[ref.Group].Name)
+	}
+	if err := q.InsertShoppingEntry(ctx, sqlc.InsertShoppingEntryParams{
+		ID: entryID, ListID: listID, RecipeID: &recipeID, Title: rec.Title,
+		BaseServings: rec.Servings, Servings: int64(servings), CreatedAt: now, PlanEntryID: planEntryID,
+	}); err != nil {
+		return fmt.Errorf("insert shopping entry: %w", err)
+	}
+	for i, ing := range picked {
+		pos++
+		if err := q.InsertShoppingItem(ctx, sqlc.InsertShoppingItemParams{
+			ID: newID(), ListID: listID, EntryID: &entryID, Name: ing.Name, NameKey: ingredient.Key(ing.Name),
+			Quantity: ing.Quantity, Unit: ing.Unit, Note: ing.Note, GroupName: pickedGroup[i],
+			Position: pos, CreatedAt: now,
+		}); err != nil {
+			return fmt.Errorf("insert shopping item: %w", err)
+		}
+	}
+	return nil
 }
 
 // SetServings changes an entry's servings; its items rescale and keep ticks.
