@@ -424,3 +424,34 @@ func TestSearchIndexesMigrationIndexesExistingRecipes(t *testing.T) {
 		t.Fatalf("recipes_fts after down: %d hits, want 1", n)
 	}
 }
+
+// TestMealPlansMigrationDownAndUp rolls 0031 back and applies it again, so
+// its Down section drops the plan tables and the list entries' link column.
+func TestMealPlansMigrationDownAndUp(t *testing.T) {
+	ctx := t.Context()
+	conn, provider := openAt(t, goose.MaxVersion)
+	objects := func() int {
+		t.Helper()
+		var n int
+		if err := conn.QueryRowContext(ctx, `SELECT
+			(SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN
+				('meal_plans', 'meal_plan_members', 'meal_plan_entries', 'meal_plan_staples', 'calendar_feeds'))
+			+ (SELECT COUNT(*) FROM pragma_table_info('shopping_list_entries') WHERE name = 'plan_entry_id')`).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	if n := objects(); n != 6 {
+		t.Fatalf("%d meal plan objects after up, want 6", n)
+	}
+	if _, err := provider.DownTo(ctx, 30); err != nil {
+		t.Fatalf("down to 30: %v", err)
+	}
+	if n := objects(); n != 0 {
+		t.Fatalf("%d meal plan objects left after down", n)
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatalf("up again: %v", err)
+	}
+}

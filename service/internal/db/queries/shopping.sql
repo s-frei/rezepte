@@ -34,9 +34,9 @@ SELECT created_by FROM shopping_lists WHERE id = ?;
 SELECT l.id, l.name, l.updated_at, l.created_by,
        o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id,
        l.updated_by, u.display_name AS updater_name, u.color AS updater_color, u.avatar_id AS updater_avatar_id,
-       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL) AS open_count,
-       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id)
-         - (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL) AS done_count
+       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL AND NOT EXISTS (SELECT 1 FROM shopping_list_entries he JOIN meal_plan_entries hp ON hp.id = he.plan_entry_id WHERE he.id = i.entry_id AND hp.removed_at IS NOT NULL)) AS open_count,
+       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND NOT EXISTS (SELECT 1 FROM shopping_list_entries he JOIN meal_plan_entries hp ON hp.id = he.plan_entry_id WHERE he.id = i.entry_id AND hp.removed_at IS NOT NULL))
+         - (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL AND NOT EXISTS (SELECT 1 FROM shopping_list_entries he JOIN meal_plan_entries hp ON hp.id = he.plan_entry_id WHERE he.id = i.entry_id AND hp.removed_at IS NOT NULL)) AS done_count
 FROM shopping_lists l
 JOIN users o ON o.id = l.created_by
 LEFT JOIN users u ON u.id = l.updated_by
@@ -44,11 +44,14 @@ WHERE (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_m
 ORDER BY l.updated_at DESC, l.id DESC;
 
 -- The recipe entries of every list one person created or accepted, for the list overview.
+-- Every read of a list's entries, items and counts hides what came from a
+-- removed plan entry (meal_plan_entries.removed_at), so Undo can bring it back.
 -- name: ListShoppingEntryTitlesForUser :many
 SELECT e.list_id, e.title, e.servings, e.recipe_id
 FROM shopping_list_entries e
 JOIN shopping_lists l ON l.id = e.list_id
-WHERE (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
+LEFT JOIN meal_plan_entries p ON p.id = e.plan_entry_id
+WHERE p.removed_at IS NULL AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
 ORDER BY e.created_at, e.id;
 
 -- name: RenameShoppingList :execrows
@@ -94,7 +97,7 @@ WHERE list_id = sqlc.arg(list_id) AND user_id = sqlc.arg(member_id)
 -- name: ListShoppingInvitations :many
 SELECT l.id, l.name, m.invited_at, l.created_by,
        o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id,
-       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL) AS open_count
+       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i WHERE i.list_id = l.id AND i.checked_at IS NULL AND NOT EXISTS (SELECT 1 FROM shopping_list_entries he JOIN meal_plan_entries hp ON hp.id = he.plan_entry_id WHERE he.id = i.entry_id AND hp.removed_at IS NOT NULL)) AS open_count
 FROM shopping_list_members m
 JOIN shopping_lists l ON l.id = m.list_id
 JOIN users o ON o.id = l.created_by
@@ -110,10 +113,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListShoppingEntries :many
 SELECT e.id, e.recipe_id, e.title, e.base_servings, e.servings,
-       r.slug AS recipe_slug, r.cover_image_id
+       r.slug AS recipe_slug, r.cover_image_id, p.day AS plan_day, p.plan_id
 FROM shopping_list_entries e
 LEFT JOIN recipes r ON r.id = e.recipe_id
-WHERE e.list_id = ?
+LEFT JOIN meal_plan_entries p ON p.id = e.plan_entry_id
+WHERE e.list_id = ? AND p.removed_at IS NULL
 ORDER BY e.created_at, e.id;
 
 -- name: SetShoppingEntryServings :execrows
@@ -138,7 +142,9 @@ SELECT i.id, i.entry_id, i.name, i.name_key, i.quantity, i.unit, i.note, i.group
 FROM shopping_list_items i
 LEFT JOIN users u ON u.id = i.added_by
 LEFT JOIN users c ON c.id = i.checked_by
-WHERE i.list_id = ?
+LEFT JOIN shopping_list_entries e ON e.id = i.entry_id
+LEFT JOIN meal_plan_entries p ON p.id = e.plan_entry_id
+WHERE i.list_id = ? AND p.removed_at IS NULL
 ORDER BY i.position, i.id;
 
 -- Ticking stamps only open items, so a merged row ticked again keeps who

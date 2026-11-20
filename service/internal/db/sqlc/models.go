@@ -16,6 +16,12 @@ type ApiToken struct {
 	CreatedAt   string
 }
 
+type CalendarFeed struct {
+	UserID    string
+	TokenHash string
+	CreatedAt string
+}
+
 type CommentImage struct {
 	ID            string
 	RecipeID      string
@@ -110,6 +116,44 @@ type MailLog struct {
 	NextAttemptAt *string
 	CreatedAt     string
 	FinishedAt    *string
+}
+
+type MealPlan struct {
+	ID        string
+	Name      *string
+	Personal  int64
+	CreatedBy string
+	CreatedAt string
+	UpdatedAt string
+	UpdatedBy *string
+	Revision  int64
+}
+
+type MealPlanEntry struct {
+	ID        string
+	PlanID    string
+	Day       *string
+	Position  int64
+	RecipeID  *string
+	Title     string
+	Servings  *int64
+	CreatedBy *string
+	CreatedAt string
+	RemovedAt *string
+}
+
+type MealPlanMember struct {
+	PlanID     string
+	UserID     string
+	InvitedAt  string
+	AcceptedAt *string
+}
+
+type MealPlanStaple struct {
+	PlanID    string
+	NameKey   string
+	Name      string
+	CreatedAt string
 }
 
 type NotificationGroupOptout struct {
@@ -239,6 +283,7 @@ type ShoppingListEntry struct {
 	BaseServings int64
 	Servings     int64
 	CreatedAt    string
+	PlanEntryID  *string
 }
 
 type ShoppingListItem struct {

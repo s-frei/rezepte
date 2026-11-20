@@ -51,6 +51,15 @@ erDiagram
   users |o--o{ shopping_list_items : "typed in"
   users |o--o{ shopping_list_items : "ticked"
   users |o--o{ shopping_department_overrides : "last set"
+  users ||--o{ meal_plans : creates
+  users ||--o{ meal_plan_members : "invited to"
+  meal_plans ||--o{ meal_plan_members : shares
+  meal_plans ||--o{ meal_plan_entries : holds
+  meal_plans ||--o{ meal_plan_staples : "always has"
+  recipes |o--o{ meal_plan_entries : "planned from"
+  users |o--o{ meal_plan_entries : "added"
+  meal_plan_entries |o--o{ shopping_list_entries : "put on a list as"
+  users ||--o| calendar_feeds : subscribes
   users {
     text id PK
     text username UK "COLLATE NOCASE"
@@ -241,6 +250,7 @@ erDiagram
     text id PK
     text list_id FK
     text recipe_id FK "nullable, SET NULL: title stays"
+    text plan_entry_id FK "nullable, CASCADE: the plan entry it came from"
     integer base_servings "the recipe's, at the copy"
     integer servings "1 to 99"
   }
@@ -258,6 +268,37 @@ erDiagram
     text name_key PK
     text department
     text updated_by FK "nullable, SET NULL"
+  }
+  meal_plans {
+    text id PK
+    text name "nullable: NULL only on the personal plan"
+    integer personal "0 or 1, one per person (partial unique index)"
+    text created_by FK "the owner"
+    text updated_by FK "nullable, SET NULL: who changed it last"
+    integer revision "counts changes, sent on the live stream"
+  }
+  meal_plan_members {
+    text plan_id PK "also FK to meal_plans.id"
+    text user_id PK "also FK to users.id"
+    text accepted_at "nullable: null is a pending invitation"
+  }
+  meal_plan_entries {
+    text id PK
+    text plan_id FK
+    text day "nullable YYYY-MM-DD: null is the tray"
+    integer position "order within its day"
+    text recipe_id FK "nullable, SET NULL: title stays"
+    integer servings "nullable (free text), else 1 to 99"
+    text created_by FK "nullable, SET NULL"
+    text removed_at "nullable: set is a soft delete"
+  }
+  meal_plan_staples {
+    text plan_id PK "also FK to meal_plans.id"
+    text name_key PK "ingredient.Key(name)"
+  }
+  calendar_feeds {
+    text user_id PK "also FK to users.id"
+    text token_hash UK "SHA-256 of the feed secret"
   }
 ```
 
@@ -327,6 +368,16 @@ erDiagram
 - `shopping_department_overrides` is keyed by `name_key` with no list column: one row sorts that name on every list of the instance. `department` has no `CHECK`; `shopping.Department.Valid` guards the one writer.
 - `shopping_list_members` is one row per invited person; `accepted_at` null is a pending invitation that grants nothing, set it grants everything but deleting and sharing. Both keys cascade, so a deleted list or account takes its rows; `shopping_list_members_user_idx` serves "my memberships" and invitations. `shopping_lists.updated_by` is `SET NULL` and names who changed the list last.
 - All five tables belong to [Shopping lists](/features/shopping-lists).
+
+### Meal plans
+
+- `meal_plans` copies the lists' ownership: `created_by` cascades, `meal_plan_members` is the same pending/accepted row with both keys cascading, and the access predicate (creator or accepted member) is repeated verbatim in every query of `queries/mealplan.sql`, as in `shopping.sql`.
+- `personal = 1` marks each person's own plan, created lazily on first read with `InsertPersonalMealPlan` (`ON CONFLICT DO NOTHING` against the partial unique index `meal_plans_personal_idx`), so two first reads at once still make one. Its `name` is `NULL` and the client words it; every other plan has a name. The queries that rename and delete carry `personal = 0`.
+- `meal_plan_entries.day` is `NULL` for the tray ("some time"), so a day's queries compare with `day IS ?`, which matches `NULL` too. `position` orders a day; new entries take one past every position of that day, removed ones included, so a restored entry finds its place free, and a move renumbers both days.
+- `removed_at` is a soft delete so Undo brings an entry back with its list blocks and their ticks; `PurgeRemovedMealPlanEntries` drops a plan's removals older than a cutoff, and the linked list entries cascade with them.
+- `shopping_list_entries.plan_entry_id` links a list entry to its plan entry, one plan entry to many lists. Every read of a list's entries, items and row counts in `shopping.sql` hides what hangs on a removed plan entry (a `LEFT JOIN` or `NOT EXISTS` on `meal_plan_entries.removed_at`), so a list forgets a removed entry without losing its rows.
+- `meal_plan_staples` is keyed per plan by `ingredient.Key`; `calendar_feeds` holds one feed secret per person as a SHA-256 digest, `UNIQUE` for the lookup, replaced by an upsert.
+- sqlc drops the parameters of `BETWEEN sqlc.arg(a) AND sqlc.arg(b)` from the generated function; write a range as `>=` and `<=` (`ListMealPlanEntries`).
 
 ### Settings and shares
 
