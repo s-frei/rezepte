@@ -4,6 +4,7 @@
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { roleLabel } from '#lib/roles.js';
+	import { userColorClasses } from '#lib/user/color.js';
 	import { personDetails } from '#lib/user/people.svelte.js';
 
 	let {
@@ -11,6 +12,7 @@
 		compact = false,
 		asTitle = false,
 		inverse = false,
+		colored = false,
 		onnavigate
 	}: {
 		person: {
@@ -26,6 +28,10 @@
 		asTitle?: boolean;
 		/** In an `inverse` popover: the photo's ring takes the base tone. */
 		inverse?: boolean;
+		/** The card is the person's own place: a block in their color pair,
+		 * like the band their recipes open under. Only where it shows one
+		 * person; a stack of colored blocks reads as a status board. */
+		colored?: boolean;
 		/** Called when the "Recipes by" link is followed, so a popover can
 		 * close: the card may stay in the filtered list it leads to. */
 		onnavigate?: () => void;
@@ -44,16 +50,37 @@
 
 <!-- In a narrow box (a phone's sheet at 200% text) the photo goes above the
      text, which then has the full width. -->
-<div class="@container">
+<div
+	class="@container {colored
+		? `relative isolate overflow-hidden rounded-2xl p-3.5 inset-ring inset-ring-current/10 ${userColorClasses(person.color)}`
+		: ''}"
+>
+	{#if colored}
+		<!-- The initial set into the ground, where a recipe card without a
+		     photo sets its own. The faint edge lifts the block off a page
+		     of the same lightness. -->
+		<span
+			aria-hidden="true"
+			class="pointer-events-none absolute top-1/2 right-3 -z-10 -translate-y-1/2 font-display text-initial-sm leading-none font-medium italic opacity-10"
+		>
+			{person.displayName.charAt(0).toUpperCase()}
+		</span>
+	{/if}
 	<div class="flex items-center gap-3 @max-[16rem]:flex-col @max-[16rem]:items-start">
-		<PersonMark {person} size={compact ? 'lg' : 'card'} {inverse} />
+		<PersonMark
+			{person}
+			size={compact ? 'lg' : 'card'}
+			{inverse}
+			strong={colored}
+			ownGround={colored}
+		/>
 		<div class="max-w-full min-w-0">
 			{#if asTitle}
 				<Dialog.Title class={nameClass}>{person.displayName}</Dialog.Title>
 			{:else}
 				<p class={nameClass}>{person.displayName}</p>
 			{/if}
-			<p class="truncate text-caption opacity-80">
+			<p class="truncate text-caption {colored ? '' : 'opacity-80'}">
 				@{person.username}{#if role}&ensp;·&ensp;{roleLabel(role)}{/if}
 			</p>
 			<!-- No link for someone without recipes: it would lead to an empty filter. -->

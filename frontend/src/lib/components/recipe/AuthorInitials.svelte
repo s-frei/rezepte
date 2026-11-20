@@ -47,7 +47,13 @@
 		{#if edited}
 			<p class={muted}>{m.card_author({ user: createdBy.displayName })}</p>
 		{/if}
-		<PersonCard person={createdBy} {compact} {inverse} onnavigate={() => (open = false)} />
+		<PersonCard
+			person={createdBy}
+			{compact}
+			inverse={inverse && edited}
+			colored={!edited}
+			onnavigate={() => (open = false)}
+		/>
 		{#if edited}
 			<p class={muted}>{m.card_editor({ user: updatedBy.displayName })}</p>
 			<PersonCard person={updatedBy} {compact} {inverse} onnavigate={() => (open = false)} />
@@ -89,13 +95,19 @@
 
 	The radius stays `rounded-2xl`, like every other floating panel in the
 	app: with the color doing the separating, the shape no longer has to.
+
+	One person and the panel is their card alone, in their color (PersonCard
+	`colored`); author and editor keep the `inverse` list, since two colored
+	blocks stacked would read as a status board.
 -->
 <PersonPeek
 	bind:open
 	{label}
 	{anchor}
 	class="relative flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-	panelClass="w-[var(--bits-floating-anchor-width)] bg-inverse p-3.5 text-caption text-inverse-foreground"
+	panelClass="w-[var(--bits-floating-anchor-width)] text-caption {edited
+		? 'bg-inverse p-3.5 text-inverse-foreground'
+		: ''}"
 	trigger={circles}
 >
 	{#snippet card(sheet)}

@@ -46,7 +46,7 @@ Every color token is redefined for dark mode (see [Implementation notes](#implem
 | `success-soft` / `success-foreground` | success banners and messages, always with a check icon (`CircleCheckIcon`, see [Icons that answer](#icons-that-answer)). `success-foreground` is also the text color of a success line without a banner (the "keeps" line in `ConnectedAccounts.svelte`): about 5.9:1 on the light surface, 9.7:1 on the dark one. Success is green, never `accent` |
 | `success` | small success marks: a status dot, the strong end of the password meter. Theme-independent: one mid green reads on both grounds as a mark, and it is never a text color (about 2.4:1 on the light surface) |
 | `field-label` | a label written into a field's top border (the ingredient row's column names). Theme-independent as a value: it is mixed from `text-muted` and `border`, so it follows both themes without a dark entry of its own |
-| `inverse` / `inverse-foreground` / `inverse-muted` | something laid over the page that has to invert with the theme: toasts, active filter chips, the author popover |
+| `inverse` / `inverse-foreground` / `inverse-muted` | something laid over the page that has to invert with the theme: toasts, active filter chips, the author popover with author and editor |
 | `skeleton` | loading placeholders |
 | `handle` | drop slots, inactive icons, scrollbar thumbs, unchecked round checkboxes |
 | `tint-1` / `tint-2` / `tint-3` | placeholder tiles for a recipe without a photo |
@@ -58,16 +58,16 @@ A new color means a new token in `app.css` (both dark blocks included), never a 
 
 ## Time color
 
-`--color-time-foreground` marks a duration in a step's text, solid when stored and dotted when suggested (`.time-link`, `.time-proposal` in `frontend/src/app.css`). Its values equal `user-teal`'s foreground on purpose and stay a separate token: `user-teal` belongs to people and may be retuned without touching times. See [Step times](/features/step-times).
+`--color-time-foreground` marks a duration in a step's text, solid when stored and dotted when suggested (`.time-link`, `.time-proposal` in `frontend/src/app.css`); `--color-time` is the ground of a time chip and the timers. Their values equal `user-teal`'s pair on purpose and stay separate tokens: `user-teal` belongs to people and may be retuned without touching times, and no component outside a person's mark may use a `user-*` token. See [Step times](/features/step-times).
 
 ## User colors
 
 A second, closed palette: one pair per color, `--color-user-<name>` and `--color-user-<name>-foreground`, redefined in the dark blocks like everything else. **It marks a person and nothing else.** Where it appears:
 
-- **Large, only at a person's own places:** `ProfileHead`, `PersonCard` and `AuthorBand`.
+- **Large, only at a person's own places:** `ProfileHead`, `AuthorBand` and `PersonCard` (`colored`, only where the peek shows that one person: the colophon, a card with one author, the people list; author and editor together and "Tasty for" stay a neutral list, since stacked colored blocks read as a status board).
 - **Elsewhere at most a small mark (`PersonMark`, `lg` at most), one person per row:** a card's authors, the people list, the "Added by" chip, the colophon, a shopping row's adder or ticker - never both in one row.
 - **Beyond the app's pages, always a small circle beside the name:** a push's icon (`avatar.Service.Mark`, [Notifications](/features/notifications)), the mail circle (`mail.Circle`, [Email](/features/email)), `/welcome` and a public page's "Shared by" ribbon ([Public shares](/features/public-shares)).
-- **The own app, tinted for whoever is signed in:** the top bar's avatar (`PersonMark ringed`), the overview running head's dotted leader (`userLeaderClass`, the `-foreground` tone dimmed so it does not outweigh the section name), the focused comment composer, shopping mode's head ([Shopping lists](/features/shopping-lists)) and the browser's bar (`theme-color`, never on a sign-in page or a public share, see [Installable app](/features/installable-app)). Nothing that acts: buttons, links and focus stay `primary`.
+- **The signed-in person, as a mark and never as a tint:** the top bar's avatar (`PersonMark ringed`), their own diary entries, shopping mode's head ([Shopping lists](/features/shopping-lists)) and the arrival splash, which passes. The app's chrome never takes their color: the browser's bar (`theme-color`), the running head's leader and a focused field were tinted once and read as a foreign body in the app. Nothing that acts either: buttons, links and focus stay `primary`.
 - **A ring around a photo**, from `md` up: the photo, a gap, a ring in the person's color, so a picture still says whose color it is. The ring takes the pair's `-foreground` tone on `background` and `surface`, the base tone on `inverse`. Initials under `md` get none: the circle already is the color, and at that size a ring ate the face.
 
 The rules:
@@ -264,7 +264,7 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 - **`LifetimeBar`**, **`Stamp`** - how much of a token's or link's life has passed, and a stamp for what happened to it; both decoration, so the caller says it in words.
 - **`PersonMark`** (own, not Bits UI `Avatar`) - every circle that stands for a person: color pair and initial, their picture over it. The top bar's is `ringed`. The photo ring is an `outline` with `outline-offset` (`userRingClass`), so the gap shows whatever ground it sits on and does not fight a caller's `ring-*`; it is clipped by an `overflow` ancestor, so keep a ringed mark clear of a scroll box's edge. Marks set in a line of text are sized in `em`, so they grow with 200% text. In the "Shared by" ribbon it is `strong` (the pair turned over), or the initial melts into the ribbon.
 - **`PersonDot`** - a person as a dot where no picture travels (a link's creator, a token's issuer), and every color dot under 20px, where a face is a smudge.
-- **`PersonCard`** - one person, opened through `PersonPeek`: a `Popover` on a wide screen (on hover too, unless `hover={false}`), a `BottomSheet` below `md`; it inherits its surface's text color, so it reads on `inverse`, `surface` and a sheet. Roles and counts come from one cache, `frontend/src/lib/user/people.svelte.ts`, refreshed only by a reload.
+- **`PersonCard`** - one person, opened through `PersonPeek`: a `Popover` on a wide screen (on hover too, unless `hover={false}`), a `BottomSheet` below `md`; it inherits its surface's text color, so it reads on `inverse`, `surface` and a sheet; `colored` makes it its own block in the person's pair, the initial set into it as in `AuthorBand`, and its popover then has no panel color of its own. Roles and counts come from one cache, `frontend/src/lib/user/people.svelte.ts`, refreshed only by a reload.
 - **`FaceStack`** - overlapping `PersonMark`s for who the sentence beside it names, "+N" beyond `slots`; `aria-hidden`. The overlap stays small enough that every initial stays whole.
 
 ### Patterns in feature components
@@ -273,7 +273,7 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 
 - **`AccountCard`** (in `switch/`) - the index card of "Who's cooking?"; [Who's cooking?](/features/user-switch#motion) owns its motion.
 - **`RecipeCard`** - a stretched link ([Rules](#targets-and-controls)). Its desktop look hangs off `desk:`, not `md:`, so a phone with one card per row gets it too ([Recipes and search](/features/recipes)). **Its corners are concentric: corner radius = mark radius + gap**, so star and initials share the corners' centers. The total time is a `text-label` line, never a pill, so the longest allowed time fits unrounded; text-card title colors must keep 4.5:1 (3:1 for the large title).
-- **`AuthorInitials`** - a card's author circles, opening a `Popover` anchored to the card on `inverse` (on `surface` it dissolved into the card), a `BottomSheet` below `md`. The "Added by" filter travels as the username, so a link survives a rename.
+- **`AuthorInitials`** - a card's author circles, opening a `Popover` anchored to the card: the author's colored `PersonCard`, or with an editor both on `inverse` (on `surface` it dissolved into the card), a `BottomSheet` below `md`. The "Added by" filter travels as the username, so a link survives a rename.
 - **Overview search** (`SearchBar.svelte`) - a combobox in the `TagInput` pattern, set like a cookbook index. It is a multi-select listbox: `aria-selected` on chosen tags and the highlight by `aria-activedescendant`, because VoiceOver does not announce `aria-checked` on an option.
 - **`ActiveFilters`** - the panel's filters as chips, each a label that opens the panel and a × that drops it. On a phone it leads with a non-default order, since the sort control is out of sight, and folds into one bar once it needs a second line, measured from an inert `w-max` twin of the row (inside the zero-width wrapper the chips capped themselves at 0). "All ×" (`clearFilters`) leaves the order and search text, which the bar does not show; the panel's `resetFilters` clears the text too - two functions, since an `onclick` handler receives the event as its first argument. A control that removes itself hands focus to what took its place; the last hands it to `focusfallback`, never the search field, whose focus opens suggestions.
 - **Overview running head** (`frontend/src/routes/+page.svelte`) - "Recipes", `ResultCount` and the date, set like a cookbook page's head; the section name is `aria-hidden`, since it repeats the navigation.
@@ -294,7 +294,7 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 - **Step links** (`StepLinks.svelte`) - [Ingredient references](/features/ingredient-references) owns them; image tiles (`ImagesSection.svelte`) - [Images](/features/images), their overlay always visible on touch.
 - **Save bar** (`SaveBar.svelte`) - both labels share one grid cell and the dirty dot's wrapper is always rendered, so nothing moves Save.
 - **`ServingsStepper`** - the bound buttons stay enabled and announce `aria-disabled`: a truly disabled button drops keyboard focus the moment it is pressed at the bound.
-- **Cook timers** (`frontend/src/lib/components/timer/`) - [Cook timers](/features/cook-timers) owns the behavior. The dock wears `user-teal` with `time-foreground`, the times' own teal, and turns `primary` while ringing.
+- **Cook timers** (`frontend/src/lib/components/timer/`) - [Cook timers](/features/cook-timers) owns the behavior. The dock wears `time` with `time-foreground`, the times' own teal, and turns `primary` while ringing.
 - **Toast** (svelte-sonner, in `frontend/src/routes/+layout.svelte`) - `bg-inverse`, `rounded-toast`. Sonner's styles are unlayered and beat the utilities, so its classes carry Tailwind's `!`.
 - **Drag handle** - Lucide `grip-vertical` in `text-handle`.
 

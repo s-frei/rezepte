@@ -33,7 +33,7 @@
 	<TimerRing fraction={fraction(timer, now)} class="size-8 {ringClass}" />
 	{#if more > 0}
 		<span
-			class="absolute -right-2 -bottom-0.5 rounded-pill bg-time-foreground px-1 text-micro leading-4 font-semibold text-user-teal ring-2 ring-user-teal"
+			class="absolute -right-2 -bottom-0.5 rounded-pill bg-time-foreground px-1 text-micro leading-4 font-semibold text-time ring-2 ring-time"
 			>{m.timer_more({ count: more })}</span
 		>
 	{/if}

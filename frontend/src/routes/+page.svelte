@@ -54,7 +54,6 @@
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { session } from '#lib/auth.svelte.js';
-	import { userLeaderClass } from '#lib/user/color.js';
 	import type { PageProps, Snapshot } from './$types';
 
 	let { data }: PageProps = $props();
@@ -765,12 +764,9 @@
 		<span aria-hidden="true" class="font-display text-body font-medium text-primary italic">
 			{m.nav_recipes()}
 		</span>
-		<!-- The leader in the signed-in person's own tone: their app. -->
 		<span
 			aria-hidden="true"
-			class="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted {userLeaderClass(
-				session.user?.color
-			)}"
+			class="min-w-4 flex-1 -translate-y-1 border-b-2 border-dotted border-handle"
 		></span>
 		<ResultCount count={total} {filtered} />
 		<!-- On a phone the cards-per-row switch takes the date's place: a

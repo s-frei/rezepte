@@ -30,7 +30,6 @@
 	import { groupByDay, sendable } from '#lib/recipe/diary.js';
 	import { revokePreviews, stagePhotos, unstage, type PendingPhoto } from '#lib/recipe/photos.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { userComposerClass } from '#lib/user/color.js';
 	import DiaryEntry from './DiaryEntry.svelte';
 	import DiaryField from './DiaryField.svelte';
 	import DiaryPhotos from './DiaryPhotos.svelte';
@@ -298,7 +297,7 @@
 	<form class="mt-5" onsubmit={send}>
 		<div class="flex items-end gap-2.5">
 			<!-- From 400px: on a narrower phone its 38px broke the placeholder
-			     onto a second line, and the paper alone says whose it is. -->
+			     onto a second line, and a composer is plainly the viewer's own. -->
 			{#if session.user}
 				<span class="mb-3 hidden shrink-0 min-[25rem]:block md:mb-3.5">
 					<PersonMark person={session.user} size="sm" />
@@ -306,9 +305,9 @@
 			{/if}
 			<!-- With photos the collage runs nearly edge to edge and the text starts flush under it. -->
 			<div
-				class="flex min-w-0 flex-1 flex-wrap items-end gap-x-2 gap-y-1 rounded-3xl border border-border bg-surface-elevated shadow-card transition-colors has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary {userComposerClass(
-					session.user?.color
-				)} {photos.length ? 'p-2.5 pb-1.5' : 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
+				class="flex min-w-0 flex-1 flex-wrap items-end gap-x-2 gap-y-1 rounded-3xl border border-border bg-surface-elevated shadow-card transition-colors has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-primary {photos.length
+					? 'p-2.5 pb-1.5'
+					: 'py-1.5 pr-1.5 pl-4 md:py-2 md:pr-2 md:pl-4.5'}"
 			>
 				<!-- The collage takes a row of its own above; without photos the picker sits before the field. -->
 				<DiaryPhotos bind:photos {busy} {title} hint={false} />

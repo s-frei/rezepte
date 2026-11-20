@@ -106,7 +106,7 @@
 		<div
 			class="flex items-center rounded-pill shadow-lift [transition:background-color_300ms,color_0s_150ms] md:max-w-[480px] {ringing
 				? 'ringing-halo bg-primary text-primary-foreground'
-				: 'bg-user-teal text-time-foreground'}"
+				: 'bg-time text-time-foreground'}"
 		>
 			<!-- The chevron points where the list unfolds, up, and back once it is open. -->
 			<button
@@ -167,7 +167,7 @@
 			id="timer-panel"
 			class="{open
 				? 'flex origin-bottom motion-safe:animate-unfold'
-				: 'hidden'} max-h-[min(70dvh,560px)] flex-col overflow-hidden rounded-3xl bg-user-teal p-2 shadow-lift md:w-[400px]"
+				: 'hidden'} max-h-[min(70dvh,560px)] flex-col overflow-hidden rounded-3xl bg-time p-2 shadow-lift md:w-[400px]"
 		>
 			<div class="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain">
 				{#each list as t (t.id)}

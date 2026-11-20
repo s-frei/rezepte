@@ -944,7 +944,7 @@ test('?tab=comments scrolls to the comments', async ({ page }) => {
 	await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 });
 
-test("the composer, focused, is the writer's own paper beside their mark", async ({ page }) => {
+test("the composer stays neutral when focused, the writer's mark beside it", async ({ page }) => {
 	await login(page);
 	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as { color: string };
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Paper ${uniqueToken()}` });
@@ -968,7 +968,9 @@ test("the composer, focused, is the writer's own paper beside their mark", async
 	expect((await mark.boundingBox())!.x).toBeLessThan((await box.boundingBox())!.x);
 	expect(await paper()).toBe(false);
 	await field.focus();
-	await expect.poll(paper).toBe(true);
+	// Focus is the primary outline; the writer's color arrives with the sent entry.
+	await expect(box).toHaveCSS('outline-style', 'solid');
+	expect(await paper()).toBe(false);
 	// Sending stays the action color.
 	await field.fill('Less salt next time');
 	await expect(diary(page).getByRole('button', { name: 'Send' })).toHaveClass(/bg-primary/);

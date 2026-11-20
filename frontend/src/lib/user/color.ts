@@ -86,48 +86,6 @@ export function userRingClass(color: string | null | undefined, inverse = false)
 	return (inverse ? USER_RINGS_INVERSE : USER_RINGS)[color];
 }
 
-/**
- * The overview's dotted leader in the signed-in person's own tone - their
- * app, tinted for them. At 55%: at full strength the dots outweighed the
- * section name, and amber and clay read as the primary orange beside it.
- * Written out for the same reason.
- */
-const USER_LEADERS: Record<UserColor, string> = {
-	amber: 'border-user-amber-foreground/55',
-	clay: 'border-user-clay-foreground/55',
-	rose: 'border-user-rose-foreground/55',
-	plum: 'border-user-plum-foreground/55',
-	sage: 'border-user-sage-foreground/55',
-	olive: 'border-user-olive-foreground/55',
-	teal: 'border-user-teal-foreground/55',
-	slate: 'border-user-slate-foreground/55'
-};
-
-/** The leader's border color; the neutral handle for no one or an unknown color. */
-export function userLeaderClass(color: string | null | undefined): string {
-	return isUserColor(color) ? USER_LEADERS[color] : 'border-handle';
-}
-
-/**
- * The comment composer, focused, in the writer's own paper - the tone their
- * entry will be in once sent. Written out for the same reason.
- */
-const USER_COMPOSERS: Record<UserColor, string> = {
-	amber: 'has-[textarea:focus-visible]:bg-user-amber',
-	clay: 'has-[textarea:focus-visible]:bg-user-clay',
-	rose: 'has-[textarea:focus-visible]:bg-user-rose',
-	plum: 'has-[textarea:focus-visible]:bg-user-plum',
-	sage: 'has-[textarea:focus-visible]:bg-user-sage',
-	olive: 'has-[textarea:focus-visible]:bg-user-olive',
-	teal: 'has-[textarea:focus-visible]:bg-user-teal',
-	slate: 'has-[textarea:focus-visible]:bg-user-slate'
-};
-
-/** The composer's focused paper; none (it stays `surface-elevated`) for an unknown color. */
-export function userComposerClass(color: string | null | undefined): string {
-	return isUserColor(color) ? USER_COMPOSERS[color] : '';
-}
-
 /** Neutral, for a color this build does not know. */
 const NEUTRAL = 'bg-accent text-accent-foreground';
 

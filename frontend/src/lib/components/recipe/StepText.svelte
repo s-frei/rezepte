@@ -103,7 +103,7 @@
 			data-time
 			aria-label={m.timer_start({ phrase: segment.time.phrase })}
 			onclick={() => onstarttime(segment.time!)}
-			class="{timeClass} relative inline-flex cursor-pointer flex-wrap items-center justify-center rounded-time bg-user-teal hover-tint px-[0.28em] py-[0.12em] after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="{timeClass} relative inline-flex cursor-pointer flex-wrap items-center justify-center rounded-time bg-time hover-tint px-[0.28em] py-[0.12em] after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>{@render clock(segment.time, 'shrink-0')}<span
 				class="self-baseline py-[0.08em] [text-box:trim-both_cap_alphabetic]"
 				>{tieNumbers(segment.text)}</span

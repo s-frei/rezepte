@@ -5,8 +5,6 @@ import {
 	USER_COLOR_CLASSES,
 	USER_COLORS,
 	userColorClasses,
-	userComposerClass,
-	userLeaderClass,
 	userRingClass,
 	type UserColor
 } from './color';
@@ -68,20 +66,6 @@ describe('userRingClass', () => {
 	it('falls back to a muted ring for a color it does not know', () => {
 		expect(userRingClass('chartreuse')).toBe('outline-text-muted');
 		expect(userRingClass(null, true)).toBe('outline-inverse-muted');
-	});
-});
-
-describe('userLeaderClass', () => {
-	it('dots the leader in a calm strong tone, the handle for no one', () => {
-		expect(userLeaderClass('sage')).toBe('border-user-sage-foreground/55');
-		expect(userLeaderClass(undefined)).toBe('border-handle');
-	});
-});
-
-describe('userComposerClass', () => {
-	it("tints the focused composer in the writer's paper, nothing for an unknown color", () => {
-		expect(userComposerClass('plum')).toBe('has-[textarea:focus-visible]:bg-user-plum');
-		expect(userComposerClass('chartreuse')).toBe('');
 	});
 });
 

@@ -21,6 +21,7 @@
 		ringed = false,
 		inverse = false,
 		strong = false,
+		ownGround = false,
 		src: srcOverride,
 		class: extra = ''
 	}: {
@@ -35,6 +36,9 @@
 		/** The pair turned over, the strong tone as ground: a mark on a
 		 * ribbon in the person's own color. */
 		strong?: boolean;
+		/** On a ground in the person's own color (a colored PersonCard): no
+		 * ring, the ground already says whose it is. */
+		ownGround?: boolean;
 		/** The picture's address when it is not the session's `/avatars/...`:
 		 * the public page's share-scoped one. */
 		src?: string | null;
@@ -93,7 +97,7 @@
 	const showImage = $derived(src !== null && failed !== src);
 	// `ringed` draws the top bar's finer line, a hairline on a 1x screen.
 	const geometry = $derived(
-		ringed ? 'outline-[1.5px] outline-offset-2' : showImage ? RINGS[size] : undefined
+		ringed ? 'outline-[1.5px] outline-offset-2' : showImage && !ownGround ? RINGS[size] : undefined
 	);
 	const ring = $derived(
 		geometry ? `${geometry} outline-solid ${userRingClass(person.color, inverse)}` : ''

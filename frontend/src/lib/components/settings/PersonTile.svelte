@@ -164,16 +164,16 @@
 					class="{narrow.current
 						? 'relative after:absolute after:-inset-1'
 						: ''} shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-					panelClass="max-w-80 bg-surface p-4 text-text"
+					panelClass="w-80 max-w-[calc(100vw-24px)]"
 				>
 					{#snippet trigger()}
 						<PersonMark {person} size="lg" class="@lg:size-11" />
 					{/snippet}
 					{#snippet card(sheet)}
 						{#if sheet}
-							<PersonCard {person} asTitle onnavigate={() => (cardOpen = false)} />
+							<PersonCard {person} asTitle colored onnavigate={() => (cardOpen = false)} />
 						{:else}
-							<PersonCard {person} />
+							<PersonCard {person} colored />
 						{/if}
 					{/snippet}
 				</PersonPeek>

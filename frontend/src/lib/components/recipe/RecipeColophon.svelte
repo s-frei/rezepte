@@ -87,11 +87,11 @@
 {/snippet}
 
 {#snippet who(key: string, person: Person)}
-	<!-- `inverse`, like the author panel on a card. -->
+	<!-- One person: the card is their own place, in their color. -->
 	<PersonPeek
 		bind:open={() => open === key, (value) => (open = value ? key : null)}
 		class="group {triggerClass}"
-		panelClass="w-80 max-w-[calc(100vw-24px)] bg-inverse p-3.5 text-caption text-inverse-foreground"
+		panelClass="w-80 max-w-[calc(100vw-24px)] text-caption"
 	>
 		{#snippet trigger()}{@render face(person)}{/snippet}
 		{#snippet card(sheet)}
@@ -99,7 +99,7 @@
 				{person}
 				asTitle={sheet}
 				compact={!sheet}
-				inverse={!sheet}
+				colored
 				onnavigate={() => (open = null)}
 			/>
 		{/snippet}

@@ -10,7 +10,6 @@ import {
 	tinyPng,
 	uniqueToken
 } from './helpers';
-import { USER_THEME_COLORS } from '../src/lib/user/theme-color';
 
 test('redirects anonymous users to login', async ({ page }) => {
 	await page.goto('/');
@@ -129,23 +128,12 @@ test('the password change names the account it belongs to', async ({ page }) => 
 	);
 });
 
-test("the browser's bar wears the signed-in person's color until sign-out", async ({
-	page
-}, testInfo) => {
+test("the browser's bar keeps the app's ground, signed in or not", async ({ page }) => {
 	const bar = (scheme: 'light' | 'dark') =>
 		page.locator(`meta[name="theme-color"][data-scheme="${scheme}"]`);
 	await page.goto('/login');
 	await expect(bar('light')).toHaveAttribute('content', '#f4ede2');
-
 	await login(page);
-	const me = (await (await page.request.get('/api/v1/auth/me')).json()) as {
-		color: keyof typeof USER_THEME_COLORS;
-	};
-	await expect(bar('light')).toHaveAttribute('content', USER_THEME_COLORS[me.color].light);
-	await expect(bar('dark')).toHaveAttribute('content', USER_THEME_COLORS[me.color].dark);
-
-	await signOut(page, testInfo);
-	await expect(page).toHaveURL(/\/login/);
 	await expect(bar('light')).toHaveAttribute('content', '#f4ede2');
 	await expect(bar('dark')).toHaveAttribute('content', '#1c1612');
 });

@@ -63,7 +63,7 @@
 				onclick={() => setExpanded(true)}
 				aria-label={m.timer_expand()}
 				aria-expanded="false"
-				class="flex h-12 w-full max-w-[392px] items-center gap-2.5 rounded-pill bg-user-teal hover-tint pr-3.5 pl-2 text-time-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] md:hidden"
+				class="flex h-12 w-full max-w-[392px] items-center gap-2.5 rounded-pill bg-time hover-tint pr-3.5 pl-2 text-time-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.98] md:hidden"
 			>
 				<TimerSummary
 					timer={first}
@@ -77,7 +77,7 @@
 				/>
 			</button>
 		{/if}
-		<!-- Below `md` the panel on `user-teal`, the capsule's own color, only
+		<!-- Below `md` the panel on `time`, the capsule's own color, only
 		     while expanded; from `md` the bare rows, two side by side, always -
 		     one alone as wide as the footer under it. Expanding unfolds it
 		     upward where the capsule was; the always-open rows stay still.
@@ -89,7 +89,7 @@
 		<div
 			class="{expanded
 				? 'flex max-md:origin-bottom max-md:motion-safe:animate-unfold'
-				: 'hidden'} max-h-[40dvh] w-full max-w-[392px] flex-col gap-2 overflow-hidden rounded-3xl bg-user-teal p-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
+				: 'hidden'} max-h-[40dvh] w-full max-w-[392px] flex-col gap-2 overflow-hidden rounded-3xl bg-time p-2 md:flex md:max-h-none md:max-w-[760px] md:flex-row md:flex-wrap md:justify-center md:overflow-visible md:bg-transparent md:p-0"
 		>
 			<div class="-mt-0.5 flex items-center justify-between pl-2.5 md:hidden">
 				<p class="text-caption font-semibold text-time-foreground">
