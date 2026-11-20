@@ -7,6 +7,7 @@
     "get-unsubscribe",
     "unsubscribe",
     "unsubscribe-one-click",
+    "get-calendar-feed",
     "get-link-preview-cover",
     "get-push-mark",
     "get-public-sharer-avatar",

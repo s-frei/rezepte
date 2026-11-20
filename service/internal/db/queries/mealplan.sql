@@ -191,6 +191,17 @@ SELECT user_id FROM calendar_feeds WHERE token_hash = ?;
 -- name: DeleteCalendarFeed :exec
 DELETE FROM calendar_feeds WHERE user_id = ?;
 
+-- The live dated entries from a day on of every plan the person created or
+-- accepted, for the calendar feed.
+-- name: ListCalendarFeedEntries :many
+SELECT e.id, e.day, e.title, r.slug AS recipe_slug
+FROM meal_plan_entries e
+JOIN meal_plans p ON p.id = e.plan_id
+LEFT JOIN recipes r ON r.id = e.recipe_id
+WHERE e.removed_at IS NULL AND e.day IS NOT NULL AND e.day >= sqlc.arg(from_day)
+  AND (p.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
+ORDER BY e.day, e.position, e.id;
+
 -- A shared plan's name, for the invitation notice.
 -- name: GetMealPlanName :one
 SELECT name FROM meal_plans WHERE id = ?;

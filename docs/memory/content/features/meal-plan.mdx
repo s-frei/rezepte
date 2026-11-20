@@ -1,15 +1,16 @@
 ---
 title: Meal plan
-description: Recipes and free texts on the days of a week or on the tray, in a personal plan or plans shared like lists, put on shopping lists that follow later changes, with per-plan staples and a live stream
+description: Recipes and free texts on the days of a week or on the tray, in a personal plan or plans shared like lists, put on shopping lists that follow later changes, with per-plan staples, a live stream and a calendar feed
 ---
 
-A signed-in person plans recipes and free texts ("Reste") on days, or on the tray for "some time this week", in their personal plan or in any number of plans shared with others on the instance, and puts a week's recipes on a shopping list that keeps following the plan. The service side is `service/internal/mealplan` (service, staples, the list link, huma handler, stream); the list side of the link is in `service/internal/shopping` ([Shopping lists](/features/shopping-lists#planned-entries)); the tables are on [Data model](/architecture/data-model#meal-plans).
+A signed-in person plans recipes and free texts ("Reste") on days, or on the tray for "some time this week", in their personal plan or in any number of plans shared with others on the instance, and puts a week's recipes on a shopping list that keeps following the plan. The service side is `service/internal/mealplan` (service, staples, the list link, huma handler, stream, calendar feed); the list side of the link is in `service/internal/shopping` ([Shopping lists](/features/shopping-lists#planned-entries)); the tables are on [Data model](/architecture/data-model#meal-plans).
 
 <Callout type="warn" title="Traps">
 
 - A plan entry's list blocks are visible to a viewer only for the lists they can access: every list name, id or count in a plan answer comes from `ListMealPlanEntryLists`, which carries the viewer's list predicate; reading lists any other way leaks a private list ([The list link](#the-list-link)).
 - Removing an entry is a soft delete, so every list read, count and delete must skip blocks of removed entries ([Entries](#entries)).
 - A change that alters what a linked list shows must go through `shopping.FollowPlan` and publish on the shopping hub after commit, Move included ([The list link](#the-list-link)).
+- The calendar feed's secret sits in the URL path, so `logRequests` writes it to the debug log, as it does a public share's token ([Calendar feed](#calendar-feed)).
 - huma names schemas by Go type, so `mealplan`'s types carry a `Plan` prefix; a plain `Summary` or `Entry` panics at startup beside `shopping` ([HTTP API](/architecture/api)).
 
 </Callout>
@@ -58,21 +59,33 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 **`GET …/events` is the list stream, keyed by plan.** `stream.go` mirrors the list's ([Shopping lists](/features/shopping-lists#live-updates)): `retry: 3000`, `event: changed` with the plan's `revision`, a ping every 25 s, and the stream ends once `GetMealPlanRevision` finds no row, so a removed member's stream ends (`TestStreamEndsWhenAccessLost`, `TestStreamForbidsStrangers`). `main.go` closes the plan hub on shutdown.
 
+### Calendar feed
+
+**Every signed-in person can subscribe to their plans in a calendar app.** `POST /api/v1/calendar-feed` (session only, never a token) makes a secret of 32 random bytes, base64url, stores only its SHA-256 in `calendar_feeds` (one row per person, replaced by an upsert) and answers `{url}`, `REZEPTE_PUBLIC_URL` + `/calendar/<secret>.ics`; a new one revokes the old, and `DELETE` revokes it (`TestFeedReplaceRevokesOld`). Deleting the account cascades the row. Without a public URL the answer is the bare path and events carry no recipe link.
+
+**`GET /calendar/{file}` needs no session, since a calendar app has none.** ServeMux cannot match `{secret}.ics`, so the handler takes the segment whole and cuts `.ics`; anything else, and an unknown or revoked secret, is the same 404. It answers `text/calendar; charset=utf-8` with every live, dated entry of every plan the person can access, from 365 days ago on - no tray, no removed entries, no plan they are only invited to (`TestFeedShowsOnlyAccessiblePlans`, `TestFeedSkipsTrayAndRemoved`). The dev server proxies `/calendar` to the service like `/api`.
+
+**`ical.go` writes RFC 5545 by hand, with the standard library.** One all-day event per entry: `DTSTART;VALUE=DATE` the day, `DTEND` the next, `UID` `<entryID>@<host of REZEPTE_PUBLIC_URL>` so a calendar keeps an entry across moves, `SUMMARY` the title, and `URL` and `DESCRIPTION` the recipe's permalink when it has one. Lines end in CRLF and fold at 75 octets, never inside a rune (continuation: CRLF plus a space); `\`, `;`, `,` and newlines are escaped in text (`TestICalFoldsAtOctetsNotRunes`, `TestICalEscapes`, `TestICalAllDayDates`, `TestICalUsesCRLF`). The fold test carries an all-umlaut summary, since a mixed one lands its cuts on ASCII and passes with a rune-splitting fold.
+
 ## Why it is this way
 
 **Plans copy the lists' sharing**, because the owner asked for "wie Listen": one model of creator, invitation and accepted member for both, the same 404 for a stranger and a pending invitee.
 
 **The plan pushes into the list rather than the list reading the plan**, because the list must keep working on its own: it keeps a copied block with its ticks, and only the link (`plan_entry_id`) lets later plan changes find it.
 
+**The feed has its own secret instead of an API token**, because tokens are admin-only and reach the whole API, while the feed is for everyone and reads one thing; a leaked feed URL is fixed by making a new one.
+
 **A soft delete rather than a delete with Undo re-adding**, because re-adding would make new list items and lose their ticks.
 
 ## Rejected
 
 - **Showing every linked list to every plan member.** It would leak the name and contents of a private list to people its owner never shared it with.
+- **An iCalendar library for the feed.** All-day events need a handful of lines, escaping and folding; a dependency would be against "standard library first".
 
 ## Limits
 
 - Deleting an account publishes nothing to the lists its plan entries were on; those lists show the stale block until their next refetch.
 - Deleting a list does not signal open plans; a plan page shows that list until its next refetch.
 - Staple changes do not publish, so another member's open dialog does not update live.
+- A calendar app refreshes the feed on its own schedule, often hours apart; a changed plan reaches it only then.
 - `PATCH` with both a move and servings runs two transactions; a failing second leaves the move done.

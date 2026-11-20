@@ -9,6 +9,12 @@ description: mise run //docs/user:openapi, and the configuration behind it
 
 </Callout>
 
+<Callout type="warn" title="Traps">
+
+- An operation `Description` with a double quote breaks the `docs/user` build: the generated card page carries it into an MDX attribute as `\"`, which MDX cannot parse. Word descriptions without double quotes.
+
+</Callout>
+
 ## What the task does
 
 ```bash

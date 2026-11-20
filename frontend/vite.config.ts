@@ -64,6 +64,8 @@ export default defineConfig({
 			'/api': { target: apiTarget, changeOrigin: false },
 			'/images': { target: apiTarget, changeOrigin: false },
 			'/avatars': { target: apiTarget, changeOrigin: false },
+			// A calendar app subscribes to the meal-plan feed under this path.
+			'/calendar': { target: apiTarget, changeOrigin: false },
 			// The API card reads the instance version from here. The built
 			// binary serves it from the same origin as the SPA; only the dev
 			// server needs to be told.

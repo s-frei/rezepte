@@ -48,6 +48,7 @@ func newAPI(t *testing.T) api {
 	shopping.Register(srv.API(), lists)
 	plans := mealplan.NewService(conn, lists)
 	mealplan.Register(srv.API(), plans)
+	mealplan.RegisterFeed(srv.API(), mealplan.NewFeeds(conn, "http://localhost:8060"))
 	return api{h: srv.Handler(), conn: conn, tokens: tokens, users: users}
 }
 

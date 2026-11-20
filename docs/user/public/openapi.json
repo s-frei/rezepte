@@ -1604,6 +1604,28 @@
         ],
         "type": "object"
       },
+      "FeedURL": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/FeedURL.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "url": {
+            "description": "The feed's secret address; anyone holding it reads the caller's plans",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      },
       "Find": {
         "additionalProperties": false,
         "properties": {
@@ -7435,6 +7457,70 @@
         "summary": "List the people who wrote recipes, with counts",
         "tags": [
           "recipes"
+        ]
+      }
+    },
+    "/api/v1/calendar-feed": {
+      "delete": {
+        "operationId": "delete-calendar-feed",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Revoke the caller's calendar feed",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "post": {
+        "description": "A new secret address for the caller's meal plans as an iCalendar feed; the address before stops working. Session only.",
+        "operationId": "create-calendar-feed",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedURL"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create or replace the caller's calendar feed",
+        "tags": [
+          "meal-plans"
         ]
       }
     },
@@ -16285,6 +16371,82 @@
         "summary": "Read an account's picture",
         "tags": [
           "users"
+        ]
+      }
+    },
+    "/calendar/{file}": {
+      "get": {
+        "description": "No session needed: a calendar app subscribes to the address create-calendar-feed returned. One all-day event per planned day entry of every plan the feed's owner can access, from a year ago on. An unknown or revoked secret answers 404.",
+        "operationId": "get-calendar-feed",
+        "parameters": [
+          {
+            "description": "The secret followed by .ics",
+            "in": "path",
+            "name": "file",
+            "required": true,
+            "schema": {
+              "description": "The secret followed by .ics",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The iCalendar file",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Read a calendar feed",
+        "tags": [
+          "public"
         ]
       }
     },

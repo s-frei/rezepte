@@ -287,6 +287,7 @@ func run() error {
 	planSvc.SetInviteNotifier(notifications)
 	srv.OnShutdown(planSvc.Hub().Close)
 	mealplan.Register(srv.API(), planSvc)
+	mealplan.RegisterFeed(srv.API(), mealplan.NewFeeds(conn, cfg.PublicURL))
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
 	photos := mcpserver.Photos{Images: images, Links: uploadLinks, Fetch: recipeimport.NewFetcher(version, recipeimport.PublicOnly)}
