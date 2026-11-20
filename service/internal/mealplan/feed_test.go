@@ -115,7 +115,8 @@ func TestFeedShowsOnlyAccessiblePlans(t *testing.T) {
 	a.plannedOn(t, ben, a.personal(t, ben), ptr(day(2)), "Bens Plan")
 
 	body := a.feed(t, a.newFeed(t, ben), http.StatusOK)
-	for title, want := range map[string]bool{"Gemeinsam": true, "Bens Plan": true, "Annas Einladung": false, "Annas Plan": false} {
+	// A shared plan's events carry its name; the personal plan's stay bare.
+	for title, want := range map[string]bool{"Familie · Gemeinsam": true, "Bens Plan": true, "Annas Einladung": false, "Nur Anna · Annas Einladung": false, "Annas Plan": false} {
 		if got := strings.Contains(body, "SUMMARY:"+title+"\r\n"); got != want {
 			t.Errorf("%s in ben's feed: %v, want %v", title, got, want)
 		}

@@ -198,7 +198,7 @@ DELETE FROM calendar_feeds WHERE user_id = ?;
 -- The live dated entries from a day on of every plan the person created or
 -- accepted, for the calendar feed.
 -- name: ListCalendarFeedEntries :many
-SELECT e.id, e.day, e.title, r.slug AS recipe_slug
+SELECT e.id, e.day, e.title, r.slug AS recipe_slug, p.name AS plan_name
 FROM meal_plan_entries e
 JOIN meal_plans p ON p.id = e.plan_id
 LEFT JOIN recipes r ON r.id = e.recipe_id

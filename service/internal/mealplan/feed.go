@@ -110,6 +110,10 @@ func (f *Feeds) Write(ctx context.Context, w io.Writer, secret string) error {
 	events := make([]feedEvent, 0, len(rows))
 	for _, r := range rows {
 		e := feedEvent{UID: r.ID, Day: *r.Day, Summary: r.Title}
+		// One feed holds every plan: a shared plan's name says whose evening it is.
+		if r.PlanName != nil {
+			e.Summary = *r.PlanName + " · " + r.Title
+		}
 		if r.RecipeSlug != nil && f.publicURL != "" {
 			e.URL = f.publicURL + "/recipes/" + *r.RecipeSlug
 		}

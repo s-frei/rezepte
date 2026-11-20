@@ -419,7 +419,7 @@ func (q *Queries) InsertPersonalMealPlan(ctx context.Context, arg InsertPersonal
 }
 
 const listCalendarFeedEntries = `-- name: ListCalendarFeedEntries :many
-SELECT e.id, e.day, e.title, r.slug AS recipe_slug
+SELECT e.id, e.day, e.title, r.slug AS recipe_slug, p.name AS plan_name
 FROM meal_plan_entries e
 JOIN meal_plans p ON p.id = e.plan_id
 LEFT JOIN recipes r ON r.id = e.recipe_id
@@ -438,6 +438,7 @@ type ListCalendarFeedEntriesRow struct {
 	Day        *string
 	Title      string
 	RecipeSlug *string
+	PlanName   *string
 }
 
 // The live dated entries from a day on of every plan the person created or
@@ -456,6 +457,7 @@ func (q *Queries) ListCalendarFeedEntries(ctx context.Context, arg ListCalendarF
 			&i.Day,
 			&i.Title,
 			&i.RecipeSlug,
+			&i.PlanName,
 		); err != nil {
 			return nil, err
 		}
