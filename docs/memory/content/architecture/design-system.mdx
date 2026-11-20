@@ -23,6 +23,7 @@ description: Token roles, type scale, component rules and interaction rules of t
 - `touch-action` combines only up to the nearest scroll container: a value on a gesture's element alone does nothing inside a scroller, and the browser cancels the pointer ([Scrolling](#scrolling)).
 - sharp and librsvg render `favicon.svg` and the lockups blank, since neither decodes the WebP inside; look at them in a browser ([Logo](#logo)).
 - Sonner's styles are unlayered and beat the utilities; its classes need Tailwind's `!` ([Components](#patterns-in-feature-components)).
+- A view transition Chromium aborts ("Prepaint layout check failed") rejects `ready` as well as `finished`; catch both, or the abort surfaces as an uncaught error while the change itself still lands ([View transitions](#view-transitions)).
 
 </Callout>
 

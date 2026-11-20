@@ -29,9 +29,11 @@ export function setTheme(next: Theme): void {
 			root.style.setProperty('--theme-y', `${from.top + from.height / 2}px`);
 		}
 		root.dataset.themeTransition = '';
-		void document
-			.startViewTransition(apply)
-			.finished.catch(() => {})
+		const transition = document.startViewTransition(apply);
+		// An aborted transition rejects `ready` too; the theme still changes.
+		transition.ready.catch(() => {});
+		void transition.finished
+			.catch(() => {})
 			.finally(() => {
 				delete root.dataset.themeTransition;
 				root.style.removeProperty('--theme-x');

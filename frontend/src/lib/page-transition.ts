@@ -161,6 +161,8 @@ function transitionFor(navigation: OnNavigate, tapped: boolean): Promise<void> |
 				name(await arrived(to.route.id!, slug!));
 			}
 		});
+		// An aborted transition rejects `ready` too; the page still changes.
+		transition.ready.catch(() => {});
 		transition.finished
 			.catch(() => {})
 			.finally(() => {
