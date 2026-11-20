@@ -24,6 +24,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/ingredient"
+	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
@@ -514,7 +515,7 @@ func nameAdmin(ctx context.Context, users *user.Service, locale user.Locale) err
 // switches sharing on, which creating a link needs. It is switched off
 // again once the links exist, so they start out paused. The diary entries
 // in memberComments are dated back from sum.Now, and so are the
-// sampleLists. Last it issues that admin
+// sampleLists; seedPlans plans the week on top of the weekly shop. Last it issues that admin
 // the sampleTokens, dated from sum.Now too. After a skipped seed it writes
 // nothing.
 func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer string) error {
@@ -582,7 +583,11 @@ func SeedMembers(ctx context.Context, conn *sql.DB, sum Summary, owner, issuer s
 	if err := seedComments(ctx, conn, sum, admin); err != nil {
 		return err
 	}
-	if err := seedLists(ctx, conn, sum, admin); err != nil {
+	weeklyShop, err := seedLists(ctx, conn, sum, admin)
+	if err != nil {
+		return err
+	}
+	if err := seedPlans(ctx, conn, sum, admin, weeklyShop); err != nil {
 		return err
 	}
 	if sharing {
@@ -640,6 +645,8 @@ type sampleList struct {
 	// adds the extra free items.
 	sharedWith []sampleInvite
 	extra      map[user.Locale][]string
+	// weekly marks the list seedPlans puts the planned week on.
+	weekly bool
 }
 
 // sampleInvite is one invitation the demo writes: to whom, and whether the
@@ -690,6 +697,7 @@ var sampleLists = []sampleList{
 	{
 		owner: AdminUser, ago: 3 * time.Hour,
 		name:    map[user.Locale]string{"de": "Wocheneinkauf", "en": "Weekly shop"},
+		weekly:  true,
 		recipes: []int{0, 1},
 		free: map[user.Locale][]string{
 			"de": {"2 l Milch", "Kaffee"},
@@ -710,7 +718,7 @@ var sampleLists = []sampleList{
 // seedLists writes sampleLists in the admin's locale through the shopping
 // service, its clock set to each list's time, so the overview's order and
 // the lists' dates follow sum.Now.
-func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) error {
+func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) (weeklyShop string, err error) {
 	people := map[string]user.User{AdminUser: admin}
 	for _, m := range sum.Members {
 		people[m.Username] = m
@@ -736,8 +744,11 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 			name = sl.name["en"]
 		}
 		l, err := lists.Create(ctx, owner.ID, name)
+		if sl.weekly {
+			weeklyShop = l.ID
+		}
 		if err != nil {
-			return fmt.Errorf("create demo list %q: %w", name, err)
+			return "", fmt.Errorf("create demo list %q: %w", name, err)
 		}
 		for _, i := range sl.recipes {
 			if i >= len(sum.RecipeIDs) {
@@ -745,7 +756,7 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 			}
 			r, err := recipes.ByID(ctx, sum.RecipeIDs[i])
 			if err != nil {
-				return fmt.Errorf("get sample %d: %w", i, err)
+				return "", fmt.Errorf("get sample %d: %w", i, err)
 			}
 			var all []shopping.IngredientPick
 			for g, group := range r.IngredientGroups {
@@ -754,12 +765,12 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 				}
 			}
 			if l, err = lists.AddRecipe(ctx, owner.ID, l.ID, r.ID, listServings, all); err != nil {
-				return fmt.Errorf("add sample %d to %q: %w", i, name, err)
+				return "", fmt.Errorf("add sample %d to %q: %w", i, name, err)
 			}
 		}
 		for _, text := range in(sl.free) {
 			if l, err = lists.AddFree(ctx, owner.ID, l.ID, text); err != nil {
-				return fmt.Errorf("add %q to %q: %w", text, name, err)
+				return "", fmt.Errorf("add %q to %q: %w", text, name, err)
 			}
 		}
 		keys := map[string]bool{}
@@ -773,7 +784,7 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 			}
 		}
 		if _, err := lists.SetChecked(ctx, owner.ID, l.ID, ids, true); err != nil {
-			return fmt.Errorf("check items on %q: %w", name, err)
+			return "", fmt.Errorf("check items on %q: %w", name, err)
 		}
 		memberTicked := false
 		for _, inv := range sl.sharedWith {
@@ -782,13 +793,13 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 				continue
 			}
 			if _, err := lists.Invite(ctx, owner.ID, l.ID, who.ID); err != nil {
-				return fmt.Errorf("invite %s to %q: %w", inv.to, name, err)
+				return "", fmt.Errorf("invite %s to %q: %w", inv.to, name, err)
 			}
 			if !inv.accepted {
 				continue
 			}
 			if _, err := lists.Accept(ctx, who.ID, l.ID); err != nil {
-				return fmt.Errorf("accept %q as %s: %w", name, inv.to, err)
+				return "", fmt.Errorf("accept %q as %s: %w", name, inv.to, err)
 			}
 			// The first member ticked every other done item, so "Done" shows two people.
 			if !memberTicked {
@@ -798,15 +809,178 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 					theirs = append(theirs, ids[i])
 				}
 				if _, err := lists.SetChecked(ctx, who.ID, l.ID, theirs, true); err != nil {
-					return fmt.Errorf("check items on %q as %s: %w", name, inv.to, err)
+					return "", fmt.Errorf("check items on %q as %s: %w", name, inv.to, err)
 				}
 			}
 			for _, text := range in(sl.extra) {
 				if _, err := lists.AddFree(ctx, who.ID, l.ID, text); err != nil {
-					return fmt.Errorf("add %q to %q as %s: %w", text, name, inv.to, err)
+					return "", fmt.Errorf("add %q to %q as %s: %w", text, name, inv.to, err)
 				}
 			}
 		}
+	}
+	return weeklyShop, nil
+}
+
+// plannedMeal is one entry of a sample plan: a sample (by index) or, when
+// free is set, a typed-in text per locale, on a day counted from Monday of
+// the week it belongs to (week 0 is the demo's, -1 the one before); day -1 is
+// the tray.
+type plannedMeal struct {
+	week, day int
+	recipe    int
+	free      map[user.Locale]string
+}
+
+// householdPlan is what the shared plan holds: a week with one empty day
+// (Wednesday), leftovers and a takeaway as free texts, a day of three
+// recipes (Saturday) and two recipes on the tray, and the week before.
+var householdPlan = []plannedMeal{
+	{0, 0, 2, nil}, {0, 0, -1, map[user.Locale]string{"de": "Reste vom Sonntag", "en": "Leftovers"}},
+	{0, 1, 3, nil}, {0, 3, 4, nil},
+	{0, 4, -1, map[user.Locale]string{"de": "Pizza bestellen", "en": "Order pizza"}},
+	{0, 5, 5, nil}, {0, 5, 6, nil}, {0, 5, 7, nil}, {0, 6, 8, nil},
+	{0, -1, 9, nil}, {0, -1, 10, nil},
+	{-1, 0, 11, nil}, {-1, 2, 0, nil}, {-1, 4, 1, nil},
+}
+
+// ownPlans are the entries of the people's personal plans.
+var ownPlans = map[string][]plannedMeal{
+	AdminUser: {{0, 1, 0, nil}, {0, 3, 1, nil}},
+	"jonas":   {{0, 5, 8, nil}},
+}
+
+// planNames and planStaples are per locale; a locale without its own uses
+// English.
+var (
+	householdName = map[user.Locale]string{"de": "Haushalt", "en": "Household"}
+	planStaples   = map[user.Locale][]string{"de": {"Salz", "Öl", "Pfeffer"}, "en": {"salt", "oil", "pepper"}}
+)
+
+// seedPlans writes the admin's plan and the shared household plan through the
+// meal plan service (with no notifier, so nothing is sent), dated from
+// sum.Now with Monday-based weeks: Mila accepted the household, Jonas is
+// invited and keeps a plan of his own. The household's Monday to Thursday go
+// onto the weekly shop list like the app's "Auf die Liste" would put them,
+// minus the staples, as Mila, who shares both.
+func seedPlans(ctx context.Context, conn *sql.DB, sum Summary, admin user.User, weeklyShop string) error {
+	people := map[string]user.User{AdminUser: admin}
+	for _, m := range sum.Members {
+		people[m.Username] = m
+	}
+	text := func(m map[user.Locale]string) string {
+		if t, ok := m[admin.Locale]; ok {
+			return t
+		}
+		return m["en"]
+	}
+	// The plan is written as the weekly shop was last changed, so the lists
+	// overview keeps its order and Mila stays the last to touch the list.
+	at := sum.Now.Add(-3 * time.Hour)
+	lists := shopping.NewService(conn)
+	lists.SetClock(func() time.Time { return at })
+	plans := mealplan.NewService(conn, lists)
+	plans.SetClock(func() time.Time { return at })
+	monday := sum.Now.AddDate(0, 0, -((int(sum.Now.Weekday()) + 6) % 7))
+	from, to := monday.AddDate(0, 0, -7).Format(time.DateOnly), monday.AddDate(0, 0, 6).Format(time.DateOnly)
+	put := func(planID string, who user.User, entries []plannedMeal) error {
+		for _, e := range entries {
+			in := mealplan.AddEntry{}
+			if e.day >= 0 {
+				d := monday.AddDate(0, 0, 7*e.week+e.day).Format(time.DateOnly)
+				in.Day = &d
+			}
+			switch {
+			case e.free != nil:
+				t := text(e.free)
+				in.Title = &t
+			case e.recipe < len(sum.RecipeIDs):
+				in.RecipeID = &sum.RecipeIDs[e.recipe]
+			default:
+				continue
+			}
+			if _, err := plans.Add(ctx, who.ID, planID, from, to, in); err != nil {
+				return fmt.Errorf("plan sample %d for %s: %w", e.recipe, who.Username, err)
+			}
+		}
+		return nil
+	}
+	personal := func(who user.User) (string, error) {
+		mine, _, err := plans.Plans(ctx, who.ID)
+		if err != nil {
+			return "", fmt.Errorf("list %s's plans: %w", who.Username, err)
+		}
+		for _, p := range mine {
+			if p.Personal {
+				return p.ID, nil
+			}
+		}
+		return "", fmt.Errorf("%s has no personal plan", who.Username)
+	}
+	for name, entries := range ownPlans {
+		who, ok := people[name]
+		if !ok {
+			continue
+		}
+		id, err := personal(who)
+		if err != nil {
+			return err
+		}
+		if err := put(id, who, entries); err != nil {
+			return err
+		}
+	}
+	house, err := plans.Create(ctx, admin.ID, text(householdName))
+	if err != nil {
+		return fmt.Errorf("create the household plan: %w", err)
+	}
+	if err := put(house.ID, admin, householdPlan); err != nil {
+		return err
+	}
+	for _, n := range planStaples[admin.Locale] {
+		if _, err := plans.SetStaple(ctx, admin.ID, house.ID, n, true); err != nil {
+			return fmt.Errorf("set staple %q: %w", n, err)
+		}
+	}
+	if mila, ok := people["mila"]; ok {
+		if _, err := plans.Invite(ctx, admin.ID, house.ID, mila.ID); err != nil {
+			return fmt.Errorf("invite mila to the household: %w", err)
+		}
+		if _, err := plans.Accept(ctx, mila.ID, house.ID); err != nil {
+			return fmt.Errorf("accept the household as mila: %w", err)
+		}
+	}
+	if jonas, ok := people["jonas"]; ok {
+		if _, err := plans.Invite(ctx, admin.ID, house.ID, jonas.ID); err != nil {
+			return fmt.Errorf("invite jonas to the household: %w", err)
+		}
+	}
+	if weeklyShop == "" {
+		return nil
+	}
+	end := monday.AddDate(0, 0, 3).Format(time.DateOnly)
+	shopper := admin
+	if m, ok := people["mila"]; ok {
+		shopper = m
+	}
+	preview, err := plans.Preview(ctx, shopper.ID, house.ID, monday.Format(time.DateOnly), end, false)
+	if err != nil {
+		return fmt.Errorf("preview the household's week: %w", err)
+	}
+	t := mealplan.ToList{ListID: &weeklyShop}
+	for _, e := range preview {
+		pick := mealplan.ToListPick{EntryID: e.EntryID}
+		for _, ing := range e.Ingredients {
+			if !ing.Staple {
+				pick.Include = append(pick.Include, shopping.IngredientPick{Group: ing.Group, Index: ing.Index})
+			}
+		}
+		if len(pick.Include) > 0 {
+			t.Picks = append(t.Picks, pick)
+		}
+	}
+	if _, _, err := plans.ToList(ctx, shopper.ID, house.ID, monday.Format(time.DateOnly), end, t); err != nil {
+		return fmt.Errorf("put the household's week on the weekly shop: %w", err)
 	}
 	return nil
 }

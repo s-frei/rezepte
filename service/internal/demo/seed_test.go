@@ -13,6 +13,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/demo"
+	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/shopping"
@@ -766,6 +767,9 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 	}
 	var titles []string
 	for _, e := range weekly.Entries {
+		if e.PlanDay != nil { // a block from the meal plan, see TestSeedPlans
+			continue
+		}
 		titles = append(titles, e.Title)
 		if e.Servings != 4 {
 			t.Errorf("%s at %d servings, want 4", e.Title, e.Servings)
@@ -843,5 +847,86 @@ func TestSeedLinksATechniquePhotoToItsStep(t *testing.T) {
 				t.Fatalf("step %d photos = %+v, images = %+v", c.step, p, r.Images)
 			}
 		})
+	}
+}
+
+// TestSeedPlans pins the meal plans: the admin's personal plan and the shared
+// household, Mila a member, Jonas still invited, and the weekly shop carrying
+// blocks that came from the plan.
+func TestSeedPlans(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	conn := dbtest.Open(t)
+	users := user.NewService(conn, "")
+	admin, err := users.Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin, Locale: "de"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	members, err := demo.AddMembers(ctx, conn, "de", quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC) // a Wednesday
+	sum, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", members, "de", now, quiet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := demo.SeedMembers(ctx, conn, sum, "demo", ""); err != nil {
+		t.Fatal(err)
+	}
+	plans := mealplan.NewService(conn, shopping.NewService(conn))
+	id := map[string]string{}
+	for _, m := range members {
+		id[m.Username] = m.ID
+	}
+
+	mine, _, err := plans.Plans(ctx, admin.ID)
+	if err != nil || len(mine) != 2 {
+		t.Fatalf("admin plans = %+v, %v; want 2", mine, err)
+	}
+	var house mealplan.PlanSummary
+	for _, p := range mine {
+		if p.Name != nil {
+			house = p
+		}
+	}
+	if house.Name == nil || *house.Name != "Haushalt" {
+		t.Fatalf("shared plan = %+v", house)
+	}
+	full, err := plans.Get(ctx, admin.ID, house.ID, "2026-11-09", "2026-11-22")
+	if err != nil || len(full.Entries) < 10 || len(full.Members) != 1 {
+		t.Fatalf("household = %d entries, %d members, %v", len(full.Entries), len(full.Members), err)
+	}
+	if st, _ := plans.Staples(ctx, admin.ID, house.ID); len(st) != 3 {
+		t.Fatalf("staples = %+v", st)
+	}
+
+	milas, _, err := plans.Plans(ctx, id["mila"])
+	if err != nil || len(milas) != 2 {
+		t.Fatalf("mila plans = %+v, %v", milas, err)
+	}
+	if _, inv, err := plans.Plans(ctx, id["jonas"]); err != nil || len(inv) != 1 || inv[0].Name == nil || *inv[0].Name != "Haushalt" {
+		t.Fatalf("jonas invitations = %+v, %v", inv, err)
+	}
+
+	lists := shopping.NewService(conn)
+	all, _ := lists.Lists(ctx, admin.ID)
+	var withDay int
+	for _, s := range all {
+		if s.Name != "Wocheneinkauf" {
+			continue
+		}
+		l, err := lists.Get(ctx, admin.ID, s.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range l.Entries {
+			if e.PlanDay != nil {
+				withDay++
+			}
+		}
+	}
+	if withDay == 0 {
+		t.Fatal("the weekly shop has no block from the plan")
 	}
 }
