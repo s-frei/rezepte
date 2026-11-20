@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+	"unicode/utf8"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -140,7 +141,7 @@ type revokeSetupLinkOutput struct{}
 type updateInput struct {
 	ID   string `path:"id"`
 	Body struct {
-		Password    *string `json:"password,omitempty" minLength:"8" maxLength:"128" doc:"New password; ends all of the user's sessions"`
+		Password    *string `json:"password,omitempty" minLength:"8" maxLength:"128" doc:"New password; ends all of the user's sessions and closes an open setup link"`
 		Role        *string `json:"role,omitempty" enum:"admin,user"`
 		DisplayName *string `json:"displayName,omitempty" maxLength:"64" doc:"Owner only"`
 		Color       *string `json:"color,omitempty" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Owner only"`
@@ -441,7 +442,8 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err := user.GuardTarget(actor.Role, user.Role(in.Body.Role)); err != nil {
 			return nil, userError(err)
 		}
-		if in.Body.Password != "" && len(in.Body.Password) < 8 {
+		// Counted in characters, as huma counts minLength on update-user.
+		if in.Body.Password != "" && utf8.RuneCountInString(in.Body.Password) < 8 {
 			return nil, huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{
 				Location: "body.password", Message: "expected length >= 8",
 			})

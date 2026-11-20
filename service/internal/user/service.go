@@ -541,7 +541,8 @@ func (s *Service) Delete(ctx context.Context, actor User, id string) error {
 // is never a valid target, not even for themselves - their password is theirs
 // alone, and self-service goes through ChangePassword. The read, the guard and
 // the write share one transaction, so a concurrent promotion cannot slip the
-// target out from under a check that already passed.
+// target out from under a check that already passed. It closes any open
+// setup link in the same transaction.
 func (s *Service) SetPassword(ctx context.Context, actor User, id, password string) error {
 	// Hashing is the expensive half and needs no row, so it happens before
 	// the transaction: db.Tx takes a write lock at BEGIN, and holding that
@@ -568,6 +569,11 @@ func (s *Service) SetPassword(ctx context.Context, actor User, id, password stri
 		}
 		if n == 0 {
 			return ErrNotFound
+		}
+		// An open setup link would let whoever holds it overwrite the
+		// password just set, and a reset is meant to shut the old ways in.
+		if err := q.DeleteSetupLinkOfUser(ctx, id); err != nil {
+			return fmt.Errorf("close setup link of %s: %w", id, err)
 		}
 		return nil
 	})

@@ -345,6 +345,37 @@ func TestCreateUserStillRejectsAShortPassword(t *testing.T) {
 	}
 }
 
+// Eight bytes but five characters: the length rule counts characters, the
+// same as update-user's minLength.
+func TestCreateUserCountsPasswordLengthInCharacters(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user","password":"äöüäö"}`, c)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "body.password") {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// A reset shuts the old ways in, so an open invite cannot overwrite the
+// password the admin just set.
+func TestResetClosesTheOpenSetupLink(t *testing.T) {
+	h := newHandler(t)
+	c := loginAs(t, h, "sam", "pw")
+	if rec := doReq(h, http.MethodPost, "/api/v1/users", `{"username":"anna","role":"user"}`, c); rec.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body.String())
+	}
+	anna := userNamed(t, h, c, "anna")
+	if anna.SetupLinkExpiresAt == nil {
+		t.Fatal("no open setup link after create")
+	}
+	if rec := doReq(h, http.MethodPatch, "/api/v1/users/"+anna.ID, `{"password":"set-by-admin"}`, c); rec.Code != http.StatusOK {
+		t.Fatalf("reset: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := userNamed(t, h, c, "anna").SetupLinkExpiresAt; got != nil {
+		t.Fatalf("setup link still open until %v after the reset", got)
+	}
+}
+
 func TestIssueSetupLinkIsSessionOnlyAndRanked(t *testing.T) {
 	h := newHandler(t)
 	c := loginAs(t, h, "sam", "pw")
