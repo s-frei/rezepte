@@ -3,7 +3,7 @@ title: Notifications
 description: The notifications people can switch off per channel (mail, push) and group - a new comment, the daily new recipes digest, a tasty mark, an accepted invitation, mail failing for the owner - their preferences, the signed unsubscribe link and the two pages
 ---
 
-Rezepte mails and pushes five things a person may not want: a new comment on a recipe they follow, a daily digest of the recipes others added, a tasty mark on their recipe, an invitation to a shopping list and, to admins and the owner, an invitation of theirs that was accepted. A sixth goes to the owner by push alone: mail is not getting out. Each can be switched off per channel in Settings → Notifications, and for mail from the link in the mail. The sender, the templates and the SMTP setup belong to [Email](/features/email); the fan-out, the preferences and the unsubscribe live in `service/internal/notify`. Password and address notices are security notices, not notifications, and nothing here reaches them.
+Rezepte mails and pushes five things a person may not want: a new comment on a recipe they follow, a daily digest of the recipes others added, a tasty mark on their recipe, an invitation to a shopping list or a meal plan and, to admins and the owner, an invitation of theirs that was accepted. A sixth goes to the owner by push alone: mail is not getting out. Each can be switched off per channel in Settings → Notifications, and for mail from the link in the mail. The sender, the templates and the SMTP setup belong to [Email](/features/email); the fan-out, the preferences and the unsubscribe live in `service/internal/notify`. Password and address notices are security notices, not notifications, and nothing here reaches them.
 
 <Callout type="warn" title="Traps">
 
@@ -18,7 +18,7 @@ Rezepte mails and pushes five things a person may not want: a new comment on a r
 
 ### Preferences
 
-**Kinds, groups and channels are stored values, so they never change.** `service/internal/notify` owns the switchable notifications. A `Kind` (`comment`, `recipe`, `tasty` and `list_invite` in `household`, `invite_accepted` and `mail_failing` in `admin`, in the order the settings show them) belongs to a `Group` and goes out on a `Channel`, `mail` or `push`. `KindsFor(role, channel)` gives the admin group only to admins and the owner, and `mail_failing` only to the owner and only on `push` (a mail cannot warn that mail fails); an unknown channel has no kinds.
+**Kinds, groups and channels are stored values, so they never change.** `service/internal/notify` owns the switchable notifications. A `Kind` (`comment`, `recipe`, `tasty`, `list_invite` and `plan_invite` in `household`, `invite_accepted` and `mail_failing` in `admin`, in the order the settings show them) belongs to a `Group` and goes out on a `Channel`, `mail` or `push`. `KindsFor(role, channel)` gives the admin group only to admins and the owner, and `mail_failing` only to the owner and only on `push` (a mail cannot warn that mail fails); an unknown channel has no kinds.
 
 **Every kind is on until the account opts out, at two levels.** `notification_optouts` holds a row per (kind, channel) switched off, `notification_group_optouts` a row per (group, channel) whose master switch is off. A kind goes out on a channel only when neither row exists, so a group switched off also silences a kind added later (`TestGroupOffSilencesLaterKinds`), and switching the group on again brings back each kind's own choice, which the group row never touched (`TestGroupMasterKeepsKindChoices`). Migration 0021 gave every opt-out from before channels `channel = 'mail'` and turned an account's rows for every kind a group then had into that group's mail row; push starts with no rows.
 
@@ -26,7 +26,7 @@ Rezepte mails and pushes five things a person may not want: a new comment on a r
 
 ### Who is told
 
-**Notifications are decided in `notify`, sent by `mail` and `push`.** `notify.Mailer` is `Enabled`, `SendComment`, `SendRecipeDigest`, `SendTasty`, `SendListInvite` and `SendInviteAccepted`; `mail.Comment`, `mail.RecipeDigest`, `mail.Tasty`, `mail.ListInvite` and `mail.InviteAccepted` carry the recipient, the copy's facts, the locale and the `Unsubscribe` links. Each goes only to a confirmed address of an account that did not switch the kind off for mail. The code is `service/internal/notify/fanout.go`, `digest.go`, `tasty.go`, `listinvite.go` and `mailalert.go`; mail off, a refused send (logged by `deliver`) or any other failure (`mail.LogUnsent`: user ID, never the address; also for the invitation mail and the security notices) never stops the next recipient.
+**Notifications are decided in `notify`, sent by `mail` and `push`.** `notify.Mailer` is `Enabled`, `SendComment`, `SendRecipeDigest`, `SendTasty`, `SendListInvite`, `SendPlanInvite` and `SendInviteAccepted`; `mail.Comment`, `mail.RecipeDigest`, `mail.Tasty`, `mail.ListInvite`, `mail.PlanInvite` and `mail.InviteAccepted` carry the recipient, the copy's facts, the locale and the `Unsubscribe` links. Each goes only to a confirmed address of an account that did not switch the kind off for mail. The code is `service/internal/notify/fanout.go`, `digest.go`, `tasty.go`, `listinvite.go`, `planinvite.go` and `mailalert.go`; mail off, a refused send (logged by `deliver`) or any other failure (`mail.LogUnsent`: user ID, never the address; also for the invitation mail and the security notices) never stops the next recipient.
 
 #### New comment
 
@@ -47,6 +47,8 @@ Rezepte mails and pushes five things a person may not want: a new comment on a r
 **A shutdown waits for the run, within a bound.** After the commit the run detaches from its context (`context.WithoutCancel`), so a shutdown does not cut it short (`TestDigestOutlivesItsContext`). The run only renders and queues its mails, so it takes seconds however slow the server is; `main.go` waits for it, then for the mail queue and push, all within one 8 second deadline from the stop signal ([Email](/features/email#the-queue)), which fits a container runtime's default stop timeout.
 
 #### Shopping list invitation
+
+**Meal plan invitation.** `notify.Service.PlanInvited` (`planinvite.go`) is the `mealplan.InviteNotifier`; it works exactly like the list invitation below, with the plan's name in the subject (`mail_plan_invite_subject`), a button to `/week` and the push to `/week?plan=<planID>` (`TestPlanInviteNotifiesInvitee`, `TestPlanInviteRespectsChannels`, `TestPlanInviteSkipsGoneAccounts`, `TestPlanInviteSkipsPersonalPlan`). A personal plan has no name and is never shared, so it sends nothing. `main.go` does not wire the notifier yet.
 
 **Shopping list invitation.** `notify.Service.ListInvited` (`listinvite.go`) is the `shopping.InviteNotifier`, set in `main.go`; it runs at once, with no delay, after an invite that added a row. One mail to the invitee at a confirmed address (subject `mail_list_invite_subject`, a button to `/lists`, unsubscribe link) unless `list_invite` or the household group is off for mail, and one push unless they are off for push, both in the invitee's locale; an invitee or inviter whose account is gone gets nothing (`TestListInviteNotifiesInvitee`, `TestListInviteRespectsChannels`, `TestListInviteSkipsGoneAccounts`). The e2e spec `mail.test.ts` checks the mail reaches Mailpit.
 
@@ -72,6 +74,7 @@ Rezepte mails and pushes five things a person may not want: a new comment on a r
 | `recipe` | `mail_push_recipe_title` | `mail_push_recipe_body_one` `{title} from {names}`, from two recipes `mail_push_recipe_body_many` `{count} new recipes from {names}` | `/` | `recipe-digest` |
 | `tasty` | `mail_push_tasty_title` | `mail_push_tasty_body` `{name} finds your recipe “{title}” tasty` | `/recipes/<slug>` | `tasty:<recipeID>:<markerID>` |
 | `list_invite` | `mail_push_list_invite_title` | `mail_push_list_invite_body` `{name} invites you to “{list}”` | `/lists` | `list-invite:<listID>` |
+| `plan_invite` | `mail_push_plan_invite_title` | `mail_push_plan_invite_body` `{name} invites you to “{plan}”` | `/week?plan=<planID>` | `plan-invite:<planID>` |
 | `invite_accepted` | `mail_push_invite_accepted_title` | `mail_push_invite_accepted_body` `{name} signs in as {username}` | `/settings/users` | `invite:<newcomerID>` |
 | `mail_failing` | `mail_push_mail_failing_title` | `mail_push_mail_failing_<reason>`, reason `auth`, `connect`, `tls` or `sender` | `/settings/mail` | `mail-failing` |
 

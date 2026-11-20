@@ -155,7 +155,9 @@ func TestPersonalPlanCannotBeRenamedDeletedOrShared(t *testing.T) {
 	if err != nil || p.Name != nil || p.Revision != 0 {
 		t.Fatalf("plan after refusals = %+v, %v; want unnamed, revision 0", p, err)
 	}
-	// Sharing (Invite) arrives with the sharing methods and is tested there.
+	if _, err := e.svc.Invite(ctx, e.a.ID, id, e.b.ID); !errors.Is(err, mealplan.ErrPersonal) {
+		t.Fatalf("invite = %v, want ErrPersonal", err)
+	}
 }
 
 func TestForeignPlanIsNotFound(t *testing.T) {
@@ -495,5 +497,186 @@ func TestChangesPublish(t *testing.T) {
 	case <-events:
 		t.Fatal("a refused change signaled")
 	default:
+	}
+}
+
+type invited struct{ plan, inviter, invitee string }
+
+type recorder struct{ got []invited }
+
+func (r *recorder) PlanInvited(_ context.Context, planID, inviterID, inviteeID string) {
+	r.got = append(r.got, invited{planID, inviterID, inviteeID})
+}
+
+// shared returns anna's plan with ben as an accepted member.
+func (e *env) shared(t *testing.T) string {
+	t.Helper()
+	ctx := context.Background()
+	id := e.plan(t).ID
+	if _, err := e.svc.Invite(ctx, e.a.ID, id, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Accept(ctx, e.b.ID, id); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestInviteAcceptFlow(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	rec := &recorder{}
+	e.svc.SetInviteNotifier(rec)
+	id := e.plan(t).ID
+	p, err := e.svc.Invite(ctx, e.a.ID, id, e.b.ID)
+	if err != nil || len(p.Pending) != 1 || len(p.Members) != 0 {
+		t.Fatalf("invite = %+v, %v; want ben pending", p, err)
+	}
+	if want := (invited{id, e.a.ID, e.b.ID}); len(rec.got) != 1 || rec.got[0] != want {
+		t.Fatalf("notified %+v, want %+v", rec.got, want)
+	}
+	_, inv, err := e.svc.Plans(ctx, e.b.ID)
+	if err != nil || len(inv) != 1 || inv[0].PlanID != id {
+		t.Fatalf("ben's invitations = %+v, %v", inv, err)
+	}
+	p, err = e.svc.Accept(ctx, e.b.ID, id)
+	if err != nil || len(p.Members) != 1 || p.Members[0].ID != e.b.ID {
+		t.Fatalf("accept = %+v, %v; want ben a member", p, err)
+	}
+	if _, err := e.svc.Add(ctx, e.b.ID, id, mon, sun, mealplan.AddEntry{Day: ptr(mon), Title: ptr("Pizza")}); err != nil {
+		t.Fatalf("ben add: %v", err)
+	}
+	if _, err := e.svc.Accept(ctx, e.b.ID, id); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("second accept = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.Invite(ctx, e.a.ID, id, e.a.ID); !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("invite self = %v, want ErrInvalid", err)
+	}
+	if _, err := e.svc.Invite(ctx, e.a.ID, id, "nobody"); !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("invite stranger = %v, want ErrInvalid", err)
+	}
+	if err := e.svc.Leave(ctx, e.b.ID, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(ctx, e.b.ID, id, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("ben get after leave = %v, want ErrNotFound", err)
+	}
+}
+
+func TestInviteIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	rec := &recorder{}
+	e.svc.SetInviteNotifier(rec)
+	id := e.plan(t).ID
+	for range 2 {
+		if _, err := e.svc.Invite(ctx, e.a.ID, id, e.b.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.svc.Accept(ctx, e.b.ID, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Invite(ctx, e.a.ID, id, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.got) != 1 {
+		t.Fatalf("notified %d times, want once", len(rec.got))
+	}
+}
+
+func TestPendingInviteeCannotRead(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	if _, err := e.svc.Invite(ctx, e.a.ID, id, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Get(ctx, e.b.ID, id, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("pending get = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.Add(ctx, e.b.ID, id, mon, sun, mealplan.AddEntry{Title: ptr("Pizza")}); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("pending add = %v, want ErrNotFound", err)
+	}
+	if err := e.svc.Leave(ctx, e.b.ID, id); err != nil {
+		t.Fatalf("decline: %v", err)
+	}
+	if _, inv, _ := e.svc.Plans(ctx, e.b.ID); len(inv) != 0 {
+		t.Fatalf("invitations after decline = %+v", inv)
+	}
+}
+
+func TestMemberCannotShareOrDelete(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.shared(t)
+	if _, err := e.svc.Invite(ctx, e.b.ID, id, e.a.ID); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("member invite = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.RemoveMember(ctx, e.b.ID, id, e.b.ID); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("member remove = %v, want ErrNotFound", err)
+	}
+	if err := e.svc.Delete(ctx, e.b.ID, id); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("member delete = %v, want ErrNotFound", err)
+	}
+}
+
+func TestCreatorCannotLeave(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.shared(t)
+	if err := e.svc.Leave(ctx, e.a.ID, id); !errors.Is(err, mealplan.ErrInvalid) {
+		t.Fatalf("creator leave = %v, want ErrInvalid", err)
+	}
+	if err := e.svc.Leave(ctx, e.a.ID, "missing"); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("leave unknown = %v, want ErrNotFound", err)
+	}
+}
+
+func TestRemovedMemberStreamsEnd(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.shared(t)
+	events, cancel := e.svc.Hub().Subscribe(id)
+	defer cancel()
+	p, err := e.svc.RemoveMember(ctx, e.a.ID, id, e.b.ID)
+	if err != nil || len(p.Members) != 0 {
+		t.Fatalf("remove = %+v, %v", p, err)
+	}
+	select {
+	case <-events:
+	default:
+		t.Fatal("removal did not signal, so the removed member's stream would stay open")
+	}
+	if _, err := e.svc.Get(ctx, e.b.ID, id, mon, sun); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("removed get = %v, want ErrNotFound", err)
+	}
+	if _, err := e.svc.RemoveMember(ctx, e.a.ID, id, e.b.ID); !errors.Is(err, mealplan.ErrNotFound) {
+		t.Fatalf("remove again = %v, want ErrNotFound", err)
+	}
+}
+
+func TestAccountDeletionDropsOwnPlans(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	// Anna (owner) deletes ben: his plan goes, his entry in her plan stays.
+	annas := e.shared(t)
+	bens, err := e.svc.Create(ctx, e.b.ID, "Bens")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Add(ctx, e.b.ID, annas, mon, sun, mealplan.AddEntry{Day: ptr(mon), Title: ptr("Pizza")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := user.NewService(e.conn, "").Delete(ctx, e.a, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := e.conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM meal_plans WHERE created_by = ? OR id = ?", e.b.ID, bens.ID).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("ben's plans left = %d, %v", n, err)
+	}
+	p, err := e.svc.Get(ctx, e.a.ID, annas, mon, sun)
+	if err != nil || len(p.Entries) != 1 || p.Entries[0].CreatedBy != nil || len(p.Members) != 0 {
+		t.Fatalf("anna's plan = %+v, %v; want ben's entry kept with no author and no members", p, err)
 	}
 }

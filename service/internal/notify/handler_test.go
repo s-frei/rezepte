@@ -42,6 +42,7 @@ func (mailOff) SendInviteAccepted(context.Context, mail.InviteAccepted) error {
 func (mailOff) SendRecipeDigest(context.Context, mail.RecipeDigest) error { return mail.ErrDisabled }
 func (mailOff) SendTasty(context.Context, mail.Tasty) error               { return mail.ErrDisabled }
 func (mailOff) SendListInvite(context.Context, mail.ListInvite) error     { return mail.ErrDisabled }
+func (mailOff) SendPlanInvite(context.Context, mail.PlanInvite) error     { return mail.ErrDisabled }
 
 type pushOff struct{}
 
@@ -144,7 +145,7 @@ func TestPreferencesDefaultOn(t *testing.T) {
 	f := newFixture(t)
 	for _, name := range []string{"olga", "adam"} {
 		got := mailKinds(decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, name))))
-		if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "invite_accepted": true}; !maps.Equal(got, want) {
+		if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "plan_invite": true, "invite_accepted": true}; !maps.Equal(got, want) {
 			t.Errorf("%s: %v, want %v", name, got, want)
 		}
 	}
@@ -157,7 +158,7 @@ func TestMemberHasNoAdminKinds(t *testing.T) {
 	f := newFixture(t)
 	mia := f.login(t, "mia")
 	got := decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", mia))
-	if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true}; !maps.Equal(mailKinds(got), want) {
+	if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "plan_invite": true}; !maps.Equal(mailKinds(got), want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	if _, ok := got.Groups["admin"]; ok {
@@ -182,7 +183,7 @@ func TestSetPreferencesRoundTrip(t *testing.T) {
 	f := newFixture(t)
 	adam := f.login(t, "adam")
 	got := decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":{"mail":false}}}`, adam))
-	want := map[string]bool{"comment": false, "recipe": true, "tasty": true, "list_invite": true, "invite_accepted": true}
+	want := map[string]bool{"comment": false, "recipe": true, "tasty": true, "list_invite": true, "plan_invite": true, "invite_accepted": true}
 	if !maps.Equal(mailKinds(got), want) || !got.Kinds["comment"]["push"] {
 		t.Errorf("put: %v, want mail %v", got, want)
 	}
@@ -192,11 +193,11 @@ func TestSetPreferencesRoundTrip(t *testing.T) {
 	// Writing the same value twice is not an error (the opt-out insert ignores a conflict).
 	decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":{"mail":false}}}`, adam))
 	got = decodePrefs(t, f.do(http.MethodPut, prefsPath, "application/json", `{"kinds":{"comment":{"mail":true},"invite_accepted":{"mail":false}}}`, adam))
-	if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "invite_accepted": false}; !maps.Equal(mailKinds(got), want) {
+	if want := map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "plan_invite": true, "invite_accepted": false}; !maps.Equal(mailKinds(got), want) {
 		t.Errorf("second put: %v, want %v", got, want)
 	}
 	// Another account's preferences are its own.
-	if got := mailKinds(decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, "olga")))); !maps.Equal(got, map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "invite_accepted": true}) {
+	if got := mailKinds(decodePrefs(t, f.do(http.MethodGet, prefsPath, "", "", f.login(t, "olga")))); !maps.Equal(got, map[string]bool{"comment": true, "recipe": true, "tasty": true, "list_invite": true, "plan_invite": true, "invite_accepted": true}) {
 		t.Errorf("olga: %v", got)
 	}
 }
@@ -434,7 +435,7 @@ func TestUnsubscribeGroupSwitchesMaster(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got := post("group", false); got.KindSubscribed || got.GroupSubscribed ||
-		!maps.Equal(got.GroupKinds, map[string]bool{"comment": false, "recipe": false, "tasty": false, "list_invite": false}) {
+		!maps.Equal(got.GroupKinds, map[string]bool{"comment": false, "recipe": false, "tasty": false, "list_invite": false, "plan_invite": false}) {
 		t.Errorf("group off: %+v", got)
 	}
 	p, err := f.svc.Preferences(ctx, adam)
@@ -451,7 +452,7 @@ func TestUnsubscribeGroupSwitchesMaster(t *testing.T) {
 		}
 	}
 	if got := post("group", true); !got.KindSubscribed || !got.GroupSubscribed ||
-		!maps.Equal(got.GroupKinds, map[string]bool{"comment": true, "recipe": false, "tasty": true, "list_invite": true}) {
+		!maps.Equal(got.GroupKinds, map[string]bool{"comment": true, "recipe": false, "tasty": true, "list_invite": true, "plan_invite": true}) {
 		t.Errorf("undo: %+v", got)
 	}
 }

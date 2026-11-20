@@ -71,6 +71,11 @@
 	"mail_password_set_body_setup_link": "A password was set for your account {username} through a setup link from {admin} (admin) on {at}.",
 	"mail_password_set_heading": "A password was set",
 	"mail_password_set_subject": "A password was set for your Rezepte account",
+	"mail_plan_invite_body": "Accept it under “Shopping \u0026 week” to plan your meals together.",
+	"mail_plan_invite_button": "Open week",
+	"mail_plan_invite_heading": "{name} invites you to the meal plan “{plan}”",
+	"mail_plan_invite_reason": "You get this mail because someone invited you to a meal plan.",
+	"mail_plan_invite_subject": "{name} invites you to the meal plan “{plan}”",
 	"mail_push_comment_body": "{author}: {text}",
 	"mail_push_comment_body_many": "{count} new comments",
 	"mail_push_comment_title": "New comment on “{title}”",
@@ -84,6 +89,8 @@
 	"mail_push_mail_failing_sender": "The mail server refused the sender address.",
 	"mail_push_mail_failing_title": "Mail is not getting out",
 	"mail_push_mail_failing_tls": "The secure connection to the mail server failed.",
+	"mail_push_plan_invite_body": "{name} invites you to “{plan}”",
+	"mail_push_plan_invite_title": "Meal plan",
 	"mail_push_recipe_body_many": "{count} new recipes from {names}",
 	"mail_push_recipe_body_one": "{title} from {names}",
 	"mail_push_recipe_title": "New recipes",
@@ -124,6 +131,7 @@
 	"mail_unsubscribe_kind_comment": "No more mails about new comments",
 	"mail_unsubscribe_kind_invite_accepted": "No more mails about accepted invitations",
 	"mail_unsubscribe_kind_list_invite": "No more mails about shopping list invitations",
+	"mail_unsubscribe_kind_plan_invite": "No more mails about meal plan invitations",
 	"mail_unsubscribe_kind_recipe": "No more mails about new recipes",
 	"mail_unsubscribe_kind_tasty": "No more mails about tasty marks"
 }

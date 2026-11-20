@@ -30,7 +30,7 @@ import (
 type Kind string
 
 // The kinds: a comment on a recipe the account follows, the daily digest
-// of recipes others added, a tasty mark on the account's recipe, an invitation to a shopping list, a person
+// of recipes others added, a tasty mark on the account's recipe, an invitation to a shopping list, an invitation to a meal plan, a person
 // setting up an account the admin invited, and the owner's warning that
 // mail is not getting out.
 const (
@@ -38,6 +38,7 @@ const (
 	KindRecipe         Kind = "recipe"
 	KindTasty          Kind = "tasty"
 	KindListInvite     Kind = "list_invite"
+	KindPlanInvite     Kind = "plan_invite"
 	KindInviteAccepted Kind = "invite_accepted"
 	KindMailFailing    Kind = "mail_failing"
 )
@@ -74,7 +75,7 @@ var groups = []struct {
 	group Group
 	kinds []Kind
 }{
-	{GroupHousehold, []Kind{KindComment, KindRecipe, KindTasty, KindListInvite}},
+	{GroupHousehold, []Kind{KindComment, KindRecipe, KindTasty, KindListInvite, KindPlanInvite}},
 	{GroupAdmin, []Kind{KindInviteAccepted, KindMailFailing}},
 }
 
@@ -147,6 +148,7 @@ type Mailer interface {
 	SendRecipeDigest(context.Context, mail.RecipeDigest) error
 	SendTasty(context.Context, mail.Tasty) error
 	SendListInvite(context.Context, mail.ListInvite) error
+	SendPlanInvite(context.Context, mail.PlanInvite) error
 }
 
 // Pusher is the push side notify sends through; *push.Service is it.

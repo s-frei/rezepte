@@ -55,6 +55,8 @@ var audiences = map[string]struct {
 		"a minute after another person marks it tasty, if the mark is still there. Not again for a mark that stays.", "household", toAnyone},
 	"list_invite": {"Notifications", "Whoever is invited to a shopping list, at a confirmed email address, unless switched off: " +
 		"at once, once per invitation.", "household", toAnyone},
+	"plan_invite": {"Notifications", "Whoever is invited to a meal plan, at a confirmed email address, unless switched off: " +
+		"at once, once per invitation.", "household", toAnyone},
 	"invite_accepted": {"Notifications", "The admin or owner who issued a setup link, when a new person (an account that could not sign in yet) " +
 		"redeems it: only while they are still admin or owner, with a confirmed email address, unless switched off.", "admin", toAdmins},
 	"test": {"Owner tools", "Only the owner can send it, to any address.", "", toOwner},
@@ -68,11 +70,11 @@ var audiences = map[string]struct {
 // without photo. TestEveryTemplateHasASample fails for a template missing
 // here.
 func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
-	people := map[user.Locale]struct{ admin, invited, recipe, comment, list string }{
+	people := map[user.Locale]struct{ admin, invited, recipe, comment, list, plan string }{
 		"en": {"Damson Dill", "Noah Nutmeg", "Lentil dal with spinach",
-			"Swapped the spinach for chard - great!\nA little less chili next time, the kids found it too hot.", "Summer barbecue"},
+			"Swapped the spinach for chard - great!\nA little less chili next time, the kids found it too hot.", "Summer barbecue", "Family week"},
 		"de": {"Dattel Dill", "Noah Nelke", "Linsen-Dal mit Spinat",
-			"Hab statt Spinat Mangold genommen – super!\nBeim nächsten Mal etwas weniger Chili, den Kindern war's zu scharf.", "Grillfest"},
+			"Hab statt Spinat Mangold genommen – super!\nBeim nächsten Mal etwas weniger Chili, den Kindern war's zu scharf.", "Grillfest", "Familienwoche"},
 	}
 	dishes := map[user.Locale][]string{
 		"en": {"Beef and ale stew", "Full English breakfast", "Lemon drizzle cake", "Macaroni cheese",
@@ -222,6 +224,15 @@ func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
 			variant("list_invite", v.name, func(cfg Config, now time.Time) (Envelope, error) {
 				return BuildListInvite(cfg, ListInvite{To: "mila@example.org", ListName: p.list,
 					InviterName: p.invited, InviterColor: "sage", InviterAvatar: v.avatar, Unsubscribe: links("list_invite"), Locale: locale}, publicURL, now)
+			})
+		}
+		for _, v := range []struct {
+			name   string
+			avatar []byte
+		}{{"picture", picture}, {"initial", nil}} {
+			variant("plan_invite", v.name, func(cfg Config, now time.Time) (Envelope, error) {
+				return BuildPlanInvite(cfg, PlanInvite{To: "mila@example.org", PlanID: "sample", PlanName: p.plan,
+					InviterName: p.invited, InviterColor: "sage", InviterAvatar: v.avatar, Unsubscribe: links("plan_invite"), Locale: locale}, publicURL, now)
 			})
 		}
 		add("invite_accepted", func(cfg Config, now time.Time) (Envelope, error) {

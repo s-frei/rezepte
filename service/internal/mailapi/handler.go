@@ -54,7 +54,7 @@ func (b MailConfig) config() (mail.Config, bool) {
 // how it went, never what it said.
 type SentMail struct {
 	ID            int64        `json:"id"`
-	Kind          string       `json:"kind" doc:"The template: invite, reset, hint, confirm, password_changed, email_changed, identity_linked, comment, recipe_digest, list_invite, tasty, invite_accepted or test"`
+	Kind          string       `json:"kind" doc:"The template: invite, reset, hint, confirm, password_changed, email_changed, identity_linked, comment, recipe_digest, list_invite, plan_invite, tasty, invite_accepted or test"`
 	To            string       `json:"to"`
 	Subject       string       `json:"subject"`
 	Status        string       `json:"status" enum:"queued,sent,failed" doc:"queued: waiting for the mail server or for a retry"`

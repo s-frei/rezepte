@@ -255,6 +255,18 @@ func (q *Queries) GetMealPlanEntry(ctx context.Context, arg GetMealPlanEntryPara
 	return i, err
 }
 
+const getMealPlanName = `-- name: GetMealPlanName :one
+SELECT name FROM meal_plans WHERE id = ?
+`
+
+// A shared plan's name, for the invitation notice.
+func (q *Queries) GetMealPlanName(ctx context.Context, id string) (*string, error) {
+	row := q.db.QueryRowContext(ctx, getMealPlanName, id)
+	var name *string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const getMealPlanRevision = `-- name: GetMealPlanRevision :one
 SELECT p.revision FROM meal_plans p WHERE p.id = ?1 AND (p.created_by = ?2 OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = ?2 AND m.accepted_at IS NOT NULL))
 `

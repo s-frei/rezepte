@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	htmltemplate "html/template"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -184,6 +185,38 @@ func BuildListInvite(cfg Config, in ListInvite, publicURL string, now time.Time)
 			Name, List, Initial, Bg, Fg, URL string
 			Avatar                           htmltemplate.URL
 		}{in.InviterName, in.ListName, initial, bg, fg, publicURL + "/lists", htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
+	}, now)
+}
+
+// PlanInvite tells somebody that they were invited to a meal plan.
+type PlanInvite struct {
+	To, PlanID, PlanName, InviterName string
+	InviterColor                      user.Color
+	// InviterAvatar is the inviter's picture as JPEG; nil shows the initial.
+	InviterAvatar []byte
+	Unsubscribe   Unsubscribe
+	Locale        user.Locale
+}
+
+// BuildPlanInvite renders the meal plan invitation mail; its button opens the
+// week.
+func BuildPlanInvite(cfg Config, in PlanInvite, publicURL string, now time.Time) (Envelope, error) {
+	bg, fg, initial := Circle(in.InviterColor, in.InviterName)
+	id := newID()
+	avatar, pictures := avatarPart(cfg, id, in.InviterAvatar)
+	return build(cfg, in.To, letter{
+		Name:        "plan_invite",
+		Lang:        string(in.Locale),
+		SubjectKey:  "mail_plan_invite_subject",
+		SubjectArgs: map[string]string{"name": in.InviterName, "plan": in.PlanName},
+		ID:          id,
+		PublicURL:   publicURL,
+		Unsubscribe: in.Unsubscribe,
+		Inline:      pictures,
+		Data: struct {
+			Name, Plan, Initial, Bg, Fg, URL string
+			Avatar                           htmltemplate.URL
+		}{in.InviterName, in.PlanName, initial, bg, fg, publicURL + "/week?plan=" + url.QueryEscape(in.PlanID), htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
 	}, now)
 }
 

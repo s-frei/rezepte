@@ -3791,7 +3791,7 @@
             "type": "integer"
           },
           "kind": {
-            "description": "The template: invite, reset, hint, confirm, password_changed, email_changed, identity_linked, comment, recipe_digest, list_invite, tasty, invite_accepted or test",
+            "description": "The template: invite, reset, hint, confirm, password_changed, email_changed, identity_linked, comment, recipe_digest, list_invite, plan_invite, tasty, invite_accepted or test",
             "type": "string"
           },
           "nextAttemptAt": {
@@ -12687,6 +12687,7 @@
                         "recipe",
                         "tasty",
                         "list_invite",
+                        "plan_invite",
                         "invite_accepted"
                       ],
                       "type": "string"
@@ -12798,6 +12799,7 @@
                         "recipe",
                         "tasty",
                         "list_invite",
+                        "plan_invite",
                         "invite_accepted"
                       ],
                       "type": "string"

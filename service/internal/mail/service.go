@@ -346,6 +346,11 @@ func (s *Service) SendRecipeDigest(ctx context.Context, in RecipeDigest) error {
 	return deliverBuilt(ctx, s, "recipe digest", BuildRecipeDigest, in, nil, nil)
 }
 
+// SendPlanInvite mails somebody that they were invited to a meal plan.
+func (s *Service) SendPlanInvite(ctx context.Context, in PlanInvite) error {
+	return deliverBuilt(ctx, s, "plan invitation notification", BuildPlanInvite, in, nil, nil)
+}
+
 // SendListInvite mails somebody that they were invited to a shopping list.
 func (s *Service) SendListInvite(ctx context.Context, in ListInvite) error {
 	return deliverBuilt(ctx, s, "list invitation notification", BuildListInvite, in, nil, nil)

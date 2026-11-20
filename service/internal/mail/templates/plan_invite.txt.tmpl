@@ -1,0 +1,11 @@
+{{define "content"}}{{t "mail_plan_invite_heading" "name" .Data.Name "plan" .Data.Plan}}
+
+{{t "mail_plan_invite_body"}}
+
+{{t "mail_plan_invite_button"}}: {{.Data.URL}}
+
+{{t "mail_plan_invite_reason"}}
+{{if .Unsubscribe.KindURL}}{{t "mail_unsubscribe_kind_plan_invite"}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_household"}}: {{.Unsubscribe.GroupURL}}
+{{end}}
+{{end}}

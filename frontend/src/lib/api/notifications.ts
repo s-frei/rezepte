@@ -2,7 +2,13 @@ import { api } from './client';
 
 /** A kind of notification; security notices are none and always go out by mail. */
 export type Kind =
-	'comment' | 'recipe' | 'tasty' | 'list_invite' | 'invite_accepted' | 'mail_failing';
+	| 'comment'
+	| 'recipe'
+	| 'tasty'
+	| 'list_invite'
+	| 'plan_invite'
+	| 'invite_accepted'
+	| 'mail_failing';
 export type Group = 'household' | 'admin';
 /** A way a notification reaches the account. */
 export type Channel = 'mail' | 'push';
@@ -13,6 +19,7 @@ export const KIND_GROUP: Record<Kind, Group> = {
 	recipe: 'household',
 	tasty: 'household',
 	list_invite: 'household',
+	plan_invite: 'household',
 	invite_accepted: 'admin',
 	mail_failing: 'admin'
 };

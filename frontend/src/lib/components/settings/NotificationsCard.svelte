@@ -99,6 +99,10 @@
 			name: m.settings_notifications_kind_list_invite,
 			hint: m.settings_notifications_kind_list_invite_hint
 		},
+		plan_invite: {
+			name: m.settings_notifications_kind_plan_invite,
+			hint: m.settings_notifications_kind_plan_invite_hint
+		},
 		invite_accepted: {
 			name: m.settings_notifications_kind_invite_accepted,
 			hint: m.settings_notifications_kind_invite_accepted_hint

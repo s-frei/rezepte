@@ -360,6 +360,21 @@ func TestBuildListInviteGerman(t *testing.T) {
 	}
 }
 
+func TestBuildPlanInviteGerman(t *testing.T) {
+	env, err := BuildPlanInvite(cfg, PlanInvite{To: "mia@example.org", PlanID: "p1", PlanName: "Familienwoche", InviterName: "Dattel",
+		InviterColor: "sage", Unsubscribe: sampleLinks, Locale: "de"}, "https://r.example.org", time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, p, _ := parts(t, env)
+	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Dattel lädt dich zum Wochenplan „Familienwoche“ ein" {
+		t.Errorf("Subject = %q", got)
+	}
+	if !strings.Contains(p["text/html"], `href="https://r.example.org/week?plan=p1"`) || !strings.Contains(p["text/plain"], "„Familienwoche“") {
+		t.Errorf("html lacks the button URL: %s", p["text/html"])
+	}
+}
+
 // TestInviteMailsShowAnInitialNeverAPicture pins the circle of both
 // invitation mails: initial on the person's light color, no image, since
 // the setup mail reaches an inbox outside the household.

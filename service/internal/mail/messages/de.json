@@ -71,6 +71,11 @@
 	"mail_password_set_body_setup_link": "Für dein Konto {username} wurde am {at} über einen Einrichtungslink von {admin} (Admin) ein Passwort festgelegt.",
 	"mail_password_set_heading": "Ein Passwort wurde festgelegt",
 	"mail_password_set_subject": "Für dein Rezepte-Konto wurde ein Passwort festgelegt",
+	"mail_plan_invite_body": "Nimm die Einladung unter „Einkauf \u0026 Woche“ an, dann plant ihr eure Mahlzeiten gemeinsam.",
+	"mail_plan_invite_button": "Woche öffnen",
+	"mail_plan_invite_heading": "{name} lädt dich zum Wochenplan „{plan}“ ein",
+	"mail_plan_invite_reason": "Du bekommst diese Mail, weil dich jemand zu einem Wochenplan eingeladen hat.",
+	"mail_plan_invite_subject": "{name} lädt dich zum Wochenplan „{plan}“ ein",
 	"mail_push_comment_body": "{author}: {text}",
 	"mail_push_comment_body_many": "{count} neue Kommentare",
 	"mail_push_comment_title": "Neuer Kommentar zu „{title}“",
@@ -84,6 +89,8 @@
 	"mail_push_mail_failing_sender": "Der Mailserver hat die Absenderadresse abgelehnt.",
 	"mail_push_mail_failing_title": "Mails gehen nicht raus",
 	"mail_push_mail_failing_tls": "Die sichere Verbindung zum Mailserver ist fehlgeschlagen.",
+	"mail_push_plan_invite_body": "{name} lädt dich zu „{plan}“ ein",
+	"mail_push_plan_invite_title": "Wochenplan",
 	"mail_push_recipe_body_many": "{count} neue Rezepte von {names}",
 	"mail_push_recipe_body_one": "{title} von {names}",
 	"mail_push_recipe_title": "Neue Rezepte",
@@ -124,6 +131,7 @@
 	"mail_unsubscribe_kind_comment": "Keine Mails zu neuen Kommentaren mehr",
 	"mail_unsubscribe_kind_invite_accepted": "Keine Mails zu angenommenen Einladungen mehr",
 	"mail_unsubscribe_kind_list_invite": "Keine Mails mehr zu Einladungen auf Einkaufslisten",
+	"mail_unsubscribe_kind_plan_invite": "Keine Mails mehr zu Einladungen zu Wochenplänen",
 	"mail_unsubscribe_kind_recipe": "Keine Mails zu neuen Rezepten mehr",
 	"mail_unsubscribe_kind_tasty": "Keine Mails zu Lecker-Markierungen mehr"
 }

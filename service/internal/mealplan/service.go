@@ -30,7 +30,17 @@ type Service struct {
 	now   func() time.Time
 	hub   *shopping.Hub
 	lists *shopping.Service
+	inv   InviteNotifier
 }
+
+// InviteNotifier hears of every new invitation, after it was stored; not of
+// ones that already existed.
+type InviteNotifier interface {
+	PlanInvited(ctx context.Context, planID, inviterID, inviteeID string)
+}
+
+// SetInviteNotifier hands every new invitation to n; nil (the default) is off.
+func (s *Service) SetInviteNotifier(n InviteNotifier) { s.inv = n }
 
 // NewService returns a Service backed by conn; lists is the shopping lists'
 // service the plan puts recipes on.
@@ -461,4 +471,116 @@ func liveEntry(ctx context.Context, q *sqlc.Queries, planID, entryID string) (sq
 		return e, fmt.Errorf("get meal plan entry: %w", err)
 	}
 	return e, nil
+}
+
+// changed bumps the revision of a plan whose change did not touch its row
+// (members), then tells its open streams.
+func (s *Service) changed(ctx context.Context, planID string) error {
+	if err := s.q.BumpMealPlanRevision(ctx, planID); err != nil {
+		return fmt.Errorf("bump meal plan revision: %w", err)
+	}
+	s.hub.Publish(planID)
+	return nil
+}
+
+// thisWeek returns the plan as it is for the current week.
+func (s *Service) thisWeek(ctx context.Context, userID, planID string) (Plan, error) {
+	from, to := week(s.now())
+	return s.Get(ctx, userID, planID, from, to)
+}
+
+// ownPlan reports ErrNotFound unless the caller created the plan, and
+// ErrPersonal when it is their personal one, which is never shared.
+func (s *Service) ownPlan(ctx context.Context, userID, planID string) error {
+	row, err := s.q.GetMealPlanCreator(ctx, planID)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && row.CreatedBy != userID {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get meal plan creator: %w", err)
+	}
+	if row.Personal == 1 {
+		return personal()
+	}
+	return nil
+}
+
+// Invite asks a person to share a plan; only the creator can. An existing
+// row, pending or accepted, stays as it is and nobody is notified again.
+func (s *Service) Invite(ctx context.Context, userID, planID, inviteeID string) (Plan, error) {
+	if err := s.ownPlan(ctx, userID, planID); err != nil {
+		return Plan{}, err
+	}
+	if inviteeID == userID {
+		return Plan{}, invalid("you cannot invite yourself")
+	}
+	if _, err := s.q.GetUserByID(ctx, inviteeID); errors.Is(err, sql.ErrNoRows) {
+		return Plan{}, invalid("no such person")
+	} else if err != nil {
+		return Plan{}, fmt.Errorf("get invitee: %w", err)
+	}
+	n, err := s.q.InsertMealPlanMember(ctx, sqlc.InsertMealPlanMemberParams{PlanID: planID, UserID: inviteeID, InvitedAt: s.stamp()})
+	if err != nil {
+		return Plan{}, fmt.Errorf("insert meal plan member: %w", err)
+	}
+	if n > 0 {
+		if err := s.changed(ctx, planID); err != nil {
+			return Plan{}, err
+		}
+		if s.inv != nil {
+			s.inv.PlanInvited(ctx, planID, userID, inviteeID)
+		}
+	}
+	return s.thisWeek(ctx, userID, planID)
+}
+
+// Accept turns the caller's pending invitation into a membership.
+func (s *Service) Accept(ctx context.Context, userID, planID string) (Plan, error) {
+	now := s.stamp()
+	n, err := s.q.AcceptMealPlanMembership(ctx, sqlc.AcceptMealPlanMembershipParams{AcceptedAt: &now, PlanID: planID, UserID: userID})
+	if err != nil {
+		return Plan{}, fmt.Errorf("accept meal plan invitation: %w", err)
+	}
+	if n == 0 {
+		return Plan{}, ErrNotFound
+	}
+	if err := s.changed(ctx, planID); err != nil {
+		return Plan{}, err
+	}
+	return s.thisWeek(ctx, userID, planID)
+}
+
+// Leave ends the caller's membership whatever its state, so it also declines
+// an invitation. The creator cannot leave their own plan.
+func (s *Service) Leave(ctx context.Context, userID, planID string) error {
+	row, err := s.q.GetMealPlanCreator(ctx, planID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("get meal plan creator: %w", err)
+	}
+	if err == nil && row.CreatedBy == userID {
+		return invalid("the creator cannot leave")
+	}
+	n, err := s.q.DeleteMealPlanMembership(ctx, sqlc.DeleteMealPlanMembershipParams{PlanID: planID, UserID: userID})
+	if err != nil {
+		return fmt.Errorf("delete meal plan membership: %w", err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return s.changed(ctx, planID)
+}
+
+// RemoveMember lets the creator withdraw an invitation or remove a member.
+func (s *Service) RemoveMember(ctx context.Context, userID, planID, memberID string) (Plan, error) {
+	n, err := s.q.DeleteMealPlanMember(ctx, sqlc.DeleteMealPlanMemberParams{PlanID: planID, MemberID: memberID, UserID: userID})
+	if err != nil {
+		return Plan{}, fmt.Errorf("delete meal plan member: %w", err)
+	}
+	if n == 0 {
+		return Plan{}, ErrNotFound
+	}
+	if err := s.changed(ctx, planID); err != nil {
+		return Plan{}, err
+	}
+	return s.thisWeek(ctx, userID, planID)
 }

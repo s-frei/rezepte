@@ -183,3 +183,7 @@ SELECT user_id FROM calendar_feeds WHERE token_hash = ?;
 
 -- name: DeleteCalendarFeed :exec
 DELETE FROM calendar_feeds WHERE user_id = ?;
+
+-- A shared plan's name, for the invitation notice.
+-- name: GetMealPlanName :one
+SELECT name FROM meal_plans WHERE id = ?;
