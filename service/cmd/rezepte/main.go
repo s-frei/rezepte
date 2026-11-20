@@ -32,6 +32,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/mailapi"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/notify"
 	"github.com/s-frei/rezepte/service/internal/oidc"
 	"github.com/s-frei/rezepte/service/internal/preview"
@@ -282,6 +283,10 @@ func run() error {
 	shoppingSvc.SetInviteNotifier(notifications)
 	srv.OnShutdown(shoppingSvc.Hub().Close)
 	shopping.Register(srv.API(), shoppingSvc)
+	planSvc := mealplan.NewService(conn, shoppingSvc)
+	planSvc.SetInviteNotifier(notifications)
+	srv.OnShutdown(planSvc.Hub().Close)
+	mealplan.Register(srv.API(), planSvc)
 	recipeimport.Register(srv.API(), recipeimport.NewService(recipes, version, recipeimport.PublicOnly))
 	uploadLinks := image.NewUploadLinks(cfg.PublicURL, users)
 	photos := mcpserver.Photos{Images: images, Links: uploadLinks, Fetch: recipeimport.NewFetcher(version, recipeimport.PublicOnly)}

@@ -28,6 +28,7 @@ Each level includes the ones before it.
 | **Recipes** | Search and read recipes, tags and household settings | Create and edit recipes, import | Delete recipes |
 | **Accounts** | List people and accounts | Add, change and delete accounts | — |
 | **Shopping lists** | Read your lists and their items | Everything the app does with a list, sharing included | — |
+| **Meal plans** | Read your plans, their staples and what a week would put on a list | Everything the app does with a plan, putting it on a list and sharing included | — |
 
 With **Recipes: Read**, a token also opens image files. Any token opens the OpenAPI document, so a client can discover the API. An [AI assistant](/api/mcp) needs **Recipes: Read** at least, and does less with lists than the HTTP API.
 
@@ -43,7 +44,7 @@ curl -H "Authorization: Bearer rzp_..." https://your-instance/api/v1/recipes
 
 A token acts as the admin who issued it, with that admin's role as it is now, limited by its levels.
 
-- It reaches only the shopping lists its issuer can open: their own and those shared with them.
+- It reaches only the shopping lists and meal plans its issuer can open: their own and those shared with them.
 - It inherits its issuer's rank. An ordinary admin's token with **Accounts: Write** can add and delete members but cannot make anyone an admin; the owner's can (see [People](/guide/users)).
 - It stops working the moment its issuer loses the admin role or is deleted.
 

@@ -49,17 +49,17 @@ type Plan struct {
 	From    string   `json:"from"`
 	To      string   `json:"to"`
 	// Entries are the tray first, then by day and position.
-	Entries []Entry `json:"entries"`
+	Entries []PlanEntry `json:"entries"`
 	// Unlisted counts the recipe entries on no list the caller can access.
 	Unlisted int `json:"unlisted"`
 	// Lists are the accessible lists the entries are on, most entries first.
 	Lists []LinkedList `json:"lists"`
 }
 
-// Entry is a recipe or a free text on a day (YYYY-MM-DD) or on the tray (Day
+// PlanEntry is a recipe or a free text on a day (YYYY-MM-DD) or on the tray (Day
 // nil). RecipeID, RecipeSlug and Photo are nil for free text and once the
 // recipe is deleted; Title stays. Servings is nil for free text.
-type Entry struct {
+type PlanEntry struct {
 	ID         string  `json:"id"`
 	Day        *string `json:"day" nullable:"true"`
 	Position   int     `json:"position"`
@@ -83,8 +83,8 @@ type LinkedList struct {
 	OpenCount int    `json:"openCount"`
 }
 
-// Summary is a plan as the picker shows it.
-type Summary struct {
+// PlanSummary is a plan as the picker shows it.
+type PlanSummary struct {
 	ID        string   `json:"id"`
 	Name      *string  `json:"name" nullable:"true"`
 	Personal  bool     `json:"personal"`
@@ -93,8 +93,8 @@ type Summary struct {
 	UpdatedAt string   `json:"updatedAt"`
 }
 
-// Invitation is a plan the caller was invited to and has not accepted yet.
-type Invitation struct {
+// PlanInvitation is a plan the caller was invited to and has not accepted yet.
+type PlanInvitation struct {
 	PlanID  string  `json:"planId"`
 	Name    *string `json:"name" nullable:"true"`
 	Inviter Person  `json:"inviter"`

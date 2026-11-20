@@ -823,7 +823,9 @@
                 "users:read",
                 "users:write",
                 "lists:read",
-                "lists:write"
+                "lists:write",
+                "plan:read",
+                "plan:write"
               ],
               "type": "string"
             },
@@ -2554,6 +2556,27 @@
         ],
         "type": "object"
       },
+      "LinkedList": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "openCount": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "openCount"
+        ],
+        "type": "object"
+      },
       "List": {
         "additionalProperties": false,
         "properties": {
@@ -3375,6 +3398,459 @@
         ],
         "type": "object"
       },
+      "Plan": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/Plan.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/PlanEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "from": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedList"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ListPerson"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/ListPerson"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "personal": {
+            "type": "boolean"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "to": {
+            "type": "string"
+          },
+          "unlisted": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "personal",
+          "revision",
+          "owner",
+          "members",
+          "pending",
+          "from",
+          "to",
+          "entries",
+          "unlisted",
+          "lists"
+        ],
+        "type": "object"
+      },
+      "PlanAddBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlanAddBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "day": {
+            "description": "The day (YYYY-MM-DD); left out, the tray",
+            "format": "date",
+            "type": "string"
+          },
+          "recipeId": {
+            "description": "The recipe to plan; give this or title",
+            "type": "string"
+          },
+          "servings": {
+            "description": "A recipe's servings; left out, the recipe's own",
+            "format": "int64",
+            "maximum": 99,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "title": {
+            "description": "A free text such as \"Reste\"; give this or recipeId",
+            "maxLength": 120,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PlanEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "createdBy": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
+          "day": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedList"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "recipeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipeSlug": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "servings": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "day",
+          "position",
+          "recipeId",
+          "recipeSlug",
+          "title",
+          "servings",
+          "photo",
+          "createdBy",
+          "lists"
+        ],
+        "type": "object"
+      },
+      "PlanEntryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlanEntryBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "day": {
+            "description": "The day to move to (YYYY-MM-DD), or null for the tray; left out, the entry keeps its day",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position": {
+            "description": "The place within the day, from 0; clamped to the end. Left out with day given, the end",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "servings": {
+            "description": "A recipe entry's servings",
+            "format": "int64",
+            "maximum": 99,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PlanInvitation": {
+        "additionalProperties": false,
+        "properties": {
+          "inviter": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId",
+          "name",
+          "inviter"
+        ],
+        "type": "object"
+      },
+      "PlanNameBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlanNameBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "Plan name; surrounding whitespace is trimmed",
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "PlanOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlanOverview.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/PlanInvitation"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/PlanSummary"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "plans",
+          "invitations"
+        ],
+        "type": "object"
+      },
+      "PlanPickBody": {
+        "additionalProperties": false,
+        "properties": {
+          "entryId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ingredients": {
+            "description": "The recipe ingredients to copy, by group and position",
+            "items": {
+              "$ref": "#/components/schemas/IngredientPick"
+            },
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entryId",
+          "ingredients"
+        ],
+        "type": "object"
+      },
+      "PlanShoppingBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlanShoppingBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "listId": {
+            "description": "A list the caller can access; give this or newListName",
+            "type": "string"
+          },
+          "newListName": {
+            "description": "The name of a new list of the caller's",
+            "maxLength": 80,
+            "type": "string"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/PlanPickBody"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "type": "object"
+      },
+      "PlanStapleBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlanStapleBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "staple": {
+            "description": "true marks the name as a staple, false unmarks it",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "staple"
+        ],
+        "type": "object"
+      },
+      "PlanSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ListPerson"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
+          "personal": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "personal",
+          "owner",
+          "members",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "PreferencesBody": {
         "additionalProperties": false,
         "properties": {
@@ -3411,6 +3887,101 @@
         "required": [
           "kinds",
           "groups"
+        ],
+        "type": "object"
+      },
+      "PreviewEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "alreadyListed": {
+            "type": "boolean"
+          },
+          "entryId": {
+            "type": "string"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewIngredient"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "servings": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entryId",
+          "title",
+          "servings",
+          "alreadyListed",
+          "ingredients"
+        ],
+        "type": "object"
+      },
+      "PreviewIngredient": {
+        "additionalProperties": false,
+        "properties": {
+          "group": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "index": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "format": "double",
+            "type": "number"
+          },
+          "staple": {
+            "type": "boolean"
+          },
+          "unit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "index",
+          "name",
+          "staple"
+        ],
+        "type": "object"
+      },
+      "PreviewList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PreviewList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries"
         ],
         "type": "object"
       },
@@ -4329,6 +4900,49 @@
         ],
         "type": "object"
       },
+      "Staple": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "nameKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nameKey",
+          "name"
+        ],
+        "type": "object"
+      },
+      "StapleList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/StapleList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "staples": {
+            "items": {
+              "$ref": "#/components/schemas/Staple"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "staples"
+        ],
+        "type": "object"
+      },
       "StatusBody": {
         "additionalProperties": false,
         "properties": {
@@ -4745,6 +5359,31 @@
         },
         "required": [
           "text"
+        ],
+        "type": "object"
+      },
+      "ToListResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/ToListResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "listId": {
+            "type": "string"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/Plan"
+          }
+        },
+        "required": [
+          "plan",
+          "listId"
         ],
         "type": "object"
       },
@@ -7273,6 +7912,1587 @@
         "summary": "Suggest ingredients for the ingredient search",
         "tags": [
           "recipes"
+        ]
+      }
+    },
+    "/api/v1/meal-plans": {
+      "get": {
+        "operationId": "list-meal-plans",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanOverview"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:read"
+            ]
+          }
+        ],
+        "summary": "List the caller's meal plans and invitations",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "post": {
+        "operationId": "create-meal-plan",
+        "parameters": [
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanNameBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Create a shared meal plan",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}": {
+      "delete": {
+        "operationId": "delete-meal-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Delete a shared meal plan",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "get": {
+        "operationId": "get-meal-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:read"
+            ]
+          }
+        ],
+        "summary": "Get a meal plan for a range of days",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "patch": {
+        "operationId": "rename-meal-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanNameBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Rename a shared meal plan",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/entries": {
+      "post": {
+        "operationId": "add-meal-plan-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanAddBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Plan a recipe or a free text",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/entries/{entryId}": {
+      "delete": {
+        "operationId": "remove-meal-plan-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Remove an entry, restorable for a day",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "patch": {
+        "operationId": "update-meal-plan-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanEntryBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Move an entry or change its servings",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/entries/{entryId}/restore": {
+      "post": {
+        "operationId": "restore-meal-plan-entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Bring back a removed entry",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/events": {
+      "get": {
+        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the plan, its JSON data carrying the plan's `revision` (refetch the plan to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the plan or the server shuts down.",
+        "operationId": "stream-meal-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The event stream"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:read"
+            ]
+          }
+        ],
+        "summary": "Follow a meal plan's changes",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/invitations": {
+      "post": {
+        "operationId": "invite-to-meal-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteInBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Invite a person to a plan",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/members/{userId}": {
+      "delete": {
+        "operationId": "remove-meal-plan-member",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Remove a member or withdraw an invitation",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/membership": {
+      "delete": {
+        "operationId": "leave-meal-plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Leave a plan or decline its invitation",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "post": {
+        "operationId": "accept-meal-plan-invitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Accept an invitation to a plan",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/shopping": {
+      "post": {
+        "operationId": "plan-to-shopping-list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanShoppingBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToListResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Put planned recipes on a shopping list",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/shopping-preview": {
+      "get": {
+        "operationId": "meal-plan-shopping-preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Also offer the entries on the tray",
+            "explode": false,
+            "in": "query",
+            "name": "tray",
+            "schema": {
+              "description": "Also offer the entries on the tray",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:read"
+            ]
+          }
+        ],
+        "summary": "Preview what a range puts on a list",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
+    "/api/v1/meal-plans/{id}/staples": {
+      "get": {
+        "operationId": "list-meal-plan-staples",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapleList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:read"
+            ]
+          }
+        ],
+        "summary": "List a plan's staples",
+        "tags": [
+          "meal-plans"
+        ]
+      },
+      "put": {
+        "operationId": "set-meal-plan-staple",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanStapleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapleList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:write"
+            ]
+          }
+        ],
+        "summary": "Mark or unmark a staple",
+        "tags": [
+          "meal-plans"
         ]
       }
     },
@@ -14678,6 +16898,10 @@
     {
       "description": "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. A session, or an API token with lists:read to read and lists:write to change.",
       "name": "shopping-lists"
+    },
+    {
+      "description": "Meal plans: recipes and free texts on days of a week or on the tray, shared like lists, put on a shopping list and kept in step with it, the staples a plan's people always have, a Server-Sent Events stream of each plan's changes, and the calendar feed. A session, or an API token with plan:read to read and plan:write to change; the calendar feed's secret is managed with a session only.",
+      "name": "meal-plans"
     },
     {
       "description": "Uploading recipe images and serving them in their rendered sizes.",

@@ -1,0 +1,25 @@
+{
+  "title": "Meal plans",
+  "description": "Meal plans: recipes and free texts on days of a week or on the tray, shared like lists, put on a shopping list and kept in step with it, the staples a plan's people always have, a Server-Sent Events stream of each plan's changes, and the calendar feed. A session, or an API token with plan:read to read and plan:write to change; the calendar feed's secret is managed with a session only.",
+  "pages": [
+    "index",
+    "list-meal-plans",
+    "create-meal-plan",
+    "get-meal-plan",
+    "rename-meal-plan",
+    "delete-meal-plan",
+    "add-meal-plan-entry",
+    "update-meal-plan-entry",
+    "remove-meal-plan-entry",
+    "restore-meal-plan-entry",
+    "stream-meal-plan",
+    "invite-to-meal-plan",
+    "remove-meal-plan-member",
+    "accept-meal-plan-invitation",
+    "leave-meal-plan",
+    "plan-to-shopping-list",
+    "meal-plan-shopping-preview",
+    "list-meal-plan-staples",
+    "set-meal-plan-staple"
+  ]
+}

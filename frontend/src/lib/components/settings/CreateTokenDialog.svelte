@@ -30,6 +30,7 @@
 	let recipes = $state<Access>('read');
 	let users = $state<UserAccess>('none');
 	let lists = $state<UserAccess>('none');
+	let plan = $state<UserAccess>('none');
 	let expiry = $state('90');
 	let errors = $state<{ name?: string }>({});
 	let saving = $state(false);
@@ -66,6 +67,12 @@
 		write: m.tokens_access_lists_write
 	};
 
+	const planAccessText: Record<UserAccess, () => string> = {
+		none: m.tokens_access_plan_none,
+		read: m.tokens_access_plan_read,
+		write: m.tokens_access_plan_write
+	};
+
 	const expiryOptions = [
 		{ value: '30', label: m.tokens_expiry_30() },
 		{ value: '90', label: m.tokens_expiry_90() },
@@ -75,7 +82,7 @@
 
 	// Each level sends every scope below it, so the server compares plain
 	// lists instead of applying an implication rule.
-	function scopesOf(area: 'recipes' | 'users' | 'lists', access: Access): TokenScope[] {
+	function scopesOf(area: 'recipes' | 'users' | 'lists' | 'plan', access: Access): TokenScope[] {
 		const ladder = [`${area}:read`, `${area}:write`, `${area}:delete`] as TokenScope[];
 		const depth = { none: 0, read: 1, write: 2, full: 3 }[access];
 		return ladder.slice(0, depth);
@@ -84,7 +91,8 @@
 	const scopes = $derived([
 		...scopesOf('recipes', recipes),
 		...scopesOf('users', users),
-		...scopesOf('lists', lists)
+		...scopesOf('lists', lists),
+		...scopesOf('plan', plan)
 	]);
 
 	// A token with no scope could do nothing, and the server refuses one.
@@ -99,6 +107,7 @@
 			recipes = 'read';
 			users = 'none';
 			lists = 'none';
+			plan = 'none';
 			expiry = '90';
 			errors = {};
 		}
@@ -182,6 +191,15 @@
 					options={accessOptions}
 					label={m.tokens_access_lists()}
 					description={listsAccessText[lists]()}
+				/>
+			</div>
+			<div class="flex flex-col gap-1.5">
+				<span class="text-body-sm font-semibold">{m.tokens_access_plan()}</span>
+				<AccessLadder
+					bind:value={plan}
+					options={accessOptions}
+					label={m.tokens_access_plan()}
+					description={planAccessText[plan]()}
 				/>
 			</div>
 			{#if noAccess}

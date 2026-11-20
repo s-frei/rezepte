@@ -117,18 +117,24 @@ func TestServingsFollowIntoList(t *testing.T) {
 	}
 }
 
-func TestMoveDoesNotTouchList(t *testing.T) {
+// Lists show the planned day, so a move bumps and signals every linked list
+// though their rows stay as they are.
+func TestMoveBumpsLinkedLists(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
 	id := e.plan(t).ID
 	entry := e.planned(t, e.a.ID, id, e.dal(t), 4)
 	_, listID := e.toList(t, e.a.ID, id, "", entry)
-	before := e.list(t, e.a.ID, listID).Revision
+	before := e.list(t, e.a.ID, listID)
+	events, cancel := e.lists.Hub().Subscribe(listID)
+	defer cancel()
 	if _, err := e.svc.Move(ctx, e.a.ID, id, entry, mon, sun, ptr(sun), 0); err != nil {
 		t.Fatal(err)
 	}
-	if l := e.list(t, e.a.ID, listID); l.Revision != before || len(l.Entries) != 1 {
-		t.Fatalf("move changed the list: revision %d (was %d), %d entries", l.Revision, before, len(l.Entries))
+	signaled(t, events, "move")
+	l := e.list(t, e.a.ID, listID)
+	if l.Revision <= before.Revision || len(l.Entries) != 1 || len(l.Items) != len(before.Items) || *l.Entries[0].PlanDay != sun {
+		t.Fatalf("after move: revision %d (was %d), %d entries, %d items, day %v", l.Revision, before.Revision, len(l.Entries), len(l.Items), l.Entries[0].PlanDay)
 	}
 }
 

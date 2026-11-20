@@ -1,0 +1,78 @@
+---
+title: Meal plan
+description: Recipes and free texts on the days of a week or on the tray, in a personal plan or plans shared like lists, put on shopping lists that follow later changes, with per-plan staples and a live stream
+---
+
+A signed-in person plans recipes and free texts ("Reste") on days, or on the tray for "some time this week", in their personal plan or in any number of plans shared with others on the instance, and puts a week's recipes on a shopping list that keeps following the plan. The service side is `service/internal/mealplan` (service, staples, the list link, huma handler, stream); the list side of the link is in `service/internal/shopping` ([Shopping lists](/features/shopping-lists#planned-entries)); the tables are on [Data model](/architecture/data-model#meal-plans).
+
+<Callout type="warn" title="Traps">
+
+- A plan entry's list blocks are visible to a viewer only for the lists they can access: every list name, id or count in a plan answer comes from `ListMealPlanEntryLists`, which carries the viewer's list predicate; reading lists any other way leaks a private list ([The list link](#the-list-link)).
+- Removing an entry is a soft delete, so every list read, count and delete must skip blocks of removed entries ([Entries](#entries)).
+- A change that alters what a linked list shows must go through `shopping.FollowPlan` and publish on the shopping hub after commit, Move included ([The list link](#the-list-link)).
+- huma names schemas by Go type, so `mealplan`'s types carry a `Plan` prefix; a plain `Summary` or `Entry` panics at startup beside `shopping` ([HTTP API](/architecture/api)).
+
+</Callout>
+
+## How it works
+
+### Plans and access
+
+**Access is the creator or an accepted member, as on a list.** Every query in `queries/mealplan.sql` repeats the predicate; anyone else, a pending invitee included, gets `ErrNotFound` (HTTP 404) on reads and changes alike (`TestForeignPlanIsNotFound`, `TestPendingInviteeCannotRead`). Admins have no extra reach.
+
+**Everyone has one personal plan, made on first use.** `Plans` inserts it lazily (`ON CONFLICT DO NOTHING` against a partial unique index), so two first reads make one (`TestPersonalPlanIsCreatedOnce`). It has no name - the client words it "My plan" / "Mein Plan" - and cannot be shared, renamed or deleted: those answer `ErrInvalid` wrapping `ErrPersonal`, HTTP 422 (`TestPersonalPlanCannotBeRenamedDeletedOrShared`). Every other plan is named by its creator, up to 80 runes.
+
+**Sharing works like a list's.** Only the creator invites, removes members and deletes; members do everything else (`TestMemberCannotShareOrDelete`, `TestCreatorCannotLeave`). An invitation is a pending row; accepting is the consent, leaving and declining are the same delete (`TestInviteAcceptFlow`, `TestInviteIsIdempotent`). A new invitation reaches `InviteNotifier`, which `main.go` sets to the notify service ([Notifications](/features/notifications)). Deleting an account deletes its plans and memberships; its entries in other plans keep their title and lose `createdBy` (`TestAccountDeletionDropsOwnPlans`).
+
+### Entries
+
+**An entry is a recipe or a free text on a day or on the tray.** Days are dates (`YYYY-MM-DD`), never instants, and weeks run Monday to Sunday; `week.go` parses strictly, so November 31 is a 422. A read takes `from` and `to`, both inclusive and at most 62 days apart, and answers with those days plus the tray (`TestRangeIncludesBothEnds`, `TestRangeLimit`). A recipe entry copies the recipe's title and starts at its servings unless given others (1-99); a free text has no servings, up to 120 runes (`TestAddRecipeCopiesTitleAndServings`, `TestAddFreeTextHasNoServings`). A deleted recipe leaves the entry with its title and no link (`TestDeletedRecipeKeepsEntry`).
+
+**A day's live entries always sit at positions 0..n-1.** Add appends, Move and Remove renumber the days they touch (`TestMoveRenumbersBothDays`).
+
+**Removing is a soft delete, restorable for 24 hours.** `removed_at` hides the entry, and its blocks on lists hide with it; Restore puts it back at its old position, clamped, and the blocks return with their ticks (`TestRemoveAndRestore`, `TestRestoreBringsBackTickedBlock`). Each Remove purges the plan's removals older than 24 hours, and their list blocks cascade (`TestPurgeDropsOldRemovals`).
+
+**Every change bumps `revision` and publishes after commit.** `mutate` touches the plan with the access predicate (no row: `ErrNotFound`), runs the change, reads the plan back and publishes on the plan's own `Hub` once committed; member changes go through `changed` (`TestChangesPublish`).
+
+### The list link
+
+**`ToList` puts recipe entries on a list at their planned servings.** One transaction, through `shopping.AddPlanned`, onto an existing list the caller can access (else `shopping.ErrNotFound`, HTTP 404, and nothing written) or a new list of theirs. An entry already on a list the caller can access is skipped; one only on someone else's private list is added again, so two people shopping apart each get it (`TestToListSkipsOnlyAccessibleLinks`, `TestToListNeedsListAccess`). Free texts never go on a list (`TestFreeTextNeverGoesOnList`).
+
+**Changes follow into every linked list, whoever edits the plan.** Servings, Move, Remove, Restore, the purge and deleting the plan call `shopping.FollowPlan`, which bumps every list the entries are on, sets servings when they changed, and checks no list access on purpose; `followed` publishes those ids on the shopping hub after commit. Move changes no list row but bumps and signals, since a list shows the planned day (`TestServingsFollowIntoList`, `TestMoveBumpsLinkedLists`, `TestRemoveFollowsIntoForeignList`, `TestPurgeAndDeleteFollowIntoList`).
+
+**A viewer sees only their own lists in a plan.** `Entry.Lists`, `Plan.Lists` (most entries first) and `Plan.Unlisted` (recipe entries on no list the viewer can access) all come from `ListMealPlanEntryLists`, so Ben reads Anna's plan without learning the name, id or count of her private list, while removing the entry still removes her block (`TestPlanHidesForeignLists`, `TestToListOverHTTP`). A deleted list releases its entries (`TestDeletedListReleasesEntries`).
+
+### Staples
+
+**Staples are per plan, keyed by `ingredient.Key`.** "Zwiebeln" and "zwiebel" are one staple; marking a key that exists keeps its first name (`TestStapleKeyMergesPlurals`, `TestStaplesArePerPlan`). Staples are not part of `Plan` and do not bump its revision.
+
+### The API
+
+**The routes are in `handler.go` under the `meal-plans` tag.** The readers (list, get, events, staples, shopping preview) need `plan:read`, every other operation `plan:write`, and a token acts as its issuer (`TestPlanNeedsPlanScopes`). Every operation that answers a plan takes `from` and `to` (both left out: the current week) and answers with the whole plan for that span, as the list operations answer with the whole list. Errors map as the list's do: not found 404, a recipe gone 404, validation and the personal plan 422 with the field.
+
+**`PATCH …/entries/{entryId}` moves and changes servings in one body.** A `day` key moves the entry, `null` to the tray, and a missing key keeps its day while `position` places it ([HTTP API](/architecture/api)); `servings` changes the servings after any move (`TestPlanRoundTrip`, `TestTrayMoveWithNullDay`).
+
+**The shopping preview is what the "Auf die Liste" dialog offers.** `GET …/shopping-preview?from&to&tray` lists the recipe entries of the range (and the tray when asked), each ingredient by `(group, index)` with its quantity scaled to the planned servings through the lists' rounding, `alreadyListed` by the caller's accessible lists and `staple` by this plan's staples (`TestShoppingPreviewMarksStaplesAndListed`).
+
+### Live updates
+
+**`GET …/events` is the list stream, keyed by plan.** `stream.go` mirrors the list's ([Shopping lists](/features/shopping-lists#live-updates)): `retry: 3000`, `event: changed` with the plan's `revision`, a ping every 25 s, and the stream ends once `GetMealPlanRevision` finds no row, so a removed member's stream ends (`TestStreamEndsWhenAccessLost`, `TestStreamForbidsStrangers`). `main.go` closes the plan hub on shutdown.
+
+## Why it is this way
+
+**Plans copy the lists' sharing**, because the owner asked for "wie Listen": one model of creator, invitation and accepted member for both, the same 404 for a stranger and a pending invitee.
+
+**The plan pushes into the list rather than the list reading the plan**, because the list must keep working on its own: it keeps a copied block with its ticks, and only the link (`plan_entry_id`) lets later plan changes find it.
+
+**A soft delete rather than a delete with Undo re-adding**, because re-adding would make new list items and lose their ticks.
+
+## Rejected
+
+- **Showing every linked list to every plan member.** It would leak the name and contents of a private list to people its owner never shared it with.
+
+## Limits
+
+- Deleting an account publishes nothing to the lists its plan entries were on; those lists show the stale block until their next refetch.
+- Deleting a list does not signal open plans; a plan page shows that list until its next refetch.
+- Staple changes do not publish, so another member's open dialog does not update live.
+- `PATCH` with both a move and servings runs two transactions; a failing second leaves the move done.

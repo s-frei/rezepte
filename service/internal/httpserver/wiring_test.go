@@ -24,6 +24,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/httpserver"
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
+	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -87,6 +88,7 @@ func newFullApp(t *testing.T) fullApp {
 	recipe.Register(srv.API(), recipes)
 	shoppingSvc := shopping.NewService(conn)
 	shopping.Register(srv.API(), shoppingSvc)
+	mealplan.Register(srv.API(), mealplan.NewService(conn, shoppingSvc))
 	links := image.NewUploadLinks(wiringPublicURL, users)
 	if err := mcpserver.Register(srv.API(), recipes, shoppingSvc, "test", mcpserver.Photos{Images: images, Links: links, Fetch: recipeimport.NewFetcher("test", recipeimport.PublicOnly)}); err != nil {
 		t.Fatal(err)

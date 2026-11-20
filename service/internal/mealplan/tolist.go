@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/ingredient"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 )
 
@@ -85,4 +86,79 @@ func (s *Service) ToList(ctx context.Context, userID, planID, from, to string, i
 	}
 	s.lists.Hub().Publish(listID)
 	return p, listID, nil
+}
+
+// PreviewEntry is a recipe entry as the "Auf die Liste" dialog offers it.
+// AlreadyListed is whether it is on a list the caller can access.
+type PreviewEntry struct {
+	EntryID       string              `json:"entryId"`
+	Title         string              `json:"title"`
+	Servings      int                 `json:"servings"`
+	AlreadyListed bool                `json:"alreadyListed"`
+	Ingredients   []PreviewIngredient `json:"ingredients"`
+}
+
+// PreviewIngredient is one recipe ingredient, by group and position, its
+// quantity scaled to the planned servings; Staple is whether it is a staple
+// of the plan.
+type PreviewIngredient struct {
+	Group    int      `json:"group"`
+	Index    int      `json:"index"`
+	Name     string   `json:"name"`
+	Quantity *float64 `json:"quantity,omitempty"`
+	Unit     *string  `json:"unit,omitempty"`
+	Staple   bool     `json:"staple"`
+}
+
+// Preview lists the recipe entries from..to (and the tray when tray is set)
+// with what ToList would put on a list for each.
+func (s *Service) Preview(ctx context.Context, userID, planID, from, to string, tray bool) ([]PreviewEntry, error) {
+	p, err := s.Get(ctx, userID, planID, from, to)
+	if err != nil {
+		return nil, err
+	}
+	staples, err := s.staples(ctx, planID)
+	if err != nil {
+		return nil, err
+	}
+	isStaple := map[string]bool{}
+	for _, st := range staples {
+		isStaple[st.NameKey] = true
+	}
+	out := []PreviewEntry{}
+	for _, e := range p.Entries {
+		if e.RecipeID == nil || e.Servings == nil || e.Day == nil && !tray {
+			continue
+		}
+		rec, err := s.q.GetRecipe(ctx, *e.RecipeID)
+		if err != nil {
+			return nil, fmt.Errorf("get recipe: %w", err)
+		}
+		groups, err := s.q.ListIngredientGroupsByRecipe(ctx, *e.RecipeID)
+		if err != nil {
+			return nil, fmt.Errorf("list ingredient groups: %w", err)
+		}
+		ings, err := s.q.ListIngredientsByRecipe(ctx, *e.RecipeID)
+		if err != nil {
+			return nil, fmt.Errorf("list ingredients: %w", err)
+		}
+		pe := PreviewEntry{EntryID: e.ID, Title: e.Title, Servings: *e.Servings, AlreadyListed: len(e.Lists) > 0, Ingredients: []PreviewIngredient{}}
+		for g, grp := range groups {
+			i := 0
+			for _, ing := range ings {
+				if ing.GroupID != grp.ID {
+					continue
+				}
+				pi := PreviewIngredient{Group: g, Index: i, Name: ing.Name, Unit: ing.Unit, Staple: isStaple[ingredient.Key(ing.Name)]}
+				if ing.Quantity != nil {
+					v := shopping.RoundScaled(shopping.ScaleQuantity(*ing.Quantity, float64(rec.Servings), float64(*e.Servings)))
+					pi.Quantity = &v
+				}
+				pe.Ingredients = append(pe.Ingredients, pi)
+				i++
+			}
+		}
+		out = append(out, pe)
+	}
+	return out, nil
 }

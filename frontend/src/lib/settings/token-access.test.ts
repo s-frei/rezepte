@@ -26,7 +26,8 @@ describe('accessLevels', () => {
 		expect(accessLevels(['recipes:read', 'recipes:write', 'users:read'])).toEqual({
 			recipes: 'write',
 			users: 'read',
-			lists: 'none'
+			lists: 'none',
+			plan: 'none'
 		});
 	});
 
@@ -34,13 +35,24 @@ describe('accessLevels', () => {
 		expect(accessLevels(['recipes:read', 'recipes:write', 'recipes:delete'])).toEqual({
 			recipes: 'delete',
 			users: 'none',
-			lists: 'none'
+			lists: 'none',
+			plan: 'none'
 		});
 	});
 
 	it('names the shopping lists level', () => {
 		expect(accessLevels(['lists:read', 'lists:write']).lists).toBe('write');
 		expect(accessLevels(['lists:read']).lists).toBe('read');
+	});
+
+	it('names the meal plan level', () => {
+		expect(accessLevels(['plan:read'])).toEqual({
+			recipes: 'none',
+			users: 'none',
+			lists: 'none',
+			plan: 'read'
+		});
+		expect(accessLevels(['plan:read', 'plan:write']).plan).toBe('write');
 	});
 });
 

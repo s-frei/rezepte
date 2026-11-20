@@ -8,7 +8,9 @@ export type TokenScope =
 	| 'users:read'
 	| 'users:write'
 	| 'lists:read'
-	| 'lists:write';
+	| 'lists:write'
+	| 'plan:read'
+	| 'plan:write';
 
 /** The lifetimes the create form offers; `null` means the token never expires. */
 export type TokenExpiry = 30 | 90 | 365 | null;

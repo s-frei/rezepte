@@ -81,7 +81,7 @@ func person(id, name, color string, avatar *string) Person {
 
 // Plans returns the caller's plans, the personal one first (made here on
 // first use), then the most recently changed, and their pending invitations.
-func (s *Service) Plans(ctx context.Context, userID string) ([]Summary, []Invitation, error) {
+func (s *Service) Plans(ctx context.Context, userID string) ([]PlanSummary, []PlanInvitation, error) {
 	if err := s.q.InsertPersonalMealPlan(ctx, sqlc.InsertPersonalMealPlanParams{ID: newID(), UserID: userID, Now: s.stamp()}); err != nil {
 		return nil, nil, fmt.Errorf("insert personal meal plan: %w", err)
 	}
@@ -97,9 +97,9 @@ func (s *Service) Plans(ctx context.Context, userID string) ([]Summary, []Invita
 	if err != nil {
 		return nil, nil, err
 	}
-	plans := make([]Summary, 0, len(rows))
+	plans := make([]PlanSummary, 0, len(rows))
 	for _, r := range rows {
-		plans = append(plans, Summary{
+		plans = append(plans, PlanSummary{
 			ID: r.ID, Name: r.Name, Personal: r.Personal == 1, UpdatedAt: r.UpdatedAt,
 			Owner: person(r.CreatedBy, r.OwnerName, r.OwnerColor, r.OwnerAvatarID), Members: members[r.ID],
 		})
@@ -108,9 +108,9 @@ func (s *Service) Plans(ctx context.Context, userID string) ([]Summary, []Invita
 	if err != nil {
 		return nil, nil, fmt.Errorf("list meal plan invitations: %w", err)
 	}
-	invitations := make([]Invitation, 0, len(inv))
+	invitations := make([]PlanInvitation, 0, len(inv))
 	for _, r := range inv {
-		invitations = append(invitations, Invitation{PlanID: r.ID, Name: r.Name, Inviter: person(r.CreatedBy, r.OwnerName, r.OwnerColor, r.OwnerAvatarID)})
+		invitations = append(invitations, PlanInvitation{PlanID: r.ID, Name: r.Name, Inviter: person(r.CreatedBy, r.OwnerName, r.OwnerColor, r.OwnerAvatarID)})
 	}
 	return plans, invitations, nil
 }
@@ -206,7 +206,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 	}
 	p := Plan{
 		ID: row.ID, Name: row.Name, Personal: row.Personal == 1, Revision: row.Revision, From: from, To: to,
-		Owner: person(row.CreatedBy, row.OwnerName, row.OwnerColor, row.OwnerAvatarID), Entries: []Entry{}, Lists: []LinkedList{},
+		Owner: person(row.CreatedBy, row.OwnerName, row.OwnerColor, row.OwnerAvatarID), Entries: []PlanEntry{}, Lists: []LinkedList{},
 	}
 	members, pending, err := planMembers(ctx, q, []string{id}, userID == row.CreatedBy)
 	if err != nil {
@@ -236,7 +236,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 	var lists []*tally
 	seen := map[string]*tally{}
 	for _, r := range rows {
-		e := Entry{
+		e := PlanEntry{
 			ID: r.ID, Day: r.Day, Position: int(r.Position), RecipeID: r.RecipeID, RecipeSlug: r.RecipeSlug,
 			Title: r.Title, Photo: r.CoverImageID, Lists: byEntry[r.ID],
 		}
@@ -377,7 +377,8 @@ func (s *Service) Add(ctx context.Context, userID, planID, from, to string, in A
 }
 
 // Move puts an entry on day (nil: the tray) at position, clamped to the end
-// of that day, and renumbers the day it leaves and the day it enters.
+// of that day, and renumbers the day it leaves and the day it enters. The
+// lists it is on show its day, so they are bumped and told too.
 func (s *Service) Move(ctx context.Context, userID, planID, entryID, from, to string, day *string, position int) (Plan, error) {
 	if err := checkDay(day); err != nil {
 		return Plan{}, err
@@ -385,7 +386,8 @@ func (s *Service) Move(ctx context.Context, userID, planID, entryID, from, to st
 	if position < 0 {
 		return Plan{}, invalid("position must not be negative")
 	}
-	return s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
+	var lists []string
+	p, err := s.mutate(ctx, userID, planID, from, to, func(q *sqlc.Queries) error {
 		e, err := liveEntry(ctx, q, planID, entryID)
 		if err != nil {
 			return err
@@ -395,8 +397,13 @@ func (s *Service) Move(ctx context.Context, userID, planID, entryID, from, to st
 				return err
 			}
 		}
-		return insertAt(ctx, q, planID, day, entryID, position)
+		if err := insertAt(ctx, q, planID, day, entryID, position); err != nil {
+			return err
+		}
+		lists, err = shopping.FollowPlan(ctx, q, []string{entryID}, nil)
+		return err
 	})
+	return s.followed(p, err, lists)
 }
 
 func sameDay(a, b *string) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
