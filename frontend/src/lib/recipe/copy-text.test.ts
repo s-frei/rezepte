@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toast } from 'svelte-sonner';
 import { copyText } from './share.svelte';
+import { m } from '#lib/paraglide/messages.js';
 
 vi.mock('svelte-sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
-vi.mock('#lib/paraglide/messages.js', () => ({ m: { copy_unavailable: () => 'unavailable' } }));
 
 // The hidden field fallback, reduced to what copyThroughField touches.
 function stubDocument(copies: boolean) {
@@ -47,7 +47,7 @@ describe('copyText', () => {
 		vi.stubGlobal('navigator', {});
 		stubDocument(false);
 		expect(await copyText('Zwiebeln')).toBe(false);
-		expect(toast).toHaveBeenCalledWith('unavailable', { description: 'Zwiebeln' });
+		expect(toast).toHaveBeenCalledWith(m.copy_unavailable(), { description: 'Zwiebeln' });
 	});
 
 	// The caller's check must not appear when the text only sits in a toast.
@@ -58,6 +58,6 @@ describe('copyText', () => {
 		stubDocument(false);
 
 		expect(await copyText('Zwiebeln', 'copied')).toBe(false);
-		expect(toast).toHaveBeenCalledWith('unavailable', { description: 'Zwiebeln' });
+		expect(toast).toHaveBeenCalledWith(m.copy_unavailable(), { description: 'Zwiebeln' });
 	});
 });

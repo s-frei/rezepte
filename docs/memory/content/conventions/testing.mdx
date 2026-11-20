@@ -8,6 +8,7 @@ description: What to test and how, per package
 - `isVisible()` answers at once and never waits; a test that branches on it before the page rendered skips the branch ([A paused page clock](#a-paused-page-clock)).
 - A layout check on an element's box passes text that spills out of it; measure the text through a `Range` ([Measuring layout](#measuring-layout)).
 - Display names repeat between test accounts; pick a person by `@username` ([Picking a person](#picking-a-person)).
+- `vi.mock('#lib/paraglide/messages.js')` changes nothing: Paraglide's Vite plugin rewrites every `m.key` to a virtual module of its own, past the mock. Assert against the real message, `m.key()`, instead of a stand-in string.
 
 </Callout>
 
