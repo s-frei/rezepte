@@ -10,11 +10,10 @@
 	import Lockup from '#lib/components/brand/Lockup.svelte';
 	import RecipeView from '#lib/components/recipe/RecipeView.svelte';
 	import IconButton from '#lib/components/ui/IconButton.svelte';
-	import PersonMark from '#lib/components/ui/PersonMark.svelte';
+	import PersonRibbon from '#lib/components/ui/PersonRibbon.svelte';
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { setTheme, theme } from '#lib/theme.svelte.js';
-	import { userColorClasses } from '#lib/user/color.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -34,16 +33,6 @@
 	);
 
 	const sharedBy = $derived(data.recipe?.sharedBy);
-	// Translated whole, then split where the name goes, so each language keeps
-	// its own order and the name alone is set bold (as RecipeColophon does).
-	const WHO = '\u0000';
-	const sharedByParts = $derived(
-		m
-			.public_shared_by({ name: WHO })
-			.split(WHO)
-			.flatMap((part, i) => (i > 0 ? [WHO, part] : [part]))
-			.filter(Boolean)
-	);
 
 	function imageSrc(imageId: string, variant: ImageVariant): string {
 		return publicImageUrl(data.token, imageId, variant);
@@ -92,34 +81,14 @@
 			<RecipeView {recipe} {imageSrc} onopenimage={openLightbox}>
 				{#snippet belowSource()}
 					<!-- Only while the owner lets the page name the sharer: the
-					     profile head's band in miniature, a slim ribbon in their
-					     color with their face on its left edge - their picture at
-					     the share's own address when they have one, else their
-					     initial in their strong tone, which the ribbon's own would
-					     swallow. The page's ground cuts the face out of the ribbon,
-					     as on the author band; a photo keeps PersonMark's ring and
-					     lines that ring, not the face, up with the column. Under the source line,
-					     the title block's last word: who handed the recipe on. -->
+					     title block's last word, who handed the recipe on. -->
 					{#if sharedBy}
 						<p class="mt-4.5 flex pl-1">
-							<span
-								class="inline-flex min-h-8 min-w-0 items-center gap-2.5 rounded-pill pr-4 {userColorClasses(
-									sharedBy.color
-								)}"
-							>
-								<PersonMark
-									person={{ id: '', ...sharedBy }}
-									src={sharedBy.avatarUrl ?? null}
-									size="ribbon"
-									strong
-									class="-my-1.5 ring-3 ring-background {sharedBy.avatarUrl ? '' : '-ml-1'}"
-								/>
-								<span class="min-w-0 py-1.5 text-body-sm wrap-break-word"
-									>{#each sharedByParts as part, i (i)}{#if part === WHO}<b class="font-semibold"
-												>{sharedBy.displayName}</b
-											>{:else}{part}{/if}{/each}</span
-								>
-							</span>
+							<PersonRibbon
+								person={sharedBy}
+								src={sharedBy.avatarUrl ?? null}
+								text={(name) => m.public_shared_by({ name })}
+							/>
 						</p>
 					{/if}
 				{/snippet}

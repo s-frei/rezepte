@@ -217,6 +217,7 @@
 	"settings_public_sharing_attribution_hint": "A line at the foot of public pages and of shared recipe images says where the recipe comes from and links to the project.",
 	"settings_public_sharing_sharer": "Name who shared it",
 	"settings_public_sharing_sharer_hint": "Public pages say “Shared by …” with the display name and photo of the member who shared the recipe, or their initial if they have no photo.",
+	"recipe_by": "by {name}",
 	"public_shared_by": "Shared by {name}",
 	"settings_public_sharing_state_on": "Right now members may share recipes publicly, up to {max}. Only {owner} can change this.",
 	"settings_public_sharing_state_off": "Right now members may not create public links. Only {owner} can change this.",

@@ -63,7 +63,8 @@
 		 * slug-based cook route, which is not part of `RecipeContent`. */
 		belowMeta?: Snippet;
 		/** Rendered after the source line, closing the title block - the
-		 * public page's "Shared by" ribbon lives here. */
+		 * public page's "Shared by" ribbon and the recipe page's author
+		 * ribbon (`PersonRibbon`) live here. */
 		belowSource?: Snippet;
 		/** Rendered after the ingredients/steps - the detail page puts `RecipeColophon` here. */
 		footer?: Snippet;

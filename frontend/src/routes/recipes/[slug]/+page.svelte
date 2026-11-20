@@ -26,6 +26,9 @@
 	import KitchenDiary from '#lib/components/recipe/KitchenDiary.svelte';
 	import FavoriteStar from '#lib/components/recipe/FavoriteStar.svelte';
 	import RecipeColophon from '#lib/components/recipe/RecipeColophon.svelte';
+	import PersonCard from '#lib/components/ui/PersonCard.svelte';
+	import PersonPeek from '#lib/components/ui/PersonPeek.svelte';
+	import PersonRibbon from '#lib/components/ui/PersonRibbon.svelte';
 	import RecipeView from '#lib/components/recipe/RecipeView.svelte';
 	import ShareSheet from '#lib/components/recipe/ShareSheet.svelte';
 	import TastyButton from '#lib/components/recipe/TastyButton.svelte';
@@ -68,6 +71,8 @@
 	// tap that empties it fades both.
 	const joined = $derived(changed && !prefersReducedMotion.current ? 1 : 0);
 	const ownRecipe = $derived(recipe && session.user?.id === recipe.createdBy.id);
+	// The byline's person card (PersonPeek).
+	let authorOpen = $state(false);
 
 	function onTasty(active: boolean) {
 		const me = session.user;
@@ -496,6 +501,35 @@
 						{m.public_share_marker()}
 					</button>
 				{/if}
+			{/snippet}
+			{#snippet belowSource()}
+				<!-- The author ribbon, the title block's last word as on the public page:
+				     whose recipe this is, in their color. It opens their card. -->
+				<div class="mt-4.5 flex pl-1">
+					<PersonPeek
+						bind:open={authorOpen}
+						label={m.recipe_by({ name: recipe.createdBy.displayName })}
+						class="max-w-full min-w-0 rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+						panelClass="w-80 max-w-[calc(100vw-24px)] text-caption"
+					>
+						{#snippet trigger()}
+							<PersonRibbon
+								person={recipe.createdBy}
+								text={(name) => m.recipe_by({ name })}
+								class="hover-tint"
+							/>
+						{/snippet}
+						{#snippet card(sheet)}
+							<PersonCard
+								person={recipe.createdBy}
+								asTitle={sheet}
+								compact={!sheet}
+								colored
+								onnavigate={() => (authorOpen = false)}
+							/>
+						{/snippet}
+					</PersonPeek>
+				</div>
 			{/snippet}
 			{#snippet belowMeta()}
 				<!-- On phones the primary action lives in the flow, right under the

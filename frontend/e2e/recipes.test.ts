@@ -3384,3 +3384,52 @@ test('a refused save shows catalog copy, never the server’s own words', async 
 	await expect(page.getByText('does not occur')).toHaveCount(0);
 	await expect(page.getByText('validation failed')).toHaveCount(0);
 });
+
+test('the recipe page names its author under the source and opens their card', async ({
+	page
+}, testInfo) => {
+	const recipe = await createRecipe(page, {
+		...loadFixture(0),
+		title: `Byline ${uniqueToken()}`,
+		description: 'A note under the title.'
+	});
+	await page.goto(`/recipes/${recipe.slug}`);
+	// The ribbon closes the title block: under the description, above the servings.
+	const byline = page.getByRole('main').getByRole('button', { name: 'by admin', exact: true });
+	await expect(byline).toBeVisible();
+	const note = await page.getByText('A note under the title.').boundingBox();
+	const servings = await page.getByRole('button', { name: 'More servings' }).first().boundingBox();
+	const ribbon = (await byline.boundingBox())!;
+	expect(ribbon.y).toBeGreaterThan(note!.y);
+	expect(ribbon.y).toBeLessThan(servings!.y);
+	// A pointer over it tints the pill itself, the way every pill answers
+	// (`hover-tint` only where the device can hover).
+	if (testInfo.project.name !== 'mobile') {
+		const pill = byline.locator(':scope > span').first();
+		await expect(pill).toHaveCSS('background-image', 'none');
+		await byline.hover();
+		await expect(pill).not.toHaveCSS('background-image', 'none');
+		await page.mouse.move(0, 0);
+	}
+	await byline.click();
+	await expect(page.getByRole('link', { name: /Recipes by admin/ })).toBeVisible();
+});
+
+test('a one-word name of full length wraps in the author ribbon on a 360px phone', async ({
+	page
+}) => {
+	const username = `lw${uniqueToken()}`.slice(0, 20);
+	const displayName = 'Donaudampfschifffahrtsgesellschaftskapitänswitwenrentenkasse';
+	await createUser(page, { username, role: 'user', displayName });
+	await login(page, username);
+	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Long ${uniqueToken()}` });
+	await page.setViewportSize({ width: 360, height: 780 });
+	await page.goto(`/recipes/${recipe.slug}`);
+	const ribbon = page.getByRole('main').getByRole('button', { name: `by ${displayName}` });
+	await expect(ribbon).toBeVisible();
+	// The ribbon and its text stay inside the screen, not only the page.
+	const right = await ribbon.evaluate((el) =>
+		Math.max(...[el, ...el.querySelectorAll('*')].map((e) => e.getBoundingClientRect().right))
+	);
+	expect(right).toBeLessThanOrEqual(360);
+});

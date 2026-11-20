@@ -149,7 +149,7 @@
 					: 'text-text-muted'}"
 			>
 				{#if !mine}
-					<span class="font-semibold text-text"
+					<span class="font-semibold {entry.author ? '' : 'text-text'}"
 						>{entry.author?.displayName ?? m.diary_former_member()}</span
 					>
 					<span aria-hidden="true">·</span>

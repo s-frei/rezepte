@@ -217,6 +217,7 @@
 	"settings_public_sharing_attribution_hint": "Eine Zeile am Fuß öffentlicher Seiten und geteilter Rezeptbilder sagt, woher das Rezept kommt, und verlinkt das Projekt.",
 	"settings_public_sharing_sharer": "Nennen, wer geteilt hat",
 	"settings_public_sharing_sharer_hint": "Öffentliche Seiten sagen „Geteilt von …“ mit Anzeigename und Foto der Person, die das Rezept geteilt hat, ohne Foto mit ihrer Initiale.",
+	"recipe_by": "von {name}",
 	"public_shared_by": "Geteilt von {name}",
 	"settings_public_sharing_state_on": "Gerade dürfen Mitglieder Rezepte öffentlich teilen, für bis zu {max}. Nur {owner} kann das ändern.",
 	"settings_public_sharing_state_off": "Gerade dürfen Mitglieder keine öffentlichen Links erstellen. Nur {owner} kann das ändern.",
