@@ -3,6 +3,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Copy from '@lucide/svelte/icons/copy';
 	import Globe from '@lucide/svelte/icons/globe';
+	import GlobeOff from '@lucide/svelte/icons/globe-off';
 	import House from '@lucide/svelte/icons/house';
 	import Lock from '@lucide/svelte/icons/lock';
 	import Share from '@lucide/svelte/icons/share';
@@ -16,6 +17,7 @@
 	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
 	import { ApiError } from '#lib/api/client.js';
+	import { session } from '#lib/auth.svelte.js';
 	import type { Recipe } from '#lib/api/recipes.js';
 	import {
 		createPublicShare,
@@ -51,6 +53,7 @@
 		linkUrl,
 		share = $bindable(null),
 		canCreateShare,
+		sharingOff = false,
 		defaultDays,
 		maxDays,
 		phone,
@@ -65,6 +68,8 @@
 		share?: PublicShare | null;
 		/** Public sharing is on and this member may use it. */
 		canCreateShare: boolean;
+		/** The household's public sharing is known to be off. */
+		sharingOff?: boolean;
 		defaultDays: ShareLifetime;
 		maxDays: ShareLifetime;
 		phone: boolean;
@@ -95,8 +100,12 @@
 	let revokeOpen = $state(false);
 	// The preview's fit step on a phone, see `fitRegion`.
 	let fit = $state(0);
-	// How far the ticket shrinks at the last fit step, as a CSS zoom.
-	let shrink = $state(1);
+	// The ticket's CSS zoom: below 1 at the last fit step, above 1 when the
+	// tab has no choice and the ticket is staged in the room it leaves.
+	let scale = $state(1);
+	// Only the owner can switch public sharing on, so only the owner hears
+	// that it is off - not a member whose own right is withdrawn.
+	const switchable = $derived(sharingOff && session.user?.role === 'superadmin');
 	// The chosen row's detail unfolds, the other one's folds away.
 	const unfold = $derived(prefersReducedMotion.current ? 0 : 240);
 	// The two details' footers: the perforation and the links behind it.
@@ -244,7 +253,7 @@
 
 	// The phone's preview gives way before the controls do: step by step
 	// the chip goes (1), the photo flattens (2), the photo goes (3), the
-	// ticket shrinks (4, `shrink`, down to 60 %), and only then does the
+	// ticket shrinks (4, `scale`, down to 60 %), and only then does the
 	// region scroll. The ticket itself never goes: on an iPhone in Safari
 	// the last step used to drop it and leave its room empty. Each step is
 	// laid out and measured at once; the first that fits stays.
@@ -269,12 +278,32 @@
 			const height = ticket.offsetHeight;
 			fit = 4;
 			// 2px more than measured: the zoomed box rounds to whole pixels.
-			shrink = Math.max(0.6, (height - over() - 2) / height);
+			scale = Math.max(0.6, (height - over() - 2) / height);
 			flushSync();
 		};
+		// Without a choice the stage takes the room the Image tab leaves, and
+		// the ticket grows into it: by width and height, at most 1.35x, a few
+		// pixels short of the stage so the tab never grows the sheet. The
+		// margins are the stage's own padding (`px-5 py-3`, 40 and 24) plus
+		// 8 and 16 px to spare: change them together.
+		const stage = () => {
+			const box = region.querySelector<HTMLElement>('[data-stage]');
+			const ticket = region.querySelector<HTMLElement>('[data-ticket]');
+			if (!box || !ticket || fit > 0) return;
+			const room = Math.min(
+				(box.clientWidth - 48) / ticket.offsetWidth,
+				(box.clientHeight - 40) / ticket.offsetHeight,
+				1.35
+			);
+			if (room > 1) {
+				scale = room;
+				flushSync();
+			}
+		};
 		const measure = () => {
-			shrink = 1;
+			scale = 1;
 			steps();
+			if (!offered) stage();
 		};
 		// In the next frame, not in the observer's callback: a fit there
 		// resizes the region again, a resize the observer cannot deliver in
@@ -312,7 +341,7 @@
 {#snippet preview()}
 	<!-- `zoom`, not a transform: the box shrinks with it, so what it frees
 	     is room the choice below can use. -->
-	<div data-ticket class="max-w-full" style:zoom={shrink < 1 ? shrink : undefined}>
+	<div data-ticket class="max-w-full" style:zoom={scale !== 1 ? scale : undefined}>
 		<ShareTicket
 			{recipe}
 			address={shownAddress()}
@@ -320,7 +349,7 @@
 			photo={fit >= 3 ? 'none' : fit >= 2 ? 'flat' : 'full'}
 		/>
 	</div>
-	{#if fit === 0}
+	{#if fit === 0 && offered}
 		{#if !everyone}
 			<span
 				class="inline-flex h-6.5 items-center gap-1.5 rounded-pill border border-border bg-surface px-2.5 text-micro font-semibold text-text-muted"
@@ -404,6 +433,46 @@
 	</div>
 {/snippet}
 
+<!-- No choice to make: the household link, said as one card. While the
+     household's public sharing is off, the owner also learns that and
+     where to switch it on. -->
+{#snippet householdFacts()}
+	<div class="rounded-lg border border-border bg-surface">
+		<div class="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
+			<span
+				class="flex size-10 shrink-0 items-center justify-center rounded-pill bg-background text-text-muted"
+			>
+				<Lock class="size-4.5" aria-hidden="true" />
+			</span>
+			<span class="min-w-0 flex-1 text-body/[1.3]">
+				<span class="block font-semibold">{m.share_household()}</span>
+				<span class="mt-0.5 block text-caption text-pretty text-text-muted">
+					{m.share_household_detail()}
+				</span>
+			</span>
+		</div>
+		<div class="px-3.5 pb-0.5">
+			<div class={footer}>
+				<a href={resolve('/settings/users')} class="{footerLink} text-text-muted">
+					<Users class="size-3.5" aria-hidden="true" />
+					{m.settings_nav_users()}
+					<ChevronRight class="-ml-0.75 size-3.5" aria-hidden="true" />
+				</a>
+				{#if switchable}
+					<a
+						href="{resolve('/settings/users')}#public-sharing"
+						class="{footerLink} text-text-muted"
+					>
+						<GlobeOff class="size-3.5" aria-hidden="true" />
+						{m.share_public_off()}
+						<ChevronRight class="-ml-0.75 size-3.5" aria-hidden="true" />
+					</a>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/snippet}
+
 {#snippet publicDetail()}
 	<div class="flex flex-col gap-2.5 px-3.5 pt-px pb-0.5">
 		<LifetimePicker
@@ -468,9 +537,18 @@
 			class="flex min-h-0 flex-auto flex-col overflow-y-auto overscroll-contain"
 		>
 			{@render spoken()}
-			<div class="flex flex-col items-center gap-3.5 px-5 pt-2.5 {offered ? '' : 'pb-2.5'}">
-				{@render preview()}
-			</div>
+			{#if !offered}
+				<!-- The stage takes what the Image tab's height leaves; the ticket
+				     grows into it, see `fitRegion`. -->
+				<div data-stage class="flex flex-[1_0_auto] flex-col items-center justify-center px-5 py-3">
+					{@render preview()}
+				</div>
+				<div class="shrink-0 px-5 pb-4">{@render householdFacts()}</div>
+			{:else}
+				<div class="flex flex-col items-center gap-3.5 px-5 pt-2.5">
+					{@render preview()}
+				</div>
+			{/if}
 			{#if offered}
 				<!-- The tilted ticket's corner reaches 6px below its box, hence the
 				     line's distance. Its scissors hang 10px over the line: the room
@@ -536,13 +614,22 @@
 			{@render spoken()}
 		</div>
 	</div>
+	<!-- Heading at the top, the choice or the household's card centered
+	     in the room between, level with the ticket, the actions on the
+	     stage's bottom edge. -->
 	<div class="flex flex-col py-1">
 		{@render heading()}
-		<p class="mt-1 text-body-sm text-text-muted">{m.share_link_dialog_hint()}</p>
-		{#if offered}
-			<div data-choice class="mt-5">{@render choice()}</div>
-		{/if}
-		<div class="mt-5 flex gap-1.5">
+		<p class="mt-1 text-body-sm text-text-muted">
+			{offered ? m.share_link_dialog_hint() : m.share_link_dialog_hint_household()}
+		</p>
+		<div class="flex flex-1 flex-col justify-center py-5">
+			{#if offered}
+				<div data-choice>{@render choice()}</div>
+			{:else}
+				{@render householdFacts()}
+			{/if}
+		</div>
+		<div class="flex gap-1.5">
 			<Button
 				id="{uid}-primary"
 				class="flex-1"

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import Lock from '@lucide/svelte/icons/lock';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { isSignedOut } from '#lib/api/client.js';
@@ -70,18 +71,37 @@
 		}
 	}
 
+	// Where the navigation left the page, unless it was back or forward.
+	let landing: number | null = null;
+	afterNavigate(({ type }) => {
+		landing = type === 'popstate' ? null : scrollY;
+	});
+
 	onMount(() => {
-		void load();
 		// An extra, like the provider button on the login page: a failed
 		// lookup leaves the action out.
 		if (isAdmin) {
 			getOidc()
 				.then((info) => (provider = info.enabled ? info.name : undefined))
 				.catch(() => {});
-			getSettings()
-				.then((s) => (settings = s))
-				.catch(() => {});
 		}
+		const settingsLoaded = isAdmin
+			? getSettings()
+					.then((s) => (settings = s))
+					.catch(() => {})
+			: Promise.resolve();
+		// A link to one card, like the pass-on sheet's "Public: off", lands on
+		// it once the list and the cards above it have their height; the
+		// browser's own jump came while they were still loading.
+		void Promise.all([load(), settingsLoaded])
+			.then(tick)
+			.then(() => {
+				// Not after a back or forward navigation, which restores its own
+				// place, nor once the reader has scrolled meanwhile.
+				if (location.hash && landing !== null && scrollY === landing) {
+					document.getElementById(location.hash.slice(1))?.scrollIntoView();
+				}
+			});
 	});
 
 	function userCreated(user: UserAccount, setupLink: SetupLinkInfo | null) {

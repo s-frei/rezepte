@@ -16,7 +16,7 @@
 	import Button from '#lib/components/ui/Button.svelte';
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
-	import { formatServings } from '#lib/recipe/format.js';
+	import { formatMinutes } from '#lib/recipe/format.js';
 	import { createServings } from '#lib/recipe/servings.svelte.js';
 	import {
 		canCopyImage,
@@ -57,17 +57,35 @@
 		initialTab?: Tab;
 	} & Pick<
 		ComponentProps<typeof ShareLinkPanel>,
-		'linkUrl' | 'share' | 'canCreateShare' | 'defaultDays' | 'maxDays'
+		'linkUrl' | 'share' | 'canCreateShare' | 'sharingOff' | 'defaultDays' | 'maxDays'
 	> = $props();
 
 	// Press and hold is a touch gesture: a narrow desktop window gets the
 	// phone sheet, but nothing to hold.
 	const touch = new MediaQuery('pointer: coarse');
+	const uid = $props.id();
 	// Read afresh on every opening: the page's stepper stores its choice.
 	const servings = $derived(
 		open ? createServings(recipe.id, recipe.servings).value : recipe.servings
 	);
 	const fileName = $derived(`${recipe.slug}.png`);
+	// What the picture holds, said beside it in the dialog.
+	const facts = $derived(
+		[
+			[m.share_fact_servings(), String(servings)],
+			[
+				m.share_fact_ingredients(),
+				String(recipe.ingredientGroups.reduce((sum, group) => sum + group.ingredients.length, 0))
+			],
+			[m.share_fact_steps(), String(recipe.steps.length)],
+			recipe.prepMinutes || recipe.cookMinutes
+				? [
+						m.share_fact_time(),
+						formatMinutes((recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0))
+					]
+				: null
+		].filter((fact) => fact !== null)
+	);
 	const label = 'text-label font-bold tracking-[0.08em] text-text-muted uppercase';
 
 	const TAB_KEY = 'rezepte-share-tab';
@@ -303,44 +321,77 @@
 					<div class="px-5.5 pt-7 pb-1.5">{@render switcher()}</div>
 					<div class="relative flex-1">{@render card('absolute inset-0')}</div>
 				</div>
+				<!-- Heading at the top, what the picture holds in the room between,
+				     the actions on the stage's bottom edge. The room is a size
+				     container, so the card never makes the column taller than the
+				     stage - the dialog keeps its size on a switch to Link. Where a
+				     long title leaves it too little room, one line says the same.
+				     10.47rem is the card's height with all four facts. -->
 				<div class="flex flex-col py-1">
 					{@render heading()}
-					<p class="mt-1 text-body-sm text-text-muted">
-						{m.share_dialog_hint({ servings: formatServings(servings) })}
-					</p>
-					<div class="mt-5 flex flex-col gap-1.5">
+					<p class="mt-1 text-body-sm text-text-muted">{m.share_image_dialog_hint()}</p>
+					<div class="@container-size flex min-h-0 flex-1 flex-col justify-center py-5">
+						<div
+							class="rounded-lg border border-border bg-surface px-4 pt-2.5 pb-1 [@container_(max-height:10.47rem)]:hidden"
+						>
+							<p id="{uid}-facts" class="text-caption font-semibold text-text-muted">
+								{m.share_facts_label()}
+							</p>
+							<dl class="mt-1" aria-labelledby="{uid}-facts">
+								{#each facts as [term, value] (term)}
+									<div class="flex items-baseline py-1">
+										<!-- The dotted leader is the term's own tail, so the
+										     group holds only a term and its value. -->
+										<dt
+											class="flex flex-1 items-baseline gap-2 text-body-sm text-text-muted after:mr-2 after:flex-1 after:-translate-y-0.75 after:border-b-2 after:border-dotted after:border-border after:content-['']"
+										>
+											{term}
+										</dt>
+										<dd class="font-display text-body-lg/tight font-medium">{value}</dd>
+									</div>
+								{/each}
+							</dl>
+						</div>
+						<!-- Where the card does not fit, the same facts in one line. -->
+						<p
+							class="hidden text-center text-body-sm text-pretty text-text-muted [@container_(max-height:10.47rem)]:block"
+						>
+							{facts.map(([term, value]) => `${term} ${value}`).join(' · ')}
+						</p>
+					</div>
+					<!-- Save and Share side by side under the primary, as on the Link
+					     tab: a third full-width row left the card no room. -->
+					<div class="flex flex-col gap-1.5">
 						{#if canCopyImage()}
-							<Button
-								class="justify-start!"
-								disabled={!blob}
-								onclick={() => blob && copyImage(blob)}
-							>
+							<Button disabled={!blob} onclick={() => blob && copyImage(blob)}>
 								<ClipboardCopy class="size-4" aria-hidden="true" />
 								{m.share_copy_image()}
 							</Button>
 						{/if}
-						<!-- The primary while nothing copies an image (plain http, older
-						     Firefox), so the dialog always leads with one action. -->
-						<Button
-							variant={canCopyImage() ? 'secondary' : 'primary'}
-							class="justify-start!"
-							disabled={!blob}
-							onclick={saveCard}
-						>
-							<Download class="size-4" aria-hidden="true" />
-							{m.share_save_image()}
-						</Button>
-						{#if canShareFiles()}
+						<div class="flex gap-1.5">
+							<!-- The primary while nothing copies an image (plain http, older
+							     Firefox), so the dialog always leads with one action. -->
 							<Button
-								variant="secondary"
-								class="justify-start!"
-								disabled={!blob || sending}
-								onclick={sendCard}
+								variant={canCopyImage() ? 'secondary' : 'primary'}
+								class="flex-1"
+								disabled={!blob}
+								onclick={saveCard}
 							>
-								<Share class="size-4" aria-hidden="true" />
-								{m.share_share()}
+								<Download class="size-4" aria-hidden="true" />
+								{m.share_save_image()}
 							</Button>
-						{/if}
+							{#if canShareFiles()}
+								<Button
+									variant="secondary"
+									class="flex-1"
+									disabled={!blob || sending}
+									onclick={sendCard}
+								>
+									<Share class="size-4" aria-hidden="true" />
+									{m.share_share()}
+								</Button>
+							{/if}
+						</div>
 					</div>
 					{#if !canShareFiles() && touch.current}
 						<!-- A tablet over plain http gets the dialog, and its own long-press

@@ -348,7 +348,8 @@ test('the Link tab without public sharing shows the household ticket', async ({ 
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	const sheet = await openLinkTab(page);
-	await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
+	// No choice to make, so no chip either: the household's facts as one card.
+	await expect(sheet.getByText('Anyone with an account here. Never expires.')).toBeVisible();
 	// The ticket shows host and path: no scheme, no share link query.
 	const address = `[^/:\\s]+(:\\d+)?/recipes/${recipe.slug}`;
 	await expect(sheet.getByText(new RegExp(`^${address}$`))).toBeVisible();

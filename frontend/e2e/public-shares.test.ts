@@ -606,8 +606,10 @@ test('a member without the right is offered the household link only', async ({ p
 			await login(memberPage, username);
 			await memberPage.goto(`/recipes/${recipe.slug}`);
 			const sheet = await openLinkTab(memberPage);
-			await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
+			await expect(sheet.getByText('Anyone with an account here. Never expires.')).toBeVisible();
 			await expect(sheet.getByRole('radio', { name: /For everyone/ })).toHaveCount(0);
+			// Sharing is on for the household: nothing says it is off.
+			await expect(sheet.getByRole('link', { name: 'Public: off' })).toHaveCount(0);
 		} finally {
 			await memberContext.close();
 		}
@@ -618,15 +620,75 @@ test('a member without the right is offered the household link only', async ({ p
 });
 
 test('with public sharing off the Link tab offers the household link only', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await login(page);
 	const title = `No sharing ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
+	await uploadImage(page, recipe.id, tinyPng([60, 140, 70], 320, 240));
 
 	await setPublicShares(page, false);
+	for (const viewport of [
+		{ width: 1280, height: 800 },
+		{ width: 360, height: 780 },
+		{ width: 320, height: 568 }
+	]) {
+		await page.setViewportSize(viewport);
+		await page.goto(`/recipes/${recipe.slug}`);
+		const sheet = await openLinkTab(page);
+		// No choice to make: the household's facts as one card, no radio.
+		await expect(sheet.getByText('Anyone with an account here. Never expires.')).toBeVisible();
+		await expect(sheet.getByRole('radio', { name: /For (the household|everyone)/ })).toHaveCount(0);
+		const primary = sheet.getByRole('button', { name: /^(Share|Copy) link$/ }).first();
+		await expect(primary).toBeVisible();
+		const button = (await primary.boundingBox())!;
+		expect(button.y + button.height).toBeLessThanOrEqual(viewport.height);
+		// The ticket stays inside the sheet and clear of the card below it.
+		const ticket = (await sheet.locator('[data-ticket]').boundingBox())!;
+		const card = (await sheet.getByText('For the household', { exact: true }).boundingBox())!;
+		expect(ticket.x).toBeGreaterThanOrEqual(0);
+		expect(ticket.x + ticket.width).toBeLessThanOrEqual(viewport.width);
+		if (viewport.width < 768) expect(ticket.y + ticket.height).toBeLessThanOrEqual(card.y);
+		if (viewport.width < 768) {
+			// No hole: the ticket grows into the room the Image tab leaves, or
+			// there was none to leave. Polled: the fit runs a frame after.
+			await expect
+				.poll(() =>
+					sheet.locator('[data-stage]').evaluate((stage) => {
+						const ticket = stage.querySelector<HTMLElement>('[data-ticket]')!;
+						const zoom = Number(ticket.style.zoom || 1);
+						return zoom > 1 || stage.clientHeight - ticket.offsetHeight * zoom <= 64;
+					})
+				)
+				.toBe(true);
+		}
+		await page.keyboard.press('Escape');
+	}
+
+	// A member learns nothing of a switch only the owner can flip.
+	const quiet = `quiet${uniqueToken()}`;
+	await createUser(page, { username: quiet, role: 'user' });
+	const memberContext = await page.context().browser()!.newContext();
+	try {
+		const memberPage = await memberContext.newPage();
+		await login(memberPage, quiet);
+		await memberPage.goto(`/recipes/${recipe.slug}`);
+		const memberSheet = await openLinkTab(memberPage);
+		await expect(
+			memberSheet.getByText('Anyone with an account here. Never expires.')
+		).toBeVisible();
+		await expect(memberSheet.getByRole('link', { name: 'Public: off' })).toHaveCount(0);
+	} finally {
+		await memberContext.close();
+	}
+
+	// The owner learns where public links are switched on, and lands on that card.
 	await page.goto(`/recipes/${recipe.slug}`);
 	const sheet = await openLinkTab(page);
-	await expect(sheet.getByText('Accessible after signing in')).toBeVisible();
-	await expect(sheet.getByRole('radio', { name: /For everyone/ })).toHaveCount(0);
+	const off = sheet.getByRole('link', { name: 'Public: off' });
+	await expect(off).toHaveAttribute('href', '/settings/users#public-sharing');
+	await off.click();
+	await expect(page).toHaveURL(/\/settings\/users#public-sharing$/);
+	await expect(page.getByRole('heading', { name: 'Public sharing' })).toBeInViewport();
 });
 
 test('a limited link starts again from the lifetime picked', async ({ page }) => {
@@ -878,6 +940,52 @@ test('the dialog keeps its size when the audience changes', async ({ page }) => 
 	await sheet.getByRole('radio', { name: 'For everyone with the link' }).click();
 	await expect(sheet.getByRole('button', { name: 'Create public link' })).toBeVisible();
 	await expect.poll(size).toBe(household);
+});
+
+// The Image tab's facts card gives way rather than make that tab taller
+// than the Link tab: a long title and a third button ("Share…", where the
+// browser shares files) leave it no room.
+test('the dialog keeps its size between the Image and Link tabs', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.addInitScript(() => {
+		Object.defineProperty(Navigator.prototype, 'canShare', { value: () => true });
+		Object.defineProperty(Navigator.prototype, 'share', { value: () => Promise.resolve() });
+	});
+	await page.route('**/api/v1/settings', async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({ response, json: { ...(await response.json()), publicShares: false } });
+	});
+	await login(page);
+	for (const title of [
+		`Short ${uniqueToken()}`,
+		`Sized ${uniqueToken()}, a recipe whose title runs on over three lines of the dialog`
+	]) {
+		const recipe = await createRecipe(page, { ...loadFixture(0), title });
+		await page.goto(`/recipes/${recipe.slug}`);
+		await page.getByRole('button', { name: 'Pass on', exact: true }).click();
+		const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+		await sheet.getByRole('radio', { name: 'Image', exact: true }).click();
+		await expect(sheet.getByRole('button', { name: 'Share…' })).toBeVisible();
+		const facts = sheet.getByRole('definition').first();
+		const line = sheet.getByText(/^Servings 4 · Ingredients \d+ · Steps \d+/);
+		// The short title leaves the card its room; the long one gets the line.
+		if (title.startsWith('Short')) {
+			await expect(facts).toBeVisible();
+			await expect(line).toBeHidden();
+		} else {
+			await expect(facts).toBeHidden();
+			await expect(line).toBeVisible();
+		}
+		const size = async () => {
+			const box = (await sheet.boundingBox())!;
+			return JSON.stringify([Math.round(box.y), Math.round(box.height)]);
+		};
+		const image = await size();
+		await sheet.getByRole('radio', { name: 'Link', exact: true }).click();
+		await expect(sheet.getByRole('button', { name: 'Copy link' })).toBeVisible();
+		await expect.poll(size).toBe(image);
+		await page.keyboard.press('Escape');
+	}
 });
 
 test('the owner switches public sharing and its lifetimes', async ({ page }) => {

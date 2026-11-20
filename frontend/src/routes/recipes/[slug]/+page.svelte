@@ -532,6 +532,7 @@
 		linkUrl={() => shareable?.url ?? location.href}
 		bind:share
 		{canCreateShare}
+		sharingOff={settings?.publicShares === false}
 		defaultDays={settings?.publicShareDefaultDays ?? null}
 		maxDays={settings?.publicShareMaxDays ?? null}
 		initialTab={passOnTab}

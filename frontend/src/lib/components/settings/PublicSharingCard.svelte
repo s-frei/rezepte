@@ -93,7 +93,7 @@
 	}
 </script>
 
-<SettingsCard title={m.settings_public_sharing_title()}>
+<SettingsCard title={m.settings_public_sharing_title()} anchor="public-sharing">
 	{#if current !== null}
 		{#if isOwner}
 			{#key switchKey}
