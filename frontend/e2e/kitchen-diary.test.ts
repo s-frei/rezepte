@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
 	addDiaryPhoto,
 	createRecipe,
+	addDiaryEntry,
 	createUser,
 	loadFixture,
 	login,
@@ -974,4 +975,33 @@ test("the composer stays neutral when focused, the writer's mark beside it", asy
 	// Sending stays the action color.
 	await field.fill('Less salt next time');
 	await expect(diary(page).getByRole('button', { name: 'Send' })).toHaveClass(/bg-primary/);
+});
+
+test("every comment sits on its writer's paper", async ({ page }) => {
+	const token = uniqueToken();
+	const mara = `mara${token}`.slice(0, 20);
+	await login(page);
+	const admin = (await (await page.request.get('/api/v1/auth/me')).json()) as { color: string };
+	const color = admin.color === 'plum' ? 'teal' : 'plum';
+	await createUser(page, { username: mara, role: 'user', color });
+	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Papers ${token}` });
+	await addDiaryEntry(page, recipe.id, 'From the author');
+	await switchTo(page, mara);
+	await addDiaryEntry(page, recipe.id, 'From a member');
+	await page.goto(`/recipes/${recipe.slug}`);
+	await diaryTab(page).click();
+	const paper = (body: string) =>
+		diary(page).getByRole('listitem').filter({ hasText: body }).locator('.diary-paper');
+	const onPaper = (body: string, tone: string) =>
+		paper(body).evaluate((el, tone) => {
+			const probe = document.createElement('span');
+			probe.style.backgroundColor = `var(--color-user-${tone})`;
+			document.body.append(probe);
+			const want = getComputedStyle(probe).backgroundColor;
+			probe.remove();
+			return getComputedStyle(el).backgroundColor === want;
+		}, tone);
+	// The viewer's own entry and somebody else's, each in its writer's color.
+	await expect.poll(() => onPaper('From a member', color)).toBe(true);
+	await expect.poll(() => onPaper('From the author', admin.color)).toBe(true);
 });

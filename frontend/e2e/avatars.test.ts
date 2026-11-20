@@ -239,7 +239,7 @@ test('a mark in a line of text grows with the text', async ({ page }) => {
 	await page.goto(`/recipes/${recipe.slug}`);
 	// The colophon's "Added by" face: an `xs` mark beside the name.
 	const mark = page
-		.locator('button')
+		.locator('footer button')
 		.filter({ hasText: 'Admin' })
 		.locator('span[aria-hidden="true"]')
 		.first();

@@ -37,8 +37,10 @@
 	} = $props();
 
 	const mine = $derived(entry.canEdit);
+	// Every entry on its writer's paper, like notes from different people
+	// in the kitchen; a former member's stays plain.
 	const paper = $derived(
-		mine && entry.author ? userColorClasses(entry.author.color) : 'bg-surface-elevated'
+		entry.author ? userColorClasses(entry.author.color) : 'bg-surface-elevated'
 	);
 
 	// Editing swaps this bubble for the composer, prefilled, in place.
@@ -144,7 +146,7 @@
 				: ''}"
 		>
 			<div
-				class="flex flex-wrap items-center gap-x-1.5 text-micro leading-[26px] {mine
+				class="flex flex-wrap items-center gap-x-1.5 text-micro leading-[26px] {entry.author
 					? ''
 					: 'text-text-muted'}"
 			>
