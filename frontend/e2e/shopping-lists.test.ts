@@ -12,6 +12,9 @@ const department = (page: Page, label: string) =>
 		.locator('section')
 		.filter({ has: page.getByRole('heading', { name: new RegExp(`^${label}`) }) });
 
+/** The place's switch, whose Lists segment carries the invitation dot. */
+const switchOf = (page: Page) => page.getByRole('radiogroup', { name: 'Lists or week' });
+
 const phone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
 
 /** "New list" or the import: the top bar's on a desktop, the "+" sheet's on a phone. */
@@ -346,7 +349,8 @@ test('a shared list is ticked by both, until the owner removes the member', asyn
 		const lists = guest.page;
 		await lists.goto('/lists');
 		await expect(lists.getByText(`${owner} invites you to “Grill ${token}”`)).toBeVisible();
-		await expect(lists.getByText('1 invitation', { exact: true })).toBeAttached();
+		// The dot on the switch's Lists segment says it to a screen reader.
+		await expect(switchOf(lists).getByText('1 invitation', { exact: true })).toBeAttached();
 		await lists.getByRole('button', { name: 'Accept' }).click();
 		await expect(lists.getByRole('heading', { level: 1, name: `Grill ${token}` })).toBeVisible();
 		// The member sees who is on the list, on any screen: the faces open it.
@@ -407,7 +411,7 @@ test('an invitation is declined, and a member leaves', async ({ page, browser },
 	try {
 		const lists = guest.page;
 		await lists.goto('/lists');
-		await expect(lists.getByText('3 invitations')).toBeAttached();
+		await expect(switchOf(lists).getByText('3 invitations')).toBeAttached();
 
 		// Withdrawn while the page is open: answering it drops the card.
 		const withdrawn = await page.request.delete(`/api/v1/shopping-lists/${gone}`);
@@ -422,7 +426,7 @@ test('an invitation is declined, and a member leaves', async ({ page, browser },
 			.click();
 		await expect(lists.getByText('This list is no longer there for you')).toBeVisible();
 		await expect(lists.getByText(`invites you to “Weg ${token}”`)).toHaveCount(0);
-		await expect(lists.getByText('2 invitations')).toBeAttached();
+		await expect(switchOf(lists).getByText('2 invitations')).toBeAttached();
 
 		await expect(lists.getByText(`invites you to “Nein ${token}”`)).toBeVisible();
 		await lists

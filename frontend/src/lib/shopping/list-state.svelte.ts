@@ -1,6 +1,11 @@
 import { ApiError, isSignedOut } from '#lib/api/client.js';
-import { getShoppingList, setItemsChecked, type ShoppingList } from '#lib/api/shopping.js';
-import { followList } from './live';
+import {
+	getShoppingList,
+	listEventsUrl,
+	setItemsChecked,
+	type ShoppingList
+} from '#lib/api/shopping.js';
+import { follow } from '#lib/live.js';
 import type { Row } from './rows';
 
 /**
@@ -40,7 +45,7 @@ export class ListState {
 	connect(data: () => ShoppingList) {
 		$effect.pre(() => this.load(data()));
 		const id = $derived(data().id);
-		$effect(() => followList(id, (revision) => void this.follow(revision)));
+		$effect(() => follow(listEventsUrl(id), (revision) => void this.follow(revision)));
 	}
 
 	/** A new page load: its list replaces the current one and outranks answers in flight. */

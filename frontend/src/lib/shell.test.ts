@@ -15,6 +15,10 @@ describe('navPlace', () => {
 		expect(navPlace('/lists', false)).toBe('lists');
 	});
 
+	it('marks the week as the same place as the lists', () => {
+		expect(navPlace('/week', false)).toBe('lists');
+	});
+
 	it('marks every settings page as You', () => {
 		expect(navPlace('/settings', false)).toBe('you');
 		expect(navPlace('/settings/mail', false)).toBe('you');

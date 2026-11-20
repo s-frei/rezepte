@@ -9,6 +9,7 @@
 		type ShoppingSummary
 	} from '#lib/api/shopping.js';
 	import { session } from '#lib/auth.svelte.js';
+	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
 	import { invitations as nav } from '#lib/shopping/invitations.svelte.js';
 	import { startList } from '#lib/shopping/new-list.svelte.js';
@@ -57,10 +58,8 @@
 
 <div class="pt-6 pb-8 md:pt-4">
 	<!-- New list and the import are the top bar's and the phone's "+", as on
-	     the recipes; the title has the line to itself. -->
-	<h1 class="mb-6 font-display text-display-md font-medium hyphens-auto md:text-display-lg">
-		{m.lists_title()}
-	</h1>
+	     the recipes; the title shares its line only with the place's switch. -->
+	<PlaceSwitch side="lists" />
 
 	{#if failed}
 		<EmptyState title={m.lists_load_error()} text="">

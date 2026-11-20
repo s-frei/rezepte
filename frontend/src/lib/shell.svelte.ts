@@ -1,4 +1,6 @@
 import type { Snippet } from 'svelte';
+import { resolve } from '$app/paths';
+import { load, save } from '#lib/storage.js';
 
 /**
  * Lets a page contribute to the desktop top bar - breadcrumb text next to
@@ -56,6 +58,7 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/lists/new': 'lists',
 	'/lists/[id]': 'lists',
 	'/lists/[id]/shop': null,
+	'/week': 'lists',
 	'/settings': 'you',
 	'/settings/api': 'you',
 	'/settings/mail': 'you',
@@ -86,3 +89,32 @@ export function navPlace(routeId: string | null, hasError: boolean): NavPlace | 
 	if (hasError || routeId === null) return null;
 	return NAV_PLACES[routeId] ?? null;
 }
+
+/** The two sides of the lists place: the shopping lists and the week's meal plan. */
+export type PlaceSide = 'lists' | 'week';
+
+const SIDE_KEY = 'rezepte:place-side';
+
+/**
+ * The side the place opened on last, per device like the list view: the nav
+ * links to it, so the place comes back where it was left. A first visit opens
+ * the lists.
+ */
+export const placeSide = $state({
+	current: (load(SIDE_KEY) === 'week' ? 'week' : 'lists') as PlaceSide
+});
+
+export function setPlaceSide(side: PlaceSide): void {
+	placeSide.current = side;
+	save(SIDE_KEY, side);
+}
+
+/** Where the place's nav link goes: the side last used. */
+export const placeHref = (): string => resolve(placeSide.current === 'week' ? '/week' : '/lists');
+
+const PLAN_KEY = 'rezepte:last-plan';
+
+/** The plan the week opened on last on this device; the week reopens on it while the reader is still in it. */
+export const lastPlan = (): string | null => load(PLAN_KEY);
+
+export const rememberPlan = (id: string): void => save(PLAN_KEY, id);

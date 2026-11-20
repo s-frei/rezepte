@@ -11,9 +11,9 @@ test('the places mark where you are, and give way on a recipe', async ({ page })
 		'aria-current',
 		'page'
 	);
-	await places(page).getByRole('link', { name: 'Shopping lists' }).click();
+	await places(page).getByRole('link', { name: 'Shopping & week' }).click();
 	await expect(page).toHaveURL(/\/lists$/);
-	await expect(places(page).getByRole('link', { name: 'Shopping lists' })).toHaveAttribute(
+	await expect(places(page).getByRole('link', { name: 'Shopping & week' })).toHaveAttribute(
 		'aria-current',
 		'page'
 	);
@@ -49,7 +49,7 @@ for (const locale of ['en', 'de'] as const) {
 			if (place === 'lists') {
 				await page.setViewportSize({ width: 1440, height: 700 });
 				await places(page)
-					.getByRole('link', { name: locale === 'de' ? 'Einkaufslisten' : 'Shopping lists' })
+					.getByRole('link', { name: locale === 'de' ? 'Einkauf & Woche' : 'Shopping & week' })
 					.click();
 				await expect(page).toHaveURL(/\/lists$/);
 			}

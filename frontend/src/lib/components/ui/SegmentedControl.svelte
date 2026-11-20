@@ -6,7 +6,11 @@
 
 	type IconComponent = Component<LucideProps>;
 
-	type Option = { value: T; label: string; icon?: IconComponent };
+	/**
+	 * `dot` marks a segment as waiting for the reader - a pending invitation -
+	 * with the nav's dot; its text is what a screen reader says instead.
+	 */
+	type Option = { value: T; label: string; icon?: IconComponent; dot?: string };
 
 	let {
 		value = $bindable(),
@@ -180,6 +184,15 @@
 							/>
 						{/if}
 						<span>{option.label}</span>
+						{#if option.dot}
+							<span
+								aria-hidden="true"
+								class="size-2 shrink-0 rounded-full {checked && onSurface
+									? 'bg-primary-foreground'
+									: 'bg-primary'}"
+							></span>
+							<span class="sr-only">{option.dot}</span>
+						{/if}
 					</RadioGroup.Item>
 				{/each}
 			</div>

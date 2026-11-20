@@ -11,7 +11,7 @@
 	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { palette } from '#lib/palette.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { bottomNav, type NavPlace } from '#lib/shell.svelte.js';
+	import { bottomNav, placeHref, type NavPlace } from '#lib/shell.svelte.js';
 	import { docked } from './nav-scroll';
 	import NewSheet from './NewSheet.svelte';
 	import YouSheet from './YouSheet.svelte';
@@ -113,7 +113,7 @@
 			<BookOpen class="size-6" aria-hidden="true" />
 		</a>
 		<a
-			href={resolve('/lists')}
+			href={placeHref()}
 			aria-label={invitations.count > 0 ? `${m.nav_lists()}, ${invitations.label}` : m.nav_lists()}
 			aria-current={place === 'lists' ? 'page' : undefined}
 			data-current={current === 'lists' ? '' : undefined}

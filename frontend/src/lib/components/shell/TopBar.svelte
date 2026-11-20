@@ -10,7 +10,7 @@
 	import { listImport, startList } from '#lib/shopping/new-list.svelte.js';
 	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { navPlace, shell } from '#lib/shell.svelte.js';
+	import { navPlace, placeHref, shell } from '#lib/shell.svelte.js';
 	import UserMenu from './UserMenu.svelte';
 
 	// The same places the phone's bottom nav marks, so both read alike.
@@ -19,10 +19,13 @@
 	// segments go too: those pages bring their own actions, and the bar
 	// cannot hold both.
 	const showNav = $derived(place !== null);
-	// The overview of lists is named by its own segment already.
-	const breadcrumb = $derived(page.route.id === '/lists' ? undefined : shell.breadcrumb);
+	// The lists and the week are named by their own segment already.
+	const breadcrumb = $derived(
+		page.route.id === '/lists' || page.route.id === '/week' ? undefined : shell.breadcrumb
+	);
 	// The actions make something new where the segments say you are: a
-	// recipe, or on the lists a list - as the phone's "+" does.
+	// recipe, or on the lists a list - as the phone's "+" does. The week
+	// brings its own ("Eintragen") through `shell.actions`.
 	const lists = $derived(place === 'lists');
 	const importLabel = $derived(lists ? m.list_import_title() : m.overview_import());
 	const newLabel = $derived(lists ? m.lists_new() : m.overview_new_recipe());
@@ -97,8 +100,9 @@
 			>
 				{m.nav_recipes()}
 			</a>
+			<!-- To the side of the place last used, lists or week. -->
 			<a
-				href={resolve('/lists')}
+				href={placeHref()}
 				aria-current={place === 'lists' ? 'page' : undefined}
 				class="{segment} {segmentState(place === 'lists')}"
 			>

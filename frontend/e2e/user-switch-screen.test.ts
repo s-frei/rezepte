@@ -308,7 +308,7 @@ test('a 401 mid-use goes to the picker and back to the page after the switch', a
 		(url) => url.pathname.startsWith('/api/v1/') && url.pathname !== '/api/v1/auth/accounts',
 		(route) => route.fulfill({ status: 401, json: {} })
 	);
-	await page.getByRole('banner').getByRole('link', { name: 'Shopping lists' }).click();
+	await page.getByRole('banner').getByRole('link', { name: 'Shopping & week' }).click();
 	await expect(page).toHaveURL(/\/switch\?next=%2Flists$/);
 	await expect(page.getByRole('heading', { name: "Who's cooking?" })).toBeVisible();
 	// Nobody is active here, so there is no × that would bounce straight back.

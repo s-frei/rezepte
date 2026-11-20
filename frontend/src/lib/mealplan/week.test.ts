@@ -1,0 +1,54 @@
+import { describe, expect, it } from 'vitest';
+import { mondayOf, pastDays, shiftWeek, weekDays, weekRange } from './week';
+
+describe('week', () => {
+	it('finds the Monday of a day', () => {
+		expect(mondayOf('2026-11-22')).toBe('2026-11-16');
+		expect(mondayOf('2026-11-16')).toBe('2026-11-16');
+		expect(mondayOf('2027-01-01')).toBe('2026-12-28');
+	});
+
+	it('lists the seven days from Monday', () => {
+		expect(weekDays('2026-11-30')).toEqual([
+			'2026-11-30',
+			'2026-12-01',
+			'2026-12-02',
+			'2026-12-03',
+			'2026-12-04',
+			'2026-12-05',
+			'2026-12-06'
+		]);
+	});
+
+	it('ranges a week', () => {
+		expect(weekRange('2026-11-16', 'de')).toBe('16.–22. November');
+		expect(weekRange('2026-11-16', 'en')).toBe('November 16–22');
+	});
+
+	it('ranges a week across months', () => {
+		expect(weekRange('2026-11-30', 'de')).toBe('30. November – 6. Dezember');
+		expect(weekRange('2026-11-30', 'en')).toBe('November 30 – December 6');
+	});
+
+	it('shortens the months for a phone', () => {
+		expect(weekRange('2026-11-16', 'de', 'short')).toBe('16.–22. Nov.');
+		expect(weekRange('2026-11-30', 'de', 'short')).toBe('30. Nov. – 6. Dez.');
+	});
+
+	it('gives the past days of the current week only', () => {
+		expect(pastDays('2026-11-16', '2026-11-20')).toEqual([
+			'2026-11-16',
+			'2026-11-17',
+			'2026-11-18',
+			'2026-11-19'
+		]);
+		expect(pastDays('2026-11-16', '2026-11-16')).toEqual([]);
+		expect(pastDays('2026-11-23', '2026-11-20')).toEqual([]);
+		expect(pastDays('2026-11-09', '2026-11-20')).toEqual([]);
+	});
+
+	it('shifts by weeks', () => {
+		expect(shiftWeek('2026-11-30', 1)).toBe('2026-12-07');
+		expect(shiftWeek('2026-01-05', -1)).toBe('2025-12-29');
+	});
+});
