@@ -55,6 +55,9 @@ func (s *Service) SetClock(now func() time.Time) { s.now = now }
 // streams, keyed by plan id; main closes it on shutdown.
 func (s *Service) Hub() *shopping.Hub { return s.hub }
 
+// Week is Monday and Sunday of the current week.
+func (s *Service) Week() (from, to string) { return week(s.now()) }
+
 func (s *Service) stamp() string { return db.FormatTime(s.now()) }
 
 func newID() string { return uuid.NewV7().String() }
