@@ -21,14 +21,18 @@ function monday(from: string | null, now: string): string {
  * `/week?plan=<id>&from=<day>`, both optional: the plan opened last (while
  * the reader is still in it), else the personal plan, which the plan list
  * creates on first call; the week of `from`, else this one. A plan id the
- * reader cannot see is SvelteKit's 404, like a list's.
+ * reader cannot see is SvelteKit's 404, like a list's; one they are invited
+ * to opens the default plan, under the invitation's card.
  */
 export const load: PageLoad = async ({ url }) => {
 	const now = today(getLocalTimeZone()).toString();
 	const from = monday(url.searchParams.get('from'), now);
 	const days = weekDays(from);
 	const { plans, invitations } = await listPlans();
-	const asked = url.searchParams.get('plan');
+	// A plan still waiting for the reader's answer (the invitation's link)
+	// opens the default plan: its invitation card waits above the week.
+	const param = url.searchParams.get('plan');
+	const asked = invitations.some((i) => i.planId === param) ? null : param;
 	const last = lastPlan();
 	const id =
 		asked ??

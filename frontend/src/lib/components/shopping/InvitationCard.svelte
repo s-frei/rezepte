@@ -1,42 +1,53 @@
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
-	import { acceptListInvitation, leaveList, type ShoppingInvitation } from '#lib/api/shopping.js';
+	import type { ListPerson } from '#lib/api/shopping.js';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
-	import { invitations } from '#lib/shopping/invitations.svelte.js';
-	import { listHref } from '#lib/shopping/href.js';
 
+	/**
+	 * An invitation to a list or a plan, answered in place: the caller says
+	 * what accepting and declining do. A 404 means it was withdrawn, or the
+	 * thing deleted, meanwhile: `gone` is said and the card is done.
+	 */
 	let {
-		invitation,
-		ondecline
+		from,
+		title,
+		hint,
+		gone,
+		accept,
+		decline,
+		ondone
 	}: {
-		invitation: ShoppingInvitation;
+		from: ListPerson;
+		title: string;
+		hint: string;
+		/** The toast when the invitation is no longer there. */
+		gone: string;
+		/** Accepts and moves on (to the list, onto the plan). */
+		accept: () => Promise<unknown>;
+		decline: () => Promise<unknown>;
 		/** The card is done: declined, or the invitation was withdrawn meanwhile. */
-		ondecline: (listId: string) => void;
+		ondone: () => void;
 	} = $props();
 
 	let busy = $state(false);
 
-	async function answer(accept: boolean) {
+	async function answer(yes: boolean) {
 		if (busy) return;
 		busy = true;
 		try {
-			if (accept) {
-				await acceptListInvitation(invitation.listId);
-				invitations.count--;
-				await goto(listHref(invitation.listId));
-			} else {
-				await leaveList(invitation.listId);
-				ondecline(invitation.listId);
+			if (yes) await accept();
+			else {
+				await decline();
+				ondone();
 			}
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 404) {
-				toast.error(m.list_gone());
-				ondecline(invitation.listId);
+				toast.error(gone);
+				ondone();
 			} else if (!isSignedOut(error)) toast.error(m.lists_invite_error());
 		} finally {
 			busy = false;
@@ -47,14 +58,10 @@
 <div
 	class="flex flex-wrap items-center gap-3.5 rounded-2xl border-[1.5px] border-dashed border-primary bg-surface px-5 py-4"
 >
-	<PersonMark person={invitation.from} size="md" />
+	<PersonMark person={from} size="md" />
 	<div class="min-w-0 flex-1 basis-0">
-		<p class="font-semibold">
-			{m.lists_invite_title({ name: invitation.from.displayName, list: invitation.listName })}
-		</p>
-		<p class="mt-0.5 text-caption text-text-muted">
-			{m.lists_invite_hint({ count: invitation.openCount })}
-		</p>
+		<p class="font-semibold">{title}</p>
+		<p class="mt-0.5 text-caption text-text-muted">{hint}</p>
 	</div>
 	<div class="flex w-full flex-wrap gap-2 md:ml-auto md:w-auto">
 		<Button variant="ghost" disabled={busy} onclick={() => answer(false)} class="max-md:flex-1">

@@ -1,14 +1,9 @@
-<script lang="ts">
+<script lang="ts" generics="T">
 	import X from '@lucide/svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
-	import {
-		inviteToList,
-		removeListMember,
-		type ListPerson,
-		type ShoppingList
-	} from '#lib/api/shopping.js';
+	import type { ListPerson } from '#lib/api/shopping.js';
 	import { listPeople, type PersonEntry } from '#lib/api/users.js';
 	import { session } from '#lib/auth.svelte.js';
 	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
@@ -20,18 +15,40 @@
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { narrow } from '#lib/ui/narrow.js';
-	import { failList } from '#lib/shopping/fail.js';
 	import { joinNames } from '#lib/user/holders.js';
 
+	/**
+	 * Sharing a list or a plan: pick people, invite them, see and remove who
+	 * has access. The caller names the thing and its requests; each answers
+	 * with the whole thing (`T`), which goes through the page's `apply`.
+	 */
 	let {
 		open = $bindable(false),
-		list,
-		apply
+		title,
+		text,
+		owner,
+		members,
+		pending,
+		invite: inviteOne,
+		remove: removeOne,
+		apply,
+		ongone
 	}: {
 		open?: boolean;
-		list: ShoppingList;
-		/** The page's guard for racing answers: takes the returned list, false when the request failed. */
-		apply: (request: Promise<ShoppingList>, onfail?: (error: unknown) => void) => Promise<boolean>;
+		title: string;
+		/** Who may do what once they accept. */
+		text: string;
+		owner: ListPerson;
+		members: ListPerson[];
+		/** Invited, not answered yet. */
+		pending: ListPerson[];
+		invite: (userId: string) => Promise<T>;
+		/** Removes a member, or withdraws an invitation. */
+		remove: (userId: string) => Promise<T>;
+		/** The page's guard for racing answers: takes the returned thing, false when the request failed. */
+		apply: (request: Promise<T>, onfail?: (error: unknown) => void) => Promise<boolean>;
+		/** The thing is gone (the server said 404): the page leaves it. */
+		ongone: (error: unknown) => void;
 	} = $props();
 
 	let people = $state<PersonEntry[]>([]);
@@ -67,7 +84,7 @@
 
 	const candidates = $derived.by(() => {
 		const taken = new Set(
-			[list.owner, ...list.members, ...list.pending].map((p) => p.id).concat(session.user?.id ?? '')
+			[owner, ...members, ...pending].map((p) => p.id).concat(session.user?.id ?? '')
 		);
 		return people.filter((p) => !taken.has(p.id));
 	});
@@ -79,7 +96,7 @@
 
 	/**
 	 * One request per person, one after the other: each answers with the
-	 * whole list, and the page keeps only the newest answer, so parallel ones
+	 * whole thing, and the page keeps only the newest answer, so parallel ones
 	 * could land out of order and drop an invitee until the next refetch.
 	 */
 	async function invite() {
@@ -91,11 +108,11 @@
 		const bad: string[] = [];
 		let gone = false;
 		for (const id of live) {
-			const sent = await apply(inviteToList(list.id, id), (error) => {
-				// A 404 means the list is gone: failList leaves the page.
+			const sent = await apply(inviteOne(id), (error) => {
+				// A 404 means the thing is gone: the page leaves it.
 				if (error instanceof ApiError && error.status === 404) {
 					gone = true;
-					failList(error);
+					ongone(error);
 				}
 			});
 			// Closed and opened again meanwhile: that opening owns the dialog now.
@@ -136,7 +153,7 @@
 		else void invite();
 	}
 
-	const remove = (person: ListPerson) => apply(removeListMember(list.id, person.id));
+	const remove = (person: ListPerson) => apply(removeOne(person.id));
 
 	const mine = $derived(session.user?.id);
 	// A row that joins while the dialog is open (an invitation sent, an
@@ -147,10 +164,10 @@
 
 {#snippet body()}
 	<Dialog.Title class="font-display text-heading-lg font-medium text-pretty">
-		{m.list_share_title({ name: list.name })}
+		{title}
 	</Dialog.Title>
 	<Dialog.Description class="mt-2 text-caption text-text-muted">
-		{m.list_share_text()}
+		{text}
 	</Dialog.Description>
 	<p class="mt-5 mb-2 text-label font-bold tracking-wide text-text-muted uppercase">
 		{m.list_share_pick()}
@@ -180,21 +197,21 @@
 	</p>
 	<ul class="overflow-hidden rounded-2xl border border-border bg-surface-elevated px-4">
 		<li class="flex items-center gap-3 border-b border-dashed border-border py-2.5 last:border-b-0">
-			<PersonMark person={list.owner} size="sm" />
+			<PersonMark person={owner} size="sm" />
 			<div class="min-w-0 flex-1">
 				<p class="text-body font-semibold wrap-break-word">
-					{list.owner.displayName}
-					{#if list.owner.id === mine}<span class="text-caption font-normal text-text-muted"
+					{owner.displayName}
+					{#if owner.id === mine}<span class="text-caption font-normal text-text-muted"
 							>{m.list_share_you()}</span
 						>{/if}
 				</p>
 				<p class="text-caption text-text-muted">{m.list_share_created()}</p>
 			</div>
 		</li>
-		{#each list.members as person (person.id)}
+		{#each members as person (person.id)}
 			{@render row(person, false)}
 		{/each}
-		{#each list.pending as person (person.id)}
+		{#each pending as person (person.id)}
 			{@render row(person, true)}
 		{/each}
 	</ul>

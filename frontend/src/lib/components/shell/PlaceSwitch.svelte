@@ -11,7 +11,7 @@
 	import SegmentedControl from '#lib/components/ui/SegmentedControl.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { setPlaceSide, type PlaceSide } from '#lib/shell.svelte.js';
-	import { invitations } from '#lib/shopping/invitations.svelte.js';
+	import { invitations, invitationsLabel } from '#lib/shopping/invitations.svelte.js';
 
 	/** The side the page shows; the route decides it, not the control. */
 	let { side }: { side: PlaceSide } = $props();
@@ -60,9 +60,14 @@
 					value: 'lists',
 					label: m.place_lists(),
 					icon: ShoppingBasket,
-					dot: invitations.count > 0 ? invitations.label : undefined
+					dot: invitations.lists > 0 ? invitationsLabel(invitations.lists) : undefined
 				},
-				{ value: 'week', label: m.place_week(), icon: CalendarDays }
+				{
+					value: 'week',
+					label: m.place_week(),
+					icon: CalendarDays,
+					dot: invitations.plans > 0 ? invitationsLabel(invitations.plans) : undefined
+				}
 			]}
 		/>
 	</div>

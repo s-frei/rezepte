@@ -67,6 +67,6 @@
 				</button>
 			{/if}
 		</div>
-		<PeopleList {list} />
+		<PeopleList owner={list.owner} members={list.members} />
 	</section>
 </div>

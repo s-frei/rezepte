@@ -1,9 +1,12 @@
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { isSignedOut } from '#lib/api/client.js';
+	import { goto } from '$app/navigation';
 	import {
+		acceptListInvitation,
+		leaveList,
 		listShoppingLists,
 		type ShoppingInvitation,
 		type ShoppingSummary
@@ -12,6 +15,7 @@
 	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
 	import { invitations as nav } from '#lib/shopping/invitations.svelte.js';
+	import { listHref } from '#lib/shopping/href.js';
 	import { startList } from '#lib/shopping/new-list.svelte.js';
 	import ListCard from '#lib/components/shopping/ListCard.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -34,7 +38,7 @@
 			const body = await listShoppingLists();
 			lists = body.items;
 			invited = body.invitations;
-			nav.count = invited.length;
+			nav.lists = invited.length;
 		} catch (error) {
 			if (!isSignedOut(error)) toast.error(m.lists_load_error());
 			failed = true;
@@ -43,9 +47,14 @@
 
 	onMount(load);
 
+	// The shell's count moved on its own (the tab came back): load the cards it counts.
+	$effect(() => {
+		if (lists !== undefined && nav.lists !== untrack(() => invited.length)) void load();
+	});
+
 	function declined(listId: string) {
 		invited = invited.filter((i) => i.listId !== listId);
-		nav.count = invited.length;
+		nav.lists = invited.length;
 	}
 
 	$effect(() => {
@@ -93,7 +102,22 @@
 		{#if invited.length > 0}
 			<div class="flex flex-col gap-3">
 				{#each invited as invitation (invitation.listId)}
-					<InvitationCard {invitation} ondecline={declined} />
+					<InvitationCard
+						from={invitation.from}
+						title={m.lists_invite_title({
+							name: invitation.from.displayName,
+							list: invitation.listName
+						})}
+						hint={m.lists_invite_hint({ count: invitation.openCount })}
+						gone={m.list_gone()}
+						accept={async () => {
+							await acceptListInvitation(invitation.listId);
+							nav.lists--;
+							await goto(listHref(invitation.listId));
+						}}
+						decline={() => leaveList(invitation.listId)}
+						ondone={() => declined(invitation.listId)}
+					/>
 				{/each}
 			</div>
 		{/if}

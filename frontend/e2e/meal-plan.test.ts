@@ -1,5 +1,13 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { createRecipe, createUser, loadFixture, login, openDialog, uniqueToken } from './helpers';
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
+import {
+	createRecipe,
+	createUser,
+	loadFixture,
+	login,
+	openDialog,
+	switchTo,
+	uniqueToken
+} from './helpers';
 
 const phone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
 
@@ -594,4 +602,218 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }
 	await expect(
 		day(page, 'Wednesday, November 18').getByRole('link', { name: title })
 	).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=6`);
+});
+
+// Named plans: made, shared, renamed, deleted and left like lists.
+
+const picker = (page: Page) => page.getByRole('button', { name: 'Plan', exact: true });
+
+/** Two fresh people, `owner` signed in on `page`; the admin makes them. */
+async function twoPeople(page: Page) {
+	const token = uniqueToken();
+	const owner = `pown${token}`.slice(0, 20);
+	const guest = `pgst${token}`.slice(0, 20);
+	await login(page);
+	await createUser(page, { username: owner, role: 'user' });
+	const made = await createUser(page, { username: guest, role: 'user' });
+	await switchTo(page, owner);
+	return { token, owner, guest, guestId: made.id };
+}
+
+/** A named plan of the signed-in person, made through the API. */
+async function namedPlan(page: Page, name: string, invite?: string): Promise<string> {
+	const made = await page.request.post('/api/v1/meal-plans', { data: { name } });
+	expect(made.ok(), await made.text()).toBe(true);
+	const { id } = (await made.json()) as { id: string };
+	if (invite) {
+		const sent = await page.request.post(`/api/v1/meal-plans/${id}/invitations`, {
+			data: { userId: invite }
+		});
+		expect(sent.ok(), await sent.text()).toBe(true);
+	}
+	return id;
+}
+
+async function signedInAs(browser: Browser, name: string) {
+	const context = await browser.newContext();
+	const page = await context.newPage();
+	await login(page, name);
+	return { context, page };
+}
+
+test('creates a named plan and invites someone', async ({ page, browser }, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'two browsers; runs once, on desktop');
+	const { token, owner, guest } = await twoPeople(page);
+	const name = `Household ${token}`;
+	await page.goto('/week');
+
+	// "New plan" is the picker's last row; the draft names it, Enter makes it.
+	await picker(page).click();
+	await page.getByRole('option', { name: 'Create a new plan' }).click();
+	await expect(page).toHaveURL(/\/week\/new$/);
+	const field = page.getByRole('textbox', { name: 'Name' });
+	await expect(field).toBeFocused();
+	await field.fill(name);
+	await field.press('Enter');
+	await expect(page).toHaveURL(/\/week\?plan=[^&]+$/);
+	await expect(picker(page)).toHaveText(name);
+	// Created, the plan offers its sharing right away.
+	await expect(page.getByRole('button', { name: 'Share', exact: true })).toBeFocused();
+
+	// The guest has the week open before the invitation exists.
+	const other = await signedInAs(browser, guest);
+	try {
+		const them = other.page;
+		await them.goto('/week');
+		await expect(picker(them)).toHaveText('My plan');
+		await expect(them.getByText(/invites you to the plan/)).toHaveCount(0);
+
+		await page.getByRole('button', { name: 'Share', exact: true }).click();
+		const dialog = page.getByRole('dialog', { name: `Share “${name}”` });
+		await dialog.getByRole('combobox', { name: 'Invite people' }).click();
+		await dialog.getByRole('option', { name: `@${guest}` }).click();
+		await dialog.getByRole('button', { name: 'Invite 1 person' }).click();
+		await expect(dialog.getByText('Waiting for an answer')).toBeVisible();
+		// The answer replaced the plan; the focus stays in the dialog.
+		await expect(dialog.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+		await expect(page.locator('[data-plan-share]')).not.toBeFocused();
+		await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
+		await expect(dialog).toBeHidden();
+
+		// Back on the tab, the open week shows the new invitation's card.
+		await them.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+		await expect(side(them, 'Week')).toHaveAccessibleName(/1 invitation/);
+		await expect(them.getByText(`${owner} invites you to the plan “${name}”`)).toBeVisible();
+		await them.getByRole('button', { name: 'Accept' }).click();
+		await expect(picker(them)).toHaveText(name);
+		await expect(side(them, 'Week')).not.toHaveAccessibleName(/invitation/);
+		await expect(them.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+
+		// One plans, the other sees it without a reload.
+		const sheet = await openDialog(
+			page,
+			page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
+			'Plan a meal'
+		);
+		await sheet.getByRole('combobox', { name: 'Recipe or note' }).fill('Pizza bestellen');
+		await sheet.getByRole('option', { name: 'Add “Pizza bestellen” as a note' }).click();
+		await expect(sheet).toBeHidden();
+		await expect(page.getByRole('main').getByText('Pizza bestellen')).toBeVisible();
+		await expect(them.getByRole('main').getByText('Pizza bestellen')).toBeVisible();
+
+		// The share button took the focus once, on arrival: a change arriving
+		// later (here the guest's, over the stream) leaves the focus where it is.
+		await picker(page).focus();
+		const id = new URL(page.url()).searchParams.get('plan');
+		const added = await them.request.post(`/api/v1/meal-plans/${id}/entries`, {
+			data: { title: 'Suppe' }
+		});
+		expect(added.ok()).toBe(true);
+		await expect(page.getByRole('main').getByText('Suppe')).toBeVisible();
+		await page.waitForTimeout(300);
+		await expect(picker(page)).toBeFocused();
+
+		// The faces show who is on it.
+		await them.getByRole('button', { name: '2 people on this plan' }).click();
+		const people = them.getByRole('dialog', { name: 'Shared with' });
+		await expect(people.getByText('You · can plan and change')).toBeVisible();
+		await people.getByRole('button', { name: 'Done' }).last().click();
+
+		// Removed by the owner, the open week says so and falls back to My plan.
+		await page.getByRole('button', { name: 'Share', exact: true }).click();
+		await page
+			.getByRole('dialog')
+			.getByRole('button', { name: `Remove ${guest}` })
+			.click();
+		await expect(page.getByRole('dialog').getByText(guest)).toHaveCount(0);
+		await expect(them.getByText('This plan is no longer there for you')).toBeVisible();
+		await expect(picker(them)).toHaveText('My plan');
+	} finally {
+		await other.context.close();
+	}
+});
+
+test('personal plan has no share or rename', async ({ page }) => {
+	await loginFresh(page);
+	await page.goto('/week');
+	await expect(picker(page)).toHaveText('My plan');
+	const main = page.getByRole('main');
+	await expect(main.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
+	await expect(main.getByRole('button', { name: 'More actions' })).toHaveCount(0);
+	// Nor does the API rename it.
+	const own = await ownPlan(page);
+	const renamed = await page.request.patch(`/api/v1/meal-plans/${own}`, { data: { name: 'X' } });
+	expect(renamed.status()).toBe(422);
+});
+
+test('the owner renames and deletes a plan', async ({ page }) => {
+	await loginFresh(page);
+	const name = `Holiday ${uniqueToken()}`;
+	const id = await namedPlan(page, name);
+	await page.goto(`/week?plan=${id}`);
+
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await expect(page.getByRole('menuitem')).toHaveText(['Rename', 'Share', 'Delete plan']);
+	await page.getByRole('menuitem', { name: 'Rename' }).click();
+	const rename = page.getByRole('dialog', { name: 'Rename' });
+	await rename.getByLabel('Name').fill(`${name} 2`);
+	await rename.getByRole('button', { name: 'Save' }).click();
+	await expect(picker(page)).toHaveText(`${name} 2`);
+	await picker(page).click();
+	await expect(page.getByRole('option', { name: `${name} 2` })).toBeVisible();
+	await page.keyboard.press('Escape');
+
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete plan' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+	await expect(page.getByText(`“${name} 2” deleted`)).toBeVisible();
+	await expect(picker(page)).toHaveText('My plan');
+	await expect(picker(page)).toBeFocused();
+	await picker(page).click();
+	await expect(page.getByRole('option', { name: `${name} 2` })).toHaveCount(0);
+});
+
+test('member leaves a plan', async ({ page }) => {
+	const { token, guest, guestId } = await twoPeople(page);
+	const name = `Family ${token}`;
+	const id = await namedPlan(page, name, guestId);
+	await switchTo(page, guest);
+	const accepted = await page.request.post(`/api/v1/meal-plans/${id}/membership`);
+	expect(accepted.ok()).toBe(true);
+	await page.goto(`/week?plan=${id}`);
+	await expect(picker(page)).toHaveText(name);
+
+	// A member renames and leaves; sharing and deleting are the owner's.
+	await expect(page.getByRole('main').getByRole('button', { name: 'Share' })).toHaveCount(0);
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await expect(page.getByRole('menuitem')).toHaveText(['Rename', 'Leave plan']);
+	await page.getByRole('menuitem', { name: 'Leave plan' }).click();
+	const confirm = page.getByRole('dialog', { name: `Leave the plan “${name}”?` });
+	await confirm.getByRole('button', { name: 'Leave plan' }).click();
+	await expect(page.getByText(`You left “${name}”`)).toBeVisible();
+	await expect(picker(page)).toHaveText('My plan');
+	await expect(picker(page)).toBeFocused();
+	await picker(page).click();
+	await expect(page.getByRole('option', { name })).toHaveCount(0);
+	await page.keyboard.press('Escape');
+});
+
+test('invitation dot shows on the place and the Woche segment', async ({ page }) => {
+	const { token, owner, guest, guestId } = await twoPeople(page);
+	const name = `Weekend ${token}`;
+	await namedPlan(page, name, guestId);
+	await switchTo(page, guest);
+
+	await page.goto('/lists');
+	await expect(placeLink(page)).toHaveAccessibleName(/1 invitation/);
+	await expect(side(page, 'Week')).toHaveAccessibleName(/1 invitation/);
+	await expect(side(page, 'Lists')).not.toHaveAccessibleName(/invitation/);
+
+	// The card waits on the week; declined, every dot is gone.
+	await side(page, 'Week').click();
+	await expect(page.getByText(`${owner} invites you to the plan “${name}”`)).toBeVisible();
+	await page.getByRole('button', { name: 'Decline' }).click();
+	await expect(page.getByText(`invites you to the plan “${name}”`)).toHaveCount(0);
+	await expect(side(page, 'Week')).not.toHaveAccessibleName(/invitation/);
+	await expect(placeLink(page)).not.toHaveAccessibleName(/invitation/);
 });

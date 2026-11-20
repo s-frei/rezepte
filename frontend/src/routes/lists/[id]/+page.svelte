@@ -11,8 +11,10 @@
 		clearChecked,
 		deleteShoppingList,
 		getShoppingList,
+		inviteToList,
 		leaveList,
 		removeEntry,
+		removeListMember,
 		removeItems,
 		renameShoppingList,
 		setDepartment,
@@ -322,12 +324,24 @@
 	</div>
 </div>
 
-<PeopleSheet bind:open={peopleOpen} {list} onshare={owner ? () => (shareOpen = true) : undefined} />
+<PeopleSheet
+	bind:open={peopleOpen}
+	owner={list.owner}
+	members={list.members}
+	onshare={owner ? () => (shareOpen = true) : undefined}
+/>
 
 <ShareDialog
 	bind:open={shareOpen}
-	{list}
+	title={m.list_share_title({ name: list.name })}
+	text={m.list_share_text()}
+	owner={list.owner}
+	members={list.members}
+	pending={list.pending}
+	invite={(userId) => inviteToList(list.id, userId)}
+	remove={(userId) => removeListMember(list.id, userId)}
 	apply={(request, onfail) => lst.apply(request, undefined, onfail)}
+	ongone={failList}
 />
 
 <ListImportDialog bind:open={importOpen} mode={{ kind: 'add', list }} ondone={imported} />

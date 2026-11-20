@@ -369,6 +369,7 @@ Every entry obeys reduced motion ([Interaction rules](#interaction-rules)); timi
 
 - **The place reopens on the side used last, per device.** `placeSide` in `#lib/shell.svelte.ts` keeps it under `rezepte:place-side` (`lists` by default, so a first visit opens the lists); `PlaceSwitch` writes it on every arrival, a toast's link or a bookmark included, and both bars link the place to `placeHref()`. `e2e/meal-plan.test.ts` holds it across a reload.
 - **The week's page reopens on the plan opened last** (`lastPlan` / `rememberPlan`, `rezepte:last-plan`) while the reader is still in it, else the personal plan; `/week?plan=<id>&from=<day>` leaves out `from` for this week and `plan` only for the remembered one: the shown plan is remembered at once, so a pick of the personal plan has to name it, or the load reopens the plan just left.
+- **An invitation dots the place and its own side.** The place's link and slot carry the count of list and plan invitations together; `SegmentedControl`'s `dot` marks Lists for list invitations and Week for plan invitations (`invitations.svelte.ts`), so the switch says which side to open.
 - **The breadcrumb stays empty on `/lists` and `/week`**: the segment names the page already. The week replaces New list and the list import with its own action ("Plan a meal") through `shell.actions`, and a phone's "+" with the same action through `shell.add`, which the bottom nav calls instead of opening its sheet.
 
 ### Phone screens and their bars

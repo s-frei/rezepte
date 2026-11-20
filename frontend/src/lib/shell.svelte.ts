@@ -69,6 +69,7 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/lists/[id]': 'lists',
 	'/lists/[id]/shop': null,
 	'/week': 'lists',
+	'/week/new': 'lists',
 	'/settings': 'you',
 	'/settings/api': 'you',
 	'/settings/mail': 'you',

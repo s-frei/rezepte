@@ -2,42 +2,76 @@
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Share2 from '@lucide/svelte/icons/share-2';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
+	import { onMount, tick, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
-	import { addPlanEntry } from '#lib/api/mealplan.js';
+	import {
+		acceptPlan,
+		addPlanEntry,
+		deletePlan,
+		invitePlan,
+		leavePlan,
+		removePlanMember,
+		renamePlan
+	} from '#lib/api/mealplan.js';
+	import { session } from '#lib/auth.svelte.js';
 	import AddEntrySheet from '#lib/components/mealplan/AddEntrySheet.svelte';
+	import PlanMenu from '#lib/components/mealplan/PlanMenu.svelte';
 	import PlanPicker from '#lib/components/mealplan/PlanPicker.svelte';
+	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
+	import PeopleSheet from '#lib/components/shopping/PeopleSheet.svelte';
+	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
+	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import ToListDialog from '#lib/components/mealplan/ToListDialog.svelte';
 	import WeekView from '#lib/components/mealplan/WeekView.svelte';
 	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
-	import IconButton from '#lib/components/ui/IconButton.svelte';
+	import IconButton, { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
 	import { PlanState } from '#lib/mealplan/plan-state.svelte.js';
 	import { mondayOf, pastDays, shiftWeek, weekDays, weekRange } from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { holdKeyboard } from '#lib/keyboard.js';
 	import { lastPlan, rememberPlan, shell } from '#lib/shell.svelte.js';
 	import { listHref } from '#lib/shopping/href.js';
+	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import planArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
+	let picker = $state<HTMLElement | null>(null);
+
+	/**
+	 * Back to the personal plan once the shown one is gone for the reader
+	 * (deleted, left, removed): the load falls back to it, since the plan
+	 * remembered last is no longer among the reader's. The focus goes to the
+	 * picker, which names the plan now shown; the control it was on is gone.
+	 */
+	async function home() {
+		await goto(resolve('/week'), { invalidateAll: true });
+		await tick();
+		picker?.focus();
+	}
+
 	// The plan went away under the page (deleted, or the reader removed):
-	// the week reopens on the personal plan.
-	function fail(error: unknown) {
+	// the week says so and reopens on the personal plan.
+	function fail(error: unknown, message = m.week_load_error()) {
 		if (isSignedOut(error)) return;
 		if (error instanceof ApiError && error.status === 404) {
-			toast.error(m.week_load_error());
-			void goto(resolve('/week'));
+			toast.error(m.plan_gone());
+			void home();
 			return;
 		}
-		toast.error(m.week_load_error());
+		toast.error(message);
 	}
+	const failChange = (error: unknown) => fail(error, m.plan_change_error());
 
 	// Starts as the first load; `connect` follows each later one (another
 	// week, another plan), and a member's change refetches the shown week.
@@ -56,17 +90,78 @@
 
 	$effect(() => rememberPlan(plan.id));
 
+	const owner = $derived(plan.owner.id === session.user?.id);
+	const people = $derived([plan.owner, ...plan.members]);
+	const planName = $derived(plan.name ?? '');
+	// The picker names the shown plan as it is now: a rename lands here first.
+	const plans = $derived(data.plans.map((p) => (p.id === plan.id ? { ...p, name: plan.name } : p)));
+	let shareOpen = $state(false);
+	let peopleOpen = $state(false);
+
+	// Invitations to plans wait above the week, as the lists' do above the lists.
+	let answered = $state<string[]>([]);
+	const invited = $derived(data.invitations.filter((i) => !answered.includes(i.planId)));
+	$effect(() => {
+		invitations.plans = invited.length;
+	});
+	// The shell's count moved on its own (the tab came back, an invitation
+	// arrived or was withdrawn meanwhile): load the cards it counts.
+	$effect(() => {
+		if (invitations.plans !== untrack(() => invited.length)) void invalidateAll();
+	});
+
+	// A plan just made (`/week/new`) offers its sharing first, once on
+	// arrival: the plan itself changes with every edit and refetch.
+	onMount(() => {
+		if (page.state.created && !plan.personal)
+			document.querySelector<HTMLElement>('[data-plan-share]')?.focus();
+	});
+
+	async function accept(planId: string) {
+		await acceptPlan(planId, week.range);
+		rememberPlan(planId);
+		show(monday, planId, true);
+	}
+
+	function newPlan() {
+		// Inside the pick: the draft's name field takes the keyboard over.
+		holdKeyboard();
+		void goto(resolve('/week/new'));
+	}
+
+	async function removePlan() {
+		const name = planName;
+		try {
+			await deletePlan(plan.id);
+			toast.success(m.plan_deleted({ name }));
+			await home();
+		} catch (error) {
+			failChange(error);
+		}
+	}
+
+	async function leave() {
+		const name = planName;
+		try {
+			await leavePlan(plan.id);
+			toast.success(m.plan_left({ name }));
+			await home();
+		} catch (error) {
+			failChange(error);
+		}
+	}
+
 	/**
 	 * Another week or plan. `plan` is left out only for the plan the page
 	 * would reopen on anyway, the one remembered last (the shown one); a pick
 	 * of another plan always names it, the personal one too.
 	 */
-	function show(from: string, id = plan.id) {
+	function show(from: string, id = plan.id, invalidateAll = false) {
 		const query: [string, string][] = [];
 		if (id !== lastPlan()) query.push(['plan', id]);
 		if (from !== thisWeek) query.push(['from', from]);
 		const qs = new URLSearchParams(query).toString();
-		void goto(resolve(qs ? `/week?${qs}` : '/week'), { reset: false });
+		void goto(resolve(qs ? `/week?${qs}` : '/week'), { reset: false, invalidateAll });
 	}
 
 	/** A phone's days gone by are folded; the week they were opened for. */
@@ -120,6 +215,23 @@
 <div class="pt-6 pb-8 md:pt-4">
 	<PlaceSwitch side="week" />
 
+	{#if invited.length > 0}
+		<div class="mb-6 flex flex-col gap-3">
+			{#each invited as invitation (invitation.planId)}
+				{@const name = invitation.name ?? ''}
+				<InvitationCard
+					from={invitation.inviter}
+					title={m.plan_invite_title({ name: invitation.inviter.displayName, plan: name })}
+					hint={m.plan_invite_hint()}
+					gone={m.plan_gone()}
+					accept={() => accept(invitation.planId)}
+					decline={() => leavePlan(invitation.planId)}
+					ondone={() => (answered = [...answered, invitation.planId])}
+				/>
+			{/each}
+		</div>
+	{/if}
+
 	<!-- The week bar: the week and its pager, then the plan, the list it went
 	     to and "Put on the list". One row on a desktop; on a phone stacked,
 	     the button over the full width. -->
@@ -157,11 +269,53 @@
 				</IconButton>
 			</div>
 		</div>
-		{#if data.plans.length > 1}
-			<div class="flex max-md:order-first">
-				<PlanPicker plans={data.plans} value={plan.id} onchange={(id) => show(monday, id)} />
-			</div>
-		{/if}
+		<!-- Which plan, and for a named one who is on it and its ⋯. -->
+		<div class="flex min-w-0 items-center gap-2 max-md:order-first">
+			<PlanPicker
+				{plans}
+				value={plan.id}
+				bind:ref={picker}
+				onchange={(id) => show(monday, id)}
+				onnew={newPlan}
+			/>
+			{#if !plan.personal}
+				<div class="flex shrink-0 items-center gap-2 max-md:ml-auto">
+					{#if people.length > 1}
+						<button
+							type="button"
+							aria-haspopup="dialog"
+							aria-label={m.plan_people_show({ count: people.length })}
+							onclick={() => (peopleOpen = true)}
+							class="relative rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-2"
+						>
+							<PeopleStack {people} />
+						</button>
+					{/if}
+					{#if owner}
+						<!-- Round like the ⋯ beside it, so the week bar keeps to one line on a desktop. -->
+						<button
+							type="button"
+							aria-haspopup="dialog"
+							aria-label={m.plan_share()}
+							data-plan-share
+							onclick={() => (shareOpen = true)}
+							class="{iconCircle} bg-surface text-text max-md:size-11"
+						>
+							<Share2 class="size-5 -translate-x-px" aria-hidden="true" />
+						</button>
+					{/if}
+					<PlanMenu
+						name={planName}
+						{owner}
+						onrename={(name) =>
+							week.apply(renamePlan(plan.id, name, week.range), undefined, failChange)}
+						onshare={() => (shareOpen = true)}
+						ondelete={removePlan}
+						onleave={leave}
+					/>
+				</div>
+			{/if}
+		</div>
 		{#if !empty}
 			<div class="flex flex-col gap-1 md:ml-auto md:flex-row md:items-center md:gap-3">
 				{#if list}
@@ -241,6 +395,30 @@
 		/>
 	{/if}
 </div>
+
+{#if !plan.personal}
+	<PeopleSheet
+		bind:open={peopleOpen}
+		owner={plan.owner}
+		members={plan.members}
+		kind="plan"
+		onshare={owner ? () => (shareOpen = true) : undefined}
+	/>
+	{#if owner}
+		<ShareDialog
+			bind:open={shareOpen}
+			title={m.plan_share_title({ name: planName })}
+			text={m.plan_share_text()}
+			owner={plan.owner}
+			members={plan.members}
+			pending={plan.pending}
+			invite={(userId) => invitePlan(plan.id, userId, week.range)}
+			remove={(userId) => removePlanMember(plan.id, userId, week.range)}
+			apply={(request, onfail) => week.apply(request, undefined, onfail ?? failChange)}
+			ongone={fail}
+		/>
+	{/if}
+{/if}
 
 <ToListDialog bind:open={listing} {week} today={data.today} />
 <AddEntrySheet bind:open={adding} {days} day={addDay} today={data.today} onadd={add} />
