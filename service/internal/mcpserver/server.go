@@ -32,6 +32,7 @@ type caller struct {
 	update *jsonschema.Schema
 	search *jsonschema.Schema
 	photos Photos
+	scopes []string
 }
 
 // resolveAsAddTool resolves s the way mcp.AddTool does. AddTool resolves a
@@ -58,6 +59,16 @@ type tool struct {
 // and a call to anything else fails as an unknown tool - the list and the
 // check cannot disagree, because they are the same registration.
 var tools []tool
+
+// also offers a tool that needs a second scope, such as one writing a plan
+// and a list, only when the token carries that scope too.
+func also(scope string, add func(s *mcp.Server, c caller)) func(s *mcp.Server, c caller) {
+	return func(s *mcp.Server, c caller) {
+		if slices.Contains(c.scopes, scope) {
+			add(s, c)
+		}
+	}
+}
 
 // Register mounts Handler at /mcp as huma operations marked auth.TokenOnly
 // with auth.ScopeRecipesRead, so a token with no recipe scope never gets a
@@ -136,7 +147,7 @@ func Handler(svc *recipe.Service, lists *shopping.Service, plans *mealplan.Servi
 		}
 		scopes := auth.ScopesFrom(r.Context())
 		s := mcp.NewServer(impl, &mcp.ServerOptions{SchemaCache: cache})
-		c := caller{svc: svc, lists: lists, plans: plans, user: u, create: create, update: update, search: search, photos: photos}
+		c := caller{svc: svc, lists: lists, plans: plans, user: u, create: create, update: update, search: search, photos: photos, scopes: scopes}
 		for _, t := range tools {
 			if slices.Contains(scopes, t.scope) {
 				t.add(s, c)

@@ -53,7 +53,7 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 **The routes are in `handler.go` under the `meal-plans` tag.** The readers (list, get, events, staples, shopping preview) need `plan:read`, every other operation `plan:write`, and a token acts as its issuer (`TestPlanNeedsPlanScopes`). Every operation that answers a plan takes `from` and `to` (both left out: the current week) and answers with the whole plan for that span, as the list operations answer with the whole list. Errors map as the list's do: not found 404, a recipe gone 404, validation and the personal plan 422 with the field.
 
-**`PATCH …/entries/{entryId}` moves and changes servings in one body.** A `day` key moves the entry, `null` to the tray, and a missing key keeps its day while `position` places it ([HTTP API](/architecture/api)); `servings` changes the servings after any move (`TestPlanRoundTrip`, `TestTrayMoveWithNullDay`).
+**`PATCH …/entries/{entryId}` moves and changes servings in one body.** A `day` key moves the entry, `null` to the tray, and a missing key keeps its day while `position` places it ([HTTP API](/architecture/api)); `servings` changes first, as in MCP, after the move's own day and position checks, so a refused change leaves the entry where it was (`TestPlanRoundTrip`, `TestTrayMoveWithNullDay`, `TestPatchChecksServingsBeforeMoving`).
 
 **The shopping preview is what the "Auf die Liste" dialog offers.** `GET …/shopping-preview?from&to&tray` lists the recipe entries of the range (and the tray when asked) with their `day` (null on the tray), each ingredient by `(group, index)` with its quantity scaled to the planned servings through the lists' rounding, `alreadyListed` by the caller's accessible lists and `staple` by this plan's staples (`TestShoppingPreviewMarksStaplesAndListed`).
 
@@ -131,4 +131,3 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 - Deleting a list does not signal open plans; a plan page shows that list until its next refetch.
 - Staple changes do not publish, so another member's open dialog does not update live.
 - A calendar app refreshes the feed on its own schedule, often hours apart; a changed plan reaches it only then.
-- `PATCH` with both a move and servings runs two transactions; a failing second leaves the move done.

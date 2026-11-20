@@ -276,6 +276,45 @@ func TestPlanNeedsPlanScopes(t *testing.T) {
 	if rec := a.bearer(t, []string{auth.ScopePlanRead, auth.ScopePlanWrite}, http.MethodPost, plans, `{"name":"Familie"}`); rec.Code != http.StatusCreated {
 		t.Fatalf("write: %d %s", rec.Code, rec.Body.String())
 	}
+	// Putting a plan on a list writes a list: plan scopes alone do not reach it.
+	rec = a.bearer(t, []string{auth.ScopePlanRead, auth.ScopePlanWrite}, http.MethodPost, plans+"/x/shopping", `{"newListName":"x","picks":[{"entryId":"x","ingredients":[{"group":0,"index":0}]}]}`)
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "lists:write") {
+		t.Fatalf("plan token writes a list: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPatchChecksServingsBeforeMoving(t *testing.T) {
+	a := newAPI(t)
+	c := a.login(t, "anna")
+	r := a.dal(t)
+	p := a.call(t, c, http.MethodPost, plans, map[string]string{"name": "Familie"}, http.StatusCreated)
+	path := plans + "/" + p.ID
+	a.call(t, c, http.MethodPost, path+"/entries"+week, map[string]any{"day": mon, "recipeId": r.ID}, http.StatusOK)
+	p = a.call(t, c, http.MethodPost, path+"/entries"+week, map[string]any{"day": mon, "title": "Reste"}, http.StatusOK)
+	dal := path + "/entries/" + entryByTitle(t, p, "Dal").ID + week
+	rest := path + "/entries/" + entryByTitle(t, p, "Reste").ID + week
+	a.call(t, c, http.MethodPatch, dal, map[string]any{"day": sun, "servings": 100}, http.StatusUnprocessableEntity)
+	a.call(t, c, http.MethodPatch, rest, map[string]any{"day": sun, "servings": 2}, http.StatusNotFound)
+	// A bad day is refused before the servings change.
+	a.call(t, c, http.MethodPatch, dal, map[string]any{"day": "montag", "servings": 3}, http.StatusUnprocessableEntity)
+	p = a.call(t, c, http.MethodGet, path+week, nil, http.StatusOK)
+	if d := entryByTitle(t, p, "Dal"); *d.Day != mon || *d.Servings != 4 {
+		t.Fatalf("dal moved or changed: day %v servings %v", *d.Day, *d.Servings)
+	}
+	if d := entryByTitle(t, p, "Reste").Day; *d != mon {
+		t.Fatalf("free text moved to %v", *d)
+	}
+}
+
+func TestValidationWithoutFieldHasNoLocation(t *testing.T) {
+	a := newAPI(t)
+	c := a.login(t, "anna")
+	var overview struct{ Plans []mealplan.PlanSummary }
+	a.send(t, c, http.MethodGet, plans, nil, http.StatusOK, &overview)
+	rec := a.do(http.MethodDelete, plans+"/"+overview.Plans[0].ID, "", c)
+	if rec.Code != http.StatusUnprocessableEntity || strings.Contains(rec.Body.String(), `"location"`) {
+		t.Fatalf("delete personal: %d %s", rec.Code, rec.Body.String())
+	}
 }
 
 type preview struct {

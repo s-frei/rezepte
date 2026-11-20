@@ -3,7 +3,7 @@ title: MCP server
 description: Search, read, create, edit, delete, favorite, mark recipes tasty, read and write their comments and work with shopping lists from an AI assistant, over the Model Context Protocol
 ---
 
-An AI assistant reaches the recipe collection over the Model Context Protocol: stateless Streamable HTTP at `POST /mcp`, served by `service/internal/mcpserver` (`server.go`, `schema.go`, `tools_read.go`, `tools_write.go`, `tools_comments.go`, `tools_photos.go`, `tools_lists.go`, `tools_plan.go`) and authenticated by `auth.TokenOnly` - bearer only, never a session cookie. Twenty-eight tools, each gated by one scope:
+An AI assistant reaches the recipe collection over the Model Context Protocol: stateless Streamable HTTP at `POST /mcp`, served by `service/internal/mcpserver` (`server.go`, `schema.go`, `tools_read.go`, `tools_write.go`, `tools_comments.go`, `tools_photos.go`, `tools_lists.go`, `tools_plan.go`) and authenticated by `auth.TokenOnly` - bearer only, never a session cookie. Twenty-eight tools, each gated by one scope, except `put_meal_plan_on_list`, which needs two:
 
 | Tool | Scope | What a reader of the code would not guess |
 |---|---|---|
@@ -32,11 +32,11 @@ An AI assistant reaches the recipe collection over the Model Context Protocol: s
 | `add_to_meal_plan` | `plan:write` | exactly one of `recipeId`, `slug`, `title` (free text); no `day` means the tray |
 | `update_meal_plan_entry` | `plan:write` | `day` or `tray`, and `servings`; a move goes to the end of the day |
 | `remove_meal_plan_entry` | `plan:write` | soft delete, lists follow; the only tool with `DestructiveHint: true` besides `delete_recipe` |
-| `put_meal_plan_on_list` | `plan:write` | `listId` or `newListName`; `Preview` minus the plan's staples, so an entry whose ingredients are all staples is skipped |
+| `put_meal_plan_on_list` | `plan:write` + `lists:write` | `listId` or `newListName`; `Preview` minus the plan's staples, so an entry whose ingredients are all staples is skipped |
 
 `update_recipe`, `delete_recipe`, the favorite and tasty pairs, `check_shopping_items`, `remove_shopping_items` and `update_meal_plan_entry` set `IdempotentHint`.
 
-The plan tools act as the token owner through `caller.plans`; a plan they cannot see answers "meal plan not found" (`planError`). Each tool takes an optional `from`/`to` (both or neither) and answers the plan for it, this week by default. `put_meal_plan_on_list` calls `Preview` and `ToList`, the same pair the HTTP route uses. Sharing, renaming and deleting plans, accepting invitations and staples stay app-only.
+The plan tools act as the token owner through `caller.plans`; a plan they cannot see answers "meal plan not found", a list they cannot reach "shopping list not found" (`planError`). Each tool takes an optional `from`/`to` (both or neither) and answers the plan for it, this week by default. `put_meal_plan_on_list` calls `Preview` and `ToList`, the same pair the HTTP route uses. Sharing, renaming and deleting plans, accepting invitations and staples stay app-only.
 
 The shopping tools act as the token owner through `caller.lists`; a list of someone else answers "shopping list not found" (`shoppingError`, which falls back to `toolError`). Sharing, renaming and deleting lists stay app-only, and a change reaches open lists live because the service publishes to its hub ([Shopping lists](/features/shopping-lists)).
 
@@ -55,7 +55,7 @@ The shopping tools act as the token owner through `caller.lists`; a list of some
 
 ### Registration and scopes
 
-**One registration serves both `tools/list` and `tools/call`.** `Handler` in `server.go` builds a fresh `mcp.Server` per request (`mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {...}, ...)`) from the package-level `tools` table - `tool{scope, add}` pairs the `init()` functions of `tools_read.go`, `tools_write.go`, `tools_comments.go`, `tools_photos.go`, `tools_lists.go` and `tools_plan.go` append - registering only the entries whose scope is in `auth.ScopesFrom(ctx)`. A `tools/list` request therefore lists exactly the tools a call may reach, because listing and checking are the same registration and cannot disagree; calling a tool outside the token's scopes is not a check that could be bypassed, it is a JSON-RPC "unknown tool" error, since the tool was never registered on that request's server.
+**One registration serves both `tools/list` and `tools/call`.** `Handler` in `server.go` builds a fresh `mcp.Server` per request (`mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {...}, ...)`) from the package-level `tools` table - `tool{scope, add}` pairs the `init()` functions of `tools_read.go`, `tools_write.go`, `tools_comments.go`, `tools_photos.go`, `tools_lists.go` and `tools_plan.go` append - registering only the entries whose scope is in `auth.ScopesFrom(ctx)`. A tool that writes into a second resource wraps its `add` in `also(scope, add)`, which registers it only when the token carries that second scope too (`caller.scopes`); `put_meal_plan_on_list` is the one such tool, because it writes a shopping list. A `tools/list` request therefore lists exactly the tools a call may reach, because listing and checking are the same registration and cannot disagree; calling a tool outside the token's scopes is not a check that could be bypassed, it is a JSON-RPC "unknown tool" error, since the tool was never registered on that request's server.
 
 **Tools call `recipe.Service` directly, as the token's owner.** Each handler receives a `caller{svc, lists, user, create, update, search, photos}` built once per request; `user` is the token owner's `user.User` from `auth.UserFrom`, the same identity a session would produce for `createdBy`, `updatedBy` and favorites. `update_recipe` and `delete_recipe` hand that user to `Service.Update` and `Service.Delete`, so a tool edits and deletes under the same [editing rights](/features/editing-rights) as REST, and `caller.fill` sets `favorite`, `tasty`, `locked` and the `can*` flags on every recipe a tool returns, as REST's `fillCaller` does. `search_recipes` names its search term `query`, not `q` as REST does.
 

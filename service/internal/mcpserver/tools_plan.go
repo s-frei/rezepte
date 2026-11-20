@@ -18,7 +18,7 @@ func init() {
 		tool{auth.ScopePlanWrite, addAddToMealPlan},
 		tool{auth.ScopePlanWrite, addUpdateMealPlanEntry},
 		tool{auth.ScopePlanWrite, addRemoveMealPlanEntry},
-		tool{auth.ScopePlanWrite, addPutMealPlanOnList},
+		tool{auth.ScopePlanWrite, also(auth.ScopeListsWrite, addPutMealPlanOnList)},
 	)
 }
 
@@ -43,8 +43,10 @@ type entryIn struct {
 // planError is toolError for the meal plan service's refusals.
 func planError(ctx context.Context, err error) error {
 	switch {
-	case errors.Is(err, mealplan.ErrNotFound), errors.Is(err, shopping.ErrNotFound):
+	case errors.Is(err, mealplan.ErrNotFound):
 		return errors.New("meal plan not found")
+	case errors.Is(err, shopping.ErrNotFound):
+		return errors.New("shopping list not found")
 	case errors.Is(err, mealplan.ErrInvalid), errors.Is(err, mealplan.ErrRecipeNotFound), errors.Is(err, shopping.ErrInvalid):
 		return err
 	}
@@ -260,7 +262,7 @@ func addPutMealPlanOnList(s *mcp.Server, c caller) {
 					pick.Include = append(pick.Include, shopping.IngredientPick{Group: ing.Group, Index: ing.Index})
 				}
 			}
-			// An empty include would mean everything.
+			// An empty include is refused, so a recipe of only staples is left out.
 			if len(pick.Include) > 0 {
 				t.Picks = append(t.Picks, pick)
 			}

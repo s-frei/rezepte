@@ -184,11 +184,9 @@ func Register(api huma.API, svc *Service) {
 		case errors.Is(err, ErrRecipeNotFound), errors.Is(err, shopping.ErrRecipeNotFound):
 			return huma.Error404NotFound("recipe not found")
 		case errors.Is(err, ErrInvalid):
-			msg := strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": ")
-			return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body." + field, Message: msg})
+			return invalidField(strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "), field)
 		case errors.Is(err, shopping.ErrInvalid):
-			msg := strings.TrimPrefix(err.Error(), shopping.ErrInvalid.Error()+": ")
-			return huma.Error422UnprocessableEntity("validation failed", &huma.ErrorDetail{Location: "body." + field, Message: msg})
+			return invalidField(strings.TrimPrefix(err.Error(), shopping.ErrInvalid.Error()+": "), field)
 		}
 		return err
 	}
@@ -317,6 +315,22 @@ func Register(api huma.API, svc *Service) {
 			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
 				b := in.Body
 				var p Plan
+				// Servings first, as MCP does: a refused change leaves the entry
+				// where it was. The move's own checks run before either.
+				if b.Day.Sent {
+					if err := checkDay(b.Day.Value); err != nil {
+						return Plan{}, err
+					}
+				}
+				if b.Position != nil && *b.Position < 0 {
+					return Plan{}, invalid("position must not be negative")
+				}
+				if b.Servings != nil {
+					var err error
+					if p, err = svc.SetServings(ctx, uid, in.ID, in.EntryID, from, to, *b.Servings); err != nil {
+						return Plan{}, err
+					}
+				}
 				if b.Day.Sent || b.Position != nil {
 					day := b.Day.Value
 					if !b.Day.Sent {
@@ -334,9 +348,6 @@ func Register(api huma.API, svc *Service) {
 					if p, err = svc.Move(ctx, uid, in.ID, in.EntryID, from, to, day, position); err != nil {
 						return Plan{}, err
 					}
-				}
-				if b.Servings != nil {
-					return svc.SetServings(ctx, uid, in.ID, in.EntryID, from, to, *b.Servings)
 				}
 				if p.ID == "" {
 					return svc.Get(ctx, uid, in.ID, from, to)
@@ -359,7 +370,10 @@ func Register(api huma.API, svc *Service) {
 			})
 		})
 
-	huma.Register(api, op("plan-to-shopping-list", http.MethodPost, "/api/v1/meal-plans/{id}/shopping", "Put planned recipes on a shopping list", http.StatusOK, 404, 422),
+	// Putting a plan on a list writes a list, so a token needs lists:write too.
+	toList := op("plan-to-shopping-list", http.MethodPost, "/api/v1/meal-plans/{id}/shopping", "Put planned recipes on a shopping list", http.StatusOK, 404, 422)
+	toList.Security = auth.Protected(auth.ScopePlanWrite, auth.ScopeListsWrite)
+	huma.Register(api, toList,
 		func(ctx context.Context, in *shoppingIn) (*toListOut, error) {
 			var listID string
 			out, err := mutation(ctx, in.Range, "picks", func(uid, from, to string) (Plan, error) {
@@ -448,4 +462,13 @@ func Register(api huma.API, svc *Service) {
 		func(ctx context.Context, in *planID) (*emptyOut, error) {
 			return command(ctx, func(uid string) error { return svc.Leave(ctx, uid, in.ID) })
 		})
+}
+
+// invalidField is a 422 naming the body field when there is one.
+func invalidField(msg, field string) error {
+	d := &huma.ErrorDetail{Message: msg}
+	if field != "" {
+		d.Location = "body." + field
+	}
+	return huma.Error422UnprocessableEntity("validation failed", d)
 }

@@ -36,8 +36,13 @@ func TestPlanToolsNeedScope(t *testing.T) {
 	if n := count(toolNames(t, e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead))); n != 2 {
 		t.Fatalf("plan:read sees %d plan tools, want 2", n)
 	}
-	if n := count(toolNames(t, e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite))); n != 6 {
-		t.Fatalf("plan:read+write sees %d plan tools, want 6", n)
+	// Putting a plan on a list writes a list: without lists:write that tool is not offered.
+	names := toolNames(t, e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite))
+	if n := count(names); n != 5 || slices.Contains(names, "put_meal_plan_on_list") {
+		t.Fatalf("plan:read+write sees %d plan tools %v, want 5 without put_meal_plan_on_list", n, names)
+	}
+	if n := count(toolNames(t, e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite, auth.ScopeListsWrite))); n != 6 {
+		t.Fatalf("plan:read+write+lists:write sees %d plan tools, want 6", n)
 	}
 }
 
@@ -80,7 +85,7 @@ func TestPutMealPlanOnListSkipsStaples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cs := e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite, auth.ScopeListsRead)
+	cs := e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite, auth.ScopeListsRead, auth.ScopeListsWrite)
 	plan := structured[mealplan.Plan](t, call(t, cs, "add_to_meal_plan", map[string]any{"recipeId": r.ID, "day": "2026-11-17"}))
 	if _, err := e.plans.SetStaple(t.Context(), e.owner.ID, plan.ID, "Salt", true); err != nil {
 		t.Fatal(err)
@@ -109,7 +114,7 @@ func TestPutMealPlanOnListSkipsStaples(t *testing.T) {
 
 func (e env) planTools(t *testing.T) *mcp.ClientSession {
 	t.Helper()
-	return e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite, auth.ScopeListsRead)
+	return e.connect(t, auth.ScopeRecipesRead, auth.ScopePlanRead, auth.ScopePlanWrite, auth.ScopeListsRead, auth.ScopeListsWrite)
 }
 
 // someone else's plan and list answer "not found" and stay as they were.
@@ -146,10 +151,10 @@ func TestPlanToolsRefuseForeignPlanAndList(t *testing.T) {
 		t.Fatalf("their plan changed: %+v, %v", got.Entries, err)
 	}
 	// Our own plan, their list.
-	mine := structured[mealplan.Plan](t, call(t, cs, "add_to_meal_plan", map[string]any{"recipeId": r.ID}))
+	mine := structured[mealplan.Plan](t, call(t, cs, "add_to_meal_plan", map[string]any{"recipeId": r.ID, "day": from}))
 	res := call(t, cs, "put_meal_plan_on_list", map[string]any{"planId": mine.ID, "from": from, "to": to, "listId": list.ID})
-	if !res.IsError {
-		t.Fatal("a foreign list was accepted")
+	if !res.IsError || !strings.Contains(text(res), "shopping list not found") {
+		t.Fatalf("a foreign list: isError=%v %q", res.IsError, text(res))
 	}
 	if l, err := e.lists.Get(t.Context(), other.ID, list.ID); err != nil || len(l.Entries) != 0 || len(l.Items) != 0 {
 		t.Fatalf("their list changed: %+v, %v", l, err)
