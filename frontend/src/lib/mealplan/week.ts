@@ -45,3 +45,30 @@ export function pastDays(monday: string, today: string): string[] {
 	if (mondayOf(today) !== monday) return [];
 	return weekDays(monday).filter((day) => day < today);
 }
+
+/**
+ * One day's names, from `Intl`: `weekday` "Mo" / "Mon" (de's dot dropped,
+ * as on a calendar), `long` "Montag", `date` "16. Nov." / "Nov 16", `number`
+ * "16." / "16", and `full` "Montag, 16. November" for a screen reader.
+ */
+export function dayNames(day: string, locale: Locale) {
+	const date = parseDate(day).toDate('UTC');
+	const format = (options: Intl.DateTimeFormatOptions) =>
+		new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(date);
+	// A day alone has no ordinal dot in `Intl`; taken from beside its month,
+	// it keeps the one German writes ("16." against "Nov 16").
+	const parts = new Intl.DateTimeFormat(locale, {
+		day: 'numeric',
+		month: 'short',
+		timeZone: 'UTC'
+	}).formatToParts(date);
+	const at = parts.findIndex((part) => part.type === 'day');
+	const dot = parts[at + 1]?.value.startsWith('.') ? '.' : '';
+	return {
+		weekday: format({ weekday: 'short' }).replace(/\.$/, ''),
+		long: format({ weekday: 'long' }),
+		date: format({ day: 'numeric', month: 'short' }),
+		number: parts[at].value + dot,
+		full: format({ weekday: 'long', day: 'numeric', month: 'long' })
+	};
+}

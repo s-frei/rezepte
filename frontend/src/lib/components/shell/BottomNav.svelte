@@ -11,7 +11,7 @@
 	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import { palette } from '#lib/palette.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { bottomNav, placeHref, type NavPlace } from '#lib/shell.svelte.js';
+	import { bottomNav, placeHref, shell, type NavPlace } from '#lib/shell.svelte.js';
 	import { docked } from './nav-scroll';
 	import NewSheet from './NewSheet.svelte';
 	import YouSheet from './YouSheet.svelte';
@@ -154,10 +154,10 @@
 	</nav>
 	<button
 		type="button"
-		aria-label={m.nav_new()}
+		aria-label={shell.add?.label ?? m.nav_new()}
 		aria-haspopup="dialog"
-		aria-expanded={newOpen}
-		onclick={() => (newOpen = true)}
+		aria-expanded={shell.add ? shell.add.expanded : newOpen}
+		onclick={() => (shell.add ? shell.add.open() : (newOpen = true))}
 		class="ml-1.5 flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-cta ring-2 ring-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 	>
 		<Plus class="size-6" aria-hidden="true" />

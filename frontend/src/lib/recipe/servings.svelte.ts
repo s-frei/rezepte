@@ -17,10 +17,15 @@ export class Servings {
 	readonly base: number;
 	value = $state(1);
 
-	constructor(recipeId: string, base: number) {
+	/** `asked`, a link's servings (the week's planned ones), wins and is kept as the choice. */
+	constructor(recipeId: string, base: number, asked: number | null = null) {
 		this.recipeId = recipeId;
 		this.base = base;
 		this.value = parseServings(load(servingsKey(recipeId))) ?? base;
+		if (asked !== null) {
+			this.value = asked;
+			writeStored(recipeId, asked === base ? null : asked);
+		}
 	}
 
 	/** True while the list shows scaled quantities. */
@@ -40,8 +45,12 @@ export class Servings {
 }
 
 /** One store per (recipe, page); the detail page and cook mode never share an instance, only the storage key. */
-export function createServings(recipeId: string, base: number): Servings {
-	return new Servings(recipeId, base);
+export function createServings(
+	recipeId: string,
+	base: number,
+	asked: number | null = null
+): Servings {
+	return new Servings(recipeId, base, asked);
 }
 
 /** Forgets the choice for a recipe (called when the recipe is deleted). */

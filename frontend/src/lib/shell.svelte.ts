@@ -22,9 +22,19 @@ import { load, save } from '#lib/storage.js';
  * });
  * ```
  */
-export const shell = $state<{ breadcrumb?: string; actions?: Snippet }>({
+export const shell = $state<{
+	breadcrumb?: string;
+	actions?: Snippet;
+	add?: { label: string; open: () => void; readonly expanded: boolean };
+}>({
 	breadcrumb: undefined,
-	actions: undefined
+	actions: undefined,
+	/**
+	 * What a phone's "+" does on this page instead of opening the new-things
+	 * sheet: its name, what it opens and whether that is open (a getter, so
+	 * the button follows the page's state). Reset like `actions`.
+	 */
+	add: undefined
 });
 
 /**

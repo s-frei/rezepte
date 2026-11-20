@@ -31,3 +31,11 @@ export function parseServings(raw: string | null): number | null {
 	const value = Number(raw);
 	return value >= SERVINGS_MIN && value <= SERVINGS_MAX ? value : null;
 }
+
+/**
+ * A link's `?servings=`, as the week opens a planned recipe: a whole number,
+ * clamped into the range; anything else is no ask at all.
+ */
+export function servingsParam(raw: string | null): number | null {
+	return raw !== null && /^\d{1,4}$/.test(raw) ? clampServings(Number(raw)) : null;
+}

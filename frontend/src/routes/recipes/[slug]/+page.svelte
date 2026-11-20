@@ -36,6 +36,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import { clear as clearChecked } from '#lib/recipe/checked.svelte.js';
 	import { clearServings } from '#lib/recipe/servings.svelte.js';
+	import { servingsParam } from '#lib/recipe/servings.js';
 	import { copyLink, ShareLink } from '#lib/recipe/share.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { back } from '#lib/page-transition.js';
@@ -244,6 +245,14 @@
 	// Entered directly (bookmark, mail, shared link) there is nothing to pop.
 	afterNavigate(({ from }) => {
 		if (from?.route.id === '/') replaceState('', { ...page.state, fromOverview: true });
+		// The week's `?servings=` is applied once, as the reader's choice
+		// (`RecipeView`), then dropped: left in the address, a reload, or the
+		// recipe loaded again after a photo, would undo a change made since.
+		if (page.url.searchParams.has('servings')) {
+			const url = new URL(page.url.href);
+			url.searchParams.delete('servings');
+			replaceState(url, page.state);
+		}
 	});
 
 	function goBack() {
@@ -450,6 +459,7 @@
 		<RecipeView
 			{recipe}
 			addable
+			servingsAsked={servingsParam(page.url.searchParams.get('servings'))}
 			onopenimage={openLightbox}
 			diaryCount={diaryEntries.length}
 			diaryNew={!diarySeen && diaryEntries.some((e) => e.new)}

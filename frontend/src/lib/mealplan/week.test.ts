@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mondayOf, pastDays, shiftWeek, weekDays, weekRange } from './week';
+import { dayNames, mondayOf, pastDays, shiftWeek, weekDays, weekRange } from './week';
 
 describe('week', () => {
 	it('finds the Monday of a day', () => {
@@ -50,5 +50,24 @@ describe('week', () => {
 	it('shifts by weeks', () => {
 		expect(shiftWeek('2026-11-30', 1)).toBe('2026-12-07');
 		expect(shiftWeek('2026-01-05', -1)).toBe('2025-12-29');
+	});
+});
+
+describe('dayNames', () => {
+	it('names a day in both languages', () => {
+		expect(dayNames('2026-11-20', 'de')).toEqual({
+			weekday: 'Fr',
+			long: 'Freitag',
+			date: '20. Nov.',
+			number: '20.',
+			full: 'Freitag, 20. November'
+		});
+		expect(dayNames('2026-11-20', 'en')).toEqual({
+			weekday: 'Fri',
+			long: 'Friday',
+			date: 'Nov 20',
+			number: '20',
+			full: 'Friday, November 20'
+		});
 	});
 });

@@ -38,8 +38,11 @@
 		diaryNew = false,
 		ondiaryopen,
 		diaryFirst = false,
-		addable = false
+		addable = false,
+		servingsAsked = null
 	}: {
+		/** The servings a link asked for (`?servings=` from the week), else the remembered ones. */
+		servingsAsked?: number | null;
 		recipe: RecipeContent;
 		/** Offers "add to shopping list"; only the signed-in recipe page sets it. */
 		addable?: boolean;
@@ -90,7 +93,7 @@
 	// caller reusing this component for another recipe), reading that
 	// recipe's stored choice. Mutations go through `servings.set()`, not this
 	// binding.
-	const servings = $derived(createServings(recipe.id, recipe.servings));
+	const servings = $derived(createServings(recipe.id, recipe.servings, servingsAsked));
 	let copyIcon = $state<CopyIcon>();
 
 	// The photo a step's phrase opened, into the caller's lightbox from there.

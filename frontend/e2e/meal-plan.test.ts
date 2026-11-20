@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { createUser, login, uniqueToken } from './helpers';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { createRecipe, createUser, loadFixture, login, openDialog, uniqueToken } from './helpers';
 
 const phone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
 
@@ -119,4 +119,288 @@ test('the picker switches to a shared plan and back to the own one', async ({ pa
 	// And the week reopens on the plan picked last.
 	await page.goto('/week');
 	await expect(picker).toHaveText('My plan');
+});
+
+// The week view. Entries are arranged through the API; what is tested is the page.
+
+type Plan = { id: string; entries: { id: string; title: string; day: string | null }[] };
+
+async function ownPlan(page: Page): Promise<string> {
+	const overview = (await (await page.request.get('/api/v1/meal-plans')).json()) as {
+		plans: { id: string; personal: boolean }[];
+	};
+	return overview.plans.find((p) => p.personal)!.id;
+}
+
+async function plan(
+	page: Page,
+	entry: { day?: string; recipeId?: string; title?: string; servings?: number }
+): Promise<Plan> {
+	const id = await ownPlan(page);
+	const made = await page.request.post(`/api/v1/meal-plans/${id}/entries`, { data: entry });
+	expect(made.ok(), await made.text()).toBe(true);
+	return (await made.json()) as Plan;
+}
+
+const day = (page: Page, name: string) => page.getByRole('region', { name });
+const tray = (page: Page) => page.getByRole('region', { name: 'Someday' });
+
+/** A finger's drag: held until the zone picks the card up, then moved over `to` in steps. */
+async function touchDrag(page: Page, from: Locator, to: Locator) {
+	const a = (await from.boundingBox())!;
+	const b = (await to.boundingBox())!;
+	const cdp = await page.context().newCDPSession(page);
+	const point = (x: number, y: number) => ({ x: Math.round(x), y: Math.round(y) });
+	const start = point(a.x + a.width / 2, a.y + a.height / 2);
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+	await page.waitForTimeout(500);
+	const end = point(b.x + b.width / 2, b.y + Math.min(b.height / 2, 40));
+	for (let i = 1; i <= 12; i++) {
+		const at = point(
+			start.x + ((end.x - start.x) * i) / 12,
+			start.y + ((end.y - start.y) * i) / 12
+		);
+		await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [at] });
+		await page.waitForTimeout(30);
+	}
+	await page.waitForTimeout(200);
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await cdp.detach();
+}
+
+test('plans a recipe and a note on a day', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Curry ${uniqueToken()}`;
+	await createRecipe(page, { ...loadFixture(1), title });
+	await page.goto('/week');
+
+	// The empty week's button opens the sheet; the day is picked in it.
+	const sheet = await openDialog(
+		page,
+		page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
+		'Plan a meal'
+	);
+	await sheet.getByRole('radio', { name: 'Wednesday, November 18' }).click();
+	await sheet.getByRole('combobox', { name: 'Recipe or note' }).fill(title.slice(0, 12));
+	await sheet.getByRole('option', { name: title }).click();
+	await expect(sheet).toBeHidden();
+	const wednesday = day(page, 'Wednesday, November 18');
+	await expect(wednesday.getByRole('link', { name: title })).toBeVisible();
+
+	// The day's own "+" knows its day; a typed text that is no recipe is a note.
+	const again = await openDialog(
+		page,
+		wednesday.getByRole('button', { name: 'Plan for Wednesday, November 18' }),
+		'Plan a meal'
+	);
+	await expect(again.getByRole('radio', { name: 'Wednesday, November 18' })).toBeChecked();
+	await again.getByRole('combobox', { name: 'Recipe or note' }).fill('Pizza bestellen');
+	await again.getByRole('option', { name: 'Add “Pizza bestellen” as a note' }).click();
+	await expect(wednesday.getByText('Pizza bestellen')).toBeVisible();
+	await expect(day(page, 'Thursday, November 19').getByText('Pizza bestellen')).toHaveCount(0);
+});
+
+test('moves an entry to another day by menu', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Klopse ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(1), title });
+	await plan(page, { day: '2026-11-17', recipeId: recipe.id, servings: 7 });
+	await page.goto('/week');
+
+	await day(page, 'Tuesday, November 17')
+		.getByRole('button', { name: `Actions for ${title}` })
+		.click();
+	await page.getByRole('menuitem', { name: 'Move to a day…' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Move to a day' });
+	await sheet.getByRole('button', { name: 'Thursday, November 19' }).click();
+	await expect(sheet).toBeHidden();
+	const thursday = day(page, 'Thursday, November 19');
+	await expect(thursday.getByRole('link', { name: title })).toBeVisible();
+	await expect(day(page, 'Tuesday, November 17').getByText(title)).toHaveCount(0);
+
+	// A tap opens the recipe at the planned servings.
+	const link = thursday.getByRole('link', { name: title });
+	await expect(link).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=7`);
+	await link.click();
+	const stepper = page.getByRole('group', { name: 'Servings' }).first();
+	await expect(stepper.getByText('7', { exact: true })).toBeVisible();
+	// Applied once, the ask leaves the address: the reader's own change
+	// outlasts the recipe loading again.
+	await expect(page).toHaveURL(new RegExp(`/recipes/${recipe.slug}$`));
+	await stepper.getByRole('button', { name: 'Fewer servings' }).click();
+	await expect(stepper.getByText('6', { exact: true })).toBeVisible();
+	await page.reload();
+	await expect(
+		page.getByRole('group', { name: 'Servings' }).first().getByText('6', { exact: true })
+	).toBeVisible();
+});
+
+test('a note typed fast and taken with Enter is the note, never a recipe', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	await createRecipe(page, { ...loadFixture(1), title: `Curry ${uniqueToken()}` });
+	await page.goto('/week');
+	const sheet = await openDialog(
+		page,
+		page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
+		'Plan a meal'
+	);
+	const field = sheet.getByRole('combobox', { name: 'Recipe or note' });
+	// The recently changed recipes are listed, but Enter on the empty field plans nothing.
+	await expect(sheet.getByRole('option').first()).toBeVisible();
+	await field.press('Enter');
+	await expect(sheet).toBeVisible();
+	// Typed and taken before the search for it answers.
+	await field.pressSequentially('Pizza bestellen', { delay: 5 });
+	await field.press('Enter');
+	await expect(sheet).toBeHidden();
+	const monday = day(page, 'Monday, November 16');
+	await expect(monday.getByText('Pizza bestellen')).toBeVisible();
+	await expect(monday.getByRole('link')).toHaveCount(0);
+});
+
+/** Takes `name` from the open entry menu by keyboard, once the menu holds the focus. */
+async function pickByKey(page: Page, name: string) {
+	const menu = page.getByRole('menu');
+	await expect.poll(() => menu.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+	await menu.getByRole('menuitem', { name }).focus();
+	await page.keyboard.press('Enter');
+}
+
+test('the keyboard stays on the week after a move or a removal', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'a keyboard path');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-17', title: 'Reste' });
+	await plan(page, { day: '2026-11-18', title: 'Suppe' });
+	await plan(page, { day: '2026-11-18', title: 'Brot' });
+	await page.goto('/week');
+
+	// Moved: the focus is on the card's ⋯ in its new day.
+	await day(page, 'Tuesday, November 17')
+		.getByRole('button', { name: 'Actions for Reste' })
+		.focus();
+	await page.keyboard.press('Enter');
+	await pickByKey(page, 'Move to a day…');
+	const sheet = page.getByRole('dialog', { name: 'Move to a day' });
+	// Bits UI focuses into the sheet a frame after it opens.
+	await expect.poll(() => sheet.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+	await sheet.getByRole('button', { name: 'Thursday, November 19' }).focus();
+	await page.keyboard.press('Enter');
+	await expect(sheet).toBeHidden();
+	const thursday = day(page, 'Thursday, November 19');
+	await expect(thursday.getByRole('button', { name: 'Actions for Reste' })).toBeFocused();
+
+	// Removed: the next card's ⋯, then, with the day empty, its "+".
+	const wednesday = day(page, 'Wednesday, November 18');
+	await wednesday.getByRole('button', { name: 'Actions for Suppe' }).focus();
+	await page.keyboard.press('Enter');
+	await pickByKey(page, 'Remove');
+	await expect(wednesday.getByRole('button', { name: 'Actions for Brot' })).toBeFocused();
+	await page.keyboard.press('Enter');
+	await pickByKey(page, 'Remove');
+	await expect(
+		wednesday.getByRole('button', { name: 'Plan for Wednesday, November 18' }).first()
+	).toBeFocused();
+});
+
+test('the phone’s "+" plans a meal on the week', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'the bottom nav');
+	await loginFresh(page);
+	await page.goto('/week');
+	// The nav's "+", named by its label (the empty week's button has the words).
+	const plus = page.locator('button[aria-label="Plan a meal"]');
+	await expect(plus).toHaveAttribute('aria-expanded', 'false');
+	await plus.click();
+	await expect(page.getByRole('dialog', { name: 'Plan a meal' })).toBeVisible();
+	await expect(plus).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('drags an entry from the tray to a day', async ({ page, isMobile }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { title: 'Flammkuchen' });
+	await plan(page, { day: '2026-11-20', title: 'Pizza bestellen' });
+	await page.goto('/week');
+
+	const card = tray(page).getByText('Flammkuchen');
+	const friday = day(page, 'Friday, November 20');
+	if (isMobile) {
+		await card.scrollIntoViewIfNeeded();
+		await touchDrag(page, card, friday.getByText('Pizza bestellen'));
+	} else {
+		const from = (await card.boundingBox())!;
+		const target = (await friday.getByText('Pizza bestellen').boundingBox())!;
+		await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+		await page.mouse.down();
+		// svelte-dnd-action places the card on an observation interval: the
+		// pointer comes to rest over the target before it lets go.
+		await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + 12, { steps: 4 });
+		await page.waitForTimeout(200);
+		await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
+		await page.waitForTimeout(400);
+		await page.mouse.up();
+	}
+	await expect(friday.getByText('Flammkuchen')).toBeVisible();
+	await expect(tray(page).getByText('Flammkuchen')).toHaveCount(0);
+	// The server took it: a reload shows it on Friday.
+	await page.reload();
+	await expect(day(page, 'Friday, November 20').getByText('Flammkuchen')).toBeVisible();
+});
+
+test('removes and undoes', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-18', title: 'Reste vom Sonntag' });
+	await page.goto('/week');
+	const wednesday = day(page, 'Wednesday, November 18');
+	await wednesday.getByRole('button', { name: 'Actions for Reste vom Sonntag' }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(wednesday.getByText('Reste vom Sonntag')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(wednesday.getByText('Reste vom Sonntag')).toBeVisible();
+	await page.reload();
+	await expect(day(page, 'Wednesday, November 18').getByText('Reste vom Sonntag')).toBeVisible();
+});
+
+test('collapses past days on a phone', async ({ page, isMobile }) => {
+	test.skip(!isMobile, 'the desktop shows every day');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-16', title: 'Klopse' });
+	await plan(page, { day: '2026-11-17', title: 'Rouladen' });
+	await plan(page, { day: '2026-11-20', title: 'Spätzle' });
+	await page.goto('/week');
+
+	const fold = page.getByRole('button', { name: /^Mon–Thu/ });
+	await expect(fold).toHaveAccessibleName('Mon–Thu · 2 entries');
+	await expect(fold).toHaveAttribute('aria-expanded', 'false');
+	await expect(day(page, 'Monday, November 16')).toBeHidden();
+	await expect(day(page, 'Friday, November 20').getByText('Spätzle')).toBeVisible();
+	await fold.click();
+	await expect(fold).toHaveAttribute('aria-expanded', 'true');
+	await expect(day(page, 'Monday, November 16').getByText('Klopse')).toBeVisible();
+
+	// Another week shows all its days.
+	await page.getByRole('button', { name: 'Previous week' }).click();
+	await expect(page.getByRole('button', { name: /^Mon–Thu/ })).toHaveCount(0);
+});
+
+test('pages weeks and keeps today marked', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
+	await page.goto('/week');
+	const friday = day(page, 'Friday, November 20');
+	await expect(friday).toHaveAttribute('aria-current', 'date');
+	await expect(friday.getByText('Today')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Next week' }).click();
+	await expect(page).toHaveURL(/from=2026-11-23/);
+	await expect(page.locator('[aria-current="date"]')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Today' }).click();
+	await expect(day(page, 'Friday, November 20')).toHaveAttribute('aria-current', 'date');
+	await expect(day(page, 'Saturday, November 21').getByText('Pizza bestellen')).toBeVisible();
 });

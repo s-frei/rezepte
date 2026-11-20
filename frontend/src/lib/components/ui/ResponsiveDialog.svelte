@@ -28,7 +28,7 @@
 		closeLabel: string;
 		/** Makes body and footer one form. */
 		onsubmit?: (event: SubmitEvent) => void;
-		/** The sheet's only: where focus goes once it has opened. */
+		/** Where focus goes once it has opened. */
 		onOpenAutoFocus?: (event: Event) => void;
 		onCloseAutoFocus?: (event: Event) => void;
 		/** The sheet body's bottom padding. */
@@ -72,7 +72,7 @@
 		{@render laidOut(sheet, 'flex min-h-0 flex-1 flex-col')}
 	</BottomSheet>
 {:else}
-	<BaseDialog bind:open {onCloseAutoFocus}>
+	<BaseDialog bind:open {onOpenAutoFocus} {onCloseAutoFocus}>
 		{@render laidOut(dialog)}
 	</BaseDialog>
 {/if}

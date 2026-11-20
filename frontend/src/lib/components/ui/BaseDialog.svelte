@@ -13,6 +13,7 @@
 		dismissible = true,
 		wide = false,
 		bleed = false,
+		onOpenAutoFocus,
 		onCloseAutoFocus,
 		children
 	}: {
@@ -35,6 +36,8 @@
 		 * along the edge instead of inside it.
 		 */
 		bleed?: boolean;
+		/** Forwarded to Bits UI: where focus goes once the dialog has opened. */
+		onOpenAutoFocus?: (event: Event) => void;
 		/** Forwarded to Bits UI: where focus goes once the dialog has closed. */
 		onCloseAutoFocus?: (event: Event) => void;
 		children: Snippet;
@@ -51,6 +54,7 @@
 			preventScroll={false}
 			escapeKeydownBehavior={dismissible ? 'close' : 'ignore'}
 			interactOutsideBehavior={dismissible ? 'close' : 'ignore'}
+			{onOpenAutoFocus}
 			{onCloseAutoFocus}
 		>
 			{#snippet child({ props, open: isOpen })}

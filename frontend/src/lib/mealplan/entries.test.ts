@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import type { PlanEntry } from '#lib/api/mealplan.js';
+import { addRows, byZone, placeEntry, TRAY } from './entries';
+
+const entry = (id: string, day: string | null, position: number): PlanEntry => ({
+	id,
+	day,
+	position,
+	recipeId: null,
+	recipeSlug: null,
+	title: id,
+	servings: null,
+	photo: null,
+	createdBy: null,
+	lists: []
+});
+
+const days = ['2026-11-16', '2026-11-17'];
+const ids = (zones: Record<string, PlanEntry[]>) =>
+	Object.fromEntries(Object.entries(zones).map(([k, v]) => [k, v.map((e) => e.id)]));
+
+describe('plan entries', () => {
+	it('groups by day and tray in position order', () => {
+		const zones = byZone(
+			[entry('b', days[0], 1), entry('t', null, 0), entry('a', days[0], 0)],
+			days
+		);
+		expect(ids(zones)).toEqual({ [TRAY]: ['t'], [days[0]]: ['a', 'b'], [days[1]]: [] });
+	});
+
+	it('moves from the tray into a day at an index and renumbers both', () => {
+		const before = [
+			entry('a', days[0], 0),
+			entry('b', days[0], 1),
+			entry('t', null, 0),
+			entry('u', null, 1)
+		];
+		const after = placeEntry(before, 't', days[0], 1);
+		expect(ids(byZone(after, days))).toEqual({
+			[TRAY]: ['u'],
+			[days[0]]: ['a', 't', 'b'],
+			[days[1]]: []
+		});
+		expect(after.find((e) => e.id === 'u')!.position).toBe(0);
+		expect(after.find((e) => e.id === 'b')!.position).toBe(2);
+	});
+
+	it('reorders within a day', () => {
+		const before = [entry('a', days[0], 0), entry('b', days[0], 1), entry('c', days[0], 2)];
+		expect(ids(byZone(placeEntry(before, 'a', days[0], 2), days))[days[0]]).toEqual([
+			'b',
+			'c',
+			'a'
+		]);
+	});
+
+	it('moves out of the shown week', () => {
+		const after = placeEntry([entry('a', days[0], 0)], 'a', '2026-11-30', 0);
+		expect(ids(byZone(after, days))[days[0]]).toEqual([]);
+	});
+});
+
+describe('addRows', () => {
+	const curry = { id: 'c' };
+	it('lists the recipes found for the text, then the note', () => {
+		expect(addRows('Cur', { query: 'Cur', items: [curry] })).toEqual([
+			{ id: 'plan-add-c', recipe: curry },
+			{ id: 'plan-add-note', note: 'Cur' }
+		]);
+	});
+
+	it('leaves out an answer for an earlier text', () => {
+		expect(addRows('Pizza bestellen', { query: '', items: [curry] })).toEqual([
+			{ id: 'plan-add-note', note: 'Pizza bestellen' }
+		]);
+	});
+
+	it('cuts a note at 120 runes', () => {
+		const rows = addRows('ä'.repeat(130), null);
+		expect([...rows[0].note!]).toHaveLength(120);
+	});
+});

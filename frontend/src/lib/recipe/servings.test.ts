@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { clampServings, parseServings, SERVINGS_MAX, SERVINGS_MIN, servingsKey } from './servings';
+import {
+	clampServings,
+	parseServings,
+	SERVINGS_MAX,
+	SERVINGS_MIN,
+	servingsKey,
+	servingsParam
+} from './servings';
 
 describe('servingsKey', () => {
 	it('prefixes the recipe id', () => {
@@ -40,5 +47,21 @@ describe('parseServings', () => {
 		expect(parseServings('0')).toBeNull();
 		expect(parseServings('100')).toBeNull();
 		expect(parseServings('2.5')).toBeNull();
+	});
+});
+
+describe('servingsParam', () => {
+	it('clamps a whole number into the range', () => {
+		expect(servingsParam('6')).toBe(6);
+		expect(servingsParam('0')).toBe(SERVINGS_MIN);
+		expect(servingsParam('120')).toBe(SERVINGS_MAX);
+	});
+
+	it('ignores anything else', () => {
+		expect(servingsParam(null)).toBeNull();
+		expect(servingsParam('')).toBeNull();
+		expect(servingsParam('-2')).toBeNull();
+		expect(servingsParam('2.5')).toBeNull();
+		expect(servingsParam('vier')).toBeNull();
 	});
 });

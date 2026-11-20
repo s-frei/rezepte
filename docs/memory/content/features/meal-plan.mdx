@@ -12,6 +12,8 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 - A change that alters what a linked list shows must go through `shopping.FollowPlan` and publish on the shopping hub after commit, Move included ([The list link](#the-list-link)).
 - The calendar feed's secret sits in the URL path, so `logRequests` writes it to the debug log, as it does a public share's token ([Calendar feed](#calendar-feed)).
 - huma names schemas by Go type, so `mealplan`'s types carry a `Plan` prefix; a plain `Summary` or `Entry` panics at startup beside `shopping` ([HTTP API](/architecture/api)).
+- svelte-dnd-action clicks a card again after a touch that never became a drag; the card's link drops the untrusted click (`event.isTrusted`), or a tap opens the recipe twice ([The week view](#the-week-view)).
+- A desktop day's drop zone runs below the row on purpose (`pb-[60vh] -mb-[60vh]`, clipped by the grid); taking the negative margin away shrinks a short day's target to its cards, taking the clip away grows the page ([The week view](#the-week-view)).
 
 </Callout>
 
@@ -67,7 +69,27 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 **`ical.go` writes RFC 5545 by hand, with the standard library.** One all-day event per entry: `DTSTART;VALUE=DATE` the day, `DTEND` the next, `UID` `<entryID>@<host of REZEPTE_PUBLIC_URL>` so a calendar keeps an entry across moves, `SUMMARY` the title, and `URL` and `DESCRIPTION` the recipe's permalink when it has one. Lines end in CRLF and fold at 75 octets, never inside a rune (continuation: CRLF plus a space); `\`, `;`, `,` and newlines are escaped in text (`TestICalFoldsAtOctetsNotRunes`, `TestICalEscapes`, `TestICalAllDayDates`, `TestICalUsesCRLF`). The fold test carries an all-umlaut summary, since a mixed one lands its cuts on ASCII and passes with a rune-splitting fold.
 
+### The week view
+
+**`/week` shows one plan's week, laid out by width.** `routes/week/+page.svelte` holds the header (place switch, week label and pager, the plan picker, the linked list line `plan.lists[0]` and "Auf die Liste" with the count `plan.unlisted`) and `AddEntrySheet`; `WeekView` in `#lib/components/mealplan/` holds the days: seven `DayColumn`s from 1200px, a `DayRow` per day from `md`, the same `DayRow` as a card on a phone. The tray (`TrayStrip`) heads all three. A week is empty, and shows `NoteEmptyState`, only without day and tray entries, so a plan with tray entries never shows it.
+
+**A phone folds this week's days gone by into one row** (`PastDays`, "Mo–Do · 6 Einträge"); another week shows every day. Today's day is `aria-current="date"`, outlined and marked "Heute". Planning onto a folded day opens the fold.
+
+**Every day and the tray is one `dndzone` of the type `plan-entry`** (`EntryZone`), with `zoneOptions` and `applyDrag` from `#lib/recipe/dnd.ts` as in the recipe editor. A finger holds 300ms (`delayTouchStart`) so a swipe still scrolls; the zone prevents the context menu while a touch is held. While a card is dragged `WeekView` keeps the zones as the drag shows them; the zone that receives the card saves the move. The cards are no Tab stops (`zoneItemTabIndex: -1`) and the library's own drag hints are off (`autoAriaDisabled`), since they would point to a keyboard drag that does not exist: the keyboard and a screen reader move an entry with its ⋯ "Auf Tag verschieben…" (`MoveSheet`), which also pages to other weeks.
+
+**A moved or removed card takes its ⋯ with it, so `WeekView` hands the focus on** (`focusAfter`, after the redraw and a frame): a move to the card's ⋯ in its new day (out of the week: the "+" of the day it left), a removal to the next card's ⋯, else the one before, else the day's "+". The move sheet and the entry menu skip their own return of focus then (`onCloseAutoFocus`). `e2e/meal-plan.test.ts` drives both by keyboard.
+
+**Every change is optimistic and goes through `PlanState.apply`.** `placeEntry` in `#lib/mealplan/entries.ts` renumbers both days the way the server will answer (`entries.test.ts`); a refused change puts the plan back, and a 404 for the entry refetches the week. Removing toasts "… entfernt" with Undo, which calls `restorePlanEntry`. Adding waits for the server, which names the new entry.
+
+**`AddEntrySheet` plans a recipe or a note in one field.** Day chips (the week's seven and "Irgendwann") preset to the day whose "+" opened it, else today in this week, else the shown Monday. The field is an ARIA combobox over `listRecipes({ q, limit: 8 })` (the recently changed recipes while empty), and the typed text as a note last; Enter takes the highlighted row, and does nothing on the empty field. `addRows` lists only an answer for exactly the text in the field, so a note typed and taken before its search answers stays a note (`entries.test.ts`, `e2e/meal-plan.test.ts`). A recipe starts at its own servings. The desktop's "Eintragen", the empty week's button and a phone's "+" open it; `shell.add` gives that "+" the week's name and the sheet's open state.
+
+**A tap on a recipe entry opens `/recipes/<slug>?servings=<n>`.** The detail page reads `servingsParam` (`#lib/recipe/servings.ts`: a whole number clamped to 1-99, anything else ignored), keeps it as the reader's choice, as the stepper would, and drops it from the address (`replaceState`): left there, a reload or the recipe loading again after a photo would undo a change made since.
+
+**The plan picker** (`PlanPicker`, shown with two plans or more) lists "Mein Plan" first, then the reader's own plans and the ones shared with them in two groups.
+
 ## Why it is this way
+
+**A phone's "+" plans a meal on `/week`** instead of opening the new-things sheet, because the week has one thing to make; a new list is one tap away on the Listen side.
 
 **Plans copy the lists' sharing**, because the owner asked for "wie Listen": one model of creator, invitation and accepted member for both, the same 404 for a stranger and a pending invitee.
 
@@ -81,6 +103,7 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 - **Showing every linked list to every plan member.** It would leak the name and contents of a private list to people its owner never shared it with.
 - **An iCalendar library for the feed.** All-day events need a handful of lines, escaping and folding; a dependency would be against "standard library first".
+- **Dragging a card by keyboard.** A card holds a link and a ⋯; a third Tab stop per card, and a keyboard drag across seven zones, cost more than "Auf Tag verschieben…", which also reaches other weeks.
 
 ## Limits
 
