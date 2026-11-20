@@ -23,6 +23,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/image"
+	"github.com/s-frei/rezepte/service/internal/ingredient"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/settings"
 	"github.com/s-frei/rezepte/service/internal/share"
@@ -763,7 +764,7 @@ func seedLists(ctx context.Context, conn *sql.DB, sum Summary, admin user.User) 
 		}
 		keys := map[string]bool{}
 		for _, n := range in(sl.checked) {
-			keys[shopping.NameKey(n)] = true
+			keys[ingredient.Key(n)] = true
 		}
 		var ids []string
 		for _, item := range l.Items {

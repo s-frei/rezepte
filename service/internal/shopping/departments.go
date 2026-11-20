@@ -3,6 +3,8 @@ package shopping
 import (
 	"slices"
 	"strings"
+
+	"github.com/s-frei/rezepte/service/internal/ingredient"
 )
 
 // Department is a store section an item is sorted under.
@@ -58,7 +60,7 @@ var defaults = func() map[string]Department {
 	m := map[string]Department{}
 	for dep, list := range words {
 		for _, w := range strings.Split(list, ",") {
-			m[NameKey(w)] = dep
+			m[ingredient.Key(w)] = dep
 		}
 	}
 	return m
@@ -73,7 +75,7 @@ var defaults = func() map[string]Department {
 // a comma or in parentheses is ignored ("hackfleisch, gemischt (halb und halb)").
 func DefaultDepartment(key string) Department {
 	if i := strings.IndexAny(key, ",("); i > 0 {
-		key = NameKey(key[:i])
+		key = ingredient.Key(key[:i])
 	}
 	if d, ok := defaults[key]; ok {
 		return d

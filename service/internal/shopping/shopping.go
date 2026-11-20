@@ -1,3 +1,5 @@
+// Package shopping holds the pure rules behind shopping lists: how item names
+// merge, which department an item belongs to, and how quantities scale.
 package shopping
 
 import (

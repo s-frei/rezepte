@@ -1,0 +1,121 @@
+[
+ {
+  "covers": true,
+  "have": "Gurke",
+  "haveKey": "gurke",
+  "need": "Salatgurke",
+  "needKey": "salatgurke"
+ },
+ {
+  "covers": true,
+  "have": "Gurke",
+  "haveKey": "gurke",
+  "need": "Gewürzgurken",
+  "needKey": "gewürzgurke"
+ },
+ {
+  "covers": false,
+  "have": "Gurke",
+  "haveKey": "gurke",
+  "need": "Gurkensalat",
+  "needKey": "gurkensalat"
+ },
+ {
+  "covers": true,
+  "have": "Ei",
+  "haveKey": "ei",
+  "need": "Eier",
+  "needKey": "ei"
+ },
+ {
+  "covers": false,
+  "have": "Ei",
+  "haveKey": "ei",
+  "need": "Eigelb",
+  "needKey": "eigelb"
+ },
+ {
+  "covers": false,
+  "have": "Ei",
+  "haveKey": "ei",
+  "need": "Reis",
+  "needKey": "reis"
+ },
+ {
+  "covers": false,
+  "have": "Brei",
+  "haveKey": "brei",
+  "need": "Ei",
+  "needKey": "ei"
+ },
+ {
+  "covers": false,
+  "have": "Rum",
+  "haveKey": "rum",
+  "need": "Rumpsteak",
+  "needKey": "rumpsteak"
+ },
+ {
+  "covers": true,
+  "have": "Essig",
+  "haveKey": "essig",
+  "need": "Rotweinessig",
+  "needKey": "rotweinessig"
+ },
+ {
+  "covers": true,
+  "have": "Rinderhackfleisch",
+  "haveKey": "rinderhackfleisch",
+  "need": "Hackfleisch",
+  "needKey": "hackfleisch"
+ },
+ {
+  "covers": true,
+  "have": "olive oil",
+  "haveKey": "olive oil",
+  "need": "oil",
+  "needKey": "oil"
+ },
+ {
+  "covers": true,
+  "have": "oil",
+  "haveKey": "oil",
+  "need": "vegetable oil",
+  "needKey": "vegetable oil"
+ },
+ {
+  "covers": false,
+  "have": "Olivenöl",
+  "haveKey": "olivenöl",
+  "need": "Öl",
+  "needKey": "öl"
+ },
+ {
+  "covers": true,
+  "have": "Zwiebel",
+  "haveKey": "zwiebel",
+  "need": "Frühlingszwiebeln",
+  "needKey": "frühlingszwiebel"
+ },
+ {
+  "covers": false,
+  "have": "Käse",
+  "haveKey": "käse",
+  "need": "Käse-Spätzle",
+  "needKey": "käse-spätzle"
+ },
+ {
+  "covers": true,
+  "have": "Spätzle",
+  "haveKey": "spätzle",
+  "need": "Käse-Spätzle",
+  "needKey": "käse-spätzle"
+ },
+ {
+  "covers": true,
+  "have": "Brühe",
+  "haveKey": "brühe",
+  "need": "Rinderbrühe",
+  "needKey": "rinderbrühe"
+ }
+]

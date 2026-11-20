@@ -1,6 +1,6 @@
-// Package shopping holds the pure rules behind shopping lists: how item names
-// merge, which department an item belongs to, and how quantities scale.
-package shopping
+// Package ingredient holds the pure rules for comparing ingredient names: the
+// normalized key and which pantry name covers which recipe ingredient.
+package ingredient
 
 import (
 	"slices"
@@ -16,7 +16,7 @@ var irregularPlurals = map[string]string{
 // fraiche" meet. ä, ö, ü and ß stay: Mohl/Möhl differ in German.
 var accents = strings.NewReplacer("é", "e", "è", "e", "ê", "e", "ë", "e", "î", "i", "ï", "i", "à", "a", "â", "a", "ô", "o", "ç", "c", "ñ", "n", "á", "a", "í", "i", "ó", "o", "ú", "u", "û", "u", "ù", "u")
 
-// NameKey normalizes an item name so that "Zwiebel", "Zwiebeln" and
+// Key normalizes an item name so that "Zwiebel", "Zwiebeln" and
 // " zwiebeln " merge: lowercase, accent-folded, trimmed, inner spaces collapsed, and the
 // plural ending stripped from the last word. Singular and plural of a word
 // reduce to the same key, which need not be a real word ("tomate").
@@ -24,7 +24,7 @@ var accents = strings.NewReplacer("é", "e", "è", "e", "ê", "e", "ë", "e", "�
 // ponytail: a handful of German and English suffix rules, not a stemmer;
 // irregulars beyond irregularPlurals (mice, Kinder) stay separate keys.
 // Upgrade to a per-language lemma table if that bites.
-func NameKey(name string) string {
+func Key(name string) string {
 	words := strings.Fields(accents.Replace(strings.ToLower(name)))
 	if len(words) == 0 {
 		return ""

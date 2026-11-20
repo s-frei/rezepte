@@ -12,6 +12,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/ingredient"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/recipeimport"
 )
@@ -486,7 +487,7 @@ func (s *Service) AddRecipe(ctx context.Context, userID, listID, recipeID string
 		for i, ing := range picked {
 			pos++
 			if err := q.InsertShoppingItem(ctx, sqlc.InsertShoppingItemParams{
-				ID: newID(), ListID: listID, EntryID: &entryID, Name: ing.Name, NameKey: NameKey(ing.Name),
+				ID: newID(), ListID: listID, EntryID: &entryID, Name: ing.Name, NameKey: ingredient.Key(ing.Name),
 				Quantity: ing.Quantity, Unit: ing.Unit, Note: ing.Note, GroupName: pickedGroup[i],
 				Position: pos, CreatedAt: now,
 			}); err != nil {
@@ -612,7 +613,7 @@ func insertFree(ctx context.Context, q *sqlc.Queries, listID, userID string, pos
 	for _, it := range items {
 		pos++
 		if err := q.InsertShoppingItem(ctx, sqlc.InsertShoppingItemParams{
-			ID: newID(), ListID: listID, Name: it.Name, NameKey: NameKey(it.Name),
+			ID: newID(), ListID: listID, Name: it.Name, NameKey: ingredient.Key(it.Name),
 			Quantity: it.Quantity, Unit: it.Unit, Note: it.Note, Position: pos, AddedBy: &userID, CreatedAt: now,
 		}); err != nil {
 			return fmt.Errorf("insert shopping item: %w", err)
@@ -665,7 +666,7 @@ func (s *Service) ClearChecked(ctx context.Context, userID, listID string) (List
 // SetDepartment sorts every item called name (by NameKey) under d on every
 // list of the instance.
 func (s *Service) SetDepartment(ctx context.Context, userID, name string, d Department) error {
-	key := NameKey(name)
+	key := ingredient.Key(name)
 	if key == "" {
 		return invalid("name must not be empty")
 	}

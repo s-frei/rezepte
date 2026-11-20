@@ -3,6 +3,7 @@ package shopping_test
 import (
 	"testing"
 
+	"github.com/s-frei/rezepte/service/internal/ingredient"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -12,7 +13,7 @@ func TestDefaultDepartment(t *testing.T) {
 	cases := map[string]shopping.Department{"Zwiebeln": shopping.Produce, "Sahne": shopping.Chilled, "Rinderhackfleisch": shopping.Meat,
 		"Kapern": shopping.Pantry, "Toastbrot": shopping.Bakery, "onion": shopping.Produce, "heavy cream": shopping.Chilled, "Spülmittel": shopping.Household, "Quatschwort": shopping.Other}
 	for name, want := range cases {
-		if got := shopping.DefaultDepartment(shopping.NameKey(name)); got != want {
+		if got := shopping.DefaultDepartment(ingredient.Key(name)); got != want {
 			t.Errorf("%s: %s, want %s", name, got, want)
 		}
 	}
@@ -39,7 +40,7 @@ func TestCommonIngredientDepartments(t *testing.T) {
 		"Lasagneplatten": shopping.Pantry, "Dinkel-Brötchen": shopping.Bakery, "Dinkel-Vollkornbrötchen": shopping.Bakery,
 	}
 	for in, want := range cases {
-		if got := shopping.DefaultDepartment(shopping.NameKey(in)); got != want {
+		if got := shopping.DefaultDepartment(ingredient.Key(in)); got != want {
 			t.Errorf("%s → %s, want %s", in, got, want)
 		}
 	}
@@ -57,7 +58,7 @@ func TestDemoIngredientsAreSorted(t *testing.T) {
 		for _, s := range samples {
 			for _, g := range s.IngredientGroups {
 				for _, i := range g.Ingredients {
-					if _, ok := demoOther[i.Name]; !ok && shopping.DefaultDepartment(shopping.NameKey(i.Name)) == shopping.Other {
+					if _, ok := demoOther[i.Name]; !ok && shopping.DefaultDepartment(ingredient.Key(i.Name)) == shopping.Other {
 						t.Errorf("%s: %q is in Other", l, i.Name)
 					}
 				}
