@@ -13,7 +13,7 @@ COPY assets/brand/lockups ./assets/brand/lockups
 RUN mkdir -p service/internal/web/dist && cd frontend && bun run build
 
 # Stage 2: build the static Go binary
-FROM --platform=$BUILDPLATFORM golang:1.27.3 AS backend
+FROM --platform=$BUILDPLATFORM golang:1.27.4 AS backend
 WORKDIR /src/service
 COPY service/go.mod service/go.sum ./
 RUN go mod download

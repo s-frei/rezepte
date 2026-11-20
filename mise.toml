@@ -5,7 +5,7 @@ monorepo_root = true
 config_roots = ["service", "frontend", "docs/memory", "docs/user"]
 
 [tools]
-go = "1.27.3"
+go = "1.27.4"
 bun = "1.4.4"
 golangci-lint = "2.15.0"
 sqlc = "1.31.1"
