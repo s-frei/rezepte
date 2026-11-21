@@ -49,6 +49,8 @@ test('add-to-list', async ({ page }, testInfo) => {
 	await page.getByRole('button', { name: 'Add to shopping list' }).click();
 	const dialog = page.getByRole('dialog');
 	await expect(dialog.getByText('Ingredients · 12 of 14')).toBeVisible();
+	// The pointer left on the ticket would show its hover behind the dialog.
+	await page.mouse.move(0, 0);
 	await shot(page, 'add-to-list');
 });
 

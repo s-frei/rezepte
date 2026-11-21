@@ -28,8 +28,10 @@ test('shopping-list', async ({ page }, testInfo) => {
 	// Two ingredients already at home, so the stub counts what is left to buy.
 	await page.getByRole('checkbox', { name: 'minced lamb' }).click();
 	await page.getByRole('checkbox', { name: 'onion' }).click();
-	const stub = page.getByRole('button', { name: 'Copy shopping list' });
+	const stub = page.getByRole('button', { name: 'Copy', exact: true });
 	await stub.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+	// The scroll brings the ticket under the last click: no hover in the shot.
+	await page.mouse.move(0, 0);
 	await shot(page, 'shopping-list');
 });
 

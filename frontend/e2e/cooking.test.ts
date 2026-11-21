@@ -105,7 +105,7 @@ test('copies the open ingredients as a shopping list and the whole list', async 
 	const recipe = await createRecipe(page, scalingRecipe(`Slip ${uniqueToken()}`));
 	await page.goto(`/recipes/${recipe.slug}`);
 	const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
-	const slip = page.getByRole('button', { name: 'Copy shopping list' });
+	const slip = page.getByRole('button', { name: 'Copy', exact: true });
 
 	await expect(slip).toHaveAccessibleDescription('2 of 2 ingredients · for 4 servings');
 	await page.getByRole('checkbox', { name: 'Salt' }).click();

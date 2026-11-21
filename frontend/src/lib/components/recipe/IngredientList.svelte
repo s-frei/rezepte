@@ -47,6 +47,13 @@
 
 	const uid = $props.id();
 	let slipIcon = $state<CopyIcon>();
+	const focus =
+		'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+	// A label too long for its key (large text) wraps inside it, centered.
+	const key =
+		'flex min-w-0 items-center justify-center rounded-xl text-center leading-tight font-semibold text-balance transition active:scale-[.98]';
+	const quiet =
+		'min-h-11 flex-1 gap-1.5 bg-surface px-2 py-1.5 text-body-sm text-primary shadow-card hover-tint';
 	let adding = $state(false);
 	let planning = $state(false);
 	const scaled = $derived(servings !== baseServings);
@@ -205,62 +212,97 @@
 				class="absolute top-0.5 -right-[11px] size-[22px] -translate-y-1/2 rounded-full bg-background"
 				aria-hidden="true"
 			></span>
-			<!-- The buttons drop under the text once it would get narrower than
-			     its title: three of them at 44px leave a 320px phone too little. -->
-			<div class="flex w-full flex-wrap items-center gap-x-4 gap-y-3 rounded-b-2xl px-6 pt-4 pb-5">
-				<span class="min-w-36 flex-1">
-					<span class="block font-display text-body-lg/normal font-medium text-primary italic">
-						{m.ingredients_slip_title()}
+			<!-- Title over a tray of actions; side by side only where the card is
+			     wide enough for both whole (the stacked tablet card). A phone and
+			     the desktop column always stack, so nothing wraps by chance. -->
+			<div class="@container px-6 pt-4 pb-5">
+				<div
+					class="flex flex-col gap-3.5 @[34rem]:flex-row @[34rem]:items-center @[34rem]:justify-between @[34rem]:gap-8"
+				>
+					<span class="min-w-0">
+						<span
+							id="{uid}-slip-title"
+							class="block font-display text-body-lg/normal font-medium text-primary italic"
+						>
+							{m.ingredients_slip_title()}
+						</span>
+						<span id="{uid}-slip" class="block text-caption text-text-muted">
+							{open === 0
+								? m.ingredients_slip_done()
+								: m.ingredients_slip_count({ open, total, servings: formatServings(servings) })}
+						</span>
 					</span>
-					<span id="{uid}-slip" class="block text-caption text-text-muted">
-						{open === 0
-							? m.ingredients_slip_done()
-							: m.ingredients_slip_count({ open, total, servings: formatServings(servings) })}
-					</span>
-				</span>
-				<span class="ml-auto flex gap-2.5 empty:hidden">
-					{#if open > 0}
-						<button
-							type="button"
-							aria-label={m.ingredients_slip_copy()}
-							aria-describedby="{uid}-slip"
-							onclick={async () => {
-								if (
-									await copyText(
-										shoppingList(groups, baseServings, servings, checkedAt),
-										m.ingredients_slip_copied()
-									)
-								) {
-									slipIcon?.play();
-								}
-							}}
-							class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary hover-tint text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96] md:size-10"
+					{#if addable || open > 0}
+						<!-- A tray pressed into the stub: the primary is a ticket across
+						     it, punched like the slip, with the quieter keys under it. -->
+						<!-- Copy alone (a recipe not the reader's own) is a plain key: a
+						     tray says "a set of actions". -->
+						<div
+							role="group"
+							aria-labelledby="{uid}-slip-title"
+							class="@container/tray flex shrink-0 flex-col gap-1.5 @[34rem]:w-88 {addable
+								? '-mx-3 rounded-2xl bg-background p-1.5 inset-shadow-hole @[34rem]:mx-0'
+								: ''}"
 						>
-							<CopyIcon bind:this={slipIcon} class="size-[18px]" />
-						</button>
+							{#if addable}
+								<button
+									type="button"
+									onclick={() => (adding = true)}
+									class="relative {key} min-h-12 gap-2 px-3 py-1.5 text-body-sm md:min-h-11 {open ===
+									0
+										? 'text-primary'
+										: 'text-primary-foreground drop-shadow-lift'} {focus}"
+								>
+									<!-- Everything at home: nothing is left to add, so the ticket
+									     is quiet, still there for adding on purpose. -->
+									<span
+										class="ticket absolute inset-0 rounded-lg {open === 0
+											? 'bg-surface dark:inset-ring dark:inset-ring-border'
+											: 'bg-primary'}"
+										aria-hidden="true"
+									></span>
+									<ShoppingBasket class="relative size-[18px] shrink-0" aria-hidden="true" />
+									<span class="relative">{m.ingredients_slip_add()}</span>
+								</button>
+							{/if}
+							<!-- Side by side while both labels fit; stacked when the text is
+							     large (the query is in rem, which grows with it). -->
+							<div class="flex gap-1.5 empty:hidden @max-[15rem]/tray:flex-col">
+								{#if open > 0}
+									<button
+										type="button"
+										aria-describedby="{uid}-slip"
+										onclick={async () => {
+											if (
+												await copyText(
+													shoppingList(groups, baseServings, servings, checkedAt),
+													m.ingredients_slip_copied()
+												)
+											) {
+												slipIcon?.play();
+											}
+										}}
+										class="{key} {quiet} {focus}"
+									>
+										<CopyIcon bind:this={slipIcon} class="size-[18px] shrink-0" />
+										{m.ingredients_slip_copy()}
+									</button>
+								{/if}
+								{#if addable && title}
+									<button
+										type="button"
+										aria-haspopup="dialog"
+										onclick={() => (planning = true)}
+										class="{key} {quiet} {focus}"
+									>
+										<CalendarPlus class="size-[18px] shrink-0" aria-hidden="true" />
+										{m.plan_add_from_recipe()}
+									</button>
+								{/if}
+							</div>
+						</div>
 					{/if}
-					{#if addable}
-						<button
-							type="button"
-							aria-label={m.ingredients_slip_add()}
-							onclick={() => (adding = true)}
-							class="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary hover-tint text-primary-foreground transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96] md:size-10"
-						>
-							<ShoppingBasket class="size-[18px]" aria-hidden="true" />
-						</button>
-					{/if}
-					{#if addable && title}
-						<button
-							type="button"
-							aria-label={m.plan_add_from_recipe()}
-							aria-haspopup="dialog"
-							onclick={() => (planning = true)}
-							class="flex size-11 shrink-0 items-center justify-center rounded-full border-[1.5px] border-primary hover-tint text-primary transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[.96] md:size-10"
-						>
-							<CalendarPlus class="size-[18px]" aria-hidden="true" />
-						</button>
-					{/if}
-				</span>
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -271,3 +313,27 @@
 		<AddToPlanDialog bind:open={planning} {recipeId} {title} {servings} />
 	{/if}
 {/if}
+
+<style>
+	/* The ticket's hover veil (`hover-tint`'s) is on the ticket, not under it:
+	   the button behind the mask shows only at the notches. */
+	@media (hover: hover) {
+		button:hover > .ticket {
+			background-image: linear-gradient(color-mix(in oklab, currentColor 14%, transparent) 0 0);
+		}
+	}
+	/* The ticket's punched sides, the tray showing through. A mask takes only
+	   alpha, so the gradient's color is no color of the design. */
+	.ticket {
+		--notch: 7px;
+		mask:
+			radial-gradient(circle at 0 50%, transparent var(--notch), black calc(var(--notch) + 0.5px))
+				left / 51% 100% no-repeat,
+			radial-gradient(
+					circle at 100% 50%,
+					transparent var(--notch),
+					black calc(var(--notch) + 0.5px)
+				)
+				right / 51% 100% no-repeat;
+	}
+</style>
