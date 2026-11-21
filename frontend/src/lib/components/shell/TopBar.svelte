@@ -92,6 +92,7 @@
 					     heading names the rest, and a cut name would only repeat it. -->
 					<a
 						href={shell.parent.href}
+						data-sveltekit-preload-data="tap"
 						class="inline-flex items-center gap-0.5 rounded-sm underline-offset-2 hover:text-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 						><ChevronLeft class="size-4 shrink-0 xl:hidden" aria-hidden="true" />{shell.parent
 							.label}</a
@@ -116,6 +117,7 @@
 			<!-- To the side of the place last used, lists or week. -->
 			<a
 				href={placeHref()}
+				data-sveltekit-preload-data="tap"
 				aria-current={place === 'lists' ? 'page' : undefined}
 				class="{segment} {segmentState(place === 'lists')}"
 			>

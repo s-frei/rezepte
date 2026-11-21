@@ -114,6 +114,7 @@
 		</a>
 		<a
 			href={placeHref()}
+			data-sveltekit-preload-data="tap"
 			aria-label={invitations.count > 0 ? `${m.nav_lists()}, ${invitations.label}` : m.nav_lists()}
 			aria-current={place === 'lists' ? 'page' : undefined}
 			data-current={current === 'lists' ? '' : undefined}

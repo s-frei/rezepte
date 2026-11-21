@@ -180,7 +180,20 @@ test('a shopping list fills from a recipe and by hand', async ({ page }) => {
 		department(page, 'Dairy & chilled').getByRole('button', { name: 'Kapern', exact: true })
 	).toBeVisible();
 
-	// Deleted, the list leaves the overview; the other stays.
+	// Deleted, the list leaves the overview; the other stays. A press on the
+	// place's link preloaded the overview first (a tap preload, kept until a
+	// navigation uses it): the delete's own way there must not show that read.
+	// (The phone's list page hides the bar.)
+	if (!phone(page)) {
+		const overview = page.waitForResponse(
+			(r) => r.url().endsWith('/api/v1/shopping-lists') && r.request().method() === 'GET'
+		);
+		await page
+			.getByRole('link', { name: /^Shopping & week/ })
+			.filter({ visible: true })
+			.dispatchEvent('mousedown');
+		await overview;
+	}
 	await page.getByRole('button', { name: 'More actions' }).click();
 	await page.getByRole('menuitem', { name: 'Delete list' }).click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();

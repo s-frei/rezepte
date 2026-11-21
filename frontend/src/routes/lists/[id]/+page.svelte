@@ -86,11 +86,15 @@
 	 * reload does not jump again.
 	 */
 	let giveBack: (() => void) | undefined;
+	/** Stops a jump still waiting to light its block. */
+	let stopJump: (() => void) | undefined;
 	// Leaving the list (to another list too: the page stays mounted then),
-	// the view the reader chose comes back.
+	// the view the reader chose comes back, and a jump still waiting stops.
 	const giveViewBack = () => {
 		giveBack?.();
 		giveBack = undefined;
+		stopJump?.();
+		stopJump = undefined;
 	};
 	onDestroy(giveViewBack);
 	beforeNavigate(({ to }) => {
@@ -121,7 +125,7 @@
 			// scrolls. Not `scrollend`: the navigation's own scroll ends one
 			// before this one starts, and older Safari has none.
 			const light = () => {
-				removeEventListener('scroll', moved);
+				stopJump?.();
 				block.dataset.lit = '';
 				setTimeout(() => delete block.dataset.lit, 1800);
 			};
@@ -131,6 +135,10 @@
 				still = setTimeout(light, 150);
 			};
 			addEventListener('scroll', moved, { passive: true });
+			stopJump = () => {
+				clearTimeout(still);
+				removeEventListener('scroll', moved);
+			};
 		});
 	});
 
@@ -183,7 +191,7 @@
 	async function deleteList() {
 		try {
 			await deleteShoppingList(list.id);
-			await goto(resolve('/lists'));
+			await goto(resolve('/lists'), { refreshAll: true });
 		} catch (error) {
 			failList(error);
 		}
@@ -193,7 +201,7 @@
 		try {
 			await leaveList(list.id);
 			toast.success(m.list_left());
-			await goto(resolve('/lists'));
+			await goto(resolve('/lists'), { refreshAll: true });
 		} catch (error) {
 			failList(error);
 		}
